@@ -13,12 +13,14 @@ Item {
     property int _runStatus: 0
     property int _totalCompleted: 0
     property int _totalTests: 0
+    property int _checkboxVersion: 0
     Timer {
         interval: 200; running: true; repeat: true
         onTriggered: {
             _runStatus = appState.runStatus
             _totalCompleted = appState.totalCompleted
             _totalTests = appState.totalTests
+            _checkboxVersion++  // force checkbox delegates to re-evaluate
         }
     }
 
@@ -103,7 +105,7 @@ Item {
                 delegate: Rectangle {
                     property int gIdx: index
                     readonly property bool canEnable: {
-                        let _force = appState.target + _runStatus  // re-evaluate on target/status change
+                        let _force = _checkboxVersion  // force re-eval every 200ms
                         return _runStatus === 1 ? false :
                             (gIdx === 3) ? (appState.target !== "") :
                             (gIdx === 4) ? appState.isTargetUrl() : true
@@ -115,7 +117,7 @@ Item {
                         CheckBox {
                             Layout.preferredWidth: 18; Layout.preferredHeight: 18
                             checkState: {
-                                let _force = appState.target + _runStatus  // re-evaluate when target or run-status changes
+                                let _force = _checkboxVersion  // force re-eval every 200ms
                                 return appState.isGroupAllEnabled(gIdx) ? Qt.Checked :
                                        appState.isGroupAnyEnabled(gIdx) ? Qt.PartiallyChecked : Qt.Unchecked
                             }
