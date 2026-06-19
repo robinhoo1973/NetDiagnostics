@@ -34,7 +34,7 @@ ColumnLayout {
             }
             Label {
                 text: "✕"; font.pixelSize: 16; color: Qt.alpha(Theme.textSecondary, 0.5)
-                visible: text !== "" && appState.runStatus !== 1
+                visible: targetField.text !== "" && appState.runStatus !== 1
                 MouseArea {
                     anchors.fill: parent
                     onClicked: { targetField.text = ""; appState.target = "" }
@@ -59,11 +59,11 @@ ColumnLayout {
                 enabled: appState.runStatus !== 1
                 onClicked: {
                     var t = targetField.text.trim()
-                    console.log("[QML] Run clicked, target='" + t + "'")
                     appState.target = t
-                    console.log("[QML] target set, calling runDiagnostics()")
+                    if (t === "") {
+                        // AppState will set errorMessage and show Error status
+                    }
                     appState.runDiagnostics()
-                    console.log("[QML] runDiagnostics() returned")
                 }
             }
         }

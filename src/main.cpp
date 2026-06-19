@@ -2,6 +2,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QVariantMap>
+#include <QIcon>
 #include <QTimer>
 #include "app/AppState.h"
 
@@ -10,9 +11,11 @@ int main(int argc, char *argv[])
     // Use basic (single-threaded) render loop — more stable on ARM64
     qputenv("QSG_RENDER_LOOP", "basic");
     QGuiApplication app(argc, argv);
-    app.setApplicationName("NetDiagnostic");
+    app.setApplicationName("NetAnalysis");
+    app.setApplicationDisplayName("NetAnalysis");
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("robinhoo1973");
+    app.setWindowIcon(QIcon(":/icons/wifi.svg"));
 
     AppState appState;
 

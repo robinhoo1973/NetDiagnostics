@@ -14,7 +14,8 @@ int main(int argc, char *argv[])
     // Use basic (single-threaded) render loop — more stable on ARM64
     qputenv("QSG_RENDER_LOOP", "basic");
     QGuiApplication app(argc, argv);
-    app.setApplicationName("NetDiagnostic Simulator");
+    app.setApplicationName("NetAnalysis Simulator");
+    app.setApplicationDisplayName("NetAnalysis Simulator");
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("robinhoo1973");
 

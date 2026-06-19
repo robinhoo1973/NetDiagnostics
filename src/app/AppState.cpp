@@ -7,10 +7,16 @@
 #include "app/NativeService.h"
 #include "util/Logger.h"
 #include <cstdio>
+#include <chrono>
 #include <thread>
 #include <atomic>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrent>
+#include <QDialog>
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QDialogButtonBox>
+#include <QScrollArea>
 
 AppState::AppState(QObject* parent) : QObject(parent) {
     // Enable all tests by default
@@ -102,6 +108,15 @@ bool AppState::isGroupAnyEnabled(int groupInt) const {
 void AppState::runDiagnostics() {
     if (m_runStatus == RunStatus::Running) return;
     fprintf(stderr, "[TRACE] runDiagnostics start target='%s'\n", m_target.toUtf8().constData());
+
+    // Guard: require a target (Flutter enforces this via UI validation)
+    if (m_target.trimmed().isEmpty()) {
+        m_errorMessage = QStringLiteral("Please enter a target URL, IP address, or hostname.");
+        m_runStatus = RunStatus::Error;
+        emit runStatusChanged();
+        fprintf(stderr, "[TRACE] runDiagnostics blocked: empty target\n");
+        return;
+    }
     m_errorMessage.clear();
 
     m_runStatus = RunStatus::Running;
@@ -118,6 +133,8 @@ void AppState::runDiagnostics() {
     m_pendingGroups.clear();
     bool hasTarget = !m_target.isEmpty();
     bool isUrl = m_target.startsWith("http://") || m_target.startsWith("https://");
+    fprintf(stderr, "[TRACE] runDiagnostics: enabledTests=%d hasTarget=%d isUrl=%d\n",
+            (int)m_enabledTests.size(), hasTarget, isUrl);
     for (int g = 0; g < 5; ++g) {
         GroupTask gt;
         gt.group = static_cast<TestGroup>(g);
@@ -154,6 +171,7 @@ void AppState::runDiagnostics() {
 void AppState::startNextGroup() {
     if (m_runStatus != RunStatus::Running) return;
     if (m_currentGroupIdx >= m_pendingGroups.size()) {
+        fprintf(stderr, "[TRACE] All groups complete. Setting runStatus=Completed.\n");
         m_runStatus = RunStatus::Completed;
         m_currentTestName.clear();
         m_currentGroup.clear();
@@ -187,12 +205,15 @@ void AppState::runTestInGroup(int groupIdx, int testIdx) {
     fprintf(stderr, "[TRACE] runTest id=%d name='%s' group=%d\n", (int)id, m_currentTestName.toUtf8().constData(), groupIdx);
 
     // Run test; post result back to main thread via QTimer
-    std::thread t([this, id, groupIdx]() {
-        try {
-            auto cmd = createPlatformCommand();
-            DiagnosticEngine localEngine(std::move(cmd), nullptr);
-            DiagnosticResult result = localEngine.runTest(id, m_target, m_portScanFrom, m_portScanTo, m_portScanCommon).result();
-            QTimer::singleShot(0, this, [this, id, result, groupIdx]() {
+     std::thread t([this, id, groupIdx]() {
+            try {
+                auto start = std::chrono::steady_clock::now();
+                auto cmd = createPlatformCommand();
+                DiagnosticEngine localEngine(std::move(cmd), nullptr);
+                DiagnosticResult result = localEngine.runTest(id, m_target, m_portScanFrom, m_portScanTo, m_portScanCommon).result();
+                auto end = std::chrono::steady_clock::now();
+                result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                QTimer::singleShot(0, this, [this, id, result, groupIdx]() {
                 onTestFinished(id, result);
                 int done = m_activeGroupDone.fetch_add(1) + 1;
                 auto& gt = m_pendingGroups[groupIdx];
@@ -224,6 +245,7 @@ void AppState::onTestFinished(TestId id, DiagnosticResult result) {
     m_results[id] = result;
     m_totalCompleted++;
     m_completedPerGroup[g]++;
+    m_resultsVersion++;
 
     emit progressChanged();
     emit testCompleted(static_cast<int>(id));
@@ -248,6 +270,7 @@ void AppState::reset() {
     m_pendingGroups.clear();
     m_currentGroupIdx = 0;
     m_activeGroupDone.store(0);
+    m_resultsVersion = 0;
     emit runStatusChanged();
     emit progressChanged();
     emit resultsReset();
@@ -262,6 +285,7 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
             const auto& r = m_results[id];
             QVariantMap m;
             m["id"] = static_cast<int>(r.id);
+            m["testId"] = static_cast<int>(r.id);
             m["displayName"] = r.displayName.isEmpty() ? staticTestDisplayName(r.id) : r.displayName;
             m["status"] = static_cast<int>(r.status);
             m["statusIcon"] = r.statusIcon();
@@ -300,6 +324,7 @@ QVariantList AppState::allTestsForGroup(int groupInt) const {
             const auto& r = m_results[id];
             QVariantMap m;
             m["id"] = static_cast<int>(r.id);
+            m["testId"] = static_cast<int>(r.id);  // alias for QML access
             m["displayName"] = r.displayName.isEmpty() ? staticTestDisplayName(r.id) : r.displayName;
             m["status"] = static_cast<int>(r.status);
             m["statusIcon"] = r.statusIcon();
@@ -324,6 +349,7 @@ QVariantList AppState::allTestsForGroup(int groupInt) const {
                           && (m_currentTestName == staticTestDisplayName(id));
             QVariantMap m;
             m["id"] = static_cast<int>(id);
+            m["testId"] = static_cast<int>(id);  // alias for QML access (consistent with completed)
             m["displayName"] = staticTestDisplayName(id);
             m["status"] = -1;
             m["statusIcon"] = QStringLiteral("⊖");
@@ -418,4 +444,107 @@ QVariantList AppState::allGroupStats() const {
     QVariantList list;
     for (int g = 0; g < 5; ++g) list.append(groupStats(g));
     return list;
+}
+
+void AppState::showDetailDialog(int testIdInt) {
+    if (!isValidTestId(testIdInt)) return;
+    auto id = static_cast<TestId>(testIdInt);
+    if (!m_results.contains(id)) return;
+    
+    const auto& r = m_results[id];
+    
+    // Use heap-allocated dialog with show() instead of exec()
+    // exec() creates a nested event loop that crashes QML on ARM64
+    auto* dlg = new QDialog(nullptr, Qt::Dialog | Qt::WindowCloseButtonHint);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(r.displayName);
+    dlg->setMinimumSize(450, 350);
+    dlg->setModal(true);
+    dlg->setStyleSheet(QStringLiteral(
+        "QDialog { background-color: #1E1E2E; }"
+        "QLabel { color: #E0E0E0; font-family: 'JetBrains Mono'; }"
+        "QPushButton { color: #E0E0E0; background-color: #252538; border: 1px solid #3A3A5A; padding: 6px 16px; border-radius: 4px; }"
+        "QPushButton:hover { background-color: #0078D4; }"
+    ));
+    
+    auto* layout = new QVBoxLayout(dlg);
+    layout->setSpacing(8);
+    
+    // Status line
+    QStringList statusNames = {"Pass", "Warning", "Fail", "Skipped", "Error", "Info"};
+    auto* statusLabel = new QLabel(QStringLiteral("Status: %1    Duration: %2ms")
+        .arg(statusNames.value(static_cast<int>(r.status), "Unknown"))
+        .arg(r.durationMs));
+    statusLabel->setStyleSheet("font-size: 13px; font-weight: bold; color: #A0A0B8;");
+    layout->addWidget(statusLabel);
+    
+    // Summary
+    if (!r.summary.isEmpty()) {
+        auto* sumLabel = new QLabel(QStringLiteral("Summary: %1").arg(r.summary));
+        sumLabel->setStyleSheet("font-size: 12px; color: #E0E0E0;");
+        sumLabel->setWordWrap(true);
+        layout->addWidget(sumLabel);
+    }
+    
+    // Properties
+    if (!r.properties.isEmpty()) {
+        auto* propHeader = new QLabel("Properties:");
+        propHeader->setStyleSheet("font-size: 11px; font-weight: bold; color: #A0A0B8; margin-top: 8px;");
+        layout->addWidget(propHeader);
+        
+        for (const auto& p : r.properties) {
+            auto* propLabel = new QLabel(QStringLiteral("  %1: %2").arg(p.label, p.value));
+            propLabel->setStyleSheet("font-size: 11px; color: #E0E0E0;");
+            propLabel->setWordWrap(true);
+            layout->addWidget(propLabel);
+        }
+    }
+    
+    // Raw output (scrollable)
+    if (!r.details.isEmpty()) {
+        auto* outHeader = new QLabel("Output:");
+        outHeader->setStyleSheet("font-size: 11px; font-weight: bold; color: #A0A0B8; margin-top: 8px;");
+        layout->addWidget(outHeader);
+        
+        auto* scrollArea = new QScrollArea();
+        scrollArea->setStyleSheet("QScrollArea { background-color: #252538; border: none; border-radius: 4px; }");
+        scrollArea->setMaximumHeight(200);
+        
+        auto* detailText = new QLabel(r.details);
+        detailText->setStyleSheet("font-size: 10px; color: #A0A0B8; padding: 8px;");
+        detailText->setWordWrap(true);
+        scrollArea->setWidget(detailText);
+        layout->addWidget(scrollArea);
+    }
+    
+    // Close button
+    auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
+    QObject::connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+    layout->addWidget(btnBox);
+    
+    dlg->show();
+}
+
+QVariantMap AppState::getDetailResult(int testIdInt) const {
+    QVariantMap m;
+    if (!isValidTestId(testIdInt)) return m;
+    auto id = static_cast<TestId>(testIdInt);
+    if (!m_results.contains(id)) return m;
+    
+    const auto& r = m_results[id];
+    m["displayName"] = r.displayName;
+    m["status"] = static_cast<int>(r.status);
+    m["summary"] = r.summary;
+    m["details"] = r.details;
+    m["durationMs"] = r.durationMs;
+    
+    QVariantList props;
+    for (const auto& p : r.properties) {
+        QVariantMap pm;
+        pm["label"] = p.label;
+        pm["value"] = p.value;
+        props.append(pm);
+    }
+    m["properties"] = props;
+    return m;
 }

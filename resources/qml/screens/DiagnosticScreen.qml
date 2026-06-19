@@ -9,10 +9,23 @@ Item {
     objectName: "diagnostic"
     readonly property bool wide: width >= 600
 
+    // ── Polled state (C++ signals are unreliable on ARM64) ────────────
+    property int _runStatus: 0
+    property int _totalCompleted: 0
+    property int _totalTests: 0
+    Timer {
+        interval: 200; running: true; repeat: true
+        onTriggered: {
+            _runStatus = appState.runStatus
+            _totalCompleted = appState.totalCompleted
+            _totalTests = appState.totalTests
+        }
+    }
+
     // Filter groups: only show those with enabled tests or results
-    // Depends on totalCompleted + runStatus to trigger re-evaluation
+    property var currentDetail: ({})
     property var visibleGroups: {
-        var _force = appState.totalCompleted + appState.runStatus
+        var _force = _totalCompleted + _runStatus
         var g = []
         for (var i = 0; i < appState.groupLabels.length; i++) {
             var s = appState.groupStats(i)
@@ -42,13 +55,13 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: appState.totalCompleted > 0 ? 0.29 * page.height : 0.5 * page.height
+            Layout.preferredHeight: _totalCompleted > 0 ? 0.29 * page.height : 0.5 * page.height
             color: Theme.bgSidebar; clip: true
             Flickable {
                 anchors.fill: parent; contentHeight: sidebarCol.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 ColumnLayout { id: sidebarCol; width: parent.width
-                    SidebarContent { width: parent.width; compact: appState.totalCompleted > 0 }
+                    SidebarContent { width: parent.width; compact: _totalCompleted > 0 }
                 }
             }
         }
@@ -61,16 +74,16 @@ Item {
         property bool compact: false
         spacing: 0
 
-        // Header
+        // Header — matches Flutter Container(padding h16 v14, border bottom #3A3A5A)
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 49
+            Layout.fillWidth: true; implicitHeight: 48
             color: "transparent"
             border { width: 1; color: "#3A3A5A" }
             RowLayout {
-                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 16; rightMargin: 16 }
+                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 AppIcon { name: "wifi"; size: 20; color: Theme.cyan }
                 Item { width: 10 }
-                Label { text: "NetDiagnostic"; font.family: "JetBrains Mono"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
+                Label { text: "NetAnalysis"; font.family: "JetBrains Mono"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
             }
         }
 
@@ -78,7 +91,7 @@ Item {
         Item { Layout.preferredHeight: 12 }
         TargetInputPanel { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12 }
 
-        // Layer checkboxes (not in compact) — matches Flutter _buildLayerCheckboxes
+        // Layer checkboxes
         Item { Layout.preferredHeight: 8; visible: !compact }
         ColumnLayout {
             visible: !compact; spacing: 2
@@ -89,17 +102,14 @@ Item {
                 model: appState.groupLabels.length
                 delegate: Rectangle {
                     property int gIdx: index
-                    readonly property bool canEnable:
-                        appState.runStatus === 1 ? false :
+                    readonly property bool canEnable: _runStatus === 1 ? false :
                         (gIdx === 3) ? (appState.target !== "") :
-                        (gIdx === 4) ? (appState.target.indexOf("://") >= 0) :
-                        true
+                        (gIdx === 4) ? (appState.target.indexOf("://") >= 0) : true
                     Layout.fillWidth: true; implicitHeight: 32; radius: 6
                     color: appState.isGroupAllEnabled(gIdx) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                     RowLayout {
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         CheckBox {
-                            id: gCb
                             Layout.preferredWidth: 18; Layout.preferredHeight: 18
                             checkState: appState.isGroupAllEnabled(gIdx) ? Qt.Checked :
                                         appState.isGroupAnyEnabled(gIdx) ? Qt.PartiallyChecked : Qt.Unchecked
@@ -120,18 +130,18 @@ Item {
             }
         }
 
-        // Port scan — Flutter order: checkboxes → SizedBox(8) → PortScanConfig
+        // Port scan
         Item { Layout.preferredHeight: 8; visible: !compact }
         PortScanConfig { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; visible: !compact }
 
-        // Divider — Flutter: Divider(color:#3A3A5A, height:20) between portscan and analysis
+        // Divider
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: 20; color: "transparent"
             visible: !compact
             Rectangle { anchors.centerIn: parent; width: parent.width - 24; height: 1; color: "#3A3A5A" }
         }
 
-        // Target Analysis (Flutter: after divider, only when target non-empty)
+        // Target Analysis
         TargetAnalysisPanel {
             Layout.fillWidth: true
             Layout.leftMargin: 12; Layout.rightMargin: 12
@@ -139,21 +149,15 @@ Item {
             target: appState.target
         }
 
-        // Spacer — Flutter: Spacer() pushes SummaryCards to bottom (wide only, not compact)
-        Item {
-            Layout.fillHeight: true
-            visible: !compact
-        }
+        // Spacer
+        Item { Layout.fillHeight: true; visible: !compact }
 
-        // Summary cards — Flutter: Container(top border) always visible at bottom
+        // Summary cards
         Rectangle {
             Layout.fillWidth: true; implicitHeight: summaryCards.implicitHeight + 24
             color: "transparent"
             border { width: 1; color: "#3A3A5A" }
-            SummaryCards {
-                id: summaryCards
-                anchors { fill: parent; margins: 12; topMargin: 8; bottomMargin: 16 }
-            }
+            SummaryCards { id: summaryCards; anchors { fill: parent; margins: 12; topMargin: 8; bottomMargin: 16 } }
         }
     }
 
@@ -161,7 +165,7 @@ Item {
     component ContentArea: ColumnLayout {
         spacing: 0
 
-        // Header bar — Flutter: Container color #1A1A2E, padding h16 v10, no border
+        // Header bar
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 41
             color: "#1A1A2E"
@@ -170,18 +174,18 @@ Item {
                 AppIcon { name: "diagnostics"; size: 18; color: Theme.cyan }
                 Item { width: 8 }
                 Label {
-                    text: appState.runStatus === 1 ? "Running Diagnostics..." :
-                          appState.runStatus === 2 ? "Diagnostic Complete" :
-                          appState.runStatus === 3 ? "Cancelled" :
-                          appState.runStatus === 4 ? "Error" : "Results"
+                    text: _runStatus === 1 ? "Running Diagnostics..." :
+                          _runStatus === 2 ? "Diagnostic Complete" :
+                          _runStatus === 3 ? "Cancelled" :
+                          _runStatus === 4 ? "Error — Check Target" : "Results"
                     font.family: "JetBrains Mono"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary
                 }
                 Item { Layout.fillWidth: true }
                 Button {
-                    visible: appState.runStatus >= 2 && appState.totalCompleted > 0
+                    visible: _runStatus >= 2 && _totalCompleted > 0
                     implicitHeight: 32
                     text: "Reset"
-                    font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.Normal
+                    font.family: "JetBrains Mono"; font.pixelSize: 12
                     flat: true
                     background: Rectangle { radius: 6; color: "transparent"; border { width: 1; color: "#5A5A7A" } }
                     contentItem: Label { text: "↻ Reset"; font: parent.font; color: Theme.textSecondary; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
@@ -193,54 +197,127 @@ Item {
         // Results body
         Item {
             Layout.fillWidth: true; Layout.fillHeight: true
-            // Idle state (Flutter: "Enter a target and press Run")
             Column {
                 anchors.centerIn: parent; spacing: 16
-                visible: appState.runStatus === 0 && appState.totalCompleted === 0
+                visible: _runStatus === 0 && _totalCompleted === 0
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "wifi"; size: 80; color: Qt.alpha(Theme.textSecondary, 0.2) }
                 Label { anchors.horizontalCenter: parent.horizontalCenter; text: "Enter a target and press Run"; font.family: "JetBrains Mono"; font.pixelSize: 15; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
                 Label { anchors.horizontalCenter: parent.horizontalCenter; text: "Analyze your network with a single click"; font.family: "JetBrains Mono"; font.pixelSize: 12; color: Qt.alpha(Theme.textSecondary, 0.4) }
             }
-            // Tree view results — Flickable + Repeater avoids ListView delegate bugs
             Flickable {
-                id: treeFlick
-                anchors { fill: parent; topMargin: 4; bottomMargin: 8 }
-                visible: appState.totalCompleted > 0 || appState.runStatus === 1
+                anchors { fill: parent; margins: 6 }
+                visible: _totalCompleted > 0 || _runStatus === 1
                 clip: true
                 contentWidth: width
-                contentHeight: treeCol.implicitHeight + 8
-                boundsBehavior: Flickable.StopAtBounds
+                contentHeight: resultCol.implicitHeight + 8
                 Column {
-                    id: treeCol
-                    width: parent.width - 8
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 2
+                    id: resultCol; width: parent.width; spacing: 4
                     Repeater {
                         model: visibleGroups
                         delegate: TestGroupPanel {
                             groupIndex: modelData
-                            width: treeCol.width
+                            width: resultCol.width
+                            onDetailClicked: function(data) {
+                                var tid = data.testId
+                                var d = appState.getDetailResult(tid)
+                                page.currentDetail = d
+                                dtTitle.text = (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid)
+                                var statStr = "Unknown"
+                                if (d && d.status !== undefined) statStr = ["Pass","Warning","Fail","Skipped","Error","Info"][d.status] || "Unknown"
+                                var durStr = (d && d.durationMs) ? d.durationMs : (data.durationMs || 0)
+                                dtStatus.text = "Status: " + statStr + "    Duration: " + durStr + "ms"
+                                dtSummary.text = (d && d.summary) ? d.summary : (data.summary || "")
+                                dtOutput.text = (d && d.details) ? d.details : ""
+                                detailOverlay.visible = true
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Bottom bar — LiveProgress or IdleReady
+        // Bottom bar
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 40
             color: "#1A1A2E"
             border { width: 1; color: "#3A3A5A" }
-            LiveProgressPanel {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 16; topMargin: 10; bottomMargin: 12 }
-                visible: appState.runStatus >= 1 && appState.runStatus <= 4
+            // Polled LiveProgress
+            RowLayout {
+                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                visible: _runStatus >= 1 && _runStatus <= 4
+                spacing: 8
+                Label {
+                    text: _runStatus === 1 ? "⟳" : _runStatus === 2 ? "✓" : _runStatus === 3 ? "✗" : _runStatus === 4 ? "⚠" : "○"
+                    font.pixelSize: 14
+                    color: _runStatus === 1 ? Theme.cyan : _runStatus === 2 ? Theme.passGreen : _runStatus === 3 ? Theme.warnYellow : _runStatus === 4 ? Theme.failRed : Qt.alpha(Theme.textSecondary, 0.4)
+                }
+                Label {
+                    text: _runStatus === 1 ? "Running" : _runStatus === 2 ? "Complete" : _runStatus === 3 ? "Cancelled" : _runStatus === 4 ? "Error" : "Ready"
+                    font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.DemiBold
+                    color: _runStatus === 1 ? Theme.cyan : _runStatus === 2 ? Theme.passGreen : _runStatus === 3 ? Theme.warnYellow : _runStatus === 4 ? Theme.failRed : Theme.textSecondary
+                }
+                AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: Theme.failRed }
+                Item { Layout.fillWidth: true }
+                Label { visible: _runStatus === 1; text: appState.currentTestLabel || ""; font.family: "JetBrains Mono"; font.pixelSize: 11; font.italic: true; color: Theme.cyan; elide: Text.ElideRight; Layout.maximumWidth: 300 }
+                Label { visible: _totalTests > 0; text: _totalCompleted + " / " + _totalTests; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
             }
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                visible: appState.runStatus === 0
+                visible: _runStatus === 0
                 AppIcon { name: "circle"; size: 14; color: Theme.textSecondary }
                 Item { width: 8 }
                 Label { text: "Ready"; font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.textSecondary }
+            }
+        }
+    }
+
+    // ── Detail popup ──────────────────────────────────────────────────
+    Rectangle {
+        id: detailOverlay
+        anchors.fill: parent
+        color: "#88000000"
+        visible: false; z: 100
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: detailOverlay.visible = false
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(600, parent.width - 20)
+            height: Math.min(parent.height - 40, 600)
+            radius: 14
+            color: "#252538"
+            border { width: 1.5; color: "#4A4A6A" }
+
+            Rectangle {
+                anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 8 }
+                width: 24; height: 24; radius: 12; color: "#FF4444"
+                Label { anchors.centerIn: parent; text: "✕"; font.pixelSize: 12; font.weight: Font.Bold; color: "white" }
+                MouseArea { anchors.fill: parent; onClicked: detailOverlay.visible = false }
+            }
+
+            ScrollView {
+                anchors { fill: parent; margins: 16; topMargin: 36 }
+                clip: true
+                ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                Column {
+                    id: detailCol; width: parent.width; spacing: 8
+                    Label { id: dtTitle; text: ""; font.family: "JetBrains Mono"; font.pixelSize: 16; font.weight: Font.DemiBold; color: "#FFFFFF"; width: parent.width }
+                    Label { id: dtStatus; text: ""; font.family: "JetBrains Mono"; font.pixelSize: 12; color: "#A0A0B8"; width: parent.width }
+                    Label { id: dtSummary; text: ""; font.family: "JetBrains Mono"; font.pixelSize: 12; color: "#E0E0E0"; wrapMode: Text.WordWrap; width: parent.width }
+                    Rectangle { width: parent.width; height: 1; color: "#3A3A5A" }
+                    Repeater {
+                        model: currentDetail.properties || []
+                        delegate: Row {
+                            spacing: 4
+                            Label { text: (modelData.label||"?")+":"; font.family:"JetBrains Mono"; font.pixelSize:11; font.weight:Font.DemiBold; color:"#A0A0B8"; width:120 }
+                            Label { text: modelData.value||""; font.family:"JetBrains Mono"; font.pixelSize:11; color:"#E0E0E0"; width:parent.width-124; wrapMode:Text.WordWrap }
+                        }
+                    }
+                    Label { id: dtOutput; text: ""; font.family:"JetBrains Mono"; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.WordWrap; width:parent.width; visible:text!=="" }
+                }
             }
         }
     }

@@ -13,15 +13,15 @@ ColumnLayout {
             width: 14; height: 14
             Label {
                 anchors.centerIn: parent
-                text: status === 1 ? "⟳" : status === 2 ? "✓" : status === 3 ? "✗" : "○"
+                text: status === 1 ? "⟳" : status === 2 ? "✓" : status === 3 ? "✗" : status === 4 ? "⚠" : "○"
                 font.pixelSize: 14
-                color: status === 1 ? Theme.cyan : status === 2 ? Theme.passGreen : status === 3 ? Theme.warnYellow : Qt.alpha(Theme.textSecondary, 0.4)
+                color: status === 1 ? Theme.cyan : status === 2 ? Theme.passGreen : status === 3 ? Theme.warnYellow : status === 4 ? Theme.failRed : Qt.alpha(Theme.textSecondary, 0.4)
             }
         }
         Label {
-            text: status === 1 ? "Running" : status === 2 ? "Complete" : status === 3 ? "Cancelled" : "Ready"
+            text: status === 1 ? "Running" : status === 2 ? "Complete" : status === 3 ? "Cancelled" : status === 4 ? "Error" : "Ready"
             font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.DemiBold
-            color: status === 1 ? Theme.cyan : status === 2 ? Theme.passGreen : status === 3 ? Theme.warnYellow : Theme.textSecondary
+            color: status === 1 ? Theme.cyan : status === 2 ? Theme.passGreen : status === 3 ? Theme.warnYellow : status === 4 ? Theme.failRed : Theme.textSecondary
         }
         AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: Theme.failRed }
         Item { Layout.fillWidth: true }

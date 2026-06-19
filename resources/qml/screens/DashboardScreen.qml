@@ -7,7 +7,17 @@ import "../widgets"
 Item {
     id: page
     objectName: "dashboard"
-    property bool hasData: appState.totalCompleted > 0 && appState.runStatus === 2
+    // ── Polled state (C++ signals unreliable on ARM64) ────────────────
+    property int _runStatus: 0
+    property int _totalCompleted: 0
+    Timer {
+        interval: 200; running: true; repeat: true
+        onTriggered: {
+            _runStatus = appState.runStatus
+            _totalCompleted = _totalCompleted
+        }
+    }
+    property bool hasData: _totalCompleted > 0 && _runStatus === 2
     readonly property var allStats: appState.allGroupStats || []
 
     function statusIcon(s) { switch(s) { case 0: return "✓"; case 1: return "⚠"; case 2: return "✗"; case 3: return "⊖"; default: return "ⓘ" } }
@@ -113,12 +123,12 @@ Item {
                     Item { width: 24 }
                     SummaryStat { appIcon: "timer"; clr: Theme.accentBlue; val: calcTotalTime(); lbl: "Total Time" }
                     Item { width: 24 }
-                    SummaryStat { appIcon: "check"; clr: Theme.passGreen; val: appState.totalCompleted; lbl: "Completed" }
+                    SummaryStat { appIcon: "check"; clr: Theme.passGreen; val: _totalCompleted; lbl: "Completed" }
                     }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2A2A4A"; visible: appState.totalCompleted > 0 }
-                    Item { Layout.preferredHeight: 12; visible: appState.totalCompleted > 0 }
-                    Label { text: "Layer Timings"; font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.textSecondary; visible: appState.totalCompleted > 0 }
-                    Item { Layout.preferredHeight: 8; visible: appState.totalCompleted > 0 }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2A2A4A"; visible: _totalCompleted > 0 }
+                    Item { Layout.preferredHeight: 12; visible: _totalCompleted > 0 }
+                    Label { text: "Layer Timings"; font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.textSecondary; visible: _totalCompleted > 0 }
+                    Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
                     Repeater {
                         model: appState.groupLabels.length
                         delegate: RowLayout {

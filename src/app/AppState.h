@@ -34,6 +34,7 @@ class AppState : public QObject {
     Q_PROPERTY(bool portScanCommon READ portScanCommon WRITE setPortScanCommon NOTIFY portScanConfigChanged)
     Q_PROPERTY(int portScanFrom READ portScanFrom WRITE setPortScanFrom NOTIFY portScanConfigChanged)
     Q_PROPERTY(int portScanTo READ portScanTo WRITE setPortScanTo NOTIFY portScanConfigChanged)
+    Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
 
 public:
     explicit AppState(QObject* parent = nullptr);
@@ -79,6 +80,10 @@ public:
     Q_INVOKABLE QVariantList allTestIdsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;
     QVariantList allGroupStats() const;
+    Q_INVOKABLE void showDetailDialog(int testIdInt);
+    Q_INVOKABLE QVariantMap getDetailResult(int testIdInt) const;
+    Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
+    int resultsVersion() const { return m_resultsVersion; }
 
 signals:
     void targetChanged();
@@ -123,4 +128,5 @@ private:
     QList<GroupTask> m_pendingGroups;
     int m_currentGroupIdx = 0;
     std::atomic<int> m_activeGroupDone{0};
+    int m_resultsVersion = 0;
 };

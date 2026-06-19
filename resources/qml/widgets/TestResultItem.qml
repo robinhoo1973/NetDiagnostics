@@ -2,296 +2,130 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// ── Flutter TestResultItem — 2-line collapsed + detail dialog ───────
-Rectangle {
+// ── Flutter TestResultItem 1:1 — 2-line collapsed + pending + detail click ──
+Item {
     id: root
-    property var resultData: null
-    property bool isPending: resultData ? (resultData.isPending === true) : true
-    property bool isRunning: resultData ? (resultData.isRunning === true) : false
+    property var itemData: ({})          // from allTestsForGroup entry
+    property var detailResult: ({})      // from getDetailResult (on click)
+    property var appState: null           // injected by parent
 
-    implicitHeight: isPending ? 30 : (resultData && resultData.summary ? 52 : 38)
-    color: "transparent"
+    implicitHeight: contentLayout.implicitHeight + 6
+    signal detailClicked(var data)
 
-    function statusIcon(s) {
-        switch(s) { case 0: return "✓"; case 1: return "⚠"; case 2: return "✗"; case 3: return "⊖"; case 4: return "✗"; default: return "ⓘ" }
-    }
-    function statusColor(s) {
-        switch(s) { case 0: return Theme.passGreen; case 1: return Theme.warnYellow; case 2: return Theme.failRed; case 3: return Theme.skipGray; case 4: return Theme.failRed; default: return Theme.accentBlue }
-    }
-    function fmtDur(ms) {
-        var m = ms || 0
-        if (m >= 1000) return (m/1000).toFixed(1) + "s"
-        return m + "ms"
-    }
-
-    // ── Pending row ──────────────────────────────────────────────────
+    // ── Pending item (Flutter _buildPendingItem) ──────────────────────
     RowLayout {
-        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 4; rightMargin: 4 }
-        visible: isPending; spacing: 8
-
-        Item {
-            width: 18; height: 18
-            Label {
-                anchors.centerIn: parent
-                text: isRunning ? "⟳" : "⊖"
-                font.pixelSize: isRunning ? 14 : 12
-                color: isRunning ? Theme.cyan : Qt.alpha(Theme.textSecondary, 0.3)
-                RotationAnimation on rotation { running: isRunning; from: 0; to: 360; duration: 1000; loops: Animation.Infinite }
+        id: pendingRow
+        anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
+        visible: itemData.isPending
+        spacing: 8
+        // Spinner icon (⟳ rotates) or gray dot (⊖)
+        Label {
+            text: itemData.isRunning ? "⟳" : "⊖"
+            font.pixelSize: 12
+            color: itemData.isRunning ? "#00BCD4" : "#555555"
+            RotationAnimation on rotation {
+                running: itemData.isRunning; from: 0; to: 360; duration: 1000; loops: Animation.Infinite
             }
         }
         Label {
-            Layout.fillWidth: true
-            text: resultData ? (resultData.displayName || "?") : "?"
+            text: itemData.displayName || ("#" + itemData.testId)
             font.family: "JetBrains Mono"; font.pixelSize: 12
-            color: Qt.alpha(Theme.textSecondary, 0.5)
-            elide: Text.ElideRight
+            color: "#666666"
+            Layout.fillWidth: true; elide: Text.ElideRight
         }
         Label {
-            visible: isRunning
-            text: "Running..."
-            font.family: "JetBrains Mono"; font.pixelSize: 10; font.italic: true; color: Theme.cyan
+            visible: itemData.isRunning
+            text: "Running..."; font.family: "JetBrains Mono"; font.pixelSize: 10
+            font.italic: true; color: "#00BCD4"
         }
     }
 
-    // ── Result collapsed (2-line) ────────────────────────────────────
+    // ── Completed item (Flutter _buildResultItem) ─────────────────────
     ColumnLayout {
-        anchors { fill: parent; leftMargin: 6; rightMargin: 4; topMargin: 4; bottomMargin: 4 }
-        visible: !isPending; spacing: 1
+        id: contentLayout
+        anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
+        visible: !itemData.isPending
+        spacing: 1
 
+        // Main row: status icon + name + duration (Flutter: InkWell → onTap _showDetailDialog)
         RowLayout {
-            Layout.fillWidth: true; spacing: 6
+            spacing: 8
+            // Status icon: ✓ Pass, ✗ Fail, ⚠ Warning, ⊖ Skipped, ⓘ Info
             Label {
-                Layout.alignment: Qt.AlignTop
-                Layout.topMargin: 1
-                text: resultData ? statusIcon(resultData.status) : "○"
-                font.pixelSize: 16
-                color: resultData ? statusColor(resultData.status) : Theme.textSecondary
+                text: {
+                    var s = itemData.status
+                    if (s === 0) return "✓"; if (s === 2) return "✗";
+                    if (s === 1) return "⚠"; if (s === 3) return "⊖"; return "●"
+                }
+                font.pixelSize: 12
+                color: {
+                    var s = itemData.status
+                    if (s === 0) return "#4ADE80"; if (s === 2) return "#EF4444";
+                    if (s === 1) return "#FACC15"; if (s === 3) return "#888888"; return "#888888"
+                }
             }
+            // Name (Flutter: fontSize 12 w500, color from status)
             Label {
-                Layout.fillWidth: true
-                text: resultData ? (resultData.displayName || "?") : "?"
+                text: itemData.displayName || ("#" + itemData.testId)
                 font.family: "JetBrains Mono"; font.pixelSize: 12; font.weight: Font.Medium
-                color: resultData ? statusColor(resultData.status) : Theme.textSecondary
-                elide: Text.ElideRight
+                color: {
+                    var s = itemData.status
+                    return (s === 0) ? "#E0E0E0" : (s === 2 ? "#EF4444" : (s === 1 ? "#FACC15" : "#A0A0B8"))
+                }
+                Layout.fillWidth: true; elide: Text.ElideRight
             }
+            // Duration badge — matches Flutter container badge
             Rectangle {
-                implicitWidth: durText.implicitWidth + 10; implicitHeight: 18; radius: 4
+                visible: (itemData.durationMs || 0) > 0
+                implicitWidth: durLabel.implicitWidth + 12; implicitHeight: 20; radius: 4
                 color: "#2A2A4A"
-                visible: resultData && (resultData.durationMs || 0) > 0
                 Label {
-                    id: durText; anchors.centerIn: parent
-                    text: resultData ? fmtDur(resultData.durationMs) : ""
-                    font.family: "JetBrains Mono"; font.pixelSize: 10; color: Theme.textSecondary
+                    id: durLabel
+                    anchors.centerIn: parent
+                    text: _fmtDur(itemData.durationMs || 0)
+                    font.family: "JetBrains Mono"; font.pixelSize: 10; color: "#A0A0B8"
                 }
             }
         }
 
+        // Summary line (Flutter: fontSize 10, textSecondary, maxLines 2)
         Label {
-            Layout.fillWidth: true; Layout.leftMargin: 22
-            visible: resultData && resultData.summary
-            text: resultData ? (resultData.summary || "") : ""
-            font.family: "JetBrains Mono"; font.pixelSize: 10; color: Qt.alpha(Theme.textSecondary, 0.7)
-            elide: Text.ElideRight; maximumLineCount: 1
+            visible: itemData.summary || ""
+            text: itemData.summary || ""; font.family: "JetBrains Mono"
+            font.pixelSize: 10; color: "#A0A0B8"
+            Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2
+        }
+
+        // Inline properties (Flutter: first 3 properties in a Wrap)
+        Repeater {
+            model: (itemData.properties || []).slice(0, 3)
+            delegate: RowLayout {
+                Layout.leftMargin: 24
+                spacing: 4
+                Label {
+                    text: modelData.label ? (modelData.label + ":") : ""
+                    font.family: "JetBrains Mono"; font.pixelSize: 9; font.weight: Font.Medium; color: "#606080"
+                }
+                Label {
+                    text: modelData.value || ""; font.family: "JetBrains Mono"; font.pixelSize: 9; color: "#A0A0B8"
+                    Layout.fillWidth: true; elide: Text.ElideRight
+                }
+            }
         }
     }
 
-    // ── Click → detail popup ────────────────────────────────────────
+    // Click area covers the entire item
     MouseArea {
         anchors.fill: parent
-        enabled: !isPending
-        onClicked: {
-            if (root.resultData && root.resultData.isDone) {
-                detailPopup.currentResult = root.resultData
-                detailPopup.open()
-            }
-        }
+        enabled: !itemData.isPending
+        onClicked: root.detailClicked(itemData)
     }
 
-    // ── Detail Popup (declared directly — no createObject needed) ───
-    Popup {
-        id: detailPopup
-        property var currentResult: null
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        width: Math.min(380, parent ? parent.width * 0.94 : 380)
-        height: Math.min(450, parent ? parent.height * 0.88 : 450)
-        x: parent ? (parent.width - width) / 2 : 0
-        y: parent ? (parent.height - height) / 2 : 0
-        padding: 0
-
-        onCurrentResultChanged: {
-            if (!currentResult) return
-            headerTitle.text = currentResult.displayName || ""
-            statusLabel.text = ["Pass","Warning","Fail","Skipped","Error","Info"][currentResult.status] || "Unknown"
-            durLabel.text = root.fmtDur(currentResult.durationMs || 0)
-            summaryText.text = currentResult.summary || ""
-            sumSection.visible = currentResult.summary && currentResult.summary !== ""
-            propsSection.visible = currentResult.properties && currentResult.properties.length > 0
-            outputSection.visible = currentResult.details && currentResult.details !== ""
-            outputArea.text = currentResult.details || ""
-        }
-
-            background: Rectangle {
-                radius: 12
-                color: "#1E1E2E"
-                border { width: 1; color: "#3A3A5A" }
-            }
-
-            ColumnLayout {
-                anchors.fill: parent
-                spacing: 0
-
-                // Header
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 52
-                    color: "transparent"
-                    border { width: 1; color: "#3A3A5A" }
-                    RowLayout {
-                        anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                        AppIcon { name: "report"; size: 20; color: Theme.cyan }
-                        Item { width: 10 }
-                        Label {
-                            id: headerTitle
-                            Layout.fillWidth: true
-                            text: ""
-                            font.family: "JetBrains Mono"; font.pixelSize: 16; font.weight: Font.DemiBold; color: Theme.textPrimary
-                            elide: Text.ElideRight
-                        }
-                        Label {
-                            text: "✕"; font.pixelSize: 18; color: Theme.textSecondary
-                            MouseArea {
-                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                onClicked: detailPopup.close()
-                            }
-                        }
-                    }
-                }
-
-                // Scrollable body
-                ScrollView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
-
-                    ColumnLayout {
-                        width: parent.width - 32
-                        x: 16
-                        spacing: 12
-                        Item { Layout.preferredHeight: 12 }
-
-                        // Status + Duration
-                        RowLayout {
-                            Label { text: "Status:"; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-                            Item { width: 8 }
-                            Label {
-                                id: statusLabel
-                                text: ""
-                                font.family: "JetBrains Mono"; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.textSecondary
-                            }
-                            Item { width: 20 }
-                            Label { text: "Duration:"; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-                            Item { width: 8 }
-                            Label {
-                                id: durLabel
-                                text: ""
-                                font.family: "JetBrains Mono"; font.pixelSize: 13; color: Theme.textPrimary
-                            }
-                        }
-
-                        // Summary
-                        ColumnLayout {
-                            id: sumSection
-                            visible: false
-                            spacing: 4
-                            Label { text: "Summary"; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-                            Rectangle {
-                                Layout.fillWidth: true; implicitHeight: summaryText.implicitHeight + 20; radius: 6; color: "#252538"
-                            Label {
-                                id: summaryText
-                                anchors { fill: parent; margins: 10 }
-                                text: ""
-                                font.family: "JetBrains Mono"; font.pixelSize: 12; color: Theme.textPrimary; wrapMode: Text.WordWrap
-                            }
-                            }
-                        }
-
-                        // Properties table
-                        ColumnLayout {
-                            id: propsSection
-                            visible: false
-                            spacing: 4
-                            Label { text: "Properties"; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-                            Repeater {
-                                model: detailPopup.currentResult ? (detailPopup.currentResult.properties || []) : []
-                                delegate: RowLayout {
-                                    Label {
-                                        text: (modelData.label || "?") + ":"
-                                        font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary
-                                        Layout.preferredWidth: 140
-                                    }
-                                    Label {
-                                        Layout.fillWidth: true
-                                        text: modelData.value || ""
-                                        font.family: "JetBrains Mono"; font.pixelSize: 11; color: Theme.textPrimary
-                                        wrapMode: Text.WordWrap
-                                    }
-                                }
-                            }
-                        }
-
-                        // Raw output
-                        ColumnLayout {
-                            id: outputSection
-                            visible: false
-                            spacing: 4
-                            Label { text: "Output"; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-                            Rectangle {
-                                Layout.fillWidth: true; implicitHeight: Math.min(200, outputArea.implicitHeight + 20)
-                                radius: 6; color: "#252538"
-                                clip: true
-                                Flickable {
-                                    id: outputFlick
-                                    anchors.fill: parent; anchors.margins: 10
-                                    contentWidth: outputArea.width
-                                    contentHeight: outputArea.implicitHeight
-                                TextArea {
-                                    id: outputArea
-                                    width: outputFlick.width
-                                    text: ""
-                                    font.family: "JetBrains Mono"; font.pixelSize: 11
-                                        color: Qt.alpha(Theme.textSecondary, 0.8)
-                                        readOnly: true
-                                        wrapMode: Text.WordWrap
-                                        background: Item {}
-                                    }
-                                }
-                            }
-                        }
-                        Item { Layout.preferredHeight: 12 }
-                    }
-                }
-
-                // Footer
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 44
-                    color: "transparent"
-                    border { width: 1; color: "#3A3A5A" }
-                    RowLayout {
-                        anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                        Item { Layout.fillWidth: true }
-                        Button {
-                            text: "Close"
-                            font.family: "JetBrains Mono"; font.pixelSize: 12
-                            flat: true
-                            onClicked: detailPopup.close()
-                        }
-                    }
-                }
-            }
-        }
+    // ── Helpers ───────────────────────────────────────────────────────
+    function _fmtDur(ms) {
+        if (ms < 1000) return ms + "ms"
+        if (ms < 60000) return (ms/1000).toFixed(1) + "s"
+        var m = Math.floor(ms/60000); var s = Math.floor((ms%60000)/1000)
+        return m + "m" + s + "s"
     }
 }

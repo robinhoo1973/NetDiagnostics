@@ -2,195 +2,111 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// ── Flutter TestGroupPanel — card with ExpansionTile-like behavior ─────
-Item {
+// ── Flutter TestGroupPanel 1:1 — no Loaders, direct visibility toggle ──
+Rectangle {
     id: root
     property int groupIndex: 0
-    property string label: ""
-    property var stats: ({pass:0,warn:0,fail:0,skip:0,total:0,enabled:0})
-    property bool isRunning: appState.runStatus === 1
-    property int completed: 0
-    property int enabledCount: 0
-    
-    // Flutter ExpansionTile behavior: initiallyExpanded when running or has results,
-    // but user can always toggle. _userToggled tracks whether user manually set state.
+    property bool expanded: false
     property bool _userToggled: false
-    property bool _userWantsExpanded: true  // actual user preference
-    property bool expanded: _userToggled ? _userWantsExpanded : (isRunning || completed > 0 || enabledCount > 0)
-    
-    // Local results list — updated on each test completion so Repeater re-renders
-    property var resultsModel: []
 
-    implicitHeight: Math.max(52, cardColumn.implicitHeight + 12)
+    height: cardColumn.implicitHeight + 16
+    radius: 10
+    color: "#16213E"
+    border { width: 1; color: isRunning ? Qt.alpha("#00BCD4", 0.4) : "#2A2A4A" }
 
-    function refreshStats() {
-        stats = appState.groupStats(groupIndex)
-        completed = stats.total || 0
-        enabledCount = stats.enabled || 0
-        resultsModel = appState.allTestsForGroup(groupIndex)
-    }
-    Component.onCompleted: {
-        label = appState.groupLabels[groupIndex] || ""
-        refreshStats()
-    }
-    Connections {
-        target: appState
-        function onTestCompleted() { refreshStats() }
-        function onProgressChanged() { refreshStats() }
-        function onResultsReset() {
-            stats = {pass:0,warn:0,fail:0,skip:0,total:0,enabled:0}
-            completed = 0
-            enabledCount = 0
-            _userToggled = false
-            _userWantsExpanded = true
-        }
-        // Auto-expand when run starts, reset toggle state
-        function onRunStatusChanged() {
-            if (appState.runStatus === 1) {
-                // Running started: auto-expand, reset user toggle
-                _userToggled = false
-                _userWantsExpanded = true
-            }
-            if (appState.runStatus === 2 || appState.runStatus === 3)
-                refreshStats()
-        }
-    }
+    // ── Computed state ────────────────────────────────────────────────
+    property var allItems: { let _v = appState.resultsVersion; return appState.allTestsForGroup(groupIndex) }
+    property int enabledCount: { var c=0; for(var i=0;i<allItems.length;i++)c++;return c }
+    property int completedCount: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone)c++;return c }
+    property bool isRunning: appState.runStatus===1 && completedCount<enabledCount && completedCount>0
+    property int groupPass: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===0)c++;return c }
+    property int groupWarn: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===1)c++;return c }
+    property int groupFail: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===2)c++;return c }
+    property int groupSkip: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===3)c++;return c }
 
-    // Border card (Flutter: Card + ExpansionTile)
-    Rectangle {
-        anchors.fill: parent; radius: 10; color: Theme.bgCard
-        border { width: 1; color: isRunning ? Qt.alpha(Theme.cyan, 0.4) : "#2A2A4A" }
+    onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
+    onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
+
+    Timer {
+        id: pollTimer
+        interval: 300
+        running: isRunning || appState.runStatus === 1
+        repeat: true
+        onTriggered: reloadModel()
     }
+    property var itemsModel: []
+    function reloadModel() {
+        itemsModel = appState.allTestsForGroup(groupIndex)
+    }
+    Component.onCompleted: reloadModel()
 
     ColumnLayout {
         id: cardColumn
         anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 8; bottomMargin: 8 }
-        spacing: 4
+        spacing: 0
 
-        // ── Header row (Flutter: ExpansionTile title) ──────────────────
-        MouseArea {
-            Layout.fillWidth: true
-            implicitHeight: headerRow.implicitHeight + 8
-            cursorShape: Qt.PointingHandCursor
-            onClicked: {
-                _userToggled = true
-                _userWantsExpanded = !_userWantsExpanded
+        // ── Header ────────────────────────────────────────────────────
+        RowLayout {
+            spacing: 8
+            Rectangle { width:3; height:24; radius:2; color:isRunning?"#00BCD4":"#0078D4" }
+            ColumnLayout { spacing:1
+                Label { text:appState.groupLabels[groupIndex]||("Group"+(groupIndex+1)); font.family:"JetBrains Mono"; font.pixelSize:13; font.weight:Font.DemiBold; color:"#E0E0E0" }
+                Label { visible:isRunning; text:"Running: "+(appState.currentTestLabel||"")+"..."; font.family:"JetBrains Mono"; font.pixelSize:10; font.italic:true; color:"#00BCD4"; elide:Text.ElideRight }
             }
-
-            RowLayout {
-                id: headerRow
-                anchors { fill: parent; topMargin: 4; bottomMargin: 4 }
-                spacing: 0
-
-                // Group indicator bar (Flutter: 3x24, cyan/accentBlue, rounded)
-                Rectangle {
-                    Layout.preferredWidth: 3; implicitHeight: 24; radius: 2
-                    color: isRunning ? Theme.cyan : Theme.accentBlue
-                    Layout.alignment: Qt.AlignVCenter
-                }
-                Item { Layout.preferredWidth: 10 }
-
-                // Group name + running indicator
-                ColumnLayout {
-                    Layout.fillWidth: true; spacing: 1
-                    Label {
-                        text: label
-                        font.family: "JetBrains Mono"; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.textPrimary
-                    }
-                    Label {
-                        visible: isRunning
-                        text: "Running: " + (appState.currentTestLabel || "") + "..."
-                        font.family: "JetBrains Mono"; font.pixelSize: 10; font.italic: true; color: Theme.cyan
-                        elide: Text.ElideRight
-                    }
-                }
-
-                // Progress text (Flutter: completed/enabled)
-                Label {
-                    visible: isRunning || completed > 0
-                    text: completed + "/" + enabledCount
-                    font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.Medium; color: Theme.textSecondary
-                }
-                Item { Layout.preferredWidth: 8 }
-
-                // Status badges
-                Row { spacing: 4
-                    Badge { count: stats.pass; accent: Theme.passGreen }
-                    Badge { count: stats.warn; accent: Theme.warnYellow }
-                    Badge { count: stats.fail; accent: Theme.failRed }
-                    Badge { count: stats.skip; accent: Theme.skipGray }
-                }
-
-                // Expand/collapse chevron
-                Item { Layout.preferredWidth: 4 }
-                Label {
-                    text: expanded ? "▾" : "▸"
-                    font.pixelSize: 12; color: Theme.textSecondary
-                }
-            }
+            Item { Layout.fillWidth:true }
+            Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:"JetBrains Mono"; font.pixelSize:11; font.weight:Font.Medium; color:"#A0A0B8" }
+            Rectangle { visible:groupPass>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#4ADE80",0.15); Label { anchors.centerIn:parent; text:groupPass; font.family:"JetBrains Mono"; font.pixelSize:10; color:"#4ADE80"; font.weight:Font.Bold } }
+            Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#FACC15",0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:"JetBrains Mono"; font.pixelSize:10; color:"#FACC15"; font.weight:Font.Bold } }
+            Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#EF4444",0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:"JetBrains Mono"; font.pixelSize:10; color:"#EF4444"; font.weight:Font.Bold } }
+            Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#888888",0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:"JetBrains Mono"; font.pixelSize:10; color:"#888888"; font.weight:Font.Bold } }
+            Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:"#A0A0B8" }
         }
 
-        // ── Collapsible body ───────────────────────────────────────────
-        ColumnLayout {
-            visible: expanded; spacing: 4
-
-            // Progress bar (Flutter: LinearProgressIndicator with rounded corners)
+        // ── Progress bar ──────────────────────────────────────────────
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 4; Layout.topMargin: 6
+            visible: isRunning || completedCount > 0
+            radius: 2; color: "#2A2A4A"
             Rectangle {
-                visible: isRunning || completed > 0
-                Layout.fillWidth: true; implicitHeight: 3; radius: 2; color: "#2A2A4A"
-                Rectangle {
-                    height: 3; radius: 2
-                    width: parent.width * (enabledCount > 0 ? completed / enabledCount : 0)
-                    color: isRunning ? Theme.cyan : Theme.passGreen
-                }
+                height: 4; radius: 2
+                width: enabledCount>0 ? parent.width*(completedCount/enabledCount) : 0
+                color: isRunning ? "#00BCD4" : "#4ADE80"
             }
-            Item { Layout.preferredHeight: 4; visible: isRunning || completed > 0 }
+        }
 
-            // Divider
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2A2A4A"; visible: completed > 0 }
-
-            // Results list (completed + pending items) — Flutter TreeView hierarchy
-            ColumnLayout {
-                spacing: 0
-                visible: resultsModel.length > 0
-                Repeater {
-                    model: resultsModel
-                    delegate: Item {
-                        width: cardColumn.width - 16
-                        implicitHeight: testItem.implicitHeight
-                        // TreeView connector line area + item
-                        RowLayout {
-                            anchors.fill: parent; spacing: 0
-                            // TreeView indent with visible connector lines
-                            Item {
-                                Layout.preferredWidth: 20; Layout.fillHeight: true
-                                // Vertical connector line — thicker for visibility
-                                Rectangle {
-                                    anchors { left: parent.left; leftMargin: 6; top: parent.top; bottom: parent.bottom }
-                                    width: 1.5; color: "#3A3A5A"
-                                }
-                                // Horizontal connector stub
-                                Rectangle {
-                                    anchors { left: parent.left; leftMargin: 6; verticalCenter: parent.verticalCenter }
-                                    width: 8; height: 1.5; color: "#3A3A5A"
-                                }
-                            }
-                            TestResultItem {
-                                id: testItem
-                                resultData: modelData
-                                Layout.fillWidth: true
-                            }
-                        }
+        // ── Expanded body — Flutter ExpansionTile children ────────────
+        ColumnLayout {
+            Layout.fillWidth: true; Layout.topMargin: 6
+            visible: expanded
+            spacing: 0
+            Rectangle { Layout.fillWidth:true; implicitHeight:1; color:"#2A2A4A" }
+            Repeater {
+                model: root.itemsModel
+                delegate: Item {
+                    Layout.fillWidth: true
+                    implicitHeight: testItem.implicitHeight
+                    // TreeView connector: vertical line + horizontal stub
+                    Rectangle {
+                        anchors { top:parent.top; bottom:parent.bottom; left:parent.left; leftMargin:6 }
+                        width:2; color:"#2A2A4A"
+                    }
+                    TestResultItem {
+                        id: testItem
+                        anchors { left:parent.left; leftMargin:20; right:parent.right }
+                        itemData: modelData
+                        onDetailClicked: function(data) { root.detailClicked(data) }
                     }
                 }
             }
         }
     }
 
-    component Badge: Rectangle {
-        property int count: 0; property color accent: Theme.passGreen
-        visible: count > 0
-        width: 22; height: 16; radius: 4; color: Qt.alpha(accent, 0.15)
-        Label { anchors.centerIn: parent; text: count; font.family: "JetBrains Mono"; font.pixelSize: 10; font.weight: Font.Bold; color: accent }
+    // Click header to toggle
+    MouseArea {
+        anchors { top:parent.top; left:parent.left; right:parent.right }
+        height: 40
+        onClicked: { _userToggled=true; expanded=!expanded }
     }
+
+    signal detailClicked(var data)
 }

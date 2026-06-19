@@ -6,11 +6,21 @@ import "widgets"
 
 ApplicationWindow {
     id: root
+    title: "NetAnalysis"
     visible: true
     minimumWidth: 600; minimumHeight: 400
     color: Theme.bgDark
 
-    Component.onCompleted: showFullScreen()
+    Component.onCompleted: {
+        showFullScreen()
+        // Fallback centering if fullscreen not available
+        if (visibility !== Window.FullScreen) {
+            width = Screen.desktopAvailableWidth * 0.8
+            height = Screen.desktopAvailableHeight * 0.8
+            x = (Screen.desktopAvailableWidth - width) / 2
+            y = (Screen.desktopAvailableHeight - height) / 2
+        }
+    }
 
     FontLoader { id: jbMono; source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }
     FontLoader { id: jbMonoBold; source: "qrc:/fonts/JetBrainsMono-Bold.ttf" }
@@ -28,7 +38,7 @@ ApplicationWindow {
             // Brand
             Row { spacing: 10
                 AppIcon { name: "wifi"; size: 20; color: Theme.cyan }
-                Label { text: "NetDiagnostic"; font.family: "JetBrains Mono"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
+                Label { text: "NetAnalysis"; font.family: "JetBrains Mono"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
             }
             Item { Layout.fillWidth: true }
             // Navigation tabs — match Flutter layout
