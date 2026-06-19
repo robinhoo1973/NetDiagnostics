@@ -39,19 +39,26 @@ Item {
         return true
     }
     function updateCheckboxes() {
-        try {
-            var ids = ["cb0","cb1","cb2","cb3","cb4"]
-            for (var i = 0; i < 5; i++) {
-                var cb = null
-                // Try direct ID reference first, fallback to objectName lookup
-                try { cb = [cb0,cb1,cb2,cb3,cb4][i] } catch(e) {}
-                if (!cb) cb = page.findChild(null, ids[i])
-                if (!cb) continue
-                cb.enabled = canEnableG(i)
-                cb.checkState = appState.isGroupAllEnabled(i) ? Qt.Checked :
-                               appState.isGroupAnyEnabled(i) ? Qt.PartiallyChecked : Qt.Unchecked
+        // Collect checkboxes by traversing QML object tree (ID lookup won't
+        // work because cb0-cb4 are inside a `component` scope).
+        var cbs = []
+        function _find(item) {
+            if (!item || !item.children) return
+            for (var j = 0; j < item.children.length; j++) {
+                var child = item.children[j]
+                if (child.objectName && child.objectName.length === 3 && child.objectName[0] === 'c' && child.objectName[1] === 'b')
+                    cbs[parseInt(child.objectName[2])] = child
+                _find(child)
             }
-        } catch(e) {}
+        }
+        _find(page)
+        for (var i = 0; i < 5; i++) {
+            var cb = cbs[i]
+            if (!cb) continue
+            cb.enabled = canEnableG(i)
+            cb.checkState = appState.isGroupAllEnabled(i) ? Qt.Checked :
+                           appState.isGroupAnyEnabled(i) ? Qt.PartiallyChecked : Qt.Unchecked
+        }
     }
 
     // Filter groups: only show those with enabled tests or results
