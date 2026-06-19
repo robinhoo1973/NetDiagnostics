@@ -8,6 +8,11 @@ Item {
     id: page
     objectName: "config"
     property int currentGroup: 0
+    property int configPollVersion: 0
+    Timer {
+        interval: 300; running: true; repeat: true
+        onTriggered: { configPollVersion++ }
+    }
 
     // AppBar
     Rectangle {
@@ -162,7 +167,10 @@ Item {
 
                     // Switch — Flutter: activeColor accentBlue, inactive #5A5A7A
                     Switch {
-                        checked: appState.isTestEnabled(modelData)
+                        checked: {
+                            let _force = configPollVersion  // re-evaluate when poll timer fires
+                            return appState.isTestEnabled(modelData)
+                        }
                         onToggled: appState.setTestEnabled(modelData, checked)
                     }
                 }

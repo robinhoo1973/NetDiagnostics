@@ -15,7 +15,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
         color: Qt.alpha(Theme.bgDark, 0.6)
-        border { width: targetField.activeFocus ? 1.5 : 1; color: targetField.activeFocus ? Theme.accentBlue : "#3A3A5A" }
+        border { width: targetField.activeFocus ? 1.5 : 1; color: appState.targetValidationError !== "" ? Theme.failRed : (targetField.activeFocus ? Theme.accentBlue : "#3A3A5A") }
         RowLayout {
             anchors { fill: parent; leftMargin: 10; rightMargin: 4 }
             AppIcon { name: "globe"; size: 18; color: targetField.activeFocus ? Theme.accentBlue : Qt.alpha(Theme.textSecondary, 0.6) }
@@ -42,6 +42,15 @@ ColumnLayout {
             }
         }
     }
+    // RFC validation error (shown when target is invalid)
+    property string _error: { let _dummy = appState.target; return appState.targetValidationError() }
+    Label {
+        visible: _error !== ""
+        Layout.fillWidth: true
+        text: "⚠ " + (_error || "")
+        font.family: "JetBrains Mono"; font.pixelSize: 10; color: Theme.failRed
+        wrapMode: Text.WordWrap
+    }
     Item { Layout.preferredHeight: 8 }
 
     RowLayout {
@@ -60,9 +69,8 @@ ColumnLayout {
                 onClicked: {
                     var t = targetField.text.trim()
                     appState.target = t
-                    if (t === "") {
-                        // AppState will set errorMessage and show Error status
-                    }
+                    // Block Run if target has validation errors (invalid scheme, etc.)
+                    if (appState.targetValidationError() !== "") return
                     appState.runDiagnostics()
                 }
             }

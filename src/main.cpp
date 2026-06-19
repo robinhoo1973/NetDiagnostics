@@ -59,9 +59,9 @@ int main(int argc, char *argv[])
             appState.runDiagnostics();
         });
     }
-    QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,
-        &app, [url](QObject *obj, const QUrl &objUrl) {
-            if (!obj && url == objUrl)
+    QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
+        &app, [url](const QUrl &objUrl) {
+            if (url == objUrl)
                 QCoreApplication::exit(-1);
         },
         Qt::QueuedConnection);

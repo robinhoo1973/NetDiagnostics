@@ -102,17 +102,23 @@ Item {
                 model: appState.groupLabels.length
                 delegate: Rectangle {
                     property int gIdx: index
-                    readonly property bool canEnable: _runStatus === 1 ? false :
-                        (gIdx === 3) ? (appState.target !== "") :
-                        (gIdx === 4) ? (appState.target.indexOf("://") >= 0) : true
+                    readonly property bool canEnable: {
+                        let _force = appState.target + _runStatus  // re-evaluate on target/status change
+                        return _runStatus === 1 ? false :
+                            (gIdx === 3) ? (appState.target !== "") :
+                            (gIdx === 4) ? appState.isTargetUrl() : true
+                    }
                     Layout.fillWidth: true; implicitHeight: 32; radius: 6
                     color: appState.isGroupAllEnabled(gIdx) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                     RowLayout {
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         CheckBox {
                             Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                            checkState: appState.isGroupAllEnabled(gIdx) ? Qt.Checked :
-                                        appState.isGroupAnyEnabled(gIdx) ? Qt.PartiallyChecked : Qt.Unchecked
+                            checkState: {
+                                let _force = appState.target + _runStatus  // re-evaluate when target or run-status changes
+                                return appState.isGroupAllEnabled(gIdx) ? Qt.Checked :
+                                       appState.isGroupAnyEnabled(gIdx) ? Qt.PartiallyChecked : Qt.Unchecked
+                            }
                             enabled: canEnable
                             onToggled: if (canEnable) appState.setGroupEnabled(gIdx, checkState === Qt.Checked)
                         }
@@ -216,7 +222,19 @@ Item {
                         anchors { left: parent.left; right: parent.right }
                         groupIndex: modelData
                         onDetailClicked: function(data) {
-                            appState.showDetailDialog(data.testId)
+                            var tid = data.testId
+                            var d = appState.getDetailResult(tid)
+                            // Force re-evaluation: clear first, then set
+                            page.currentDetail = {}
+                            dtTitle.text = (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid)
+                            var statStr = "Unknown"
+                            if (d && d.status !== undefined) statStr = ["Pass","Warning","Fail","Skipped","Error","Info"][d.status] || "Unknown"
+                            var durStr = (d && d.durationMs) ? d.durationMs : (data.durationMs || 0)
+                            dtStatus.text = "Status: " + statStr + "    Duration: " + durStr + "ms"
+                            dtSummary.text = (d && d.summary) ? d.summary : (data.summary || "")
+                            dtOutput.text = (d && d.details) ? d.details : ""
+                            page.currentDetail = d
+                            detailOverlay.visible = true
                         }
                     }
                 }

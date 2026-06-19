@@ -8,18 +8,17 @@ ApplicationWindow {
     id: root
     title: "NetAnalysis"
     visible: true
-    minimumWidth: 600; minimumHeight: 400
+    minimumWidth: 360; minimumHeight: 400
     color: Theme.bgDark
 
     Component.onCompleted: {
-        showFullScreen()
-        // Fallback centering if fullscreen not available
-        if (visibility !== Window.FullScreen) {
-            width = Screen.desktopAvailableWidth * 0.8
-            height = Screen.desktopAvailableHeight * 0.8
-            x = (Screen.desktopAvailableWidth - width) / 2
-            y = (Screen.desktopAvailableHeight - height) / 2
-        }
+        // Start at 80% desktop size, centered — user can resize freely
+        var dw = Screen.desktopAvailableWidth
+        var dh = Screen.desktopAvailableHeight
+        width = Math.max(800, dw * 0.8)
+        height = Math.max(500, dh * 0.8)
+        x = Math.max(0, (dw - width) / 2)
+        y = Math.max(0, (dh - height) / 2)
     }
 
     FontLoader { id: jbMono; source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }

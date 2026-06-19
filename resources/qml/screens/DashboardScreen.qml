@@ -14,7 +14,7 @@ Item {
         interval: 200; running: true; repeat: true
         onTriggered: {
             _runStatus = appState.runStatus
-            _totalCompleted = _totalCompleted
+            _totalCompleted = appState.totalCompleted
         }
     }
     property bool hasData: _totalCompleted > 0 && _runStatus === 2

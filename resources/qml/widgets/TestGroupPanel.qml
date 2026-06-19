@@ -16,13 +16,13 @@ Rectangle {
 
     // ── Computed state ────────────────────────────────────────────────
     property var allItems: { let _v = appState.resultsVersion; return appState.allTestsForGroup(groupIndex) }
-    property int enabledCount: { var c=0; for(var i=0;i<allItems.length;i++)c++;return c }
-    property int completedCount: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone)c++;return c }
+    property int enabledCount: { let _v = _modelVersion; var c=0; for(var i=0;i<allItems.length;i++)c++;return c }
+    property int completedCount: { let _v = _modelVersion; var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone)c++;return c }
     property bool isRunning: appState.runStatus===1 && completedCount<enabledCount && completedCount>0
-    property int groupPass: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===0)c++;return c }
-    property int groupWarn: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===1)c++;return c }
-    property int groupFail: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===2)c++;return c }
-    property int groupSkip: { var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===3)c++;return c }
+    property int groupPass: { let _v = _modelVersion; var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===0)c++;return c }
+    property int groupWarn: { let _v = _modelVersion; var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===1)c++;return c }
+    property int groupFail: { let _v = _modelVersion; var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===2)c++;return c }
+    property int groupSkip: { let _v = _modelVersion; var c=0; for(var i=0;i<allItems.length;i++)if(allItems[i].isDone&&allItems[i].status===3)c++;return c }
 
     onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
     onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
@@ -34,9 +34,11 @@ Rectangle {
         repeat: true
         onTriggered: reloadModel()
     }
+    property int _modelVersion: 0
     property var itemsModel: []
     function reloadModel() {
         itemsModel = appState.allTestsForGroup(groupIndex)
+        _modelVersion++
     }
     Component.onCompleted: reloadModel()
 
@@ -81,7 +83,7 @@ Rectangle {
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:"#2A2A4A" }
             Repeater {
-                model: root.itemsModel
+                model: { let _v = root._modelVersion; return root.itemsModel }
                 delegate: Item {
                     Layout.fillWidth: true
                     implicitHeight: testItem.implicitHeight

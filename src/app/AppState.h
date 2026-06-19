@@ -84,6 +84,27 @@ public:
     Q_INVOKABLE QVariantMap getDetailResult(int testIdInt) const;
     int resultsVersion() const { return m_resultsVersion; }
 
+    // ── Target type helpers (centralised — used by QML canEnable and C++ logic) ─
+    Q_INVOKABLE bool isTargetEmpty() const { return m_target.trimmed().isEmpty(); }
+    // True if target contains :// with ANY scheme — classifies as URL type
+    Q_INVOKABLE bool hasUrlScheme() const {
+        return m_target.contains("://") && !isTargetEmpty();
+    }
+    // True if target is a valid http/https URL (G5-relevant)
+    Q_INVOKABLE bool isTargetHttpUrl() const {
+        const QString t = m_target.trimmed();
+        if (!t.contains("://")) return false;
+        const QString scheme = t.section("://", 0, 0).toLower();
+        return (scheme == "http" || scheme == "https") && !isTargetEmpty();
+    }
+    // Deprecated alias — kept for backward compat, same as isTargetHttpUrl
+    Q_INVOKABLE bool isTargetUrl() const { return isTargetHttpUrl(); }
+    // True if non-empty and not a URL (no :// scheme)
+    Q_INVOKABLE bool isTargetHost() const { return !isTargetEmpty() && !hasUrlScheme(); }
+
+    // ── Target validation ──────────────────────────────────────────────────
+    Q_INVOKABLE QString targetValidationError() const { return m_targetError; }
+
 signals:
     void targetChanged();
     void runStatusChanged();
@@ -110,6 +131,7 @@ private:
     QString m_currentGroup;
     QString m_currentTestName;
     QString m_errorMessage;
+    QString m_targetError;
     int m_totalCompleted = 0;
     int m_totalTests = 0;
 

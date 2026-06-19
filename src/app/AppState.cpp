@@ -32,6 +32,7 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     pollTimer->setInterval(200);
     QObject::connect(pollTimer, &QTimer::timeout, this, [this]() {
         emit progressChanged();
+        emit runStatusChanged();  // ARM64: force re-evaluation of all runStatus-dependent QML bindings
     });
     pollTimer->start();
 }
@@ -42,16 +43,147 @@ AppState::~AppState() {
     }
 }
 
+// ── RFC 952/1123 hostname label validation ────────────────────────────────
+static bool isValidHostLabel(const QString& label) {
+    if (label.isEmpty() || label.size() > 63) return false;
+    for (int i = 0; i < label.size(); ++i) {
+        QChar c = label[i];
+        if (!c.isLetterOrNumber() && c != '-') return false;
+    }
+    if (label.startsWith('-') || label.endsWith('-')) return false;
+    return true;
+}
+
+static bool isValidIPv4(const QString& host) {
+    const auto parts = host.split('.');
+    if (parts.size() != 4) return false;
+    for (const auto& p : parts) {
+        bool ok = false;
+        int v = p.toInt(&ok);
+        if (!ok || v < 0 || v > 255) return false;
+        if (p.size() > 1 && p.startsWith('0')) return false;
+    }
+    return true;
+}
+
+static bool looksLikeIPv6(const QString& host) {
+    return host.contains(':');
+}
+
+// ── Supported URL schemes (must be lowercase) ────────────────────────────
+static const QStringList& supportedSchemes() {
+    static const QStringList s = {"http", "https", "ftp", "ftps", "ssh", "scp"};
+    return s;
+}
+
+static bool isValidHostname(const QString& host) {
+    if (host.isEmpty() || host.size() > 253) return false;
+    if (host.contains("..") || host == ".") return false;
+    if (looksLikeIPv6(host)) return true;  // accept all IPv6
+    if (isValidIPv4(host)) return true;
+    const auto labels = host.split('.');
+    for (const auto& label : labels) {
+        if (!isValidHostLabel(label)) return false;
+    }
+    return true;
+}
+
+// ── Full URL validation ──────────────────────────────────────────────────
+static QString validateUrl(const QString& trimmed) {
+    // 1. Parse scheme
+    int schemeEnd = trimmed.indexOf("://");
+    if (schemeEnd < 0) return QString();  // no scheme → not a URL
+
+    QString scheme = trimmed.left(schemeEnd).toLower();
+    if (scheme.isEmpty()) return QStringLiteral("Empty URL scheme");
+    if (!supportedSchemes().contains(scheme))
+        return QStringLiteral("Unsupported protocol: %1:// — supported schemes: %2")
+            .arg(scheme, supportedSchemes().join(", "));
+
+    // 2. Parse authority (host[:port])
+    QString afterScheme = trimmed.mid(schemeEnd + 3);
+    int pathStart = afterScheme.indexOf('/');
+    int queryStart = afterScheme.indexOf('?');
+    int fragStart = afterScheme.indexOf('#');
+
+    int authorityEnd = afterScheme.size();
+    if (pathStart >= 0) authorityEnd = std::min(authorityEnd, pathStart);
+    if (queryStart >= 0) authorityEnd = std::min(authorityEnd, queryStart);
+    if (fragStart >= 0) authorityEnd = std::min(authorityEnd, fragStart);
+
+    QString authority = afterScheme.left(authorityEnd);
+    if (authority.isEmpty()) return QStringLiteral("URL has no hostname");
+
+    // 3. Separate host and port
+    QString host, portStr;
+    int portColon = authority.lastIndexOf(':');
+    // Check for IPv6 bracket notation [::1]:port
+    if (authority.startsWith('[')) {
+        int closing = authority.indexOf(']');
+        if (closing < 0) return QStringLiteral("Invalid IPv6 bracket notation");
+        host = authority.mid(1, closing - 1);
+        if (closing + 1 < authority.size()) {
+            if (authority[closing + 1] != ':') return QStringLiteral("Expected colon after IPv6 bracket");
+            portStr = authority.mid(closing + 2);
+        }
+    } else if (portColon > 0) {
+        host = authority.left(portColon);
+        portStr = authority.mid(portColon + 1);
+    } else {
+        host = authority;
+    }
+
+    // 4. Validate hostname
+    if (host.isEmpty()) return QStringLiteral("URL has no hostname");
+    if (!isValidHostname(host)) {
+        if (host.contains("..")) return QStringLiteral("Invalid hostname: consecutive dots");
+        return QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
+    }
+
+    // 5. Validate port
+    if (!portStr.isEmpty()) {
+        bool ok = false;
+        int port = portStr.toInt(&ok);
+        if (!ok) return QStringLiteral("Port must be a number");
+        if (port < 1 || port > 65535)
+            return QStringLiteral("Port must be between 1 and 65535 (got %1)").arg(port);
+    }
+
+    return QString();  // empty = success
+}
+
 // ── Target ─────────────────────────────────────────────────────────────────
 void AppState::setTarget(const QString& t) {
     if (m_target != t) {
         m_target = t;
+        m_targetError.clear();
         fprintf(stderr, "[TRACE] setTarget('%s')\n", m_target.toUtf8().constData());
-        // Auto-manage G4/G5 based on target content
-        bool has = !m_target.isEmpty();
-        bool url = m_target.startsWith("http://") || m_target.startsWith("https://");
+
+        const QString trimmed = m_target.trimmed();
+        bool has = !trimmed.isEmpty();
+
+        // ── Unified validation ──────────────────────────────────────────
+        if (has) {
+            if (trimmed.contains("://")) {
+                // URL path: validate scheme, hostname, optional port
+                m_targetError = validateUrl(trimmed);
+            } else {
+                // Hostname/IP path
+                if (!isValidHostname(trimmed)) {
+                    if (trimmed.contains("..")) m_targetError = QStringLiteral("Invalid hostname: consecutive dots");
+                    else m_targetError = QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
+                }
+            }
+        }
+
+        bool isUrl = has && trimmed.contains("://");       // any :// → URL type
+        bool isHttp = isUrl && isTargetHttpUrl();          // only http/https → G5
+
+        // G4: always on when target non-empty (URL or host), G5: only http/https
         setGroupEnabled(3, has);          // G4 on if target non-empty
-        setGroupEnabled(4, has && url);   // G5 on only if URL
+        setGroupEnabled(4, has && isHttp); // G5 on only for http/https
+        fprintf(stderr, "[TRACE] setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
+                has, isUrl, isHttp, has, has && isHttp, m_targetError.toUtf8().constData());
         emit targetChanged();
     }
 }
@@ -117,15 +249,35 @@ void AppState::runDiagnostics() {
     if (m_runStatus == RunStatus::Running) return;
     fprintf(stderr, "[TRACE] runDiagnostics start target='%s'\n", m_target.toUtf8().constData());
 
-    // Guard: require a target (Flutter enforces this via UI validation)
-    if (m_target.trimmed().isEmpty()) {
-        m_errorMessage = QStringLiteral("Please enter a target URL, IP address, or hostname.");
+    // Flutter behaviour: G1-G3 always run (local-only); G4 requires target; G5 requires URL.
+    // The group-level filter below (hasTarget/isUrl) handles G4/G5 exclusion automatically.
+    // No blanket error on empty target — only block if NO groups would run at all.
+    m_errorMessage.clear();
+
+    // Pre-flight: check if any tests are enabled
+    bool hasTarget = !isTargetEmpty();
+    bool isUrl = isTargetUrl();
+    bool anyEnabled = false;
+    for (int g = 0; g < 5; ++g) {
+        auto group = static_cast<TestGroup>(g);
+        for (auto id : testIdsForGroup(group)) {
+            if (!m_enabledTests.contains(id)) continue;
+            if (group == TestGroup::G4 && !hasTarget) continue;
+            if (group == TestGroup::G5 && !isUrl) continue;
+            anyEnabled = true;
+            break;
+        }
+        if (anyEnabled) break;
+    }
+    if (!anyEnabled) {
+        m_errorMessage = hasTarget
+            ? QStringLiteral("No diagnostic tests are enabled. Check Config.")
+            : QStringLiteral("No target specified and no local tests enabled. Enter a target or enable tests in Config.");
         m_runStatus = RunStatus::Error;
         emit runStatusChanged();
-        fprintf(stderr, "[TRACE] runDiagnostics blocked: empty target\n");
+        fprintf(stderr, "[TRACE] runDiagnostics blocked: no enabled tests\n");
         return;
     }
-    m_errorMessage.clear();
 
     m_runStatus = RunStatus::Running;
     fprintf(stderr, "[TRACE] status=Running, building pending tests\n");
@@ -139,10 +291,19 @@ void AppState::runDiagnostics() {
 
     // Build groups: group tests by TestGroup (G1→G5 order)
     m_pendingGroups.clear();
-    bool hasTarget = !m_target.isEmpty();
-    bool isUrl = m_target.startsWith("http://") || m_target.startsWith("https://");
     fprintf(stderr, "[TRACE] runDiagnostics: enabledTests=%d hasTarget=%d isUrl=%d\n",
             (int)m_enabledTests.size(), hasTarget, isUrl);
+    // Per-group enabled counts (verify checkbox state)
+    for (int g = 0; g < 5; ++g) {
+        int enabledInGroup = 0;
+        int totalInGroup = 0;
+        auto group = static_cast<TestGroup>(g);
+        for (auto id : testIdsForGroup(group)) {
+            totalInGroup++;
+            if (m_enabledTests.contains(id)) enabledInGroup++;
+        }
+        fprintf(stderr, "[TRACE]   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
+    }
     for (int g = 0; g < 5; ++g) {
         GroupTask gt;
         gt.group = static_cast<TestGroup>(g);
