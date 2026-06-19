@@ -19,8 +19,12 @@
 #include <QScrollArea>
 
 AppState::AppState(QObject* parent) : QObject(parent) {
-    // Enable all tests by default
-    for (auto id : allTestIds()) m_enabledTests.insert(id);
+    // Enable G1-G3 by default; G4/G5 are auto-managed based on target
+    for (auto id : allTestIds()) {
+        auto g = testGroup(id);
+        if (g == TestGroup::G1 || g == TestGroup::G2 || g == TestGroup::G3)
+            m_enabledTests.insert(id);
+    }
 
     auto cmd = createPlatformCommand();
     m_engine = new DiagnosticEngine(std::move(cmd), this);
