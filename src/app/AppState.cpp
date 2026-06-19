@@ -185,6 +185,12 @@ void AppState::setTarget(const QString& t) {
         bool isUrl = has && trimmed.contains("://");       // any :// → URL type
         bool isHttp = isUrl && isTargetHttpUrl();          // only http/https → G5
 
+        // Deep diagnostic: why isTargetUrl() might return false
+        QString scheme = trimmed.contains("://") ? trimmed.section("://", 0, 0).toLower() : QString();
+        fprintf(stderr, "[TRACE] setTarget scheme='%s' empty=%d hasScheme=%d isTargetUrl=%d isTargetHttpUrl=%d validateErr='%s'\n",
+                scheme.toUtf8().constData(), isTargetEmpty(), trimmed.contains("://"),
+                isTargetUrl(), isTargetHttpUrl(), m_targetError.toUtf8().constData());
+
         // G4: always on when target non-empty (URL or host), G5: only http/https
         setGroupEnabled(3, has);          // G4 on if target non-empty
         setGroupEnabled(4, has && isHttp); // G5 on only for http/https

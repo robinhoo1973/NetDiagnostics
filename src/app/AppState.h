@@ -101,6 +101,15 @@ public:
     Q_INVOKABLE bool isTargetUrl() const { return isTargetHttpUrl(); }
     // True if non-empty and not a URL (no :// scheme)
     Q_INVOKABLE bool isTargetHost() const { return !isTargetEmpty() && !hasUrlScheme(); }
+    // Debug helper — prints to stderr and returns isTargetHttpUrl result
+    Q_INVOKABLE bool debugTargetUrl() const {
+        const QString t = m_target.trimmed();
+        bool r = isTargetHttpUrl();
+        fprintf(stderr, "[DEBUG] debugTargetUrl: target='%s' hasUrlScheme=%d isTargetHttpUrl=%d scheme='%s'\n",
+                t.toUtf8().constData(), hasUrlScheme(), r,
+                t.contains("://") ? t.section("://",0,0).toLower().toUtf8().constData() : "(none)");
+        return r;
+    }
 
     // ── Target validation ──────────────────────────────────────────────────
     Q_INVOKABLE QString targetValidationError() const { return m_targetError; }

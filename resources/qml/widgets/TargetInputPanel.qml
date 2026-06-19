@@ -10,9 +10,12 @@ ColumnLayout {
     Timer {
         interval: 200; running: true; repeat: true
         onTriggered: {
+            // Call debug method (outputs to stderr for diagnosis)
+            var isUrl = appState.isTargetUrl()
+            appState.debugTargetUrl()
             if (appState.targetValidationError() !== "") { _iconName="error"; _iconColor=Theme.failRed }
             else if (appState.isTargetEmpty()) { _iconName="circle"; _iconColor=Qt.alpha(Theme.textSecondary,0.4) }
-            else if (appState.isTargetUrl()) { _iconName="globe"; _iconColor=Theme.accentBlue }
+            else if (isUrl) { _iconName="globe"; _iconColor=Theme.accentBlue }
             else { _iconName="target"; _iconColor=Theme.passGreen }
         }
     }
