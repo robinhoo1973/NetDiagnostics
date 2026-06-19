@@ -3,8 +3,19 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 ColumnLayout {
+    id: root
     spacing: 0
-
+    property string _iconName: "circle"
+    property color _iconColor: Qt.alpha(Theme.textSecondary, 0.4)
+    Timer {
+        interval: 200; running: true; repeat: true
+        onTriggered: {
+            if (appState.targetValidationError() !== "") { _iconName="error"; _iconColor=Theme.failRed }
+            else if (appState.isTargetEmpty()) { _iconName="circle"; _iconColor=Qt.alpha(Theme.textSecondary,0.4) }
+            else if (appState.isTargetUrl()) { _iconName="globe"; _iconColor=Theme.accentBlue }
+            else { _iconName="target"; _iconColor=Theme.passGreen }
+        }
+    }
     RowLayout {
         AppIcon { name: "target"; size: 13; color: Qt.alpha(Theme.textSecondary, 0.7) }
         Item { width: 5 }
@@ -18,7 +29,11 @@ ColumnLayout {
         border { width: targetField.activeFocus ? 1.5 : 1; color: appState.targetValidationError !== "" ? Theme.failRed : (targetField.activeFocus ? Theme.accentBlue : "#3A3A5A") }
         RowLayout {
             anchors { fill: parent; leftMargin: 10; rightMargin: 4 }
-            AppIcon { name: "globe"; size: 18; color: targetField.activeFocus ? Theme.accentBlue : Qt.alpha(Theme.textSecondary, 0.6) }
+            AppIcon {
+                name: root._iconName
+                size: 18
+                color: root._iconColor
+            }
             Item { width: 8 }
             TextField {
                 id: targetField

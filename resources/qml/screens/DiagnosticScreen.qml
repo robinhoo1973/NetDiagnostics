@@ -14,14 +14,38 @@ Item {
     property int _totalCompleted: 0
     property int _totalTests: 0
     property int _checkboxVersion: 0
+    property bool _ready: false
+    Component.onCompleted: _ready = true
     Timer {
-        interval: 200; running: true; repeat: true
+        interval: 200; running: _ready; repeat: true
         onTriggered: {
             _runStatus = appState.runStatus
             _totalCompleted = appState.totalCompleted
             _totalTests = appState.totalTests
-            _checkboxVersion++  // force checkbox delegates to re-evaluate
+            _checkboxVersion++
+            updateCheckboxes()
         }
+    }
+    function canEnableG(idx) {
+        if (_runStatus === 1) return false
+        if (idx === 3) return appState.target !== ""
+        if (idx === 4) return appState.isTargetUrl()
+        return true
+    }
+    function updateCheckboxes() {
+        try {
+            var ids = ["cb0","cb1","cb2","cb3","cb4"]
+            for (var i = 0; i < 5; i++) {
+                var cb = null
+                // Try direct ID reference first, fallback to objectName lookup
+                try { cb = [cb0,cb1,cb2,cb3,cb4][i] } catch(e) {}
+                if (!cb) cb = page.findChild(null, ids[i])
+                if (!cb) continue
+                cb.enabled = canEnableG(i)
+                cb.checkState = appState.isGroupAllEnabled(i) ? Qt.Checked :
+                               appState.isGroupAnyEnabled(i) ? Qt.PartiallyChecked : Qt.Unchecked
+            }
+        } catch(e) {}
     }
 
     // Filter groups: only show those with enabled tests or results
@@ -93,47 +117,62 @@ Item {
         Item { Layout.preferredHeight: 12 }
         TargetInputPanel { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12 }
 
-        // Layer checkboxes
+        // Layer checkboxes (5 manual rows — Repeater bindings unreliable on ARM64)
         Item { Layout.preferredHeight: 8; visible: !compact }
         ColumnLayout {
             visible: !compact; spacing: 2
             Layout.leftMargin: 12; Layout.rightMargin: 12
             Label { text: "Diagnosis Group"; font.family: "JetBrains Mono"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
             Item { Layout.preferredHeight: 6 }
-            Repeater {
-                model: appState.groupLabels.length
-                delegate: Rectangle {
-                    property int gIdx: index
-                    readonly property bool canEnable: {
-                        let _force = _checkboxVersion  // force re-eval every 200ms
-                        return _runStatus === 1 ? false :
-                            (gIdx === 3) ? (appState.target !== "") :
-                            (gIdx === 4) ? appState.isTargetUrl() : true
-                    }
-                    Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                    color: appState.isGroupAllEnabled(gIdx) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
-                    RowLayout {
-                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                        CheckBox {
-                            Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                            checkState: {
-                                let _force = _checkboxVersion  // force re-eval every 200ms
-                                return appState.isGroupAllEnabled(gIdx) ? Qt.Checked :
-                                       appState.isGroupAnyEnabled(gIdx) ? Qt.PartiallyChecked : Qt.Unchecked
-                            }
-                            enabled: canEnable
-                            onToggled: if (canEnable) appState.setGroupEnabled(gIdx, checkState === Qt.Checked)
-                        }
-                        Item { width: 8 }
-                        Label {
-                            Layout.fillWidth: true
-                            text: appState.groupLabels[gIdx] || ""
-                            font.family: "JetBrains Mono"; font.pixelSize: 12
-                            font.weight: appState.isGroupAllEnabled(gIdx) ? Font.DemiBold : Font.Normal
-                            color: canEnable ? (appState.isGroupAllEnabled(gIdx) ? Theme.textPrimary : Theme.textSecondary)
-                                            : Qt.alpha(Theme.textSecondary, 0.35)
-                        }
-                    }
+
+            // G1
+            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
+                color: appState.isGroupAllEnabled(0) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
+                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    CheckBox { id: cb0; objectName: "cb0"; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onToggled: appState.setGroupEnabled(0, checkState === Qt.Checked) }
+                    Item { width: 8 }
+                    Label { Layout.fillWidth: true; text: appState.groupLabels[0]||""; font.family:"JetBrains Mono"; font.pixelSize:12 }
+                }
+            }
+            // G2
+            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
+                color: appState.isGroupAllEnabled(1) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
+                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    CheckBox { id: cb1; objectName: "cb1"; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onToggled: appState.setGroupEnabled(1, checkState === Qt.Checked) }
+                    Item { width: 8 }
+                    Label { Layout.fillWidth: true; text: appState.groupLabels[1]||""; font.family:"JetBrains Mono"; font.pixelSize:12 }
+                }
+            }
+            // G3
+            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
+                color: appState.isGroupAllEnabled(2) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
+                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    CheckBox { id: cb2; objectName: "cb2"; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onToggled: appState.setGroupEnabled(2, checkState === Qt.Checked) }
+                    Item { width: 8 }
+                    Label { Layout.fillWidth: true; text: appState.groupLabels[2]||""; font.family:"JetBrains Mono"; font.pixelSize:12 }
+                }
+            }
+            // G4
+            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
+                color: appState.isGroupAllEnabled(3) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
+                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    CheckBox { id: cb3; objectName: "cb3"; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onToggled: appState.setGroupEnabled(3, checkState === Qt.Checked) }
+                    Item { width: 8 }
+                    Label { Layout.fillWidth: true; text: appState.groupLabels[3]||""; font.family:"JetBrains Mono"; font.pixelSize:12 }
+                }
+            }
+            // G5
+            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
+                color: appState.isGroupAllEnabled(4) ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
+                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                    CheckBox { id: cb4; objectName: "cb4"; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        onToggled: appState.setGroupEnabled(4, checkState === Qt.Checked) }
+                    Item { width: 8 }
+                    Label { Layout.fillWidth: true; text: appState.groupLabels[4]||""; font.family:"JetBrains Mono"; font.pixelSize:12 }
                 }
             }
         }
