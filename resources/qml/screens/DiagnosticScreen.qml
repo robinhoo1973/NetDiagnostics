@@ -17,7 +17,10 @@ Item {
     property bool _ready: false
     Component.onCompleted: {
         _ready = true
-        updateCheckboxes()  // set immediate initial state, don't wait for Timer
+        // Defer to next event loop — ensures all child objects are created
+        Qt.callLater(function() {
+            updateCheckboxes()
+        })
     }
     Timer {
         interval: 200; running: _ready; repeat: true
