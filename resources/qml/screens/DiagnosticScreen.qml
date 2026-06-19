@@ -39,19 +39,25 @@ Item {
         return true
     }
     function updateCheckboxes() {
-        // Collect checkboxes by traversing QML object tree (ID lookup won't
-        // work because cb0-cb4 are inside a `component` scope).
+        // Search the QML tree for CheckBox items by objectName.
+        // Uses iterative BFS — avoids nested function declarations
+        // which are not supported in QML's JavaScript subset.
         var cbs = []
-        function _find(item) {
-            if (!item || !item.children) return
-            for (var j = 0; j < item.children.length; j++) {
-                var child = item.children[j]
-                if (child.objectName && child.objectName.length === 3 && child.objectName[0] === 'c' && child.objectName[1] === 'b')
-                    cbs[parseInt(child.objectName[2])] = child
-                _find(child)
+        var queue = [page]
+        while (queue.length > 0) {
+            var item = queue.shift()
+            if (!item) continue
+            var kids = item.children || []
+            for (var j = 0; j < kids.length; j++) {
+                var child = kids[j]
+                var n = child.objectName || ""
+                if (n.length === 3 && n[0] === 'c' && n[1] === 'b') {
+                    var idx = parseInt(n[2])
+                    if (idx >= 0 && idx < 5) cbs[idx] = child
+                }
+                queue.push(child)
             }
         }
-        _find(page)
         for (var i = 0; i < 5; i++) {
             var cb = cbs[i]
             if (!cb) continue
