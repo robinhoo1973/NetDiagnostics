@@ -215,6 +215,9 @@ Item {
                     delegate: TestGroupPanel {
                         anchors { left: parent.left; right: parent.right }
                         groupIndex: modelData
+                        onDetailClicked: function(data) {
+                            appState.showDetailDialog(data.testId)
+                        }
                     }
                 }
             }

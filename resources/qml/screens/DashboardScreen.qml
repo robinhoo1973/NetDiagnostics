@@ -151,11 +151,10 @@ Item {
         return s || {pass:0,warn:0,fail:0,skip:0,total:0,enabled:0}
     }
     function getDurFromResults(groupIdx) {
-        // Calculate total duration from results for this group
         var results = appState.resultsForGroup(groupIdx)
         var totalMs = 0
         for (var i = 0; i < results.length; i++) {
-            totalMs += (results[i].durationMs || 0)
+            totalMs += (results[i]["durationMs"] || results[i].durationMs || 0)
         }
         return totalMs > 0 ? fmtDur(totalMs) : "—"
     }
