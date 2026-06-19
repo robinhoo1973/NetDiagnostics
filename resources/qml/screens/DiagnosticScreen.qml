@@ -15,7 +15,10 @@ Item {
     property int _totalTests: 0
     property int _checkboxVersion: 0
     property bool _ready: false
-    Component.onCompleted: _ready = true
+    Component.onCompleted: {
+        _ready = true
+        updateCheckboxes()  // set immediate initial state, don't wait for Timer
+    }
     Timer {
         interval: 200; running: _ready; repeat: true
         onTriggered: {

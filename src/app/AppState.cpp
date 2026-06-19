@@ -237,10 +237,14 @@ void AppState::setTestEnabled(int testIdInt, bool enabled) {
 void AppState::setGroupEnabled(int groupInt, bool enabled) {
     if (!isValidGroup(groupInt)) return;
     auto g = static_cast<TestGroup>(groupInt);
+    fprintf(stderr, "[TRACE] setGroupEnabled G%d = %d (before: %d tests in set)\n",
+            groupInt+1, enabled, (int)m_enabledTests.size());
     for (auto id : testIdsForGroup(g)) {
         if (enabled) m_enabledTests.insert(id);
         else m_enabledTests.remove(id);
     }
+    fprintf(stderr, "[TRACE] setGroupEnabled G%d = %d (after: %d tests in set)\n",
+            groupInt+1, enabled, (int)m_enabledTests.size());
 }
 
 bool AppState::isGroupAllEnabled(int groupInt) const {
