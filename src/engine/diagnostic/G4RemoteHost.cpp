@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -46,9 +47,25 @@ DiagnosticResult dnsResolution(const QString& target, PlatformCommand*) {
 
 // ── TCP / ICMP socket helpers ─────────────────────────────────────────
 static quint32 resolveIPv4(const QString& host) {
+    // 1. Try QHostInfo (Qt's async resolver)
     QHostInfo info = QHostInfo::fromName(host);
-    if (info.addresses().isEmpty()) return 0;
-    return info.addresses().first().toIPv4Address();
+    if (!info.addresses().isEmpty()) {
+        quint32 ip = info.addresses().first().toIPv4Address();
+        if (ip) return ip;
+    }
+    // 2. Fallback to getaddrinfo (libc resolver)
+    fprintf(stderr, "[DNS] QHostInfo failed for '%s', trying getaddrinfo\n", host.toUtf8().constData());
+    struct addrinfo hints, *res;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    QByteArray hostBytes = host.toUtf8();
+    if (getaddrinfo(hostBytes.constData(), nullptr, &hints, &res) == 0) {
+        quint32 ip = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
+        freeaddrinfo(res);
+        return ntohl(ip);
+    }
+    return 0;
 }
 
 // Single TCP connect — returns RTT in ms, or -1 on failure
