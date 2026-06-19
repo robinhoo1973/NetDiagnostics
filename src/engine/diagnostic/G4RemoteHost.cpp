@@ -137,7 +137,11 @@ DiagnosticResult ping(const QString& target, PlatformCommand*) {
             ms = icmpRttMs(target);
             if (ms < 0 && i==0) useIcmp = false; // raw socket denied → switch to TCP
         }
-        if (!useIcmp) ms = tcpRttMs(target, 80);
+        if (!useIcmp) {
+            // Try multiple common ports — pick the first one that responds
+            int ports[] = {443, 80, 22, 8080, 8443};
+            for (int p : ports) { ms = tcpRttMs(target, p); if (ms >= 0) break; }
+        }
         if (ms >= 0) { ++rcvd; sumMs += ms; if (ms<minMs) minMs=ms; if (ms>maxMs) maxMs=ms; }
     }
     r.durationMs = t.elapsed();
@@ -177,7 +181,9 @@ DiagnosticResult traceroute(const QString& target, PlatformCommand*) {
         if (sock<0) break;
         setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
         struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
-        addr.sin_family = AF_INET; addr.sin_port = htons(80);
+        int ports[] = {443, 80, 22, 8080, 8443};
+        int portIdx = ttl < (int)(sizeof(ports)/sizeof(ports[0])) ? ttl : ((int)(sizeof(ports)/sizeof(ports[0])) - 1);
+        addr.sin_family = AF_INET; addr.sin_port = htons(ports[portIdx]);
         addr.sin_addr.s_addr = htonl(ip);
         int flags = fcntl(sock, F_GETFL, 0);
         fcntl(sock, F_SETFL, flags | O_NONBLOCK);
