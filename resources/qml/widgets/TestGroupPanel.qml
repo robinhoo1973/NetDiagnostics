@@ -37,7 +37,11 @@ Rectangle {
     property int _modelVersion: 0
     property var itemsModel: []
     function reloadModel() {
-        itemsModel = appState.allTestsForGroup(groupIndex)
+        // Force fresh reference: clear first, then assign
+        // On ARM64 Qt 6.8.2, QML does not detect internal array changes
+        var fresh = appState.allTestsForGroup(groupIndex)
+        itemsModel = []
+        itemsModel = fresh
         _modelVersion++
     }
     Component.onCompleted: reloadModel()
@@ -83,7 +87,7 @@ Rectangle {
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:"#2A2A4A" }
             Repeater {
-                model: { let _v = root._modelVersion; return root.itemsModel }
+                model: root._modelVersion >= 0 ? root.itemsModel : []
                 delegate: Item {
                     Layout.fillWidth: true
                     implicitHeight: testItem.implicitHeight
