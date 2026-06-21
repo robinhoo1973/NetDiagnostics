@@ -144,22 +144,36 @@ _gh_dl() {
     mkdir -p "$(dirname "$dest")"; rm -rf "$dest"
     local url="https://github.com/${repo}/archive/refs/tags/${tag}.tar.gz"
     echo -e "  ${CYAN}→ Fetching ${repo} ${tag}...${NC}"
-    if curl -fsSL "$url" -o "${dest}.tar.gz" 2>/dev/null; then
-        mkdir -p "$dest"; tar xzf "${dest}.tar.gz" -C "$dest" --strip-components=1; rm -f "${dest}.tar.gz"
-        return 0
-    fi
-    echo -e "  ${CYAN}→ Tarball not found, cloning via git...${NC}"
-    # Shallow clone then fetch the specific tag (more reliable than --branch for tags)
-    if git clone --depth 1 "https://github.com/${repo}.git" "$dest" 2>&1; then
-        cd "$dest"
-        if git fetch --depth 1 origin tag "$tag" 2>&1 && git checkout "tags/${tag}" 2>&1; then
-            cd "$OLDPWD"; return 0
+    # Retry curl up to 3 times for transient network failures
+    for i in 1 2 3; do
+        if curl -fsSL --retry 2 --retry-delay 5 "$url" -o "${dest}.tar.gz" 2>/dev/null; then
+            mkdir -p "$dest"; tar xzf "${dest}.tar.gz" -C "$dest" --strip-components=1; rm -f "${dest}.tar.gz"
+            return 0
         fi
-        cd "$OLDPWD"
-    fi
-    # Fallback: full clone of the tag
-    echo -e "  ${CYAN}→ Shallow clone failed, trying full tag clone...${NC}"
-    git clone --branch "$tag" --depth 1 "https://github.com/${repo}.git" "$dest" 2>&1 && return 0
+        [[ $i -lt 3 ]] && sleep 5
+    done
+    echo -e "  ${CYAN}→ Tarball not found, cloning via git (HTTP/1.1)...${NC}"
+    # Force HTTP/1.1 — HTTP/2 often causes "stream not closed cleanly" errors
+    # Also retry up to 3 times with increasing delay
+    local git_ok=false
+    for i in 1 2 3; do
+        if git -c http.version=HTTP/1.1 -c http.postBuffer=524288000 \
+               clone --depth 1 "https://github.com/${repo}.git" "$dest" 2>&1; then
+            cd "$dest"
+            if git fetch --depth 1 origin tag "$tag" 2>&1 && git checkout "tags/${tag}" 2>&1; then
+                cd "$OLDPWD"; git_ok=true; break
+            fi
+            cd "$OLDPWD"
+        fi
+        echo -e "  ${CYAN}→ Clone attempt ${i}/3 failed, retrying in $((i*10))s...${NC}"
+        rm -rf "$dest"
+        sleep $((i*10))
+    done
+    if $git_ok; then return 0; fi
+    # Last resort: full tag clone
+    echo -e "  ${CYAN}→ Trying full tag clone...${NC}"
+    git -c http.version=HTTP/1.1 clone --branch "$tag" --depth 1 \
+        "https://github.com/${repo}.git" "$dest" 2>&1 && return 0
     echo -e "  ${RED}✗ Failed to download ${repo} ${tag}${NC}"
     return 1
 }
@@ -356,12 +370,20 @@ install_llvm_mingw_arm64() {
     fi
 
     echo -e "  ${CYAN}→ Extracting to ${prefix}...${NC}"
-    rm -rf "$prefix"
-    mkdir -p "$prefix"
-    tar xf "$dest" -C "$prefix" --strip-components=1 2>/dev/null || {
-        echo -e "  ${RED}✗ Extraction failed${NC}"; rm -f "$dest"; return 1
+    # Extract to /tmp first (avoids permission issues with /usr/local), then sudo mv
+    local tmp_extract="${TMP_SRC}/llvm-mingw-extract"
+    rm -rf "$tmp_extract"; mkdir -p "$tmp_extract"
+    tar xf "$dest" -C "$tmp_extract" --strip-components=1 2>/dev/null || {
+        echo -e "  ${RED}✗ Extraction failed${NC}"; rm -f "$dest"; rm -rf "$tmp_extract"; return 1
     }
     rm -f "$dest"
+    _sudo_maybe "$prefix" rm -rf "$prefix" 2>/dev/null || true
+    _sudo_maybe "$(dirname "$prefix")" mkdir -p "$(dirname "$prefix")" 2>/dev/null || true
+    if [[ -w "$(dirname "$prefix")" ]]; then
+        mv "$tmp_extract" "$prefix"
+    else
+        sudo mv "$tmp_extract" "$prefix"
+    fi
 
     if [[ -x "${prefix}/bin/aarch64-w64-mingw32-clang++" ]]; then
         export PATH="${prefix}/bin:${PATH}"
@@ -465,7 +487,12 @@ install_qt6_mingw_source() {
     [[ -z "$mingw_sysroot" ]] && mingw_sysroot="${mingw_root}/${target}"
 
     if [[ -f "${prefix}/${qt_ver}/lib/cmake/Qt6/Qt6Config.cmake" ]]; then
-        echo -e "  ${GREEN}✓ Qt6-mingw already installed${NC}"; return 0
+        if [[ -f "${prefix}/${qt_ver}/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake" ]]; then
+            echo -e "  ${GREEN}✓ Qt6-mingw (base + Quick) already installed${NC}"; return 0
+        fi
+        # qtbase installed but Quick missing (qtdeclarative failed earlier).
+        echo -e "  ${YELLOW}⚠ Qt6 base exists but Quick is missing.${NC}"
+        echo -e "  ${YELLOW}   Run: sudo rm -rf ${prefix}/${qt_ver} && ./scripts/build-all.sh --fix${NC}"
     fi
 
     echo -e "\n${BOLD}── Building Qt6 from source for mingw-w64 (~1-2 hrs) ──${NC}"
@@ -724,6 +751,18 @@ run_dep_check() {
             done
             $qt64_ok && _d_ok "  Qt6 x86_64 cross ($qt64_dir)" \
                 || { _d_warn "  Qt6 x86_64 cross" "not found"; }
+            # Check curl dev for cross-compilation (needed by G5WebsiteUrl / NetworkProbe)
+            if [[ -f /usr/include/x86_64-linux-gnu/curl/curl.h ]] || dpkg -s libcurl4-openssl-dev:amd64 &>/dev/null; then
+                _d_ok "  libcurl-dev:amd64"
+            elif $FIX_DEPS && command -v apt-get &>/dev/null; then
+                echo -e "  ${CYAN}→ Installing libcurl4-openssl-dev:amd64...${NC}"
+                sudo apt-get update -qq 2>/dev/null || true
+                sudo apt-get install -y libcurl4-openssl-dev:amd64 2>/dev/null \
+                    && _d_ok "  libcurl-dev:amd64 (installed)" \
+                    || _d_warn "  libcurl-dev:amd64" "install failed — build may fail"
+            else
+                _d_warn "  libcurl-dev:amd64" "not found — retry with --fix or: sudo apt install libcurl4-openssl-dev:amd64"
+            fi
         else
             if $FIX_DEPS; then
                 echo -e "  ${CYAN}→ Auto-installing crossbuild-essential-amd64...${NC}"
@@ -750,7 +789,12 @@ run_dep_check() {
                 [[ -d $p ]] && { mq_found=true; mingw_qt_dir="$p"; break; }
             done
             if $mq_found; then
-                _d_ok "  Qt6 mingw-w64 cross ($mingw_qt_dir)"
+                # Also verify Quick component (qtdeclarative) is present
+                if [[ -f "${mingw_qt_dir}/Qt6Quick/Qt6QuickConfig.cmake" ]]; then
+                    _d_ok "  Qt6 mingw-w64 cross ($mingw_qt_dir)"
+                else
+                    _d_warn "  Qt6 mingw-w64" "base found but Quick missing — run: sudo rm -rf ${GLOBAL_PREFIX}/Qt6-mingw && retry --fix"
+                fi
             elif $FIX_DEPS; then
                 echo -e "  ${CYAN}→ Installing Qt6 for mingw-w64...${NC}"
                 install_qt6_mingw && _d_ok "  Qt6 mingw-w64 (installed)" \

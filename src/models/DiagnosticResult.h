@@ -13,7 +13,7 @@ struct DiagnosticResult {
     DiagId      id;
     QString     displayName;
     DiagGroup   group;
-    TestStatus  status;
+    DiagStatus  status;
     QString     summary;
     QString     details;
     qint64      durationMs = 0;
@@ -23,14 +23,14 @@ struct DiagnosticResult {
     QString     errorOutput;
 
     // ── Convenience ──────────────────────────────────────────────────────────
-    bool isPass()    const { return status == TestStatus::Pass; }
-    bool isFail()    const { return status == TestStatus::Fail; }
-    bool isWarning() const { return status == TestStatus::Warning; }
-    bool isSkipped() const { return status == TestStatus::Skipped; }
-    bool isError()   const { return status == TestStatus::Error; }
-    bool isInfo()    const { return status == TestStatus::Info; }
-    bool isDone()    const { return status != TestStatus::Skipped; }
-    QString statusIcon() const { return testStatusIcon(status); }
+    bool isPass()    const { return status == DiagStatus::Pass; }
+    bool isFail()    const { return status == DiagStatus::Fail; }
+    bool isWarning() const { return status == DiagStatus::Warning; }
+    bool isSkipped() const { return status == DiagStatus::Skipped; }
+    bool isError()   const { return status == DiagStatus::Error; }
+    bool isInfo()    const { return status == DiagStatus::Info; }
+    bool isDone()    const { return status != DiagStatus::Skipped; }
+    QString statusIcon() const { return diagStatusIcon(status); }
 
     // ── Factory helpers ──────────────────────────────────────────────────────
     static DiagnosticResult skipped(DiagId id, const QString& reason);

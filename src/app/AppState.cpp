@@ -20,9 +20,9 @@
 AppState::AppState(QObject* parent) : QObject(parent) {
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
     for (auto id : allDiagIds()) {
-        auto g = testGroup(id);
+        auto g = diagGroup(id);
         if (g == DiagGroup::G1 || g == DiagGroup::G2 || g == DiagGroup::G3)
-            m_enabledTests.insert(id);
+            m_enabledDiags.insert(id);
     }
 
     m_engine = new DiagnosticEngine(this);
@@ -222,16 +222,16 @@ QStringList AppState::groupLabels() const {
 static bool isValidDiagId(int id) { return id >= 0 && id < 38; }
 static bool isValidGroup(int g) { return g >= 0 && g < 5; }
 
-bool AppState::isTestEnabled(int testIdInt) const {
-    if (!isValidDiagId(testIdInt)) return false;
-    return m_enabledTests.contains(static_cast<DiagId>(testIdInt));
+bool AppState::isDiagEnabled(int diagIdInt) const {
+    if (!isValidDiagId(diagIdInt)) return false;
+    return m_enabledDiags.contains(static_cast<DiagId>(diagIdInt));
 }
 
-void AppState::setTestEnabled(int testIdInt, bool enabled) {
-    if (!isValidDiagId(testIdInt)) return;
-    auto id = static_cast<DiagId>(testIdInt);
-    if (enabled) m_enabledTests.insert(id);
-    else m_enabledTests.remove(id);
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) {
+    if (!isValidDiagId(diagIdInt)) return;
+    auto id = static_cast<DiagId>(diagIdInt);
+    if (enabled) m_enabledDiags.insert(id);
+    else m_enabledDiags.remove(id);
     bumpVersion();
 }
 
@@ -239,29 +239,29 @@ void AppState::setGroupEnabled(int groupInt, bool enabled) {
     if (!isValidGroup(groupInt)) return;
     auto g = static_cast<DiagGroup>(groupInt);
     fprintf(stderr, "[TRACE] setGroupEnabled G%d = %d (before: %d tests in set)\n",
-            groupInt+1, enabled, (int)m_enabledTests.size());
-    for (auto id : testIdsForGroup(g)) {
-        if (enabled) m_enabledTests.insert(id);
-        else m_enabledTests.remove(id);
+            groupInt+1, enabled, (int)m_enabledDiags.size());
+    for (auto id : diagIdsForGroup(g)) {
+        if (enabled) m_enabledDiags.insert(id);
+        else m_enabledDiags.remove(id);
     }
     fprintf(stderr, "[TRACE] setGroupEnabled G%d = %d (after: %d tests in set)\n",
-            groupInt+1, enabled, (int)m_enabledTests.size());
+            groupInt+1, enabled, (int)m_enabledDiags.size());
     bumpVersion();
 }
 
 bool AppState::isGroupAllEnabled(int groupInt) const {
     if (!isValidGroup(groupInt)) return false;
     auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : testIdsForGroup(g)) {
-        if (!m_enabledTests.contains(id)) return false;
+    for (auto id : diagIdsForGroup(g)) {
+        if (!m_enabledDiags.contains(id)) return false;
     }
     return true;
 }
 
 bool AppState::isGroupAnyEnabled(int groupInt) const {
     auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : testIdsForGroup(g)) {
-        if (m_enabledTests.contains(id)) return true;
+    for (auto id : diagIdsForGroup(g)) {
+        if (m_enabledDiags.contains(id)) return true;
     }
     return false;
 }
@@ -278,78 +278,65 @@ void AppState::runDiagnostics() {
     // The group-level filter below (hasTarget/isUrl) handles G4/G5 exclusion automatically.
     // No blanket error on empty target — only block if NO groups would run at all.
 
-    // Pre-flight: check if any tests are enabled
     bool hasTarget = !isTargetEmpty();
-    bool isUrl = isTargetUrl();
-    bool anyEnabled = false;
-    for (int g = 0; g < 5; ++g) {
-        auto group = static_cast<DiagGroup>(g);
-        for (auto id : testIdsForGroup(group)) {
-            if (!m_enabledTests.contains(id)) continue;
-            if (group == DiagGroup::G4 && !hasTarget) continue;
-            if (group == DiagGroup::G5 && !hasTarget) continue;
-            anyEnabled = true;
-            break;
-        }
-        if (anyEnabled) break;
-    }
-    if (!anyEnabled) {
-        m_errorMessage = hasTarget
-            ? QStringLiteral("No diagnostic tests are enabled. Check Config.")
-            : QStringLiteral("No target specified and no local tests enabled. Enter a target or enable tests in Config.");
-        m_runStatus = RunStatus::Error;
-        emit runStatusChanged();
-        fprintf(stderr, "[TRACE] runDiagnostics blocked: no enabled tests\n");
-        return;
-    }
-
     m_runStatus = RunStatus::Running;
-    fprintf(stderr, "[TRACE] status=Running, building pending tests\n");
+    m_runGeneration.fetch_add(1, std::memory_order_release); // invalidate stale callbacks
+    fprintf(stderr, "[TRACE] status=Running generation=%d, building pending tests\n", (int)m_runGeneration.load());
     m_totalCompleted = 0;
-    m_totalTests = 0;
+    m_totalDiags = 0;
     m_results.clear();
     m_completedPerGroup.clear();
     m_totalPerGroup.clear();
-    m_currentTestName.clear();
+    m_currentDiagName.clear();
     m_currentGroup.clear();
 
     // Build groups: group tests by DiagGroup (G1→G5 order)
     m_pendingGroups.clear();
-    fprintf(stderr, "[TRACE] runDiagnostics: enabledTests=%d hasTarget=%d isUrl=%d\n",
-            (int)m_enabledTests.size(), hasTarget, isUrl);
+    fprintf(stderr, "[TRACE] runDiagnostics: enabledTests=%d hasTarget=%d\n",
+            (int)m_enabledDiags.size(), hasTarget);
     // Per-group enabled counts (verify checkbox state)
     for (int g = 0; g < 5; ++g) {
         int enabledInGroup = 0;
         int totalInGroup = 0;
         auto group = static_cast<DiagGroup>(g);
-        for (auto id : testIdsForGroup(group)) {
+        for (auto id : diagIdsForGroup(group)) {
             totalInGroup++;
-            if (m_enabledTests.contains(id)) enabledInGroup++;
+            if (m_enabledDiags.contains(id)) enabledInGroup++;
         }
         fprintf(stderr, "[TRACE]   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
     }
     for (int g = 0; g < 5; ++g) {
         GroupTask gt;
         gt.group = static_cast<DiagGroup>(g);
-        for (auto id : testIdsForGroup(gt.group)) {
-            if (!m_enabledTests.contains(id)) continue;
+        for (auto id : diagIdsForGroup(gt.group)) {
+            if (!m_enabledDiags.contains(id)) continue;
             if (gt.group == DiagGroup::G4 && !hasTarget) continue;
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
-            gt.testIds.append(id);
+            gt.diagIds.append(id);
             m_totalPerGroup[gt.group]++;
         }
-        if (!gt.testIds.isEmpty()) {
+        if (!gt.diagIds.isEmpty()) {
             // Limit per group via env var
             QByteArray maxEnv = qgetenv("ND_MAX_TESTS");
             if (!maxEnv.isEmpty()) {
                 int max = maxEnv.toInt();
-                if (max > 0 && gt.testIds.size() > max) gt.testIds = gt.testIds.mid(0, max);
+                if (max > 0 && gt.diagIds.size() > max) gt.diagIds = gt.diagIds.mid(0, max);
             }
             m_pendingGroups.append(gt);
-            m_totalTests += gt.testIds.size();
+            m_totalDiags += gt.diagIds.size();
         }
     }
-    fprintf(stderr, "[TRACE] %d groups, %d total tests\n", (int)m_pendingGroups.size(), m_totalTests);
+    fprintf(stderr, "[TRACE] %d groups, %d total tests\n", (int)m_pendingGroups.size(), m_totalDiags);
+
+    if (m_pendingGroups.isEmpty()) {
+        m_errorMessage = hasTarget
+            ? QStringLiteral("No diagnostic tests are enabled. Check Config.")
+            : QStringLiteral("No target specified and no local tests enabled. Enter a target or enable tests in Config.");
+        m_runStatus = RunStatus::Error;
+        fprintf(stderr, "[TRACE] runDiagnostics blocked: no enabled tests\n");
+        emit runStatusChanged();
+        return;
+    }
 
     emit runStatusChanged();
     emit progressChanged();
@@ -357,7 +344,7 @@ void AppState::runDiagnostics() {
     bumpVersion();
 
     Logger::instance().event(QStringLiteral("Starting diagnostic run: %1 tests in %2 groups")
-                              .arg(m_totalTests).arg(m_pendingGroups.size()));
+                              .arg(m_totalDiags).arg(m_pendingGroups.size()));
 
     startNextGroup();
 }
@@ -367,7 +354,7 @@ void AppState::startNextGroup() {
     if (m_currentGroupIdx >= m_pendingGroups.size()) {
         fprintf(stderr, "[TRACE] All groups complete. Setting runStatus=Completed.\n");
         m_runStatus = RunStatus::Completed;
-        m_currentTestName.clear();
+        m_currentDiagName.clear();
         m_currentGroup.clear();
         emit runStatusChanged();
         emit progressChanged();
@@ -377,29 +364,29 @@ void AppState::startNextGroup() {
     }
 
     auto& gt = m_pendingGroups[m_currentGroupIdx];
-    m_currentGroup = testGroupLabel(gt.group);
+    m_currentGroup = diagGroupLabel(gt.group);
     m_activeGroupDone.store(0);
     bumpVersion();
-    fprintf(stderr, "[TRACE] startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.testIds.size());
+    fprintf(stderr, "[TRACE] startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
 
-    for (int i = 0; i < gt.testIds.size(); ++i) {
-        runTestInGroup(m_currentGroupIdx, i);
+    for (int i = 0; i < gt.diagIds.size(); ++i) {
+        runDiagInGroup(m_currentGroupIdx, i);
     }
 }
 
-void AppState::runTestInGroup(int groupIdx, int testIdx) {
+void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     if (m_runStatus != RunStatus::Running) return;
     if (groupIdx >= m_pendingGroups.size()) return;
     auto& gt = m_pendingGroups[groupIdx];
-    if (testIdx >= gt.testIds.size()) return;
+    if (diagIdx >= gt.diagIds.size()) return;
 
-    DiagId id = gt.testIds[testIdx];
-    m_currentTestName = staticTestDisplayName(id);
-    emit currentTestChanged();
+    DiagId id = gt.diagIds[diagIdx];
+    m_currentDiagName = staticDiagDisplayName(id);
+    emit currentDiagChanged();
     emit groupChanged();
     bumpVersion();
 
-    fprintf(stderr, "[TRACE] runTest id=%d name='%s' group=%d\n", (int)id, m_currentTestName.toUtf8().constData(), groupIdx);
+    fprintf(stderr, "[TRACE] runDiag id=%d name='%s' group=%d\n", (int)id, m_currentDiagName.toUtf8().constData(), groupIdx);
 
     // Snapshot shared state before launching detached thread — avoids data race
     // on m_target / m_portScanFrom / m_portScanTo / m_portScanCommon which the
@@ -409,29 +396,33 @@ void AppState::runTestInGroup(int groupIdx, int testIdx) {
     int psTo = m_portScanTo;
     bool psCommon = m_portScanCommon;
 
-    // Run test; post result back to main thread via QTimer
-    std::thread t([this, id, groupIdx, target, psFrom, psTo, psCommon]() {
+    // Run test; post result back to main thread via QTimer.
+    // Capture run generation to discard stale callbacks from cancelled runs.
+    int runGen = m_runGeneration.load(std::memory_order_acquire);
+    std::thread t([this, id, groupIdx, target, psFrom, psTo, psCommon, runGen]() {
             try {
                 auto start = std::chrono::steady_clock::now();
                 DiagnosticEngine localEngine(nullptr);
-                DiagnosticResult result = localEngine.runTest(id, target, psFrom, psTo, psCommon).result();
+                DiagnosticResult result = localEngine.runDiag(id, target, psFrom, psTo, psCommon).result();
                 auto end = std::chrono::steady_clock::now();
                 result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                QTimer::singleShot(0, this, [this, id, result, groupIdx]() {
-                onTestFinished(id, result);
+                QTimer::singleShot(0, this, [this, id, result, groupIdx, runGen]() {
+                if (m_runGeneration.load(std::memory_order_acquire) != runGen) return; // stale
+                onDiagFinished(id, result);
                 int done = m_activeGroupDone.fetch_add(1) + 1;
                 auto& gt = m_pendingGroups[groupIdx];
-                if (done >= gt.testIds.size()) {
+                if (done >= gt.diagIds.size()) {
                     m_currentGroupIdx++;
                     QTimer::singleShot(0, this, &AppState::startNextGroup);
                 }
             });
         } catch (...) {
-            QTimer::singleShot(0, this, [this, id, groupIdx]() {
-                onTestFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
+            QTimer::singleShot(0, this, [this, id, groupIdx, runGen]() {
+                if (m_runGeneration.load(std::memory_order_acquire) != runGen) return; // stale
+                onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
                 int done = m_activeGroupDone.fetch_add(1) + 1;
                 auto& gt = m_pendingGroups[groupIdx];
-                if (done >= gt.testIds.size()) {
+                if (done >= gt.diagIds.size()) {
                     m_currentGroupIdx++;
                     QTimer::singleShot(0, this, &AppState::startNextGroup);
                 }
@@ -441,25 +432,25 @@ void AppState::runTestInGroup(int groupIdx, int testIdx) {
     t.detach();
 }
 
-void AppState::onTestFinished(DiagId id, DiagnosticResult result) {
-    fprintf(stderr, "[TRACE] onTestFinished id=%d status=%d\n", (int)id, (int)result.status);
+void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
+    fprintf(stderr, "[TRACE] onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
     // Suppress stale results after cancel/reset
     if (m_runStatus != RunStatus::Running) return;
-    DiagGroup g = testGroup(id);
+    DiagGroup g = diagGroup(id);
     m_results[id] = result;
     m_totalCompleted++;
     m_completedPerGroup[g]++;
     m_resultsVersion++;
 
     emit progressChanged();
-    emit testCompleted(static_cast<int>(id));
+    emit diagCompleted(static_cast<int>(id));
     bumpVersion();
 }
 
 void AppState::cancel() {
     if (m_runStatus != RunStatus::Running) return;
     m_runStatus = RunStatus::Cancelled;
-    m_currentTestName.clear();
+    m_currentDiagName.clear();
     emit runStatusChanged();
     emit progressChanged();
     bumpVersion();
@@ -469,7 +460,7 @@ void AppState::cancel() {
 void AppState::reset() {
     cancel();
     m_runStatus = RunStatus::Idle;
-    m_totalCompleted = 0; m_totalTests = 0;
+    m_totalCompleted = 0; m_totalDiags = 0;
     m_results.clear();
     m_completedPerGroup.clear(); m_totalPerGroup.clear();
     m_errorMessage.clear();
@@ -487,13 +478,13 @@ void AppState::reset() {
 QVariantList AppState::resultsForGroup(int groupInt) const {
     QVariantList list;
     auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : testIdsForGroup(g)) {
+    for (auto id : diagIdsForGroup(g)) {
         if (m_results.contains(id)) {
             const auto& r = m_results[id];
             QVariantMap m;
             m["id"] = static_cast<int>(r.id);
-            m["testId"] = static_cast<int>(r.id);
-            m["displayName"] = r.displayName.isEmpty() ? staticTestDisplayName(r.id) : r.displayName;
+            m["diagId"] = static_cast<int>(r.id);
+            m["displayName"] = r.displayName.isEmpty() ? staticDiagDisplayName(r.id) : r.displayName;
             m["status"] = static_cast<int>(r.status);
             m["statusIcon"] = r.statusIcon();
             m["summary"] = r.summary;
@@ -512,27 +503,27 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     QVariantList list;
     if (!isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : testIdsForGroup(g)) {
+    for (auto id : diagIdsForGroup(g)) {
         list.append(static_cast<int>(id));
     }
     return list;
 }
 
-QVariantList AppState::allTestsForGroup(int groupInt) const {
+QVariantList AppState::allDiagsForGroup(int groupInt) const {
     QVariantList list;
     if (!isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     
-    for (auto id : testIdsForGroup(g)) {
-        if (!m_enabledTests.contains(id)) continue;
+    for (auto id : diagIdsForGroup(g)) {
+        if (!m_enabledDiags.contains(id)) continue;
         
         if (m_results.contains(id)) {
             // Completed test
             const auto& r = m_results[id];
             QVariantMap m;
             m["id"] = static_cast<int>(r.id);
-            m["testId"] = static_cast<int>(r.id);  // alias for QML access
-            m["displayName"] = r.displayName.isEmpty() ? staticTestDisplayName(r.id) : r.displayName;
+            m["diagId"] = static_cast<int>(r.id);  // alias for QML access
+            m["displayName"] = r.displayName.isEmpty() ? staticDiagDisplayName(r.id) : r.displayName;
             m["status"] = static_cast<int>(r.status);
             m["statusIcon"] = r.statusIcon();
             m["summary"] = r.summary;
@@ -551,21 +542,22 @@ QVariantList AppState::allTestsForGroup(int groupInt) const {
             m["isRunning"] = false;
             list.append(m);
         } else {
-            // Pending test
-            bool isCurrent = (m_runStatus == RunStatus::Running) 
-                          && (m_currentTestName == staticTestDisplayName(id));
+            // Pending test — mark as running if its group is currently executing
+            bool isRunning = (m_runStatus == RunStatus::Running)
+                          && (m_currentGroupIdx < m_pendingGroups.size())
+                          && (m_pendingGroups[m_currentGroupIdx].group == g);
             QVariantMap m;
             m["id"] = static_cast<int>(id);
-            m["testId"] = static_cast<int>(id);  // alias for QML access (consistent with completed)
-            m["displayName"] = staticTestDisplayName(id);
+            m["diagId"] = static_cast<int>(id);
+            m["displayName"] = staticDiagDisplayName(id);
             m["status"] = -1;
             m["statusIcon"] = QStringLiteral("badge-skip");
-            m["summary"] = QString(isCurrent ? "Running..." : "");
+            m["summary"] = QString(isRunning ? "Running..." : "");
             m["details"] = QString();
             m["durationMs"] = 0;
             m["isDone"] = false;
             m["isPending"] = true;
-            m["isRunning"] = isCurrent;
+            m["isRunning"] = isRunning;
             list.append(m);
         }
     }
@@ -579,15 +571,15 @@ QVariantMap AppState::groupStats(int groupInt) const {
     // Before any run this is 0 — all counts show 0.
     int total = m_totalPerGroup.value(g, 0);
     int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, completed = 0;
-    for (auto id : testIdsForGroup(g)) {
+    for (auto id : diagIdsForGroup(g)) {
         if (!m_results.contains(id)) continue;
         completed++;
         switch (m_results[id].status) {
-            case TestStatus::Pass:    pass++; break;
-            case TestStatus::Warning: warn++; break;
-            case TestStatus::Fail:    fail++; break;
-            case TestStatus::Skipped: skip++; break;
-            case TestStatus::Info:    info++; break;
+            case DiagStatus::Pass:    pass++; break;
+            case DiagStatus::Warning: warn++; break;
+            case DiagStatus::Fail:    fail++; break;
+            case DiagStatus::Skipped: skip++; break;
+            case DiagStatus::Info:    info++; break;
             default: break;
         }
     }
@@ -598,17 +590,17 @@ QVariantMap AppState::groupStats(int groupInt) const {
     return stats;
 }
 
-QString AppState::currentTestLabel() const {
+QString AppState::currentDiagLabel() const {
     if (m_runStatus == RunStatus::Running)
-        return QStringLiteral("%1: %2").arg(m_currentGroup, m_currentTestName);
+        return QStringLiteral("%1: %2").arg(m_currentGroup, m_currentDiagName);
     return {};
 }
 
-QString AppState::testDisplayName(int testIdInt) const {
-    return staticTestDisplayName(static_cast<DiagId>(testIdInt));
+QString AppState::diagDisplayName(int diagIdInt) const {
+    return staticDiagDisplayName(static_cast<DiagId>(diagIdInt));
 }
 
-QString AppState::staticTestDisplayName(DiagId id) {
+QString AppState::staticDiagDisplayName(DiagId id) {
     switch (id) {
         case DiagId::G1NetworkAdapters: return QStringLiteral("Network Adapters");
         case DiagId::G1NicAdvanced: return QStringLiteral("NIC Advanced");
@@ -657,9 +649,9 @@ QVariantList AppState::allGroupStats() const {
     return list;
 }
 
-void AppState::showDetailDialog(int testIdInt) {
-    if (!isValidDiagId(testIdInt)) return;
-    auto id = static_cast<DiagId>(testIdInt);
+void AppState::showDetailDialog(int diagIdInt) {
+    if (!isValidDiagId(diagIdInt)) return;
+    auto id = static_cast<DiagId>(diagIdInt);
     if (!m_results.contains(id)) return;
     
     const auto& r = m_results[id];
@@ -736,10 +728,10 @@ void AppState::showDetailDialog(int testIdInt) {
     dlg->show();
 }
 
-QVariantMap AppState::getDetailResult(int testIdInt) const {
+QVariantMap AppState::getDetailResult(int diagIdInt) const {
     QVariantMap m;
-    if (!isValidDiagId(testIdInt)) return m;
-    auto id = static_cast<DiagId>(testIdInt);
+    if (!isValidDiagId(diagIdInt)) return m;
+    auto id = static_cast<DiagId>(diagIdInt);
     if (!m_results.contains(id)) return m;
     
     const auto& r = m_results[id];

@@ -14,7 +14,7 @@ enum class DiagGroup {
     G1, G2, G3, G4, G5
 };
 
-inline QString testGroupLabel(DiagGroup g) {
+inline QString diagGroupLabel(DiagGroup g) {
     switch (g) {
         case DiagGroup::G1: return QStringLiteral("System & Adapters");
         case DiagGroup::G2: return QStringLiteral("Connectivity & Security");
@@ -25,7 +25,7 @@ inline QString testGroupLabel(DiagGroup g) {
     return {};
 }
 
-inline int testGroupTimeoutSec(DiagGroup g) {
+inline int diagGroupTimeoutSec(DiagGroup g) {
     switch (g) {
         case DiagGroup::G1: return 120;
         case DiagGroup::G2: return 120;
@@ -37,18 +37,18 @@ inline int testGroupTimeoutSec(DiagGroup g) {
 }
 
 // ── Test Status ─────────────────────────────────────────────────────────────
-enum class TestStatus {
+enum class DiagStatus {
     Pass, Warning, Fail, Skipped, Error, Info
 };
 
-inline QString testStatusIcon(TestStatus s) {
+inline QString diagStatusIcon(DiagStatus s) {
     switch (s) {
-        case TestStatus::Pass:    return QStringLiteral("badge-check");
-        case TestStatus::Warning: return QStringLiteral("badge-warning");
-        case TestStatus::Fail:    return QStringLiteral("badge-close");
-        case TestStatus::Skipped: return QStringLiteral("badge-skip");
-        case TestStatus::Error:   return QStringLiteral("badge-error");
-        case TestStatus::Info:    return QStringLiteral("badge-info");
+        case DiagStatus::Pass:    return QStringLiteral("badge-check");
+        case DiagStatus::Warning: return QStringLiteral("badge-warning");
+        case DiagStatus::Fail:    return QStringLiteral("badge-close");
+        case DiagStatus::Skipped: return QStringLiteral("badge-skip");
+        case DiagStatus::Error:   return QStringLiteral("badge-error");
+        case DiagStatus::Info:    return QStringLiteral("badge-info");
     }
     return {};
 }
@@ -105,7 +105,7 @@ enum class DiagId {
 };
 
 // ── DiagId metadata ─────────────────────────────────────────────────────────
-inline DiagGroup testGroup(DiagId id) {
+inline DiagGroup diagGroup(DiagId id) {
     switch (id) {
         case DiagId::G1NetworkAdapters:
         case DiagId::G1NicAdvanced:
@@ -268,11 +268,11 @@ inline const QVector<DiagId>& allDiagIds() {
     return ids;
 }
 
-inline const QVector<DiagId>& testIdsForGroup(DiagGroup g) {
+inline const QVector<DiagId>& diagIdsForGroup(DiagGroup g) {
     static const QMap<DiagGroup, QVector<DiagId>> cache = []() {
         QMap<DiagGroup, QVector<DiagId>> m;
         for (auto id : allDiagIds())
-            m[testGroup(id)].append(id);
+            m[diagGroup(id)].append(id);
         return m;
     }();
     static const QVector<DiagId> empty;

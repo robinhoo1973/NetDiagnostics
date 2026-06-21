@@ -9,6 +9,9 @@
 
 namespace G4RemoteHost {
 
+// Extract hostname from target (URL, hostname, or IP with optional port)
+QString extractHostname(const QString& target);
+
 DiagnosticResult dnsResolution(const QString& target);
 DiagnosticResult ping(const QString& target);
 DiagnosticResult traceroute(const QString& target);

@@ -8,10 +8,14 @@
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <csignal>
+#include <curl/curl.h>
 #include "app/AppState.h"
 
 int main(int argc, char *argv[])
 {
+    // Initialize libcurl once (thread-safe on first call only if done before threads)
+    curl_global_init(CURL_GLOBAL_ALL);
+
     // Ignore SIGPIPE — raw ::send() on broken connections returns EPIPE
     // instead of killing the process. The socket code checks errno after
     // every send() call and handles EPIPE gracefully.
@@ -25,6 +29,7 @@ int main(int argc, char *argv[])
     QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netanalysis.lock");
     QLockFile lockFile(lockPath);
     if (!lockFile.tryLock(100)) {
+        curl_global_cleanup();
         QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
             QStringLiteral("NetAnalysis is already running."));
         return 0;
@@ -86,5 +91,7 @@ int main(int argc, char *argv[])
         Qt::QueuedConnection);
     engine.load(url);
 
-    return app.exec();
+    int ret = app.exec();
+    curl_global_cleanup();
+    return ret;
 }

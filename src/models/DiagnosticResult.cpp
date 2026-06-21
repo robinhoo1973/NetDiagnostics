@@ -6,8 +6,8 @@
 DiagnosticResult DiagnosticResult::skipped(DiagId id, const QString& reason) {
     DiagnosticResult r;
     r.id = id;
-    r.group = testGroup(id);
-    r.status = TestStatus::Skipped;
+    r.group = diagGroup(id);
+    r.status = DiagStatus::Skipped;
     r.summary = reason;
     r.timestamp = QDateTime::currentDateTime();
     return r;
@@ -16,8 +16,8 @@ DiagnosticResult DiagnosticResult::skipped(DiagId id, const QString& reason) {
 DiagnosticResult DiagnosticResult::error(DiagId id, const QString& msg) {
     DiagnosticResult r;
     r.id = id;
-    r.group = testGroup(id);
-    r.status = TestStatus::Error;
+    r.group = diagGroup(id);
+    r.status = DiagStatus::Error;
     r.summary = msg;
     r.errorOutput = msg;
     r.timestamp = QDateTime::currentDateTime();
@@ -28,7 +28,7 @@ DiagnosticResult DiagnosticResult::timeout(DiagId id, DiagGroup group, qint64 du
     DiagnosticResult r;
     r.id = id;
     r.group = group;
-    r.status = TestStatus::Error;
+    r.status = DiagStatus::Error;
     r.summary = QStringLiteral("Timeout (%1s)").arg(durationMs / 1000);
     r.durationMs = durationMs;
     r.timestamp = QDateTime::currentDateTime();

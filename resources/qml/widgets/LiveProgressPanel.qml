@@ -25,13 +25,13 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
         Label {
             visible: status === 1
-            text: appState.currentTestLabel || ""
+            text: appState.currentDiagLabel || ""
             font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.italic: true; color: Theme.cyan
             elide: Text.ElideRight; Layout.maximumWidth: 300
         }
         Label {
-            visible: appState.totalTests > 0
-            text: appState.totalCompleted + " / " + appState.totalTests
+            visible: appState.totalDiags > 0
+            text: appState.totalCompleted + " / " + appState.totalDiags
             font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary
         }
     }

@@ -17,7 +17,7 @@ public:
     ~DiagnosticEngine() override;
 
     /// Run a single diagnostic test. Port params only used for G4PortScan.
-    QFuture<DiagnosticResult> runTest(DiagId id, const QString& target = {},
+    QFuture<DiagnosticResult> runDiag(DiagId id, const QString& target = {},
                                        int fromPort = 0, int toPort = 0,
                                        bool useCommonPorts = true);
 

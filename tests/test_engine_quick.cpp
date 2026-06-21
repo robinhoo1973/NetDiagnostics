@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
 
     // 3. Run a native test (G1 NetworkAdapters)
     qDebug() << "Running G1 NetworkAdapters...";
-    auto future = engine.runTest(DiagId::G1NetworkAdapters);
+    auto future = engine.runDiag(DiagId::G1NetworkAdapters);
     future.waitForFinished();
     auto result = future.result();
     qDebug() << "  id:" << static_cast<int>(result.id)
@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
     // 4. Run a non-native test (G5 URL parsing)
     qDebug() << "Running G5 URL Parsing...";
-    auto future2 = engine.runTest(DiagId::G5UrlParsing, "https://example.com");
+    auto future2 = engine.runDiag(DiagId::G5UrlParsing, "https://example.com");
     future2.waitForFinished();
     auto result2 = future2.result();
     qDebug() << "  id:" << static_cast<int>(result2.id)

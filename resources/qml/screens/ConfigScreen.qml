@@ -35,7 +35,7 @@ Item {
                 anchors { leftMargin: 16; rightMargin: 16 }
                 AppIcon { name: "config"; size: 20; color: Theme.cyan }
                 Item { width: 10 }
-                Label { text: Tr.testConfig; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+                Label { text: Tr.diagConfig; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
             }
             // TabBar — Flutter: G1..G5 tabs
             Rectangle {
@@ -86,7 +86,7 @@ Item {
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.textPrimary
                     }
                     Label {
-                        text: getTestCountForGroup(currentGroup) + Tr.testsSuffix
+                        text: getDiagCountForGroup(currentGroup) + Tr.diagsSuffix
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textSecondary
                     }
                 }
@@ -149,7 +149,7 @@ Item {
 
                     // Leading icon
                     AppIcon {
-                        name: appState.isTestEnabled(modelData) ? "badge-check" : "badge-circle"
+                        name: appState.isDiagEnabled(modelData) ? "badge-check" : "badge-circle"
                         size: 14
                         color: "white"
                     }
@@ -165,7 +165,7 @@ Item {
                         }
                         Label {
                             Layout.fillWidth: true
-                            text: getTestDescription(modelData)
+                            text: getDiagDescription(modelData)
                             font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11
                             color: Qt.alpha(Theme.textSecondary, 0.6)
                             elide: Text.ElideRight; maximumLineCount: 2
@@ -177,16 +177,16 @@ Item {
                     Switch {
                         checked: {
                             let _force = configPollVersion  // re-evaluate when poll timer fires
-                            return appState.isTestEnabled(modelData)
+                            return appState.isDiagEnabled(modelData)
                         }
-                        onToggled: appState.setTestEnabled(modelData, checked)
+                        onToggled: appState.setDiagEnabled(modelData, checked)
                     }
                 }
             }
         }
     }
 
-    // ── Display names + descriptions — routed through Tr.testName/testDesc ──
+    // ── Display names + descriptions — routed through Tr.diagName/diagDesc ──
     property var _enNames: ["Network Adapters","NIC Advanced","WiFi Information","Wired Information",
         "DHCP Status","IP Configuration","Active Connections","Network Profile",
         "TCP Settings","Default Gateway","Routing Table","ARP Table","Proxy Settings",
@@ -234,18 +234,18 @@ Item {
         "FTP service reachability and banner detection",
         "SSH version and key exchange detection",
         "SMTP/IMAP/POP3 service detection and banner"]
-    function getDisplayName(testId) {
+    function getDisplayName(diagId) {
         // Use translated name when available (non-EN), fallback to English array
-        var tr = Tr.testName(testId)
+        var tr = Tr.diagName(diagId)
         if (tr !== "") return tr
-        return (testId >= 0 && testId < _enNames.length) ? _enNames[testId] : "Test " + testId
+        return (diagId >= 0 && diagId < _enNames.length) ? _enNames[diagId] : "Diag " + diagId
     }
-    function getTestDescription(testId) {
-        var tr = Tr.testDesc(testId)
+    function getDiagDescription(diagId) {
+        var tr = Tr.diagDesc(diagId)
         if (tr !== "") return tr
-        return (testId >= 0 && testId < _enDescs.length) ? _enDescs[testId] : ""
+        return (diagId >= 0 && diagId < _enDescs.length) ? _enDescs[diagId] : ""
     }
-    function getTestCountForGroup(groupIdx) {
+    function getDiagCountForGroup(groupIdx) {
         return appState.allDiagIdsForGroup(groupIdx).length
     }
 }

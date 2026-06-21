@@ -12,8 +12,8 @@
         <file>qml/screens/SettingsScreen.qml</file>
         <file>qml/screens/SimulatorScreen.qml</file>
         <file>qml/widgets/TargetInputPanel.qml</file>
-        <file>qml/widgets/TestGroupPanel.qml</file>
-        <file>qml/widgets/TestResultItem.qml</file>
+        <file>qml/widgets/DiagGroupPanel.qml</file>
+        <file>qml/widgets/DiagResultItem.qml</file>
         <file>qml/widgets/LiveProgressPanel.qml</file>
         <file>qml/widgets/PortScanConfig.qml</file>
         <file>qml/widgets/AppIcon.qml</file>

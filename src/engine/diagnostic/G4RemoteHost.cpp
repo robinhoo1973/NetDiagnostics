@@ -4,6 +4,7 @@
 #include "util/Logger.h"
 #include <QHostInfo>
 #include <QElapsedTimer>
+#include <atomic>
 #include <QFile>
 #include <QDir>
 #include <cstring>
@@ -34,9 +35,6 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-#ifdef __linux__
-#include <linux/errqueue.h>
-#endif
 #include <resolv.h>
 #include <arpa/nameser.h>
 inline int setNonblockWin(int sock) {
@@ -49,12 +47,16 @@ inline int setSockOptRcvTimeout(int, int) { return 0; }
 
 namespace G4RemoteHost {
 
+// Set to false when raw ICMP socket creation fails (no CAP_NET_RAW / root).
+// Used by traceroute()/pathPing() to display a helpful fix hint.
+static std::atomic<bool> s_rawIcmpAvailable{true};
+
 static ResultProperty prop(const QString& label, const QString& value) {
     return ResultProperty(label, value);
 }
 
 // ── Extract hostname from target (URL or hostname) ─────────────────────
-static QString extractHostname(const QString& target) {
+QString extractHostname(const QString& target) {
     QString t = target.trimmed();
     // If it's a URL (contains ://), parse out the hostname
     if (t.contains("://")) {
@@ -177,7 +179,7 @@ DiagnosticResult dnsResolution(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4DnsResolution; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = TestStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
     QString host = extractHostname(target);
     QElapsedTimer t; t.start();
     QStringList out;
@@ -360,10 +362,10 @@ DiagnosticResult dnsResolution(const QString& target) {
 
     if (!ipsAll.isEmpty()) {
         r.summary = QStringLiteral("%1 → %2").arg(host, ipsAll.join(QStringLiteral(", ")));
-        r.status = TestStatus::Pass;
+        r.status = DiagStatus::Pass;
     } else {
         r.summary = QStringLiteral("DNS resolution failed for %1").arg(host);
-        r.status = TestStatus::Fail;
+        r.status = DiagStatus::Fail;
     }
     r.properties.append(prop("Target", target));
     r.properties.append(prop("Host", host));
@@ -373,13 +375,14 @@ DiagnosticResult dnsResolution(const QString& target) {
 
 // ── TCP / ICMP socket helpers ─────────────────────────────────────────
 static quint32 resolveIPv4(const QString& host) {
-    // 1. Try QHostInfo (Qt's async resolver)
+    // Returns host-byte-order IPv4 address.
+    // 1. Try QHostInfo (Qt's async resolver) — toIPv4Address() is NBO
     QHostInfo info = QHostInfo::fromName(host);
     if (!info.addresses().isEmpty()) {
         quint32 ip = info.addresses().first().toIPv4Address();
-        if (ip) return ip;
+        if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
     }
-    // 2. Fallback to getaddrinfo (libc resolver)
+    // 2. Fallback to getaddrinfo (libc resolver) — sin_addr is NBO
     fprintf(stderr, "[DNS] QHostInfo failed for '%s', trying getaddrinfo\n", host.toUtf8().constData());
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
@@ -389,7 +392,7 @@ static quint32 resolveIPv4(const QString& host) {
     if (getaddrinfo(hostBytes.constData(), nullptr, &hints, &res) == 0) {
         quint32 ip = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
         freeaddrinfo(res);
-        return ntohl(ip);
+        return ntohl(ip); // sin_addr is NBO → convert to HBO
     }
     return 0;
 }
@@ -427,7 +430,7 @@ DiagnosticResult ping(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Ping; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = TestStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
     QString host = extractHostname(target);
     quint32 resolvedIp = resolveIPv4(host);
     // Build output — strict Windows ping.exe format
@@ -481,10 +484,10 @@ DiagnosticResult ping(const QString& target) {
     }
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
-    if (loss>=100.0) { r.status=TestStatus::Fail; r.summary=QStringLiteral("100%% packet loss"); }
-    else if (loss>=50.0) { r.status=TestStatus::Fail; r.summary=QStringLiteral("%1%% loss").arg(loss,0,'f',1); }
-    else if (loss>0) { r.status=TestStatus::Warning; r.summary=QStringLiteral("%1%% loss, avg %2ms").arg(loss,0,'f',1).arg(avg,0,'f',1); }
-    else { r.status=TestStatus::Pass; r.summary=QStringLiteral("0%% loss, avg %1ms").arg(avg,0,'f',1); }
+    if (loss>=100.0) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("100%% packet loss"); }
+    else if (loss>=50.0) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("%1%% loss").arg(loss,0,'f',1); }
+    else if (loss>0) { r.status=DiagStatus::Warning; r.summary=QStringLiteral("%1%% loss, avg %2ms").arg(loss,0,'f',1).arg(avg,0,'f',1); }
+    else { r.status=DiagStatus::Pass; r.summary=QStringLiteral("0%% loss, avg %1ms").arg(avg,0,'f',1); }
     return r;
 }
 
@@ -534,16 +537,103 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 }
 #elif defined(__linux__)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
+    // ── ICMP Echo traceroute (requires CAP_NET_RAW, like traceroute -I) ──
+    // Uses raw ICMP socket to send Echo Request with TTL=N. Receives:
+    //  - ICMP Echo Reply → reached target
+    //  - ICMP Time Exceeded → intermediate router (extract IP)
+    //  - Timeout → no response
+    //
+    // Fallback: if raw socket fails (no CAP_NET_RAW), use TCP connect with TTL.
+    // TCP TTL is not honored by some kernels — in that case all hops show as
+    // reached target. This is a kernel limitation, not a code bug.
+    int icmpSock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+    if (icmpSock < 0) s_rawIcmpAvailable = false;
+    if (icmpSock >= 0) {
+        // ── Raw ICMP method (traceroute -I) ─────────────────────────────
+        quint32 targetIp = resolveIPv4(host);
+        if (!targetIp) { close(icmpSock); rttMs = 0; hopIp.clear(); return -2; }
+
+        struct sockaddr_in addr;
+        memset(&addr, 0, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = htonl(targetIp);
+
+        // Build ICMP Echo Request
+        unsigned char packet[64] = {};
+        packet[0] = 8; // ICMP Echo
+        packet[1] = 0; // Code
+        // Checksum at [2:3], computed below
+        { uint16_t v = htons((uint16_t)getpid()); memcpy(packet+4, &v, 2); } // ID
+        { uint16_t v = htons((uint16_t)ttl);      memcpy(packet+6, &v, 2); } // Seq
+
+        // ICMP checksum
+        uint32_t sum = 0;
+        for (int i = 0; i < (int)sizeof(packet); i += 2)
+            sum += (packet[i] << 8) | packet[i + 1];
+        while (sum >> 16) sum = (sum & 0xffff) + (sum >> 16);
+        { uint16_t v = htons(~sum); memcpy(packet+2, &v, 2); }
+
+        // Set TTL on the raw socket
+        setsockopt(icmpSock, IPPROTO_IP, IP_TTL, (const char*)&ttl, sizeof(ttl));
+
+        QElapsedTimer tm; tm.start();
+        ssize_t nsent = ::sendto(icmpSock, packet, sizeof(packet), 0, (struct sockaddr*)&addr, sizeof(addr));
+        if (nsent < 0) { close(icmpSock); rttMs=0; hopIp.clear(); return -2; }
+
+        // Wait for reply (up to 2 s)
+        unsigned char recvBuf[1024];
+        while ((int)tm.elapsed() < 2000) {
+            fd_set rfds; FD_ZERO(&rfds); FD_SET(icmpSock, &rfds);
+            struct timeval tv = {1, 0};
+            int sel = select(icmpSock + 1, &rfds, nullptr, nullptr, &tv);
+            if (sel < 0) break;
+            if (sel == 0) continue;
+
+            struct sockaddr_in from; socklen_t fromLen = sizeof(from);
+            ssize_t n = recvfrom(icmpSock, recvBuf, sizeof(recvBuf), 0, (struct sockaddr*)&from, &fromLen);
+            if (n < 0) continue;
+
+            // Parse IP header (20 bytes) + ICMP header
+            if (n < 28) continue;
+            int ipHdrLen = (recvBuf[0] & 0x0f) * 4;
+            if (n < ipHdrLen + 8) continue;
+            unsigned char* icmp = recvBuf + ipHdrLen;
+            int icmpType = icmp[0];
+            int icmpCode = icmp[1];
+
+            if (icmpType == 0) {
+                // Echo Reply — reached target
+                hopIp = QString::fromLatin1(inet_ntoa(from.sin_addr));
+                rttMs = (int)tm.elapsed();
+                close(icmpSock);
+                return 0;
+            } else if (icmpType == 11 && icmpCode == 0) {
+                // Time Exceeded — intermediate router
+                // The ICMP payload contains the original IP header + 8 bytes,
+                // from which we extract the router's IP from the `from` address.
+                hopIp = QString::fromLatin1(inet_ntoa(from.sin_addr));
+                rttMs = (int)tm.elapsed();
+                close(icmpSock);
+                return 1;
+            } else if (icmpType == 3) {
+                // Destination Unreachable — terminal, no further hops
+                // Code 3 = Port Unreachable (reached target)
+                hopIp = QString::fromLatin1(inet_ntoa(from.sin_addr));
+                rttMs = (int)tm.elapsed();
+                close(icmpSock);
+                return (icmpCode == 3) ? 0 : -1;
+            }
+            // Other ICMP: ignore, try again
+        }
+        close(icmpSock);
+        rttMs = 0; hopIp.clear();
+        return -1; // Timeout
+    }
+
+    // ── Fallback: TCP connect with TTL (no raw socket) ─────────────────
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) { rttMs = 0; hopIp.clear(); return -2; }
 
-    // Enable IP_RECVERR — kernel delivers ICMP errors (Time Exceeded,
-    // Host Unreachable, etc.) to the socket error queue, including the
-    // source IP of the router that generated the error.
-    int on = 1;
-    setsockopt(sock, IPPROTO_IP, IP_RECVERR, &on, sizeof(on));
-
-    // Set the TTL for this probe
     setsockopt(sock, IPPROTO_IP, IP_TTL, (const char*)&ttl, sizeof(ttl));
 
     quint32 targetIp = resolveIPv4(host);
@@ -552,109 +642,107 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(443);
+    addr.sin_port = htons(80);
     addr.sin_addr.s_addr = htonl(targetIp);
 
-    // ── Non-blocking connect ──────────────────────────────────────────
-    // On Linux, setNonblockWin now actually sets O_NONBLOCK (previously
-    // it was a no-op, causing connect() to block and ICMP errors to be
-    // consumed by the kernel without entering the error queue).
     setNonblockWin(sock);
-
     QElapsedTimer tm; tm.start();
-    int cr = ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-    (void)cr; // EINPROGRESS expected for non-blocking connect
+    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
 
-    // ── Wait for socket activity (2 s) ─────────────────────────────────
-    fd_set wfds, efds;
-    FD_ZERO(&wfds); FD_ZERO(&efds);
-    FD_SET(sock, &wfds); FD_SET(sock, &efds);
+    fd_set wfds; FD_ZERO(&wfds); FD_SET(sock, &wfds);
     struct timeval tv = {2, 0};
-    int sel = select(sock + 1, nullptr, &wfds, &efds, &tv);
+    int sel = select(sock + 1, nullptr, &wfds, nullptr, &tv);
     rttMs = (int)tm.elapsed();
 
-    // ── Helper: extract router IP from MSG_ERRQUEUE ────────────────────
-    auto readIcmpError = [&]() -> bool {
-        struct msghdr msg;
-        struct iovec iov;
-        char ctrlBuf[512];
-        char dataBuf[256];
-        memset(&msg, 0, sizeof(msg));
-        memset(ctrlBuf, 0, sizeof(ctrlBuf));
-        msg.msg_control = ctrlBuf;
-        msg.msg_controllen = sizeof(ctrlBuf);
-        iov.iov_base = dataBuf;
-        iov.iov_len = sizeof(dataBuf);
-        msg.msg_iov = &iov;
-        msg.msg_iovlen = 1;
-
-        ssize_t n = recvmsg(sock, &msg, MSG_ERRQUEUE | MSG_DONTWAIT);
-        if (n < 0) return false;
-
-        for (struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg); cmsg;
-             cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-            if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_RECVERR) {
-                struct sock_extended_err* sockErr =
-                    (struct sock_extended_err*)CMSG_DATA(cmsg);
-                // ICMP Time Exceeded (code 0) or Host Unreachable
-                if (sockErr->ee_origin == SO_EE_ORIGIN_ICMP) {
-                    // The offending router's address immediately follows
-                    struct sockaddr_in* offender =
-                        (struct sockaddr_in*)(sockErr + 1);
-                    hopIp = QString::fromLatin1(inet_ntoa(offender->sin_addr));
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
-
-    // ── Step 1: Check for ICMP error from intermediate router ──────────
-    // Even when select() times out or returns write-ready, the ICMP
-    // Time Exceeded message may already be queued. Read it first.
-    if (readIcmpError()) {
-        close(sock);
-        return 1; // Intermediate hop — router IP in hopIp
-    }
-
-    // ── Step 2: Check SO_ERROR for connect result ──────────────────────
     if (sel > 0 && FD_ISSET(sock, &wfds)) {
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
         if (err == 0 || err == ECONNREFUSED) {
-            // Reached target (either port open or actively refused)
-            struct sockaddr_in peer; socklen_t peerLen = sizeof(peer);
-            if (getpeername(sock, (struct sockaddr*)&peer, &peerLen) == 0)
-                hopIp = QString::fromLatin1(inet_ntoa(peer.sin_addr));
-            else
-                hopIp = QString::fromLatin1(inet_ntoa(addr.sin_addr));
+            hopIp = QString::fromLatin1(inet_ntoa(addr.sin_addr));
             close(sock);
             return 0;
         }
     }
-
-    // ── Step 3: Retry ICMP error — may arrive slightly after select() ──
-    // On slow/long-distance links the ICMP Time Exceeded packet can
-    // arrive a few milliseconds after select() returns. Give it one
-    // more chance with a short poll.
-    {
-        struct timeval retryTv = {0, 50000}; // 50 ms
-        select(0, nullptr, nullptr, nullptr, &retryTv);
-        if (readIcmpError()) {
-            close(sock);
-            return 1;
-        }
-    }
-
     close(sock);
-    rttMs = 0;
-    hopIp.clear();
-    return -1; // No response (timeout or filtered)
+    rttMs = 0; hopIp.clear();
+    return -1;
 }
 #else
-// macOS/iOS/BSD: traceroute not supported (requires Linux IP_RECVERR or Windows IcmpSendEcho)
-static int tcpTraceHop(const QString&, int, int& rttMs, QString& hopIp) {
-    rttMs = 0; hopIp.clear(); return -2;
+// macOS/iOS/BSD: UDP TTL probing + passive ICMP listener (no root needed).
+// Uses SOCK_DGRAM, IPPROTO_ICMP which Apple's sandbox allows (SimplePing pattern).
+// Research: dev.to/dtisch "How I implemented ping and traceroute on iOS"
+static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
+    quint32 targetIp = 0;
+    {   struct addrinfo h={},*r; h.ai_family=AF_INET; h.ai_socktype=SOCK_STREAM;
+        QByteArray hb=host.toUtf8();
+        if(getaddrinfo(hb.constData(),nullptr,&h,&r)==0){targetIp=ntohl(((struct sockaddr_in*)r->ai_addr)->sin_addr.s_addr);freeaddrinfo(r);}
+    }
+    if(!targetIp){rttMs=0;hopIp.clear();return -2;}
+
+    // Passive ICMP listener (SOCK_DGRAM, IPPROTO_ICMP — allowed on iOS/macOS sandbox)
+    int icmpSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (icmpSock < 0) {
+        s_rawIcmpAvailable = false;
+        // Fallback: TCP connect with TTL
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) { rttMs=0; hopIp.clear(); return -2; }
+        setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+        struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
+        addr.sin_family=AF_INET; addr.sin_port=htons(80);
+        addr.sin_addr.s_addr=htonl(targetIp);
+        setNonblockWin(sock);
+        QElapsedTimer tm; tm.start();
+        ::connect(sock,(struct sockaddr*)&addr,sizeof(addr));
+        fd_set wfds; FD_ZERO(&wfds); FD_SET(sock,&wfds);
+        struct timeval tv={2,0};
+        if(select(sock+1,nullptr,&wfds,nullptr,&tv)>0){
+            int err=0; socklen_t len=sizeof(err);
+            getsockopt(sock,SOL_SOCKET,SO_ERROR,(char*)&err,&len);
+            rttMs=(int)tm.elapsed();
+            if(err==0||err==ECONNREFUSED){hopIp=QString::fromLatin1(inet_ntoa(*(struct in_addr*)&addr.sin_addr));close(sock);return 0;}
+        }
+        close(sock); rttMs=0; hopIp.clear(); return -1;
+    }
+
+    // UDP probe sender with TTL
+    int udpSock = socket(AF_INET, SOCK_DGRAM, 0);
+    setsockopt(udpSock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+
+    struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
+    addr.sin_family=AF_INET; addr.sin_port=htons(33434+ttl);
+    addr.sin_addr.s_addr=htonl(targetIp);
+
+    QElapsedTimer tm; tm.start();
+    char dummy=0;
+    ssize_t nsent = ::sendto(udpSock,&dummy,1,0,(struct sockaddr*)&addr,sizeof(addr));
+    close(udpSock);
+    if (nsent < 0) { close(icmpSock); rttMs=0; hopIp.clear(); return -2; }
+
+    // Listen for ICMP response
+    while((int)tm.elapsed()<2000){
+        fd_set rfds; FD_ZERO(&rfds); FD_SET(icmpSock,&rfds);
+        struct timeval tv={1,0};
+        int sel=select(icmpSock+1,&rfds,nullptr,nullptr,&tv);
+        if(sel<0)break; if(sel==0)continue;
+        unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl=sizeof(from);
+        ssize_t n=recvfrom(icmpSock,buf,sizeof(buf),0,(struct sockaddr*)&from,&fl);
+        // macOS: SOCK_DGRAM+IPPROTO_ICMP returns ICMP header directly (no IP header)
+        if(n<8)continue;
+        int type=buf[0], code=buf[1];
+        if(type==0){ // Echo Reply — reached target
+            hopIp=QString::fromLatin1(inet_ntoa(from.sin_addr));
+            rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+        }
+        if(type==11&&code==0){ // Time Exceeded — intermediate router
+            hopIp=QString::fromLatin1(inet_ntoa(from.sin_addr));
+            rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
+        }
+        if(type==3&&code==3){ // Port Unreachable — reached target
+            hopIp=QString::fromLatin1(inet_ntoa(from.sin_addr));
+            rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+        }
+    }
+    close(icmpSock); rttMs=0; hopIp.clear(); return -1;
 }
 #endif
 
@@ -663,10 +751,10 @@ DiagnosticResult traceroute(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Traceroute; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = TestStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
-    if (!targetIp) { r.status=TestStatus::Fail; r.summary=QStringLiteral("DNS resolution failed"); return r; }
+    if (!targetIp) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("DNS resolution failed"); return r; }
 
     struct in_addr ta; ta.s_addr = htonl(targetIp);
     QString targetIpStr = QString::fromLatin1(inet_ntoa(ta));
@@ -742,11 +830,20 @@ DiagnosticResult traceroute(const QString& target) {
     } else {
         lines.append(QStringLiteral("Trace incomplete — target may be firewalled."));
     }
+    // Hint if raw ICMP sockets are unavailable (no CAP_NET_RAW)
+    if (!s_rawIcmpAvailable) {
+        lines.append(QString());
+        lines.append(QStringLiteral("NOTE: Raw ICMP sockets unavailable (requires CAP_NET_RAW)."));
+        lines.append(QStringLiteral("  Only the target hop is visible; intermediate routers cannot be detected."));
+        lines.append(QStringLiteral("  To enable full traceroute, run:"));
+        lines.append(QStringLiteral("    sudo setcap cap_net_raw=ep <path-to-binary>"));
+        lines.append(QStringLiteral("  Or launch with:  sudo <path-to-binary>"));
+    }
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
-    if (reached) { r.status = TestStatus::Pass; r.summary = QStringLiteral("Target reached in %1 hops").arg(hopCount); }
-    else if (hopCount > 0) { r.status = TestStatus::Warning; r.summary = QStringLiteral("Partial path (%1 hops)").arg(hopCount); }
-    else { r.status = TestStatus::Fail; r.summary = QStringLiteral("No hops discovered"); }
+    if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("Target reached in %1 hops").arg(hopCount); }
+    else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial path (%1 hops)").arg(hopCount); }
+    else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No hops discovered"); }
     return r;
 }
 
@@ -755,10 +852,10 @@ DiagnosticResult pathPing(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4PathPing; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = TestStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
-    if (!targetIp) { r.status = TestStatus::Fail; r.summary = QStringLiteral("DNS resolution failed"); return r; }
+    if (!targetIp) { r.status = DiagStatus::Fail; r.summary = QStringLiteral("DNS resolution failed"); return r; }
     struct in_addr a; a.s_addr = htonl(targetIp);
     QString targetIpStr = QString::fromLatin1(inet_ntoa(a));
 
@@ -917,13 +1014,19 @@ DiagnosticResult pathPing(const QString& target) {
 
     lines.append(QString());
     lines.append(reached ? QStringLiteral("Trace complete.") : QStringLiteral("Trace incomplete."));
+    if (!s_rawIcmpAvailable) {
+        lines.append(QString());
+        lines.append(QStringLiteral("NOTE: Raw ICMP sockets unavailable (requires CAP_NET_RAW)."));
+        lines.append(QStringLiteral("  Per-hop statistics may be incomplete."));
+        lines.append(QStringLiteral("  To enable full pathPing, run:  sudo setcap cap_net_raw=ep <binary>"));
+    }
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
     r.durationMs = totalTimer.elapsed();
 
-    if (reached) { r.status = TestStatus::Pass; r.summary = QStringLiteral("%1 hops, target reached").arg(hopCount); }
-    else if (hopCount > 0) { r.status = TestStatus::Warning; r.summary = QStringLiteral("Partial: %1 hops").arg(hopCount); }
-    else { r.status = TestStatus::Fail; r.summary = QStringLiteral("Target unreachable"); }
+    if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("%1 hops, target reached").arg(hopCount); }
+    else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial: %1 hops").arg(hopCount); }
+    else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("Target unreachable"); }
     return r;
 }
 
@@ -932,7 +1035,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4MtuDiscovery; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = TestStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
     QString host = extractHostname(target);
     quint32 resolvedIp = resolveIPv4(host);
     QString ipStr;
@@ -1017,9 +1120,9 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     r.properties.append(prop("Host", host));
     r.properties.append(prop("MtuValue", QString::number(discoveredMtu)));
     r.properties.append(prop("MssValue", QString::number(mss)));
-    if (discoveredMtu >= 1500) { r.status = TestStatus::Pass; r.summary = QStringLiteral("MTU %1 (standard)").arg(discoveredMtu); }
-    else if (discoveredMtu >= 1280) { r.status = TestStatus::Warning; r.summary = QStringLiteral("MTU %1 (below 1500)").arg(discoveredMtu); }
-    else { r.status = TestStatus::Warning; r.summary = QStringLiteral("Low MTU: %1").arg(discoveredMtu); }
+    if (discoveredMtu >= 1500) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("MTU %1 (standard)").arg(discoveredMtu); }
+    else if (discoveredMtu >= 1280) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("MTU %1 (below 1500)").arg(discoveredMtu); }
+    else { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Low MTU: %1").arg(discoveredMtu); }
     return r;
 }
 

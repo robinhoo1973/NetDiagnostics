@@ -24,8 +24,8 @@ class AppState : public QObject {
     Q_PROPERTY(QString target READ target WRITE setTarget NOTIFY targetChanged)
     Q_PROPERTY(int runStatus READ runStatusInt NOTIFY runStatusChanged)
     Q_PROPERTY(int totalCompleted READ totalCompleted NOTIFY progressChanged)
-    Q_PROPERTY(int totalTests READ totalTests NOTIFY progressChanged)
-    Q_PROPERTY(QString currentTestLabel READ currentTestLabel NOTIFY currentTestChanged)
+    Q_PROPERTY(int totalDiags READ totalDiags NOTIFY progressChanged)
+    Q_PROPERTY(QString currentDiagLabel READ currentDiagLabel NOTIFY currentDiagChanged)
     Q_PROPERTY(QString currentGroup READ currentGroup NOTIFY groupChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY runStatusChanged)
     Q_PROPERTY(QStringList groupLabels READ groupLabels CONSTANT)
@@ -51,8 +51,8 @@ public:
 
     // ── Progress ───────────────────────────────────────────────────────────
     int totalCompleted() const { return m_totalCompleted; }
-    int totalTests() const { return m_totalTests; }
-    QString currentTestLabel() const;
+    int totalDiags() const { return m_totalDiags; }
+    QString currentDiagLabel() const;
     QString currentGroup() const { return m_currentGroup; }
     QString errorMessage() const { return m_errorMessage; }
 
@@ -71,18 +71,18 @@ public:
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE void reset();
-    Q_INVOKABLE bool isTestEnabled(int testIdInt) const;
-    Q_INVOKABLE void setTestEnabled(int testIdInt, bool enabled);
+    Q_INVOKABLE bool isDiagEnabled(int diagIdInt) const;
+    Q_INVOKABLE void setDiagEnabled(int diagIdInt, bool enabled);
     Q_INVOKABLE void setGroupEnabled(int groupInt, bool enabled);
     Q_INVOKABLE bool isGroupAllEnabled(int groupInt) const;
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
-    Q_INVOKABLE QVariantList allTestsForGroup(int groupInt) const;
+    Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;
     QVariantList allGroupStats() const;
-    Q_INVOKABLE void showDetailDialog(int testIdInt);
-    Q_INVOKABLE QVariantMap getDetailResult(int testIdInt) const;
+    Q_INVOKABLE void showDetailDialog(int diagIdInt);
+    Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const;
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
     int resultsVersion() const { return m_resultsVersion; }
     int languageIndex() const { return m_languageIndex; }
@@ -129,22 +129,22 @@ signals:
     void targetChanged();
     void runStatusChanged();
     void progressChanged();
-    void currentTestChanged();
+    void currentDiagChanged();
     void groupChanged();
     void portScanConfigChanged();
-    void testCompleted(int testIdInt);
+    void diagCompleted(int diagIdInt);
     void resultsReset();
     void stateVersionChanged();
     void languageChanged();
 
 private slots:
-    void onTestFinished(DiagId id, DiagnosticResult result);
+    void onDiagFinished(DiagId id, DiagnosticResult result);
 
 private:
     void startNextGroup();
-    void runTestInGroup(int groupIdx, int testIdx);
-    Q_INVOKABLE QString testDisplayName(int testIdInt) const;
-    static QString staticTestDisplayName(DiagId id);
+    void runDiagInGroup(int groupIdx, int diagIdx);
+    Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
+    static QString staticDiagDisplayName(DiagId id);
     void bumpVersion();
 
     DiagnosticEngine* m_engine = nullptr;
@@ -152,27 +152,28 @@ private:
     QString m_target;
     RunStatus m_runStatus = RunStatus::Idle;
     QString m_currentGroup;
-    QString m_currentTestName;
+    QString m_currentDiagName;
     QString m_errorMessage;
     QString m_targetError;
     int m_totalCompleted = 0;
-    int m_totalTests = 0;
+    int m_totalDiags = 0;
 
     bool m_portScanCommon = true;
     int m_portScanFrom = 0;
     int m_portScanTo = 0;
 
-    QSet<DiagId> m_enabledTests; // all enabled by default
+    QSet<DiagId> m_enabledDiags; // all enabled by default
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_completedPerGroup;
     QMap<DiagGroup, int> m_totalPerGroup;
 
     // Group-sequential execution
-    struct GroupTask { QList<DiagId> testIds; DiagGroup group; };
+    struct GroupTask { QList<DiagId> diagIds; DiagGroup group; };
     QList<GroupTask> m_pendingGroups;
     int m_currentGroupIdx = 0;
     std::atomic<int> m_activeGroupDone{0};
     std::atomic<int> m_stateGeneration{0};
+    std::atomic<int> m_runGeneration{0}; // incremented each runDiagnostics() to invalidate stale callbacks
     int m_resultsVersion = 0;
     int m_languageIndex = 0;
 };

@@ -132,7 +132,7 @@ Item {
                     Label { text: Tr.summary; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     RowLayout {
-                    SummaryStat { appIcon: "config"; clr: Theme.cyan; val: appState.totalTests; lbl: Tr.totalTestsLabel }
+                    SummaryStat { appIcon: "config"; clr: Theme.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
                     Item { width: 24 }
                     SummaryStat { appIcon: "timer"; clr: Theme.accentBlue; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
                     Item { width: 24 }

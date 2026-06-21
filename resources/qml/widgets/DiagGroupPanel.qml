@@ -16,7 +16,8 @@ Rectangle {
     border { width: 1; color: isRunning ? Qt.alpha("#00BCD4", 0.4) : "#2A2A4A" }
 
     // ── Computed state — all from C++ groupStats (single source of truth) ──
-    property var allItems: { let _v = appState.resultsVersion; return appState.allTestsForGroup(groupIndex) }
+    property var allItems: { let _v = appState.resultsVersion; return appState.allDiagsForGroup(groupIndex) }
+    // ── Computed state — all from C++ groupStats (single source of truth) ──
     property int enabledCount: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.total||0 }
     property int completedCount: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.completed||0 }
     property bool isRunning: appState.runStatus===1 && completedCount<enabledCount && completedCount>0
@@ -39,7 +40,7 @@ Rectangle {
     function reloadModel() {
         // Force fresh reference: clear first, then assign
         // On ARM64 Qt 6.8.2, QML does not detect internal array changes
-        var fresh = appState.allTestsForGroup(groupIndex)
+        var fresh = appState.allDiagsForGroup(groupIndex)
         itemsModel = []
         itemsModel = fresh
         _modelVersion++
@@ -57,7 +58,7 @@ Rectangle {
             Rectangle { width:3; height:24; radius:2; color:isRunning?"#00BCD4":"#0078D4" }
             ColumnLayout { spacing:1
                 Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:13; font.weight:Font.DemiBold; color:"#E0E0E0" }
-                Label { visible:isRunning; text:"Running: "+(appState.currentTestLabel||"")+"..."; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; font.italic:true; color:"#00BCD4"; elide:Text.ElideRight }
+                Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; font.italic:true; color:"#00BCD4"; elide:Text.ElideRight }
             }
             Item { Layout.fillWidth:true }
             Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; font.weight:Font.Medium; color:"#A0A0B8" }
@@ -96,7 +97,7 @@ Rectangle {
                         anchors { top:parent.top; bottom:parent.bottom; left:parent.left; leftMargin:6 }
                         width:2; color:"#2A2A4A"
                     }
-                    TestResultItem {
+                    DiagResultItem {
                         id: testItem
                         anchors { left:parent.left; leftMargin:20; right:parent.right }
                         itemData: modelData

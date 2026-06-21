@@ -14,7 +14,7 @@ Item {
     property int _cachedGen: -1
     property int _runStatus: 0
     property int _totalCompleted: 0
-    property int _totalTests: 0
+    property int _totalDiags: 0
     property bool _runActive: false       // true while runStatus === Running
 
     // ── Config snapshot — frozen at Run click, released on Complete/Cancel/Error ──
@@ -78,7 +78,7 @@ Item {
         // Always sync progress (changes during run)
         _runStatus = newStatus
         _totalCompleted = appState.totalCompleted
-        _totalTests = appState.totalTests
+        _totalDiags = appState.totalDiags
 
         // Full config sync only when not in active run
         if (!_runActive) {
@@ -316,8 +316,8 @@ Item {
                 }
                 // Progress counter — visible during run
                 Label {
-                    visible: _runStatus === 1 && _totalTests > 0
-                    text: _totalCompleted + " / " + _totalTests
+                    visible: _runStatus === 1 && _totalDiags > 0
+                    text: _totalCompleted + " / " + _totalDiags
                     font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
                     font.weight: Font.DemiBold; color: Theme.cyan
                 }
@@ -349,11 +349,11 @@ Item {
                     spacing: 4
                     Repeater {
                         model: visibleGroups
-                        delegate: TestGroupPanel {
+                        delegate: DiagGroupPanel {
                             anchors { left: parent.left; right: parent.right }
                             groupIndex: modelData
                         onDetailClicked: function(data) {
-                            var tid = data.testId
+                            var tid = data.diagId
                             var d = appState.getDetailResult(tid)
                             dtTitle.text = (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid)
                             var statStr = "Unknown"

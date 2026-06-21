@@ -22,20 +22,20 @@ DiagnosticEngine::~DiagnosticEngine() {
     m_destroying.store(true, std::memory_order_release);
 }
 
-QFuture<DiagnosticResult> DiagnosticEngine::runTest(DiagId id, const QString& target,
+QFuture<DiagnosticResult> DiagnosticEngine::runDiag(DiagId id, const QString& target,
                                                        int fromPort, int toPort, bool useCommonPorts) {
     // Capture a raw pointer — the atomic m_destroying flag guards against
     // use-after-free during shutdown. The engine is parented to AppState so
     // it outlives workers during normal operation.
     auto* engine = this;
     return QtConcurrent::run([engine, id, target, fromPort, toPort, useCommonPorts]() -> DiagnosticResult {
-        fprintf(stderr, "[TRACE] runTest lambda id=%d ENTER\n", (int)id);
+        fprintf(stderr, "[TRACE] runDiag lambda id=%d ENTER\n", (int)id);
         if (engine->m_destroying.load(std::memory_order_acquire))
             return DiagnosticResult::error(id, QStringLiteral("Engine shutting down"));
-        DiagGroup group = testGroup(id);
+        DiagGroup group = diagGroup(id);
 
         // Try native plugin first
-        fprintf(stderr, "[TRACE] runTest id=%d calling tryNative\n", (int)id);
+        fprintf(stderr, "[TRACE] runDiag id=%d calling tryNative\n", (int)id);
         auto nativeResult = engine->tryNative(id, target, fromPort, toPort);
         if (nativeResult.has_value()) {
             auto& r = nativeResult.value();
@@ -140,20 +140,7 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
             }
             std::sort(portsToScan.begin(), portsToScan.end());
 
-            // Extract hostname from URL target (e.g. "https://example.com" → "example.com")
-            QString scanHost = target;
-            if (scanHost.contains("://")) {
-                scanHost = scanHost.section("://", 1);
-                int slash = scanHost.indexOf('/');
-                if (slash >= 0) scanHost = scanHost.left(slash);
-                if (scanHost.startsWith('[')) {
-                    int cb = scanHost.indexOf(']');
-                    if (cb > 0) scanHost = scanHost.mid(1, cb - 1);
-                } else {
-                    int colon = scanHost.lastIndexOf(':');
-                    if (colon > 0) scanHost = scanHost.left(colon);
-                }
-            }
+            QString scanHost = G4RemoteHost::extractHostname(target);
 
             QElapsedTimer t; t.start();
             auto results = NetworkProbe::portScan(scanHost, portsToScan, 2000, 64);
@@ -251,7 +238,7 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
             if (!namedOpen.isEmpty())
                 parts.append(namedOpen.join(QStringLiteral(", ")));
             r.summary = parts.join(QStringLiteral(", "));
-            r.status = openCount > 0 ? TestStatus::Pass : TestStatus::Info;
+            r.status = openCount > 0 ? DiagStatus::Pass : DiagStatus::Info;
             return r;
         }
         default:

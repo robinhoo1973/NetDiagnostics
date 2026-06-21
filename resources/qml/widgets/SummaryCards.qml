@@ -13,7 +13,7 @@ ColumnLayout {
     // Header: "Summary" + "Total: N"
     RowLayout {
         Label { Layout.fillWidth: true; text: Tr.summary; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-        Label { text: Tr.totalTestsLabel + (pass+warn+fail+skip+info); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.textSecondary }
+        Label { text: Tr.totalDiagsLabel + (pass+warn+fail+skip+info); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
@@ -26,7 +26,7 @@ ColumnLayout {
     Connections {
         target: appState
         function onProgressChanged() { refresh() }
-        function onTestCompleted() { refresh() }
+        function onDiagCompleted() { refresh() }
         function onResultsReset() { pass=warn=fail=skip=info=0 }
     }
     Component.onCompleted: refresh()

@@ -29,10 +29,10 @@
 #include <tlhelp32.h>
 #define close closesocket
 #elif defined(__APPLE__)
-// macOS / iOS — limited support (no /proc, no /sys, no linux/wireless.h)
-// Diagnostics return Info status with platform-not-supported message.
+// macOS / iOS — use AF_LINK+sockaddr_dl, no /proc, no /sys, no linux/wireless.h
 #include <sys/socket.h>
 #include <sys/ioctl.h>
+#include <sys/sysctl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -41,6 +41,8 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_arp.h>
+#include <net/if_types.h>
 #else
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -74,7 +76,7 @@ static QString macToStr(const unsigned char* mac) {
 }
 
 static QString ipToStr(uint32_t ip) {
-    struct in_addr a; a.s_addr = htonl(ip);
+    struct in_addr a; a.s_addr = ip; // ip is already network byte order from /proc/net/*
     return QString::fromLatin1(inet_ntoa(a));
 }
 
@@ -121,7 +123,7 @@ DiagnosticResult networkAdapters(DiagId id) {
         adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
         if (GetAdaptersAddresses(AF_UNSPEC, flags, nullptr, adapters, &bufLen) != NO_ERROR) {
             r.rawOutput = QStringLiteral("No adapters found");
-            r.details = r.rawOutput; r.status = TestStatus::Warning;
+            r.details = r.rawOutput; r.status = DiagStatus::Warning;
             r.summary = QStringLiteral("Failed to enumerate adapters");
             r.durationMs = t.elapsed(); return r;
         }
@@ -151,7 +153,7 @@ DiagnosticResult networkAdapters(DiagId id) {
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) != 0) {
         r.rawOutput = QStringLiteral("No adapters found");
-        r.details = r.rawOutput; r.status = TestStatus::Warning;
+        r.details = r.rawOutput; r.status = DiagStatus::Warning;
         r.summary = QStringLiteral("Failed to enumerate adapters");
         r.durationMs = t.elapsed(); return r;
     }
@@ -168,6 +170,7 @@ DiagnosticResult networkAdapters(DiagId id) {
             auto* sa = (struct sockaddr_in*)p->ifa_addr;
             info.ips.append(QString::fromLatin1(inet_ntoa(sa->sin_addr)));
         }
+#ifndef __APPLE__
         if (p->ifa_addr->sa_family == AF_PACKET && p->ifa_addr->sa_data) {
             auto* sll = (struct sockaddr_ll*)p->ifa_addr;
             unsigned char mac[6];
@@ -175,6 +178,7 @@ DiagnosticResult networkAdapters(DiagId id) {
             if (mac[0] || mac[1] || mac[2] || mac[3] || mac[4] || mac[5])
                 info.mac = macToStr(mac);
         }
+#endif
     }
     freeifaddrs(ifa);
 
@@ -205,7 +209,7 @@ DiagnosticResult networkAdapters(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Network adapters enumerated");
     r.durationMs = t.elapsed();
     return r;
@@ -293,7 +297,7 @@ DiagnosticResult activeConnections(DiagId id) {
     if (out.size() <= 3) out.append(QStringLiteral("  (no active connections)"));
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Active connections enumerated");
     r.durationMs = t.elapsed();
     return r;
@@ -425,11 +429,13 @@ DiagnosticResult ipConfiguration(DiagId id) {
                 auto* nm = (struct sockaddr_in*)p->ifa_netmask;
                 info.masks4.append(QString::fromLatin1(inet_ntoa(nm->sin_addr)));
             }
+#ifndef __APPLE__
             if (p->ifa_addr->sa_family == AF_PACKET) {
                 auto* sll = (struct sockaddr_ll*)p->ifa_addr;
                 unsigned char mac[6]; memcpy(mac, sll->sll_addr, 6);
                 info.mac = macToStr(mac);
             }
+#endif
         }
         freeifaddrs(ifa);
 
@@ -563,7 +569,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("IP configuration collected");
     r.durationMs = t.elapsed();
     return r;
@@ -615,6 +621,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
 
+#ifdef __linux__
             int sock = socket(AF_INET, SOCK_DGRAM, 0);
             if (sock >= 0) {
                 struct iwreq wrq; memset(&wrq, 0, sizeof(wrq));
@@ -634,6 +641,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                 }
                 close(sock);
             }
+#endif
 
             QFile wfile(QStringLiteral("/proc/net/wireless"));
             if (wfile.open(QIODevice::ReadOnly)) {
@@ -662,7 +670,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = out.size() > 3 ? TestStatus::Pass : TestStatus::Info;
+    r.status = out.size() > 3 ? DiagStatus::Pass : DiagStatus::Info;
     r.summary = QStringLiteral("WiFi diagnostics complete");
     r.durationMs = t.elapsed();
     return r;
@@ -716,7 +724,7 @@ DiagnosticResult nicAdvanced(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("NIC properties collected");
     r.durationMs = t.elapsed();
     return r;
@@ -730,6 +738,14 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
+
+#ifdef _WIN32
+    out.append(QString());
+    out.append(QStringLiteral("(use wmic nic get on Windows)"));
+    r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+    r.status = DiagStatus::Info; r.summary = QStringLiteral("Windows wired diagnostics delegate to wmic");
+    r.durationMs = t.elapsed(); return r;
+#else
 
     out.append(QString());
     out.append(QStringLiteral("Wired Information (table mode):"));
@@ -767,10 +783,11 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = out.size() > 3 ? TestStatus::Pass : TestStatus::Info;
+    r.status = out.size() > 3 ? DiagStatus::Pass : DiagStatus::Info;
     r.summary = QStringLiteral("Wired diagnostics complete");
     r.durationMs = t.elapsed();
     return r;
+#endif
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -781,63 +798,123 @@ DiagnosticResult dhcpStatus(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
+    QStringList dhcpSummary; // "eth0=192.168.1.100"
 
     out.append(QString());
-    out.append(QStringLiteral("DHCP Configuration:"));
+    out.append(QStringLiteral("DHCP Client Status"));
     out.append(QString());
 
 #ifdef _WIN32
-    // Windows DHCP via GetAdaptersAddresses
     ULONG bufLen = 15000;
     QByteArray buf(bufLen, '\0');
     PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
     if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS, nullptr, adapters, &bufLen) == NO_ERROR) {
         for (auto* a = adapters; a; a = a->Next) {
+            bool dhcp = (a->Flags & IP_ADAPTER_DHCP_ENABLED) != 0;
             out.append(QStringLiteral("   Adapter: %1").arg(QString::fromWCharArray(a->FriendlyName)));
-            out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : %1").arg(a->Flags & IP_ADAPTER_DHCP_ENABLED ? "Yes" : "No"));
+            out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : %1").arg(dhcp ? "Yes" : "No"));
             if (a->Dhcpv4Server.iSockaddrLength > 0) {
                 char ip[64]; DWORD ipLen = sizeof(ip);
                 WSAAddressToStringA(a->Dhcpv4Server.lpSockaddr, a->Dhcpv4Server.iSockaddrLength, nullptr, ip, &ipLen);
                 out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(QString::fromLatin1(ip)));
             }
+            if (dhcp && a->FirstUnicastAddress) {
+                char ip[64]; DWORD ipLen = sizeof(ip);
+                WSAAddressToStringA(a->FirstUnicastAddress->Address.lpSockaddr, a->FirstUnicastAddress->Address.iSockaddrLength, nullptr, ip, &ipLen);
+                dhcpSummary.append(QStringLiteral("%1=%2").arg(QString::fromWCharArray(a->FriendlyName), QString::fromLatin1(ip)));
+            }
             out.append(QString());
         }
     }
 #else
-    // Linux: check systemd-networkd leases
+    bool anyDhcp = false;
+    // 1. systemd-networkd lease files (most detailed)
     QDir leaseDir(QStringLiteral("/run/systemd/netif/leases"));
     if (leaseDir.exists()) {
         for (const auto& fi : leaseDir.entryInfoList(QDir::Files)) {
             QFile f(fi.absoluteFilePath());
             if (f.open(QIODevice::ReadOnly)) {
-                out.append(QStringLiteral("   Interface: %1").arg(fi.fileName()));
+                QString ifName = fi.fileName();
+                out.append(QStringLiteral("   Interface: %1").arg(ifName));
+                out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : Yes"));
+                anyDhcp = true;
                 QTextStream ts(&f);
                 while (!ts.atEnd()) {
                     QString line = ts.readLine().trimmed();
-                    if (line.startsWith("ADDRESS=")) out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1").arg(line.mid(8)));
-                    if (line.startsWith("NETMASK=")) out.append(QStringLiteral("   Subnet Mask . . . . . . . . . . . : %1").arg(line.mid(8)));
-                    if (line.startsWith("ROUTER=")) out.append(QStringLiteral("   Default Gateway . . . . . . . . . : %1").arg(line.mid(7)));
-                    if (line.startsWith("DNS=")) out.append(QStringLiteral("   DNS Servers . . . . . . . . . . . : %1").arg(line.mid(4)));
+                    if (line.startsWith("ADDRESS="))
+                        { QString ip = line.mid(8); out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1(Preferred)").arg(ip)); if (!dhcpSummary.contains(ifName + "=" + ip)) dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ip)); }
+                    else if (line.startsWith("NETMASK="))
+                        out.append(QStringLiteral("   Subnet Mask . . . . . . . . . . . : %1").arg(line.mid(8)));
+                    else if (line.startsWith("ROUTER="))
+                        out.append(QStringLiteral("   DHCP Server / Gateway . . . . . . : %1").arg(line.mid(7)));
+                    else if (line.startsWith("SERVER_ADDRESS="))
+                        out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(line.mid(15)));
+                    else if (line.startsWith("DNS="))
+                        out.append(QStringLiteral("   DNS Servers . . . . . . . . . . . : %1").arg(line.mid(4)));
+                    else if (line.startsWith("LEASE_TIME=")) {
+                        int secs = line.mid(11).toInt();
+                        out.append(QStringLiteral("   Lease Duration . . . . . . . . . : %1").arg(secs >= 3600 ? QStringLiteral("%1 hours").arg(secs / 3600) : QStringLiteral("%1 seconds").arg(secs)));
+                    }
                 }
                 out.append(QString());
             }
         }
-    } else {
-        // Fallback: check /var/lib/dhcp/dhclient.leases
-        QFile leases(QStringLiteral("/var/lib/dhcp/dhclient.leases"));
-        if (leases.open(QIODevice::ReadOnly)) {
-            out.append(QString::fromLatin1(leases.readAll()));
-        } else {
-            out.append(QStringLiteral("   DHCP lease information not found"));
-            out.append(QStringLiteral("   (check /run/systemd/netif/leases/ or /var/lib/dhcp/)"));
+    }
+
+    // 2. dhclient leases as fallback
+    QDir dhclientDir(QStringLiteral("/var/lib/dhcp"));
+    if (dhclientDir.exists()) {
+        for (const auto& fi : dhclientDir.entryInfoList({"dhclient*.leases"}, QDir::Files)) {
+            QFile f(fi.absoluteFilePath());
+            if (f.open(QIODevice::ReadOnly)) {
+                QTextStream ts(&f);
+                QString currentIface, currentIp;
+                while (!ts.atEnd()) {
+                    QString line = ts.readLine().trimmed();
+                    if (line.startsWith("interface ")) currentIface = line.mid(10).remove('"').remove(';');
+                    if (line.startsWith("fixed-address ")) currentIp = line.mid(14).remove(' ').remove(';');
+                    if (line.contains("dhcp-server-identifier"))
+                        out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(line.section(' ', -1).remove(';')));
+                    if (line.contains("renew ")) out.append(QStringLiteral("   Lease Renew . . . . . . . . . . . : %1").arg(line.section(' ', 2, 3).remove(';')));
+                    if (line.contains("expire ")) out.append(QStringLiteral("   Lease Expires . . . . . . . . . . : %1").arg(line.section(' ', 2, 3).remove(';')));
+                }
+                if (!currentIface.isEmpty() && !currentIp.isEmpty()) {
+                    anyDhcp = true;
+                    out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1(Preferred)").arg(currentIp));
+                    if (!dhcpSummary.contains(QStringLiteral("%1=%2").arg(currentIface, currentIp)))
+                        dhcpSummary.append(QStringLiteral("%1=%2").arg(currentIface, currentIp));
+                }
+                out.append(QString());
+            }
         }
     }
+
+    // 3. Check /proc/net/route for gateways (DHCP routers) on interfaces without lease files
+    if (!anyDhcp) {
+        QFile routeFile(QStringLiteral("/proc/net/route"));
+        if (routeFile.open(QIODevice::ReadOnly)) {
+            QTextStream ts(&routeFile); ts.readLine(); // header
+            while (!ts.atEnd()) {
+                QStringList cols = ts.readLine().trimmed().split('\t');
+                if (cols.size() >= 11 && cols[2].toUInt(nullptr, 16) != 0) {
+                    out.append(QStringLiteral("   Interface: %1 (via DHCP — inferred from default route)").arg(cols[0]));
+                    out.append(QStringLiteral("   Default Gateway . . . . . . . . . : %1").arg(ipToStr(cols[2].toUInt(nullptr, 16))));
+                    out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : Likely Yes"));
+                    out.append(QString());
+                }
+            }
+        }
+    }
+
+    if (!anyDhcp && out.size() <= 4)
+        out.append(QStringLiteral("   No DHCP lease information found (static IP or managed externally)"));
 #endif
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
-    r.summary = QStringLiteral("DHCP status collected");
+    r.status = DiagStatus::Pass;
+    r.summary = dhcpSummary.isEmpty() ? QStringLiteral("No DHCP leases found (static IP?)")
+                 : QStringLiteral("DHCP: %1").arg(dhcpSummary.join(QStringLiteral(", ")));
     r.durationMs = t.elapsed();
     return r;
 }
@@ -926,7 +1003,7 @@ DiagnosticResult routingTable(DiagId id) {
     out.append(QStringLiteral("==========================================================================="));
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Routing table collected");
     r.durationMs = t.elapsed();
     return r;
@@ -989,7 +1066,7 @@ DiagnosticResult arpTable(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("ARP table collected");
     r.durationMs = t.elapsed();
     return r;
@@ -1022,7 +1099,7 @@ DiagnosticResult networkProfile(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Network profile collected");
     r.durationMs = 0;
     return r;
@@ -1054,7 +1131,7 @@ DiagnosticResult tcpSettings(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
+    r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("TCP settings collected");
     r.durationMs = 0;
     return r;
@@ -1093,7 +1170,7 @@ DiagnosticResult proxySettings(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Info;
+    r.status = DiagStatus::Info;
     r.summary = QStringLiteral("Proxy settings collected");
     r.durationMs = 0;
     return r;
@@ -1148,7 +1225,7 @@ DiagnosticResult netskopeStatus(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = found ? TestStatus::Pass : TestStatus::Info;
+    r.status = found ? DiagStatus::Pass : DiagStatus::Info;
     r.summary = found ? QStringLiteral("Security proxy detected") : QStringLiteral("No security proxy detected");
     r.durationMs = 0;
     return r;
@@ -1157,7 +1234,7 @@ DiagnosticResult netskopeStatus(DiagId id) {
 DiagnosticResult dnsServers(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
-    QStringList out;
+    QStringList out, dnsList;
     out.append(QString());
     out.append(QStringLiteral("DNS Server Configuration (resolv.conf)"));
     out.append(QString());
@@ -1172,7 +1249,9 @@ DiagnosticResult dnsServers(DiagId id) {
             for (auto* dns = a->FirstDnsServerAddress; dns; dns = dns->Next) {
                 char ip[64]; DWORD ipLen = sizeof(ip);
                 WSAAddressToStringA(dns->Address.lpSockaddr, dns->Address.iSockaddrLength, nullptr, ip, &ipLen);
-                out.append(QStringLiteral("    DNS Server: %1").arg(QString::fromLatin1(ip)));
+                QString ipStr = QString::fromLatin1(ip);
+                out.append(QStringLiteral("    DNS Server: %1").arg(ipStr));
+                if (!dnsList.contains(ipStr)) dnsList.append(ipStr);
             }
         }
     }
@@ -1183,8 +1262,11 @@ DiagnosticResult dnsServers(DiagId id) {
         QTextStream ts(&resolv);
         while (!ts.atEnd()) {
             QString line = ts.readLine().trimmed();
-            if (line.startsWith("nameserver "))
-                out.append(QStringLiteral("  Nameserver: %1").arg(line.mid(11)));
+            if (line.startsWith("nameserver ")) {
+                QString ns = line.mid(11);
+                out.append(QStringLiteral("  Nameserver: %1").arg(ns));
+                if (!dnsList.contains(ns)) dnsList.append(ns);
+            }
             else if (line.startsWith("search "))
                 out.append(QStringLiteral("  Search domains: %1").arg(line.mid(7)));
         }
@@ -1198,8 +1280,9 @@ DiagnosticResult dnsServers(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = TestStatus::Pass;
-    r.summary = QStringLiteral("DNS servers enumerated");
+    r.status = DiagStatus::Pass;
+    r.summary = dnsList.isEmpty() ? QStringLiteral("No DNS servers found")
+                 : QStringLiteral("DNS: %1").arg(dnsList.join(QStringLiteral(", ")));
     r.durationMs = 0;
     return r;
 }
@@ -1329,7 +1412,7 @@ DiagnosticResult dnsCache(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = hasCache ? TestStatus::Pass : TestStatus::Info;
+    r.status = hasCache ? DiagStatus::Pass : DiagStatus::Info;
     if (hasCache)
         r.summary = QStringLiteral("Cache active · %1 cached DNS entries").arg(cacheEntries);
     else
@@ -1403,7 +1486,7 @@ DiagnosticResult dnsPollution(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = hijacked ? TestStatus::Warning : TestStatus::Pass;
+    r.status = hijacked ? DiagStatus::Warning : DiagStatus::Pass;
     r.summary = hijacked ? QStringLiteral("DNS hijacking detected") : QStringLiteral("DNS clean");
     r.durationMs = t.elapsed();
     return r;
@@ -1809,7 +1892,7 @@ DiagnosticResult speedTest(DiagId id) {
         out.append(QStringLiteral("  (no reachable servers)"));
         out.append(QString());
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? TestStatus::Warning : TestStatus::Fail;
+        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
         r.summary = hasConnectivity ? QStringLiteral("Connected · no speed test servers reachable")
                                     : QStringLiteral("No internet connectivity");
         r.durationMs = totalTimer.elapsed(); return r;
@@ -2066,13 +2149,13 @@ DiagnosticResult speedTest(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     if (!hasConnectivity) {
-        r.status = TestStatus::Fail;
+        r.status = DiagStatus::Fail;
         r.summary = QStringLiteral("No internet connectivity");
     } else if (dlSpeed > 0.1 || ulSpeed > 0.1) {
-        r.status = TestStatus::Pass;
+        r.status = DiagStatus::Pass;
         r.summary = QStringLiteral("Connected · ↓%1 ↑%2 Mbit/s").arg(dlSpeed, 0, 'f', 1).arg(ulSpeed, 0, 'f', 1);
     } else {
-        r.status = TestStatus::Warning;
+        r.status = DiagStatus::Warning;
         r.summary = QStringLiteral("Connected · speed test incomplete");
     }
     r.durationMs = totalTimer.elapsed();

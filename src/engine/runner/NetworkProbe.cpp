@@ -37,7 +37,7 @@ static quint32 resolveIPv4(const QString& host) {
     QHostInfo info = QHostInfo::fromName(host);
     if (!info.addresses().isEmpty()) {
         quint32 ip = info.addresses().first().toIPv4Address();
-        if (ip) return ip;
+        if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
     }
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
@@ -47,7 +47,7 @@ static quint32 resolveIPv4(const QString& host) {
     if (getaddrinfo(hostBytes.constData(), nullptr, &hints, &res) == 0) {
         quint32 ip = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
         freeaddrinfo(res);
-        return ntohl(ip);
+        return ntohl(ip); // sin_addr is NBO → convert to HBO
     }
     return 0;
 }

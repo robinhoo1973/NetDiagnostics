@@ -38,9 +38,9 @@ target_link_libraries(net_diagnostic PRIVATE
     Qt6::Widgets Qt6::Network
     resolv curl
 )
-if(MINGW)
+if(WIN32)
     target_link_libraries(net_diagnostic PRIVATE
-        ws2_32 winhttp iphlpapi wlanapi
+        ws2_32 winhttp iphlpapi wlanapi dnsapi
         ole32 shell32 user32 gdi32
     )
 endif()
@@ -66,10 +66,11 @@ if(BUILD_SIMULATOR)
     target_link_libraries(net_diagnostic_sim PRIVATE
         Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
         Qt6::Widgets Qt6::Network
+        resolv curl
     )
-    if(MINGW)
+    if(WIN32)
         target_link_libraries(net_diagnostic_sim PRIVATE
-            ws2_32 winhttp iphlpapi wlanapi
+            ws2_32 winhttp iphlpapi wlanapi dnsapi
             ole32 shell32 user32 gdi32
         )
     endif()

@@ -56,7 +56,7 @@ Item {
     readonly property string fromMust: t("From Must Be ≤ To","De doit être ≤ À","Von muss ≤ Bis sein","От должно быть ≤ До","Da deve essere ≤ A","起始必须 ≤ 结束","起始必須 ≤ 結束")
 
     // ── ConfigScreen ──
-    readonly property string testConfig: t("Test Configuration","Configuration des tests","Testkonfiguration","Конфигурация тестов","Configurazione test","测试配置","測試配置")
+    readonly property string diagConfig: t("Diagnostic Configuration","Configuration diagnostic","Diagnosekonfiguration","Конфигурация диагностики","Configurazione diagnostica","诊断配置","診斷配置")
     readonly property string selectAll: t("Select All","Tout sélectionner","Alle auswählen","Выбрать все","Seleziona tutto","全选","全選")
     readonly property string deselectAll: t("Deselect All","Tout désélectionner","Alle abwählen","Отменить все","Deseleziona tutto","取消全选","取消全選")
 
@@ -65,7 +65,7 @@ Item {
     readonly property string runFromDiag: t("Run a diagnostic from the Diagnostics screen\nto see results here.","Exécutez un diagnostic depuis l'écran Diagnostics\npour voir les résultats ici.","Führen Sie eine Diagnose vom Diagnosebildschirm aus,\num die Ergebnisse hier zu sehen.","Запустите диагностику на экране диагностики,\nчтобы увидеть результаты здесь.","Esegui una diagnostica dalla schermata Diagnostica\nper vedere i risultati qui.","从诊断屏幕运行诊断\n以在此处查看结果。","從診斷畫面運行診斷\n以在此處查看結果。")
     readonly property string perGroup: t("Per-Group Results","Résultats par groupe","Ergebnisse pro Gruppe","Результаты по группам","Risultati per gruppo","分组结果","分組結果")
     readonly property string summary: t("Summary","Résumé","Zusammenfassung","Сводка","Riepilogo","摘要","摘要")
-    readonly property string totalTests: t("Total Tests","Total des tests","Tests insgesamt","Всего тестов","Test totali","总测试数","總測試數")
+    readonly property string totalDiags: t("Total Diagnostics","Total diagnostics","Diagnosen insgesamt","Всего диагностик","Diagnostiche totali","总诊断数","總診斷數")
     readonly property string totalTime: t("Total Time","Temps total","Gesamtzeit","Общее время","Tempo totale","总时间","總時間")
     readonly property string completed: t("Completed","Terminé","Abgeschlossen","Завершено","Completato","已完成","已完成")
     readonly property string layerTimings: t("Layer Timings","Chronométrage par couche","Schichtzeiten","Время по слоям","Tempi per livello","层级时间","層級時間")
@@ -132,7 +132,7 @@ Item {
     readonly property string summaryInfo: t("Info","Info","Info","Инфо","Info","信息","資訊")
 
     // ── TestResultItem ──
-    readonly property string testRunning: t("Running...","En cours...","Läuft...","Выполняется...","In corso...","运行中...","運行中...")
+    readonly property string diagRunning: t("Running...","En cours...","Läuft...","Выполняется...","In corso...","运行中...","運行中...")
 
     // ── Placeholder ──
     readonly property string placeholderMsg: t("SMTP configuration is a placeholder and will be implemented in a future update.",
@@ -143,7 +143,7 @@ Item {
         "SMTP配置为占位符，将在未来的更新中实现。","SMTP配置為預留位置，將在未來的更新中實現。")
 
     // ── Test names (all 38, ids 0-37) ──
-    function testName(id) {
+    function diagName(id) {
         if (lang <= 0) return ""  // English uses C++ names directly
         var names = {
             0:  t("Network Adapters","Adaptateurs réseau","Netzwerkadapter","Сетевые адаптеры","Schede di rete","网络适配器","網路適配器"),
@@ -188,7 +188,7 @@ Item {
         return typeof names[id] === 'string' ? names[id] : ""
     }
     // ── Test descriptions (all 38) ──
-    function testDesc(id) {
+    function diagDesc(id) {
         if (lang <= 0) return ""  // English: use C++ descriptions
         var descs = {
             0:  t("List all network adapters and their operational state","Lister toutes les cartes réseau et leur état","Alle Netzwerkadapter und deren Betriebszustand auflisten","Список всех сетевых адаптеров и их состояние","Elenca tutte le schede di rete e il loro stato","列出所有网络适配器及其运行状态","列出所有網路適配器及其運行狀態"),
@@ -234,11 +234,11 @@ Item {
     }
 
     // ── Dashboard summary + common labels ──
-    readonly property string totalTestsLabel: t("Total Tests","Total des tests","Tests insgesamt","Всего тестов","Test totali","总测试数","總測試數")
+    readonly property string totalDiagsLabel: t("Total Diagnostics","Total diagnostics","Diagnosen insgesamt","Всего диагностик","Diagnostiche totali","总诊断数","總診斷數")
     readonly property string totalTimeLabel: t("Total Time","Temps total","Gesamtzeit","Общее время","Tempo totale","总时间","總時間")
     readonly property string completedLabel: t("Completed","Terminé","Abgeschlossen","Завершено","Completato","已完成","已完成")
     readonly property string resetLabel: t("Reset","Réinitialiser","Zurücksetzen","Сброс","Ripristina","重置","重置")
-    readonly property string testsSuffix: t(" tests"," tests"," Tests"," тестов"," test"," 个测试"," 個測試")
+    readonly property string diagsSuffix: t(" tests"," tests"," Tests"," тестов"," test"," 个测试"," 個測試")
 
     // ── Settings screen ──
     readonly property string languageSection: t("Language / 语言","Langue / 语言","Sprache / 语言","Язык / 语言","Lingua / 语言","Language / 语言","Language / 語言")

@@ -20,12 +20,12 @@ Item {
             RotationAnimation on rotation { running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite }
         }
         Label {
-            text: itemData.displayName || ("#" + itemData.testId)
+            text: itemData.displayName || ("#" + itemData.diagId)
             font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: "#666666"
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Label {
-            visible: itemData.isRunning; text: Tr.testRunning
+            visible: itemData.isRunning; text: Tr.diagRunning
             font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; font.italic:true; color:"#00BCD4"
         }
     }
@@ -40,7 +40,7 @@ Item {
             color: "white"
         }
         Label {
-            text: itemData.displayName || ("#" + itemData.testId)
+            text: itemData.displayName || ("#" + itemData.diagId)
             font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; font.weight: Font.Medium
             color: { var s=itemData.status; return(s===0)?"#E0E0E0":(s===2?"#EF4444":"#A0A0B8") }
             Layout.fillWidth: true; elide: Text.ElideRight
