@@ -43,6 +43,10 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <errno.h>
 #include <resolv.h>
 #include <arpa/nameser.h>
+// macOS Apple Clang compatibility: C_IN may not be exposed by default
+#ifndef C_IN
+#define C_IN ns_c_in
+#endif
 inline int setNonblockWin(int sock) {
     int flags = fcntl(sock, F_GETFL, 0);
     if (flags < 0) return -1;
