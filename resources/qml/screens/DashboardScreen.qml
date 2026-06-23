@@ -8,21 +8,9 @@ import "../widgets"
 Item {
     id: page
     objectName: "dashboard"
-    // ── Version-based state sync (poll single int, sync on change) ────
-    property int _cachedDashboardGen: -1
-    property int _runStatus: 0
-    property int _totalCompleted: 0
-    Timer {
-        interval: 200; running: true; repeat: true
-        onTriggered: {
-            var v = appState.stateVersion
-            if (v !== _cachedDashboardGen) {
-                _cachedDashboardGen = v
-                _runStatus = appState.runStatus
-                _totalCompleted = appState.totalCompleted
-            }
-        }
-    }
+    // Direct bindings — no Timer polling needed
+    property int _runStatus: appState.runStatus
+    property int _totalCompleted: appState.totalCompleted
     property bool hasData: _totalCompleted > 0 && _runStatus === 2
     readonly property var allStats: appState.allGroupStats || []
 

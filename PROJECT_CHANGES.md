@@ -251,19 +251,50 @@ dialog. 19/19 headless tests pass.
 
 ## 5. Build & Test
 
-```bash
-# Build
-cd /tmp/netdiag-build/build
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-    -DBUILD_TESTS=OFF -DBUILD_SIMULATOR=ON \
-    -B . -S "<project-root>"
-ninja net_diagnostic net_diagnostic_sim
+### Automated Build System (`scripts/build-all.sh`)
 
-# Headless test
+Self-contained build system for NetDiagnostic-QT across all platforms.
+
+```bash
+# Check + build native platform
+./scripts/build-all.sh
+
+# Auto-install ALL dependencies from source + build all platforms
+./scripts/build-all.sh --fix --target all --sim --clean
+```
+
+**Key features:**
+- Dep check: ninja, cmake, g++/clang++, pkg-config, Qt6 (native + cross), fonts, QRC
+- `--fix`: auto-installs missing tools from source
+  - ninja (GitHub: ninja-build/ninja)
+  - cmake (GitHub: Kitware/CMake)
+  - mingw-w64 (GNU FTP: binutils + gcc + mingw-w64 headers/crt, ~15 min)
+  - LLVM-MinGW (GitHub: mstorsjo/llvm-mingw, pre-built, 77 MB)
+  - Qt6 mingw-w64 (GitHub: qt/qtbase + qt/qtdeclarative, cross-compiled, ~1-2 hrs)
+  - x86_64-linux-gnu cross-compiler (GNU FTP: binutils + gcc, ~25 min)
+  - libcurl-dev:amd64 apt install
+- Cross-compilation targets: linux-arm64 (native), linux-x86_64, windows-x86_64, windows-arm64
+- Simulator variant: `--sim` for device-frame UI build alongside production binary
+- Smart TMPDIR: auto-detects small tmpfs (<10 GB) and falls back to `~/.cache`
+
+**Windows ARM64 notes:** GCC does not support `aarch64-w64-mingw32`. The script installs LLVM-MinGW (Clang-based) pre-built toolchain. Qt6 for Windows ARM64 must be provided separately (MSYS2 clangarm64 or vcpkg).
+
+### CMakeLists.txt Changes
+
+- Simulator target (`net_diagnostic_sim`): added `resolv curl` link libraries (fixes linker error)
+- Simulator target: changed `MINGW` → `WIN32` for Windows libraries
+- PcapPlusPlus: FetchContent for packet capture support (v24.09, shallow clone)
+
+### Headless Test
+
+```bash
 ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen \
     ./dist/net_diagnostic-Linux-arm64
+```
 
-# Desktop launch
+### Desktop Launch
+
+```bash
 ./dist/net_diagnostic-Linux-arm64
 ./dist/net_diagnostic_sim-Linux-arm64
 ```

@@ -1,51 +1,63 @@
-#include <QGuiApplication>
+﻿#include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QVariantMap>
 #include <QIcon>
 #include <QTimer>
-#include <QLockFile>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <csignal>
 #include <curl/curl.h>
 #include "app/AppState.h"
+#include "util/DebugSwitch.h"
 
 int main(int argc, char *argv[])
 {
-    // Initialize libcurl once (thread-safe on first call only if done before threads)
     curl_global_init(CURL_GLOBAL_ALL);
 
-    // Ignore SIGPIPE — raw ::send() on broken connections returns EPIPE
-    // instead of killing the process. The socket code checks errno after
-    // every send() call and handles EPIPE gracefully.
+#ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
+#endif
 
-    // Use basic (single-threaded) render loop — more stable on ARM64
     qputenv("QSG_RENDER_LOOP", "basic");
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
 
-    // ── Single instance via lock file ────────────────────────────────────
-    QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netanalysis.lock");
-    QLockFile lockFile(lockPath);
-    if (!lockFile.tryLock(100)) {
+    // ── Single instance guard ──────────────────────────────────────────────
+#ifdef _WIN32
+    // Windows: named mutex — OS auto-releases on process death
+    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetAnalysis_SingleInstance");
+    if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        if (hMutex) CloseHandle(hMutex);
         curl_global_cleanup();
         QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
             QStringLiteral("NetAnalysis is already running."));
         return 0;
     }
+        // hMutex is owned by this process; auto-released on exit
+#else
+        // Linux/macOS: QLockFile with PID fallback
+        QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netanalysis.lock");
+        QLockFile lockFile(lockPath);
+        lockFile.setStaleLockTime(5000);
+        if (!lockFile.tryLock(100)) {
+                curl_global_cleanup();
+                QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
+                        QStringLiteral("NetAnalysis is already running."));
+                return 0;
+        }
+#endif
 
     app.setApplicationName("NetAnalysis");
     app.setApplicationDisplayName("NetAnalysis");
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("robinhoo1973");
-    app.setWindowIcon(QIcon(":/icons/wifi.svg"));
+    app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
 
     AppState appState;
 
     QQmlApplicationEngine engine;
 
-    fprintf(stderr, "[MAIN] NetDiagnostic starting, Qt %s\n", qVersion());
+    MAIN_LOG(" NetDiagnostic starting, Qt %s\n", qVersion());
 
     // ── Theme injected directly from C++ (avoids QML component creation failure) ──
     QVariantMap theme;

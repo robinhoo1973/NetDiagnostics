@@ -4,12 +4,8 @@ import QtQuick
 
 Item {
     // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW
-    // Poll C++ property — ARM64 NOTIFY signals unreliable
-    property int _cachedLang: 0
-    property int lang: _cachedLang
-    Timer { interval: 200; running: true; repeat: true
-        onTriggered: { var v = appState ? appState.languageIndex : 0; if (v !== _cachedLang) _cachedLang = v }
-    }
+    // Bind directly to C++ property — NOTIFY signal now reliable on all platforms
+    property int lang: appState ? appState.languageIndex : 0
 
     function t(en, fr, de, ru, it, zh_cn, zh_tw) {
         var a = [en, fr, de, ru, it, zh_cn, zh_tw]

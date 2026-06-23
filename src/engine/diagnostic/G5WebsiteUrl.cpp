@@ -338,15 +338,35 @@ DiagnosticResult sslCertificate(const QString& target) {
     if (cert.daysLeft < 0) { st = DiagStatus::Fail; summary = "EXPIRED"; }
     else if (cert.daysLeft < 30) { st = DiagStatus::Warning; }
     QStringList lines;
-    lines.append(QStringLiteral("* SSL connection using TLSv1.3"));
-    lines.append(QStringLiteral("* Server certificate:"));
-    lines.append(QStringLiteral("*  subject: %1").arg(cert.subject));
-    lines.append(QStringLiteral("*  issuer: %1").arg(cert.issuer));
-    lines.append(QStringLiteral("*  valid from: %1").arg(cert.validFrom.toString("yyyy-MM-dd")));
-    lines.append(QStringLiteral("*  valid to: %1").arg(cert.validTo.toString("yyyy-MM-dd")));
-    lines.append(QStringLiteral("*  days left: %1").arg(cert.daysLeft));
-    lines.append(QStringLiteral("*  SAN count: %1").arg(cert.subjectAltNames.size()));
-    lines.append(QStringLiteral("*  thumbprint: %1").arg(cert.thumbprint.left(40)));
+    lines.append(QStringLiteral("* SSL connection established"));
+
+    // Build a 2-column table with auto-width
+    QStringList names = {
+        QStringLiteral("subject"), QStringLiteral("issuer"),
+        QStringLiteral("valid from"), QStringLiteral("valid to"),
+        QStringLiteral("days left"), QStringLiteral("SAN count"),
+        QStringLiteral("thumbprint")};
+    QStringList vals = {
+        cert.subject, cert.issuer,
+        cert.validFrom.toString("yyyy-MM-dd"), cert.validTo.toString("yyyy-MM-dd"),
+        QString::number(cert.daysLeft), QString::number(cert.subjectAltNames.size()),
+        cert.thumbprint.left(40)};
+
+    int nw = QStringLiteral("thumbprint").length();  // longest label
+    for (const auto& s : names) nw = qMax(nw, s.length());
+    int vw = 0;
+    for (const auto& s : vals) vw = qMax(vw, s.length());
+
+    lines.append(QStringLiteral("*  %1  %2")
+        .arg(QStringLiteral("Property"), -nw)
+        .arg(QStringLiteral("Value"), -vw));
+    lines.append(QStringLiteral("*  %1  %2")
+        .arg(QString(nw, '-'))
+        .arg(QString(vw, '-')));
+    for (int i = 0; i < names.size(); ++i)
+        lines.append(QStringLiteral("*  %1  %2")
+            .arg(names[i], -nw)
+            .arg(vals[i], -vw));
     auto r = g5Result(DiagId::G5SslCertificate, summary, st);
     r.rawOutput = lines.join('\n'); r.details = r.rawOutput;
     r.properties.append(ResultProperty("Subject", cert.subject));

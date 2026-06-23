@@ -1,5 +1,5 @@
-#include "engine/diagnostic/G4RemoteHost.h"
-#include "engine/runner/NetworkProbe.h"
+﻿#include "engine/diagnostic/G4RemoteHost.h"
+#include "util/DebugSwitch.h"
 #include "util/PingParser.h"
 #include "util/Logger.h"
 #include <QHostInfo>
@@ -18,9 +18,15 @@
 #include <windns.h>
 #define close closesocket
 #define getpid _getpid
+#ifndef ECONNREFUSED
 #define ECONNREFUSED WSAECONNREFUSED
+#endif
+#ifndef EHOSTUNREACH
 #define EHOSTUNREACH WSAEHOSTUNREACH
+#endif
+#ifndef ENETUNREACH
 #define ENETUNREACH WSAENETUNREACH
+#endif
 #define socklen_t int
 #define SHUT_RDWR SD_BOTH
 inline int setNonblockWin(int sock) { u_long mode=1; return ioctlsocket(sock, FIONBIO, &mode); }
@@ -773,7 +779,7 @@ DiagnosticResult traceroute(const QString& target) {
 
     // TCP TTL probing via tcpTraceHop() — uses IP_RECVERR on Linux to capture
     // ICMP Time Exceeded from intermediate routers without root privileges.
-    fprintf(stderr, "[TRACE] traceroute: using tcpTraceHop\n");
+    TRACE(" traceroute: using tcpTraceHop\n");
 
     QElapsedTimer t; t.start();
     int hopCount = 0, timeoutHops = 0; bool reached = false;
@@ -786,16 +792,16 @@ DiagnosticResult traceroute(const QString& target) {
         if (res == 0) {
             // Reached target
             reached = true;
-            QString rttStr = (rttMs < 1) ? QStringLiteral("   <1 ms")
+            QString rttStr = (rttMs < 1) ? QStringLiteral("  <1 ms")
                 : QStringLiteral("%1 ms").arg(rttMs, 5);
             lines.append(QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
                 .arg(ttl, 2).arg(rttStr).arg(rttStr).arg(rttStr)
                 .arg(host).arg(targetIpStr));
-            fprintf(stderr, "[TRACE] traceroute TTL=%d: REACHED %s [%s] %dms\n",
+            TRACE(" traceroute TTL=%d: REACHED %s [%s] %dms\n",
                 ttl, host.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs);
         } else if (res == 1) {
             // Intermediate hop — got router IP from ICMP Time Exceeded
-            QString rttStr = (rttMs < 1) ? QStringLiteral("   <1 ms")
+            QString rttStr = (rttMs < 1) ? QStringLiteral("  <1 ms")
                 : QStringLiteral("%1 ms").arg(rttMs, 5);
             // Resolve reverse DNS for the hop IP
             QString hopName = hopIp;
@@ -809,13 +815,13 @@ DiagnosticResult traceroute(const QString& target) {
             lines.append(QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
                 .arg(ttl, 2).arg(rttStr).arg(rttStr).arg(rttStr)
                 .arg(hopName).arg(hopIp));
-            fprintf(stderr, "[TRACE] traceroute TTL=%d: hop %s [%s] %dms\n",
+            TRACE(" traceroute TTL=%d: hop %s [%s] %dms\n",
                 ttl, hopName.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs);
         } else {
             // Timeout
             ++timeoutHops;
             lines.append(QStringLiteral(" %1     *        *        *     Request timed out.").arg(ttl, 2));
-            fprintf(stderr, "[TRACE] traceroute TTL=%d: timeout (total=%d)\n", ttl, timeoutHops);
+            TRACE(" traceroute TTL=%d: timeout (total=%d)\n", ttl, timeoutHops);
             if (timeoutHops > 15) {
                 lines.append(QStringLiteral(" ... (firewall may be blocking probes after hop %1)").arg(ttl));
                 break;
@@ -965,9 +971,24 @@ DiagnosticResult pathPing(const QString& target) {
     int statsSec = (int)totalTimer.elapsed() / 1000;
     if (statsSec < 1) statsSec = 1;
     lines.append(QStringLiteral("Computing statistics for %1 seconds...").arg(statsSec));
-    lines.append(QStringLiteral("            Source to Here   This Node/Link"));
-    lines.append(QStringLiteral("Hop  RTT    Lost/Sent = Pct  Lost/Sent = Pct  Address"));
-    lines.append(QStringLiteral("---  ---    ---------------  ---------------  -------"));
+    lines.append(QStringLiteral("  %1%2%3%4%5")
+        .arg(QString(4, ' '))  // indent + TTL
+        .arg(QString(8, ' '))  // RTT
+        .arg(QStringLiteral("Source to Here"), -16, ' ')
+        .arg(QStringLiteral("This Node/Link"), -16, ' ')
+        .arg(QStringLiteral("Address")));
+    lines.append(QStringLiteral("  %1  %2   %3   %4  %5")
+        .arg(QStringLiteral("Hop"), 2)
+        .arg(QStringLiteral("RTT"), 5)
+        .arg(QStringLiteral("Lost/Sent = Pct"), -16)
+        .arg(QStringLiteral("Lost/Sent = Pct"), -16)
+        .arg(QStringLiteral("Address")));
+    lines.append(QStringLiteral("  %1  %2   %3   %4  %5")
+        .arg(QString(2, '-'))
+        .arg(QString(5, '-'))
+        .arg(QString(16, '-'))
+        .arg(QString(16, '-'))
+        .arg(QString(7, '-')));
 
     // Phase 2 output: per-hop statistics
     for (int i = 0; i < hops.size(); ++i) {

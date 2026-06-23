@@ -25,17 +25,6 @@ inline QString diagGroupLabel(DiagGroup g) {
     return {};
 }
 
-inline int diagGroupTimeoutSec(DiagGroup g) {
-    switch (g) {
-        case DiagGroup::G1: return 120;
-        case DiagGroup::G2: return 120;
-        case DiagGroup::G3: return 120;
-        case DiagGroup::G4: return 600;
-        case DiagGroup::G5: return 120;
-    }
-    return 120;
-}
-
 // ── Test Status ─────────────────────────────────────────────────────────────
 enum class DiagStatus {
     Pass, Warning, Fail, Skipped, Error, Info
@@ -196,55 +185,6 @@ inline QString testIdLabelKey(DiagId id) {
         case DiagId::G5EmailDiagnostics:    return QStringLiteral("test_g5_email");
     }
     return {};
-}
-
-// Convert our DiagId to the native plugin's NdDiagnosticId (0-30).
-// Returns -1 for tests that have no native plugin implementation.
-inline int diagIdToNativeId(DiagId id) {
-    switch (id) {
-        case DiagId::G1NetworkAdapters:     return 0;
-        case DiagId::G1NicAdvanced:         return 1;
-        case DiagId::G1WifiDiagnostics:     return 2;
-        case DiagId::G1WiredDiagnostics:    return 3;
-        case DiagId::G1DhcpStatus:          return 4;
-        case DiagId::G1IpConfiguration:     return 5;
-        case DiagId::G1ActiveConnections:   return 6;
-        case DiagId::G2NetworkProfile:      return 7;
-        case DiagId::G2TcpSettings:         return 8;
-        case DiagId::G2DefaultGateway:      return 9;
-        case DiagId::G2RoutingTable:        return 10;
-        case DiagId::G2ArpTable:            return 11;
-        case DiagId::G2ProxySettings:       return 12;
-        case DiagId::G3NetskopeStatus:      return 13;
-        case DiagId::G3DnsServers:          return 14;
-        case DiagId::G3DnsCache:            return 15;
-        case DiagId::G3DnsPollution:        return 16;
-        case DiagId::G3InternetConnectivity: return 17;
-        case DiagId::G3InternetSpeedTest:   return 18;
-        // G4: use cross-platform C++ implementation (TCP-based, no root)
-        case DiagId::G4DnsResolution:       return 19;
-        case DiagId::G4Ping:                return -1; // G4RemoteHost::ping (TCP)
-        case DiagId::G4Traceroute:          return -1; // G4RemoteHost::traceroute (IP_RECVERR)
-        case DiagId::G4PathPing:            return -1; // G4RemoteHost::pathPing (TCP)
-        case DiagId::G4MtuDiscovery:        return 23;
-        case DiagId::G4PortScan:            return 24;
-        case DiagId::G5TcpConnect:          return 25;
-        case DiagId::G5ServiceBanner:       return 26;
-        case DiagId::G5FtpDiagnostics:      return 27;
-        case DiagId::G5SshDiagnostics:      return 28;
-        case DiagId::G5EmailDiagnostics:    return 29;
-        // G5 HTTP tests — no native implementation
-        case DiagId::G5UrlParsing:
-        case DiagId::G5CurlVerbose:
-        case DiagId::G5HttpHeaders:
-        case DiagId::G5SecurityHeaders:
-        case DiagId::G5SslCertificate:
-        case DiagId::G5HttpRedirect:
-        case DiagId::G5HttpCompression:
-        case DiagId::G5HttpTiming:
-            return -1;
-    }
-    return -1;
 }
 
 // ── Utility: all test IDs ───────────────────────────────────────────────────

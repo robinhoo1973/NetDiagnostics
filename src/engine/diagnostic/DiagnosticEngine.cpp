@@ -1,22 +1,25 @@
-// =============================================================================
-// DiagnosticEngine.cpp
+﻿// =============================================================================
+// DiagnosticEngine.cpp — Pure C++ dispatch, no native plugin abstraction
 // =============================================================================
 #include "engine/diagnostic/DiagnosticEngine.h"
+#include "util/DebugSwitch.h"
 #include "engine/diagnostic/G1G2G3Native.h"
 #include "engine/diagnostic/G4RemoteHost.h"
-#include "engine/diagnostic/G5WebsiteUrl.h"
 #include "engine/runner/NetworkProbe.h"
-#include "app/NativeService.h"
+#include "util/DebugSwitch.h"
+#include "engine/diagnostic/G4RemoteHost.h"
+#include "engine/runner/NetworkProbe.h"
+#include "util/DebugSwitch.h"
+#include "engine/diagnostic/G1G2G3Native.h"
+#include "engine/diagnostic/G4RemoteHost.h"
+#include "engine/runner/NetworkProbe.h"
+#include "engine/diagnostic/G5WebsiteUrl.h"
 #include "util/Logger.h"
 #include "util/PingParser.h"
 #include <QtConcurrent/QtConcurrent>
 
 DiagnosticEngine::DiagnosticEngine(QObject* parent)
-    : QObject(parent)
-{
-    // Initialize native plugin (non-fatal if unavailable)
-    NativeService::instance().initialize();
-}
+    : QObject(parent) {}
 
 DiagnosticEngine::~DiagnosticEngine() {
     m_destroying.store(true, std::memory_order_release);
@@ -24,31 +27,17 @@ DiagnosticEngine::~DiagnosticEngine() {
 
 QFuture<DiagnosticResult> DiagnosticEngine::runDiag(DiagId id, const QString& target,
                                                        int fromPort, int toPort, bool useCommonPorts) {
-    // Capture a raw pointer — the atomic m_destroying flag guards against
-    // use-after-free during shutdown. The engine is parented to AppState so
-    // it outlives workers during normal operation.
     auto* engine = this;
     return QtConcurrent::run([engine, id, target, fromPort, toPort, useCommonPorts]() -> DiagnosticResult {
-        fprintf(stderr, "[TRACE] runDiag lambda id=%d ENTER\n", (int)id);
+        TRACE(" runDiag lambda id=%d ENTER\n", (int)id);
         if (engine->m_destroying.load(std::memory_order_acquire))
             return DiagnosticResult::error(id, QStringLiteral("Engine shutting down"));
         DiagGroup group = diagGroup(id);
 
-        // Try native plugin first
-        fprintf(stderr, "[TRACE] runDiag id=%d calling tryNative\n", (int)id);
-        auto nativeResult = engine->tryNative(id, target, fromPort, toPort);
-        if (nativeResult.has_value()) {
-            auto& r = nativeResult.value();
-            r.id = id;
-            r.group = group;
-            return r;
-        }
-
-        // Fall back to Qt C++ implementation
         switch (group) {
-            case DiagGroup::G1: return engine->runG1(id, target);
-            case DiagGroup::G2: return engine->runG2(id, target);
-            case DiagGroup::G3: return engine->runG3(id, target);
+            case DiagGroup::G1: return engine->runG1(id);
+            case DiagGroup::G2: return engine->runG2(id);
+            case DiagGroup::G3: return engine->runG3(id);
             case DiagGroup::G4: return engine->runG4(id, target, fromPort, toPort, useCommonPorts);
             case DiagGroup::G5: return engine->runG5(id, target);
         }
@@ -56,19 +45,9 @@ QFuture<DiagnosticResult> DiagnosticEngine::runDiag(DiagId id, const QString& ta
     });
 }
 
-std::optional<DiagnosticResult> DiagnosticEngine::tryNative(DiagId id, const QString& target,
-                                                             int fromPort, int toPort) {
-    auto& ns = NativeService::instance();
-    if (!ns.isAvailable() || !ns.isNativeCapable(id))
-        return std::nullopt;
-    return ns.runDiagnostic(id, target, fromPort, toPort);
-}
-
 // ── G1: System & Adapters ──────────────────────────────────────────────────
 
-DiagnosticResult DiagnosticEngine::runG1(DiagId id, const QString& target) {
-    Q_UNUSED(target)
-
+DiagnosticResult DiagnosticEngine::runG1(DiagId id) {
     switch (id) {
         case DiagId::G1NetworkAdapters:   return G1G2G3Native::networkAdapters(id);
         case DiagId::G1NicAdvanced:       return G1G2G3Native::nicAdvanced(id);
@@ -84,9 +63,7 @@ DiagnosticResult DiagnosticEngine::runG1(DiagId id, const QString& target) {
 
 // ── G2: Connectivity & Security ────────────────────────────────────────────
 
-DiagnosticResult DiagnosticEngine::runG2(DiagId id, const QString& target) {
-    Q_UNUSED(target)
-
+DiagnosticResult DiagnosticEngine::runG2(DiagId id) {
     switch (id) {
         case DiagId::G2NetworkProfile:    return G1G2G3Native::networkProfile(id);
         case DiagId::G2TcpSettings:       return G1G2G3Native::tcpSettings(id);
@@ -101,9 +78,7 @@ DiagnosticResult DiagnosticEngine::runG2(DiagId id, const QString& target) {
 
 // ── G3: Internet & DNS ─────────────────────────────────────────────────────
 
-DiagnosticResult DiagnosticEngine::runG3(DiagId id, const QString& target) {
-    Q_UNUSED(target)
-
+DiagnosticResult DiagnosticEngine::runG3(DiagId id) {
     switch (id) {
         case DiagId::G3NetskopeStatus:        return G1G2G3Native::netskopeStatus(id);
         case DiagId::G3DnsServers:            return G1G2G3Native::dnsServers(id);
@@ -160,33 +135,30 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
             // ── Merge consecutive same-status ports into ranges ─────────
             int rangeStart = -1, rangeEnd = -1;
             bool rangeOpen = false;
-            QStringList rangeLines;
             QMap<int, QString> portSvcMap; // port → service name for named ports
 
             for (const auto& e : results) {
                 if (!e.serviceName.isEmpty()) portSvcMap[e.port] = e.serviceName;
             }
 
+            // Collect raw (portStr, status) pairs for auto-width formatting
+            QList<QPair<QString,QString>> portRows;
+
             auto flushRange = [&]() {
                 if (rangeStart < 0) return;
-                QString status = rangeOpen ? QStringLiteral("OPENED") : QStringLiteral("CLOSED");
-                QString portStr;
-                if (rangeStart == rangeEnd)
-                    portStr = QString::number(rangeStart);
-                else
-                    portStr = QStringLiteral("%1-%2").arg(rangeStart).arg(rangeEnd);
-                rangeLines.append(QStringLiteral("  %1  %2")
-                    .arg(portStr, -19).arg(status));
-                // Collect for summary: single ports or ranges with service names
+                QString status = rangeOpen ? QStringLiteral("OPEN") : QStringLiteral("CLOSED");
+                QString portStr = (rangeStart == rangeEnd)
+                    ? QString::number(rangeStart)
+                    : QStringLiteral("%1-%2").arg(rangeStart).arg(rangeEnd);
+                portRows.append({portStr, status});
+                // Collect for summary
                 if (rangeOpen) {
                     if (rangeStart == rangeEnd) {
-                        // Single open port
                         if (portSvcMap.contains(rangeStart))
                             namedOpen.append(QStringLiteral("%1(%2)").arg(rangeStart).arg(portSvcMap[rangeStart]));
                         else
                             namedOpen.append(QString::number(rangeStart));
                     } else if (rangeEnd - rangeStart <= 2) {
-                        // 2-3 ports: list individually
                         for (int p = rangeStart; p <= rangeEnd; p++) {
                             if (portSvcMap.contains(p))
                                 namedOpen.append(QStringLiteral("%1(%2)").arg(p).arg(portSvcMap[p]));
@@ -194,9 +166,7 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
                                 namedOpen.append(QString::number(p));
                         }
                     } else {
-                        // 4+ consecutive: show range
-                        QString rng = QStringLiteral("%1-%2").arg(rangeStart).arg(rangeEnd);
-                        namedOpen.append(rng);
+                        namedOpen.append(QStringLiteral("%1-%2").arg(rangeStart).arg(rangeEnd));
                     }
                 }
                 rangeStart = -1;
@@ -217,14 +187,29 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
             }
             flushRange();
 
-            // ── Raw output (merged range format) ────────────────────────
+            // ── Table mode output (auto-width) ──────────────────────────
             QStringList out;
             out.append(QString());
             out.append(QStringLiteral("Port Scan Results for %1").arg(scanHost));
-            out.append(QStringLiteral("Port range   Status"));
-            out.append(QStringLiteral("------------  ----------"));
-            for (const auto& line : rangeLines)
-                out.append(line);
+
+            // Compute column widths from data
+            int portW = (int)strlen("Port range");
+            int statusW = (int)strlen("Status");
+            for (const auto& pr : portRows) {
+                portW = qMax(portW, pr.first.length());
+                statusW = qMax(statusW, pr.second.length());
+            }
+            // Header + separator
+            out.append(QStringLiteral("  %1  %2")
+                .arg(QStringLiteral("Port range"), -portW)
+                .arg(QStringLiteral("Status"), -statusW));
+            out.append(QStringLiteral("  %1  %2")
+                .arg(QString(portW, '-'))
+                .arg(QString(statusW, '-')));
+            // Data rows
+            for (const auto& pr : portRows)
+                out.append(QStringLiteral("  %1  %2")
+                    .arg(pr.first, -portW).arg(pr.second, -statusW));
             out.append(QString());
             r.rawOutput = out.join('\n');
             r.details = out.join('\n');

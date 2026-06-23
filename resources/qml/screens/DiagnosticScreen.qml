@@ -10,25 +10,21 @@ Item {
     objectName: "diagnostic"
     readonly property bool wide: width >= 600
 
-    // ── Version-based state sync (single Timer replaces 4 polling timers) ──
+    // ── Run-active flag: true during diagnostic execution ──
+    property bool _runActive: false
     property int _cachedGen: -1
-    property int _runStatus: 0
-    property int _totalCompleted: 0
-    property int _totalDiags: 0
-    property bool _runActive: false       // true while runStatus === Running
 
-    // ── Config snapshot — frozen at Run click, released on Complete/Cancel/Error ──
     property string _snapIconName: "circle"
     property color _snapIconColor: Qt.alpha(Theme.textSecondary, 0.4)
     property string _snapTargetError: ""
+
     property bool _snapG0chk: true
     property bool _snapG1chk: true
     property bool _snapG2chk: true
-    property bool _snapG3en: false
     property bool _snapG3chk: false
-    property bool _snapG4en: false
     property bool _snapG4chk: false
-    // Incremented by takeSnapshot so SidebarContent can detect changes
+    property bool _snapG3en: false
+    property bool _snapG4en: false
     property int _snapVersion: 0
 
     function takeSnapshot() {
@@ -38,21 +34,17 @@ Item {
         _snapG3chk = appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
         _snapG4chk = appState.isGroupAllEnabled(4) || appState.isGroupAnyEnabled(4)
         _snapG3en  = !appState.isTargetEmpty()
-        _snapG4en  = appState.isTargetUrl()
+        _snapG4en  = appState.isTargetHttpUrl()
 
         var err = appState.targetValidationError()
         if (err !== "") {
-            _snapIconName = "error"
-            _snapIconColor = Theme.failRed
+            _snapIconName = "error"; _snapIconColor = Theme.failRed
         } else if (appState.isTargetEmpty()) {
-            _snapIconName = "circle"
-            _snapIconColor = Qt.alpha(Theme.textSecondary, 0.4)
-        } else if (appState.isTargetUrl()) {
-            _snapIconName = "globe"
-            _snapIconColor = Theme.accentBlue
+            _snapIconName = "circle"; _snapIconColor = Qt.alpha(Theme.textSecondary, 0.4)
+        } else if (appState.isTargetHttpUrl()) {
+            _snapIconName = "globe"; _snapIconColor = Theme.accentBlue
         } else {
-            _snapIconName = "target"
-            _snapIconColor = Theme.passGreen
+            _snapIconName = "target"; _snapIconColor = Theme.passGreen
         }
         _snapTargetError = err
         _snapVersion++
@@ -62,47 +54,23 @@ Item {
         var v = appState.stateVersion
         if (v === _cachedGen) return
         _cachedGen = v
-
-        var newStatus = appState.runStatus
-
-        // ── Detect run lifecycle transitions ──
-        if (newStatus === 1 && !_runActive) {
-            // Run started: take snapshot, freeze config
-            takeSnapshot()
-            _runActive = true
-        } else if (newStatus !== 1 && _runActive) {
-            // Run ended (Completed/Cancelled/Error): release snapshot, full sync
-            _runActive = false
-        }
-
-        // Always sync progress (changes during run)
-        _runStatus = newStatus
-        _totalCompleted = appState.totalCompleted
-        _totalDiags = appState.totalDiags
-
-        // Full config sync only when not in active run
-        if (!_runActive) {
-            takeSnapshot()
-        }
+        var ns = appState.runStatus
+        if (ns === 1 && !_runActive) { takeSnapshot(); _runActive = true }
+        else if (ns !== 1 && _runActive) { _runActive = false }
+        if (!_runActive) takeSnapshot()
     }
 
-    // Init immediately — triggers first takeSnapshot() before 200 ms Timer fires
+    // Poll state (200ms is fine for UI sync, non-blocking)
+    Timer { interval: 200; running: true; repeat: true; onTriggered: syncState() }
     Component.onCompleted: takeSnapshot()
 
-    // Single polling Timer — replaces 4 independent timers
-    Timer {
-        interval: 200; running: true; repeat: true
-        onTriggered: syncState()
-    }
-
-    // Filter groups: only show those with enabled tests or results
     property var currentDetail: ({})
     property var visibleGroups: {
-        var _force = _totalCompleted + _runStatus + (_runActive ? 1 : 0)
+        let _ = _snapVersion   // force re-evaluation on snapshot
         var g = []
-        for (var i = 0; i < appState.groupLabels.length; i++) {
+        for (var i = 0; i < 5; i++) {
             var s = appState.groupStats(i)
-            if (s.enabled > 0 || s.total > 0) g.push(i)
+            if ((s.enabled || 0) > 0 || (s.total || 0) > 0) g.push(i)
         }
         return g
     }
@@ -135,13 +103,13 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: _totalCompleted > 0 ? 0.29 * page.height : 0.5 * page.height
+            Layout.preferredHeight: appState.totalCompleted > 0 ? 0.29 * page.height : 0.5 * page.height
             color: Theme.bgSidebar; clip: true
             Flickable {
                 anchors.fill: parent; contentHeight: sidebarCol.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 ColumnLayout { id: sidebarCol; width: parent.width
-                    SidebarContent { width: parent.width; compact: _totalCompleted > 0 }
+                    SidebarContent { width: parent.width; compact: appState.totalCompleted > 0 }
                 }
             }
         }
@@ -155,7 +123,6 @@ Item {
         property int _cachedSnapVer: -1
         spacing: 0
 
-        // ── CheckBox → page snapshot sync (inside component scope where cb0–cb4 exist) ──
         function syncCheckboxes() {
             if (!cb0 || !cb1 || !cb2 || !cb3 || !cb4) return
             cb0.checked = page._snapG0chk
@@ -167,10 +134,7 @@ Item {
             cb4.enabled = page._snapG4en && !page._runActive
         }
 
-        // Poll page._snapVersion — page.takeSnapshot() bumps it on every config change.
-        // Timer lives inside SidebarContent so it can reach cb0…cb4 directly.
-        Timer {
-            interval: 200; running: true; repeat: true
+        Timer { interval: 200; running: true; repeat: true
             onTriggered: {
                 if (page._snapVersion !== _cachedSnapVer) {
                     _cachedSnapVer = page._snapVersion
@@ -178,8 +142,6 @@ Item {
                 }
             }
         }
-
-        // Immediate init on component creation
         Component.onCompleted: syncCheckboxes()
 
         // Header — matches Flutter Container(padding h16 v14, border bottom #3A3A5A)
@@ -212,6 +174,7 @@ Item {
                 color: page._snapG0chk ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                 RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                     CheckBox { id: cb0; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        checked: appState.isGroupAllEnabled(0)
                         enabled: !page._runActive
                         onClicked: appState.setGroupEnabled(0, cb0.checked) }
                     Item { width: 8 }
@@ -223,6 +186,7 @@ Item {
                 color: page._snapG1chk ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                 RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                     CheckBox { id: cb1; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        checked: appState.isGroupAllEnabled(1)
                         enabled: !page._runActive
                         onClicked: appState.setGroupEnabled(1, cb1.checked) }
                     Item { width: 8 }
@@ -234,6 +198,7 @@ Item {
                 color: page._snapG2chk ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                 RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                     CheckBox { id: cb2; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        checked: appState.isGroupAllEnabled(2)
                         enabled: !page._runActive
                         onClicked: appState.setGroupEnabled(2, cb2.checked) }
                     Item { width: 8 }
@@ -245,6 +210,7 @@ Item {
                 color: page._snapG3chk ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                 RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                     CheckBox { id: cb3; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        checked: appState.isGroupAllEnabled(3)
                         enabled: !page._runActive && page._snapG3en
                         onClicked: appState.setGroupEnabled(3, cb3.checked) }
                     Item { width: 8 }
@@ -256,6 +222,7 @@ Item {
                 color: page._snapG4chk ? Qt.alpha(Theme.accentBlue, 0.12) : "transparent"
                 RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                     CheckBox { id: cb4; Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                        checked: appState.isGroupAllEnabled(4)
                         enabled: !page._runActive && page._snapG4en
                         onClicked: appState.setGroupEnabled(4, cb4.checked) }
                     Item { width: 8 }
@@ -308,16 +275,16 @@ Item {
                 AppIcon { name: "diagnostics"; size: 18; color: Theme.cyan }
                 Item { width: 8 }
                 Label {
-                    text: _runStatus === 1 ? Tr.runningDots :
-                          _runStatus === 2 ? Tr.complete :
-                          _runStatus === 3 ? Tr.cancelled :
-                          _runStatus === 4 ? Tr.errorCheck : Tr.results
+                    text: appState.runStatus === 1 ? Tr.runningDots :
+                          appState.runStatus === 2 ? Tr.complete :
+                          appState.runStatus === 3 ? Tr.cancelled :
+                          appState.runStatus === 4 ? Tr.errorCheck : Tr.results
                     font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary
                 }
                 // Progress counter — visible during run
                 Label {
-                    visible: _runStatus === 1 && _totalDiags > 0
-                    text: _totalCompleted + " / " + _totalDiags
+                    visible: appState.runStatus === 1 && appState.totalDiags > 0
+                    text: appState.totalCompleted + " / " + appState.totalDiags
                     font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
                     font.weight: Font.DemiBold; color: Theme.cyan
                 }
@@ -330,7 +297,7 @@ Item {
             Layout.fillWidth: true; Layout.fillHeight: true
             Column {
                 anchors.centerIn: parent; spacing: 16
-                visible: _runStatus === 0 && _totalCompleted === 0
+                visible: appState.runStatus === 0 && appState.totalCompleted === 0
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "wifi"; size: 80; color: Qt.alpha(Theme.textSecondary, 0.2) }
                 Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runDiag; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
             }
@@ -338,7 +305,7 @@ Item {
             Flickable {
                 id: resultsFlick
                 anchors { fill: parent; margins: 4 }
-                visible: _totalCompleted > 0 || _runStatus === 1
+                visible: appState.totalCompleted > 0 || appState.runStatus === 1
                 clip: true
                 contentWidth: width
                 contentHeight: treeColumn.implicitHeight

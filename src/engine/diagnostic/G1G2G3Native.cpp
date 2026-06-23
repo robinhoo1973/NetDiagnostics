@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // G1G2G3Native.cpp — Pure C++ G1/G2/G3 diagnostics — ZERO shell commands
 // Linux: getifaddrs, /proc/net, /sys/class/net, ioctl, netlink, socket APIs
 // Windows: GetAdaptersAddresses, GetExtendedTcpTable, GetIpForwardTable2, etc.
@@ -6,6 +6,7 @@
 // netstat -an, netsh, nslookup)
 // =============================================================================
 #include "engine/diagnostic/G1G2G3Native.h"
+#include "util/DebugSwitch.h"
 #include <QElapsedTimer>
 #include <QDateTime>
 #include <QFile>
@@ -61,9 +62,146 @@
 
 namespace G1G2G3Native {
 
+static int tcpPingMs(const QString& host, int port); // forward
+
 // ═════════════════════════════════════════════════════════════════════════════
-// Helpers
+// SpeedTest — built-in server registry + selection
 // ═════════════════════════════════════════════════════════════════════════════
+class SpeedTest {
+public:
+    struct Server { QString host; int port; QString name, sponsor, country, url; };
+    SpeedTest();
+    QVector<Server> serversForCountry(const QString& hint) const;
+    QVector<Server> allServers() const;
+    static QString detectCountry(int = 3000);
+    static void rankByLatency(QVector<Server>& c, int tmo = 3000);
+    static Server selectBest(QVector<Server>& c, int maxMs = 500, int tmo = 3000);
+private:
+    void build();
+    QMap<QString, QVector<Server>> m;
+};
+inline SpeedTest::SpeedTest() { build(); }
+
+#define S(c, h, p, n, sp) \
+    s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; \
+    s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
+inline void SpeedTest::build() { Server s;
+    S("CN","speedtest1.gd.chinamobile.com",8080,"Guangzhou","China Mobile");
+    S("CN","speedtest2.gz.chinamobile.com",8080,"Guangzhou 2","China Mobile");
+    S("CN","speedtest.bj.chinamobile.com",8080,"Beijing","China Mobile");
+    S("CN","speedtest2.fj.chinamobile.com",8080,"Fujian","China Mobile");
+    S("CN","speedtest.sc.chinamobile.com",8080,"Sichuan","China Mobile");
+    S("CN","speedtest.hb.chinamobile.com",8080,"Hubei","China Mobile");
+    S("CN","speedtest.zj.chinamobile.com",8080,"Zhejiang","China Mobile");
+    S("CN","speedtest.jl.chinamobile.com",8080,"Jilin","China Mobile");
+    S("CN","speedtest1.online.sh.cn",8080,"Shanghai","China Telecom");
+    S("CN","speedtest2.online.sh.cn",8080,"Shanghai 2","China Telecom");
+    S("CN","speedtest1.gx.chinatel.com.cn",8080,"Guangxi","China Telecom");
+    S("CN","speedtest1.ah.chinatel.com.cn",8080,"Anhui","China Telecom");
+    S("CN","speedtest1.js.chinatel.com.cn",8080,"Jiangsu","China Telecom");
+    S("CN","speedtest1.zj.chinatel.com.cn",8080,"Zhejiang","China Telecom");
+    S("CN","speedtest1.cq.chinatel.com.cn",8080,"Chongqing","China Telecom");
+    S("CN","speedtest1.hb.cnc.cn",8080,"Hubei","China Unicom");
+    S("CN","speedtest1.bj.cnc.cn",8080,"Beijing","China Unicom");
+    S("CN","speedtest1.sh.cnc.cn",8080,"Shanghai","China Unicom");
+    S("CN","speedtest1.gd.cnc.cn",8080,"Guangdong","China Unicom");
+    S("CN","speedtest.sz.supergaminator.com",8080,"Shenzhen","SuperGaminator");
+    S("CN","speedtest-js.volcengine.com",8080,"Jiangsu","Volcengine");
+    S("CN","speedtest-hb.volcengine.com",8080,"Hubei","Volcengine");
+    S("CN","speedtest-zj.volcengine.com",8080,"Zhejiang","Volcengine");
+    S("JP","speedtest-tokyo.volcengine.com",8080,"Tokyo","Volcengine");
+    S("JP","speedtest-tokyo1.spwork.com",8080,"Tokyo 1","Spwork");
+    S("JP","speedtest-tokyo2.spwork.com",8080,"Tokyo 2","Spwork");
+    S("JP","speedtest.osaka.spwork.com",8080,"Osaka","Spwork");
+    S("SG","speedtest-sg.volcengine.com",8080,"Singapore","Volcengine");
+    S("SG","speedtest.singapore1.spwork.com",8080,"Singapore 1","Spwork");
+    S("SG","speedtest.singapore2.spwork.com",8080,"Singapore 2","Spwork");
+    S("US","speedtest.lax.spwork.com",8080,"Los Angeles","Spwork");
+    S("US","speedtest.sjc.spwork.com",8080,"San Jose","Spwork");
+    S("US","speedtest.nyc.spwork.com",8080,"New York","Spwork");
+    S("US","speedtest.dal.spwork.com",8080,"Dallas","Spwork");
+    S("US","dg5oj7x6qhvhr.cloudfront.net",80,"CloudFront","AWS CDN");
+    S("GB","speedtest.london.spwork.com",8080,"London","Spwork");
+    S("GB","speedtest.manchester.spwork.com",8080,"Manchester","Spwork");
+    S("DE","speedtest.frankfurt.spwork.com",8080,"Frankfurt","Spwork");
+    S("DE","speedtest.berlin.spwork.com",8080,"Berlin","Spwork");
+    S("IN","speedtest.mumbai.spwork.com",8080,"Mumbai","Spwork");
+    S("IN","speedtest.delhi.spwork.com",8080,"Delhi","Spwork");
+    S("IN","speedtest.bangalore.spwork.com",8080,"Bangalore","Spwork");
+    S("AU","speedtest.sydney.spwork.com",8080,"Sydney","Spwork");
+    S("BR","speedtest.saopaulo.spwork.com",8080,"Sao Paulo","Spwork");
+    S("KR","speedtest.seoul.spwork.com",8080,"Seoul","Spwork");
+}
+#undef S
+inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
+    if (m.contains(hint)) return m[hint];
+    QString p = hint.left(2).toUpper();
+    return m.contains(p) ? m[p] : allServers();
+}
+inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
+    QVector<Server> a; for (auto& l : m) a.append(l); return a;
+}
+inline QString SpeedTest::detectCountry(int) { return QStringLiteral("CN"); }
+inline void SpeedTest::rankByLatency(QVector<Server>& c, int tmo) {
+    QVector<QPair<int,Server>> r;
+    for (auto& s : c) { int ms = tcpPingMs(s.host, s.port); r.append({ms>=0?ms:999999,s}); }
+    std::sort(r.begin(), r.end(), [](auto& a, auto& b){return a.first<b.first;});
+    c.clear(); for (auto& p : r) c.append(p.second);
+}
+inline SpeedTest::Server SpeedTest::selectBest(QVector<Server>& c, int maxMs, int tmo) {
+    (void)tmo; rankByLatency(c, tmo);
+    for (auto& s : c) { int ms = tcpPingMs(s.host, s.port); if (ms >= 0 && ms < maxMs) return s; }
+    return c.first();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Table formatting helper
+// ═════════════════════════════════════════════════════════════════════════════
+// Column spec: { header text, minimum width, right-align? }
+// Use tblFmt() to auto-compute widths from data and produce aligned output.
+struct TblCol { const char* hdr; int minW; bool ra; };
+static const QString kTblGap = QStringLiteral("  "); // inter-column gap
+
+// Auto-compute column widths from data + headers, then format everything.
+static QStringList tblFmt(const QVector<TblCol>& cols, const QList<QStringList>& rows) {
+    QStringList out;
+    // Compute widths: max(header, all data values)
+    QVector<int> w(cols.size());
+    for (int i = 0; i < cols.size(); ++i) {
+        w[i] = qMax(cols[i].minW, (int)strlen(cols[i].hdr));
+        for (const auto& row : rows)
+            if (i < row.size())
+                w[i] = qMax(w[i], row[i].length());
+    }
+    // Header
+    QStringList hdrParts;
+    for (int i = 0; i < cols.size(); ++i)
+        hdrParts.append(cols[i].ra
+            ? QString::fromLatin1(cols[i].hdr).rightJustified(w[i], ' ')
+            : QString::fromLatin1(cols[i].hdr).leftJustified(w[i], ' '));
+    out.append(hdrParts.join(kTblGap));
+    // Separator
+    QStringList sepParts;
+    for (int i = 0; i < cols.size(); ++i)
+        sepParts.append(QString(w[i], '-'));
+    out.append(sepParts.join(kTblGap));
+    // Data rows
+    for (const auto& row : rows) {
+        QStringList parts;
+        for (int i = 0; i < cols.size(); ++i) {
+            QString val = (i < row.size()) ? row[i] : QString();
+            parts.append(cols[i].ra
+                ? val.rightJustified(w[i], ' ')
+                : val.leftJustified(w[i], ' '));
+        }
+        out.append(parts.join(kTblGap));
+    }
+    return out;
+}
+
+// ═════════════════════════════════════════════════════════════════════════
+// Helpers (continued)
+// ═════════════════════════════════════════════════════════════════════════
 
 static QString macToStr(const unsigned char* mac) {
     return QStringLiteral("%1-%2-%3-%4-%5-%6")
@@ -183,8 +321,14 @@ DiagnosticResult networkAdapters(DiagId id) {
     freeifaddrs(ifa);
 
     // ── ifconfig -s style table with MAC/IPv4 ─────────────────────────
-    out.append(QStringLiteral("Iface        MTU   Status      MAC Address           IPv4 Address"));
-    out.append(QStringLiteral("-----------  ----  ----------  --------------------  ---------------"));
+    static const QVector<TblCol> kNetCols = {
+        {"Iface",       12, false},
+        {"MTU",          4, true},
+        {"Status",      10, false},
+        {"MAC Address", 20, false},
+        {"IPv4 Address", 0, false},
+    };
+    QList<QStringList> netRows;
 
     for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
         const IfInfo& info = it.value();
@@ -201,10 +345,9 @@ DiagnosticResult networkAdapters(DiagId id) {
         QString mac = info.mac.isEmpty() ? QStringLiteral("-") : info.mac;
         QString ip4 = info.ips.isEmpty() ? (isLoopback ? QStringLiteral("127.0.0.1") : QStringLiteral("-")) : info.ips.join(',');
 
-        out.append(QStringLiteral("%1  %2  %3  %4  %5")
-            .arg(info.name.leftJustified(12, ' ')).arg(mtu.rightJustified(4, ' '))
-            .arg(state.leftJustified(10, ' ')).arg(mac.leftJustified(20, ' ')).arg(ip4));
+        netRows.append({info.name, mtu, state, mac, ip4});
     }
+    out.append(tblFmt(kNetCols, netRows));
 #endif
 
     r.rawOutput = out.join('\n');
@@ -227,10 +370,12 @@ DiagnosticResult activeConnections(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("Active Connections (netstat -an style)"));
     out.append(QString());
-    out.append(QStringLiteral("  Proto  Local Address          Foreign Address        State"));
+
+    // Collect raw data first to compute aligned IP:Port widths
+    struct ConnEntry { QString proto, localIp, remoteIp, state; int localPort, remotePort; };
+    QList<ConnEntry> rawConns;
 
 #ifdef _WIN32
-    // Use GetExtendedTcpTable
     ULONG bufLen = 0;
     GetExtendedTcpTable(nullptr, &bufLen, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
     QByteArray tcpBuf(bufLen, '\0');
@@ -240,61 +385,73 @@ DiagnosticResult activeConnections(DiagId id) {
             auto& row = tcpTable->table[i];
             struct in_addr la, ra;
             la.S_un.S_addr = row.dwLocalAddr; ra.S_un.S_addr = row.dwRemoteAddr;
-            out.append(QStringLiteral("  TCP    %1:%2  %3:%4  %5")
-                .arg(QString::fromLatin1(inet_ntoa(la)), -20)
-                .arg(ntohs((u_short)row.dwLocalPort), 5)
-                .arg(QString::fromLatin1(inet_ntoa(ra)), -20)
-                .arg(ntohs((u_short)row.dwRemotePort), 5)
-                .arg(QString::fromLatin1(tcpStateName(row.dwState))));
+            rawConns.append({QStringLiteral("TCP"),
+                QString::fromLatin1(inet_ntoa(la)), QString::fromLatin1(inet_ntoa(ra)),
+                QString::fromLatin1(tcpStateName(row.dwState)),
+                (int)ntohs((u_short)row.dwLocalPort), (int)ntohs((u_short)row.dwRemotePort)});
         }
     }
 #else
-    // Linux: parse /proc/net/tcp and /proc/net/udp
-    auto parseProcNet = [](const QString& path, const QString& proto, QStringList& lines, bool isUdp) {
+    auto parseProcNet = [&](const QString& path, const QString& proto, bool isUdp) {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly)) return;
         QTextStream ts(&f);
-        ts.readLine(); // skip header
+        ts.readLine();
         while (!ts.atEnd()) {
             QString line = ts.readLine().trimmed();
             if (line.isEmpty()) continue;
             QStringList cols = line.split(QRegularExpression("\\s+"));
             if (cols.size() < 10) continue;
-
-            // local_address: 0100007F:1F90 (hex IP:port)
             QStringList local = cols[1].split(':');
             QStringList remote = cols[2].split(':');
-
             auto hexToIp = [](const QString& hex) -> QString {
                 bool ok; uint32_t ip = hex.toUInt(&ok, 16);
                 return ipToStr(ip);
             };
-
-            QString localIp = hexToIp(local[0]);
-            int localPort = local[1].toInt(nullptr, 16);
-            QString remoteIp = remote.size() > 0 ? hexToIp(remote[0]) : QStringLiteral("0.0.0.0");
-            int remotePort = remote.size() > 1 ? remote[1].toInt(nullptr, 16) : 0;
             int state = cols[3].toInt(nullptr, 16);
-
-            if (isUdp)
-                lines.append(QStringLiteral("  %1  %2:%3  %4:%5  *:*")
-                    .arg(proto.leftJustified(4, ' ')).arg(localIp.leftJustified(20, ' ')).arg(localPort, 5)
-                    .arg(remoteIp.leftJustified(20, ' ')).arg(remotePort, 5));
-            else
-                lines.append(QStringLiteral("  %1  %2:%3  %4:%5  %6")
-                    .arg(proto.leftJustified(4, ' ')).arg(localIp.leftJustified(20, ' ')).arg(localPort, 5)
-                    .arg(remoteIp.leftJustified(20, ' ')).arg(remotePort, 5)
-                    .arg(QString::fromLatin1(tcpStateName(state))));
+            rawConns.append({proto,
+                hexToIp(local[0]), remote.size()>0 ? hexToIp(remote[0]) : QStringLiteral("0.0.0.0"),
+                isUdp ? QStringLiteral("*:*") : QString::fromLatin1(tcpStateName(state)),
+                local[1].toInt(nullptr, 16),
+                remote.size()>1 ? remote[1].toInt(nullptr, 16) : 0});
         }
     };
-
-    parseProcNet(QStringLiteral("/proc/net/tcp"), QStringLiteral("TCP"), out, false);
-    parseProcNet(QStringLiteral("/proc/net/tcp6"), QStringLiteral("TCP6"), out, false);
-    parseProcNet(QStringLiteral("/proc/net/udp"), QStringLiteral("UDP"), out, true);
-    parseProcNet(QStringLiteral("/proc/net/udp6"), QStringLiteral("UDP6"), out, true);
+    parseProcNet(QStringLiteral("/proc/net/tcp"),  QStringLiteral("TCP"),  false);
+    parseProcNet(QStringLiteral("/proc/net/tcp6"), QStringLiteral("TCP6"), false);
+    parseProcNet(QStringLiteral("/proc/net/udp"),  QStringLiteral("UDP"),  true);
+    parseProcNet(QStringLiteral("/proc/net/udp6"), QStringLiteral("UDP6"), true);
 #endif
 
-    if (out.size() <= 3) out.append(QStringLiteral("  (no active connections)"));
+    // Compute max IP width and max port width for each address column
+    int localIpW = 0, remoteIpW = 0, portW = 0;
+    for (const auto& c : rawConns) {
+        localIpW  = qMax(localIpW,  c.localIp.length());
+        remoteIpW = qMax(remoteIpW, c.remoteIp.length());
+        portW     = qMax(portW, QString::number(c.localPort).length());
+        portW     = qMax(portW, QString::number(c.remotePort).length());
+    }
+    if (portW < 5) portW = 5; // minimum port column width
+
+    // Build formatted rows: IP left-justified + ":" + port left-justified
+    QList<QStringList> connRows;
+    for (const auto& c : rawConns) {
+        connRows.append({
+            c.proto,
+            QStringLiteral("%1:%2").arg(c.localIp.leftJustified(localIpW)).arg(QString::number(c.localPort).leftJustified(portW)),
+            QStringLiteral("%1:%2").arg(c.remoteIp.leftJustified(remoteIpW)).arg(QString::number(c.remotePort).leftJustified(portW)),
+            c.state});
+    }
+
+    static const QVector<TblCol> kConnCols = {
+        {"Proto",           6, false},
+        {"Local Address",   0, false},
+        {"Foreign Address", 0, false},
+        {"State",           0, false},
+    };
+    if (!connRows.isEmpty())
+        out.append(tblFmt(kConnCols, connRows));
+    else
+        out.append(QStringLiteral("  (no active connections)"));
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
@@ -347,9 +504,9 @@ DiagnosticResult ipConfiguration(DiagId id) {
                 WSAAddressToStringA(ua->Address.lpSockaddr, ua->Address.iSockaddrLength, nullptr, ip, &ipLen);
                 int family = ua->Address.lpSockaddr->sa_family;
                 if (family == AF_INET) {
-                    out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1(Preferred)").arg(QString::fromLatin1(ip)));
+                    out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1 (Preferred)").arg(QString::fromLatin1(ip)));
                 } else if (family == AF_INET6) {
-                    out.append(QStringLiteral("   Link-local IPv6 Address . . . . . : %1(Preferred)").arg(QString::fromLatin1(ip)));
+                    out.append(QStringLiteral("   Link-local IPv6 Address . . . . . : %1 (Preferred)").arg(QString::fromLatin1(ip)));
                 }
             }
             for (auto* gw = a->FirstGatewayAddress; gw; gw = gw->Next) {
@@ -505,14 +662,14 @@ DiagnosticResult ipConfiguration(DiagId id) {
             // IPv6 addresses
             for (const auto& ip6 : info.ips6) {
                 if (!ip6.startsWith("fe80:"))
-                    out.append(QStringLiteral("   IPv6 Address. . . . . . . . . . . : %1(Preferred)").arg(ip6));
+                    out.append(QStringLiteral("   IPv6 Address. . . . . . . . . . . : %1 (Preferred)").arg(ip6));
                 else
-                    out.append(QStringLiteral("   Link-local IPv6 Address . . . . . : %1(Preferred)").arg(ip6));
+                    out.append(QStringLiteral("   Link-local IPv6 Address . . . . . : %1 (Preferred)").arg(ip6));
             }
 
             // IPv4 addresses
             for (int i = 0; i < info.ips4.size(); i++) {
-                out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1(Preferred)").arg(info.ips4[i]));
+                out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1 (Preferred)").arg(info.ips4[i]));
                 if (i < info.masks4.size())
                     out.append(QStringLiteral("   Subnet Mask . . . . . . . . . . . : %1").arg(info.masks4[i]));
             }
@@ -597,7 +754,11 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             for (DWORD i = 0; i < ifList->dwNumberOfItems; i++) {
                 auto& wi = ifList->InterfaceInfo[i];
                 out.append(QStringLiteral("   Name . . . . . . . . . . . . : %1").arg(QString::fromWCharArray(wi.strInterfaceDescription)));
-                out.append(QStringLiteral("   GUID . . . . . . . . . . . . : %1").arg(QString::fromWCharArray(wi.strInterfaceDescription)));
+                {
+    wchar_t guidStr[40] = {};
+    StringFromGUID2(wi.InterfaceGuid, guidStr, 40);
+    out.append(QStringLiteral("   GUID . . . . . . . . . . . . : %1").arg(QString::fromWCharArray(guidStr)));
+}
                 out.append(QStringLiteral("   State. . . . . . . . . . . . : %1").arg(wi.isState == wlan_interface_state_connected ? "connected" : "disconnected"));
                 out.append(QString());
             }
@@ -607,9 +768,16 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     }
 #else
     // Linux: wireless extensions + /sys/class/net/<wireless_iface>/
-    // ── WiFi table header ────────────────────────────────────────────
-    out.append(QStringLiteral("Interface    SSID                 BSSID            Channel   Signal   Bitrate"));
-    out.append(QStringLiteral("---------    ----                 -----            -------   ------   -------"));
+    // ── WiFi table ────────────────────────────────────────────────────
+    static const QVector<TblCol> kWifiCols = {
+        {"Interface", 12, false},
+        {"SSID",      20, false},
+        {"BSSID",     17, false},
+        {"Channel",    8, false},
+        {"Signal",     7, false},
+        {"Bitrate",    0, false},
+    };
+    QList<QStringList> wifiRows;
 
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
@@ -659,13 +827,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QFile rateFile(QStringLiteral("/sys/class/net/%1/wireless/bitrate").arg(ifName));
             if (rateFile.open(QIODevice::ReadOnly)) bitrate = QString::fromLatin1(rateFile.readAll().trimmed());
 
-            out.append(QStringLiteral("%1  %2  %3  %4  %5  %6")
-                .arg(ifName.leftJustified(12)).arg(ssid.leftJustified(20)).arg(bssid.leftJustified(17))
-                .arg(channel.leftJustified(8)).arg(signal.leftJustified(7)).arg(bitrate));
+            wifiRows.append({ifName, ssid, bssid, channel, signal, bitrate});
         }
         freeifaddrs(ifa);
     }
-    if (out.size() <= 5) out.append(QStringLiteral("  (no wireless interfaces detected)"));
+    out.append(tblFmt(kWifiCols, wifiRows));
+    if (wifiRows.isEmpty()) out.append(QStringLiteral("  (no wireless interfaces detected)"));
 #endif
 
     r.rawOutput = out.join('\n');
@@ -693,10 +860,18 @@ DiagnosticResult nicAdvanced(DiagId id) {
 #else
     out.append(QStringLiteral("NIC Advanced Properties (table mode):"));
     out.append(QString());
-    out.append(QStringLiteral("Interface    Speed    Duplex   MTU   Carrier  State       MAC Address"));
-    out.append(QStringLiteral("---------    -----    ------   ---   -------  -----       -----------"));
+    static const QVector<TblCol> kNicCols = {
+        {"Interface",   12, false},
+        {"Speed",        6, true},
+        {"Duplex",       6, false},
+        {"MTU",          4, true},
+        {"Carrier",      7, false},
+        {"State",       10, false},
+        {"MAC Address", 17, false},
+    };
+    QList<QStringList> nicRows;
 
-    QSet<QString> seenNic; // dedup: getifaddrs returns one entry per address family
+    QSet<QString> seenNic;
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
@@ -712,14 +887,12 @@ DiagnosticResult nicAdvanced(DiagId id) {
                 return QStringLiteral("-");
             };
 
-            out.append(QStringLiteral("%1  %2  %3  %4  %5  %6  %7")
-                .arg(ifName.leftJustified(12, ' ')).arg(rd("speed").rightJustified(6, ' '))
-                .arg(rd("duplex").leftJustified(6, ' ')).arg(rd("mtu").rightJustified(4, ' '))
-                .arg(rd("carrier").leftJustified(7, ' ')).arg(rd("operstate").leftJustified(10, ' '))
-                .arg(rd("address")));
+            nicRows.append({ifName, rd("speed"), rd("duplex"), rd("mtu"),
+                rd("carrier"), rd("operstate"), rd("address")});
         }
         freeifaddrs(ifa);
     }
+    out.append(tblFmt(kNicCols, nicRows));
 #endif
 
     r.rawOutput = out.join('\n');
@@ -750,10 +923,18 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("Wired Information (table mode):"));
     out.append(QString());
-    out.append(QStringLiteral("Interface    Speed    Duplex   MTU   Link   State       MAC Address"));
-    out.append(QStringLiteral("---------    -----    ------   ---   ----   -----       -----------"));
+    static const QVector<TblCol> kWiredCols = {
+        {"Interface",   12, false},
+        {"Speed",        6, true},
+        {"Duplex",       6, false},
+        {"MTU",          4, true},
+        {"Link",         4, false},
+        {"State",       10, false},
+        {"MAC Address", 17, false},
+    };
+    QList<QStringList> wiredDataRows;
 
-    QSet<QString> seenWired; // dedup: getifaddrs returns one entry per address family
+    QSet<QString> seenWired;
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
@@ -771,15 +952,13 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
                 return QStringLiteral("-");
             };
 
-            out.append(QStringLiteral("%1  %2  %3  %4  %5  %6  %7")
-                .arg(ifName.leftJustified(12, ' ')).arg(rd("speed").rightJustified(6, ' '))
-                .arg(rd("duplex").leftJustified(6, ' ')).arg(rd("mtu").rightJustified(4, ' '))
-                .arg(rd("carrier").leftJustified(4, ' ')).arg(rd("operstate").leftJustified(10, ' '))
-                .arg(rd("address")));
+            wiredDataRows.append({ifName, rd("speed"), rd("duplex"), rd("mtu"),
+                rd("carrier"), rd("operstate"), rd("address")});
         }
         freeifaddrs(ifa);
     }
-    if (out.size() <= 3) out.append(QStringLiteral("  (no wired interfaces detected)"));
+    out.append(tblFmt(kWiredCols, wiredDataRows));
+    if (wiredDataRows.isEmpty()) out.append(QStringLiteral("  (no wired interfaces detected)"));
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
@@ -842,7 +1021,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 while (!ts.atEnd()) {
                     QString line = ts.readLine().trimmed();
                     if (line.startsWith("ADDRESS="))
-                        { QString ip = line.mid(8); out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1(Preferred)").arg(ip)); if (!dhcpSummary.contains(ifName + "=" + ip)) dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ip)); }
+                        { QString ip = line.mid(8); out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1 (Preferred)").arg(ip)); if (!dhcpSummary.contains(ifName + "=" + ip)) dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ip)); }
                     else if (line.startsWith("NETMASK="))
                         out.append(QStringLiteral("   Subnet Mask . . . . . . . . . . . : %1").arg(line.mid(8)));
                     else if (line.startsWith("ROUTER="))
@@ -880,7 +1059,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 }
                 if (!currentIface.isEmpty() && !currentIp.isEmpty()) {
                     anyDhcp = true;
-                    out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1(Preferred)").arg(currentIp));
+                    out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1 (Preferred)").arg(currentIp));
                     if (!dhcpSummary.contains(QStringLiteral("%1=%2").arg(currentIface, currentIp)))
                         dhcpSummary.append(QStringLiteral("%1=%2").arg(currentIface, currentIp));
                 }
@@ -950,20 +1129,43 @@ DiagnosticResult routingTable(DiagId id) {
     out.append(QStringLiteral("IPv4 Route Table"));
     out.append(QStringLiteral("==========================================================================="));
     out.append(QStringLiteral("Active Routes:"));
-    out.append(QStringLiteral("Network Destination        Netmask          Gateway       Interface  Metric"));
+    static const QVector<TblCol> kRouteCols = {
+        {"Network Destination", 22, true},
+        {"Netmask",             16, true},
+        {"Gateway",             16, true},
+        {"Interface",           10, false},
+        {"Metric",               6, true},
+    };
+    QList<QStringList> routeRows;
 
-    // Get IPv4 forwarding table
     PMIB_IPFORWARD_TABLE2 ft = nullptr;
     if (GetIpForwardTable2(AF_INET, &ft) == NO_ERROR) {
         for (ULONG i = 0; i < ft->NumEntries; i++) {
             auto& row = ft->Table[i];
-            struct in_addr dest, mask, gw, iface;
-            dest.S_un.S_addr = row.DestinationPrefix.Prefix.S_un.S_addr;
-            // ... would need full extract of prefix length to netmask
-            out.append(QStringLiteral("  %1").arg(QString::fromLatin1(inet_ntoa(dest))));
+            struct in_addr dest = row.DestinationPrefix.Prefix.Ipv4.sin_addr;
+            struct in_addr gw = row.NextHop.Ipv4.sin_addr;
+            // Convert prefix length to netmask
+            int prefixLen = row.DestinationPrefix.PrefixLength;
+            uint32_t maskVal = (prefixLen == 0) ? 0 : (~0u << (32 - prefixLen));
+            struct in_addr mask; mask.S_un.S_addr = htonl(maskVal);
+            // Interface index → name
+            QString ifName = QString::number(row.InterfaceIndex);
+            MIB_IF_ROW2 ifRow; ZeroMemory(&ifRow, sizeof(ifRow));
+            ifRow.InterfaceIndex = row.InterfaceIndex;
+            if (GetIfEntry2(&ifRow) == NO_ERROR) {
+                ifName = QString::fromWCharArray(ifRow.Alias);
+            }
+            routeRows.append({
+                QString::fromLatin1(inet_ntoa(dest)),
+                QString::fromLatin1(inet_ntoa(mask)),
+                QString::fromLatin1(inet_ntoa(gw)),
+                ifName.left(9),
+                QString::number(row.SitePrefixLength)});
         }
         FreeMibTable(ft);
     }
+    if (!routeRows.isEmpty())
+        out.append(tblFmt(kRouteCols, routeRows));
 #else
     // Linux: parse /proc/net/route
     out.append(QStringLiteral("==========================================================================="));
@@ -971,7 +1173,14 @@ DiagnosticResult routingTable(DiagId id) {
     out.append(QStringLiteral("IPv4 Route Table"));
     out.append(QStringLiteral("==========================================================================="));
     out.append(QStringLiteral("Active Routes:"));
-    out.append(QStringLiteral("Network Destination        Netmask          Gateway       Interface  Metric"));
+    static const QVector<TblCol> kRouteCols = {
+        {"Network Destination", 22, true},
+        {"Netmask",             16, true},
+        {"Gateway",             16, true},
+        {"Interface",           10, false},
+        {"Metric",               6, true},
+    };
+    QList<QStringList> routeRows;
 
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
@@ -989,15 +1198,14 @@ DiagnosticResult routingTable(DiagId id) {
                 uint32_t mask = cols[7].toUInt(&ok, 16);
                 uint32_t metric = cols[6].toUInt(&ok, 16);
 
-                out.append(QStringLiteral("  %1  %2  %3  %4  %5")
-                    .arg(ipToStr(dest), 15)
-                    .arg(ipToStr(mask), 15)
-                    .arg(gw ? ipToStr(gw) : QStringLiteral("On-link"), 15)
-                    .arg(ifName, 9)
-                    .arg(metric));
+                routeRows.append({ipToStr(dest), ipToStr(mask),
+                    gw ? ipToStr(gw) : QStringLiteral("On-link"),
+                    ifName.left(9), QString::number(metric)});
             }
         }
     }
+    if (!routeRows.isEmpty())
+        out.append(tblFmt(kRouteCols, routeRows));
 #endif
 
     out.append(QStringLiteral("==========================================================================="));
@@ -1021,21 +1229,20 @@ DiagnosticResult arpTable(DiagId id) {
     out.append(QString());
 
 #ifdef _WIN32
-    ULONG bufLen = 0;
-    GetIpNetTable2(AF_INET, nullptr, &bufLen);
-    QByteArray buf(bufLen, '\0');
-    auto* table = (MIB_IPNET_TABLE2*)buf.data();
-    if (GetIpNetTable2(AF_INET, table, &bufLen, FALSE) == NO_ERROR) {
+    PMIB_IPNET_TABLE2 table = nullptr;
+    if (GetIpNetTable2(AF_INET, &table) == NO_ERROR && table) {
         out.append(QStringLiteral("Interface: (all)"));
-        out.append(QStringLiteral("  Internet Address      Physical Address      Type"));
+        out.append(QStringLiteral("  Internet Address         Physical Address        Type"));
+        out.append(QStringLiteral("  -----------------------  ----------------------  --------"));
         for (ULONG i = 0; i < table->NumEntries; i++) {
             auto& row = table->Table[i];
-            struct in_addr ip; ip.s_addr = row.Address.s_addr();
-            out.append(QStringLiteral("  %1           %2     %3")
-                .arg(QString::fromLatin1(inet_ntoa(ip)), -20)
-                .arg(macToStr((const unsigned char*)&row.PhysicalAddress))
+            struct in_addr ip = row.Address.Ipv4.sin_addr;
+            out.append(QStringLiteral("  %1  %2  %3")
+                .arg(QString::fromLatin1(inet_ntoa(ip)), -24)
+                .arg(macToStr((const unsigned char*)&row.PhysicalAddress), -23)
                 .arg(row.State == NlnsReachable ? "dynamic" : "static"));
         }
+        FreeMibTable(table);
     }
 #else
     // Linux: parse /proc/net/arp
@@ -1044,7 +1251,12 @@ DiagnosticResult arpTable(DiagId id) {
         QTextStream ts(&arpFile);
         QString header = ts.readLine(); // skip header
         out.append(QStringLiteral("Interface: (all)"));
-        out.append(QStringLiteral("  Internet Address      Physical Address      Type"));
+        static const QVector<TblCol> kArpCols = {
+            {"Internet Address",  24, true},
+            {"Physical Address",  23, true},
+            {"Type",               0, false},
+        };
+        QList<QStringList> arpRows;
 
         while (!ts.atEnd()) {
             QString line = ts.readLine().trimmed();
@@ -1053,12 +1265,11 @@ DiagnosticResult arpTable(DiagId id) {
             if (cols.size() >= 5) {
                 QString ip = cols[0];
                 QString mac = cols[3];
-                QString ifName = cols[5];
                 QString type = (cols[2] == "0x2") ? "static" : "dynamic";
-                out.append(QStringLiteral("  %1           %2     %3")
-                    .arg(ip, -20).arg(mac, -20).arg(type));
+                arpRows.append({ip, mac, type});
             }
         }
+        out.append(QStringLiteral("  ") + tblFmt(kArpCols, arpRows).join(QStringLiteral("\n  ")));
     } else {
         out.append(QStringLiteral("  (ARP table not available)"));
     }
@@ -1110,23 +1321,28 @@ DiagnosticResult tcpSettings(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QStringList out;
     out.append(QString());
-    out.append(QStringLiteral("TCP/IP Settings:"));
+    out.append(QStringLiteral("TCP/IP Settings (table mode):"));
     out.append(QString());
 
 #ifdef _WIN32
     out.append(QStringLiteral("  (use netsh int tcp show global for details)"));
 #else
-    // Read /proc/sys/net/ipv4/tcp_* settings
+    static const QVector<TblCol> kTcpCols = {
+        {"Setting", 20, false},
+        {"Value",    0, false},
+    };
+    QList<QStringList> tcpRows;
     auto readSys = [&](const QString& path, const QString& label) {
         QFile f(path);
-        if (f.open(QIODevice::ReadOnly))
-            out.append(QStringLiteral("  %1: %2").arg(label, QString::fromLatin1(f.readAll().trimmed())));
+        QString val = f.open(QIODevice::ReadOnly) ? QString::fromLatin1(f.readAll().trimmed()) : QStringLiteral("-");
+        tcpRows.append({label, val});
     };
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_congestion_control"), QStringLiteral("Congestion Control"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_window_scaling"), QStringLiteral("Window Scaling"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_timestamps"), QStringLiteral("Timestamps"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_sack"), QStringLiteral("Selective ACK"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_fastopen"), QStringLiteral("TCP Fast Open"));
+    out.append(tblFmt(kTcpCols, tcpRows));
 #endif
 
     r.rawOutput = out.join('\n');
@@ -1138,8 +1354,57 @@ DiagnosticResult tcpSettings(DiagId id) {
 }
 
 DiagnosticResult defaultGateway(DiagId id) {
-    // Extract gateway from routing table
-    return routingTable(id); // Gateway info is in route print output
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
+    r.timestamp = QDateTime::currentDateTime();
+    QElapsedTimer t; t.start();
+    QStringList out;
+
+    out.append(QString());
+    out.append(QStringLiteral("Default Gateway:"));
+    out.append(QString());
+
+    QString defaultGw = QStringLiteral("Not found");
+#ifdef _WIN32
+    PMIB_IPFORWARD_TABLE2 ft = nullptr;
+    if (GetIpForwardTable2(AF_INET, &ft) == NO_ERROR) {
+        for (ULONG i = 0; i < ft->NumEntries; i++) {
+            if (ft->Table[i].DestinationPrefix.PrefixLength == 0) {
+                struct in_addr gw = ft->Table[i].NextHop.Ipv4.sin_addr;
+                defaultGw = QString::fromLatin1(inet_ntoa(gw));
+                out.append(QStringLiteral("  Default Gateway: %1").arg(defaultGw));
+                break;
+            }
+        }
+        FreeMibTable(ft);
+    }
+#else
+    QFile routeFile(QStringLiteral("/proc/net/route"));
+    if (routeFile.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&routeFile);
+        ts.readLine();
+        while (!ts.atEnd()) {
+            QStringList cols = ts.readLine().trimmed().split('\t');
+            if (cols.size() >= 11 && cols[1].toUInt(nullptr, 16) == 0) {
+                uint32_t gw = cols[2].toUInt(nullptr, 16);
+                if (gw != 0) {
+                    defaultGw = ipToStr(gw);
+                    out.append(QStringLiteral("  Interface %1 → Gateway: %2").arg(cols[0], defaultGw));
+                }
+            }
+        }
+    }
+#endif
+    if (defaultGw == QStringLiteral("Not found"))
+        out.append(QStringLiteral("  No default gateway configured"));
+
+    r.rawOutput = out.join('\n');
+    r.details = r.rawOutput;
+    r.status = (defaultGw != QStringLiteral("Not found")) ? DiagStatus::Pass : DiagStatus::Warning;
+    r.summary = (defaultGw != QStringLiteral("Not found"))
+        ? QStringLiteral("Default gateway: %1").arg(defaultGw)
+        : QStringLiteral("No default gateway");
+    r.durationMs = t.elapsed();
+    return r;
 }
 
 DiagnosticResult proxySettings(DiagId id) {
@@ -1147,26 +1412,34 @@ DiagnosticResult proxySettings(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QStringList out;
     out.append(QString());
-    out.append(QStringLiteral("Proxy Configuration:"));
+    out.append(QStringLiteral("Proxy Configuration (table mode):"));
     out.append(QString());
+
+    static const QVector<TblCol> kProxyCols = {
+        {"Variable", 16, false},
+        {"Value",     0, false},
+    };
+    QList<QStringList> proxyRows;
 
 #ifdef _WIN32
     WINHTTP_CURRENT_USER_IE_PROXY_CONFIG cfg = {};
     if (WinHttpGetIEProxyConfigForCurrentUser(&cfg)) {
-        if (cfg.lpszProxy) out.append(QStringLiteral("  HTTP Proxy: %1").arg(QString::fromWCharArray(cfg.lpszProxy)));
-        if (cfg.lpszProxyBypass) out.append(QStringLiteral("  Bypass: %1").arg(QString::fromWCharArray(cfg.lpszProxyBypass)));
+        if (cfg.lpszProxy) proxyRows.append({QStringLiteral("HTTP Proxy"), QString::fromWCharArray(cfg.lpszProxy)});
+        if (cfg.lpszProxyBypass) proxyRows.append({QStringLiteral("Bypass"), QString::fromWCharArray(cfg.lpszProxyBypass)});
         GlobalFree(cfg.lpszProxy); GlobalFree(cfg.lpszProxyBypass);
     }
 #else
-    // Check environment variables
     const char* vars[] = {"HTTP_PROXY","HTTPS_PROXY","FTP_PROXY","NO_PROXY","http_proxy","https_proxy","no_proxy"};
     for (auto* v : vars) {
         const char* val = getenv(v);
         if (val && val[0])
-            out.append(QStringLiteral("  %1=%2").arg(QString::fromLatin1(v), QString::fromLatin1(val)));
+            proxyRows.append({QString::fromLatin1(v), QString::fromLatin1(val)});
     }
-    if (out.size() <= 3) out.append(QStringLiteral("  No proxy configured"));
 #endif
+    if (!proxyRows.isEmpty())
+        out.append(tblFmt(kProxyCols, proxyRows));
+    else
+        out.append(QStringLiteral("  No proxy configured"));
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
@@ -1236,8 +1509,14 @@ DiagnosticResult dnsServers(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QStringList out, dnsList;
     out.append(QString());
-    out.append(QStringLiteral("DNS Server Configuration (resolv.conf)"));
+    out.append(QStringLiteral("DNS Server Configuration (table mode):"));
     out.append(QString());
+
+    static const QVector<TblCol> kDnsCols = {
+        {"Source",   20, false},
+        {"DNS Server", 0, false},
+    };
+    QList<QStringList> dnsRows;
 
 #ifdef _WIN32
     ULONG bufLen = 15000;
@@ -1245,12 +1524,12 @@ DiagnosticResult dnsServers(DiagId id) {
     PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
     if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_SKIP_UNICAST|GAA_FLAG_SKIP_MULTICAST|GAA_FLAG_SKIP_ANYCAST, nullptr, adapters, &bufLen) == NO_ERROR) {
         for (auto* a = adapters; a; a = a->Next) {
-            out.append(QStringLiteral("  Adapter: %1").arg(QString::fromWCharArray(a->FriendlyName)));
+            QString ifName = QString::fromWCharArray(a->FriendlyName);
             for (auto* dns = a->FirstDnsServerAddress; dns; dns = dns->Next) {
                 char ip[64]; DWORD ipLen = sizeof(ip);
                 WSAAddressToStringA(dns->Address.lpSockaddr, dns->Address.iSockaddrLength, nullptr, ip, &ipLen);
                 QString ipStr = QString::fromLatin1(ip);
-                out.append(QStringLiteral("    DNS Server: %1").arg(ipStr));
+                dnsRows.append({ifName, ipStr});
                 if (!dnsList.contains(ipStr)) dnsList.append(ipStr);
             }
         }
@@ -1264,19 +1543,22 @@ DiagnosticResult dnsServers(DiagId id) {
             QString line = ts.readLine().trimmed();
             if (line.startsWith("nameserver ")) {
                 QString ns = line.mid(11);
-                out.append(QStringLiteral("  Nameserver: %1").arg(ns));
+                dnsRows.append({QStringLiteral("resolv.conf"), ns});
                 if (!dnsList.contains(ns)) dnsList.append(ns);
             }
             else if (line.startsWith("search "))
-                out.append(QStringLiteral("  Search domains: %1").arg(line.mid(7)));
+                dnsRows.append({QStringLiteral("search domains"), line.mid(7)});
         }
     }
     // Also check systemd-resolved stub
     QFile stub(QStringLiteral("/run/systemd/resolve/resolv.conf"));
     if (stub.open(QIODevice::ReadOnly)) {
-        out.append(QStringLiteral("  (systemd-resolved stub resolver active)"));
+        dnsRows.append({QStringLiteral("systemd-resolved"), QStringLiteral("(stub resolver active)")});
     }
 #endif
+
+    if (!dnsRows.isEmpty())
+        out.append(tblFmt(kDnsCols, dnsRows));
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
@@ -1296,16 +1578,18 @@ DiagnosticResult dnsCache(DiagId id) {
     bool hasCache = false;
 
     out.append(QString());
-    out.append(QStringLiteral("Windows IP Configuration"));
-    out.append(QString());
 
 #ifdef _WIN32
+    out.append(QStringLiteral("Windows IP Configuration"));
+    out.append(QString());
     out.append(QStringLiteral("DNS Client Cache (ipconfig /displaydns format)"));
     out.append(QStringLiteral("=============================================="));
     out.append(QString());
     out.append(QStringLiteral("(Use 'ipconfig /displaydns' for full cache contents)"));
     out.append(QStringLiteral("To flush: ipconfig /flushdns"));
 #else
+    out.append(QStringLiteral("DNS Cache Information"));
+    out.append(QString());
     // ── Try systemd-resolved cache (most common on modern Linux) ────────
     QFile cache(QStringLiteral("/run/systemd/resolve/cache"));
     if (cache.open(QIODevice::ReadOnly)) {
@@ -1384,7 +1668,7 @@ DiagnosticResult dnsCache(DiagId id) {
                 QString line = ts.readLine().trimmed();
                 if (line.isEmpty() || line.startsWith('#')) continue;
                 if (line.startsWith("nameserver "))
-                    out.append(QStringLiteral("    Namespace Servers . . . . : %1").arg(line.mid(11)));
+                    out.append(QStringLiteral("    Nameserver . . . . . . . . : %1").arg(line.mid(11)));
                 else if (line.startsWith("search "))
                     out.append(QStringLiteral("    DNS Suffix Search List. . : %1").arg(line.mid(7)));
                 else if (line.startsWith("domain "))
@@ -1428,28 +1712,48 @@ DiagnosticResult dnsPollution(DiagId id) {
     QStringList out;
 
     out.append(QString());
-    out.append(QStringLiteral("DNS Pollution Check (resolving non-existent domains):"));
+    out.append(QStringLiteral("DNS Pollution / Hijacking Check"));
+    out.append(QStringLiteral("================================="));
     out.append(QString());
-    out.append(QStringLiteral("  Domain                                  Result"));
-    out.append(QStringLiteral("  ------                                  ------"));
+    out.append(QStringLiteral("Tests whether non-existent domains resolve to IP addresses."));
+    out.append(QStringLiteral("If they do, your DNS provider is redirecting NXDOMAIN responses"));
+    out.append(QStringLiteral("(DNS hijacking / DNS pollution). A clean resolver returns NXDOMAIN."));
+    out.append(QString());
 
-    // Test known-bad domains — if they resolve, DNS is being hijacked
+    // Show current DNS server
+    QFile resolv(QStringLiteral("/etc/resolv.conf"));
+    if (resolv.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&resolv);
+        while (!ts.atEnd()) {
+            QString line = ts.readLine().trimmed();
+            if (line.startsWith("nameserver ")) {
+                out.append(QStringLiteral("DNS Server: %1").arg(line.mid(11)));
+                break;
+            }
+        }
+    }
+    out.append(QString());
+    out.append(QStringLiteral("  %1  %2  %3")
+        .arg(QStringLiteral("Test Domain"), -40)
+        .arg(QStringLiteral("Result"), -16)
+        .arg(QStringLiteral("Response")));
+    out.append(QStringLiteral("  %1  %2  %3")
+        .arg(QString(40, '-'))
+        .arg(QString(16, '-'))
+        .arg(QString(20, '-')));
+
     struct { const char* domain; } testCases[] = {
         {"thisdomainshouldnotexist12345.com"},
         {"nonexistent-test-domain-98765.org"},
         {"definitely-not-real-domain-42.net"},
     };
 
-    bool hijacked = false;
+    int resolved = 0, clean = 0, timedOut = 0;
+    QStringList hijackIPs;
     for (auto& tc : testCases) {
         struct addrinfo hints = {}, *res = nullptr;
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_STREAM;
-        // NOTE: getaddrinfo() is a blocking call with no timeout parameter.
-        // On systems with unresponsive DNS, each lookup can block for the
-        // system resolver's internal timeout (5-30 s). We use SIGALRM as a
-        // 5-second emergency escape on Linux. On macOS/BSD, the resolver
-        // typically has a shorter built-in timeout.
 #ifdef __linux__
         struct sigaction sa_old, sa_new;
         sa_new.sa_handler = [](int){};
@@ -1458,36 +1762,57 @@ DiagnosticResult dnsPollution(DiagId id) {
         sigaction(SIGALRM, &sa_new, &sa_old);
         alarm(5);
 #endif
+        QElapsedTimer probe; probe.start();
         int rc = getaddrinfo(tc.domain, nullptr, &hints, &res);
+        int elapsed = (int)probe.elapsed();
 #ifdef __linux__
         alarm(0);
         sigaction(SIGALRM, &sa_old, nullptr);
-        // If SIGALRM fired, rc may be EAI_SYSTEM with errno=EINTR
         if (rc != 0 && errno == EINTR) {
-            out.append(QStringLiteral("  %1           TIMEOUT").arg(tc.domain, -40));
+            out.append(QStringLiteral("  %1  %2  %3")
+                .arg(tc.domain, -40).arg(QStringLiteral("TIMEOUT"), -16).arg(QStringLiteral("%1 ms").arg(elapsed)));
+            timedOut++;
             continue;
         }
 #endif
         if (rc == 0 && res) {
             char ip[64];
             inet_ntop(AF_INET, &((struct sockaddr_in*)res->ai_addr)->sin_addr, ip, sizeof(ip));
-            out.append(QStringLiteral("  %1           RESOLVED → %2 (POSSIBLE HIJACK)")
-                .arg(tc.domain, -40).arg(ip));
-            hijacked = true;
+            QString ipStr = QString::fromLatin1(ip);
+            out.append(QStringLiteral("  %1  %2  %3")
+                .arg(tc.domain, -40).arg(QStringLiteral("RESOLVED  ⚠"), -16).arg(QStringLiteral("%1 (%2 ms)").arg(ipStr).arg(elapsed)));
+            resolved++;
+            if (!hijackIPs.contains(ipStr)) hijackIPs.append(ipStr);
             freeaddrinfo(res);
         } else {
-            out.append(QStringLiteral("  %1           NXDOMAIN (clean)")
-                .arg(tc.domain, -40));
+            out.append(QStringLiteral("  %1  %2  %3")
+                .arg(tc.domain, -40).arg(QStringLiteral("NXDOMAIN  ✓"), -16).arg(QStringLiteral("%1 ms").arg(elapsed)));
+            clean++;
         }
     }
 
     out.append(QString());
-    out.append(hijacked ? QStringLiteral("  [WARN] DNS appears to be hijacked") : QStringLiteral("  [OK] No DNS hijacking detected"));
+    out.append(QStringLiteral("------------------------------------------------------------------"));
+    out.append(QStringLiteral("Results: %1 resolved, %2 clean, %3 timed out")
+        .arg(resolved).arg(clean).arg(timedOut));
+    if (resolved > 0) {
+        out.append(QStringLiteral("Verdict: DNS HIJACKING DETECTED — non-existent domains redirected to:"));
+        for (const auto& ip : hijackIPs) out.append(QStringLiteral("  → %1").arg(ip));
+        out.append(QString());
+        out.append(QStringLiteral("This typically means your ISP or DNS provider is intercepting"));
+        out.append(QStringLiteral("NXDOMAIN responses and redirecting to a search/advertising page."));
+    } else if (timedOut > 0) {
+        out.append(QStringLiteral("Verdict: INCONCLUSIVE — %1 probes timed out (DNS may be slow or filtered)").arg(timedOut));
+    } else {
+        out.append(QStringLiteral("Verdict: DNS CLEAN — no hijacking detected"));
+    }
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.status = hijacked ? DiagStatus::Warning : DiagStatus::Pass;
-    r.summary = hijacked ? QStringLiteral("DNS hijacking detected") : QStringLiteral("DNS clean");
+    r.status = resolved > 0 ? DiagStatus::Warning : (timedOut > 0 ? DiagStatus::Info : DiagStatus::Pass);
+    r.summary = resolved > 0 ? QStringLiteral("DNS hijack: %1 IPs").arg(hijackIPs.size())
+               : timedOut > 0 ? QStringLiteral("DNS: %1 timeout(s)").arg(timedOut)
+               : QStringLiteral("DNS clean");
     r.durationMs = t.elapsed();
     return r;
 }
@@ -1713,7 +2038,9 @@ static int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     QByteArray resp = httpGet(host, port, latPath, timeoutMs, 256);
     if (resp.isEmpty()) return -1;
 
-    // Parse HTTP response — extract body after \r\n\r\n
+    // Parse HTTP response — extract body after 
+
+
     int hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
     QByteArray body = resp.mid(hdrEnd + 4);
@@ -1779,90 +2106,14 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QString());
 
     // ═════════════════════════════════════════════════════════════════════
-    // Phase 1 — Fetch server list from speedtest.net
+    // Phase 1 — Detect country + load regional servers
     // ═════════════════════════════════════════════════════════════════════
-    out.append(QStringLiteral("Retrieving speedtest.net server list..."));
-    // Fast fail: if speedtest.net is blocked (China), don't wait 10s.
-    // 3s timeout is enough for a reachable server to respond.
-    QByteArray serversJson = httpGet("www.speedtest.net", 80,
-        "/api/js/servers?engine=js&limit=15", 3000, 262144);
+    SpeedTest st;
+    QString country = SpeedTest::detectCountry(3000);
+    out.append(QStringLiteral("Detected country: %1").arg(country == "XX" ? "Unknown" : country));
 
-    struct SpeedServer { QString url; QString host; QString name; QString sponsor; QString country; int port; double lat; double lon; };
-    QVector<SpeedServer> servers;
-
-    // Parse JSON array manually (avoids QJsonDocument dependency issues)
-    if (!serversJson.isEmpty()) {
-        // Strip HTTP headers
-        int hdrEnd = serversJson.indexOf("\r\n\r\n");
-        if (hdrEnd >= 0) serversJson = serversJson.mid(hdrEnd + 4);
-
-        QString json = QString::fromUtf8(serversJson);
-        // Parse each { ... } object
-        int pos = 0;
-        while ((pos = json.indexOf("\"url\":\"", pos)) >= 0) {
-            pos += 7;
-            int urlEnd = json.indexOf('"', pos);
-            if (urlEnd < 0) break;
-            QString surl = json.mid(pos, urlEnd - pos).replace("\\/", "/");
-
-            SpeedServer s; s.url = surl; s.port = 8080;
-            // Extract host from URL
-            if (surl.startsWith("http://")) {
-                QString hp = surl.mid(7);
-                int sl = hp.indexOf('/');
-                QString hostPort = (sl > 0) ? hp.left(sl) : hp;
-                int co = hostPort.lastIndexOf(':');
-                if (co > 0) { s.host = hostPort.left(co); s.port = hostPort.mid(co + 1).toInt(); }
-                else s.host = hostPort;
-            }
-
-            // name
-            int np = json.indexOf("\"name\":\"", urlEnd);
-            if (np >= 0) { np += 8; int ne = json.indexOf('"', np); if (ne > np) s.name = json.mid(np, ne - np); }
-
-            // sponsor
-            int sp = json.indexOf("\"sponsor\":\"", urlEnd);
-            if (sp >= 0) { sp += 11; int se = json.indexOf('"', sp); if (se > sp) s.sponsor = json.mid(sp, se - sp); }
-
-            // country
-            int cp = json.indexOf("\"country\":\"", urlEnd);
-            if (cp >= 0) { cp += 11; int ce = json.indexOf('"', cp); if (ce > cp) s.country = json.mid(cp, ce - cp); }
-
-            // lat/lon
-            int lp = json.indexOf("\"lat\":", urlEnd);
-            if (lp >= 0) { lp += 6; int le = json.indexOf(',', lp); if (le < 0) le = json.indexOf('}', lp); if (le > lp) s.lat = json.mid(lp, le - lp).toDouble(); }
-            int op = json.indexOf("\"lon\":", urlEnd);
-            if (op >= 0) { op += 6; int oe = json.indexOf(',', op); if (oe < 0) oe = json.indexOf('}', op); if (oe > op) s.lon = json.mid(op, oe - op).toDouble(); }
-
-            if (!s.host.isEmpty()) servers.append(s);
-        }
-    }
-
-    // Fallback servers if API fails
-    if (servers.isEmpty()) {
-        struct { const char* host; const char* name; const char* sponsor; } fb[] = {
-            // ── Chinese mainland speedtest servers (reachable without VPN) ──
-            {"speedtest1.gd.chinamobile.com:8080", "Guangzhou", "China Mobile"},
-            {"speedtest2.gz.chinamobile.com:8080", "Guangzhou 2", "China Mobile"},
-            {"speedtest.bj.chinamobile.com:8080", "Beijing", "China Mobile"},
-            {"speedtest.sz.supergaminator.com:8080", "Shenzhen", "SuperGaminator"},
-            // Ookla server IDs — speedtest.net protocol via direct host
-            {"speedtest1.online.sh.cn:8080", "Shanghai", "China Telecom"},
-            {"speedtest2.fj.chinamobile.com:8080", "Fujian", "China Mobile"},
-            {"speedtest.sc.chinamobile.com:8080", "Sichuan", "China Mobile"},
-            // CDN-based fallback: download test file from Aliyun OSS
-            {"dg5oj7x6qhvhr.cloudfront.net:80", "CloudFront", "AWS CDN"},
-        };
-        for (auto& f : fb) {
-            SpeedServer s; s.url = QStringLiteral("http://%1").arg(f.host);
-            QString hp = f.host; int co = hp.lastIndexOf(':');
-            s.host = co > 0 ? hp.left(co) : hp;
-            s.port = co > 0 ? hp.mid(co + 1).toInt() : 8080;
-            s.name = f.name; s.sponsor = f.sponsor; s.country = "China";
-            servers.append(s);
-        }
-        out.append(QStringLiteral("  (using pre-configured server list)"));
-    }
+    QVector<SpeedTest::Server> servers = st.serversForCountry(country);
+    out.append(QStringLiteral("Loaded %1 servers for region").arg(servers.size()));
 
     // ═════════════════════════════════════════════════════════════════════
     // Phase 2 — Select best server by HTTP latency (speedtest-cli style)
@@ -1880,7 +2131,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(17, QChar('-')))
         .arg(QString(7, QChar('-'))));
 
-    struct RankedServer { SpeedServer* srv; int latency; };
+    struct RankedServer { SpeedTest::Server* srv; int latency; };
     QVector<RankedServer> ranked;
     for (auto& s : servers) {
         int lat = httpLatencyMs(s.url, 5000);
@@ -1911,7 +2162,7 @@ DiagnosticResult speedTest(DiagId id) {
             .arg(QStringLiteral("%1 ms").arg(rs.latency).rightJustified(7, ' ')));
     }
 
-    SpeedServer* best = ranked[0].srv;
+    SpeedTest::Server* best = ranked[0].srv;
     int bestLatency = ranked[0].latency;
 
     out.append(QString());
@@ -1952,7 +2203,7 @@ DiagnosticResult speedTest(DiagId id) {
         for (int si = 0; si < ranked.size(); si++) {
             // Try each server once before marking failure
             int idx = (dlServerIdx + si) % ranked.size();
-            SpeedServer* srv = ranked[idx].srv;
+            SpeedTest::Server* srv = ranked[idx].srv;
             QString dlUrl = QStringLiteral("%1/download?size=%2").arg(srv->url).arg(sizeKb * 1000);
             auto res = httpDownload(dlUrl, sizeKb * 1000, 8000);
             if (res.ok && res.mbps > 0.01) {
@@ -2049,8 +2300,7 @@ DiagnosticResult speedTest(DiagId id) {
         for (int i = 0; i < qMin(dataSize, 4096); i++) uploadData[i] = (char)('A' + (rand() % 26));
 
         // POST request headers
-        QByteArray postHeaders = QStringLiteral(
-            "POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")
+        QByteArray postHeaders = QStringLiteral("POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")
             .arg(best->host).arg(dataSize).toUtf8();
 
         QElapsedTimer ulTimer; ulTimer.start();

@@ -28,6 +28,38 @@ Cross-platform network diagnostic tool. Built with Qt 6 / QML and libcurl.
 
 ## Build
 
+### Quick Start (automated, all platforms)
+
+```bash
+# Check dependencies only
+./scripts/build-all.sh --check-only
+
+# Native build (auto-detect host platform)
+./scripts/build-all.sh
+
+# Auto-fix ALL missing deps (installs cross-compilers, Qt6, ninja, cmake)
+./scripts/build-all.sh --fix --target all
+
+# Cross-compile specific target + simulator
+./scripts/build-all.sh --target windows-x86_64 --sim
+
+# Clean rebuild, skip dep check
+./scripts/build-all.sh --target linux-arm64 --clean --no-check
+```
+
+### Build System Features
+
+| Feature | Description |
+|---------|-------------|
+| `--fix` | Auto-installs missing tools from source (ninja, cmake, mingw-w64, LLVM-MinGW, Qt6) |
+| `--target all` | Builds linux-arm64, linux-x86_64, windows-x86_64, windows-arm64 |
+| `--sim` / `--sim-only` | Also build simulator variant with device-frame UI |
+| `--clean` | Remove previous build artifacts |
+| Cross-compilation | mingw-w64 (x86_64), LLVM-MinGW (aarch64), linux-gnu (x86_64) |
+| Smart TMPDIR | Auto-detects small tmpfs and uses `~/.cache` for Qt6 source builds |
+
+### Manual Build (single platform)
+
 ### Linux (arm64 / x86_64)
 
 ```bash
@@ -41,10 +73,14 @@ ninja -C build net_diagnostic
 # Output: build/net_diagnostic
 ```
 
-### Windows (MinGW cross-compile)
+### Windows (cross-compile from Linux)
 
 ```bash
-./scripts/build-all.sh --target windows-x86_64
+# x86_64 — mingw-w64 (GCC)
+./scripts/build-all.sh --target windows-x86_64 --fix
+
+# ARM64 — LLVM-MinGW (Clang)
+./scripts/build-all.sh --target windows-arm64 --fix
 ```
 
 ### Simulator
@@ -56,14 +92,15 @@ ninja -C build net_diagnostic_sim
 
 ## Supported Platforms
 
-| Platform | Status |
-|----------|--------|
-| Linux (arm64) | ✅ Full support |
-| Linux (x86_64) | ✅ Full support |
-| Windows (MinGW) | ✅ Full support |
-| macOS | ⚠️ Partial (G1/G2/G3 limited, no traceroute) |
-| iOS | ⚠️ Compiles, sandbox restrictions |
-| Android | ✅ Mostly works |
+| Platform | Compiler | Status |
+|----------|----------|--------|
+| Linux (arm64) | GCC | ✅ Full support |
+| Linux (x86_64) | GCC cross-compile | ✅ Full support |
+| Windows x86_64 | mingw-w64 (GCC) | ✅ Cross-compile via `--fix` |
+| Windows ARM64 | LLVM-MinGW (Clang) | ✅ Compiler ready, Qt6 via MSYS2/vcpkg |
+| macOS | — | ⚠️ Partial (G1/G2/G3 limited) |
+| iOS | — | ⚠️ Compiles, sandbox restrictions |
+| Android | — | ✅ Mostly works |
 
 ## License
 

@@ -4,7 +4,6 @@ set(TEST_SOURCES
     test_engine_quick.cpp
     ${CMAKE_SOURCE_DIR}/src/models/DiagnosticResult.cpp
     ${CMAKE_SOURCE_DIR}/src/util/Logger.cpp
-    ${CMAKE_SOURCE_DIR}/src/app/NativeService.cpp
     ${CMAKE_SOURCE_DIR}/src/engine/diagnostic/DiagnosticEngine.cpp
 )
 

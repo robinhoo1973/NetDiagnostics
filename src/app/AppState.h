@@ -7,7 +7,7 @@
 #include <QString>
 #include <QMap>
 #include <QSet>
-#include <QFuture>
+#include <QThreadPool>
 #include <atomic>
 #include <cstdint>
 #include <memory>
@@ -79,6 +79,7 @@ public:
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
+    Q_INVOKABLE QVariantList visibleGroups() const;
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;
     QVariantList allGroupStats() const;
     Q_INVOKABLE void showDetailDialog(int diagIdInt);
@@ -88,24 +89,19 @@ public:
     int languageIndex() const { return m_languageIndex; }
     Q_INVOKABLE void setLanguage(int index);
 
-    // ── Target type helpers (centralised — used by QML canEnable and C++ logic) ─
+    // ── Target type helpers ────────────────────────────────────────────────
     Q_INVOKABLE bool isTargetEmpty() const { return m_target.trimmed().isEmpty(); }
-    // True if target contains :// with ANY scheme — classifies as URL type
     Q_INVOKABLE bool hasUrlScheme() const {
         return m_target.contains("://") && !isTargetEmpty();
     }
-    // True if target is a valid http/https URL (G5-relevant)
     Q_INVOKABLE bool isTargetHttpUrl() const {
         const QString t = m_target.trimmed();
         if (!t.contains("://")) return false;
         const QString scheme = t.section("://", 0, 0).toLower();
         return (scheme == "http" || scheme == "https") && !isTargetEmpty();
     }
-    // Deprecated alias — kept for backward compat, same as isTargetHttpUrl
     Q_INVOKABLE bool isTargetUrl() const { return isTargetHttpUrl(); }
-    // True if non-empty and not a URL (no :// scheme)
     Q_INVOKABLE bool isTargetHost() const { return !isTargetEmpty() && !hasUrlScheme(); }
-    // Debug helper — prints to stderr and returns isTargetHttpUrl result
     Q_INVOKABLE bool canRun() const {
         if (m_runStatus == RunStatus::Running) return false;
         for (int g = 0; g < 5; ++g) {
@@ -113,16 +109,6 @@ public:
         }
         return false;
     }
-    Q_INVOKABLE bool debugTargetUrl() const {
-        const QString t = m_target.trimmed();
-        bool r = isTargetHttpUrl();
-        fprintf(stderr, "[DEBUG] debugTargetUrl: target='%s' hasUrlScheme=%d isTargetHttpUrl=%d scheme='%s'\n",
-                t.toUtf8().constData(), hasUrlScheme(), r,
-                t.contains("://") ? t.section("://",0,0).toLower().toUtf8().constData() : "(none)");
-        return r;
-    }
-
-    // ── Target validation ──────────────────────────────────────────────────
     Q_INVOKABLE QString targetValidationError() const { return m_targetError; }
 
 signals:
@@ -162,7 +148,7 @@ private:
     int m_portScanFrom = 0;
     int m_portScanTo = 0;
 
-    QSet<DiagId> m_enabledDiags; // all enabled by default
+    QSet<DiagId> m_enabledDiags;
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_completedPerGroup;
     QMap<DiagGroup, int> m_totalPerGroup;
@@ -173,7 +159,11 @@ private:
     int m_currentGroupIdx = 0;
     std::atomic<int> m_activeGroupDone{0};
     std::atomic<int> m_stateGeneration{0};
-    std::atomic<int> m_runGeneration{0}; // incremented each runDiagnostics() to invalidate stale callbacks
+    std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
     int m_languageIndex = 0;
+
+    // Cached group stats — invalidated on progressChanged
+    mutable QVariantList m_cachedGroupStats;
+    mutable int m_cachedStatsVersion = -1;
 };

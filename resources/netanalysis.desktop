@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=NetAnalysis
+GenericName=Network Diagnostic Tool
+Comment=Cross-platform network diagnostic and analysis tool
+Exec=net_diagnostic
+Icon=netanalysis
+Terminal=false
+Categories=Network;Qt;System;
+Keywords=network;diagnostic;ping;traceroute;portscan;dns;wifi;

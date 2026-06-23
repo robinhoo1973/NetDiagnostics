@@ -1,14 +1,13 @@
-// =============================================================================
+﻿// =============================================================================
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
+#include "util/DebugSwitch.h"
 #include "engine/diagnostic/DiagnosticEngine.h"
-#include "app/NativeService.h"
+#include "util/DebugSwitch.h"
 #include "util/Logger.h"
 #include <cstdio>
 #include <chrono>
-#include <thread>
-#include <atomic>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrent>
 #include <QDialog>
@@ -49,7 +48,7 @@ void AppState::setLanguage(int index) {
     m_languageIndex = index;
     emit languageChanged();
     bumpVersion();
-    fprintf(stderr, "[TRACE] Language set to index %d\n", index);
+    TRACE(" Language set to index %d\n", index);
 }
 
 // ── RFC 952/1123 hostname label validation ────────────────────────────────
@@ -166,7 +165,7 @@ void AppState::setTarget(const QString& t) {
     if (m_target != t) {
         m_target = t;
         m_targetError.clear();
-        fprintf(stderr, "[TRACE] setTarget('%s')\n", m_target.toUtf8().constData());
+        TRACE(" setTarget('%s')\n", m_target.toUtf8().constData());
 
         const QString trimmed = m_target.trimmed();
         bool has = !trimmed.isEmpty();
@@ -190,14 +189,14 @@ void AppState::setTarget(const QString& t) {
 
         // Deep diagnostic: why isTargetUrl() might return false
         QString scheme = trimmed.contains("://") ? trimmed.section("://", 0, 0).toLower() : QString();
-        fprintf(stderr, "[TRACE] setTarget scheme='%s' empty=%d hasScheme=%d isTargetUrl=%d isTargetHttpUrl=%d validateErr='%s'\n",
+        TRACE(" setTarget scheme='%s' empty=%d hasScheme=%d isTargetUrl=%d isTargetHttpUrl=%d validateErr='%s'\n",
                 scheme.toUtf8().constData(), isTargetEmpty(), trimmed.contains("://"),
                 isTargetUrl(), isTargetHttpUrl(), m_targetError.toUtf8().constData());
 
         // G4: always on when target non-empty (URL or host), G5: only http/https
         setGroupEnabled(3, has);          // G4 on if target non-empty
         setGroupEnabled(4, has && isHttp); // G5 on only for http/https
-        fprintf(stderr, "[TRACE] setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
+        TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
                 has, isUrl, isHttp, has, has && isHttp, m_targetError.toUtf8().constData());
         emit targetChanged();
         bumpVersion();
@@ -238,13 +237,13 @@ void AppState::setDiagEnabled(int diagIdInt, bool enabled) {
 void AppState::setGroupEnabled(int groupInt, bool enabled) {
     if (!isValidGroup(groupInt)) return;
     auto g = static_cast<DiagGroup>(groupInt);
-    fprintf(stderr, "[TRACE] setGroupEnabled G%d = %d (before: %d tests in set)\n",
+    TRACE(" setGroupEnabled G%d = %d (before: %d tests in set)\n",
             groupInt+1, enabled, (int)m_enabledDiags.size());
     for (auto id : diagIdsForGroup(g)) {
         if (enabled) m_enabledDiags.insert(id);
         else m_enabledDiags.remove(id);
     }
-    fprintf(stderr, "[TRACE] setGroupEnabled G%d = %d (after: %d tests in set)\n",
+    TRACE(" setGroupEnabled G%d = %d (after: %d tests in set)\n",
             groupInt+1, enabled, (int)m_enabledDiags.size());
     bumpVersion();
 }
@@ -269,7 +268,7 @@ bool AppState::isGroupAnyEnabled(int groupInt) const {
 // ── Run diagnostics ────────────────────────────────────────────────────────
 void AppState::runDiagnostics() {
     if (m_runStatus == RunStatus::Running) return;
-    fprintf(stderr, "[TRACE] runDiagnostics start target='%s'\n", m_target.toUtf8().constData());
+    TRACE(" runDiagnostics start target='%s'\n", m_target.toUtf8().constData());
 
     // Reset state before each run (clears previous results, error messages, etc.)
     reset();
@@ -281,7 +280,7 @@ void AppState::runDiagnostics() {
     bool hasTarget = !isTargetEmpty();
     m_runStatus = RunStatus::Running;
     m_runGeneration.fetch_add(1, std::memory_order_release); // invalidate stale callbacks
-    fprintf(stderr, "[TRACE] status=Running generation=%d, building pending tests\n", (int)m_runGeneration.load());
+    TRACE(" status=Running generation=%d, building pending tests\n", (int)m_runGeneration.load());
     m_totalCompleted = 0;
     m_totalDiags = 0;
     m_results.clear();
@@ -292,7 +291,7 @@ void AppState::runDiagnostics() {
 
     // Build groups: group tests by DiagGroup (G1→G5 order)
     m_pendingGroups.clear();
-    fprintf(stderr, "[TRACE] runDiagnostics: enabledTests=%d hasTarget=%d\n",
+    TRACE(" runDiagnostics: enabledTests=%d hasTarget=%d\n",
             (int)m_enabledDiags.size(), hasTarget);
     // Per-group enabled counts (verify checkbox state)
     for (int g = 0; g < 5; ++g) {
@@ -303,7 +302,7 @@ void AppState::runDiagnostics() {
             totalInGroup++;
             if (m_enabledDiags.contains(id)) enabledInGroup++;
         }
-        fprintf(stderr, "[TRACE]   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
+        TRACE("   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
     }
     for (int g = 0; g < 5; ++g) {
         GroupTask gt;
@@ -326,14 +325,14 @@ void AppState::runDiagnostics() {
             m_totalDiags += gt.diagIds.size();
         }
     }
-    fprintf(stderr, "[TRACE] %d groups, %d total tests\n", (int)m_pendingGroups.size(), m_totalDiags);
+    TRACE(" %d groups, %d total tests\n", (int)m_pendingGroups.size(), m_totalDiags);
 
     if (m_pendingGroups.isEmpty()) {
         m_errorMessage = hasTarget
             ? QStringLiteral("No diagnostic tests are enabled. Check Config.")
             : QStringLiteral("No target specified and no local tests enabled. Enter a target or enable tests in Config.");
         m_runStatus = RunStatus::Error;
-        fprintf(stderr, "[TRACE] runDiagnostics blocked: no enabled tests\n");
+        TRACE(" runDiagnostics blocked: no enabled tests\n");
         emit runStatusChanged();
         return;
     }
@@ -352,7 +351,7 @@ void AppState::runDiagnostics() {
 void AppState::startNextGroup() {
     if (m_runStatus != RunStatus::Running) return;
     if (m_currentGroupIdx >= m_pendingGroups.size()) {
-        fprintf(stderr, "[TRACE] All groups complete. Setting runStatus=Completed.\n");
+        TRACE(" All groups complete. Setting runStatus=Completed.\n");
         m_runStatus = RunStatus::Completed;
         m_currentDiagName.clear();
         m_currentGroup.clear();
@@ -367,7 +366,7 @@ void AppState::startNextGroup() {
     m_currentGroup = diagGroupLabel(gt.group);
     m_activeGroupDone.store(0);
     bumpVersion();
-    fprintf(stderr, "[TRACE] startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
+    TRACE(" startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
 
     for (int i = 0; i < gt.diagIds.size(); ++i) {
         runDiagInGroup(m_currentGroupIdx, i);
@@ -386,54 +385,67 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     emit groupChanged();
     bumpVersion();
 
-    fprintf(stderr, "[TRACE] runDiag id=%d name='%s' group=%d\n", (int)id, m_currentDiagName.toUtf8().constData(), groupIdx);
+    TRACE(" runDiag id=%d name='%s' group=%d\n", (int)id, m_currentDiagName.toUtf8().constData(), groupIdx);
 
-    // Snapshot shared state before launching detached thread — avoids data race
-    // on m_target / m_portScanFrom / m_portScanTo / m_portScanCommon which the
-    // main thread can concurrently write via setTarget() / setPortScan*().
+    // Snapshot shared state before launching worker
     QString target = m_target;
     int psFrom = m_portScanFrom;
     int psTo = m_portScanTo;
     bool psCommon = m_portScanCommon;
-
-    // Run test; post result back to main thread via QTimer.
-    // Capture run generation to discard stale callbacks from cancelled runs.
     int runGen = m_runGeneration.load(std::memory_order_acquire);
-    std::thread t([this, id, groupIdx, target, psFrom, psTo, psCommon, runGen]() {
+
+    // Use QThreadPool instead of detached std::thread — threads are reused
+    // across test runs, avoiding repeated creation/destruction overhead.
+    auto* worker = new QObject; // temporary owner for the QRunnable
+    struct Task : public QRunnable {
+        QObject* owner;
+        AppState* state;
+        DiagId id;
+        int groupIdx, runGen;
+        QString target;
+        int psFrom, psTo;
+        bool psCommon;
+        Task(QObject* o, AppState* s, DiagId i, int gi, int rg, QString t, int pf, int pt, bool pc)
+            : owner(o), state(s), id(i), groupIdx(gi), runGen(rg), target(t), psFrom(pf), psTo(pt), psCommon(pc)
+        { setAutoDelete(false); }
+        void run() override {
             try {
                 auto start = std::chrono::steady_clock::now();
                 DiagnosticEngine localEngine(nullptr);
                 DiagnosticResult result = localEngine.runDiag(id, target, psFrom, psTo, psCommon).result();
                 auto end = std::chrono::steady_clock::now();
                 result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                QTimer::singleShot(0, this, [this, id, result, groupIdx, runGen]() {
-                if (m_runGeneration.load(std::memory_order_acquire) != runGen) return; // stale
-                onDiagFinished(id, result);
-                int done = m_activeGroupDone.fetch_add(1) + 1;
-                auto& gt = m_pendingGroups[groupIdx];
-                if (done >= gt.diagIds.size()) {
-                    m_currentGroupIdx++;
-                    QTimer::singleShot(0, this, &AppState::startNextGroup);
-                }
-            });
-        } catch (...) {
-            QTimer::singleShot(0, this, [this, id, groupIdx, runGen]() {
-                if (m_runGeneration.load(std::memory_order_acquire) != runGen) return; // stale
-                onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
-                int done = m_activeGroupDone.fetch_add(1) + 1;
-                auto& gt = m_pendingGroups[groupIdx];
-                if (done >= gt.diagIds.size()) {
-                    m_currentGroupIdx++;
-                    QTimer::singleShot(0, this, &AppState::startNextGroup);
-                }
-            });
+                QTimer::singleShot(0, state, [this, result]() {
+                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; return; }
+                    state->onDiagFinished(id, result);
+                    int done = state->m_activeGroupDone.fetch_add(1) + 1;
+                    auto& gt = state->m_pendingGroups[groupIdx];
+                    if (done >= gt.diagIds.size()) {
+                        state->m_currentGroupIdx++;
+                        QTimer::singleShot(0, state, &AppState::startNextGroup);
+                    }
+                    delete owner;
+                });
+            } catch (...) {
+                QTimer::singleShot(0, state, [this]() {
+                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; return; }
+                    state->onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
+                    int done = state->m_activeGroupDone.fetch_add(1) + 1;
+                    auto& gt = state->m_pendingGroups[groupIdx];
+                    if (done >= gt.diagIds.size()) {
+                        state->m_currentGroupIdx++;
+                        QTimer::singleShot(0, state, &AppState::startNextGroup);
+                    }
+                    delete owner;
+                });
+            }
         }
-    });
-    t.detach();
+    };
+    QThreadPool::globalInstance()->start(new Task(worker, this, id, groupIdx, runGen, target, psFrom, psTo, psCommon));
 }
 
 void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
-    fprintf(stderr, "[TRACE] onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
+    TRACE(" onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
     // Suppress stale results after cancel/reset
     if (m_runStatus != RunStatus::Running) return;
     DiagGroup g = diagGroup(id);
@@ -505,6 +517,16 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : diagIdsForGroup(g)) {
         list.append(static_cast<int>(id));
+    }
+    return list;
+}
+
+QVariantList AppState::visibleGroups() const {
+    QVariantList list;
+    for (int i = 0; i < 5; ++i) {
+        QVariantMap s = groupStats(i);
+        if (s["enabled"].toInt() > 0 || s["total"].toInt() > 0)
+            list.append(i);
     }
     return list;
 }
@@ -644,9 +666,13 @@ QString AppState::staticDiagDisplayName(DiagId id) {
 }
 
 QVariantList AppState::allGroupStats() const {
-    QVariantList list;
-    for (int g = 0; g < 5; ++g) list.append(groupStats(g));
-    return list;
+    if (m_cachedStatsVersion == m_resultsVersion && !m_cachedGroupStats.isEmpty())
+        return m_cachedGroupStats;
+    m_cachedStatsVersion = m_resultsVersion;
+    m_cachedGroupStats.clear();
+    for (int g = 0; g < 5; ++g)
+        m_cachedGroupStats.append(groupStats(g));
+    return m_cachedGroupStats;
 }
 
 void AppState::showDetailDialog(int diagIdInt) {

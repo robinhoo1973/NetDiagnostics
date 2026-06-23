@@ -21,14 +21,31 @@ ApplicationWindow {
 
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Bold.ttf" }
+    FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
 
     property var devices: [
+        // ── Desktop ──────────────────────────────────────────────────
         { id:"win-x64",   name:"Windows 11 (x64)",     os:"windows", w:1024,h:640, bezel:0, island:false, radius:8 },
         { id:"win-arm64", name:"Windows 11 (ARM64)",   os:"windows", w:1024,h:640, bezel:0, island:false, radius:8 },
         { id:"lx-x64",    name:"Ubuntu 24.04 (x64)",   os:"linux",   w:1024,h:640, bezel:0, island:false, radius:8 },
         { id:"lx-arm64",  name:"Ubuntu 24.04 (ARM64)", os:"linux",   w:1024,h:640, bezel:0, island:false, radius:8 },
         { id:"mac-x64",   name:"macOS 15 (x64)",       os:"macos",   w:1024,h:640, bezel:0, island:false, radius:8 },
-        { id:"mac-arm64", name:"macOS 15 (ARM64)",     os:"macos",   w:1024,h:640, bezel:0, island:false, radius:8 }
+        { id:"mac-arm64", name:"macOS 15 (ARM64)",     os:"macos",   w:1024,h:640, bezel:0, island:false, radius:8 },
+        // ── iOS ─────────────────────────────────────────────────────
+        { id:"ios-iphone-se",    name:"iPhone SE (3rd gen)",   os:"ios", w:375, h:667,  bezel:8,  island:false, radius:20 },
+        { id:"ios-iphone15",     name:"iPhone 15 Pro",         os:"ios", w:393, h:852,  bezel:12, island:true,  radius:55 },
+        { id:"ios-iphone15pm",   name:"iPhone 15 Pro Max",     os:"ios", w:430, h:932,  bezel:12, island:true,  radius:55 },
+        { id:"ios-iphone16",     name:"iPhone 16",             os:"ios", w:402, h:874,  bezel:11, island:true,  radius:55 },
+        { id:"ios-iphone16pm",   name:"iPhone 16 Pro Max",     os:"ios", w:440, h:956,  bezel:11, island:true,  radius:55 },
+        { id:"ios-ipad-mini",    name:"iPad mini (6th gen)",   os:"ios", w:744, h:1133, bezel:14, island:false, radius:16 },
+        { id:"ios-ipadpro11",    name:"iPad Pro 11″ (M4)",     os:"ios", w:834, h:1210, bezel:14, island:false, radius:18 },
+        { id:"ios-ipadpro13",    name:"iPad Pro 12.9″ (M4)",   os:"ios", w:1024,h:1366, bezel:14, island:false, radius:18 },
+        // ── Android ─────────────────────────────────────────────────
+        { id:"android-pixel8",   name:"Pixel 8 (Android 14)",  os:"android", w:412, h:915,  bezel:8,  island:false, radius:20 },
+        { id:"android-pixel9",   name:"Pixel 9 Pro (Android 15)", os:"android", w:448, h:1008, bezel:7,  island:false, radius:20 },
+        { id:"android-s24",      name:"Galaxy S24 (Android)",  os:"android", w:360, h:780,  bezel:6,  island:false, radius:16 },
+        { id:"android-s24u",     name:"Galaxy S24 Ultra (Android)", os:"android", w:384, h:854, bezel:6, island:false, radius:16 },
+        { id:"android-oneplus",  name:"OnePlus 12 (Android)",  os:"android", w:412, h:917,  bezel:7,  island:false, radius:18 }
     ]
     property int currentDevice: 0
     property bool portrait: true
@@ -47,15 +64,15 @@ ApplicationWindow {
         if (w <= 0 || h <= 0) { console.warn("[SIM] recalcScale SKIP"); return }
         var dev_sw = p ? d.w : d.h
         var dev_sh = p ? d.h : d.w
-        var dev_bh = (d.os==="windows"||d.os==="linux") ? 0 : d.bezel
+        var dev_bh = isDesktop() ? 0 : (d.bezel || 0)
         var fw = dev_sw + dev_bh*2
         var fh = dev_sh + dev_bh*2 + 36
 	var s = Math.max(0.1, Math.min((w-16)/fw, (h-16)/fh))
         // All dimensions at natural size — Scale transform handles visual scaling
         deviceFrame.width = fw; deviceFrame.height = fh
-        deviceFrame.radius = (d.os==="windows"||d.os==="linux") ? d.radius+2 : d.radius+dev_bh
-        deviceFrame.color = (d.os==="windows"||d.os==="linux") ? "#1E1E2E" : "#0A0A0A"
-        deviceFrame.border.width = (d.os==="windows"||d.os==="linux") ? 1 : 0
+        deviceFrame.radius = isDesktop() ? d.radius+2 : d.radius+dev_bh
+        deviceFrame.color = isDesktop() ? "#1E1E2E" : "#0A0A0A"
+        deviceFrame.border.width = isDesktop() ? 1 : 0
         screenRect.x = dev_bh; screenRect.y = dev_bh
         screenRect.width = dev_sw; screenRect.height = dev_sh + 36
         screenRect.radius = d.radius
@@ -68,22 +85,25 @@ ApplicationWindow {
     }
 
     function cur() { return devices[currentDevice] }
-    function isMobile() { return false }
-    function isDesktop(){ return true }
+    function isMobile() { var d = cur(); return d.os === "ios" || d.os === "android" }
+    function isDesktop(){ return !isMobile() }
 
     function osIcon(os) {
-        if (os==="linux") return "linux"; if (os==="windows") return "windows"
-        if (os==="macos") return "apple"
+        if (os==="linux")   return "linux";   if (os==="windows") return "windows"
+        if (os==="macos")   return "apple";   if (os==="ios")     return "apple"
+        if (os==="android") return "android"
         return "circle"
     }
     function osColor(os) {
-        if (os==="linux") return "#FCC624"; if (os==="windows") return "#00A4EF"
-        if (os==="macos") return "#007AFF"
+        if (os==="linux")   return "#FCC624"; if (os==="windows") return "#00A4EF"
+        if (os==="macos")   return "#007AFF"; if (os==="ios")     return "#007AFF"
+        if (os==="android") return "#3DDC84"
         return "#888"
     }
     function osLabel(os) {
-        if (os==="linux") return "Linux"; if (os==="windows") return "Windows"
-        if (os==="macos") return "macOS"
+        if (os==="linux")   return "Linux";   if (os==="windows") return "Windows"
+        if (os==="macos")   return "macOS";   if (os==="ios")     return "iOS"
+        if (os==="android") return "Android"
         return os
     }
 
