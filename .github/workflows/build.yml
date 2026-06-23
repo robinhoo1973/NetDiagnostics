@@ -1,0 +1,343 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: "6.5.3"
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Linux x86_64 — native GCC build + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  linux-x86_64:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-quickcontrols2-dev \
+            libcurl4-openssl-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libxkbcommon-dev libxcb-cursor-dev
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-Linux-x86_64
+          path: |
+            build/net_diagnostic
+            build-sim/net_diagnostic_sim
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Linux arm64 — cross-compile via aarch64-linux-gnu, production only
+  # ═══════════════════════════════════════════════════════════════════════════
+  linux-arm64:
+    name: Linux arm64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable arm64 architecture
+        run: |
+          sudo dpkg --add-architecture arm64
+          sudo apt update
+
+      - name: Install dependencies
+        run: |
+          sudo apt install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            crossbuild-essential-arm64 \
+            pkg-config-aarch64-linux-gnu \
+            libgl1-mesa-dev libglu1-mesa-dev
+
+      - name: Install cross libraries (arm64)
+        run: |
+          sudo apt install -y --no-install-recommends \
+            libcurl4-openssl-dev:arm64 \
+            qt6-base-dev:arm64 \
+            qt6-quickcontrols2-dev:arm64 || \
+            echo "Qt6 arm64 packages not available — toolchain setup required"
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER \
+            -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY \
+            -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY \
+            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY \
+            -DPKG_CONFIG_EXECUTABLE=/usr/bin/aarch64-linux-gnu-pkg-config \
+            -B build -S .
+
+      - name: Build
+        run: ninja -C build net_diagnostic
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-Linux-arm64
+          path: build/net_diagnostic
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Windows x86_64 — cross-compile via mingw-w64 + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  windows-x86_64:
+    name: Windows x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            mingw-w64 \
+            libgl1-mesa-dev
+
+      - name: Cache Qt6 MinGW
+        id: cache-qt6-mingw
+        uses: actions/cache@v4
+        with:
+          path: /opt/qt6-mingw
+          key: qt6-mingw-${{ env.QT_VERSION }}-v1
+
+      - name: Build Qt6 for MinGW (if not cached)
+        if: steps.cache-qt6-mingw.outputs.cache-hit != 'true'
+        run: |
+          echo "Qt6 MinGW cross-compilation requires ~1-2 hours."
+          echo "See scripts/build-all.sh --fix for the full bootstrap script."
+          echo "For CI, pre-built Qt6 MinGW archives are recommended."
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_TOOLCHAIN_FILE=scripts/toolchain/windows-x86_64.cmake \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DCMAKE_TOOLCHAIN_FILE=scripts/toolchain/windows-x86_64.cmake \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-Windows-x86_64
+          path: |
+            build/net_diagnostic.exe
+            build-sim/net_diagnostic_sim.exe
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Windows arm64 — cross-compile via LLVM-MinGW, production only
+  # ═══════════════════════════════════════════════════════════════════════════
+  windows-arm64:
+    name: Windows ARM64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            libgl1-mesa-dev
+
+      - name: Cache LLVM-MinGW
+        id: cache-llvm-mingw
+        uses: actions/cache@v4
+        with:
+          path: /opt/llvm-mingw
+          key: llvm-mingw-20250301-v1
+
+      - name: Install LLVM-MinGW (if not cached)
+        if: steps.cache-llvm-mingw.outputs.cache-hit != 'true'
+        run: |
+          LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/20250301/llvm-mingw-20250301-ucrt-ubuntu-20.04-x86_64.tar.xz"
+          sudo mkdir -p /opt/llvm-mingw
+          curl -L "$LLVM_MINGW_URL" | sudo tar xJ -C /opt/llvm-mingw --strip-components=1
+          echo "/opt/llvm-mingw/bin" >> $GITHUB_PATH
+
+      - name: Configure
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_TOOLCHAIN_FILE=scripts/toolchain/windows-arm64.cmake \
+            -B build -S .
+
+      - name: Build
+        run: ninja -C build net_diagnostic
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-Windows-ARM64
+          path: build/net_diagnostic.exe
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # macOS x86_64 — native Apple Clang + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  macos-x86_64:
+    name: macOS x86_64
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja qt@6 curl
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-x86_64
+          path: |
+            build/net_diagnostic
+            build-sim/net_diagnostic_sim
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # macOS arm64 — native Apple Clang + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  macos-arm64:
+    name: macOS arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja qt@6 curl
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-arm64
+          path: |
+            build/net_diagnostic
+            build-sim/net_diagnostic_sim
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Release — create GitHub Release on tag push
+  # ═══════════════════════════════════════════════════════════════════════════
+  release:
+    name: Create Release
+    needs:
+      - linux-x86_64
+      - linux-arm64
+      - windows-x86_64
+      - windows-arm64
+      - macos-x86_64
+      - macos-arm64
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package artifacts
+        run: |
+          cd artifacts
+          for dir in NetDiagnostic-*; do
+            if [ -d "$dir" ]; then
+              tar -cJf "${dir}.tar.xz" "$dir"
+            fi
+          done
+          ls -lh *.tar.xz
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.tar.xz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

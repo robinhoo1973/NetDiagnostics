@@ -1,300 +1,310 @@
-# NetDiagnostic-QT — Complete File Manifest & Commit Message Guide
+# NetDiagnostic-QT — Complete File Manifest & Change Log
 
 ---
 
-## 1. C++ Backend (src/)
+## Project Overview
 
-### `src/app/AppState.h`
-**Lines modified:** ~40  
-**Changes:**
-- Added `#include <atomic>`
-- Added `allTestsForGroup(int)`, `allTestIdsForGroup(int)`, `showDetailDialog(int)` Q_INVOKABLE
-- Added `struct GroupTask { QList<TestId> testIds; TestGroup group; }`
-- Added `QList<GroupTask> m_pendingGroups`, `int m_currentGroupIdx`, `std::atomic<int> m_activeGroupDone`
-- Removed `QList<TestId> m_pendingTests`, `int m_nextTestIdx`, `QFuture<>`, `QFutureWatcher`
-- Renamed `runNext()` → `startNextGroup()`, added `runTestInGroup()`
+**NetAnalysis** is a cross-platform network diagnostic tool built with C++17/Qt 6.8 and QML. It performs 38 diagnostic tests across 5 groups using pure OS API calls (no shell commands), libcurl for HTTP diagnostics, and a QML-based responsive UI with 7-language i18n support.
 
-### `src/app/AppState.cpp`
-**Lines modified:** ~150  
-**Changes:**
-- Replaced `QtConcurrent::run()` single-test-execution with **group-sequential** execution (`std::thread` per test, `QTimer::singleShot` for result delivery, `std::atomic<int>` for group completion tracking)
-- Added `allTestsForGroup()` — returns all enabled tests (completed + pending) with `isDone`/`isPending`/`isRunning` flags
-- Added `allTestIdsForGroup()` — returns all test IDs for a group (used by ConfigScreen)
-- Added `testId` field to `resultsForGroup()` and `allTestsForGroup()` maps
-- Added `showDetailDialog(int)` — **native C++ QDialog** with Status/Duration/Summary/Properties/Raw Output, dark theme
-- Updated `cancel()`/`reset()`/`~AppState()` to work with new execution model
-- Added `#include <QDialog/QVBoxLayout/QLabel/QDialogButtonBox/QScrollArea>`
+- **Language:** C++17, QML (Qt Quick 2)
+- **Build:** CMake 3.22+, Ninja
+- **CI/CD:** GitHub Actions (multi-platform builds)
+- **Platforms:** Linux (arm64/x86_64), Windows (x86_64/arm64), macOS (x86_64/arm64)
+
+---
+
+## 1. Source Files (src/)
 
 ### `src/main.cpp`
-**Lines modified:** ~20  
-**Changes:**
-- Replaced `QQmlComponent::create()` Theme singleton with **C++ QVariantMap** injection (20 color constants: `bgDark`, `bgSidebar`, `bgCard`, `textPrimary`, `textSecondary`, `accentBlue`, `cyan`, `passGreen`, `warnYellow`, `failRed`, `skipGray`, `bgInput`, `textMuted`, `accent`, `infoBlue`, `borderCard`, `borderSubtle`, `borderFocused`, `radiusCard`, `radiusButton`, `radiusSmall`, `sidebarWidth`)
-- Added `Component.onCompleted: showFullScreen()`
+Production entry point. Sets up `QGuiApplication`, injects Theme as C++ `QVariantMap` (20 color constants), loads QML main window with `showFullScreen()`.
 
 ### `src/main_simulator.cpp`
-**Lines modified:** ~15  
-**Changes:**
-- Same Theme C++ QVariantMap injection as `main.cpp`
-- Added `ND_AUTORUN` environment variable support for headless testing
-- Retained `QSG_RENDER_LOOP=basic` for ARM64 stability
+Simulator entry point. Same Theme C++ injection as `main.cpp`. Supports `ND_AUTORUN` env var for headless testing. Retains `QSG_RENDER_LOOP=basic` for ARM64 stability.
 
-### `src/engine/PlatformCommand.cpp`
-**Lines modified:** ~3  
-**Changes:**
-- Added `proc.moveToThread(QThread::currentThread())` before `proc.start()` for ARM64 QProcess thread safety
+### `src/app/AppState.h` / `AppState.cpp`
+Application state manager. Key features:
+- **Group-sequential execution:** `std::thread` per test, `QTimer::singleShot` for result delivery, `std::atomic<int>` for group completion tracking
+- `allDiagsForGroup(int)` — returns all tests (completed + pending) with `isDone`/`isPending`/`isRunning` flags
+- `allDiagIdsForGroup(int)` — returns all test IDs for a group
+- `groupStats(int)` — returns `{total, completed, pass, warn, fail, skip}` per group
+- `showDetailDialog(int)` — native C++ QDialog with Status/Duration/Summary/Properties/Raw Output, dark theme
+- `resultsVersion` property — incremented on each completed test to trigger QML model refresh
 
-### `native/common/nd_factory.cpp`
-**Lines modified:** ~4  
-**Changes:**
-- `MAKE_NIC_ADV` → `NdDiagnosticNotSupported(ND_DIAG_NIC_ADVANCED)` — bypasses ARM64 `readlink()` SIGSEGV
-- `MAKE_DNS_CACHE` → `NdDiagnosticNotSupported(ND_DIAG_DNS_CACHE)` — bypasses ARM64 SIGBUS
+### `src/app/NativeService.h` / `NativeService.cpp`
+Native OS service integration layer.
+
+### `src/engine/PlatformCommand.h` / `PlatformCommand.cpp`
+Cross-platform command execution. Includes `proc.moveToThread(QThread::currentThread())` before `proc.start()` for ARM64 QProcess thread safety.
+
+### `src/engine/diagnostic/DiagnosticEngine.h` / `DiagnosticEngine.cpp`
+Core diagnostic engine. Orchestrates test execution, manages results, handles timeouts and cancellation.
+
+### `src/engine/diagnostic/G1G2G3Native.h` / `G1G2G3Native.cpp`
+G1/G2/G3 native diagnostics (18 tests):
+- **G1:** Network adapters, NIC advanced, WiFi, wired, DHCP status, IP configuration, active connections
+- **G2:** Network profile, TCP settings, default gateway, routing table, ARP table, proxy settings
+- **G3:** Netskope status, DNS servers, DNS cache, DNS pollution, Internet speed test
+
+ARM64 workarounds:
+- `ND_DIAG_NIC_ADVANCED` → `NdDiagnosticNotSupported` (bypasses ARM64 `readlink()` SIGSEGV)
+- `ND_DIAG_DNS_CACHE` → `NdDiagnosticNotSupported` (bypasses ARM64 SIGBUS)
+
+### `src/engine/diagnostic/G4RemoteHost.h` / `G4RemoteHost.cpp`
+G4 remote host diagnostics (6 tests): DNS resolution, ping, traceroute, pathPing, MTU discovery, port scan.
+
+### `src/engine/diagnostic/G5WebsiteUrl.h` / `G5WebsiteUrl.cpp`
+G5 website/URL diagnostics (13 tests): URL parsing, TCP connect, service banner, curl verbose, HTTP headers, security headers, SSL certificate, HTTP redirect, HTTP compression, HTTP timing, FTP, SSH, Email diagnostics.
+
+### `src/engine/runner/NetworkProbe.h` / `NetworkProbe.cpp`
+Low-level network probing utilities: socket operations, ICMP/TCP/UDP probing, interface enumeration.
+
+### `src/models/DiagId.h`
+Central registry of all diagnostic test IDs, groups, and statuses:
+- `DiagGroup` enum: G1, G2, G3, G4, G5
+- `DiagStatus` enum: Pass, Warning, Fail, Skipped, Error, Info
+- `DiagId` enum: 38 test IDs
+- Utility functions: `diagGroup()`, `diagGroupLabel()`, `diagStatusIcon()`, `testIdLabelKey()`, `allDiagIds()`, `diagIdsForGroup()`
+
+### `src/models/DiagnosticResult.h` / `DiagnosticResult.cpp`
+Immutable result struct: id, displayName, group, status, summary, details, durationMs, timestamp, properties (key-value with severity), rawOutput, errorOutput. Factory helpers: `skipped()`, `error()`, `timeout()`.
+
+### `src/models/ResultProperty.h`
+Key-value pair with `ResultPropertySeverity` (Info/Warning/Error) and nested children for tree-structured output.
+
+### `src/util/DebugSwitch.h`
+Trace macros (`TRACE`, `MAIN_LOG`) — disabled by default (no output).
+
+### `src/util/Logger.h` / `Logger.cpp`
+Logging utility.
+
+### `src/util/PingParser.h` / `PingParser.cpp`
+Ping output parser for structured ping result extraction.
 
 ---
 
 ## 2. QML Resources (resources/qml/)
 
 ### `main.qml`
-**Lines modified:** ~15  
-**Changes:**
-- `visibility: Window.Maximized` + `showFullScreen()` for auto-maximize
-- Navigation tabs: added `AppIcon` before each label (`dashboard`/`diagnostics`/`config`/`report`/`settings`)
-- Added ✕ close button at nav bar far right (`onClicked: root.close()`)
+Main window with `visibility: Window.Maximized` + `showFullScreen()`. Navigation tabs with AppIcon + label. ✕ close button at nav bar far right.
 
-### `screens/DiagnosticScreen.qml`
-**Lines modified:** ~70  
-**Changes:**
-- `visibleGroups` property: filters groups with `enabled>0` or `total>0` (depends on `totalCompleted+runStatus`)
-- Sidebar: added **Spacer** (`Item{Layout.fillHeight:true}`) pushes SummaryCards to bottom, element order changed to match Flutter (checkboxes→portscan→divider→analysis→spacer→summary)
-- Content header: removed `border` (Flutter uses Container without border)
-- Idle text: `font.weight: Font.Medium` (matching Flutter `w500`)
-- Results area: **ListView→ScrollView+Column+Repeater** (fixes ARM64 delegate rendering bug)
-- Content max-width: `Math.min(availableWidth, 700)` with horizontal centering
+### `AppContent.qml`
+Content layout shell.
+
+### `theme/AppTheme.qml`
+Theme constants — values injected from C++ `QVariantMap` at startup.
+
+### `theme/Translations.qml`
+7-language translation strings (English, French, German, Russian, Italian, Simplified/Traditional Chinese).
 
 ### `screens/DashboardScreen.qml`
-**Lines modified:** ~50  
-**Changes:**
-- `fmtDur`: changed to match Flutter (`ms`/`s`/`m s` format)
-- `calcTotalTime()`: new function summing all result durations
-- Progress bar: dynamic width based on `(pass+warn+fail)/total`, color changes to `warnYellow` if any fails
-- `DashboardGroupRow`: shows per-group test mini rows with status icons + duration
-- Added `calcLayerTiming()` for Layer Timings section
+Overview dashboard with:
+- `fmtDur`: `ms`/`s`/`m s` format
+- `calcTotalTime()`: sum of all result durations
+- Dynamic progress bar: width based on `(pass+warn+fail)/total`, color changes to warnYellow on failure
+- `DashboardGroupRow`: per-group test mini rows with status icons + duration
+- `calcLayerTiming()` for Layer Timings section
+
+### `screens/DiagnosticScreen.qml`
+Main diagnostic tree view:
+- `visibleGroups`: filters groups with `enabled>0` or `total>0`
+- Sidebar: Spacer pushes SummaryCards to bottom
+- Content: ScrollView+Column+Repeater (fixes ARM64 delegate rendering bug)
+- Content max-width: `Math.min(availableWidth, 700)` with horizontal centering
 
 ### `screens/ConfigScreen.qml`
-**Lines modified:** ~100 (full rewrite)  
-**Changes:**
-- **Complete rewrite** to match Flutter `SwitchListTile` format
-- Action bar: group name + test count + Select All/Deselect All buttons with disabled states
-- Test list: leading icon (`✓`/`○`) + title (`13px w500`) + description (`11px gray`) + Switch
-- `getTestIds`: uses `appState.allTestIdsForGroup()` (group-specific)
-- 38 static test descriptions imported from Flutter source
+Test selection screen — SwitchListTile format:
+- Action bar: group name + test count + Select All/Deselect All buttons
+- Test list: leading icon + title (13px w500) + description (11px gray) + Switch
+- 38 static test descriptions
 
 ### `screens/ReportScreen.qml`
-**Lines modified:** ~20  
-**Changes:**
-- AppBar title "Report Preview" with `AppIcon { name: "report" }`
-- Feature planning rows: PDF export, Email share, HTML reports, Historical comparison
-- Status indicator: shows completion count or "No diagnostic results"
-
-### `screens/SimulatorScreen.qml`
-**Lines modified:** ~100  
-**Changes:**
-- Navigation bar: 5 tabs (`Dashboard`/`Diagnostics`/`Config`/`Report`/`Settings`) with icons + click handlers
-- StackView page switching: `simStack.clear()` + `simStack.push(url)` per `currentTab`
-- `calcScale`: padding `48→16`, min scale `0.3→0.1`, `width/height-8` margins
-- Device Popup: removed `parent: Overlay.overlay` + `z:100` (fixes auto-close), font `11→13px`
-- Screen Rectangle: `layer.enabled: true` + `layer.samples: 4` (bottom corner rounding)
-- Orientation: `onPortraitChanged` + `onCurrentDeviceChanged` handlers force scale recalculation
-- Scale transform: removed double-scaling (`width*s` + `Scale*s` → `width*s` only)
-- `showFullScreen()` + `width=Screen.width, height=Screen.height` fallback
+Report preview (planned features): PDF export, Email share, HTML reports, Historical comparison.
 
 ### `screens/SettingsScreen.qml`
-**Lines modified:** 0 (pre-existing, no changes)
+Application settings.
 
-### `widgets/TestGroupPanel.qml`
-**Lines modified:** ~50  
-**Changes:**
-- `expanded` state machine: `_userToggled`/`_userWantsExpanded` pattern matching Flutter `ExpansionTile`
-- `resultsModel` changed from `resultsForGroup` → `allTestsForGroup` (shows pending+completed)
-- `implicitHeight: Math.max(60, headerRow.implicitHeight + 36)` — minimum 60px
-- All Theme references replaced with hardcoded `"#XXXXXX"` colors (21 replacements)
-- Header: explicit white text `"#FFFFFF"`, group prefix `"G" + (groupIndex+1)`
-- Results list: `ColumnLayout→Row` pattern replaced with simple `Column`+`Row` delegates
-- TreeView connectors: 20px indent with vertical/horizontal lines (`#3A3A5A`, 1.5px)
-- Badge component: hardcoded accent defaults to `"#4ADE80"`
-
-### `widgets/TestResultItem.qml`
-**Lines modified:** ~200 (major rewrite)  
-**Changes:**
-- **2-line collapsed format**: Line 1 = status icon + name + duration badge; Line 2 = summary (gray 10px)
-- **Pending row**: spinner (`⟳`) / dot (`⊖`) + gray text + "Running..." text
-- **Click handler**: calls `appState.showDetailDialog(resultData.id)` — native C++ QDialog
-- All Theme references replaced with hardcoded `"#XXXXXX"` (21 replacements)
-- `statusColor()` uses hardcoded hex values
-- `RowLayout anchor` violation fixed (line 63 → `Layout.alignment: Qt.AlignTop`)
-- Removed `Component`+`createObject` wrapper (Popup direction declaration)
-- Removed Timer-based content update approach
-
-### `widgets/TargetInputPanel.qml`
-**Lines modified:** ~20  
-**Changes:**
-- Simplified to minimal: `text: appState.target` bidirectional binding + `onTextChanged`
-- ✕ clear button: `visible` fixed from `text !== ""` (self-referencing) → `targetField.text !== ""`
-- Run button: `onClicked` calls `appState.runDiagnostics()` directly
-- Removed all `console.log` debug output
-
-### `widgets/LiveProgressPanel.qml`
-**Lines modified:** ~30  
-**Changes:**
-- Removed `BusyIndicator` / `RotationAnimation` (ARM64 GPU crash source)
-- Removed dual progress bars (`layer`/`overall`)
-- Simplified to static text: status icon + label + current test name + count
-
-### `widgets/SummaryCards.qml`
-**Lines modified:** ~20  
-**Changes:**
-- Replaced `●` Unicode dots with `AppIcon` (`check`/`warning`/`error`/`circle`)
-- 2×2 grid layout: Pass/Warning top row, Fail/Skipped bottom row
+### `screens/SimulatorScreen.qml`
+Device frame simulator:
+- Navigation bar: 5 tabs (Dashboard/Diagnostics/Config/Report/Settings)
+- StackView page switching: `simStack.clear()` + `simStack.push(url)`
+- Device popup with device/frame selection
+- Scale calculation with orientation handling
+- Screen Rectangle with layer-based corner rounding
 
 ### `widgets/AppIcon.qml`
-**Lines modified:** 0 (pre-existing, no changes)
+SVG icon component with `name` and `size` properties.
+
+### `widgets/DiagGroupPanel.qml`
+Expandable group panel (Flutter ExpansionTile style):
+- `_userToggled` / `_userWantsExpanded` state pattern
+- `allDiagsForGroup()` model binding with manual refresh trigger
+- TreeView connectors: 20px indent with vertical/horizontal lines
+- Auto-expand on running/completed state changes
+
+### `widgets/DiagResultItem.qml`
+Individual test result row:
+- **Pending row:** spinner + gray text + "Running..." label
+- **Completed row:** status icon + name + duration badge + summary
+- Click handler calls `appState.showDetailDialog(resultData.id)` — native C++ QDialog
+
+### `widgets/LiveProgressPanel.qml`
+Runtime progress display — simplified static text: status icon + label + current test name + count.
 
 ### `widgets/PortScanConfig.qml`
-**Lines modified:** 0 (pre-existing, no changes)
+Port scan configuration panel.
+
+### `widgets/SummaryCards.qml`
+Pass/Warning/Fail/Skip summary cards in 2×2 grid layout with AppIcon badges.
 
 ### `widgets/TargetAnalysisPanel.qml`
-**Lines modified:** 0 (pre-existing, no changes)
+Target analysis section.
+
+### `widgets/TargetInputPanel.qml`
+Target host input with bidirectional binding, clear button, and Run button.
 
 ---
 
-## 3. SVG Icons (resources/icons/) — 21 files
+## 3. Icons (resources/icons/)
 
-| Icon | Flutter Equivalent | Style |
-|------|-------------------|-------|
-| `dashboard.svg` | `Icons.dashboard` | Phosphor squares-four, 24×24, 2px stroke |
-| `diagnostics.svg` | `Icons.activity` | Phosphor activity/polyline |
-| `config.svg` | `Icons.tune` | Phosphor sliders, 3 circles |
-| `report.svg` | `Icons.file_text` | Phosphor file-text, 2 lines |
-| `settings.svg` | `Icons.settings` | Phosphor gear |
-| `check.svg` | `Icons.check_circle` | Circle + checkmark |
-| `error.svg` | `Icons.x_circle` | Circle + X |
-| `warning.svg` | `Icons.warning` | Triangle + ! |
-| `info.svg` | `Icons.info` | Circle + i |
-| `circle.svg` | `Icons.minus_circle` | Circle + minus |
-| `skip.svg` | Skip (custom) | Circle + arrow |
-| `target.svg` | `Icons.crosshair` | 3 concentric circles |
-| `globe.svg` | `Icons.globe` | Circle + meridian + equator |
-| `play.svg` | `Icons.play` | Solid fill triangle |
-| `stop.svg` | `Icons.stop` | Solid fill square |
-| `refresh.svg` | `Icons.arrows_clockwise` | 2 arcs + arrows |
-| `portscan.svg` | `Icons.network` | 2 rounded rects |
-| `wifi.svg` | `Icons.wifi` | 3 arcs + dot |
-| `tune.svg` | `Icons.sliders` | 3 lines + circles |
-| `timer.svg` | `Icons.timer` | (pre-existing) |
-| `close.svg` | (backup, not in use) | |
+### Navigation Icons
+| Icon | Description |
+|------|-------------|
+| `dashboard.svg` | Dashboard (Phosphor squares-four) |
+| `diagnostics.svg` | Diagnostics (Phosphor activity/polyline) |
+| `config.svg` | Config (Phosphor sliders) |
+| `report.svg` | Report (Phosphor file-text) |
+| `settings.svg` | Settings (Phosphor gear) |
 
----
+### Status Badge Icons
+| Icon | Status |
+|------|--------|
+| `badge-check.svg` | Pass |
+| `badge-warning.svg` | Warning |
+| `badge-close.svg` | Fail |
+| `badge-skip.svg` | Skip |
+| `badge-error.svg` | Error |
+| `badge-info.svg` | Info |
+| `badge-circle.svg` | Neutral |
+| `badge-refresh.svg` | Refresh |
 
-## 4. Commit Message Recommendations
+### UI Icons
+| Icon | Purpose |
+|------|---------|
+| `play.svg`, `stop.svg`, `refresh.svg` | Run/Stop/Refresh |
+| `target.svg`, `globe.svg` | Target/Globe |
+| `portscan.svg`, `wifi.svg` | Port scan/WiFi |
+| `tune.svg`, `timer.svg` | Tune/Timer |
+| `spinner.svg` | Loading spinner |
+| `mail.svg` | Email |
+| `close.svg` | Close (backup) |
 
-### Single squash commit:
-```
-feat: Qt6 NetDiagnostic — Flutter parity + ARM64 production stability
+### Platform Icons
+| Icon | Platform |
+|------|----------|
+| `windows.svg`, `linux.svg`, `apple.svg`, `android.svg` | Platform indicators |
 
-## Summary
-Rebuilt NetDiagnostic-QT (C++17/Qt 6.8.2/ARM64 Linux) with Flutter-matching
-TreeView results display, group-sequential diagnostics, and C++ native detail
-dialog. 19/19 headless tests pass.
+### Simulator Icons
+| Icon | Purpose |
+|------|---------|
+| `sim-icon-beaker.svg` | Lab beaker |
+| `sim-icon-bug.svg` | Debug/bug |
+| `sim-icon-flask.svg` | Flask |
+| `sim-icon-monitor-play.svg` | Monitor with play |
+| `sim-icon-network-lab.svg` | Network lab |
 
-## C++ Backend
-- AppState: group-sequential execution (std::thread concurrency), 
-  allTestsForGroup, allTestIdsForGroup, native QDialog detail view
-- main/simulator: Theme injected as C++ QVariantMap (fixes ARM64 
-  QQmlComponent::create nullptr crash)
-- PlatformCommand: moveToThread QProcess thread safety
-- nd_factory: NIC Advanced/DNS Cache → NdDiagnosticNotSupported 
-  (bypasses ARM64 SIGSEGV/SIGBUS)
-
-## QML UI (matching Flutter 1:1)
-- DiagnosticScreen: ScrollView+Repeater TreeView, visibleGroups filter,
-  sidebar spacer + element ordering
-- TestGroupPanel: ExpansionTile state machine, TreeView connectors,
-  allTestsForGroup model
-- TestResultItem: 2-line collapsed, pending row, C++ native detail dialog
-- DashboardScreen: dynamic progress bars, per-group timings
-- ConfigScreen: full rewrite with SwitchListTile format
-- SimulatorScreen: StackView page switching, device frame scaling
-
-## 21 Phosphor-style SVG icons
-## 0 QML errors on ARM64 (all anchor/TypeError violations fixed)
-```
-
-### Per-component commits:
-```
-1. feat(AppState): group-sequential diagnostic execution
-2. fix(AppState): native QDialog for detail view (QML Popup unreliable)
-3. fix(main): C++ QVariantMap Theme injection (ARM64 QQmlComponent null)
-4. fix(PlatformCommand): QProcess moveToThread for ARM64 safety
-5. fix(nd_factory): bypass ARM64 SIGSEGV/SIGBUS in NIC/DNS
-6. feat(ui): ScrollView+Repeater results, visibleGroups filter
-7. feat(ui): TestGroupPanel ExpansionTile with TreeView connectors
-8. feat(ui): TestResultItem 2-line format + pending items
-9. feat(ui): ConfigScreen full rewrite with SwitchListTile
-10. feat(ui): DashboardScreen per-group timings, dynamic progress
-11. feat(ui): SimulatorScreen StackView, device scaling, navigation
-12. feat(icons): 21 Phosphor-style SVG icons
-13. fix(ui): remove all console.warn debug output
-14. fix(ui): TargetInputPanel clear button visibility
-15. fix(ui): close button on main.qml nav bar
-```
+### App Identity
+| File | Purpose |
+|------|---------|
+| `app-icon.svg` | Application icon (SVG) |
+| `netanalysis.ico` | Windows icon |
+| `netanalysis.png` | Application icon (PNG) |
 
 ---
 
-## 5. Build & Test
+## 4. Build System
 
-### Automated Build System (`scripts/build-all.sh`)
-
-Self-contained build system for NetDiagnostic-QT across all platforms.
-
-```bash
-# Check + build native platform
-./scripts/build-all.sh
-
-# Auto-install ALL dependencies from source + build all platforms
-./scripts/build-all.sh --fix --target all --sim --clean
-```
-
-**Key features:**
-- Dep check: ninja, cmake, g++/clang++, pkg-config, Qt6 (native + cross), fonts, QRC
-- `--fix`: auto-installs missing tools from source
-  - ninja (GitHub: ninja-build/ninja)
-  - cmake (GitHub: Kitware/CMake)
-  - mingw-w64 (GNU FTP: binutils + gcc + mingw-w64 headers/crt, ~15 min)
-  - LLVM-MinGW (GitHub: mstorsjo/llvm-mingw, pre-built, 77 MB)
-  - Qt6 mingw-w64 (GitHub: qt/qtbase + qt/qtdeclarative, cross-compiled, ~1-2 hrs)
-  - x86_64-linux-gnu cross-compiler (GNU FTP: binutils + gcc, ~25 min)
-  - libcurl-dev:amd64 apt install
+### `scripts/build-all.sh`
+Self-contained multi-platform build system:
+- Dep check: ninja, cmake, g++/clang++, pkg-config, Qt6, fonts, QRC
+- `--fix`: auto-installs missing tools from source (ninja, cmake, mingw-w64, LLVM-MinGW, Qt6)
 - Cross-compilation targets: linux-arm64 (native), linux-x86_64, windows-x86_64, windows-arm64
 - Simulator variant: `--sim` for device-frame UI build alongside production binary
 - Smart TMPDIR: auto-detects small tmpfs (<10 GB) and falls back to `~/.cache`
 
-**Windows ARM64 notes:** GCC does not support `aarch64-w64-mingw32`. The script installs LLVM-MinGW (Clang-based) pre-built toolchain. Qt6 for Windows ARM64 must be provided separately (MSYS2 clangarm64 or vcpkg).
+### `scripts/build-static.ps1`
+Windows PowerShell script for static builds.
 
-### CMakeLists.txt Changes
+### `scripts/generate-icons.sh`
+Icon generation helper script.
 
-- Simulator target (`net_diagnostic_sim`): added `resolv curl` link libraries (fixes linker error)
-- Simulator target: changed `MINGW` → `WIN32` for Windows libraries
-- PcapPlusPlus: FetchContent for packet capture support (v24.09, shallow clone)
+### `scripts/toolchain/`
+CMake toolchain files for cross-compilation:
+- `linux-arm64.cmake` — native ARM64 build
+- `linux-x86_64.cmake` — x86_64 cross-compile from ARM64
+- `windows-x86_64.cmake` — mingw-w64 cross-compile
+- `windows-arm64.cmake` — LLVM-MinGW cross-compile
 
-### Headless Test
+### `.github/workflows/build.yml`
+GitHub Actions CI/CD workflow:
+- Triggers: push/PR to master
+- 6 build jobs: Linux (x86_64/arm64), Windows (x86_64/arm64), macOS (x86_64/arm64)
+- Simulator builds: Linux x86_64, Windows x86_64, macOS x86_64, macOS arm64
+- Artifacts: compiled binaries + simulator binaries
+- Release upload on tag push
 
-```bash
-ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen \
-    ./dist/net_diagnostic-Linux-arm64
-```
+### `CMakeLists.txt`
+- Qt6: Core, Concurrent, Quick, QuickControls2, Widgets, Network
+- libcurl: HTTP/HTTPS diagnostics
+- `BUILD_SIMULATOR` option for simulator target
+- `BUILD_TESTS` option for test suite
+- Windows: links ws2_32, winhttp, iphlpapi, wlanapi, dnsapi, ole32, shell32, etc.
+- Linux/macOS: links resolv
 
-### Desktop Launch
+### `tests/`
+- `test_engine_quick.cpp` — 19 headless tests
+- Test execution: `ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostic`
 
-```bash
-./dist/net_diagnostic-Linux-arm64
-./dist/net_diagnostic_sim-Linux-arm64
-```
+### `resources/resources.qrc`
+Qt resource file registering all QML files, SVG icons, and fonts (61 entries).
+
+### Other Resource Files
+- `resources/netanalysis.desktop` — Linux desktop entry
+- `resources/netanalysis.rc` — Windows resource file for icon embedding
+- `resources/config/*.conf` — Platform-specific configuration (android, ios, linux, windows)
+
+---
+
+## 5. Design Assets (doc/)
+
+| File | Description |
+|------|-------------|
+| `doc/design-spec.html` | Design specification with visual guidelines |
+| `doc/design-tokens.json` | Design tokens (colors, spacing, typography, radii) |
+
+---
+
+## 6. Platform Support Matrix
+
+| Platform | Arch | Compiler | Simulator | Status |
+|----------|------|----------|-----------|--------|
+| Linux | arm64 | GCC | — | ✅ Full (native) |
+| Linux | x86_64 | GCC | ✅ | ✅ Full |
+| Windows | x86_64 | mingw-w64 | ✅ | ✅ Cross-compile |
+| Windows | ARM64 | LLVM-MinGW | — | ✅ Cross-compile |
+| macOS | x86_64 | Apple Clang | ✅ | ✅ Full |
+| macOS | arm64 | Apple Clang | ✅ | ✅ Full |
+| Android | — | NDK | — | ⚠️ Mostly works |
+| iOS | — | Xcode | — | ⚠️ Sandbox limited |
+
+---
+
+## 7. Commit History
+
+| Commit | Description |
+|--------|-------------|
+| `fc68912` | feat: diagnostic engine refactor, network probe overhaul, UI updates, app icons, cross-platform build scripts |
+| `644c215` | feat: Test→Diag rename complete, DHCP Status rewrite, code review fixes |
+| `14d8101` | chore: build script updates |
+| `cb08924` | feat: comprehensive code review fixes, libcurl HTTP, dig-style DNS, badge icons, cross-platform fixes |
+| `4df1dbe` | fix: move CheckBox Timer inside component scope |
+| `0fe44dc` | fix: iterative BFS for CheckBox traversal |

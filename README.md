@@ -4,27 +4,119 @@ Cross-platform network diagnostic tool. Built with Qt 6 / QML and libcurl.
 
 ## Features
 
-### Diagnostic Groups
+### Diagnostic Groups (38 tests)
 
-| Group | Name | Description |
-|-------|------|-------------|
-| G1 | System & Adapters | Network adapters, IP configuration, WiFi, DHCP, active connections |
-| G2 | Connectivity & Security | Routing table, ARP table, proxy settings, TCP settings |
-| G3 | Internet & DNS | DNS servers, DNS cache, DNS pollution check, Internet speed test |
-| G4 | Remote Host | DNS resolution, ping, traceroute, pathPing, MTU discovery, port scan |
-| G5 | Website / URL | HTTP headers, curl verbose, SSL certificate, redirect, compression, timing |
+| Group | Name | Tests | Description |
+|-------|------|-------|-------------|
+| G1 | System & Adapters | 7 | Network adapters, NIC advanced, WiFi, wired, DHCP status, IP configuration, active connections |
+| G2 | Connectivity & Security | 6 | Network profile, TCP settings, default gateway, routing table, ARP table, proxy settings |
+| G3 | Internet & DNS | 5 | Netskope status, DNS servers, DNS cache, DNS pollution, Internet speed test |
+| G4 | Remote Host | 6 | DNS resolution, ping, traceroute, pathPing, MTU discovery, port scan |
+| G5 | Website / URL | 13 | URL parsing, TCP connect, service banner, curl verbose, HTTP headers, security headers, SSL certificate, HTTP redirect, HTTP compression, HTTP timing, FTP, SSH, Email diagnostics |
 
 ### Key Features
 
-- **Pure C++ diagnostics** — zero shell commands, direct OS API calls (Linux `/proc`, Windows Win32 API)
+- **Pure C++ diagnostics** — zero shell commands, direct OS API calls (Linux `/proc`/`/sys`, Windows Win32 API)
 - **libcurl integration** — full HTTP/HTTPS support with curl-compatible verbose output
 - **DNS resolution** — dig-style output with HEADER/QUESTION/ANSWER/AUTHORITY/ADDITIONAL sections
 - **Speed test** — Ookla-compatible download/upload bandwidth measurement
 - **Port scanner** — concurrent non-blocking socket scan with range merging
 - **7-language UI** — English, French, German, Russian, Italian, Simplified/Traditional Chinese
-- **Monospace detail output** — DejaVu Sans Mono for aligned diagnostic tables
-- **Badge-style status icons** — colored SVG badges for Pass/Warning/Fail/Skip/Info
+- **Monospace detail output** — JetBrains Mono + DejaVu Sans Mono for aligned diagnostic tables
+- **Badge-style status icons** — colored SVG badges for Pass/Warning/Fail/Skip/Error/Info
+- **Group-sequential execution** — `std::thread` concurrency with `std::atomic` group tracking
+- **Native C++ QDialog** — detail view with Status/Duration/Summary/Properties/Raw Output
 - **Single-instance lock** — prevents duplicate application instances
+- **Simulator mode** — device-frame UI for testing on desktop (Linux/Windows/macOS)
+
+## Project Structure
+
+```
+NetDiagnostic-QT/
+├── CMakeLists.txt              # Build configuration
+├── README.md                   # This file
+├── PROJECT_CHANGES.md          # Complete file manifest & change log
+├── .gitignore
+├── scripts/
+│   ├── build-all.sh            # Self-contained multi-platform build system
+│   ├── build-static.ps1        # Static build script (Windows)
+│   ├── generate-icons.sh       # Icon generation helper
+│   └── toolchain/              # CMake toolchain files
+│       ├── linux-arm64.cmake
+│       ├── linux-x86_64.cmake
+│       ├── windows-x86_64.cmake
+│       └── windows-arm64.cmake
+├── src/
+│   ├── main.cpp                # Production entry point
+│   ├── main_simulator.cpp      # Simulator entry point
+│   ├── app/
+│   │   ├── AppState.h/.cpp     # Application state & diagnostic orchestration
+│   │   └── NativeService.h/.cpp # Native OS service integration
+│   ├── engine/
+│   │   ├── PlatformCommand.h/.cpp  # Cross-platform command execution
+│   │   ├── diagnostic/
+│   │   │   ├── DiagnosticEngine.h/.cpp  # Diagnostic engine core
+│   │   │   ├── G1G2G3Native.h/.cpp      # G1/G2/G3 native diagnostics
+│   │   │   ├── G4RemoteHost.h/.cpp      # G4 remote host tests
+│   │   │   └── G5WebsiteUrl.h/.cpp      # G5 website/URL tests
+│   │   └── runner/
+│   │       └── NetworkProbe.h/.cpp      # Network probing utilities
+│   ├── models/
+│   │   ├── DiagnosticResult.h/.cpp  # Immutable result struct
+│   │   ├── DiagId.h                 # Test IDs, groups, statuses (38 tests)
+│   │   └── ResultProperty.h         # Key-value result properties with severity
+│   └── util/
+│       ├── DebugSwitch.h            # Trace macros (disabled by default)
+│       ├── Logger.h/.cpp            # Logging utility
+│       └── PingParser.h/.cpp        # Ping output parser
+├── resources/
+│   ├── resources.qrc            # Qt resource file
+│   ├── netanalysis.desktop      # Linux desktop entry
+│   ├── netanalysis.rc           # Windows resource file (icon embed)
+│   ├── config/                  # Platform config files
+│   │   ├── android.conf, ios.conf, linux.conf, windows.conf
+│   ├── fonts/
+│   │   ├── JetBrainsMono-Regular.ttf, JetBrainsMono-Bold.ttf
+│   │   └── DejaVuSansMono.ttf
+│   ├── icons/                   # 40+ SVG/PNG/ICO icons
+│   │   ├── app-icon.svg, netanalysis.ico, netanalysis.png
+│   │   ├── badge-*.svg (check/close/warning/info/skip/error/circle/refresh)
+│   │   ├── dashboard, diagnostics, config, report, settings
+│   │   ├── check, circle, close, error, info, warning, skip
+│   │   ├── play, stop, refresh, timer, spinner, target, globe
+│   │   ├── portscan, wifi, tune, mail
+│   │   ├── windows, linux, apple, android
+│   │   └── sim-icon-*.svg (beaker/bug/flask/monitor-play/network-lab)
+│   └── qml/
+│       ├── main.qml             # Main window
+│       ├── AppContent.qml       # Content layout
+│       ├── theme/
+│       │   ├── AppTheme.qml     # Theme constants (C++ injected)
+│       │   ├── Translations.qml # 7-language translations
+│       │   └── qmldir
+│       ├── screens/
+│       │   ├── DashboardScreen.qml    # Overview dashboard
+│       │   ├── DiagnosticScreen.qml   # Main diagnostic tree view
+│       │   ├── ConfigScreen.qml       # Test selection (SwitchListTile)
+│       │   ├── ReportScreen.qml       # Report preview (planned)
+│       │   ├── SettingsScreen.qml     # Application settings
+│       │   └── SimulatorScreen.qml    # Device frame simulator
+│       └── widgets/
+│           ├── AppIcon.qml            # SVG icon component
+│           ├── DiagGroupPanel.qml     # Expandable group panel
+│           ├── DiagResultItem.qml     # Individual test result row
+│           ├── LiveProgressPanel.qml  # Runtime progress display
+│           ├── PortScanConfig.qml     # Port scan configuration
+│           ├── SummaryCards.qml       # Pass/Warn/Fail/Skip summary
+│           ├── TargetAnalysisPanel.qml # Target analysis section
+│           └── TargetInputPanel.qml   # Target host input
+├── tests/
+│   ├── CMakeLists.txt
+│   └── test_engine_quick.cpp     # 19 headless tests
+└── doc/
+    ├── design-spec.html          # Design specification
+    └── design-tokens.json        # Design tokens
+```
 
 ## Build
 
@@ -58,9 +150,22 @@ Cross-platform network diagnostic tool. Built with Qt 6 / QML and libcurl.
 | Cross-compilation | mingw-w64 (x86_64), LLVM-MinGW (aarch64), linux-gnu (x86_64) |
 | Smart TMPDIR | Auto-detects small tmpfs and uses `~/.cache` for Qt6 source builds |
 
+### CI/CD (GitHub Actions)
+
+Automated builds for every push and PR via `.github/workflows/build.yml`:
+
+| Platform | Arch | Compiler | Simulator |
+|----------|------|----------|-----------|
+| Linux | x86_64 | GCC | ✅ |
+| Linux | arm64 | GCC (cross) | — |
+| Windows | x86_64 | mingw-w64 | ✅ |
+| Windows | arm64 | LLVM-MinGW | — |
+| macOS | x86_64 | Apple Clang | ✅ |
+| macOS | arm64 | Apple Clang | ✅ |
+
 ### Manual Build (single platform)
 
-### Linux (arm64 / x86_64)
+#### Linux (arm64 / x86_64)
 
 ```bash
 # Install dependencies
@@ -73,7 +178,7 @@ ninja -C build net_diagnostic
 # Output: build/net_diagnostic
 ```
 
-### Windows (cross-compile from Linux)
+#### Windows (cross-compile from Linux)
 
 ```bash
 # x86_64 — mingw-w64 (GCC)
@@ -83,6 +188,16 @@ ninja -C build net_diagnostic
 ./scripts/build-all.sh --target windows-arm64 --fix
 ```
 
+#### macOS
+
+```bash
+# Prerequisites: Xcode Command Line Tools, Homebrew
+brew install qt@6 cmake ninja curl
+
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
+ninja -C build net_diagnostic
+```
+
 ### Simulator
 
 ```bash
@@ -90,17 +205,43 @@ cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
 ninja -C build net_diagnostic_sim
 ```
 
+Simulator mode is limited to **Linux / Windows / macOS** (desktop platforms with full Qt6 QuickControls2 support).
+
+### Headless Test
+
+```bash
+ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen \
+    ./build/net_diagnostic
+```
+
 ## Supported Platforms
 
-| Platform | Compiler | Status |
-|----------|----------|--------|
-| Linux (arm64) | GCC | ✅ Full support |
-| Linux (x86_64) | GCC cross-compile | ✅ Full support |
-| Windows x86_64 | mingw-w64 (GCC) | ✅ Cross-compile via `--fix` |
-| Windows ARM64 | LLVM-MinGW (Clang) | ✅ Compiler ready, Qt6 via MSYS2/vcpkg |
-| macOS | — | ⚠️ Partial (G1/G2/G3 limited) |
-| iOS | — | ⚠️ Compiles, sandbox restrictions |
-| Android | — | ✅ Mostly works |
+| Platform | Arch | Compiler | Status |
+|----------|------|----------|--------|
+| Linux | arm64 | GCC | ✅ Full support (native) |
+| Linux | x86_64 | GCC | ✅ Full support (cross-compile) |
+| Windows | x86_64 | mingw-w64 (GCC) | ✅ Cross-compile via `--fix` |
+| Windows | ARM64 | LLVM-MinGW (Clang) | ✅ Cross-compile (Qt6 via vcpkg/MSYS2) |
+| macOS | x86_64 / arm64 | Apple Clang | ✅ Full support |
+| Android | — | NDK | ⚠️ Mostly works |
+| iOS | — | Xcode | ⚠️ Compiles, sandbox restrictions |
+
+## Dependencies
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| Qt 6 | ≥ 6.2 | Core, Concurrent, Quick, QuickControls2, Widgets, Network |
+| libcurl | ≥ 7.80 | HTTP/HTTPS diagnostics (G5) |
+| CMake | ≥ 3.22 | Build system |
+| Ninja | any | Build tool (optional, Make works too) |
+
+### Platform-specific
+
+| Platform | Libraries |
+|----------|-----------|
+| Linux | resolv (DNS), glibc |
+| Windows | ws2_32, winhttp, iphlpapi, wlanapi, dnsapi, ole32, shell32 |
+| macOS | resolv (DNS), SystemConfiguration, CoreFoundation |
 
 ## License
 
