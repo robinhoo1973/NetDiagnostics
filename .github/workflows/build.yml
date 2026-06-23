@@ -85,7 +85,7 @@ jobs:
         if: steps.cache-qt.outputs.cache-hit != 'true'
         run: |
           pip install aqtinstall
-          aqt install-qt windows desktop $env:QT_VERSION win64_msvc2019_64 -m qtquickcontrols2 -O D:/Qt
+          aqt install-qt windows desktop $env:QT_VERSION win64_msvc2019_64 -O D:/Qt
 
       - name: Install ninja
         run: choco install ninja -y --no-progress
@@ -237,7 +237,7 @@ jobs:
         if: steps.cache-qt-android.outputs.cache-hit != 'true'
         run: |
           pip install aqtinstall
-          aqt install-qt linux android $QT_VERSION android_x86_64 -m qtquickcontrols2 -O /opt/qt-android
+          aqt install-qt linux android $QT_VERSION android_x86_64 -O /opt/qt-android
 
       - name: Configure
         run: |
@@ -292,7 +292,7 @@ jobs:
         if: steps.cache-qt-android.outputs.cache-hit != 'true'
         run: |
           pip install aqtinstall
-          aqt install-qt linux android $QT_VERSION android_arm64_v8a -m qtquickcontrols2 -O /opt/qt-android
+          aqt install-qt linux android $QT_VERSION android_arm64_v8a -O /opt/qt-android
 
       - name: Configure
         run: |
@@ -338,7 +338,7 @@ jobs:
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
           pip3 install aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -m qtquickcontrols2 -O /opt/qt-ios
+          aqt install-qt mac ios $QT_VERSION ios -O /opt/qt-ios
 
       - name: Configure
         run: |
