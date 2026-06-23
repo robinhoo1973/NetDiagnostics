@@ -2,7 +2,17 @@
 // DiagnosticEngine.cpp — Pure C++ dispatch, no native plugin abstraction
 // =============================================================================
 #include "engine/diagnostic/DiagnosticEngine.h"
-#include "util/DebugSwitch.h"`r`n#include "engine/diagnostic/G4RemoteHost.h"`r`n#include "engine/runner/NetworkProbe.h"
+#include "util/DebugSwitch.h"
+#include "engine/diagnostic/G1G2G3Native.h"
+#include "engine/diagnostic/G4RemoteHost.h"
+#include "engine/runner/NetworkProbe.h"
+#include "util/DebugSwitch.h"
+#include "engine/diagnostic/G4RemoteHost.h"
+#include "engine/runner/NetworkProbe.h"
+#include "util/DebugSwitch.h"
+#include "engine/diagnostic/G1G2G3Native.h"
+#include "engine/diagnostic/G4RemoteHost.h"
+#include "engine/runner/NetworkProbe.h"
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #include "util/Logger.h"
 #include "util/PingParser.h"

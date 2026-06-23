@@ -28,6 +28,10 @@ set(SOURCES
     src/engine/diagnostic/G4RemoteHost.cpp
     src/engine/diagnostic/G5WebsiteUrl.cpp
 )
+# Windows: embed .ico into the executable
+if(WIN32)
+    list(APPEND SOURCES resources/netanalysis.rc)
+endif()
 
 set(QML_RESOURCES
     resources/resources.qrc

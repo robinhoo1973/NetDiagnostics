@@ -1,0 +1,6 @@
+// Windows Resource File for NetAnalysis
+// Embeds the application icon into the .exe
+
+#include <winresrc.h>
+
+IDI_ICON1               ICON    "icons/netanalysis.ico"

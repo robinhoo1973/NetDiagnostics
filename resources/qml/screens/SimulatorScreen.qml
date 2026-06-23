@@ -21,6 +21,7 @@ ApplicationWindow {
 
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Bold.ttf" }
+    FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
 
     property var devices: [
         // ── Desktop ──────────────────────────────────────────────────

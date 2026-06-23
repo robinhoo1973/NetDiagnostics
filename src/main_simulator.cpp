@@ -7,17 +7,31 @@
 #include <QVariantMap>
 #include <QTimer>
 #include <QQuickWindow>
+#include <QIcon>
+#include <QLockFile>
+#include <QMessageBox>
+#include <QStandardPaths>
 #include "app/AppState.h"
 
 int main(int argc, char *argv[])
 {
-    // Use basic (single-threaded) render loop — more stable on ARM64
     qputenv("QSG_RENDER_LOOP", "basic");
     QGuiApplication app(argc, argv);
     app.setApplicationName("NetAnalysis Simulator");
+
+    // ── Single instance via lock file ────────────────────────────────────
+    QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netanalysis-sim.lock");
+    QLockFile lockFile(lockPath);
+    lockFile.setStaleLockTime(2000);
+    if (!lockFile.tryLock(100)) {
+        QMessageBox::information(nullptr, QStringLiteral("NetAnalysis Simulator"),
+            QStringLiteral("Simulator is already running."));
+        return 0;
+    }
     app.setApplicationDisplayName("NetAnalysis Simulator");
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("robinhoo1973");
+    app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
 
     AppState appState;
 

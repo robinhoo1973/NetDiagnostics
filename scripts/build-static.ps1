@@ -351,10 +351,10 @@ if [ "$($script:PROD_FLAG)" = "ON" ]; then
         -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/.." \
         -DBUILD_SIMULATOR=OFF \
         -DBUILD_TESTS=OFF \
-        "`${PROJ}" > "`$TEMP_MSYS/cmake-prod.log" 2>&1
+        "`${PROJ}" > "`$DIST/cmake-prod.log" 2>&1
 
     echo "  -> Ninja build..."
-    ninja net_diagnostic > "`$TEMP_MSYS/ninja-prod.log" 2>&1
+    ninja net_diagnostic > "`$DIST/ninja-prod.log" 2>&1
 
     # Strip debug symbols to reduce size
     strip net_diagnostic$ext 2>/dev/null || true
@@ -379,10 +379,10 @@ if [ "$($script:SIM_FLAG)" = "ON" ]; then
         -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/.." \
         -DBUILD_SIMULATOR=ON \
         -DBUILD_TESTS=OFF \
-        "`${PROJ}" > "`$TEMP_MSYS/cmake-sim.log" 2>&1
+        "`${PROJ}" > "`$DIST/cmake-sim.log" 2>&1
 
     echo "  -> Ninja build..."
-    ninja net_diagnostic_sim > "`$TEMP_MSYS/ninja-sim.log" 2>&1
+    ninja net_diagnostic_sim > "`$DIST/ninja-sim.log" 2>&1
 
     # Strip debug symbols to reduce size
     strip net_diagnostic_sim$ext 2>/dev/null || true
@@ -572,6 +572,8 @@ check_exe() {
 
 check_exe "`$DIST/$($script:PROD_NAME)" "Production"
 check_exe "`$DIST/$($script:SIM_NAME)" "Simulator"
+
+exit 0
 "@
 
     $check_path = Join-Path $TEMP_DIR "check-deps.sh"
@@ -580,7 +582,7 @@ check_exe "`$DIST/$($script:SIM_NAME)" "Simulator"
 
     $bash_exe = Join-Path $MsysPath "usr\bin\bash.exe"
     $null = Start-Process -FilePath $bash_exe `
-        -ArgumentList "-l", "-c", "bash $msys_check 2>&1" `
+        -ArgumentList "-l", "$msys_check" `
         -NoNewWindow -Wait
 }
 
@@ -593,6 +595,12 @@ function Invoke-Cleanup {
         return
     }
     Write-Step "Cleanup Temp Files"
+    # Copy build logs to dist before deleting temp
+    $logs = @("cmake-prod.log","ninja-prod.log","cmake-sim.log","ninja-sim.log")
+    foreach ($log in $logs) {
+        $src = Join-Path $TEMP_DIR $log
+        if (Test-Path $src) { Copy-Item $src $DIST_DIR -Force -ErrorAction SilentlyContinue }
+    }
     if (Test-Path $TEMP_DIR) {
         Remove-Item -Recurse -Force $TEMP_DIR -ErrorAction SilentlyContinue
         Write-OK "Deleted: $TEMP_DIR"

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Flask body (conical) -->
+  <path d="M10 2v7.5"/>
+  <path d="M14 2v7.5"/>
+  <path d="M8.5 2h7"/>
+  <!-- Flask bottom -->
+  <path d="M17 22H7a2 2 0 0 1-2-2c0-.7.4-1.3 1-1.6l4-2.4c.6-.4 1-.9 1-1.6V9.5"/>
+  <path d="M17 22a2 2 0 0 0 2-2c0-.7-.4-1.3-1-1.6l-4-2.4c-.6-.4-1-.9-1-1.6V9.5"/>
+  <!-- Liquid level -->
+  <path d="M9 16h6"/>
+  <!-- Bubbles -->
+  <circle cx="10" cy="12" r="1" fill="currentColor" stroke="none"/>
+  <circle cx="13" cy="11" r="1.5" fill="currentColor" stroke="none"/>
+</svg>

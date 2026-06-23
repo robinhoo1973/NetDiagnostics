@@ -1,3 +1,3 @@
-// Debug macro — TRACE is always active for now (comment out to disable)
-#define TRACE(...)   fprintf(stderr, __VA_ARGS__)
-#define MAIN_LOG(...) fprintf(stderr, __VA_ARGS__)
+// Trace macros — disabled (no output)
+#define TRACE(...)   ((void)0)
+#define MAIN_LOG(...) ((void)0)

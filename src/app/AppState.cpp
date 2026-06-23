@@ -4,6 +4,7 @@
 #include "app/AppState.h"
 #include "util/DebugSwitch.h"
 #include "engine/diagnostic/DiagnosticEngine.h"
+#include "util/DebugSwitch.h"
 #include "util/Logger.h"
 #include <cstdio>
 #include <chrono>

@@ -12,16 +12,14 @@ Makefile
 *.ninja
 .ninja_*
 
-# IDE
+# IDE / editor
 .vscode/
 .idea/
+.claude/
 *.pro.user
 *.swp
 *.swo
 *~
-
-# Agent state (not part of project)
-.deepseek/
 
 # OS files
 .DS_Store
@@ -31,6 +29,6 @@ desktop.ini
 # Logs
 *.log
 
-# External binaries (not part of project)
-codewhale
-codewhale-tui
+# Session files
+.codewhale/
+.deepseek/

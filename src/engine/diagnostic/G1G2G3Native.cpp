@@ -6,6 +6,7 @@
 // netstat -an, netsh, nslookup)
 // =============================================================================
 #include "engine/diagnostic/G1G2G3Native.h"
+#include "util/DebugSwitch.h"
 #include <QElapsedTimer>
 #include <QDateTime>
 #include <QFile>
@@ -1856,13 +1857,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
     if (err != 0) { close(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
-    QByteArray req = QStringLiteral("GET %1 HTTP/1.0
-Host: %2
-User-Agent: NetDiagnostic/1.0
-Accept: */*
-Connection: close
-
-")
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
         .arg(path, host).toUtf8();
     int sent = 0;
     while (sent < req.size()) {
@@ -1937,12 +1932,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     if (err != 0) { close(sock); return r; }
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
-    QByteArray req = QStringLiteral("GET %1 HTTP/1.0
-Host: %2
-User-Agent: NetDiagnostic/1.0
-Connection: close
-
-")
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nConnection: close\r\n\r\n")
         .arg(path, host).toUtf8();
     int reqSent = 0;
     while (reqSent < req.size()) {
@@ -1975,9 +1965,7 @@ Connection: close
         if (recvGuard.elapsed() > 60000) break;
         if (!headersDone) {
             body.append(buf, (int)n);
-            int hdrEnd = body.indexOf("
-
-");
+            int hdrEnd = body.indexOf("\r\n\r\n");
             if (hdrEnd >= 0) {
                 body = body.mid(hdrEnd + 4);
                 headersDone = true;
@@ -2053,9 +2041,7 @@ static int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     // Parse HTTP response — extract body after 
 
 
-    int hdrEnd = resp.indexOf("
-
-");
+    int hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
     QByteArray body = resp.mid(hdrEnd + 4);
     // latency.txt should contain a small text like "test=...", we just need the time
@@ -2314,14 +2300,7 @@ DiagnosticResult speedTest(DiagId id) {
         for (int i = 0; i < qMin(dataSize, 4096); i++) uploadData[i] = (char)('A' + (rand() % 26));
 
         // POST request headers
-        QByteArray postHeaders = QStringLiteral(
-            "POST /upload HTTP/1.0
-Host: %1
-Content-Type: application/octet-stream
-Content-Length: %2
-Connection: close
-
-")
+        QByteArray postHeaders = QStringLiteral("POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")
             .arg(best->host).arg(dataSize).toUtf8();
 
         QElapsedTimer ulTimer; ulTimer.start();
