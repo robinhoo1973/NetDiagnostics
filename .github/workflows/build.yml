@@ -238,8 +238,7 @@ jobs:
           echo "=== DLL dependencies ==="
           objdump -p dist/netdiag-win-x86_64.exe 2>/dev/null | grep "DLL Name" || echo "(static ✅)"
 
-      - name: Build Simulator
-FIXME (static)
+      - name: Build Simulator (static)
         shell: msys2 {0}
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
