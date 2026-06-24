@@ -15,7 +15,7 @@ concurrency:
 env:
   BUILD_TYPE: Release
   QT_VERSION: 6.12.0
-  QT_VERSION_ANDROID: 6.5.3
+  QT_VERSION_ANDROID: 6.7.3
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -214,14 +214,7 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCURL_STATICLIB=ON \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a \
-            -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
-            -B build -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
           ninja -C build net_diagnostic
           strip build/net_diagnostic.exe
           cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
@@ -229,14 +222,7 @@ jobs:
       - name: Build Simulator (static)
         shell: msys2 {0}
         run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCURL_STATICLIB=ON \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a \
-            -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
-            -B build-sim -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
@@ -606,11 +592,34 @@ jobs:
       - name: Collect individual assets
         run: |
           cd artifacts
-          # Flatten all files from subdirectories into a flat list
           find . -type f ! -name "*.tar.xz" | while read f; do
-            
-            # Rename with platform prefix for uniqueness
-            
+            base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
+            dir=$(dirname "$f" | tr '[:upper:]' '[:lower:]')
+            case "$dir" in
+              *windows*)   os="windows"; arch="x86_64" ;;
+              *linux*86*)  os="linux";   arch="x86_64" ;;
+              *linux*arm*) os="linux";   arch="arm64" ;;
+              *macos*)     os="macos";   arch="arm64" ;;
+              *android*x86*)  os="android"; arch="x86_64" ;;
+              *android*arm*)  os="android"; arch="arm64" ;;
+              *ios*)       os="ios";     arch="arm64" ;;
+              *)           os="unknown"; arch="unknown" ;;
+            esac
+            ext="${base##*.}"
+            case "$base" in
+              *sim*)       name="netdiagnostic-${os}-${arch}-sim.${ext}" ;;
+              *.appimage)  name="netdiagnostic-${os}-${arch}.AppImage" ;;
+              *.deb)       name="netdiagnostic-${os}-${arch}.deb" ;;
+              *.rpm)       name="netdiagnostic-${os}-${arch}.rpm" ;;
+              *.dmg)       name="netdiagnostic-${os}-${arch}.dmg" ;;
+              *.ipa)       name="netdiagnostic-${os}-${arch}.ipa" ;;
+              *.apk)       name="netdiagnostic-${os}-${arch}.apk" ;;
+              *.so)        name="netdiagnostic-${os}-${arch}.so" ;;
+              *.exe)       name="netdiagnostic-${os}-${arch}.exe" ;;
+              *)           name="$base" ;;
+            esac
+            cp "$f" "$name"
+            echo "Asset: $name"
           done
           ls -lh
 
