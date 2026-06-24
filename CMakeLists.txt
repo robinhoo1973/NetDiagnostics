@@ -74,7 +74,6 @@ endif()
 if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set_source_files_properties(resources/netanalysis.rc PROPERTIES
-        COMPILE_FLAGS "/I\"${CMAKE_SOURCE_DIR}/resources\""
     )
 endif()
 
@@ -204,5 +203,4 @@ if(BUILD_SIMULATOR)
     target_include_directories(net_diagnostic_sim PRIVATE
         ${CMAKE_SOURCE_DIR}/src
     )
-
 endif()
