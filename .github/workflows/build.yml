@@ -209,51 +209,10 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-gcc
 
-      - name: Verify environment
-        shell: msys2 {0}
+      - name: Static Build (prod + sim)
+        shell: pwsh
         run: |
-          echo "MSYSTEM=$MSYSTEM"
-          echo "Qt6 dir: $(ls /ucrt64/qt6-static/lib/cmake/Qt6/ 2>/dev/null || echo NOT FOUND)"
-          gcc --version | head -1
-          cmake --version | head -1
-
-      - name: Build Production (static)
-        shell: msys2 {0}
-        run: |
-          mkdir -p dist
-          cp resources/icons/netanalysis.ico .
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
-            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a \
-            -DCURL_INCLUDE_DIR=/ucrt64/include \
-            -DOpenSSL_DIR=/ucrt64/lib/cmake/OpenSSL \
-            -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
-            -B build -S .
-          ninja -C build net_diagnostic
-          strip build/net_diagnostic.exe
-          cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
-          
-          # Verify no non-system DLLs
-          echo "=== DLL dependencies ==="
-          objdump -p dist/netdiag-win-x86_64.exe 2>/dev/null | grep "DLL Name" || echo "(static ✅)"
-
-      - name: Build Simulator (static)
-        shell: msys2 {0}
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
-            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a \
-            -DCURL_INCLUDE_DIR=/ucrt64/include \
-            -DOpenSSL_DIR=/ucrt64/lib/cmake/OpenSSL \
-            -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
-            -B build-sim -S .
-          ninja -C build-sim net_diagnostic_sim
-          strip build-sim/net_diagnostic_sim.exe
-          cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
+          .\scripts\build-static.ps1 -Clean -ProdOnly -MsysPath C:\msys64
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
