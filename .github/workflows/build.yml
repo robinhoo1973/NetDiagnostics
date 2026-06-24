@@ -216,7 +216,7 @@ jobs:
           $msysPath = "${{ steps.setup-msys2.outputs.msys2-location }}"
           if (-not $msysPath -or $msysPath -eq '') { $msysPath = "C:\msys64" }
           Write-Host "MSYS2 path: $msysPath"
-          .\scripts\build-static.ps1 -Clean -ProdOnly -MsysPath $msysPath
+          .\scripts\build-static.ps1 -Clean -MsysPath $msysPath
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
