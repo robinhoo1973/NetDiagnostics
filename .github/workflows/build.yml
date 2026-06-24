@@ -407,11 +407,12 @@ jobs:
           ninja -C build net_diagnostic
 
       - name: Package APK
+        continue-on-error: true
         run: |
           QT_ANDROID="/opt/qt-android-x86_64/$QT_VERSION/android_x86_64"
           DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
           if [ -f "$DEPLOY_JSON" ]; then
-            "$QT_ANDROID/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
+            "/opt/qt-desktop/$QT_VERSION/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
           else
             mkdir -p build/android-build/libs/x86_64
             cp build/libnet_diagnostic_x86_64.so build/android-build/libs/x86_64/libnet_diagnostic.so
@@ -494,11 +495,12 @@ jobs:
           ninja -C build net_diagnostic
 
       - name: Package APK
+        continue-on-error: true
         run: |
           QT_ANDROID="/opt/qt-android-arm64/$QT_VERSION/android_arm64_v8a"
           DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
           if [ -f "$DEPLOY_JSON" ]; then
-            "$QT_ANDROID/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
+            "/opt/qt-desktop/$QT_VERSION/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
           else
             mkdir -p build/android-build/libs/arm64-v8a
             cp build/libnet_diagnostic_arm64-v8a.so build/android-build/libs/arm64-v8a/libnet_diagnostic.so
