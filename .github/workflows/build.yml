@@ -214,7 +214,7 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DNO_CURL=ON             -DNO_CURL=ON -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
           ninja -C build net_diagnostic
           strip build/net_diagnostic.exe
           cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
@@ -222,7 +222,7 @@ jobs:
       - name: Build Simulator (static)
         shell: msys2 {0}
         run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DNO_CURL=ON -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
@@ -373,15 +373,16 @@ jobs:
       - name: Package APK
         continue-on-error: true
         run: |
+          QT_ANDROID="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64"
           DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
           if [ -f "$DEPLOY_JSON" ]; then
-            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose || true
+            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
+          else
+            mkdir -p build/android-build/libs/x86_64
+            cp build/libnet_diagnostic_x86_64.so build/android-build/libs/x86_64/libnet_diagnostic.so
+            cp resources/android/AndroidManifest.xml build/android-build/
+            (cd build/android-build \&\& zip -r ../../NetDiagnostic-Android-x86_64.apk .)
           fi
-          # Always generate fallback APK from .so + manifest
-          mkdir -p build/android-build/libs/x86_64
-          cp build/libnet_diagnostic_x86_64.so build/android-build/libs/x86_64/libnet_diagnostic.so
-          cp resources/android/AndroidManifest.xml build/android-build/
-          (cd build/android-build && zip -r ../../NetDiagnostic-Android-x86_64.apk .)
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -460,15 +461,16 @@ jobs:
       - name: Package APK
         continue-on-error: true
         run: |
+          QT_ANDROID="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a"
           DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
           if [ -f "$DEPLOY_JSON" ]; then
-            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose || true
+            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
+          else
+            mkdir -p build/android-build/libs/arm64-v8a
+            cp build/libnet_diagnostic_arm64-v8a.so build/android-build/libs/arm64-v8a/libnet_diagnostic.so
+            cp resources/android/AndroidManifest.xml build/android-build/
+            (cd build/android-build \&\& zip -r ../../NetDiagnostic-Android-arm64.apk .)
           fi
-          # Always generate fallback APK from .so + manifest
-          mkdir -p build/android-build/libs/arm64-v8a
-          cp build/libnet_diagnostic_arm64-v8a.so build/android-build/libs/arm64-v8a/libnet_diagnostic.so
-          cp resources/android/AndroidManifest.xml build/android-build/
-          (cd build/android-build && zip -r ../../NetDiagnostic-Android-arm64.apk .)
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
