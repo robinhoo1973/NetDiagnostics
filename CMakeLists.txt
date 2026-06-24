@@ -51,7 +51,11 @@ elseif(ANDROID)
     message(WARNING "Android: building without curl (HTTP diagnostics disabled)")
     set(NO_CURL TRUE)
 else()
-    find_package(CURL REQUIRED)
+    if(NO_CURL)
+        message(WARNING "Building without curl (NO_CURL=ON)")
+    else()
+        find_package(CURL REQUIRED)
+    endif()
 endif()
 
 set(SOURCES
