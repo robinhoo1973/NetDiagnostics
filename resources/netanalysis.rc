@@ -3,6 +3,4 @@
 
 #include <winresrc.h>
 
-// MUST be 1 — main.cpp looks up icon via MAKEINTRESOURCEW(1)
-#define IDI_ICON1 1
-IDI_ICON1               ICON    "icons/netanalysis.ico"
+IDI_ICON1               ICON    "resources/icons/netanalysis.ico"
