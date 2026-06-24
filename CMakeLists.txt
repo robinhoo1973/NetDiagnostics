@@ -82,13 +82,12 @@ set(QML_RESOURCES
 
 qt_add_executable(net_diagnostic ${SOURCES} ${QML_RESOURCES})
 
-# Android: enable APK target generation
+# Android: enable APK target generation (Qt 6.5+ auto-generates apk target
+# when QT_ANDROID_PACKAGE_SOURCE_DIR is set)
 if(ANDROID)
     set_target_properties(net_diagnostic PROPERTIES
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/resources/android"
     )
-    qt_android_generate_deployment_settings(net_diagnostic)
-    qt_android_add_apk_target(net_diagnostic)
 endif()
 
 # macOS desktop: build as .app bundle
