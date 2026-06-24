@@ -608,11 +608,9 @@ jobs:
           cd artifacts
           # Flatten all files from subdirectories into a flat list
           find . -type f ! -name "*.tar.xz" | while read f; do
-            base=$(basename "$f")
+            
             # Rename with platform prefix for uniqueness
-            dir=$(dirname "$f" | sed 's|^\./||' | sed 's|/|_|g')
-            cp "$f" "${dir}_${base}"
-            echo "Asset: ${dir}_${base}"
+            
           done
           ls -lh
 
