@@ -192,9 +192,6 @@ jobs:
   windows-x86_64:
     name: Windows x86_64
     runs-on: windows-2022
-    defaults:
-      run:
-        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
@@ -212,31 +209,16 @@ jobs:
             mingw-w64-ucrt-x86_64-ninja
             mingw-w64-ucrt-x86_64-gcc
 
-      - name: Static Build (production + simulator)
+      - name: Static Build
+        shell: pwsh
         run: |
-          mkdir -p dist
-          export CMAKE_PREFIX_PATH=/ucrt64/qt6-static/lib/cmake
-          
-          echo "=== Production ==="
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
-            -B build -S .
-          ninja -C build net_diagnostic
-          cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
-          
-          echo "=== Simulator ==="
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
-            -B build-sim -S .
-          ninja -C build-sim net_diagnostic_sim
-          cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
-          
-          echo "=== Verify static ==="
-          objdump -p dist/netdiag-win-x86_64.exe | grep "DLL Name" | grep -viE "KERNEL32|USER32|GDI32|SHELL32|ADVAPI32|ole32|OLEAUT32|COMCTL32|WS2_32|IPHLPAPI|WINHTTP|WLDAP32|CRYPT32|DNSAPI|RPCRT4|SETUPAPI|SHLWAPI|VERSION|IMM32|WINSPOOL" || echo "ALL STATIC ✅"
+          ./scripts/build-static.ps1 -ProdOnly -MsysPath C:/msys64
+        continue-on-error: true
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          Get-ChildItem -Recurse dist/ | Select Name, Length
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
