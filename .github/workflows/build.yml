@@ -224,7 +224,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DCMAKE_PREFIX_PATH=/ucrt64 \
+            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
             -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
             -B build -S .
           ninja -C build net_diagnostic
@@ -241,7 +241,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DCMAKE_PREFIX_PATH=/ucrt64 \
+            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
             -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
@@ -573,7 +573,7 @@ jobs:
       - android-x86_64
       - android-arm64
       - ios
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && !failure() && !cancelled()
     runs-on: ubuntu-latest
     permissions:
       contents: write
