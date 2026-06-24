@@ -12,6 +12,9 @@
 #include <QStandardPaths>
 #include <QLockFile>
 #include <csignal>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #ifndef NO_CURL
 #include <curl/curl.h>
 #endif
