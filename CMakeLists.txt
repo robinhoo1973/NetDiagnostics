@@ -73,6 +73,9 @@ endif()
 # Windows: embed .ico into the executable
 if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
+    set_source_files_properties(resources/netanalysis.rc PROPERTIES
+        COMPILE_FLAGS "/I\"${CMAKE_SOURCE_DIR}/resources\""
+    )
 endif()
 
 set(QML_RESOURCES

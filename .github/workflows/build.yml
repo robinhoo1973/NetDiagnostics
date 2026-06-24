@@ -63,7 +63,7 @@ jobs:
           chmod +x linuxdeployqt-continuous-x86_64.AppImage
           mkdir -p AppDir/usr/bin
           cp build/net_diagnostic AppDir/usr/bin/
-          cp resources/netanalysis.png AppDir/ || true
+          cp resources/icons/netanalysis.png AppDir/ || true
           ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/bin/net_diagnostic -appimage -no-copy-copyright-files -no-translations || true
           mv *.AppImage NetDiagnostic-Linux-x86_64.AppImage 2>/dev/null || true
         continue-on-error: true
@@ -223,8 +223,11 @@ jobs:
           mkdir -p dist
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
+            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a \
+            -DCURL_INCLUDE_DIR=/ucrt64/include \
+            -DOpenSSL_DIR=/ucrt64/lib/cmake/OpenSSL \
             -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
             -B build -S .
           ninja -C build net_diagnostic
@@ -235,13 +238,17 @@ jobs:
           echo "=== DLL dependencies ==="
           objdump -p dist/netdiag-win-x86_64.exe 2>/dev/null | grep "DLL Name" || echo "(static ✅)"
 
-      - name: Build Simulator (static)
+      - name: Build Simulator
+FIXME (static)
         shell: msys2 {0}
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
+            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a \
+            -DCURL_INCLUDE_DIR=/ucrt64/include \
+            -DOpenSSL_DIR=/ucrt64/lib/cmake/OpenSSL \
             -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
@@ -582,20 +589,24 @@ jobs:
         with:
           path: artifacts
 
-      - name: Package artifacts
+      - name: Collect individual assets
         run: |
           cd artifacts
-          for dir in NetDiagnostic-*; do
-            if [ -d "$dir" ]; then
-              tar -cJf "${dir}.tar.xz" "$dir"
-            fi
+          # Flatten all files from subdirectories into a flat list
+          find . -type f ! -name "*.tar.xz" | while read f; do
+            base=$(basename "$f")
+            # Rename with platform prefix for uniqueness
+            dir=$(dirname "$f" | sed 's|^\./||' | sed 's|/|_|g')
+            cp "$f" "${dir}_${base}"
+            echo "Asset: ${dir}_${base}"
           done
-          ls -lh *.tar.xz
+          ls -lh
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: artifacts/*.tar.xz
+          files: |
+            artifacts/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
