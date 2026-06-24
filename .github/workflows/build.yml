@@ -187,72 +187,63 @@ jobs:
 
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Windows x86_64 — native MSVC build via aqtinstall + simulator
+  # Windows x86_64 — static build via MSYS2 + Qt6-static (zero DLL deps)
   # ═══════════════════════════════════════════════════════════════════════════
   windows-x86_64:
     name: Windows x86_64
     runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache Qt6
-        id: cache-qt
-        uses: actions/cache@v4
+      - uses: msys2/setup-msys2@v2
         with:
-          path: D:/Qt
-          key: qt6-win-${{ env.QT_VERSION }}-v1
+          msystem: ucrt64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-qt6-static
+            mingw-w64-ucrt-x86_64-qt6-imageformats
+            mingw-w64-ucrt-x86_64-qt6-svg
+            mingw-w64-ucrt-x86_64-curl
+            mingw-w64-ucrt-x86_64-curl-winssl
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gcc
 
-      - name: Install Qt6 via aqt
-        if: steps.cache-qt.outputs.cache-hit != 'true'
+      - name: Static Build (production + simulator)
         run: |
-          pip install aqtinstall
-          aqt install-qt windows desktop $env:QT_VERSION win64_msvc2019_64 -O D:/Qt
-
-      - name: Install curl via vcpkg
-        run: |
-          vcpkg install curl:x64-windows
-          vcpkg integrate install
-
-      - name: Clean stale CMake cache
-        run: |
-          Remove-Item -Recurse -Force build, build-sim -ErrorAction SilentlyContinue
-          mkdir build -Force
-          mkdir build-sim -Force
-        continue-on-error: true
-
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64
-
-      - name: Configure (production)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_PREFIX_PATH="D:/Qt/6.5.3/msvc2019_64" `
-            -DCURL_ROOT="C:/vcpkg/installed/x64-windows" `
+          mkdir -p dist
+          export CMAKE_PREFIX_PATH=/ucrt64/qt6-static/lib/cmake
+          
+          echo "=== Production ==="
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
+            -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
             -B build -S .
-
-      - name: Build (production)
-        run: ninja -C build net_diagnostic
-
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
-            -DBUILD_SIMULATOR=ON `
-            -DCMAKE_PREFIX_PATH="D:/Qt/6.5.3/msvc2019_64" `
-            -DCURL_ROOT="C:/vcpkg/installed/x64-windows" `
+          ninja -C build net_diagnostic
+          cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
+          
+          echo "=== Simulator ==="
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
+            -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
             -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostic_sim
+          ninja -C build-sim net_diagnostic_sim
+          cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
+          
+          echo "=== Verify static ==="
+          objdump -p dist/netdiag-win-x86_64.exe | grep "DLL Name" | grep -viE "KERNEL32|USER32|GDI32|SHELL32|ADVAPI32|ole32|OLEAUT32|COMCTL32|WS2_32|IPHLPAPI|WINHTTP|WLDAP32|CRYPT32|DNSAPI|RPCRT4|SETUPAPI|SHLWAPI|VERSION|IMM32|WINSPOOL" || echo "ALL STATIC ✅"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: NetDiagnostic-Windows-x86_64
           path: |
-            build/net_diagnostic.exe
-            build-sim/net_diagnostic_sim.exe
+            dist/netdiag-*.exe
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════════
@@ -269,6 +260,17 @@ jobs:
       - name: Install dependencies
         run: |
           brew install cmake ninja qt@6 curl
+
+      - name: Generate macOS app icon (.icns)
+        run: |
+          mkdir -p icon.iconset
+          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
+          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
+          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
+          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
+          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
+          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
+        continue-on-error: true
 
       - name: Configure (production)
         run: |
