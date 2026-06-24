@@ -43,3 +43,7 @@ xa-tmp*/
 
 # Certificates — entire directory excluded (private keys, certs, CSR)
 resources/cert/
+
+# Block WSL/Windows path separator artifacts (backslash paths)
+scripts\\build-static.ps1
+.\scripts\build-static.ps1
