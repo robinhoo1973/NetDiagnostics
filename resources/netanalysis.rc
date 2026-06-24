@@ -3,4 +3,4 @@
 
 #include <winresrc.h>
 
-IDI_ICON1               ICON    "netanalysis.ico"
+IDI_ICON1               ICON    "icons/netanalysis.ico"
