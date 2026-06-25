@@ -243,6 +243,11 @@ jobs:
             -DBUILD_qtwebengine=OFF -DBUILD_qttools=OFF \
             -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF \
             -DBUILD_qtdoc=OFF -DBUILD_qtquick3d=OFF \
+            -DBUILD_qtquick3dphysics=OFF \
+            -DBUILD_qtgraphs=OFF \
+            -DBUILD_qtlanguageserver=OFF \
+            -DBUILD_qthttpserver=OFF \
+            -DBUILD_qtgrpc=OFF \
             -DBUILD_qtcanvaspainter=OFF \
             -DBUILD_qtshadertools=OFF -DBUILD_qtserialport=OFF \
             -DBUILD_qtwebsockets=OFF -DBUILD_qtwebchannel=OFF \
