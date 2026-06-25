@@ -254,6 +254,7 @@ jobs:
           name: NetDiagnostic-Windows-x86_64
           path: |
             dist/netdiag-*.exe
+            dist/*.dll
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════════
