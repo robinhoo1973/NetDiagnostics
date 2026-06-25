@@ -265,6 +265,7 @@ jobs:
           echo ">>> Building qtbase + qtdeclarative + qtsvg..."
           ninja -C build qtbase qtdeclarative qtsvg
           echo ">>> Installing..."
+          echo ">>> DEBUG: cmake tree structure:" && find build/lib/cmake -type f -name "*.cmake" 2>/dev/null | head -20 || echo "(empty)"
           mkdir -p /c/opt/qt6-static-source/install/{lib,bin,include,share,plugins}
           cp -a build/lib/cmake/. /c/opt/qt6-static-source/install/lib/cmake/ 2>/dev/null || true
           cp -r build/plugins /c/opt/qt6-static-source/install/ 2>/dev/null || true
