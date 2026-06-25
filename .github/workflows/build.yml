@@ -266,7 +266,7 @@ jobs:
           ninja -C build qtbase qtdeclarative qtsvg
           echo ">>> Installing..."
           mkdir -p /c/opt/qt6-static-source/install/{lib,bin,include,share,plugins}
-          find build -path "*/lib/cmake" -type d | while read d; do cp -r "$d"/* /c/opt/qt6-static-source/install/lib/cmake/ 2>/dev/null; done || true
+          cp -a build/lib/cmake/. /c/opt/qt6-static-source/install/lib/cmake/ 2>/dev/null || true
           cp -r build/plugins /c/opt/qt6-static-source/install/ 2>/dev/null || true
           for mod in qtbase qtdeclarative qtsvg; do
             cp -r build/$mod/lib/*.a /c/opt/qt6-static-source/install/lib/ 2>/dev/null || true
