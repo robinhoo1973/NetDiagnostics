@@ -265,19 +265,7 @@ jobs:
           echo ">>> Building qtbase + qtdeclarative + qtsvg..."
           ninja -C build qtbase qtdeclarative qtsvg
           echo ">>> Installing..."
-          echo ">>> DEBUG: cmake tree structure:" && find build/lib/cmake -type f -name "*.cmake" 2>/dev/null | head -20 || echo "(empty)"
-          mkdir -p /c/opt/qt6-static-source/install/{lib,bin,include,share,plugins}
-          cp -a build/lib/cmake/. /c/opt/qt6-static-source/install/lib/cmake/ 2>/dev/null || true
-          cp -r build/plugins /c/opt/qt6-static-source/install/ 2>/dev/null || true
-          for mod in qtbase qtdeclarative qtsvg; do
-            cp -a build/$mod/lib/cmake/. /c/opt/qt6-static-source/install/lib/cmake/ 2>/dev/null || true
-            cp -r build/$mod/lib/*.a /c/opt/qt6-static-source/install/lib/ 2>/dev/null || true
-            cp -r build/$mod/bin/* /c/opt/qt6-static-source/install/bin/ 2>/dev/null || true
-            cp -r build/$mod/include/* /c/opt/qt6-static-source/install/include/ 2>/dev/null || true
-          done
-          echo ">>> Verifying install..."
-          test -f /c/opt/qt6-static-source/install/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake || { echo "ERROR: Qt6Quick cmake missing!"; exit 1; }
-          test -f /c/opt/qt6-static-source/install/lib/cmake/Qt6/Qt6Config.cmake || { echo "ERROR: Qt6 cmake missing!"; exit 1; }
+          cmake --install build --prefix /c/opt/qt6-static-source/install
           echo ">>> Qt static build complete."
 
       - name: Build Production (static)
