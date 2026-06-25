@@ -258,10 +258,7 @@ jobs:
           echo ">>> Building qtbase + qtdeclarative + qtsvg (this takes ~60-90 min)..."
           ninja -C build qtbase qtdeclarative qtsvg
           echo ">>> Installing to /c/opt/qt6-static-source/install..."
-          mkdir -p /c/opt/qt6-static-source/install
-          cp -r build/qtbase/lib build/qtbase/include build/qtbase/bin /c/opt/qt6-static-source/install/ 2>/dev/null || true
-          cp -r build/qtdeclarative/lib build/qtdeclarative/include /c/opt/qt6-static-source/install/ 2>/dev/null || true
-          cp -r build/qtsvg/lib build/qtsvg/include /c/opt/qt6-static-source/install/ 2>/dev/null || true
+          cmake --install build --prefix /c/opt/qt6-static-source/install || true
           echo ">>> Qt static build complete."
 
       - name: Build Production (static)
