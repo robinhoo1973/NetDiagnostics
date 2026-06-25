@@ -14,7 +14,7 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  QT_VERSION: 6.12.0
+  QT_VERSION: 6.11.1
   QT_VERSION_ANDROID: 6.5.3
 
 jobs:
@@ -188,7 +188,7 @@ jobs:
 
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # Windows x86_64 — static build via MSYS2 Qt6-static (zero DLL deps)
+  # Windows x86_64 — static build via source-compiled Qt 6.11.1 (zero DLL)
   # ═══════════════════════════════════════════════════════════════════════════
   windows-x86_64:
     name: Windows x86_64
@@ -201,20 +201,62 @@ jobs:
           msystem: ucrt64
           update: true
           install: >-
-            mingw-w64-ucrt-x86_64-qt6-static
-            mingw-w64-ucrt-x86_64-qt6-imageformats
-            mingw-w64-ucrt-x86_64-qt6-svg
-            mingw-w64-ucrt-x86_64-curl
-            mingw-w64-ucrt-x86_64-curl-winssl
+            mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-perl
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-pkg-config
+            mingw-w64-ucrt-x86_64-openssl
+
+      - name: Cache source-built Qt 6.11.1 static
+        id: cache-qt6-source
+        uses: actions/cache@v4
+        with:
+          path: C:\opt\qt6-static-source
+          key: qt6-source-mingw-ucrt-6.11.1-v1
+
+      - name: Build Qt 6.11.1 static from source
+        if: steps.cache-qt6-source.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          curl -fsSL https://download.qt.io/official_releases/qt/6.11/6.11.1/single/qt-everywhere-src-6.11.1.tar.xz -o /tmp/qt-src.tar.xz
+          mkdir -p /c/opt/qt6-static-source
+          tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-static-source --strip-components=1
+          rm /tmp/qt-src.tar.xz
+          cd /c/opt/qt6-static-source
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-static-source/install \
+            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
+            -DFEATURE_static=ON -DFEATURE_shared=OFF \
+            -DFEATURE_static_runtime=ON \
+            -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
+            -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+            -DBUILD_qtwebengine=OFF -DBUILD_qttools=OFF \
+            -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF \
+            -DBUILD_qtdoc=OFF -DBUILD_qtquick3d=OFF \
+            -DBUILD_qtshadertools=OFF -DBUILD_qtserialport=OFF \
+            -DBUILD_qtwebsockets=OFF -DBUILD_qtwebchannel=OFF \
+            -DBUILD_qtcharts=OFF -DBUILD_qtlocation=OFF \
+            -DBUILD_qtmultimedia=OFF -DBUILD_qtsensors=OFF \
+            -DBUILD_qtspeech=OFF -DBUILD_qtvirtualkeyboard=OFF
+          ninja -C build qtbase qtdeclarative qtsvg
+          cmake --install build --prefix /c/opt/qt6-static-source/install
 
       - name: Build Production (static)
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DNO_CURL=ON             -DNO_CURL=ON -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
+            -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install \
+            -DNO_CURL=ON \
+            -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
+            -B build -S .
           ninja -C build net_diagnostic
           strip build/net_diagnostic.exe
           cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
@@ -222,30 +264,16 @@ jobs:
       - name: Build Simulator (static)
         shell: msys2 {0}
         run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DNO_CURL=ON -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
+            -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install \
+            -DNO_CURL=ON \
+            -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF \
+            -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
-
-      - name: Collect required DLLs
-        shell: msys2 {0}
-        run: |
-          # Copy MSYS2 runtime DLLs that qt6-static depends on
-          for dll in libfreetype-6.dll libb2-1.dll libbrotlidec.dll libbrotlicommon.dll \
-                     libcrypto-3-x64.dll libssl-3-x64.dll libpng16-16.dll \
-                     libharfbuzz-0.dll libgraphite2.dll libglib-2.0-0.dll \
-                     libpcre2-8-0.dll libintl-8.dll libiconv-2.dll \
-                     libzstd.dll libbz2-1.dll libpixman-1-0.dll \
-                     zlib1.dll; do
-            src=$(find /ucrt64/bin -name "$dll" 2>/dev/null | head -1)
-            if [ -n "$src" ]; then
-              cp "$src" dist/
-              echo "  + $dll"
-            fi
-          done
-          echo "DLLs collected:"
-          ls -la dist/*.dll 2>/dev/null || echo "(none)"
-        continue-on-error: true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -254,400 +282,3 @@ jobs:
           path: |
             dist/netdiag-*.exe
           if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # macOS x86_64 — native Apple Clang + simulator
-  # ═══════════════════════════════════════════════════════════════════════════
-  # macOS arm64 — native Apple Clang + simulator
-  # ═══════════════════════════════════════════════════════════════════════════
-  macos-arm64:
-    name: macOS arm64
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install cmake ninja qt@6 curl
-
-      - name: Generate macOS app icon (.icns)
-        run: |
-          mkdir -p icon.iconset
-          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
-          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
-          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
-          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
-          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
-          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
-        continue-on-error: true
-
-      - name: Configure (production)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build -S .
-
-      - name: Build (production)
-        run: ninja -C build net_diagnostic
-
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostic_sim
-
-      - name: Package DMG (production)
-        run: |
-          if [ -d build/net_diagnostic.app ]; then
-            echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
-            ls -lh NetDiagnostic-macOS-arm64.dmg
-          else
-            echo "No .app bundle found; falling back to binary packaging"
-            mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
-            cp build/net_diagnostic pkg/NetDiagnostic.app/Contents/MacOS/
-            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg || true
-          fi
-        continue-on-error: true
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostic-macOS-arm64
-          path: |
-            build/net_diagnostic
-            build/net_diagnostic.app
-            build-sim/net_diagnostic_sim
-            *.dmg
-          if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Android x86_64 — cross-compile via aqtinstall + NDK
-  # ═══════════════════════════════════════════════════════════════════════════
-  android-x86_64:
-    name: Android x86_64
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Qt6 desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-desktop
-          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          pip install aqtinstall
-          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
-
-      - name: Cache Qt6 Android x86_64
-        id: cache-qt-android
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-android-x86_64
-          key: qt6-android-x86_64-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 for Android via aqt
-        if: steps.cache-qt-android.outputs.cache-hit != 'true'
-        run: |
-          pip install aqtinstall
-          aqt install-qt linux android $QT_VERSION_ANDROID android_x86_64 -O /opt/qt-android-x86_64
-
-      - name: Configure
-        run: |
-          echo "[Android x86_64] Configuring..."
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
-            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
-            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
-            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
-            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=x86_64 \
-            -DANDROID_PLATFORM=android-26 \
-            -B build -S .
-
-      - name: Build
-        run: |
-          ninja -C build net_diagnostic
-
-      - name: Package APK
-        continue-on-error: true
-        run: |
-          QT_ANDROID="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64"
-          DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
-          if [ -f "$DEPLOY_JSON" ]; then
-            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
-          else
-            mkdir -p build/android-build/libs/x86_64
-            cp build/libnet_diagnostic_x86_64.so build/android-build/libs/x86_64/libnet_diagnostic.so
-            cp resources/android/AndroidManifest.xml build/android-build/
-            (cd build/android-build \&\& zip -r ../../NetDiagnostic-Android-x86_64.apk .)
-          fi
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostic-Android-x86_64
-          path: |
-            build/libnet_diagnostic_x86_64.so
-            build/*.apk
-          if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Android arm64 — cross-compile via aqtinstall + NDK
-  # ═══════════════════════════════════════════════════════════════════════════
-  android-arm64:
-    name: Android arm64
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Qt6 desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-desktop
-          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          pip install aqtinstall
-          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
-
-      - name: Cache Qt6 Android arm64
-        id: cache-qt-android
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-android-arm64
-          key: qt6-android-arm64-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 for Android via aqt
-        if: steps.cache-qt-android.outputs.cache-hit != 'true'
-        run: |
-          pip install aqtinstall
-          aqt install-qt linux android $QT_VERSION_ANDROID android_arm64_v8a -O /opt/qt-android-arm64
-
-      - name: Configure
-        run: |
-          echo "[Android arm64] Configuring..."
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_PREFIX_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
-            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
-            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
-            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
-            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-26 \
-            -B build -S .
-
-      - name: Build
-        run: |
-          ninja -C build net_diagnostic
-
-      - name: Package APK
-        continue-on-error: true
-        run: |
-          QT_ANDROID="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a"
-          DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
-          if [ -f "$DEPLOY_JSON" ]; then
-            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose
-          else
-            mkdir -p build/android-build/libs/arm64-v8a
-            cp build/libnet_diagnostic_arm64-v8a.so build/android-build/libs/arm64-v8a/libnet_diagnostic.so
-            cp resources/android/AndroidManifest.xml build/android-build/
-            (cd build/android-build \&\& zip -r ../../NetDiagnostic-Android-arm64.apk .)
-          fi
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostic-Android-arm64
-          path: |
-            build/libnet_diagnostic_arm64-v8a.so
-            build/*.apk
-          if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # iOS — native build via aqtinstall + Xcode, production only
-  # ═══════════════════════════════════════════════════════════════════════════
-  ios:
-    name: iOS
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Select Xcode
-        run: |
-          sudo xcode-select --reset
-          echo "SDK path: $(xcrun --sdk iphoneos --show-sdk-path)"
-
-      - name: Install dependencies
-        run: |
-          brew install ninja
-          pip3 install --break-system-packages cmake==3.29.6
-
-      - name: Cache Qt6 macOS desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: ~/qt-desktop
-          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac desktop $QT_VERSION clang_64 -O ~/qt-desktop
-
-      - name: Cache Qt6 iOS
-        id: cache-qt-ios
-        uses: actions/cache@v4
-        with:
-          path: ~/qt-ios
-          key: qt6-ios-${{ env.QT_VERSION }}-v3
-
-      - name: Install Qt6 for iOS via aqt
-        if: steps.cache-qt-ios.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -O ~/qt-ios
-
-      - name: Configure
-        run: |
-          export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/macos"
-          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          "$HOME/qt-ios/$QT_VERSION/ios/bin/qt-cmake" \
-            -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_OSX_ARCHITECTURES="arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
-            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -DCURL_INCLUDE_DIR="$SDKROOT/usr/include" \
-            -B build -S .
-
-      - name: Build
-        run: ninja -v -C build net_diagnostic
-
-      - name: Verify bundle
-        run: |
-          if [ -d build/net_diagnostic.app ]; then
-            echo "✅ .app bundle generated"
-            ls -la build/net_diagnostic.app/
-          else
-            echo "❌ No .app bundle"
-            exit 1
-          fi
-
-      - name: Package IPA
-        run: |
-          mkdir -p Payload
-          cp -R build/net_diagnostic.app Payload/
-          zip -r NetDiagnostic-iOS.ipa Payload
-          ls -lh NetDiagnostic-iOS.ipa
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostic-iOS
-          path: |
-            build/net_diagnostic.app
-            NetDiagnostic-iOS.ipa
-          if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════════
-  # Release — create GitHub Release on tag push
-  # ═══════════════════════════════════════════════════════════════════════════
-  release:
-    name: Create Release
-    needs:
-      - linux-x86_64
-      - linux-arm64
-      - windows-x86_64
-      - macos-arm64
-      - android-x86_64
-      - android-arm64
-      - ios
-    if: startsWith(github.ref, 'refs/tags/') && !failure() && !cancelled()
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Collect individual assets
-        run: |
-          cd artifacts
-          find . -type f ! -name "*.tar.xz" | while read f; do
-            base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
-            dir=$(dirname "$f" | tr '[:upper:]' '[:lower:]')
-            case "$dir" in
-              *windows*)   os="windows"; arch="x86_64" ;;
-              *linux*86*)  os="linux";   arch="x86_64" ;;
-              *linux*arm*) os="linux";   arch="arm64" ;;
-              *macos*)     os="macos";   arch="arm64" ;;
-              *android*x86*)  os="android"; arch="x86_64" ;;
-              *android*arm*)  os="android"; arch="arm64" ;;
-              *ios*)       os="ios";     arch="arm64" ;;
-              *)           os="unknown"; arch="unknown" ;;
-            esac
-            ext="${base##*.}"
-            case "$base" in
-              *sim*)       name="netdiagnostic-${os}-${arch}-sim.${ext}" ;;
-              *.appimage)  name="netdiagnostic-${os}-${arch}.AppImage" ;;
-              *.deb)       name="netdiagnostic-${os}-${arch}.deb" ;;
-              *.rpm)       name="netdiagnostic-${os}-${arch}.rpm" ;;
-              *.dmg)       name="netdiagnostic-${os}-${arch}.dmg" ;;
-              *.ipa)       name="netdiagnostic-${os}-${arch}.ipa" ;;
-              *.apk)       name="netdiagnostic-${os}-${arch}.apk" ;;
-              *.so)        name="netdiagnostic-${os}-${arch}.so" ;;
-              *.exe)       name="netdiagnostic-${os}-${arch}.exe" ;;
-              *)           name="$base" ;;
-            esac
-            cp "$f" "$name"
-            echo "Asset: $name"
-          done
-          ls -lh
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            artifacts/*
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
