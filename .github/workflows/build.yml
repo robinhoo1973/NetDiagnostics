@@ -202,20 +202,76 @@ jobs:
           msystem: ucrt64
           update: true
           install: >-
-            mingw-w64-ucrt-x86_64-qt6-static
-            mingw-w64-ucrt-x86_64-qt6-imageformats
-            mingw-w64-ucrt-x86_64-qt6-svg
-            mingw-w64-ucrt-x86_64-curl
-            mingw-w64-ucrt-x86_64-curl-winssl
+            mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-cmake
             mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-perl
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-pkg-config
+            mingw-w64-ucrt-x86_64-openssl
+
+      - name: Cache source-built Qt
+        id: cache-qt6-source
+        uses: actions/cache@v4
+        with:
+          path: C:\opt\qt6-static-source
+          key: qt6-source-mingw-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v3
+
+      - name: Build Qt from source
+        if: steps.cache-qt6-source.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          QT_VER="${{ env.QT_VERSION_WINDOWS_SRC }}"
+          QT_MAJMIN="${QT_VER%.*}"
+          echo ">>> Downloading Qt ${QT_VER} source..."
+          curl -fsSL "https://download.qt.io/official_releases/qt/${QT_MAJMIN}/${QT_VER}/single/qt-everywhere-src-${QT_VER}.tar.xz" -o /tmp/qt-src.tar.xz
+          echo ">>> Extracting..."
+          mkdir -p /c/opt/qt6-static-source
+          tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-static-source --strip-components=1
+          rm /tmp/qt-src.tar.xz
+          echo ">>> Configuring..."
+          cd /c/opt/qt6-static-source
+          cmake -G Ninja -B build -S . \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-static-source/install \
+            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
+            -DFEATURE_static=ON -DFEATURE_shared=OFF \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
+            -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+            -DBUILD_qttools=OFF -DBUILD_qtwebengine=OFF \
+            -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF \
+            -DBUILD_qt5compat=OFF -DBUILD_qt3d=OFF \
+            -DBUILD_qtcanvaspainter=OFF -DBUILD_qtcharts=OFF \
+            -DBUILD_qtcoap=OFF -DBUILD_qtconnectivity=OFF \
+            -DBUILD_qtdatavis3d=OFF -DBUILD_qtdoc=OFF \
+            -DBUILD_qtgraphs=OFF -DBUILD_qtgrpc=OFF \
+            -DBUILD_qthttpserver=OFF -DBUILD_qtimageformats=OFF \
+            -DBUILD_qtlanguageserver=OFF -DBUILD_qtlocation=OFF \
+            -DBUILD_qtlottie=OFF -DBUILD_qtmultimedia=OFF \
+            -DBUILD_qtnetworkauth=OFF -DBUILD_qtopcua=OFF \
+            -DBUILD_qtpositioning=OFF -DBUILD_qtquick3d=OFF \
+            -DBUILD_qtquick3dphysics=OFF -DBUILD_qtquickeffectmaker=OFF \
+            -DBUILD_qtquicktimeline=OFF -DBUILD_qtremoteobjects=OFF \
+            -DBUILD_qtscxml=OFF -DBUILD_qtsensors=OFF \
+            -DBUILD_qtserialbus=OFF -DBUILD_qtserialport=OFF \
+            -DBUILD_qtshadertools=OFF -DBUILD_qtspeech=OFF \
+            -DBUILD_qtvirtualkeyboard=OFF -DBUILD_qtwayland=OFF \
+            -DBUILD_qtwebchannel=OFF -DBUILD_qtwebsockets=OFF \
+            -DBUILD_qtwebview=OFF
+          echo ">>> Building qtbase + qtdeclarative + qtsvg..."
+          ninja -C build qtbase qtdeclarative qtsvg
+          echo ">>> Installing..."
+          cmake --install build --prefix /c/opt/qt6-static-source/install
+          echo ">>> Qt static build complete."
 
       - name: Build Production (static)
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DNO_CURL=ON             -DNO_CURL=ON -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install             -DNO_CURL=ON             -DNO_CURL=ON -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
           ninja -C build net_diagnostic
           strip build/net_diagnostic.exe
           cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
@@ -223,30 +279,11 @@ jobs:
       - name: Build Simulator (static)
         shell: msys2 {0}
         run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static             -DNO_CURL=ON -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install             -DNO_CURL=ON -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
 
-      - name: Collect required DLLs
-        shell: msys2 {0}
-        run: |
-          # Copy MSYS2 runtime DLLs that qt6-static depends on
-          for dll in libfreetype-6.dll libb2-1.dll libbrotlidec.dll libbrotlicommon.dll \
-                     libcrypto-3-x64.dll libssl-3-x64.dll libpng16-16.dll \
-                     libharfbuzz-0.dll libgraphite2.dll libglib-2.0-0.dll \
-                     libpcre2-8-0.dll libintl-8.dll libiconv-2.dll \
-                     libzstd.dll libbz2-1.dll libpixman-1-0.dll \
-                     zlib1.dll; do
-            src=$(find /ucrt64/bin -name "$dll" 2>/dev/null | head -1)
-            if [ -n "$src" ]; then
-              cp "$src" dist/
-              echo "  + $dll"
-            fi
-          done
-          echo "DLLs collected:"
-          ls -la dist/*.dll 2>/dev/null || echo "(none)"
-        continue-on-error: true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -254,7 +291,6 @@ jobs:
           name: NetDiagnostic-Windows-x86_64
           path: |
             dist/netdiag-*.exe
-            dist/*.dll
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════════
