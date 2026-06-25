@@ -241,6 +241,7 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+            -DBUILD_qt3d=OFF \
             -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF -DBUILD_qt5compat=OFF \
             -DBUILD_qtcanvaspainter=OFF -DBUILD_qtcharts=OFF -DBUILD_qtcoap=OFF \
             -DBUILD_qtconnectivity=OFF -DBUILD_qtdatavis3d=OFF -DBUILD_qtdoc=OFF \
