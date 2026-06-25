@@ -227,6 +227,26 @@ jobs:
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
 
+      - name: Collect required DLLs
+        shell: msys2 {0}
+        run: |
+          # Copy MSYS2 runtime DLLs that qt6-static depends on
+          for dll in libfreetype-6.dll libb2-1.dll libbrotlidec.dll libbrotlicommon.dll \
+                     libcrypto-3-x64.dll libssl-3-x64.dll libpng16-16.dll \
+                     libharfbuzz-0.dll libgraphite2.dll libglib-2.0-0.dll \
+                     libpcre2-8-0.dll libintl-8.dll libiconv-2.dll \
+                     libzstd.dll libbz2-1.dll libpixman-1-0.dll \
+                     zlib1.dll; do
+            src=$(find /ucrt64/bin -name "$dll" 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              cp "$src" dist/
+              echo "  + $dll"
+            fi
+          done
+          echo "DLLs collected:"
+          ls -la dist/*.dll 2>/dev/null || echo "(none)"
+        continue-on-error: true
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
