@@ -259,6 +259,7 @@ jobs:
             -DBUILD_qtscxml=OFF -DBUILD_qtsensors=OFF \
             -DBUILD_qtserialbus=OFF -DBUILD_qtserialport=OFF \
             -DBUILD_qtshadertools=OFF -DBUILD_qtspeech=OFF \
+            -DBUILD_qttasktree=OFF \
             -DBUILD_qtvirtualkeyboard=OFF -DBUILD_qtwayland=OFF \
             -DBUILD_qtwebchannel=OFF -DBUILD_qtwebsockets=OFF \
             -DBUILD_qtwebview=OFF
