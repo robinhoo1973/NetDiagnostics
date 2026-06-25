@@ -14,8 +14,9 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  QT_VERSION: 6.11.1
+  QT_VERSION: 6.12.0
   QT_VERSION_ANDROID: 6.5.3
+  QT_VERSION_WINDOWS_SRC: 6.11.1
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -209,19 +210,21 @@ jobs:
             mingw-w64-ucrt-x86_64-pkg-config
             mingw-w64-ucrt-x86_64-openssl
 
-      - name: Cache source-built Qt 6.11.1 static
+      - name: Cache source-built Qt ${{ env.QT_VERSION_WINDOWS_SRC }} static
         id: cache-qt6-source
         uses: actions/cache@v4
         with:
           path: C:\opt\qt6-static-source
-          key: qt6-source-mingw-ucrt-6.11.1-v1
+          key: qt6-source-mingw-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v1
 
-      - name: Build Qt 6.11.1 static from source
+      - name: Build Qt ${{ env.QT_VERSION_WINDOWS_SRC }} static from source
         if: steps.cache-qt6-source.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
           set -euxo pipefail
-          curl -fsSL https://download.qt.io/official_releases/qt/6.11/6.11.1/single/qt-everywhere-src-6.11.1.tar.xz -o /tmp/qt-src.tar.xz
+          QT_VER="${{ env.QT_VERSION_WINDOWS_SRC }}"
+          QT_MAJMIN="${QT_VER%.*}"
+          curl -fsSL "https://download.qt.io/official_releases/qt/${QT_MAJMIN}/${QT_VER}/single/qt-everywhere-src-${QT_VER}.tar.xz" -o /tmp/qt-src.tar.xz
           mkdir -p /c/opt/qt6-static-source
           tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-static-source --strip-components=1
           rm /tmp/qt-src.tar.xz
