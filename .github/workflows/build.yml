@@ -250,6 +250,7 @@ jobs:
             -DBUILD_qtgraphs=OFF -DBUILD_qtgrpc=OFF \
             -DBUILD_qthttpserver=OFF -DBUILD_qtimageformats=OFF \
             -DBUILD_qtlanguageserver=OFF -DBUILD_qtlocation=OFF \
+            -DBUILD_qtmqtt=OFF \
             -DBUILD_qtlottie=OFF -DBUILD_qtmultimedia=OFF \
             -DBUILD_qtnetworkauth=OFF -DBUILD_qtopcua=OFF \
             -DBUILD_qtpositioning=OFF -DBUILD_qtquick3d=OFF \
@@ -264,7 +265,17 @@ jobs:
           echo ">>> Building qtbase + qtdeclarative + qtsvg..."
           ninja -C build qtbase qtdeclarative qtsvg
           echo ">>> Installing..."
-          cmake --install build --prefix /c/opt/qt6-static-source/install
+          mkdir -p /c/opt/qt6-static-source/install/{lib,bin,include,share,plugins}
+          cp -r build/lib/cmake/* /c/opt/qt6-static-source/install/lib/cmake/ 2>/dev/null || true
+          cp -r build/plugins /c/opt/qt6-static-source/install/ 2>/dev/null || true
+          for mod in qtbase qtdeclarative qtsvg; do
+            cp -r build/$mod/lib/*.a /c/opt/qt6-static-source/install/lib/ 2>/dev/null || true
+            cp -r build/$mod/bin/* /c/opt/qt6-static-source/install/bin/ 2>/dev/null || true
+            cp -r build/$mod/include/* /c/opt/qt6-static-source/install/include/ 2>/dev/null || true
+          done
+          echo ">>> Verifying install..."
+          test -f /c/opt/qt6-static-source/install/lib/cmake/Qt6Quick/Qt6QuickConfig.cmake || { echo "ERROR: Qt6Quick cmake missing!"; exit 1; }
+          test -f /c/opt/qt6-static-source/install/lib/cmake/Qt6/Qt6Config.cmake || { echo "ERROR: Qt6 cmake missing!"; exit 1; }
           echo ">>> Qt static build complete."
 
       - name: Build Production (static)
