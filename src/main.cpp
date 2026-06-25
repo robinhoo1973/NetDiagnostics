@@ -43,7 +43,9 @@ int main(int argc, char *argv[])
     HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetAnalysis_SingleInstance");
     if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         if (hMutex) CloseHandle(hMutex);
+#ifndef NO_CURL
         curl_global_cleanup();
+#endif
         QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
             QStringLiteral("NetAnalysis is already running."));
         return 0;
@@ -55,7 +57,9 @@ int main(int argc, char *argv[])
         QLockFile lockFile(lockPath);
         lockFile.setStaleLockTime(5000);
         if (!lockFile.tryLock(100)) {
+#ifndef NO_CURL
                 curl_global_cleanup();
+#endif
                 QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
                         QStringLiteral("NetAnalysis is already running."));
                 return 0;
