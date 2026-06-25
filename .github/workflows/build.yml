@@ -238,12 +238,12 @@ jobs:
             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
             -DFEATURE_static=ON -DFEATURE_shared=OFF \
-            -DFEATURE_static_runtime=ON \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
             -DBUILD_qtwebengine=OFF -DBUILD_qttools=OFF \
             -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF \
             -DBUILD_qtdoc=OFF -DBUILD_qtquick3d=OFF \
+            -DBUILD_qtcanvaspainter=OFF \
             -DBUILD_qtshadertools=OFF -DBUILD_qtserialport=OFF \
             -DBUILD_qtwebsockets=OFF -DBUILD_qtwebchannel=OFF \
             -DBUILD_qtcharts=OFF -DBUILD_qtlocation=OFF \
