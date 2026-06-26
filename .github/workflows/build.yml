@@ -241,31 +241,8 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
-            -DBUILD_qttools=OFF -DBUILD_qtwebengine=OFF \
-            -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF \
-            -DBUILD_qt5compat=OFF -DBUILD_qt3d=OFF \
-            -DBUILD_qtdeclarative=OFF \
-            -DBUILD_qtcanvaspainter=OFF -DBUILD_qtcharts=OFF \
-            -DBUILD_qtcoap=OFF -DBUILD_qtconnectivity=OFF \
-            -DBUILD_qtdatavis3d=OFF -DBUILD_qtdoc=OFF \
-            -DBUILD_qtgraphs=OFF -DBUILD_qtgrpc=OFF \
-            -DBUILD_qthttpserver=OFF -DBUILD_qtimageformats=OFF \
-            -DBUILD_qtlanguageserver=OFF -DBUILD_qtlocation=OFF \
-            -DBUILD_qtmqtt=OFF \
-            -DBUILD_qtlottie=OFF -DBUILD_qtmultimedia=OFF \
-            -DBUILD_qtnetworkauth=OFF -DBUILD_qtopcua=OFF \
-            -DBUILD_qtpositioning=OFF -DBUILD_qtquick3d=OFF \
-            -DBUILD_qtquick3dphysics=OFF -DBUILD_qtquickeffectmaker=OFF \
-            -DBUILD_qtquicktimeline=OFF -DBUILD_qtremoteobjects=OFF \
-            -DBUILD_qtscxml=OFF -DBUILD_qtsensors=OFF \
-            -DBUILD_qtserialbus=OFF -DBUILD_qtserialport=OFF \
-            -DBUILD_qtshadertools=OFF -DBUILD_qtspeech=OFF \
-            -DBUILD_qttasktree=OFF \
-            -DBUILD_qtvirtualkeyboard=OFF -DBUILD_qtwayland=OFF \
-            -DBUILD_qtwebchannel=OFF -DBUILD_qtwebsockets=OFF \
-            -DBUILD_qtwebview=OFF
-          echo ">>> Building qtbase + qtsvg (Quick/QML included in qtbase)..."
-          ninja -C build qtbase qtsvg
+          echo ">>> Building ALL Qt modules (full build)..."
+          ninja -C build
           echo ">>> Installing..."
           cmake --install build --prefix /c/opt/qt6-static-source/install
           echo ">>> DEBUG: cmake tree after install:"
