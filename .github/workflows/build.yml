@@ -241,6 +241,7 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+            -DBUILD_qtwebengine=OFF \
           echo ">>> Building ALL Qt modules (full build)..."
           ninja -C build
           echo ">>> Installing..."
