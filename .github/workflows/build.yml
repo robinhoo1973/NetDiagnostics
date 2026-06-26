@@ -244,6 +244,7 @@ jobs:
             -DBUILD_qttools=OFF -DBUILD_qtwebengine=OFF \
             -DBUILD_qttranslations=OFF -DBUILD_qtactiveqt=OFF \
             -DBUILD_qt5compat=OFF -DBUILD_qt3d=OFF \
+            -DBUILD_qtdeclarative=OFF \
             -DBUILD_qtcanvaspainter=OFF -DBUILD_qtcharts=OFF \
             -DBUILD_qtcoap=OFF -DBUILD_qtconnectivity=OFF \
             -DBUILD_qtdatavis3d=OFF -DBUILD_qtdoc=OFF \
