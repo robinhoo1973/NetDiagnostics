@@ -240,10 +240,10 @@ jobs:
             -DFEATURE_static=ON -DFEATURE_shared=OFF \
             -DBUILD_SHARED_LIBS=OFF \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
+            -DFEATURE_system_brotli=OFF -DFEATURE_system_pcre2=OFF \
+            -DFEATURE_system_doubleconversion=OFF \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
             -DBUILD_qtwebengine=OFF \
-          echo ">>> Forcing static library discovery (.a only)..."
-          export CMAKE_FIND_LIBRARY_SUFFIXES=".a"
           echo ">>> Building ALL Qt modules (full build)..."
           ninja -C build
           echo ">>> Installing..."
@@ -255,7 +255,6 @@ jobs:
       - name: Build Production (static)
         shell: msys2 {0}
         run: |
-          export CMAKE_FIND_LIBRARY_SUFFIXES=".a"
           mkdir -p dist
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install             -DNO_CURL=ON             -DNO_CURL=ON -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
           ninja -C build net_diagnostic
@@ -265,7 +264,6 @@ jobs:
       - name: Build Simulator (static)
         shell: msys2 {0}
         run: |
-          export CMAKE_FIND_LIBRARY_SUFFIXES=".a"
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install             -DNO_CURL=ON -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
           strip build-sim/net_diagnostic_sim.exe
