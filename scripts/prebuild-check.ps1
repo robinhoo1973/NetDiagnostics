@@ -148,8 +148,10 @@ if ($content) {
     }
 
     # 4b. Check for cmake in pipeline (| tee) followed by critical commands
-    if ($content -match 'cmake.*\|\s*tee' -and -not ($content -match 'pipefail')) {
-        Write-Warn "cmake output piped to tee without pipefail — cmake errors may be silently ignored"
+    if ($content -match 'cmake.*\|\s*tee') {
+        if (-not ($content -match 'pipefail')) {
+            Write-Warn "cmake output piped to tee without pipefail — cmake errors may be silently ignored"
+        }
     }
 }
 
