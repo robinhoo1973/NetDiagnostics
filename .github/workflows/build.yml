@@ -209,13 +209,17 @@ jobs:
             mingw-w64-ucrt-x86_64-python
             mingw-w64-ucrt-x86_64-pkg-config
             mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-brotli
+            mingw-w64-ucrt-x86_64-pcre2
+            mingw-w64-ucrt-x86_64-libb2
 
       - name: Cache source-built Qt
         id: cache-qt6-source
         uses: actions/cache@v4
         with:
           path: C:\opt\qt6-static-source
-          key: qt6-source-mingw-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v3
+          key: qt6-source-mingw-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v4
 
       - name: Build Qt from source
         if: steps.cache-qt6-source.outputs.cache-hit != 'true'
@@ -237,9 +241,13 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-static-source/install \
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2" \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
+            -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
             -DFEATURE_static=ON -DFEATURE_shared=OFF \
             -DBUILD_SHARED_LIBS=OFF \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
+            -DFEATURE_system_zlib=OFF \
+            -DFEATURE_system_brotli=OFF \
+            -DFEATURE_system_pcre2=OFF \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
             -DBUILD_qtwebengine=OFF \
           echo ">>> Building ALL Qt modules (full build)..."
@@ -267,13 +275,56 @@ jobs:
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
 
+      - name: Check DLL dependencies and collect
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|api-ms-win|ext-ms-win"
+          UCRT_BIN=/ucrt64/bin
+          DLLS_COLLECTED=()
+
+          collect_dlls() {
+            local exe="$1"
+            echo "  Checking: $(basename "$exe")"
+            local needed
+            needed=$(objdump -p "$exe" 2>/dev/null | grep "DLL Name" | awk '{print $3}' | grep -viE "$SYSTEM_DLLS" || true)
+            for dll in $needed; do
+              dll=$(echo "$dll" | tr -d '\r')
+              if [ -n "$dll" ] && [ -f "$UCRT_BIN/$dll" ]; then
+                if echo "${DLLS_COLLECTED[@]}" | grep -q "$dll"; then
+                  continue
+                fi
+                echo "  [WARN] Non-system DLL: $dll — collecting"
+                cp "$UCRT_BIN/$dll" dist/
+                DLLS_COLLECTED+=("$dll")
+                # Recursively check collected DLLs
+                collect_dlls "dist/$dll"
+              fi
+            done
+          }
+
+          if [ -f dist/netdiag-win-x86_64.exe ]; then
+            collect_dlls dist/netdiag-win-x86_64.exe
+          fi
+          if [ -f dist/netdiag-sim-win-x86_64.exe ]; then
+            collect_dlls dist/netdiag-sim-win-x86_64.exe
+          fi
+
+          if [ ${#DLLS_COLLECTED[@]} -gt 0 ]; then
+            echo ""
+            echo "  === Collected ${#DLLS_COLLECTED[@]} non-system DLL(s) ==="
+            printf '    %s\n' "${DLLS_COLLECTED[@]}"
+            echo "  === WARNING: For a true zero-DLL build, see notes above ==="
+          else
+            echo "  [OK] No non-system DLLs needed — fully static linked"
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: NetDiagnostic-Windows-x86_64
           path: |
-            dist/netdiag-*.exe
+            dist/**
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════════

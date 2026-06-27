@@ -192,6 +192,7 @@ function Install-Msys2Packages {
     
     $packages = @(
         "mingw-w64-ucrt-x86_64-qt6-static",
+        "mingw-w64-ucrt-x86_64-qt6-declarative-static",
         "mingw-w64-ucrt-x86_64-qt6-imageformats",
         "mingw-w64-ucrt-x86_64-qt6-svg",
         "mingw-w64-ucrt-x86_64-curl-winssl",
@@ -199,7 +200,11 @@ function Install-Msys2Packages {
         "mingw-w64-ucrt-x86_64-ninja",
         "mingw-w64-ucrt-x86_64-gcc",
         "mingw-w64-ucrt-x86_64-openssl",
-        "mingw-w64-ucrt-x86_64-pkg-config"
+        "mingw-w64-ucrt-x86_64-pkg-config",
+        "mingw-w64-ucrt-x86_64-zlib",
+        "mingw-w64-ucrt-x86_64-brotli",
+        "mingw-w64-ucrt-x86_64-pcre2",
+        "mingw-w64-ucrt-x86_64-libb2"
     )
     
     $pacman_cmd = "pacman -S --noconfirm --needed " + ($packages -join " ")
@@ -213,7 +218,7 @@ function Install-Msys2Packages {
     
     # Step 1: Initialize pacman keyring and sync databases
     Write-Info "Initializing pacman (keyring + database sync)..."
-    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; sed -i '/^XferCommand/d' /etc/pacman.conf 2>/dev/null; pacman-key --init 2>&1; pacman-key --populate 2>&1; echo 'Server = https://mirrors.ustc.edu.cn/msys2/msys/`$arch' > /etc/pacman.d/mirrorlist.msys; echo 'Server = https://mirrors.ustc.edu.cn/msys2/mingw/ucrt64' > /etc/pacman.d/mirrorlist.ucrt64; echo 'Server = https://mirrors.ustc.edu.cn/msys2/mingw/mingw64' > /etc/pacman.d/mirrorlist.mingw64; pacman -Sy --noconfirm 2>&1"
+    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; sed -i '/^XferCommand/d' /etc/pacman.conf 2>/dev/null; echo 'XferCommand = /usr/bin/curl -kL -C - -f -o %o %u' >> /etc/pacman.conf; pacman-key --init 2>&1; pacman-key --populate 2>&1; echo 'Server = http://mirrors.ustc.edu.cn/msys2/msys/`$arch' > /etc/pacman.d/mirrorlist.msys; echo 'Server = http://mirrors.ustc.edu.cn/msys2/mingw/ucrt64' > /etc/pacman.d/mirrorlist.ucrt64; echo 'Server = http://mirrors.ustc.edu.cn/msys2/mingw/mingw64' > /etc/pacman.d/mirrorlist.mingw64; pacman -Sy --noconfirm 2>&1"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-init.log"
     & $bash -lc $init_cmd 2>&1 | Tee-Object -FilePath $tmpLog
     if ($LASTEXITCODE -ne 0) {
@@ -308,7 +313,8 @@ function Test-Dependencies {
     else {
         $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
         $candidates = @(
-            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6")
+            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6"),
+            (Join-Path $msys_env_dir "lib\cmake\Qt6")
         )
         $found = $false
         foreach ($c in $candidates) {
