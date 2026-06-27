@@ -246,7 +246,7 @@ function Install-Msys2Packages {
 function Invoke-Qt6SourceBuild {
     Write-Step "Qt6 Source Build (Zero-DLL)"
 
-    $Qt6CacheRoot = "C:\netdiag-qt6s"
+    $Qt6CacheRoot = "$env:LOCALAPPDATA\netdiag-qt6-static"
     $script:QT6_INSTALL_DIR = Join-Path $Qt6CacheRoot "install"
     $qtConfigCm = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6\Qt6Config.cmake"
 
@@ -317,19 +317,11 @@ cmake -G Ninja -B "$($qtBuildMsys)" -S . \
     -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
     -DFEATURE_static=ON -DFEATURE_shared=OFF \
     -DBUILD_SHARED_LIBS=OFF \
-    -DFEATURE_pch=ON -DFEATURE_icu=OFF -DFEATURE_dbus=OFF -DFEATURE_xcb=OFF \
-    -DFEATURE_system_tiff=OFF \
-    -DFEATURE_system_freetype=OFF \
-    -DFEATURE_system_jpeg=OFF \
-    -DFEATURE_system_png=OFF \
-    -DFEATURE_system_harfbuzz=OFF \
-    -DFEATURE_system_doubleconversion=OFF \
-    -DFEATURE_system_sqlite=OFF \
-    -DFEATURE_system_jasper=OFF \
+    -DFEATURE_pch=ON -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
     -DFEATURE_system_zlib=OFF \
     -DFEATURE_system_brotli=OFF \
     -DFEATURE_system_pcre2=OFF \
-    -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qtsvg;qttools" \
+    -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qttools" \
     -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
     2>&1 | tee "$($cmakeCacheMsys)"
 
