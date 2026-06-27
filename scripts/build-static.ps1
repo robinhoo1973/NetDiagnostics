@@ -215,7 +215,7 @@ function Install-Msys2Packages {
     Write-Info "Initializing pacman (keyring + database sync)..."
     $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; sed -i '/^XferCommand/d' /etc/pacman.conf 2>/dev/null; pacman-key --init 2>&1; pacman-key --populate 2>&1; echo 'Server = https://mirrors.ustc.edu.cn/msys2/msys/`$arch' > /etc/pacman.d/mirrorlist.msys; echo 'Server = https://mirrors.ustc.edu.cn/msys2/mingw/ucrt64' > /etc/pacman.d/mirrorlist.ucrt64; echo 'Server = https://mirrors.ustc.edu.cn/msys2/mingw/mingw64' > /etc/pacman.d/mirrorlist.mingw64; pacman -Sy --noconfirm 2>&1"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-init.log"
-    & $bash -lc $init_cmd > $tmpLog 2>&1
+    & $bash -lc $init_cmd 2>&1 | Tee-Object -FilePath $tmpLog
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "pacman init may have warnings (see: $tmpLog)"
     }
@@ -224,7 +224,7 @@ function Install-Msys2Packages {
     Write-Info "Installing packages..."
     $env_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; $pacman_cmd 2>&1"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-install.log"
-    & $bash -lc $env_cmd > $tmpLog 2>&1
+    & $bash -lc $env_cmd 2>&1 | Tee-Object -FilePath $tmpLog
     if ($LASTEXITCODE -ne 0) {
         Write-Warn "Some packages may have failed to install (see: $tmpLog)"
         Write-Warn "Try running manually: pacman -Syu && pacman -S <packages>"
