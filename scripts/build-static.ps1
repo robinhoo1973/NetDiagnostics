@@ -534,9 +534,9 @@ export CMAKE_PREFIX_PATH="`$QT6_CMAKE/../.."
 CMAKE_COMMON=(
     -G Ninja
     -DCMAKE_BUILD_TYPE=Release
-    -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -static -O2"
-    -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"
-    -DCMAKE_C_FLAGS="-static-libgcc -static -O2"
+    -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,-Bstatic -O2"
+    -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,-Bstatic -Wl,--gc-sections"
+    -DCMAKE_C_FLAGS="-static-libgcc -static -Wl,-Bstatic -O2"
     -DNO_CURL=ON
     -DBUILD_TESTS=OFF
 )
