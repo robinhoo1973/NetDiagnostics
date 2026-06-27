@@ -192,7 +192,6 @@ function Install-Msys2Packages {
     
     $packages = @(
         "mingw-w64-ucrt-x86_64-qt6-static",
-        "mingw-w64-ucrt-x86_64-qt6-declarative-static",
         "mingw-w64-ucrt-x86_64-qt6-imageformats",
         "mingw-w64-ucrt-x86_64-qt6-svg",
         "mingw-w64-ucrt-x86_64-curl-winssl",
@@ -309,8 +308,7 @@ function Test-Dependencies {
     else {
         $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
         $candidates = @(
-            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6"),
-            (Join-Path $msys_env_dir "lib\cmake\Qt6")
+            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6")
         )
         $found = $false
         foreach ($c in $candidates) {
