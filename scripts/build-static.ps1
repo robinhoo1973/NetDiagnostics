@@ -273,8 +273,8 @@ function Invoke-Qt6SourceBuild {
     $qtSrcMsys = ConvertTo-MsysPath $srcDir
     $qtBuildMsys = ConvertTo-MsysPath $buildDir
     $qtInstallMsys = ConvertTo-MsysPath $script:QT6_INSTALL_DIR
-    $cmakeCacheLog = Join-Path $TEMP_DIR "cmake-qt6.log"
-    $ninjaLogQt = Join-Path $TEMP_DIR "ninja-qt6.log"
+    $cmakeCacheMsys = ConvertTo-MsysPath (Join-Path $TEMP_DIR "cmake-qt6.log")
+    $ninjaLogQtMsys = ConvertTo-MsysPath (Join-Path $TEMP_DIR "ninja-qt6.log")
 
     $qt_bash_content = @"
 #!/usr/bin/env bash
@@ -289,6 +289,9 @@ QT_MAJMIN="`${QT_VER%.*}"
 echo "==========================================="
 echo "  Building Qt `$QT_VER from source (Zero-DLL)"
 echo "  Submodules: qtbase qtshadertools qtdeclarative qttools"
+echo "  Source dir: $($qtSrcMsys)"
+echo "  Build dir:  $($qtBuildMsys)"
+echo "  Install to: $($qtInstallMsys)"
 echo "==========================================="
 
 # --- Download source (if not cached) ---
@@ -320,10 +323,10 @@ cmake -G Ninja -B "$($qtBuildMsys)" -S . \
     -DFEATURE_system_pcre2=OFF \
     -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qttools" \
     -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
-    2>&1 | tee "$($cmakeCacheLog)"
+    2>&1 | tee "$($cmakeCacheMsys)"
 
 echo ">>> Building (4 submodules)..."
-cmake --build "$($qtBuildMsys)" --parallel 2>&1 | tee "$($ninjaLogQt)"
+cmake --build "$($qtBuildMsys)" --parallel 2>&1 | tee "$($ninjaLogQtMsys)"
 
 echo ">>> Installing..."
 cmake --install "$($qtBuildMsys)"
