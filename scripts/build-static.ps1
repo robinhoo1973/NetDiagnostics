@@ -434,7 +434,7 @@ BUILD=`$(cygpath -u "$($BUILD_DIR)")
 DIST=`$(cygpath -u "$($DIST_DIR)")
 TEMP_MSYS=`$(cygpath -u "$($TEMP_DIR)")
 QT6_CMAKE=`$(cygpath -u "$($script:QT6_STATIC_CMAKE)")
-export CMAKE_PREFIX_PATH="`$QT6_CMAKE/.."
+export CMAKE_PREFIX_PATH="`$QT6_CMAKE/../.."
 
 # Static link flags - core: fully static, zero non-OS DLLs
 # -static:              disable dynamic linking, use .a static libs only
@@ -467,13 +467,14 @@ if [ "$($script:PROD_FLAG)" = "ON" ]; then
         -DCMAKE_CXX_FLAGS="`${STATIC_FLAGS} -O2" \
         -DCMAKE_EXE_LINKER_FLAGS="`${LINK_FLAGS}" \
         -DCMAKE_C_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/.." \
+        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/../.." \
+        -DNO_CURL=ON \
         -DBUILD_SIMULATOR=OFF \
         -DBUILD_TESTS=OFF \
-        "`${PROJ}" > "`$DIST/cmake-prod.log" 2>&1
+        "`${PROJ}" 2>&1 | tee "`$DIST/cmake-prod.log"
 
     echo "  -> Ninja build..."
-    ninja net_diagnostic > "`$DIST/ninja-prod.log" 2>&1
+    ninja net_diagnostic 2>&1 | tee "`$DIST/ninja-prod.log"
 
     # Strip debug symbols to reduce size
     strip net_diagnostic$ext 2>/dev/null || true
@@ -495,13 +496,14 @@ if [ "$($script:SIM_FLAG)" = "ON" ]; then
         -DCMAKE_CXX_FLAGS="`${STATIC_FLAGS} -O2" \
         -DCMAKE_EXE_LINKER_FLAGS="`${LINK_FLAGS}" \
         -DCMAKE_C_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/.." \
+        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/../.." \
+        -DNO_CURL=ON \
         -DBUILD_SIMULATOR=ON \
         -DBUILD_TESTS=OFF \
-        "`${PROJ}" > "`$DIST/cmake-sim.log" 2>&1
+        "`${PROJ}" 2>&1 | tee "`$DIST/cmake-sim.log"
 
     echo "  -> Ninja build..."
-    ninja net_diagnostic_sim > "`$DIST/ninja-sim.log" 2>&1
+    ninja net_diagnostic_sim 2>&1 | tee "`$DIST/ninja-sim.log"
 
     # Strip debug symbols to reduce size
     strip net_diagnostic_sim$ext 2>/dev/null || true
