@@ -44,6 +44,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$script:ORIGINAL_EAP = $ErrorActionPreference
 $Host.UI.RawUI.WindowTitle = "NetDiagnostic Static Build"
 
 # ============================================================================
@@ -144,7 +145,8 @@ function Install-Msys2 {
         winget install MSYS2.MSYS2 --location "$TargetPath" --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
         if (Test-Path (Join-Path $TargetPath "usr/bin/bash.exe")) {
             Write-OK "MSYS2 installed via winget"
-            return $true
+             = 
+    return $true
         }
         Write-Warn "winget install failed, trying direct download..."
     }
@@ -158,7 +160,8 @@ function Install-Msys2 {
         Invoke-WebRequest -Uri $installerUrl -OutFile $installer -UseBasicParsing
     } catch {
         Write-Err "Failed to download MSYS2 installer: $_"
-        return $false
+         = 
+    return $false
     }
     
     Write-Info "Running MSYS2 installer (silent)..."
@@ -168,10 +171,12 @@ function Install-Msys2 {
     
     if (Test-Path (Join-Path $TargetPath "usr/bin/bash.exe")) {
         Write-OK "MSYS2 installed successfully"
-        return $true
+         = 
+    return $true
     }
     
     Write-Err "MSYS2 installation failed"
+     = 
     return $false
 }
 
@@ -186,14 +191,15 @@ function Install-Msys2Packages {
     $bash = Join-Path $MsysRoot "usr/bin/bash.exe"
     if (-not (Test-Path $bash)) {
         Write-Err "bash.exe not found at $bash"
-        return $false
+         = 
+    return $false
     }
     
     $packages = @(
         "mingw-w64-ucrt-x86_64-qt6-static",
         "mingw-w64-ucrt-x86_64-qt6-imageformats",
         "mingw-w64-ucrt-x86_64-qt6-svg",
-        "mingw-w64-ucrt-x86_64-curl",
+        
         "mingw-w64-ucrt-x86_64-curl-winssl",
         "mingw-w64-ucrt-x86_64-cmake",
         "mingw-w64-ucrt-x86_64-ninja",
@@ -207,6 +213,10 @@ function Install-Msys2Packages {
     Write-Info "Running: pacman -S --noconfirm --needed <packages>"
     Write-Info "This may take several minutes on first run..."
     
+    # Temporarily allow non-terminating errors (pacman warnings are normal)
+     = 
+     = 'Continue'
+    
     # Run pacman via MSYS2 bash
     $env_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; $pacman_cmd"
     $result = & $bash -lc $env_cmd 2>&1
@@ -216,6 +226,7 @@ function Install-Msys2Packages {
     } else {
         Write-OK "Build dependencies installed"
     }
+     = 
     return $true
 }
 
