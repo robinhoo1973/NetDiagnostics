@@ -214,15 +214,16 @@ jobs:
             mingw-w64-ucrt-x86_64-pcre2
             mingw-w64-ucrt-x86_64-libb2
 
-      - name: Cache source-built Qt
-        id: cache-qt6-source
+      # ── Cache A: Qt source code (extracted tarball) ──
+      - name: Cache Qt source tarball
+        id: cache-qt-src
         uses: actions/cache@v4
         with:
-          path: C:\opt\qt6-static-source
-          key: qt6-source-mingw-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v4
+          path: C:\opt\qt6-src
+          key: qt6-src-${{ env.QT_VERSION_WINDOWS_SRC }}-v1
 
-      - name: Build Qt from source
-        if: steps.cache-qt6-source.outputs.cache-hit != 'true'
+      - name: Download Qt source
+        if: steps.cache-qt-src.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
           set -euxo pipefail
@@ -231,14 +232,28 @@ jobs:
           echo ">>> Downloading Qt ${QT_VER} source..."
           curl -fsSL "https://download.qt.io/official_releases/qt/${QT_MAJMIN}/${QT_VER}/single/qt-everywhere-src-${QT_VER}.tar.xz" -o /tmp/qt-src.tar.xz
           echo ">>> Extracting..."
-          mkdir -p /c/opt/qt6-static-source
-          tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-static-source --strip-components=1
+          mkdir -p /c/opt/qt6-src
+          tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-src --strip-components=1
           rm /tmp/qt-src.tar.xz
-          echo ">>> Configuring..."
-          cd /c/opt/qt6-static-source
+
+      # ── Cache B: Qt build artifacts (install prefix) ──
+      - name: Cache Qt build artifacts
+        id: cache-qt-build
+        uses: actions/cache@v4
+        with:
+          path: C:\opt\qt6-install
+          key: qt6-build-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v1
+
+      - name: Build Qt from source
+        if: steps.cache-qt-build.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          cd /c/opt/qt6-src
+          echo ">>> Configuring Qt (qtbase + qtshadertools + qtdeclarative + qttools only)..."
           cmake -G Ninja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-static-source/install \
+            -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-install \
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2" \
             -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
             -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
@@ -248,33 +263,45 @@ jobs:
             -DFEATURE_system_zlib=OFF \
             -DFEATURE_system_brotli=OFF \
             -DFEATURE_system_pcre2=OFF \
-            -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
-            -DBUILD_qtwebengine=OFF \
-          echo ">>> Building ALL Qt modules (full build)..."
-          ninja -C build
+            -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qttools" \
+            -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
+          echo ">>> Building (4 submodules only)..."
+          cmake --build build --parallel
           echo ">>> Installing..."
-          cmake --install build --prefix /c/opt/qt6-static-source/install
-          echo ">>> DEBUG: cmake tree after install:"
-          find /c/opt/qt6-static-source/install/lib/cmake -name "Qt6Quick*" 2>/dev/null || echo "(no Qt6Quick found)"
+          cmake --install build
           echo ">>> Qt static build complete."
 
-      - name: Build Production (static)
+      # ── Build Production + Simulator in parallel ──
+      - name: Build Production + Simulator (static, parallel)
         shell: msys2 {0}
         run: |
+          set -euxo pipefail
           mkdir -p dist
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install             -DNO_CURL=ON             -DNO_CURL=ON -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF             -B build -S .
-          ninja -C build net_diagnostic
+          CMAKE_COMMON=(
+            -G Ninja -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"
+            -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
+            -DNO_CURL=ON -DBUILD_TESTS=OFF
+          )
+
+          # Configure both in parallel (independent build trees)
+          cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=OFF -B build -S . &
+          cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=ON  -B build-sim -S . &
+          wait
+
+          # Build both in parallel
+          ninja -C build net_diagnostic &
+          ninja -C build-sim net_diagnostic_sim &
+          wait
+
+          # Post-process (strip + copy — fast, sequential)
           strip build/net_diagnostic.exe
           cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
-
-      - name: Build Simulator (static)
-        shell: msys2 {0}
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"             -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"             -DCMAKE_PREFIX_PATH=/c/opt/qt6-static-source/install             -DNO_CURL=ON -DBUILD_SIMULATOR=ON -DBUILD_TESTS=OFF             -B build-sim -S .
-          ninja -C build-sim net_diagnostic_sim
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
 
+      # ── DLL check (safety net) ──
       - name: Check DLL dependencies and collect
         shell: msys2 {0}
         run: |
@@ -297,7 +324,6 @@ jobs:
                 echo "  [WARN] Non-system DLL: $dll — collecting"
                 cp "$UCRT_BIN/$dll" dist/
                 DLLS_COLLECTED+=("$dll")
-                # Recursively check collected DLLs
                 collect_dlls "dist/$dll"
               fi
             done
