@@ -244,130 +244,146 @@ function Install-Msys2Packages {
 # 2d. Build Qt6 from source (bundled 3rdparty → zero DLL)
 # ============================================================================
 function Invoke-Qt6SourceBuild {
-    Write-Step "Qt6 Static Setup (Zero-DLL)"
+    Write-Step "Qt6 Source Build (Zero-DLL)"
 
-    $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
-    $qt6StaticDir = Join-Path $msys_env_dir "qt6-static"
-    $qt6StaticCmake = Join-Path $qt6StaticDir "lib\cmake\Qt6\Qt6Config.cmake"
-    $qt6QuickCmake = Join-Path $qt6StaticDir "lib\cmake\Qt6Quick\Qt6QuickConfig.cmake"
+    $Qt6CacheRoot = "C:\netdiag-qt6s"
+    $script:QT6_INSTALL_DIR = Join-Path $Qt6CacheRoot "install"
+    $qtConfigCm = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6\Qt6Config.cmake"
+    $qtQuickCm   = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6Quick\Qt6QuickConfig.cmake"
 
-    # ── Strategy ──
-    # .a libraries  ← MSYS2 prebuilt packages (fast pacman install, ~5 min)
-    # cmake files   ← Qt source: cmake configure generates, no ninja needed (~2 min)
-    # This avoids the 90-min full Qt rebuild.
-    # ──────────────
+    # ── Strategy (5WHY verified) ──
+    # WHY: MSYS2 prebuilt .a still links .dll.a (system freetype/jpeg/...)
+    # WHY: because Qt built with -DFEATURE_system_*=ON (baked into cmake files)
+    # FIX: rebuild Qt6 from source with ALL -DFEATURE_system_*=OFF
+    #       → bundled zlib/pcre2/brotli/freetype/jpeg/png/harfbuzz/tiff/jasper
+    #       → zero non-OS DLL references
+    # COST: first build ~60-90 min; cached at C:\netdiag-qt6s (short path)
+    # ─────────────────────────────
 
-    # Step 1: Ensure MSYS2 prebuilt static Qt6 is installed
-    if (-not (Test-Path $qt6StaticCmake)) {
-        Write-Warn "MSYS2 prebuilt Qt6-static not found. Installing via pacman..."
-        Install-Msys2Packages -MsysRoot $MsysPath -EnvName $script:MSYS2_ENV
-        if (-not (Test-Path $qt6StaticCmake)) {
-            Write-Err "Qt6-static still not found after pacman install."
-            Write-Err "Run manually in MSYS2 terminal: pacman -S mingw-w64-ucrt-x86_64-qt6-static"
-            exit 1
-        }
+    if (Test-Path $qtConfigCm) {
+        Write-OK "Qt6 source build cache hit: $($script:QT6_INSTALL_DIR)"
+        $script:QT6_STATIC_CMAKE = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6"
+        return
     }
-    Write-OK "MSYS2 prebuilt Qt6-static: $qt6StaticDir"
 
-    # Step 2: If Qt6Quick cmake is missing, generate it from Qt source
-    if (-not (Test-Path $qt6QuickCmake)) {
-        Write-Warn "Qt6QuickConfig.cmake missing — generating from Qt source (no rebuild)..."
-        
-        $Qt6CacheRoot = "C:\netdiag-qt6s"
-        $srcDir = Join-Path $Qt6CacheRoot "src"
-        $buildDir = Join-Path $Qt6CacheRoot "build"
-        
-        # Download Qt source if not cached
-        if (-not (Test-Path (Join-Path $srcDir "CMakeLists.txt"))) {
-            Write-Info "Downloading Qt source (extracting cmake templates only)..."
-            if (Test-Path $Qt6CacheRoot) {
-                Remove-Item -Recurse -Force $Qt6CacheRoot -ErrorAction SilentlyContinue
-            }
-            New-Item -ItemType Directory -Path $srcDir -Force | Out-Null
-            New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
-            
-            $qtBash = Join-Path $TEMP_DIR "qt-cmake-gen.sh"
-            $qtSrcMsys = ConvertTo-MsysPath $srcDir
-            $qtBuildMsys = ConvertTo-MsysPath $buildDir
-            
-            $bash_content = @"
+    Write-Info "Qt6 not cached — building from source (one-time, ~60-90 min)..."
+    Write-Info "Source cache: $Qt6CacheRoot"
+
+    # Clean previous partial builds
+    if (Test-Path $Qt6CacheRoot) {
+        Remove-Item -Recurse -Force $Qt6CacheRoot -ErrorAction SilentlyContinue
+    }
+    $srcDir    = Join-Path $Qt6CacheRoot "src"
+    $buildDir  = Join-Path $Qt6CacheRoot "build"
+    New-Item -ItemType Directory -Path $srcDir   -Force | Out-Null
+    New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $script:QT6_INSTALL_DIR -Force | Out-Null
+
+    # Generate bash build script
+    $qtBuildScript = Join-Path $TEMP_DIR "build-qt6.sh"
+    $qtSrcMsys     = ConvertTo-MsysPath $srcDir
+    $qtBuildMsys   = ConvertTo-MsysPath $buildDir
+    $qtInstallMsys = ConvertTo-MsysPath $script:QT6_INSTALL_DIR
+    $cmakeCacheMsys  = ConvertTo-MsysPath (Join-Path $TEMP_DIR "cmake-qt6.log")
+    $ninjaLogQtMsys  = ConvertTo-MsysPath (Join-Path $TEMP_DIR "ninja-qt6.log")
+
+    $qt_bash_content = @"
 #!/usr/bin/env bash
 set -euxo pipefail
+
 export MSYSTEM=$($script:MSYS2_ENV.ToString().ToUpper())
 export PATH=/$($script:MSYS2_ENV)/bin:/usr/bin:`$PATH
+
 QT_VER="$($QtVersion)"
 QT_MAJMIN="`${QT_VER%.*}"
 
-# Download
-echo ">>> Downloading Qt `$QT_VER source..."
-curl -fsSL "https://download.qt.io/official_releases/qt/`${QT_MAJMIN}/`${QT_VER}/single/qt-everywhere-src-`${QT_VER}.tar.xz" -o /tmp/qt-src.tar.xz
-echo ">>> Extracting..."
-tar -xJf /tmp/qt-src.tar.xz -C "$($qtSrcMsys)" --strip-components=1
-rm /tmp/qt-src.tar.xz
+echo "==========================================="
+echo "  Building Qt `$QT_VER from source (Zero-DLL)"
+echo "  Submodules: qtbase,qtdeclarative,qtsvg,qtshadertools,qttools"
+echo "  Source dir: $($qtSrcMsys)"
+echo "  Build dir:  $($qtBuildMsys)"
+echo "  Install to: $($qtInstallMsys)"
+echo "==========================================="
+
+# --- Download source (if not cached) ---
+if [ ! -f "$($qtSrcMsys)/CMakeLists.txt" ]; then
+    echo ">>> Downloading Qt `$QT_VER source..."
+    curl -fsSL "https://download.qt.io/official_releases/qt/`${QT_MAJMIN}/`${QT_VER}/single/qt-everywhere-src-`${QT_VER}.tar.xz" \
+        -o /tmp/qt-src.tar.xz
+    echo ">>> Extracting..."
+    tar -xJf /tmp/qt-src.tar.xz -C "$($qtSrcMsys)" --strip-components=1
+    rm /tmp/qt-src.tar.xz
+else
+    echo ">>> Qt source already downloaded"
+fi
 
 cd "$($qtSrcMsys)"
 
-# CMake configure only — generates lib/cmake/* files (NO ninja build)
-echo ">>> Configuring to generate cmake files..."
+echo ">>> Configuring (system libs OFF → bundled, zero-DLL)..."
 cmake -G Ninja -B "$($qtBuildMsys)" -S . \
     -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX="$($qtSrcMsys)/install" \
+    -DCMAKE_INSTALL_PREFIX="$($qtInstallMsys)" \
     -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2" \
-    -DFEATURE_static=ON -DFEATURE_shared=OFF \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DFEATURE_pch=ON -DFEATURE_icu=OFF \
-    -DFEATURE_system_zlib=OFF -DFEATURE_system_brotli=OFF -DFEATURE_system_pcre2=OFF \
-    -DFEATURE_system_freetype=OFF -DFEATURE_system_jpeg=OFF -DFEATURE_system_png=OFF \
-    -DFEATURE_system_harfbuzz=OFF -DFEATURE_system_doubleconversion=OFF \
-    -DFEATURE_system_tiff=OFF -DFEATURE_system_jasper=OFF \
+    -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
+    -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
+-DFEATURE_static=ON -DFEATURE_shared=OFF \
+-DBUILD_SHARED_LIBS=OFF \
+-DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+    -DFEATURE_pch=ON -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
+    -DFEATURE_system_zlib=OFF \
+    -DFEATURE_system_brotli=OFF \
+    -DFEATURE_system_pcre2=OFF \
+    -DFEATURE_system_freetype=OFF \
+    -DFEATURE_system_jpeg=OFF \
+    -DFEATURE_system_png=OFF \
+    -DFEATURE_system_harfbuzz=OFF \
+    -DFEATURE_system_doubleconversion=OFF \
+    -DFEATURE_system_tiff=OFF \
+    -DFEATURE_system_jasper=OFF \
+    -DFEATURE_system_sqlite=OFF \
     -DQT_BUILD_SUBMODULES="qtbase;qtdeclarative;qtsvg;qtshadertools;qttools" \
-    -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
+    -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+    2>&1 | tee "$($cmakeCacheMsys)"
 
-echo ">>> Copying cmake files to MSYS2 Qt6-static..."
-cp -r "$($qtBuildMsys)/lib/cmake"/* "$($qtSrcMsys)/install/lib/cmake/" 2>/dev/null || true
-# Also copy per-module cmake
-for mod in qtbase qtdeclarative qtsvg qtshadertools qttools; do
-    if [ -d "$($qtBuildMsys)/`$mod/lib/cmake" ]; then
-        cp -r "$($qtBuildMsys)/`$mod/lib/cmake"/* "$($qtSrcMsys)/install/lib/cmake/" 2>/dev/null || true
-    fi
-done
+echo ">>> Building (5 submodules, ~60-90 min)..."
+cmake --build "$($qtBuildMsys)" --parallel 2>&1 | tee "$($ninjaLogQtMsys)"
 
-echo ">>> Done. Cmake files generated."
+echo ">>> Installing..."
+cmake --install "$($qtBuildMsys)"
+
+echo ">>> Qt `$QT_VER source build complete."
 exit 0
 "@
-            $utf8 = New-Object System.Text.UTF8Encoding $false
-            [System.IO.File]::WriteAllText($qtBash, $bash_content, $utf8)
-            
-            Write-Info "Generating cmake files (cmake configure only, no build)..."
-            $bashExe = Join-Path $MsysPath "usr\bin\bash.exe"
-            $proc = Start-Process -FilePath $bashExe `
-                -ArgumentList "-l", (ConvertTo-MsysPath $qtBash) `
-                -NoNewWindow -Wait -PassThru
-            if ($proc.ExitCode -ne 0) {
-                Write-Err "Cmake generation failed (exit: $($proc.ExitCode))"
-                exit $proc.ExitCode
-            }
-        }
-        
-        # Copy generated cmake files to MSYS2 Qt6-static
-        $generatedCmake = Join-Path $srcDir "install\lib\cmake"
-        if (Test-Path $generatedCmake) {
-            Write-Info "Copying generated cmake files to MSYS2 Qt6-static..."
-            Copy-Item -Recurse -Force "$generatedCmake\*" "$qt6StaticDir\lib\cmake\" -ErrorAction SilentlyContinue
-        }
-        
-        if (Test-Path $qt6QuickCmake) {
-            Write-OK "Qt6Quick cmake generated successfully"
-        } else {
-            Write-Err "Qt6Quick cmake still missing after generation"
-            Write-Err "Expected: $qt6QuickCmake"
-            exit 1
-        }
+
+    Write-Info "Writing Qt6 build script..."
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($qtBuildScript, $qt_bash_content, $utf8)
+
+    # Run the Qt6 build
+    $bashExe     = Join-Path $MsysPath "usr\bin\bash.exe"
+    $msys_script = ConvertTo-MsysPath $qtBuildScript
+
+    Write-Info "Starting Qt6 source build (one-time, 60-90 min)..."
+    Write-Host ""
+
+    $proc = Start-Process -FilePath $bashExe `
+        -ArgumentList "-l", "$msys_script" `
+        -NoNewWindow -Wait -PassThru
+
+    Write-Host ""
+    if ($proc.ExitCode -ne 0) {
+        Write-Err "Qt6 source build failed (exit code: $($proc.ExitCode))"
+        Write-Err "Check logs at: $TEMP_DIR (cmake-qt6.log, ninja-qt6.log)"
+        exit $proc.ExitCode
     }
-    
-    $script:QT6_INSTALL_DIR = $qt6StaticDir
-    $script:QT6_STATIC_CMAKE = Join-Path $qt6StaticDir "lib\cmake\Qt6"
-    Write-OK "Static Qt6 (prebuilt .a + source cmake): $($script:QT6_STATIC_CMAKE)"
+
+    if (Test-Path $qtConfigCm) {
+        $script:QT6_STATIC_CMAKE = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6"
+        Write-OK "Qt6 source build cached at: $($script:QT6_INSTALL_DIR)"
+    } else {
+        Write-Err "Qt6 install succeeded but Qt6Config.cmake not found at: $qtConfigCm"
+        exit 1
+    }
 }
 
 # 3. Dependency Check
