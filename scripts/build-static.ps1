@@ -450,7 +450,6 @@ CMAKE_COMMON=(
     -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -static -O2"
     -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"
     -DCMAKE_C_FLAGS="-static-libgcc -static -O2"
-    -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/../.."
     -DNO_CURL=ON
     -DBUILD_TESTS=OFF
 )
@@ -477,8 +476,10 @@ build_target() {
     cd "`${build_dir}"
 
     echo "  -> CMake configure (`$label)..."
-    cmake "`${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR="`${sim_flag}" "`${PROJ}" \
-        2>&1 | tee "`${DIST}/cmake-`${label}.log"
+    cmake "`${CMAKE_COMMON[@]}" \
+        -DQt6_DIR="`${QT6_CMAKE}" \
+        -DBUILD_SIMULATOR="`${sim_flag}" \
+        "`${PROJ}" 2>&1 | tee "`${DIST}/cmake-`${label}.log"
 
     echo "  -> Ninja build (`$label)..."
     ninja "`${target}" 2>&1 | tee "`${DIST}/ninja-`${label}.log"
