@@ -314,14 +314,24 @@ function Test-Dependencies {
                 break
             }
         }
-        if (-not $found) {
-            Write-Err "Static Qt6 not found. In MSYS2 $($script:MSYS2_ENV) terminal:"
-            Write-Err "  pacman -S mingw-w64-ucrt-x86_64-qt6-static"
-            Write-Err "  pacman -S mingw-w64-ucrt-x86_64-qt6-imageformats"
-            Write-Err "  pacman -S mingw-w64-ucrt-x86_64-qt6-svg"
-            Write-Err ""
-            Write-Err "Or use -Qt6StaticPath to specify static Qt6 cmake directory"
-            exit 1
+        if (-not ) {
+            Write-Warn "Static Qt6 not found. Installing via pacman..."
+            Install-Msys2Packages -MsysRoot  -EnvName $script:MSYS2_ENV
+            # Re-check after install
+            foreach ($c in $candidates) {
+                if (Test-Path (Join-Path $c "Qt6Config.cmake")) {
+                    $script:QT6_STATIC_CMAKE = $c
+                    $found = $true
+                    Write-OK "Static Qt6: $c"
+                    break
+                }
+            }
+            if (-not $found) {
+                Write-Err "Static Qt6 still not found after package install."
+                Write-Err "Run manually: pacman -S mingw-w64-ucrt-x86_64-qt6-static"
+                Write-Err "Or use -Qt6StaticPath to specify static Qt6 cmake directory"
+                exit 1
+            }
         }
     }
 
