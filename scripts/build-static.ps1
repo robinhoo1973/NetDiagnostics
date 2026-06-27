@@ -213,7 +213,7 @@ function Install-Msys2Packages {
     
     # Step 1: Initialize pacman keyring and sync databases
     Write-Info "Initializing pacman (keyring + database sync)..."
-    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; sed -i '/^XferCommand/d' /etc/pacman.conf 2>/dev/null; pacman-key --init 2>&1; pacman-key --populate 2>&1; echo 'Server = http://mirrors.ustc.edu.cn/msys2/msys/`$arch' > /etc/pacman.d/mirrorlist.msys; echo 'Server = http://mirrors.ustc.edu.cn/msys2/mingw/ucrt64' > /etc/pacman.d/mirrorlist.ucrt64; echo 'Server = http://mirrors.ustc.edu.cn/msys2/mingw/mingw64' > /etc/pacman.d/mirrorlist.mingw64; pacman -Sy --noconfirm 2>&1"
+    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; sed -i '/^XferCommand/d' /etc/pacman.conf 2>/dev/null; pacman-key --init 2>&1; pacman-key --populate 2>&1; echo 'Server = https://mirrors.ustc.edu.cn/msys2/msys/`$arch' > /etc/pacman.d/mirrorlist.msys; echo 'Server = https://mirrors.ustc.edu.cn/msys2/mingw/ucrt64' > /etc/pacman.d/mirrorlist.ucrt64; echo 'Server = https://mirrors.ustc.edu.cn/msys2/mingw/mingw64' > /etc/pacman.d/mirrorlist.mingw64; pacman -Sy --noconfirm 2>&1"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-init.log"
     & $bash -lc $init_cmd > $tmpLog 2>&1
     if ($LASTEXITCODE -ne 0) {
