@@ -194,7 +194,6 @@ function Install-Msys2Packages {
         "mingw-w64-ucrt-x86_64-qt6-static",
         "mingw-w64-ucrt-x86_64-qt6-imageformats",
         "mingw-w64-ucrt-x86_64-qt6-svg",
-        
         "mingw-w64-ucrt-x86_64-curl-winssl",
         "mingw-w64-ucrt-x86_64-cmake",
         "mingw-w64-ucrt-x86_64-ninja",
@@ -215,6 +214,7 @@ function Install-Msys2Packages {
     # Step 1: Initialize pacman keyring and sync databases
     Write-Info "Initializing pacman (keyring + database sync)..."
     $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; pacman-key --init 2>&1; pacman-key --populate 2>&1; pacman -Sy --noconfirm 2>&1"
+    $tmpLog = Join-Path $env:TEMP "netdiag-pacman-init.log"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-init.log"
     & $bash -lc $init_cmd > $tmpLog 2>&1
     if ($LASTEXITCODE -ne 0) {
@@ -224,6 +224,7 @@ function Install-Msys2Packages {
     # Step 2: Install packages
     Write-Info "Installing packages..."
     $env_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; $pacman_cmd 2>&1"
+    $tmpLog = Join-Path $env:TEMP "netdiag-pacman-install.log"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-install.log"
     & $bash -lc $env_cmd > $tmpLog 2>&1
     if ($LASTEXITCODE -ne 0) {
