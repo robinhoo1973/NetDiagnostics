@@ -312,9 +312,10 @@ function Test-Dependencies {
     }
     else {
         $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
+        # Only the static Qt6 path is valid — never fall back to system Qt6
+        # (system Qt6 is dynamic, missing Qt6Quick, and gives wrong CMAKE_PREFIX_PATH)
         $candidates = @(
-            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6"),
-            (Join-Path $msys_env_dir "lib\cmake\Qt6")
+            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6")
         )
         $found = $false
         foreach ($c in $candidates) {
