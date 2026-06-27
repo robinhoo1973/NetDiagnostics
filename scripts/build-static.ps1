@@ -772,6 +772,21 @@ function Show-Report {
 # ============================================================================
 try {
     Show-Banner
+
+    # Pre-build static analysis (catches known failure patterns early)
+    $prebuildScript = Join-Path $SCRIPT_DIR "prebuild-check.ps1"
+    if (Test-Path $prebuildScript) {
+        Write-Step "Pre-Build Static Analysis"
+        $prebuildResult = & $prebuildScript -MsysPath $MsysPath 2>&1
+        $prebuildResult | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ge 2) {
+            Write-Err "Pre-build check found critical errors — aborting build."
+            Write-Err "Fix the [FAIL] items above before building."
+            exit 2
+        }
+        Write-OK "Pre-build checks passed"
+    }
+
     Detect-Platform
     Test-Dependencies
     Initialize-BuildEnv
