@@ -39,7 +39,7 @@ param(
     [switch]$SimOnly,
     [switch]$Clean,
     [switch]$NoCleanTemp,
-    [string]$MsysPath = "C:\msys64",
+    [string]$MsysPath = "$env:LOCALAPPDATA\msys64",
     [string]$Qt6StaticPath = ""
 )
 
@@ -127,6 +127,98 @@ function Detect-Platform {
 }
 
 # ============================================================================
+
+# ============================================================================
+# 2b. Auto-Install MSYS2 (if not found)
+# ============================================================================
+function Install-Msys2 {
+    param([string]$TargetPath)
+    
+    Write-Step "Auto-Installing MSYS2"
+    Write-Info "Target: $TargetPath"
+    
+    # Try winget first (Windows 11 / modern Windows 10)
+    $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+    if ($winget) {
+        Write-Info "Using winget to install MSYS2..."
+        winget install MSYS2.MSYS2 --location "$TargetPath" --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
+        if (Test-Path (Join-Path $TargetPath "usr/bin/bash.exe")) {
+            Write-OK "MSYS2 installed via winget"
+            return $true
+        }
+        Write-Warn "winget install failed, trying direct download..."
+    }
+    
+    # Fallback: download installer
+    $installerUrl = "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-x86_64-latest.exe"
+    $installer = Join-Path $env:TEMP "msys2-installer.exe"
+    
+    Write-Info "Downloading MSYS2 installer..."
+    try {
+        Invoke-WebRequest -Uri $installerUrl -OutFile $installer -UseBasicParsing
+    } catch {
+        Write-Err "Failed to download MSYS2 installer: $_"
+        return $false
+    }
+    
+    Write-Info "Running MSYS2 installer (silent)..."
+    $parent = Split-Path $TargetPath -Parent
+    Start-Process -FilePath $installer -ArgumentList "in","--confirm-command","--accept-messages","--root","$TargetPath" -Wait -NoNewWindow
+    Remove-Item $installer -Force -ErrorAction SilentlyContinue
+    
+    if (Test-Path (Join-Path $TargetPath "usr/bin/bash.exe")) {
+        Write-OK "MSYS2 installed successfully"
+        return $true
+    }
+    
+    Write-Err "MSYS2 installation failed"
+    return $false
+}
+
+# ============================================================================
+# 2c. Install MSYS2 Build Packages (via pacman)
+# ============================================================================
+function Install-Msys2Packages {
+    param([string]$MsysRoot, [string]$EnvName)
+    
+    Write-Step "Installing MSYS2 Build Dependencies"
+    
+    $bash = Join-Path $MsysRoot "usr/bin/bash.exe"
+    if (-not (Test-Path $bash)) {
+        Write-Err "bash.exe not found at $bash"
+        return $false
+    }
+    
+    $packages = @(
+        "mingw-w64-ucrt-x86_64-qt6-static",
+        "mingw-w64-ucrt-x86_64-qt6-imageformats",
+        "mingw-w64-ucrt-x86_64-qt6-svg",
+        "mingw-w64-ucrt-x86_64-curl",
+        "mingw-w64-ucrt-x86_64-curl-winssl",
+        "mingw-w64-ucrt-x86_64-cmake",
+        "mingw-w64-ucrt-x86_64-ninja",
+        "mingw-w64-ucrt-x86_64-gcc",
+        "mingw-w64-ucrt-x86_64-openssl",
+        "mingw-w64-ucrt-x86_64-pkg-config"
+    )
+    
+    $pacman_cmd = "pacman -S --noconfirm --needed " + ($packages -join " ")
+    
+    Write-Info "Running: pacman -S --noconfirm --needed <packages>"
+    Write-Info "This may take several minutes on first run..."
+    
+    # Run pacman via MSYS2 bash
+    $env_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; $pacman_cmd"
+    $result = & $bash -lc $env_cmd 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Some packages may have failed to install (exit code: $LASTEXITCODE)"
+        Write-Warn "You may need to run manually: pacman -Syu && pacman -S <packages>"
+    } else {
+        Write-OK "Build dependencies installed"
+    }
+    return $true
+}
+
 # 3. Dependency Check
 # ============================================================================
 function Test-Dependencies {
@@ -170,19 +262,19 @@ function Test-Dependencies {
         }
     }
     else {
-        Write-Err "MSYS2 not found (expected: $MsysPath)"
-        Write-Err ""
-        Write-Err "Install MSYS2 (required):"
-        Write-Err "  1. Download: https://www.msys2.org/"
-        Write-Err "  2. After install, run MSYS2 UCRT64 terminal:"
-        Write-Err "     pacman -Syu"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-qt6-static"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-curl"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-cmake"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-ninja"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-gcc"
-        Write-Err "  3. Or specify path: -MsysPath D:\\msys64"
-        exit 1
+        Write-Warn "MSYS2 not found at $MsysPath"
+        Write-Info "Attempting auto-install..."
+        $installed = Install-Msys2 -TargetPath $MsysPath
+        if (-not $installed) {
+            Write-Err "MSYS2 auto-install failed."
+            Write-Err "Manual install: https://www.msys2.org/"
+            Write-Err "Or specify path: -MsysPath D:\msys64"
+            exit 1
+        }
+        Write-Info "Installing build dependencies (first time may take ~5 min)..."
+        Install-Msys2Packages -MsysRoot $MsysPath -EnvName "UCRT64"
+        $script:MSYS2_OK = $true
+        $script:MSYS2_ENV = "ucrt64"
     }
 
     # -- Static Qt6 detection --
