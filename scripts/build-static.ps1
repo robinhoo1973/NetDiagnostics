@@ -192,6 +192,7 @@ function Install-Msys2Packages {
     
     $packages = @(
         "mingw-w64-ucrt-x86_64-qt6-static",
+        "mingw-w64-ucrt-x86_64-qt6-declarative-static",
         "mingw-w64-ucrt-x86_64-qt6-imageformats",
         "mingw-w64-ucrt-x86_64-qt6-svg",
         "mingw-w64-ucrt-x86_64-curl-winssl",
