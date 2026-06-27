@@ -441,13 +441,18 @@ TEMP_MSYS=`$(cygpath -u "$($TEMP_DIR)")
 QT6_CMAKE=`$(cygpath -u "$($script:QT6_STATIC_CMAKE)")
 export CMAKE_PREFIX_PATH="`$QT6_CMAKE/../.."
 
-# Static link flags - core: fully static, zero non-OS DLLs
-# -static:              disable dynamic linking, use .a static libs only
-# -static-libgcc:       statically link libgcc
-# -static-libstdc++:    statically link libstdc++
-# --start-group/--end-group already handled by CMakeLists.txt
-STATIC_FLAGS="-static-libgcc -static-libstdc++ -static"
-LINK_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"
+# Common static cmake flags — fully static, zero non-OS DLLs
+# Bash array keeps flags safely quoted (paths with spaces survive)
+CMAKE_COMMON=(
+    -G Ninja
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -static -O2"
+    -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"
+    -DCMAKE_C_FLAGS="-static-libgcc -static -O2"
+    -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/../.."
+    -DNO_CURL=ON
+    -DBUILD_TESTS=OFF
+)
 
 # Capture compiler info first (avoids PS subexpression confusion)
 COMPILER_VER=`$(gcc --version 2>/dev/null | head -1 || echo unknown)`
@@ -457,63 +462,53 @@ echo "==========================================="
 echo "  Compiler: `$COMPILER_VER"
 echo "  Qt6:      `$QT6_CHECK"
 echo "==========================================="
-echo ""
 
-# -- Production version --
-if [ "$($script:PROD_FLAG)" = "ON" ]; then
-    echo "=== Building production: $($script:PROD_NAME) ==="
-    BUILD_DIR="`${BUILD}/prod"
-    rm -rf "`${BUILD_DIR}" && mkdir -p "`${BUILD_DIR}"
-    cd "`${BUILD_DIR}"
+# Build one target — used for both production and simulator
+# Arguments: `$1=label(prod|sim) `$2=ninja-target `$3=BUILD_SIMULATOR(OFF|ON)
+build_target() {
+    set -e
+    local label="`$1" target="`$2" sim_flag="`$3"
+    local build_dir="`${BUILD}/`${label}"
 
-    echo "  -> CMake configure..."
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_EXE_LINKER_FLAGS="`${LINK_FLAGS}" \
-        -DCMAKE_C_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/../.." \
-        -DNO_CURL=ON \
-        -DBUILD_SIMULATOR=OFF \
-        -DBUILD_TESTS=OFF \
-        "`${PROJ}" 2>&1 | tee "`$DIST/cmake-prod.log"
+    echo ""
+    echo "=== Building `$label: `$target ==="
+    rm -rf "`${build_dir}" && mkdir -p "`${build_dir}"
+    cd "`${build_dir}"
 
-    echo "  -> Ninja build..."
-    ninja net_diagnostic 2>&1 | tee "`$DIST/ninja-prod.log"
+    echo "  -> CMake configure (`$label)..."
+    cmake "`${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR="`${sim_flag}" "`${PROJ}" \
+        2>&1 | tee "`${DIST}/cmake-`${label}.log"
+
+    echo "  -> Ninja build (`$label)..."
+    ninja "`${target}" 2>&1 | tee "`${DIST}/ninja-`${label}.log"
 
     # Strip debug symbols to reduce size
-    strip net_diagnostic$ext 2>/dev/null || true
+    strip "`${target}$($ext)" 2>/dev/null || true
 
-    echo "  [DONE] Production: $($script:PROD_NAME)"
+    echo "  [DONE] `$label: `$target"
+}
+
+# --- Main ---
+EXIT_PROD=0
+EXIT_SIM=0
+
+if [ "$($script:PROD_FLAG)" = "ON" ] && [ "$($script:SIM_FLAG)" = "ON" ]; then
+    # Parallel build — independent build trees, no conflicts
+    ( build_target "prod" "net_diagnostic" "OFF" ) &
+    PID_PROD=`$!
+    ( build_target "sim" "net_diagnostic_sim" "ON" ) &
+    PID_SIM=`$!
+    wait `$PID_PROD || EXIT_PROD=`$?
+    wait `$PID_SIM || EXIT_SIM=`$?
+elif [ "$($script:PROD_FLAG)" = "ON" ]; then
+    build_target "prod" "net_diagnostic" "OFF"
+elif [ "$($script:SIM_FLAG)" = "ON" ]; then
+    build_target "sim" "net_diagnostic_sim" "ON"
 fi
 
-# -- Simulator version --
-if [ "$($script:SIM_FLAG)" = "ON" ]; then
-    echo ""
-    echo "=== Building simulator: $($script:SIM_NAME) ==="
-    BUILD_DIR="`${BUILD}/sim"
-    rm -rf "`${BUILD_DIR}" && mkdir -p "`${BUILD_DIR}"
-    cd "`${BUILD_DIR}"
-
-    echo "  -> CMake configure..."
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_EXE_LINKER_FLAGS="`${LINK_FLAGS}" \
-        -DCMAKE_C_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/../.." \
-        -DNO_CURL=ON \
-        -DBUILD_SIMULATOR=ON \
-        -DBUILD_TESTS=OFF \
-        "`${PROJ}" 2>&1 | tee "`$DIST/cmake-sim.log"
-
-    echo "  -> Ninja build..."
-    ninja net_diagnostic_sim 2>&1 | tee "`$DIST/ninja-sim.log"
-
-    # Strip debug symbols to reduce size
-    strip net_diagnostic_sim$ext 2>/dev/null || true
-
-    echo "  [DONE] Simulator: $($script:SIM_NAME)"
+if [ `$EXIT_PROD -ne 0 ] || [ `$EXIT_SIM -ne 0 ]; then
+    echo "ERROR: Build failed (prod=`$EXIT_PROD sim=`$EXIT_SIM)" >&2
+    exit 1
 fi
 
 echo ""
