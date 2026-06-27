@@ -213,7 +213,7 @@ function Install-Msys2Packages {
     
     # Step 1: Initialize pacman keyring and sync databases
     Write-Info "Initializing pacman (keyring + database sync)..."
-    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; pacman-key --init 2>&1; pacman-key --populate 2>&1; sed -i 's|https://|http://|g' /etc/pacman.d/mirrorlist.msys /etc/pacman.d/mirrorlist.ucrt64 /etc/pacman.d/mirrorlist.mingw64 2>/dev/null; pacman -Sy --noconfirm 2>&1"
+    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; pacman-key --init 2>&1; pacman-key --populate 2>&1; echo '=== Before sed ===' && grep -c 'https://' /etc/pacman.d/mirrorlist.* 2>/dev/null; sed -i 's|https://|http://|g' /etc/pacman.d/mirrorlist.* 2>/dev/null; echo '=== After sed ===' && grep -c 'https://' /etc/pacman.d/mirrorlist.* 2>/dev/null || true; pacman -Sy --noconfirm 2>&1"
     $tmpLog = Join-Path $SCRIPT_DIR "netdiag-pacman-init.log"
     & $bash -lc $init_cmd > $tmpLog 2>&1
     if ($LASTEXITCODE -ne 0) {
