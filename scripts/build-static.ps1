@@ -145,8 +145,7 @@ function Install-Msys2 {
         winget install MSYS2.MSYS2 --location "$TargetPath" --accept-source-agreements --accept-package-agreements 2>&1 | Out-Null
         if (Test-Path (Join-Path $TargetPath "usr/bin/bash.exe")) {
             Write-OK "MSYS2 installed via winget"
-             = 
-    return $true
+            return $true
         }
         Write-Warn "winget install failed, trying direct download..."
     }
@@ -160,8 +159,7 @@ function Install-Msys2 {
         Invoke-WebRequest -Uri $installerUrl -OutFile $installer -UseBasicParsing
     } catch {
         Write-Err "Failed to download MSYS2 installer: $_"
-         = 
-    return $false
+        return $false
     }
     
     Write-Info "Running MSYS2 installer (silent)..."
@@ -171,12 +169,10 @@ function Install-Msys2 {
     
     if (Test-Path (Join-Path $TargetPath "usr/bin/bash.exe")) {
         Write-OK "MSYS2 installed successfully"
-         = 
-    return $true
+        return $true
     }
     
     Write-Err "MSYS2 installation failed"
-     = 
     return $false
 }
 
@@ -191,8 +187,7 @@ function Install-Msys2Packages {
     $bash = Join-Path $MsysRoot "usr/bin/bash.exe"
     if (-not (Test-Path $bash)) {
         Write-Err "bash.exe not found at $bash"
-         = 
-    return $false
+        return $false
     }
     
     $packages = @(
@@ -214,20 +209,32 @@ function Install-Msys2Packages {
     Write-Info "This may take several minutes on first run..."
     
     # Temporarily allow non-terminating errors (pacman warnings are normal)
-     = 
-     = 'Continue'
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     
-    # Run pacman via MSYS2 bash
-    $env_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; $pacman_cmd"
-    $result = & $bash -lc $env_cmd 2>&1
+    # Step 1: Initialize pacman keyring and sync databases
+    Write-Info "Initializing pacman (keyring + database sync)..."
+    $init_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; pacman-key --init 2>&1; pacman-key --populate 2>&1; pacman -Sy --noconfirm 2>&1"
+    $tmpLog = Join-Path $env:TEMP "netdiag-pacman-init.log"
+    & $bash -lc $init_cmd > $tmpLog 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Warn "Some packages may have failed to install (exit code: $LASTEXITCODE)"
-        Write-Warn "You may need to run manually: pacman -Syu && pacman -S <packages>"
+        Write-Warn "pacman init may have warnings (see: $tmpLog)"
+    }
+    
+    # Step 2: Install packages
+    Write-Info "Installing packages..."
+    $env_cmd = "export MSYSTEM=$EnvName; export PATH=/$EnvName/bin:/usr/bin:`$PATH; $pacman_cmd 2>&1"
+    $tmpLog = Join-Path $env:TEMP "netdiag-pacman-install.log"
+    & $bash -lc $env_cmd > $tmpLog 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warn "Some packages may have failed to install (see: $tmpLog)"
+        Write-Warn "Try running manually: pacman -Syu && pacman -S <packages>"
+        Write-Info "--- Last 10 lines of pacman output ---"
+        Get-Content $tmpLog -Tail 10 | ForEach-Object { Write-Host "  $_" }
     } else {
         Write-OK "Build dependencies installed"
     }
-     = 
-    return $true
+    $ErrorActionPreference = $prevEAP
 }
 
 # 3. Dependency Check
@@ -314,9 +321,9 @@ function Test-Dependencies {
                 break
             }
         }
-        if (-not ) {
+        if (-not $found) {
             Write-Warn "Static Qt6 not found. Installing via pacman..."
-            Install-Msys2Packages -MsysRoot  -EnvName $script:MSYS2_ENV
+            Install-Msys2Packages -MsysRoot $MsysPath -EnvName $script:MSYS2_ENV
             # Re-check after install
             foreach ($c in $candidates) {
                 if (Test-Path (Join-Path $c "Qt6Config.cmake")) {
