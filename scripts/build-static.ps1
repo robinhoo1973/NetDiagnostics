@@ -17,9 +17,9 @@
 .PARAMETER NoCleanTemp
     Keep temp files under %%TEMP%% (for debugging)
 .PARAMETER MsysPath
-    MSYS2 installation path (default: C:\msys64)
-.PARAMETER Qt6StaticPath
-    Static Qt6 cmake path (default: auto-detect MSYS2 ucrt64/qt6-static)
+    MSYS2 installation path (default: $env:LOCALAPPDATA\msys64)
+.PARAMETER QtVersion
+    Qt version for source build (default: 6.11.1)
 
 .EXAMPLE
     .\scripts\build-static.ps1
@@ -40,7 +40,7 @@ param(
     [switch]$Clean,
     [switch]$NoCleanTemp,
     [string]$MsysPath = "$env:LOCALAPPDATA\msys64",
-    [string]$Qt6StaticPath = ""
+    [string]$QtVersion = "6.11.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -191,21 +191,20 @@ function Install-Msys2Packages {
     }
     
     $packages = @(
-        "mingw-w64-ucrt-x86_64-qt6-static",
-        "mingw-w64-ucrt-x86_64-qt6-declarative-static",
-        "mingw-w64-ucrt-x86_64-qt6-imageformats",
-        "mingw-w64-ucrt-x86_64-qt6-svg",
-        "mingw-w64-ucrt-x86_64-curl-winssl",
         "mingw-w64-ucrt-x86_64-cmake",
         "mingw-w64-ucrt-x86_64-ninja",
         "mingw-w64-ucrt-x86_64-gcc",
-        "mingw-w64-ucrt-x86_64-openssl",
+        "mingw-w64-ucrt-x86_64-perl",
+        "mingw-w64-ucrt-x86_64-python",
         "mingw-w64-ucrt-x86_64-pkg-config",
+        "mingw-w64-ucrt-x86_64-openssl",
         "mingw-w64-ucrt-x86_64-zlib",
         "mingw-w64-ucrt-x86_64-brotli",
         "mingw-w64-ucrt-x86_64-pcre2",
         "mingw-w64-ucrt-x86_64-libb2"
     )
+    # Note: Qt6 is always built from source (bundled 3rdparty → zero DLL).
+    # Qt6 source is cached at $env:LOCALAPPDATA\netdiag-qt6-static after first build.
     
     $pacman_cmd = "pacman -S --noconfirm --needed " + ($packages -join " ")
     
@@ -239,6 +238,128 @@ function Install-Msys2Packages {
         Write-OK "Build dependencies installed"
     }
     $ErrorActionPreference = $prevEAP
+}
+
+# ============================================================================
+# 2d. Build Qt6 from source (bundled 3rdparty → zero DLL)
+# ============================================================================
+function Invoke-Qt6SourceBuild {
+    Write-Step "Qt6 Source Build (Zero-DLL)"
+
+    $Qt6CacheRoot = "$env:LOCALAPPDATA\netdiag-qt6-static"
+    $script:QT6_INSTALL_DIR = Join-Path $Qt6CacheRoot "install"
+    $qtConfigCm = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6\Qt6Config.cmake"
+
+    if (Test-Path $qtConfigCm) {
+        Write-OK "Qt6 source build cache hit: $($script:QT6_INSTALL_DIR)"
+        return
+    }
+
+    Write-Info "Qt6 not cached — building from source (one-time, ~15-20 min)..."
+    Write-Info "Source cache: $Qt6CacheRoot"
+
+    # Clean previous partial builds
+    if (Test-Path $Qt6CacheRoot) {
+        Remove-Item -Recurse -Force $Qt6CacheRoot -ErrorAction SilentlyContinue
+    }
+    $srcDir = Join-Path $Qt6CacheRoot "src"
+    $buildDir = Join-Path $Qt6CacheRoot "build"
+    New-Item -ItemType Directory -Path $srcDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $script:QT6_INSTALL_DIR -Force | Out-Null
+
+    # Generate bash build script for Qt6 source build
+    $qtBuildScript = Join-Path $TEMP_DIR "build-qt6.sh"
+    $qtSrcMsys = ConvertTo-MsysPath $srcDir
+    $qtBuildMsys = ConvertTo-MsysPath $buildDir
+    $qtInstallMsys = ConvertTo-MsysPath $script:QT6_INSTALL_DIR
+    $cmakeCacheLog = Join-Path $TEMP_DIR "cmake-qt6.log"
+    $ninjaLogQt = Join-Path $TEMP_DIR "ninja-qt6.log"
+
+    $qt_bash_content = @"
+#!/usr/bin/env bash
+set -euxo pipefail
+
+export MSYSTEM=$($script:MSYS2_ENV.ToString().ToUpper())
+export PATH=/$($script:MSYS2_ENV)/bin:/usr/bin:`$PATH
+
+QT_VER="$($QtVersion)"
+QT_MAJMIN="`${QT_VER%.*}"
+
+echo "==========================================="
+echo "  Building Qt `$QT_VER from source (Zero-DLL)"
+echo "  Submodules: qtbase qtshadertools qtdeclarative qttools"
+echo "==========================================="
+
+# --- Download source (if not cached) ---
+if [ ! -f "$($qtSrcMsys)/CMakeLists.txt" ]; then
+    echo ">>> Downloading Qt `$QT_VER source..."
+    curl -fsSL "https://download.qt.io/official_releases/qt/`${QT_MAJMIN}/`${QT_VER}/single/qt-everywhere-src-`${QT_VER}.tar.xz" \
+        -o /tmp/qt-src.tar.xz
+    echo ">>> Extracting..."
+    tar -xJf /tmp/qt-src.tar.xz -C "$($qtSrcMsys)" --strip-components=1
+    rm /tmp/qt-src.tar.xz
+else
+    echo ">>> Qt source already downloaded"
+fi
+
+cd "$($qtSrcMsys)"
+
+echo ">>> Configuring (submodules: qtbase,qtshadertools,qtdeclarative,qttools)..."
+cmake -G Ninja -B "$($qtBuildMsys)" -S . \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX="$($qtInstallMsys)" \
+    -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2" \
+    -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
+    -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
+    -DFEATURE_static=ON -DFEATURE_shared=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DFEATURE_pch=ON -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
+    -DFEATURE_system_zlib=OFF \
+    -DFEATURE_system_brotli=OFF \
+    -DFEATURE_system_pcre2=OFF \
+    -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qttools" \
+    -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF \
+    2>&1 | tee "$($cmakeCacheLog)"
+
+echo ">>> Building (4 submodules)..."
+cmake --build "$($qtBuildMsys)" --parallel 2>&1 | tee "$($ninjaLogQt)"
+
+echo ">>> Installing..."
+cmake --install "$($qtBuildMsys)"
+
+echo ">>> Qt `$QT_VER source build complete."
+exit 0
+"@
+
+    Write-Info "Writing Qt6 build script..."
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($qtBuildScript, $qt_bash_content, $utf8NoBom)
+
+    # Run the Qt6 build
+    $bash_exe = Join-Path $MsysPath "usr\bin\bash.exe"
+    $msys_script = ConvertTo-MsysPath $qtBuildScript
+
+    Write-Info "Starting Qt6 source build (this will take 15-20 minutes on first run)..."
+    Write-Host ""
+
+    $proc = Start-Process -FilePath $bash_exe `
+        -ArgumentList "-l", "$msys_script" `
+        -NoNewWindow -Wait -PassThru
+
+    Write-Host ""
+    if ($proc.ExitCode -ne 0) {
+        Write-Err "Qt6 source build failed (exit code: $($proc.ExitCode))"
+        Write-Err "Check logs at: $TEMP_DIR (cmake-qt6.log, ninja-qt6.log)"
+        exit $proc.ExitCode
+    }
+
+    if (Test-Path $qtConfigCm) {
+        Write-OK "Qt6 source build cached at: $($script:QT6_INSTALL_DIR)"
+    } else {
+        Write-Err "Qt6 install succeeded but Qt6Config.cmake not found at: $qtConfigCm"
+        exit 1
+    }
 }
 
 # 3. Dependency Check
@@ -299,53 +420,16 @@ function Test-Dependencies {
         $script:MSYS2_ENV = "ucrt64"
     }
 
-    # -- Static Qt6 detection --
-    if ($Qt6StaticPath -ne "") {
-        if (Test-Path (Join-Path $Qt6StaticPath "Qt6Config.cmake")) {
-            $script:QT6_STATIC_CMAKE = $Qt6StaticPath
-            Write-OK "Static Qt6 (specified): $Qt6StaticPath"
-        }
-        else {
-            Write-Err "Invalid static Qt6 path: $Qt6StaticPath"
-            exit 1
-        }
-    }
-    else {
-        $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
-        # Only the static Qt6 path is valid — never fall back to system Qt6
-        # (system Qt6 is dynamic, missing Qt6Quick, and gives wrong CMAKE_PREFIX_PATH)
-        $candidates = @(
-            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6")
-        )
-        $found = $false
-        foreach ($c in $candidates) {
-            if (Test-Path (Join-Path $c "Qt6Config.cmake")) {
-                $script:QT6_STATIC_CMAKE = $c
-                $found = $true
-                Write-OK "Static Qt6: $c"
-                break
-            }
-        }
-        if (-not $found) {
-            Write-Warn "Static Qt6 not found. Installing via pacman..."
-            Install-Msys2Packages -MsysRoot $MsysPath -EnvName $script:MSYS2_ENV
-            # Re-check after install
-            foreach ($c in $candidates) {
-                if (Test-Path (Join-Path $c "Qt6Config.cmake")) {
-                    $script:QT6_STATIC_CMAKE = $c
-                    $found = $true
-                    Write-OK "Static Qt6: $c"
-                    break
-                }
-            }
-            if (-not $found) {
-                Write-Err "Static Qt6 still not found after package install."
-                Write-Err "Run manually: pacman -S mingw-w64-ucrt-x86_64-qt6-static"
-                Write-Err "Or use -Qt6StaticPath to specify static Qt6 cmake directory"
-                exit 1
-            }
-        }
-    }
+    # -- Static Qt6 detection —
+    # Qt6 is always built from source with bundled 3rdparty libraries.
+    # This is the only way to achieve true zero-DLL output: the Qt6 third-party
+    # dependencies (zlib, pcre2, brotli, libb2, png, freetype, etc.) must be
+    # compiled into the Qt6 static libs, not referenced as external DLLs.
+    # Cached at $env:LOCALAPPDATA\netdiag-qt6-static — first build ~15-20 min,
+    # subsequent builds < 1 min (cache hit).
+    Invoke-Qt6SourceBuild
+    $script:QT6_STATIC_CMAKE = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6"
+    Write-OK "Static Qt6 (source-built, zero-DLL): $($script:QT6_STATIC_CMAKE)"
 
     # -- Static libcurl check --
     $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
@@ -788,8 +872,8 @@ try {
     }
 
     Detect-Platform
-    Test-Dependencies
     Initialize-BuildEnv
+    Test-Dependencies
     Invoke-StaticBuild
     Test-StaticLinkage
     Invoke-Cleanup
