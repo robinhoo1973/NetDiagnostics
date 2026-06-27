@@ -77,7 +77,7 @@ endif()
 # Windows: embed .ico into the executable
 if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
-    set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I${CMAKE_SOURCE_DIR}/resources")
+    set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
 endif()
 
 set(QML_RESOURCES
