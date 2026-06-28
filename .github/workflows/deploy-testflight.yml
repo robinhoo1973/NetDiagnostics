@@ -54,7 +54,7 @@ jobs:
       - name: Install Qt 6 for iOS via aqt
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
-          pip3 install aqtinstall
+          pip3 install --break-system-packages aqtinstall
           aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
 
       # ═════════════════════════════════════════════════════════════════
