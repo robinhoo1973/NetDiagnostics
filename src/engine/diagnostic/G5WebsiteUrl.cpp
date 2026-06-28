@@ -1,6 +1,10 @@
 // =============================================================================
 // G5WebsiteUrl.cpp — curl-style raw-socket HTTP diagnostics
 // =============================================================================
+#ifdef _MSC_VER
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"

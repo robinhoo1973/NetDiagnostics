@@ -77,7 +77,7 @@
 
   "typography": {
     "fontFamily": "JetBrains Mono",
-    "iconFont": "Material Icons",
+    "iconFont": "Phosphor Icons (SVG, via AppIcon.qml)",
     "scale": [
       {"size": 22, "weight": 700, "usage": "Dashboard stat values"},
       {"size": 20, "weight": 700, "usage": "SummaryCard count, lineHeight 1.0"},
@@ -174,8 +174,8 @@
     "Simulator": {
       "route": "/simulator",
       "bg": "#2D2D2D",
-      "appbar": "title: 'NetDiagnostic Simulator', elevation: 2, actions: [DeviceSelector, rotate_btn, OS_badge]",
-      "body": "LayoutBuilder > InteractiveViewer(0.3x-2.5x) > DeviceFrame(device,orientation) > app_content"
+      "appbar": "title: 'NetDiagnostic Simulator', actions: [DeviceSelector dropdown, rotate_btn, OS_badge]",
+      "body": "Scale transform (min 0.3×, max 2.5×) → DeviceFrame(device, orientation) → StackView(5 tab screens)"
     }
   },
 
@@ -184,12 +184,12 @@
       "structure": "Column [ label_row + text_field_container( borderRadius8, border accentBlue/3A3A5A, bg #1E1E2E60%, icon + TextField(fontSize12) + clear_btn ) + SizedBox(8) + button_row( Run(38px, #0078D4, fontSize12 w600) + Cancel(38px, #EF4444, fontSize11) ) ]"
     },
     "TestGroupPanel": {
-      "structure": "Card(bg #16213E, borderRadius10, border cyan/2A2A4A) > ExpansionTile(initiallyExpanded: running||completed>0) [ header_row(accent_bar 3x24 + label 13/w600 + count 11/w500 + badges 10/w700) + progress_bar(minHeight3, bg #2A2A4A, color cyan/passGreen) + Divider + TestResultItem_list ]"
+      "structure": "Rectangle(bg #16213E, borderRadius10) [ Column: header_row(accent_bar 3×24 + label 13/w600 + count 11/w500 + badges 10/w700) + progress_bar(h3, bg #2A2A4A, fill cyan/passGreen) + Rectangle divider + Repeater(TestResultItem_list) ]"
     },
     "TestResultItem": {
-      "pending": "Row [ spinner(18x18, cyan, pulsing) | name(12, dim) | 'Running...'(10, italic, cyan) ]",
-      "completed": "InkWell(borderRadius6) > Row [ status_icon(18) | name(12,w500,statusColor) + summary(10) + metric_chips(bg #2A2A4A, borderRadius3, fontSize9) | duration(10,JetBrainsMono,bg #2A2A4A,borderRadius4) ] + detail_section(properties,depth)",
-      "detail_dialog": "Dialog(#1E1E2E, borderRadius12, border #3A3A5A, maxW600, maxH600) > header + ScrollView( status+duration + summary_box(#252538) + properties + details_box(#1A1A2E) + raw_output + error_box(#EF444410%) ) + footer(Copy + Close)"
+      "pending": "Row [ AnimatedImage(spinner, 18×18, cyan) | name(12, dim) | 'Running...'(10, italic, cyan) ]",
+      "completed": "ItemDelegate(borderRadius6) > Row [ status_icon(18) | name(12,w500,statusColor) + summary(10) + metric_chips(bg #2A2A4A, borderRadius3, fontSize9) | duration(10,monospace,bg #2A2A4A,borderRadius4) ] + detail_section(properties,depth)",
+      "detail_dialog": "QDialog(#1E1E2E, borderRadius12, border #3A3A5A, maxW600, maxH600) > header + ScrollView( status+duration + summary_box(#252538) + properties + details_box(#1A1A2E) + raw_output + error_box(#EF444410%) ) + footer(Copy + Close)"
     },
     "SummaryCards": {
       "structure": "Column [ label_row('Summary' 11/w600/letterSpacing0.6 + 'Total: N' 10) + 2x2_grid: Row[Pass+Warning] gap6 + Row[Fail+Skipped] gap6 ], each_card: borderRadius8, bg color8%, border color25%, icon(20) + count(20/w700/height1.0) + label(9/w500/dim80%)"
@@ -203,8 +203,14 @@
   },
 
   "navigation": {
-    "type": "GoRouter page-based (no BottomNavigationBar)",
-    "initial_route": "/diagnostics",
-    "routes": ["/dashboard", "/diagnostics", "/config", "/report", "/settings", "/simulator"]
+    "type": "Qt Quick StackView (QML component-based, no BottomNavigationBar)",
+    "initial_tab": 1,
+    "tabs": ["Dashboard", "Diagnostics", "Config", "Report", "Settings"],
+    "tab_width": 100,
+    "tab_height": 32,
+    "nav_bar_height": 36,
+    "compact_nav_height": 32,
+    "compact_tab_width": 44,
+    "compact_icons_only": true
   }
 }

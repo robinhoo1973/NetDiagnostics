@@ -1,4 +1,8 @@
-﻿#include "engine/diagnostic/G4RemoteHost.h"
+﻿#ifdef _MSC_VER
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+#include "engine/diagnostic/G4RemoteHost.h"
 #include "util/DebugSwitch.h"
 #include "util/PingParser.h"
 #include "util/Logger.h"
@@ -43,6 +47,10 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <errno.h>
 #include <resolv.h>
 #include <arpa/nameser.h>
+// macOS Apple Clang compatibility: C_IN may not be exposed by default
+#ifndef C_IN
+#define C_IN ns_c_in
+#endif
 inline int setNonblockWin(int sock) {
     int flags = fcntl(sock, F_GETFL, 0);
     if (flags < 0) return -1;
@@ -350,10 +358,10 @@ DiagnosticResult dnsResolution(const QString& target) {
 
     // ── Footer ──────────────────────────────────────────────────────────
     out.append(QStringLiteral(";; Query time: %1 msec").arg(t.elapsed()));
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__ANDROID__)
     out.append(QStringLiteral(";; SERVER: system resolver"));
 #else
-    // Show actual resolver address from _res
+    // Show actual resolver address from _res (glibc-specific)
     QStringList nsList;
     for (int i = 0; i < MAXNS && _res.nsaddr_list[i].sin_addr.s_addr != 0; i++)
         nsList.append(QString::fromLatin1(inet_ntoa(_res.nsaddr_list[i].sin_addr)));

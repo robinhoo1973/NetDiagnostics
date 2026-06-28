@@ -13,7 +13,9 @@
 #include "engine/diagnostic/G1G2G3Native.h"
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
+#ifndef NO_CURL
 #include "engine/diagnostic/G5WebsiteUrl.h"
+#endif
 #include "util/Logger.h"
 #include "util/PingParser.h"
 #include <QtConcurrent/QtConcurrent>
@@ -39,7 +41,9 @@ QFuture<DiagnosticResult> DiagnosticEngine::runDiag(DiagId id, const QString& ta
             case DiagGroup::G2: return engine->runG2(id);
             case DiagGroup::G3: return engine->runG3(id);
             case DiagGroup::G4: return engine->runG4(id, target, fromPort, toPort, useCommonPorts);
+            #ifndef NO_CURL
             case DiagGroup::G5: return engine->runG5(id, target);
+#endif
         }
         return DiagnosticResult::error(id, QStringLiteral("Unknown group"));
     });
@@ -233,6 +237,7 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
 
 // ── G5: Website / URL ──────────────────────────────────────────────────────
 
+#ifndef NO_CURL
 DiagnosticResult DiagnosticEngine::runG5(DiagId id, const QString& target) {
     switch (id) {
         case DiagId::G5UrlParsing:      return G5WebsiteUrl::urlParsing(target);
@@ -252,3 +257,4 @@ DiagnosticResult DiagnosticEngine::runG5(DiagId id, const QString& target) {
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G5 test"));
     }
 }
+#endif // NO_CURL

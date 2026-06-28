@@ -1,25 +1,40 @@
-﻿#include <QApplication>
+﻿#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#include <QGuiApplication>
+#else
+#include <QApplication>
+#include <QMessageBox>
+#endif
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QVariantMap>
 #include <QIcon>
 #include <QTimer>
-#include <QMessageBox>
 #include <QStandardPaths>
+#include <QLockFile>
 #include <csignal>
+#ifdef _WIN32
+#include <windows.h>
+#endif
+#ifndef NO_CURL
 #include <curl/curl.h>
+#endif
 #include "app/AppState.h"
 #include "util/DebugSwitch.h"
 
 int main(int argc, char *argv[])
 {
+#ifndef NO_CURL
     curl_global_init(CURL_GLOBAL_ALL);
+#endif
 
 #ifndef _WIN32
     signal(SIGPIPE, SIG_IGN);
 #endif
 
     qputenv("QSG_RENDER_LOOP", "basic");
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    QGuiApplication app(argc, argv);
+#else
     QApplication app(argc, argv);
 
     // ── Single instance guard ──────────────────────────────────────────────
@@ -28,7 +43,9 @@ int main(int argc, char *argv[])
     HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetAnalysis_SingleInstance");
     if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         if (hMutex) CloseHandle(hMutex);
+#ifndef NO_CURL
         curl_global_cleanup();
+#endif
         QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
             QStringLiteral("NetAnalysis is already running."));
         return 0;
@@ -40,16 +57,19 @@ int main(int argc, char *argv[])
         QLockFile lockFile(lockPath);
         lockFile.setStaleLockTime(5000);
         if (!lockFile.tryLock(100)) {
+#ifndef NO_CURL
                 curl_global_cleanup();
+#endif
                 QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
                         QStringLiteral("NetAnalysis is already running."));
                 return 0;
         }
 #endif
+#endif
 
     app.setApplicationName("NetAnalysis");
     app.setApplicationDisplayName("NetAnalysis");
-    app.setApplicationVersion("1.0.0");
+    app.setApplicationVersion("0.0.1");
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
 
@@ -104,6 +124,8 @@ int main(int argc, char *argv[])
     engine.load(url);
 
     int ret = app.exec();
+    #ifndef NO_CURL
     curl_global_cleanup();
+#endif
     return ret;
 }
