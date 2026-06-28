@@ -27,7 +27,7 @@ jobs:
       APP_SKU: "netdiag.ios.001"
       APP_LOCALE: "en-US"
       PROFILE_NAME: "NetDiagnostic AppStore"
-      QT_INSTALL_DIR: "~/qt-ios"
+      QT_INSTALL_DIR: "$HOME/qt-ios"
 
     steps:
       # ═════════════════════════════════════════════════════════════════
@@ -230,7 +230,7 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       - name: Configure CMake for iOS
         run: |
-          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
+          QT_IOS="${QT_INSTALL_DIR/\~/$HOME}/$QT_VERSION/ios"
           export PATH="$QT_IOS/bin:$PATH"
 
           cmake -G Xcode \
