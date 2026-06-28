@@ -231,17 +231,14 @@ jobs:
       - name: Configure CMake for iOS
         run: |
           QT_IOS="${QT_INSTALL_DIR/\~/$HOME}/$QT_VERSION/ios"
-          export PATH="$QT_IOS/bin:$PATH"
 
-          cmake -G Xcode \
+          # Use qt-cmake (like build.yml) — it sets CMAKE_PREFIX_PATH correctly
+          "$QT_IOS/bin/qt-cmake" \
+            -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$QT_IOS" \
-            -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -B build-ios -S .
-
-          echo "✅ CMake configured"
 
       # ═════════════════════════════════════════════════════════════════
       # Archive (build + sign)
