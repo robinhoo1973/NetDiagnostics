@@ -318,11 +318,7 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build-ios/NetDiagnostic.xcarchive \
             -exportPath build-ios/output \
-            -exportOptionsPlist build-ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-            -authenticationKeyPath "$ASC_KEYFILE"
+            -exportOptionsPlist build-ios/ExportOptions.plist
 
           echo "✅ IPA exported"
           ls -lh build-ios/output/
