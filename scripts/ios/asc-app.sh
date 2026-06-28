@@ -227,25 +227,22 @@ asc_cert_find_distribution() {
     local cid
     cid=$(echo "$resp" | python3 -c "
 import sys, json
-data = json.load(sys.stdin).get('data', [])
-if not data:
-    sys.stderr.write('DEBUG: No certificates found at all in Developer Portal\n')
-    sys.stderr.write('DEBUG: Check API key permissions (needs Developer role)\n')
-    sys.stderr.write(f'DEBUG: API response: {json.dumps(json.loads(sys.stdin.read()) if False else \"\"))}\n')
-    print('')
-    sys.exit(0)
-
+raw = sys.stdin.read()
+sys.stdout.write(f'DEBUG_RAW_RESP: {raw[:500]}\n')
+data = json.loads(raw).get('data', [])
+sys.stdout.write(f'DEBUG_CERT_COUNT: {len(data)}\n')
 for cert in data:
-    cert_type = cert.get('attributes', {}).get('certificateType', '')
-    cert_name = cert.get('attributes', {}).get('displayName', '')
-    sys.stderr.write(f'DEBUG: Found cert: type={cert_type} name={cert_name}\n')
+    cert_type = cert.get('attributes', {}).get('certificateType', '???')
+    cert_name = cert.get('attributes', {}).get('displayName', '???')
+    sys.stdout.write(f'DEBUG_CERT: type={cert_type} name={cert_name}\n')
     if 'DISTRIBUTION' in cert_type.upper() or 'DEVELOPER_ID_APPLICATION' in cert_type.upper():
         print(cert['id'])
         break
 else:
-    sys.stderr.write('DEBUG: No distribution-type certificate found\n')
+    if len(data) == 0:
+        sys.stdout.write('DEBUG: API returned zero certificates\n')
     print('')
-" 2>/dev/null || echo "")
+")
     echo "$cid"
 }
 
