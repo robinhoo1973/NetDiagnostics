@@ -254,30 +254,30 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       - name: Generate ExportOptions.plist
         run: |
-          cat > build-ios/ExportOptions.plist << PLISTEOF
-      <?xml version="1.0" encoding="UTF-8"?>
-      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-        "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-      <plist version="1.0">
-      <dict>
-          <key>method</key>
-          <string>app-store</string>
-          <key>teamID</key>
-          <string>${{ secrets.IOS_TEAM_ID }}</string>
-          <key>signingStyle</key>
-          <string>manual</string>
-          <key>provisioningProfiles</key>
+          cat > build-ios/ExportOptions.plist << 'PLISTEOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
           <dict>
-              <key>${BUNDLE_ID}</key>
-              <string>${{ steps.profile.outputs.profile_uuid }}</string>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>${{ secrets.IOS_TEAM_ID }}</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>${BUNDLE_ID}</key>
+                  <string>${{ steps.profile.outputs.profile_uuid }}</string>
+              </dict>
+              <key>uploadSymbols</key>
+              <false/>
+              <key>manageAppVersionAndBuildNumber</key>
+              <false/>
           </dict>
-          <key>uploadSymbols</key>
-          <false/>
-          <key>manageAppVersionAndBuildNumber</key>
-          <false/>
-      </dict>
-      </plist>
-      PLISTEOF
+          </plist>
+          PLISTEOF
           echo "✅ ExportOptions.plist generated"
 
       # ═════════════════════════════════════════════════════════════════
