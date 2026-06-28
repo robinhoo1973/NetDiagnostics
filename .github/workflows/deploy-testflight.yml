@@ -256,7 +256,7 @@ jobs:
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
 
           "$QT_IOS/bin/qt-cmake" \
-            -G Ninja \
+            -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
@@ -265,49 +265,81 @@ jobs:
             -B build-ios -S .
 
       # ═════════════════════════════════════════════════════════════════
-      # Build
+      # Build + Archive (xcodebuild handles automatic signing)
       # ═════════════════════════════════════════════════════════════════
-      - name: Build iOS app
+      - name: Build and archive iOS app
         run: |
-          ninja -v -C build-ios net_diagnostic
-          echo "✅ Build complete"
+          xcodebuild archive \
+            -project build-ios/NetDiagnostic.xcodeproj \
+            -scheme net_diagnostic \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath build-ios/NetDiagnostic.xcarchive \
+            DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
+            CODE_SIGN_STYLE="Automatic" \
+            -allowProvisioningUpdates \
+            -verbose 2>&1 | tail -60
 
-      # ═════════════════════════════════════════════════════════════════
-      # Verify bundle and package IPA
-      # ═════════════════════════════════════════════════════════════════
-      - name: Verify and package IPA
-        run: |
-          if [ ! -d build-ios/net_diagnostic.app ]; then
-            echo "❌ No .app bundle found"
+          if [ -d build-ios/NetDiagnostic.xcarchive ]; then
+            echo "✅ Archive created"
+          else
+            echo "❌ Archive not created"
             exit 1
           fi
-          echo "✅ .app bundle generated"
-          ls -la build-ios/net_diagnostic.app/
 
-          mkdir -p Payload
-          cp -R build-ios/net_diagnostic.app Payload/
-          zip -r NetDiagnostic-iOS.ipa Payload
-          ls -lh NetDiagnostic-iOS.ipa
-          echo "✅ IPA packaged"
+      # ═════════════════════════════════════════════════════════════════
+      # Export .ipa from archive
+      # ═════════════════════════════════════════════════════════════════
+      - name: Export IPA
+        run: |
+          cat > build-ios/ExportOptions.plist << 'PLISTEOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>${{ secrets.IOS_TEAM_ID }}</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>uploadSymbols</key>
+              <false/>
+              <key>manageAppVersionAndBuildNumber</key>
+              <false/>
+          </dict>
+          </plist>
+          PLISTEOF
+
+          xcodebuild -exportArchive \
+            -archivePath build-ios/NetDiagnostic.xcarchive \
+            -exportPath build-ios/output \
+            -exportOptionsPlist build-ios/ExportOptions.plist \
+            -allowProvisioningUpdates
+
+          echo "✅ IPA exported"
+          ls -lh build-ios/output/
 
       # ═════════════════════════════════════════════════════════════════
       # Upload to TestFlight via altool
       # ═════════════════════════════════════════════════════════════════
       - name: Upload to TestFlight
         run: |
-          if [ ! -f NetDiagnostic-iOS.ipa ]; then
+          IPA_PATH=$(find build-ios/output -name "*.ipa" | head -1)
+          if [ -z "$IPA_PATH" ]; then
             echo "ERROR: No .ipa found"
             exit 1
           fi
 
-          echo "Uploading NetDiagnostic-iOS.ipa to TestFlight..."
+          echo "Uploading ${IPA_PATH} to TestFlight..."
 
           mkdir -p ~/.appstoreconnect/private_keys
           cp "$ASC_KEYFILE" \
             ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
 
           xcrun altool --upload-app \
-            -f NetDiagnostic-iOS.ipa \
+            -f "$IPA_PATH" \
             -t ios \
             --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
             --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
