@@ -28,6 +28,7 @@ jobs:
       APP_LOCALE: "en-US"
       PROFILE_NAME: "NetDiagnostic AppStore"
       QT_INSTALL_DIR: "/Users/runner/qt-ios"
+      QT_HOST_DIR: "/Users/runner/qt-mac"
 
     steps:
       # ═════════════════════════════════════════════════════════════════
@@ -40,6 +41,22 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       - name: Install homebrew dependencies
         run: brew install cmake ninja curl python3
+
+      # ═════════════════════════════════════════════════════════════════
+      # Cache & install Qt 6 for macOS (host tools for cross-compilation)
+      # ═════════════════════════════════════════════════════════════════
+      - name: Cache Qt 6 macOS (host)
+        id: cache-qt-mac
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_HOST_DIR }}
+          key: qt6-mac-${{ env.QT_VERSION }}-v1
+
+      - name: Install Qt 6 for macOS via aqt
+        if: steps.cache-qt-mac.outputs.cache-hit != 'true'
+        run: |
+          pip3 install --break-system-packages aqtinstall
+          aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
 
       # ═════════════════════════════════════════════════════════════════
       # Cache & install Qt 6 for iOS
@@ -231,11 +248,12 @@ jobs:
       - name: Configure CMake for iOS
         run: |
           QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
+          QT_MAC="$QT_HOST_DIR/$QT_VERSION/clang_64"
 
-          # Use qt-cmake (like build.yml) — it sets CMAKE_PREFIX_PATH correctly
           "$QT_IOS/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
+            -DQT_HOST_PATH="$QT_MAC" \
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -B build-ios -S .
