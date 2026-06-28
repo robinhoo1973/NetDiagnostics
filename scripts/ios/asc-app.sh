@@ -228,19 +228,22 @@ asc_cert_find_distribution() {
     cid=$(echo "$resp" | python3 -c "
 import sys, json
 data = json.load(sys.stdin).get('data', [])
-# Accept any distribution-type certificate: IOS_DISTRIBUTION, DISTRIBUTION, DEVELOPER_ID_APPLICATION
+if not data:
+    sys.stderr.write('DEBUG: No certificates found at all in Developer Portal\n')
+    sys.stderr.write('DEBUG: Check API key permissions (needs Developer role)\n')
+    sys.stderr.write(f'DEBUG: API response: {json.dumps(json.loads(sys.stdin.read()) if False else \"\"))}\n')
+    print('')
+    sys.exit(0)
+
 for cert in data:
     cert_type = cert.get('attributes', {}).get('certificateType', '')
     cert_name = cert.get('attributes', {}).get('displayName', '')
+    sys.stderr.write(f'DEBUG: Found cert: type={cert_type} name={cert_name}\n')
     if 'DISTRIBUTION' in cert_type.upper() or 'DEVELOPER_ID_APPLICATION' in cert_type.upper():
         print(cert['id'])
         break
 else:
-    # fallback: print IDs and types of all certs for debugging
-    for cert in data:
-        ct = cert.get('attributes', {}).get('certificateType', '')
-        cn = cert.get('attributes', {}).get('displayName', '')
-        sys.stderr.write(f'  cert: {cert[\"id\"]} type={ct} name={cn}\n')
+    sys.stderr.write('DEBUG: No distribution-type certificate found\n')
     print('')
 " 2>/dev/null || echo "")
     echo "$cid"
