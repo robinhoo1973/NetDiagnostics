@@ -58,5 +58,6 @@
         <file>fonts/JetBrainsMono-Regular.ttf</file>
         <file>fonts/JetBrainsMono-Bold.ttf</file>
         <file>fonts/DejaVuSansMono.ttf</file>
+        <file>qtquickcontrols2.conf</file>
     </qresource>
 </RCC>

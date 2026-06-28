@@ -10,11 +10,15 @@
 #include <chrono>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrent>
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
 #include <QDialog>
+#endif
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QDialogButtonBox>
 #include <QScrollArea>
+#endif
 
 AppState::AppState(QObject* parent) : QObject(parent) {
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
@@ -682,6 +686,7 @@ void AppState::showDetailDialog(int diagIdInt) {
     
     const auto& r = m_results[id];
     
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
     // Use heap-allocated dialog with show() instead of exec()
     // exec() creates a nested event loop that crashes QML on ARM64
     auto* dlg = new QDialog(nullptr, Qt::Dialog | Qt::WindowCloseButtonHint);
@@ -752,6 +757,7 @@ void AppState::showDetailDialog(int diagIdInt) {
     layout->addWidget(btnBox);
     
     dlg->show();
+#endif // !PLATFORM_IOS && !PLATFORM_ANDROID
 }
 
 QVariantMap AppState::getDetailResult(int diagIdInt) const {

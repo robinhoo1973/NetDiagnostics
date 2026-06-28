@@ -32,3 +32,18 @@ desktop.ini
 # Session files
 .codewhale/
 .deepseek/
+
+# Temporary files
+.goutputstream-*
+xa-tmp*/
+...
+
+# Backup files
+*.bak
+
+# Certificates — entire directory excluded (private keys, certs, CSR)
+resources/cert/
+
+# Block WSL/Windows path separator artifacts (backslash paths)
+**/scripts\\build-static.ps1
+.\scripts\build-static.ps1

@@ -5,6 +5,10 @@
 // Output format: matches Windows CLI tools (ipconfig, route print, arp -a,
 // netstat -an, netsh, nslookup)
 // =============================================================================
+#ifdef _MSC_VER
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
 #include "engine/diagnostic/G1G2G3Native.h"
 #include "util/DebugSwitch.h"
 #include <QElapsedTimer>
@@ -42,7 +46,9 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
+#ifdef __linux__
 #include <net/if_arp.h>
+#endif
 #include <net/if_types.h>
 #else
 #include <sys/socket.h>
