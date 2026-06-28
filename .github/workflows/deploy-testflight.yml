@@ -278,6 +278,9 @@ jobs:
             DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
             CODE_SIGN_STYLE="Automatic" \
             -allowProvisioningUpdates \
+            -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            -authenticationKeyPath "$ASC_KEYFILE" \
             -verbose 2>&1 | tail -60
 
           if [ -d build-ios/NetDiagnostic.xcarchive ]; then
