@@ -185,62 +185,58 @@ jobs:
       - name: Ensure provisioning profile (auto)
         id: profile
         run: |
-          # If using auto signing, skip profile creation entirely
-          if [ "${{ steps.cert-id.outputs.auto_signing }}" = "true" ]; then
-            echo "Skipping profile — using Xcode automatic signing"
-            echo "profile_uuid=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          source scripts/ios/asc-app.sh
-          JWT="${{ steps.jwt.outputs.jwt }}"
-          BID="${{ steps.bundle.outputs.bundle_id }}"
-          CID="${{ steps.cert-id.outputs.cert_id }}"
-
-          # First, try user-provided profile (optional)
+          # Priority 1: user-provided provisioning profile (via secret)
           if [ -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
             echo "Using user-provided provisioning profile..."
             echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" \
               | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
             PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
-              <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null)
-            PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-            mkdir -p "$PROFILE_DIR"
-            cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
-            echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
-            echo "✅ Using user-provided provisioning profile (UUID: ${PROFILE_UUID})"
-            exit 0
+              <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+            if [ -n "$PROFILE_UUID" ]; then
+              PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+              mkdir -p "$PROFILE_DIR"
+              cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
+              echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+              echo "✅ Using user-provided provisioning profile (UUID: ${PROFILE_UUID})"
+              exit 0
+            fi
+            echo "WARNING: Failed to parse user-provided profile UUID"
           fi
 
-          # Auto-create profile via ASC API
-          echo "Auto-creating provisioning profile: ${PROFILE_NAME}..."
-          PROFILE_ID=$(asc_profile_ensure "$JWT" "$PROFILE_NAME" "$BID" "$CID")
+          # Priority 2: auto-create via ASC API (if cert lookup worked)
+          if [ "${{ steps.cert-id.outputs.auto_signing }}" != "true" ]; then
+            source scripts/ios/asc-app.sh
+            JWT="${{ steps.jwt.outputs.jwt }}"
+            BID="${{ steps.bundle.outputs.bundle_id }}"
+            CID="${{ steps.cert-id.outputs.cert_id }}"
 
-          if [ -z "$PROFILE_ID" ]; then
-            echo "WARNING: Could not create profile via API, using auto signing"
-            echo "profile_uuid=" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "Auto-creating provisioning profile: ${PROFILE_NAME}..."
+            PROFILE_ID=$(asc_profile_ensure "$JWT" "$PROFILE_NAME" "$BID" "$CID")
+
+            if [ -n "$PROFILE_ID" ]; then
+              echo "Downloading provisioning profile content..."
+              PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
+
+              if [ -n "$PROFILE_B64" ]; then
+                echo "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+                PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
+                  <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+                if [ -n "$PROFILE_UUID" ]; then
+                  PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+                  mkdir -p "$PROFILE_DIR"
+                  cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
+                  echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+                  echo "✅ Provisioning profile auto-created (UUID: ${PROFILE_UUID})"
+                  exit 0
+                fi
+              fi
+            fi
+            echo "WARNING: ASC API profile creation failed, falling back to auto signing"
           fi
 
-          echo "Downloading provisioning profile content..."
-          PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
-
-          if [ -z "$PROFILE_B64" ]; then
-            echo "WARNING: Failed to download profile, using auto signing"
-            echo "profile_uuid=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Decode and install
-          echo "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
-            <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null)
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
-          mkdir -p "$PROFILE_DIR"
-          cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
-
-          echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
-          echo "✅ Provisioning profile installed (UUID: ${PROFILE_UUID})"
+          # Priority 3: use Xcode automatic signing
+          echo "Using Xcode automatic signing (no manual profile)"
+          echo "profile_uuid=" >> "$GITHUB_OUTPUT"
 
       # ═════════════════════════════════════════════════════════════════
       # Configure CMake for iOS (Xcode generator)
