@@ -27,7 +27,7 @@ jobs:
       APP_SKU: "netdiag.ios.001"
       APP_LOCALE: "en-US"
       PROFILE_NAME: "NetDiagnostic AppStore"
-      QT_INSTALL_DIR: "/opt/qt-ios"
+      QT_INSTALL_DIR: "~/qt-ios"
 
     steps:
       # ═════════════════════════════════════════════════════════════════
