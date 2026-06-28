@@ -269,6 +269,20 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       - name: Build and archive iOS app
         run: |
+          # Find the imported distribution certificate identity
+          DIST_CERT_ID=$(security find-identity -v -p codesigning | grep "iPhone Distribution" | head -1 | awk '{print $2}')
+          if [ -z "$DIST_CERT_ID" ]; then
+            echo "Available identities:"
+            security find-identity -v -p codesigning
+            echo "WARNING: No iPhone Distribution identity found, trying automatic signing"
+            CODE_STYLE="Automatic"
+            CERT_ARG=""
+          else
+            echo "Using distribution identity: $DIST_CERT_ID"
+            CODE_STYLE="Manual"
+            CERT_ARG="CODE_SIGN_IDENTITY=$DIST_CERT_ID"
+          fi
+
           xcodebuild archive \
             -project build-ios/NetDiagnostic.xcodeproj \
             -scheme net_diagnostic \
@@ -276,7 +290,8 @@ jobs:
             -configuration Release \
             -archivePath build-ios/NetDiagnostic.xcarchive \
             DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
-            CODE_SIGN_STYLE="Automatic" \
+            CODE_SIGN_STYLE="$CODE_STYLE" \
+            $CERT_ARG \
             -allowProvisioningUpdates \
             -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
