@@ -119,6 +119,15 @@ if(IOS)
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_COPYRIGHT "Copyright © Robin Hu. All rights reserved."
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.netdiagnostic.app"
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
+    )
+    # Add asset catalog to sources for Xcode
+    target_sources(net_diagnostic PRIVATE
+        "${CMAKE_SOURCE_DIR}/resources/Assets.xcassets"
+    )
+    set_source_files_properties(
+        "${CMAKE_SOURCE_DIR}/resources/Assets.xcassets"
+        PROPERTIES MACOSX_PACKAGE_LOCATION "Resources"
     )
     # Code signing: manual in CI, automatic on developer machines
     if(DEFINED ENV{IOS_TEAM_ID})
