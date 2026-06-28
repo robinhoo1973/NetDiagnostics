@@ -250,10 +250,13 @@ jobs:
           QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
           QT_MAC="$QT_HOST_DIR/$QT_VERSION/clang_64"
 
+          # Set QT_HOST_PATH as env var + cache variable
+          export QT_HOST_PATH="$QT_MAC"
+
           "$QT_IOS/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
-            -DQT_HOST_PATH="$QT_MAC" \
+            -DQT_HOST_PATH:PATH="$QT_MAC" \
             -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -B build-ios -S .
