@@ -150,14 +150,16 @@ jobs:
           CERT_ID=$(asc_cert_find_distribution "$JWT")
 
           if [ -z "$CERT_ID" ]; then
-            echo "ERROR: No IOS_DISTRIBUTION certificate found in Developer Portal."
-            echo "Make sure you have created a distribution certificate at:"
-            echo "  https://developer.apple.com/account/resources/certificates/list"
-            exit 1
+            echo "WARNING: Could not find distribution certificate via API."
+            echo "This is normal if the API key lacks Certificates access."
+            echo "Falling back to automatic code signing (Xcode managed)."
+            echo "cert_id=" >> "$GITHUB_OUTPUT"
+            echo "auto_signing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cert_id=${CERT_ID}" >> "$GITHUB_OUTPUT"
+            echo "auto_signing=false" >> "$GITHUB_OUTPUT"
+            echo "✅ Distribution certificate found (id: ${CERT_ID})"
           fi
-
-          echo "cert_id=${CERT_ID}" >> "$GITHUB_OUTPUT"
-          echo "✅ Distribution certificate found (id: ${CERT_ID})"
 
       # ═════════════════════════════════════════════════════════════════
       # Step D: Create provisioning profile (auto, if not exists)
@@ -166,12 +168,19 @@ jobs:
       - name: Ensure provisioning profile (auto)
         id: profile
         run: |
+          # If using auto signing, skip profile creation entirely
+          if [ "${{ steps.cert-id.outputs.auto_signing }}" = "true" ]; then
+            echo "Skipping profile — using Xcode automatic signing"
+            echo "profile_uuid=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           source scripts/ios/asc-app.sh
           JWT="${{ steps.jwt.outputs.jwt }}"
           BID="${{ steps.bundle.outputs.bundle_id }}"
           CID="${{ steps.cert-id.outputs.cert_id }}"
 
-          # First, try user-provided profile (optional — for users who prefer manual)
+          # First, try user-provided profile (optional)
           if [ -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
             echo "Using user-provided provisioning profile..."
             echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" \
@@ -189,16 +198,20 @@ jobs:
           # Auto-create profile via ASC API
           echo "Auto-creating provisioning profile: ${PROFILE_NAME}..."
           PROFILE_ID=$(asc_profile_ensure "$JWT" "$PROFILE_NAME" "$BID" "$CID")
-          echo "Profile ID: ${PROFILE_ID}"
 
-          # Download the .mobileprovision content
+          if [ -z "$PROFILE_ID" ]; then
+            echo "WARNING: Could not create profile via API, using auto signing"
+            echo "profile_uuid=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           echo "Downloading provisioning profile content..."
           PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
 
           if [ -z "$PROFILE_B64" ]; then
-            echo "ERROR: Failed to download provisioning profile."
-            echo "You can manually create and provide IOS_PROVISIONING_PROFILE_BASE64 secret."
-            exit 1
+            echo "WARNING: Failed to download profile, using auto signing"
+            echo "profile_uuid=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           # Decode and install
@@ -210,7 +223,7 @@ jobs:
           cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
 
           echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
-          echo "✅ Provisioning profile auto-created and installed (UUID: ${PROFILE_UUID})"
+          echo "✅ Provisioning profile installed (UUID: ${PROFILE_UUID})"
 
       # ═════════════════════════════════════════════════════════════════
       # Configure CMake for iOS (Xcode generator)
@@ -235,17 +248,32 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       - name: Build and archive iOS app
         run: |
-          xcodebuild archive \
-            -project build-ios/NetDiagnostic.xcodeproj \
-            -scheme net_diagnostic \
-            -sdk iphoneos \
-            -configuration Release \
-            -archivePath build-ios/NetDiagnostic.xcarchive \
-            DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
-            CODE_SIGN_STYLE="Manual" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ steps.profile.outputs.profile_uuid }}" \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
-            -verbose 2>&1 | tail -120
+          if [ -n "${{ steps.profile.outputs.profile_uuid }}" ]; then
+            echo "Using manual code signing with profile: ${{ steps.profile.outputs.profile_uuid }}"
+            xcodebuild archive \
+              -project build-ios/NetDiagnostic.xcodeproj \
+              -scheme net_diagnostic \
+              -sdk iphoneos \
+              -configuration Release \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
+              CODE_SIGN_STYLE="Manual" \
+              PROVISIONING_PROFILE_SPECIFIER="${{ steps.profile.outputs.profile_uuid }}" \
+              CODE_SIGN_IDENTITY="iPhone Distribution" \
+              -verbose 2>&1 | tail -120
+          else
+            echo "Using automatic code signing (Xcode managed)"
+            xcodebuild archive \
+              -project build-ios/NetDiagnostic.xcodeproj \
+              -scheme net_diagnostic \
+              -sdk iphoneos \
+              -configuration Release \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
+              CODE_SIGN_STYLE="Automatic" \
+              -allowProvisioningUpdates \
+              -verbose 2>&1 | tail -120
+          fi
 
           echo "✅ Archive created"
 
@@ -254,7 +282,9 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       - name: Generate ExportOptions.plist
         run: |
-          cat > build-ios/ExportOptions.plist << 'PLISTEOF'
+          if [ -n "${{ steps.profile.outputs.profile_uuid }}" ]; then
+            echo "Generating ExportOptions.plist (manual signing)..."
+            cat > build-ios/ExportOptions.plist << 'PLISTEOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
             "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -278,6 +308,28 @@ jobs:
           </dict>
           </plist>
           PLISTEOF
+          else
+            echo "Generating ExportOptions.plist (automatic signing)..."
+            cat > build-ios/ExportOptions.plist << 'PLISTEOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>${{ secrets.IOS_TEAM_ID }}</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>uploadSymbols</key>
+              <false/>
+              <key>manageAppVersionAndBuildNumber</key>
+              <false/>
+          </dict>
+          </plist>
+          PLISTEOF
+          fi
           echo "✅ ExportOptions.plist generated"
 
       # ═════════════════════════════════════════════════════════════════
