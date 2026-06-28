@@ -291,61 +291,49 @@ jobs:
           fi
 
       # ═════════════════════════════════════════════════════════════════
-      # Export .ipa from archive
+      # Package IPA from signed .xcarchive
       # ═════════════════════════════════════════════════════════════════
-      - name: Export IPA
+      - name: Package IPA from archive
         run: |
-          cat > build-ios/ExportOptions.plist << 'PLISTEOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store-connect</string>
-              <key>teamID</key>
-              <string>${{ secrets.IOS_TEAM_ID }}</string>
-              <key>signingStyle</key>
-              <string>automatic</string>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>manageAppVersionAndBuildNumber</key>
-              <false/>
-          </dict>
-          </plist>
-          PLISTEOF
+          # Extract the signed .app from the archive
+          APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostic.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "❌ App not found in archive at $APP_PATH"
+            # Try alternate location
+            APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
+            if [ -z "$APP_PATH" ]; then
+              echo "❌ No .app found in archive"
+              find build-ios/NetDiagnostic.xcarchive -type d | head -20
+              exit 1
+            fi
+          fi
+          echo "✅ Found app: $APP_PATH"
+          ls -la "$APP_PATH"
 
-          xcodebuild -exportArchive \
-            -archivePath build-ios/NetDiagnostic.xcarchive \
-            -exportPath build-ios/output \
-            -exportOptionsPlist build-ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
-            -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-            -authenticationKeyPath "$ASC_KEYFILE"
-
-          echo "✅ IPA exported"
-          ls -lh build-ios/output/
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r NetDiagnostic-iOS.ipa Payload
+          ls -lh NetDiagnostic-iOS.ipa
+          echo "✅ IPA packaged"
 
       # ═════════════════════════════════════════════════════════════════
       # Upload to TestFlight via altool
       # ═════════════════════════════════════════════════════════════════
       - name: Upload to TestFlight
         run: |
-          IPA_PATH=$(find build-ios/output -name "*.ipa" | head -1)
-          if [ -z "$IPA_PATH" ]; then
+          if [ ! -f NetDiagnostic-iOS.ipa ]; then
             echo "ERROR: No .ipa found"
             exit 1
           fi
 
-          echo "Uploading ${IPA_PATH} to TestFlight..."
+          echo "Uploading NetDiagnostic-iOS.ipa to TestFlight..."
 
           mkdir -p ~/.appstoreconnect/private_keys
           cp "$ASC_KEYFILE" \
             ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
 
           xcrun altool --upload-app \
-            -f "$IPA_PATH" \
+            -f NetDiagnostic-iOS.ipa \
             -t ios \
             --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
             --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
