@@ -218,13 +218,31 @@ asc_bundle_ensure() {
 asc_cert_find_distribution() {
     local jwt="$1"
 
+    # List all certificates (no type filter), pick first distribution-related one
     local resp
-    resp=$(curl -s -X GET "${ASC_API}/certificates?filter[certificateType]=IOS_DISTRIBUTION&sort=-displayName&limit=1" \
+    resp=$(curl -s -X GET "${ASC_API}/certificates?sort=-displayName&limit=10" \
         -H "Authorization: Bearer ${jwt}" \
         -H "Accept: application/json")
 
     local cid
-    cid=$(echo "$resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',[{}])[0].get('id',''))" 2>/dev/null || echo "")
+    cid=$(echo "$resp" | python3 -c "
+import sys, json
+data = json.load(sys.stdin).get('data', [])
+# Accept any distribution-type certificate: IOS_DISTRIBUTION, DISTRIBUTION, DEVELOPER_ID_APPLICATION
+for cert in data:
+    cert_type = cert.get('attributes', {}).get('certificateType', '')
+    cert_name = cert.get('attributes', {}).get('displayName', '')
+    if 'DISTRIBUTION' in cert_type.upper() or 'DEVELOPER_ID_APPLICATION' in cert_type.upper():
+        print(cert['id'])
+        break
+else:
+    # fallback: print IDs and types of all certs for debugging
+    for cert in data:
+        ct = cert.get('attributes', {}).get('certificateType', '')
+        cn = cert.get('attributes', {}).get('displayName', '')
+        sys.stderr.write(f'  cert: {cert[\"id\"]} type={ct} name={cn}\n')
+    print('')
+" 2>/dev/null || echo "")
     echo "$cid"
 }
 
