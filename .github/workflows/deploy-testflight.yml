@@ -302,7 +302,7 @@ jobs:
           <plist version="1.0">
           <dict>
               <key>method</key>
-              <string>app-store</string>
+              <string>app-store-connect</string>
               <key>teamID</key>
               <string>${{ secrets.IOS_TEAM_ID }}</string>
               <key>signingStyle</key>
@@ -318,7 +318,11 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath build-ios/NetDiagnostic.xcarchive \
             -exportPath build-ios/output \
-            -exportOptionsPlist build-ios/ExportOptions.plist
+            -exportOptionsPlist build-ios/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            -authenticationKeyPath "$ASC_KEYFILE"
 
           echo "✅ IPA exported"
           ls -lh build-ios/output/
