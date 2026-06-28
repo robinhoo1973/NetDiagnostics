@@ -246,6 +246,7 @@ jobs:
       # Configure CMake for iOS (Xcode generator)
       # ═════════════════════════════════════════════════════════════════
       - name: Configure CMake for iOS
+        id: cmake
         run: |
           QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
           QT_MAC="$QT_HOST_DIR/$QT_VERSION/macos"
@@ -255,137 +256,58 @@ jobs:
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
 
           "$QT_IOS/bin/qt-cmake" \
-            -G Xcode \
+            -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -DCURL_INCLUDE_DIR="$SDKROOT/usr/include" \
             -B build-ios -S .
 
       # ═════════════════════════════════════════════════════════════════
-      # Archive (build + sign)
+      # Build
       # ═════════════════════════════════════════════════════════════════
-      - name: Build and archive iOS app
+      - name: Build iOS app
         run: |
-          if [ -n "${{ steps.profile.outputs.profile_uuid }}" ]; then
-            echo "Using manual code signing with profile: ${{ steps.profile.outputs.profile_uuid }}"
-            xcodebuild archive \
-              -project build-ios/NetDiagnostic.xcodeproj \
-              -scheme net_diagnostic \
-              -sdk iphoneos \
-              -configuration Release \
-              -archivePath build-ios/NetDiagnostic.xcarchive \
-              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
-              CODE_SIGN_STYLE="Manual" \
-              PROVISIONING_PROFILE_SPECIFIER="${{ steps.profile.outputs.profile_uuid }}" \
-              CODE_SIGN_IDENTITY="iPhone Distribution" \
-              -verbose 2>&1 | tail -120
-          else
-            echo "Using automatic code signing (Xcode managed)"
-            xcodebuild archive \
-              -project build-ios/NetDiagnostic.xcodeproj \
-              -scheme net_diagnostic \
-              -sdk iphoneos \
-              -configuration Release \
-              -archivePath build-ios/NetDiagnostic.xcarchive \
-              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
-              CODE_SIGN_STYLE="Automatic" \
-              -allowProvisioningUpdates \
-              -verbose 2>&1 | tail -120
+          ninja -v -C build-ios net_diagnostic
+          echo "✅ Build complete"
+
+      # ═════════════════════════════════════════════════════════════════
+      # Verify bundle and package IPA
+      # ═════════════════════════════════════════════════════════════════
+      - name: Verify and package IPA
+        run: |
+          if [ ! -d build-ios/net_diagnostic.app ]; then
+            echo "❌ No .app bundle found"
+            exit 1
           fi
+          echo "✅ .app bundle generated"
+          ls -la build-ios/net_diagnostic.app/
 
-          echo "✅ Archive created"
-
-      # ═════════════════════════════════════════════════════════════════
-      # Generate ExportOptions.plist
-      # ═════════════════════════════════════════════════════════════════
-      - name: Generate ExportOptions.plist
-        run: |
-          if [ -n "${{ steps.profile.outputs.profile_uuid }}" ]; then
-            echo "Generating ExportOptions.plist (manual signing)..."
-            cat > build-ios/ExportOptions.plist << 'PLISTEOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store</string>
-              <key>teamID</key>
-              <string>${{ secrets.IOS_TEAM_ID }}</string>
-              <key>signingStyle</key>
-              <string>manual</string>
-              <key>provisioningProfiles</key>
-              <dict>
-                  <key>${BUNDLE_ID}</key>
-                  <string>${{ steps.profile.outputs.profile_uuid }}</string>
-              </dict>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>manageAppVersionAndBuildNumber</key>
-              <false/>
-          </dict>
-          </plist>
-          PLISTEOF
-          else
-            echo "Generating ExportOptions.plist (automatic signing)..."
-            cat > build-ios/ExportOptions.plist << 'PLISTEOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store</string>
-              <key>teamID</key>
-              <string>${{ secrets.IOS_TEAM_ID }}</string>
-              <key>signingStyle</key>
-              <string>automatic</string>
-              <key>uploadSymbols</key>
-              <false/>
-              <key>manageAppVersionAndBuildNumber</key>
-              <false/>
-          </dict>
-          </plist>
-          PLISTEOF
-          fi
-          echo "✅ ExportOptions.plist generated"
-
-      # ═════════════════════════════════════════════════════════════════
-      # Export .ipa
-      # ═════════════════════════════════════════════════════════════════
-      - name: Export IPA
-        run: |
-          xcodebuild -exportArchive \
-            -archivePath build-ios/NetDiagnostic.xcarchive \
-            -exportPath build-ios/output \
-            -exportOptionsPlist build-ios/ExportOptions.plist \
-            -allowProvisioningUpdates
-
-          echo "✅ IPA exported"
-          ls -lh build-ios/output/
+          mkdir -p Payload
+          cp -R build-ios/net_diagnostic.app Payload/
+          zip -r NetDiagnostic-iOS.ipa Payload
+          ls -lh NetDiagnostic-iOS.ipa
+          echo "✅ IPA packaged"
 
       # ═════════════════════════════════════════════════════════════════
       # Upload to TestFlight via altool
       # ═════════════════════════════════════════════════════════════════
       - name: Upload to TestFlight
         run: |
-          IPA_PATH=$(find build-ios/output -name "*.ipa" | head -1)
-
-          if [ -z "$IPA_PATH" ]; then
-            echo "ERROR: No .ipa found in build-ios/output/"
-            ls -R build-ios/output/
+          if [ ! -f NetDiagnostic-iOS.ipa ]; then
+            echo "ERROR: No .ipa found"
             exit 1
           fi
 
-          echo "Uploading ${IPA_PATH} to TestFlight..."
+          echo "Uploading NetDiagnostic-iOS.ipa to TestFlight..."
 
           mkdir -p ~/.appstoreconnect/private_keys
           cp "$ASC_KEYFILE" \
             ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
 
           xcrun altool --upload-app \
-            -f "$IPA_PATH" \
+            -f NetDiagnostic-iOS.ipa \
             -t ios \
             --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
             --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
