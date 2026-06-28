@@ -308,7 +308,7 @@ echo "==========================================="
 # --- Download source (if not cached) ---
 if [ ! -f "$($qtSrcMsys)/CMakeLists.txt" ]; then
     echo ">>> Downloading Qt `$QT_VER source..."
-    curl -fsSL "https://download.qt.io/official_releases/qt/`${QT_MAJMIN}/`${QT_VER}/single/qt-everywhere-src-`${QT_VER}.tar.xz" \
+    curl -fkSL "https://download.qt.io/official_releases/qt/`${QT_MAJMIN}/`${QT_VER}/single/qt-everywhere-src-`${QT_VER}.tar.xz" \
         -o /tmp/qt-src.tar.xz
     echo ">>> Extracting..."
     tar -xJf /tmp/qt-src.tar.xz -C "$($qtSrcMsys)" --strip-components=1
@@ -326,9 +326,9 @@ cmake -G Ninja -B "$($qtBuildMsys)" -S . \
     -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2" \
     -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
     -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
--DFEATURE_static=ON -DFEATURE_shared=OFF \
--DBUILD_SHARED_LIBS=OFF \
--DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+    -DFEATURE_static=ON -DFEATURE_shared=OFF \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
     -DFEATURE_pch=ON -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
     -DFEATURE_system_zlib=OFF \
     -DFEATURE_system_brotli=OFF \
@@ -449,7 +449,7 @@ function Test-Dependencies {
     # This is the only way to achieve true zero-DLL output: the Qt6 third-party
     # dependencies (zlib, pcre2, brotli, libb2, png, freetype, etc.) must be
     # compiled into the Qt6 static libs, not referenced as external DLLs.
-    # Cached at $env:LOCALAPPDATA\netdiag-qt6-static — first build ~15-20 min,
+    # Cached at C:\netdiag-qt6s — first build ~60-90 min,
     # subsequent builds < 1 min (cache hit).
     Invoke-Qt6SourceBuild
     $script:QT6_STATIC_CMAKE = Join-Path $script:QT6_INSTALL_DIR "lib\cmake\Qt6"
