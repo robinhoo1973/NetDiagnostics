@@ -228,19 +228,28 @@ asc_cert_find_distribution() {
     cid=$(echo "$resp" | python3 -c "
 import sys, json
 raw = sys.stdin.read()
-sys.stdout.write(f'DEBUG_RAW_RESP: {raw[:500]}\n')
-data = json.loads(raw).get('data', [])
-sys.stdout.write(f'DEBUG_CERT_COUNT: {len(data)}\n')
+# Check for API errors first
+try:
+    resp_data = json.loads(raw)
+except:
+    print('DEBUG_PARSE_ERROR', file=sys.stderr)
+    print('')
+    sys.exit(0)
+if 'errors' in resp_data:
+    for e in resp_data.get('errors', []):
+        print(f'DEBUG_API_ERROR: status={e.get(\"status\")} title={e.get(\"title\",\"\")} detail={e.get(\"detail\",\"\")}', file=sys.stderr)
+    print('')
+    sys.exit(0)
+data = resp_data.get('data', [])
+print(f'DEBUG_CERT_COUNT: {len(data)}', file=sys.stderr)
 for cert in data:
     cert_type = cert.get('attributes', {}).get('certificateType', '???')
     cert_name = cert.get('attributes', {}).get('displayName', '???')
-    sys.stdout.write(f'DEBUG_CERT: type={cert_type} name={cert_name}\n')
+    print(f'DEBUG_CERT: type={cert_type} name={cert_name}', file=sys.stderr)
     if 'DISTRIBUTION' in cert_type.upper() or 'DEVELOPER_ID_APPLICATION' in cert_type.upper():
         print(cert['id'])
         break
 else:
-    if len(data) == 0:
-        sys.stdout.write('DEBUG: API returned zero certificates\n')
     print('')
 ")
     echo "$cid"
