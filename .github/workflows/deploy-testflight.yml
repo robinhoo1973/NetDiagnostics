@@ -28,7 +28,7 @@ jobs:
       APP_LOCALE: "en-US"
       PROFILE_NAME: "NetDiagnostic AppStore"
       QT_INSTALL_DIR: "/Users/runner/qt-ios"
-      QT_HOST_DIR: "/Users/runner/qt-mac"
+      QT_HOST_DIR: "/Users/runner/qt-desktop"
 
     steps:
       # ═════════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.QT_HOST_DIR }}
-          key: qt6-mac-${{ env.QT_VERSION }}-v1
+          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
 
       - name: Install Qt 6 for macOS via aqt
         if: steps.cache-qt-mac.outputs.cache-hit != 'true'
@@ -248,17 +248,18 @@ jobs:
       - name: Configure CMake for iOS
         run: |
           QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
-          QT_MAC="$QT_HOST_DIR/$QT_VERSION/clang_64"
+          QT_MAC="$QT_HOST_DIR/$QT_VERSION/macos"
 
-          # Set QT_HOST_PATH as env var + cache variable
+          # Set QT_HOST_PATH as env var (matching build.yml pattern)
           export QT_HOST_PATH="$QT_MAC"
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
 
           "$QT_IOS/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
-            -DQT_HOST_PATH:PATH="$QT_MAC" \
-            -DCMAKE_OSX_SYSROOT=iphoneos \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DCURL_INCLUDE_DIR="$SDKROOT/usr/include" \
             -B build-ios -S .
 
       # ═════════════════════════════════════════════════════════════════
