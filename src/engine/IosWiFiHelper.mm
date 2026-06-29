@@ -12,8 +12,7 @@
 #ifdef PLATFORM_IOS
 
 #include <QString>
-// SystemConfiguration: prefer module import in ObjC++ mode; fallback to header
-@import SystemConfiguration;
+#import <SystemConfiguration/SystemConfiguration.h>
 #import <NetworkExtension/NetworkExtension.h>
 #import <CoreLocation/CoreLocation.h>
 

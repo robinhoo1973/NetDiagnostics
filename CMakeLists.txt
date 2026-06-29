@@ -159,12 +159,17 @@ target_link_libraries(net_diagnostic PRIVATE
 if(IOS)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_IOS)
     # iOS frameworks needed for network diagnostics
-    # find_library resolves full framework path → CMake adds -F to compile + link
+    # find_library resolves framework for linking; Xcode also needs
+    # explicit FRAMEWORK_SEARCH_PATHS to find headers during compilation
     find_library(SYSCONFIG_FW SystemConfiguration REQUIRED)
     find_library(NETEXT_FW NetworkExtension REQUIRED)
     find_library(CORELOC_FW CoreLocation REQUIRED)
     target_link_libraries(net_diagnostic PRIVATE
         ${SYSCONFIG_FW} ${NETEXT_FW} ${CORELOC_FW}
+    )
+    # -G Xcode: framework search path for #import <Framework/Header.h>
+    set_target_properties(net_diagnostic PROPERTIES
+        XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS "$(SDKROOT)/System/Library/Frameworks"
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
