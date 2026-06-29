@@ -15,8 +15,6 @@ Item {
     property bool compact: false // mobile: icons only, right-aligned, no close
     signal closeRequested()
 
-    // FontLoader is in main.qml (root ApplicationWindow) — process-global, no duplicate needed
-
     function switchToTab(idx) {
         if (idx < 0 || idx > 4) return
         currentTab = idx
@@ -70,31 +68,37 @@ Item {
                         delegate: ItemDelegate {
                             id: navBtn
                             property bool active: stackView.currentItem && stackView.currentItem.objectName === modelData.screen
-                            // Dynamic label lookup — tracks Tr.lang changes (ARM64 polling-safe)
                             property string labelText: {
                                 var _force = Tr.lang
                                 var names = [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.report, Tr.settings]
                                 return names[index] || modelData.screen
                             }
-                            implicitWidth: compact ? 72 : 100; implicitHeight: 32
+                            implicitWidth: compact ? 44 : 100; implicitHeight: 32
                             background: Rectangle {
                                 color: navBtn.active ? Qt.alpha(Theme.cyan, 0.12) : "transparent"
                                 radius: 6
                             }
                             contentItem: Item {
+                                // Compact (mobile): icon only, brighter color
+                                AppIcon {
+                                    visible: content.compact
+                                    anchors.centerIn: parent
+                                    name: modelData.icon; size: 14
+                                    color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
+                                }
+                                // Desktop: icon + text, brighter color
                                 RowLayout {
+                                    visible: !content.compact
                                     anchors.centerIn: parent; spacing: 4
                                     AppIcon {
-                                        name: modelData.icon; size: compact ? 14 : 12
+                                        name: modelData.icon; size: 12
                                         color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
                                     }
                                     Label {
                                         text: navBtn.labelText
-                                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
-                                        font.pixelSize: compact ? 9 : 10
-                                        visible: !compact || navBtn.active
+                                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10
                                         font.weight: navBtn.active ? Font.DemiBold : Font.Normal
-                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
+                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.7)
                                     }
                                 }
                             }
