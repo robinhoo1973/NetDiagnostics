@@ -51,7 +51,6 @@ typedef SSIZE_T ssize_t;
 #endif
 #include <net/if_types.h>
 #ifdef PLATFORM_IOS
-#include <SystemConfiguration/SystemConfiguration.h>
 #include "engine/IosWiFiHelper.h"
 #endif
 #else

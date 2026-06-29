@@ -1,25 +1,24 @@
 // =============================================================================
 // IosWiFiHelper.mm — iOS WiFi authorization + SSID retrieval (Objective-C++)
 // =============================================================================
-// Separated from G1G2G3Native.cpp because CNCopyCurrentNetworkInfo is
-// deprecated in iOS 14+ and NEHotspotNetwork requires Objective-C.
+// iOS 26 SDK removed CNCopyCurrentNetworkInfo (deprecated since iOS 14).
+// Migrated to NEHotspotNetwork fetchCurrentWithCompletionHandler:.
 //
 // Functions:
 //   iosRequestWiFiAuthorization()  — call once at app startup (main thread)
 //   iosCopyWiFiSSID()              — get current WiFi SSID, or empty QString
+//
+// Requires: com.apple.developer.networking.wifi-info entitlement
+//           + location authorization on iOS 14+
 // =============================================================================
 
 #ifdef PLATFORM_IOS
 
 #include <QString>
-#import <SystemConfiguration/SystemConfiguration.h>
 #import <NetworkExtension/NetworkExtension.h>
 #import <CoreLocation/CoreLocation.h>
 
 // ── Authorization ────────────────────────────────────────────────────────────
-// iOS 14+: CNCopyCurrentNetworkInfo requires location permission OR the
-// app be a VPN/NEHotspotHelper participant. We request WhenInUse authorization.
-// Must be called from the main thread.
 
 void iosRequestWiFiAuthorization()
 {
@@ -30,7 +29,6 @@ void iosRequestWiFiAuthorization()
         return;
     }
 
-    // iOS 13+: CLLocationManager required for WiFi SSID access
     if (@available(iOS 13.0, *)) {
         static CLLocationManager* mgr = nil;
         if (!mgr) {
@@ -41,39 +39,31 @@ void iosRequestWiFiAuthorization()
 }
 
 // ── SSID retrieval ───────────────────────────────────────────────────────────
-// Uses CNCopyCurrentNetworkInfo (iOS 9+, deprecated in 14+ but still functional).
-// When CNCopyCurrentNetworkInfo is removed, migrate to NEHotspotNetwork
-// fetchCurrentWithCompletionHandler: with a Qt signal bridge.
-//
-// Requires: com.apple.developer.networking.wifi-info entitlement
-//           + location authorization on iOS 14+ (or approved VPN/MDM use case)
+// iOS 26 SDK: CNCopyCurrentNetworkInfo removed — use NEHotspotNetwork instead.
+// fetchCurrentWithCompletionHandler: is async; we bridge to sync with a semaphore.
+// Without the entitlement, the callback returns nil → result is empty QString.
 
 QString iosCopyWiFiSSID()
 {
-    QString result;
+    __block NSString* ssid = nil;
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
 
-    // CNCopyCurrentNetworkInfo (works iOS 9+, deprecated in 14+ but functional)
-    CFArrayRef ifList = CNCopySupportedInterfaces();
-    if (ifList && CFArrayGetCount(ifList) > 0) {
-        CFDictionaryRef info = CNCopyCurrentNetworkInfo(CFArrayGetValueAtIndex(ifList, 0));
-        if (info) {
-            CFStringRef ssid = (CFStringRef)CFDictionaryGetValue(info, kCNNetworkInfoKeySSID);
-            if (ssid) {
-                // Apple privacy sentinel: when location permission is denied
-                // on iOS 14+, the API returns "Wi-Fi" instead of the real SSID.
-                CFStringRef sentinel = CFSTR("Wi-Fi");
-                if (CFStringCompare(ssid, sentinel, 0) != kCFCompareEqualTo) {
-                    char buf[128] = {};
-                    if (CFStringGetCString(ssid, buf, sizeof(buf), kCFStringEncodingUTF8))
-                        result = QString::fromUtf8(buf);
-                }
+    if (@available(iOS 14.0, *)) {
+        [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
+            if (network && network.SSID.length > 0) {
+                ssid = [network.SSID copy];
             }
-            CFRelease(info);
-        }
-        CFRelease(ifList);
+            dispatch_semaphore_signal(sem);
+        }];
+        // 3-second timeout — if entitlement is missing, callback fires quickly with nil
+        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
     }
 
-    return result;
+    if (ssid && ssid.length > 0) {
+        QString result = QString::fromNSString(ssid);
+        return result;
+    }
+    return QString();
 }
 
 #endif // PLATFORM_IOS
