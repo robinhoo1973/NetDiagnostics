@@ -76,30 +76,25 @@ Item {
                                 var names = [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.report, Tr.settings]
                                 return names[index] || modelData.screen
                             }
-                            implicitWidth: compact ? 44 : 100; implicitHeight: 32
+                            implicitWidth: compact ? 72 : 100; implicitHeight: 32
                             background: Rectangle {
                                 color: navBtn.active ? Qt.alpha(Theme.cyan, 0.12) : "transparent"
                                 radius: 6
                             }
                             contentItem: Item {
-                                AppIcon {
-                                    visible: content.compact
-                                    anchors.centerIn: parent
-                                    name: modelData.icon; size: 14
-                                    color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textSecondary, 0.5)
-                                }
                                 RowLayout {
-                                    visible: !content.compact
                                     anchors.centerIn: parent; spacing: 4
                                     AppIcon {
-                                        name: modelData.icon; size: 12
-                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textSecondary, 0.5)
+                                        name: modelData.icon; size: compact ? 14 : 12
+                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
                                     }
                                     Label {
                                         text: navBtn.labelText
-                                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10
+                                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                                        font.pixelSize: compact ? 9 : 10
+                                        visible: !compact || navBtn.active
                                         font.weight: navBtn.active ? Font.DemiBold : Font.Normal
-                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textSecondary, 0.7)
+                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
                                     }
                                 }
                             }
