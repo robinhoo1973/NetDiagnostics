@@ -298,7 +298,7 @@ Item {
             Column {
                 anchors.centerIn: parent; spacing: 16
                 visible: appState.runStatus === 0 && appState.totalCompleted === 0
-                AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "wifi"; size: 80; color: Qt.alpha(Theme.textSecondary, 0.2) }
+                AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "wifi"; size: 80; color: Qt.alpha(Theme.textPrimary, 0.15) }
                 Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runDiag; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
             }
             // Flickable results list — scrolls when content exceeds viewport
