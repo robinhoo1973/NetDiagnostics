@@ -17,6 +17,7 @@ env:
   QT_VERSION: 6.12.0
   QT_VERSION_ANDROID: 6.5.3
   QT_VERSION_WINDOWS_SRC: 6.11.1
+  ANDROID_API_LEVEL: "26"
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════════
@@ -140,14 +141,18 @@ jobs:
       - name: Build (production)
         run: ninja -C build net_diagnostic
 
+      # linuxdeployqt does not provide an arm64 AppImage binary.
+      # Fall back to the native linuxdeployqt from apt (built for arm64).
       - name: Build AppImage (production)
         run: |
-          wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
-          chmod +x linuxdeployqt-continuous-x86_64.AppImage
-          mkdir -p AppDir/usr/bin
-          cp build/net_diagnostic AppDir/usr/bin/
-          ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/bin/net_diagnostic -appimage -no-copy-copyright-files -no-translations || true
-          mv *.AppImage NetDiagnostic-Linux-arm64.AppImage 2>/dev/null || true
+          if command -v linuxdeployqt &>/dev/null || sudo apt-get install -y -qq linuxdeployqt 2>/dev/null; then
+            mkdir -p AppDir/usr/bin
+            cp build/net_diagnostic AppDir/usr/bin/
+            linuxdeployqt AppDir/usr/bin/net_diagnostic -appimage -no-copy-copyright-files -no-translations || true
+            mv *.AppImage NetDiagnostic-Linux-arm64.AppImage 2>/dev/null || true
+          else
+            echo "(AppImage skipped: no arm64 linuxdeployqt available)"
+          fi
         continue-on-error: true
 
       - name: Package deb
@@ -481,7 +486,7 @@ jobs:
             -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=x86_64 \
-            -DANDROID_PLATFORM=android-26 \
+            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
             -B build -S .
 
       - name: Build
@@ -494,7 +499,7 @@ jobs:
           QT_ANDROID="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64"
           DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
           if [ -f "$DEPLOY_JSON" ]; then
-            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose || true
+            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-${{ env.ANDROID_API_LEVEL }} --jdk "$JAVA_HOME" --verbose || true
           fi
           mkdir -p build/android-build/libs/x86_64
           cp build/libnet_diagnostic_x86_64.so build/android-build/libs/x86_64/libnet_diagnostic.so
@@ -568,7 +573,7 @@ jobs:
             -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
             -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
             -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-26 \
+            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
             -B build -S .
 
       - name: Build
@@ -581,7 +586,7 @@ jobs:
           QT_ANDROID="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a"
           DEPLOY_JSON=$(find build -name "*deployment*.json" 2>/dev/null | head -1)
           if [ -f "$DEPLOY_JSON" ]; then
-            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-34 --jdk "$JAVA_HOME" --verbose || true
+            "/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64/bin/androiddeployqt" --input "$DEPLOY_JSON" --output build/android-build --android-platform android-${{ env.ANDROID_API_LEVEL }} --jdk "$JAVA_HOME" --verbose || true
           fi
           mkdir -p build/android-build/libs/arm64-v8a
           cp build/libnet_diagnostic_arm64-v8a.so build/android-build/libs/arm64-v8a/libnet_diagnostic.so

@@ -162,7 +162,13 @@ if(IOS)
     # -G Ninja: find_library handles -F automatically
     # -G Xcode: must explicitly add -F to BOTH compile and link options
     execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
-        OUTPUT_VARIABLE IOS_SDK_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
+        OUTPUT_VARIABLE IOS_SDK_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE XCRUN_RESULT
+        ERROR_VARIABLE XCRUN_ERROR)
+    if(NOT XCRUN_RESULT EQUAL 0 OR IOS_SDK_PATH STREQUAL "")
+        message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}")
+    endif()
     set(IOS_FRAMEWORKS_DIR "${IOS_SDK_PATH}/System/Library/Frameworks")
 
     target_compile_options(net_diagnostic PRIVATE

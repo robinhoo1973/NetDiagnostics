@@ -213,6 +213,86 @@ asc_bundle_ensure() {
 }
 
 # ─────────────────────────────────────────────────────────────────────
+# Bundle ID capability management
+# ─────────────────────────────────────────────────────────────────────
+asc_bundle_capability_list() {
+    local jwt="$1"
+    local bundle_id="$2"
+
+    local resp
+    resp=$(curl -s -X GET "${ASC_API}/bundleIds/${bundle_id}/bundleIdCapabilities" \
+        -H "Authorization: Bearer ${jwt}" \
+        -H "Accept: application/json")
+
+    local caps
+    caps=$(echo "$resp" | python3 -c "
+import sys, json
+data = json.load(sys.stdin).get('data', [])
+caps = [c.get('attributes', {}).get('capabilityType', '') for c in data]
+print('\n'.join(filter(None, caps)))
+" 2>/dev/null || echo "")
+    echo "$caps"
+}
+
+asc_bundle_capability_enable() {
+    local jwt="$1"
+    local bundle_id="$2"
+    local capability="${3:-ACCESS_WIFI_INFORMATION}"
+
+    # Check if capability already enabled
+    local existing
+    existing=$(asc_bundle_capability_list "$jwt" "$bundle_id")
+    if echo "$existing" | grep -q "$capability"; then
+        echo "Capability '${capability}' already enabled on bundle ID ${bundle_id}" >&2
+        return 0
+    fi
+
+    echo "Enabling capability '${capability}' on bundle ID ${bundle_id}..." >&2
+
+    local payload
+    payload=$(cat <<ENDJSON
+{
+  "data": {
+    "type": "bundleIdCapabilities",
+    "attributes": {
+      "capabilityType": "${capability}"
+    },
+    "relationships": {
+      "bundleId": {
+        "data": { "type": "bundleIds", "id": "${bundle_id}" }
+      }
+    }
+  }
+}
+ENDJSON
+)
+
+    local resp
+    resp=$(curl -s -w "\n%{http_code}" -X POST "${ASC_API}/bundleIdCapabilities" \
+        -H "Authorization: Bearer ${jwt}" \
+        -H "Content-Type: application/json" \
+        -H "Accept: application/json" \
+        -d "$payload")
+
+    local http_code
+    http_code=$(echo "$resp" | tail -1)
+    local body
+    body=$(echo "$resp" | sed '$d')
+
+    if [ "$http_code" != "201" ] && [ "$http_code" != "200" ]; then
+        if [ "$http_code" = "409" ]; then
+            echo "Capability '${capability}' already exists (HTTP 409)" >&2
+            return 0
+        fi
+        echo "ERROR: failed to enable capability '${capability}' (HTTP ${http_code}): ${body}" >&2
+        return 1
+    fi
+
+    echo "Enabled capability '${capability}' on bundle ID ${bundle_id}" >&2
+    return 0
+}
+
+# ─────────────────────────────────────────────────────────────────────
 # Certificate lookup
 # ─────────────────────────────────────────────────────────────────────
 asc_cert_find_distribution() {
@@ -384,13 +464,15 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
         bundle-find)      asc_bundle_find "$@" ;;
         bundle-create)    asc_bundle_create "$@" ;;
         bundle-ensure)    asc_bundle_ensure "$@" ;;
+        cap-list)         asc_bundle_capability_list "$@" ;;
+        cap-enable)       asc_bundle_capability_enable "$@" ;;
         cert-dist)        asc_cert_find_distribution "$@" ;;
         profile-find)     asc_profile_find "$@" ;;
         profile-create)   asc_profile_create "$@" ;;
         profile-ensure)   asc_profile_ensure "$@" ;;
         profile-download) asc_profile_download "$@" ;;
         *)
-            echo "Usage: $0 {jwt|app-find|app-create|app-ensure|bundle-find|bundle-create|bundle-ensure|cert-dist|profile-find|profile-create|profile-ensure|profile-download} [args...]" >&2
+            echo "Usage: $0 {jwt|app-find|app-create|app-ensure|bundle-find|bundle-create|bundle-ensure|cap-list|cap-enable|cert-dist|profile-find|profile-create|profile-ensure|profile-download} [args...]" >&2
             exit 1
             ;;
     esac
