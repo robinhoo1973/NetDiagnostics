@@ -49,6 +49,23 @@ QFuture<DiagnosticResult> DiagnosticEngine::runDiag(DiagId id, const QString& ta
     });
 }
 
+DiagnosticResult DiagnosticEngine::runDiagSync(DiagId id, const QString& target,
+                                                 int fromPort, int toPort, bool useCommonPorts) {
+    if (m_destroying.load(std::memory_order_acquire))
+        return DiagnosticResult::error(id, QStringLiteral("Engine shutting down"));
+    DiagGroup group = diagGroup(id);
+    switch (group) {
+        case DiagGroup::G1: return runG1(id);
+        case DiagGroup::G2: return runG2(id);
+        case DiagGroup::G3: return runG3(id);
+        case DiagGroup::G4: return runG4(id, target, fromPort, toPort, useCommonPorts);
+#ifndef NO_CURL
+        case DiagGroup::G5: return runG5(id, target);
+#endif
+    }
+    return DiagnosticResult::error(id, QStringLiteral("Unknown group"));
+}
+
 // ── G1: System & Adapters ──────────────────────────────────────────────────
 
 DiagnosticResult DiagnosticEngine::runG1(DiagId id) {
@@ -60,6 +77,7 @@ DiagnosticResult DiagnosticEngine::runG1(DiagId id) {
         case DiagId::G1DhcpStatus:        return G1G2G3Native::dhcpStatus(id);
         case DiagId::G1IpConfiguration:   return G1G2G3Native::ipConfiguration(id);
         case DiagId::G1ActiveConnections: return G1G2G3Native::activeConnections(id);
+        case DiagId::G1CellularInfo:      return G1G2G3Native::cellularInfo(id);
         default:
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G1 test"));
     }

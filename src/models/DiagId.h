@@ -44,7 +44,7 @@ inline QString diagStatusIcon(DiagStatus s) {
 
 // ── Test ID (38 values) ─────────────────────────────────────────────────────
 enum class DiagId {
-    // G1 — System & Adapters (7)
+    // G1 — System & Adapters (8)
     G1NetworkAdapters,
     G1NicAdvanced,
     G1WifiDiagnostics,
@@ -52,6 +52,7 @@ enum class DiagId {
     G1DhcpStatus,
     G1IpConfiguration,
     G1ActiveConnections,
+    G1CellularInfo,
 
     // G2 — Connectivity & Security (6)
     G2NetworkProfile,
@@ -103,6 +104,7 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G1DhcpStatus:
         case DiagId::G1IpConfiguration:
         case DiagId::G1ActiveConnections:
+        case DiagId::G1CellularInfo:
             return DiagGroup::G1;
         case DiagId::G2NetworkProfile:
         case DiagId::G2TcpSettings:
@@ -152,6 +154,7 @@ inline QString testIdLabelKey(DiagId id) {
         case DiagId::G1DhcpStatus:          return QStringLiteral("test_g1_dhcp");
         case DiagId::G1IpConfiguration:     return QStringLiteral("test_g1_ipconfig");
         case DiagId::G1ActiveConnections:   return QStringLiteral("test_g1_connections");
+        case DiagId::G1CellularInfo:        return QStringLiteral("test_g1_cellular");
         case DiagId::G2NetworkProfile:      return QStringLiteral("test_g2_profile");
         case DiagId::G2TcpSettings:         return QStringLiteral("test_g2_tcp");
         case DiagId::G2DefaultGateway:      return QStringLiteral("test_g2_gateway");
@@ -192,7 +195,7 @@ inline const QVector<DiagId>& allDiagIds() {
     static const QVector<DiagId> ids = {
         DiagId::G1NetworkAdapters, DiagId::G1NicAdvanced, DiagId::G1WifiDiagnostics,
         DiagId::G1WiredDiagnostics, DiagId::G1DhcpStatus, DiagId::G1IpConfiguration,
-        DiagId::G1ActiveConnections,
+        DiagId::G1ActiveConnections, DiagId::G1CellularInfo,
         DiagId::G2NetworkProfile, DiagId::G2TcpSettings, DiagId::G2DefaultGateway,
         DiagId::G2RoutingTable, DiagId::G2ArpTable, DiagId::G2ProxySettings,
         DiagId::G3NetskopeStatus, DiagId::G3DnsServers, DiagId::G3DnsCache,
