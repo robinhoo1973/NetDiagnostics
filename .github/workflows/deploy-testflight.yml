@@ -290,7 +290,7 @@ jobs:
               CODE_SIGN_STYLE="Manual" \
               PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
               CODE_SIGN_IDENTITY="iPhone Distribution" \
-              -verbose 2>&1 | tail -60
+              -verbose 2>&1 | tail -200
           else
             echo "Automatic signing (API key auth)"
             xcodebuild archive \
@@ -306,7 +306,7 @@ jobs:
               -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
               -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
               -authenticationKeyPath "$ASC_KEYFILE" \
-              -verbose 2>&1 | tail -60
+              -verbose 2>&1 | tail -200
           fi
 
           if [ -d build-ios/NetDiagnostic.xcarchive ]; then
