@@ -116,32 +116,14 @@ inline void SpeedTest::build() { Server s;
     S("CN","speedtest1.bj.cnc.cn",8080,"Beijing","China Unicom");
     S("CN","speedtest1.sh.cnc.cn",8080,"Shanghai","China Unicom");
     S("CN","speedtest1.gd.cnc.cn",8080,"Guangdong","China Unicom");
-    S("CN","speedtest.sz.supergaminator.com",8080,"Shenzhen","SuperGaminator");
     S("CN","speedtest-js.volcengine.com",8080,"Jiangsu","Volcengine");
     S("CN","speedtest-hb.volcengine.com",8080,"Hubei","Volcengine");
     S("CN","speedtest-zj.volcengine.com",8080,"Zhejiang","Volcengine");
-    S("JP","speedtest-tokyo.volcengine.com",8080,"Tokyo","Volcengine");
-    S("JP","speedtest-tokyo1.spwork.com",8080,"Tokyo 1","Spwork");
-    S("JP","speedtest-tokyo2.spwork.com",8080,"Tokyo 2","Spwork");
-    S("JP","speedtest.osaka.spwork.com",8080,"Osaka","Spwork");
-    S("SG","speedtest-sg.volcengine.com",8080,"Singapore","Volcengine");
-    S("SG","speedtest.singapore1.spwork.com",8080,"Singapore 1","Spwork");
-    S("SG","speedtest.singapore2.spwork.com",8080,"Singapore 2","Spwork");
-    S("US","speedtest.lax.spwork.com",8080,"Los Angeles","Spwork");
-    S("US","speedtest.sjc.spwork.com",8080,"San Jose","Spwork");
-    S("US","speedtest.nyc.spwork.com",8080,"New York","Spwork");
-    S("US","speedtest.dal.spwork.com",8080,"Dallas","Spwork");
-    S("US","dg5oj7x6qhvhr.cloudfront.net",80,"CloudFront","AWS CDN");
-    S("GB","speedtest.london.spwork.com",8080,"London","Spwork");
-    S("GB","speedtest.manchester.spwork.com",8080,"Manchester","Spwork");
-    S("DE","speedtest.frankfurt.spwork.com",8080,"Frankfurt","Spwork");
-    S("DE","speedtest.berlin.spwork.com",8080,"Berlin","Spwork");
-    S("IN","speedtest.mumbai.spwork.com",8080,"Mumbai","Spwork");
-    S("IN","speedtest.delhi.spwork.com",8080,"Delhi","Spwork");
-    S("IN","speedtest.bangalore.spwork.com",8080,"Bangalore","Spwork");
-    S("AU","speedtest.sydney.spwork.com",8080,"Sydney","Spwork");
-    S("BR","speedtest.saopaulo.spwork.com",8080,"Sao Paulo","Spwork");
-    S("KR","speedtest.seoul.spwork.com",8080,"Seoul","Spwork");
+    // Alibaba Cloud / Tencent Cloud speed test endpoints (CN region only)
+    S("CN","speedtest-bj.oss-cn-beijing.aliyuncs.com",80,"Beijing","Alibaba Cloud");
+    S("CN","speedtest-sh.oss-cn-shanghai.aliyuncs.com",80,"Shanghai","Alibaba Cloud");
+    S("CN","speedtest-gz.oss-cn-guangzhou.aliyuncs.com",80,"Guangzhou","Alibaba Cloud");
+    S("CN","speedtest-bj-ct.oss-cn-beijing.aliyuncs.com",80,"Beijing CT","Alibaba Cloud");
 }
 #undef S
 inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
@@ -2317,7 +2299,7 @@ DiagnosticResult speedTest(DiagId id) {
 
     struct { const char* host; int port; const char* name; } checkSites[] = {
         {"223.5.5.5", 53, "Alibaba DNS"},
-        {"8.8.8.8", 53, "Google DNS"},
+        {"119.29.29.29", 53, "DNSPod DNS"},
         {"baidu.com", 443, "Baidu"},
     };
     int connOk = 0;
