@@ -548,6 +548,42 @@ DiagnosticResult activeConnections(DiagId id) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// G1 — Cellular Info (iOS: CoreTelephony; other platforms: not available)
+// ═════════════════════════════════════════════════════════════════════════════
+DiagnosticResult cellularInfo(DiagId id) {
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
+    r.timestamp = QDateTime::currentDateTime();
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("Cellular Information:"));
+    out.append(QString());
+
+#ifdef PLATFORM_IOS
+    QVariantMap cell = iosCellularInfo();
+    if (!cell.isEmpty()) {
+        if (cell.contains("carrierName"))
+            out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
+        if (cell.contains("radioAccess"))
+            out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
+        if (cell.contains("mcc") && cell.contains("mnc"))
+            out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        out.append(QString());
+        r.status = DiagStatus::Pass;
+        r.summary = QStringLiteral("Carrier: %1 · %2").arg(cell.value("carrierName").toString(), cell.value("radioAccess").toString());
+    } else {
+        out.append(QStringLiteral("  No cellular service available"));
+        r.status = DiagStatus::Info; r.summary = QStringLiteral("No cellular service");
+    }
+#else
+    out.append(QStringLiteral("  [Not available] Cellular info requires iOS"));
+    r.status = DiagStatus::Info; r.summary = QStringLiteral("Platform not supported");
+#endif
+    out.append(QString());
+    r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+    return r;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // G1 — IP Configuration (Windows ipconfig /all format 1:1)
 // ═════════════════════════════════════════════════════════════════════════════
 DiagnosticResult ipConfiguration(DiagId id) {

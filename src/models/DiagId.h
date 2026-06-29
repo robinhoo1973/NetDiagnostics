@@ -62,7 +62,7 @@ enum class DiagId {
     G2ArpTable,
     G2ProxySettings,
 
-    // G3 — Internet & DNS (6)
+    // G3 — Internet & DNS (5)
     G3NetskopeStatus,
     G3DnsServers,
     G3DnsCache,

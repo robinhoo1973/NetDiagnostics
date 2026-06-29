@@ -40,6 +40,9 @@ DiagnosticResult ipConfiguration(DiagId id);
 /// Output matches "netstat -an" format
 DiagnosticResult activeConnections(DiagId id);
 
+/// Cellular network info — carrier, radio access (5G/LTE/3G), MCC-MNC
+DiagnosticResult cellularInfo(DiagId id);
+
 // ── G2: Connectivity & Security ────────────────────────────────────────
 
 /// Network profile / firewall profile
