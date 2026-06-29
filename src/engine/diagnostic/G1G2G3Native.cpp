@@ -2189,7 +2189,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
         .arg(path, host).toUtf8();
     int reqSent = 0;
     while (reqSent < req.size()) {
-        int n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
+        auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
         if (n < 0) {
 #ifdef _WIN32
             if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
@@ -2218,7 +2218,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
         if (recvGuard.elapsed() > 60000) break;
         if (!headersDone) {
             body.append(buf, (int)n);
-            int hdrEnd = body.indexOf("\r\n\r\n");
+            auto hdrEnd = body.indexOf("\r\n\r\n");
             if (hdrEnd >= 0) {
                 body = body.mid(hdrEnd + 4);
                 headersDone = true;
@@ -2232,7 +2232,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
 
     qint64 elapsedNs = t.nsecsElapsed() - startNs;
     if (elapsedNs <= 0) elapsedNs = 1;
-    r.bytes = body.size();
+    r.bytes = static_cast<int>(body.size());
     r.durationMs = (int)(elapsedNs / 1000000);
     if (r.bytes > 0 && r.durationMs > 0) {
         double bits = r.bytes * 8.0;
@@ -2259,9 +2259,8 @@ static int tcpPingMs(const QString& host, int port) {
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {2, 0};
     int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
-    int ms = t.elapsed();
-    if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len); if (err != 0) ms = -1; }
-    else ms = -1;
+    int ms = static_cast<int>(t.elapsed());
+    if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len); if (err != 0) ms = -1; } else ms = -1;
     close(sock);
     return ms;
 }
@@ -2274,10 +2273,10 @@ static int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     QString u = urlStr;
     if (!u.startsWith("http://")) return -1;
     u = u.mid(7);
-    int slash = u.indexOf('/');
+    auto slash = u.indexOf('/');
     QString hostPort = (slash > 0) ? u.left(slash) : u;
     QString host = hostPort; int port = 80;
-    int colon = hostPort.lastIndexOf(':');
+    auto colon = hostPort.lastIndexOf(':');
     if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
 
     // Download latency.txt from server root — speedtest-cli uses the root path
