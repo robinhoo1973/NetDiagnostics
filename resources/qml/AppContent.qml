@@ -119,7 +119,7 @@ Item {
                     visible: !compact
                     implicitWidth: 28; implicitHeight: 28; radius: 6
                     color: "transparent"; border { width: 1; color: "#5A5A7A" }
-                    AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: Theme.textSecondary }
+                    AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: Qt.alpha(Theme.textPrimary, 0.7) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: content.closeRequested() }
                 }
             }

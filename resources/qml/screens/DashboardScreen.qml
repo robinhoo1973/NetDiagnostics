@@ -54,7 +54,7 @@ Item {
     // Empty state
     Column {
         anchors.centerIn: parent; spacing: 16; visible: !hasData
-        AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(Theme.textSecondary, 0.2) }
+        AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(Theme.textPrimary, 0.15) }
         Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.noData; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
         Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runFromDiag; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; color: Qt.alpha(Theme.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
     }
@@ -80,11 +80,11 @@ Item {
                     ColumnLayout { spacing: 4
                         Label { text: Tr.diagRunComplete; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.DemiBold; color: Theme.textPrimary }
                         RowLayout { spacing: 4
-                            AppIcon { name: "target"; size: 12; color: Theme.textSecondary }
+                            AppIcon { name: "target"; size: 12; color: Qt.alpha(Theme.textPrimary, 0.7) }
                             Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
                         }
                         RowLayout { spacing: 4
-                            AppIcon { name: "timer"; size: 12; color: Theme.textSecondary }
+                            AppIcon { name: "timer"; size: 12; color: Qt.alpha(Theme.textPrimary, 0.7) }
                             Label { text: fmtTimestamp(); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
                         }
                     }

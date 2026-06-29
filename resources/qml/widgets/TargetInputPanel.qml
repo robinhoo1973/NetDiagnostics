@@ -7,7 +7,7 @@ ColumnLayout {
     id: root
     spacing: 0
     RowLayout {
-        AppIcon { name: "target"; size: 13; color: Qt.alpha(Theme.textSecondary, 0.7) }
+        AppIcon { name: "target"; size: 13; color: Qt.alpha(Theme.textPrimary, 0.7) }
         Item { width: 5 }
         Label { text: Tr.target; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
     }

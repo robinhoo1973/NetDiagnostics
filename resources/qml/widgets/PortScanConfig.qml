@@ -32,7 +32,7 @@ Rectangle {
         Item { Layout.preferredHeight: 8 }
         // Range label
         RowLayout {
-            AppIcon { name: "tune"; size: 12; color: Theme.textSecondary }
+            AppIcon { name: "tune"; size: 12; color: Qt.alpha(Theme.textPrimary, 0.7) }
             Item { width: 4 }
             Label { text: Tr.range; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textSecondary }
         }
