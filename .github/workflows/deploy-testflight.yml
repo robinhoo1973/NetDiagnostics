@@ -239,6 +239,14 @@ jobs:
           echo "profile_uuid=" >> "$GITHUB_OUTPUT"
 
       # ═════════════════════════════════════════════════════════════════
+      # Auto-increment build number (CFBundleVersion) for TestFlight
+      # ═════════════════════════════════════════════════════════════════
+      - name: Set build number
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
+          echo "Build number set to $GITHUB_RUN_NUMBER"
+
+      # ═════════════════════════════════════════════════════════════════
       # Configure CMake for iOS (Xcode generator)
       # ═════════════════════════════════════════════════════════════════
       - name: Configure CMake for iOS
