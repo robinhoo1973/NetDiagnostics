@@ -45,6 +45,7 @@ typedef SSIZE_T ssize_t;
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <resolv.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
