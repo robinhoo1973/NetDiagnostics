@@ -48,7 +48,7 @@ QString iosCopyWiFiSSID()
             }
             dispatch_semaphore_signal(sem);
         }];
-        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
+        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
     }
 
     if (ssid && ssid.length > 0)

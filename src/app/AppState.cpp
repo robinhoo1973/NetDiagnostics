@@ -280,7 +280,13 @@ bool AppState::isGroupAnyEnabled(int groupInt) const {
 
 // ── Run diagnostics ────────────────────────────────────────────────────────
 void AppState::runDiagnostics() {
-    if (m_runStatus == RunStatus::Running) return;
+    // Force-reset if stuck from a previous run
+    if (m_runStatus == RunStatus::Running) {
+        Logger::instance().event("Force-resetting stuck run");
+        cancel();
+        m_runStatus = RunStatus::Idle;
+        m_runGeneration.fetch_add(1, std::memory_order_release);
+    }
     TRACE(" runDiagnostics start target='%s'\n", m_target.toUtf8().constData());
 
     // Reset state before each run (clears previous results, error messages, etc.)
