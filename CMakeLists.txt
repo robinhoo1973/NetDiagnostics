@@ -182,7 +182,6 @@ if(IOS)
         -F "${IOS_FRAMEWORKS_DIR}"
     )
     target_link_libraries(net_diagnostic PRIVATE
-        "-framework SystemConfiguration"
         "-framework NetworkExtension"
         "-framework CoreLocation"
     )
@@ -269,7 +268,6 @@ if(BUILD_SIMULATOR)
             -F "${IOS_FRAMEWORKS_DIR}"
         )
         target_link_libraries(net_diagnostic_sim PRIVATE
-            "-framework SystemConfiguration"
             "-framework NetworkExtension"
             "-framework CoreLocation"
         )
