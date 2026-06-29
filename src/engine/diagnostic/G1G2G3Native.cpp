@@ -2316,6 +2316,18 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QStringLiteral("Loaded %1 servers for region").arg(servers.size()));
 
     // ═════════════════════════════════════════════════════════════════════
+    // Timeout guard — if we've already spent >25s, skip speed measurement
+    // ═════════════════════════════════════════════════════════════════════
+    if (totalTimer.elapsed() > 25000) {
+        out.append(QString());
+        out.append(QStringLiteral("  (Speed test skipped: connectivity check took too long)"));
+        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
+        r.summary = hasConnectivity ? QStringLiteral("Connected · speed test timed out") : QStringLiteral("No internet");
+        r.durationMs = totalTimer.elapsed(); return r;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
     // Phase 2 — Select best server by HTTP latency (speedtest-cli style)
     // ═════════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("--- Server Selection (HTTP latency) -----------------------------"));
