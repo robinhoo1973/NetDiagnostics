@@ -2,17 +2,10 @@
 // DiagnosticEngine.cpp — Pure C++ dispatch, no native plugin abstraction
 // =============================================================================
 #include "engine/diagnostic/DiagnosticEngine.h"
-#include "util/DebugSwitch.h"
 #include "engine/diagnostic/G1G2G3Native.h"
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/DebugSwitch.h"
-#include "engine/diagnostic/G4RemoteHost.h"
-#include "engine/runner/NetworkProbe.h"
-#include "util/DebugSwitch.h"
-#include "engine/diagnostic/G1G2G3Native.h"
-#include "engine/diagnostic/G4RemoteHost.h"
-#include "engine/runner/NetworkProbe.h"
 #ifndef NO_CURL
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #endif
@@ -106,7 +99,6 @@ DiagnosticResult DiagnosticEngine::runG3(DiagId id) {
         case DiagId::G3DnsServers:            return G1G2G3Native::dnsServers(id);
         case DiagId::G3DnsCache:              return G1G2G3Native::dnsCache(id);
         case DiagId::G3DnsPollution:          return G1G2G3Native::dnsPollution(id);
-        case DiagId::G3InternetConnectivity:  return G1G2G3Native::speedTest(id); // merged
         case DiagId::G3InternetSpeedTest:     return G1G2G3Native::speedTest(id);
         default:
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G3 test"));
