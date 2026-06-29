@@ -58,6 +58,7 @@ ApplicationWindow {
 
     AppContent {
         anchors.fill: parent
+        compact: Qt.platform.os === "ios" || Qt.platform.os === "android"
         onCloseRequested: root.close()
     }
 }

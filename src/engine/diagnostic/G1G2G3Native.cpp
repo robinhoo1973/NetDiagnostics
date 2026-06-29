@@ -1029,11 +1029,19 @@ DiagnosticResult nicAdvanced(DiagId id) {
             seenNic.insert(ifName);
 
             auto rd = [&](const QString& prop) {
-#ifndef PLATFORM_IOS
+#ifdef PLATFORM_IOS
+                // iOS: only MTU is available via getifaddrs; other props are restricted
+                if (prop == "mtu") {
+                    // SIOCGIFMTU ioctl not available on iOS sandbox; use standard value
+                    return QStringLiteral("1500");
+                }
+                if (prop == "operstate") return QStringLiteral("up");
+                return QStringLiteral("-");
+#else
                 QFile f(QStringLiteral("/sys/class/net/%1/%2").arg(ifName, prop));
                 if (f.open(QIODevice::ReadOnly)) return QString::fromLatin1(f.readAll().trimmed());
-#endif
                 return QStringLiteral("-");
+#endif
             };
 
             nicRows.append({ifName, rd("speed"), rd("duplex"), rd("mtu"),
@@ -1718,6 +1726,19 @@ DiagnosticResult dnsServers(DiagId id) {
         }
     }
 #else
+#ifdef PLATFORM_IOS
+    // iOS: no /etc/resolv.conf — use res_ninit
+    struct __res_state res; memset(&res, 0, sizeof(res));
+    if (res_ninit(&res) == 0) {
+        for (int i = 0; i < res.nscount; i++) {
+            char ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &res.nsaddr_list[i].sin_addr, ip, sizeof(ip));
+            dnsRows.append({QStringLiteral("System DNS"), QString::fromLatin1(ip)});
+            dnsList.append(QString::fromLatin1(ip));
+        }
+        res_nclose(&res);
+    }
+#else
     // Read /etc/resolv.conf
     QFile resolv(QStringLiteral("/etc/resolv.conf"));
     if (resolv.open(QIODevice::ReadOnly)) {
@@ -1738,6 +1759,7 @@ DiagnosticResult dnsServers(DiagId id) {
     if (stub.open(QIODevice::ReadOnly)) {
         dnsRows.append({QStringLiteral("systemd-resolved"), QStringLiteral("(stub resolver active)")});
     }
+#endif
 #endif
 
     if (!dnsRows.isEmpty())
