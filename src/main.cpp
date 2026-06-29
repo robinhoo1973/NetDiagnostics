@@ -20,6 +20,9 @@
 #endif
 #include "app/AppState.h"
 #include "util/DebugSwitch.h"
+#ifdef PLATFORM_IOS
+#include "engine/IosWiFiHelper.h"
+#endif
 
 int main(int argc, char *argv[])
 {
@@ -72,6 +75,11 @@ int main(int argc, char *argv[])
     app.setApplicationVersion("0.0.1");
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
+
+#ifdef PLATFORM_IOS
+    // Request WiFi SSID access (iOS 14+ needs location permission)
+    iosRequestWiFiAuthorization();
+#endif
 
     AppState appState;
 

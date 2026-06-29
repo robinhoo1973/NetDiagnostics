@@ -420,7 +420,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
                 auto end = std::chrono::steady_clock::now();
                 result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                 QTimer::singleShot(0, state, [this, result]() {
-                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; return; }
+                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; delete this; return; }
                     state->onDiagFinished(id, result);
                     int done = state->m_activeGroupDone.fetch_add(1) + 1;
                     auto& gt = state->m_pendingGroups[groupIdx];
@@ -429,10 +429,11 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
                         QTimer::singleShot(0, state, &AppState::startNextGroup);
                     }
                     delete owner;
+                    delete this;
                 });
             } catch (...) {
                 QTimer::singleShot(0, state, [this]() {
-                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; return; }
+                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; delete this; return; }
                     state->onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
                     int done = state->m_activeGroupDone.fetch_add(1) + 1;
                     auto& gt = state->m_pendingGroups[groupIdx];
@@ -441,7 +442,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
                         QTimer::singleShot(0, state, &AppState::startNextGroup);
                     }
                     delete owner;
-                });
+                    delete this;
             }
         }
     };

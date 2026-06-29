@@ -24,6 +24,15 @@
 	<string>0.0.1</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>This app needs local network access to enumerate network adapters, scan active connections, and perform diagnostic tests.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs location access to retrieve the current Wi-Fi network name (SSID) for network diagnostics. Wi-Fi network information can be used to infer your location.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_https._tcp</string>
+	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>LSRequiresIPhoneOS</key>

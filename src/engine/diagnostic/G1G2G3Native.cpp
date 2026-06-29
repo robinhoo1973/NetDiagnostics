@@ -50,6 +50,10 @@ typedef SSIZE_T ssize_t;
 #include <net/if_arp.h>
 #endif
 #include <net/if_types.h>
+#ifdef PLATFORM_IOS
+#include <SystemConfiguration/SystemConfiguration.h>
+#include "engine/IosWiFiHelper.h"
+#endif
 #else
 #include <sys/socket.h>
 #include <sys/ioctl.h>
@@ -292,6 +296,74 @@ DiagnosticResult networkAdapters(DiagId id) {
         }
         out.append(QString());
     }
+#elif defined(PLATFORM_IOS)
+    // ── iOS: use getifaddrs + SystemConfiguration framework ───────────────
+    // iOS restricts: MAC addresses, /sys/class/net, /proc, netlink, ARP, routing table
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) != 0) {
+        r.rawOutput = QStringLiteral("No adapters found");
+        r.details = r.rawOutput; r.status = DiagStatus::Warning;
+        r.summary = QStringLiteral("Failed to enumerate adapters");
+        r.durationMs = t.elapsed(); return r;
+    }
+
+    // Collect per-interface info
+    struct IfInfo { QString name; QStringList ips; int flags; };
+    QMap<QString, IfInfo> ifMap;
+    for (auto* p = ifa; p; p = p->ifa_next) {
+        if (!p->ifa_addr) continue;
+        IfInfo& info = ifMap[QString::fromLatin1(p->ifa_name)];
+        info.name = QString::fromLatin1(p->ifa_name);
+        info.flags = p->ifa_flags;
+        if (p->ifa_addr->sa_family == AF_INET) {
+            auto* sa = (struct sockaddr_in*)p->ifa_addr;
+            char ipBuf[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &sa->sin_addr, ipBuf, sizeof(ipBuf));
+            info.ips.append(QString::fromLatin1(ipBuf));
+        }
+    }
+
+    // ── WiFi SSID (needs com.apple.developer.networking.wifi-info) ────
+    QString wifiSSID = iosCopyWiFiSSID();
+
+    freeifaddrs(ifa);
+
+    // ── Build output table ─────────────────────────────────────────────
+    static const QVector<TblCol> kNetCols = {
+        {"Iface",       12, false},
+        {"Type",        12, false},
+        {"Status",      10, false},
+        {"IPv4 Address",18, false},
+        {"SSID",        20, false},
+    };
+    QList<QStringList> netRows;
+
+    for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
+        const IfInfo& info = it.value();
+        bool isLoopback = (info.flags & IFF_LOOPBACK);
+        bool isUp = (info.flags & IFF_UP) && (info.flags & IFF_RUNNING);
+
+        QString ifType;
+        if (isLoopback) ifType = QStringLiteral("Loopback");
+        else if (info.name.startsWith("en")) ifType = QStringLiteral("WiFi");
+        else if (info.name.startsWith("pdp_ip")) ifType = QStringLiteral("Cellular");
+        else if (info.name.startsWith("utun") || info.name.startsWith("llw")) ifType = QStringLiteral("VPN/Tunnel");
+        else ifType = QStringLiteral("Other");
+
+        QString status = isLoopback ? QStringLiteral("UP") : (isUp ? QStringLiteral("UP") : QStringLiteral("DOWN"));
+        QString ip4 = info.ips.isEmpty() ? (isLoopback ? QStringLiteral("127.0.0.1") : QStringLiteral("-")) : info.ips.join(',');
+        QString ssid = (!isLoopback && info.name.startsWith("en") && !wifiSSID.isEmpty()) ? wifiSSID : QStringLiteral("-");
+
+        netRows.append({info.name, ifType, status, ip4, ssid});
+    }
+    out.append(tblFmt(kNetCols, netRows));
+
+    // ── iOS restrictions note ──────────────────────────────────────────
+    out.append(QString());
+    out.append(QStringLiteral("[iOS] MAC address: unavailable (restricted by Apple)"));
+    out.append(QStringLiteral("[iOS] MTU: unavailable (restricted by Apple)"));
+    out.append(QStringLiteral("[iOS] Gateway: unavailable (restricted by Apple)"));
+
 #else
     // Linux: use getifaddrs
     struct ifaddrs* ifa = nullptr;
@@ -422,10 +494,12 @@ DiagnosticResult activeConnections(DiagId id) {
                 remote.size()>1 ? remote[1].toInt(nullptr, 16) : 0});
         }
     };
+#ifndef PLATFORM_IOS
     parseProcNet(QStringLiteral("/proc/net/tcp"),  QStringLiteral("TCP"),  false);
     parseProcNet(QStringLiteral("/proc/net/tcp6"), QStringLiteral("TCP6"), false);
     parseProcNet(QStringLiteral("/proc/net/udp"),  QStringLiteral("UDP"),  true);
     parseProcNet(QStringLiteral("/proc/net/udp6"), QStringLiteral("UDP6"), true);
+#endif
 #endif
 
     // Compute max IP width and max port width for each address column
@@ -602,9 +676,10 @@ DiagnosticResult ipConfiguration(DiagId id) {
         }
         freeifaddrs(ifa);
 
-        // Build /proc/net/route gateway map: ifName → {dest, gw, mask}
+        // Build gateway map: ifName → {dest, gw, mask}
         struct RouteEntry { QString ifName; uint32_t dest; uint32_t gw; uint32_t mask; };
         QVector<RouteEntry> routes;
+#ifndef PLATFORM_IOS
         QFile routeFile(QStringLiteral("/proc/net/route"));
         if (routeFile.open(QIODevice::ReadOnly)) {
             QTextStream ts(&routeFile);
@@ -624,6 +699,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
                 }
             }
         }
+#endif // !PLATFORM_IOS
 
         for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
             const auto& info = it.value();
@@ -634,8 +710,15 @@ DiagnosticResult ipConfiguration(DiagId id) {
             QString adapterLabel;
             if (isLoopback)
                 adapterLabel = QStringLiteral("Unknown adapter %1:").arg(ifName);
+#ifdef PLATFORM_IOS
+            else if (ifName.startsWith("en"))
+                adapterLabel = QStringLiteral("Wireless LAN adapter %1:").arg(ifName);
+            else if (ifName.startsWith("pdp_ip"))
+                adapterLabel = QStringLiteral("Cellular adapter %1:").arg(ifName);
+#else
             else if (QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName)))
                 adapterLabel = QStringLiteral("Wireless LAN adapter %1:").arg(ifName);
+#endif
             else
                 adapterLabel = QStringLiteral("Ethernet adapter %1:").arg(ifName);
 
@@ -645,7 +728,8 @@ DiagnosticResult ipConfiguration(DiagId id) {
             // Connection-specific DNS Suffix
             out.append(QStringLiteral("   Connection-specific DNS Suffix  . :"));
 
-            // Description (driver info from sysfs)
+            // Description (driver info from sysfs — Linux only)
+#ifndef PLATFORM_IOS
             QFile descFile(QStringLiteral("/sys/class/net/%1/device/uevent").arg(ifName));
             if (descFile.open(QIODevice::ReadOnly)) {
                 QString uevent = QString::fromLatin1(descFile.readAll());
@@ -654,14 +738,20 @@ DiagnosticResult ipConfiguration(DiagId id) {
                         out.append(QStringLiteral("   Description . . . . . . . . . . . : %1").arg(line.mid(7)));
                 }
             }
+#endif // !PLATFORM_IOS (sysfs description)
 
             // Physical Address (MAC)
             if (!info.mac.isEmpty() && !info.mac.startsWith("00-00-00"))
                 out.append(QStringLiteral("   Physical Address. . . . . . . . . : %1").arg(info.mac));
 
             // DHCP Enabled
-            bool dhcpEnabled = QFile::exists(QStringLiteral("/run/systemd/netif/leases/%1").arg(ifName))
+            bool dhcpEnabled =
+#ifndef PLATFORM_IOS
+                QFile::exists(QStringLiteral("/run/systemd/netif/leases/%1").arg(ifName))
                             || QFile::exists(QStringLiteral("/var/lib/dhcp/dhclient.%1.leases").arg(ifName));
+#else
+                true;  // iOS always uses system-managed DHCP
+#endif
             out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : %1").arg(dhcpEnabled ? "Yes" : "No"));
             out.append(QStringLiteral("   Autoconfiguration Enabled . . . . : Yes"));
 
@@ -680,7 +770,8 @@ DiagnosticResult ipConfiguration(DiagId id) {
                     out.append(QStringLiteral("   Subnet Mask . . . . . . . . . . . : %1").arg(info.masks4[i]));
             }
 
-            // Lease info from dhclient or systemd-networkd
+            // Lease info from dhclient or systemd-networkd (Linux only)
+#ifndef PLATFORM_IOS
             if (dhcpEnabled) {
                 QStringList leasePaths = {
                     QStringLiteral("/run/systemd/netif/leases/%1").arg(ifName),
@@ -698,12 +789,15 @@ DiagnosticResult ipConfiguration(DiagId id) {
                     }
                 }
             }
+#endif // !PLATFORM_IOS (lease files)
 
-            // Default Gateway (from /proc/net/route)
+            // Default Gateway
+#ifndef PLATFORM_IOS
             for (const auto& re : routes) {
                 if (re.ifName == ifName && re.dest == 0 && re.gw != 0)
                     out.append(QStringLiteral("   Default Gateway . . . . . . . . . : %1").arg(ipToStr(re.gw)));
             }
+#endif
 
             // DNS Servers
             if (!dnsServers.isEmpty()) {
@@ -714,7 +808,8 @@ DiagnosticResult ipConfiguration(DiagId id) {
                 }
             }
 
-            // Link speed + MTU
+            // Link speed + MTU (from sysfs — Linux only)
+#ifndef PLATFORM_IOS
             QFile speedFile(QStringLiteral("/sys/class/net/%1/speed").arg(ifName));
             if (speedFile.open(QIODevice::ReadOnly)) {
                 QString s = QString::fromLatin1(speedFile.readAll().trimmed());
@@ -724,6 +819,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             QFile mtuFile(QStringLiteral("/sys/class/net/%1/mtu").arg(ifName));
             if (mtuFile.open(QIODevice::ReadOnly))
                 out.append(QStringLiteral("   MTU . . . . . . . . . . . . . . . : %1").arg(QString::fromLatin1(mtuFile.readAll().trimmed())));
+#endif // !PLATFORM_IOS (sysfs speed/MTU)
 
             out.append(QString());
         }
@@ -784,16 +880,31 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
         {"Bitrate",    0, false},
     };
     QList<QStringList> wifiRows;
+    QSet<QString> seenWifi;
 
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
             QString ifName = QString::fromLatin1(p->ifa_name);
+#ifdef PLATFORM_IOS
+            // iOS: detect WiFi by interface name prefix (en0/en1 are WiFi)
+            if (!ifName.startsWith("en"))
+                continue;
+#else
             if (!QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName)))
                 continue;
+#endif
+            if (seenWifi.contains(ifName)) continue;
+            seenWifi.insert(ifName);
 
             QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
+
+#ifdef PLATFORM_IOS
+            // iOS: retrieve WiFi SSID via shared helper
+            ssid = iosCopyWiFiSSID();
+            if (ssid.isEmpty()) ssid = QStringLiteral("-");
+#endif
 
 #ifdef __linux__
             int sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -817,6 +928,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             }
 #endif
 
+#ifndef PLATFORM_IOS
             QFile wfile(QStringLiteral("/proc/net/wireless"));
             if (wfile.open(QIODevice::ReadOnly)) {
                 QTextStream ts(&wfile); ts.readLine(); ts.readLine();
@@ -829,9 +941,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                     }
                 }
             }
+#endif // !PLATFORM_IOS (/proc/net/wireless)
 
+#ifndef PLATFORM_IOS
             QFile rateFile(QStringLiteral("/sys/class/net/%1/wireless/bitrate").arg(ifName));
             if (rateFile.open(QIODevice::ReadOnly)) bitrate = QString::fromLatin1(rateFile.readAll().trimmed());
+#endif
 
             wifiRows.append({ifName, ssid, bssid, channel, signal, bitrate});
         }
@@ -888,8 +1003,10 @@ DiagnosticResult nicAdvanced(DiagId id) {
             seenNic.insert(ifName);
 
             auto rd = [&](const QString& prop) {
+#ifndef PLATFORM_IOS
                 QFile f(QStringLiteral("/sys/class/net/%1/%2").arg(ifName, prop));
                 if (f.open(QIODevice::ReadOnly)) return QString::fromLatin1(f.readAll().trimmed());
+#endif
                 return QStringLiteral("-");
             };
 
@@ -949,12 +1066,19 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
             if (!(p->ifa_flags & IFF_UP)) continue;
             if (seenWired.contains(ifName)) continue;
             // Skip wireless interfaces
+#ifdef PLATFORM_IOS
+            // iOS: classify by interface name prefix
+            if (ifName.startsWith("en") || ifName.startsWith("pdp_ip")) continue;
+#else
             if (QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName))) continue;
+#endif
             seenWired.insert(ifName);
 
             auto rd = [&](const QString& prop) {
+#ifndef PLATFORM_IOS
                 QFile f(QStringLiteral("/sys/class/net/%1/%2").arg(ifName, prop));
                 if (f.open(QIODevice::ReadOnly)) return QString::fromLatin1(f.readAll().trimmed());
+#endif
                 return QStringLiteral("-");
             };
 
@@ -1011,6 +1135,10 @@ DiagnosticResult dhcpStatus(DiagId id) {
             out.append(QString());
         }
     }
+#else
+#ifdef PLATFORM_IOS
+    out.append(QStringLiteral("  [iOS] DHCP lease details: unavailable (restricted by Apple)"));
+    out.append(QStringLiteral("  DHCP is system-managed on iOS; lease files are not accessible."));
 #else
     bool anyDhcp = false;
     // 1. systemd-networkd lease files (most detailed)
@@ -1093,6 +1221,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
 
     if (!anyDhcp && out.size() <= 4)
         out.append(QStringLiteral("   No DHCP lease information found (static IP or managed externally)"));
+#endif // !PLATFORM_IOS
 #endif
 
     r.rawOutput = out.join('\n');
@@ -1188,6 +1317,7 @@ DiagnosticResult routingTable(DiagId id) {
     };
     QList<QStringList> routeRows;
 
+#ifndef PLATFORM_IOS
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&routeFile);
@@ -1212,6 +1342,10 @@ DiagnosticResult routingTable(DiagId id) {
     }
     if (!routeRows.isEmpty())
         out.append(tblFmt(kRouteCols, routeRows));
+#endif // !PLATFORM_IOS
+#ifdef PLATFORM_IOS
+    out.append(QStringLiteral("  [iOS] Routing table: unavailable (restricted by Apple)"));
+#endif
 #endif
 
     out.append(QStringLiteral("==========================================================================="));
@@ -1252,6 +1386,7 @@ DiagnosticResult arpTable(DiagId id) {
     }
 #else
     // Linux: parse /proc/net/arp
+#ifndef PLATFORM_IOS
     QFile arpFile(QStringLiteral("/proc/net/arp"));
     if (arpFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&arpFile);
@@ -1279,6 +1414,9 @@ DiagnosticResult arpTable(DiagId id) {
     } else {
         out.append(QStringLiteral("  (ARP table not available)"));
     }
+#else  // PLATFORM_IOS
+    out.append(QStringLiteral("  [iOS] ARP table: unavailable (restricted by Apple)"));
+#endif // !PLATFORM_IOS
 #endif
 
     r.rawOutput = out.join('\n');
@@ -1309,10 +1447,15 @@ DiagnosticResult networkProfile(DiagId id) {
     out.append(QStringLiteral("  Hostname: %1").arg(QString::fromLatin1(hostname)));
 
     // Check common network profiles via /proc/sys/net
+#ifndef PLATFORM_IOS
     QFile fwd(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     if (fwd.open(QIODevice::ReadOnly))
         out.append(QStringLiteral("  IP Forwarding: %1").arg(QString::fromLatin1(fwd.readAll().trimmed()) == "1" ? "Enabled" : "Disabled"));
+#endif // !PLATFORM_IOS
+#ifdef PLATFORM_IOS
+    out.append(QStringLiteral("  [iOS] IP forwarding: unavailable (restricted by Apple)"));
 #endif
+#endif // _WIN32
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
@@ -1338,6 +1481,7 @@ DiagnosticResult tcpSettings(DiagId id) {
         {"Value",    0, false},
     };
     QList<QStringList> tcpRows;
+#ifndef PLATFORM_IOS
     auto readSys = [&](const QString& path, const QString& label) {
         QFile f(path);
         QString val = f.open(QIODevice::ReadOnly) ? QString::fromLatin1(f.readAll().trimmed()) : QStringLiteral("-");
@@ -1348,6 +1492,9 @@ DiagnosticResult tcpSettings(DiagId id) {
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_timestamps"), QStringLiteral("Timestamps"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_sack"), QStringLiteral("Selective ACK"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_fastopen"), QStringLiteral("TCP Fast Open"));
+#else
+    out.append(QStringLiteral("  [iOS] TCP settings: unavailable (restricted by Apple)"));
+#endif
     out.append(tblFmt(kTcpCols, tcpRows));
 #endif
 
@@ -1384,6 +1531,7 @@ DiagnosticResult defaultGateway(DiagId id) {
         FreeMibTable(ft);
     }
 #else
+#ifndef PLATFORM_IOS
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&routeFile);
@@ -1399,6 +1547,9 @@ DiagnosticResult defaultGateway(DiagId id) {
             }
         }
     }
+#else  // PLATFORM_IOS
+    out.append(QStringLiteral("  [iOS] Default gateway: unavailable (restricted by Apple)"));
+#endif // !PLATFORM_IOS
 #endif
     if (defaultGw == QStringLiteral("Not found"))
         out.append(QStringLiteral("  No default gateway configured"));

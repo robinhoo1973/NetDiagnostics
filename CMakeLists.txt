@@ -79,6 +79,10 @@ if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
 endif()
+# iOS: Objective-C++ WiFi helper (CLLocationManager + NEHotspotNetwork)
+if(IOS)
+    list(APPEND SOURCES src/engine/IosWiFiHelper.mm)
+endif()
 
 set(QML_RESOURCES
     resources/resources.qrc
@@ -140,6 +144,10 @@ if(IOS)
             XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
         )
     endif()
+    # Code-sign entitlements: WiFi info access
+    set_target_properties(net_diagnostic PROPERTIES
+        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/resources/netdiagnostic.entitlements"
+    )
 endif()
 
 target_link_libraries(net_diagnostic PRIVATE
@@ -150,6 +158,12 @@ target_link_libraries(net_diagnostic PRIVATE
 # Platform macros for source-level conditional compilation
 if(IOS)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_IOS)
+    # iOS frameworks needed for network diagnostics
+    target_link_libraries(net_diagnostic PRIVATE
+        "-framework SystemConfiguration"
+        "-framework NetworkExtension"
+        "-framework CoreLocation"
+    )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
 endif()
@@ -222,6 +236,15 @@ if(BUILD_SIMULATOR)
     endif()
     if(NOT (IOS OR ANDROID))
         target_compile_definitions(net_diagnostic_sim PRIVATE CURL_STATICLIB)
+    endif()
+    # iOS simulator: same compile definition and frameworks as main target
+    if(IOS)
+        target_compile_definitions(net_diagnostic_sim PRIVATE PLATFORM_IOS)
+        target_link_libraries(net_diagnostic_sim PRIVATE
+            "-framework SystemConfiguration"
+            "-framework NetworkExtension"
+            "-framework CoreLocation"
+        )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE
         ${CMAKE_SOURCE_DIR}/src
