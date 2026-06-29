@@ -2114,7 +2114,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
         .arg(path, host).toUtf8();
     int sent = 0;
     while (sent < req.size()) {
-        int n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
+        auto n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
         if (n < 0) {
 #ifdef _WIN32
             if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
@@ -2152,12 +2152,12 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     QString u = urlStr;
     if (!u.startsWith("http://")) return r;
     u = u.mid(7); // strip "http://"
-    int slash = u.indexOf('/');
+    auto slash = u.indexOf('/');
     QString hostPort = (slash > 0) ? u.left(slash) : u;
     QString path = (slash > 0) ? u.mid(slash) : "/";
 
     QString host = hostPort; int port = 80;
-    int colon = hostPort.lastIndexOf(':');
+    auto colon = hostPort.lastIndexOf(':');
     if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -2286,7 +2286,7 @@ static int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     if (resp.isEmpty()) return -1;
 
     // Parse HTTP response — extract body after \r\n\r\n header terminator
-    int hdrEnd = resp.indexOf("\r\n\r\n");
+    auto hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
     QByteArray body = resp.mid(hdrEnd + 4);
     // latency.txt should contain a small text like "test=...", we just need the time
@@ -2568,7 +2568,7 @@ DiagnosticResult speedTest(DiagId id) {
         // Send POST headers (EAGAIN-safe: select() for writability on stall)
         int hdrSent = 0;
         while (hdrSent < postHeaders.size()) {
-            int n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
+            auto n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
             if (n < 0) {
 #ifdef _WIN32
                 if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval hdrTv={1,0}; select(sock+1,nullptr,&wf,nullptr,&hdrTv); continue; }
@@ -2586,7 +2586,7 @@ DiagnosticResult speedTest(DiagId id) {
         QElapsedTimer sendGuard; sendGuard.start();
         while (sent < dataSize) {
             int chunk = qMin(dataSize - sent, 32768);
-            int n = ::send(sock, dp + sent, chunk, 0);
+            auto n = ::send(sock, dp + sent, chunk, 0);
             if (n < 0) {
 #ifdef _WIN32
                 if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 10000) break; continue; }
