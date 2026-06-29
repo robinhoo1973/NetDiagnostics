@@ -520,8 +520,14 @@ DiagnosticResult activeConnections(DiagId id) {
     };
     if (!connRows.isEmpty())
         out.append(tblFmt(kConnCols, connRows));
-    else
+    else {
+#ifdef PLATFORM_IOS
+        out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
+        out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
+#else
         out.append(QStringLiteral("  (no active connections)"));
+#endif
+    }
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
