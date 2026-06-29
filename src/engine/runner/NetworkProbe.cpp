@@ -132,7 +132,7 @@ QVector<PortScanEntry> NetworkProbe::portScan(const QString& host,
     addr.sin_addr.s_addr = htonl(targetIp);
 
     const auto& wkPorts = wellKnownPorts();
-    int total = ports.size();
+    auto total = ports.size();
     int nextIdx = 0;
 
     // Process ports in batches of maxConcurrent

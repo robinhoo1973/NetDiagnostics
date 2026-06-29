@@ -308,7 +308,7 @@ DiagnosticResult securityHeaders(const QString& target) {
     QStringList found;
     for (const auto& line : cr.lines) {
         if (!line.startsWith('<') || line.startsWith("< HTTP")) continue;
-        int colon = line.indexOf(':');
+        auto colon = line.indexOf(':');
         if (colon > 2) found.append(line.mid(2, colon - 2).toLower().trimmed());
     }
     QStringList required = {"strict-transport-security","content-security-policy",
@@ -406,7 +406,7 @@ DiagnosticResult httpCompression(const QString& target) {
     bool compressed = false; QString enc;
     for (const auto& line : cr.lines) {
         if (line.startsWith("< ") && line.contains("content-encoding", Qt::CaseInsensitive)) {
-            int colon = line.indexOf(':');
+            auto colon = line.indexOf(':');
             if (colon > 2) enc = line.mid(colon + 1).trimmed();
             compressed = true;
         }

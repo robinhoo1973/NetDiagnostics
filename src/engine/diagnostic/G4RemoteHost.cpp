@@ -75,22 +75,22 @@ QString extractHostname(const QString& target) {
     // If it's a URL (contains ://), parse out the hostname
     if (t.contains("://")) {
         QString afterScheme = t.section("://", 1);      // "example.com:8080/path"
-        int slash = afterScheme.indexOf('/');
+        auto slash = afterScheme.indexOf('/');
         if (slash >= 0) afterScheme = afterScheme.left(slash); // "example.com:8080"
         // Strip IPv6 bracket notation
         if (afterScheme.startsWith('[')) {
-            int closing = afterScheme.indexOf(']');
+            auto closing = afterScheme.indexOf(']');
             if (closing > 0) afterScheme = afterScheme.mid(1, closing - 1); // "::1"
         } else {
             // Strip port
-            int colon = afterScheme.lastIndexOf(':');
+            auto colon = afterScheme.lastIndexOf(':');
             if (colon > 0) afterScheme = afterScheme.left(colon); // "example.com"
         }
         return afterScheme;
     }
     // Plain hostname — strip port if present
     if (t.contains(':')) {
-        int colon = t.lastIndexOf(':');
+        auto colon = t.lastIndexOf(':');
         // IPv6 has multiple colons, port uses single colon after hostname
         if (t.count(':') == 1) t = t.left(colon);
     }
@@ -436,7 +436,7 @@ static int tcpRttMs(const QString& host, int port) {
     int err = 0; socklen_t elen = sizeof(err);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &elen);
     if (err != 0) { close(sock); return -1; }
-    int ms = t.elapsed(); close(sock); return ms;
+    int ms = static_cast<int>(t.elapsed()); close(sock); return ms;
 }
 
 // ── Ping (TCP connect, cross-platform) — Windows-style per-probe output ─────
@@ -898,17 +898,17 @@ DiagnosticResult pathPing(const QString& target) {
         if (trimmed.isEmpty() || trimmed.startsWith("Tracing") || trimmed.startsWith("over") ||
             trimmed.startsWith("Trace") || trimmed.startsWith("...")) continue;
         // Match "[IP]" at end of non-timeout lines
-        int rb = line.indexOf('[');
+        auto rb = line.indexOf('[');
         if (rb > 0) {
-            int re = line.indexOf(']', rb);
+            auto re = line.indexOf(']', rb);
             if (re > rb) {
                 QString hopIp = line.mid(rb + 1, re - rb - 1);
                 // TTL is the first number on the line
                 QString ttlStr = line.mid(1, 2).trimmed(); // " %1..." → chars 1-2
                 int ttlNum = ttlStr.toInt();
                 // RTT from first ms field
-                int msPos = line.indexOf("ms");
-                int msStart = msPos > 0 ? line.lastIndexOf(' ', msPos - 1) + 1 : 0;
+                auto msPos = line.indexOf("ms");
+                auto msStart = msPos > 0 ? line.lastIndexOf(' ', msPos - 1) + 1 : 0;
                 int rttVal = msPos > 0 ? line.mid(msStart, msPos - msStart).trimmed().toInt() : 0;
                 bool isTarget = (hopIp == targetIpStr);
                 if (isTarget) reached = true;
@@ -936,21 +936,21 @@ DiagnosticResult pathPing(const QString& target) {
             // Parse: "    Minimum = 8ms, Maximum = 12ms, Average = 10ms"
             for (const QString& pline : pr.rawOutput.split('\n')) {
                 if (pline.contains(QStringLiteral("Packets:"))) {
-                    int si = pline.indexOf(QStringLiteral("Sent = "));
-                    int ri = pline.indexOf(QStringLiteral("Received = "));
-                    int pi = pline.indexOf('(');
+                    auto si = pline.indexOf(QStringLiteral("Sent = "));
+                    auto ri = pline.indexOf(QStringLiteral("Received = "));
+                    auto pi = pline.indexOf('(');
                     if (si > 0 && ri > 0) {
                         hs.sent = pline.mid(si + 7, pline.indexOf(',', si) - si - 7).trimmed().toInt();
                         hs.rcvd = pline.mid(ri + 11, pline.indexOf(',', ri) - ri - 11).trimmed().toInt();
                     }
                     if (pi > 0) {
-                        int pe = pline.indexOf('%', pi);
+                        auto pe = pline.indexOf('%', pi);
                         if (pe > pi) hs.loss = pline.mid(pi + 1, pe - pi - 1).toDouble();
                     }
                 }
                 if (pline.contains(QStringLiteral("Average = "))) {
-                    int ai = pline.indexOf(QStringLiteral("Average = "));
-                    int ae = pline.indexOf(QStringLiteral("ms"), ai);
+                    auto ai = pline.indexOf(QStringLiteral("Average = "));
+                    auto ae = pline.indexOf(QStringLiteral("ms"), ai);
                     if (ai > 0 && ae > ai) hs.avgMs = pline.mid(ai + 10, ae - ai - 10).trimmed().toInt();
                 }
             }

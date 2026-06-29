@@ -2499,7 +2499,7 @@ DiagnosticResult speedTest(DiagId id) {
         std::sort(dlResults.begin(), dlResults.end());
         int count = qMin(5, (int)dlResults.size());
         double sum = 0;
-        for (int i = dlResults.size() - count; i < dlResults.size(); i++) sum += dlResults[i];
+        for (auto i = dlResults.size() - count; i < dlResults.size(); i++) sum += dlResults[i];
         dlSpeed = sum / count;
     }
 
@@ -2607,7 +2607,7 @@ DiagnosticResult speedTest(DiagId id) {
         if (selRet > 0 && FD_ISSET(sock, &fdset)) {
             recv(sock, buf, sizeof(buf), 0);
         }
-        int ulMs = ulTimer.elapsed();
+        int ulMs = static_cast<int>(ulTimer.elapsed());
         close(sock);
 
         ulTotalMs += ulMs;
@@ -2631,7 +2631,7 @@ DiagnosticResult speedTest(DiagId id) {
         std::sort(ulResults.begin(), ulResults.end());
         int count = qMin(5, (int)ulResults.size());
         double sum = 0;
-        for (int i = ulResults.size() - count; i < ulResults.size(); i++) sum += ulResults[i];
+        for (auto i = ulResults.size() - count; i < ulResults.size(); i++) sum += ulResults[i];
         ulSpeed = sum / count;
     }
 

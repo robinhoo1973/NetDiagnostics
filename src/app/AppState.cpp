@@ -112,7 +112,7 @@ static bool isValidHostname(const QString& host) {
 // ── Full URL validation ──────────────────────────────────────────────────
 static QString validateUrl(const QString& trimmed) {
     // 1. Parse scheme
-    int schemeEnd = trimmed.indexOf("://");
+    auto schemeEnd = trimmed.indexOf("://");
     if (schemeEnd < 0) return QString();  // no scheme → not a URL
 
     QString scheme = trimmed.left(schemeEnd).toLower();
@@ -123,11 +123,11 @@ static QString validateUrl(const QString& trimmed) {
 
     // 2. Parse authority (host[:port])
     QString afterScheme = trimmed.mid(schemeEnd + 3);
-    int pathStart = afterScheme.indexOf('/');
-    int queryStart = afterScheme.indexOf('?');
-    int fragStart = afterScheme.indexOf('#');
+    auto pathStart = afterScheme.indexOf('/');
+    auto queryStart = afterScheme.indexOf('?');
+    auto fragStart = afterScheme.indexOf('#');
 
-    int authorityEnd = afterScheme.size();
+    auto authorityEnd = afterScheme.size();
     if (pathStart >= 0) authorityEnd = std::min(authorityEnd, pathStart);
     if (queryStart >= 0) authorityEnd = std::min(authorityEnd, queryStart);
     if (fragStart >= 0) authorityEnd = std::min(authorityEnd, fragStart);
@@ -137,10 +137,10 @@ static QString validateUrl(const QString& trimmed) {
 
     // 3. Separate host and port
     QString host, portStr;
-    int portColon = authority.lastIndexOf(':');
+    auto portColon = authority.lastIndexOf(':');
     // Check for IPv6 bracket notation [::1]:port
     if (authority.startsWith('[')) {
-        int closing = authority.indexOf(']');
+        auto closing = authority.indexOf(']');
         if (closing < 0) return QStringLiteral("Invalid IPv6 bracket notation");
         host = authority.mid(1, closing - 1);
         if (closing + 1 < authority.size()) {
