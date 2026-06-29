@@ -144,10 +144,14 @@ if(IOS)
             XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
         )
     endif()
-    # Code-sign entitlements: WiFi info access
-    set_target_properties(net_diagnostic PROPERTIES
-        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/resources/netdiagnostic.entitlements"
-    )
+    # Code-sign entitlements (opt-in via ND_WIFI_ENTITLEMENT=1 env var)
+    # Requires "Access WiFi Information" capability enabled on the App ID.
+    # Enable manually: https://developer.apple.com/account/resources/identifiers/list
+    if(DEFINED ENV{ND_WIFI_ENTITLEMENT})
+        set_target_properties(net_diagnostic PROPERTIES
+            XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/resources/netdiagnostic.entitlements"
+        )
+    endif()
 endif()
 
 target_link_libraries(net_diagnostic PRIVATE

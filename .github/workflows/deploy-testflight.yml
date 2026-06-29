@@ -101,7 +101,7 @@ jobs:
       # ═════════════════════════════════════════════════════════════════
       # Step A: Register Bundle ID in Developer Portal (if not exists)
       # ═════════════════════════════════════════════════════════════════
-      - name: Register Bundle ID (auto)
+      - name: Register Bundle ID (auto) + Enable WiFi capability
         id: bundle
         run: |
           source scripts/ios/asc-app.sh
@@ -112,20 +112,6 @@ jobs:
 
           echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
           echo "✅ Bundle ID ready (id: ${BID})"
-
-      # ═════════════════════════════════════════════════════════════════
-      # Step A.5: Enable WiFi Info capability on App ID
-      # (Must be enabled before provisioning profile can include the entitlement)
-      # ═════════════════════════════════════════════════════════════════
-      - name: Enable WiFi capability on App ID
-        run: |
-          source scripts/ios/asc-app.sh
-          JWT="${{ steps.jwt.outputs.jwt }}"
-          BID="${{ steps.bundle.outputs.bundle_id }}"
-
-          echo "Enabling ACCESS_WIFI_INFORMATION on bundle ID ${BID}..."
-          asc_bundle_capability_enable "$JWT" "$BID" "ACCESS_WIFI_INFORMATION"
-          echo "✅ WiFi capability enabled"
 
       # ═════════════════════════════════════════════════════════════════
       # Step B: Ensure App exists in App Store Connect (if not exists)
