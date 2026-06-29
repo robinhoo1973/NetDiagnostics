@@ -2345,10 +2345,14 @@ DiagnosticResult speedTest(DiagId id) {
 
     struct RankedServer { SpeedTest::Server* srv; int latency; };
     QVector<RankedServer> ranked;
+    int maxServers = qMin(8, (int)servers.size()); // cap at 8 to avoid excessive time
     for (auto& s : servers) {
+        if (ranked.size() >= maxServers) break;
+        if (totalTimer.elapsed() > 25000) break; // global timeout
         int lat = httpLatencyMs(s.url, 5000);
-        if (lat > 0)
+        if (lat > 0) {
             ranked.append({&s, lat});
+        }
     }
 
     if (ranked.isEmpty()) {
