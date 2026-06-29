@@ -23,15 +23,15 @@ asc_jwt() {
     local key_path="$3"
 
     local header
-    header=$(printf '{"alg":"ES256","kid":"%s","typ":"JWT"}' "$key_id" | base64 | tr -d '=' | tr '/+' '_-')
+    header=$(printf '{"alg":"ES256","kid":"%s","typ":"JWT"}' "$key_id" | base64 | tr -d '\n' | tr -d '=' | tr '/+' '_-')
     local now
     now=$(date +%s)
     local exp=$((now + 1200))
     local payload
     payload=$(printf '{"iss":"%s","iat":%d,"exp":%d,"aud":"appstoreconnect-v1"}' \
-        "$issuer_id" "$now" "$exp" | base64 | tr -d '=' | tr '/+' '_-')
+        "$issuer_id" "$now" "$exp" | base64 | tr -d '\n' | tr -d '=' | tr '/+' '_-')
     local signature
-    signature=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$key_path" | base64 | tr -d '=' | tr '/+' '_-')
+    signature=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$key_path" | base64 | tr -d '\n' | tr -d '=' | tr '/+' '_-')
     echo "${header}.${payload}.${signature}"
 }
 

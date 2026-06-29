@@ -21,6 +21,8 @@ typedef SSIZE_T ssize_t;
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <atomic>
+#include <chrono>
 #include <thread>
 #include <climits>
 #include <csignal>
@@ -2284,9 +2286,7 @@ static int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     QByteArray resp = httpGet(host, port, latPath, timeoutMs, 256);
     if (resp.isEmpty()) return -1;
 
-    // Parse HTTP response — extract body after 
-
-
+    // Parse HTTP response — extract body after \r\n\r\n header terminator
     int hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
     QByteArray body = resp.mid(hdrEnd + 4);
