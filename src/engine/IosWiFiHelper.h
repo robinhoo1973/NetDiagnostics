@@ -1,10 +1,11 @@
 // =============================================================================
-// IosWiFiHelper.h — iOS WiFi auth + SSID retrieval (declarations)
+// IosWiFiHelper.h — iOS WiFi auth + SSID + Cellular retrieval (declarations)
 // =============================================================================
 #ifndef IOS_WIFI_HELPER_H
 #define IOS_WIFI_HELPER_H
 
 #include <QString>
+#include <QVariantMap>
 
 // Call once at app startup (main thread safe).
 // iOS 13+: requests CLLocationManager WhenInUse authorization.
@@ -13,7 +14,10 @@ void iosRequestWiFiAuthorization();
 
 // Returns the current WiFi SSID, or empty QString if unavailable
 // (e.g. location permission denied, airplane mode, or non-iOS).
-// Uses CNCopyCurrentNetworkInfo with Apple privacy-sentinel filtering.
 QString iosCopyWiFiSSID();
+
+// Returns cellular network info: carrierName, radioAccess, countryCode, networkCode
+// Empty map if no cellular service or non-iOS.
+QVariantMap iosCellularInfo();
 
 #endif // IOS_WIFI_HELPER_H

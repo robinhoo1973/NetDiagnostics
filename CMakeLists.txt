@@ -184,6 +184,7 @@ if(IOS)
     target_link_libraries(net_diagnostic PRIVATE
         "-framework NetworkExtension"
         "-framework CoreLocation"
+        "-framework CoreTelephony"
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
@@ -270,6 +271,7 @@ if(BUILD_SIMULATOR)
         target_link_libraries(net_diagnostic_sim PRIVATE
             "-framework NetworkExtension"
             "-framework CoreLocation"
+            "-framework CoreTelephony"
         )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE

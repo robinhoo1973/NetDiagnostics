@@ -17,6 +17,7 @@ typedef SSIZE_T ssize_t;
 #include <QDir>
 #include <QTextStream>
 #include <QRegularExpression>
+#include <QVariantMap>
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
@@ -357,11 +358,18 @@ DiagnosticResult networkAdapters(DiagId id) {
     }
     out.append(tblFmt(kNetCols, netRows));
 
-    // ── iOS restrictions note ──────────────────────────────────────────
-    out.append(QString());
-    out.append(QStringLiteral("[iOS] MAC address: unavailable (restricted by Apple)"));
-    out.append(QStringLiteral("[iOS] MTU: unavailable (restricted by Apple)"));
-    out.append(QStringLiteral("[iOS] Gateway: unavailable (restricted by Apple)"));
+    // ── Cellular info ─────────────────────────────────────────────────
+    QVariantMap cell = iosCellularInfo();
+    if (!cell.isEmpty()) {
+        out.append(QString());
+        out.append(QStringLiteral("Cellular Information:"));
+        if (cell.contains("carrierName"))
+            out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
+        if (cell.contains("radioAccess"))
+            out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
+        if (cell.contains("mcc") && cell.contains("mnc"))
+            out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+    }
 
 #else
     // Linux: use getifaddrs

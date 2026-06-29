@@ -28,6 +28,15 @@ AppState::AppState(QObject* parent) : QObject(parent) {
             m_enabledDiags.insert(id);
     }
 
+#ifdef PLATFORM_IOS
+    // iOS sandbox: these tests can never return useful data
+    m_enabledDiags.remove(DiagId::G1DhcpStatus);
+    m_enabledDiags.remove(DiagId::G2TcpSettings);
+    m_enabledDiags.remove(DiagId::G2DefaultGateway);
+    m_enabledDiags.remove(DiagId::G2RoutingTable);
+    m_enabledDiags.remove(DiagId::G2ArpTable);
+#endif
+
     m_engine = new DiagnosticEngine(this);
 
     QObject::connect(m_engine, &DiagnosticEngine::destroyed, this, [this]() { m_engine = nullptr; });

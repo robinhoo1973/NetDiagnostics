@@ -1,22 +1,18 @@
 // =============================================================================
-// IosWiFiHelper.mm — iOS WiFi authorization + SSID retrieval (Objective-C++)
+// IosWiFiHelper.mm — iOS WiFi + Cellular info retrieval (Objective-C++)
 // =============================================================================
-// iOS 26 SDK removed CNCopyCurrentNetworkInfo (deprecated since iOS 14).
-// Migrated to NEHotspotNetwork fetchCurrentWithCompletionHandler:.
-//
-// Functions:
-//   iosRequestWiFiAuthorization()  — call once at app startup (main thread)
-//   iosCopyWiFiSSID()              — get current WiFi SSID, or empty QString
-//
-// Requires: com.apple.developer.networking.wifi-info entitlement
-//           + location authorization on iOS 14+
+// WiFi: NEHotspotNetwork fetchCurrentWithCompletionHandler:
+// Cellular: CTTelephonyNetworkInfo + CTCarrier
 // =============================================================================
 
 #ifdef PLATFORM_IOS
 
 #include <QString>
+#include <QVariantMap>
 #import <NetworkExtension/NetworkExtension.h>
 #import <CoreLocation/CoreLocation.h>
+#import <CoreTelephony/CTTelephonyNetworkInfo.h>
+#import <CoreTelephony/CTCarrier.h>
 
 // ── Authorization ────────────────────────────────────────────────────────────
 
@@ -39,9 +35,6 @@ void iosRequestWiFiAuthorization()
 }
 
 // ── SSID retrieval ───────────────────────────────────────────────────────────
-// iOS 26 SDK: CNCopyCurrentNetworkInfo removed — use NEHotspotNetwork instead.
-// fetchCurrentWithCompletionHandler: is async; we bridge to sync with a semaphore.
-// Without the entitlement, the callback returns nil → result is empty QString.
 
 QString iosCopyWiFiSSID()
 {
@@ -55,15 +48,80 @@ QString iosCopyWiFiSSID()
             }
             dispatch_semaphore_signal(sem);
         }];
-        // 3-second timeout — if entitlement is missing, callback fires quickly with nil
         dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 3 * NSEC_PER_SEC));
     }
 
-    if (ssid && ssid.length > 0) {
-        QString result = QString::fromNSString(ssid);
-        return result;
-    }
+    if (ssid && ssid.length > 0)
+        return QString::fromNSString(ssid);
     return QString();
+}
+
+// ── Cellular info ────────────────────────────────────────────────────────────
+
+static NSString* radioAccessLabel(NSString* rat)
+{
+    if (!rat) return @"Unknown";
+    if ([rat isEqualToString:CTRadioAccessTechnologyNRNSA] ||
+        [rat isEqualToString:CTRadioAccessTechnologyNR])
+        return @"5G";
+    if ([rat isEqualToString:CTRadioAccessTechnologyLTE])
+        return @"LTE";
+    if ([rat isEqualToString:CTRadioAccessTechnologyWCDMA])
+        return @"3G (WCDMA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyHSDPA])
+        return @"3G (HSDPA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyHSUPA])
+        return @"3G (HSUPA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyCDMA1x])
+        return @"2G (CDMA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORev0] ||
+        [rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORevA] ||
+        [rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORevB])
+        return @"3G (EV-DO)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyEdge])
+        return @"2G (EDGE)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyGPRS])
+        return @"2G (GPRS)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyeHRPD])
+        return @"3G (eHRPD)";
+    return rat;
+}
+
+QVariantMap iosCellularInfo()
+{
+    QVariantMap info;
+
+    CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
+    if (!netInfo) return info;
+
+    // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers
+    if (@available(iOS 12.0, *)) {
+        NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
+        if (providers && providers.count > 0) {
+            for (NSString* key in providers) {
+                CTCarrier* carrier = providers[key];
+                if (carrier.carrierName && carrier.carrierName.length > 0) {
+                    info["carrierName"] = QString::fromNSString(carrier.carrierName);
+                    if (carrier.mobileCountryCode)
+                        info["mcc"] = QString::fromNSString(carrier.mobileCountryCode);
+                    if (carrier.mobileNetworkCode)
+                        info["mnc"] = QString::fromNSString(carrier.mobileNetworkCode);
+                    if (carrier.isoCountryCode)
+                        info["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
+                    break; // first active carrier
+                }
+            }
+        }
+    }
+
+    // Radio access technology
+    NSString* rat = netInfo.serviceCurrentRadioAccessTechnology.allValues.firstObject;
+    if (rat) {
+        info["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
+        info["radioAccessRaw"] = QString::fromNSString(rat);
+    }
+
+    return info;
 }
 
 #endif // PLATFORM_IOS
