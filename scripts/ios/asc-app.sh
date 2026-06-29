@@ -234,6 +234,28 @@ print('\n'.join(filter(None, caps)))
     echo "$caps"
 }
 
+# Parse Apple ASC API error response and print human-readable message
+_asc_parse_error() {
+    local body="$1"
+    echo "$body" | python3 -c "
+import sys, json
+try:
+    errs = json.load(sys.stdin).get('errors', [])
+except:
+    print('(unable to parse error response)')
+    sys.exit(0)
+for e in errs:
+    status = e.get('status', '???')
+    title  = e.get('title', '')
+    detail = e.get('detail', '')
+    code   = e.get('code', '')
+    print(f'  [ASC] HTTP {status}  code={code}')
+    print(f'  [ASC] {title}')
+    if detail:
+        print(f'  [ASC] {detail}')
+" 2>/dev/null
+}
+
 asc_bundle_capability_enable() {
     local jwt="$1"
     local bundle_id="$2"
@@ -241,7 +263,7 @@ asc_bundle_capability_enable() {
 
     # Check if capability already enabled
     local existing
-    existing=$(asc_bundle_capability_list "$jwt" "$bundle_id")
+    existing=$(asc_bundle_capability_list "$jwt" "$bundle_id") || true
     if echo "$existing" | grep -q "$capability"; then
         echo "Capability '${capability}' already enabled on bundle ID ${bundle_id}" >&2
         return 0
@@ -284,7 +306,23 @@ ENDJSON
             echo "Capability '${capability}' already exists (HTTP 409)" >&2
             return 0
         fi
-        echo "ERROR: failed to enable capability '${capability}' (HTTP ${http_code}): ${body}" >&2
+        echo "ERROR: failed to enable capability '${capability}' (HTTP ${http_code})" >&2
+        _asc_parse_error "$body" >&2
+
+        # 403 / 401 = API key lacks Certificates, Identifiers & Profiles access
+        if [ "$http_code" = "403" ] || [ "$http_code" = "401" ]; then
+            echo "" >&2
+            echo "HOW TO FIX:" >&2
+            echo "  Your ASC API Key does not have permission to manage Bundle ID Capabilities." >&2
+            echo "  1. Go to https://appstoreconnect.apple.com/access/api" >&2
+            echo "  2. Revoke the current key and create a new one" >&2
+            echo "  3. Ensure 'Access to Certificates, Identifiers & Profiles' is CHECKED" >&2
+            echo "  4. Update APPSTORE_CONNECT_API_KEY, APPSTORE_CONNECT_KEY_ID, APPSTORE_CONNECT_ISSUER_ID secrets" >&2
+            echo "" >&2
+            echo "  OR — manually enable the capability in Apple Developer Portal:" >&2
+            echo "  https://developer.apple.com/account/resources/identifiers/list" >&2
+            echo "  Find '${BUNDLE_ID:-com.netdiagnostic.app}' → Capabilities → check 'Access WiFi Information'" >&2
+        fi
         return 1
     fi
 
