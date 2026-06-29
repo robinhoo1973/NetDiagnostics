@@ -646,7 +646,7 @@ QString AppState::staticDiagDisplayName(DiagId id) {
         case DiagId::G1DhcpStatus: return QStringLiteral("DHCP Status");
         case DiagId::G1IpConfiguration: return QStringLiteral("IP Configuration");
         case DiagId::G1ActiveConnections: return QStringLiteral("Active Connections");
-        case DiagId::G1CellularInfo: return QStringLiteral("Cellular Info");
+        case DiagId::G1CellularInfo: return QStringLiteral("Cellular Information");
         case DiagId::G2NetworkProfile: return QStringLiteral("Network Profile");
         case DiagId::G2TcpSettings: return QStringLiteral("TCP Settings");
         case DiagId::G2DefaultGateway: return QStringLiteral("Default Gateway");
