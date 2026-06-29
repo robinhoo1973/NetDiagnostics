@@ -159,17 +159,22 @@ target_link_libraries(net_diagnostic PRIVATE
 if(IOS)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_IOS)
     # iOS frameworks needed for network diagnostics
-    # find_library resolves framework for linking; Xcode also needs
-    # explicit FRAMEWORK_SEARCH_PATHS to find headers during compilation
-    find_library(SYSCONFIG_FW SystemConfiguration REQUIRED)
-    find_library(NETEXT_FW NetworkExtension REQUIRED)
-    find_library(CORELOC_FW CoreLocation REQUIRED)
-    target_link_libraries(net_diagnostic PRIVATE
-        ${SYSCONFIG_FW} ${NETEXT_FW} ${CORELOC_FW}
+    # -G Ninja: find_library handles -F automatically
+    # -G Xcode: must explicitly add -F to BOTH compile and link options
+    execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
+        OUTPUT_VARIABLE IOS_SDK_PATH OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(IOS_FRAMEWORKS_DIR "${IOS_SDK_PATH}/System/Library/Frameworks")
+
+    target_compile_options(net_diagnostic PRIVATE
+        -F "${IOS_FRAMEWORKS_DIR}"
     )
-    # -G Xcode: framework search path for #import <Framework/Header.h>
-    set_target_properties(net_diagnostic PROPERTIES
-        XCODE_ATTRIBUTE_FRAMEWORK_SEARCH_PATHS "$(SDKROOT)/System/Library/Frameworks"
+    target_link_options(net_diagnostic PRIVATE
+        -F "${IOS_FRAMEWORKS_DIR}"
+    )
+    target_link_libraries(net_diagnostic PRIVATE
+        "-framework SystemConfiguration"
+        "-framework NetworkExtension"
+        "-framework CoreLocation"
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
@@ -247,8 +252,16 @@ if(BUILD_SIMULATOR)
     # iOS simulator: same compile definition and frameworks as main target
     if(IOS)
         target_compile_definitions(net_diagnostic_sim PRIVATE PLATFORM_IOS)
+        target_compile_options(net_diagnostic_sim PRIVATE
+            -F "${IOS_FRAMEWORKS_DIR}"
+        )
+        target_link_options(net_diagnostic_sim PRIVATE
+            -F "${IOS_FRAMEWORKS_DIR}"
+        )
         target_link_libraries(net_diagnostic_sim PRIVATE
-            ${SYSCONFIG_FW} ${NETEXT_FW} ${CORELOC_FW}
+            "-framework SystemConfiguration"
+            "-framework NetworkExtension"
+            "-framework CoreLocation"
         )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE
