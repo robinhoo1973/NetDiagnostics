@@ -19,6 +19,11 @@ public:
     QFuture<DiagnosticResult> runDiag(DiagId id, const QString& target = {},
                                        int fromPort = 0, int toPort = 0,
                                        bool useCommonPorts = true);
+    /// Synchronous variant — use from worker threads to avoid QThreadPool deadlock.
+    /// Called by AppState QRunnable tasks. Does NOT use QtConcurrent::run internally.
+    DiagnosticResult runDiagSync(DiagId id, const QString& target = {},
+                                  int fromPort = 0, int toPort = 0,
+                                  bool useCommonPorts = true);
 
 private:
     DiagnosticResult runG1(DiagId id);

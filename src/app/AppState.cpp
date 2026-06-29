@@ -425,7 +425,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
             try {
                 auto start = std::chrono::steady_clock::now();
                 DiagnosticEngine localEngine(nullptr);
-                DiagnosticResult result = localEngine.runDiag(id, target, psFrom, psTo, psCommon).result();
+                DiagnosticResult result = localEngine.runDiagSync(id, target, psFrom, psTo, psCommon);
                 auto end = std::chrono::steady_clock::now();
                 result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                 QTimer::singleShot(0, state, [this, result]() {
