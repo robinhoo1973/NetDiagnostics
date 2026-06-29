@@ -443,6 +443,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
                     }
                     delete owner;
                     delete this;
+                });
             }
         }
     };
