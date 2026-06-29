@@ -159,10 +159,12 @@ target_link_libraries(net_diagnostic PRIVATE
 if(IOS)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_IOS)
     # iOS frameworks needed for network diagnostics
+    # find_library resolves full framework path → CMake adds -F to compile + link
+    find_library(SYSCONFIG_FW SystemConfiguration REQUIRED)
+    find_library(NETEXT_FW NetworkExtension REQUIRED)
+    find_library(CORELOC_FW CoreLocation REQUIRED)
     target_link_libraries(net_diagnostic PRIVATE
-        "-framework SystemConfiguration"
-        "-framework NetworkExtension"
-        "-framework CoreLocation"
+        ${SYSCONFIG_FW} ${NETEXT_FW} ${CORELOC_FW}
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
@@ -241,9 +243,7 @@ if(BUILD_SIMULATOR)
     if(IOS)
         target_compile_definitions(net_diagnostic_sim PRIVATE PLATFORM_IOS)
         target_link_libraries(net_diagnostic_sim PRIVATE
-            "-framework SystemConfiguration"
-            "-framework NetworkExtension"
-            "-framework CoreLocation"
+            ${SYSCONFIG_FW} ${NETEXT_FW} ${CORELOC_FW}
         )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE
