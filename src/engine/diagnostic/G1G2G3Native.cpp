@@ -21,6 +21,7 @@ typedef SSIZE_T ssize_t;
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <thread>
 #include <climits>
 #include <csignal>
 
@@ -2030,18 +2031,58 @@ DiagnosticResult dnsPollution(DiagId id) {
 //   4. POST {url}/upload → measure upload throughput
 // ═════════════════════════════════════════════════════════════════════════════
 
+// ── DNS resolution with timeout (prevents indefinite blocking on iOS) ────
+static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
+    // Already an IP address — return as-is
+    struct in_addr ip4;
+    if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
+        return host;
+
+    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
+    ResolveState st;
+
+    std::thread t([&st, &host]() {
+        struct addrinfo hints = {}, *res;
+        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
+        QByteArray hb = host.toUtf8();
+        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
+            char ip[INET_ADDRSTRLEN];
+            auto* sa = (struct sockaddr_in*)res->ai_addr;
+            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+            st.ip = QString::fromLatin1(ip);
+            freeaddrinfo(res);
+        }
+        st.done.store(true, std::memory_order_release);
+    });
+
+    // Poll with 50ms granularity until timeout
+    auto start = std::chrono::steady_clock::now();
+    while (!st.done.load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start).count();
+        if (elapsed > timeoutMs) break;
+    }
+    t.detach(); // let the resolver thread finish in background — harmless leak
+    return st.ip;
+}
+
+// Convert host (name or IP) to sockaddr_in — returns true on success
+static bool hostToAddr(const QString& host, int port, struct sockaddr_in& addr) {
+    QString ip = resolveWithTimeout(host, 3000);
+    if (ip.isEmpty()) return false;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    return inet_pton(AF_INET, ip.toUtf8().constData(), &addr.sin_addr) == 1;
+}
+
 // ── Simple HTTP GET via raw socket (no Qt event loop needed) ────────────
 static QByteArray httpGet(const QString& host, int port, const QString& path, int timeoutMs, int maxBytes) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return {};
-    struct addrinfo hints = {}, *res;
-    hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-    QByteArray hostBytes = host.toUtf8();
-    if (getaddrinfo(hostBytes.constData(), nullptr, &hints, &res) != 0) { close(sock); return {}; }
-
-    struct sockaddr_in addr; memcpy(&addr, res->ai_addr, sizeof(addr));
-    addr.sin_port = htons(port);
-    freeaddrinfo(res);
+    struct sockaddr_in addr;
+    if (!hostToAddr(host, port, addr)) { close(sock); return {}; }
 
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2195,13 +2236,8 @@ static int tcpPingMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
-    struct addrinfo hints = {}, *res;
-    hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-    QByteArray hb = host.toUtf8();
-    if (getaddrinfo(hb.constData(), nullptr, &hints, &res) != 0) { close(sock); return -1; }
-    struct sockaddr_in addr; memcpy(&addr, res->ai_addr, sizeof(addr));
-    addr.sin_port = htons(port);
-    freeaddrinfo(res);
+    struct sockaddr_in addr;
+    if (!hostToAddr(host, port, addr)) { close(sock); return -1; }
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
