@@ -220,7 +220,7 @@ QVector<PortScanEntry> NetworkProbe::portScan(const QString& host,
 
         // Wait with select() for connection results
         QElapsedTimer batchTimer; batchTimer.start();
-        int remaining = batchSize;
+        auto remaining = batchSize;
         int elapsedTotal = 0;
 
         while (remaining > 0 && elapsedTotal < timeoutMs + 100) {
