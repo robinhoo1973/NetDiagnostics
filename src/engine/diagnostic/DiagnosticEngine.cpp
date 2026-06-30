@@ -1,20 +1,23 @@
-﻿// =============================================================================
+// =============================================================================
 // DiagnosticEngine.cpp — Pure C++ dispatch, no native plugin abstraction
 // =============================================================================
 #include "engine/diagnostic/DiagnosticEngine.h"
-#include "engine/diagnostic/G1G2G3Native.h"
 #include "engine/diagnostic/G4RemoteHost.h"
-#include "engine/runner/NetworkProbe.h"
+#include "controllers/ControllerFactory.h"
+#include "controllers/INetworkController.h"
+#include "controllers/IHttpClient.h"
+#include "controllers/INetworkProbe.h"
 #include "util/DebugSwitch.h"
-#ifndef NO_CURL
-#include "engine/diagnostic/G5WebsiteUrl.h"
-#endif
 #include "util/Logger.h"
 #include "util/PingParser.h"
 #include <QtConcurrent/QtConcurrent>
 
 DiagnosticEngine::DiagnosticEngine(QObject* parent)
-    : QObject(parent) {}
+    : QObject(parent)
+    , m_networkCtrl(ControllerFactory::createNetworkController())
+    , m_httpClient(ControllerFactory::createHttpClient())
+    , m_networkProbe(ControllerFactory::createNetworkProbe())
+{}
 
 DiagnosticEngine::~DiagnosticEngine() {
     m_destroying.store(true, std::memory_order_release);
@@ -69,14 +72,14 @@ DiagnosticResult DiagnosticEngine::runDiagSync(DiagId id, const QString& target,
 
 DiagnosticResult DiagnosticEngine::runG1(DiagId id) {
     switch (id) {
-        case DiagId::G1NetworkAdapters:   return G1G2G3Native::networkAdapters(id);
-        case DiagId::G1NicAdvanced:       return G1G2G3Native::nicAdvanced(id);
-        case DiagId::G1WifiDiagnostics:   return G1G2G3Native::wifiDiagnostics(id);
-        case DiagId::G1WiredDiagnostics:  return G1G2G3Native::wiredDiagnostics(id);
-        case DiagId::G1DhcpStatus:        return G1G2G3Native::dhcpStatus(id);
-        case DiagId::G1IpConfiguration:   return G1G2G3Native::ipConfiguration(id);
-        case DiagId::G1ActiveConnections: return G1G2G3Native::activeConnections(id);
-        case DiagId::G1CellularInfo:      return G1G2G3Native::cellularInfo(id);
+        case DiagId::G1NetworkAdapters:   return m_networkCtrl->networkAdapters(id);
+        case DiagId::G1NicAdvanced:       return m_networkCtrl->nicAdvanced(id);
+        case DiagId::G1WifiDiagnostics:   return m_networkCtrl->wifiDiagnostics(id);
+        case DiagId::G1WiredDiagnostics:  return m_networkCtrl->wiredDiagnostics(id);
+        case DiagId::G1DhcpStatus:        return m_networkCtrl->dhcpStatus(id);
+        case DiagId::G1IpConfiguration:   return m_networkCtrl->ipConfiguration(id);
+        case DiagId::G1ActiveConnections: return m_networkCtrl->activeConnections(id);
+        case DiagId::G1CellularInfo:      return m_networkCtrl->cellularInfo(id);
         default:
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G1 test"));
     }
@@ -86,12 +89,12 @@ DiagnosticResult DiagnosticEngine::runG1(DiagId id) {
 
 DiagnosticResult DiagnosticEngine::runG2(DiagId id) {
     switch (id) {
-        case DiagId::G2NetworkProfile:    return G1G2G3Native::networkProfile(id);
-        case DiagId::G2TcpSettings:       return G1G2G3Native::tcpSettings(id);
-        case DiagId::G2DefaultGateway:    return G1G2G3Native::defaultGateway(id);
-        case DiagId::G2RoutingTable:      return G1G2G3Native::routingTable(id);
-        case DiagId::G2ArpTable:          return G1G2G3Native::arpTable(id);
-        case DiagId::G2ProxySettings:     return G1G2G3Native::proxySettings(id);
+        case DiagId::G2NetworkProfile:    return m_networkCtrl->networkProfile(id);
+        case DiagId::G2TcpSettings:       return m_networkCtrl->tcpSettings(id);
+        case DiagId::G2DefaultGateway:    return m_networkCtrl->defaultGateway(id);
+        case DiagId::G2RoutingTable:      return m_networkCtrl->routingTable(id);
+        case DiagId::G2ArpTable:          return m_networkCtrl->arpTable(id);
+        case DiagId::G2ProxySettings:     return m_networkCtrl->proxySettings(id);
         default:
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G2 test"));
     }
@@ -101,11 +104,11 @@ DiagnosticResult DiagnosticEngine::runG2(DiagId id) {
 
 DiagnosticResult DiagnosticEngine::runG3(DiagId id) {
     switch (id) {
-        case DiagId::G3NetskopeStatus:        return G1G2G3Native::netskopeStatus(id);
-        case DiagId::G3DnsServers:            return G1G2G3Native::dnsServers(id);
-        case DiagId::G3DnsCache:              return G1G2G3Native::dnsCache(id);
-        case DiagId::G3DnsPollution:          return G1G2G3Native::dnsPollution(id);
-        case DiagId::G3InternetSpeedTest:     return G1G2G3Native::speedTest(id);
+        case DiagId::G3NetskopeStatus:        return m_networkCtrl->netskopeStatus(id);
+        case DiagId::G3DnsServers:            return m_networkCtrl->dnsServers(id);
+        case DiagId::G3DnsCache:              return m_networkCtrl->dnsCache(id);
+        case DiagId::G3DnsPollution:          return m_networkCtrl->dnsPollution(id);
+        case DiagId::G3InternetSpeedTest:     return m_networkCtrl->speedTest(id);
         default:
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G3 test"));
     }
@@ -125,7 +128,7 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
             // Build port list
             QVector<int> portsToScan;
             if (useCommonPorts)
-                portsToScan = NetworkProbe::commonDiagnosticPorts();
+                portsToScan = m_networkProbe->commonDiagnosticPorts();
             if (fromPort > 0 && toPort >= fromPort) {
                 fromPort = qBound(1, fromPort, 65535);
                 toPort = qBound(fromPort, toPort, 65535);
@@ -138,7 +141,7 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
             QString scanHost = G4RemoteHost::extractHostname(target);
 
             QElapsedTimer t; t.start();
-            auto results = NetworkProbe::portScan(scanHost, portsToScan, 2000, 64);
+            auto results = m_networkProbe->portScan(scanHost, portsToScan, 2000, 64);
             DiagnosticResult r;
             r.id = id; r.group = DiagGroup::G4;
             r.durationMs = t.elapsed(); r.timestamp = QDateTime::currentDateTime();
@@ -256,19 +259,19 @@ DiagnosticResult DiagnosticEngine::runG4(DiagId id, const QString& target,
 #ifndef NO_CURL
 DiagnosticResult DiagnosticEngine::runG5(DiagId id, const QString& target) {
     switch (id) {
-        case DiagId::G5UrlParsing:      return G5WebsiteUrl::urlParsing(target);
-        case DiagId::G5TcpConnect:      return G5WebsiteUrl::tcpConnect(target);
-        case DiagId::G5ServiceBanner:   return G5WebsiteUrl::serviceBanner(target);
-        case DiagId::G5CurlVerbose:     return G5WebsiteUrl::curlVerbose(target);
-        case DiagId::G5HttpHeaders:     return G5WebsiteUrl::httpHeaders(target);
-        case DiagId::G5SecurityHeaders: return G5WebsiteUrl::securityHeaders(target);
-        case DiagId::G5SslCertificate:  return G5WebsiteUrl::sslCertificate(target);
-        case DiagId::G5HttpRedirect:    return G5WebsiteUrl::httpRedirect(target);
-        case DiagId::G5HttpCompression: return G5WebsiteUrl::httpCompression(target);
-        case DiagId::G5HttpTiming:      return G5WebsiteUrl::httpTiming(target);
-        case DiagId::G5FtpDiagnostics:  return G5WebsiteUrl::ftpDiagnostics(target);
-        case DiagId::G5SshDiagnostics:  return G5WebsiteUrl::sshDiagnostics(target);
-        case DiagId::G5EmailDiagnostics:return G5WebsiteUrl::emailDiagnostics(target);
+        case DiagId::G5UrlParsing:      return m_httpClient->urlParsing(target);
+        case DiagId::G5TcpConnect:      return m_httpClient->tcpConnect(target);
+        case DiagId::G5ServiceBanner:   return m_httpClient->serviceBanner(target);
+        case DiagId::G5CurlVerbose:     return m_httpClient->curlVerbose(target);
+        case DiagId::G5HttpHeaders:     return m_httpClient->httpHeaders(target);
+        case DiagId::G5SecurityHeaders: return m_httpClient->securityHeaders(target);
+        case DiagId::G5SslCertificate:  return m_httpClient->sslCertificate(target);
+        case DiagId::G5HttpRedirect:    return m_httpClient->httpRedirect(target);
+        case DiagId::G5HttpCompression: return m_httpClient->httpCompression(target);
+        case DiagId::G5HttpTiming:      return m_httpClient->httpTiming(target);
+        case DiagId::G5FtpDiagnostics:  return m_httpClient->ftpDiagnostics(target);
+        case DiagId::G5SshDiagnostics:  return m_httpClient->sshDiagnostics(target);
+        case DiagId::G5EmailDiagnostics:return m_httpClient->emailDiagnostics(target);
         default:
             return DiagnosticResult::skipped(id, QStringLiteral("Unknown G5 test"));
     }
