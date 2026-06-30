@@ -267,6 +267,7 @@ jobs:
           cd /tmp/curl-src
           ./configure --host=aarch64-apple-darwin \
             --disable-shared --enable-static \
+            --disable-curl \
             --with-secure-transport --without-libpsl \
             --disable-ldap --disable-ldaps --disable-rtsp \
             --disable-dict --disable-tftp --disable-telnet --disable-pop3 --disable-imap --disable-smtp --disable-gopher \
