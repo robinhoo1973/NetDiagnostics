@@ -2,7 +2,6 @@
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
-#include "util/DebugSwitch.h"
 #include "engine/task/TaskFactory.h"
 #include "util/DebugSwitch.h"
 #include "util/Logger.h"

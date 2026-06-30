@@ -42,16 +42,6 @@ QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
     return out;
 }
 
-// ── ipconfig dotted key:value ──────────────────────────────────────
-QString DiagnosticFormatter::formatIpconfigLine(const QString& label,
-                                                  const QString& value,
-                                                  int indentSpaces) {
-    QString indent(indentSpaces, ' ');
-    QString dots(36 - label.length(), '.');
-    if (dots.length() < 3) dots = QStringLiteral("...");
-    return QStringLiteral("%1%2 %3 : %4").arg(indent, label, dots, value);
-}
-
 // ── dig-style DNS ─────────────────────────────────────────────────
 QStringList DiagnosticFormatter::formatDnsHeader(const QString& host,
                                                    const QString& rcode,
@@ -128,16 +118,3 @@ QString DiagnosticFormatter::formatTracerouteHop(int ttl, int rtt1, int rtt2, in
         .arg(ttl, 2).arg(rttStr(rtt1)).arg(rttStr(rtt2)).arg(rttStr(rtt3)).arg(display);
 }
 
-// ── Label:value ──────────────────────────────────────────────────
-QString DiagnosticFormatter::formatProperty(const QString& label, const QString& value,
-                                              int indentSpaces) {
-    return QStringLiteral("%1%2: %3").arg(QString(indentSpaces, ' '), label, value);
-}
-
-QString DiagnosticFormatter::formatHeader(const QString& title) {
-    return QStringLiteral("\n%1\n").arg(title);
-}
-
-QString DiagnosticFormatter::separatorLine(int width, QChar ch) {
-    return QString(width, ch);
-}
