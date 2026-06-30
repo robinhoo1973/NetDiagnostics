@@ -9,22 +9,18 @@
 #include "controllers/ios/IosNetworkController.h"
 #include "controllers/ios/IosHttpClient.h"
 #include "controllers/ios/IosNetworkProbe.h"
-#define FACTORY_IOS_BRANCH return std::make_unique<Ios
+#define MAKE_CTRL(prefix, suffix) return std::make_unique<prefix ## suffix>()
+std::unique_ptr<INetworkController> ControllerFactory::createNetworkController() { MAKE_CTRL(Ios, NetworkController); }
+std::unique_ptr<IHttpClient> ControllerFactory::createHttpClient()             { MAKE_CTRL(Ios, HttpClient); }
+std::unique_ptr<INetworkProbe> ControllerFactory::createNetworkProbe()        { MAKE_CTRL(Ios, NetworkProbe); }
+#undef MAKE_CTRL
 #else
 #include "controllers/desktop/DesktopNetworkController.h"
 #include "controllers/desktop/DesktopHttpClient.h"
 #include "controllers/desktop/DesktopNetworkProbe.h"
-#define FACTORY_IOS_BRANCH return std::make_unique<Desktop
+#define MAKE_CTRL(prefix, suffix) return std::make_unique<prefix ## suffix>()
+std::unique_ptr<INetworkController> ControllerFactory::createNetworkController() { MAKE_CTRL(Desktop, NetworkController); }
+std::unique_ptr<IHttpClient> ControllerFactory::createHttpClient()             { MAKE_CTRL(Desktop, HttpClient); }
+std::unique_ptr<INetworkProbe> ControllerFactory::createNetworkProbe()        { MAKE_CTRL(Desktop, NetworkProbe); }
+#undef MAKE_CTRL
 #endif
-
-std::unique_ptr<INetworkController> ControllerFactory::createNetworkController() {
-    FACTORY_IOS_BRANCH NetworkController>();
-}
-std::unique_ptr<IHttpClient> ControllerFactory::createHttpClient() {
-    FACTORY_IOS_BRANCH HttpClient>();
-}
-std::unique_ptr<INetworkProbe> ControllerFactory::createNetworkProbe() {
-    FACTORY_IOS_BRANCH NetworkProbe>();
-}
-
-#undef FACTORY_IOS_BRANCH
