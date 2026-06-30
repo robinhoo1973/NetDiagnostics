@@ -35,7 +35,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
         visible: !itemData.isPending; spacing: 8
         AppIcon {
-            name: { var s=itemData.status; if(s===0)return"badge-check"; if(s===2)return"badge-close"; if(s===1)return"badge-warning"; if(s===5)return"badge-info"; return"badge-skip" }
+            name: { var s=itemData.status; if(s===0)return"badge-check"; if(s===2)return"badge-close"; if(s===1)return"badge-warning"; if(s===4)return"badge-error"; if(s===5)return"badge-info"; return"badge-skip" }
             size: 12
             color: "white"
         }

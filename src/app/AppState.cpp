@@ -40,6 +40,10 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_engine = new DiagnosticEngine(this);
 
     QObject::connect(m_engine, &DiagnosticEngine::destroyed, this, [this]() { m_engine = nullptr; });
+
+    m_timeoutTimer = new QTimer(this);
+    m_timeoutTimer->setSingleShot(true);
+    QObject::connect(m_timeoutTimer, &QTimer::timeout, this, &AppState::onTaskTimeout);
 }
 
 AppState::~AppState() {
@@ -387,6 +391,8 @@ void AppState::startNextGroup() {
     auto& gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
     m_activeGroupDone.store(0);
+    m_timeoutTimer->stop();
+    m_runningTasks.clear();
     bumpVersion();
     TRACE(" startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
 
@@ -406,6 +412,13 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     emit currentDiagChanged();
     emit groupChanged();
     bumpVersion();
+
+    // Register task for timeout watchdog
+    RunningTaskInfo& rti = m_runningTasks[id];
+    rti.groupIdx = groupIdx;
+    rti.startedMs = QDateTime::currentMSecsSinceEpoch();
+    if (!m_timeoutTimer->isActive())
+        m_timeoutTimer->start(m_diagTimeoutMs);
 
     TRACE(" runDiag id=%d name='%s' group=%d\n", (int)id, m_currentDiagName.toUtf8().constData(), groupIdx);
 
@@ -439,6 +452,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
                 result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
                 QTimer::singleShot(0, state, [this, result]() {
                     if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; delete this; return; }
+                    if (state->m_results.contains(id)) { delete owner; delete this; return; } // already timed out
                     state->onDiagFinished(id, result);
                     int done = state->m_activeGroupDone.fetch_add(1) + 1;
                     auto& gt = state->m_pendingGroups[groupIdx];
@@ -452,6 +466,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
             } catch (...) {
                 QTimer::singleShot(0, state, [this]() {
                     if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; delete this; return; }
+                    if (state->m_results.contains(id)) { delete owner; delete this; return; } // already timed out
                     state->onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
                     int done = state->m_activeGroupDone.fetch_add(1) + 1;
                     auto& gt = state->m_pendingGroups[groupIdx];
@@ -472,21 +487,101 @@ void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
     TRACE(" onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
     // Suppress stale results after cancel/reset
     if (m_runStatus != RunStatus::Running) return;
+    if (m_results.contains(id)) return; // already handled by timeout/cancel
     DiagGroup g = diagGroup(id);
     m_results[id] = result;
     m_totalCompleted++;
     m_completedPerGroup[g]++;
     m_resultsVersion++;
 
+    m_runningTasks.remove(id);
+    if (m_runningTasks.isEmpty())
+        m_timeoutTimer->stop();
+
     emit progressChanged();
     emit diagCompleted(static_cast<int>(id));
     bumpVersion();
+}
+
+void AppState::onTaskTimeout() {
+    if (m_runStatus != RunStatus::Running) return;
+
+    Logger::instance().event(QStringLiteral("Task timeout: %1 tasks still running")
+                             .arg(m_runningTasks.size()));
+
+    // Atomically swap out tracking — late callbacks find empty map and skip cleanup
+    QMap<DiagId, RunningTaskInfo> timedOut;
+    std::swap(m_runningTasks, timedOut);
+    m_timeoutTimer->stop();
+
+    QSet<int> groupsToCheck;
+
+    for (auto it = timedOut.begin(); it != timedOut.end(); ++it) {
+        DiagId id = it.key();
+        if (m_results.contains(id)) continue;
+
+        DiagnosticResult r = DiagnosticResult::timeout(
+            id, diagGroup(id), m_diagTimeoutMs);
+        m_results[id] = r;
+        m_totalCompleted++;
+        m_completedPerGroup[diagGroup(id)]++;
+        m_resultsVersion++;
+
+        int done = m_activeGroupDone.fetch_add(1) + 1;
+        auto& gt = m_pendingGroups[it.value().groupIdx];
+        if (done >= gt.diagIds.size())
+            groupsToCheck.insert(it.value().groupIdx);
+
+        emit progressChanged();
+        emit diagCompleted(static_cast<int>(id));
+    }
+
+    // Advance through completed groups
+    while (m_currentGroupIdx < m_pendingGroups.size()) {
+        auto& gt = m_pendingGroups[m_currentGroupIdx];
+        bool allDone = true;
+        for (DiagId id : gt.diagIds) {
+            if (!m_results.contains(id)) { allDone = false; break; }
+        }
+        if (allDone) m_currentGroupIdx++; else break;
+    }
+    bumpVersion();
+
+    if (m_currentGroupIdx < m_pendingGroups.size()) {
+        startNextGroup();
+    } else {
+        m_runStatus = RunStatus::Completed;
+        m_currentDiagName.clear();
+        m_currentGroup.clear();
+        emit runStatusChanged();
+        emit progressChanged();
+        bumpVersion();
+        Logger::instance().event(QStringLiteral("Diagnostic run complete (with timeouts)"));
+    }
 }
 
 void AppState::cancel() {
     if (m_runStatus != RunStatus::Running) return;
     m_runStatus = RunStatus::Cancelled;
     m_currentDiagName.clear();
+
+    QMap<DiagId, RunningTaskInfo> inflight;
+    std::swap(m_runningTasks, inflight);
+    m_timeoutTimer->stop();
+
+    for (auto it = inflight.begin(); it != inflight.end(); ++it) {
+        DiagId id = it.key();
+        if (m_results.contains(id)) continue;
+        DiagnosticResult r = DiagnosticResult::skipped(id, QStringLiteral("Cancelled by user"));
+        m_results[id] = r;
+        m_totalCompleted++;
+        m_completedPerGroup[diagGroup(id)]++;
+        m_resultsVersion++;
+        m_activeGroupDone.fetch_add(1);
+        emit progressChanged();
+        emit diagCompleted(static_cast<int>(id));
+    }
+
     emit runStatusChanged();
     emit progressChanged();
     bumpVersion();
@@ -504,6 +599,8 @@ void AppState::reset() {
     m_currentGroupIdx = 0;
     m_activeGroupDone.store(0);
     m_resultsVersion = 0;
+    m_timeoutTimer->stop();
+    m_runningTasks.clear();
     emit runStatusChanged();
     emit progressChanged();
     emit resultsReset();
@@ -626,6 +723,7 @@ QVariantMap AppState::groupStats(int groupInt) const {
             case DiagStatus::Fail:    fail++; break;
             case DiagStatus::Skipped: skip++; break;
             case DiagStatus::Info:    info++; break;
+            case DiagStatus::Error:   fail++; break; // timeout counts as failure
             default: break;
         }
     }
