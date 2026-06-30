@@ -14,6 +14,7 @@
 #include <QDateTime>
 #include "models/DiagnosticResult.h"
 #include "models/DiagId.h"
+#include "util/DiagnosticFormatter.h"
 
 // ── WiFi SSID via WifiManager ──────────────────────────────────────────
 static QString androidWifiSsid() {
@@ -210,27 +211,20 @@ DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
     qint64 elapsed = t.elapsed();
     r.durationMs = elapsed;
 
-    // Format to match dig-style output (same as desktop G4RemoteHost::dnsResolution)
+    // Dig-style output via shared DiagnosticFormatter
     QStringList out;
-    out.append(QString());
-    out.append(QStringLiteral("; <<>> NetDiagnostic DNS <<>> %1").arg(host));
-    out.append(QStringLiteral(";; global options: +cmd"));
-    out.append(QStringLiteral(";; Got answer:"));
-    out.append(QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")
-        .arg(ip.isEmpty() ? "SERVFAIL" : "NOERROR").arg((uint16_t)(qHash(host) & 0xFFFF)));
-    out.append(QStringLiteral(";; flags: qr rd ra; QUERY: 1, ANSWER: %1, AUTHORITY: 0, ADDITIONAL: 0")
-        .arg(ip.isEmpty() ? 0 : 1));
-    out.append(QString());
+    out << DiagnosticFormatter::formatDnsHeader(host,
+        ip.isEmpty() ? "SERVFAIL" : "NOERROR",
+        (uint16_t)(qHash(host) & 0xFFFF), ip.isEmpty() ? 0 : 1);
     out.append(QStringLiteral(";; QUESTION SECTION:"));
-    out.append(QStringLiteral(";%1.\t\t\tIN\tA").arg(host));
+    out.append(DiagnosticFormatter::formatDnsQuestion(host));
     out.append(QString());
     if (!ip.isEmpty()) {
         out.append(QStringLiteral(";; ANSWER SECTION:"));
-        out.append(QStringLiteral("%1.\t\t%2\tIN\tA\t%3").arg(host, -30).arg(0).arg(ip));
+        out.append(DiagnosticFormatter::formatDnsRecord(host, 0, "A", ip));
         out.append(QString());
     }
-    out.append(QStringLiteral(";; Query time: %1 msec").arg(elapsed));
-    out.append(QStringLiteral(";; SERVER: system resolver (InetAddress)"));
+    out << DiagnosticFormatter::formatDnsFooter(elapsed, "system resolver (InetAddress)");
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = ip.isEmpty() ? DiagStatus::Fail : DiagStatus::Pass;

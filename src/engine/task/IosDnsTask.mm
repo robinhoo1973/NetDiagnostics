@@ -6,6 +6,7 @@
 // =============================================================================
 #include "engine/task/DiagnosticTask.h"
 #include "engine/diagnostic/G4RemoteHost.h"
+#include "util/DiagnosticFormatter.h"
 #import <CFNetwork/CFNetwork.h>
 
 static NSString* resolveCFHost(NSString* hostname, int timeoutMs) {
@@ -56,25 +57,17 @@ static DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int time
     qint64 elapsed = t.elapsed();
     r.durationMs = elapsed;
 
-    // Format output to match dig-style (same as G4RemoteHost::dnsResolution)
+    // Dig-style output via shared DiagnosticFormatter
     QStringList out;
-    out.append(QString());
-    out.append(QStringLiteral("; <<>> NetDiagnostic DNS <<>> %1").arg(host));
-    out.append(QStringLiteral(";; global options: +cmd"));
-    out.append(QStringLiteral(";; Got answer:"));
-    out.append(QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")
-        .arg(ip ? "NOERROR" : "SERVFAIL").arg((uint16_t)(qHash(host) & 0xFFFF)));
-    out.append(QStringLiteral(";; flags: qr rd ra; QUERY: 1, ANSWER: %1, AUTHORITY: 0, ADDITIONAL: 0")
-        .arg(ip ? 1 : 0));
-    out.append(QString());
+    out << DiagnosticFormatter::formatDnsHeader(host,
+        ip ? "NOERROR" : "SERVFAIL",
+        (uint16_t)(qHash(host) & 0xFFFF), ip ? 1 : 0);
     out.append(QStringLiteral(";; QUESTION SECTION:"));
-    out.append(QStringLiteral(";%1.\t\t\tIN\tA").arg(host));
+    out.append(DiagnosticFormatter::formatDnsQuestion(host));
     out.append(QString());
-
     if (ip && ip.length > 0) {
         out.append(QStringLiteral(";; ANSWER SECTION:"));
-        out.append(QStringLiteral("%1.\t\t%2\tIN\tA\t%3")
-            .arg(host, -30).arg(0).arg(QString::fromNSString(ip)));
+        out.append(DiagnosticFormatter::formatDnsRecord(host, 0, "A", QString::fromNSString(ip)));
         out.append(QString());
         r.status = DiagStatus::Pass;
         r.summary = QStringLiteral("Resolved: %1").arg(QString::fromNSString(ip));
@@ -84,9 +77,7 @@ static DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int time
         r.status = DiagStatus::Fail;
         r.summary = QStringLiteral("DNS resolution failed for %1").arg(host);
     }
-    out.append(QStringLiteral(";; Query time: %1 msec").arg(elapsed));
-    out.append(QStringLiteral(";; SERVER: system resolver (CFHost)"));
-    out.append(QStringLiteral(";; WHEN: %1").arg(QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d HH:mm:ss yyyy"))));
+    out << DiagnosticFormatter::formatDnsFooter(elapsed, "system resolver (CFHost)");
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     return r;
