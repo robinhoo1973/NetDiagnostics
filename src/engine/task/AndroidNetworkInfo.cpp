@@ -187,4 +187,80 @@ DiagnosticResult androidGatewayDiag(DiagId id) {
     return r;
 }
 
+// ── DNS Resolution via InetAddress ─────────────────────────────────────
+QString androidDnsResolve(const QString& host, int timeoutMs) {
+    QAndroidJniObject hostStr = QAndroidJniObject::fromString(host);
+    QAndroidJniObject inetAddr = QAndroidJniObject::callStaticObjectMethod(
+        "java/net/InetAddress", "getByName",
+        "(Ljava/lang/String;)Ljava/net/InetAddress;",
+        hostStr.object<jstring>());
+    if (!inetAddr.isValid()) return QString();
+    QAndroidJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
+    return ipStr.isValid() ? ipStr.toString() : QString();
+}
+
+DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
+    DiagnosticResult r; r.id = id; r.group = diagGroup(id);
+    r.timestamp = QDateTime::currentDateTime();
+    QElapsedTimer t; t.start();
+
+    QString host = target;
+    // Strip URL scheme if present
+    if (host.contains("://")) {
+        QUrl u(host);
+        host = u.host();
+    }
+    QString ip = androidDnsResolve(host, 3000);
+
+    r.durationMs = t.elapsed();
+    if (!ip.isEmpty()) {
+        r.status = DiagStatus::Pass;
+        r.summary = QStringLiteral("Resolved: %1 → %2").arg(host, ip);
+        r.rawOutput = QStringLiteral(";; %1\n%1.  IN  A  %2\n").arg(host, ip);
+    } else {
+        r.status = DiagStatus::Fail;
+        r.summary = QStringLiteral("DNS resolution failed for %1").arg(host);
+    }
+    r.details = r.rawOutput;
+    return r;
+}
+
+// ── HTTP Diagnostics via HttpURLConnection ─────────────────────────────
+DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G5;
+    r.timestamp = QDateTime::currentDateTime();
+    QElapsedTimer t; t.start();
+
+    QAndroidJniObject urlStr = QAndroidJniObject::fromString(target);
+    QAndroidJniObject url = QAndroidJniObject("java/net/URL", "(Ljava/lang/String;)V", urlStr.object<jstring>());
+    if (!url.isValid()) {
+        r.status = DiagStatus::Fail; r.summary = QStringLiteral("Invalid URL"); return r;
+    }
+
+    QAndroidJniObject conn = url.callObjectMethod("openConnection", "()Ljava/net/URLConnection;");
+    if (!conn.isValid()) {
+        r.status = DiagStatus::Fail; r.summary = QStringLiteral("Connection failed"); return r;
+    }
+
+    // Cast to HttpURLConnection
+    QAndroidJniObject httpConn = conn; // implicit — openConnection returns the right type
+    httpConn.callMethod<void>("setConnectTimeout", "(I)V", 10000);
+    httpConn.callMethod<void>("setReadTimeout", "(I)V", 15000);
+    httpConn.callMethod<void>("setRequestMethod", "(Ljava/lang/String;)V",
+        QAndroidJniObject::fromString("GET").object<jstring>());
+
+    int responseCode = httpConn.callMethod<jint>("getResponseCode");
+    r.durationMs = t.elapsed();
+
+    QAndroidJniObject msg = httpConn.callObjectMethod("getResponseMessage", "()Ljava/lang/String;");
+    QString statusLine = QStringLiteral("HTTP/1.1 %1 %2").arg(responseCode)
+        .arg(msg.isValid() ? msg.toString() : QString());
+
+    r.rawOutput = statusLine;
+    r.details = statusLine;
+    r.status = (responseCode >= 200 && responseCode < 400) ? DiagStatus::Pass : DiagStatus::Warning;
+    r.summary = QStringLiteral("HTTP %1 (%2ms)").arg(responseCode).arg(r.durationMs);
+    return r;
+}
+
 #endif // PLATFORM_ANDROID
