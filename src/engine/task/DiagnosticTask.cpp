@@ -2,6 +2,8 @@
 // DiagnosticTask.cpp — Per-task timeout watchdog via QTimer + QFutureWatcher
 // =============================================================================
 #include "engine/task/DiagnosticTask.h"
+#include <QPointer>
+#include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrent>
 
 DiagnosticTask::DiagnosticTask(DiagId id, const QString& target,

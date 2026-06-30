@@ -7,10 +7,10 @@
 #pragma once
 
 #include <QObject>
-#include <QPointer>
 #include <QTimer>
-#include <QFutureWatcher>
 #include <atomic>
+
+template<typename T> class QFutureWatcher;
 #include "models/DiagId.h"
 #include "models/DiagnosticResult.h"
 

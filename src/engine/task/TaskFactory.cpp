@@ -27,70 +27,61 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
     DiagId id, const QString& target, int fromPort, int toPort, bool useCommonPorts)
 {
     int tmo = timeoutFor(id);
-    auto T = [&](GenericTask::Impl impl, int customTmo = -1) {
+
+    // Helpers: wrap function pointers that don't match GenericTask::Impl signature.
+    // T1 wraps G1/G2/G3 — takes (DiagId) only, ignores target.
+    // T2 wraps G4/G5 — takes (const QString&) only, ignores DiagId.
+    auto T1 = [&](auto fn, int custTmo = -1) {
+        return std::make_unique<GenericTask>(id, target,
+            [id, fn](DiagId, const QString&) { return fn(id); },
+            custTmo > 0 ? custTmo : tmo);
+    };
+    auto T2 = [&](auto fn, int custTmo = -1) {
+        return std::make_unique<GenericTask>(id, target,
+            [t = target, fn](DiagId, const QString&) { return fn(t); },
+            custTmo > 0 ? custTmo : tmo);
+    };
+    // T3 for complex inline-lambda cases (e.g., PortScan)
+    auto T3 = [&](GenericTask::Impl impl, int custTmo = -1) {
         return std::make_unique<GenericTask>(id, target, std::move(impl),
-                                             customTmo > 0 ? customTmo : tmo);
+                                             custTmo > 0 ? custTmo : tmo);
     };
 
     switch (id) {
         // ── G1: System & Adapters ──────────────────────────────────────
-        case DiagId::G1NetworkAdapters:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::networkAdapters(id); }, 15000);
-        case DiagId::G1NicAdvanced:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::nicAdvanced(id); });
-        case DiagId::G1WifiDiagnostics:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::wifiDiagnostics(id); });
-        case DiagId::G1WiredDiagnostics:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::wiredDiagnostics(id); });
-        case DiagId::G1DhcpStatus:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::dhcpStatus(id); });
-        case DiagId::G1IpConfiguration:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::ipConfiguration(id); });
-        case DiagId::G1ActiveConnections:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::activeConnections(id); });
-        case DiagId::G1CellularInfo:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::cellularInfo(id); });
+        case DiagId::G1NetworkAdapters:    return T1(G1G2G3Native::networkAdapters, 15000);
+        case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
+        case DiagId::G1WifiDiagnostics:    return T1(G1G2G3Native::wifiDiagnostics);
+        case DiagId::G1WiredDiagnostics:   return T1(G1G2G3Native::wiredDiagnostics);
+        case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
+        case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
+        case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
+        case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 
         // ── G2: Connectivity & Security ────────────────────────────────
-        case DiagId::G2NetworkProfile:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::networkProfile(id); });
-        case DiagId::G2TcpSettings:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::tcpSettings(id); });
-        case DiagId::G2DefaultGateway:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::defaultGateway(id); });
-        case DiagId::G2RoutingTable:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::routingTable(id); });
-        case DiagId::G2ArpTable:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::arpTable(id); });
-        case DiagId::G2ProxySettings:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::proxySettings(id); });
+        case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
+        case DiagId::G2TcpSettings:        return T1(G1G2G3Native::tcpSettings);
+        case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
+        case DiagId::G2RoutingTable:       return T1(G1G2G3Native::routingTable);
+        case DiagId::G2ArpTable:           return T1(G1G2G3Native::arpTable);
+        case DiagId::G2ProxySettings:      return T1(G1G2G3Native::proxySettings);
 
         // ── G3: Internet & DNS ─────────────────────────────────────────
-        case DiagId::G3NetskopeStatus:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::netskopeStatus(id); });
-        case DiagId::G3DnsServers:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::dnsServers(id); });
-        case DiagId::G3DnsCache:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::dnsCache(id); });
-        case DiagId::G3DnsPollution:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::dnsPollution(id); });
-        case DiagId::G3InternetSpeedTest:
-            return T([](DiagId id, const QString&) { return G1G2G3Native::speedTest(id); });
+        case DiagId::G3NetskopeStatus:     return T1(G1G2G3Native::netskopeStatus);
+        case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
+        case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
+        case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
+        case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
 
         // ── G4: Remote Host ────────────────────────────────────────────
-        case DiagId::G4DnsResolution:
-            return T([](DiagId, const QString& t) { return G4RemoteHost::dnsResolution(t); });
-        case DiagId::G4Ping:
-            return T([](DiagId, const QString& t) { return G4RemoteHost::ping(t); });
-        case DiagId::G4Traceroute:
-            return T([](DiagId, const QString& t) { return G4RemoteHost::traceroute(t); });
-        case DiagId::G4PathPing:
-            return T([](DiagId, const QString& t) { return G4RemoteHost::pathPing(t); });
-        case DiagId::G4MtuDiscovery:
-            return T([](DiagId, const QString& t) { return G4RemoteHost::mtuDiscovery(t); });
+        case DiagId::G4DnsResolution:      return T2(G4RemoteHost::dnsResolution);
+        case DiagId::G4Ping:               return T2(G4RemoteHost::ping, 30000);
+        case DiagId::G4Traceroute:         return T2(G4RemoteHost::traceroute);
+        case DiagId::G4PathPing:           return T2(G4RemoteHost::pathPing);
+        case DiagId::G4MtuDiscovery:       return T2(G4RemoteHost::mtuDiscovery);
         case DiagId::G4PortScan: {
             QString scanHost = G4RemoteHost::extractHostname(target);
-            return T([scanHost, fromPort, toPort, useCommonPorts](DiagId id, const QString&) {
+            return T3([scanHost, fromPort, toPort, useCommonPorts](DiagId id, const QString&) {
                 QVector<int> ports;
                 if (useCommonPorts)
                     ports = NetworkProbe::commonDiagnosticPorts();
@@ -153,32 +144,19 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 
         // ── G5: Website / URL ──────────────────────────────────────────
 #ifndef NO_CURL
-        case DiagId::G5UrlParsing:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::urlParsing(t); });
-        case DiagId::G5TcpConnect:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::tcpConnect(t); });
-        case DiagId::G5ServiceBanner:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::serviceBanner(t); });
-        case DiagId::G5CurlVerbose:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::curlVerbose(t); });
-        case DiagId::G5HttpHeaders:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::httpHeaders(t); });
-        case DiagId::G5SecurityHeaders:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::securityHeaders(t); });
-        case DiagId::G5SslCertificate:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::sslCertificate(t); });
-        case DiagId::G5HttpRedirect:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::httpRedirect(t); });
-        case DiagId::G5HttpCompression:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::httpCompression(t); });
-        case DiagId::G5HttpTiming:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::httpTiming(t); });
-        case DiagId::G5FtpDiagnostics:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::ftpDiagnostics(t); });
-        case DiagId::G5SshDiagnostics:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::sshDiagnostics(t); });
-        case DiagId::G5EmailDiagnostics:
-            return T([](DiagId, const QString& t) { return G5WebsiteUrl::emailDiagnostics(t); });
+        case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
+        case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
+        case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        case DiagId::G5CurlVerbose:      return T2(G5WebsiteUrl::curlVerbose);
+        case DiagId::G5HttpHeaders:      return T2(G5WebsiteUrl::httpHeaders);
+        case DiagId::G5SecurityHeaders:  return T2(G5WebsiteUrl::securityHeaders);
+        case DiagId::G5SslCertificate:   return T2(G5WebsiteUrl::sslCertificate);
+        case DiagId::G5HttpRedirect:     return T2(G5WebsiteUrl::httpRedirect);
+        case DiagId::G5HttpCompression:  return T2(G5WebsiteUrl::httpCompression);
+        case DiagId::G5HttpTiming:       return T2(G5WebsiteUrl::httpTiming);
+        case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
+        case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
+        case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
 #else
         case DiagId::G5UrlParsing:       // fall through — NO_CURL: skip all G5
         case DiagId::G5TcpConnect:
