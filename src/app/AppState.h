@@ -127,7 +127,6 @@ signals:
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
-    void onTaskTimeout();
 
 private:
     void startNextGroup();
@@ -160,19 +159,12 @@ private:
     struct GroupTask { QList<DiagId> diagIds; DiagGroup group; };
     QList<GroupTask> m_pendingGroups;
 
-    // Per-task tracking for timeout watchdog
-    struct RunningTaskInfo { int groupIdx = 0; qint64 startedMs = 0; };
     int m_currentGroupIdx = 0;
     std::atomic<int> m_activeGroupDone{0};
     std::atomic<int> m_stateGeneration{0};
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
     int m_languageIndex = 0;
-
-    // Timeout watchdog: fires if a test hangs (e.g., DNS timeout, network stall)
-    QTimer* m_timeoutTimer = nullptr;
-    QMap<DiagId, RunningTaskInfo> m_runningTasks;
-    int m_diagTimeoutMs = 60000;
 
     // Cached group stats — invalidated on progressChanged
     mutable QVariantList m_cachedGroupStats;
