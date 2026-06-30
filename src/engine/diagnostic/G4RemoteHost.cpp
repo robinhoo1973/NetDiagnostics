@@ -6,6 +6,7 @@ typedef SSIZE_T ssize_t;
 #include "util/DebugSwitch.h"
 #include "util/PingParser.h"
 #include "util/Logger.h"
+#include "util/DnsResolver.h"
 #include <QHostInfo>
 #include <QElapsedTimer>
 #include <atomic>
@@ -47,7 +48,6 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <errno.h>
 #include <resolv.h>
 #include <arpa/nameser.h>
-#include "util/DnsResolver.h"
 // macOS Apple Clang compatibility: C_IN may not be exposed by default
 #ifndef C_IN
 #define C_IN ns_c_in

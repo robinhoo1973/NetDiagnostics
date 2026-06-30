@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.22)
 project(NetDiagnostic VERSION 0.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -119,7 +119,6 @@ if(IOS)
     list(APPEND SOURCES ${IOS_CONTROLLER_SOURCES})
 elseif(NOT ANDROID)
     list(APPEND SOURCES ${DESKTOP_CONTROLLER_SOURCES})
-endif()
 endif()
 
 set(QML_RESOURCES

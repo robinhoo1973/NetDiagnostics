@@ -83,36 +83,37 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     delete ctx;
     return {};
 #else
-    // Non-Apple: std::thread with polling loop
+    // Non-Apple: std::thread with polling loop.
+    // Heap-allocate state so the detached thread doesn't access freed stack.
     struct ResolveState { std::atomic<bool> done{false}; QString ip; };
-    ResolveState st;
-    std::thread t([&st, hb]() {
+    auto st = std::make_shared<ResolveState>();
+    std::thread t([st, hb]() {
         struct addrinfo hints = {}, *res;
         hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
         if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
             char ip[INET_ADDRSTRLEN];
             auto* sa = (struct sockaddr_in*)res->ai_addr;
             inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            st.ip = QString::fromLatin1(ip);
+            st->ip = QString::fromLatin1(ip);
             freeaddrinfo(res);
         }
-        st.done.store(true, std::memory_order_release);
+        st->done.store(true, std::memory_order_release);
     });
     auto start = std::chrono::steady_clock::now();
-    while (!st.done.load(std::memory_order_acquire)) {
+    while (!st->done.load(std::memory_order_acquire)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
         auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             std::chrono::steady_clock::now() - start).count();
         if (elapsed > timeoutMs) break;
     }
-    t.detach();
-    if (!st.done.load(std::memory_order_acquire))
-        return {};
+    t.detach(); // thread keeps shared_ptr alive, auto-frees when done
+    if (!st->done.load(std::memory_order_acquire))
+        return {}; // timeout: thread still owns st via shared_ptr, safe
     {
         QMutexLocker locker(&m_mutex);
-        if (!st.ip.isEmpty())
-            m_cache[host] = st.ip;
+        if (!st->ip.isEmpty())
+            m_cache[host] = st->ip;
     }
-    return st.ip;
+    return st->ip;
 #endif
 }
