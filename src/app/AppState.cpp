@@ -37,9 +37,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_enabledDiags.remove(DiagId::G2ArpTable);
 #endif
 
-    m_engine = new DiagnosticEngine(this);
-
-    QObject::connect(m_engine, &DiagnosticEngine::destroyed, this, [this]() { m_engine = nullptr; });
 }
 
 AppState::~AppState() {
