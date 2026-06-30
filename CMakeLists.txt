@@ -21,46 +21,9 @@ find_package(Qt6LinguistTools QUIET)
 # curl — required for G5 HTTP diagnostics
 # iOS/Android cross-compile: find_package(CURL) cannot auto-locate the SDK libcurl
 if(IOS)
-    # iOS: prefer prebuilt libcurl.a; fallback to SDK -lcurl
-    if(NOT CURL_INCLUDE_DIR)
-        find_path(CURL_INCLUDE_DIR curl/curl.h
-            PATHS "${CMAKE_OSX_SYSROOT}/usr/include"
-            NO_DEFAULT_PATH
-        )
-    endif()
-    if(CURL_INCLUDE_DIR AND EXISTS "${CURL_INCLUDE_DIR}/curl/curl.h")
-        message(STATUS "iOS curl include: ${CURL_INCLUDE_DIR}")
-        if(CURL_LIBRARY)
-            message(STATUS "iOS curl lib (prebuilt): ${CURL_LIBRARY}")
-            add_library(CURL::libcurl UNKNOWN IMPORTED)
-            set_target_properties(CURL::libcurl PROPERTIES
-                IMPORTED_LOCATION "${CURL_LIBRARY}"
-                INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIR}"
-            )
-        else()
-            # Try to locate system libcurl in the iOS SDK
-            find_library(IOS_CURL_LIBRARY curl
-                PATHS "${CMAKE_OSX_SYSROOT}/usr/lib"
-                NO_DEFAULT_PATH
-            )
-            if(IOS_CURL_LIBRARY)
-                message(STATUS "iOS curl library: ${IOS_CURL_LIBRARY}")
-                add_library(CURL::libcurl UNKNOWN IMPORTED)
-                set_target_properties(CURL::libcurl PROPERTIES
-                    IMPORTED_LOCATION "${IOS_CURL_LIBRARY}"
-                    INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIR}"
-                )
-            else()
-                message(STATUS "iOS: using -lcurl (link-time resolved by SDK)")
-                add_library(CURL::libcurl INTERFACE IMPORTED)
-                target_include_directories(CURL::libcurl INTERFACE "${CURL_INCLUDE_DIR}")
-                target_link_libraries(CURL::libcurl INTERFACE curl)
-            endif()
-        endif()
-    else()
-        message(WARNING "iOS: curl not found; building without HTTP diagnostics")
-        set(NO_CURL TRUE)
-    endif()
+    # iOS: NSURLSession replaces libcurl for HTTP diagnostics (see IosHttpTask.mm)
+    # No curl dependency needed — set NO_CURL to exclude libcurl linking
+    set(NO_CURL TRUE)
 elseif(ANDROID)
     # Android: vcpkg curl cross-compile is slow/unreliable; skip HTTP diagnostics
     message(WARNING "Android: building without curl (HTTP diagnostics disabled)")
@@ -96,9 +59,10 @@ if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
 endif()
-# iOS: Objective-C++ WiFi helper
+# iOS: native task implementations + WiFi helper
 if(IOS)
     list(APPEND SOURCES src/engine/IosWiFiHelper.mm)
+    list(APPEND SOURCES src/engine/task/IosDnsTask.mm src/engine/task/IosHttpTask.mm)
 endif()
 
 set(QML_RESOURCES
@@ -202,6 +166,8 @@ if(IOS)
         "-framework NetworkExtension"
         "-framework CoreLocation"
         "-framework CoreTelephony"
+        "-framework Network"
+        "-framework CFNetwork"
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
@@ -290,6 +256,8 @@ if(BUILD_SIMULATOR)
             "-framework NetworkExtension"
             "-framework CoreLocation"
             "-framework CoreTelephony"
+            "-framework Network"
+            "-framework CFNetwork"
         )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE
