@@ -23,7 +23,15 @@ void DiagnosticTask::start() {
     m_watcher = new QFutureWatcher<DiagnosticResult>(this);
     connect(m_watcher, &QFutureWatcher<DiagnosticResult>::finished,
             this, &DiagnosticTask::onFutureFinished);
-    m_watcher->setFuture(QtConcurrent::run([this]() { return run(); }));
+
+    // Use QPointer to guard against deletion during concurrent execution.
+    // If the watchdog fires first and deleteLater destroys the task,
+    // the QPointer nulls out, so the worker safely returns a default result.
+    QPointer<DiagnosticTask> guard(this);
+    m_watcher->setFuture(QtConcurrent::run([guard]() -> DiagnosticResult {
+        if (guard.isNull()) return {};
+        return guard->run();
+    }));
 }
 
 void DiagnosticTask::cancel() {
