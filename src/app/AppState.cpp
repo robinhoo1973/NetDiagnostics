@@ -9,7 +9,6 @@
 #include <cstdio>
 #include <chrono>
 #include <QTimer>
-#include <QtConcurrent/QtConcurrent>
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
 #include <QDialog>
 #endif
