@@ -1921,7 +1921,8 @@ DiagnosticResult dnsCache(DiagId id) {
 }
 
 // Forward declaration: DNS resolution with timeout (defined later in this file)
-static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000);
+// NOTE: default argument omitted here — C++ allows it on declaration OR definition, not both
+static QString resolveWithTimeout(const QString& host, int timeoutMs);
 
 DiagnosticResult dnsPollution(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
