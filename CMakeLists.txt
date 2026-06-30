@@ -62,7 +62,7 @@ endif()
 # iOS: native task implementations + WiFi helper
 if(IOS)
     list(APPEND SOURCES src/engine/IosWiFiHelper.mm)
-    list(APPEND SOURCES src/engine/task/IosDnsTask.mm src/engine/task/IosHttpTask.mm)
+    list(APPEND SOURCES src/engine/task/IosDnsTask.mm src/engine/task/IosHttpTask.mm src/engine/task/IosNetworkInfo.mm)
 endif()
 
 set(QML_RESOURCES
@@ -168,6 +168,7 @@ if(IOS)
         "-framework CoreTelephony"
         "-framework Network"
         "-framework CFNetwork"
+        "-framework SystemConfiguration"
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
@@ -258,6 +259,7 @@ if(BUILD_SIMULATOR)
             "-framework CoreTelephony"
             "-framework Network"
             "-framework CFNetwork"
+            "-framework SystemConfiguration"
         )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE

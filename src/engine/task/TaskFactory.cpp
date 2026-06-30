@@ -7,8 +7,9 @@
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
 #ifdef PLATFORM_IOS
-#include "engine/task/IosHttpTask.mm"   // iosHttpDiagnostic() — NSURLSession
-#include "engine/task/IosDnsTask.mm"    // iosDnsResolve() — CFHost
+#include "engine/task/IosHttpTask.mm"      // iosHttpDiagnostic() — NSURLSession
+#include "engine/task/IosDnsTask.mm"       // iosDnsResolve() — CFHost
+#include "engine/task/IosNetworkInfo.mm"   // iosDefaultGatewayDiag(), iosDhcpDiag()
 #endif
 #ifndef NO_CURL
 #include "engine/diagnostic/G5WebsiteUrl.h"
@@ -57,7 +58,12 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
         case DiagId::G1WifiDiagnostics:    return T1(G1G2G3Native::wifiDiagnostics);
         case DiagId::G1WiredDiagnostics:   return T1(G1G2G3Native::wiredDiagnostics);
+#ifdef PLATFORM_IOS
+        case DiagId::G1DhcpStatus:
+            return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
+#else
         case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
+#endif
         case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
         case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
@@ -65,7 +71,12 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         // ── G2: Connectivity & Security ────────────────────────────────
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
         case DiagId::G2TcpSettings:        return T1(G1G2G3Native::tcpSettings);
+#ifdef PLATFORM_IOS
+        case DiagId::G2DefaultGateway:
+            return T3([](DiagId id, const QString&) { return iosDefaultGatewayDiag(id); });
+#else
         case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
+#endif
         case DiagId::G2RoutingTable:       return T1(G1G2G3Native::routingTable);
         case DiagId::G2ArpTable:           return T1(G1G2G3Native::arpTable);
         case DiagId::G2ProxySettings:      return T1(G1G2G3Native::proxySettings);
