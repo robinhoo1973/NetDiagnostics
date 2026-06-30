@@ -2055,7 +2055,7 @@ static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
     struct DnsCtx {
         QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
     };
-    auto* ctx = new DnsCtx{hb, {}, false, dispatch_semaphore_create(0)};
+    auto* ctx = new DnsCtx{host.toUtf8(), {}, false, dispatch_semaphore_create(0)};
     dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
         [](void* p) {
             auto* c = (DnsCtx*)p;
