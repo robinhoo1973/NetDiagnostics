@@ -11,6 +11,9 @@
 #include "engine/task/IosDnsTask.mm"       // iosDnsResolve() — CFHost
 #include "engine/task/IosNetworkInfo.mm"   // iosDefaultGatewayDiag(), iosDhcpDiag()
 #endif
+#ifdef PLATFORM_ANDROID
+#include "engine/task/AndroidNetworkInfo.cpp" // androidWifiDiag, androidCellularDiag, etc.
+#endif
 #ifndef NO_CURL
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #endif
@@ -56,17 +59,30 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         // ── G1: System & Adapters ──────────────────────────────────────
         case DiagId::G1NetworkAdapters:    return T1(G1G2G3Native::networkAdapters, 15000);
         case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
+#ifdef PLATFORM_ANDROID
+        case DiagId::G1WifiDiagnostics:
+            return T3([](DiagId id, const QString&) { return androidWifiDiag(id); });
+#else
         case DiagId::G1WifiDiagnostics:    return T1(G1G2G3Native::wifiDiagnostics);
+#endif
         case DiagId::G1WiredDiagnostics:   return T1(G1G2G3Native::wiredDiagnostics);
 #ifdef PLATFORM_IOS
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
+#elif defined(PLATFORM_ANDROID)
+        case DiagId::G1DhcpStatus:
+            return T3([](DiagId id, const QString&) { return androidDhcpDiag(id); });
 #else
         case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
 #endif
         case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
         case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
+#ifdef PLATFORM_ANDROID
+        case DiagId::G1CellularInfo:
+            return T3([](DiagId id, const QString&) { return androidCellularDiag(id); });
+#else
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
+#endif
 
         // ── G2: Connectivity & Security ────────────────────────────────
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
@@ -74,6 +90,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #ifdef PLATFORM_IOS
         case DiagId::G2DefaultGateway:
             return T3([](DiagId id, const QString&) { return iosDefaultGatewayDiag(id); });
+#elif defined(PLATFORM_ANDROID)
+        case DiagId::G2DefaultGateway:
+            return T3([](DiagId id, const QString&) { return androidGatewayDiag(id); });
 #else
         case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
 #endif
