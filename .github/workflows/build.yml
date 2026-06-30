@@ -650,31 +650,6 @@ jobs:
           pip3 install --break-system-packages aqtinstall
           aqt install-qt mac ios $QT_VERSION ios -O ~/qt-ios
 
-      - name: Build curl static library for iOS
-        run: |
-          CURL_VER="8.12.1"
-          curl -fsSL "https://curl.se/download/curl-${CURL_VER}.tar.xz" -o /tmp/curl.tar.xz
-          mkdir -p /tmp/curl-src
-          tar -xJf /tmp/curl.tar.xz -C /tmp/curl-src --strip-components=1
-
-          echo "CURL_HEADERS=/tmp/curl-src/include" >> "$GITHUB_ENV"
-          echo "CURL_LIBRARY=/tmp/curl-src/lib/.libs/libcurl.a" >> "$GITHUB_ENV"
-
-          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          # Use CPPFLAGS for -isysroot (not CFLAGS) — curl configure needs it for header detection
-          # Do NOT set CC manually — let configure find xcrun clang via host triplet
-          export CPPFLAGS="-isysroot $SDKROOT -arch arm64 -miphoneos-version-min=16.0"
-          export CFLAGS="-Os"
-          cd /tmp/curl-src
-          ./configure --host=aarch64-apple-darwin \
-            --disable-shared --enable-static \
-            --with-secure-transport --without-libpsl \
-            --disable-ldap --disable-ldaps --disable-rtsp \
-            --disable-dict --disable-tftp --disable-telnet --disable-pop3 --disable-imap --disable-smtp --disable-gopher \
-            --disable-manual --disable-docs
-          make -j$(sysctl -n hw.logicalcpu)
-          echo "✅ libcurl.a built for iOS"
-
       - name: Configure
         run: |
           export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/macos"
@@ -684,9 +659,10 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -DCURL_INCLUDE_DIR="$CURL_HEADERS" \
-            -DCURL_LIBRARY="$CURL_LIBRARY" \
+            -DCURL_INCLUDE_DIR="$SDKROOT/usr/include" \
             -B build -S .
+          # NOTE: CURL_INCLUDE_DIR may not find curl.h in Xcode 26 SDK → NO_CURL=TRUE
+          # This is fine for build verification; deploy-testflight.yml handles full IPA with libcurl.a
 
       - name: Build
         run: ninja -v -C build net_diagnostic
