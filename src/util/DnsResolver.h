@@ -25,6 +25,10 @@ public:
     // Clear the DNS cache (useful between diagnostic runs).
     void clearCache();
 
+    // Convenience: resolve hostname → IPv4 in host byte order, 0 on failure.
+    // Uses QHostInfo first, then falls back to resolve() with timeout.
+    static quint32 resolveIPv4(const QString& host, int timeoutMs = 3000);
+
 private:
     DnsResolver() = default;
     ~DnsResolver() = default;

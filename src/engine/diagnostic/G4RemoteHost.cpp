@@ -391,22 +391,7 @@ DiagnosticResult dnsResolution(const QString& target) {
 // ── TCP / ICMP socket helpers ─────────────────────────────────────────
 
 static quint32 resolveIPv4(const QString& host) {
-    // Returns host-byte-order IPv4 address.
-    // 1. Try QHostInfo (Qt's async resolver) — toIPv4Address() is NBO
-    QHostInfo info = QHostInfo::fromName(host);
-    if (!info.addresses().isEmpty()) {
-        quint32 ip = info.addresses().first().toIPv4Address();
-        if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
-    }
-    // 2. Fallback to getaddrinfo with timeout (libc resolver) — sin_addr is NBO
-    fprintf(stderr, "[DNS] QHostInfo failed for '%s', trying getaddrinfo (3s timeout)\n", host.toUtf8().constData());
-    QString ipStr = DnsResolver::instance().resolve(host, 3000);
-    if (!ipStr.isEmpty()) {
-        struct in_addr a;
-        if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)
-            return ntohl(a.s_addr); // inet_pton puts it in NBO, convert to HBO
-    }
-    return 0;
+    return DnsResolver::resolveIPv4(host, 3000);
 }
 
 // Single TCP connect — returns RTT in ms, or -1 on failure
