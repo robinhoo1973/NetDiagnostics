@@ -2,6 +2,7 @@
 // DnsResolver.cpp — Shared DNS resolution with timeout
 // =============================================================================
 #include "util/DnsResolver.h"
+#include <QHostInfo>
 
 #ifdef __APPLE__
 #include <dispatch/dispatch.h>
@@ -29,6 +30,21 @@ DnsResolver& DnsResolver::instance() {
 void DnsResolver::clearCache() {
     QMutexLocker locker(&m_mutex);
     m_cache.clear();
+}
+
+quint32 DnsResolver::resolveIPv4(const QString& host, int timeoutMs) {
+    QHostInfo info = QHostInfo::fromName(host);
+    if (!info.addresses().isEmpty()) {
+        quint32 ip = info.addresses().first().toIPv4Address();
+        if (ip) return ntohl(ip);
+    }
+    QString ipStr = instance().resolve(host, timeoutMs);
+    if (!ipStr.isEmpty()) {
+        struct in_addr a;
+        if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)
+            return ntohl(a.s_addr);
+    }
+    return 0;
 }
 
 QString DnsResolver::resolve(const QString& host, int timeoutMs) {

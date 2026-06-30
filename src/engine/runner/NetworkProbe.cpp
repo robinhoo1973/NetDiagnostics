@@ -36,19 +36,7 @@
 
 // ── Helper: resolve hostname → IPv4 (host byte order) ────────────────────────
 static quint32 resolveIPv4(const QString& host) {
-    QHostInfo info = QHostInfo::fromName(host);
-    if (!info.addresses().isEmpty()) {
-        quint32 ip = info.addresses().first().toIPv4Address();
-        if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
-    }
-    // 2. Fallback to getaddrinfo with timeout (libc resolver)
-    QString ipStr = DnsResolver::instance().resolve(host, 3000);
-    if (!ipStr.isEmpty()) {
-        struct in_addr a;
-        if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)
-            return ntohl(a.s_addr);
-    }
-    return 0;
+    return DnsResolver::resolveIPv4(host, 3000);
 }
 
 // ── Helper: set socket non-blocking ──────────────────────────────────────────

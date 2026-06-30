@@ -1,5 +1,5 @@
 // =============================================================================
-// IosHttpClient.cpp — Stub: delegates to G5WebsiteUrl
+// IosHttpClient.cpp — G5 HTTP diagnostics (libcurl delegation)
 //   TODO(Phase 4): NSURLSession implementation — removes libcurl dependency
 // =============================================================================
 #include "controllers/ios/IosHttpClient.h"
@@ -12,94 +12,29 @@ bool IosHttpClient::isAvailable() const {
     return false;
 #endif
 }
-DiagnosticResult IosHttpClient::urlParsing(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::urlParsing(t);
+
+#ifdef NO_CURL
+#define G5_METHOD(method, diagId) \
+    DiagnosticResult IosHttpClient::method(const QString&) { \
+        return DiagnosticResult::skipped(DiagId::diagId, QStringLiteral("G5 not available (no curl)")); \
+    }
 #else
-    return DiagnosticResult::skipped(DiagId::G5UrlParsing, QStringLiteral("G5 not available (no curl)"));
+#define G5_METHOD(method, diagId) \
+    DiagnosticResult IosHttpClient::method(const QString& t) { return G5WebsiteUrl::method(t); }
 #endif
-}
-DiagnosticResult IosHttpClient::tcpConnect(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::tcpConnect(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5TcpConnect, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::serviceBanner(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::serviceBanner(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5ServiceBanner, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::curlVerbose(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::curlVerbose(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5CurlVerbose, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::httpHeaders(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::httpHeaders(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5HttpHeaders, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::securityHeaders(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::securityHeaders(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5SecurityHeaders, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::sslCertificate(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::sslCertificate(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5SslCertificate, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::httpRedirect(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::httpRedirect(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5HttpRedirect, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::httpCompression(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::httpCompression(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5HttpCompression, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::httpTiming(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::httpTiming(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5HttpTiming, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::ftpDiagnostics(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::ftpDiagnostics(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5FtpDiagnostics, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::sshDiagnostics(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::sshDiagnostics(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5SshDiagnostics, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
-DiagnosticResult IosHttpClient::emailDiagnostics(const QString& t) {
-#ifndef NO_CURL
-    return G5WebsiteUrl::emailDiagnostics(t);
-#else
-    return DiagnosticResult::skipped(DiagId::G5EmailDiagnostics, QStringLiteral("G5 not available (no curl)"));
-#endif
-}
+
+G5_METHOD(urlParsing,       G5UrlParsing)
+G5_METHOD(tcpConnect,        G5TcpConnect)
+G5_METHOD(serviceBanner,     G5ServiceBanner)
+G5_METHOD(curlVerbose,       G5CurlVerbose)
+G5_METHOD(httpHeaders,       G5HttpHeaders)
+G5_METHOD(securityHeaders,   G5SecurityHeaders)
+G5_METHOD(sslCertificate,    G5SslCertificate)
+G5_METHOD(httpRedirect,      G5HttpRedirect)
+G5_METHOD(httpCompression,   G5HttpCompression)
+G5_METHOD(httpTiming,        G5HttpTiming)
+G5_METHOD(ftpDiagnostics,    G5FtpDiagnostics)
+G5_METHOD(sshDiagnostics,    G5SshDiagnostics)
+G5_METHOD(emailDiagnostics,  G5EmailDiagnostics)
+
+#undef G5_METHOD
