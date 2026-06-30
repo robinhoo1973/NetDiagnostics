@@ -22,12 +22,12 @@
 // This is the destination used for connectivity checks — typically the router.
 static QString iosDefaultGateway() {
     // Create a reachability ref to a public IP — forces the system to determine
-    // the default route. We use 8.8.8.8 (Google DNS) as the probe.
+    // the default route. Using DNSPod (Tencent Cloud) public DNS as the probe.
     struct sockaddr_in zeroAddr;
     memset(&zeroAddr, 0, sizeof(zeroAddr));
     zeroAddr.sin_len = sizeof(zeroAddr);
     zeroAddr.sin_family = AF_INET;
-    zeroAddr.sin_addr.s_addr = inet_addr("8.8.8.8");
+    zeroAddr.sin_addr.s_addr = inet_addr("119.29.29.29");
 
     SCNetworkReachabilityRef reachability = SCNetworkReachabilityCreateWithAddress(
         kCFAllocatorDefault, (const struct sockaddr*)&zeroAddr);
