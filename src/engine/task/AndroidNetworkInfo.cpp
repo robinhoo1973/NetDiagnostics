@@ -205,23 +205,36 @@ DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
     QElapsedTimer t; t.start();
 
     QString host = target;
-    // Strip URL scheme if present
-    if (host.contains("://")) {
-        QUrl u(host);
-        host = u.host();
-    }
+    if (host.contains("://")) { QUrl u(host); host = u.host(); }
     QString ip = androidDnsResolve(host, 3000);
+    qint64 elapsed = t.elapsed();
+    r.durationMs = elapsed;
 
-    r.durationMs = t.elapsed();
+    // Format to match dig-style output (same as desktop G4RemoteHost::dnsResolution)
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("; <<>> NetDiagnostic DNS <<>> %1").arg(host));
+    out.append(QStringLiteral(";; global options: +cmd"));
+    out.append(QStringLiteral(";; Got answer:"));
+    out.append(QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")
+        .arg(ip.isEmpty() ? "SERVFAIL" : "NOERROR").arg((uint16_t)(qHash(host) & 0xFFFF)));
+    out.append(QStringLiteral(";; flags: qr rd ra; QUERY: 1, ANSWER: %1, AUTHORITY: 0, ADDITIONAL: 0")
+        .arg(ip.isEmpty() ? 0 : 1));
+    out.append(QString());
+    out.append(QStringLiteral(";; QUESTION SECTION:"));
+    out.append(QStringLiteral(";%1.\t\t\tIN\tA").arg(host));
+    out.append(QString());
     if (!ip.isEmpty()) {
-        r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("Resolved: %1 → %2").arg(host, ip);
-        r.rawOutput = QStringLiteral(";; %1\n%1.  IN  A  %2\n").arg(host, ip);
-    } else {
-        r.status = DiagStatus::Fail;
-        r.summary = QStringLiteral("DNS resolution failed for %1").arg(host);
+        out.append(QStringLiteral(";; ANSWER SECTION:"));
+        out.append(QStringLiteral("%1.\t\t%2\tIN\tA\t%3").arg(host, -30).arg(0).arg(ip));
+        out.append(QString());
     }
+    out.append(QStringLiteral(";; Query time: %1 msec").arg(elapsed));
+    out.append(QStringLiteral(";; SERVER: system resolver (InetAddress)"));
+    r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
+    r.status = ip.isEmpty() ? DiagStatus::Fail : DiagStatus::Pass;
+    r.summary = ip.isEmpty() ? QStringLiteral("DNS failed") : QStringLiteral("Resolved: %1").arg(ip);
     return r;
 }
 

@@ -1587,7 +1587,7 @@ DiagnosticResult defaultGateway(DiagId id) {
                 uint32_t gw = cols[2].toUInt(nullptr, 16);
                 if (gw != 0) {
                     defaultGw = ipToStr(gw);
-                    out.append(QStringLiteral("  Interface %1 鈫?Gateway: %2").arg(cols[0], defaultGw));
+                    out.append(QStringLiteral("  Default Gateway . . . . . . . . . : %1").arg(defaultGw));
                 }
             }
         }
