@@ -661,12 +661,12 @@ jobs:
           echo "CURL_LIBRARY=/tmp/curl-src/lib/.libs/libcurl.a" >> "$GITHUB_ENV"
 
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          export CC="$(xcrun --sdk iphoneos -f clang)"
-          # HAVE_O_NONBLOCK: Darwin/iOS uses fcntl(F_SETFL, O_NONBLOCK)
-          # Define it directly because configure cannot detect it when cross-compiling
-          export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=16.0 -DHAVE_O_NONBLOCK"
+          # Use CPPFLAGS for -isysroot (not CFLAGS) — curl configure needs it for header detection
+          # Do NOT set CC manually — let configure find xcrun clang via host triplet
+          export CPPFLAGS="-isysroot $SDKROOT -arch arm64 -miphoneos-version-min=16.0"
+          export CFLAGS="-Os"
           cd /tmp/curl-src
-          ./configure --host=arm64-apple-darwin \
+          ./configure --host=aarch64-apple-darwin \
             --disable-shared --enable-static \
             --with-secure-transport --without-libpsl \
             --disable-ldap --disable-ldaps --disable-rtsp \
