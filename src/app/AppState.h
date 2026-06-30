@@ -16,7 +16,6 @@
 #include "models/DiagId.h"
 #include "models/DiagnosticResult.h"
 
-class DiagnosticEngine;
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {
@@ -134,8 +133,6 @@ private:
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
     static QString staticDiagDisplayName(DiagId id);
     void bumpVersion();
-
-    DiagnosticEngine* m_engine = nullptr;
 
     QString m_target;
     RunStatus m_runStatus = RunStatus::Idle;
