@@ -9,7 +9,9 @@
 #include <QQuickWindow>
 #include <QIcon>
 #include <QLockFile>
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
 #include <QMessageBox>
+#endif
 #include <QStandardPaths>
 #include "app/AppState.h"
 
@@ -24,8 +26,10 @@ int main(int argc, char *argv[])
     QLockFile lockFile(lockPath);
     lockFile.setStaleLockTime(2000);
     if (!lockFile.tryLock(100)) {
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
         QMessageBox::information(nullptr, QStringLiteral("NetAnalysis Simulator"),
             QStringLiteral("Simulator is already running."));
+#endif
         return 0;
     }
     app.setApplicationDisplayName("NetAnalysis Simulator");

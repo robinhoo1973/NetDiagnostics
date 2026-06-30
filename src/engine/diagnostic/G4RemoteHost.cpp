@@ -8,7 +8,10 @@ typedef SSIZE_T ssize_t;
 #include "util/Logger.h"
 #include <QHostInfo>
 #include <QElapsedTimer>
+#include <QMutex>
 #include <atomic>
+#include <thread>
+#include <chrono>
 #include <QFile>
 #include <QDir>
 #include <cstring>
@@ -388,6 +391,59 @@ DiagnosticResult dnsResolution(const QString& target) {
 }
 
 // ── TCP / ICMP socket helpers ─────────────────────────────────────────
+// ── DNS resolution with timeout (3s) — prevents indefinite getaddrinfo blocking ──
+// Uses a background thread + poll loop. Returns empty string on timeout/failure.
+static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000) {
+    // Already an IP address — return as-is
+    struct in_addr ip4;
+    if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
+        return host;
+
+    // Simple cache to prevent redundant DNS lookups within a diagnostic run
+    static QMutex cacheMutex;
+    static QHash<QString, QString> dnsCache;
+    {
+        QMutexLocker locker(&cacheMutex);
+        if (dnsCache.contains(host))
+            return dnsCache[host];
+    }
+
+    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
+    ResolveState st;
+    // Capture host by value — avoid dangling reference when caller passes a temporary.
+    std::thread t([&st, host]() {
+        struct addrinfo hints = {}, *res;
+        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
+        QByteArray hb = host.toUtf8();
+        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
+            char ip[INET_ADDRSTRLEN];
+            auto* sa = (struct sockaddr_in*)res->ai_addr;
+            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+            st.ip = QString::fromLatin1(ip);
+            freeaddrinfo(res);
+        }
+        st.done.store(true, std::memory_order_release);
+    });
+
+    auto start = std::chrono::steady_clock::now();
+    while (!st.done.load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start).count();
+        if (elapsed > timeoutMs) break;
+    }
+    t.detach();
+    // Only read st.ip if the thread completed — avoids data race on non-atomic QString
+    if (!st.done.load(std::memory_order_acquire))
+        return {}; // timeout: thread still writing st.ip, return empty
+    {
+        QMutexLocker locker(&cacheMutex);
+        if (!st.ip.isEmpty())
+            dnsCache[host] = st.ip; // only cache successful lookups
+    }
+    return st.ip;
+}
+
 static quint32 resolveIPv4(const QString& host) {
     // Returns host-byte-order IPv4 address.
     // 1. Try QHostInfo (Qt's async resolver) — toIPv4Address() is NBO
@@ -396,17 +452,13 @@ static quint32 resolveIPv4(const QString& host) {
         quint32 ip = info.addresses().first().toIPv4Address();
         if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
     }
-    // 2. Fallback to getaddrinfo (libc resolver) — sin_addr is NBO
-    fprintf(stderr, "[DNS] QHostInfo failed for '%s', trying getaddrinfo\n", host.toUtf8().constData());
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    QByteArray hostBytes = host.toUtf8();
-    if (getaddrinfo(hostBytes.constData(), nullptr, &hints, &res) == 0) {
-        quint32 ip = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
-        freeaddrinfo(res);
-        return ntohl(ip); // sin_addr is NBO → convert to HBO
+    // 2. Fallback to getaddrinfo with timeout (libc resolver) — sin_addr is NBO
+    fprintf(stderr, "[DNS] QHostInfo failed for '%s', trying getaddrinfo (3s timeout)\n", host.toUtf8().constData());
+    QString ipStr = resolveHostWithTimeout(host, 3000);
+    if (!ipStr.isEmpty()) {
+        struct in_addr a;
+        if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)
+            return ntohl(a.s_addr); // inet_pton puts it in NBO, convert to HBO
     }
     return 0;
 }
@@ -686,11 +738,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 // Uses SOCK_DGRAM, IPPROTO_ICMP which Apple's sandbox allows (SimplePing pattern).
 // Research: dev.to/dtisch "How I implemented ping and traceroute on iOS"
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
-    quint32 targetIp = 0;
-    {   struct addrinfo h={},*r; h.ai_family=AF_INET; h.ai_socktype=SOCK_STREAM;
-        QByteArray hb=host.toUtf8();
-        if(getaddrinfo(hb.constData(),nullptr,&h,&r)==0){targetIp=ntohl(((struct sockaddr_in*)r->ai_addr)->sin_addr.s_addr);freeaddrinfo(r);}
-    }
+    quint32 targetIp = resolveIPv4(host);
     if(!targetIp){rttMs=0;hopIp.clear();return -2;}
 
     // Passive ICMP listener (SOCK_DGRAM, IPPROTO_ICMP — allowed on iOS/macOS sandbox)

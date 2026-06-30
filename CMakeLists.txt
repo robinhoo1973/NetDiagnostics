@@ -31,16 +31,31 @@ if(IOS)
     if(CURL_INCLUDE_DIR AND EXISTS "${CURL_INCLUDE_DIR}/curl/curl.h")
         message(STATUS "iOS curl include: ${CURL_INCLUDE_DIR}")
         if(CURL_LIBRARY)
-            message(STATUS "iOS curl lib: ${CURL_LIBRARY}")
+            message(STATUS "iOS curl lib (prebuilt): ${CURL_LIBRARY}")
             add_library(CURL::libcurl UNKNOWN IMPORTED)
             set_target_properties(CURL::libcurl PROPERTIES
                 IMPORTED_LOCATION "${CURL_LIBRARY}"
                 INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIR}"
             )
         else()
-            add_library(CURL::libcurl INTERFACE IMPORTED)
-            target_include_directories(CURL::libcurl INTERFACE "${CURL_INCLUDE_DIR}")
-            target_link_libraries(CURL::libcurl INTERFACE curl)
+            # Try to locate system libcurl in the iOS SDK
+            find_library(IOS_CURL_LIBRARY curl
+                PATHS "${CMAKE_OSX_SYSROOT}/usr/lib"
+                NO_DEFAULT_PATH
+            )
+            if(IOS_CURL_LIBRARY)
+                message(STATUS "iOS curl library: ${IOS_CURL_LIBRARY}")
+                add_library(CURL::libcurl UNKNOWN IMPORTED)
+                set_target_properties(CURL::libcurl PROPERTIES
+                    IMPORTED_LOCATION "${IOS_CURL_LIBRARY}"
+                    INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIR}"
+                )
+            else()
+                message(STATUS "iOS: using -lcurl (link-time resolved by SDK)")
+                add_library(CURL::libcurl INTERFACE IMPORTED)
+                target_include_directories(CURL::libcurl INTERFACE "${CURL_INCLUDE_DIR}")
+                target_link_libraries(CURL::libcurl INTERFACE curl)
+            endif()
         endif()
     else()
         message(WARNING "iOS: curl not found; building without HTTP diagnostics")
@@ -171,7 +186,7 @@ if(IOS)
         RESULT_VARIABLE XCRUN_RESULT
         ERROR_VARIABLE XCRUN_ERROR)
     if(NOT XCRUN_RESULT EQUAL 0 OR IOS_SDK_PATH STREQUAL "")
-        message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}")
+        message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}\n  iOS builds require Xcode with the iPhoneOS SDK installed.")
     endif()
     set(IOS_FRAMEWORKS_DIR "${IOS_SDK_PATH}/System/Library/Frameworks")
 
@@ -205,8 +220,8 @@ if(WIN32)
         ole32 shell32 user32 gdi32
         rpcrt4 wldap32 crypt32
     )
-elseif(NOT ANDROID)
-    # Android Bionic libc includes resolver; no separate libresolv
+elseif(NOT ANDROID AND NOT APPLE)
+    # Android Bionic libc includes resolver; macOS/iOS have it in libSystem
     target_link_libraries(net_diagnostic PRIVATE resolv)
 endif()
 
@@ -250,7 +265,7 @@ if(BUILD_SIMULATOR)
             ole32 shell32 user32 gdi32
             rpcrt4 wldap32 crypt32
         )
-    elseif(NOT ANDROID)
+    elseif(NOT ANDROID AND NOT APPLE)
         target_link_libraries(net_diagnostic_sim PRIVATE resolv)
     endif()
     if(NO_CURL)

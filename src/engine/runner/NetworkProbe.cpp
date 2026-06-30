@@ -15,6 +15,8 @@
 #include <QtConcurrent/QtConcurrent>
 #include <cstring>
 #include <algorithm>
+#include <thread>
+#include <chrono>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -32,6 +34,56 @@
 #include <errno.h>
 #endif
 
+// ── DNS resolution with timeout (3s) — prevents indefinite getaddrinfo blocking ──
+static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000) {
+    struct in_addr ip4;
+    if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
+        return host;
+
+    static QMutex cacheMutex;
+    static QHash<QString, QString> dnsCache;
+    {
+        QMutexLocker locker(&cacheMutex);
+        if (dnsCache.contains(host))
+            return dnsCache[host];
+    }
+
+    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
+    ResolveState st;
+    // Capture host by value — avoid dangling reference when caller passes a temporary.
+    std::thread t([&st, host]() {
+        struct addrinfo hints = {}, *res;
+        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
+        QByteArray hb = host.toUtf8();
+        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
+            char ip[INET_ADDRSTRLEN];
+            auto* sa = (struct sockaddr_in*)res->ai_addr;
+            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+            st.ip = QString::fromLatin1(ip);
+            freeaddrinfo(res);
+        }
+        st.done.store(true, std::memory_order_release);
+    });
+
+    auto start = std::chrono::steady_clock::now();
+    while (!st.done.load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - start).count();
+        if (elapsed > timeoutMs) break;
+    }
+    t.detach();
+    // Only read st.ip if the thread completed — avoids data race on non-atomic QString
+    if (!st.done.load(std::memory_order_acquire))
+        return {}; // timeout: thread still writing st.ip, return empty
+    {
+        QMutexLocker locker(&cacheMutex);
+        if (!st.ip.isEmpty())
+            dnsCache[host] = st.ip; // only cache successful lookups
+    }
+    return st.ip;
+}
+
 // ── Helper: resolve hostname → IPv4 (host byte order) ────────────────────────
 static quint32 resolveIPv4(const QString& host) {
     QHostInfo info = QHostInfo::fromName(host);
@@ -39,15 +91,12 @@ static quint32 resolveIPv4(const QString& host) {
         quint32 ip = info.addresses().first().toIPv4Address();
         if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
     }
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    QByteArray hostBytes = host.toUtf8();
-    if (getaddrinfo(hostBytes.constData(), nullptr, &hints, &res) == 0) {
-        quint32 ip = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
-        freeaddrinfo(res);
-        return ntohl(ip); // sin_addr is NBO → convert to HBO
+    // 2. Fallback to getaddrinfo with timeout (libc resolver)
+    QString ipStr = resolveHostWithTimeout(host, 3000);
+    if (!ipStr.isEmpty()) {
+        struct in_addr a;
+        if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)
+            return ntohl(a.s_addr);
     }
     return 0;
 }

@@ -34,8 +34,11 @@ QFuture<DiagnosticResult> DiagnosticEngine::runDiag(DiagId id, const QString& ta
             case DiagGroup::G2: return engine->runG2(id);
             case DiagGroup::G3: return engine->runG3(id);
             case DiagGroup::G4: return engine->runG4(id, target, fromPort, toPort, useCommonPorts);
-            #ifndef NO_CURL
-            case DiagGroup::G5: return engine->runG5(id, target);
+            case DiagGroup::G5:
+#ifndef NO_CURL
+                return engine->runG5(id, target);
+#else
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 Website/URL tests unavailable (no curl on iOS)"));
 #endif
         }
         return DiagnosticResult::error(id, QStringLiteral("Unknown group"));
@@ -52,8 +55,11 @@ DiagnosticResult DiagnosticEngine::runDiagSync(DiagId id, const QString& target,
         case DiagGroup::G2: return runG2(id);
         case DiagGroup::G3: return runG3(id);
         case DiagGroup::G4: return runG4(id, target, fromPort, toPort, useCommonPorts);
+        case DiagGroup::G5:
 #ifndef NO_CURL
-        case DiagGroup::G5: return runG5(id, target);
+            return runG5(id, target);
+#else
+            return DiagnosticResult::skipped(id, QStringLiteral("G5 Website/URL tests unavailable (no curl on iOS)"));
 #endif
     }
     return DiagnosticResult::error(id, QStringLiteral("Unknown group"));
