@@ -220,8 +220,9 @@ if(WIN32)
         ole32 shell32 user32 gdi32
         rpcrt4 wldap32 crypt32
     )
-elseif(NOT ANDROID AND NOT APPLE)
-    # Android Bionic libc includes resolver; macOS/iOS have it in libSystem
+elseif(NOT ANDROID)
+    # Android Bionic libc includes resolver; all other platforms need -lresolv
+    # (iOS 26 SDK has versioned resolver symbols in separate libresolv.tbd)
     target_link_libraries(net_diagnostic PRIVATE resolv)
 endif()
 
@@ -265,7 +266,7 @@ if(BUILD_SIMULATOR)
             ole32 shell32 user32 gdi32
             rpcrt4 wldap32 crypt32
         )
-    elseif(NOT ANDROID AND NOT APPLE)
+    elseif(NOT ANDROID)
         target_link_libraries(net_diagnostic_sim PRIVATE resolv)
     endif()
     if(NO_CURL)
