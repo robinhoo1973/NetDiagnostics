@@ -267,12 +267,12 @@ jobs:
           cd /tmp/curl-src
           ./configure --host=aarch64-apple-darwin \
             --disable-shared --enable-static \
-            --disable-curl \
             --with-secure-transport --without-libpsl \
             --disable-ldap --disable-ldaps --disable-rtsp \
             --disable-dict --disable-tftp --disable-telnet --disable-pop3 --disable-imap --disable-smtp --disable-gopher \
             --disable-manual --disable-docs
-          make -j$(sysctl -n hw.logicalcpu)
+          # Only build the library, not the curl CLI tool (src/ links iOS .o for macOS)
+          make -C lib -j$(sysctl -n hw.logicalcpu)
           echo "✅ libcurl.a built for iOS"
 
       # ═════════════════════════════════════════════════════════════════
