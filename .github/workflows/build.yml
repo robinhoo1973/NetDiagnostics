@@ -650,14 +650,28 @@ jobs:
           pip3 install --break-system-packages aqtinstall
           aqt install-qt mac ios $QT_VERSION ios -O ~/qt-ios
 
-      - name: Download curl headers for iOS
+      - name: Build curl static library for iOS
         run: |
           CURL_VER="8.12.1"
           curl -fsSL "https://curl.se/download/curl-${CURL_VER}.tar.xz" -o /tmp/curl.tar.xz
           mkdir -p /tmp/curl-src
           tar -xJf /tmp/curl.tar.xz -C /tmp/curl-src --strip-components=1
+
           echo "CURL_HEADERS=/tmp/curl-src/include" >> "$GITHUB_ENV"
-          echo "✅ curl headers downloaded to /tmp/curl-src/include"
+          echo "CURL_LIBRARY=/tmp/curl-src/lib/.libs/libcurl.a" >> "$GITHUB_ENV"
+
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          export CC="$(xcrun --sdk iphoneos -f clang)"
+          export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=16.0"
+          cd /tmp/curl-src
+          ./configure --host=arm64-apple-darwin \
+            --disable-shared --enable-static \
+            --with-secure-transport --without-libpsl \
+            --disable-ldap --disable-ldaps --disable-rtsp \
+            --disable-dict --disable-tftp --disable-telnet --disable-pop3 --disable-imap --disable-smtp --disable-gopher \
+            --disable-manual --disable-docs
+          make -j$(sysctl -n hw.logicalcpu)
+          echo "✅ libcurl.a built for iOS"
 
       - name: Configure
         run: |
@@ -669,6 +683,7 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -DCURL_INCLUDE_DIR="$CURL_HEADERS" \
+            -DCURL_LIBRARY="$CURL_LIBRARY" \
             -B build -S .
 
       - name: Build
