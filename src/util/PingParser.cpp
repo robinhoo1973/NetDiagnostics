@@ -170,7 +170,7 @@ TracerouteResult PingParser::parseTraceroute(const QString& output) {
                 hop.timedOut = true;
             result.hops.append(hop);
         }
-        result.hopCount = result.hops.size();
+        result.hopCount = static_cast<int>(result.hops.size());
     }
 
     // Try Unix format
@@ -190,7 +190,7 @@ TracerouteResult PingParser::parseTraceroute(const QString& output) {
             result.hops.append(hop);
             hasHops = true;
         }
-        if (hasHops) result.hopCount = result.hops.size();
+        if (hasHops) result.hopCount = static_cast<int>(result.hops.size());
     }
 
     // Count * * * timeouts (Windows and Unix)

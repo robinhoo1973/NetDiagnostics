@@ -356,10 +356,10 @@ DiagnosticResult sslCertificate(const QString& target) {
         QString::number(cert.daysLeft), QString::number(cert.subjectAltNames.size()),
         cert.thumbprint.left(40)};
 
-    int nw = QStringLiteral("thumbprint").length();  // longest label
-    for (const auto& s : names) nw = qMax(nw, s.length());
+    int nw = static_cast<int>(QStringLiteral("thumbprint").length());
+    for (const auto& s : names) nw = qMax(nw, static_cast<int>(s.length()));
     int vw = 0;
-    for (const auto& s : vals) vw = qMax(vw, s.length());
+    for (const auto& s : vals) vw = qMax(vw, static_cast<int>(s.length()));
 
     lines.append(QStringLiteral("*  %1  %2")
         .arg(QStringLiteral("Property"), -nw)

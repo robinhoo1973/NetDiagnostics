@@ -145,7 +145,7 @@ TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int tim
     socket.connectToHost(host, port);
     if (socket.waitForConnected(timeoutMs)) {
         result.connected = true;
-        result.latencyMs = timer.elapsed();
+        result.latencyMs = static_cast<int>(timer.elapsed());
     } else {
         result.error = socket.errorString();
     }
@@ -186,7 +186,7 @@ QVector<PortScanEntry> NetworkProbe::portScan(const QString& host,
 
     // Process ports in batches of maxConcurrent
     while (nextIdx < total) {
-        int batchSize = qMin(maxConcurrent, total - nextIdx);
+        auto batchSize = qMin(maxConcurrent, total - nextIdx);
 
         // Create non-blocking sockets and initiate connects
         QVector<int> sockets(batchSize, -1);

@@ -168,7 +168,7 @@ static QStringList tblFmt(const QVector<TblCol>& cols, const QList<QStringList>&
         w[i] = qMax(cols[i].minW, (int)strlen(cols[i].hdr));
         for (const auto& row : rows)
             if (i < row.size())
-                w[i] = qMax(w[i], row[i].length());
+                w[i] = static_cast<int>(qMax(w[i], row[i].length()));
     }
     // Header
     QStringList hdrParts;
@@ -499,10 +499,10 @@ DiagnosticResult activeConnections(DiagId id) {
     // Compute max IP width and max port width for each address column
     int localIpW = 0, remoteIpW = 0, portW = 0;
     for (const auto& c : rawConns) {
-        localIpW  = qMax(localIpW,  c.localIp.length());
-        remoteIpW = qMax(remoteIpW, c.remoteIp.length());
-        portW     = qMax(portW, QString::number(c.localPort).length());
-        portW     = qMax(portW, QString::number(c.remotePort).length());
+        localIpW  = qMax(localIpW,  static_cast<int>(c.localIp.length()));
+        remoteIpW = qMax(remoteIpW, static_cast<int>(c.remoteIp.length()));
+        portW     = qMax(portW, static_cast<int>(QString::number(c.localPort).length()));
+        portW     = qMax(portW, static_cast<int>(QString::number(c.remotePort).length()));
     }
     if (portW < 5) portW = 5; // minimum port column width
 
@@ -1920,6 +1920,9 @@ DiagnosticResult dnsCache(DiagId id) {
     return r;
 }
 
+// Forward declaration: DNS resolution with timeout (defined later in this file)
+static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000);
+
 DiagnosticResult dnsPollution(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
@@ -2288,7 +2291,7 @@ static int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     // latency.txt should contain a small text like "test=...", we just need the time
     if (body.trimmed().isEmpty()) return -1;
 
-    return t.elapsed();
+    return static_cast<int>(t.elapsed());
 }
 
 DiagnosticResult speedTest(DiagId id) {
