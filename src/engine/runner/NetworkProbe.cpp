@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // NetworkProbe.cpp — Raw socket wrappers for G4/G5 tests
 // =============================================================================
 #include "engine/runner/NetworkProbe.h"
@@ -15,8 +15,6 @@
 #include <QtConcurrent/QtConcurrent>
 #include <cstring>
 #include <algorithm>
-#include <thread>
-#include <chrono>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -33,89 +31,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #endif
-#ifdef __APPLE__
-#include <dispatch/dispatch.h>
-#endif
+#include "util/DnsResolver.h"
 
-// ── DNS resolution with timeout (3s) — prevents indefinite getaddrinfo blocking ──
-static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000) {
-    struct in_addr ip4;
-    if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
-        return host;
-
-    static QMutex cacheMutex;
-    static QHash<QString, QString> dnsCache;
-    {
-        QMutexLocker locker(&cacheMutex);
-        if (dnsCache.contains(host))
-            return dnsCache[host];
-    }
-
-#ifdef __APPLE__
-    struct DnsCtx {
-        QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
-    };
-    auto* ctx = new DnsCtx{host.toUtf8(), {}, false, dispatch_semaphore_create(0)};
-    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
-        [](void* p) {
-            auto* c = (DnsCtx*)p;
-            struct addrinfo hints = {}, *res;
-            hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0) {
-                auto* sa = (struct sockaddr_in*)res->ai_addr;
-                inet_ntop(AF_INET, &sa->sin_addr, c->ip, sizeof(c->ip));
-                c->resolved = true;
-                freeaddrinfo(res);
-            }
-            dispatch_semaphore_signal(c->sem);
-        });
-    long waitResult = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
-    if (waitResult != 0) { dispatch_release(ctx->sem); return {}; }
-    dispatch_release(ctx->sem);
-    if (ctx->resolved) {
-        QString ip = QString::fromLatin1(ctx->ip);
-        QMutexLocker locker(&cacheMutex);
-        dnsCache[host] = ip;
-        delete ctx;
-        return ip;
-    }
-    delete ctx;
-    return {};
-#else
-    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
-    ResolveState st;
-    std::thread t([&st, host]() {
-        struct addrinfo hints = {}, *res;
-        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-        QByteArray hb = host.toUtf8();
-        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
-            char ip[INET_ADDRSTRLEN];
-            auto* sa = (struct sockaddr_in*)res->ai_addr;
-            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            st.ip = QString::fromLatin1(ip);
-            freeaddrinfo(res);
-        }
-        st.done.store(true, std::memory_order_release);
-    });
-
-    auto start = std::chrono::steady_clock::now();
-    while (!st.done.load(std::memory_order_acquire)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start).count();
-        if (elapsed > timeoutMs) break;
-    }
-    t.detach();
-    if (!st.done.load(std::memory_order_acquire))
-        return {};
-    {
-        QMutexLocker locker(&cacheMutex);
-        if (!st.ip.isEmpty())
-            dnsCache[host] = st.ip;
-    }
-    return st.ip;
-#endif
-}
 
 // ── Helper: resolve hostname → IPv4 (host byte order) ────────────────────────
 static quint32 resolveIPv4(const QString& host) {
@@ -125,7 +42,7 @@ static quint32 resolveIPv4(const QString& host) {
         if (ip) return ntohl(ip); // QHostInfo returns NBO → convert to HBO
     }
     // 2. Fallback to getaddrinfo with timeout (libc resolver)
-    QString ipStr = resolveHostWithTimeout(host, 3000);
+    QString ipStr = DnsResolver::instance().resolve(host, 3000);
     if (!ipStr.isEmpty()) {
         struct in_addr a;
         if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)

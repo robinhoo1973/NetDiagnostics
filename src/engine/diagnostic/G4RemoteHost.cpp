@@ -1,4 +1,4 @@
-﻿#ifdef _MSC_VER
+#ifdef _MSC_VER
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #endif
@@ -8,10 +8,7 @@ typedef SSIZE_T ssize_t;
 #include "util/Logger.h"
 #include <QHostInfo>
 #include <QElapsedTimer>
-#include <QMutex>
 #include <atomic>
-#include <thread>
-#include <chrono>
 #include <QFile>
 #include <QDir>
 #include <cstring>
@@ -50,9 +47,7 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <errno.h>
 #include <resolv.h>
 #include <arpa/nameser.h>
-#ifdef __APPLE__
-#include <dispatch/dispatch.h>
-#endif
+#include "util/DnsResolver.h"
 // macOS Apple Clang compatibility: C_IN may not be exposed by default
 #ifndef C_IN
 #define C_IN ns_c_in
@@ -394,88 +389,6 @@ DiagnosticResult dnsResolution(const QString& target) {
 }
 
 // ── TCP / ICMP socket helpers ─────────────────────────────────────────
-// ── DNS resolution with timeout (3s) — prevents indefinite getaddrinfo blocking ──
-// Uses a background thread + poll loop. Returns empty string on timeout/failure.
-static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000) {
-    // Already an IP address — return as-is
-    struct in_addr ip4;
-    if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
-        return host;
-
-    // Simple cache to prevent redundant DNS lookups within a diagnostic run
-    static QMutex cacheMutex;
-    static QHash<QString, QString> dnsCache;
-    {
-        QMutexLocker locker(&cacheMutex);
-        if (dnsCache.contains(host))
-            return dnsCache[host];
-    }
-
-#ifdef __APPLE__
-    struct DnsCtx {
-        QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
-    };
-    auto* ctx = new DnsCtx{host.toUtf8(), {}, false, dispatch_semaphore_create(0)};
-    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
-        [](void* p) {
-            auto* c = (DnsCtx*)p;
-            struct addrinfo hints = {}, *res;
-            hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0) {
-                auto* sa = (struct sockaddr_in*)res->ai_addr;
-                inet_ntop(AF_INET, &sa->sin_addr, c->ip, sizeof(c->ip));
-                c->resolved = true;
-                freeaddrinfo(res);
-            }
-            dispatch_semaphore_signal(c->sem);
-        });
-    long waitResult = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
-    if (waitResult != 0) { dispatch_release(ctx->sem); return {}; }
-    dispatch_release(ctx->sem);
-    if (ctx->resolved) {
-        QString ip = QString::fromLatin1(ctx->ip);
-        QMutexLocker locker(&cacheMutex);
-        dnsCache[host] = ip;
-        delete ctx;
-        return ip;
-    }
-    delete ctx;
-    return {};
-#else
-    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
-    ResolveState st;
-    std::thread t([&st, host]() {
-        struct addrinfo hints = {}, *res;
-        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-        QByteArray hb = host.toUtf8();
-        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
-            char ip[INET_ADDRSTRLEN];
-            auto* sa = (struct sockaddr_in*)res->ai_addr;
-            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            st.ip = QString::fromLatin1(ip);
-            freeaddrinfo(res);
-        }
-        st.done.store(true, std::memory_order_release);
-    });
-
-    auto start = std::chrono::steady_clock::now();
-    while (!st.done.load(std::memory_order_acquire)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start).count();
-        if (elapsed > timeoutMs) break;
-    }
-    t.detach();
-    if (!st.done.load(std::memory_order_acquire))
-        return {};
-    {
-        QMutexLocker locker(&cacheMutex);
-        if (!st.ip.isEmpty())
-            dnsCache[host] = st.ip;
-    }
-    return st.ip;
-#endif
-}
 
 static quint32 resolveIPv4(const QString& host) {
     // Returns host-byte-order IPv4 address.
@@ -487,7 +400,7 @@ static quint32 resolveIPv4(const QString& host) {
     }
     // 2. Fallback to getaddrinfo with timeout (libc resolver) — sin_addr is NBO
     fprintf(stderr, "[DNS] QHostInfo failed for '%s', trying getaddrinfo (3s timeout)\n", host.toUtf8().constData());
-    QString ipStr = resolveHostWithTimeout(host, 3000);
+    QString ipStr = DnsResolver::instance().resolve(host, 3000);
     if (!ipStr.isEmpty()) {
         struct in_addr a;
         if (inet_pton(AF_INET, ipStr.toUtf8().constData(), &a) == 1)

@@ -78,6 +78,7 @@ set(SOURCES
     src/models/DiagnosticResult.cpp
     src/util/Logger.cpp
     src/util/PingParser.cpp
+    src/util/DnsResolver.cpp
     src/engine/runner/NetworkProbe.cpp
     src/app/AppState.cpp
     src/engine/diagnostic/DiagnosticEngine.cpp

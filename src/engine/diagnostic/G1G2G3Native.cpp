@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // G1G2G3Native.cpp — Pure C++ G1/G2/G3 diagnostics — ZERO shell commands
 // Linux: getifaddrs, /proc/net, /sys/class/net, ioctl, netlink, socket APIs
 // Windows: GetAdaptersAddresses, GetExtendedTcpTable, GetIpForwardTable2, etc.
@@ -28,7 +28,7 @@ typedef SSIZE_T ssize_t;
 #include <climits>
 #include <csignal>
 #ifdef __APPLE__
-#include <dispatch/dispatch.h>
+#include "util/DnsResolver.h"
 #endif
 
 #ifdef _WIN32
@@ -1923,10 +1923,6 @@ DiagnosticResult dnsCache(DiagId id) {
     return r;
 }
 
-// Forward declaration: DNS resolution with timeout (defined later in this file)
-// NOTE: default argument omitted here — C++ allows it on declaration OR definition, not both
-static QString resolveWithTimeout(const QString& host, int timeoutMs);
-
 DiagnosticResult dnsPollution(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
@@ -1974,7 +1970,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     QStringList hijackIPs;
     for (auto& tc : testCases) {
         QElapsedTimer probe; probe.start();
-        QString ip = resolveWithTimeout(tc.domain, 4000);
+        QString ip = DnsResolver::instance().resolve(tc.domain, 4000);
         int elapsed = static_cast<int>(probe.elapsed());
         if (!ip.isEmpty()) {
             out.append(QStringLiteral("  %1  %2  %3")
@@ -2030,104 +2026,9 @@ DiagnosticResult dnsPollution(DiagId id) {
 //   3. GET {url}/download?size=N → measure download throughput
 //   4. POST {url}/upload → measure upload throughput
 // ═════════════════════════════════════════════════════════════════════════════
-
-// ── DNS resolution with timeout (prevents indefinite blocking on iOS) ────
-static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
-    // Already an IP address — return as-is
-    struct in_addr ip4;
-    if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
-        return host;
-
-    // DNS cache: avoid redundant lookups within a speed test run
-    // (e.g. same server hostname probed in Phase 2, then used in Phases 3-4)
-    static QMutex dnsCacheMutex;
-    static QHash<QString, QString> dnsCache;
-    {
-        QMutexLocker locker(&dnsCacheMutex);
-        if (dnsCache.contains(host))
-            return dnsCache[host];
-    }
-
-#ifdef __APPLE__
-    // Apple: use GCD dispatch_semaphore for true kernel-level timeout.
-    // std::thread detach on iOS leaks threads; getaddrinfo can block 30-120s.
-    // Strategy: heap-allocate context so it survives our return; GCD task frees it.
-    struct DnsCtx {
-        QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
-    };
-    auto* ctx = new DnsCtx{host.toUtf8(), {}, false, dispatch_semaphore_create(0)};
-    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
-        [](void* p) {
-            auto* c = (DnsCtx*)p;
-            struct addrinfo hints = {}, *res;
-            hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0) {
-                auto* sa = (struct sockaddr_in*)res->ai_addr;
-                inet_ntop(AF_INET, &sa->sin_addr, c->ip, sizeof(c->ip));
-                c->resolved = true;
-                freeaddrinfo(res);
-            }
-            dispatch_semaphore_signal(c->sem);
-        });
-    long waitResult = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
-    if (waitResult != 0) {
-        // Timeout: the GCD task continues in background and will signal ctx->sem.
-        // We cannot safely free ctx (task still uses it). Leak is ~200 bytes per timeout.
-        // GCD queue throttles concurrent tasks; iOS won't OOM from a few leaks.
-        dispatch_release(ctx->sem);
-        return {};
-    }
-    // Task completed within timeout — safe to read result and free ctx
-    dispatch_release(ctx->sem);
-    if (ctx->resolved) {
-        QString ip = QString::fromLatin1(ctx->ip);
-        QMutexLocker locker(&dnsCacheMutex);
-        dnsCache[host] = ip;
-        delete ctx;
-        return ip;
-    }
-    delete ctx;
-    return {};
-#else
-    struct ResolveState { std::atomic<bool> done{false}; QString ip; };
-    ResolveState st;
-
-    std::thread t([&st, host]() {
-        struct addrinfo hints = {}, *res;
-        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-        QByteArray hb = host.toUtf8();
-        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
-            char ip[INET_ADDRSTRLEN];
-            auto* sa = (struct sockaddr_in*)res->ai_addr;
-            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            st.ip = QString::fromLatin1(ip);
-            freeaddrinfo(res);
-        }
-        st.done.store(true, std::memory_order_release);
-    });
-
-    auto start = std::chrono::steady_clock::now();
-    while (!st.done.load(std::memory_order_acquire)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::steady_clock::now() - start).count();
-        if (elapsed > timeoutMs) break;
-    }
-    t.detach();
-    if (!st.done.load(std::memory_order_acquire))
-        return {};
-    {
-        QMutexLocker locker(&dnsCacheMutex);
-        if (!st.ip.isEmpty())
-            dnsCache[host] = st.ip;
-    }
-    return st.ip;
-#endif
-}
-
 // Convert host (name or IP) to sockaddr_in — returns true on success
 static bool hostToAddr(const QString& host, int port, struct sockaddr_in& addr) {
-    QString ip = resolveWithTimeout(host, 3000);
+    QString ip = DnsResolver::instance().resolve(host, 3000);
     if (ip.isEmpty()) return false;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
