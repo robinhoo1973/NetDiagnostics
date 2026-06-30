@@ -111,6 +111,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #ifdef PLATFORM_IOS
         case DiagId::G4DnsResolution:
             return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
+#elif defined(PLATFORM_ANDROID)
+        case DiagId::G4DnsResolution:
+            return T3([t = target](DiagId id, const QString&) { return androidDnsDiag(id, t); });
 #else
         case DiagId::G4DnsResolution:      return T2(G4RemoteHost::dnsResolution);
 #endif
@@ -200,6 +203,25 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5EmailDiagnostics:
             return T3([](DiagId id, const QString&) {
                 return DiagnosticResult::skipped(id, QStringLiteral("G5 test (iOS native — not yet implemented)"));
+            });
+#elif defined(PLATFORM_ANDROID)
+        // Android: HttpURLConnection native HTTP (no libcurl needed)
+        case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
+        case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
+        case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        case DiagId::G5CurlVerbose:
+        case DiagId::G5HttpHeaders:
+        case DiagId::G5SslCertificate:
+        case DiagId::G5HttpRedirect:
+        case DiagId::G5HttpTiming:
+            return T3([t = target](DiagId id, const QString&) { return androidHttpDiag(id, t); });
+        case DiagId::G5SecurityHeaders:
+        case DiagId::G5HttpCompression:
+        case DiagId::G5FtpDiagnostics:
+        case DiagId::G5SshDiagnostics:
+        case DiagId::G5EmailDiagnostics:
+            return T3([](DiagId id, const QString&) {
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (Android native — not yet implemented)"));
             });
 #elif !defined(NO_CURL)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
