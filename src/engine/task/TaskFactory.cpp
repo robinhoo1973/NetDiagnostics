@@ -6,6 +6,10 @@
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
+#ifdef PLATFORM_IOS
+#include "engine/task/IosHttpTask.mm"   // iosHttpDiagnostic() — NSURLSession
+#include "engine/task/IosDnsTask.mm"    // iosDnsResolve() — CFHost
+#endif
 #ifndef NO_CURL
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #endif
@@ -74,7 +78,12 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
 
         // ── G4: Remote Host ────────────────────────────────────────────
+#ifdef PLATFORM_IOS
+        case DiagId::G4DnsResolution:
+            return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
+#else
         case DiagId::G4DnsResolution:      return T2(G4RemoteHost::dnsResolution);
+#endif
         case DiagId::G4Ping:               return T2(G4RemoteHost::ping, 30000);
         case DiagId::G4Traceroute:         return T2(G4RemoteHost::traceroute);
         case DiagId::G4PathPing:           return T2(G4RemoteHost::pathPing);
@@ -143,7 +152,26 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         }
 
         // ── G5: Website / URL ──────────────────────────────────────────
-#ifndef NO_CURL
+#ifdef PLATFORM_IOS
+        // iOS: NSURLSession native HTTP (no libcurl needed)
+        case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
+        case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
+        case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        case DiagId::G5CurlVerbose:
+        case DiagId::G5HttpHeaders:
+        case DiagId::G5SslCertificate:
+        case DiagId::G5HttpRedirect:
+            return T3([t = target](DiagId id, const QString&) { return iosHttpDiagnostic(id, t); });
+        case DiagId::G5SecurityHeaders:
+        case DiagId::G5HttpCompression:
+        case DiagId::G5HttpTiming:
+        case DiagId::G5FtpDiagnostics:
+        case DiagId::G5SshDiagnostics:
+        case DiagId::G5EmailDiagnostics:
+            return T3([](DiagId id, const QString&) {
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (iOS native — not yet implemented)"));
+            });
+#elif !defined(NO_CURL)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
