@@ -3,7 +3,7 @@
 // =============================================================================
 #include "app/AppState.h"
 #include "util/DebugSwitch.h"
-#include "engine/diagnostic/DiagnosticEngine.h"
+#include "engine/task/TaskFactory.h"
 #include "util/DebugSwitch.h"
 #include "util/Logger.h"
 #include <cstdio>
@@ -40,10 +40,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_engine = new DiagnosticEngine(this);
 
     QObject::connect(m_engine, &DiagnosticEngine::destroyed, this, [this]() { m_engine = nullptr; });
-
-    m_timeoutTimer = new QTimer(this);
-    m_timeoutTimer->setSingleShot(true);
-    QObject::connect(m_timeoutTimer, &QTimer::timeout, this, &AppState::onTaskTimeout);
 }
 
 AppState::~AppState() {
@@ -391,8 +387,6 @@ void AppState::startNextGroup() {
     auto& gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
     m_activeGroupDone.store(0);
-    m_timeoutTimer->stop();
-    m_runningTasks.clear();
     bumpVersion();
     TRACE(" startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
 
@@ -413,74 +407,34 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     emit groupChanged();
     bumpVersion();
 
-    // Register task for timeout watchdog
-    RunningTaskInfo& rti = m_runningTasks[id];
-    rti.groupIdx = groupIdx;
-    rti.startedMs = QDateTime::currentMSecsSinceEpoch();
-    if (!m_timeoutTimer->isActive())
-        m_timeoutTimer->start(m_diagTimeoutMs);
-
     TRACE(" runDiag id=%d name='%s' group=%d\n", (int)id, m_currentDiagName.toUtf8().constData(), groupIdx);
 
-    // Snapshot shared state before launching worker
-    QString target = m_target;
-    int psFrom = m_portScanFrom;
-    int psTo = m_portScanTo;
-    bool psCommon = m_portScanCommon;
+    // Create task via factory — each task handles its own timeout internally
     int runGen = m_runGeneration.load(std::memory_order_acquire);
+    auto task = TaskFactory::createTask(id, m_target, m_portScanFrom, m_portScanTo, m_portScanCommon);
+    if (!task) {
+        onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Unknown DiagId")));
+        return;
+    }
 
-    // Use QThreadPool instead of detached std::thread — threads are reused
-    // across test runs, avoiding repeated creation/destruction overhead.
-    auto* worker = new QObject; // temporary owner for the QRunnable
-    struct Task : public QRunnable {
-        QObject* owner;
-        AppState* state;
-        DiagId id;
-        int groupIdx, runGen;
-        QString target;
-        int psFrom, psTo;
-        bool psCommon;
-        Task(QObject* o, AppState* s, DiagId i, int gi, int rg, QString t, int pf, int pt, bool pc)
-            : owner(o), state(s), id(i), groupIdx(gi), runGen(rg), target(t), psFrom(pf), psTo(pt), psCommon(pc)
-        { setAutoDelete(false); }
-        void run() override {
-            try {
-                auto start = std::chrono::steady_clock::now();
-                DiagnosticEngine localEngine(nullptr);
-                DiagnosticResult result = localEngine.runDiagSync(id, target, psFrom, psTo, psCommon);
-                auto end = std::chrono::steady_clock::now();
-                result.durationMs = (int)std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-                QTimer::singleShot(0, state, [this, result]() {
-                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; delete this; return; }
-                    if (state->m_results.contains(id)) { delete owner; delete this; return; } // already timed out
-                    state->onDiagFinished(id, result);
-                    int done = state->m_activeGroupDone.fetch_add(1) + 1;
-                    auto& gt = state->m_pendingGroups[groupIdx];
-                    if (done >= gt.diagIds.size()) {
-                        state->m_currentGroupIdx++;
-                        QTimer::singleShot(0, state, &AppState::startNextGroup);
-                    }
-                    delete owner;
-                    delete this;
-                });
-            } catch (...) {
-                QTimer::singleShot(0, state, [this]() {
-                    if (state->m_runGeneration.load(std::memory_order_acquire) != runGen) { delete owner; delete this; return; }
-                    if (state->m_results.contains(id)) { delete owner; delete this; return; } // already timed out
-                    state->onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Internal error")));
-                    int done = state->m_activeGroupDone.fetch_add(1) + 1;
-                    auto& gt = state->m_pendingGroups[groupIdx];
-                    if (done >= gt.diagIds.size()) {
-                        state->m_currentGroupIdx++;
-                        QTimer::singleShot(0, state, &AppState::startNextGroup);
-                    }
-                    delete owner;
-                    delete this;
-                });
+    // When task completes (or times out), route to onDiagFinished
+    connect(task.get(), &DiagnosticTask::finished, this,
+        [this, id, groupIdx, runGen](const DiagnosticResult& result) {
+            if (m_runGeneration.load(std::memory_order_acquire) != runGen) return;
+            if (m_results.contains(id)) return;
+            onDiagFinished(id, result);
+            int done = m_activeGroupDone.fetch_add(1) + 1;
+            auto& gt = m_pendingGroups[groupIdx];
+            if (done >= gt.diagIds.size()) {
+                m_currentGroupIdx++;
+                QTimer::singleShot(0, this, &AppState::startNextGroup);
             }
-        }
-    };
-    QThreadPool::globalInstance()->start(new Task(worker, this, id, groupIdx, runGen, target, psFrom, psTo, psCommon));
+        });
+
+    // Keep task alive until it emits finished() — auto-deleted via deleteLater
+    connect(task.get(), &DiagnosticTask::finished, task.get(), &QObject::deleteLater);
+
+    task.release()->start(); // transfer ownership to Qt parent/event loop
 }
 
 void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
@@ -494,70 +448,9 @@ void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
     m_completedPerGroup[g]++;
     m_resultsVersion++;
 
-    m_runningTasks.remove(id);
-    if (m_runningTasks.isEmpty())
-        m_timeoutTimer->stop();
-
     emit progressChanged();
     emit diagCompleted(static_cast<int>(id));
     bumpVersion();
-}
-
-void AppState::onTaskTimeout() {
-    if (m_runStatus != RunStatus::Running) return;
-
-    Logger::instance().event(QStringLiteral("Task timeout: %1 tasks still running")
-                             .arg(m_runningTasks.size()));
-
-    // Atomically swap out tracking — late callbacks find empty map and skip cleanup
-    QMap<DiagId, RunningTaskInfo> timedOut;
-    std::swap(m_runningTasks, timedOut);
-    m_timeoutTimer->stop();
-
-    QSet<int> groupsToCheck;
-
-    for (auto it = timedOut.begin(); it != timedOut.end(); ++it) {
-        DiagId id = it.key();
-        if (m_results.contains(id)) continue;
-
-        DiagnosticResult r = DiagnosticResult::timeout(
-            id, diagGroup(id), m_diagTimeoutMs);
-        m_results[id] = r;
-        m_totalCompleted++;
-        m_completedPerGroup[diagGroup(id)]++;
-        m_resultsVersion++;
-
-        int done = m_activeGroupDone.fetch_add(1) + 1;
-        auto& gt = m_pendingGroups[it.value().groupIdx];
-        if (done >= gt.diagIds.size())
-            groupsToCheck.insert(it.value().groupIdx);
-
-        emit progressChanged();
-        emit diagCompleted(static_cast<int>(id));
-    }
-
-    // Advance through completed groups
-    while (m_currentGroupIdx < m_pendingGroups.size()) {
-        auto& gt = m_pendingGroups[m_currentGroupIdx];
-        bool allDone = true;
-        for (DiagId id : gt.diagIds) {
-            if (!m_results.contains(id)) { allDone = false; break; }
-        }
-        if (allDone) m_currentGroupIdx++; else break;
-    }
-    bumpVersion();
-
-    if (m_currentGroupIdx < m_pendingGroups.size()) {
-        startNextGroup();
-    } else {
-        m_runStatus = RunStatus::Completed;
-        m_currentDiagName.clear();
-        m_currentGroup.clear();
-        emit runStatusChanged();
-        emit progressChanged();
-        bumpVersion();
-        Logger::instance().event(QStringLiteral("Diagnostic run complete (with timeouts)"));
-    }
 }
 
 void AppState::cancel() {
@@ -565,23 +458,10 @@ void AppState::cancel() {
     m_runStatus = RunStatus::Cancelled;
     m_currentDiagName.clear();
 
-    QMap<DiagId, RunningTaskInfo> inflight;
-    std::swap(m_runningTasks, inflight);
-    m_timeoutTimer->stop();
-
-    for (auto it = inflight.begin(); it != inflight.end(); ++it) {
-        DiagId id = it.key();
-        if (m_results.contains(id)) continue;
-        DiagnosticResult r = DiagnosticResult::skipped(id, QStringLiteral("Cancelled by user"));
-        m_results[id] = r;
-        m_totalCompleted++;
-        m_completedPerGroup[diagGroup(id)]++;
-        m_resultsVersion++;
-        m_activeGroupDone.fetch_add(1);
-        emit progressChanged();
-        emit diagCompleted(static_cast<int>(id));
-    }
-
+    // DiagnosticTask::cancel() stops the per-task watchdog and suppresses
+    // the finished() signal via the atomic cancelled flag. Tasks in-flight
+    // will complete silently in the background. No explicit result marking
+    // is needed — the UI shows pending tests as cancelled via runStatus.
     emit runStatusChanged();
     emit progressChanged();
     bumpVersion();
@@ -599,8 +479,6 @@ void AppState::reset() {
     m_currentGroupIdx = 0;
     m_activeGroupDone.store(0);
     m_resultsVersion = 0;
-    m_timeoutTimer->stop();
-    m_runningTasks.clear();
     emit runStatusChanged();
     emit progressChanged();
     emit resultsReset();

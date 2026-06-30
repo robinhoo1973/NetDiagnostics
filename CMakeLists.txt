@@ -73,37 +73,19 @@ else()
     endif()
 endif()
 
-# ── MVC Controller sources ──────────────────────────────────────────────
-set(CONTROLLER_COMMON_SOURCES
-    src/controllers/ControllerFactory.cpp
-)
-
-set(DESKTOP_CONTROLLER_SOURCES
-    src/controllers/desktop/DesktopNetworkController.cpp
-    src/controllers/desktop/DesktopHttpClient.cpp
-    src/controllers/desktop/DesktopNetworkProbe.cpp
-)
-
-set(IOS_CONTROLLER_SOURCES
-    src/controllers/ios/IosNetworkController.cpp
-    src/controllers/ios/IosHttpClient.cpp
-    src/controllers/ios/IosNetworkProbe.cpp
-    src/engine/IosWiFiHelper.mm
-)
-
 set(SOURCES
     src/main.cpp
     src/models/DiagnosticResult.cpp
     src/util/Logger.cpp
     src/util/PingParser.cpp
     src/util/DnsResolver.cpp
+    src/engine/task/DiagnosticTask.cpp
+    src/engine/task/TaskFactory.cpp
     src/engine/runner/NetworkProbe.cpp
     src/app/AppState.cpp
-    src/engine/diagnostic/DiagnosticEngine.cpp
     src/engine/diagnostic/G1G2G3Native.cpp
     src/engine/diagnostic/G4RemoteHost.cpp
     src/engine/diagnostic/G5WebsiteUrl.cpp
-    ${CONTROLLER_COMMON_SOURCES}
 )
 # iOS without curl: exclude G5 HTTP diagnostic source
 if(NO_CURL)
@@ -114,11 +96,9 @@ if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
 endif()
-# Platform-specific controllers
+# iOS: Objective-C++ WiFi helper
 if(IOS)
-    list(APPEND SOURCES ${IOS_CONTROLLER_SOURCES})
-elseif(NOT ANDROID)
-    list(APPEND SOURCES ${DESKTOP_CONTROLLER_SOURCES})
+    list(APPEND SOURCES src/engine/IosWiFiHelper.mm)
 endif()
 
 set(QML_RESOURCES
