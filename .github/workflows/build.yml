@@ -662,16 +662,16 @@ jobs:
 
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           export CC="$(xcrun --sdk iphoneos -f clang)"
-          export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=16.0"
+          # HAVE_O_NONBLOCK: Darwin/iOS uses fcntl(F_SETFL, O_NONBLOCK)
+          # Define it directly because configure cannot detect it when cross-compiling
+          export CFLAGS="-arch arm64 -isysroot $SDKROOT -miphoneos-version-min=16.0 -DHAVE_O_NONBLOCK"
           cd /tmp/curl-src
           ./configure --host=arm64-apple-darwin \
             --disable-shared --enable-static \
             --with-secure-transport --without-libpsl \
             --disable-ldap --disable-ldaps --disable-rtsp \
             --disable-dict --disable-tftp --disable-telnet --disable-pop3 --disable-imap --disable-smtp --disable-gopher \
-            --disable-manual --disable-docs \
-            curl_cv_nonblocking="O_NONBLOCK" \
-            ac_cv_func_fcntl=yes
+            --disable-manual --disable-docs
           make -j$(sysctl -n hw.logicalcpu)
           echo "✅ libcurl.a built for iOS"
 
