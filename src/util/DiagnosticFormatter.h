@@ -21,10 +21,6 @@ public:
     static QStringList formatTable(const QVector<ColSpec>& cols,
                                     const QList<QStringList>& rows);
 
-    // ── ipconfig /all dotted key:value ───────────────────────
-    static QString formatIpconfigLine(const QString& label, const QString& value,
-                                       int indentSpaces = 3);
-
     // ── dig-style DNS ────────────────────────────────────────
     static QStringList formatDnsHeader(const QString& host, const QString& rcode,
                                         uint16_t id, int anCount);
@@ -43,9 +39,4 @@ public:
     static QString formatTracerouteHop(int ttl, int rtt1, int rtt2, int rtt3,
                                         const QString& name, const QString& ip);
 
-    // ── Simple label:value ──────────────────────────────────
-    static QString formatProperty(const QString& label, const QString& value,
-                                   int indentSpaces = 2);
-    static QString formatHeader(const QString& title);
-    static QString separatorLine(int width = 75, QChar ch = '=');
 };
