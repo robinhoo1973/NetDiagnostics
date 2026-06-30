@@ -33,6 +33,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #endif
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#endif
 
 // ── DNS resolution with timeout (3s) — prevents indefinite getaddrinfo blocking ──
 static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000) {
@@ -48,9 +51,39 @@ static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000)
             return dnsCache[host];
     }
 
+#ifdef __APPLE__
+    struct DnsCtx {
+        QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
+    };
+    auto* ctx = new DnsCtx{host.toUtf8(), {}, false, dispatch_semaphore_create(0)};
+    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
+        [](void* p) {
+            auto* c = (DnsCtx*)p;
+            struct addrinfo hints = {}, *res;
+            hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
+            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0) {
+                auto* sa = (struct sockaddr_in*)res->ai_addr;
+                inet_ntop(AF_INET, &sa->sin_addr, c->ip, sizeof(c->ip));
+                c->resolved = true;
+                freeaddrinfo(res);
+            }
+            dispatch_semaphore_signal(c->sem);
+        });
+    long waitResult = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
+    if (waitResult != 0) { dispatch_release(ctx->sem); return {}; }
+    dispatch_release(ctx->sem);
+    if (ctx->resolved) {
+        QString ip = QString::fromLatin1(ctx->ip);
+        QMutexLocker locker(&cacheMutex);
+        dnsCache[host] = ip;
+        delete ctx;
+        return ip;
+    }
+    delete ctx;
+    return {};
+#else
     struct ResolveState { std::atomic<bool> done{false}; QString ip; };
     ResolveState st;
-    // Capture host by value — avoid dangling reference when caller passes a temporary.
     std::thread t([&st, host]() {
         struct addrinfo hints = {}, *res;
         hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
@@ -73,15 +106,15 @@ static QString resolveHostWithTimeout(const QString& host, int timeoutMs = 3000)
         if (elapsed > timeoutMs) break;
     }
     t.detach();
-    // Only read st.ip if the thread completed — avoids data race on non-atomic QString
     if (!st.done.load(std::memory_order_acquire))
-        return {}; // timeout: thread still writing st.ip, return empty
+        return {};
     {
         QMutexLocker locker(&cacheMutex);
         if (!st.ip.isEmpty())
-            dnsCache[host] = st.ip; // only cache successful lookups
+            dnsCache[host] = st.ip;
     }
     return st.ip;
+#endif
 }
 
 // ── Helper: resolve hostname → IPv4 (host byte order) ────────────────────────
