@@ -27,9 +27,7 @@ typedef SSIZE_T ssize_t;
 #include <thread>
 #include <climits>
 #include <csignal>
-#ifdef __APPLE__
 #include "util/DnsResolver.h"
-#endif
 
 #ifdef _WIN32
 #include <winsock2.h>

@@ -7,6 +7,11 @@
 #include "controllers/ios/IosNetworkController.h"
 #include "controllers/ios/IosHttpClient.h"
 #include "controllers/ios/IosNetworkProbe.h"
+#elif defined(PLATFORM_ANDROID)
+// Android: use iOS controller stubs (they delegate to shared G1G2G3Native/G5WebsiteUrl/NetworkProbe)
+#include "controllers/ios/IosNetworkController.h"
+#include "controllers/ios/IosHttpClient.h"
+#include "controllers/ios/IosNetworkProbe.h"
 #else
 #include "controllers/desktop/DesktopNetworkController.h"
 #include "controllers/desktop/DesktopHttpClient.h"
