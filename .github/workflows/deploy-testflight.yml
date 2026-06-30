@@ -40,7 +40,7 @@ jobs:
       # Install build tools
       # ═════════════════════════════════════════════════════════════════
       - name: Install homebrew dependencies
-        run: brew install cmake ninja curl python3
+        run: brew install cmake ninja python3
 
       # ═════════════════════════════════════════════════════════════════
       # Cache & install Qt 6 for macOS (host tools for cross-compilation)
@@ -247,6 +247,18 @@ jobs:
           echo "Build number set to $GITHUB_RUN_NUMBER"
 
       # ═════════════════════════════════════════════════════════════════
+      # Download curl headers for iOS (Xcode 26 removed them from SDK)
+      # ═════════════════════════════════════════════════════════════════
+      - name: Download curl headers for iOS
+        run: |
+          CURL_VER="8.12.1"
+          curl -fsSL "https://curl.se/download/curl-${CURL_VER}.tar.xz" -o /tmp/curl.tar.xz
+          mkdir -p /tmp/curl-src
+          tar -xJf /tmp/curl.tar.xz -C /tmp/curl-src --strip-components=1
+          echo "CURL_HEADERS=/tmp/curl-src/include" >> "$GITHUB_ENV"
+          echo "✅ curl headers ready at /tmp/curl-src/include"
+
+      # ═════════════════════════════════════════════════════════════════
       # Configure CMake for iOS (Xcode generator)
       # ═════════════════════════════════════════════════════════════════
       - name: Configure CMake for iOS
@@ -267,7 +279,7 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -DCURL_INCLUDE_DIR="$SDKROOT/usr/include" \
+            -DCURL_INCLUDE_DIR="$CURL_HEADERS" \
             -B build-ios -S .
 
       # ═════════════════════════════════════════════════════════════════

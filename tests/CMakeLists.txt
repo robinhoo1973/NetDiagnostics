@@ -13,6 +13,7 @@ target_include_directories(test_engine_quick PRIVATE
 )
 target_link_libraries(test_engine_quick PRIVATE
     Qt6::Core
+    Qt6::Test
     Qt6::Concurrent
     Qt6::Network
 )

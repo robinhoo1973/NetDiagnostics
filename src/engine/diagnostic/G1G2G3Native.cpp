@@ -11,6 +11,7 @@ typedef SSIZE_T ssize_t;
 #endif
 #include "engine/diagnostic/G1G2G3Native.h"
 #include "util/DebugSwitch.h"
+#include <QMutex>
 #include <QElapsedTimer>
 #include <QDateTime>
 #include <QFile>
@@ -1965,39 +1966,18 @@ DiagnosticResult dnsPollution(DiagId id) {
     int resolved = 0, clean = 0, timedOut = 0;
     QStringList hijackIPs;
     for (auto& tc : testCases) {
-        struct addrinfo hints = {}, *res = nullptr;
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_STREAM;
-#ifdef __linux__
-        struct sigaction sa_old, sa_new;
-        sa_new.sa_handler = [](int){};
-        sa_new.sa_flags = 0;
-        sigemptyset(&sa_new.sa_mask);
-        sigaction(SIGALRM, &sa_new, &sa_old);
-        alarm(5);
-#endif
         QElapsedTimer probe; probe.start();
-        int rc = getaddrinfo(tc.domain, nullptr, &hints, &res);
-        int elapsed = (int)probe.elapsed();
-#ifdef __linux__
-        alarm(0);
-        sigaction(SIGALRM, &sa_old, nullptr);
-        if (rc != 0 && errno == EINTR) {
+        QString ip = resolveWithTimeout(tc.domain, 4000);
+        int elapsed = static_cast<int>(probe.elapsed());
+        if (!ip.isEmpty()) {
+            out.append(QStringLiteral("  %1  %2  %3")
+                .arg(tc.domain, -40).arg(QStringLiteral("RESOLVED  ⚠"), -16).arg(QStringLiteral("%1 (%2 ms)").arg(ip).arg(elapsed)));
+            resolved++;
+            if (!hijackIPs.contains(ip)) hijackIPs.append(ip);
+        } else if (elapsed >= 4000) {
             out.append(QStringLiteral("  %1  %2  %3")
                 .arg(tc.domain, -40).arg(QStringLiteral("TIMEOUT"), -16).arg(QStringLiteral("%1 ms").arg(elapsed)));
             timedOut++;
-            continue;
-        }
-#endif
-        if (rc == 0 && res) {
-            char ip[64];
-            inet_ntop(AF_INET, &((struct sockaddr_in*)res->ai_addr)->sin_addr, ip, sizeof(ip));
-            QString ipStr = QString::fromLatin1(ip);
-            out.append(QStringLiteral("  %1  %2  %3")
-                .arg(tc.domain, -40).arg(QStringLiteral("RESOLVED  ⚠"), -16).arg(QStringLiteral("%1 (%2 ms)").arg(ipStr).arg(elapsed)));
-            resolved++;
-            if (!hijackIPs.contains(ipStr)) hijackIPs.append(ipStr);
-            freeaddrinfo(res);
         } else {
             out.append(QStringLiteral("  %1  %2  %3")
                 .arg(tc.domain, -40).arg(QStringLiteral("NXDOMAIN  ✓"), -16).arg(QStringLiteral("%1 ms").arg(elapsed)));
@@ -2051,10 +2031,22 @@ static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
     if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
         return host;
 
+    // DNS cache: avoid redundant lookups within a speed test run
+    // (e.g. same server hostname probed in Phase 2, then used in Phases 3-4)
+    static QMutex dnsCacheMutex;
+    static QHash<QString, QString> dnsCache;
+    {
+        QMutexLocker locker(&dnsCacheMutex);
+        if (dnsCache.contains(host))
+            return dnsCache[host];
+    }
+
     struct ResolveState { std::atomic<bool> done{false}; QString ip; };
     ResolveState st;
 
-    std::thread t([&st, &host]() {
+    // Capture host by value — the const QString& param may be a temporary that
+    // outlives the detached thread (e.g. dnsPollution passes const char*).
+    std::thread t([&st, host]() {
         struct addrinfo hints = {}, *res;
         hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
         QByteArray hb = host.toUtf8();
@@ -2076,7 +2068,15 @@ static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
             std::chrono::steady_clock::now() - start).count();
         if (elapsed > timeoutMs) break;
     }
-    t.detach(); // let the resolver thread finish in background — harmless leak
+    t.detach(); // let the resolver thread finish in background
+    // Only read st.ip if the thread completed — avoids data race on non-atomic QString
+    if (!st.done.load(std::memory_order_acquire))
+        return {}; // timeout: thread still writing st.ip, return empty
+    {
+        QMutexLocker locker(&dnsCacheMutex);
+        if (!st.ip.isEmpty())
+            dnsCache[host] = st.ip; // only cache successful lookups
+    }
     return st.ip;
 }
 
@@ -2163,13 +2163,8 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return r;
-    struct addrinfo hints = {}, *res;
-    hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-    QByteArray hb = host.toUtf8();
-    if (getaddrinfo(hb.constData(), nullptr, &hints, &res) != 0) { close(sock); return r; }
-    struct sockaddr_in addr; memcpy(&addr, res->ai_addr, sizeof(addr));
-    addr.sin_port = htons(port);
-    freeaddrinfo(res);
+    struct sockaddr_in addr;
+    if (!hostToAddr(host, port, addr)) { close(sock); return r; }
 
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2536,13 +2531,8 @@ DiagnosticResult speedTest(DiagId id) {
         // HTTP POST with measured upload
         int sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0) continue;
-        struct addrinfo hints = {}, *res;
-        hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-        QByteArray hb = best->host.toUtf8();
-        char portStr[16]; snprintf(portStr, sizeof(portStr), "%d", best->port);
-        if (getaddrinfo(hb.constData(), portStr, &hints, &res) != 0) { close(sock); continue; }
-        struct sockaddr_in addr; memcpy(&addr, res->ai_addr, sizeof(addr));
-        freeaddrinfo(res);
+        struct sockaddr_in addr;
+        if (!hostToAddr(best->host, best->port, addr)) { close(sock); continue; }
 
 #ifdef _WIN32
         u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
