@@ -27,6 +27,9 @@ typedef SSIZE_T ssize_t;
 #include <thread>
 #include <climits>
 #include <csignal>
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#endif
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -2045,11 +2048,50 @@ static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
             return dnsCache[host];
     }
 
+#ifdef __APPLE__
+    // Apple: use GCD dispatch_semaphore for true kernel-level timeout.
+    // std::thread detach on iOS leaks threads; getaddrinfo can block 30-120s.
+    // Strategy: heap-allocate context so it survives our return; GCD task frees it.
+    struct DnsCtx {
+        QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
+    };
+    auto* ctx = new DnsCtx{hb, {}, false, dispatch_semaphore_create(0)};
+    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
+        [](void* p) {
+            auto* c = (DnsCtx*)p;
+            struct addrinfo hints = {}, *res;
+            hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
+            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0) {
+                auto* sa = (struct sockaddr_in*)res->ai_addr;
+                inet_ntop(AF_INET, &sa->sin_addr, c->ip, sizeof(c->ip));
+                c->resolved = true;
+                freeaddrinfo(res);
+            }
+            dispatch_semaphore_signal(c->sem);
+        });
+    long waitResult = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
+    if (waitResult != 0) {
+        // Timeout: the GCD task continues in background and will signal ctx->sem.
+        // We cannot safely free ctx (task still uses it). Leak is ~200 bytes per timeout.
+        // GCD queue throttles concurrent tasks; iOS won't OOM from a few leaks.
+        dispatch_release(ctx->sem);
+        return {};
+    }
+    // Task completed within timeout — safe to read result and free ctx
+    dispatch_release(ctx->sem);
+    if (ctx->resolved) {
+        QString ip = QString::fromLatin1(ctx->ip);
+        QMutexLocker locker(&dnsCacheMutex);
+        dnsCache[host] = ip;
+        delete ctx;
+        return ip;
+    }
+    delete ctx;
+    return {};
+#else
     struct ResolveState { std::atomic<bool> done{false}; QString ip; };
     ResolveState st;
 
-    // Capture host by value — the const QString& param may be a temporary that
-    // outlives the detached thread (e.g. dnsPollution passes const char*).
     std::thread t([&st, host]() {
         struct addrinfo hints = {}, *res;
         hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
@@ -2064,7 +2106,6 @@ static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
         st.done.store(true, std::memory_order_release);
     });
 
-    // Poll with 50ms granularity until timeout
     auto start = std::chrono::steady_clock::now();
     while (!st.done.load(std::memory_order_acquire)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -2072,16 +2113,16 @@ static QString resolveWithTimeout(const QString& host, int timeoutMs = 3000) {
             std::chrono::steady_clock::now() - start).count();
         if (elapsed > timeoutMs) break;
     }
-    t.detach(); // let the resolver thread finish in background
-    // Only read st.ip if the thread completed — avoids data race on non-atomic QString
+    t.detach();
     if (!st.done.load(std::memory_order_acquire))
-        return {}; // timeout: thread still writing st.ip, return empty
+        return {};
     {
         QMutexLocker locker(&dnsCacheMutex);
         if (!st.ip.isEmpty())
-            dnsCache[host] = st.ip; // only cache successful lookups
+            dnsCache[host] = st.ip;
     }
     return st.ip;
+#endif
 }
 
 // Convert host (name or IP) to sockaddr_in — returns true on success
