@@ -426,9 +426,10 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
             }
         });
 
-    // Keep task alive until it emits finished() — auto-deleted via deleteLater
-    connect(task.get(), &DiagnosticTask::finished, task.get(), &QObject::deleteLater);
-
+    // The task owns its own lifetime: it self-deletes (via deleteLater) only
+    // after its worker run() has returned — see DiagnosticTask::onFutureFinished.
+    // Deleting it here on the first finished() signal would be unsafe, because a
+    // watchdog timeout emits finished() while run() may still be executing.
     task.release()->start(); // transfer ownership to Qt parent/event loop
 }
 

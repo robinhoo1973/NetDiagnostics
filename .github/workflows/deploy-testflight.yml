@@ -31,20 +31,20 @@ jobs:
       QT_HOST_DIR: "/Users/runner/qt-desktop"
 
     steps:
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Checkout
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - uses: actions/checkout@v4
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Install build tools
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Install homebrew dependencies
         run: brew install cmake ninja python3
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Cache & install Qt 6 for macOS (host tools for cross-compilation)
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Cache Qt 6 macOS (host)
         id: cache-qt-mac
         uses: actions/cache@v4
@@ -58,9 +58,9 @@ jobs:
           pip3 install --break-system-packages aqtinstall
           aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Cache & install Qt 6 for iOS
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Cache Qt 6 iOS
         id: cache-qt-ios
         uses: actions/cache@v4
@@ -74,9 +74,9 @@ jobs:
           pip3 install --break-system-packages aqtinstall
           aqt install-qt mac ios $QT_VERSION ios_arm64 -O $QT_INSTALL_DIR
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Write ASC private key to disk
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Prepare App Store Connect key
         run: |
           KEYFILE="$RUNNER_TEMP/asc-key.p8"
@@ -84,9 +84,9 @@ jobs:
           chmod 600 "$KEYFILE"
           echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Generate JWT (used by all subsequent ASC API calls)
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Generate App Store Connect JWT
         id: jwt
         run: |
@@ -96,11 +96,11 @@ jobs:
             "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
             "$ASC_KEYFILE")
           echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
-          echo "✅ JWT generated"
+          echo "[OK] JWT generated"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Step A: Register Bundle ID in Developer Portal (if not exists)
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Register Bundle ID (auto) + Enable WiFi capability
         id: bundle
         run: |
@@ -111,11 +111,11 @@ jobs:
           BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
 
           echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
-          echo "✅ Bundle ID ready (id: ${BID})"
+          echo "[OK] Bundle ID ready (id: ${BID})"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Step B: Ensure App exists in App Store Connect (if not exists)
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Ensure App Store Connect app (auto)
         id: asc-app
         run: |
@@ -126,12 +126,12 @@ jobs:
           APP_ID=$(asc_app_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID" "$APP_SKU" "$APP_LOCALE")
 
           echo "app_id=${APP_ID}" >> "$GITHUB_OUTPUT"
-          echo "✅ App Store Connect app ready (id: ${APP_ID})"
+          echo "[OK] App Store Connect app ready (id: ${APP_ID})"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Import iOS Distribution Certificate (.p12) into keychain
-      # (User must provide this — private keys can't be auto-generated)
-      # ═════════════════════════════════════════════════════════════════
+      # (User must provide this - private keys can't be auto-generated)
+      # ===================================================================
       - name: Import iOS distribution certificate
         run: |
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
@@ -153,11 +153,11 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1
 
-          echo "✅ Distribution certificate imported"
+          echo "[OK] Distribution certificate imported"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Step C: Look up the Distribution Certificate ID in Developer Portal
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Find distribution certificate in Developer Portal
         id: cert-id
         run: |
@@ -175,13 +175,13 @@ jobs:
           else
             echo "cert_id=${CERT_ID}" >> "$GITHUB_OUTPUT"
             echo "auto_signing=false" >> "$GITHUB_OUTPUT"
-            echo "✅ Distribution certificate found (id: ${CERT_ID})"
+            echo "[OK] Distribution certificate found (id: ${CERT_ID})"
           fi
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Step D: Create provisioning profile (auto, if not exists)
       # Falls back to user-provided profile if ASC API creation fails
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Ensure provisioning profile (auto)
         id: profile
         run: |
@@ -197,7 +197,7 @@ jobs:
               mkdir -p "$PROFILE_DIR"
               cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
               echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
-              echo "✅ Using user-provided provisioning profile (UUID: ${PROFILE_UUID})"
+              echo "[OK] Using user-provided provisioning profile (UUID: ${PROFILE_UUID})"
               exit 0
             fi
             echo "WARNING: Failed to parse user-provided profile UUID"
@@ -226,7 +226,7 @@ jobs:
                   mkdir -p "$PROFILE_DIR"
                   cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
                   echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
-                  echo "✅ Provisioning profile auto-created (UUID: ${PROFILE_UUID})"
+                  echo "[OK] Provisioning profile auto-created (UUID: ${PROFILE_UUID})"
                   exit 0
                 fi
               fi
@@ -238,18 +238,18 @@ jobs:
           echo "Using Xcode automatic signing (no manual profile)"
           echo "profile_uuid=" >> "$GITHUB_OUTPUT"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Auto-increment build number (CFBundleVersion) for TestFlight
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Set build number
         run: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
           echo "Build number set to $GITHUB_RUN_NUMBER"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Configure CMake for iOS (Xcode generator)
-      # iOS uses NSURLSession (IosHttpTask.mm) — no libcurl cross-compile needed
-      # ═════════════════════════════════════════════════════════════════
+      # iOS uses NSURLSession (IosHttpTask.mm) - no libcurl cross-compile needed
+      # ===================================================================
       - name: Configure CMake for iOS
         id: cmake
         run: |
@@ -270,9 +270,9 @@ jobs:
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -B build-ios -S .
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Build + Archive (xcodebuild handles automatic signing)
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Build and archive iOS app
         run: |
           # Determine signing strategy
@@ -310,41 +310,41 @@ jobs:
           fi
 
           if [ -d build-ios/NetDiagnostic.xcarchive ]; then
-            echo "✅ Archive created"
+            echo "[OK] Archive created"
           else
-            echo "❌ Archive not created"
+            echo "[X] Archive not created"
             exit 1
           fi
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Package IPA from signed .xcarchive
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Package IPA from archive
         run: |
           # Extract the signed .app from the archive
           APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostic.app"
           if [ ! -d "$APP_PATH" ]; then
-            echo "❌ App not found in archive at $APP_PATH"
+            echo "[X] App not found in archive at $APP_PATH"
             # Try alternate location
             APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
             if [ -z "$APP_PATH" ]; then
-              echo "❌ No .app found in archive"
+              echo "[X] No .app found in archive"
               find build-ios/NetDiagnostic.xcarchive -type d | head -20
               exit 1
             fi
           fi
-          echo "✅ Found app: $APP_PATH"
+          echo "[OK] Found app: $APP_PATH"
           ls -la "$APP_PATH"
 
           mkdir -p Payload
           cp -R "$APP_PATH" Payload/
           zip -r NetDiagnostic-iOS.ipa Payload
           ls -lh NetDiagnostic-iOS.ipa
-          echo "✅ IPA packaged"
+          echo "[OK] IPA packaged"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Upload to TestFlight via altool
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Upload to TestFlight
         run: |
           if [ ! -f NetDiagnostic-iOS.ipa ]; then
@@ -365,11 +365,11 @@ jobs:
             --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
             --verbose
 
-          echo "✅ Uploaded to TestFlight"
+          echo "[OK] Uploaded to TestFlight"
 
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       # Clean up sensitive key material (always)
-      # ═════════════════════════════════════════════════════════════════
+      # ===================================================================
       - name: Clean up keys
         if: always()
         run: |

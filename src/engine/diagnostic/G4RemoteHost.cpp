@@ -67,6 +67,14 @@ namespace G4RemoteHost {
 // Used by traceroute()/pathPing() to display a helpful fix hint.
 static std::atomic<bool> s_rawIcmpAvailable{true};
 
+// Thread-safe IPv4 formatting (inet_ntoa uses a shared static buffer and is
+// unsafe in the concurrent diagnostic thread pool).
+static QString ip4ToStr(struct in_addr a) {
+    char buf[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &a, buf, sizeof(buf));
+    return QString::fromLatin1(buf);
+}
+
 static ResultProperty prop(const QString& label, const QString& value) {
     return ResultProperty(label, value);
 }
@@ -127,7 +135,7 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
         if (rtype == ns_t_a) {
             struct in_addr a; memcpy(&a, rd, 4);
             out.append(QStringLiteral("%1.  %2  IN  A  %3")
-                .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(QString::fromLatin1(inet_ntoa(a))));
+                .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(ip4ToStr(a)));
         } else if (rtype == ns_t_aaaa) {
             char ip6[INET6_ADDRSTRLEN];
             inet_ntop(AF_INET6, rd, ip6, sizeof(ip6));
@@ -191,11 +199,13 @@ static QString rcodeStr(int rcode) {
 }
 #endif
 
+static DiagnosticResult noTargetResult(DiagId id, DiagGroup group);
+
 DiagnosticResult dnsResolution(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4DnsResolution; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
+    if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
     QElapsedTimer t; t.start();
     QStringList out;
@@ -228,7 +238,7 @@ DiagnosticResult dnsResolution(const QString& target) {
             // Build dig-style line
             if (p->wType == DNS_TYPE_A) {
                 struct in_addr a; a.S_un.S_addr = p->Data.A.IpAddress;
-                QString ip = QString::fromLatin1(inet_ntoa(a));
+                QString ip = ip4ToStr(a);
                 out.append(QStringLiteral("%1.  %2  IN  A  %3").arg(host, -30).arg(p->dwTtl, 6).arg(ip));
                 ipsAll.append(ip);
             } else if (p->wType == DNS_TYPE_AAAA) {
@@ -300,7 +310,7 @@ DiagnosticResult dnsResolution(const QString& target) {
                     const unsigned char* rd = ns_rr_rdata(rr);
                     if (rt == ns_t_a) {
                         struct in_addr a; memcpy(&a, rd, 4);
-                        ipsAll.append(QString::fromLatin1(inet_ntoa(a)));
+                        ipsAll.append(ip4ToStr(a));
                     } else if (rt == ns_t_aaaa) {
                         char ip6[INET6_ADDRSTRLEN];
                         inet_ntop(AF_INET6, rd, ip6, sizeof(ip6));
@@ -330,7 +340,7 @@ DiagnosticResult dnsResolution(const QString& target) {
                             if (ns_parserr(&handle, ns_s_an, i, &rr) < 0) continue;
                             if (ns_rr_type(rr) == ns_t_a) {
                                 struct in_addr a; memcpy(&a, ns_rr_rdata(rr), 4);
-                                QString ip = QString::fromLatin1(inet_ntoa(a));
+                                QString ip = ip4ToStr(a);
                                 if (!ipsAll.contains(ip)) ipsAll.append(ip);
                             }
                         }
@@ -366,7 +376,7 @@ DiagnosticResult dnsResolution(const QString& target) {
     // Show actual resolver address from _res (glibc-specific)
     QStringList nsList;
     for (int i = 0; i < MAXNS && _res.nsaddr_list[i].sin_addr.s_addr != 0; i++)
-        nsList.append(QString::fromLatin1(inet_ntoa(_res.nsaddr_list[i].sin_addr)));
+        nsList.append(ip4ToStr(_res.nsaddr_list[i].sin_addr));
     out.append(QStringLiteral(";; SERVER: %1").arg(nsList.isEmpty() ? QStringLiteral("system") : nsList.join(QStringLiteral(", "))));
 #endif
     out.append(QStringLiteral(";; WHEN: %1").arg(QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d hh:mm:ss yyyy"))));
@@ -415,7 +425,7 @@ DiagnosticResult ping(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Ping; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
+    if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
     quint32 resolvedIp = resolveIPv4(host);
     // Build output — strict Windows ping.exe format
@@ -425,7 +435,7 @@ DiagnosticResult ping(const QString& target) {
     QString ipStr;
     if (resolvedIp) {
         struct in_addr a; a.s_addr = htonl(resolvedIp);
-        ipStr = QString::fromLatin1(inet_ntoa(a));
+        ipStr = ip4ToStr(a);
     }
     QString displayTarget = resolvedIp ? ipStr : host;
     if (resolvedIp && host != ipStr)
@@ -507,7 +517,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     if (result > 0) {
         PICMP_ECHO_REPLY echoReply = (PICMP_ECHO_REPLY)replyBuf;
         struct in_addr a; a.S_un.S_addr = echoReply->Address;
-        hopIp = QString::fromLatin1(inet_ntoa(a));
+        hopIp = ip4ToStr(a);
         rttMs = (int)echoReply->RoundTripTime;
         IcmpCloseHandle(icmp);
         // Only IP_TTL_EXPIRED_TRANSIT (13) means an intermediate hop.
@@ -588,7 +598,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
             if (icmpType == 0) {
                 // Echo Reply — reached target
-                hopIp = QString::fromLatin1(inet_ntoa(from.sin_addr));
+                hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
                 close(icmpSock);
                 return 0;
@@ -596,14 +606,14 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
                 // Time Exceeded — intermediate router
                 // The ICMP payload contains the original IP header + 8 bytes,
                 // from which we extract the router's IP from the `from` address.
-                hopIp = QString::fromLatin1(inet_ntoa(from.sin_addr));
+                hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
                 close(icmpSock);
                 return 1;
             } else if (icmpType == 3) {
                 // Destination Unreachable — terminal, no further hops
                 // Code 3 = Port Unreachable (reached target)
-                hopIp = QString::fromLatin1(inet_ntoa(from.sin_addr));
+                hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
                 close(icmpSock);
                 return (icmpCode == 3) ? 0 : -1;
@@ -643,7 +653,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
         if (err == 0 || err == ECONNREFUSED) {
-            hopIp = QString::fromLatin1(inet_ntoa(addr.sin_addr));
+            hopIp = ip4ToStr(addr.sin_addr);
             close(sock);
             return 0;
         }
@@ -680,7 +690,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
             int err=0; socklen_t len=sizeof(err);
             getsockopt(sock,SOL_SOCKET,SO_ERROR,(char*)&err,&len);
             rttMs=(int)tm.elapsed();
-            if(err==0||err==ECONNREFUSED){hopIp=QString::fromLatin1(inet_ntoa(*(struct in_addr*)&addr.sin_addr));close(sock);return 0;}
+            if(err==0||err==ECONNREFUSED){hopIp=ip4ToStr(*(struct in_addr*)&addr.sin_addr);close(sock);return 0;}
         }
         close(sock); rttMs=0; hopIp.clear(); return -1;
     }
@@ -711,15 +721,15 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         if(n<8)continue;
         int type=buf[0], code=buf[1];
         if(type==0){ // Echo Reply — reached target
-            hopIp=QString::fromLatin1(inet_ntoa(from.sin_addr));
+            hopIp=ip4ToStr(from.sin_addr);
             rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
         if(type==11&&code==0){ // Time Exceeded — intermediate router
-            hopIp=QString::fromLatin1(inet_ntoa(from.sin_addr));
+            hopIp=ip4ToStr(from.sin_addr);
             rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
         }
         if(type==3&&code==3){ // Port Unreachable — reached target
-            hopIp=QString::fromLatin1(inet_ntoa(from.sin_addr));
+            hopIp=ip4ToStr(from.sin_addr);
             rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
     }
@@ -732,13 +742,13 @@ DiagnosticResult traceroute(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Traceroute; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
+    if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
     if (!targetIp) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("DNS resolution failed"); return r; }
 
     struct in_addr ta; ta.s_addr = htonl(targetIp);
-    QString targetIpStr = QString::fromLatin1(inet_ntoa(ta));
+    QString targetIpStr = ip4ToStr(ta);
 
     // Build output — strict Windows tracert.exe format
     // "Tracing route to example.com [93.184.216.34]"
@@ -833,12 +843,12 @@ DiagnosticResult pathPing(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4PathPing; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
+    if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
     if (!targetIp) { r.status = DiagStatus::Fail; r.summary = QStringLiteral("DNS resolution failed"); return r; }
     struct in_addr a; a.s_addr = htonl(targetIp);
-    QString targetIpStr = QString::fromLatin1(inet_ntoa(a));
+    QString targetIpStr = ip4ToStr(a);
 
     QElapsedTimer totalTimer; totalTimer.start();
 
@@ -1031,11 +1041,11 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4MtuDiscovery; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
+    if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
     quint32 resolvedIp = resolveIPv4(host);
     QString ipStr;
-    if (resolvedIp) { struct in_addr a; a.s_addr = htonl(resolvedIp); ipStr = QString::fromLatin1(inet_ntoa(a)); }
+    if (resolvedIp) { struct in_addr a; a.s_addr = htonl(resolvedIp); ipStr = ip4ToStr(a); }
     QStringList out;
 
     // ── Windows ping -f -l style MTU discovery ─────────────────────────

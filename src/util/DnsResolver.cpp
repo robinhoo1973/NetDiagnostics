@@ -2,7 +2,6 @@
 // DnsResolver.cpp — Shared DNS resolution with timeout
 // =============================================================================
 #include "util/DnsResolver.h"
-#include <QHostInfo>
 
 #ifdef __APPLE__
 #include <dispatch/dispatch.h>
@@ -33,11 +32,10 @@ void DnsResolver::clearCache() {
 }
 
 quint32 DnsResolver::resolveIPv4(const QString& host, int timeoutMs) {
-    QHostInfo info = QHostInfo::fromName(host);
-    if (!info.addresses().isEmpty()) {
-        quint32 ip = info.addresses().first().toIPv4Address();
-        if (ip) return ntohl(ip);
-    }
+    // Use the timeout-bounded resolve() directly. Do NOT prefix this with
+    // QHostInfo::fromName(): that call is synchronous and unbounded, so it
+    // would defeat the caller's timeout (it can block 30-120s on bad DNS).
+    // resolve() already handles literal IPs, caching, and the timeout.
     QString ipStr = instance().resolve(host, timeoutMs);
     if (!ipStr.isEmpty()) {
         struct in_addr a;

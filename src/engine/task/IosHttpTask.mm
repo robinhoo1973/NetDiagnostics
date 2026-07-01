@@ -61,6 +61,7 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
     [task resume];
     dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutMs + 5000) * NSEC_PER_MSEC));
     [session finishTasksAndInvalidate];
+    dispatch_release(sem); // MRC: balance dispatch_semaphore_create (see DnsResolver.cpp)
     return blockResult;
 }
 

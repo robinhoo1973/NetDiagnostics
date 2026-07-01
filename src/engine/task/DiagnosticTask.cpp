@@ -2,7 +2,6 @@
 // DiagnosticTask.cpp — Per-task timeout watchdog via QTimer + QFutureWatcher
 // =============================================================================
 #include "engine/task/DiagnosticTask.h"
-#include <QPointer>
 #include <QFutureWatcher>
 #include <QtConcurrent/QtConcurrent>
 
@@ -26,13 +25,13 @@ void DiagnosticTask::start() {
     connect(m_watcher, &QFutureWatcher<DiagnosticResult>::finished,
             this, &DiagnosticTask::onFutureFinished);
 
-    // Use QPointer to guard against deletion during concurrent execution.
-    // If the watchdog fires first and deleteLater destroys the task,
-    // the QPointer nulls out, so the worker safely returns a default result.
-    QPointer<DiagnosticTask> guard(this);
-    m_watcher->setFuture(QtConcurrent::run([guard]() -> DiagnosticResult {
-        if (guard.isNull()) return {};
-        return guard->run();
+    // Lifetime guarantee: the task self-deletes ONLY in onFutureFinished(),
+    // which runs after run() has returned. Therefore `this` is guaranteed to
+    // outlive the worker, and capturing it here is safe. (A watchdog timeout
+    // emits finished() early but must NOT delete the task while run() is
+    // still executing on the pool thread — see onWatchdogTimeout.)
+    m_watcher->setFuture(QtConcurrent::run([this]() -> DiagnosticResult {
+        return run();
     }));
 }
 
@@ -44,13 +43,23 @@ void DiagnosticTask::cancel() {
 }
 
 void DiagnosticTask::onFutureFinished() {
-    if (!m_cancelled.load(std::memory_order_acquire)) {
-        m_watchdog->stop();
+    if (m_watchdog) m_watchdog->stop();
+    // Deliver the real result only if the watchdog hasn't already reported
+    // a timeout for this task.
+    if (!m_finishedEmitted.exchange(true) &&
+        !m_cancelled.load(std::memory_order_acquire)) {
         emit finished(m_watcher->result());
     }
+    // run() has returned; the object is now safe to destroy.
+    deleteLater();
 }
 
 void DiagnosticTask::onWatchdogTimeout() {
     m_cancelled.store(true, std::memory_order_release);
-    emit finished(DiagnosticResult::timeout(m_id, group(), m_timeoutMs));
+    // Report the timeout, but DO NOT delete the task here: the worker thread
+    // may still be executing run() using this object. Self-deletion is
+    // deferred to onFutureFinished(), which fires once run() returns.
+    if (!m_finishedEmitted.exchange(true)) {
+        emit finished(DiagnosticResult::timeout(m_id, group(), m_timeoutMs));
+    }
 }

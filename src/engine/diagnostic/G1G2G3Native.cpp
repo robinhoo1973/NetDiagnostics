@@ -169,9 +169,17 @@ static QString macToStr(const unsigned char* mac) {
         .arg(mac[5], 2, 16, QLatin1Char('0'));
 }
 
+// Thread-safe IPv4 formatting (inet_ntoa uses a shared static buffer and is
+// unsafe in the concurrent diagnostic thread pool).
+static QString ip4ToStr(struct in_addr a) {
+    char buf[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &a, buf, sizeof(buf));
+    return QString::fromLatin1(buf);
+}
+
 static QString ipToStr(uint32_t ip) {
     struct in_addr a; a.s_addr = ip; // ip is already network byte order from /proc/net/*
-    return QString::fromLatin1(inet_ntoa(a));
+    return ip4ToStr(a);
 }
 
 static const char* tcpStateName(int st) {
@@ -337,7 +345,7 @@ DiagnosticResult networkAdapters(DiagId id) {
         info.flags = p->ifa_flags;
         if (p->ifa_addr->sa_family == AF_INET) {
             auto* sa = (struct sockaddr_in*)p->ifa_addr;
-            info.ips.append(QString::fromLatin1(inet_ntoa(sa->sin_addr)));
+                info.ips.append(ip4ToStr(sa->sin_addr));
         }
 #ifndef __APPLE__
         if (p->ifa_addr->sa_family == AF_PACKET && p->ifa_addr->sa_data) {
@@ -417,7 +425,7 @@ DiagnosticResult activeConnections(DiagId id) {
             struct in_addr la, ra;
             la.S_un.S_addr = row.dwLocalAddr; ra.S_un.S_addr = row.dwRemoteAddr;
             rawConns.append({QStringLiteral("TCP"),
-                QString::fromLatin1(inet_ntoa(la)), QString::fromLatin1(inet_ntoa(ra)),
+                ip4ToStr(la), ip4ToStr(ra),
                 QString::fromLatin1(tcpStateName(row.dwState)),
                 (int)ntohs((u_short)row.dwLocalPort), (int)ntohs((u_short)row.dwRemotePort)});
         }
@@ -650,7 +658,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             info.flags = p->ifa_flags;
             if (p->ifa_addr->sa_family == AF_INET) {
                 auto* sa = (struct sockaddr_in*)p->ifa_addr;
-                info.ips4.append(QString::fromLatin1(inet_ntoa(sa->sin_addr)));
+                info.ips4.append(ip4ToStr(sa->sin_addr));
             } else if (p->ifa_addr->sa_family == AF_INET6) {
                 char buf6[INET6_ADDRSTRLEN];
                 auto* sa6 = (struct sockaddr_in6*)p->ifa_addr;
@@ -659,7 +667,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             }
             if (p->ifa_netmask && p->ifa_netmask->sa_family == AF_INET) {
                 auto* nm = (struct sockaddr_in*)p->ifa_netmask;
-                info.masks4.append(QString::fromLatin1(inet_ntoa(nm->sin_addr)));
+                info.masks4.append(ip4ToStr(nm->sin_addr));
             }
 #ifndef __APPLE__
             if (p->ifa_addr->sa_family == AF_PACKET) {
@@ -1294,9 +1302,9 @@ DiagnosticResult routingTable(DiagId id) {
                 ifName = QString::fromWCharArray(ifRow.Alias);
             }
             routeRows.append({
-                QString::fromLatin1(inet_ntoa(dest)),
-                QString::fromLatin1(inet_ntoa(mask)),
-                QString::fromLatin1(inet_ntoa(gw)),
+                ip4ToStr(dest),
+                ip4ToStr(mask),
+                ip4ToStr(gw),
                 ifName.left(9),
                 QString::number(row.SitePrefixLength)});
         }
@@ -1381,7 +1389,7 @@ DiagnosticResult arpTable(DiagId id) {
             auto& row = table->Table[i];
             struct in_addr ip = row.Address.Ipv4.sin_addr;
             out.append(QStringLiteral("  %1  %2  %3")
-                .arg(QString::fromLatin1(inet_ntoa(ip)), -24)
+                .arg(ip4ToStr(ip), -24)
                 .arg(macToStr((const unsigned char*)&row.PhysicalAddress), -23)
                 .arg(row.State == NlnsReachable ? "dynamic" : "static"));
         }
@@ -1526,7 +1534,7 @@ DiagnosticResult defaultGateway(DiagId id) {
         for (ULONG i = 0; i < ft->NumEntries; i++) {
             if (ft->Table[i].DestinationPrefix.PrefixLength == 0) {
                 struct in_addr gw = ft->Table[i].NextHop.Ipv4.sin_addr;
-                defaultGw = QString::fromLatin1(inet_ntoa(gw));
+                defaultGw = ip4ToStr(gw);
                 out.append(QStringLiteral("  Default Gateway: %1").arg(defaultGw));
                 break;
             }

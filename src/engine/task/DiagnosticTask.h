@@ -44,6 +44,7 @@ private:
     QString    m_target;
     int        m_timeoutMs;
     std::atomic<bool> m_cancelled{false};
+    std::atomic<bool> m_finishedEmitted{false};
     QFutureWatcher<DiagnosticResult>* m_watcher = nullptr;
     QTimer*    m_watchdog = nullptr;
 };

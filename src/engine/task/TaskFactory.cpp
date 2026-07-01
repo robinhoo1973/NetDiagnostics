@@ -251,7 +251,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5FtpDiagnostics:
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
-            return T([](DiagId id, const QString&) {
+            return T3([](DiagId id, const QString&) {
                 return DiagnosticResult::skipped(id, QStringLiteral("G5 Website/URL tests unavailable (no curl)"));
             });
 #endif

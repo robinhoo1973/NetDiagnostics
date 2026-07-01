@@ -60,8 +60,9 @@ Item {
         if (!_runActive) takeSnapshot()
     }
 
-    // Poll state (200ms is fine for UI sync, non-blocking)
-    Timer { interval: 200; running: true; repeat: true; onTriggered: syncState() }
+    // Signal-driven sync — no idle polling. stateVersion bumps on every
+    // relevant C++ state change (see AppState::bumpVersion).
+    Connections { target: appState; function onStateVersionChanged() { syncState() } }
     Component.onCompleted: takeSnapshot()
 
     property var currentDetail: ({})
@@ -134,8 +135,9 @@ Item {
             cb4.enabled = page._snapG4en && !page._runActive
         }
 
-        Timer { interval: 200; running: true; repeat: true
-            onTriggered: {
+        Connections {
+            target: page
+            function on_SnapVersionChanged() {
                 if (page._snapVersion !== _cachedSnapVer) {
                     _cachedSnapVer = page._snapVersion
                     syncCheckboxes()

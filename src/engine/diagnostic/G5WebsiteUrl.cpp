@@ -65,6 +65,7 @@ static DiagnosticResult g5Result(DiagId id, const QString& summary,
 // ═════════════════════════════════════════════════════════════════════════════
 // libcurl-based HTTP engine — full curl functionality
 // ═════════════════════════════════════════════════════════════════════════════
+#ifndef NO_CURL
 #include <curl/curl.h>
 
 struct CurlResult {
@@ -186,6 +187,7 @@ static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect =
     curl_easy_cleanup(curl);
     return cr;
 }
+#endif // NO_CURL
 
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -261,6 +263,7 @@ DiagnosticResult serviceBanner(const QString& target) {
 }
 
 // ── G5.4 HTTP Headers (HEAD request, curl-style) ────────────────────────
+#ifndef NO_CURL
 DiagnosticResult httpHeaders(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpHeaders, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -326,6 +329,7 @@ DiagnosticResult securityHeaders(const QString& target) {
     r.durationMs = cr.totalMs;
     return r;
 }
+#endif // NO_CURL
 
 // ── G5.7 SSL Certificate ─────────────────────────────────────────────────
 DiagnosticResult sslCertificate(const QString& target) {
@@ -379,6 +383,7 @@ DiagnosticResult sslCertificate(const QString& target) {
 }
 
 // ── G5.8 HTTP Redirect ───────────────────────────────────────────────────
+#ifndef NO_CURL
 DiagnosticResult httpRedirect(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpRedirect, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -434,6 +439,7 @@ DiagnosticResult httpTiming(const QString& target) {
     r.durationMs = cr.totalMs;
     return r;
 }
+#endif // NO_CURL
 
 DiagnosticResult ftpDiagnostics(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5FtpDiagnostics, "No target", DiagStatus::Skipped);

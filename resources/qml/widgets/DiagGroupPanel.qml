@@ -29,10 +29,13 @@ Rectangle {
     onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
     onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
 
-    // Watch parent DiagnosticScreen for model refresh — reload on each completed test
+    // Refresh the item model whenever a diagnostic completes. Driven by
+    // appState.progressChanged (which also bumps resultsVersion). The previous
+    // version targeted a non-existent `page._TotalCompleted` signal, so the
+    // model never refreshed during a run.
     Connections {
-        target: page
-        function on_TotalCompletedChanged() { reloadModel() }
+        target: appState
+        function onProgressChanged() { reloadModel() }
     }
 
     property int _modelVersion: 0

@@ -11,14 +11,11 @@ Item {
     property int currentGroup: 0
     property int _cachedConfigGen: -1
     property int configPollVersion: 0
-    Timer {
-        interval: 300; running: true; repeat: true
-        onTriggered: {
-            var v = appState.stateVersion
-            if (v !== _cachedConfigGen) {
-                _cachedConfigGen = v
-                configPollVersion++
-            }
+    Connections {
+        target: appState
+        function onStateVersionChanged() {
+            _cachedConfigGen = appState.stateVersion
+            configPollVersion++
         }
     }
 

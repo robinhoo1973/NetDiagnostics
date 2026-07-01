@@ -181,6 +181,8 @@ Item {
     // ── Inline components ───────────────────────────────────────────────
     component DashboardGroupRow: Rectangle {
         property int groupIndex: 0
+        // Compute the group stats once per row instead of 5x (one per badge).
+        property var _stat: calcGroupStat(groupIndex)
         Layout.fillWidth: true; implicitHeight: grpCol.implicitHeight + 28; radius: 10
         Layout.bottomMargin: 8
         color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
@@ -190,11 +192,11 @@ Item {
                 Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: Theme.accentBlue }
                 Item { width: 10 }
                 Label { Layout.fillWidth: true; text: Tr.groupName(groupIndex); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.textPrimary }
-                DashboardBadge { accent: Theme.passGreen;  v: calcGroupStat(groupIndex).pass }
-                DashboardBadge { accent: Theme.warnYellow; v: calcGroupStat(groupIndex).warn }
-                DashboardBadge { accent: Theme.failRed;   v: calcGroupStat(groupIndex).fail }
-                DashboardBadge { accent: Theme.skipGray;  v: calcGroupStat(groupIndex).skip }
-                DashboardBadge { accent: Theme.accentBlue; v: calcGroupStat(groupIndex).info||0 }
+                DashboardBadge { accent: Theme.passGreen;  v: _stat.pass }
+                DashboardBadge { accent: Theme.warnYellow; v: _stat.warn }
+                DashboardBadge { accent: Theme.failRed;   v: _stat.fail }
+                DashboardBadge { accent: Theme.skipGray;  v: _stat.skip }
+                DashboardBadge { accent: Theme.accentBlue; v: _stat.info||0 }
                 Item { width: 8 }
                 Label { text: getDurFromResults(groupIndex); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textSecondary }
             }
