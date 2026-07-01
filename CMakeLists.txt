@@ -51,8 +51,10 @@ set(SOURCES
     src/engine/diagnostic/G4RemoteHost.cpp
     src/engine/diagnostic/G5WebsiteUrl.cpp
 )
-# iOS without curl: exclude G5 HTTP diagnostic source
-if(NO_CURL)
+# Android: exclude G5 (no libcurl, no NSURLSession). iOS keeps G5WebsiteUrl.cpp
+# for non-curl functions (urlParsing, tcpConnect, serviceBanner) — IosHttpTask.mm
+# and TaskFactory PLATFORM_IOS branches depend on these symbols.
+if(ANDROID)
     list(REMOVE_ITEM SOURCES "src/engine/diagnostic/G5WebsiteUrl.cpp")
 endif()
 # Windows: embed .ico into the executable
