@@ -1938,7 +1938,7 @@ DiagnosticResult dnsPollution(DiagId id) {
         int elapsed = static_cast<int>(probe.elapsed());
         if (!ip.isEmpty()) {
             out.append(QStringLiteral("  %1  %2  %3")
-                .arg(tc.domain, -40).arg(QStringLiteral("RESOLVED  闁?), -16).arg(QStringLiteral("%1 (%2 ms)").arg(ip).arg(elapsed)));
+                .arg(tc.domain, -40).arg(QStringLiteral("RESOLVED"), -16).arg(QStringLiteral("%1 (%2 ms)").arg(ip).arg(elapsed)));
             resolved++;
             if (!hijackIPs.contains(ip)) hijackIPs.append(ip);
         } else if (elapsed >= 4000) {
@@ -1947,7 +1947,7 @@ DiagnosticResult dnsPollution(DiagId id) {
             timedOut++;
         } else {
             out.append(QStringLiteral("  %1  %2  %3")
-                .arg(tc.domain, -40).arg(QStringLiteral("NXDOMAIN  闁?), -16).arg(QStringLiteral("%1 ms").arg(elapsed)));
+                .arg(tc.domain, -40).arg(QStringLiteral("NXDOMAIN"), -16).arg(QStringLiteral("%1 ms").arg(elapsed)));
             clean++;
         }
     }
