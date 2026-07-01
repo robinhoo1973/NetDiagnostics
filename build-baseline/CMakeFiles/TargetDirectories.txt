@@ -1,0 +1,13 @@
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/net_diagnostic.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/net_diagnostic_qmlimportscan.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/test.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/edit_cache.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/rebuild_cache.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/net_diagnostic_autogen_timestamp_deps.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/CMakeFiles/net_diagnostic_autogen.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/tests/CMakeFiles/test_engine_quick.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/tests/CMakeFiles/test.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/tests/CMakeFiles/edit_cache.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/tests/CMakeFiles/rebuild_cache.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/tests/CMakeFiles/test_engine_quick_autogen_timestamp_deps.dir
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/tests/CMakeFiles/test_engine_quick_autogen.dir

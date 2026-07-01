@@ -1,0 +1,9 @@
+-rootPath
+/home/runner/work/NetDiagnostic/NetDiagnostic
+-cmake-output
+-output-file
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline/.qt_plugins/Qt6_QmlPlugins_Imports_net_diagnostic.cmake
+-importPath
+/home/runner/work/NetDiagnostic/NetDiagnostic/build-baseline
+-importPath
+/usr/lib/x86_64-linux-gnu/qt6/qml
