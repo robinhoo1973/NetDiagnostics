@@ -19,7 +19,8 @@
             android:name="org.qtproject.qt6.android.bindings.QtActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:label="NetDiagnostic"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
