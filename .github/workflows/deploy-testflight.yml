@@ -37,6 +37,36 @@ jobs:
       - uses: actions/checkout@v4
 
       # ===================================================================
+      # Select Xcode with iOS 26+ SDK (required by App Store Connect upload)
+      # ===================================================================
+      - name: Select Xcode 26+
+        run: |
+          set -euo pipefail
+
+          CANDIDATES=()
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            ver="${app##*/Xcode_}"
+            ver="${ver%.app}"
+            major="${ver%%.*}"
+            if [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )); then
+              CANDIDATES+=("$app")
+            fi
+          done
+
+          if [ "${#CANDIDATES[@]}" -eq 0 ]; then
+            echo "ERROR: No Xcode 26+ installation found on this runner."
+            ls -1 /Applications/Xcode*.app || true
+            exit 1
+          fi
+
+          SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+
+          xcodebuild -version
+          echo "iOS SDK version: $(xcrun --sdk iphoneos --show-sdk-version)"
+
+      # ===================================================================
       # Install build tools
       # ===================================================================
       - name: Install homebrew dependencies
