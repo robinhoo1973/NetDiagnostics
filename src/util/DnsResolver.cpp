@@ -61,41 +61,68 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     QByteArray hb = host.toUtf8();
 
 #ifdef __APPLE__
-    // Apple: use GCD dispatch_semaphore for true kernel-level timeout.
+    // Apple: use GCD dispatch_semaphore for a true kernel-level timeout.
     // std::thread detach on iOS leaks threads; getaddrinfo can block 30-120s.
+    //
+    // The worker runs via dispatch_async_f — a plain C function that (unlike an
+    // Objective-C block) does NOT retain the semaphore. To avoid a use-after-free
+    // when the resolve TIMES OUT (the waiter would otherwise release the
+    // semaphore and free ctx while the worker is still running and about to
+    // signal it), ownership is reference-counted: whoever drops the last
+    // reference releases the semaphore and frees ctx.
     struct DnsCtx {
-        QByteArray host; char ip[INET_ADDRSTRLEN]; bool resolved; dispatch_semaphore_t sem;
+        QByteArray host;
+        char ip[INET_ADDRSTRLEN];
+        std::atomic<bool> resolved;
+        dispatch_semaphore_t sem;
+        std::atomic<int> refs;
     };
-    auto* ctx = new DnsCtx{host.toUtf8(), {}, false, dispatch_semaphore_create(0)};
+    auto* ctx = new DnsCtx();
+    ctx->host = host.toUtf8();
+    ctx->ip[0] = '\0';
+    ctx->resolved.store(false, std::memory_order_relaxed);
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->refs.store(2, std::memory_order_relaxed);
+
     dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
         [](void* p) {
-            auto* c = (DnsCtx*)p;
-            struct addrinfo hints = {}, *res;
+            auto* c = static_cast<DnsCtx*>(p);
+            struct addrinfo hints = {}, *res = nullptr;
             hints.ai_family = AF_INET; hints.ai_socktype = SOCK_STREAM;
-            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0) {
+            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0 && res) {
                 auto* sa = (struct sockaddr_in*)res->ai_addr;
                 inet_ntop(AF_INET, &sa->sin_addr, c->ip, sizeof(c->ip));
-                c->resolved = true;
+                c->resolved.store(true, std::memory_order_release);
                 freeaddrinfo(res);
             }
             dispatch_semaphore_signal(c->sem);
+            // Drop the worker's reference; last one out frees.
+            if (c->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(c->sem);
+                delete c;
+            }
         });
+
     long waitResult = dispatch_semaphore_wait(ctx->sem,
         dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
-    if (waitResult != 0) {
+
+    QString ipOut;
+    // Only read ctx on success — on timeout the worker may still be writing it.
+    if (waitResult == 0 && ctx->resolved.load(std::memory_order_acquire)) {
+        ipOut = QString::fromLatin1(ctx->ip);
+        if (!ipOut.isEmpty()) {
+            QMutexLocker locker(&m_mutex);
+            m_cache[host] = ipOut;
+        }
+    }
+    // Drop the waiter's reference; last one out frees. On timeout the still-running
+    // worker keeps ctx (and the semaphore) alive until it finishes — no UAF, no
+    // early free.
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
-        return {}; // timeout — GCD task continues, ctx leaked (~200 bytes)
-    }
-    dispatch_release(ctx->sem);
-    if (ctx->resolved) {
-        QString ip = QString::fromLatin1(ctx->ip);
-        QMutexLocker locker(&m_mutex);
-        m_cache[host] = ip;
         delete ctx;
-        return ip;
     }
-    delete ctx;
-    return {};
+    return ipOut;
 #else
     // Non-Apple: std::thread with polling loop.
     // Heap-allocate state so the detached thread doesn't access freed stack.

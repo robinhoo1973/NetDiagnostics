@@ -297,6 +297,11 @@ jobs:
           export IOS_TEAM_ID="${{ secrets.IOS_TEAM_ID }}"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
 
+          # Apply the code-sign entitlements (Access Wi-Fi Information) so
+          # NEHotspotNetwork can read the current SSID/BSSID. The bundle ID's
+          # WiFi capability is enabled in the "Register Bundle ID" step above.
+          export ND_WIFI_ENTITLEMENT=1
+
           "$QT_IOS/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \

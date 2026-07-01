@@ -2,15 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Grants NEHotspotNetwork access to the current Wi-Fi SSID/BSSID.
+	     Requires the "Access Wi-Fi Information" capability to be enabled on the
+	     App ID (the TestFlight deploy workflow enables it automatically).
+	     NOTE: CoreTelephony carrier info needs NO entitlement, and the
+	     NSLocalNetworkUsageDescription / NSBonjourServices keys belong in
+	     Info.plist (they are already declared there) — not here. -->
 	<key>com.apple.developer.networking.wifi-info</key>
 	<true/>
-	<key>com.apple.developer.networking.telephony</key>
-	<true/>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>需要获取WiFi SSID和BSSID信息</string>
-	<key>NSBonjourServiceTypes</key>
-	<array>
-		<string>_http._tcp</string>
-	</array>
 </dict>
 </plist>
