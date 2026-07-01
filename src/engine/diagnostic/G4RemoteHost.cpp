@@ -410,7 +410,7 @@ static int tcpRttMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
     if (sock < 0) return -1;
-    int ms = static_cast<int>(t.elapsed()); close(sock); return ms;
+    int ms = static_cast<int>(t.elapsed()); closeSocket(sock); return ms;
 }
 
 static DiagnosticResult noTargetResult(DiagId id, DiagGroup group) {
@@ -632,7 +632,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     setsockopt(sock, IPPROTO_IP, IP_TTL, (const char*)&ttl, sizeof(ttl));
 
     quint32 targetIp = resolveIPv4(host);
-    if (!targetIp) { close(sock); rttMs = 0; hopIp.clear(); return -2; }
+    if (!targetIp) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -2; }
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -654,11 +654,11 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
         if (err == 0 || err == ECONNREFUSED) {
             hopIp = ip4ToStr(addr.sin_addr);
-            close(sock);
+            closeSocket(sock);
             return 0;
         }
     }
-    close(sock);
+    closeSocket(sock);
     rttMs = 0; hopIp.clear();
     return -1;
 }
@@ -690,9 +690,9 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
             int err=0; socklen_t len=sizeof(err);
             getsockopt(sock,SOL_SOCKET,SO_ERROR,(char*)&err,&len);
             rttMs=(int)tm.elapsed();
-            if(err==0||err==ECONNREFUSED){hopIp=ip4ToStr(*(struct in_addr*)&addr.sin_addr);close(sock);return 0;}
+            if(err==0||err==ECONNREFUSED){hopIp=ip4ToStr(*(struct in_addr*)&addr.sin_addr);closeSocket(sock);return 0;}
         }
-        close(sock); rttMs=0; hopIp.clear(); return -1;
+        closeSocket(sock); rttMs=0; hopIp.clear(); return -1;
     }
 
     // UDP probe sender with TTL
@@ -1090,7 +1090,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
             out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, ipStr));
             out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
         }
-        close(sock);
+        closeSocket(sock);
     }
     if (discoveredMtu == 0) {
         // Fallback: probe with interface MTU (Windows ping -f -l style)
