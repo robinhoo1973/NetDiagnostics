@@ -16,7 +16,12 @@ void iosRequestWiFiAuthorization();
 // (e.g. location permission denied, airplane mode, or non-iOS).
 QString iosCopyWiFiSSID();
 
-// Returns cellular network info: carrierName, radioAccess, countryCode, networkCode
+// Returns WiFi network information: ssid, bssid (MAC address), and diagnostics
+// Keys: "ssid", "bssid", "error" (if applicable)
+// Empty map if unavailable or non-iOS.
+QVariantMap iosWiFiInfo();
+
+// Returns cellular network info: carrierName, radioAccess, countryCode, networkCode, etc.
 // Empty map if no cellular service or non-iOS.
 QVariantMap iosCellularInfo();
 

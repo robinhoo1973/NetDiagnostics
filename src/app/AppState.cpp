@@ -202,11 +202,11 @@ void AppState::setTarget(const QString& t) {
                 isTargetUrl(), isTargetHttpUrl(), m_targetError.toUtf8().constData());
 
         // G4: always on when target non-empty (URL or host)
-        // G5: only http/https — excluded entirely on iOS (no curl/libcurl)
+        // G5: http/https only (supported via libcurl on Windows/Linux, NSURLSession on iOS, HttpURLConnection on Android)
         setGroupEnabled(3, has);          // G4 on if target non-empty
-	#ifndef NO_CURL
-        setGroupEnabled(4, has && isHttp); // G5 on only for http/https
-	#endif
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || !defined(NO_CURL)
+        setGroupEnabled(4, has && isHttp); // G5 on only for http/https (if platform supports it)
+#endif
         TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
                 has, isUrl, isHttp, has, has && isHttp, m_targetError.toUtf8().constData());
         emit targetChanged();

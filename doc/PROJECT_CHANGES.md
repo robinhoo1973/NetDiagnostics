@@ -63,7 +63,7 @@ Central registry of all diagnostic test IDs, groups, and statuses:
 - `DiagGroup` enum: G1, G2, G3, G4, G5
 - `DiagStatus` enum: Pass, Warning, Fail, Skipped, Error, Info
 - `DiagId` enum: 38 test IDs
-- Utility functions: `diagGroup()`, `diagGroupLabel()`, `diagStatusIcon()`, `testIdLabelKey()`, `allDiagIds()`, `diagIdsForGroup()`
+- Utility functions: `diagGroup()`, `diagGroupLabel()`, `diagStatusIcon()`, `diagIdLabelKey()`, `allDiagIds()`, `diagIdsForGroup()`
 
 ### `src/models/DiagnosticResult.h` / `DiagnosticResult.cpp`
 Immutable result struct: id, displayName, group, status, summary, details, durationMs, timestamp, properties (key-value with severity), rawOutput, errorOutput. Factory helpers: `skipped()`, `error()`, `timeout()`.

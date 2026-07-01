@@ -4,5 +4,13 @@
 <dict>
 	<key>com.apple.developer.networking.wifi-info</key>
 	<true/>
+	<key>com.apple.developer.networking.telephony</key>
+	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>需要获取WiFi SSID和BSSID信息</string>
+	<key>NSBonjourServiceTypes</key>
+	<array>
+		<string>_http._tcp</string>
+	</array>
 </dict>
 </plist>
