@@ -18,6 +18,23 @@
 #include "models/DiagId.h"
 #include "util/DiagnosticFormatter.h"
 
+static bool clearJniException(QJniEnvironment& env) {
+    if (!env->ExceptionCheck())
+        return false;
+    env->ExceptionClear();
+    return true;
+}
+
+static QString signalGlyphs(int level) {
+    switch (qBound(0, level, 4)) {
+        case 1: return QStringLiteral("▂");
+        case 2: return QStringLiteral("▂▄");
+        case 3: return QStringLiteral("▂▄▆");
+        case 4: return QStringLiteral("▂▄▆█");
+        default: return QStringLiteral("▁");
+    }
+}
+
 // ── WiFi SSID via WifiManager ──────────────────────────────────────────
 static QString androidWifiSsid() {
     // Requires ACCESS_WIFI_STATE + ACCESS_FINE_LOCATION permissions
@@ -81,6 +98,26 @@ static QVariantMap androidCellularInfo() {
         if (op.length() >= 5) {
             info["mcc"] = op.left(3);
             info["mnc"] = op.mid(3);
+        }
+    }
+
+    const jint sdkInt = QJniObject::getStaticField<jint>("android/os/Build$VERSION", "SDK_INT");
+    if (sdkInt >= 28) {
+        QJniObject signalStrength = telService.callObjectMethod(
+            "getSignalStrength", "()Landroid/telephony/SignalStrength;");
+        if (signalStrength.isValid()) {
+            QJniEnvironment levelEnv;
+            const jint signalLevel = signalStrength.callMethod<jint>("getLevel", "()I");
+            if (!clearJniException(levelEnv) && signalLevel >= 0 && signalLevel <= 4)
+                info["signalLevel"] = signalLevel;
+
+            QJniEnvironment env;
+            const jint rsrp = signalStrength.callMethod<jint>("getLteRsrp", "()I");
+            if (!clearJniException(env) && rsrp < 0 && rsrp > -200)
+                info["rsrp"] = QStringLiteral("%1dBm").arg(rsrp);
+        } else {
+            QJniEnvironment env;
+            clearJniException(env);
         }
     }
 
@@ -157,6 +194,13 @@ DiagnosticResult androidCellularDiag(DiagId id) {
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
         if (cell.contains("mcc") && cell.contains("mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (cell.contains("signalLevel")) {
+            QString signalLine = QStringLiteral("  Signal: %1")
+                .arg(signalGlyphs(cell["signalLevel"].toInt()));
+            if (cell.contains("rsrp"))
+                signalLine += QStringLiteral(" (RSRP %1)").arg(cell["rsrp"].toString());
+            out.append(signalLine);
+        }
         r.status = DiagStatus::Pass;
         r.summary = QStringLiteral("Carrier: %1").arg(cell.value("carrierName").toString());
     } else {

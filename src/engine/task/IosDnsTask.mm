@@ -7,7 +7,12 @@
 #include "engine/task/DiagnosticTask.h"
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "util/DiagnosticFormatter.h"
+#include <QElapsedTimer>
+#import <Foundation/Foundation.h>
 #import <CFNetwork/CFNetwork.h>
+#import <sys/socket.h>
+#import <netinet/in.h>
+#import <arpa/inet.h>
 
 static NSString* resolveCFHost(NSString* hostname, int timeoutMs) {
     CFHostRef host = CFHostCreateWithName(kCFAllocatorDefault, (__bridge CFStringRef)hostname);
