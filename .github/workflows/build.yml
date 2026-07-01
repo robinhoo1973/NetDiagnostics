@@ -506,7 +506,11 @@ jobs:
           # install a clean stable platform + matching build-tools and make it
           # the ONLY platform available.
           SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
-          yes | "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" >/dev/null
+          # 'yes |' under 'set -o pipefail' fails on the harmless broken pipe
+          # when sdkmanager closes stdin early, so tolerate it and assert the
+          # platform is present afterwards instead.
+          yes 2>/dev/null | "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+          test -d "$ANDROID_SDK_ROOT/platforms/android-35" || { echo "ERROR: android-35 platform not installed"; exit 1; }
           shopt -s nullglob
           for p in "$ANDROID_SDK_ROOT"/platforms/*; do
             [ "$(basename "$p")" = "android-35" ] && continue
@@ -617,7 +621,11 @@ jobs:
           # install a clean stable platform + matching build-tools and make it
           # the ONLY platform available.
           SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
-          yes | "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" >/dev/null
+          # 'yes |' under 'set -o pipefail' fails on the harmless broken pipe
+          # when sdkmanager closes stdin early, so tolerate it and assert the
+          # platform is present afterwards instead.
+          yes 2>/dev/null | "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+          test -d "$ANDROID_SDK_ROOT/platforms/android-35" || { echo "ERROR: android-35 platform not installed"; exit 1; }
           shopt -s nullglob
           for p in "$ANDROID_SDK_ROOT"/platforms/*; do
             [ "$(basename "$p")" = "android-35" ] && continue
