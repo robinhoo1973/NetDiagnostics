@@ -17,11 +17,11 @@ permissions:
 jobs:
   deploy-ios:
     name: Deploy iOS to TestFlight
-    runs-on: macos-26
+    runs-on: macos-15
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     env:
-      QT_VERSION: "6.5.3"
+      QT_VERSION: "6.8.3"
       BUNDLE_ID: "com.netdiagnostic.app"
       APP_NAME: "NetDiagnostic"
       APP_SKU: "netdiag.ios.001"
@@ -72,7 +72,7 @@ jobs:
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
           pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+          aqt install-qt mac ios $QT_VERSION ios_arm64 -O $QT_INSTALL_DIR
 
       # ═════════════════════════════════════════════════════════════════
       # Write ASC private key to disk
@@ -247,17 +247,14 @@ jobs:
           echo "Build number set to $GITHUB_RUN_NUMBER"
 
       # ═════════════════════════════════════════════════════════════════
-      # iOS: NSURLSession replaces libcurl — no curl build needed
-      # ═════════════════════════════════════════════════════════════════
-
-      # ═════════════════════════════════════════════════════════════════
       # Configure CMake for iOS (Xcode generator)
+      # iOS uses NSURLSession (IosHttpTask.mm) — no libcurl cross-compile needed
       # ═════════════════════════════════════════════════════════════════
       - name: Configure CMake for iOS
         id: cmake
         run: |
-          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
-          QT_MAC="$QT_HOST_DIR/$QT_VERSION/macos"
+          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios_arm64"
+          QT_MAC="$QT_HOST_DIR/$QT_VERSION/clang_64"
 
           # Set QT_HOST_PATH as env var (matching build.yml pattern)
           export QT_HOST_PATH="$QT_MAC"
