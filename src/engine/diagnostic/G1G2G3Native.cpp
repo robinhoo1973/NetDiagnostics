@@ -29,6 +29,7 @@ typedef SSIZE_T ssize_t;
 #include <csignal>
 #include "util/DnsResolver.h"
 #include "util/DiagnosticFormatter.h"
+#include "util/NetUtil.h"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -2390,14 +2391,15 @@ DiagnosticResult speedTest(DiagId id) {
         }
     }
 
-    double dlSpeed = 0;
-    if (!dlResults.isEmpty()) {
-        std::sort(dlResults.begin(), dlResults.end());
-        int count = qMin(5, (int)dlResults.size());
+    auto avgTopN = [](QVector<double>& v, int n = 5) -> double {
+        if (v.isEmpty()) return 0;
+        std::sort(v.begin(), v.end());
+        int count = qMin(n, v.size());
         double sum = 0;
-        for (auto i = dlResults.size() - count; i < dlResults.size(); i++) sum += dlResults[i];
-        dlSpeed = sum / count;
-    }
+        for (auto i = v.size() - count; i < v.size(); i++) sum += v[i];
+        return sum / count;
+    };
+    double dlSpeed = avgTopN(dlResults);
 
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
@@ -2517,14 +2519,7 @@ DiagnosticResult speedTest(DiagId id) {
         }
     }
 
-    double ulSpeed = 0;
-    if (!ulResults.isEmpty()) {
-        std::sort(ulResults.begin(), ulResults.end());
-        int count = qMin(5, (int)ulResults.size());
-        double sum = 0;
-        for (auto i = ulResults.size() - count; i < ulResults.size(); i++) sum += ulResults[i];
-        ulSpeed = sum / count;
-    }
+    double ulSpeed = avgTopN(ulResults);
 
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));

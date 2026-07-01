@@ -7,6 +7,7 @@ typedef SSIZE_T ssize_t;
 #include "util/PingParser.h"
 #include "util/Logger.h"
 #include "util/DnsResolver.h"
+#include "util/NetUtil.h"
 #include <QHostInfo>
 #include <QElapsedTimer>
 #include <atomic>
@@ -194,7 +195,7 @@ DiagnosticResult dnsResolution(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4DnsResolution; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
     QString host = extractHostname(target);
     QElapsedTimer t; t.start();
     QStringList out;
@@ -396,30 +397,17 @@ static quint32 resolveIPv4(const QString& host) {
 
 // Single TCP connect — returns RTT in ms, or -1 on failure
 static int tcpRttMs(const QString& host, int port) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) return -1;
-    struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
-    addr.sin_family = AF_INET; addr.sin_port = htons(port);
-    quint32 ip = resolveIPv4(host);
-    if (!ip) { close(sock); return -1; }
-    addr.sin_addr.s_addr = htonl(ip);
-#ifdef _WIN32
-    u_long mode = 1;
-    ioctlsocket(sock, FIONBIO, &mode);
-#else
-    setNonblockWin(sock);
-#endif
     QElapsedTimer t; t.start();
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-    struct timeval tv = {3,0};
-    int sel = select(sock+1, nullptr, &fdset, nullptr, &tv);
-    if (sel <= 0) { close(sock); return -1; }
-    // Check SO_ERROR — non-blocking connect reports errors via SO_ERROR, not select
-    int err = 0; socklen_t elen = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &elen);
-    if (err != 0) { close(sock); return -1; }
+    int sock = tcpConnect(host, port, 3000);
+    if (sock < 0) return -1;
     int ms = static_cast<int>(t.elapsed()); close(sock); return ms;
+}
+
+static DiagnosticResult noTargetResult(DiagId id, DiagGroup group) {
+    DiagnosticResult r; r.id = id; r.group = group;
+    r.timestamp = QDateTime::currentDateTime();
+    r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target");
+    return r;
 }
 
 // ── Ping (TCP connect, cross-platform) — Windows-style per-probe output ─────
@@ -427,7 +415,7 @@ DiagnosticResult ping(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Ping; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
     QString host = extractHostname(target);
     quint32 resolvedIp = resolveIPv4(host);
     // Build output — strict Windows ping.exe format
@@ -744,7 +732,7 @@ DiagnosticResult traceroute(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Traceroute; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
     if (!targetIp) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("DNS resolution failed"); return r; }
@@ -845,7 +833,7 @@ DiagnosticResult pathPing(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4PathPing; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
     if (!targetIp) { r.status = DiagStatus::Fail; r.summary = QStringLiteral("DNS resolution failed"); return r; }
@@ -1043,7 +1031,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4MtuDiscovery; r.group = DiagGroup::G4;
     r.timestamp = QDateTime::currentDateTime();
-    if (target.isEmpty()) { r.status = DiagStatus::Skipped; r.summary = QStringLiteral("No target"); return r; }
+    if (target.isEmpty()) return noTargetResult(id, DiagGroup::G4);
     QString host = extractHostname(target);
     quint32 resolvedIp = resolveIPv4(host);
     QString ipStr;
