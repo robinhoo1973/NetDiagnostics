@@ -21,7 +21,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     env:
-      QT_VERSION: "6.5.3"
+      QT_VERSION: "6.12.0"
       BUNDLE_ID: "com.netdiagnostic.app"
       APP_NAME: "NetDiagnostic"
       APP_SKU: "netdiag.ios.001"
@@ -247,11 +247,8 @@ jobs:
           echo "Build number set to $GITHUB_RUN_NUMBER"
 
       # ═════════════════════════════════════════════════════════════════
-      # iOS: NSURLSession replaces libcurl — no curl build needed
-      # ═════════════════════════════════════════════════════════════════
-
-      # ═════════════════════════════════════════════════════════════════
       # Configure CMake for iOS (Xcode generator)
+      # iOS uses NSURLSession (IosHttpTask.mm) — no libcurl cross-compile needed
       # ═════════════════════════════════════════════════════════════════
       - name: Configure CMake for iOS
         id: cmake
