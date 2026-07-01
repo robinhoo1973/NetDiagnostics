@@ -256,8 +256,6 @@ jobs:
           QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
           QT_MAC="$QT_HOST_DIR/$QT_VERSION/macos"
 
-          # Set QT_HOST_PATH as env var (matching build.yml pattern)
-          export QT_HOST_PATH="$QT_MAC"
           # Set IOS_TEAM_ID so CMake can configure Xcode code signing properly
           export IOS_TEAM_ID="${{ secrets.IOS_TEAM_ID }}"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
@@ -265,6 +263,7 @@ jobs:
           "$QT_IOS/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
+            -DQT_HOST_PATH="$QT_MAC" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
