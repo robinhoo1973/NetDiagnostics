@@ -6,6 +6,7 @@
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
+#include <QElapsedTimer>
 #ifdef PLATFORM_IOS
 #include "engine/task/IosHttpTask.mm"      // iosHttpDiagnostic() — NSURLSession
 #include "engine/task/IosDnsTask.mm"       // iosDnsResolve() — CFHost
