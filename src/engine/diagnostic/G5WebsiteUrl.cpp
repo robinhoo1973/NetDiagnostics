@@ -28,7 +28,7 @@ static inline void closeSocket(int fd) { closesocket((SOCKET)(uintptr_t)fd); }
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-static inline void closeSocket(int fd) { ::closeSocket(fd); }
+static inline void closeSocket(int fd) { ::close(fd); }
 #endif
 
 namespace G5WebsiteUrl {
