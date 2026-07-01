@@ -53,10 +53,12 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
             dispatch_semaphore_signal(sem);
         }];
 
-    // Capture metrics for timing breakdown
-    if (@available(iOS 10.0, *)) {
-        [task performSelector:@selector(setCollectsMetrics:) withObject:(__bridge id)(__bridge void*)@YES];
-    }
+    // NOTE: NSURLSessionTaskMetrics (DNS/connect/TLS/TTFB timing) requires a
+    // session delegate implementing URLSession:task:didFinishCollectingMetrics:.
+    // A synchronous semaphore-based request cannot use a delegate here, so the
+    // fine-grained timing fields remain 0. (A previous version called a
+    // non-existent -setCollectsMetrics: selector, which crashed with
+    // "unrecognized selector sent to instance".)
 
     [task resume];
     dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutMs + 5000) * NSEC_PER_MSEC));

@@ -420,7 +420,73 @@ static DiagnosticResult noTargetResult(DiagId id, DiagGroup group) {
     return r;
 }
 
-// ── Ping (TCP connect, cross-platform) — Windows-style per-probe output ─────
+#if !defined(_WIN32) && !defined(__linux__)
+// ── ICMP Echo helpers (Apple/BSD) ──────────────────────────────────────────
+// SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root and WITHOUT
+// any special entitlement (Apple's SimplePing pattern), so real ICMP ping works
+// in the sandbox. Shared by ping() and the traceroute hop prober below.
+
+// Internet checksum (RFC 1071).
+static uint16_t icmpEchoChecksum(const void* data, int len) {
+    const uint16_t* w = static_cast<const uint16_t*>(data);
+    uint32_t sum = 0;
+    while (len > 1) { sum += *w++; len -= 2; }
+    if (len == 1) sum += *reinterpret_cast<const uint8_t*>(w);
+    sum = (sum >> 16) + (sum & 0xFFFF);
+    sum += (sum >> 16);
+    return static_cast<uint16_t>(~sum);
+}
+
+// Single ICMP Echo probe to an IPv4 address (host byte order). Returns RTT in ms,
+// or -1 on timeout/failure. On Darwin the kernel rewrites the identifier and
+// recomputes the checksum, but we fill a valid checksum for BSD correctness.
+static int icmpEchoRttMs(quint32 ipHostOrder, int seq, int timeoutMs) {
+    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (sock < 0) return -1;
+    struct timeval rcvTo;
+    rcvTo.tv_sec = timeoutMs / 1000;
+    rcvTo.tv_usec = (timeoutMs % 1000) * 1000;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &rcvTo, sizeof(rcvTo));
+
+    unsigned char packet[16];
+    memset(packet, 0, sizeof(packet));
+    packet[0] = 8; // Type = Echo Request
+    packet[1] = 0; // Code = 0
+    uint16_t ident = static_cast<uint16_t>(getpid() & 0xFFFF);
+    uint16_t s     = static_cast<uint16_t>(seq);
+    packet[4] = static_cast<unsigned char>(ident >> 8); packet[5] = static_cast<unsigned char>(ident & 0xFF);
+    packet[6] = static_cast<unsigned char>(s     >> 8); packet[7] = static_cast<unsigned char>(s     & 0xFF);
+    uint16_t ck = icmpEchoChecksum(packet, sizeof(packet));
+    memcpy(&packet[2], &ck, sizeof(ck));
+
+    struct sockaddr_in dst; memset(&dst, 0, sizeof(dst));
+    dst.sin_family = AF_INET;
+    dst.sin_addr.s_addr = htonl(ipHostOrder);
+
+    QElapsedTimer tm; tm.start();
+    if (::sendto(sock, packet, sizeof(packet), 0, (struct sockaddr*)&dst, sizeof(dst)) < 0) {
+        closeSocket(sock); return -1;
+    }
+    while ((int)tm.elapsed() < timeoutMs) {
+        fd_set rfds; FD_ZERO(&rfds); FD_SET(sock, &rfds);
+        struct timeval tv; tv.tv_sec = 0; tv.tv_usec = 200000; // 200ms poll
+        int sel = select(sock + 1, &rfds, nullptr, nullptr, &tv);
+        if (sel < 0) break;
+        if (sel == 0) continue;
+        unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl = sizeof(from);
+        ssize_t n = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fl);
+        if (n < 8) continue; // Darwin delivers the ICMP header directly (no IP header)
+        int type = buf[0];
+        if (type == 0 && from.sin_addr.s_addr == dst.sin_addr.s_addr) { // Echo Reply from target
+            int ms = (int)tm.elapsed(); closeSocket(sock); return ms;
+        }
+        if (type == 3) { closeSocket(sock); return -1; } // Destination Unreachable → loss
+    }
+    closeSocket(sock); return -1;
+}
+#endif // Apple/BSD ICMP Echo helpers
+
+// ── Ping — ICMP Echo on iOS/macOS (permission-safe), TCP connect elsewhere ───
 DiagnosticResult ping(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Ping; r.group = DiagGroup::G4;
@@ -445,13 +511,20 @@ DiagnosticResult ping(const QString& target) {
 
     QElapsedTimer t; t.start();
     int sent=0, rcvd=0; double sumMs=0, minMs=1e9, maxMs=0;
-    // TCP connect is the default method — no root required, cross-platform,
-    // and more representative of real application connectivity than ICMP.
+    // iOS/macOS: use real ICMP Echo via a datagram ICMP socket (no root needed).
+    // If ICMP is blocked/unavailable, fall back to a TCP connect probe. Windows
+    // and Linux keep the permission-safe TCP connect method (unchanged).
     for (int i=0; i<4; ++i) {
         ++sent;
         int ms = -1;
-        int ports[] = {443, 80, 22, 8080, 8443};
-        for (int p : ports) { ms = tcpRttMs(host, p); if (ms >= 0) break; }
+#if !defined(_WIN32) && !defined(__linux__)
+        if (resolvedIp)
+            ms = icmpEchoRttMs(resolvedIp, i + 1, 2000); // ICMP Echo first (accurate)
+#endif
+        if (ms < 0) {
+            int ports[] = {443, 80, 22, 8080, 8443};      // TCP fallback / default
+            for (int p : ports) { ms = tcpRttMs(host, p); if (ms >= 0) break; }
+        }
         if (ms >= 0) {
             ++rcvd; sumMs += ms;
             if (ms<minMs) minMs=ms;
@@ -663,18 +736,30 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     return -1;
 }
 #else
-// macOS/iOS/BSD: UDP TTL probing + passive ICMP listener (no root needed).
-// Uses SOCK_DGRAM, IPPROTO_ICMP which Apple's sandbox allows (SimplePing pattern).
-// Research: dev.to/dtisch "How I implemented ping and traceroute on iOS"
+// macOS/iOS/BSD: ICMP Echo TTL probing via a datagram ICMP socket (no root).
+// SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root privileges
+// and WITHOUT any special entitlement — it is the same mechanism Apple's
+// SimplePing sample code uses. We send ICMP Echo Requests with an increasing
+// IP_TTL on THIS socket and read the resulting ICMP Time Exceeded (type 11),
+// Echo Reply (type 0) or Destination Unreachable (type 3) on the SAME socket.
+// The kernel correlates the returning error to our echo request by identifier,
+// so a raw socket (which iOS forbids) is never required.
+//
+// IMPORTANT: a previous implementation sent UDP probes on a separate socket and
+// listened on the ICMP socket. On Darwin a datagram ICMP socket does NOT receive
+// ICMP errors triggered by unrelated UDP datagrams, so every hop timed out and
+// traceroute produced an all-"*" result. Sending ICMP Echo on the ICMP socket
+// itself is the reliable, permission-safe approach on iOS/macOS.
+// (icmpEchoChecksum() is defined once, above, near ping().)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
     quint32 targetIp = resolveIPv4(host);
     if(!targetIp){rttMs=0;hopIp.clear();return -2;}
 
-    // Passive ICMP listener (SOCK_DGRAM, IPPROTO_ICMP — allowed on iOS/macOS sandbox)
+    // Datagram ICMP socket — allowed on iOS/macOS without root (SimplePing pattern)
     int icmpSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     if (icmpSock < 0) {
         s_rawIcmpAvailable = false;
-        // Fallback: TCP connect with TTL
+        // Fallback: TCP connect with TTL (used only if ICMP is somehow unavailable)
         int sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0) { rttMs=0; hopIp.clear(); return -2; }
         setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
@@ -695,40 +780,54 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         closeSocket(sock); rttMs=0; hopIp.clear(); return -1;
     }
 
-    // UDP probe sender with TTL
-    int udpSock = socket(AF_INET, SOCK_DGRAM, 0);
-    setsockopt(udpSock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+    // Per-hop outgoing TTL + a receive timeout guard on the ICMP socket.
+    setsockopt(icmpSock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+    struct timeval rcvTo = {2, 0};
+    setsockopt(icmpSock, SOL_SOCKET, SO_RCVTIMEO, &rcvTo, sizeof(rcvTo));
 
-    struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
-    addr.sin_family=AF_INET; addr.sin_port=htons(33434+ttl);
-    addr.sin_addr.s_addr=htonl(targetIp);
+    // Build an 8-byte ICMP Echo Request header (+ zero payload). With SOCK_DGRAM
+    // the kernel rewrites the identifier and recomputes the checksum, but we fill
+    // a valid checksum anyway so the same code is correct on plain BSD too.
+    unsigned char packet[16];
+    memset(packet, 0, sizeof(packet));
+    packet[0] = 8; // Type = Echo Request
+    packet[1] = 0; // Code = 0
+    uint16_t ident = static_cast<uint16_t>(getpid() & 0xFFFF);
+    uint16_t seq   = static_cast<uint16_t>(ttl);
+    packet[4] = static_cast<unsigned char>(ident >> 8); packet[5] = static_cast<unsigned char>(ident & 0xFF);
+    packet[6] = static_cast<unsigned char>(seq   >> 8); packet[7] = static_cast<unsigned char>(seq   & 0xFF);
+    uint16_t ck = icmpEchoChecksum(packet, sizeof(packet));
+    memcpy(&packet[2], &ck, sizeof(ck));
+
+    struct sockaddr_in dst; memset(&dst,0,sizeof(dst));
+    dst.sin_family=AF_INET;
+    dst.sin_addr.s_addr=htonl(targetIp);
 
     QElapsedTimer tm; tm.start();
-    char dummy=0;
-    ssize_t nsent = ::sendto(udpSock,&dummy,1,0,(struct sockaddr*)&addr,sizeof(addr));
-    close(udpSock);
-    if (nsent < 0) { close(icmpSock); rttMs=0; hopIp.clear(); return -2; }
+    if (::sendto(icmpSock, packet, sizeof(packet), 0, (struct sockaddr*)&dst, sizeof(dst)) < 0) {
+        close(icmpSock); rttMs=0; hopIp.clear(); return -2;
+    }
 
-    // Listen for ICMP response
+    // Listen for the matching ICMP response from either the target or a router.
     while((int)tm.elapsed()<2000){
         fd_set rfds; FD_ZERO(&rfds); FD_SET(icmpSock,&rfds);
-        struct timeval tv={1,0};
+        struct timeval tv={2,0};
         int sel=select(icmpSock+1,&rfds,nullptr,nullptr,&tv);
         if(sel<0)break; if(sel==0)continue;
         unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl=sizeof(from);
         ssize_t n=recvfrom(icmpSock,buf,sizeof(buf),0,(struct sockaddr*)&from,&fl);
-        // macOS: SOCK_DGRAM+IPPROTO_ICMP returns ICMP header directly (no IP header)
+        // Darwin SOCK_DGRAM ICMP delivers the ICMP header directly (no IP header).
         if(n<8)continue;
-        int type=buf[0], code=buf[1];
+        int type=buf[0];
         if(type==0){ // Echo Reply — reached target
             hopIp=ip4ToStr(from.sin_addr);
             rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
-        if(type==11&&code==0){ // Time Exceeded — intermediate router
+        if(type==11){ // Time Exceeded — intermediate router
             hopIp=ip4ToStr(from.sin_addr);
             rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
         }
-        if(type==3&&code==3){ // Port Unreachable — reached target
+        if(type==3){ // Destination Unreachable — host reached (proto/port closed)
             hopIp=ip4ToStr(from.sin_addr);
             rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }

@@ -87,12 +87,56 @@ static NSString* radioAccessLabel(NSString* rat)
     return rat;
 }
 
+// ── WiFi info ───────────────────────────────────────────────────────────────
+
+QVariantMap iosWiFiInfo()
+{
+    QVariantMap info;
+    __block NSString* ssid = nil;
+    __block NSString* bssid = nil;
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+
+    if (@available(iOS 14.0, *)) {
+        [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
+            if (network) {
+                if (network.SSID && network.SSID.length > 0)
+                    ssid = [network.SSID copy];
+                if (network.BSSID && network.BSSID.length > 0)
+                    bssid = [network.BSSID copy];
+            }
+            dispatch_semaphore_signal(sem);
+        }];
+        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+    }
+
+    if (ssid && ssid.length > 0)
+        info["ssid"] = QString::fromNSString(ssid);
+    else
+        info["ssid"] = QString();
+
+    if (bssid && bssid.length > 0)
+        info["bssid"] = QString::fromNSString(bssid);
+    else
+        info["bssid"] = QString();
+
+    // Add diagnostics
+    if (!ssid || ssid.length == 0)
+        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission denied (requires NSLocalNetworkUsageDescription + NSBonjourServiceTypes)");
+
+    return info;
+}
+
+// ── Cellular info ────────────────────────────────────────────────────────────
+
 QVariantMap iosCellularInfo()
 {
     QVariantMap info;
 
     CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
-    if (!netInfo) return info;
+    if (!netInfo) {
+        info["error"] = QStringLiteral("Failed to initialize CTTelephonyNetworkInfo");
+        return info;
+    }
 
     // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
     // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
@@ -100,12 +144,14 @@ QVariantMap iosCellularInfo()
     // will eventually return placeholder strings ("--", "65535") on future iOS versions.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    bool hasCarrier = false;
     if (@available(iOS 12.0, *)) {
         NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
         if (providers && providers.count > 0) {
             for (NSString* key in providers) {
                 CTCarrier* carrier = providers[key];
                 if (carrier.carrierName && carrier.carrierName.length > 0) {
+                    hasCarrier = true;
                     info["carrierName"] = QString::fromNSString(carrier.carrierName);
                     if (carrier.mobileCountryCode)
                         info["mcc"] = QString::fromNSString(carrier.mobileCountryCode);
@@ -125,9 +171,13 @@ QVariantMap iosCellularInfo()
     if (rat) {
         info["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
         info["radioAccessRaw"] = QString::fromNSString(rat);
+    } else if (!hasCarrier) {
+        info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
     }
 
-    info["signalNotice"] = QStringLiteral("Signal strength unavailable on iOS (public API restriction)");
+    // Signal strength is not available via public API (iOS restricts this)
+    info["signalNotice"] = QStringLiteral("Signal strength: unavailable (Apple restricts public API access)");
+    info["signalNote"] = QStringLiteral("To monitor signal: use Xcode -> Simulator -> I/O -> Cellular");
 
     return info;
 }

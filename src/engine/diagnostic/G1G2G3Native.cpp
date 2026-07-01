@@ -935,9 +935,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
 
 #ifdef PLATFORM_IOS
-            // iOS: retrieve WiFi SSID via shared helper
-            ssid = iosCopyWiFiSSID();
+            // iOS: retrieve WiFi SSID and BSSID via shared helper
+            QVariantMap wifiData = iosWiFiInfo();
+            ssid = wifiData.value("ssid", "").toString();
             if (ssid.isEmpty()) ssid = QStringLiteral("-");
+            bssid = wifiData.value("bssid", "").toString();
+            if (bssid.isEmpty()) bssid = QStringLiteral("-");
 #endif
 
 #ifdef __linux__

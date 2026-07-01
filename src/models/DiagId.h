@@ -67,7 +67,6 @@ enum class DiagId {
     G3DnsServers,
     G3DnsCache,
     G3DnsPollution,
-    G3InternetConnectivity,
     G3InternetSpeedTest,
 
     // G4 — Remote Host (6)
@@ -117,7 +116,6 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G3DnsServers:
         case DiagId::G3DnsCache:
         case DiagId::G3DnsPollution:
-        case DiagId::G3InternetConnectivity:
         case DiagId::G3InternetSpeedTest:
             return DiagGroup::G3;
         case DiagId::G4DnsResolution:
@@ -145,7 +143,7 @@ inline DiagGroup diagGroup(DiagId id) {
     return DiagGroup::G1;
 }
 
-inline QString testIdLabelKey(DiagId id) {
+inline QString diagIdLabelKey(DiagId id) {
     switch (id) {
         case DiagId::G1NetworkAdapters:     return QStringLiteral("test_g1_adapters");
         case DiagId::G1NicAdvanced:         return QStringLiteral("test_g1_nic_advanced");
@@ -165,7 +163,6 @@ inline QString testIdLabelKey(DiagId id) {
         case DiagId::G3DnsServers:          return QStringLiteral("test_g3_dns_servers");
         case DiagId::G3DnsCache:            return QStringLiteral("test_g3_dns_cache");
         case DiagId::G3DnsPollution:        return QStringLiteral("test_g3_dns_pollution");
-        case DiagId::G3InternetConnectivity: return QStringLiteral("test_g3_internet");
         case DiagId::G3InternetSpeedTest:   return QStringLiteral("test_g3_speed");
         case DiagId::G4DnsResolution:       return QStringLiteral("test_g4_dns");
         case DiagId::G4Ping:                return QStringLiteral("test_g4_ping");
