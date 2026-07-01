@@ -9,9 +9,9 @@
 #include <QElapsedTimer>
 #include <QDateTime>
 #ifdef PLATFORM_IOS
-#include "engine/task/IosHttpTask.mm"      // iosHttpDiagnostic() — NSURLSession
-#include "engine/task/IosDnsTask.mm"       // iosDnsResolve() — CFHost
-#include "engine/task/IosNetworkInfo.mm"   // iosDefaultGatewayDiag(), iosDhcpDiag()
+#include "engine/task/IosHttpTask.h"
+#include "engine/task/IosDnsTask.h"
+#include "engine/task/IosNetworkInfo.h"
 #endif
 #ifdef PLATFORM_ANDROID
 #include "engine/task/AndroidNetworkInfo.h"
