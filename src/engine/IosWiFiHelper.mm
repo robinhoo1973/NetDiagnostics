@@ -94,7 +94,12 @@ QVariantMap iosCellularInfo()
     CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
     if (!netInfo) return info;
 
-    // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers
+    // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
+    // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
+    // We suppress the warnings and keep the best-effort implementation — the values
+    // will eventually return placeholder strings ("--", "65535") on future iOS versions.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
     if (@available(iOS 12.0, *)) {
         NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
         if (providers && providers.count > 0) {
@@ -113,6 +118,7 @@ QVariantMap iosCellularInfo()
             }
         }
     }
+#pragma clang diagnostic pop
 
     // Radio access technology
     NSString* rat = netInfo.serviceCurrentRadioAccessTechnology.allValues.firstObject;
@@ -120,6 +126,8 @@ QVariantMap iosCellularInfo()
         info["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
         info["radioAccessRaw"] = QString::fromNSString(rat);
     }
+
+    info["signalNotice"] = QStringLiteral("Signal strength unavailable on iOS (public API restriction)");
 
     return info;
 }

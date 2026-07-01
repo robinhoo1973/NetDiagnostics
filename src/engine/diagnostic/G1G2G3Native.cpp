@@ -182,6 +182,29 @@ static QString ipToStr(uint32_t ip) {
     return ip4ToStr(a);
 }
 
+static bool hasNonEmptyValue(const QVariantMap& values, const char* key) {
+    const auto it = values.constFind(QLatin1String(key));
+    return it != values.cend() && !it->toString().trimmed().isEmpty();
+}
+
+static bool hasCellularIdentity(const QVariantMap& cell) {
+    return hasNonEmptyValue(cell, "carrierName")
+        || hasNonEmptyValue(cell, "radioAccess")
+        || (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"));
+}
+
+static QString cellularSummary(const QVariantMap& cell) {
+    const QString carrier = cell.value(QStringLiteral("carrierName")).toString().trimmed();
+    const QString radio = cell.value(QStringLiteral("radioAccess")).toString().trimmed();
+    if (!carrier.isEmpty() && !radio.isEmpty())
+        return QStringLiteral("Carrier: %1 (%2)").arg(carrier, radio);
+    if (!carrier.isEmpty())
+        return QStringLiteral("Carrier: %1").arg(carrier);
+    if (!radio.isEmpty())
+        return QStringLiteral("Radio: %1").arg(radio);
+    return QStringLiteral("Cellular service detected");
+}
+
 static const char* tcpStateName(int st) {
     switch(st){case 1:return"ESTABLISHED";case 2:return"SYN_SENT";case 3:return"SYN_RECV";
     case 4:return"FIN_WAIT1";case 5:return"FIN_WAIT2";case 6:return"TIME_WAIT";
@@ -314,15 +337,18 @@ DiagnosticResult networkAdapters(DiagId id) {
 
     // 闁冲厜鍋撻柍鍏夊亾 Cellular info 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
     QVariantMap cell = iosCellularInfo();
-    if (!cell.isEmpty()) {
+    const bool hasCellIdentity = hasCellularIdentity(cell);
+    if (hasCellIdentity) {
         out.append(QString());
         out.append(QStringLiteral("Cellular Information:"));
-        if (cell.contains("carrierName"))
+        if (hasNonEmptyValue(cell, "carrierName"))
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-        if (cell.contains("radioAccess"))
+        if (hasNonEmptyValue(cell, "radioAccess"))
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        if (cell.contains("mcc") && cell.contains("mnc"))
+        if (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
     }
 
 #else
@@ -520,18 +546,23 @@ DiagnosticResult cellularInfo(DiagId id) {
 
 #ifdef PLATFORM_IOS
     QVariantMap cell = iosCellularInfo();
-    if (!cell.isEmpty()) {
-        if (cell.contains("carrierName"))
+    const bool hasCellIdentity = hasCellularIdentity(cell);
+    if (hasCellIdentity) {
+        if (hasNonEmptyValue(cell, "carrierName"))
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-        if (cell.contains("radioAccess"))
+        if (hasNonEmptyValue(cell, "radioAccess"))
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        if (cell.contains("mcc") && cell.contains("mnc"))
+        if (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         out.append(QString());
         r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("Carrier: %1 鐠?%2").arg(cell.value("carrierName").toString(), cell.value("radioAccess").toString());
+        r.summary = cellularSummary(cell);
     } else {
         out.append(QStringLiteral("  No cellular service available"));
+        if (hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         r.status = DiagStatus::Info; r.summary = QStringLiteral("No cellular service");
     }
 #else
