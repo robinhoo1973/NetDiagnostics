@@ -37,15 +37,17 @@ jobs:
       - uses: actions/checkout@v4
 
       # ===================================================================
-      # Select Xcode 26+ (includes iOS 26+ SDK required by App Store Connect)
+      # Select Xcode (prefer 26+ for latest App Store SDK requirements)
       # ===================================================================
       - name: Select Xcode 26+
         run: |
           set -euo pipefail
 
           CANDIDATES=()
+          FALLBACKS=()
           for app in /Applications/Xcode_*.app; do
             [ -d "$app" ] || continue
+            FALLBACKS+=("$app")
             ver="${app##*/Xcode_}"
             ver="${ver%.app}"
             major="${ver%%.*}"
@@ -54,13 +56,18 @@ jobs:
             fi
           done
 
-          if [ "${#CANDIDATES[@]}" -eq 0 ]; then
-            echo "ERROR: No Xcode 26+ installation found on this runner."
+          if [ "${#FALLBACKS[@]}" -eq 0 ]; then
+            echo "ERROR: No Xcode installation found on this runner."
             ls -1 /Applications/Xcode*.app || true
             exit 1
           fi
 
-          SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          if [ "${#CANDIDATES[@]}" -gt 0 ]; then
+            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          else
+            echo "WARNING: Xcode 26+ not found; falling back to latest installed Xcode."
+            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+          fi
           sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
 
           xcodebuild -version
