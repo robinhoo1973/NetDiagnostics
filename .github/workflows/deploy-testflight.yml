@@ -17,7 +17,7 @@ permissions:
 jobs:
   deploy-ios:
     name: Deploy iOS to TestFlight
-    runs-on: macos-15
+    runs-on: macos-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     env:
@@ -35,6 +35,43 @@ jobs:
       # Checkout
       # ===================================================================
       - uses: actions/checkout@v4
+
+      # ===================================================================
+      # Select Xcode (prefer 26+ for latest App Store SDK requirements)
+      # ===================================================================
+      - name: Select Xcode 26+
+        run: |
+          set -euo pipefail
+
+          CANDIDATES=()
+          FALLBACKS=()
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            FALLBACKS+=("$app")
+            ver="${app##*/Xcode_}"
+            ver="${ver%.app}"
+            major="${ver%%.*}"
+            if [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )); then
+              CANDIDATES+=("$app")
+            fi
+          done
+
+          if [ "${#FALLBACKS[@]}" -eq 0 ]; then
+            echo "ERROR: No Xcode installation found on this runner."
+            ls -1 /Applications/Xcode*.app || true
+            exit 1
+          fi
+
+          if [ "${#CANDIDATES[@]}" -gt 0 ]; then
+            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          else
+            echo "WARNING: Xcode 26+ not found; falling back to latest installed Xcode."
+            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+          fi
+          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+
+          xcodebuild -version
+          echo "iOS SDK version: $(xcrun --sdk iphoneos --show-sdk-version)"
 
       # ===================================================================
       # Install build tools

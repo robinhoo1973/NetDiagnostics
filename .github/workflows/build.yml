@@ -368,7 +368,7 @@ jobs:
   # ===================================================================
   macos-arm64:
     name: macOS arm64
-    runs-on: macos-15
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -610,13 +610,42 @@ jobs:
   # ===================================================================
   ios:
     name: iOS
-    runs-on: macos-15
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
+      - name: Select Xcode (prefer 26+)
         run: |
-          sudo xcode-select --reset
+          set -euo pipefail
+
+          CANDIDATES=()
+          FALLBACKS=()
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            FALLBACKS+=("$app")
+            ver="${app##*/Xcode_}"
+            ver="${ver%.app}"
+            major="${ver%%.*}"
+            if [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )); then
+              CANDIDATES+=("$app")
+            fi
+          done
+
+          if [ "${#FALLBACKS[@]}" -eq 0 ]; then
+            echo "ERROR: No Xcode installation found on this runner."
+            ls -1 /Applications/Xcode*.app || true
+            exit 1
+          fi
+
+          if [ "${#CANDIDATES[@]}" -gt 0 ]; then
+            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          else
+            echo "WARNING: Xcode 26+ not found; falling back to latest installed Xcode."
+            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+          fi
+
+          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+          xcodebuild -version
           echo "SDK path: $(xcrun --sdk iphoneos --show-sdk-path)"
 
       - name: Install dependencies
