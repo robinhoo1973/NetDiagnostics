@@ -55,7 +55,7 @@ static NSString* resolveCFHost(NSString* hostname, int timeoutMs) {
 }
 
 // iOS-native DNS task — CFHost with dig-style output matching Windows/Linux format
-static DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) {
+DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) {
     DiagnosticResult r;
     r.id = id; r.group = diagGroup(id);
     r.timestamp = QDateTime::currentDateTime();
