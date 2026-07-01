@@ -87,6 +87,46 @@ static NSString* radioAccessLabel(NSString* rat)
     return rat;
 }
 
+// ── MCC/MNC to carrier name lookup (fallback for iOS 16+) ─────────────────────
+// When CTCarrier.carrierName returns "--" on iOS 16+, query the MCC (Mobile Country
+// Code) and MNC (Mobile Network Code) to identify the carrier from a mapping table.
+// This lookup table contains the major carriers worldwide; you can extend it.
+static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
+{
+    // Format: "MCC-MNC" → "Carrier Name"
+    static const QMap<QString, QString> carriers = {
+        // China
+        {"460-00", "中国移动 (China Mobile)"}, {"460-02", "中国移动 (China Mobile)"},
+        {"460-01", "中国联通 (China Unicom)"},
+        {"460-03", "中国电信 (China Telecom)"},
+        // United States
+        {"310-004", "Verizon"},   {"310-010", "Verizon"},   {"310-012", "Verizon"},
+        {"310-013", "Verizon"},   {"310-014", "Verizon"},
+        {"310-005", "AT&T"},      {"310-070", "AT&T"},      {"310-150", "AT&T"},
+        {"310-160", "AT&T"},      {"310-170", "AT&T"},      {"310-200", "AT&T"},
+        {"310-210", "AT&T"},      {"310-220", "AT&T"},
+        {"310-026", "T-Mobile"},  {"310-160", "T-Mobile"},  {"310-200", "T-Mobile"},
+        // UK
+        {"234-03", "Vodafone"},   {"234-10", "Vodafone"},
+        {"234-15", "Vodafone"},   {"234-30", "O2"},
+        {"234-20", "Three"},      {"234-50", "Three"},
+        // Germany
+        {"262-01", "Telekom"},    {"262-02", "Vodafone"},   {"262-03", "E-Plus"},
+        {"262-07", "Telefónica"},
+        // France
+        {"208-01", "Orange"},     {"208-02", "SFR"},        {"208-03", "Bouygues"},
+        // Japan
+        {"440-10", "docomo"},     {"440-20", "SoftBank"},   {"440-50", "SoftBank"},
+        {"440-04", "au"},         {"440-06", "au"},
+        // South Korea
+        {"450-02", "KT"},         {"450-04", "SK Telecom"}, {"450-08", "LG U+"},
+        // India
+        {"404-01", "Airtel"},     {"404-02", "Vodafone"},   {"404-03", "IDEA"},
+        {"404-05", "Vodafone"},   {"404-09", "Jio"},
+    };
+    return carriers.value(mcc + "-" + mnc, QString());
+}
+
 // ── WiFi info ───────────────────────────────────────────────────────────────
 
 QVariantMap iosWiFiInfo()
@@ -142,26 +182,49 @@ QVariantMap iosCellularInfo()
     // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
     // We suppress the warnings and keep the best-effort implementation — the values
     // will eventually return placeholder strings ("--", "65535") on future iOS versions.
+    // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     bool hasCarrier = false;
+    QString mccStr, mncStr;
     if (@available(iOS 12.0, *)) {
         NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
         if (providers && providers.count > 0) {
             for (NSString* key in providers) {
                 CTCarrier* carrier = providers[key];
-                if (carrier.carrierName && carrier.carrierName.length > 0) {
-                    hasCarrier = true;
-                    info["carrierName"] = QString::fromNSString(carrier.carrierName);
-                    if (carrier.mobileCountryCode)
-                        info["mcc"] = QString::fromNSString(carrier.mobileCountryCode);
-                    if (carrier.mobileNetworkCode)
-                        info["mnc"] = QString::fromNSString(carrier.mobileNetworkCode);
+                if (carrier) {
+                    // Try to get the carrier name
+                    QString carrierName;
+                    if (carrier.carrierName && carrier.carrierName.length > 0) {
+                        carrierName = QString::fromNSString(carrier.carrierName);
+                        // Check if it's the placeholder string (iOS 16+ default)
+                        if (carrierName != "--" && carrierName != "65535") {
+                            info["carrierName"] = carrierName;
+                            hasCarrier = true;
+                        }
+                    }
+                    // Always store MCC/MNC for fallback lookup
+                    if (carrier.mobileCountryCode) {
+                        mccStr = QString::fromNSString(carrier.mobileCountryCode);
+                        info["mcc"] = mccStr;
+                    }
+                    if (carrier.mobileNetworkCode) {
+                        mncStr = QString::fromNSString(carrier.mobileNetworkCode);
+                        info["mnc"] = mncStr;
+                    }
                     if (carrier.isoCountryCode)
                         info["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
                     break; // first active carrier
                 }
             }
+        }
+    }
+    // Fallback: if carrierName is empty or placeholder, try MCC+MNC lookup
+    if (!hasCarrier && !mccStr.isEmpty() && !mncStr.isEmpty()) {
+        QString looked = mccMncToCarrier(mccStr, mncStr);
+        if (!looked.isEmpty()) {
+            info["carrierName"] = looked + " (via MCC/MNC)";
+            hasCarrier = true;
         }
     }
 #pragma clang diagnostic pop
