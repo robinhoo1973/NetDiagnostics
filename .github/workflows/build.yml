@@ -499,16 +499,21 @@ jobs:
           mkdir -p resources/android/res/drawable
           cp resources/icons/netanalysis.png resources/android/res/drawable/ic_launcher.png
 
-          # GitHub runners ship preview/extension SDK platforms (e.g.
-          # android-36-ext19) whose android.jar the bundled aapt2 cannot parse,
-          # which breaks resource linking. androiddeployqt defaults to the highest
-          # installed platform, so drop the preview ones to fall back to a stable
-          # platform (android-35/34).
+          # GitHub runners only ship preview/extension SDK platforms
+          # (android-*-extNN) plus a stub android-37; aapt2/gradle cannot use
+          # them (android.jar fails to load / platform not fully installed).
+          # androiddeployqt defaults to the highest installed platform, so
+          # install a clean stable platform + matching build-tools and make it
+          # the ONLY platform available.
+          SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
+          yes | "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" >/dev/null
           shopt -s nullglob
-          for p in "$ANDROID_SDK_ROOT"/platforms/*-ext*; do
-            echo "Removing preview SDK platform: $(basename "$p")"
+          for p in "$ANDROID_SDK_ROOT"/platforms/*; do
+            [ "$(basename "$p")" = "android-35" ] && continue
+            echo "Removing SDK platform: $(basename "$p")"
             rm -rf "$p"
           done
+          echo "Remaining platforms:"; ls "$ANDROID_SDK_ROOT/platforms"
 
           # Qt auto-generates an 'apk' target that runs androiddeployqt with the
           # generated deployment JSON, copies the app .so into the package, and
@@ -605,16 +610,21 @@ jobs:
           mkdir -p resources/android/res/drawable
           cp resources/icons/netanalysis.png resources/android/res/drawable/ic_launcher.png
 
-          # GitHub runners ship preview/extension SDK platforms (e.g.
-          # android-36-ext19) whose android.jar the bundled aapt2 cannot parse,
-          # which breaks resource linking. androiddeployqt defaults to the highest
-          # installed platform, so drop the preview ones to fall back to a stable
-          # platform (android-35/34).
+          # GitHub runners only ship preview/extension SDK platforms
+          # (android-*-extNN) plus a stub android-37; aapt2/gradle cannot use
+          # them (android.jar fails to load / platform not fully installed).
+          # androiddeployqt defaults to the highest installed platform, so
+          # install a clean stable platform + matching build-tools and make it
+          # the ONLY platform available.
+          SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
+          yes | "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" >/dev/null
           shopt -s nullglob
-          for p in "$ANDROID_SDK_ROOT"/platforms/*-ext*; do
-            echo "Removing preview SDK platform: $(basename "$p")"
+          for p in "$ANDROID_SDK_ROOT"/platforms/*; do
+            [ "$(basename "$p")" = "android-35" ] && continue
+            echo "Removing SDK platform: $(basename "$p")"
             rm -rf "$p"
           done
+          echo "Remaining platforms:"; ls "$ANDROID_SDK_ROOT/platforms"
 
           # Qt auto-generates an 'apk' target that runs androiddeployqt with the
           # generated deployment JSON, copies the app .so into the package, and
