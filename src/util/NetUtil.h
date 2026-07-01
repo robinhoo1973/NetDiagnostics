@@ -49,6 +49,9 @@ inline bool retrySendWouldBlock(int sock, int timeoutSec = 1) {
     return true;
 }
 
+// ── hostToAddr — forward declaration (defined below, used by tcpConnect) ──
+static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in& addr);
+
 // ── TCP connect with timeout (non-blocking) ───────────────────────────
 // Returns connected socket fd, or -1 on failure. Eliminates ~14 lines of
 // boilerplate per call site (socket, hostToAddr, nonblock, connect, select, SO_ERROR).
