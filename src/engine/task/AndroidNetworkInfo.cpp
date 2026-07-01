@@ -12,6 +12,8 @@
 #include <QStringList>
 #include <QVariantMap>
 #include <QDateTime>
+#include <QElapsedTimer>
+#include <QUrl>
 #include "models/DiagnosticResult.h"
 #include "models/DiagId.h"
 #include "util/DiagnosticFormatter.h"

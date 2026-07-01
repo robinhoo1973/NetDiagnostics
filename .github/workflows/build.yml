@@ -656,10 +656,10 @@ jobs:
           echo "=== DEBUG: Checking SDK ==="
           xcrun --sdk iphoneos --show-sdk-path 2>&1
           echo "=== DEBUG: Configuring ==="
-          export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/clang_64"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           "$HOME/qt-ios/$QT_VERSION/ios/bin/qt-cmake" \
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DQT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/clang_64" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
