@@ -72,7 +72,7 @@ jobs:
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
           pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+          aqt install-qt mac ios $QT_VERSION ios_arm64 -O $QT_INSTALL_DIR
 
       # ═════════════════════════════════════════════════════════════════
       # Write ASC private key to disk
@@ -253,7 +253,7 @@ jobs:
       - name: Configure CMake for iOS
         id: cmake
         run: |
-          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
+          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios_arm64"
           QT_MAC="$QT_HOST_DIR/$QT_VERSION/macos"
 
           # Set QT_HOST_PATH as env var (matching build.yml pattern)
