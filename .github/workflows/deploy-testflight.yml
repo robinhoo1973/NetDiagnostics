@@ -17,7 +17,7 @@ permissions:
 jobs:
   deploy-ios:
     name: Deploy iOS to TestFlight
-    runs-on: macos-26
+    runs-on: macos-15
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     env:
