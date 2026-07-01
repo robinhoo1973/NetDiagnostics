@@ -254,7 +254,7 @@ jobs:
         id: cmake
         run: |
           QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios_arm64"
-          QT_MAC="$QT_HOST_DIR/$QT_VERSION/macos"
+          QT_MAC="$QT_HOST_DIR/$QT_VERSION/clang_64"
 
           # Set QT_HOST_PATH as env var (matching build.yml pattern)
           export QT_HOST_PATH="$QT_MAC"

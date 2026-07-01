@@ -637,7 +637,7 @@ jobs:
 
       - name: Configure
         run: |
-          export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/macos"
+          export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/clang_64"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           "$HOME/qt-ios/$QT_VERSION/ios_arm64/bin/qt-cmake" \
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
