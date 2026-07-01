@@ -14,7 +14,7 @@
 #include "engine/task/IosNetworkInfo.mm"   // iosDefaultGatewayDiag(), iosDhcpDiag()
 #endif
 #ifdef PLATFORM_ANDROID
-#include "engine/task/AndroidNetworkInfo.cpp" // androidWifiDiag, androidCellularDiag, etc.
+#include "engine/task/AndroidNetworkInfo.h"
 #endif
 #if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
 #include "engine/diagnostic/G5WebsiteUrl.h"
