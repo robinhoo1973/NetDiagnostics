@@ -247,7 +247,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\opt\qt6-install
-          key: qt6-build-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v1
+          key: qt6-build-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v2
 
       - name: Build Qt from source
         if: steps.cache-qt-build.outputs.cache-hit != 'true'
@@ -268,6 +268,9 @@ jobs:
             -DFEATURE_system_zlib=OFF \
             -DFEATURE_system_brotli=OFF \
             -DFEATURE_system_pcre2=OFF \
+            -DFEATURE_system_libb2=OFF \
+            -DFEATURE_zstd=OFF \
+            -DFEATURE_brotli=OFF \
             -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qttools" \
             -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
           echo ">>> Building (4 submodules only)..."
@@ -504,11 +507,19 @@ jobs:
           fi
           echo "Using deployment settings: $DEPLOY_JSON"
 
+          # androiddeployqt --android-platform must be an installed SDK platform
+          # (the runner has no android-26); pick the highest one available.
+          SDK_PLATFORM=$(ls "$ANDROID_SDK_ROOT/platforms" 2>/dev/null | grep -E '^android-[0-9]+$' | sort -t- -k2 -n | tail -1)
+          if [ -z "$SDK_PLATFORM" ]; then
+            echo "ERROR: no Android SDK platform installed under $ANDROID_SDK_ROOT/platforms"; exit 1
+          fi
+          echo "Using SDK build platform: $SDK_PLATFORM"
+
           # Build a real, installable (debug-signed + zipaligned) APK via Gradle.
           "$HOST_BIN/androiddeployqt" \
             --input "$DEPLOY_JSON" \
             --output build/android-build \
-            --android-platform android-${{ env.ANDROID_API_LEVEL }} \
+            --android-platform "$SDK_PLATFORM" \
             --jdk "$JAVA_HOME" \
             --gradle \
             --verbose
@@ -611,11 +622,19 @@ jobs:
           fi
           echo "Using deployment settings: $DEPLOY_JSON"
 
+          # androiddeployqt --android-platform must be an installed SDK platform
+          # (the runner has no android-26); pick the highest one available.
+          SDK_PLATFORM=$(ls "$ANDROID_SDK_ROOT/platforms" 2>/dev/null | grep -E '^android-[0-9]+$' | sort -t- -k2 -n | tail -1)
+          if [ -z "$SDK_PLATFORM" ]; then
+            echo "ERROR: no Android SDK platform installed under $ANDROID_SDK_ROOT/platforms"; exit 1
+          fi
+          echo "Using SDK build platform: $SDK_PLATFORM"
+
           # Build a real, installable (debug-signed + zipaligned) APK via Gradle.
           "$HOST_BIN/androiddeployqt" \
             --input "$DEPLOY_JSON" \
             --output build/android-build \
-            --android-platform android-${{ env.ANDROID_API_LEVEL }} \
+            --android-platform "$SDK_PLATFORM" \
             --jdk "$JAVA_HOME" \
             --gradle \
             --verbose
