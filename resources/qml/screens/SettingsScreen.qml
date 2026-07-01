@@ -140,9 +140,15 @@ Item {
                         Rectangle { implicitWidth: 48; implicitHeight: 48; radius: 12; color: Qt.alpha(Theme.accentBlue, 0.15)
                             AppIcon { anchors.centerIn: parent; name: "wifi"; size: 28; color: Theme.accentBlue } }
                         Item { width: 14 }
-                        ColumnLayout { spacing: 2
+                        ColumnLayout { spacing: 2; Layout.fillWidth: true
                             Label { text: "NetDiagnostic"; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Bold; color: Theme.textPrimary }
-                            Label { text: Tr.version; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
+                            Label {
+                                Layout.fillWidth: true
+                                text: "Version " + appState.appVersion
+                                      + (appState.buildNumber.length > 0 ? " (Build " + appState.buildNumber + ")" : "")
+                                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary
+                                wrapMode: Text.WordWrap
+                            }
                         }
                     }
                     Item { Layout.preferredHeight: 16 }
@@ -200,8 +206,8 @@ Item {
 
     component AboutRow: RowLayout {
         property string aboutIcon: ""; property string aboutText: ""
-        Label { text: aboutIcon; font.pixelSize: 16; color: Qt.alpha(Theme.cyan, 0.7) }
+        Label { text: aboutIcon; font.pixelSize: 16; color: Qt.alpha(Theme.cyan, 0.7); Layout.alignment: Qt.AlignTop }
         Item { width: 10 }
-        Label { text: aboutText; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Qt.alpha(Theme.textSecondary, 0.8) }
+        Label { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Qt.alpha(Theme.textSecondary, 0.8) }
     }
 }

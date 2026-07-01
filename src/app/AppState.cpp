@@ -8,6 +8,10 @@
 #include <cstdio>
 #include <chrono>
 #include <QTimer>
+#include <QCoreApplication>
+#if defined(__APPLE__)
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
 #include <QDialog>
 #endif
@@ -41,6 +45,33 @@ AppState::~AppState() {
     if (m_runStatus == RunStatus::Running) {
         m_runStatus = RunStatus::Cancelled;
     }
+}
+
+// ── App version / build number ──────────────────────────────────────────
+QString AppState::appVersion() const {
+    const QString v = QCoreApplication::applicationVersion();
+    return v.isEmpty() ? QStringLiteral("0.0.1") : v;
+}
+
+QString AppState::buildNumber() const {
+#if defined(__APPLE__)
+    // Read CFBundleVersion from the app bundle Info.plist (CI sets this to the
+    // GitHub run number, e.g. "379"). CoreFoundation is a C API — usable here
+    // without Objective-C.
+    if (CFBundleRef bundle = CFBundleGetMainBundle()) {
+        CFTypeRef v = CFBundleGetValueForInfoDictionaryKey(bundle, kCFBundleVersionKey);
+        if (v && CFGetTypeID(v) == CFStringGetTypeID()) {
+            char buf[64] = {0};
+            if (CFStringGetCString((CFStringRef)v, buf, sizeof(buf), kCFStringEncodingUTF8))
+                return QString::fromUtf8(buf);
+        }
+    }
+#endif
+#ifdef ND_BUILD_NUMBER
+    return QStringLiteral(ND_BUILD_NUMBER);
+#else
+    return QString();
+#endif
 }
 
 // ── State version — called at end of every mutation method ──────────────

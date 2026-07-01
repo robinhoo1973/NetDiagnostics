@@ -37,10 +37,16 @@ class AppState : public QObject {
     Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
+    Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
+    Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
 
 public:
     explicit AppState(QObject* parent = nullptr);
     ~AppState() override;
+
+    // ── App version / build ────────────────────────────────────────────────
+    QString appVersion() const;
+    QString buildNumber() const;
 
     // ── Target ─────────────────────────────────────────────────────────────
     QString target() const { return m_target; }
