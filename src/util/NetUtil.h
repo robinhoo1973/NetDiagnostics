@@ -9,7 +9,8 @@
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#define close closesocket
+// Use an inline function instead of a macro to avoid renaming Qt's QAbstractSocket::close()
+inline void closeSocket(int fd) { closesocket((SOCKET)(uintptr_t)fd); }
 #else
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -18,6 +19,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+inline void closeSocket(int fd) { ::close(fd); }
 #endif
 
 #include <QString>
@@ -61,15 +63,15 @@ inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return -1; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
     setSocketNonBlocking(sock);
     ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); return -1; }
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return -1; }
     int err = 0; socklen_t len = sizeof(err);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-    if (err != 0) { close(sock); return -1; }
+    if (err != 0) { closeSocket(sock); return -1; }
     return sock;
 }
 

@@ -927,7 +927,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                     double freq = wrq.u.freq.m / 1e9;
                     channel = QStringLiteral("%1 (%2 GHz)").arg((int)((freq - 2.412) / 0.005 + 1)).arg(freq, 0, 'f', 3);
                 }
-                close(sock);
+                closeSocket(sock);
             }
 #endif
 
@@ -1997,7 +1997,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return {};
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return {}; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return {}; }
 
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2007,10 +2007,10 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
     ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); return {}; }
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return {}; }
     int err = 0; socklen_t len = sizeof(err);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-    if (err != 0) { close(sock); return {}; }
+    if (err != 0) { closeSocket(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
@@ -2043,7 +2043,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
         // Wall-clock guard: abort if total recv time exceeds 30 s
         if (recvTimer.elapsed() > 30000) break;
     }
-    close(sock);
+    closeSocket(sock);
     return response;
 }
 
@@ -2066,7 +2066,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return r;
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return r; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return r; }
 
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2077,10 +2077,10 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {3, 0};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); return r; }
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return r; }
     int err = 0; socklen_t len = sizeof(err);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-    if (err != 0) { close(sock); return r; }
+    if (err != 0) { closeSocket(sock); return r; }
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nConnection: close\r\n\r\n")
@@ -2126,7 +2126,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
             body.append(buf, (int)n);
         }
     }
-    close(sock);
+    closeSocket(sock);
 
     qint64 elapsedNs = t.nsecsElapsed() - startNs;
     if (elapsedNs <= 0) elapsedNs = 1;
@@ -2147,7 +2147,7 @@ static int tcpPingMs(const QString& host, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return -1; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
@@ -2159,7 +2159,7 @@ static int tcpPingMs(const QString& host, int port) {
     int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
     int ms = static_cast<int>(t.elapsed());
     if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len); if (err != 0) ms = -1; } else ms = -1;
-    close(sock);
+    closeSocket(sock);
     return ms;
 }
 
@@ -2435,7 +2435,7 @@ DiagnosticResult speedTest(DiagId id) {
         int sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0) continue;
         struct sockaddr_in addr;
-        if (!hostToAddr(best->host, best->port, addr)) { close(sock); continue; }
+        if (!hostToAddr(best->host, best->port, addr)) { closeSocket(sock); continue; }
 
 #ifdef _WIN32
         u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2445,10 +2445,10 @@ DiagnosticResult speedTest(DiagId id) {
         ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
         struct timeval tv = {3, 0};
-        if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); continue; }
+        if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); continue; }
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-        if (err != 0) { close(sock); continue; }
+        if (err != 0) { closeSocket(sock); continue; }
 
         // Generate random data
         QByteArray uploadData(dataSize, 'A');
@@ -2501,7 +2501,7 @@ DiagnosticResult speedTest(DiagId id) {
             recv(sock, buf, sizeof(buf), 0);
         }
         int ulMs = static_cast<int>(ulTimer.elapsed());
-        close(sock);
+        closeSocket(sock);
 
         ulTotalMs += ulMs;
         double mbps = (sent > 0 && ulMs > 0) ? (sent * 8.0 / (ulMs / 1000.0) / 1000000.0) : 0;

@@ -1,13 +1,13 @@
 // =============================================================================
 // AndroidNetworkInfo.cpp — Native Android WiFi/Cellular diagnostics via JNI
 //
-// Uses Qt's QAndroidJniObject to call Android Java APIs directly from C++.
+// Uses Qt's QJniObject to call Android Java APIs directly from C++.
 // No separate Java/Kotlin source files needed — all JNI is inline.
 // =============================================================================
 #ifdef PLATFORM_ANDROID
 
-#include <QAndroidJniObject>
-#include <QAndroidJniEnvironment>
+#include <QJniObject>
+#include <QJniEnvironment>
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
@@ -19,22 +19,22 @@
 // ── WiFi SSID via WifiManager ──────────────────────────────────────────
 static QString androidWifiSsid() {
     // Requires ACCESS_WIFI_STATE + ACCESS_FINE_LOCATION permissions
-    QAndroidJniObject ctx = QAndroidJniObject::callStaticObjectMethod(
-        "org/qtproject/qt5/android/QtNative", "activity",
+    QJniObject ctx = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity",
         "()Landroid/app/Activity;");
     if (!ctx.isValid()) return QString();
 
-    QAndroidJniObject wifiService = ctx.callObjectMethod(
+    QJniObject wifiService = ctx.callObjectMethod(
         "getSystemService",
         "(Ljava/lang/String;)Ljava/lang/Object;",
-        QAndroidJniObject::fromString("wifi").object<jstring>());
+        QJniObject::fromString("wifi").object<jstring>());
     if (!wifiService.isValid()) return QStringLiteral("WifiManager unavailable");
 
-    QAndroidJniObject wifiInfo = wifiService.callObjectMethod(
+    QJniObject wifiInfo = wifiService.callObjectMethod(
         "getConnectionInfo", "()Landroid/net/wifi/WifiInfo;");
     if (!wifiInfo.isValid()) return QStringLiteral("No WiFi connection");
 
-    QAndroidJniObject ssid = wifiInfo.callObjectMethod("getSSID", "()Ljava/lang/String;");
+    QJniObject ssid = wifiInfo.callObjectMethod("getSSID", "()Ljava/lang/String;");
     if (!ssid.isValid()) return QStringLiteral("SSID unavailable");
 
     QString result = ssid.toString();
@@ -48,31 +48,31 @@ static QString androidWifiSsid() {
 static QVariantMap androidCellularInfo() {
     QVariantMap info;
 
-    QAndroidJniObject ctx = QAndroidJniObject::callStaticObjectMethod(
-        "org/qtproject/qt5/android/QtNative", "activity",
+    QJniObject ctx = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity",
         "()Landroid/app/Activity;");
     if (!ctx.isValid()) return info;
 
-    QAndroidJniObject telService = ctx.callObjectMethod(
+    QJniObject telService = ctx.callObjectMethod(
         "getSystemService",
         "(Ljava/lang/String;)Ljava/lang/Object;",
-        QAndroidJniObject::fromString("phone").object<jstring>());
+        QJniObject::fromString("phone").object<jstring>());
     if (!telService.isValid()) return info;
 
     // Carrier name
-    QAndroidJniObject carrierName = telService.callObjectMethod(
+    QJniObject carrierName = telService.callObjectMethod(
         "getNetworkOperatorName", "()Ljava/lang/String;");
     if (carrierName.isValid())
         info["carrierName"] = carrierName.toString();
 
     // Network type (4G/5G/etc.)
-    QAndroidJniObject networkType = telService.callObjectMethod(
+    QJniObject networkType = telService.callObjectMethod(
         "getNetworkTypeName", "()Ljava/lang/String;");
     if (networkType.isValid())
         info["radioAccess"] = networkType.toString();
 
     // MCC/MNC
-    QAndroidJniObject networkOperator = telService.callObjectMethod(
+    QJniObject networkOperator = telService.callObjectMethod(
         "getNetworkOperator", "()Ljava/lang/String;");
     if (networkOperator.isValid()) {
         QString op = networkOperator.toString();
@@ -87,24 +87,24 @@ static QVariantMap androidCellularInfo() {
 
 // ── Connectivity info via ConnectivityManager ──────────────────────────
 static QString androidConnectivityInfo() {
-    QAndroidJniObject ctx = QAndroidJniObject::callStaticObjectMethod(
-        "org/qtproject/qt5/android/QtNative", "activity",
+    QJniObject ctx = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity",
         "()Landroid/app/Activity;");
     if (!ctx.isValid()) return QStringLiteral("Activity unavailable");
 
-    QAndroidJniObject connService = ctx.callObjectMethod(
+    QJniObject connService = ctx.callObjectMethod(
         "getSystemService",
         "(Ljava/lang/String;)Ljava/lang/Object;",
-        QAndroidJniObject::fromString("connectivity").object<jstring>());
+        QJniObject::fromString("connectivity").object<jstring>());
     if (!connService.isValid()) return QStringLiteral("ConnectivityManager unavailable");
 
-    QAndroidJniObject activeNetwork = connService.callObjectMethod(
+    QJniObject activeNetwork = connService.callObjectMethod(
         "getActiveNetworkInfo", "()Landroid/net/NetworkInfo;");
     if (!activeNetwork.isValid()) return QStringLiteral("No active network");
 
-    QAndroidJniObject typeName = activeNetwork.callObjectMethod(
+    QJniObject typeName = activeNetwork.callObjectMethod(
         "getTypeName", "()Ljava/lang/String;");
-    QAndroidJniObject subtypeName = activeNetwork.callObjectMethod(
+    QJniObject subtypeName = activeNetwork.callObjectMethod(
         "getSubtypeName", "()Ljava/lang/String;");
 
     QString result = typeName.isValid() ? typeName.toString() : QStringLiteral("Unknown");
@@ -190,13 +190,13 @@ DiagnosticResult androidGatewayDiag(DiagId id) {
 
 // ── DNS Resolution via InetAddress ─────────────────────────────────────
 QString androidDnsResolve(const QString& host, int timeoutMs) {
-    QAndroidJniObject hostStr = QAndroidJniObject::fromString(host);
-    QAndroidJniObject inetAddr = QAndroidJniObject::callStaticObjectMethod(
+    QJniObject hostStr = QJniObject::fromString(host);
+    QJniObject inetAddr = QJniObject::callStaticObjectMethod(
         "java/net/InetAddress", "getByName",
         "(Ljava/lang/String;)Ljava/net/InetAddress;",
         hostStr.object<jstring>());
     if (!inetAddr.isValid()) return QString();
-    QAndroidJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
+    QJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
     return ipStr.isValid() ? ipStr.toString() : QString();
 }
 
@@ -238,28 +238,28 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 
-    QAndroidJniObject urlStr = QAndroidJniObject::fromString(target);
-    QAndroidJniObject url = QAndroidJniObject("java/net/URL", "(Ljava/lang/String;)V", urlStr.object<jstring>());
+    QJniObject urlStr = QJniObject::fromString(target);
+    QJniObject url = QJniObject("java/net/URL", "(Ljava/lang/String;)V", urlStr.object<jstring>());
     if (!url.isValid()) {
         r.status = DiagStatus::Fail; r.summary = QStringLiteral("Invalid URL"); return r;
     }
 
-    QAndroidJniObject conn = url.callObjectMethod("openConnection", "()Ljava/net/URLConnection;");
+    QJniObject conn = url.callObjectMethod("openConnection", "()Ljava/net/URLConnection;");
     if (!conn.isValid()) {
         r.status = DiagStatus::Fail; r.summary = QStringLiteral("Connection failed"); return r;
     }
 
     // Cast to HttpURLConnection
-    QAndroidJniObject httpConn = conn; // implicit — openConnection returns the right type
+    QJniObject httpConn = conn; // implicit — openConnection returns the right type
     httpConn.callMethod<void>("setConnectTimeout", "(I)V", 10000);
     httpConn.callMethod<void>("setReadTimeout", "(I)V", 15000);
     httpConn.callMethod<void>("setRequestMethod", "(Ljava/lang/String;)V",
-        QAndroidJniObject::fromString("GET").object<jstring>());
+        QJniObject::fromString("GET").object<jstring>());
 
     int responseCode = httpConn.callMethod<jint>("getResponseCode");
     r.durationMs = t.elapsed();
 
-    QAndroidJniObject msg = httpConn.callObjectMethod("getResponseMessage", "()Ljava/lang/String;");
+    QJniObject msg = httpConn.callObjectMethod("getResponseMessage", "()Ljava/lang/String;");
     QString statusLine = QStringLiteral("HTTP/1.1 %1 %2").arg(responseCode)
         .arg(msg.isValid() ? msg.toString() : QString());
 
