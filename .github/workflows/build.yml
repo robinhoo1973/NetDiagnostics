@@ -499,11 +499,20 @@ jobs:
           mkdir -p resources/android/res/drawable
           cp resources/icons/netanalysis.png resources/android/res/drawable/ic_launcher.png
 
+          # GitHub runners ship preview/extension SDK platforms (e.g.
+          # android-36-ext19) whose android.jar the bundled aapt2 cannot parse,
+          # which breaks resource linking. androiddeployqt defaults to the highest
+          # installed platform, so drop the preview ones to fall back to a stable
+          # platform (android-35/34).
+          shopt -s nullglob
+          for p in "$ANDROID_SDK_ROOT"/platforms/*-ext*; do
+            echo "Removing preview SDK platform: $(basename "$p")"
+            rm -rf "$p"
+          done
+
           # Qt auto-generates an 'apk' target that runs androiddeployqt with the
           # generated deployment JSON, copies the app .so into the package, and
           # builds a debug-signed, zipaligned, installable APK via Gradle.
-          # androiddeployqt selects the highest installed SDK platform by default,
-          # so no --android-platform is hardcoded (the runner has no android-26).
           cmake --build build --target apk
 
           APK=$(find build -path '*outputs/apk/*' -name '*.apk' | head -1)
@@ -596,11 +605,20 @@ jobs:
           mkdir -p resources/android/res/drawable
           cp resources/icons/netanalysis.png resources/android/res/drawable/ic_launcher.png
 
+          # GitHub runners ship preview/extension SDK platforms (e.g.
+          # android-36-ext19) whose android.jar the bundled aapt2 cannot parse,
+          # which breaks resource linking. androiddeployqt defaults to the highest
+          # installed platform, so drop the preview ones to fall back to a stable
+          # platform (android-35/34).
+          shopt -s nullglob
+          for p in "$ANDROID_SDK_ROOT"/platforms/*-ext*; do
+            echo "Removing preview SDK platform: $(basename "$p")"
+            rm -rf "$p"
+          done
+
           # Qt auto-generates an 'apk' target that runs androiddeployqt with the
           # generated deployment JSON, copies the app .so into the package, and
           # builds a debug-signed, zipaligned, installable APK via Gradle.
-          # androiddeployqt selects the highest installed SDK platform by default,
-          # so no --android-platform is hardcoded (the runner has no android-26).
           cmake --build build --target apk
 
           APK=$(find build -path '*outputs/apk/*' -name '*.apk' | head -1)
