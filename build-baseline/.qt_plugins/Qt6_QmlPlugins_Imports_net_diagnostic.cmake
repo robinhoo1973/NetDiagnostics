@@ -1,0 +1,12 @@
+set(qml_import_scanner_imports_count 10)
+set(qml_import_scanner_import_0 "NAME;QtQuick;TYPE;module;")
+set(qml_import_scanner_import_1 "NAME;QtQuick.Controls;TYPE;module;")
+set(qml_import_scanner_import_2 "NAME;QtQuick.Layouts;TYPE;module;")
+set(qml_import_scanner_import_3 "NAME;screens;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/AppContent.qml/screens;TYPE;directory;")
+set(qml_import_scanner_import_4 "NAME;widgets;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/AppContent.qml/widgets;TYPE;directory;")
+set(qml_import_scanner_import_5 "NAME;theme;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/AppContent.qml/theme;TYPE;directory;")
+set(qml_import_scanner_import_6 "NAME;../theme;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/screens/theme;TYPE;directory;")
+set(qml_import_scanner_import_7 "NAME;../widgets;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/screens/widgets;TYPE;directory;")
+set(qml_import_scanner_import_8 "NAME;../;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/screens;TYPE;directory;")
+set(qml_import_scanner_import_9 "NAME;../theme;PATH;/home/runner/work/NetDiagnostic/NetDiagnostic/resources/qml/widgets/theme;TYPE;directory;")
+
