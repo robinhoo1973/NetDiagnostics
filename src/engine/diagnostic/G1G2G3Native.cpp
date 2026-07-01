@@ -323,6 +323,8 @@ DiagnosticResult networkAdapters(DiagId id) {
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
         if (cell.contains("mcc") && cell.contains("mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (cell.contains("signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
     }
 
 #else
@@ -527,6 +529,8 @@ DiagnosticResult cellularInfo(DiagId id) {
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
         if (cell.contains("mcc") && cell.contains("mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (cell.contains("signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         out.append(QString());
         r.status = DiagStatus::Pass;
         r.summary = QStringLiteral("Carrier: %1 鐠?%2").arg(cell.value("carrierName").toString(), cell.value("radioAccess").toString());

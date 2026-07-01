@@ -127,6 +127,8 @@ QVariantMap iosCellularInfo()
         info["radioAccessRaw"] = QString::fromNSString(rat);
     }
 
+    info["signalNotice"] = QStringLiteral("Signal strength unavailable on iOS (public API restriction)");
+
     return info;
 }
 
