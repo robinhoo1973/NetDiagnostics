@@ -605,9 +605,7 @@ jobs:
           echo "SDK path: $(xcrun --sdk iphoneos --show-sdk-path)"
 
       - name: Install dependencies
-        run: |
-          brew install ninja
-          pip3 install --break-system-packages cmake
+        run: brew install cmake ninja
 
       - name: Cache Qt6 macOS desktop (host tools)
         id: cache-qt-desktop
