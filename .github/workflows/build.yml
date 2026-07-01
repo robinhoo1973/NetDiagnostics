@@ -635,6 +635,12 @@ jobs:
 
       - name: Configure
         run: |
+          echo "=== DEBUG: Checking Qt installation ==="
+          ls -la "$HOME/qt-desktop/$QT_VERSION/" 2>&1 || echo "qt-desktop not found"
+          ls -la "$HOME/qt-ios/$QT_VERSION/" 2>&1 || echo "qt-ios not found"
+          echo "=== DEBUG: Checking SDK ==="
+          xcrun --sdk iphoneos --show-sdk-path 2>&1
+          echo "=== DEBUG: Configuring ==="
           export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/clang_64"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           "$HOME/qt-ios/$QT_VERSION/ios_arm64/bin/qt-cmake" \
@@ -642,12 +648,10 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -B build -S .
-          # iOS uses NSURLSession (IosHttpTask.mm) 鈥?no libcurl needed.
-          # NO_CURL is set via CMakeLists.txt for iOS.
+            -B build -S . 2>&1 | tail -50
 
       - name: Build
-        run: ninja -v -C build net_diagnostic
+        run: ninja -v -C build net_diagnostic 2>&1 | tail -100
 
       - name: Verify bundle
         run: |
