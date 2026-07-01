@@ -14,14 +14,16 @@ concurrency:
 
 env:
   BUILD_TYPE: Release
-  QT_VERSION: 6.8.3
+  QT_VERSION: 6.12.0
   QT_VERSION_ANDROID: 6.5.3
   QT_VERSION_WINDOWS_SRC: 6.11.1
   ANDROID_API_LEVEL: "26"
 
 jobs:
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # Linux x86_64 鈥?native GCC build + simulator
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  linux-x86_64:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Linux x86_64 — native GCC build + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  linux-x86_64:
     name: Linux x86_64
     runs-on: ubuntu-latest
     steps:
@@ -78,8 +80,8 @@ jobs:
           Version: 0.0.1
           Architecture: amd64
           Maintainer: robinhoo1973
-          Depends: qt6-base, qt6-declarative, libqt6quickcontrols2-6, libcurl
-          Description: Cross-platform network diagnostics tool 鈥?Qt6/QML
+          Depends: qt6-base, qt6-declarative, libqt6quickcontrols2-6, libcurl4
+          Description: Cross-platform network diagnostics tool — Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostic-Linux-x86_64.deb
           ls -lh NetDiagnostic-Linux-x86_64.deb
@@ -89,7 +91,7 @@ jobs:
         run: |
           sudo gem install fpm
           fpm -s dir -t rpm -n netdiagnostic -v 0.0.1 --architecture x86_64 \
-            --depends "qt6-base" --depends "qt6-declarative" --depends "libcurl" \
+            --depends "qt6-base" --depends "qt6-declarative" --depends "libcurl4" \
             build/net_diagnostic=/usr/bin/net_diagnostic
           mv netdiagnostic*.rpm NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || true
           ls -lh NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
@@ -108,8 +110,10 @@ jobs:
           if-no-files-found: error
 
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # Linux arm64 鈥?native GCC build + simulator
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  linux-arm64:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Linux arm64 — native GCC build + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  linux-arm64:
     name: Linux arm64
     runs-on: ubuntu-24.04-arm
     steps:
@@ -160,8 +164,8 @@ jobs:
           Version: 0.0.1
           Architecture: arm64
           Maintainer: robinhoo1973
-          Depends: qt6-base, qt6-declarative, libqt6quickcontrols2-6, libcurl
-          Description: Cross-platform network diagnostics tool 鈥?Qt6/QML
+          Depends: qt6-base, qt6-declarative, libqt6quickcontrols2-6, libcurl4
+          Description: Cross-platform network diagnostics tool — Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostic-Linux-arm64.deb
           ls -lh NetDiagnostic-Linux-arm64.deb
@@ -171,7 +175,7 @@ jobs:
         run: |
           sudo gem install fpm
           fpm -s dir -t rpm -n netdiagnostic -v 0.0.1 --architecture aarch64 \
-            --depends "qt6-base" --depends "qt6-declarative" --depends "libcurl" \
+            --depends "qt6-base" --depends "qt6-declarative" --depends "libcurl4" \
             build/net_diagnostic=/usr/bin/net_diagnostic
           mv netdiagnostic*.rpm NetDiagnostic-Linux-arm64.rpm 2>/dev/null || true
           ls -lh NetDiagnostic-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
@@ -189,8 +193,10 @@ jobs:
           if-no-files-found: error
 
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # Windows x86_64 鈥?static build via MSYS2 Qt6-static (zero DLL deps)
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  windows-x86_64:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Windows x86_64 — static build via MSYS2 Qt6-static (zero DLL deps)
+  # ═══════════════════════════════════════════════════════════════════════════
+  windows-x86_64:
     name: Windows x86_64
     runs-on: windows-2022
     steps:
@@ -213,7 +219,7 @@ jobs:
             mingw-w64-ucrt-x86_64-pcre2
             mingw-w64-ucrt-x86_64-libb2
 
-      # 鈹€鈹€ Cache A: Qt source code (extracted tarball) 鈹€鈹€
+      # ── Cache A: Qt source code (extracted tarball) ──
       - name: Cache Qt source tarball
         id: cache-qt-src
         uses: actions/cache@v4
@@ -235,7 +241,7 @@ jobs:
           tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-src --strip-components=1
           rm /tmp/qt-src.tar.xz
 
-      # 鈹€鈹€ Cache B: Qt build artifacts (install prefix) 鈹€鈹€
+      # ── Cache B: Qt build artifacts (install prefix) ──
       - name: Cache Qt build artifacts
         id: cache-qt-build
         uses: actions/cache@v4
@@ -270,7 +276,7 @@ jobs:
           cmake --install build
           echo ">>> Qt static build complete."
 
-      # 鈹€鈹€ Build Production + Simulator in parallel 鈹€鈹€
+      # ── Build Production + Simulator in parallel ──
       - name: Build Production + Simulator (static, parallel)
         shell: msys2 {0}
         run: |
@@ -297,13 +303,13 @@ jobs:
           ninja -C build-sim net_diagnostic_sim &
           wait
 
-          # Post-process (strip + copy 鈥?fast, sequential)
+          # Post-process (strip + copy — fast, sequential)
           strip build/net_diagnostic.exe
           cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
           strip build-sim/net_diagnostic_sim.exe
           cp build-sim/net_diagnostic_sim.exe dist/netdiag-sim-win-x86_64.exe
 
-      # 鈹€鈹€ DLL check (safety net) 鈹€鈹€
+      # ── DLL check (safety net) ──
       - name: Check DLL dependencies and collect
         shell: msys2 {0}
         run: |
@@ -323,7 +329,7 @@ jobs:
                 if echo "${DLLS_COLLECTED[@]}" | grep -q "$dll"; then
                   continue
                 fi
-                echo "  [WARN] Non-system DLL: $dll 鈥?collecting"
+                echo "  [WARN] Non-system DLL: $dll — collecting"
                 cp "$UCRT_BIN/$dll" dist/
                 DLLS_COLLECTED+=("$dll")
                 collect_dlls "dist/$dll"
@@ -344,7 +350,7 @@ jobs:
             printf '    %s\n' "${DLLS_COLLECTED[@]}"
             echo "  === WARNING: For a true zero-DLL build, see notes above ==="
           else
-            echo "  [OK] No non-system DLLs needed 鈥?fully static linked"
+            echo "  [OK] No non-system DLLs needed — fully static linked"
           fi
 
       - name: Upload artifacts
@@ -355,9 +361,12 @@ jobs:
             dist/**
           if-no-files-found: error
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # macOS x86_64 鈥?native Apple Clang + simulator
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # macOS arm64 鈥?native Apple Clang + simulator
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  macos-arm64:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # macOS x86_64 — native Apple Clang + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  # macOS arm64 — native Apple Clang + simulator
+  # ═══════════════════════════════════════════════════════════════════════════
+  macos-arm64:
     name: macOS arm64
     runs-on: macos-latest
     steps:
@@ -365,7 +374,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          brew install cmake ninja qt@6
+          brew install cmake ninja qt@6 curl
 
       - name: Generate macOS app icon (.icns)
         run: |
@@ -422,8 +431,10 @@ jobs:
             *.dmg
           if-no-files-found: error
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # Android x86_64 鈥?cross-compile via aqtinstall + NDK
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  android-x86_64:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Android x86_64 — cross-compile via aqtinstall + NDK
+  # ═══════════════════════════════════════════════════════════════════════════
+  android-x86_64:
     name: Android x86_64
     runs-on: ubuntu-latest
     steps:
@@ -507,8 +518,10 @@ jobs:
             build/*.apk
           if-no-files-found: error
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # Android arm64 鈥?cross-compile via aqtinstall + NDK
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  android-arm64:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Android arm64 — cross-compile via aqtinstall + NDK
+  # ═══════════════════════════════════════════════════════════════════════════
+  android-arm64:
     name: Android arm64
     runs-on: ubuntu-latest
     steps:
@@ -592,10 +605,12 @@ jobs:
             build/*.apk
           if-no-files-found: error
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # iOS 鈥?native build via aqtinstall + Xcode, production only
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  ios:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # iOS — native build via aqtinstall + Xcode, production only
+  # ═══════════════════════════════════════════════════════════════════════════
+  ios:
     name: iOS
-    runs-on: macos-15
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -607,7 +622,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew install ninja
-          pip3 install --break-system-packages cmake
+          pip3 install --break-system-packages cmake==3.29.6
 
       - name: Cache Qt6 macOS desktop (host tools)
         id: cache-qt-desktop
@@ -633,20 +648,21 @@ jobs:
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
           pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios_arm64 -O ~/qt-ios
+          aqt install-qt mac ios $QT_VERSION ios -O ~/qt-ios
 
       - name: Configure
         run: |
-          export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/clang_64"
+          export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/macos"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          "$HOME/qt-ios/$QT_VERSION/ios_arm64/bin/qt-cmake" \
+          "$HOME/qt-ios/$QT_VERSION/ios/bin/qt-cmake" \
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DCURL_INCLUDE_DIR="$SDKROOT/usr/include" \
             -B build -S .
-          # iOS uses NSURLSession (IosHttpTask.mm) 鈥?no libcurl needed.
-          # NO_CURL is set via CMakeLists.txt for iOS.
+          # NOTE: CURL_INCLUDE_DIR may not find curl.h in Xcode 26 SDK → NO_CURL=TRUE
+          # This is fine for build verification; deploy-testflight.yml handles full IPA with libcurl.a
 
       - name: Build
         run: ninja -v -C build net_diagnostic
@@ -654,10 +670,10 @@ jobs:
       - name: Verify bundle
         run: |
           if [ -d build/net_diagnostic.app ]; then
-            echo "鉁?.app bundle generated"
+            echo "✅ .app bundle generated"
             ls -la build/net_diagnostic.app/
           else
-            echo "鉂?No .app bundle"
+            echo "❌ No .app bundle"
             exit 1
           fi
 
@@ -677,8 +693,10 @@ jobs:
             NetDiagnostic-iOS.ipa
           if-no-files-found: error
 
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  # Release 鈥?create GitHub Release on tag push
-  # 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?  release:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Release — create GitHub Release on tag push
+  # ═══════════════════════════════════════════════════════════════════════════
+  release:
     name: Create Release
     needs:
       - linux-x86_64
