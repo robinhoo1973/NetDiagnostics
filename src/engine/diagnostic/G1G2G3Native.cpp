@@ -182,6 +182,29 @@ static QString ipToStr(uint32_t ip) {
     return ip4ToStr(a);
 }
 
+static bool hasNonEmptyValue(const QVariantMap& values, const char* key) {
+    const auto it = values.constFind(QLatin1String(key));
+    return it != values.cend() && !it->toString().trimmed().isEmpty();
+}
+
+static bool hasCellularIdentity(const QVariantMap& cell) {
+    return hasNonEmptyValue(cell, "carrierName")
+        || hasNonEmptyValue(cell, "radioAccess")
+        || (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"));
+}
+
+static QString cellularSummary(const QVariantMap& cell) {
+    const QString carrier = cell.value(QStringLiteral("carrierName")).toString().trimmed();
+    const QString radio = cell.value(QStringLiteral("radioAccess")).toString().trimmed();
+    if (!carrier.isEmpty() && !radio.isEmpty())
+        return QStringLiteral("Carrier: %1 (%2)").arg(carrier, radio);
+    if (!carrier.isEmpty())
+        return QStringLiteral("Carrier: %1").arg(carrier);
+    if (!radio.isEmpty())
+        return QStringLiteral("Radio: %1").arg(radio);
+    return QStringLiteral("Cellular service detected");
+}
+
 static const char* tcpStateName(int st) {
     switch(st){case 1:return"ESTABLISHED";case 2:return"SYN_SENT";case 3:return"SYN_RECV";
     case 4:return"FIN_WAIT1";case 5:return"FIN_WAIT2";case 6:return"TIME_WAIT";
@@ -314,15 +337,18 @@ DiagnosticResult networkAdapters(DiagId id) {
 
     // 闁冲厜鍋撻柍鍏夊亾 Cellular info 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
     QVariantMap cell = iosCellularInfo();
-    if (!cell.isEmpty()) {
+    const bool hasCellIdentity = hasCellularIdentity(cell);
+    if (hasCellIdentity) {
         out.append(QString());
         out.append(QStringLiteral("Cellular Information:"));
-        if (cell.contains("carrierName"))
+        if (hasNonEmptyValue(cell, "carrierName"))
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-        if (cell.contains("radioAccess"))
+        if (hasNonEmptyValue(cell, "radioAccess"))
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        if (cell.contains("mcc") && cell.contains("mnc"))
+        if (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
     }
 
 #else
@@ -520,18 +546,23 @@ DiagnosticResult cellularInfo(DiagId id) {
 
 #ifdef PLATFORM_IOS
     QVariantMap cell = iosCellularInfo();
-    if (!cell.isEmpty()) {
-        if (cell.contains("carrierName"))
+    const bool hasCellIdentity = hasCellularIdentity(cell);
+    if (hasCellIdentity) {
+        if (hasNonEmptyValue(cell, "carrierName"))
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-        if (cell.contains("radioAccess"))
+        if (hasNonEmptyValue(cell, "radioAccess"))
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        if (cell.contains("mcc") && cell.contains("mnc"))
+        if (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"))
             out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        if (hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         out.append(QString());
         r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("Carrier: %1 鐠?%2").arg(cell.value("carrierName").toString(), cell.value("radioAccess").toString());
+        r.summary = cellularSummary(cell);
     } else {
         out.append(QStringLiteral("  No cellular service available"));
+        if (hasNonEmptyValue(cell, "signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         r.status = DiagStatus::Info; r.summary = QStringLiteral("No cellular service");
     }
 #else
@@ -927,7 +958,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                     double freq = wrq.u.freq.m / 1e9;
                     channel = QStringLiteral("%1 (%2 GHz)").arg((int)((freq - 2.412) / 0.005 + 1)).arg(freq, 0, 'f', 3);
                 }
-                close(sock);
+                closeSocket(sock);
             }
 #endif
 
@@ -1997,7 +2028,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return {};
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return {}; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return {}; }
 
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2007,10 +2038,10 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
     ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); return {}; }
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return {}; }
     int err = 0; socklen_t len = sizeof(err);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-    if (err != 0) { close(sock); return {}; }
+    if (err != 0) { closeSocket(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
@@ -2043,7 +2074,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
         // Wall-clock guard: abort if total recv time exceeds 30 s
         if (recvTimer.elapsed() > 30000) break;
     }
-    close(sock);
+    closeSocket(sock);
     return response;
 }
 
@@ -2066,7 +2097,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return r;
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return r; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return r; }
 
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2077,10 +2108,10 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {3, 0};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); return r; }
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return r; }
     int err = 0; socklen_t len = sizeof(err);
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-    if (err != 0) { close(sock); return r; }
+    if (err != 0) { closeSocket(sock); return r; }
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nConnection: close\r\n\r\n")
@@ -2126,7 +2157,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
             body.append(buf, (int)n);
         }
     }
-    close(sock);
+    closeSocket(sock);
 
     qint64 elapsedNs = t.nsecsElapsed() - startNs;
     if (elapsedNs <= 0) elapsedNs = 1;
@@ -2147,7 +2178,7 @@ static int tcpPingMs(const QString& host, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
     struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { close(sock); return -1; }
+    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
 #ifdef _WIN32
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
@@ -2159,7 +2190,7 @@ static int tcpPingMs(const QString& host, int port) {
     int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
     int ms = static_cast<int>(t.elapsed());
     if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len); if (err != 0) ms = -1; } else ms = -1;
-    close(sock);
+    closeSocket(sock);
     return ms;
 }
 
@@ -2435,7 +2466,7 @@ DiagnosticResult speedTest(DiagId id) {
         int sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0) continue;
         struct sockaddr_in addr;
-        if (!hostToAddr(best->host, best->port, addr)) { close(sock); continue; }
+        if (!hostToAddr(best->host, best->port, addr)) { closeSocket(sock); continue; }
 
 #ifdef _WIN32
         u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
@@ -2445,10 +2476,10 @@ DiagnosticResult speedTest(DiagId id) {
         ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
         struct timeval tv = {3, 0};
-        if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { close(sock); continue; }
+        if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); continue; }
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
-        if (err != 0) { close(sock); continue; }
+        if (err != 0) { closeSocket(sock); continue; }
 
         // Generate random data
         QByteArray uploadData(dataSize, 'A');
@@ -2501,7 +2532,7 @@ DiagnosticResult speedTest(DiagId id) {
             recv(sock, buf, sizeof(buf), 0);
         }
         int ulMs = static_cast<int>(ulTimer.elapsed());
-        close(sock);
+        closeSocket(sock);
 
         ulTotalMs += ulMs;
         double mbps = (sent > 0 && ulMs > 0) ? (sent * 8.0 / (ulMs / 1000.0) / 1000000.0) : 0;

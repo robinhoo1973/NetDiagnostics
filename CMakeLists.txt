@@ -51,12 +51,12 @@ set(SOURCES
     src/engine/diagnostic/G4RemoteHost.cpp
     src/engine/diagnostic/G5WebsiteUrl.cpp
 )
-# Android: exclude G5 (no libcurl, no NSURLSession). iOS keeps G5WebsiteUrl.cpp
-# for non-curl functions (urlParsing, tcpConnect, serviceBanner) — IosHttpTask.mm
-# and TaskFactory PLATFORM_IOS branches depend on these symbols.
-if(ANDROID)
-    list(REMOVE_ITEM SOURCES "src/engine/diagnostic/G5WebsiteUrl.cpp")
-endif()
+# Android: keep G5WebsiteUrl.cpp — urlParsing, tcpConnect, serviceBanner are
+# libcurl-free (raw sockets / QUrl) and compiled fine with Android NDK.
+# Curl-dependent functions are guarded by #ifndef NO_CURL inside the file.
+# iOS keeps G5WebsiteUrl.cpp for non-curl functions (urlParsing, tcpConnect,
+# serviceBanner) — IosHttpTask.mm and TaskFactory PLATFORM_IOS branches depend
+# on these symbols.
 # Windows: embed .ico into the executable
 if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)

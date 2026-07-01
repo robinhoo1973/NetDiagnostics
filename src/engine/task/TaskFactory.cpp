@@ -1,5 +1,5 @@
 // =============================================================================
-// TaskFactory.cpp — Create DiagnosticTask objects for each DiagId
+// TaskFactory.cpp 鈥?Create DiagnosticTask objects for each DiagId
 // =============================================================================
 #include "engine/task/TaskFactory.h"
 #include "engine/diagnostic/G1G2G3Native.h"
@@ -7,15 +7,19 @@
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
 #include <QElapsedTimer>
+<<<<<<< HEAD
+=======
+#include <QDateTime>
+>>>>>>> 0ede84e5e4deafb5ef2158df53c00eafbf3d5ea7
 #ifdef PLATFORM_IOS
-#include "engine/task/IosHttpTask.mm"      // iosHttpDiagnostic() — NSURLSession
-#include "engine/task/IosDnsTask.mm"       // iosDnsResolve() — CFHost
-#include "engine/task/IosNetworkInfo.mm"   // iosDefaultGatewayDiag(), iosDhcpDiag()
+#include "engine/task/IosHttpTask.h"
+#include "engine/task/IosDnsTask.h"
+#include "engine/task/IosNetworkInfo.h"
 #endif
 #ifdef PLATFORM_ANDROID
-#include "engine/task/AndroidNetworkInfo.cpp" // androidWifiDiag, androidCellularDiag, etc.
+#include "engine/task/AndroidNetworkInfo.h"
 #endif
-#ifndef NO_CURL
+#if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #endif
 
@@ -38,8 +42,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
     int tmo = timeoutFor(id);
 
     // Helpers: wrap function pointers that don't match GenericTask::Impl signature.
-    // T1 wraps G1/G2/G3 — takes (DiagId) only, ignores target.
-    // T2 wraps G4/G5 — takes (const QString&) only, ignores DiagId.
+    // T1 wraps G1/G2/G3 鈥?takes (DiagId) only, ignores target.
+    // T2 wraps G4/G5 鈥?takes (const QString&) only, ignores DiagId.
     auto T1 = [&](auto fn, int custTmo = -1) {
         return std::make_unique<GenericTask>(id, target,
             [id, fn](DiagId, const QString&) { return fn(id); },
@@ -57,7 +61,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
     };
 
     switch (id) {
-        // ── G1: System & Adapters ──────────────────────────────────────
+        // 鈹€鈹€ G1: System & Adapters 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         case DiagId::G1NetworkAdapters:    return T1(G1G2G3Native::networkAdapters, 15000);
         case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
 #ifdef PLATFORM_ANDROID
@@ -85,7 +89,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 #endif
 
-        // ── G2: Connectivity & Security ────────────────────────────────
+        // 鈹€鈹€ G2: Connectivity & Security 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
         case DiagId::G2TcpSettings:        return T1(G1G2G3Native::tcpSettings);
 #ifdef PLATFORM_IOS
@@ -101,14 +105,14 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G2ArpTable:           return T1(G1G2G3Native::arpTable);
         case DiagId::G2ProxySettings:      return T1(G1G2G3Native::proxySettings);
 
-        // ── G3: Internet & DNS ─────────────────────────────────────────
+        // 鈹€鈹€ G3: Internet & DNS 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         case DiagId::G3NetskopeStatus:     return T1(G1G2G3Native::netskopeStatus);
         case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
         case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
         case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
 
-        // ── G4: Remote Host ────────────────────────────────────────────
+        // 鈹€鈹€ G4: Remote Host 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 #ifdef PLATFORM_IOS
         case DiagId::G4DnsResolution:
             return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
@@ -185,7 +189,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             }, 90000);
         }
 
-        // ── G5: Website / URL ──────────────────────────────────────────
+        // 鈹€鈹€ G5: Website / URL 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 #ifdef PLATFORM_IOS
         // iOS: NSURLSession native HTTP (no libcurl needed)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
@@ -203,7 +207,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
             return T3([](DiagId id, const QString&) {
-                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (iOS native — not yet implemented)"));
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (iOS native 鈥?not yet implemented)"));
             });
 #elif defined(PLATFORM_ANDROID)
         // Android: HttpURLConnection native HTTP (no libcurl needed)
@@ -222,7 +226,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
             return T3([](DiagId id, const QString&) {
-                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (Android native — not yet implemented)"));
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (Android native 鈥?not yet implemented)"));
             });
 #elif !defined(NO_CURL)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
@@ -239,7 +243,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
         case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
 #else
-        case DiagId::G5UrlParsing:       // fall through — NO_CURL: skip all G5
+        case DiagId::G5UrlParsing:       // fall through 鈥?NO_CURL: skip all G5
         case DiagId::G5TcpConnect:
         case DiagId::G5ServiceBanner:
         case DiagId::G5CurlVerbose:
