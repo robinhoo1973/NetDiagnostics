@@ -66,13 +66,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.QT_INSTALL_DIR }}
-          key: qt6-ios-${{ env.QT_VERSION }}-v3
+          key: qt6-ios-${{ env.QT_VERSION }}-v4
 
       - name: Install Qt 6 for iOS via aqt
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
           pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios_arm64 -O $QT_INSTALL_DIR
+          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
 
       # ===================================================================
       # Write ASC private key to disk
@@ -253,7 +253,7 @@ jobs:
       - name: Configure CMake for iOS
         id: cmake
         run: |
-          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios_arm64"
+          QT_IOS="$QT_INSTALL_DIR/$QT_VERSION/ios"
           QT_MAC="$QT_HOST_DIR/$QT_VERSION/clang_64"
 
           # Set QT_HOST_PATH as env var (matching build.yml pattern)
