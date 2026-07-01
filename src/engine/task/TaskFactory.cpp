@@ -16,7 +16,7 @@
 #ifdef PLATFORM_ANDROID
 #include "engine/task/AndroidNetworkInfo.cpp" // androidWifiDiag, androidCellularDiag, etc.
 #endif
-#ifndef NO_CURL
+#if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
 #include "engine/diagnostic/G5WebsiteUrl.h"
 #endif
 

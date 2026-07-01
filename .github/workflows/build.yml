@@ -640,13 +640,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/qt-ios
-          key: qt6-ios-${{ env.QT_VERSION }}-v3
+          key: qt6-ios-${{ env.QT_VERSION }}-v4
 
       - name: Install Qt6 for iOS via aqt
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
         run: |
           pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios_arm64 -O ~/qt-ios
+          aqt install-qt mac ios $QT_VERSION ios -O ~/qt-ios
 
       - name: Configure
         run: |
@@ -658,7 +658,7 @@ jobs:
           echo "=== DEBUG: Configuring ==="
           export QT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/clang_64"
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          "$HOME/qt-ios/$QT_VERSION/ios_arm64/bin/qt-cmake" \
+          "$HOME/qt-ios/$QT_VERSION/ios/bin/qt-cmake" \
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
