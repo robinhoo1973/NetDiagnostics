@@ -314,7 +314,10 @@ DiagnosticResult networkAdapters(DiagId id) {
 
     // 闁冲厜鍋撻柍鍏夊亾 Cellular info 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
     QVariantMap cell = iosCellularInfo();
-    if (!cell.isEmpty()) {
+    const bool hasCellIdentity = cell.contains("carrierName")
+        || cell.contains("radioAccess")
+        || (cell.contains("mcc") && cell.contains("mnc"));
+    if (hasCellIdentity || cell.contains("signalNotice")) {
         out.append(QString());
         out.append(QStringLiteral("Cellular Information:"));
         if (cell.contains("carrierName"))
@@ -522,7 +525,10 @@ DiagnosticResult cellularInfo(DiagId id) {
 
 #ifdef PLATFORM_IOS
     QVariantMap cell = iosCellularInfo();
-    if (!cell.isEmpty()) {
+    const bool hasCellIdentity = cell.contains("carrierName")
+        || cell.contains("radioAccess")
+        || (cell.contains("mcc") && cell.contains("mnc"));
+    if (hasCellIdentity) {
         if (cell.contains("carrierName"))
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
         if (cell.contains("radioAccess"))
@@ -536,6 +542,8 @@ DiagnosticResult cellularInfo(DiagId id) {
         r.summary = QStringLiteral("Carrier: %1 鐠?%2").arg(cell.value("carrierName").toString(), cell.value("radioAccess").toString());
     } else {
         out.append(QStringLiteral("  No cellular service available"));
+        if (cell.contains("signalNotice"))
+            out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         r.status = DiagStatus::Info; r.summary = QStringLiteral("No cellular service");
     }
 #else
