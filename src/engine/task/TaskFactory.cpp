@@ -7,10 +7,7 @@
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
 #include <QElapsedTimer>
-<<<<<<< HEAD
-=======
 #include <QDateTime>
->>>>>>> 0ede84e5e4deafb5ef2158df53c00eafbf3d5ea7
 #ifdef PLATFORM_IOS
 #include "engine/task/IosHttpTask.h"
 #include "engine/task/IosDnsTask.h"
