@@ -39,6 +39,7 @@ class AppState : public QObject {
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
+    Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
 
 public:
     explicit AppState(QObject* parent = nullptr);
@@ -96,6 +97,22 @@ public:
     int languageIndex() const { return m_languageIndex; }
     Q_INVOKABLE void setLanguage(int index);
 
+    // ── Report export ────────────────────────────────────
+    // buildReportHtml(false)=one-page summary; (true)=full detail per test.
+    Q_INVOKABLE QString buildReportHtml(bool fullDetail) const;
+    Q_INVOKABLE QString defaultReportPath(const QString& ext) const;
+    Q_INVOKABLE QString exportHtml(const QString& filePath) const;
+    Q_INVOKABLE QString exportPdf(const QString& filePath) const;
+    // Desktop: opens a native NON-modal save dialog, then emits savePathPicked.
+    // Mobile: emits savePathPicked immediately with a Documents path.
+    Q_INVOKABLE void requestSavePath(const QString& format);
+
+    // ── Premium / sharing ──────────────────────────────────────────────────
+    bool isPremium() const { return m_isPremium; }
+    Q_INVOKABLE void setPremium(bool v);
+    // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
+    Q_INVOKABLE void shareReport(const QString& format);
+
     // ── Target type helpers ────────────────────────────────────────────────
     Q_INVOKABLE bool isTargetEmpty() const { return m_target.trimmed().isEmpty(); }
     Q_INVOKABLE bool hasUrlScheme() const {
@@ -129,6 +146,10 @@ signals:
     void resultsReset();
     void stateVersionChanged();
     void languageChanged();
+    void savePathPicked(const QString& format, const QString& path);
+    void premiumChanged();
+    void premiumRequired();
+    void reportShared(bool ok);
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
@@ -139,6 +160,7 @@ private:
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
     static QString staticDiagDisplayName(DiagId id);
     void bumpVersion();
+    void emailReportDesktop(const QString& path);
 
     QString m_target;
     RunStatus m_runStatus = RunStatus::Idle;
@@ -168,6 +190,7 @@ private:
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
     int m_languageIndex = 0;
+    bool m_isPremium = false;
 
     // Cached group stats — invalidated on progressChanged
     mutable QVariantList m_cachedGroupStats;

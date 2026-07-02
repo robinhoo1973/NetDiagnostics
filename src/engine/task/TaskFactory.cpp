@@ -206,6 +206,19 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 
                 QElapsedTimer t; t.start();
                 auto results = NetworkProbe::portScan(scanHost, ports, 2000, 64);
+
+                // Transparent-proxy / captive-portal detection: probe two high ports
+                // that are virtually never open. If BOTH "connect", a middlebox is
+                // accepting every TCP connection, so every scanned port falsely shows
+                // OPEN (common behind Netskope/Zscaler or a captive portal).
+                bool proxyLikely = false;
+                {
+                    auto ctrl = NetworkProbe::portScan(scanHost, {52379, 61873}, 1200, 2);
+                    int ctrlOpen = 0;
+                    for (const auto& e : ctrl) if (e.open) ctrlOpen++;
+                    proxyLikely = (ctrlOpen == 2);
+                }
+
                 DiagnosticResult r;
                 r.id = id; r.group = DiagGroup::G4;
                 r.durationMs = t.elapsed(); r.timestamp = QDateTime::currentDateTime();
@@ -246,11 +259,21 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
                 for (const auto& pr : portRows)
                     out.append(QStringLiteral("  %1  %2").arg(pr.first, -portW).arg(pr.second, -statusW));
                 out.append(QString());
+                if (proxyLikely) {
+                    out.append(QStringLiteral("  WARNING: control ports (52379, 61873) also accepted the connection."));
+                    out.append(QStringLiteral("  A transparent proxy / firewall (e.g. Netskope, Zscaler) or a captive"));
+                    out.append(QStringLiteral("  portal is intercepting TCP connections, so every port appears OPEN."));
+                    out.append(QStringLiteral("  These results do NOT reflect the real host's listening ports."));
+                    out.append(QString());
+                }
                 r.rawOutput = out.join('\n'); r.details = out.join('\n');
                 int openCount = 0, closedCount = 0; QStringList namedOpen;
                 for (const auto& e : results) { if (e.open) openCount++; else closedCount++; }
-                r.summary = QStringLiteral("%1 ports closed, %2 ports opened").arg(closedCount).arg(openCount);
-                r.status = openCount > 0 ? DiagStatus::Pass : DiagStatus::Info;
+                r.summary = proxyLikely
+                    ? QStringLiteral("Unreliable \u2014 proxy/firewall intercepting all connections")
+                    : QStringLiteral("%1 ports closed, %2 ports opened").arg(closedCount).arg(openCount);
+                r.status = proxyLikely ? DiagStatus::Warning
+                                       : (openCount > 0 ? DiagStatus::Pass : DiagStatus::Info);
                 return r;
             }, 90000);
         }

@@ -34,7 +34,7 @@ Item {
             Item { Layout.preferredHeight: 24 }
 
             // ── Language Section ───────────────────────────────────────
-            SectionHeader { iconName: "globe"; title: Tr.languageSection }
+            SectionHeader { iconName: "translate"; title: Tr.languageSection }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: langCol.implicitHeight + 32; radius: 12
@@ -47,7 +47,7 @@ Item {
                         id: langCombo
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
-                        model: ["English","Français","Deutsch","Русский","Italiano","简体中文","繁體中文"]
+                        model: ["English","Français","Deutsch","Русский","Italiano"]
                         currentIndex: appState ? appState.languageIndex : 0
                         onActivated: { if (appState) appState.setLanguage(currentIndex) }
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13
@@ -93,38 +93,8 @@ Item {
             }
             Item { Layout.preferredHeight: 32 }
 
-            // ── SMTP Config Section ────────────────────────────────────
-            SectionHeader { iconName: "mail"; title: Tr.emailConfigSection }
-            Item { Layout.preferredHeight: 12 }
-            Rectangle {
-                Layout.fillWidth: true; implicitHeight: smtpCol.implicitHeight + 32; radius: 12
-                color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
-                ColumnLayout {
-                    id: smtpCol
-                    anchors { fill: parent; margins: 16 } spacing: 12
-                    SmtpField { label: Tr.smtpServerLabel; placeholder: "smtp.example.com" }
-                    SmtpField { label: Tr.portLabel; placeholder: "587" }
-                    SmtpField { label: Tr.usernameLabel; placeholder: "user@example.com" }
-                    SmtpField { label: Tr.passwordLabel; placeholder: "••••••••" }
-                    SmtpField { label: Tr.fromAddrLabel; placeholder: "noreply@example.com" }
-                    // Info notice
-                    Rectangle {
-                        Layout.fillWidth: true; implicitHeight: noticeText.implicitHeight + 24; radius: 8
-                        color: Qt.alpha(Theme.warnYellow, 0.08); border { width: 1; color: Qt.alpha(Theme.warnYellow, 0.2) }
-                        RowLayout {
-                            anchors { fill: parent; margins: 12 }
-                            AppIcon { name: "warning"; size: 16; color: Theme.warnYellow }
-                            Item { width: 10 }
-                            Label {
-                                id: noticeText; Layout.fillWidth: true
-                                text: Tr.placeholderMsg
-                                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Qt.alpha(Theme.warnYellow, 0.8); wrapMode: Text.WordWrap; lineHeight: 1.4
-                            }
-                        }
-                    }
-                }
-            }
-            Item { Layout.preferredHeight: 32 }
+            // (Email/SMTP section removed — report sharing is handled from the
+            //  Report screen's preview window via Share/Email.)
 
             // ── About Section ──────────────────────────────────────────
             SectionHeader { iconName: "info"; title: Tr.aboutSection }
@@ -141,14 +111,37 @@ Item {
                             AppIcon { anchors.centerIn: parent; name: "wifi"; size: 28; color: Theme.accentBlue } }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
-                            Label { text: "NetDiagnostic"; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Bold; color: Theme.textPrimary }
+                            Label { text: "NetDiagnostic" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Bold; color: Theme.textPrimary }
                             Label {
+                                id: versionLabel
+                                property int taps: 0
                                 Layout.fillWidth: true
                                 text: "Version " + appState.appVersion
                                       + (appState.buildNumber.length > 0 ? " (Build " + appState.buildNumber + ")" : "")
                                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary
                                 wrapMode: Text.WordWrap
+                                // Hidden unlock: tap the version 7× to toggle premium
+                                // (stub until real in-app purchase is wired).
+                                MouseArea {
+                                    anchors.fill: parent
+                                    onClicked: {
+                                        versionLabel.taps++
+                                        if (versionLabel.taps >= 7) {
+                                            versionLabel.taps = 0
+                                            appState.setPremium(!appState.isPremium)
+                                            premiumToast.text = appState.isPremium ? Tr.premiumUnlocked : Tr.premiumLocked
+                                            premiumToastTimer.restart()
+                                        }
+                                    }
+                                }
                             }
+                            Label {
+                                id: premiumToast
+                                Layout.fillWidth: true
+                                visible: premiumToastTimer.running
+                                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.cyan
+                            }
+                            Timer { id: premiumToastTimer; interval: 2500 }
                         }
                     }
                     Item { Layout.preferredHeight: 16 }
