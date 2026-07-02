@@ -153,7 +153,6 @@ Item {
             height: Math.max(300, Math.min(700, parent.height - 60))
             radius: 12; color: "#1F1F32"
             border { width: 2; color: "#5A5A7A" }
-            shadow.color: "#00000040"; shadow.radius: 12; shadow.yOffset: 4
 
             ColumnLayout {
                 anchors { fill: parent; margins: 12 }
@@ -203,8 +202,8 @@ Item {
                             color: "#1A1A2E"
                             wrapMode: Text.WordWrap
                             font.pixelSize: 13
-                            font.family: "Georgia, 'Times New Roman', serif"
-                            lineHeight: 1.6
+                            font.family: "Georgia"
+                            lineHeight: 1.3
                         }
                     }
                 }
