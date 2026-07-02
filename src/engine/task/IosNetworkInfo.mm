@@ -14,7 +14,46 @@
 #import <arpa/inet.h>
 #import <ifaddrs.h>
 #import <net/if.h>
+#if __has_include(<net/route.h>)
 #import <net/route.h>
+#else
+// net/route.h was removed from the iOS SDK in Xcode 26 (iOS SDK 26+).
+// Define the minimum required types and constants from the stable BSD route ABI.
+#define NET_RT_DUMP2    7
+#define RTF_GATEWAY     0x2
+#define RTAX_DST        0
+#define RTAX_GATEWAY    1
+#define RTAX_NETMASK    2
+#define RTAX_MAX        8
+struct rt_metrics {
+    u_int32_t rmx_locks;
+    u_int32_t rmx_mtu;
+    u_int32_t rmx_hopcount;
+    int32_t   rmx_expire;
+    u_int32_t rmx_recvpipe;
+    u_int32_t rmx_sendpipe;
+    u_int32_t rmx_ssthresh;
+    u_int32_t rmx_rtt;
+    u_int32_t rmx_rttvar;
+    u_int32_t rmx_pksent;
+    u_int32_t rmx_state;
+    u_int32_t rmx_filler[3];
+};
+struct rt_msghdr2 {
+    u_short           rtm_msglen;
+    u_char            rtm_version;
+    u_char            rtm_type;
+    u_short           rtm_index;
+    int               rtm_flags;
+    int               rtm_addrs;
+    int32_t           rtm_refcnt;
+    int               rtm_parentflags;
+    int               rtm_reserved;
+    int               rtm_use;
+    u_int32_t         rtm_inits;
+    struct rt_metrics rtm_rmx;
+};
+#endif
 #include <QString>
 #include <QStringList>
 #include <QVector>
