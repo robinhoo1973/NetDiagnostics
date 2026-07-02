@@ -950,9 +950,33 @@ DiagnosticResult traceroute(const QString& target) {
     }
 
     r.durationMs = t.elapsed();
+
+    // If all ICMP probes failed (no hop responded), try TCP to verify whether the
+    // target is actually reachable. Networks and device sandboxes (e.g. iOS) often
+    // filter ICMP while allowing TCP — ping works via its TCP fallback, but ICMP
+    // traceroute shows all "* * * *". The TCP check surfaces this distinction.
+    bool tcpReachable = false;
+    if (!reached) {
+        const int ports[] = {443, 80, 22, 8080};
+        for (int p : ports) {
+            int rtt = tcpRttMs(host, p);
+            if (rtt >= 0) {
+                tcpReachable = true;
+                lines.append(QString());
+                lines.append(QStringLiteral("NOTE: All ICMP probes timed out."));
+                lines.append(QStringLiteral("  Target %1 [%2] is reachable via TCP port %3 (%4 ms).")
+                    .arg(host, targetIpStr).arg(p).arg(rtt));
+                lines.append(QStringLiteral("  ICMP may be filtered by the network or device — route discovery unavailable."));
+                break;
+            }
+        }
+    }
+
     lines.append(QString());
     if (reached) {
         lines.append(QStringLiteral("Trace complete."));
+    } else if (tcpReachable) {
+        lines.append(QStringLiteral("Trace incomplete — ICMP filtered."));
     } else {
         lines.append(QStringLiteral("Trace incomplete — target may be firewalled."));
     }
@@ -968,6 +992,7 @@ DiagnosticResult traceroute(const QString& target) {
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
     if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("Target reached in %1 hops").arg(hopCount); }
+    else if (tcpReachable) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("ICMP filtered — %1 reachable via TCP").arg(host); }
     else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial path (%1 hops)").arg(hopCount); }
     else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No hops discovered"); }
     return r;
