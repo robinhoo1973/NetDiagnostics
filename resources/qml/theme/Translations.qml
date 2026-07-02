@@ -115,6 +115,14 @@ Item {
     readonly property string reportShareFail: t("Sharing failed.","Échec du partage.","Teilen fehlgeschlagen.","Ошибка обмена.","Condivisione non riuscita.","分享失败。","分享失敗。")
     readonly property string premiumUnlocked: t("Premium unlocked","Premium déverrouillé","Premium freigeschaltet","Премиум разблокирован","Premium sbloccato","已解锁高级版","已解鎖高級版")
     readonly property string premiumLocked: t("Premium locked","Premium verrouillé","Premium gesperrt","Премиум заблокирован","Premium bloccato","高级版已锁定","高級版已鎖定")
+    // ── Subscription / share confirmation flow ──
+    readonly property string subscribeTitle: t("Unlock Premium","Débloquer Premium","Premium freischalten","Разблокировать Премиум","Sblocca Premium","解锁高级版","解鎖高級版")
+    readonly property string subscribeBody: t("Sharing and emailing reports is a Premium feature. Subscribe to unlock report sharing on all your devices.","Le partage et l'envoi de rapports par e-mail sont des fonctions Premium. Abonnez-vous pour débloquer le partage de rapports.","Das Teilen und Versenden von Berichten ist eine Premium-Funktion. Abonnieren Sie, um die Berichtsfreigabe freizuschalten.","Отправка отчётов — премиум-функция. Оформите подписку, чтобы делиться отчётами.","La condivisione e l'invio dei rapporti è una funzione Premium. Abbonati per sbloccare la condivisione.","分享和邮件发送报告是高级版功能。订阅后即可在所有设备上分享报告。","分享和郵件發送報告是高級版功能。訂閱後即可在所有裝置上分享報告。")
+    readonly property string subscribeBtn: t("Subscribe","S'abonner","Abonnieren","Оформить подписку","Abbonati","订阅高级版","訂閱高級版")
+    readonly property string subscribeNotNow: t("Not now","Plus tard","Später","Не сейчас","Non ora","以后再说","以後再說")
+    readonly property string confirmShareTitle: t("Share Report","Partager le rapport","Bericht teilen","Поделиться отчётом","Condividi rapporto","分享报告","分享報告")
+    readonly property string confirmShareBody: t("Share this diagnostic report now?","Partager ce rapport de diagnostic maintenant ?","Diesen Diagnosebericht jetzt teilen?","Поделиться этим отчётом диагностики?","Condividere ora questo rapporto diagnostico?","确认现在分享此诊断报告？","確認現在分享此診斷報告？")
+    readonly property string dialogCancel: t("Cancel","Annuler","Abbrechen","Отмена","Annulla","取消","取消")
     readonly property string reportResultsAvailable: t(" results available"," résultats disponibles"," Ergebnisse verfügbar"," результатов"," risultati disponibili"," 个结果可用"," 個結果可用")
     readonly property string reportNoResults: t("No diagnostic results","Aucun résultat de diagnostic","Keine Diagnoseergebnisse","Нет результатов","Nessun risultato","无诊断结果","無診斷結果")
 

@@ -110,6 +110,10 @@ public:
     // ── Premium / sharing ──────────────────────────────────────────────────
     bool isPremium() const { return m_isPremium; }
     Q_INVOKABLE void setPremium(bool v);
+    // Central, cross-platform entry point for starting a Premium subscription.
+    // Called from the QML share flow when the user taps "Subscribe". iOS and
+    // Android share the same call; platform store hooks live inside.
+    Q_INVOKABLE void requestSubscription();
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);
 

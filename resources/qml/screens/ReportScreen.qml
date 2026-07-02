@@ -19,6 +19,11 @@ Item {
     property bool previewVisible: false
     property string toast: ""             // transient status message
 
+    // Share/subscription flow state:
+    //   0 = no dialog, 1 = subscription prompt (not premium), 2 = confirm share (premium)
+    property int shareStage: 0
+    property string pendingShareFormat: ""
+
     function openPreview(fmt) {
         if (!hasResults) return
         previewFormat = fmt
@@ -27,10 +32,18 @@ Item {
         previewVisible = true
     }
     function requestExport(fmt) { if (hasResults) appState.requestSavePath(fmt) }
+    // Share button entry: check subscription. Not subscribed → guide to subscribe;
+    // subscribed → ask for confirmation before sharing. Same logic on iOS/Android.
     function doShare(fmt) {
-        if (!appState.isPremium) { page.toast = Tr.premiumRequiredMsg; toastTimer.restart(); return }
+        pendingShareFormat = fmt
+        shareStage = appState.isPremium ? 2 : 1
+    }
+    // User confirmed sharing (premium path). Hand off to the OS share sheet / mail.
+    function confirmShare() {
+        var fmt = pendingShareFormat
+        shareStage = 0
+        previewVisible = false
         appState.shareReport(fmt)
-        page.previewVisible = false
     }
 
     Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
@@ -44,6 +57,11 @@ Item {
         }
         function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? Tr.reportShareOk : Tr.reportShareFail; toastTimer.restart() }
+        // Subscription just succeeded while the prompt was open → advance to the
+        // confirmation step so the flow continues seamlessly (subscribe → confirm → share).
+        function onPremiumChanged() {
+            if (page.shareStage === 1 && appState.isPremium) page.shareStage = 2
+        }
     }
 
     // AppBar (Flutter: Scaffold.appBar with "Report Preview" title)
@@ -221,6 +239,118 @@ Item {
                 }
             }
         }
+    }
+
+    // ── Subscription / share-confirmation dialog ──────────────────────
+    // shareStage 1 = not subscribed → guide to subscribe.
+    // shareStage 2 = subscribed → confirm, then share. Identical on iOS/Android.
+    Rectangle {
+        id: shareDialog
+        parent: page.parent ? page.parent : page
+        anchors.fill: parent
+        color: "#AA000000"
+        visible: page.shareStage !== 0
+        z: 1100
+        MouseArea { anchors.fill: parent } // absorb background clicks
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(420, parent.width - 40)
+            implicitHeight: dlgCol.implicitHeight + 40
+            radius: 14; color: "#1F1F32"
+            border { width: 1.5; color: "#4A4A6A" }
+
+            ColumnLayout {
+                id: dlgCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+                spacing: 14
+
+                // Icon badge — lock/info for subscribe, report for confirm
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    width: 60; height: 60; radius: 30
+                    color: Qt.alpha(page.shareStage === 1 ? Theme.warnYellow : Theme.cyan, 0.12)
+                    border { width: 1.5; color: Qt.alpha(page.shareStage === 1 ? Theme.warnYellow : Theme.cyan, 0.35) }
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: page.shareStage === 1 ? "badge-info" : "report"
+                        size: 28
+                        color: page.shareStage === 1 ? Theme.warnYellow : Theme.cyan
+                    }
+                }
+                // Title
+                Label {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle
+                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                    font.pixelSize: 17; font.weight: Font.Bold; color: Theme.textPrimary
+                    wrapMode: Text.WordWrap
+                }
+                // Body
+                Label {
+                    Layout.fillWidth: true
+                    horizontalAlignment: Text.AlignHCenter
+                    text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody
+                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                    font.pixelSize: 13; color: Theme.textSecondary
+                    wrapMode: Text.WordWrap; lineHeight: 1.25
+                }
+                // PRO badge (subscribe stage only)
+                Rectangle {
+                    visible: page.shareStage === 1
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: proRow.implicitWidth + 20; implicitHeight: 26; radius: 13
+                    color: Qt.alpha(Theme.warnYellow, 0.15)
+                    RowLayout {
+                        id: proRow
+                        anchors.centerIn: parent; spacing: 5
+                        AppIcon { name: "badge-check"; size: 12; color: Theme.warnYellow }
+                        Label { text: Tr.premiumBadge; color: Theme.warnYellow
+                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.Bold }
+                    }
+                }
+                // Action buttons
+                RowLayout {
+                    Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
+                    DialogBtn {
+                        Layout.fillWidth: true
+                        label: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel
+                        accent: Theme.textSecondary; filled: false
+                        onClicked: page.shareStage = 0
+                    }
+                    DialogBtn {
+                        Layout.fillWidth: true
+                        label: page.shareStage === 1 ? Tr.subscribeBtn
+                                                     : (page.isMobile ? Tr.shareBtn : Tr.emailBtn)
+                        accent: page.shareStage === 1 ? Theme.warnYellow : Theme.cyan
+                        filled: true
+                        onClicked: {
+                            if (page.shareStage === 1) appState.requestSubscription()
+                            else page.confirmShare()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    component DialogBtn: Rectangle {
+        id: dbtn
+        property string label: ""
+        property color accent: Theme.cyan
+        property bool filled: false
+        signal clicked()
+        implicitHeight: 42; radius: 8
+        color: dbtn.filled ? dbtn.accent : "transparent"
+        border { width: 1; color: dbtn.filled ? "transparent" : Qt.alpha(dbtn.accent, 0.5) }
+        Label {
+            anchors.centerIn: parent
+            text: dbtn.label
+            color: dbtn.filled ? "#101018" : dbtn.accent
+            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.DemiBold
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
     }
 
     component PreviewBtn: Rectangle {

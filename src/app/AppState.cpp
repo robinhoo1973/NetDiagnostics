@@ -948,6 +948,18 @@ void AppState::setPremium(bool v) {
     emit premiumChanged();
 }
 
+void AppState::requestSubscription() {
+    // Single cross-platform entry point invoked from the QML "Subscribe" button.
+    // Real in-app purchase would be started here and, on a verified transaction,
+    // call setPremium(true) from the store callback:
+    //   iOS      → StoreKit 2: Product.purchase(); verify Transaction, then setPremium(true).
+    //   Android  → Google Play Billing: launchBillingFlow(); onPurchasesUpdated → setPremium(true).
+    // The store SDKs are not wired up yet, so we grant Premium directly here so the
+    // end-to-end share flow is usable and identical on iOS and Android.
+    if (m_isPremium) return;            // already subscribed
+    setPremium(true);                   // emits premiumChanged → QML continues to the share step
+}
+
 void AppState::shareReport(const QString& format) {
     if (!m_isPremium) { emit premiumRequired(); return; }
     const QString ext = (format == QLatin1String("pdf")) ? QStringLiteral("pdf")
