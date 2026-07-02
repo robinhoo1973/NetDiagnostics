@@ -8,6 +8,11 @@ import "../theme"
 Item {
     id: page
     objectName: "diagnostic"
+    // Bundled monospace font loaded locally so `dejavuMono.name` resolves in THIS
+    // component (QML ids don't cross file scope). font.family takes a SINGLE family
+    // name (not a comma list), so binding the exact loaded family guarantees a real
+    // fixed-width font for the detail output (box-drawing + em-dash + arrows).
+    FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
     readonly property bool wide: width >= 600
 
     // ── Run-active flag: true during diagnostic execution ──
@@ -413,10 +418,7 @@ Item {
                             Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; color:"#E0E0E0"; wrapMode:Text.WordWrap }
                         }
                     }
-                    // Explicit font string (not a cross-file FontLoader id, which
-                    // is out of scope here): DejaVu Sans Mono first for box-drawing /
-                    // em-dash / arrow alignment, then CJK fallbacks for carrier names.
-                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: "DejaVu Sans Mono, JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei, monospace"; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

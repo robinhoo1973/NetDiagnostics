@@ -9,6 +9,21 @@
 #include <chrono>
 #include <QTimer>
 #include <QCoreApplication>
+#include <QTextDocument>
+#include <QPdfWriter>
+#include <QPageSize>
+#include <QPageLayout>
+#include <QMarginsF>
+#include <QStandardPaths>
+#include <QFile>
+#include <QTextStream>
+#include <QDir>
+#include <QUrl>
+#include <QUrlQuery>
+#include <QFileInfo>
+#include <QProcess>
+#include <QDesktopServices>
+#include "util/PlatformShare.h"
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -20,6 +35,7 @@
 #include <QLabel>
 #include <QDialogButtonBox>
 #include <QScrollArea>
+#include <QFileDialog>
 #endif
 
 AppState::AppState(QObject* parent) : QObject(parent) {
@@ -695,6 +711,216 @@ QVariantList AppState::allGroupStats() const {
     for (int g = 0; g < 5; ++g)
         m_cachedGroupStats.append(groupStats(g));
     return m_cachedGroupStats;
+}
+
+// ── Report export ─────────────────────────────────────────────
+namespace {
+QString reportStatusText(DiagStatus s) {
+    switch (s) {
+        case DiagStatus::Pass:    return QStringLiteral("Pass");
+        case DiagStatus::Warning: return QStringLiteral("Warning");
+        case DiagStatus::Fail:    return QStringLiteral("Fail");
+        case DiagStatus::Skipped: return QStringLiteral("Skipped");
+        case DiagStatus::Error:   return QStringLiteral("Error");
+        case DiagStatus::Info:    return QStringLiteral("Info");
+    }
+    return QStringLiteral("-");
+}
+QString reportStatusColor(DiagStatus s) {
+    switch (s) {
+        case DiagStatus::Pass:    return QStringLiteral("#16a34a");
+        case DiagStatus::Warning: return QStringLiteral("#ca8a04");
+        case DiagStatus::Fail:    return QStringLiteral("#dc2626");
+        case DiagStatus::Skipped: return QStringLiteral("#6b7280");
+        case DiagStatus::Error:   return QStringLiteral("#dc2626");
+        case DiagStatus::Info:    return QStringLiteral("#2563eb");
+    }
+    return QStringLiteral("#111111");
+}
+// QML FileDialog hands back a file:// URL; convert to a local filesystem path.
+QString normalizeReportPath(const QString& p) {
+    return p.startsWith(QStringLiteral("file:")) ? QUrl(p).toLocalFile() : p;
+}
+} // namespace
+
+QString AppState::buildReportHtml(bool fullDetail) const {
+    const QString target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
+    const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    const QStringList labels = groupLabels();
+
+    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
+    for (int g = 0; g < 5; ++g) {
+        QVariantMap s = groupStats(g);
+        tPass += s.value(QStringLiteral("pass")).toInt(); tWarn += s.value(QStringLiteral("warn")).toInt();
+        tFail += s.value(QStringLiteral("fail")).toInt(); tSkip += s.value(QStringLiteral("skip")).toInt();
+        tInfo += s.value(QStringLiteral("info")).toInt(); tTotal += s.value(QStringLiteral("total")).toInt();
+    }
+
+    QString h;
+    h += QStringLiteral("<h2 style=\"margin:0 0 2px 0\">Network Diagnostic Report</h2>");
+    h += QStringLiteral("<p style=\"color:#555555\">Target: <b>%1</b> &nbsp;|&nbsp; %2 "
+        "&nbsp;|&nbsp; NetDiagnostic v%3 (build %4)</p>")
+        .arg(target, ts, appVersion(), buildNumber());
+
+    h += QStringLiteral("<p>Total <b>%1</b> tests &mdash; "
+        "<font color=\"#16a34a\">Pass %2</font>, <font color=\"#ca8a04\">Warning %3</font>, "
+        "<font color=\"#dc2626\">Fail %4</font>, <font color=\"#6b7280\">Skipped %5</font>, "
+        "<font color=\"#2563eb\">Info %6</font></p>")
+        .arg(tTotal).arg(tPass).arg(tWarn).arg(tFail).arg(tSkip).arg(tInfo);
+
+    h += QStringLiteral("<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\" width=\"100%\">"
+        "<tr bgcolor=\"#f3f4f6\"><th align=\"left\">Group</th><th>Total</th>"
+        "<th>Pass</th><th>Warn</th><th>Fail</th><th>Skip</th><th>Info</th></tr>");
+    for (int g = 0; g < 5; ++g) {
+        QVariantMap s = groupStats(g);
+        if (s.value(QStringLiteral("total")).toInt() == 0) continue;
+        h += QStringLiteral("<tr><td>G%1: %2</td><td align=\"center\">%3</td>"
+            "<td align=\"center\">%4</td><td align=\"center\">%5</td><td align=\"center\">%6</td>"
+            "<td align=\"center\">%7</td><td align=\"center\">%8</td></tr>")
+            .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString())
+            .arg(s.value(QStringLiteral("total")).toInt()).arg(s.value(QStringLiteral("pass")).toInt())
+            .arg(s.value(QStringLiteral("warn")).toInt()).arg(s.value(QStringLiteral("fail")).toInt())
+            .arg(s.value(QStringLiteral("skip")).toInt()).arg(s.value(QStringLiteral("info")).toInt());
+    }
+    h += QStringLiteral("</table>");
+
+    if (fullDetail) {
+        h += QStringLiteral("<h3>Details</h3>");
+        for (int g = 0; g < 5; ++g) {
+            if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
+            h += QStringLiteral("<h4 style=\"margin:8px 0 2px 0\">G%1: %2</h4>")
+                .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString());
+            for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
+                if (!m_results.contains(id)) continue;
+                const auto& r = m_results[id];
+                const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
+                                                              : r.displayName).toHtmlEscaped();
+                h += QStringLiteral("<p style=\"margin:6px 0 0 0\"><b>%1</b> &mdash; "
+                    "<font color=\"%2\">%3</font> <font color=\"#888888\">(%4 ms)</font></p>")
+                    .arg(name, reportStatusColor(r.status), reportStatusText(r.status))
+                    .arg(r.durationMs);
+                if (!r.summary.isEmpty())
+                    h += QStringLiteral("<p style=\"margin:0;color:#444444\">%1</p>")
+                        .arg(r.summary.toHtmlEscaped());
+                const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
+                if (!body.trimmed().isEmpty())
+                    h += QStringLiteral("<pre style=\"background-color:#f5f5f5\">%1</pre>")
+                        .arg(body.toHtmlEscaped());
+            }
+        }
+    }
+    return h;
+}
+
+QString AppState::defaultReportPath(const QString& ext) const {
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    if (dir.isEmpty()) dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (dir.isEmpty()) dir = QDir::tempPath();
+    QDir().mkpath(dir);
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    return QDir(dir).filePath(QStringLiteral("NetDiagnostic_report_%1.%2").arg(stamp, ext));
+}
+
+QString AppState::exportHtml(const QString& filePath) const {
+    const QString path = normalizeReportPath(filePath);
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        Logger::instance().event(QStringLiteral("exportHtml: cannot open %1").arg(path));
+        return QString();
+    }
+    QTextStream ts(&f);
+    ts << buildReportHtml(true);
+    f.close();
+    return path;
+}
+
+QString AppState::exportPdf(const QString& filePath) const {
+    const QString path = normalizeReportPath(filePath);
+    QPdfWriter writer(path);
+    writer.setPageSize(QPageSize(QPageSize::A4));
+    writer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
+    writer.setTitle(QStringLiteral("Network Diagnostic Report"));
+
+    QTextDocument doc;
+    doc.setHtml(buildReportHtml(false)); // summary only -> ~1 page
+    doc.print(&writer);
+    return QFile::exists(path) ? path : QString();
+}
+
+void AppState::requestSavePath(const QString& format) {
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+    auto* dlg = new QFileDialog(nullptr, QStringLiteral("Save Report"),
+                                defaultReportPath(format));
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setAcceptMode(QFileDialog::AcceptSave);
+    dlg->setNameFilter(format == QLatin1String("pdf")
+        ? QStringLiteral("PDF document (*.pdf)")
+        : QStringLiteral("HTML document (*.html)"));
+    dlg->setDefaultSuffix(format);
+    connect(dlg, &QFileDialog::fileSelected, this, [this, format](const QString& p) {
+        if (!p.isEmpty()) emit savePathPicked(format, p);
+    });
+    dlg->open(); // non-modal (show()-style) — avoids the ARM64 exec() crash
+#else
+    // Mobile: no native file dialog — save straight to the Documents folder.
+    emit savePathPicked(format, defaultReportPath(format));
+#endif
+}
+
+void AppState::setPremium(bool v) {
+    if (m_isPremium == v) return;
+    m_isPremium = v;
+    emit premiumChanged();
+}
+
+void AppState::shareReport(const QString& format) {
+    if (!m_isPremium) { emit premiumRequired(); return; }
+    const QString ext = (format == QLatin1String("pdf")) ? QStringLiteral("pdf")
+                                                         : QStringLiteral("html");
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    // Generate into a temp file, then present the OS share sheet.
+    const QString tmp = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        .filePath(QStringLiteral("NetDiagnostic_report.%1").arg(ext));
+    const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(tmp) : exportHtml(tmp);
+    if (saved.isEmpty()) { emit reportShared(false); return; }
+    platformShareFile(saved,
+                      ext == QLatin1String("pdf") ? QStringLiteral("application/pdf")
+                                                  : QStringLiteral("text/html"),
+                      QStringLiteral("Network Diagnostic Report"));
+    emit reportShared(true);
+#else
+    // Desktop: save to Documents and hand off to the default mail client.
+    const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(defaultReportPath(ext))
+                                                        : exportHtml(defaultReportPath(ext));
+    if (saved.isEmpty()) { emit reportShared(false); return; }
+    emailReportDesktop(saved);
+    emit reportShared(true);
+#endif
+}
+
+void AppState::emailReportDesktop(const QString& path) {
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+    const QString subject = QStringLiteral("Network Diagnostic Report");
+#ifdef Q_OS_LINUX
+    // xdg-email can attach the file directly to a new mail.
+    if (QProcess::startDetached(QStringLiteral("xdg-email"),
+            {QStringLiteral("--subject"), subject, QStringLiteral("--attach"), path}))
+        return;
+#endif
+    // Fallback (Windows/macOS or no xdg-email): mailto cannot attach, so open the
+    // default mail client with a note and reveal the saved file for manual attach.
+    QUrl mailto;
+    mailto.setScheme(QStringLiteral("mailto"));
+    QUrlQuery q;
+    q.addQueryItem(QStringLiteral("subject"), subject);
+    q.addQueryItem(QStringLiteral("body"),
+        QStringLiteral("The Network Diagnostic report is saved at: %1").arg(path));
+    mailto.setQuery(q);
+    QDesktopServices::openUrl(mailto);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+#else
+    Q_UNUSED(path);
+#endif
 }
 
 void AppState::showDetailDialog(int diagIdInt) {

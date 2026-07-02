@@ -66,10 +66,12 @@ endif()
 if(IOS)
     list(APPEND SOURCES src/engine/IosWiFiHelper.mm)
     list(APPEND SOURCES src/engine/task/IosDnsTask.mm src/engine/task/IosHttpTask.mm src/engine/task/IosNetworkInfo.mm)
+    list(APPEND SOURCES src/engine/PlatformShare_ios.mm)
 endif()
 # Android: native JNI diagnostics
 if(ANDROID)
     list(APPEND SOURCES src/engine/task/AndroidNetworkInfo.cpp)
+    list(APPEND SOURCES src/engine/task/PlatformShare_android.cpp)
 endif()
 
 set(QML_RESOURCES

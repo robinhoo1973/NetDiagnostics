@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider path config for sharing generated report files.
+     TempLocation on Android resolves to the app cache dir (<cache-path>). -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="cache" path="."/>
+    <files-path name="files" path="."/>
+    <external-cache-path name="ext-cache" path="."/>
+    <external-files-path name="ext-files" path="."/>
+</paths>

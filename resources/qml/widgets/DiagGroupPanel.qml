@@ -25,6 +25,7 @@ Rectangle {
     property int groupWarn: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.warn||0 }
     property int groupFail: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.fail||0 }
     property int groupSkip: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.skip||0 }
+    property int groupInfo: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.info||0 }
 
     onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
     onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
@@ -69,6 +70,7 @@ Rectangle {
             Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#FACC15",0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#FACC15"; font.weight:Font.Bold } }
             Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#EF4444",0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#EF4444"; font.weight:Font.Bold } }
             Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#888888",0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#888888"; font.weight:Font.Bold } }
+            Rectangle { visible:groupInfo>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#0078D4",0.15); Label { anchors.centerIn:parent; text:groupInfo; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#0078D4"; font.weight:Font.Bold } }
             Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:"#A0A0B8" }
         }
 
