@@ -833,7 +833,7 @@ QString AppState::buildReportHtml(bool fullDetail) const {
             if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
             h += QStringLiteral("<h3 style=\"font-size:14px;margin:14px 0 10px 0;padding:8px;background:%1;border-left:3px solid %2;border-radius:3px;color:#FFFFFF\">"
                 "G%3: %4</h3>")
-                .arg(Qt::rgba(100, 116, 139, 0.3))
+                .arg(QStringLiteral("rgba(100,116,139,0.3)"))
                 .arg(QStringLiteral("#3B82F6"))
                 .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString());
             for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
@@ -846,7 +846,7 @@ QString AppState::buildReportHtml(bool fullDetail) const {
                     "<b>%3</b> <span style=\"color:%1;font-weight:bold\">%4</span> "
                     "<span style=\"color:#9CA3AF;font-size:11px\">%5 ms</span>"
                     "</div>")
-                    .arg(statusColor, Qt::rgba(31, 41, 55, 0.05))
+                    .arg(statusColor, QStringLiteral("rgba(31,41,55,0.05)"))
                     .arg(name, reportStatusText(r.status))
                     .arg(r.durationMs);
                 if (!r.summary.isEmpty())
