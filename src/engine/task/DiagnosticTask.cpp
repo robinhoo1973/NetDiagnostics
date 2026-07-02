@@ -30,8 +30,23 @@ void DiagnosticTask::start() {
     // outlive the worker, and capturing it here is safe. (A watchdog timeout
     // emits finished() early but must NOT delete the task while run() is
     // still executing on the pool thread — see onWatchdogTimeout.)
+    //
+    // CRITICAL: run() must never let a C++ exception escape. QtConcurrent stores
+    // a thrown exception in the QFuture and re-throws it from QFuture::result()
+    // on the MAIN thread (onFutureFinished), where it is uncaught → std::terminate
+    // → hard crash. Any diagnostic that throws (std::bad_alloc, out-of-range,
+    // std::system_error from sockets, etc.) would take down the whole app. Catch
+    // everything here and turn it into a failed result.
     m_watcher->setFuture(QtConcurrent::run([this]() -> DiagnosticResult {
-        return run();
+        try {
+            return run();
+        } catch (const std::exception& e) {
+            return DiagnosticResult::error(m_id,
+                QStringLiteral("Diagnostic crashed: %1").arg(QString::fromUtf8(e.what())));
+        } catch (...) {
+            return DiagnosticResult::error(m_id,
+                QStringLiteral("Diagnostic crashed: unknown exception"));
+        }
     }));
 }
 
@@ -48,7 +63,18 @@ void DiagnosticTask::onFutureFinished() {
     // a timeout for this task.
     if (!m_finishedEmitted.exchange(true) &&
         !m_cancelled.load(std::memory_order_acquire)) {
-        emit finished(m_watcher->result());
+        // QFuture::result() re-throws any exception stored during the run.
+        // The worker lambda already catches everything, but guard here too so
+        // a stored exception can never terminate the app on the main thread.
+        try {
+            emit finished(m_watcher->result());
+        } catch (const std::exception& e) {
+            emit finished(DiagnosticResult::error(m_id,
+                QStringLiteral("Diagnostic crashed: %1").arg(QString::fromUtf8(e.what()))));
+        } catch (...) {
+            emit finished(DiagnosticResult::error(m_id,
+                QStringLiteral("Diagnostic crashed: unknown exception")));
+        }
     }
     // run() has returned; the object is now safe to destroy.
     deleteLater();
