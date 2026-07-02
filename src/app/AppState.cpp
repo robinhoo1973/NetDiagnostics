@@ -29,16 +29,10 @@ AppState::AppState(QObject* parent) : QObject(parent) {
         if (g == DiagGroup::G1 || g == DiagGroup::G2 || g == DiagGroup::G3)
             m_enabledDiags.insert(id);
     }
-
-#ifdef PLATFORM_IOS
-    // iOS sandbox: these tests can never return useful data
-    m_enabledDiags.remove(DiagId::G1DhcpStatus);
-    m_enabledDiags.remove(DiagId::G2TcpSettings);
-    m_enabledDiags.remove(DiagId::G2DefaultGateway);
-    m_enabledDiags.remove(DiagId::G2RoutingTable);
-    m_enabledDiags.remove(DiagId::G2ArpTable);
-#endif
-
+    // NOTE: iOS-unavailable tests (TCP settings, ARP table) are NOT hidden here.
+    // They stay enabled and report DiagStatus::Skipped so the UI shows a skip
+    // icon (like Active Connections). Default gateway / routing table / DHCP now
+    // have working iOS implementations and return real data.
 }
 
 AppState::~AppState() {

@@ -61,6 +61,7 @@ typedef SSIZE_T ssize_t;
 #include <net/if_types.h>
 #ifdef PLATFORM_IOS
 #include "engine/IosWiFiHelper.h"
+#include "engine/task/IosNetworkInfo.h"
 #endif
 #else
 #include <sys/socket.h>
@@ -345,8 +346,11 @@ DiagnosticResult networkAdapters(DiagId id) {
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
         if (hasNonEmptyValue(cell, "radioAccess"))
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        if (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"))
-            out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
+        const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
+        out.append(QStringLiteral("  IP Address: %1").arg(cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
+        if (!cellGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
         if (hasNonEmptyValue(cell, "signalNotice"))
             out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
     }
@@ -552,13 +556,16 @@ DiagnosticResult cellularInfo(DiagId id) {
 #ifdef PLATFORM_IOS
     QVariantMap cell = iosCellularInfo();
     const bool hasCellIdentity = hasCellularIdentity(cell);
+    const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
+    const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
     if (hasCellIdentity) {
         if (hasNonEmptyValue(cell, "carrierName"))
             out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
         if (hasNonEmptyValue(cell, "radioAccess"))
             out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        if (hasNonEmptyValue(cell, "mcc") && hasNonEmptyValue(cell, "mnc"))
-            out.append(QStringLiteral("  MCC/MNC: %1-%2").arg(cell["mcc"].toString(), cell["mnc"].toString()));
+        out.append(QStringLiteral("  IP Address: %1").arg(cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
+        if (!cellGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
         if (hasNonEmptyValue(cell, "signalNotice"))
             out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         out.append(QString());
@@ -566,6 +573,10 @@ DiagnosticResult cellularInfo(DiagId id) {
         r.summary = cellularSummary(cell);
     } else {
         out.append(QStringLiteral("  No cellular service available"));
+        if (!cellIp.isEmpty())
+            out.append(QStringLiteral("  IP Address: %1").arg(cellIp));
+        if (!cellGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
         if (hasNonEmptyValue(cell, "signalNotice"))
             out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         r.status = DiagStatus::Info; r.summary = QStringLiteral("No cellular service");
@@ -920,6 +931,9 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     };
     QList<QStringList> wifiRows;
     QSet<QString> seenWifi;
+#ifdef PLATFORM_IOS
+    QString iosWifiSsidCaptured;
+#endif
 
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
@@ -944,6 +958,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QVariantMap wifiData = iosWiFiInfo();
             ssid = wifiData.value("ssid", "").toString();
             if (ssid.isEmpty()) ssid = QStringLiteral("-");
+            else iosWifiSsidCaptured = ssid;
             bssid = wifiData.value("bssid", "").toString();
             if (bssid.isEmpty()) bssid = QStringLiteral("-");
 #endif
@@ -996,6 +1011,22 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     }
     out.append(DiagnosticFormatter::formatTable(kWifiCols, wifiRows));
     if (wifiRows.isEmpty()) out.append(QStringLiteral("  (no wireless interfaces detected)"));
+#ifdef PLATFORM_IOS
+    {
+        const QString wifiIp = iosInterfaceIPv4(QStringLiteral("en0"));
+        const QString wifiGw = iosGatewayForInterface(QStringLiteral("en0"));
+        out.append(QString());
+        out.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
+        if (!wifiGw.isEmpty())
+            out.append(QStringLiteral("  Gateway: %1").arg(wifiGw));
+        out.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
+        if (iosWifiSsidCaptured.isEmpty()) {
+            out.append(QString());
+            out.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
+            out.append(QStringLiteral("        Location permission, and an active WiFi connection."));
+        }
+    }
+#endif
 #endif
 
     r.rawOutput = out.join('\n');
@@ -1084,6 +1115,21 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
+
+#ifdef PLATFORM_IOS
+    // iOS devices have no wired Ethernet NIC, and /sys/class/net is inaccessible,
+    // so every field would be blank. Report as Skipped (consistent with ARP/TCP).
+    out.append(QString());
+    out.append(QStringLiteral("Wired Information:"));
+    out.append(QString());
+    out.append(QStringLiteral("  [iOS] No wired Ethernet interface — not applicable on iOS devices."));
+    r.rawOutput = out.join('\n');
+    r.details = r.rawOutput;
+    r.status = DiagStatus::Skipped;
+    r.summary = QStringLiteral("Not applicable on iOS (no wired NIC)");
+    r.durationMs = t.elapsed();
+    return r;
+#endif
 
 #ifdef _WIN32
     out.append(QString());
