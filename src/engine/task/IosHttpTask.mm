@@ -206,12 +206,19 @@ static DiagnosticResult iosHttpRedirect(DiagId id, const QString& target) {
 // Returns a DiagnosticResult for iOS-native G5 HTTP diagnostics.
 // Used by TaskFactory when PLATFORM_IOS is defined (no libcurl needed).
 DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target) {
-    switch (id) {
-        case DiagId::G5HttpHeaders:    return iosHttpHeaders(id, target);
-        case DiagId::G5CurlVerbose:    return iosCurlVerbose(id, target);
-        case DiagId::G5SslCertificate: return iosSslCert(id, target);
-        case DiagId::G5HttpRedirect:   return iosHttpRedirect(id, target);
-        default:
-            return DiagnosticResult::skipped(id, QStringLiteral("G5 test not implemented (iOS native)"));
+    // Runs on a QtConcurrent worker thread with no autorelease pool of its own.
+    // NSURL/NSURLSession/NSURLSessionConfiguration created below are autoreleased;
+    // Apple requires each secondary thread that makes Cocoa calls to provide its own
+    // @autoreleasepool, otherwise these objects leak. The DiagnosticResult returned is
+    // a pure C++ value, so it is unaffected by the pool draining.
+    @autoreleasepool {
+        switch (id) {
+            case DiagId::G5HttpHeaders:    return iosHttpHeaders(id, target);
+            case DiagId::G5CurlVerbose:    return iosCurlVerbose(id, target);
+            case DiagId::G5SslCertificate: return iosSslCert(id, target);
+            case DiagId::G5HttpRedirect:   return iosHttpRedirect(id, target);
+            default:
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test not implemented (iOS native)"));
+        }
     }
 }

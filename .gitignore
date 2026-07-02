@@ -30,6 +30,9 @@ desktop.ini
 # Logs
 *.log
 
+# Crash logs / TestFlight feedback (local analysis only)
+crashes/
+
 # Session files
 .codewhale/
 .deepseek/

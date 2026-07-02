@@ -41,33 +41,34 @@ void iosRequestWiFiAuthorization()
 QString iosCopyWiFiSSID()
 {
     // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    // Store the SSID as a C++ QString (converted inside the handler) so no Objective-C
+    // object owned by the handler's autorelease pool crosses the thread boundary.
     struct SsidCtx {
         dispatch_semaphore_t sem;
-        NSString* ssid;
+        QString ssid;
         std::atomic<int> refs;
     };
     auto ctx = std::make_shared<SsidCtx>();
     ctx->sem = dispatch_semaphore_create(0);
-    ctx->ssid = nil;
     ctx->refs.store(2, std::memory_order_relaxed);
 
     if (@available(iOS 14.0, *)) {
         [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
-            if (network && network.SSID.length > 0) {
-                ctx->ssid = [network.SSID copy];
-            }
-            dispatch_semaphore_signal(ctx->sem);
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
+            @autoreleasepool {
+                if (network && network.SSID.length > 0) {
+                    ctx->ssid = QString::fromNSString(network.SSID);
+                }
+                dispatch_semaphore_signal(ctx->sem);
+                if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                    dispatch_release(ctx->sem);
+                }
             }
         }];
         long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
-        if (waited != 0) ctx->ssid = nil; // timeout: handler may still be writing
+        if (waited != 0) ctx->ssid.clear(); // timeout: handler may still be writing
     }
 
-    QString result;
-    if (ctx->ssid && ctx->ssid.length > 0)
-        result = QString::fromNSString(ctx->ssid);
+    QString result = ctx->ssid;
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
     }
@@ -152,52 +153,47 @@ QVariantMap iosWiFiInfo()
     QVariantMap info;
 
     // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    // Store results as C++ QString (converted inside the handler) so no Objective-C
+    // object owned by the handler's autorelease pool ever crosses the thread boundary.
     struct WifiCtx {
         dispatch_semaphore_t sem;
-        NSString* ssid;
-        NSString* bssid;
+        QString ssid;
+        QString bssid;
         std::atomic<int> refs;
     };
     auto ctx = std::make_shared<WifiCtx>();
     ctx->sem = dispatch_semaphore_create(0);
-    ctx->ssid = nil;
-    ctx->bssid = nil;
     ctx->refs.store(2, std::memory_order_relaxed);  // waiter + handler
 
     if (@available(iOS 14.0, *)) {
         [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
-            if (network) {
-                if (network.SSID && network.SSID.length > 0)
-                    ctx->ssid = [network.SSID copy];
-                if (network.BSSID && network.BSSID.length > 0)
-                    ctx->bssid = [network.BSSID copy];
-            }
-            dispatch_semaphore_signal(ctx->sem);
-            // Drop the handler's reference; last one out releases the semaphore.
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
+            @autoreleasepool {
+                if (network) {
+                    if (network.SSID && network.SSID.length > 0)
+                        ctx->ssid = QString::fromNSString(network.SSID);
+                    if (network.BSSID && network.BSSID.length > 0)
+                        ctx->bssid = QString::fromNSString(network.BSSID);
+                }
+                dispatch_semaphore_signal(ctx->sem);
+                // Drop the handler's reference; last one out releases the semaphore.
+                if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                    dispatch_release(ctx->sem);
+                }
             }
         }];
         long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
         // Only read result on success; on timeout the handler may still be writing it.
         if (waited != 0) {
-            ctx->ssid = nil;
-            ctx->bssid = nil;
+            ctx->ssid.clear();
+            ctx->bssid.clear();
         }
     }
 
-    if (ctx->ssid && ctx->ssid.length > 0)
-        info["ssid"] = QString::fromNSString(ctx->ssid);
-    else
-        info["ssid"] = QString();
-
-    if (ctx->bssid && ctx->bssid.length > 0)
-        info["bssid"] = QString::fromNSString(ctx->bssid);
-    else
-        info["bssid"] = QString();
+    info["ssid"] = ctx->ssid;
+    info["bssid"] = ctx->bssid;
 
     // Add diagnostics
-    if (!ctx->ssid || ctx->ssid.length == 0)
+    if (ctx->ssid.isEmpty())
         info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission denied (requires NSLocalNetworkUsageDescription + NSBonjourServiceTypes)");
 
     // Drop the waiter's reference; last one out releases the semaphore.
@@ -214,70 +210,78 @@ QVariantMap iosCellularInfo()
 {
     QVariantMap info;
 
-    CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
-    if (!netInfo) {
-        info["error"] = QStringLiteral("Failed to initialize CTTelephonyNetworkInfo");
-        return info;
-    }
+    // Runs on a QtConcurrent worker thread with no autorelease pool of its own.
+    // CTTelephonyNetworkInfo, its provider dictionary, and the NSStrings it returns
+    // are all autoreleased; without an explicit pool they leak (Apple requires each
+    // secondary thread that makes Cocoa calls to provide its own @autoreleasepool).
+    @autoreleasepool {
+        CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
+        if (!netInfo) {
+            info["error"] = QStringLiteral("Failed to initialize CTTelephonyNetworkInfo");
+            return info;
+        }
 
-    // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
-    // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
-    // We suppress the warnings and keep the best-effort implementation — the values
-    // will eventually return placeholder strings ("--", "65535") on future iOS versions.
-    // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
+        // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
+        // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
+        // We suppress the warnings and keep the best-effort implementation — the values
+        // will eventually return placeholder strings ("--", "65535") on future iOS versions.
+        // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    bool hasCarrier = false;
-    QString mccStr, mncStr;
-    if (@available(iOS 12.0, *)) {
-        NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
-        if (providers && providers.count > 0) {
-            for (NSString* key in providers) {
-                CTCarrier* carrier = providers[key];
-                if (carrier) {
-                    // Try to get the carrier name
-                    QString carrierName;
-                    if (carrier.carrierName && carrier.carrierName.length > 0) {
-                        carrierName = QString::fromNSString(carrier.carrierName);
-                        // Check if it's the placeholder string (iOS 16+ default)
-                        if (carrierName != "--" && carrierName != "65535") {
-                            info["carrierName"] = carrierName;
-                            hasCarrier = true;
+        bool hasCarrier = false;
+        QString mccStr, mncStr;
+        if (@available(iOS 12.0, *)) {
+            NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
+            if (providers && providers.count > 0) {
+                for (NSString* key in providers) {
+                    CTCarrier* carrier = providers[key];
+                    if (carrier) {
+                        // Try to get the carrier name
+                        QString carrierName;
+                        if (carrier.carrierName && carrier.carrierName.length > 0) {
+                            carrierName = QString::fromNSString(carrier.carrierName);
+                            // Check if it's the placeholder string (iOS 16+ default)
+                            if (carrierName != "--" && carrierName != "65535") {
+                                info["carrierName"] = carrierName;
+                                hasCarrier = true;
+                            }
                         }
+                        // Always store MCC/MNC for fallback lookup
+                        if (carrier.mobileCountryCode) {
+                            mccStr = QString::fromNSString(carrier.mobileCountryCode);
+                            info["mcc"] = mccStr;
+                        }
+                        if (carrier.mobileNetworkCode) {
+                            mncStr = QString::fromNSString(carrier.mobileNetworkCode);
+                            info["mnc"] = mncStr;
+                        }
+                        if (carrier.isoCountryCode)
+                            info["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
+                        break; // first active carrier
                     }
-                    // Always store MCC/MNC for fallback lookup
-                    if (carrier.mobileCountryCode) {
-                        mccStr = QString::fromNSString(carrier.mobileCountryCode);
-                        info["mcc"] = mccStr;
-                    }
-                    if (carrier.mobileNetworkCode) {
-                        mncStr = QString::fromNSString(carrier.mobileNetworkCode);
-                        info["mnc"] = mncStr;
-                    }
-                    if (carrier.isoCountryCode)
-                        info["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
-                    break; // first active carrier
                 }
             }
         }
-    }
-    // Fallback: if carrierName is empty or placeholder, try MCC+MNC lookup
-    if (!hasCarrier && !mccStr.isEmpty() && !mncStr.isEmpty()) {
-        QString looked = mccMncToCarrier(mccStr, mncStr);
-        if (!looked.isEmpty()) {
-            info["carrierName"] = looked + " (via MCC/MNC)";
-            hasCarrier = true;
+        // Fallback: if carrierName is empty or placeholder, try MCC+MNC lookup
+        if (!hasCarrier && !mccStr.isEmpty() && !mncStr.isEmpty()) {
+            QString looked = mccMncToCarrier(mccStr, mncStr);
+            if (!looked.isEmpty()) {
+                info["carrierName"] = looked + " (via MCC/MNC)";
+                hasCarrier = true;
+            }
         }
-    }
 #pragma clang diagnostic pop
 
-    // Radio access technology
-    NSString* rat = netInfo.serviceCurrentRadioAccessTechnology.allValues.firstObject;
-    if (rat) {
-        info["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
-        info["radioAccessRaw"] = QString::fromNSString(rat);
-    } else if (!hasCarrier) {
-        info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
+        // Radio access technology
+        NSString* rat = netInfo.serviceCurrentRadioAccessTechnology.allValues.firstObject;
+        if (rat) {
+            info["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
+            info["radioAccessRaw"] = QString::fromNSString(rat);
+        } else if (!hasCarrier) {
+            info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
+        }
+
+        [netInfo release]; // MRC: balance the alloc/init above
     }
 
     // Signal strength is not available via public API (iOS restricts this)
