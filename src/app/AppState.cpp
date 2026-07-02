@@ -764,77 +764,94 @@ QString AppState::buildReportHtml(bool fullDetail) const {
     }
 
     QString h;
-    // Header with gradient effect
-    h += QStringLiteral("<div style=\"background:linear-gradient(135deg,#1F2937 0%,#374151 100%);padding:20px;border-radius:8px;margin-bottom:16px;color:white;text-align:center\">");
-    h += QStringLiteral("<h1 style=\"margin:0 0 8px 0;font-size:28px;font-weight:bold\">Network Diagnostic Report</h1>");
-    h += QStringLiteral("<p style=\"margin:0;font-size:12px;opacity:0.9\">Target: <b>%1</b> · Generated: %2</p>");
-    h += QStringLiteral("<p style=\"margin:4px 0 0 0;font-size:11px;opacity:0.8\">NetDiagnostic v%3 (build %4)</p>");
-    h += QStringLiteral("</div>")
+    // NOTE: Qt rich text (QTextDocument / QML Text.RichText) only supports a
+    // limited HTML4/CSS2 subset — no gradients, flex, opacity or border-radius.
+    // Layout is therefore built with tables + bgcolor + <font>, which render
+    // identically in the QML preview and the QPdfWriter PDF.
+
+    // ── Header banner (solid dark bar, white text) ──
+    h += QStringLiteral(
+        "<table width=\"100%\" cellpadding=\"14\" cellspacing=\"0\">"
+        "<tr><td bgcolor=\"#1F2937\" align=\"center\">"
+        "<font color=\"#FFFFFF\" size=\"6\"><b>Network Diagnostic Report</b></font><br/>"
+        "<font color=\"#D1D5DB\" size=\"3\">Target: <b>%1</b></font><br/>"
+        "<font color=\"#9CA3AF\" size=\"2\">%2 &nbsp;&middot;&nbsp; NetDiagnostic v%3 (build %4)</font>"
+        "</td></tr></table><br/>")
         .arg(target, ts, appVersion(), buildNumber());
 
-    // Summary stats with color-coded cards
-    h += QStringLiteral("<div style=\"display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap\">");
-    h += QStringLiteral("<div style=\"flex:1;min-width:120px;padding:12px;background:%1;opacity:0.1;border-left:4px solid %1;border-radius:4px\">"
-        "<div style=\"font-size:14px;font-weight:bold;color:%1\">%2</div>"
-        "<div style=\"font-size:11px;color:#666;margin-top:2px\">Passed</div></div>")
-        .arg(colorPass, QString::number(tPass));
-    h += QStringLiteral("<div style=\"flex:1;min-width:120px;padding:12px;background:%1;opacity:0.1;border-left:4px solid %1;border-radius:4px\">"
-        "<div style=\"font-size:14px;font-weight:bold;color:%1\">%2</div>"
-        "<div style=\"font-size:11px;color:#666;margin-top:2px\">Warnings</div></div>")
-        .arg(colorWarn, QString::number(tWarn));
-    h += QStringLiteral("<div style=\"flex:1;min-width:120px;padding:12px;background:%1;opacity:0.1;border-left:4px solid %1;border-radius:4px\">"
-        "<div style=\"font-size:14px;font-weight:bold;color:%1\">%2</div>"
-        "<div style=\"font-size:11px;color:#666;margin-top:2px\">Failed</div></div>")
-        .arg(colorFail, QString::number(tFail));
-    h += QStringLiteral("</div>");
+    // ── Summary strip: 5 colour-coded cells (light bg, dark number) ──
+    auto card = [](const QString& bg, const QString& fg, const QString& sub,
+                   int val, const QString& lbl) {
+        return QStringLiteral(
+            "<td width=\"20%\" align=\"center\" bgcolor=\"%1\">"
+            "<font color=\"%2\" size=\"5\"><b>%3</b></font><br/>"
+            "<font color=\"%4\" size=\"1\">%5</font></td>")
+            .arg(bg, fg).arg(val).arg(sub, lbl);
+    };
+    h += QStringLiteral("<table width=\"100%\" cellpadding=\"8\" cellspacing=\"5\"><tr>");
+    h += card(QStringLiteral("#ECFDF5"), QStringLiteral("#059669"), QStringLiteral("#065F46"), tPass, QStringLiteral("PASSED"));
+    h += card(QStringLiteral("#FFFBEB"), QStringLiteral("#D97706"), QStringLiteral("#92400E"), tWarn, QStringLiteral("WARNING"));
+    h += card(QStringLiteral("#FEF2F2"), QStringLiteral("#DC2626"), QStringLiteral("#991B1B"), tFail, QStringLiteral("FAILED"));
+    h += card(QStringLiteral("#F3F4F6"), QStringLiteral("#4B5563"), QStringLiteral("#374151"), tSkip, QStringLiteral("SKIPPED"));
+    h += card(QStringLiteral("#EFF6FF"), QStringLiteral("#2563EB"), QStringLiteral("#1E40AF"), tInfo, QStringLiteral("INFO"));
+    h += QStringLiteral("</tr></table>");
+    h += QStringLiteral("<p align=\"center\"><font color=\"#6B7280\" size=\"2\">Total <b>%1</b> tests</font></p>")
+        .arg(tTotal);
 
-    // Stats table with improved styling
-    h += QStringLiteral("<h2 style=\"font-size:16px;margin:16px 0 12px 0;padding-bottom:8px;border-bottom:2px solid #E5E7EB\">Group Summary</h2>");
-    h += QStringLiteral("<table style=\"width:100%;border-collapse:collapse;font-size:13px\">"
-        "<tr style=\"background:#F3F4F6\">"
-        "<th style=\"padding:10px;text-align:left;border:1px solid #E5E7EB\">Group</th>"
-        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB\">Total</th>"
-        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%1\">✓ Pass</th>"
-        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%2\">⚠ Warn</th>"
-        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%3\">✕ Fail</th>"
-        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%4\">○ Skip</th>"
-        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%5\">ℹ Info</th></tr>")
+    // ── Section header helper (filled bar) ──
+    auto section = [](const QString& title, const QString& bg) {
+        return QStringLiteral(
+            "<table width=\"100%\" cellpadding=\"6\" cellspacing=\"0\"><tr>"
+            "<td bgcolor=\"%1\"><font color=\"#FFFFFF\" size=\"3\"><b>%2</b></font></td>"
+            "</tr></table>")
+            .arg(bg, title);
+    };
+
+    // ── Group summary table ──
+    h += section(QStringLiteral("Group Summary"), QStringLiteral("#374151"));
+    h += QStringLiteral(
+        "<table width=\"100%\" border=\"1\" cellpadding=\"6\" cellspacing=\"0\" bordercolor=\"#D1D5DB\">"
+        "<tr bgcolor=\"#F3F4F6\">"
+        "<th align=\"left\">Group</th><th>Total</th>"
+        "<th><font color=\"%1\">Pass</font></th>"
+        "<th><font color=\"%2\">Warn</font></th>"
+        "<th><font color=\"%3\">Fail</font></th>"
+        "<th><font color=\"%4\">Skip</font></th>"
+        "<th><font color=\"%5\">Info</font></th></tr>")
         .arg(colorPass, colorWarn, colorFail, colorSkip, colorInfo);
     for (int g = 0; g < 5; ++g) {
         QVariantMap s = groupStats(g);
         if (s.value(QStringLiteral("total")).toInt() == 0) continue;
-        const int gPass = s.value(QStringLiteral("pass")).toInt();
-        const int gWarn = s.value(QStringLiteral("warn")).toInt();
-        const int gFail = s.value(QStringLiteral("fail")).toInt();
-        const int gSkip = s.value(QStringLiteral("skip")).toInt();
-        const int gInfo = s.value(QStringLiteral("info")).toInt();
-        h += QStringLiteral("<tr style=\"border-bottom:1px solid #E5E7EB;background:%1\">"
-            "<td style=\"padding:10px;border-right:1px solid #E5E7EB\"><b>G%2: %3</b></td>"
-            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB\">%4</td>"
-            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%5\">%6</td>"
-            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%7\">%8</td>"
-            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%9\">%10</td>"
-            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%11\">%12</td>"
-            "<td style=\"padding:10px;text-align:center;color:%13\">%14</td></tr>")
-            .arg(g % 2 == 0 ? "#FFFFFF" : "#F9FAFB")
+        h += QStringLiteral(
+            "<tr bgcolor=\"%1\">"
+            "<td><b>G%2: %3</b></td>"
+            "<td align=\"center\">%4</td>"
+            "<td align=\"center\"><font color=\"%5\">%6</font></td>"
+            "<td align=\"center\"><font color=\"%7\">%8</font></td>"
+            "<td align=\"center\"><font color=\"%9\">%10</font></td>"
+            "<td align=\"center\"><font color=\"%11\">%12</font></td>"
+            "<td align=\"center\"><font color=\"%13\">%14</font></td></tr>")
+            .arg(g % 2 == 0 ? QStringLiteral("#FFFFFF") : QStringLiteral("#F9FAFB"))
             .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString())
             .arg(s.value(QStringLiteral("total")).toInt())
-            .arg(colorPass).arg(gPass)
-            .arg(colorWarn).arg(gWarn)
-            .arg(colorFail).arg(gFail)
-            .arg(colorSkip).arg(gSkip)
-            .arg(colorInfo).arg(gInfo);
+            .arg(colorPass).arg(s.value(QStringLiteral("pass")).toInt())
+            .arg(colorWarn).arg(s.value(QStringLiteral("warn")).toInt())
+            .arg(colorFail).arg(s.value(QStringLiteral("fail")).toInt())
+            .arg(colorSkip).arg(s.value(QStringLiteral("skip")).toInt())
+            .arg(colorInfo).arg(s.value(QStringLiteral("info")).toInt());
     }
     h += QStringLiteral("</table>");
 
     if (fullDetail) {
-        h += QStringLiteral("<h2 style=\"font-size:16px;margin:20px 0 12px 0;padding-bottom:8px;border-bottom:2px solid #E5E7EB\">Detailed Results</h2>");
+        h += QStringLiteral("<br/>");
+        h += section(QStringLiteral("Detailed Results"), QStringLiteral("#374151"));
         for (int g = 0; g < 5; ++g) {
             if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
-            h += QStringLiteral("<h3 style=\"font-size:14px;margin:14px 0 10px 0;padding:8px;background:%1;border-left:3px solid %2;border-radius:3px;color:#FFFFFF\">"
-                "G%3: %4</h3>")
-                .arg(QStringLiteral("rgba(100,116,139,0.3)"))
-                .arg(QStringLiteral("#3B82F6"))
+            // Sub-header per group
+            h += QStringLiteral(
+                "<table width=\"100%\" cellpadding=\"5\" cellspacing=\"0\"><tr>"
+                "<td bgcolor=\"#475569\"><font color=\"#FFFFFF\"><b>G%1: %2</b></font></td>"
+                "</tr></table>")
                 .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString());
             for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
                 if (!m_results.contains(id)) continue;
@@ -842,26 +859,31 @@ QString AppState::buildReportHtml(bool fullDetail) const {
                 const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
                 const QString statusColor = reportStatusColor(r.status);
-                h += QStringLiteral("<div style=\"margin:10px 0;padding:10px;border-left:3px solid %1;background:%2;border-radius:4px\">"
-                    "<b>%3</b> <span style=\"color:%1;font-weight:bold\">%4</span> "
-                    "<span style=\"color:#9CA3AF;font-size:11px\">%5 ms</span>"
-                    "</div>")
-                    .arg(statusColor, QStringLiteral("rgba(31,41,55,0.05)"))
-                    .arg(name, reportStatusText(r.status))
+                // Result row: coloured status dot + name + status + timing
+                h += QStringLiteral(
+                    "<table width=\"100%\" cellpadding=\"6\" cellspacing=\"0\"><tr>"
+                    "<td bgcolor=\"#F9FAFB\">"
+                    "<font color=\"%1\"><b>&#9679;</b></font> <b>%2</b> "
+                    "<font color=\"%1\"><b>[%3]</b></font> "
+                    "<font color=\"#9CA3AF\" size=\"1\">%4 ms</font>")
+                    .arg(statusColor, name, reportStatusText(r.status))
                     .arg(r.durationMs);
                 if (!r.summary.isEmpty())
-                    h += QStringLiteral("<p style=\"margin:6px 0 0 0;color:#4B5563;font-size:12px\">%1</p>")
+                    h += QStringLiteral("<br/><font color=\"#4B5563\" size=\"2\">%1</font>")
                         .arg(r.summary.toHtmlEscaped());
+                h += QStringLiteral("</td></tr></table>");
                 const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
                 if (!body.trimmed().isEmpty())
-                    h += QStringLiteral("<pre style=\"background:#f0f1f3;border:1px solid #d1d5db;padding:10px;border-radius:4px;"
-                        "font-family:'Courier New',monospace;font-size:11px;color:#1f2937;overflow-x:auto;margin:8px 0\">%1</pre>")
+                    h += QStringLiteral(
+                        "<table width=\"100%\" cellpadding=\"8\" cellspacing=\"0\" border=\"1\" bordercolor=\"#D1D5DB\">"
+                        "<tr><td bgcolor=\"#F0F1F3\"><pre style=\"font-family:'Courier New',monospace;"
+                        "font-size:11px;color:#1F2937\">%1</pre></td></tr></table>")
                         .arg(body.toHtmlEscaped());
             }
         }
     }
-    h += QStringLiteral("<div style=\"margin-top:20px;padding-top:12px;border-top:1px solid #E5E7EB;font-size:10px;color:#999999;text-align:center\">"
-        "Generated by NetDiagnostic • All times in milliseconds</div>");
+    h += QStringLiteral("<br/><p align=\"center\"><font color=\"#9CA3AF\" size=\"1\">"
+        "Generated by NetDiagnostic &middot; All times in milliseconds</font></p>");
     return h;
 }
 
