@@ -120,11 +120,10 @@ Item {
                     Label { text: Tr.summary; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     RowLayout {
-                    SummaryStat { appIcon: "config"; clr: Theme.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
-                    Item { width: 24 }
-                    SummaryStat { appIcon: "timer"; clr: Theme.accentBlue; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
-                    Item { width: 24 }
-                    SummaryStat { appIcon: "check"; clr: Theme.passGreen; val: _totalCompleted; lbl: Tr.completedLabel }
+                    Layout.fillWidth: true; spacing: 12
+                    SummaryStat { Layout.fillWidth: true; appIcon: "config"; clr: Theme.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
+                    SummaryStat { Layout.fillWidth: true; appIcon: "timer"; clr: Theme.accentBlue; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
+                    SummaryStat { Layout.fillWidth: true; appIcon: "check"; clr: Theme.passGreen; val: _totalCompleted; lbl: Tr.completedLabel }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2A2A4A"; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 12; visible: _totalCompleted > 0 }
@@ -229,11 +228,12 @@ Item {
 
     component SummaryStat: RowLayout {
         property string appIcon: ""; property color clr: Theme.cyan; property var val: 0; property string lbl: ""
+        spacing: 0
         AppIcon { name: appIcon; size: 20; color: clr }
         Item { width: 8 }
-        ColumnLayout { spacing: 0
-            Label { text: val; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 22; font.weight: Font.Bold; color: Theme.textPrimary }
-            Label { text: lbl; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.textSecondary }
+        ColumnLayout { spacing: 0; Layout.fillWidth: true
+            Label { Layout.fillWidth: true; text: val; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 22; font.weight: Font.Bold; color: Theme.textPrimary; elide: Text.ElideRight }
+            Label { Layout.fillWidth: true; text: lbl; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.textSecondary; elide: Text.ElideRight }
         }
     }
 }
