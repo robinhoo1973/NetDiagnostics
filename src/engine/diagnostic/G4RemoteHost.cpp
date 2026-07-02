@@ -443,6 +443,9 @@ static uint16_t icmpEchoChecksum(const void* data, int len) {
 static int icmpEchoRttMs(quint32 ipHostOrder, int seq, int timeoutMs) {
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     if (sock < 0) return -1;
+    // fd_set is a fixed FD_SETSIZE bitmap; FD_SET with fd >= FD_SETSIZE overflows
+    // the stack. Under heavy concurrency the descriptor can climb; bail out safely.
+    if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
     struct timeval rcvTo;
     rcvTo.tv_sec = timeoutMs / 1000;
     rcvTo.tv_usec = (timeoutMs % 1000) * 1000;
@@ -757,11 +760,13 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
     // Datagram ICMP socket — allowed on iOS/macOS without root (SimplePing pattern)
     int icmpSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+    if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { closeSocket(icmpSock); rttMs=0; hopIp.clear(); return -1; }
     if (icmpSock < 0) {
         s_rawIcmpAvailable = false;
         // Fallback: TCP connect with TTL (used only if ICMP is somehow unavailable)
         int sock = socket(AF_INET, SOCK_STREAM, 0);
         if (sock < 0) { rttMs=0; hopIp.clear(); return -2; }
+        if (sock >= FD_SETSIZE) { closeSocket(sock); rttMs=0; hopIp.clear(); return -1; }
         setsockopt(sock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
         struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
         addr.sin_family=AF_INET; addr.sin_port=htons(80);
@@ -1155,6 +1160,8 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     // Try TCP connect and get MSS → derive path MTU
     int discoveredMtu = 0, mss = 0;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
+    // fd_set overflow guard: FD_SET with fd >= FD_SETSIZE corrupts the stack.
+    if (sock >= 0 && sock >= FD_SETSIZE) { closeSocket(sock); sock = -1; }
     if (sock >= 0 && resolvedIp) {
         struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET; addr.sin_port = htons(80);

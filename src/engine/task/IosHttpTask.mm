@@ -10,6 +10,8 @@
 #include "engine/task/DiagnosticTask.h"
 #include "models/DiagId.h"
 #include <QUrl>
+#include <atomic>
+#include <memory>
 #import <Foundation/Foundation.h>
 
 // ── Helper: synchronous HTTP GET with metrics ──────────────────────────
@@ -31,7 +33,7 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
     // Whoever finishes last (waiter on timeout, or handler on response) releases the semaphore.
     struct HttpCtx {
         dispatch_semaphore_t sem;
-        __block IosHttpResult result;
+        IosHttpResult result;
         std::atomic<int> refs;
     };
     auto ctx = std::make_shared<HttpCtx>();
@@ -126,9 +128,23 @@ static DiagnosticResult iosCurlVerbose(DiagId id, const QString& target) {
 // ── G5 SSL Certificate ──────────────────────────────────────────────────
 static DiagnosticResult iosSslCert(DiagId id, const QString& target) {
     QUrl u(target);
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-    __block DiagnosticResult dr; dr.id = id; dr.group = DiagGroup::G5;
+    DiagnosticResult dr; dr.id = id; dr.group = DiagGroup::G5;
     dr.timestamp = QDateTime::currentDateTime();
+
+    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    // NEVER write a __block C++ object from the handler and return it by value on timeout
+    // — that races the return and corrupts QString refcounts. Store plain fields in ctx.
+    struct SslCtx {
+        dispatch_semaphore_t sem;
+        int status;      // 0=unset, 1=pass, 2=fail
+        QString summary;
+        QString rawOutput;
+        std::atomic<int> refs;
+    };
+    auto ctx = std::make_shared<SslCtx>();
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->status = 0;
+    ctx->refs.store(2, std::memory_order_relaxed);
 
     NSURLSession* session = [NSURLSession sessionWithConfiguration:
         [NSURLSessionConfiguration ephemeralSessionConfiguration]];
@@ -136,20 +152,35 @@ static DiagnosticResult iosSslCert(DiagId id, const QString& target) {
     NSURLSessionDataTask* task = [session dataTaskWithURL:[NSURL URLWithString:target.toNSString()]
         completionHandler:^(NSData* data, NSURLResponse* resp, NSError* error) {
             if (error) {
-                dr.status = DiagStatus::Fail;
-                dr.summary = QString::fromNSString(error.localizedDescription);
+                ctx->status = 2;
+                ctx->summary = QString::fromNSString(error.localizedDescription);
             } else {
-                dr.status = DiagStatus::Pass;
+                ctx->status = 1;
                 NSHTTPURLResponse* httpResp = (NSHTTPURLResponse*)resp;
-                dr.summary = QStringLiteral("SSL OK, HTTP %1").arg((int)httpResp.statusCode);
-                dr.rawOutput = QStringLiteral("TLS handshake completed successfully");
+                ctx->summary = QStringLiteral("SSL OK, HTTP %1").arg((int)httpResp.statusCode);
+                ctx->rawOutput = QStringLiteral("TLS handshake completed successfully");
             }
-            dispatch_semaphore_signal(sem);
+            dispatch_semaphore_signal(ctx->sem);
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(ctx->sem);
+            }
         }];
     [task resume];
-    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
+    long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
     [session finishTasksAndInvalidate];
+    // Only read ctx fields on success; on timeout the handler may still be writing them.
+    if (waited == 0 && ctx->status != 0) {
+        dr.status = (ctx->status == 1) ? DiagStatus::Pass : DiagStatus::Fail;
+        dr.summary = ctx->summary;
+        dr.rawOutput = ctx->rawOutput;
+    } else {
+        dr.status = DiagStatus::Fail;
+        dr.summary = QStringLiteral("SSL check timed out");
+    }
     dr.details = dr.rawOutput;
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+    }
     return dr;
 }
 
