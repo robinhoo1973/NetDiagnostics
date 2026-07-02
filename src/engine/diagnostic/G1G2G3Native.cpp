@@ -342,10 +342,23 @@ DiagnosticResult networkAdapters(DiagId id) {
     if (hasCellIdentity) {
         out.append(QString());
         out.append(QStringLiteral("Cellular Information:"));
-        if (hasNonEmptyValue(cell, "carrierName"))
-            out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-        if (hasNonEmptyValue(cell, "radioAccess"))
-            out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
+        const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
+        if (sims.size() > 1) {
+            for (const QVariant& v : sims) {
+                const QVariantMap sim = v.toMap();
+                const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
+                const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
+                out.append(QStringLiteral("  SIM %1: %2%3")
+                    .arg(QString::number(sim.value(QStringLiteral("slot")).toInt()),
+                         carrier.isEmpty() ? QStringLiteral("(carrier hidden)") : carrier,
+                         radio.isEmpty() ? QString() : QStringLiteral(" \u2014 %1").arg(radio)));
+            }
+        } else {
+            if (hasNonEmptyValue(cell, "carrierName"))
+                out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
+            if (hasNonEmptyValue(cell, "radioAccess"))
+                out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
+        }
         const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
         const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
         out.append(QStringLiteral("  IP Address: %1").arg(cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
@@ -524,7 +537,7 @@ DiagnosticResult activeConnections(DiagId id) {
     else {
 #ifdef PLATFORM_IOS
         out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
-        out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp 闁?use Xcode network monitor"));
+        out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
 #else
         out.append(QStringLiteral("  (no active connections)"));
 #endif
@@ -558,19 +571,42 @@ DiagnosticResult cellularInfo(DiagId id) {
     const bool hasCellIdentity = hasCellularIdentity(cell);
     const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
     const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
-    if (hasCellIdentity) {
-        if (hasNonEmptyValue(cell, "carrierName"))
-            out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-        if (hasNonEmptyValue(cell, "radioAccess"))
-            out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
-        out.append(QStringLiteral("  IP Address: %1").arg(cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
+    const QVariantList sims = cell.value(QStringLiteral("sims")).toList();
+    const bool multiSim = sims.size() > 1;
+    if (hasCellIdentity || !sims.isEmpty()) {
+        if (multiSim)
+            out.append(QStringLiteral("  %1 SIM / eSIM lines active:").arg(sims.size()));
+        for (const QVariant& v : sims) {
+            const QVariantMap sim = v.toMap();
+            const QString pad = multiSim ? QStringLiteral("    ") : QStringLiteral("  ");
+            if (multiSim)
+                out.append(QStringLiteral("  SIM %1:").arg(sim.value(QStringLiteral("slot")).toInt()));
+            const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
+            out.append(QStringLiteral("%1Carrier: %2").arg(pad,
+                carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier));
+            const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
+            if (!radio.isEmpty())
+                out.append(QStringLiteral("%1Radio Access: %2").arg(pad, radio));
+        }
+        out.append(QStringLiteral("  %1: %2")
+            .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),
+                 cellIp.isEmpty() ? QStringLiteral("(not assigned)") : cellIp));
         if (!cellGw.isEmpty())
             out.append(QStringLiteral("  Gateway: %1").arg(cellGw));
         if (hasNonEmptyValue(cell, "signalNotice"))
             out.append(QStringLiteral("  Signal: %1").arg(cell["signalNotice"].toString()));
         out.append(QString());
         r.status = DiagStatus::Pass;
-        r.summary = cellularSummary(cell);
+        if (multiSim) {
+            QStringList rats;
+            for (const QVariant& v : sims) {
+                const QString ra = v.toMap().value(QStringLiteral("radioAccess")).toString();
+                rats.append(ra.isEmpty() ? QStringLiteral("\u2014") : ra);
+            }
+            r.summary = QStringLiteral("%1 SIMs (%2)").arg(sims.size()).arg(rats.join(QStringLiteral(", ")));
+        } else {
+            r.summary = cellularSummary(cell);
+        }
     } else {
         out.append(QStringLiteral("  No cellular service available"));
         if (!cellIp.isEmpty())
@@ -1306,7 +1342,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
             while (!ts.atEnd()) {
                 QStringList cols = ts.readLine().trimmed().split('\t');
                 if (cols.size() >= 11 && cols[2].toUInt(nullptr, 16) != 0) {
-                    out.append(QStringLiteral("   Interface: %1 (via DHCP 闁?inferred from default route)").arg(cols[0]));
+                    out.append(QStringLiteral("   Interface: %1 (via DHCP — inferred from default route)").arg(cols[0]));
                     out.append(QStringLiteral("   Default Gateway . . . . . . . . . : %1").arg(ipToStr(cols[2].toUInt(nullptr, 16))));
                     out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : Likely Yes"));
                     out.append(QString());
@@ -1976,7 +2012,7 @@ DiagnosticResult dnsCache(DiagId id) {
     r.details = r.rawOutput;
     r.status = hasCache ? DiagStatus::Pass : DiagStatus::Info;
     if (hasCache)
-        r.summary = QStringLiteral("Cache active 鐠?%1 cached DNS entries").arg(cacheEntries);
+        r.summary = QStringLiteral("Cache active — %1 cached DNS entries").arg(cacheEntries);
     else
         r.summary = QStringLiteral("No local DNS cache detected");
     r.durationMs = (int)t.elapsed();
@@ -2053,15 +2089,15 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QStringLiteral("Results: %1 resolved, %2 clean, %3 timed out")
         .arg(resolved).arg(clean).arg(timedOut));
     if (resolved > 0) {
-        out.append(QStringLiteral("Verdict: DNS HIJACKING DETECTED 闁?non-existent domains redirected to:"));
-        for (const auto& ip : hijackIPs) out.append(QStringLiteral("  闁?%1").arg(ip));
+        out.append(QStringLiteral("Verdict: DNS HIJACKING DETECTED — non-existent domains redirected to:"));
+        for (const auto& ip : hijackIPs) out.append(QStringLiteral("  • %1").arg(ip));
         out.append(QString());
         out.append(QStringLiteral("This typically means your ISP or DNS provider is intercepting"));
         out.append(QStringLiteral("NXDOMAIN responses and redirecting to a search/advertising page."));
     } else if (timedOut > 0) {
-        out.append(QStringLiteral("Verdict: INCONCLUSIVE 闁?%1 probes timed out (DNS may be slow or filtered)").arg(timedOut));
+        out.append(QStringLiteral("Verdict: INCONCLUSIVE — %1 probes timed out (DNS may be slow or filtered)").arg(timedOut));
     } else {
-        out.append(QStringLiteral("Verdict: DNS CLEAN 闁?no hijacking detected"));
+        out.append(QStringLiteral("Verdict: DNS CLEAN — no hijacking detected"));
     }
 
     r.rawOutput = out.join('\n');
@@ -2362,7 +2398,7 @@ DiagnosticResult speedTest(DiagId id) {
         out.append(QStringLiteral("  (Speed test skipped: connectivity check took too long)"));
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected 鐠?speed test timed out") : QStringLiteral("No internet");
+        r.summary = hasConnectivity ? QStringLiteral("Connected — speed test timed out") : QStringLiteral("No internet");
         r.durationMs = totalTimer.elapsed(); return r;
     }
 
@@ -2399,7 +2435,7 @@ DiagnosticResult speedTest(DiagId id) {
         out.append(QString());
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected 鐠?no speed test servers reachable")
+        r.summary = hasConnectivity ? QStringLiteral("Connected — no speed test servers reachable")
                                     : QStringLiteral("No internet connectivity");
         r.durationMs = totalTimer.elapsed(); return r;
     }
@@ -2422,7 +2458,7 @@ DiagnosticResult speedTest(DiagId id) {
 
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
-    out.append(QStringLiteral("  Selected: %1 (%2) 闁?%3 ms")
+    out.append(QStringLiteral("  Selected: %1 (%2) — %3 ms")
         .arg(best->sponsor, best->name).arg(bestLatency));
     out.append(QString());
 
@@ -2647,10 +2683,10 @@ DiagnosticResult speedTest(DiagId id) {
         r.summary = QStringLiteral("No internet connectivity");
     } else if (dlSpeed > 0.1 || ulSpeed > 0.1) {
         r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("Connected 鐠?闁?1 闁?2 Mbit/s").arg(dlSpeed, 0, 'f', 1).arg(ulSpeed, 0, 'f', 1);
+        r.summary = QStringLiteral("Connected — ↓%1 ↑%2 Mbit/s").arg(dlSpeed, 0, 'f', 1).arg(ulSpeed, 0, 'f', 1);
     } else {
         r.status = DiagStatus::Warning;
-        r.summary = QStringLiteral("Connected 鐠?speed test incomplete");
+        r.summary = QStringLiteral("Connected — speed test incomplete");
     }
     r.durationMs = totalTimer.elapsed();
     return r;

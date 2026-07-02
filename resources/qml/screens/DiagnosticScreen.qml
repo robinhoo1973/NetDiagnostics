@@ -413,7 +413,10 @@ Item {
                             Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; color:"#E0E0E0"; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
+                    // Explicit font string (not a cross-file FontLoader id, which
+                    // is out of scope here): DejaVu Sans Mono first for box-drawing /
+                    // em-dash / arrow alignment, then CJK fallbacks for carrier names.
+                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: "DejaVu Sans Mono, JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei, monospace"; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

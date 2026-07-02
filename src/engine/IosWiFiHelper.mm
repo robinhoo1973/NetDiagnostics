@@ -228,58 +228,81 @@ QVariantMap iosCellularInfo()
         // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+        // Enumerate EVERY SIM / eSIM line. Dual-SIM iPhones return one CTCarrier per
+        // active subscription in serviceSubscriberCellularProviders, and
+        // serviceCurrentRadioAccessTechnology is keyed by the SAME service identifiers,
+        // so each SIM's radio-access type is matched by key.
+        QVariantList sims;
         bool hasCarrier = false;
-        QString mccStr, mncStr;
         if (@available(iOS 12.0, *)) {
             NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
+            NSDictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRadioAccessTechnology;
             if (providers && providers.count > 0) {
-                for (NSString* key in providers) {
+                // Dictionary order is undefined; sort keys for stable SIM slot numbers.
+                NSArray<NSString*>* keys = [providers.allKeys sortedArrayUsingSelector:@selector(compare:)];
+                int slot = 0;
+                for (NSString* key in keys) {
                     CTCarrier* carrier = providers[key];
+                    QVariantMap sim;
+                    sim["slot"] = ++slot;
+
+                    QString mccStr, mncStr, carrierName;
                     if (carrier) {
-                        // Try to get the carrier name
-                        QString carrierName;
                         if (carrier.carrierName && carrier.carrierName.length > 0) {
-                            carrierName = QString::fromNSString(carrier.carrierName);
-                            // Check if it's the placeholder string (iOS 16+ default)
-                            if (carrierName != "--" && carrierName != "65535") {
-                                info["carrierName"] = carrierName;
-                                hasCarrier = true;
-                            }
+                            QString cn = QString::fromNSString(carrier.carrierName);
+                            if (cn != "--" && cn != "65535") carrierName = cn;
                         }
-                        // Always store MCC/MNC for fallback lookup
                         if (carrier.mobileCountryCode) {
-                            mccStr = QString::fromNSString(carrier.mobileCountryCode);
-                            info["mcc"] = mccStr;
+                            QString v = QString::fromNSString(carrier.mobileCountryCode);
+                            if (v != "65535") { mccStr = v; sim["mcc"] = v; }
                         }
                         if (carrier.mobileNetworkCode) {
-                            mncStr = QString::fromNSString(carrier.mobileNetworkCode);
-                            info["mnc"] = mncStr;
+                            QString v = QString::fromNSString(carrier.mobileNetworkCode);
+                            if (v != "65535") { mncStr = v; sim["mnc"] = v; }
                         }
                         if (carrier.isoCountryCode)
-                            info["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
-                        break; // first active carrier
+                            sim["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
                     }
+                    // iOS 16+ hides the carrier name ("--"); fall back to MCC+MNC lookup.
+                    if (carrierName.isEmpty() && !mccStr.isEmpty() && !mncStr.isEmpty()) {
+                        QString looked = mccMncToCarrier(mccStr, mncStr);
+                        if (!looked.isEmpty()) carrierName = looked + " (via MCC/MNC)";
+                    }
+                    if (!carrierName.isEmpty()) { sim["carrierName"] = carrierName; hasCarrier = true; }
+
+                    // Per-SIM radio access technology, matched by the same service key.
+                    NSString* rat = rats ? rats[key] : nil;
+                    if (rat) {
+                        sim["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
+                        sim["radioAccessRaw"] = QString::fromNSString(rat);
+                    }
+                    sims.append(sim);
                 }
-            }
-        }
-        // Fallback: if carrierName is empty or placeholder, try MCC+MNC lookup
-        if (!hasCarrier && !mccStr.isEmpty() && !mncStr.isEmpty()) {
-            QString looked = mccMncToCarrier(mccStr, mncStr);
-            if (!looked.isEmpty()) {
-                info["carrierName"] = looked + " (via MCC/MNC)";
-                hasCarrier = true;
             }
         }
 #pragma clang diagnostic pop
 
-        // Radio access technology
-        NSString* rat = netInfo.serviceCurrentRadioAccessTechnology.allValues.firstObject;
-        if (rat) {
-            info["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
-            info["radioAccessRaw"] = QString::fromNSString(rat);
-        } else if (!hasCarrier) {
-            info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
+        info["simCount"] = static_cast<int>(sims.size());
+        if (!sims.isEmpty()) {
+            info["sims"] = sims;
+            // Flat "primary" keys for backward-compatible summary / identity checks:
+            // prefer the first SIM that actually has a carrier or an active radio.
+            QVariantMap primary = sims.first().toMap();
+            for (const QVariant& v : sims) {
+                const QVariantMap m = v.toMap();
+                if (m.contains(QStringLiteral("carrierName")) || m.contains(QStringLiteral("radioAccess"))) {
+                    primary = m; break;
+                }
+            }
+            const QStringList flat = {QStringLiteral("carrierName"), QStringLiteral("mcc"),
+                                      QStringLiteral("mnc"), QStringLiteral("isoCountry"),
+                                      QStringLiteral("radioAccess"), QStringLiteral("radioAccessRaw")};
+            for (const QString& k : flat)
+                if (primary.contains(k)) info[k] = primary.value(k);
         }
+
+        if (!info.contains(QStringLiteral("radioAccess")) && !hasCarrier)
+            info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
 
         [netInfo release]; // MRC: balance the alloc/init above
     }

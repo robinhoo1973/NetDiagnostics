@@ -33,6 +33,61 @@ static int timeoutFor(DiagId id) {
     }
 }
 
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+// Diagnostics that cannot return useful data inside the mobile sandbox. They
+// stay visible in the UI but are reported as Skipped; the detail page shows this
+// reason. Tests that HAVE a working native/mobile implementation are absent here.
+static QString platformSkipReason(DiagId id) {
+#if defined(PLATFORM_IOS)
+    switch (id) {
+        case DiagId::G1NicAdvanced:
+            return QStringLiteral("NIC driver properties (link speed, duplex, MAC address) are not exposed to sandboxed iOS apps.");
+        case DiagId::G1WiredDiagnostics:
+            return QStringLiteral("iOS devices have no wired Ethernet interface, and per-NIC statistics under /sys are inaccessible.");
+        case DiagId::G1ActiveConnections:
+            return QStringLiteral("Enumerating open sockets requires /proc/net/tcp, which the iOS sandbox blocks.");
+        case DiagId::G2TcpSettings:
+            return QStringLiteral("TCP kernel parameters live under /proc/sys/net, which is not readable on iOS.");
+        case DiagId::G2ArpTable:
+            return QStringLiteral("The ARP / neighbour table has no public API on iOS.");
+        case DiagId::G2ProxySettings:
+            return QStringLiteral("iOS uses a system-managed proxy (Wi-Fi PAC / VPN profile); environment-variable proxies do not apply and the active proxy is not readable by third-party apps.");
+        case DiagId::G3NetskopeStatus:
+            return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
+        case DiagId::G3DnsCache:
+            return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
+        default:
+            return QString();
+    }
+#else // PLATFORM_ANDROID
+    switch (id) {
+        case DiagId::G1NicAdvanced:
+            return QStringLiteral("NIC driver properties are read from /sys/class/net, which is not accessible on Android.");
+        case DiagId::G1WiredDiagnostics:
+            return QStringLiteral("Android devices have no wired Ethernet interface, and /sys/class/net is inaccessible.");
+        case DiagId::G1ActiveConnections:
+            return QStringLiteral("Reading open sockets requires /proc/net/tcp, which is restricted on Android 10+.");
+        case DiagId::G2TcpSettings:
+            return QStringLiteral("TCP kernel parameters live under /proc/sys/net, which is not readable on Android.");
+        case DiagId::G2RoutingTable:
+            return QStringLiteral("The routing table is read from /proc/net/route, which is restricted on Android.");
+        case DiagId::G2ArpTable:
+            return QStringLiteral("The ARP table is read from /proc/net/arp, which is restricted on Android.");
+        case DiagId::G2ProxySettings:
+            return QStringLiteral("Android uses a system-managed proxy; environment-variable proxies do not apply.");
+        case DiagId::G3NetskopeStatus:
+            return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which Android restricts.");
+        case DiagId::G3DnsServers:
+            return QStringLiteral("Android resolves DNS via ConnectivityManager; /etc/resolv.conf is not populated or readable by apps.");
+        case DiagId::G3DnsCache:
+            return QStringLiteral("Android does not expose the system DNS resolver cache to apps.");
+        default:
+            return QString();
+    }
+#endif
+}
+#endif
+
 std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
     DiagId id, const QString& target, int fromPort, int toPort, bool useCommonPorts)
 {
@@ -56,6 +111,15 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         return std::make_unique<GenericTask>(id, target, std::move(impl),
                                              custTmo > 0 ? custTmo : tmo);
     };
+
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    // Short-circuit platform-unsupported tests: show them as Skipped with an
+    // explanation (detail page) instead of misleading empty/hardcoded output.
+    if (const QString skipReason = platformSkipReason(id); !skipReason.isEmpty())
+        return T3([id, skipReason](DiagId, const QString&) {
+            return DiagnosticResult::skipped(id, skipReason);
+        });
+#endif
 
     switch (id) {
         // 鈹€鈹€ G1: System & Adapters 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
@@ -210,7 +274,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
             return T3([](DiagId id, const QString&) {
-                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (iOS native 鈥?not yet implemented)"));
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (iOS native — not yet implemented)"));
             });
 #elif defined(PLATFORM_ANDROID)
         // Android: HttpURLConnection native HTTP (no libcurl needed)
@@ -229,7 +293,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
             return T3([](DiagId id, const QString&) {
-                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (Android native 鈥?not yet implemented)"));
+                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (Android native — not yet implemented)"));
             });
 #elif !defined(NO_CURL)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);

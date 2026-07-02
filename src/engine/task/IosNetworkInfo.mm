@@ -21,6 +21,7 @@
 // Define the minimum required types and constants from the stable BSD route ABI.
 #define NET_RT_DUMP2    7
 #define RTF_GATEWAY     0x2
+#define RTF_HOST        0x4
 #define RTAX_DST        0
 #define RTAX_GATEWAY    1
 #define RTAX_NETMASK    2
@@ -57,6 +58,7 @@ struct rt_msghdr2 {
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <cstddef>
 #include "models/DiagnosticResult.h"
 
 // Round a sockaddr length up to the next 4-byte boundary (BSD routing alignment).
@@ -79,6 +81,22 @@ static QString ip4FromSockaddr(const struct sockaddr* sa) {
     char buf[INET_ADDRSTRLEN] = {0};
     inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
     return QString::fromLatin1(buf);
+}
+
+// Netmask sockaddrs in the route socket usually carry sa_family==0 and a length
+// truncated to omit trailing zero bytes, so the generic AF_INET parser above
+// misses them (that is why the routing table showed no netmask). Read the mask
+// bytes directly from the sockaddr_in address slot.
+static QString ip4MaskFromSockaddr(const struct sockaddr* sa) {
+    if (!sa) return QString();
+    const int off = static_cast<int>(offsetof(struct sockaddr_in, sin_addr)); // 4
+    const int len = static_cast<int>(sa->sa_len);
+    if (len <= off) return QStringLiteral("0.0.0.0"); // sa_len 0 => no mask bits (default)
+    unsigned char m[4] = {0, 0, 0, 0};
+    const unsigned char* base = reinterpret_cast<const unsigned char*>(sa);
+    int n = len - off; if (n > 4) n = 4;
+    for (int i = 0; i < n; ++i) m[i] = base[off + i];
+    return QStringLiteral("%1.%2.%3.%4").arg(m[0]).arg(m[1]).arg(m[2]).arg(m[3]);
 }
 
 static QVector<IosRoute> iosReadRoutes() {
@@ -112,7 +130,7 @@ static QVector<IosRoute> iosReadRoutes() {
             if (rt.dest == QLatin1String("0.0.0.0")) rt.dest = QStringLiteral("default");
         }
         if (addrs[RTAX_GATEWAY]) rt.gateway = ip4FromSockaddr(addrs[RTAX_GATEWAY]);
-        if (addrs[RTAX_NETMASK]) rt.netmask = ip4FromSockaddr(addrs[RTAX_NETMASK]);
+        if (addrs[RTAX_NETMASK]) rt.netmask = ip4MaskFromSockaddr(addrs[RTAX_NETMASK]);
         char ifname[IF_NAMESIZE] = {0};
         if (if_indextoname(rtm->rtm_index, ifname)) rt.iface = QString::fromLatin1(ifname);
         if (!rt.dest.isEmpty() || !rt.gateway.isEmpty())
@@ -150,6 +168,18 @@ QString iosGatewayForInterface(const QString& iface) {
         if (fallback.isEmpty()) fallback = rt.gateway;
     }
     return fallback;
+}
+
+// Friendly interface-type label from the BSD interface name prefix.
+static QString ifaceTypeLabel(const QString& iface) {
+    if (iface.startsWith(QLatin1String("en")))      return QStringLiteral("WiFi");
+    if (iface.startsWith(QLatin1String("pdp_ip")))  return QStringLiteral("Cellular");
+    if (iface.startsWith(QLatin1String("utun")) || iface.startsWith(QLatin1String("ipsec"))
+        || iface.startsWith(QLatin1String("ppp")))  return QStringLiteral("VPN");
+    if (iface.startsWith(QLatin1String("bridge")) || iface.startsWith(QLatin1String("ap")))
+        return QStringLiteral("Hotspot");
+    if (iface.startsWith(QLatin1String("lo")))       return QStringLiteral("Loopback");
+    return QString();
 }
 
 // ── Default Gateway — real IP from the routing table, fallback to interface ──
@@ -212,15 +242,77 @@ static QString iosDhcpStatus() {
 
 // ── Public API: iOS workaround implementations ─────────────────────────
 
-// Returns a DiagnosticResult for default gateway on iOS
+// Returns a DiagnosticResult for default gateway on iOS.
+// Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
+// the first default route — previously only the primary (often cellular) showed.
 DiagnosticResult iosDefaultGatewayDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
-    QString gw = iosDefaultGateway();
-    r.rawOutput = QStringLiteral("\nDefault Gateway:\n\n  %1\n").arg(gw);
+
+    const QVector<IosRoute> routes = iosReadRoutes();
+
+    // One gateway per interface: a default-route (0.0.0.0/0) gateway wins;
+    // otherwise the first RTF_GATEWAY route on that interface is used.
+    struct GwRow { QString iface, gateway; bool isDefault; };
+    QVector<GwRow> rows;
+    for (const auto& rt : routes) {
+        if (rt.gateway.isEmpty() || !(rt.flags & RTF_GATEWAY) || rt.iface.isEmpty()) continue;
+        if (rt.iface == QLatin1String("lo0")) continue;
+        const bool isDefault = (rt.dest == QLatin1String("default"));
+        int found = -1;
+        for (int i = 0; i < rows.size(); ++i) if (rows[i].iface == rt.iface) { found = i; break; }
+        if (found >= 0) {
+            if (isDefault && !rows[found].isDefault) {
+                rows[found].gateway = rt.gateway;
+                rows[found].isDefault = true;
+            }
+        } else {
+            rows.append({rt.iface, rt.gateway, isDefault});
+        }
+    }
+
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("Default Gateway(s):"));
+    out.append(QString());
+
+    QString primary;
+    if (!rows.isEmpty()) {
+        out.append(QStringLiteral("  %1  %2  %3  %4")
+            .arg(QStringLiteral("Gateway"), -16)
+            .arg(QStringLiteral("Interface"), -10)
+            .arg(QStringLiteral("Type"), -9)
+            .arg(QStringLiteral("Scope")));
+        out.append(QStringLiteral("  %1  %2  %3  %4")
+            .arg(QString(16, '-')).arg(QString(10, '-'))
+            .arg(QString(9, '-')).arg(QString(7, '-')));
+        for (const auto& g : rows) {
+            const QString type = ifaceTypeLabel(g.iface);
+            out.append(QStringLiteral("  %1  %2  %3  %4")
+                .arg(g.gateway, -16)
+                .arg(g.iface, -10)
+                .arg(type.isEmpty() ? QStringLiteral("-") : type, -9)
+                .arg(g.isDefault ? QStringLiteral("default") : QStringLiteral("iface")));
+            if (g.isDefault && primary.isEmpty())
+                primary = QStringLiteral("%1 (%2)").arg(g.gateway, g.iface);
+        }
+        r.status = DiagStatus::Pass;
+        r.summary = !primary.isEmpty()
+            ? QStringLiteral("Default via %1").arg(primary)
+            : QStringLiteral("%1 gateway(s)").arg(rows.size());
+    } else {
+        // Route table gave no gateway — fall back to the interface heuristic.
+        const QString gw = iosDefaultGateway();
+        out.append(QStringLiteral("  %1")
+            .arg(gw.isEmpty() ? QStringLiteral("No default gateway configured") : gw));
+        r.status = gw.startsWith("System-managed") ? DiagStatus::Info
+                 : (gw.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
+        r.summary = gw.isEmpty() ? QStringLiteral("No default gateway")
+                 : (gw.startsWith("System-managed") ? QStringLiteral("iOS system-managed") : gw);
+    }
+
+    r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.summary = gw.startsWith("System-managed") ? QStringLiteral("iOS system-managed") : gw;
-    r.status = gw.startsWith("System-managed") ? DiagStatus::Info : DiagStatus::Pass;
     return r;
 }
 
@@ -267,10 +359,13 @@ DiagnosticResult iosRoutingTableDiag(DiagId id) {
     QString defaultGw;
     for (const auto& rt : routes) {
         QString gw = rt.gateway.isEmpty() ? QStringLiteral("link#") : rt.gateway;
+        QString nm = rt.netmask;
+        if (nm.isEmpty())
+            nm = (rt.flags & RTF_HOST) ? QStringLiteral("255.255.255.255") : QStringLiteral("-");
         out.append(QStringLiteral("  %1  %2  %3  %4")
             .arg(rt.dest, -18)
             .arg(gw, -18)
-            .arg(rt.netmask.isEmpty() ? QStringLiteral("-") : rt.netmask, -16)
+            .arg(nm, -16)
             .arg(rt.iface));
         if (rt.dest == QLatin1String("default") && (rt.flags & RTF_GATEWAY) && defaultGw.isEmpty())
             defaultGw = rt.gateway;
