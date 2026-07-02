@@ -19,18 +19,12 @@
 #else
 // net/route.h was removed from the iOS SDK in Xcode 26 (iOS SDK 26+).
 // Define the minimum required types and constants from the stable BSD route ABI.
-#ifndef NET_RT_DUMP2
 #define NET_RT_DUMP2    7
-#endif
-#ifndef RTF_GATEWAY
 #define RTF_GATEWAY     0x2
-#endif
-#ifndef RTAX_DST
 #define RTAX_DST        0
 #define RTAX_GATEWAY    1
 #define RTAX_NETMASK    2
 #define RTAX_MAX        8
-#endif
 struct rt_metrics {
     u_int32_t rmx_locks;
     u_int32_t rmx_mtu;
