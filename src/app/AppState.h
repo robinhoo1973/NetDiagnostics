@@ -189,7 +189,7 @@ private:
     std::atomic<int> m_stateGeneration{0};
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
-    int m_languageIndex = 0;
+    int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW
     bool m_isPremium = false;
 
     // Cached group stats — invalidated on progressChanged
