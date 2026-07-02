@@ -148,53 +148,69 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            width: Math.min(720, parent.width - 24)
-            height: Math.min(parent.height - 40, 760)
-            radius: 12; color: "#252538"
-            border { width: 1.5; color: "#4A4A6A" }
+            // Responsive: on tall screens use 720×700, on short (portrait) screens scale down
+            width: Math.min(720, parent.width - 20)
+            height: Math.max(300, Math.min(700, parent.height - 60))
+            radius: 12; color: "#1F1F32"
+            border { width: 2; color: "#5A5A7A" }
+            shadow.color: "#00000040"; shadow.radius: 12; shadow.yOffset: 4
 
             ColumnLayout {
                 anchors { fill: parent; margins: 12 }
                 spacing: 10
-                RowLayout {
+                Rectangle {
                     Layout.fillWidth: true
-                    AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 18; color: Theme.cyan }
-                    Item { width: 8 }
-                    Label {
-                        Layout.fillWidth: true
-                        text: page.previewFormat === "pdf" ? Tr.previewPdfTitle : Tr.previewHtmlTitle
-                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary
-                        elide: Text.ElideRight
-                    }
-                    Rectangle {
-                        implicitWidth: 28; implicitHeight: 28; radius: 14; color: "#E94560"
-                        AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: "white" }
-                        MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false }
+                    implicitHeight: headerRow.implicitHeight + 16
+                    color: Qt.alpha(Theme.cyan, 0.08)
+                    radius: 8
+                    RowLayout {
+                        id: headerRow
+                        anchors { fill: parent; margins: 8 }
+                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: Theme.cyan }
+                        Item { width: 8 }
+                        Label {
+                            Layout.fillWidth: true
+                            text: page.previewFormat === "pdf" ? Tr.previewPdfTitle : Tr.previewHtmlTitle
+                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary
+                            elide: Text.ElideRight
+                        }
+                        Rectangle {
+                            implicitWidth: 32; implicitHeight: 32; radius: 16; color: Qt.alpha("#FF5577", 0.2)
+                            AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: "#FF6688" }
+                            MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false; cursorShape: Qt.PointingHandCursor }
+                        }
                     }
                 }
                 Rectangle {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    color: "white"; radius: 6; clip: true
+                    color: "#F8F9FA"; radius: 8; clip: true
+                    border { width: 1; color: "#E5E7EB" }
                     Flickable {
-                        anchors { fill: parent; margins: 12 }
+                        anchors { fill: parent; margins: 14 }
                         clip: true
                         contentWidth: width
                         contentHeight: previewText.implicitHeight
-                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                        ScrollBar.vertical: ScrollBar {
+                            policy: ScrollBar.AsNeeded
+                            width: 6
+                            contentItem: Rectangle { color: "#A0A0B8"; radius: 3 }
+                        }
                         Text {
                             id: previewText
                             width: parent.width
                             text: page.previewHtml
                             textFormat: Text.RichText
-                            color: "#111111"
+                            color: "#1A1A2E"
                             wrapMode: Text.WordWrap
-                            font.pixelSize: 12
+                            font.pixelSize: 13
+                            font.family: "Georgia, 'Times New Roman', serif"
+                            lineHeight: 1.6
                         }
                     }
                 }
                 RowLayout {
-                    Layout.fillWidth: true; spacing: 10
-                    PreviewBtn { label: Tr.reportSaveBtn; accent: Theme.textSecondary
+                    Layout.fillWidth: true; spacing: 12; Layout.topMargin: 4
+                    PreviewBtn { label: Tr.reportSaveBtn; accent: "#666688"
                         onClicked: { page.previewVisible = false; page.requestExport(page.previewFormat) } }
                     Item { Layout.fillWidth: true }
                     PreviewBtn {

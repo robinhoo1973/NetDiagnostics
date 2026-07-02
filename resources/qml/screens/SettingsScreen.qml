@@ -47,7 +47,7 @@ Item {
                         id: langCombo
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
-                        model: ["English","Français","Deutsch","Русский","Italiano"]
+                        model: ["English","Français","Deutsch","Русский","Italiano","简体中文","繁體中文"]
                         currentIndex: appState ? appState.languageIndex : 0
                         onActivated: { if (appState) appState.setLanguage(currentIndex) }
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13

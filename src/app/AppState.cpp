@@ -747,6 +747,13 @@ QString AppState::buildReportHtml(bool fullDetail) const {
     const QString target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
     const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     const QStringList labels = groupLabels();
+    
+    // Color palette
+    const QString colorPass = QStringLiteral("#10B981");
+    const QString colorWarn = QStringLiteral("#F59E0B");
+    const QString colorFail = QStringLiteral("#EF4444");
+    const QString colorSkip = QStringLiteral("#9CA3AF");
+    const QString colorInfo = QStringLiteral("#3B82F6");
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
@@ -757,58 +764,104 @@ QString AppState::buildReportHtml(bool fullDetail) const {
     }
 
     QString h;
-    h += QStringLiteral("<h2 style=\"margin:0 0 2px 0\">Network Diagnostic Report</h2>");
-    h += QStringLiteral("<p style=\"color:#555555\">Target: <b>%1</b> &nbsp;|&nbsp; %2 "
-        "&nbsp;|&nbsp; NetDiagnostic v%3 (build %4)</p>")
+    // Header with gradient effect
+    h += QStringLiteral("<div style=\"background:linear-gradient(135deg,#1F2937 0%,#374151 100%);padding:20px;border-radius:8px;margin-bottom:16px;color:white;text-align:center\">");
+    h += QStringLiteral("<h1 style=\"margin:0 0 8px 0;font-size:28px;font-weight:bold\">Network Diagnostic Report</h1>");
+    h += QStringLiteral("<p style=\"margin:0;font-size:12px;opacity:0.9\">Target: <b>%1</b> · Generated: %2</p>");
+    h += QStringLiteral("<p style=\"margin:4px 0 0 0;font-size:11px;opacity:0.8\">NetDiagnostic v%3 (build %4)</p>");
+    h += QStringLiteral("</div>")
         .arg(target, ts, appVersion(), buildNumber());
 
-    h += QStringLiteral("<p>Total <b>%1</b> tests &mdash; "
-        "<font color=\"#16a34a\">Pass %2</font>, <font color=\"#ca8a04\">Warning %3</font>, "
-        "<font color=\"#dc2626\">Fail %4</font>, <font color=\"#6b7280\">Skipped %5</font>, "
-        "<font color=\"#2563eb\">Info %6</font></p>")
-        .arg(tTotal).arg(tPass).arg(tWarn).arg(tFail).arg(tSkip).arg(tInfo);
+    // Summary stats with color-coded cards
+    h += QStringLiteral("<div style=\"display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap\">");
+    h += QStringLiteral("<div style=\"flex:1;min-width:120px;padding:12px;background:%1;opacity:0.1;border-left:4px solid %1;border-radius:4px\">"
+        "<div style=\"font-size:14px;font-weight:bold;color:%1\">%2</div>"
+        "<div style=\"font-size:11px;color:#666;margin-top:2px\">Passed</div></div>")
+        .arg(colorPass, QString::number(tPass));
+    h += QStringLiteral("<div style=\"flex:1;min-width:120px;padding:12px;background:%1;opacity:0.1;border-left:4px solid %1;border-radius:4px\">"
+        "<div style=\"font-size:14px;font-weight:bold;color:%1\">%2</div>"
+        "<div style=\"font-size:11px;color:#666;margin-top:2px\">Warnings</div></div>")
+        .arg(colorWarn, QString::number(tWarn));
+    h += QStringLiteral("<div style=\"flex:1;min-width:120px;padding:12px;background:%1;opacity:0.1;border-left:4px solid %1;border-radius:4px\">"
+        "<div style=\"font-size:14px;font-weight:bold;color:%1\">%2</div>"
+        "<div style=\"font-size:11px;color:#666;margin-top:2px\">Failed</div></div>")
+        .arg(colorFail, QString::number(tFail));
+    h += QStringLiteral("</div>");
 
-    h += QStringLiteral("<table border=\"1\" cellspacing=\"0\" cellpadding=\"4\" width=\"100%\">"
-        "<tr bgcolor=\"#f3f4f6\"><th align=\"left\">Group</th><th>Total</th>"
-        "<th>Pass</th><th>Warn</th><th>Fail</th><th>Skip</th><th>Info</th></tr>");
+    // Stats table with improved styling
+    h += QStringLiteral("<h2 style=\"font-size:16px;margin:16px 0 12px 0;padding-bottom:8px;border-bottom:2px solid #E5E7EB\">Group Summary</h2>");
+    h += QStringLiteral("<table style=\"width:100%;border-collapse:collapse;font-size:13px\">"
+        "<tr style=\"background:#F3F4F6\">"
+        "<th style=\"padding:10px;text-align:left;border:1px solid #E5E7EB\">Group</th>"
+        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB\">Total</th>"
+        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%1\">✓ Pass</th>"
+        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%2\">⚠ Warn</th>"
+        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%3\">✕ Fail</th>"
+        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%4\">○ Skip</th>"
+        "<th style=\"padding:10px;text-align:center;border:1px solid #E5E7EB;color:%5\">ℹ Info</th></tr>")
+        .arg(colorPass, colorWarn, colorFail, colorSkip, colorInfo);
     for (int g = 0; g < 5; ++g) {
         QVariantMap s = groupStats(g);
         if (s.value(QStringLiteral("total")).toInt() == 0) continue;
-        h += QStringLiteral("<tr><td>G%1: %2</td><td align=\"center\">%3</td>"
-            "<td align=\"center\">%4</td><td align=\"center\">%5</td><td align=\"center\">%6</td>"
-            "<td align=\"center\">%7</td><td align=\"center\">%8</td></tr>")
+        const int gPass = s.value(QStringLiteral("pass")).toInt();
+        const int gWarn = s.value(QStringLiteral("warn")).toInt();
+        const int gFail = s.value(QStringLiteral("fail")).toInt();
+        const int gSkip = s.value(QStringLiteral("skip")).toInt();
+        const int gInfo = s.value(QStringLiteral("info")).toInt();
+        h += QStringLiteral("<tr style=\"border-bottom:1px solid #E5E7EB;background:%1\">"
+            "<td style=\"padding:10px;border-right:1px solid #E5E7EB\"><b>G%2: %3</b></td>"
+            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB\">%4</td>"
+            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%5\">%6</td>"
+            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%7\">%8</td>"
+            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%9\">%10</td>"
+            "<td style=\"padding:10px;text-align:center;border-right:1px solid #E5E7EB;color:%11\">%12</td>"
+            "<td style=\"padding:10px;text-align:center;color:%13\">%14</td></tr>")
+            .arg(g % 2 == 0 ? "#FFFFFF" : "#F9FAFB")
             .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString())
-            .arg(s.value(QStringLiteral("total")).toInt()).arg(s.value(QStringLiteral("pass")).toInt())
-            .arg(s.value(QStringLiteral("warn")).toInt()).arg(s.value(QStringLiteral("fail")).toInt())
-            .arg(s.value(QStringLiteral("skip")).toInt()).arg(s.value(QStringLiteral("info")).toInt());
+            .arg(s.value(QStringLiteral("total")).toInt())
+            .arg(colorPass).arg(gPass)
+            .arg(colorWarn).arg(gWarn)
+            .arg(colorFail).arg(gFail)
+            .arg(colorSkip).arg(gSkip)
+            .arg(colorInfo).arg(gInfo);
     }
     h += QStringLiteral("</table>");
 
     if (fullDetail) {
-        h += QStringLiteral("<h3>Details</h3>");
+        h += QStringLiteral("<h2 style=\"font-size:16px;margin:20px 0 12px 0;padding-bottom:8px;border-bottom:2px solid #E5E7EB\">Detailed Results</h2>");
         for (int g = 0; g < 5; ++g) {
             if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
-            h += QStringLiteral("<h4 style=\"margin:8px 0 2px 0\">G%1: %2</h4>")
+            h += QStringLiteral("<h3 style=\"font-size:14px;margin:14px 0 10px 0;padding:8px;background:%1;border-left:3px solid %2;border-radius:3px;color:#FFFFFF\">"
+                "G%3: %4</h3>")
+                .arg(Qt::rgba(100, 116, 139, 0.3))
+                .arg(QStringLiteral("#3B82F6"))
                 .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString());
             for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
                 if (!m_results.contains(id)) continue;
                 const auto& r = m_results[id];
                 const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
-                h += QStringLiteral("<p style=\"margin:6px 0 0 0\"><b>%1</b> &mdash; "
-                    "<font color=\"%2\">%3</font> <font color=\"#888888\">(%4 ms)</font></p>")
-                    .arg(name, reportStatusColor(r.status), reportStatusText(r.status))
+                const QString statusColor = reportStatusColor(r.status);
+                h += QStringLiteral("<div style=\"margin:10px 0;padding:10px;border-left:3px solid %1;background:%2;border-radius:4px\">"
+                    "<b>%3</b> <span style=\"color:%1;font-weight:bold\">%4</span> "
+                    "<span style=\"color:#9CA3AF;font-size:11px\">%5 ms</span>"
+                    "</div>")
+                    .arg(statusColor, Qt::rgba(31, 41, 55, 0.05))
+                    .arg(name, reportStatusText(r.status))
                     .arg(r.durationMs);
                 if (!r.summary.isEmpty())
-                    h += QStringLiteral("<p style=\"margin:0;color:#444444\">%1</p>")
+                    h += QStringLiteral("<p style=\"margin:6px 0 0 0;color:#4B5563;font-size:12px\">%1</p>")
                         .arg(r.summary.toHtmlEscaped());
                 const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
                 if (!body.trimmed().isEmpty())
-                    h += QStringLiteral("<pre style=\"background-color:#f5f5f5\">%1</pre>")
+                    h += QStringLiteral("<pre style=\"background:#f0f1f3;border:1px solid #d1d5db;padding:10px;border-radius:4px;"
+                        "font-family:'Courier New',monospace;font-size:11px;color:#1f2937;overflow-x:auto;margin:8px 0\">%1</pre>")
                         .arg(body.toHtmlEscaped());
             }
         }
     }
+    h += QStringLiteral("<div style=\"margin-top:20px;padding-top:12px;border-top:1px solid #E5E7EB;font-size:10px;color:#999999;text-align:center\">"
+        "Generated by NetDiagnostic • All times in milliseconds</div>");
     return h;
 }
 
