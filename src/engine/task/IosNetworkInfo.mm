@@ -122,6 +122,36 @@ static QVector<IosRoute> iosReadRoutes() {
     return routes;
 }
 
+// ── Interface IPv4 + gateway helpers (cellular / WiFi panels) ───────────
+// Public (non-static): declared in IosNetworkInfo.h, called from G1G2G3Native.
+QString iosInterfaceIPv4(const QString& iface) {
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) != 0) return QString();
+    QString ip;
+    for (auto* p = ifa; p; p = p->ifa_next) {
+        if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
+        if (QString::fromLatin1(p->ifa_name) != iface) continue;
+        char buf[INET_ADDRSTRLEN] = {0};
+        auto* sin = (struct sockaddr_in*)p->ifa_addr;
+        inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+        ip = QString::fromLatin1(buf);
+        break;
+    }
+    freeifaddrs(ifa);
+    return ip;
+}
+
+QString iosGatewayForInterface(const QString& iface) {
+    QString fallback;
+    for (const auto& rt : iosReadRoutes()) {
+        if (rt.iface != iface || rt.gateway.isEmpty()) continue;
+        if (!(rt.flags & RTF_GATEWAY)) continue;
+        if (rt.dest == QLatin1String("default")) return rt.gateway; // prefer default route
+        if (fallback.isEmpty()) fallback = rt.gateway;
+    }
+    return fallback;
+}
+
 // ── Default Gateway — real IP from the routing table, fallback to interface ──
 static QString iosDefaultGateway() {
     // Preferred: the RTF_GATEWAY default route from the kernel routing table.
