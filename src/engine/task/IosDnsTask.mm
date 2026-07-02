@@ -21,16 +21,24 @@ static NSString* resolveCFHost(NSString* hostname, int timeoutMs) {
     Boolean ok = CFHostStartInfoResolution(host, kCFHostAddresses, &err);
     if (!ok) { CFRelease(host); return nil; }
 
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-    __block NSString* result = nil;
+    // Reference-counted semaphore ownership: both waiter and worker hold a ref (2 total).
+    // Whoever finishes last (waiter on timeout, or worker on success) releases the semaphore.
+    struct DnsCtx {
+        dispatch_semaphore_t sem;
+        CFHostRef host;
+        __block NSString* result;
+        std::atomic<int> refs;
+    };
+    auto ctx = std::make_shared<DnsCtx>();
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->host = host;
+    CFRetain(ctx->host);  // for the block's reference
+    ctx->result = nil;
+    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + worker
 
-    // The worker block accesses `host` after this function may have already
-    // timed out and returned. Give the block its own reference so `host`
-    // stays valid until the block finishes, preventing a use-after-free.
-    CFRetain(host);
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         Boolean resolved = false;
-        CFArrayRef addrs = CFHostGetAddressing(host, &resolved);
+        CFArrayRef addrs = CFHostGetAddressing(ctx->host, &resolved);
         if (resolved && addrs && CFArrayGetCount(addrs) > 0) {
             for (CFIndex i = 0; i < CFArrayGetCount(addrs); i++) {
                 CFDataRef data = (CFDataRef)CFArrayGetValueAtIndex(addrs, i);
@@ -39,24 +47,32 @@ static NSString* resolveCFHost(NSString* hostname, int timeoutMs) {
                 if (sa->sin_family == AF_INET) {
                     char ip[INET_ADDRSTRLEN];
                     inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-                    result = [NSString stringWithUTF8String:ip];
+                    ctx->result = [NSString stringWithUTF8String:ip];
                     break;
                 }
             }
         }
-        CFRelease(host);
-        dispatch_semaphore_signal(sem);
+        CFRelease(ctx->host);
+        dispatch_semaphore_signal(ctx->sem);
+        // Drop the worker's reference; last one out releases the semaphore.
+        if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            dispatch_release(ctx->sem);
+        }
     });
 
-    long waited = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW,
+    long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW,
         (int64_t)timeoutMs * NSEC_PER_MSEC));
-    // Release this function's own reference. On timeout the block still holds
-    // its reference (released above), so `host` remains valid there.
     CFRelease(host);
-    dispatch_release(sem); // MRC: balance dispatch_semaphore_create; block keeps its own ref
-    // Only read `result` when the block actually completed; on timeout the
-    // block may still be writing to it (data race), so return nil instead.
-    return (waited == 0) ? result : nil;
+    NSString* result = nil;
+    // Only read result on success; on timeout the worker may still be writing it.
+    if (waited == 0) {
+        result = ctx->result;
+    }
+    // Drop the waiter's reference; last one out releases the semaphore.
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+    }
+    return result;
 }
 
 // iOS-native DNS task — CFHost with dig-style output matching Windows/Linux format

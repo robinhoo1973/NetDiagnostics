@@ -27,30 +27,44 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
     NSURL* url = [NSURL URLWithString:urlStr];
     if (!url) { r.error = QStringLiteral("Invalid URL"); return r; }
 
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    // Whoever finishes last (waiter on timeout, or handler on response) releases the semaphore.
+    struct HttpCtx {
+        dispatch_semaphore_t sem;
+        __block IosHttpResult result;
+        std::atomic<int> refs;
+    };
+    auto ctx = std::make_shared<HttpCtx>();
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->result = r;
+    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + handler
+
     NSURLSessionConfiguration* config = [NSURLSessionConfiguration defaultSessionConfiguration];
     config.timeoutIntervalForRequest = timeoutMs / 1000.0;
     config.timeoutIntervalForResource = (timeoutMs + 30) / 1000.0;
     NSURLSession* session = [NSURLSession sessionWithConfiguration:config];
 
-    __block IosHttpResult blockResult = r;
     NSURLSessionDataTask* task = [session dataTaskWithURL:url
         completionHandler:^(NSData* data, NSURLResponse* response, NSError* error) {
             if (error) {
-                blockResult.error = QString::fromNSString(error.localizedDescription);
-                if (data) blockResult.bodyBytes = data.length;
+                ctx->result.error = QString::fromNSString(error.localizedDescription);
+                if (data) ctx->result.bodyBytes = data.length;
             } else {
                 NSHTTPURLResponse* httpResp = (NSHTTPURLResponse*)response;
-                blockResult.statusCode = (int)httpResp.statusCode;
-                blockResult.bodyBytes = data ? data.length : 0;
+                ctx->result.statusCode = (int)httpResp.statusCode;
+                ctx->result.bodyBytes = data ? data.length : 0;
                 // Collect headers
                 for (NSString* key in httpResp.allHeaderFields) {
-                    blockResult.headers.append(
+                    ctx->result.headers.append(
                         QStringLiteral("%1: %2").arg(QString::fromNSString(key),
                                                      QString::fromNSString(httpResp.allHeaderFields[key])));
                 }
             }
-            dispatch_semaphore_signal(sem);
+            dispatch_semaphore_signal(ctx->sem);
+            // Drop the handler's reference; last one out releases the semaphore.
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(ctx->sem);
+            }
         }];
 
     // NOTE: NSURLSessionTaskMetrics (DNS/connect/TLS/TTFB timing) requires a
@@ -61,10 +75,20 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
     // "unrecognized selector sent to instance".)
 
     [task resume];
-    dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutMs + 5000) * NSEC_PER_MSEC));
+    long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)(timeoutMs + 5000) * NSEC_PER_MSEC));
     [session finishTasksAndInvalidate];
-    dispatch_release(sem); // MRC: balance dispatch_semaphore_create (see DnsResolver.cpp)
-    return blockResult;
+    IosHttpResult result;
+    // Only read result on success; on timeout the handler may still be writing it.
+    if (waited == 0) {
+        result = ctx->result;
+    } else {
+        result.error = QStringLiteral("Request timeout");
+    }
+    // Drop the waiter's reference; last one out releases the semaphore.
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+    }
+    return result;
 }
 
 // ── G5 HTTP Headers diagnostic ─────────────────────────────────────────

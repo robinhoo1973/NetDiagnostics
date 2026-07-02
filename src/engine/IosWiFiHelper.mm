@@ -132,36 +132,60 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
 QVariantMap iosWiFiInfo()
 {
     QVariantMap info;
-    __block NSString* ssid = nil;
-    __block NSString* bssid = nil;
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+
+    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    struct WifiCtx {
+        dispatch_semaphore_t sem;
+        __block NSString* ssid;
+        __block NSString* bssid;
+        std::atomic<int> refs;
+    };
+    auto ctx = std::make_shared<WifiCtx>();
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->ssid = nil;
+    ctx->bssid = nil;
+    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + handler
 
     if (@available(iOS 14.0, *)) {
         [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
             if (network) {
                 if (network.SSID && network.SSID.length > 0)
-                    ssid = [network.SSID copy];
+                    ctx->ssid = [network.SSID copy];
                 if (network.BSSID && network.BSSID.length > 0)
-                    bssid = [network.BSSID copy];
+                    ctx->bssid = [network.BSSID copy];
             }
-            dispatch_semaphore_signal(sem);
+            dispatch_semaphore_signal(ctx->sem);
+            // Drop the handler's reference; last one out releases the semaphore.
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(ctx->sem);
+            }
         }];
-        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        // Only read result on success; on timeout the handler may still be writing it.
+        if (waited != 0) {
+            ctx->ssid = nil;
+            ctx->bssid = nil;
+        }
     }
 
-    if (ssid && ssid.length > 0)
-        info["ssid"] = QString::fromNSString(ssid);
+    if (ctx->ssid && ctx->ssid.length > 0)
+        info["ssid"] = QString::fromNSString(ctx->ssid);
     else
         info["ssid"] = QString();
 
-    if (bssid && bssid.length > 0)
-        info["bssid"] = QString::fromNSString(bssid);
+    if (ctx->bssid && ctx->bssid.length > 0)
+        info["bssid"] = QString::fromNSString(ctx->bssid);
     else
         info["bssid"] = QString();
 
     // Add diagnostics
-    if (!ssid || ssid.length == 0)
+    if (!ctx->ssid || ctx->ssid.length == 0)
         info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission denied (requires NSLocalNetworkUsageDescription + NSBonjourServiceTypes)");
+
+    // Drop the waiter's reference; last one out releases the semaphore.
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+    }
 
     return info;
 }
