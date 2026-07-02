@@ -10,6 +10,8 @@
 #include "engine/task/DiagnosticTask.h"
 #include "models/DiagId.h"
 #include <QUrl>
+#include <QElapsedTimer>
+#include <QStringList>
 #include <atomic>
 #include <memory>
 #import <Foundation/Foundation.h>
@@ -201,6 +203,170 @@ static DiagnosticResult iosHttpRedirect(DiagId id, const QString& target) {
     return dr;
 }
 
+// ── G5 Security Headers ──────────────────────────────────────────────────
+static DiagnosticResult iosSecurityHeaders(DiagId id, const QString& target) {
+    auto r = httpGetSync(target.toNSString(), 15000, true);
+    DiagnosticResult dr; dr.id = id; dr.group = DiagGroup::G5;
+    dr.timestamp = QDateTime::currentDateTime();
+    if (!r.error.isEmpty()) { dr.status = DiagStatus::Fail; dr.summary = r.error; return dr; }
+    QStringList found;
+    for (const auto& h : r.headers) {
+        int colon = h.indexOf(':');
+        if (colon > 0) found.append(h.left(colon).toLower().trimmed());
+    }
+    const QStringList required = {
+        QStringLiteral("strict-transport-security"), QStringLiteral("content-security-policy"),
+        QStringLiteral("x-frame-options"), QStringLiteral("x-content-type-options"),
+        QStringLiteral("x-xss-protection"), QStringLiteral("referrer-policy"),
+        QStringLiteral("permissions-policy")};
+    QStringList missing;
+    QStringList lines;
+    lines << QStringLiteral("Security header audit for %1").arg(target) << QString();
+    for (const auto& h : required) {
+        bool ok = found.contains(h);
+        if (!ok) missing << h;
+        lines << QStringLiteral("  [%1] %2").arg(ok ? QStringLiteral("PASS") : QStringLiteral("MISS"), h);
+    }
+    dr.rawOutput = lines.join('\n'); dr.details = dr.rawOutput;
+    dr.status = missing.isEmpty() ? DiagStatus::Pass
+              : missing.size() <= 4 ? DiagStatus::Warning : DiagStatus::Fail;
+    dr.summary = missing.isEmpty() ? QStringLiteral("All 7 present")
+               : QStringLiteral("%1 of 7 missing").arg(missing.size());
+    return dr;
+}
+
+// ── G5 HTTP Compression ──────────────────────────────────────────────────
+// NSURLSession transparently decompresses (and strips Content-Encoding) ONLY when
+// it added the Accept-Encoding header itself. If WE set Accept-Encoding manually,
+// the system leaves the response encoded and preserves Content-Encoding — letting
+// us detect server-side compression.
+static DiagnosticResult iosHttpCompression(DiagId id, const QString& target) {
+    DiagnosticResult dr; dr.id = id; dr.group = DiagGroup::G5;
+    dr.timestamp = QDateTime::currentDateTime();
+
+    struct Ctx {
+        dispatch_semaphore_t sem;
+        int status;               // 0=unset,1=ok,2=err
+        QString encoding, err;
+        qint64 bytes;
+        std::atomic<int> refs;
+    };
+    auto ctx = std::make_shared<Ctx>();
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->status = 0; ctx->bytes = 0;
+    ctx->refs.store(2, std::memory_order_relaxed);
+
+    NSMutableURLRequest* req = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:target.toNSString()]];
+    [req setValue:@"gzip, deflate, br" forHTTPHeaderField:@"Accept-Encoding"];
+    NSURLSession* session = [NSURLSession sessionWithConfiguration:
+        [NSURLSessionConfiguration ephemeralSessionConfiguration]];
+    NSURLSessionDataTask* task = [session dataTaskWithRequest:req
+        completionHandler:^(NSData* data, NSURLResponse* resp, NSError* error) {
+            if (error) { ctx->status = 2; ctx->err = QString::fromNSString(error.localizedDescription); }
+            else {
+                NSHTTPURLResponse* http = (NSHTTPURLResponse*)resp;
+                NSString* enc = [http valueForHTTPHeaderField:@"Content-Encoding"];
+                if (enc) ctx->encoding = QString::fromNSString(enc);
+                ctx->bytes = data ? (qint64)data.length : 0;
+                ctx->status = 1;
+            }
+            dispatch_semaphore_signal(ctx->sem);
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) dispatch_release(ctx->sem);
+        }];
+    [task resume];
+    long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)15 * NSEC_PER_SEC));
+    [session finishTasksAndInvalidate];
+
+    if (waited == 0 && ctx->status == 1) {
+        bool compressed = !ctx->encoding.isEmpty();
+        dr.status = DiagStatus::Info;
+        dr.summary = compressed ? QStringLiteral("Compressed: %1").arg(ctx->encoding)
+                                : QStringLiteral("Uncompressed");
+        dr.rawOutput = QStringLiteral("HTTP compression check for %1\n\n  Content-Encoding: %2\n  Body bytes: %3")
+            .arg(target, compressed ? ctx->encoding : QStringLiteral("(none)"))
+            .arg(ctx->bytes);
+    } else if (waited == 0 && ctx->status == 2) {
+        dr.status = DiagStatus::Fail; dr.summary = ctx->err;
+    } else {
+        dr.status = DiagStatus::Fail; dr.summary = QStringLiteral("Request timed out");
+    }
+    dr.details = dr.rawOutput;
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) dispatch_release(ctx->sem);
+    return dr;
+}
+
+// ── G5 HTTP Timing (NSURLSessionTaskMetrics via delegate) ─────────────────
+@interface NDMetricsDelegate : NSObject <NSURLSessionTaskDelegate>
+@property (atomic) NSTimeInterval dnsMs;
+@property (atomic) NSTimeInterval connectMs;
+@property (atomic) NSTimeInterval tlsMs;
+@property (atomic) NSTimeInterval ttfbMs;
+@property (atomic) NSTimeInterval totalMs;
+@end
+@implementation NDMetricsDelegate
+- (void)URLSession:(NSURLSession*)session task:(NSURLSessionTask*)task
+    didFinishCollectingMetrics:(NSURLSessionTaskMetrics*)metrics {
+    NSURLSessionTaskTransactionMetrics* m = metrics.transactionMetrics.lastObject;
+    if (!m) return;
+    auto ms = [](NSDate* a, NSDate* b) -> NSTimeInterval {
+        if (!a || !b) return 0;
+        return [b timeIntervalSinceDate:a] * 1000.0;
+    };
+    self.dnsMs     = ms(m.domainLookupStartDate, m.domainLookupEndDate);
+    self.connectMs = ms(m.connectStartDate, m.connectEndDate);
+    self.tlsMs     = ms(m.secureConnectionStartDate, m.secureConnectionEndDate);
+    self.ttfbMs    = ms(m.requestStartDate, m.responseStartDate);
+    self.totalMs   = ms(m.fetchStartDate, m.responseEndDate);
+}
+@end
+
+static DiagnosticResult iosHttpTiming(DiagId id, const QString& target) {
+    DiagnosticResult dr; dr.id = id; dr.group = DiagGroup::G5;
+    dr.timestamp = QDateTime::currentDateTime();
+
+    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    // Session retains the delegate until invalidated; autorelease balances alloc (MRC).
+    NDMetricsDelegate* delegate = [[[NDMetricsDelegate alloc] init] autorelease];
+    NSURLSession* session = [NSURLSession sessionWithConfiguration:
+        [NSURLSessionConfiguration ephemeralSessionConfiguration]
+        delegate:delegate delegateQueue:nil];
+
+    __block int statusCode = 0; __block bool ok = false; __block QString err;
+    QElapsedTimer wall; wall.start();
+    NSURLSessionDataTask* task = [session dataTaskWithURL:[NSURL URLWithString:target.toNSString()]
+        completionHandler:^(NSData* data, NSURLResponse* resp, NSError* error) {
+            if (error) { err = QString::fromNSString(error.localizedDescription); }
+            else { statusCode = (int)((NSHTTPURLResponse*)resp).statusCode; ok = true; }
+            dispatch_semaphore_signal(sem);
+        }];
+    [task resume];
+    long waited = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)30 * NSEC_PER_SEC));
+    // Metrics are delivered to the delegate as the task finishes; invalidating and
+    // waiting flushes them before we read.
+    [session finishTasksAndInvalidate];
+    dispatch_release(sem); // MRC: balance dispatch_semaphore_create
+    qint64 wallMs = wall.elapsed();
+
+    if (waited != 0) { dr.status = DiagStatus::Fail; dr.summary = QStringLiteral("Request timed out"); return dr; }
+    if (!ok) { dr.status = DiagStatus::Fail; dr.summary = err; return dr; }
+
+    qint64 dns = (qint64)delegate.dnsMs, conn = (qint64)delegate.connectMs,
+           tls = (qint64)delegate.tlsMs, ttfb = (qint64)delegate.ttfbMs;
+    qint64 total = delegate.totalMs > 0 ? (qint64)delegate.totalMs : wallMs;
+    QStringList lines;
+    lines << QStringLiteral("HTTP timing for %1 (HTTP %2)").arg(target).arg(statusCode) << QString();
+    lines << QStringLiteral("  DNS lookup        : %1 ms").arg(dns);
+    lines << QStringLiteral("  TCP connect       : %1 ms").arg(conn);
+    lines << QStringLiteral("  TLS handshake     : %1 ms").arg(tls);
+    lines << QStringLiteral("  Time to first byte: %1 ms").arg(ttfb);
+    lines << QStringLiteral("  Total             : %1 ms").arg(total);
+    dr.rawOutput = lines.join('\n'); dr.details = dr.rawOutput;
+    dr.status = total < 1000 ? DiagStatus::Pass : total < 3000 ? DiagStatus::Warning : DiagStatus::Fail;
+    dr.summary = QStringLiteral("DNS=%1ms Connect=%2ms TTFB=%3ms Total=%4ms").arg(dns).arg(conn).arg(ttfb).arg(total);
+    dr.durationMs = total;
+    return dr;
+}
+
 // ── Task creation helpers for TaskFactory ────────────────────────────────
 
 // Returns a DiagnosticResult for iOS-native G5 HTTP diagnostics.
@@ -213,10 +379,13 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target) {
     // a pure C++ value, so it is unaffected by the pool draining.
     @autoreleasepool {
         switch (id) {
-            case DiagId::G5HttpHeaders:    return iosHttpHeaders(id, target);
-            case DiagId::G5CurlVerbose:    return iosCurlVerbose(id, target);
-            case DiagId::G5SslCertificate: return iosSslCert(id, target);
-            case DiagId::G5HttpRedirect:   return iosHttpRedirect(id, target);
+            case DiagId::G5HttpHeaders:     return iosHttpHeaders(id, target);
+            case DiagId::G5CurlVerbose:     return iosCurlVerbose(id, target);
+            case DiagId::G5SslCertificate:  return iosSslCert(id, target);
+            case DiagId::G5HttpRedirect:    return iosHttpRedirect(id, target);
+            case DiagId::G5SecurityHeaders: return iosSecurityHeaders(id, target);
+            case DiagId::G5HttpCompression: return iosHttpCompression(id, target);
+            case DiagId::G5HttpTiming:      return iosHttpTiming(id, target);
             default:
                 return DiagnosticResult::skipped(id, QStringLiteral("G5 test not implemented (iOS native)"));
         }

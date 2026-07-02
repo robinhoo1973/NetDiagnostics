@@ -2,60 +2,111 @@
 // IosNetworkInfo.mm — iOS network info via public API workarounds
 //
 // Provides partial implementations for diagnostics that Apple's sandbox blocks:
-// - Default gateway: SCNetworkReachability returns reachability + interface info
+// - Default gateway: real gateway IP via sysctl NET_RT_DUMP2 (BSD route dump)
+// - Routing table: sysctl NET_RT_DUMP2 enumerates the kernel routing table
 // - DHCP status: Always system-managed on iOS (no lease file access)
-// - Routing table: Unavailable (Apple blocks sysctl NET_RT_DUMP)
 // - ARP table: Unavailable (link-layer, no public API)
 // =============================================================================
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <sys/socket.h>
+#import <sys/sysctl.h>
 #import <netinet/in.h>
 #import <arpa/inet.h>
 #import <ifaddrs.h>
 #import <net/if.h>
+#import <net/route.h>
 #include <QString>
 #include <QStringList>
+#include <QVector>
 #include "models/DiagnosticResult.h"
 
-// ── Default Gateway via SCNetworkReachability ──────────────────────────
-// Returns the hostname/IP that SCNetworkReachability considers the default route.
-// This is the destination used for connectivity checks — typically the router.
+// Round a sockaddr length up to the next 4-byte boundary (BSD routing alignment).
+#ifndef SA_SIZE
+#define SA_SIZE(sa) \
+    ( ((sa) == nullptr || ((struct sockaddr*)(sa))->sa_len == 0) ? \
+        sizeof(uint32_t) : \
+        (1 + ((((struct sockaddr*)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))) )
+#endif
+
+// ── Routing table via sysctl NET_RT_DUMP2 ──────────────────────────────
+// Unlike /proc/net/route (Linux-only) and NET_RT_DUMP, NET_RT_DUMP2 is the
+// BSD/Darwin route dump that IS reachable from the iOS sandbox. It returns the
+// live kernel routing table, from which we can read real gateway IPs.
+struct IosRoute { QString dest, gateway, netmask, iface; int flags; };
+
+static QString ip4FromSockaddr(const struct sockaddr* sa) {
+    if (!sa || sa->sa_family != AF_INET) return QString();
+    const struct sockaddr_in* sin = (const struct sockaddr_in*)sa;
+    char buf[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+    return QString::fromLatin1(buf);
+}
+
+static QVector<IosRoute> iosReadRoutes() {
+    QVector<IosRoute> routes;
+    int mib[6] = {CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_DUMP2, 0};
+    size_t len = 0;
+    if (sysctl(mib, 6, nullptr, &len, nullptr, 0) < 0 || len == 0)
+        return routes; // sandbox blocked or empty
+    QByteArray buf(static_cast<int>(len), 0);
+    if (sysctl(mib, 6, buf.data(), &len, nullptr, 0) < 0)
+        return routes;
+
+    char* lim = buf.data() + len;
+    for (char* nextp = buf.data(); nextp < lim; ) {
+        struct rt_msghdr2* rtm = (struct rt_msghdr2*)nextp;
+        if (rtm->rtm_msglen == 0) break;
+        struct sockaddr* sa = (struct sockaddr*)(rtm + 1);
+        struct sockaddr* addrs[RTAX_MAX] = {nullptr};
+        for (int i = 0; i < RTAX_MAX; ++i) {
+            if (rtm->rtm_addrs & (1 << i)) {
+                addrs[i] = sa;
+                sa = (struct sockaddr*)((char*)sa + SA_SIZE(sa));
+            }
+        }
+        IosRoute rt;
+        rt.flags = rtm->rtm_flags;
+        // Destination: a zero/absent AF_INET dest means the default route.
+        if (addrs[RTAX_DST]) {
+            QString d = ip4FromSockaddr(addrs[RTAX_DST]);
+            rt.dest = d.isEmpty() ? QStringLiteral("default") : d;
+            if (rt.dest == QLatin1String("0.0.0.0")) rt.dest = QStringLiteral("default");
+        }
+        if (addrs[RTAX_GATEWAY]) rt.gateway = ip4FromSockaddr(addrs[RTAX_GATEWAY]);
+        if (addrs[RTAX_NETMASK]) rt.netmask = ip4FromSockaddr(addrs[RTAX_NETMASK]);
+        char ifname[IF_NAMESIZE] = {0};
+        if (if_indextoname(rtm->rtm_index, ifname)) rt.iface = QString::fromLatin1(ifname);
+        if (!rt.dest.isEmpty() || !rt.gateway.isEmpty())
+            routes.append(rt);
+        nextp += rtm->rtm_msglen;
+    }
+    return routes;
+}
+
+// ── Default Gateway — real IP from the routing table, fallback to interface ──
 static QString iosDefaultGateway() {
-    // Create a reachability ref to a public IP — forces the system to determine
-    // the default route. Using DNSPod (Tencent Cloud) public DNS as the probe.
-    struct sockaddr_in zeroAddr;
-    memset(&zeroAddr, 0, sizeof(zeroAddr));
-    zeroAddr.sin_len = sizeof(zeroAddr);
-    zeroAddr.sin_family = AF_INET;
-    zeroAddr.sin_addr.s_addr = inet_addr("119.29.29.29");
-
-    SCNetworkReachabilityRef reachability = SCNetworkReachabilityCreateWithAddress(
-        kCFAllocatorDefault, (const struct sockaddr*)&zeroAddr);
-
-    if (!reachability) return QString();
-
-    SCNetworkReachabilityFlags flags;
-    Boolean ok = SCNetworkReachabilityGetFlags(reachability, &flags);
-    CFRelease(reachability);
-    if (!ok) return QString();
-
-    // Walk interfaces to find which one provides the default route.
-    // The interface that has IFF_UP + a non-loopback IPv4 address is the most
-    // likely candidate for the default gateway interface.
+    // Preferred: the RTF_GATEWAY default route from the kernel routing table.
+    for (const auto& rt : iosReadRoutes()) {
+        if (rt.dest == QLatin1String("default") && !rt.gateway.isEmpty()
+            && (rt.flags & RTF_GATEWAY)) {
+            return QStringLiteral("%1 (interface %2)")
+                .arg(rt.gateway, rt.iface.isEmpty() ? QStringLiteral("?") : rt.iface);
+        }
+    }
+    // Fallback: first non-loopback UP IPv4 interface (route table unavailable).
     struct ifaddrs* ifa = nullptr;
-    if (getifaddrs(&ifa) != 0) return QStringLiteral("Unknown (getifaddrs failed)");
-
-    QString gatewayInfo = QStringLiteral("System-managed (iOS) — interface: ");
+    if (getifaddrs(&ifa) != 0) return QString();
+    QString gatewayInfo;
     for (auto* p = ifa; p; p = p->ifa_next) {
         if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
         if (!(p->ifa_flags & IFF_UP)) continue;
         QString name = QString::fromLatin1(p->ifa_name);
         if (name == "lo0") continue;
-        // The first non-loopback, UP, IPv4 interface is usually the default route
         char ip[INET_ADDRSTRLEN];
         auto* sa = (struct sockaddr_in*)p->ifa_addr;
         inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-        gatewayInfo += QStringLiteral("%1 (%2)").arg(name, QString::fromLatin1(ip));
+        gatewayInfo = QStringLiteral("System-managed (iOS) — interface: %1 (%2)")
+            .arg(name, QString::fromLatin1(ip));
         break;
     }
     freeifaddrs(ifa);
@@ -114,3 +165,55 @@ DiagnosticResult iosDhcpDiag(DiagId id) {
     r.status = DiagStatus::Info;
     return r;
 }
+
+// Returns a DiagnosticResult for the routing table on iOS (sysctl NET_RT_DUMP2)
+DiagnosticResult iosRoutingTableDiag(DiagId id) {
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
+    r.timestamp = QDateTime::currentDateTime();
+
+    QVector<IosRoute> routes = iosReadRoutes();
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("IPv4 Route Table (iOS — sysctl NET_RT_DUMP2)"));
+    out.append(QStringLiteral("==========================================================================="));
+
+    if (routes.isEmpty()) {
+        out.append(QStringLiteral("  Routing table unavailable (blocked by iOS sandbox)."));
+        r.rawOutput = out.join('\n');
+        r.details = r.rawOutput;
+        r.status = DiagStatus::Skipped;
+        r.summary = QStringLiteral("Unavailable on iOS");
+        return r;
+    }
+
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QStringLiteral("Destination"), -18)
+        .arg(QStringLiteral("Gateway"), -18)
+        .arg(QStringLiteral("Netmask"), -16)
+        .arg(QStringLiteral("Iface")));
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QString(18, '-')).arg(QString(18, '-'))
+        .arg(QString(16, '-')).arg(QString(5, '-')));
+
+    QString defaultGw;
+    for (const auto& rt : routes) {
+        QString gw = rt.gateway.isEmpty() ? QStringLiteral("link#") : rt.gateway;
+        out.append(QStringLiteral("  %1  %2  %3  %4")
+            .arg(rt.dest, -18)
+            .arg(gw, -18)
+            .arg(rt.netmask.isEmpty() ? QStringLiteral("-") : rt.netmask, -16)
+            .arg(rt.iface));
+        if (rt.dest == QLatin1String("default") && (rt.flags & RTF_GATEWAY) && defaultGw.isEmpty())
+            defaultGw = rt.gateway;
+    }
+    out.append(QStringLiteral("==========================================================================="));
+
+    r.rawOutput = out.join('\n');
+    r.details = r.rawOutput;
+    r.status = DiagStatus::Pass;
+    r.summary = defaultGw.isEmpty()
+        ? QStringLiteral("%1 routes").arg(routes.size())
+        : QStringLiteral("Default via %1").arg(defaultGw);
+    return r;
+}
+

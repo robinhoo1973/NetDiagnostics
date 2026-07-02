@@ -4,3 +4,4 @@
 #include "models/DiagId.h"
 DiagnosticResult iosDefaultGatewayDiag(DiagId id);
 DiagnosticResult iosDhcpDiag(DiagId id);
+DiagnosticResult iosRoutingTableDiag(DiagId id);

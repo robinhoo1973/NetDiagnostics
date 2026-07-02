@@ -527,8 +527,13 @@ DiagnosticResult activeConnections(DiagId id) {
     }
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
+#ifdef PLATFORM_IOS
+    r.status = DiagStatus::Skipped;
+    r.summary = QStringLiteral("Unavailable on iOS (sandbox restricts socket enumeration)");
+#else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Active connections enumerated");
+#endif
     r.durationMs = t.elapsed();
     return r;
 }
@@ -1460,14 +1465,19 @@ DiagnosticResult arpTable(DiagId id) {
         out.append(QStringLiteral("  (ARP table not available)"));
     }
 #else  // PLATFORM_IOS
-    out.append(QStringLiteral("  [iOS] ARP table: unavailable (restricted by Apple)"));
+    out.append(QStringLiteral("  [iOS] ARP table: unavailable (no public link-layer API)"));
 #endif // !PLATFORM_IOS
 #endif
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
+#ifdef PLATFORM_IOS
+    r.status = DiagStatus::Skipped;
+    r.summary = QStringLiteral("Unavailable on iOS (no public ARP API)");
+#else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("ARP table collected");
+#endif
     r.durationMs = t.elapsed();
     return r;
 }
@@ -1540,13 +1550,19 @@ DiagnosticResult tcpSettings(DiagId id) {
 #else
     out.append(QStringLiteral("  [iOS] TCP settings: unavailable (restricted by Apple)"));
 #endif
-    out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));
+    if (!tcpRows.isEmpty())
+        out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));
 #endif
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
+#ifdef PLATFORM_IOS
+    r.status = DiagStatus::Skipped;
+    r.summary = QStringLiteral("Unavailable on iOS (kernel sysctls restricted)");
+#else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("TCP settings collected");
+#endif
     r.durationMs = 0;
     return r;
 }

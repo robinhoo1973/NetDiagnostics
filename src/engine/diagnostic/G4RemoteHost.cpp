@@ -107,6 +107,37 @@ QString extractHostname(const QString& target) {
     return t;
 }
 
+// Derive the TCP port to probe from a target that may be a URL or host[:port].
+// Returns an explicit port if present, else the scheme's default
+// (443 https / 80 http / 21 ftp / 990 ftps), else 443 — which is far more
+// universally reachable than 80 for MTU/MSS probing of modern hosts.
+static int extractProbePort(const QString& target) {
+    QString t = target.trimmed();
+    QString scheme;
+    QString rest = t;
+    if (t.contains("://")) {
+        scheme = t.section("://", 0, 0).toLower();
+        rest = t.section("://", 1);
+    }
+    auto slash = rest.indexOf('/');
+    if (slash >= 0) rest = rest.left(slash);   // strip path
+    if (rest.startsWith('[')) {                 // [IPv6]:port
+        auto closing = rest.indexOf(']');
+        if (closing > 0 && closing + 1 < rest.size() && rest.at(closing + 1) == ':') {
+            int p = rest.mid(closing + 2).toInt();
+            if (p > 0) return p;
+        }
+    } else if (rest.count(':') == 1) {          // host:port
+        int p = rest.section(':', 1, 1).toInt();
+        if (p > 0) return p;
+    }
+    if (scheme == QLatin1String("https")) return 443;
+    if (scheme == QLatin1String("http"))  return 80;
+    if (scheme == QLatin1String("ftp"))   return 21;
+    if (scheme == QLatin1String("ftps"))  return 990;
+    return 443;
+}
+
 // ── DNS Resolution — full dig-like output ─────────────────────────────
 #ifndef _WIN32
 // ── DNS wire query + full section dump helper ──────────────────────────────
@@ -1147,6 +1178,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     r.timestamp = QDateTime::currentDateTime();
     if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
+    int probePort = extractProbePort(target);
     quint32 resolvedIp = resolveIPv4(host);
     QString ipStr;
     if (resolvedIp) { struct in_addr a; a.s_addr = htonl(resolvedIp); ipStr = ip4ToStr(a); }
@@ -1154,7 +1186,8 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 
     // ── Windows ping -f -l style MTU discovery ─────────────────────────
     out.append(QString());
-    out.append(QStringLiteral("Path MTU Discovery for %1 [%2]").arg(host, ipStr.isEmpty() ? host : ipStr));
+    out.append(QStringLiteral("Path MTU Discovery for %1 [%2] (probe TCP port %3)")
+        .arg(host, ipStr.isEmpty() ? host : ipStr).arg(probePort));
     out.append(QString());
 
     // Try TCP connect and get MSS → derive path MTU
@@ -1164,7 +1197,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     if (sock >= 0 && sock >= FD_SETSIZE) { closeSocket(sock); sock = -1; }
     if (sock >= 0 && resolvedIp) {
         struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET; addr.sin_port = htons(80);
+        addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
         addr.sin_addr.s_addr = htonl(resolvedIp);
         setNonblockWin(sock);
         QElapsedTimer t; t.start();

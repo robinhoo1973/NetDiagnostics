@@ -98,7 +98,12 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #else
         case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
 #endif
+#ifdef PLATFORM_IOS
+        case DiagId::G2RoutingTable:
+            return T3([](DiagId id, const QString&) { return iosRoutingTableDiag(id); });
+#else
         case DiagId::G2RoutingTable:       return T1(G1G2G3Native::routingTable);
+#endif
         case DiagId::G2ArpTable:           return T1(G1G2G3Native::arpTable);
         case DiagId::G2ProxySettings:      return T1(G1G2G3Native::proxySettings);
 
@@ -192,14 +197,15 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        // Full X.509 certificate details via QSslSocket (SecureTransport backend on iOS)
+        case DiagId::G5SslCertificate:   return T2(G5WebsiteUrl::sslCertificate);
         case DiagId::G5CurlVerbose:
         case DiagId::G5HttpHeaders:
-        case DiagId::G5SslCertificate:
         case DiagId::G5HttpRedirect:
-            return T3([t = target](DiagId id, const QString&) { return iosHttpDiagnostic(id, t); });
         case DiagId::G5SecurityHeaders:
         case DiagId::G5HttpCompression:
         case DiagId::G5HttpTiming:
+            return T3([t = target](DiagId id, const QString&) { return iosHttpDiagnostic(id, t); });
         case DiagId::G5FtpDiagnostics:
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
