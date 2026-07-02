@@ -142,6 +142,21 @@ QVector<PortScanEntry> NetworkProbe::portScan(const QString& host,
                 sockets[i] = -1;
                 continue;
             }
+#ifndef _WIN32
+            // On POSIX, fd_set is a fixed bitmap of FD_SETSIZE bits. Calling
+            // FD_SET(fd, ...) with fd >= FD_SETSIZE writes out of bounds and
+            // corrupts the stack. If the descriptor is too large (many fds open),
+            // skip it safely rather than crash.
+            if (sock >= FD_SETSIZE) {
+                close(sock);
+                PortScanEntry e; e.port = port; e.open = false;
+                e.error = QStringLiteral("fd limit exceeded");
+                e.serviceName = wkPorts.value(port);
+                results.append(e);
+                sockets[i] = -1;
+                continue;
+            }
+#endif
             sockets[i] = sock;
             setNonBlocking(sock);
 

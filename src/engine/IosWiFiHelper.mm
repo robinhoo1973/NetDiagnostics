@@ -9,6 +9,8 @@
 
 #include <QString>
 #include <QVariantMap>
+#include <atomic>
+#include <memory>
 #import <NetworkExtension/NetworkExtension.h>
 #import <CoreLocation/CoreLocation.h>
 #import <CoreTelephony/CTTelephonyNetworkInfo.h>
@@ -38,22 +40,38 @@ void iosRequestWiFiAuthorization()
 
 QString iosCopyWiFiSSID()
 {
-    __block NSString* ssid = nil;
-    dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    struct SsidCtx {
+        dispatch_semaphore_t sem;
+        NSString* ssid;
+        std::atomic<int> refs;
+    };
+    auto ctx = std::make_shared<SsidCtx>();
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->ssid = nil;
+    ctx->refs.store(2, std::memory_order_relaxed);
 
     if (@available(iOS 14.0, *)) {
         [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
             if (network && network.SSID.length > 0) {
-                ssid = [network.SSID copy];
+                ctx->ssid = [network.SSID copy];
             }
-            dispatch_semaphore_signal(sem);
+            dispatch_semaphore_signal(ctx->sem);
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(ctx->sem);
+            }
         }];
-        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        if (waited != 0) ctx->ssid = nil; // timeout: handler may still be writing
     }
 
-    if (ssid && ssid.length > 0)
-        return QString::fromNSString(ssid);
-    return QString();
+    QString result;
+    if (ctx->ssid && ctx->ssid.length > 0)
+        result = QString::fromNSString(ctx->ssid);
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+    }
+    return result;
 }
 
 // ── Cellular info ────────────────────────────────────────────────────────────
@@ -136,8 +154,8 @@ QVariantMap iosWiFiInfo()
     // Reference-counted context: waiter and completion handler both hold a ref (2 total).
     struct WifiCtx {
         dispatch_semaphore_t sem;
-        __block NSString* ssid;
-        __block NSString* bssid;
+        NSString* ssid;
+        NSString* bssid;
         std::atomic<int> refs;
     };
     auto ctx = std::make_shared<WifiCtx>();

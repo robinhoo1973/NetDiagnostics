@@ -8,6 +8,8 @@
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "util/DiagnosticFormatter.h"
 #include <QElapsedTimer>
+#include <atomic>
+#include <memory>
 #import <Foundation/Foundation.h>
 #import <CFNetwork/CFNetwork.h>
 #import <sys/socket.h>
@@ -26,7 +28,7 @@ static NSString* resolveCFHost(NSString* hostname, int timeoutMs) {
     struct DnsCtx {
         dispatch_semaphore_t sem;
         CFHostRef host;
-        __block NSString* result;
+        NSString* result;
         std::atomic<int> refs;
     };
     auto ctx = std::make_shared<DnsCtx>();
