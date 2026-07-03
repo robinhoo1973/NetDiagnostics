@@ -40,6 +40,7 @@ class AppState : public QObject {
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
+    Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
 
 public:
     explicit AppState(QObject* parent = nullptr);
@@ -110,10 +111,16 @@ public:
     // ── Premium / sharing ──────────────────────────────────────────────────
     bool isPremium() const { return m_isPremium; }
     Q_INVOKABLE void setPremium(bool v);
-    // Central, cross-platform entry point for starting a Premium subscription.
-    // Called from the QML share flow when the user taps "Subscribe". iOS and
-    // Android share the same call; platform store hooks live inside.
+    // Cross-platform entry point for starting a Premium purchase.
+    // iOS: StoreKit via PlatformStore_ios.mm; Android: (future) Play Billing.
+    // Desktop: grants Premium directly. Emits purchaseInProgressChanged.
     Q_INVOKABLE void requestSubscription();
+    // Restore a previous non-consumable purchase / subscription.
+    // iOS: restoreCompletedTransactions; Android: (future) queryPurchasesAsync.
+    // Desktop: no-op. Emits purchaseInProgressChanged while active.
+    Q_INVOKABLE void restorePurchases();
+    // True while a StoreKit / Play Billing purchase dialog is presented.
+    bool purchaseInProgress() const { return m_purchaseInProgress; }
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);
 
@@ -154,6 +161,8 @@ signals:
     void premiumChanged();
     void premiumRequired();
     void reportShared(bool ok);
+    void purchaseInProgressChanged();
+    void restoreCompleted(bool restoredAny);
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
@@ -193,8 +202,9 @@ private:
     std::atomic<int> m_stateGeneration{0};
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
-    int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW
+    int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
     bool m_isPremium = false;
+    bool m_purchaseInProgress = false;
 
     // Cached group stats — invalidated on progressChanged
     mutable QVariantList m_cachedGroupStats;

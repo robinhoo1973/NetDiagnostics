@@ -67,6 +67,7 @@ if(IOS)
     list(APPEND SOURCES src/engine/IosWiFiHelper.mm)
     list(APPEND SOURCES src/engine/task/IosDnsTask.mm src/engine/task/IosHttpTask.mm src/engine/task/IosNetworkInfo.mm)
     list(APPEND SOURCES src/engine/PlatformShare_ios.mm)
+    list(APPEND SOURCES src/engine/PlatformStore_ios.mm)
 endif()
 # Android: native JNI diagnostics
 if(ANDROID)
@@ -178,6 +179,7 @@ if(IOS)
         "-framework Network"
         "-framework CFNetwork"
         "-framework SystemConfiguration"
+        "-framework StoreKit"
     )
 elseif(ANDROID)
     target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
@@ -269,6 +271,7 @@ if(BUILD_SIMULATOR)
             "-framework Network"
             "-framework CFNetwork"
             "-framework SystemConfiguration"
+            "-framework StoreKit"
         )
     endif()
     target_include_directories(net_diagnostic_sim PRIVATE
