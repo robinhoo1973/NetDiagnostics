@@ -117,7 +117,7 @@ static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect =
     curl_easy_setopt(curl, CURLOPT_URL, urlBytes.constData());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, (long)timeoutMs);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, (long)(timeoutMs / 3));
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostic/1.0 (libcurl)");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "NetDiagnostics/1.0 (libcurl)");
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
     curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, curlDebugCallback);
     curl_easy_setopt(curl, CURLOPT_DEBUGDATA, &cr.lines);

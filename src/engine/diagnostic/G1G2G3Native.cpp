@@ -2145,7 +2145,7 @@ static QByteArray httpGet(const QString& host, int port, const QString& path, in
     if (err != 0) { closeSocket(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
-    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
         .arg(path, host).toUtf8();
     int sent = 0;
     while (sent < req.size()) {
@@ -2215,7 +2215,7 @@ static SpeedResult httpDownload(const QString& urlStr, int targetBytes, int time
     if (err != 0) { closeSocket(sock); return r; }
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
-    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostic/1.0\r\nConnection: close\r\n\r\n")
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
         .arg(path, host).toUtf8();
     int reqSent = 0;
     while (reqSent < req.size()) {

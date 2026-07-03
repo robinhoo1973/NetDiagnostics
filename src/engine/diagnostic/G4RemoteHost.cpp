@@ -243,7 +243,7 @@ DiagnosticResult dnsResolution(const QString& target) {
     QStringList ipsAll;
 
     out.append(QString());
-    out.append(QStringLiteral("; <<>> NetDiagnostic DNS <<>> %1").arg(host));
+    out.append(QStringLiteral("; <<>> NetDiagnostics DNS <<>> %1").arg(host));
     out.append(QStringLiteral(";; global options: +cmd"));
     QByteArray hb = host.toUtf8();
 

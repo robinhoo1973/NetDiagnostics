@@ -160,7 +160,7 @@ Item {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 AppIcon { name: "wifi"; size: 20; color: Theme.cyan }
                 Item { width: 10 }
-                Label { text: "NetDiagnostic"; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
+                Label { text: "NetDiagnostics"; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
             }
         }
 

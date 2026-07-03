@@ -12,13 +12,13 @@
 
     <application
         android:name="org.qtproject.qt6.android.bindings.QtApplication"
-        android:label="NetDiagnostic"
+        android:label="NetDiagnostics"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher">
         <activity
             android:name="org.qtproject.qt6.android.bindings.QtActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
-            android:label="NetDiagnostic"
+            android:label="NetDiagnostics"
             android:launchMode="singleTop"
             android:exported="true">
             <intent-filter>

@@ -11,14 +11,14 @@
 Logger::Logger() {
     QString logDir;
 #ifdef Q_OS_WIN
-    logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/NetDiagnostic";
+    logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/NetDiagnostics";
 #else
-    logDir = QStringLiteral("/tmp/NetDiagnostic");
+    logDir = QStringLiteral("/tmp/NetDiagnostics");
 #endif
     QDir().mkpath(logDir);
     m_file.setFileName(logDir + "/debug.log");
     if (!m_file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
-        qWarning() << "NetDiagnostic: Cannot open log file:" << m_file.fileName()
+        qWarning() << "NetDiagnostics: Cannot open log file:" << m_file.fileName()
                    << "-" << m_file.errorString();
     }
 }
