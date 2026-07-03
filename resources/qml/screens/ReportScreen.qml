@@ -90,7 +90,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
         contentWidth: width
-        contentHeight: reportCol.implicitHeight + (page.isMobile ? 30 : 52)
+        contentHeight: reportCol.y + reportCol.implicitHeight + (page.isMobile ? 30 : 52)
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
         ColumnLayout {
@@ -183,8 +183,9 @@ Item {
             anchors.centerIn: parent
             // Responsive: on tall screens use 720×700, on short (portrait) screens scale down
             width: Math.min(720, parent.width - 20)
-            height: Math.max(300, Math.min(700, parent.height - 60))
+            height: Math.max(260, Math.min(parent.height - 30, 680))
             radius: 12; color: "#1F1F32"
+            clip: true
             border { width: 2; color: "#5A5A7A" }
 
             ColumnLayout {
