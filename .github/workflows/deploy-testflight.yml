@@ -412,8 +412,9 @@ jobs:
           set -e
 
           if [ "$upload_status" -ne 0 ]; then
-            if grep -Eqi "iris-code *: *90382|upload limit.*(reached|exceeded)|wait 1 day and try again" "$UPLOAD_LOG"; then
-              RATE_LIMIT_LINE=$(grep -Ei "iris-code *: *90382|upload limit.*(reached|exceeded)|wait 1 day and try again" "$UPLOAD_LOG" | head -1 || true)
+            RATE_LIMIT_PATTERN="iris-code *: *90382|upload limit.*(reached|exceeded)|wait 1 day and try again"
+            if grep -Eqi "$RATE_LIMIT_PATTERN" "$UPLOAD_LOG"; then
+              RATE_LIMIT_LINE=$(grep -Ei "$RATE_LIMIT_PATTERN" "$UPLOAD_LOG" | head -1 || true)
               echo "::warning::App Store Connect rejected the upload because the app hit Apple's 24-hour upload quota. Skipping without failing the workflow."
               {
                 echo "### TestFlight upload skipped"
