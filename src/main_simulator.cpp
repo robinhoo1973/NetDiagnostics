@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 {
     qputenv("QSG_RENDER_LOOP", "basic");
     QGuiApplication app(argc, argv);
-    app.setApplicationName("NetDiagnostic Simulator");
+    app.setApplicationName("NetDiagnostics Simulator");
 
     // ── Single instance via lock file ────────────────────────────────────
     QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netdiagnostic-sim.lock");
@@ -27,12 +27,12 @@ int main(int argc, char *argv[])
     lockFile.setStaleLockTime(2000);
     if (!lockFile.tryLock(100)) {
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
-        QMessageBox::information(nullptr, QStringLiteral("NetDiagnostic Simulator"),
+        QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics Simulator"),
             QStringLiteral("Simulator is already running."));
 #endif
         return 0;
     }
-    app.setApplicationDisplayName("NetDiagnostic Simulator");
+    app.setApplicationDisplayName("NetDiagnostics Simulator");
     app.setApplicationVersion("1.0.0");
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));

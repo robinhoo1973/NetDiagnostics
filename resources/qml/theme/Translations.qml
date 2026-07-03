@@ -261,5 +261,5 @@ Item {
     readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")
-    readonly property string simulatorTitle: t("NetDiagnostic Simulator", "Simulateur NetDiagnostic", "NetDiagnostic Simulator", "Симулятор NetDiagnostic", "Simulatore NetDiagnostic", "NetDiagnostic 模拟器", "NetDiagnostic 模擬器", "Simulador NetDiagnostic", "Simulador NetDiagnostic")
+    readonly property string simulatorTitle: t("NetDiagnostics Simulator", "Simulateur NetDiagnostics", "NetDiagnostics Simulator", "Симулятор NetDiagnostics", "Simulatore NetDiagnostics", "NetDiagnostics 模拟器", "NetDiagnostics 模擬器", "Simulador NetDiagnostics", "Simulador NetDiagnostics")
 }

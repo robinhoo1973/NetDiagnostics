@@ -1,8 +1,8 @@
 // =============================================================================
 // Logger.h — File-based sequential debug logger
 //
-// Writes to /tmp/NetDiagnostic/debug.log (Unix) or
-// %TEMP%/NetDiagnostic/debug.log (Windows).
+// Writes to /tmp/NetDiagnostics/debug.log (Unix) or
+// %TEMP%/NetDiagnostics/debug.log (Windows).
 // =============================================================================
 #pragma once
 

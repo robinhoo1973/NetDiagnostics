@@ -7,7 +7,7 @@ import "../"
 ApplicationWindow {
     id: page
     objectName: "simulator"
-    title: "NetDiagnostic Simulator"
+    title: "NetDiagnostics Simulator"
     visible: true
     color: "#2D2D2D"
     property int currentTab: 1
@@ -116,7 +116,7 @@ ApplicationWindow {
             Layout.fillWidth: true; implicitHeight: 48; color: "#1A1A2E"; z: 10
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 12 }
-                Label { text:"NetDiagnostic Simulator"; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:16; font.weight:Font.DemiBold; color:"white" }
+                Label { text:"NetDiagnostics Simulator"; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:16; font.weight:Font.DemiBold; color:"white" }
                 Item { Layout.fillWidth:true }
                 Rectangle { implicitWidth:180; implicitHeight:34; radius:4; color:Qt.alpha("white",0.08); border{width:1;color:Qt.alpha("white",0.15)}
                     RowLayout { anchors.fill:parent; anchors.margins:8

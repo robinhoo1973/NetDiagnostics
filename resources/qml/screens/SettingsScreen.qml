@@ -199,7 +199,7 @@ Item {
                             AppIcon { anchors.centerIn: parent; name: "wifi"; size: 28; color: Theme.accentBlue } }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
-                            Label { text: "NetDiagnostic" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Bold; color: Theme.textPrimary }
+                            Label { text: "NetDiagnostics" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Bold; color: Theme.textPrimary }
                             Label {
                                 id: versionLabel
                                 property int taps: 0

@@ -48,7 +48,7 @@ QStringList DiagnosticFormatter::formatDnsHeader(const QString& host,
                                                    uint16_t id, int anCount) {
     return {
         QString(),
-        QStringLiteral("; <<>> NetDiagnostic DNS <<>> %1").arg(host),
+        QStringLiteral("; <<>> NetDiagnostics DNS <<>> %1").arg(host),
         QStringLiteral(";; global options: +cmd"),
         QStringLiteral(";; Got answer:"),
         QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")

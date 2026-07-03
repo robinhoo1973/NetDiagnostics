@@ -49,8 +49,8 @@ int main(int argc, char *argv[])
 #ifndef NO_CURL
         curl_global_cleanup();
 #endif
-        QMessageBox::information(nullptr, QStringLiteral("NetDiagnostic"),
-            QStringLiteral("NetDiagnostic is already running."));
+        QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics"),
+            QStringLiteral("NetDiagnostics is already running."));
         return 0;
     }
         // hMutex is owned by this process; auto-released on exit
@@ -63,15 +63,15 @@ int main(int argc, char *argv[])
 #ifndef NO_CURL
                 curl_global_cleanup();
 #endif
-                QMessageBox::information(nullptr, QStringLiteral("NetDiagnostic"),
-                        QStringLiteral("NetDiagnostic is already running."));
+                QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics"),
+                        QStringLiteral("NetDiagnostics is already running."));
                 return 0;
         }
 #endif
 #endif
 
-    app.setApplicationName("NetDiagnostic");
-    app.setApplicationDisplayName("NetDiagnostic");
+    app.setApplicationName("NetDiagnostics");
+    app.setApplicationDisplayName("NetDiagnostics");
     app.setApplicationVersion("0.0.1");
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-    MAIN_LOG(" NetDiagnostic starting, Qt %s\n", qVersion());
+    MAIN_LOG(" NetDiagnostics starting, Qt %s\n", qVersion());
 
     // ── Theme injected directly from C++ (avoids QML component creation failure) ──
     QVariantMap theme;
