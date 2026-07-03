@@ -56,9 +56,27 @@ Item {
                         id: langCombo
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
-                        model: ["English","Français","Deutsch","Русский","Italiano","简体中文","繁體中文","Español","Português"]
-                        currentIndex: appState ? appState.languageIndex : 0
-                        onActivated: { if (appState) appState.setLanguage(currentIndex) }
+                        // Displayed in UTF-8 (code-point) order; idx = internal language
+                        // index (0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT).
+                        readonly property var langItems: [
+                            { name: "Deutsch",   idx: 2 },
+                            { name: "English",   idx: 0 },
+                            { name: "Español",   idx: 7 },
+                            { name: "Français",  idx: 1 },
+                            { name: "Italiano",  idx: 4 },
+                            { name: "Português", idx: 8 },
+                            { name: "Русский",   idx: 3 },
+                            { name: "简体中文",   idx: 5 },
+                            { name: "繁體中文",   idx: 6 }
+                        ]
+                        model: langItems.map(function(e) { return e.name })
+                        currentIndex: {
+                            if (!appState) return 0
+                            for (var i = 0; i < langItems.length; i++)
+                                if (langItems[i].idx === appState.languageIndex) return i
+                            return 0
+                        }
+                        onActivated: function(index) { if (appState) appState.setLanguage(langItems[index].idx) }
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13
                         background: Rectangle {
                             radius: 6; color: Theme.bgInput; border { width: 1; color: "#3A3A5A" }
@@ -100,14 +118,12 @@ Item {
                     }
                 }
             }
-            Item { Layout.preferredHeight: 32 }
+            Item { Layout.preferredHeight: 20 }
 
             // (Email/SMTP section removed — report sharing is handled from the
             //  Report screen's preview window via Share/Email.)
 
-            // ── Premium Section (mobile only) ────────────────────────────
-            Item { visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
-                Layout.fillWidth: true; Layout.preferredHeight: restoreSection.height }
+            // ── Premium Section (mobile only) ────────────
             ColumnLayout {
                 id: restoreSection
                 visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
