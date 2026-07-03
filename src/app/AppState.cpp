@@ -1143,18 +1143,18 @@ void AppState::restorePurchases() {
     m_purchaseInProgress = true;
     emit purchaseInProgressChanged();
 
-    platformRestorePurchases([this](bool restoredAny) {
+    platformRestorePurchases([this](bool restoredAny, bool isError) {
         m_purchaseInProgress = false;
         emit purchaseInProgressChanged();
 
         if (restoredAny) {
             setPremium(true);
         }
-        emit restoreCompleted(restoredAny);
+        emit restoreCompleted(restoredAny, isError);
     });
 #else
     // Android / Desktop: no store to restore from.
-    emit restoreCompleted(false);
+    emit restoreCompleted(false, false);
 #endif
 }
 

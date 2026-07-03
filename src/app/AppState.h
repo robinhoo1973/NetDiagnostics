@@ -166,7 +166,7 @@ signals:
     void premiumRequired();
     void reportShared(bool ok);
     void purchaseInProgressChanged();
-    void restoreCompleted(bool restoredAny);
+    void restoreCompleted(bool restoredAny, bool isError);
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);

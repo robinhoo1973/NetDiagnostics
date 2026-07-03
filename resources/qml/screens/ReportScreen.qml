@@ -85,20 +85,40 @@ Item {
     // Centered content — scrollable; a holder keeps the column vertically centered
     // when it fits and lets it scroll when it's taller than the viewport (portrait),
     // so nothing is clipped off-screen.
+    //
+    // contentHeight uses childrenRect.height (real-time item geometry) rather
+    // than implicitHeight (deferred Layout property) to avoid the Qt Quick
+    // Layouts deferred-update race: when text changes incrementally after
+    // diagnostics complete, the Flickable binding would read a stale
+    // implicitHeight value before the Layout pass recomputed it. A language
+    // switch masked the bug by forcing a full synchronous re-layout.
     Flickable {
         id: reportFlick
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
         contentWidth: width
-        contentHeight: reportCol.y + reportCol.implicitHeight + (page.isMobile ? 30 : 52)
+        contentHeight: reportCol.y + reportCol.childrenRect.height + (page.isMobile ? 30 : 52)
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
         ColumnLayout {
             id: reportCol
             x: (reportFlick.width - width) / 2
             y: page.isMobile ? 14 : 24
-            width: reportFlick.width - (page.isMobile ? 32 : 80)
+            // Column width: proportional on mobile (6 % total margin → 3 % per side)
+            // so narrow screens (320 px) keep enough room for button labels in
+            // long-translation languages.  Desktop uses a fixed 80 px margin
+            // (the screen is wide enough either way).
+            width: page.isMobile ? reportFlick.width * 0.94 : reportFlick.width - 80
             spacing: 0
+
+            // Belt-and-suspenders: if the deferred Layout pass updates
+            // implicitHeight but childrenRect didn't fire a change
+            // notification, force the Flickable to re-read contentHeight.
+            onImplicitHeightChanged: {
+                reportFlick.contentHeight = Qt.binding(function() {
+                    return reportCol.y + reportCol.childrenRect.height + (page.isMobile ? 30 : 52)
+                })
+            }
 
             // Icon container
             Rectangle {
@@ -181,9 +201,9 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            // Responsive: fill available space — no hardcoded bounds
-            width: parent.width - 16
-            height: Math.max(200, parent.height - 32)
+            // Proportional margins (6% H / 8% V) instead of hardcoded px
+            width: parent.width * 0.94
+            height: Math.max(parent.height * 0.20, parent.height * 0.92)
             radius: 12; color: "#1F1F32"
             clip: true
             border { width: 2; color: "#5A5A7A" }
@@ -269,7 +289,8 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            width: Math.min(420, parent.width - 40)
+            // Proportional width: 92 % of container on mobile, capped at 420 px
+            width: Math.min(420, parent.width * 0.92)
             implicitHeight: dlgCol.implicitHeight + 40
             radius: 14; color: "#1F1F32"
             border { width: 1.5; color: "#4A4A6A" }
@@ -373,7 +394,12 @@ Item {
         property color accent: Theme.cyan
         property bool locked: false
         signal clicked()
-        implicitWidth: pbtnRow.implicitWidth + 28; implicitHeight: 40; radius: 8
+        // Let the parent Layout manage width via Layout.fillWidth; only set a
+        // sensible minimum height.  (The old implicitWidth based on content was
+        // a hardcoded calculation that could overflow narrow screens.)
+        Layout.minimumWidth: 80
+        implicitHeight: 40; radius: 8
+        clip: true
         color: Qt.alpha(accent, 0.12)
         border { width: 1; color: Qt.alpha(accent, 0.4) }
         RowLayout {
@@ -381,6 +407,7 @@ Item {
             anchors.centerIn: parent; spacing: 6
             Label {
                 text: pbtn.label + (pbtn.locked ? "  " + Tr.premiumBadge : "")
+                elide: Text.ElideRight; maximumLineCount: 1
                 color: Theme.textPrimary
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; font.weight: Font.Medium
             }
@@ -396,6 +423,7 @@ Item {
         signal clicked()
         Layout.fillWidth: true
         implicitHeight: 48; radius: 10
+        clip: true  // safety net for long translations on narrow screens
         opacity: page.canReport ? 1.0 : 0.4
         color: Qt.alpha(accent, 0.10)
         border { width: 1; color: Qt.alpha(accent, 0.35) }
@@ -404,6 +432,7 @@ Item {
             AppIcon { name: btn.iconName; size: 18; color: btn.accent }
             Item { width: 12 }
             Label { Layout.fillWidth: true; text: btn.label; color: Theme.textPrimary
+                elide: Text.ElideRight; maximumLineCount: 1
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.Medium }
         }
         MouseArea { anchors.fill: parent; enabled: page.canReport
