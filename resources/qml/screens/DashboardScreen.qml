@@ -120,7 +120,7 @@ Item {
                     Label { text: Tr.summary; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     RowLayout {
-                    Layout.fillWidth: true; spacing: 12
+                    Layout.fillWidth: true; spacing: 8
                     SummaryStat { Layout.fillWidth: true; appIcon: "config"; clr: Theme.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
                     SummaryStat { Layout.fillWidth: true; appIcon: "timer"; clr: Theme.accentBlue; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
                     SummaryStat { Layout.fillWidth: true; appIcon: "check"; clr: Theme.passGreen; val: _totalCompleted; lbl: Tr.completedLabel }
@@ -229,11 +229,11 @@ Item {
     component SummaryStat: RowLayout {
         property string appIcon: ""; property color clr: Theme.cyan; property var val: 0; property string lbl: ""
         spacing: 0
-        AppIcon { name: appIcon; size: 20; color: clr }
-        Item { width: 8 }
+        AppIcon { name: appIcon; size: 15; color: clr; Layout.alignment: Qt.AlignTop; Layout.topMargin: 2 }
+        Item { width: 6 }
         ColumnLayout { spacing: 0; Layout.fillWidth: true
-            Label { Layout.fillWidth: true; text: val; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 22; font.weight: Font.Bold; color: Theme.textPrimary; elide: Text.ElideRight }
-            Label { Layout.fillWidth: true; text: lbl; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.textSecondary; elide: Text.ElideRight }
+            Label { Layout.fillWidth: true; text: val; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 17; font.weight: Font.Bold; color: Theme.textPrimary; elide: Text.ElideRight }
+            Label { Layout.fillWidth: true; text: lbl; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 9; color: Theme.textSecondary; wrapMode: Text.WordWrap; maximumLineCount: 2 }
         }
     }
 }
