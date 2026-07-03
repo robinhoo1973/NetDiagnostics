@@ -9,6 +9,10 @@ Item {
     id: page
     objectName: "report"
     property bool hasResults: appState.totalCompleted > 0
+    // A report may only be generated once the run has FINISHED — not while it is
+    // still running (RunStatus.Running === 1), which would produce a partial report.
+    readonly property bool isRunning: appState.runStatus === 1
+    readonly property bool canReport: hasResults && !isRunning
     property string lastPath: ""
     property bool lastFailed: false
     readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
@@ -25,13 +29,13 @@ Item {
     property string pendingShareFormat: ""
 
     function openPreview(fmt) {
-        if (!hasResults) return
+        if (!canReport) return
         previewFormat = fmt
         // PDF = one-page summary; HTML = full detail. Both render as rich text.
         previewHtml = appState.buildReportHtml(fmt === "html")
         previewVisible = true
     }
-    function requestExport(fmt) { if (hasResults) appState.requestSavePath(fmt) }
+    function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }
     // Share button entry: check subscription. Not subscribed → guide to subscribe;
     // subscribed → ask for confirmation before sharing. Same logic on iOS/Android.
     function doShare(fmt) {
@@ -121,7 +125,8 @@ Item {
             // Subtitle
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst
+                text: page.isRunning ? Tr.runningDots
+                      : (page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst)
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 14; color: Qt.alpha(Theme.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
             }
@@ -143,20 +148,24 @@ Item {
             }
             Item { Layout.preferredHeight: page.isMobile ? 18 : 32 }
 
-            // Status indicator (Flutter: padding h16 v10, borderRadius 8, conditional color)
+            // Status indicator — running / results-ready / no-results
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: statusRow.implicitWidth + 32; implicitHeight: 40; radius: 8
-                color: hasResults ? Qt.alpha(Theme.passGreen, 0.1) : Qt.alpha(Theme.warnYellow, 0.1)
-                border { width: 1; color: hasResults ? Qt.alpha(Theme.passGreen, 0.3) : Qt.alpha(Theme.warnYellow, 0.3) }
+                color: page.isRunning ? Qt.alpha(Theme.cyan, 0.1)
+                       : (hasResults ? Qt.alpha(Theme.passGreen, 0.1) : Qt.alpha(Theme.warnYellow, 0.1))
+                border { width: 1; color: page.isRunning ? Qt.alpha(Theme.cyan, 0.3)
+                       : (hasResults ? Qt.alpha(Theme.passGreen, 0.3) : Qt.alpha(Theme.warnYellow, 0.3)) }
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: hasResults ? "badge-check" : "badge-info"; size: 12; color: "white" }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: "white" }
                     Item { width: 8 }
                     Label {
-                        text: hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults
-                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: hasResults ? Theme.passGreen : Theme.warnYellow
+                        text: page.isRunning ? Tr.runningStatus
+                              : (hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults)
+                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
+                        color: page.isRunning ? Theme.cyan : (hasResults ? Theme.passGreen : Theme.warnYellow)
                     }
                 }
             }
@@ -391,7 +400,7 @@ Item {
         signal clicked()
         Layout.fillWidth: true
         implicitHeight: 48; radius: 10
-        opacity: page.hasResults ? 1.0 : 0.4
+        opacity: page.canReport ? 1.0 : 0.4
         color: Qt.alpha(accent, 0.10)
         border { width: 1; color: Qt.alpha(accent, 0.35) }
         RowLayout {
@@ -401,7 +410,7 @@ Item {
             Label { Layout.fillWidth: true; text: btn.label; color: Theme.textPrimary
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.Medium }
         }
-        MouseArea { anchors.fill: parent; enabled: page.hasResults
+        MouseArea { anchors.fill: parent; enabled: page.canReport
             cursorShape: Qt.PointingHandCursor; onClicked: btn.clicked() }
     }
 }
