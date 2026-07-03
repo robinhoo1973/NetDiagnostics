@@ -387,6 +387,7 @@ jobs:
       # Upload to TestFlight via altool
       # ===================================================================
       - name: Upload to TestFlight
+        shell: bash
         run: |
           if [ ! -f NetDiagnostic-iOS.ipa ]; then
             echo "ERROR: No .ipa found"
@@ -411,7 +412,7 @@ jobs:
           set -e
 
           if [ "$upload_status" -ne 0 ]; then
-            if grep -qi "Upload limit reached" "$UPLOAD_LOG"; then
+            if grep -Eqi "upload limit.*(reached|exceeded)|wait 1 day and try again" "$UPLOAD_LOG"; then
               echo "::warning::App Store Connect rejected the upload because the app hit Apple's 24-hour upload quota. Skipping without failing the workflow."
               {
                 echo "### TestFlight upload skipped"
