@@ -880,14 +880,23 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         QString srcIp;
         if (off >= 20) { struct in_addr s; memcpy(&s.s_addr, buf + 12, 4); srcIp = ip4ToStr(s); }
         else           srcIp = ip4ToStr(from.sin_addr);
-        if(type==0){ // Echo Reply — reached target
+        // Did the TARGET itself send this reply, or a router along the way?
+        struct in_addr tgt; tgt.s_addr = htonl(targetIp);
+        const bool fromTarget = (srcIp == ip4ToStr(tgt));
+        if(type==0){ // Echo Reply — only the destination answers Echo → reached
             hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
-        if(type==11){ // Time Exceeded — intermediate router
+        if(type==11){ // Time Exceeded — an intermediate router on the path
             hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
         }
-        if(type==3){ // Destination Unreachable — host reached (proto/port closed)
-            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+        if(type==3){ // Destination Unreachable. Only the TARGET saying "unreachable"
+                     // (port/proto closed) counts as reached; a middle router/firewall
+                     // replying (e.g. admin-prohibited, code 13) is a FILTERING hop that
+                     // blocks the path. Treating every type-3 as "reached" stopped the
+                     // trace at the first filtering router and mislabelled it as the
+                     // destination (the "only first + last hop" symptom).
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock);
+            return fromTarget ? 0 : 2;
         }
     }
     close(icmpSock); rttMs=0; hopIp.clear(); return -1;
@@ -924,7 +933,7 @@ DiagnosticResult traceroute(const QString& target) {
     TRACE(" traceroute: using tcpTraceHop\n");
 
     QElapsedTimer t; t.start();
-    int hopCount = 0, timeoutHops = 0; bool reached = false;
+    int hopCount = 0, timeoutHops = 0; bool reached = false; bool blocked = false;
 
     for (int ttl = 1; ttl <= 30 && !reached; ++ttl) {
         int rttMs = 0; QString hopIp;
@@ -941,8 +950,10 @@ DiagnosticResult traceroute(const QString& target) {
                 .arg(host).arg(targetIpStr));
             TRACE(" traceroute TTL=%d: REACHED %s [%s] %dms\n",
                 ttl, host.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs);
-        } else if (res == 1) {
-            // Intermediate hop — got router IP from ICMP Time Exceeded
+        } else if (res == 1 || res == 2) {
+            // res 1 = intermediate router (ICMP Time Exceeded).
+            // res 2 = a non-target router replied Destination Unreachable and is
+            //         filtering the path (e.g. corporate proxy / admin-prohibited).
             QString rttStr = (rttMs < 1) ? QStringLiteral("  <1 ms")
                 : QStringLiteral("%1 ms").arg(rttMs, 5);
             // Resolve reverse DNS for the hop IP
@@ -957,8 +968,18 @@ DiagnosticResult traceroute(const QString& target) {
             lines.append(QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
                 .arg(ttl, 2).arg(rttStr).arg(rttStr).arg(rttStr)
                 .arg(hopName).arg(hopIp));
-            TRACE(" traceroute TTL=%d: hop %s [%s] %dms\n",
-                ttl, hopName.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs);
+            TRACE(" traceroute TTL=%d: hop %s [%s] %dms%s\n",
+                ttl, hopName.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs,
+                res == 2 ? " (filtered)" : "");
+            if (res == 2) {
+                // The path is administratively blocked at this router. Probing
+                // deeper TTLs would only repeat this router or time out, so stop
+                // here and say so (instead of the misleading "reached target").
+                lines.append(QStringLiteral("       ^ this router filtered the probe"
+                    " (Destination Unreachable) - the path is blocked here."));
+                blocked = true;
+                break;
+            }
         } else {
             // Timeout
             ++timeoutHops;
@@ -978,7 +999,7 @@ DiagnosticResult traceroute(const QString& target) {
     // filter ICMP while allowing TCP — ping works via its TCP fallback, but ICMP
     // traceroute shows all "* * * *". The TCP check surfaces this distinction.
     bool tcpReachable = false;
-    if (!reached) {
+    if (!reached && !blocked) {
         const int ports[] = {443, 80, 22, 8080};
         for (int p : ports) {
             int rtt = tcpRttMs(host, p);
@@ -997,6 +1018,8 @@ DiagnosticResult traceroute(const QString& target) {
     lines.append(QString());
     if (reached) {
         lines.append(QStringLiteral("Trace complete."));
+    } else if (blocked) {
+        lines.append(QStringLiteral("Trace stopped - a router/firewall filtered the probes (path blocked)."));
     } else if (tcpReachable) {
         lines.append(QStringLiteral("Trace incomplete — ICMP filtered."));
     } else {
@@ -1014,6 +1037,7 @@ DiagnosticResult traceroute(const QString& target) {
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
     if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("Target reached in %1 hops").arg(hopCount); }
+    else if (blocked) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Path filtered by a router at hop %1").arg(hopCount); }
     else if (tcpReachable) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("ICMP filtered — %1 reachable via TCP").arg(host); }
     else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial path (%1 hops)").arg(hopCount); }
     else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No hops discovered"); }
