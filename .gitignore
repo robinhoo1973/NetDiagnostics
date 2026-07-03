@@ -40,7 +40,6 @@ crashes/
 # Temporary files
 .goutputstream-*
 xa-tmp*/
-...
 
 # Backup files
 *.bak
@@ -48,6 +47,10 @@ xa-tmp*/
 # Certificates — entire directory excluded (private keys, certs, CSR)
 resources/cert/
 
-# Block WSL/Windows path separator artifacts (backslash paths)
-**/scripts\\build-static.ps1
-.\scripts\build-static.ps1
+# Windows / OneDrive sync artifacts on this mounted working tree:
+#  - stray build binaries (netdiag-*.exe)
+#  - backslash-path files ( ".\dist\...", ".\scripts\..." )
+#  - trailing-dot duplicates ( "build.yml.", "build-static.ps1." )
+*.exe
+*\\*
+*.
