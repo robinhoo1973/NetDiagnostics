@@ -97,7 +97,7 @@ Item {
             id: reportCol
             x: (reportFlick.width - width) / 2
             y: page.isMobile ? 14 : 24
-            width: Math.min(440, reportFlick.width - (page.isMobile ? 32 : 80))
+            width: reportFlick.width - (page.isMobile ? 32 : 80)
             spacing: 0
 
             // Icon container
@@ -181,9 +181,9 @@ Item {
 
         Rectangle {
             anchors.centerIn: parent
-            // Responsive: on tall screens use 720×700, on short (portrait) screens scale down
-            width: Math.min(720, parent.width - 20)
-            height: Math.max(260, Math.min(parent.height - 30, 680))
+            // Responsive: fill available space — no hardcoded bounds
+            width: parent.width - 16
+            height: Math.max(200, parent.height - 32)
             radius: 12; color: "#1F1F32"
             clip: true
             border { width: 2; color: "#5A5A7A" }
