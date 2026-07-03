@@ -101,6 +101,10 @@ public:
     // ── Report export ────────────────────────────────────
     // buildReportHtml(false)=one-page summary; (true)=full detail per test.
     Q_INVOKABLE QString buildReportHtml(bool fullDetail) const;
+    // Rich, browser-quality standalone HTML document (dark theme, collapsible
+    // per-test details). Used by exportHtml; not for the in-app QML preview
+    // (QTextDocument can't render its CSS).
+    QString buildRichHtmlDocument() const;
     Q_INVOKABLE QString defaultReportPath(const QString& ext) const;
     Q_INVOKABLE QString exportHtml(const QString& filePath) const;
     Q_INVOKABLE QString exportPdf(const QString& filePath) const;

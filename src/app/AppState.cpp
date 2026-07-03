@@ -749,6 +749,18 @@ QString reportStatusColor(DiagStatus s) {
     }
     return QStringLiteral("#111111");
 }
+// Short CSS class token for the rich HTML badges (pass/warn/fail/skip/info).
+QString reportStatusClass(DiagStatus s) {
+    switch (s) {
+        case DiagStatus::Pass:    return QStringLiteral("pass");
+        case DiagStatus::Warning: return QStringLiteral("warn");
+        case DiagStatus::Fail:    return QStringLiteral("fail");
+        case DiagStatus::Error:   return QStringLiteral("fail");
+        case DiagStatus::Info:    return QStringLiteral("info");
+        case DiagStatus::Skipped: return QStringLiteral("skip");
+    }
+    return QStringLiteral("skip");
+}
 // QML FileDialog hands back a file:// URL; convert to a local filesystem path.
 QString normalizeReportPath(const QString& p) {
     return p.startsWith(QStringLiteral("file:")) ? QUrl(p).toLocalFile() : p;
@@ -819,38 +831,49 @@ QString AppState::buildReportHtml(bool fullDetail) const {
             .arg(bg, title);
     };
 
-    // ── Group summary table ──
-    h += section(QStringLiteral("Group Summary"), QStringLiteral("#374151"));
+    // ── Per-group results — each test's basic result (name / status / summary) ──
+    h += section(QStringLiteral("Diagnostic Results"), QStringLiteral("#374151"));
     h += QStringLiteral(
         "<table width=\"100%\" border=\"1\" cellpadding=\"6\" cellspacing=\"0\" bordercolor=\"#D1D5DB\">"
         "<tr bgcolor=\"#F3F4F6\">"
-        "<th align=\"left\">Group</th><th>Total</th>"
-        "<th><font color=\"%1\">Pass</font></th>"
-        "<th><font color=\"%2\">Warn</font></th>"
-        "<th><font color=\"%3\">Fail</font></th>"
-        "<th><font color=\"%4\">Skip</font></th>"
-        "<th><font color=\"%5\">Info</font></th></tr>")
-        .arg(colorPass, colorWarn, colorFail, colorSkip, colorInfo);
+        "<th align=\"left\" width=\"36%\">Test</th>"
+        "<th align=\"left\" width=\"14%\">Status</th>"
+        "<th align=\"left\">Summary</th></tr>");
     for (int g = 0; g < 5; ++g) {
         QVariantMap s = groupStats(g);
         if (s.value(QStringLiteral("total")).toInt() == 0) continue;
+        const QString glabel = g < labels.size() ? labels[g].toHtmlEscaped() : QString();
+        // Section header row with per-group counts
         h += QStringLiteral(
-            "<tr bgcolor=\"%1\">"
-            "<td><b>G%2: %3</b></td>"
-            "<td align=\"center\">%4</td>"
-            "<td align=\"center\"><font color=\"%5\">%6</font></td>"
-            "<td align=\"center\"><font color=\"%7\">%8</font></td>"
-            "<td align=\"center\"><font color=\"%9\">%10</font></td>"
-            "<td align=\"center\"><font color=\"%11\">%12</font></td>"
-            "<td align=\"center\"><font color=\"%13\">%14</font></td></tr>")
-            .arg(g % 2 == 0 ? QStringLiteral("#FFFFFF") : QStringLiteral("#F9FAFB"))
-            .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString())
-            .arg(s.value(QStringLiteral("total")).toInt())
+            "<tr bgcolor=\"#E5E7EB\"><td colspan=\"3\">"
+            "<font color=\"#1F2937\"><b>G%1 &middot; %2</b></font>"
+            "&nbsp;&nbsp;<font color=\"%3\" size=\"1\">Pass %4</font>"
+            "<font color=\"#9CA3AF\" size=\"1\"> &middot; </font><font color=\"%5\" size=\"1\">Warn %6</font>"
+            "<font color=\"#9CA3AF\" size=\"1\"> &middot; </font><font color=\"%7\" size=\"1\">Fail %8</font>"
+            "<font color=\"#9CA3AF\" size=\"1\"> &middot; </font><font color=\"%9\" size=\"1\">Skip %10</font>"
+            "</td></tr>")
+            .arg(g+1).arg(glabel)
             .arg(colorPass).arg(s.value(QStringLiteral("pass")).toInt())
             .arg(colorWarn).arg(s.value(QStringLiteral("warn")).toInt())
             .arg(colorFail).arg(s.value(QStringLiteral("fail")).toInt())
-            .arg(colorSkip).arg(s.value(QStringLiteral("skip")).toInt())
-            .arg(colorInfo).arg(s.value(QStringLiteral("info")).toInt());
+            .arg(colorSkip).arg(s.value(QStringLiteral("skip")).toInt());
+        bool alt = false;
+        for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
+            if (!m_results.contains(id)) continue;
+            const auto& r = m_results[id];
+            const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
+                                                          : r.displayName).toHtmlEscaped();
+            h += QStringLiteral(
+                "<tr bgcolor=\"%1\">"
+                "<td>%2</td>"
+                "<td><font color=\"%3\"><b>%4</b></font></td>"
+                "<td><font color=\"#4B5563\">%5</font></td></tr>")
+                .arg(alt ? QStringLiteral("#F9FAFB") : QStringLiteral("#FFFFFF"))
+                .arg(name)
+                .arg(reportStatusColor(r.status), reportStatusText(r.status))
+                .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
+            alt = !alt;
+        }
     }
     h += QStringLiteral("</table>");
 
@@ -899,6 +922,139 @@ QString AppState::buildReportHtml(bool fullDetail) const {
     return h;
 }
 
+// Full standalone HTML document with a modern dark theme (styled after the
+// PowerShell NetDiagnostic report). Rendered by a real browser / mail client —
+// NOT by the in-app QML preview, which uses the Qt-subset buildReportHtml().
+QString AppState::buildRichHtmlDocument() const {
+    const QString target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
+    const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    const QStringList labels = groupLabels();
+
+    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
+    for (int g = 0; g < 5; ++g) {
+        QVariantMap s = groupStats(g);
+        tPass += s.value(QStringLiteral("pass")).toInt(); tWarn += s.value(QStringLiteral("warn")).toInt();
+        tFail += s.value(QStringLiteral("fail")).toInt(); tSkip += s.value(QStringLiteral("skip")).toInt();
+        tInfo += s.value(QStringLiteral("info")).toInt(); tTotal += s.value(QStringLiteral("total")).toInt();
+    }
+
+    static const char* kCss =
+        "*{margin:0;padding:0;box-sizing:border-box}"
+        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:#1a1a2e;color:#e0e0e0;padding:24px}"
+        ".wrap{max-width:960px;margin:0 auto}"
+        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#16213e,#0f3460);border-radius:14px;margin-bottom:26px}"
+        ".header h1{font-size:26px;color:#00bcd4;margin-bottom:10px;letter-spacing:.5px}"
+        ".header p{font-size:13px;color:#a0a0b8;margin:3px 0}"
+        "h2{font-size:18px;color:#00bcd4;margin:26px 0 14px}"
+        "h3{font-size:15px;color:#7fb2e6;margin:20px 0 10px}"
+        ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
+        ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
+        ".card .count{display:block;font-size:30px;font-weight:700}"
+        ".card .label{font-size:11px;color:#a0a0b8;margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
+        ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ade80}"
+        ".card.warn{background:#2b2810;border:1px solid #5a5020}.card.warn .count{color:#facc15}"
+        ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#ef4444}"
+        ".card.skip{background:#1e1e2e;border:1px solid #333}.card.skip .count{color:#9aa0b5}"
+        ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#3b82f6}"
+        "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
+        "table.grid th{text-align:left;padding:11px 12px;background:#16213e;color:#a0a0b8;font-weight:600}"
+        "table.grid td{padding:9px 12px;border-bottom:1px solid #2a2a4a;vertical-align:top}"
+        "tr.sec td{background:#1a2840;color:#7fb2e6;font-weight:700}"
+        ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
+        ".badge.pass{background:#16281b;color:#4ade80}.badge.warn{background:#2b2810;color:#facc15}"
+        ".badge.fail{background:#2b1616;color:#ef4444}.badge.skip{background:#26262e;color:#9aa0b5}"
+        ".badge.info{background:#141f33;color:#3b82f6}"
+        "details.test{background:#16213e;border-radius:10px;margin-bottom:12px;overflow:hidden}"
+        "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
+        "details.test.pass>summary{border-left:4px solid #4ade80}details.test.warn>summary{border-left:4px solid #facc15}"
+        "details.test.fail>summary{border-left:4px solid #ef4444}details.test.skip>summary{border-left:4px solid #666}"
+        "details.test.info>summary{border-left:4px solid #3b82f6}"
+        ".body{padding:14px 16px 18px;border-top:1px solid #2a2a4a}"
+        ".analysis{background:#0f1629;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
+        ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
+        ".meta{color:#8890a6;font-size:11px;font-weight:400}"
+        ".footer{text-align:center;padding:20px;color:#5a5a72;font-size:11px;margin-top:28px;border-top:1px solid #23233a}";
+
+    auto card = [](const QString& cls, int n, const QString& lbl) {
+        return QStringLiteral("<div class=\"card %1\"><span class=\"count\">%2</span>"
+            "<span class=\"label\">%3</span></div>").arg(cls).arg(n).arg(lbl);
+    };
+
+    QString h;
+    h += QStringLiteral("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<title>Network Diagnostic Report &mdash; %1</title>\n<style>").arg(ts);
+    h += QString::fromLatin1(kCss);
+    h += QStringLiteral("</style>\n</head>\n<body>\n<div class=\"wrap\">\n");
+    h += QStringLiteral(
+        "<div class=\"header\"><h1>Network Diagnostic Report</h1>"
+        "<p>Generated: %1</p>"
+        "<p>Target: <b style=\"color:#e0e0e0\">%2</b></p>"
+        "<p>NetDiagnostic v%3 (build %4)</p></div>\n")
+        .arg(ts, target, appVersion(), buildNumber());
+
+    h += QStringLiteral("<div class=\"cards\">");
+    h += card(QStringLiteral("pass"), tPass, QStringLiteral("Pass"));
+    h += card(QStringLiteral("warn"), tWarn, QStringLiteral("Warning"));
+    h += card(QStringLiteral("fail"), tFail, QStringLiteral("Fail"));
+    h += card(QStringLiteral("skip"), tSkip, QStringLiteral("Skipped"));
+    h += card(QStringLiteral("info"), tInfo, QStringLiteral("Info"));
+    h += QStringLiteral("</div>\n");
+
+    // Summary table — per group, each test's basic result
+    h += QStringLiteral("<h2>Summary &middot; %1 tests</h2>\n").arg(tTotal);
+    h += QStringLiteral("<table class=\"grid\"><thead><tr><th style=\"width:44px\">#</th>"
+        "<th>Test</th><th style=\"width:96px\">Status</th><th>Summary</th></tr></thead><tbody>\n");
+    int idx = 0;
+    for (int g = 0; g < 5; ++g) {
+        if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
+        const QString glabel = g < labels.size() ? labels[g].toHtmlEscaped() : QString();
+        h += QStringLiteral("<tr class=\"sec\"><td colspan=\"4\">G%1 &middot; %2</td></tr>\n").arg(g+1).arg(glabel);
+        for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
+            if (!m_results.contains(id)) continue;
+            const auto& r = m_results[id];
+            const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
+                                                          : r.displayName).toHtmlEscaped();
+            ++idx;
+            h += QStringLiteral("<tr><td>%1</td><td>%2</td>"
+                "<td><span class=\"badge %3\">%4</span></td><td>%5</td></tr>\n")
+                .arg(idx).arg(name)
+                .arg(reportStatusClass(r.status), reportStatusText(r.status))
+                .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
+        }
+    }
+    h += QStringLiteral("</tbody></table>\n");
+
+    // Details — collapsible per test with summary + raw output
+    h += QStringLiteral("<h2>Test Details</h2>\n");
+    for (int g = 0; g < 5; ++g) {
+        if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
+        const QString glabel = g < labels.size() ? labels[g].toHtmlEscaped() : QString();
+        h += QStringLiteral("<h3>G%1 &middot; %2</h3>\n").arg(g+1).arg(glabel);
+        for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
+            if (!m_results.contains(id)) continue;
+            const auto& r = m_results[id];
+            const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
+                                                          : r.displayName).toHtmlEscaped();
+            const QString cls = reportStatusClass(r.status);
+            h += QStringLiteral("<details class=\"test %1\"><summary>"
+                "<span class=\"badge %1\">%2</span> &nbsp;%3 "
+                "<span class=\"meta\">&middot; %4 ms</span></summary><div class=\"body\">")
+                .arg(cls, reportStatusText(r.status), name).arg(r.durationMs);
+            if (!r.summary.isEmpty())
+                h += QStringLiteral("<div class=\"analysis\">%1</div>").arg(r.summary.toHtmlEscaped());
+            const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
+            if (!body.trimmed().isEmpty())
+                h += QStringLiteral("<div class=\"raw\">%1</div>").arg(body.toHtmlEscaped());
+            h += QStringLiteral("</div></details>\n");
+        }
+    }
+
+    h += QStringLiteral("<div class=\"footer\">Generated by NetDiagnostic &middot; "
+        "All times in milliseconds</div>\n</div>\n</body>\n</html>\n");
+    return h;
+}
+
 QString AppState::defaultReportPath(const QString& ext) const {
     QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     if (dir.isEmpty()) dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -916,7 +1072,7 @@ QString AppState::exportHtml(const QString& filePath) const {
         return QString();
     }
     QTextStream ts(&f);
-    ts << buildReportHtml(true);
+    ts << buildRichHtmlDocument();
     f.close();
     return path;
 }

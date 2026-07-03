@@ -78,35 +78,45 @@ Item {
         }
     }
 
-    // Centered content (Flutter: Center > Padding(40) > Column)
+    // Centered content — scrollable; a holder keeps the column vertically centered
+    // when it fits and lets it scroll when it's taller than the viewport (portrait),
+    // so nothing is clipped off-screen.
     Flickable {
+        id: reportFlick
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
-        contentHeight: reportCol.implicitHeight
+        contentWidth: width
+        contentHeight: holder.height
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        ColumnLayout {
-            id: reportCol
-            width: Math.min(500, parent.width - 80)
-            anchors.centerIn: parent
-            spacing: 0
+        Item {
+            id: holder
+            width: reportFlick.width
+            height: Math.max(reportFlick.height, reportCol.implicitHeight + (page.isMobile ? 24 : 40))
 
-            // Icon container (Flutter: 100x100, borderRadius 24, bg cyan8%, border cyan20%)
+            ColumnLayout {
+                id: reportCol
+                width: Math.min(440, reportFlick.width - (page.isMobile ? 32 : 80))
+                anchors.centerIn: parent
+                spacing: 0
+
+            // Icon container
             Rectangle {
-                Layout.preferredWidth: 100; Layout.preferredHeight: 100
+                Layout.preferredWidth: page.isMobile ? 72 : 100; Layout.preferredHeight: page.isMobile ? 72 : 100
                 Layout.alignment: Qt.AlignHCenter
                 radius: 24; color: Qt.alpha(Theme.cyan, 0.08)
                 border { width: 1.5; color: Qt.alpha(Theme.cyan, 0.2) }
-                AppIcon { anchors.centerIn: parent; name: "report"; size: 48; color: Qt.alpha(Theme.cyan, 0.6) }
+                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(Theme.cyan, 0.6) }
             }
-            Item { Layout.preferredHeight: 24 }
+            Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
             // Title
             Label {
                 Layout.alignment: Qt.AlignHCenter
                 text: Tr.reportPreview
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 22; font.weight: Font.DemiBold; color: Theme.textPrimary
+                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: Theme.textPrimary
             }
-            Item { Layout.preferredHeight: 12 }
+            Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
 
             // Subtitle
             Label {
@@ -115,7 +125,7 @@ Item {
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 14; color: Qt.alpha(Theme.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
             }
-            Item { Layout.preferredHeight: 24 }
+            Item { Layout.preferredHeight: page.isMobile ? 16 : 24 }
 
             // Preview buttons (open the built-in preview window)
             ColumnLayout { spacing: 10; Layout.fillWidth: true
@@ -131,7 +141,7 @@ Item {
                     wrapMode: Text.WrapAnywhere; horizontalAlignment: Text.AlignHCenter
                 }
             }
-            Item { Layout.preferredHeight: 32 }
+            Item { Layout.preferredHeight: page.isMobile ? 18 : 32 }
 
             // Status indicator (Flutter: padding h16 v10, borderRadius 8, conditional color)
             Rectangle {
@@ -150,7 +160,8 @@ Item {
                     }
                 }
             }
-            Item { Layout.preferredHeight: 40 }
+            Item { Layout.preferredHeight: page.isMobile ? 16 : 40 }
+            }
         }
     }
 
@@ -226,11 +237,9 @@ Item {
                     }
                 }
                 RowLayout {
-                    Layout.fillWidth: true; spacing: 12; Layout.topMargin: 4
-                    PreviewBtn { label: Tr.reportSaveBtn; accent: "#666688"
-                        onClicked: { page.previewVisible = false; page.requestExport(page.previewFormat) } }
-                    Item { Layout.fillWidth: true }
+                    Layout.fillWidth: true; Layout.topMargin: 4
                     PreviewBtn {
+                        Layout.fillWidth: true
                         label: page.isMobile ? Tr.shareBtn : Tr.emailBtn
                         accent: Theme.cyan
                         locked: !appState.isPremium
