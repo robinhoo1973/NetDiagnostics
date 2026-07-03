@@ -468,6 +468,20 @@ static uint16_t icmpEchoChecksum(const void* data, int len) {
     return static_cast<uint16_t>(~sum);
 }
 
+// Locate the ICMP header inside a datagram-ICMP-socket reply. On Darwin (iOS/
+// macOS) the kernel delivers SOCK_DGRAM ICMP replies WITH the leading IPv4 header
+// — exactly what Apple's SimplePing skips via -icmpHeaderOffsetInIPv4Packet:
+// (offset = (versionAndHeaderLength & 0x0F) * 4). The IPv4 version nibble (0x4X)
+// never collides with the ICMP types we read (0 EchoReply / 3 Unreach / 11 TTL),
+// so this also works unchanged on stacks that deliver no IP header (returns 0).
+static int icmpOffsetIn(const unsigned char* buf, ssize_t n) {
+    if (n >= 20 && (buf[0] & 0xF0) == 0x40) {
+        int ihl = (buf[0] & 0x0F) * 4;
+        if (ihl >= 20 && n >= ihl + 8) return ihl;
+    }
+    return 0;
+}
+
 // Single ICMP Echo probe to an IPv4 address (host byte order). Returns RTT in ms,
 // or -1 on timeout/failure. On Darwin the kernel rewrites the identifier and
 // recomputes the checksum, but we fill a valid checksum for BSD correctness.
@@ -509,9 +523,14 @@ static int icmpEchoRttMs(quint32 ipHostOrder, int seq, int timeoutMs) {
         if (sel == 0) continue;
         unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl = sizeof(from);
         ssize_t n = recvfrom(sock, buf, sizeof(buf), 0, (struct sockaddr*)&from, &fl);
-        if (n < 8) continue; // Darwin delivers the ICMP header directly (no IP header)
-        int type = buf[0];
-        if (type == 0 && from.sin_addr.s_addr == dst.sin_addr.s_addr) { // Echo Reply from target
+        // Darwin delivers SOCK_DGRAM ICMP replies WITH the leading IPv4 header
+        // (Apple SimplePing: icmpHeaderOffsetInIPv4Packet). Skip it, then read the
+        // ICMP type + echoed sequence number to match our own probe.
+        int off = icmpOffsetIn(buf, n);
+        if (n < off + 8) continue;
+        int type = buf[off];
+        uint16_t rseq = static_cast<uint16_t>((buf[off + 6] << 8) | buf[off + 7]);
+        if (type == 0 && rseq == static_cast<uint16_t>(seq)) { // Echo Reply for our seq
             int ms = (int)tm.elapsed(); closeSocket(sock); return ms;
         }
         if (type == 3) { closeSocket(sock); return -1; } // Destination Unreachable → loss
@@ -852,20 +871,23 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         if(sel<0)break; if(sel==0)continue;
         unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl=sizeof(from);
         ssize_t n=recvfrom(icmpSock,buf,sizeof(buf),0,(struct sockaddr*)&from,&fl);
-        // Darwin SOCK_DGRAM ICMP delivers the ICMP header directly (no IP header).
-        if(n<8)continue;
-        int type=buf[0];
+        // Darwin delivers SOCK_DGRAM ICMP replies WITH the leading IPv4 header
+        // (Apple SimplePing: icmpHeaderOffsetInIPv4Packet). Skip it before reading
+        // the ICMP type. The router/target IP is the reply's IPv4 source address.
+        int off = icmpOffsetIn(buf, n);
+        if(n < off + 8) continue;
+        int type = buf[off];
+        QString srcIp;
+        if (off >= 20) { struct in_addr s; memcpy(&s.s_addr, buf + 12, 4); srcIp = ip4ToStr(s); }
+        else           srcIp = ip4ToStr(from.sin_addr);
         if(type==0){ // Echo Reply — reached target
-            hopIp=ip4ToStr(from.sin_addr);
-            rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
         if(type==11){ // Time Exceeded — intermediate router
-            hopIp=ip4ToStr(from.sin_addr);
-            rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
         }
         if(type==3){ // Destination Unreachable — host reached (proto/port closed)
-            hopIp=ip4ToStr(from.sin_addr);
-            rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
     }
     close(icmpSock); rttMs=0; hopIp.clear(); return -1;
