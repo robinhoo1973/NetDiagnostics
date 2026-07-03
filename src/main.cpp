@@ -43,35 +43,35 @@ int main(int argc, char *argv[])
     // ── Single instance guard ──────────────────────────────────────────────
 #ifdef _WIN32
     // Windows: named mutex — OS auto-releases on process death
-    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetAnalysis_SingleInstance");
+    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetDiagnostic_SingleInstance");
     if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         if (hMutex) CloseHandle(hMutex);
 #ifndef NO_CURL
         curl_global_cleanup();
 #endif
-        QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
-            QStringLiteral("NetAnalysis is already running."));
+        QMessageBox::information(nullptr, QStringLiteral("NetDiagnostic"),
+            QStringLiteral("NetDiagnostic is already running."));
         return 0;
     }
         // hMutex is owned by this process; auto-released on exit
 #else
         // Linux/macOS: QLockFile with PID fallback
-        QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netanalysis.lock");
+        QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netdiagnostic.lock");
         QLockFile lockFile(lockPath);
         lockFile.setStaleLockTime(5000);
         if (!lockFile.tryLock(100)) {
 #ifndef NO_CURL
                 curl_global_cleanup();
 #endif
-                QMessageBox::information(nullptr, QStringLiteral("NetAnalysis"),
-                        QStringLiteral("NetAnalysis is already running."));
+                QMessageBox::information(nullptr, QStringLiteral("NetDiagnostic"),
+                        QStringLiteral("NetDiagnostic is already running."));
                 return 0;
         }
 #endif
 #endif
 
-    app.setApplicationName("NetAnalysis");
-    app.setApplicationDisplayName("NetAnalysis");
+    app.setApplicationName("NetDiagnostic");
+    app.setApplicationDisplayName("NetDiagnostic");
     app.setApplicationVersion("0.0.1");
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));

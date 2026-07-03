@@ -3,7 +3,7 @@ import QtQuick.Controls
 
 ApplicationWindow {
     id: root
-    title: "NetAnalysis"
+    title: "NetDiagnostic"
     visible: true
     flags: Qt.FramelessWindowHint
     minimumWidth: 360; minimumHeight: 400
