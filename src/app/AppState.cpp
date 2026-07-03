@@ -23,7 +23,11 @@
 #include <QFileInfo>
 #include <QProcess>
 #include <QDesktopServices>
+#include <QSettings>
 #include "util/PlatformShare.h"
+#if defined(PLATFORM_IOS)
+#include "util/PlatformStore.h"
+#endif
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
 #endif
@@ -49,6 +53,14 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // They stay enabled and report DiagStatus::Skipped so the UI shows a skip
     // icon (like Active Connections). Default gateway / routing table / DHCP now
     // have working iOS implementations and return real data.
+
+    // Restore the Premium entitlement (non-consumable IAP com.netdiagnostic.app.premium).
+    // Persisted locally after a verified purchase / restore so the unlock survives
+    // app restarts without forcing the user to Restore every launch.
+    {
+        QSettings s;
+        m_isPremium = s.value(QStringLiteral("premium/unlocked"), false).toBool();
+    }
 }
 
 AppState::~AppState() {
@@ -91,9 +103,9 @@ void AppState::bumpVersion() {
 }
 
 // ── Language switching ──────────────────────────────────────────────────
-// 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW
+// 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {
-    if (index < 0 || index > 6) return;
+    if (index < 0 || index > 8) return;
     m_languageIndex = index;
     emit languageChanged();
     bumpVersion();
@@ -945,19 +957,60 @@ void AppState::requestSavePath(const QString& format) {
 void AppState::setPremium(bool v) {
     if (m_isPremium == v) return;
     m_isPremium = v;
+    // Persist the non-consumable unlock so it survives restarts.
+    QSettings().setValue(QStringLiteral("premium/unlocked"), v);
     emit premiumChanged();
 }
 
 void AppState::requestSubscription() {
-    // Single cross-platform entry point invoked from the QML "Subscribe" button.
-    // Real in-app purchase would be started here and, on a verified transaction,
-    // call setPremium(true) from the store callback:
-    //   iOS      → StoreKit 2: Product.purchase(); verify Transaction, then setPremium(true).
-    //   Android  → Google Play Billing: launchBillingFlow(); onPurchasesUpdated → setPremium(true).
-    // The store SDKs are not wired up yet, so we grant Premium directly here so the
-    // end-to-end share flow is usable and identical on iOS and Android.
-    if (m_isPremium) return;            // already subscribed
-    setPremium(true);                   // emits premiumChanged → QML continues to the share step
+    // Cross-platform entry point invoked from the QML "Subscribe" button.
+    if (m_isPremium) return;       // already subscribed — shouldn't happen (UI guards)
+    if (m_purchaseInProgress) return;
+
+#if defined(PLATFORM_IOS)
+    // ── iOS: real StoreKit purchase flow ──────────────────────────────
+    m_purchaseInProgress = true;
+    emit purchaseInProgressChanged();
+
+    platformStartPurchase([this](bool success) {
+        m_purchaseInProgress = false;
+        emit purchaseInProgressChanged();
+
+        if (success) {
+            setPremium(true);           // emits premiumChanged → QML continues to share step
+        }
+        // On failure (including user-cancelled) we stay non-premium.
+    });
+#else
+    // Android / Desktop: store SDK not wired yet → grant Premium directly
+    // so the share flow remains usable. Replace with platformStartPurchase
+    // once Google Play Billing is integrated.
+    setPremium(true);
+#endif
+}
+
+void AppState::restorePurchases() {
+    if (m_isPremium) return;       // already unlocked
+    if (m_purchaseInProgress) return;
+
+#if defined(PLATFORM_IOS)
+    // ── iOS: real StoreKit restore flow ───────────────────────────────
+    m_purchaseInProgress = true;
+    emit purchaseInProgressChanged();
+
+    platformRestorePurchases([this](bool restoredAny) {
+        m_purchaseInProgress = false;
+        emit purchaseInProgressChanged();
+
+        if (restoredAny) {
+            setPremium(true);
+        }
+        emit restoreCompleted(restoredAny);
+    });
+#else
+    // Android / Desktop: no store to restore from.
+    emit restoreCompleted(false);
+#endif
 }
 
 void AppState::shareReport(const QString& format) {

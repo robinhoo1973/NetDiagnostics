@@ -9,6 +9,15 @@ Item {
     id: page
     objectName: "settings"
 
+    // Listen for restore-purchases result
+    Connections {
+        target: appState
+        function onRestoreCompleted(restoredAny) {
+            restoreToast.text = restoredAny ? Tr.restoreOk : Tr.restoreFail
+            restoreToastTimer.restart()
+        }
+    }
+
     // AppBar (Flutter: Scaffold.appBar with "Settings" title)
     Rectangle {
         id: appBar
@@ -47,7 +56,7 @@ Item {
                         id: langCombo
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
-                        model: ["English","Français","Deutsch","Русский","Italiano","简体中文","繁體中文"]
+                        model: ["English","Français","Deutsch","Русский","Italiano","简体中文","繁體中文","Español","Português"]
                         currentIndex: appState ? appState.languageIndex : 0
                         onActivated: { if (appState) appState.setLanguage(currentIndex) }
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13
@@ -96,6 +105,63 @@ Item {
             // (Email/SMTP section removed — report sharing is handled from the
             //  Report screen's preview window via Share/Email.)
 
+            // ── Premium Section (mobile only) ────────────────────────────
+            Item { visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
+                Layout.fillWidth: true; Layout.preferredHeight: restoreSection.height }
+            ColumnLayout {
+                id: restoreSection
+                visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
+                Layout.fillWidth: true; spacing: 0
+                SectionHeader { iconName: "badge-check"; title: Tr.subscribeTitle }
+                Item { Layout.preferredHeight: 12 }
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: restoreBtnCol.implicitHeight + 32; radius: 12
+                    color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
+                    ColumnLayout {
+                        id: restoreBtnCol
+                        anchors { fill: parent; margins: 16 } spacing: 0
+                        Label {
+                            Layout.fillWidth: true
+                            text: appState.isPremium ? Tr.premiumUnlocked : Tr.premiumRequiredMsg
+                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                            font.pixelSize: 12; color: Theme.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.4
+                        }
+                        Item { Layout.preferredHeight: 12 }
+                        // Restore button — hidden when already premium
+                        Rectangle {
+                            visible: !appState.isPremium
+                            Layout.fillWidth: true; implicitHeight: 40; radius: 8
+                            color: appState.purchaseInProgress ? Qt.alpha(Theme.warnYellow, 0.08)
+                                                               : Qt.alpha(Theme.warnYellow, 0.12)
+                            border { width: 1; color: appState.purchaseInProgress ? Qt.alpha(Theme.warnYellow, 0.3)
+                                                                                   : Qt.alpha(Theme.warnYellow, 0.4) }
+                            Label {
+                                anchors.centerIn: parent
+                                text: appState.purchaseInProgress ? "..." : Tr.restoreBtn
+                                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                                font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.warnYellow
+                            }
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                enabled: !appState.purchaseInProgress
+                                onClicked: appState.restorePurchases()
+                            }
+                        }
+                        // Restore result toast
+                        Label {
+                            id: restoreToast
+                            Layout.fillWidth: true
+                            visible: restoreToastTimer.running
+                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                            font.pixelSize: 11; color: Theme.warnYellow
+                            Layout.topMargin: restoreToast.visible ? 8 : 0
+                        }
+                        Timer { id: restoreToastTimer; interval: 3000 }
+                    }
+                }
+                Item { Layout.preferredHeight: 32 }
+            }
+
             // ── About Section ──────────────────────────────────────────
             SectionHeader { iconName: "info"; title: Tr.aboutSection }
             Item { Layout.preferredHeight: 12 }
@@ -120,8 +186,8 @@ Item {
                                       + (appState.buildNumber.length > 0 ? " (Build " + appState.buildNumber + ")" : "")
                                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary
                                 wrapMode: Text.WordWrap
-                                // Hidden unlock: tap the version 7× to toggle premium
-                                // (stub until real in-app purchase is wired).
+                                // Hidden debug toggle: tap the version 7× to toggle premium
+                                // (useful for testing on desktop / simulator builds).
                                 MouseArea {
                                     anchors.fill: parent
                                     onClicked: {

@@ -3,12 +3,12 @@ pragma Singleton
 import QtQuick
 
 Item {
-    // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW
+    // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
     // Bind directly to C++ property — NOTIFY signal now reliable on all platforms
     property int lang: appState ? appState.languageIndex : 0
 
-    function t(en, fr, de, ru, it, zh_cn, zh_tw) {
-        var a = [en, fr, de, ru, it, zh_cn, zh_tw]
+    function t(en, fr, de, ru, it, zh_cn, zh_tw, es, pt) {
+        var a = [en, fr, de, ru, it, zh_cn, zh_tw, es, pt]
         var i = lang
         return (i >= 0 && i < a.length && a[i]) ? a[i] : en
     }
@@ -17,196 +17,185 @@ Item {
     function groupName(idx) {
         var d = lang
         var names = [
-            t("System & Adapters","Système et adaptateurs","System & Adapter","Система и адаптеры","Sistema e schede","系统和适配器","系統和適配器"),
-            t("Connectivity & Security","Connectivité et sécurité","Konnektivität & Sicherheit","Подключение и безопасность","Connettività e sicurezza","连接与安全","連線與安全"),
-            t("Internet & DNS","Internet et DNS","Internet & DNS","Интернет и DNS","Internet e DNS","互联网与DNS","網際網路與DNS"),
-            t("Remote Host","Hôte distant","Remote Host","Удаленный хост","Host remoto","远程主机","遠端主機"),
-            t("Website / URL","Site Web / URL","Website / URL","Веб-сайт / URL","Sito Web / URL","网站 / URL","網站 / URL"),
+            t("System & Adapters", "Système et adaptateurs", "System & Adapter", "Система и адаптеры", "Sistema e schede", "系统和适配器", "系統和適配器", "Sistema y adaptadores", "Sistema e adaptadores"),
+            t("Connectivity & Security", "Connectivité et sécurité", "Konnektivität & Sicherheit", "Подключение и безопасность", "Connettività e sicurezza", "连接与安全", "連線與安全", "Conectividad y seguridad", "Conectividade e segurança"),
+            t("Internet & DNS", "Internet et DNS", "Internet & DNS", "Интернет и DNS", "Internet e DNS", "互联网与DNS", "網際網路與DNS", "Internet y DNS", "Internet e DNS"),
+            t("Remote Host", "Hôte distant", "Remote Host", "Удаленный хост", "Host remoto", "远程主机", "遠端主機", "Host remoto", "Host remoto"),
+            t("Website / URL", "Site Web / URL", "Website / URL", "Веб-сайт / URL", "Sito Web / URL", "网站 / URL", "網站 / URL", "Sitio web / URL", "Site / URL"),
         ]
         return (idx >= 0 && idx < names.length) ? names[idx] : ""
     }
 
     // ── Nav ──
-    readonly property string dashboard: t("Dashboard","Tableau de bord","Dashboard","Панель","Dashboard","仪表板","儀表板")
-    readonly property string diagnostics: t("Diagnostics","Diagnostics","Diagnose","Диагностика","Diagnostica","诊断","診斷")
-    readonly property string config: t("Config","Configuration","Konfiguration","Конфигурация","Configurazione","配置","配置")
-    readonly property string report: t("Report","Rapport","Bericht","Отчёт","Rapporto","报告","報告")
-    readonly property string settings: t("Settings","Paramètres","Einstellungen","Настройки","Impostazioni","设置","設定")
+    readonly property string dashboard: t("Dashboard", "Tableau de bord", "Dashboard", "Панель", "Dashboard", "仪表板", "儀表板", "Panel", "Painel")
+    readonly property string diagnostics: t("Diagnostics", "Diagnostics", "Diagnose", "Диагностика", "Diagnostica", "诊断", "診斷", "Diagnósticos", "Diagnósticos")
+    readonly property string config: t("Config", "Configuration", "Konfiguration", "Конфигурация", "Configurazione", "配置", "配置", "Configuración", "Configuração")
+    readonly property string report: t("Report", "Rapport", "Bericht", "Отчёт", "Rapporto", "报告", "報告", "Informe", "Relatório")
+    readonly property string settings: t("Settings", "Paramètres", "Einstellungen", "Настройки", "Impostazioni", "设置", "設定", "Ajustes", "Configurações")
 
     // ── DiagnosticScreen ──
-    readonly property string runningDots: t("Running Diagnostics...","Diagnostics en cours...","Diagnose läuft...","Диагностика...","Diagnostica in corso...","正在诊断...","正在診斷...")
-    readonly property string complete: t("Diagnostic Complete","Diagnostic terminé","Diagnose abgeschlossen","Диагностика завершена","Diagnostica completata","诊断完成","診斷完成")
-    readonly property string cancelled: t("Cancelled","Annulé","Abgebrochen","Отменено","Annullato","已取消","已取消")
-    readonly property string errorCheck: t("Error — Check Target","Erreur — Vérifier la cible","Fehler — Ziel prüfen","Ошибка — Проверьте цель","Errore — Controlla target","错误 — 检查目标","錯誤 — 檢查目標")
-    readonly property string results: t("Results","Résultats","Ergebnisse","Результаты","Risultati","结果","結果")
-    readonly property string diagGroup: t("Diagnosis Group","Groupe de diagnostic","Diagnosegruppe","Группа диагностики","Gruppo diagnostica","诊断组","診斷組")
-    readonly property string reset: t("Reset","Réinitialiser","Zurücksetzen","Сброс","Ripristina","重置","重置")
-    readonly property string runDiag: t("▶ Run Diagnostics","▶ Lancer diagnostic","▶ Diagnose starten","▶ Запустить","▶ Avvia diagnostica","▶ 运行诊断","▶ 運行診斷")
-    readonly property string running: t("⏳ Running...","⏳ En cours...","⏳ Läuft...","⏳ Выполняется...","⏳ In corso...","⏳ 运行中...","⏳ 運行中...")
-    readonly property string stop: t("■ Stop","■ Arrêter","■ Stopp","■ Стоп","■ Ferma","■ 停止","■ 停止")
-    readonly property string target: t("Target","Cible","Ziel","Цель","Obiettivo","目标","目標")
-    readonly property string enterTarget: t("Enter URL, IP address, or hostname...","Entrez URL, IP ou nom d'hôte...","URL, IP oder Hostname eingeben...","Введите URL, IP или имя хоста...","Inserisci URL, IP o hostname...","输入URL、IP地址或主机名...","輸入URL、IP位址或主機名...")
-    readonly property string portScan: t("Port Scan","Scan de ports","Port-Scan","Сканирование портов","Scansione porte","端口扫描","端口掃描")
-    readonly property string scanCommon: t("Scan Common Ports","Scanner ports communs","Gängige Ports scannen","Сканировать порты","Scansiona porte comuni","扫描常用端口","掃描常用端口")
-    readonly property string range: t("Range:","Plage:","Bereich:","Диапазон:","Intervallo:","范围:","範圍:")
-    readonly property string fromMust: t("From Must Be ≤ To","De doit être ≤ À","Von muss ≤ Bis sein","От должно быть ≤ До","Da deve essere ≤ A","起始必须 ≤ 结束","起始必須 ≤ 結束")
+    readonly property string runningDots: t("Running Diagnostics...", "Diagnostics en cours...", "Diagnose läuft...", "Диагностика...", "Diagnostica in corso...", "正在诊断...", "正在診斷...", "Ejecutando diagnósticos...", "Executando diagnósticos...")
+    readonly property string complete: t("Diagnostic Complete", "Diagnostic terminé", "Diagnose abgeschlossen", "Диагностика завершена", "Diagnostica completata", "诊断完成", "診斷完成", "Diagnóstico completado", "Diagnóstico concluído")
+    readonly property string cancelled: t("Cancelled", "Annulé", "Abgebrochen", "Отменено", "Annullato", "已取消", "已取消", "Cancelado", "Cancelado")
+    readonly property string errorCheck: t("Error — Check Target", "Erreur — Vérifier la cible", "Fehler — Ziel prüfen", "Ошибка — Проверьте цель", "Errore — Controlla target", "错误 — 检查目标", "錯誤 — 檢查目標", "Error — Verifique el objetivo", "Erro — Verifique o alvo")
+    readonly property string results: t("Results", "Résultats", "Ergebnisse", "Результаты", "Risultati", "结果", "結果", "Resultados", "Resultados")
+    readonly property string diagGroup: t("Diagnosis Group", "Groupe de diagnostic", "Diagnosegruppe", "Группа диагностики", "Gruppo diagnostica", "诊断组", "診斷組", "Grupo de diagnóstico", "Grupo de diagnóstico")
+    readonly property string reset: t("Reset", "Réinitialiser", "Zurücksetzen", "Сброс", "Ripristina", "重置", "重置", "Restablecer", "Redefinir")
+    readonly property string runDiag: t("▶ Run Diagnostics", "▶ Lancer diagnostic", "▶ Diagnose starten", "▶ Запустить", "▶ Avvia diagnostica", "▶ 运行诊断", "▶ 運行診斷", "▶ Ejecutar diagnósticos", "▶ Executar diagnósticos")
+    readonly property string running: t("⏳ Running...", "⏳ En cours...", "⏳ Läuft...", "⏳ Выполняется...", "⏳ In corso...", "⏳ 运行中...", "⏳ 運行中...", "⏳ Ejecutando...", "⏳ Executando...")
+    readonly property string stop: t("■ Stop", "■ Arrêter", "■ Stopp", "■ Стоп", "■ Ferma", "■ 停止", "■ 停止", "■ Detener", "■ Parar")
+    readonly property string target: t("Target", "Cible", "Ziel", "Цель", "Obiettivo", "目标", "目標", "Objetivo", "Alvo")
+    readonly property string enterTarget: t("Enter URL, IP address, or hostname...", "Entrez URL, IP ou nom d'hôte...", "URL, IP oder Hostname eingeben...", "Введите URL, IP или имя хоста...", "Inserisci URL, IP o hostname...", "输入URL、IP地址或主机名...", "輸入URL、IP位址或主機名...", "Ingrese URL, dirección IP o nombre de host...", "Insira URL, endereço IP ou nome de host...")
+    readonly property string portScan: t("Port Scan", "Scan de ports", "Port-Scan", "Сканирование портов", "Scansione porte", "端口扫描", "端口掃描", "Escaneo de puertos", "Verificação de portas")
+    readonly property string scanCommon: t("Scan Common Ports", "Scanner ports communs", "Gängige Ports scannen", "Сканировать порты", "Scansiona porte comuni", "扫描常用端口", "掃描常用端口", "Escanear puertos comunes", "Verificar portas comuns")
+    readonly property string range: t("Range:", "Plage:", "Bereich:", "Диапазон:", "Intervallo:", "范围:", "範圍:", "Rango:", "Intervalo:")
+    readonly property string fromMust: t("From Must Be ≤ To", "De doit être ≤ À", "Von muss ≤ Bis sein", "От должно быть ≤ До", "Da deve essere ≤ A", "起始必须 ≤ 结束", "起始必須 ≤ 結束", "Desde debe ser ≤ Hasta", "De deve ser ≤ Até")
 
     // ── ConfigScreen ──
-    readonly property string diagConfig: t("Diagnostic Configuration","Configuration diagnostic","Diagnosekonfiguration","Конфигурация диагностики","Configurazione diagnostica","诊断配置","診斷配置")
-    readonly property string selectAll: t("Select All","Tout sélectionner","Alle auswählen","Выбрать все","Seleziona tutto","全选","全選")
-    readonly property string deselectAll: t("Deselect All","Tout désélectionner","Alle abwählen","Отменить все","Deseleziona tutto","取消全选","取消全選")
+    readonly property string diagConfig: t("Diagnostic Configuration", "Configuration diagnostic", "Diagnosekonfiguration", "Конфигурация диагностики", "Configurazione diagnostica", "诊断配置", "診斷配置", "Configuración de diagnóstico", "Configuração de diagnóstico")
+    readonly property string selectAll: t("Select All", "Tout sélectionner", "Alle auswählen", "Выбрать все", "Seleziona tutto", "全选", "全選", "Seleccionar todo", "Selecionar tudo")
+    readonly property string deselectAll: t("Deselect All", "Tout désélectionner", "Alle abwählen", "Отменить все", "Deseleziona tutto", "取消全选", "取消全選", "Deseleccionar todo", "Desmarcar tudo")
 
     // ── DashboardScreen ──
-    readonly property string noData: t("No diagnostic data yet","Aucune donnée de diagnostic","Noch keine Diagnosedaten","Нет данных диагностики","Nessun dato diagnostico","暂无诊断数据","暫無診斷數據")
-    readonly property string runFromDiag: t("Run a diagnostic from the Diagnostics screen\nto see results here.","Exécutez un diagnostic depuis l'écran Diagnostics\npour voir les résultats ici.","Führen Sie eine Diagnose vom Diagnosebildschirm aus,\num die Ergebnisse hier zu sehen.","Запустите диагностику на экране диагностики,\nчтобы увидеть результаты здесь.","Esegui una diagnostica dalla schermata Diagnostica\nper vedere i risultati qui.","从诊断屏幕运行诊断\n以在此处查看结果。","從診斷畫面運行診斷\n以在此處查看結果。")
-    readonly property string perGroup: t("Per-Group Results","Résultats par groupe","Ergebnisse pro Gruppe","Результаты по группам","Risultati per gruppo","分组结果","分組結果")
-    readonly property string summary: t("Summary","Résumé","Zusammenfassung","Сводка","Riepilogo","摘要","摘要")
-    readonly property string totalDiags: t("Total Diagnostics","Total diagnostics","Diagnosen insgesamt","Всего диагностик","Diagnostiche totali","总诊断数","總診斷數")
-    readonly property string totalTime: t("Total Time","Temps total","Gesamtzeit","Общее время","Tempo totale","总时间","總時間")
-    readonly property string completed: t("Completed","Terminé","Abgeschlossen","Завершено","Completato","已完成","已完成")
-    readonly property string layerTimings: t("Layer Timings","Chronométrage par couche","Schichtzeiten","Время по слоям","Tempi per livello","层级时间","層級時間")
+    readonly property string noData: t("No diagnostic data yet", "Aucune donnée de diagnostic", "Noch keine Diagnosedaten", "Нет данных диагностики", "Nessun dato diagnostico", "暂无诊断数据", "暫無診斷數據", "Aún no hay datos de diagnóstico", "Ainda não há dados de diagnóstico")
+    readonly property string runFromDiag: t("Run a diagnostic from the Diagnostics screen\nto see results here.", "Exécutez un diagnostic depuis l'écran Diagnostics\npour voir les résultats ici.", "Führen Sie eine Diagnose vom Diagnosebildschirm aus,\num die Ergebnisse hier zu sehen.", "Запустите диагностику на экране диагностики,\nчтобы увидеть результаты здесь.", "Esegui una diagnostica dalla schermata Diagnostica\nper vedere i risultati qui.", "从诊断屏幕运行诊断\n以在此处查看结果。", "從診斷畫面運行診斷\n以在此處查看結果。", "Ejecute un diagnóstico desde la pantalla de Diagnósticos\npara ver los resultados aquí.", "Execute um diagnóstico na tela de Diagnósticos\npara ver os resultados aqui.")
+    readonly property string perGroup: t("Per-Group Results", "Résultats par groupe", "Ergebnisse pro Gruppe", "Результаты по группам", "Risultati per gruppo", "分组结果", "分組結果", "Resultados por grupo", "Resultados por grupo")
+    readonly property string summary: t("Summary", "Résumé", "Zusammenfassung", "Сводка", "Riepilogo", "摘要", "摘要", "Resumen", "Resumo")
+    readonly property string totalDiags: t("Total Diagnostics", "Total diagnostics", "Diagnosen insgesamt", "Всего диагностик", "Diagnostiche totali", "总诊断数", "總診斷數", "Diagnósticos totales", "Diagnósticos totais")
+    readonly property string totalTime: t("Total Time", "Temps total", "Gesamtzeit", "Общее время", "Tempo totale", "总时间", "總時間", "Tiempo total", "Tempo total")
+    readonly property string completed: t("Completed", "Terminé", "Abgeschlossen", "Завершено", "Completato", "已完成", "已完成", "Completado", "Concluído")
+    readonly property string layerTimings: t("Layer Timings", "Chronométrage par couche", "Schichtzeiten", "Время по слоям", "Tempi per livello", "层级时间", "層級時間", "Tiempos por capa", "Tempos por camada")
 
     // ── SettingsScreen ──
-    readonly property string interfaceLang: t("Interface Language","Langue de l'interface","Oberflächensprache","Язык интерфейса","Lingua dell'interfaccia","界面语言","界面語言")
-    readonly property string chooseLang: t("Choose the display language for the application.","Choisissez la langue d'affichage de l'application.","Wählen Sie die Anzeigesprache der Anwendung.","Выберите язык отображения приложения.","Scegli la lingua di visualizzazione dell'applicazione.","选择应用程序的显示语言。","選擇應用程式的顯示語言。")
-    readonly property string emailSmtp: t("Email (SMTP) Configuration","Configuration email (SMTP)","E-Mail (SMTP) Konfiguration","Настройка email (SMTP)","Configurazione email (SMTP)","电子邮件(SMTP)配置","電子郵件(SMTP)配置")
-    readonly property string smtpServer: t("SMTP Server","Serveur SMTP","SMTP-Server","SMTP-сервер","Server SMTP","SMTP服务器","SMTP伺服器")
-    readonly property string about: t("About","À propos","Über","О программе","Informazioni","关于","關於")
-    readonly property string version: t("Version 1.0.0","Version 1.0.0","Version 1.0.0","Версия 1.0.0","Versione 1.0.0","版本 1.0.0","版本 1.0.0")
-    readonly property string aboutDesc: t("A comprehensive cross-platform network diagnostic tool supporting Windows, macOS, Linux, iOS, and Android.",
-        "Un outil de diagnostic réseau multiplateforme prenant en charge Windows, macOS, Linux, iOS et Android.",
-        "Ein umfassendes plattformübergreifendes Netzwerkdiagnosetool für Windows, macOS, Linux, iOS und Android.",
-        "Комплексный кроссплатформенный инструмент сетевой диагностики с поддержкой Windows, macOS, Linux, iOS и Android.",
-        "Uno strumento completo di diagnostica di rete multipiattaforma che supporta Windows, macOS, Linux, iOS e Android.",
-        "一个全面的跨平台网络诊断工具，支持Windows、macOS、Linux、iOS和Android。","一個全面的跨平台網路診斷工具，支援Windows、macOS、Linux、iOS和Android。")
-    readonly property string crossPlat: t("Cross-platform (Windows, macOS, Linux, iOS, Android)","Multiplateforme (Windows, macOS, Linux, iOS, Android)","Plattformübergreifend (Windows, macOS, Linux, iOS, Android)","Кроссплатформенный (Windows, macOS, Linux, iOS, Android)","Multipiattaforma (Windows, macOS, Linux, iOS, Android)","跨平台 (Windows, macOS, Linux, iOS, Android)","跨平台 (Windows, macOS, Linux, iOS, Android)")
-    readonly property string realtimeDiag: t("Real-time diagnostic engine","Moteur de diagnostic en temps réel","Echtzeit-Diagnose-Engine","Движок диагностики в реальном времени","Motore di diagnostica in tempo reale","实时诊断引擎","實時診斷引擎")
-    readonly property string detailedReport: t("Detailed reporting and export","Rapports détaillés et exportation","Detaillierte Berichte und Export","Подробная отчетность и экспорт","Report dettagliati ed esportazione","详细报告和导出","詳細報告和匯出")
-    readonly property string darkTheme: t("Dark theme UI","Interface thème sombre","Dunkles Design","Темная тема","Interfaccia tema scuro","深色主题界面","深色主題介面")
-    readonly property string simulatorMode: t("Windows simulator mode","Mode simulateur Windows","Windows-Simulator-Modus","Режим симулятора Windows","Modalità simulatore Windows","Windows模拟器模式","Windows模擬器模式")
+    readonly property string interfaceLang: t("Interface Language", "Langue de l'interface", "Oberflächensprache", "Язык интерфейса", "Lingua dell'interfaccia", "界面语言", "界面語言", "Idioma de la interfaz", "Idioma da interface")
+    readonly property string chooseLang: t("Choose the display language for the application.", "Choisissez la langue d'affichage de l'application.", "Wählen Sie die Anzeigesprache der Anwendung.", "Выберите язык отображения приложения.", "Scegli la lingua di visualizzazione dell'applicazione.", "选择应用程序的显示语言。", "選擇應用程式的顯示語言。", "Elija el idioma de visualización de la aplicación.", "Escolha o idioma de exibição do aplicativo.")
+    readonly property string emailSmtp: t("Email (SMTP) Configuration", "Configuration email (SMTP)", "E-Mail (SMTP) Konfiguration", "Настройка email (SMTP)", "Configurazione email (SMTP)", "电子邮件(SMTP)配置", "電子郵件(SMTP)配置", "Configuración de correo (SMTP)", "Configuração de e-mail (SMTP)")
+    readonly property string smtpServer: t("SMTP Server", "Serveur SMTP", "SMTP-Server", "SMTP-сервер", "Server SMTP", "SMTP服务器", "SMTP伺服器", "Servidor SMTP", "Servidor SMTP")
+    readonly property string about: t("About", "À propos", "Über", "О программе", "Informazioni", "关于", "關於", "Acerca de", "Sobre")
+    readonly property string version: t("Version 1.0.0", "Version 1.0.0", "Version 1.0.0", "Версия 1.0.0", "Versione 1.0.0", "版本 1.0.0", "版本 1.0.0", "Versión 1.0.0", "Versão 1.0.0")
+    readonly property string aboutDesc: t("A comprehensive cross-platform network diagnostic tool supporting Windows, macOS, Linux, iOS, and Android.", "Un outil de diagnostic réseau multiplateforme prenant en charge Windows, macOS, Linux, iOS et Android.", "Ein umfassendes plattformübergreifendes Netzwerkdiagnosetool für Windows, macOS, Linux, iOS und Android.", "Комплексный кроссплатформенный инструмент сетевой диагностики с поддержкой Windows, macOS, Linux, iOS и Android.", "Uno strumento completo di diagnostica di rete multipiattaforma che supporta Windows, macOS, Linux, iOS e Android.", "一个全面的跨平台网络诊断工具，支持Windows、macOS、Linux、iOS和Android。", "一個全面的跨平台網路診斷工具，支援Windows、macOS、Linux、iOS和Android。", "Una completa herramienta de diagnóstico de red multiplataforma compatible con Windows, macOS, Linux, iOS y Android.", "Uma completa ferramenta de diagnóstico de rede multiplataforma compatível com Windows, macOS, Linux, iOS e Android.")
+    readonly property string crossPlat: t("Cross-platform (Windows, macOS, Linux, iOS, Android)", "Multiplateforme (Windows, macOS, Linux, iOS, Android)", "Plattformübergreifend (Windows, macOS, Linux, iOS, Android)", "Кроссплатформенный (Windows, macOS, Linux, iOS, Android)", "Multipiattaforma (Windows, macOS, Linux, iOS, Android)", "跨平台 (Windows, macOS, Linux, iOS, Android)", "跨平台 (Windows, macOS, Linux, iOS, Android)", "Multiplataforma (Windows, macOS, Linux, iOS, Android)", "Multiplataforma (Windows, macOS, Linux, iOS, Android)")
+    readonly property string realtimeDiag: t("Real-time diagnostic engine", "Moteur de diagnostic en temps réel", "Echtzeit-Diagnose-Engine", "Движок диагностики в реальном времени", "Motore di diagnostica in tempo reale", "实时诊断引擎", "實時診斷引擎", "Motor de diagnóstico en tiempo real", "Mecanismo de diagnóstico em tempo real")
+    readonly property string detailedReport: t("Detailed reporting and export", "Rapports détaillés et exportation", "Detaillierte Berichte und Export", "Подробная отчетность и экспорт", "Report dettagliati ed esportazione", "详细报告和导出", "詳細報告和匯出", "Informes detallados y exportación", "Relatórios detalhados e exportação")
+    readonly property string darkTheme: t("Dark theme UI", "Interface thème sombre", "Dunkles Design", "Темная тема", "Interfaccia tema scuro", "深色主题界面", "深色主題介面", "Interfaz con tema oscuro", "Interface com tema escuro")
+    readonly property string simulatorMode: t("Windows simulator mode", "Mode simulateur Windows", "Windows-Simulator-Modus", "Режим симулятора Windows", "Modalità simulatore Windows", "Windows模拟器模式", "Windows模擬器模式", "Modo simulador de Windows", "Modo simulador do Windows")
     // ── ReportScreen ──
-    readonly property string reportPreview: t("Report Preview","Aperçu du rapport","Berichtsvorschau","Предпросмотр отчёта","Anteprima rapporto","报告预览","報告預覽")
-    readonly property string reportPlaceholder: t("Report generation and preview will be\nimplemented in Phase 9.",
-        "La génération et l'aperçu du rapport seront\nimplémentés dans la phase 9.",
-        "Die Berichterstellung und Vorschau wird\nin Phase 9 implementiert.",
-        "Создание и предпросмотр отчета будет\nреализовано в фазе 9.",
-        "La generazione e l'anteprima del rapporto saranno\nimplementate nella Fase 9.",
-        "报告生成和预览将在\n第9阶段实现。","報告生成和預覽將在\n第9階段實現。")
-    readonly property string reportFeaturePdf: t("Export to PDF format","Export au format PDF","Export als PDF","Экспорт в PDF","Esporta in formato PDF","导出为PDF格式","匯出為PDF格式")
-    readonly property string reportFeatureEmail: t("Share reports via email","Partager par email","Berichte per E-Mail teilen","Поделиться по email","Condividi via email","通过电子邮件分享报告","透過電子郵件分享報告")
-    readonly property string reportFeatureHtml: t("HTML report with embedded charts","Rapport HTML avec graphiques","HTML-Bericht mit Diagrammen","HTML отчет с графиками","Report HTML con grafici","带嵌入图表的HTML报告","帶嵌入圖表的HTML報告")
-    readonly property string reportFeatureHistory: t("Historical report comparison","Comparaison historique","Historischer Vergleich","Историческое сравнение","Confronto storico","历史报告比较","歷史報告比較")
-    readonly property string reportExportPdfBtn: t("Export PDF (summary)","Exporter PDF (résumé)","PDF exportieren (Übersicht)","Экспорт PDF (сводка)","Esporta PDF (riepilogo)","导出PDF(汇总)","匯出PDF(彙總)")
-    readonly property string reportExportHtmlBtn: t("Export HTML (full report)","Exporter HTML (rapport complet)","HTML exportieren (vollständig)","Экспорт HTML (полный)","Esporta HTML (completo)","导出HTML(完整报告)","匯出HTML(完整報告)")
-    readonly property string reportSavedTo: t("Saved to:","Enregistré :","Gespeichert:","Сохранено:","Salvato:","已保存至：","已儲存至：")
-    readonly property string reportExportFailed: t("Export failed.","Échec de l'export.","Export fehlgeschlagen.","Ошибка экспорта.","Esportazione non riuscita.","导出失败。","匯出失敗。")
-    readonly property string reportExportHint: t("Export your diagnostic results as a one-page PDF summary or a full HTML report.","Exportez vos résultats en résumé PDF d'une page ou en rapport HTML complet.","Exportieren Sie Ihre Ergebnisse als einseitige PDF-Übersicht oder vollständigen HTML-Bericht.","Экспортируйте результаты как PDF-сводку на одну страницу или полный HTML-отчёт.","Esporta i risultati come riepilogo PDF di una pagina o rapporto HTML completo.","将诊断结果导出为一页PDF汇总或完整HTML报告。","將診斷結果匯出為一頁PDF彙總或完整HTML報告。")
-    readonly property string reportRunFirst: t("Run a diagnostic first to generate a report.","Lancez d'abord un diagnostic pour générer un rapport.","Führen Sie zuerst eine Diagnose aus, um einen Bericht zu erstellen.","Сначала запустите диагностику, чтобы создать отчёт.","Esegui prima una diagnostica per generare un rapporto.","请先运行诊断以生成报告。","請先執行診斷以產生報告。")
-    readonly property string reportPreviewPdfBtn: t("Preview PDF (summary)","Aperçu PDF (résumé)","PDF-Vorschau (Übersicht)","Предпросмотр PDF (сводка)","Anteprima PDF (riepilogo)","预览PDF(汇总)","預覽PDF(彙總)")
-    readonly property string reportPreviewHtmlBtn: t("Preview HTML (full)","Aperçu HTML (complet)","HTML-Vorschau (vollständig)","Предпросмотр HTML (полный)","Anteprima HTML (completo)","预览HTML(完整)","預覽HTML(完整)")
-    readonly property string previewPdfTitle: t("PDF Report — Summary","Rapport PDF — Résumé","PDF-Bericht — Übersicht","PDF-отчёт — сводка","Rapporto PDF — Riepilogo","PDF报告 — 汇总","PDF報告 — 彙總")
-    readonly property string previewHtmlTitle: t("HTML Report — Full","Rapport HTML — Complet","HTML-Bericht — Vollständig","HTML-отчёт — полный","Rapporto HTML — Completo","HTML报告 — 完整","HTML報告 — 完整")
-    readonly property string reportSaveBtn: t("Save","Enregistrer","Speichern","Сохранить","Salva","保存","儲存")
-    readonly property string shareBtn: t("Share","Partager","Teilen","Поделиться","Condividi","分享","分享")
-    readonly property string emailBtn: t("Email","E-mail","E-Mail","По почте","Email","邮件","郵件")
-    readonly property string premiumBadge: t("PRO","PRO","PRO","PRO","PRO","PRO","PRO")
-    readonly property string premiumRequiredMsg: t("Sharing is a premium feature — unlock to share reports.","Le partage est une fonction premium — déverrouillez pour partager.","Teilen ist eine Premium-Funktion — zum Teilen freischalten.","Обмен — премиум-функция. Разблокируйте для обмена.","La condivisione è una funzione premium — sblocca per condividere.","分享为付费功能 — 解锁后可分享报告。","分享為付費功能 — 解鎖後可分享報告。")
-    readonly property string reportShareOk: t("Report shared.","Rapport partagé.","Bericht geteilt.","Отчёт отправлен.","Rapporto condiviso.","报告已分享。","報告已分享。")
-    readonly property string reportShareFail: t("Sharing failed.","Échec du partage.","Teilen fehlgeschlagen.","Ошибка обмена.","Condivisione non riuscita.","分享失败。","分享失敗。")
-    readonly property string premiumUnlocked: t("Premium unlocked","Premium déverrouillé","Premium freigeschaltet","Премиум разблокирован","Premium sbloccato","已解锁高级版","已解鎖高級版")
-    readonly property string premiumLocked: t("Premium locked","Premium verrouillé","Premium gesperrt","Премиум заблокирован","Premium bloccato","高级版已锁定","高級版已鎖定")
+    readonly property string reportPreview: t("Report Preview", "Aperçu du rapport", "Berichtsvorschau", "Предпросмотр отчёта", "Anteprima rapporto", "报告预览", "報告預覽", "Vista previa del informe", "Pré-visualização do relatório")
+    readonly property string reportPlaceholder: t("Report generation and preview will be\nimplemented in Phase 9.", "La génération et l'aperçu du rapport seront\nimplémentés dans la phase 9.", "Die Berichterstellung und Vorschau wird\nin Phase 9 implementiert.", "Создание и предпросмотр отчета будет\nреализовано в фазе 9.", "La generazione e l'anteprima del rapporto saranno\nimplementate nella Fase 9.", "报告生成和预览将在\n第9阶段实现。", "報告生成和預覽將在\n第9階段實現。", "La generación y vista previa del informe se\nimplementarán en la Fase 9.", "A geração e a pré-visualização do relatório serão\nimplementadas na Fase 9.")
+    readonly property string reportFeaturePdf: t("Export to PDF format", "Export au format PDF", "Export als PDF", "Экспорт в PDF", "Esporta in formato PDF", "导出为PDF格式", "匯出為PDF格式", "Exportar a formato PDF", "Exportar para formato PDF")
+    readonly property string reportFeatureEmail: t("Share reports via email", "Partager par email", "Berichte per E-Mail teilen", "Поделиться по email", "Condividi via email", "通过电子邮件分享报告", "透過電子郵件分享報告", "Compartir informes por correo electrónico", "Compartilhar relatórios por e-mail")
+    readonly property string reportFeatureHtml: t("HTML report with embedded charts", "Rapport HTML avec graphiques", "HTML-Bericht mit Diagrammen", "HTML отчет с графиками", "Report HTML con grafici", "带嵌入图表的HTML报告", "帶嵌入圖表的HTML報告", "Informe HTML con gráficos integrados", "Relatório HTML com gráficos incorporados")
+    readonly property string reportFeatureHistory: t("Historical report comparison", "Comparaison historique", "Historischer Vergleich", "Историческое сравнение", "Confronto storico", "历史报告比较", "歷史報告比較", "Comparación histórica de informes", "Comparação histórica de relatórios")
+    readonly property string reportExportPdfBtn: t("Export PDF (summary)", "Exporter PDF (résumé)", "PDF exportieren (Übersicht)", "Экспорт PDF (сводка)", "Esporta PDF (riepilogo)", "导出PDF(汇总)", "匯出PDF(彙總)", "Exportar PDF (resumen)", "Exportar PDF (resumo)")
+    readonly property string reportExportHtmlBtn: t("Export HTML (full report)", "Exporter HTML (rapport complet)", "HTML exportieren (vollständig)", "Экспорт HTML (полный)", "Esporta HTML (completo)", "导出HTML(完整报告)", "匯出HTML(完整報告)", "Exportar HTML (informe completo)", "Exportar HTML (relatório completo)")
+    readonly property string reportSavedTo: t("Saved to:", "Enregistré :", "Gespeichert:", "Сохранено:", "Salvato:", "已保存至：", "已儲存至：", "Guardado en:", "Salvo em:")
+    readonly property string reportExportFailed: t("Export failed.", "Échec de l'export.", "Export fehlgeschlagen.", "Ошибка экспорта.", "Esportazione non riuscita.", "导出失败。", "匯出失敗。", "Error al exportar.", "Falha na exportação.")
+    readonly property string reportExportHint: t("Export your diagnostic results as a one-page PDF summary or a full HTML report.", "Exportez vos résultats en résumé PDF d'une page ou en rapport HTML complet.", "Exportieren Sie Ihre Ergebnisse als einseitige PDF-Übersicht oder vollständigen HTML-Bericht.", "Экспортируйте результаты как PDF-сводку на одну страницу или полный HTML-отчёт.", "Esporta i risultati come riepilogo PDF di una pagina o rapporto HTML completo.", "将诊断结果导出为一页PDF汇总或完整HTML报告。", "將診斷結果匯出為一頁PDF彙總或完整HTML報告。", "Exporte sus resultados de diagnóstico como un resumen PDF de una página o un informe HTML completo.", "Exporte seus resultados de diagnóstico como um resumo PDF de uma página ou um relatório HTML completo.")
+    readonly property string reportRunFirst: t("Run a diagnostic first to generate a report.", "Lancez d'abord un diagnostic pour générer un rapport.", "Führen Sie zuerst eine Diagnose aus, um einen Bericht zu erstellen.", "Сначала запустите диагностику, чтобы создать отчёт.", "Esegui prima una diagnostica per generare un rapporto.", "请先运行诊断以生成报告。", "請先執行診斷以產生報告。", "Ejecute primero un diagnóstico para generar un informe.", "Execute primeiro um diagnóstico para gerar um relatório.")
+    readonly property string reportPreviewPdfBtn: t("Preview PDF (summary)", "Aperçu PDF (résumé)", "PDF-Vorschau (Übersicht)", "Предпросмотр PDF (сводка)", "Anteprima PDF (riepilogo)", "预览PDF(汇总)", "預覽PDF(彙總)", "Vista previa PDF (resumen)", "Pré-visualizar PDF (resumo)")
+    readonly property string reportPreviewHtmlBtn: t("Preview HTML (full)", "Aperçu HTML (complet)", "HTML-Vorschau (vollständig)", "Предпросмотр HTML (полный)", "Anteprima HTML (completo)", "预览HTML(完整)", "預覽HTML(完整)", "Vista previa HTML (completo)", "Pré-visualizar HTML (completo)")
+    readonly property string previewPdfTitle: t("PDF Report — Summary", "Rapport PDF — Résumé", "PDF-Bericht — Übersicht", "PDF-отчёт — сводка", "Rapporto PDF — Riepilogo", "PDF报告 — 汇总", "PDF報告 — 彙總", "Informe PDF — Resumen", "Relatório PDF — Resumo")
+    readonly property string previewHtmlTitle: t("HTML Report — Full", "Rapport HTML — Complet", "HTML-Bericht — Vollständig", "HTML-отчёт — полный", "Rapporto HTML — Completo", "HTML报告 — 完整", "HTML報告 — 完整", "Informe HTML — Completo", "Relatório HTML — Completo")
+    readonly property string reportSaveBtn: t("Save", "Enregistrer", "Speichern", "Сохранить", "Salva", "保存", "儲存", "Guardar", "Salvar")
+    readonly property string shareBtn: t("Share", "Partager", "Teilen", "Поделиться", "Condividi", "分享", "分享", "Compartir", "Compartilhar")
+    readonly property string emailBtn: t("Email", "E-mail", "E-Mail", "По почте", "Email", "邮件", "郵件", "Correo", "E-mail")
+    readonly property string premiumBadge: t("PRO", "PRO", "PRO", "PRO", "PRO", "PRO", "PRO", "PRO", "PRO")
+    readonly property string premiumRequiredMsg: t("Sharing is a premium feature — unlock to share reports.", "Le partage est une fonction premium — déverrouillez pour partager.", "Teilen ist eine Premium-Funktion — zum Teilen freischalten.", "Обмен — премиум-функция. Разблокируйте для обмена.", "La condivisione è una funzione premium — sblocca per condividere.", "分享为付费功能 — 解锁后可分享报告。", "分享為付費功能 — 解鎖後可分享報告。", "Compartir es una función premium — desbloquéela para compartir informes.", "Compartilhar é um recurso premium — desbloqueie para compartilhar relatórios.")
+    readonly property string reportShareOk: t("Report shared.", "Rapport partagé.", "Bericht geteilt.", "Отчёт отправлен.", "Rapporto condiviso.", "报告已分享。", "報告已分享。", "Informe compartido.", "Relatório compartilhado.")
+    readonly property string reportShareFail: t("Sharing failed.", "Échec du partage.", "Teilen fehlgeschlagen.", "Ошибка обмена.", "Condivisione non riuscita.", "分享失败。", "分享失敗。", "Error al compartir.", "Falha ao compartilhar.")
+    readonly property string premiumUnlocked: t("Premium unlocked", "Premium déverrouillé", "Premium freigeschaltet", "Премиум разблокирован", "Premium sbloccato", "已解锁高级版", "已解鎖高級版", "Premium desbloqueado", "Premium desbloqueado")
+    readonly property string premiumLocked: t("Premium locked", "Premium verrouillé", "Premium gesperrt", "Премиум заблокирован", "Premium bloccato", "高级版已锁定", "高級版已鎖定", "Premium bloqueado", "Premium bloqueado")
     // ── Subscription / share confirmation flow ──
-    readonly property string subscribeTitle: t("Unlock Premium","Débloquer Premium","Premium freischalten","Разблокировать Премиум","Sblocca Premium","解锁高级版","解鎖高級版")
-    readonly property string subscribeBody: t("Sharing and emailing reports is a Premium feature. Subscribe to unlock report sharing on all your devices.","Le partage et l'envoi de rapports par e-mail sont des fonctions Premium. Abonnez-vous pour débloquer le partage de rapports.","Das Teilen und Versenden von Berichten ist eine Premium-Funktion. Abonnieren Sie, um die Berichtsfreigabe freizuschalten.","Отправка отчётов — премиум-функция. Оформите подписку, чтобы делиться отчётами.","La condivisione e l'invio dei rapporti è una funzione Premium. Abbonati per sbloccare la condivisione.","分享和邮件发送报告是高级版功能。订阅后即可在所有设备上分享报告。","分享和郵件發送報告是高級版功能。訂閱後即可在所有裝置上分享報告。")
-    readonly property string subscribeBtn: t("Subscribe","S'abonner","Abonnieren","Оформить подписку","Abbonati","订阅高级版","訂閱高級版")
-    readonly property string subscribeNotNow: t("Not now","Plus tard","Später","Не сейчас","Non ora","以后再说","以後再說")
-    readonly property string confirmShareTitle: t("Share Report","Partager le rapport","Bericht teilen","Поделиться отчётом","Condividi rapporto","分享报告","分享報告")
-    readonly property string confirmShareBody: t("Share this diagnostic report now?","Partager ce rapport de diagnostic maintenant ?","Diesen Diagnosebericht jetzt teilen?","Поделиться этим отчётом диагностики?","Condividere ora questo rapporto diagnostico?","确认现在分享此诊断报告？","確認現在分享此診斷報告？")
-    readonly property string dialogCancel: t("Cancel","Annuler","Abbrechen","Отмена","Annulla","取消","取消")
-    readonly property string reportResultsAvailable: t(" results available"," résultats disponibles"," Ergebnisse verfügbar"," результатов"," risultati disponibili"," 个结果可用"," 個結果可用")
-    readonly property string reportNoResults: t("No diagnostic results","Aucun résultat de diagnostic","Keine Diagnoseergebnisse","Нет результатов","Nessun risultato","无诊断结果","無診斷結果")
+    readonly property string subscribeTitle: t("Premium Feature", "Fonction Premium", "Premium-Funktion", "Премиум-функция", "Funzione Premium", "高级版功能", "高級版功能", "Función Premium", "Recurso Premium")
+    readonly property string subscribeBody: t("Sharing and emailing reports is a Premium feature. Unlock it with a one-time purchase that works on all your devices.", "Le partage et l'envoi de rapports par e-mail sont des fonctions Premium. Débloquez-les avec un achat unique valable sur tous vos appareils.", "Das Teilen und Versenden von Berichten ist eine Premium-Funktion. Schalten Sie sie mit einem einmaligen Kauf frei, der auf all Ihren Geräten gilt.", "Отправка отчётов — премиум-функция. Разблокируйте её разовой покупкой, действующей на всех ваших устройствах.", "La condivisione e l'invio dei rapporti è una funzione Premium. Sbloccala con un acquisto una tantum valido su tutti i tuoi dispositivi.", "分享和邮件发送报告是高级版功能。一次性购买即可解锁，所有设备通用。", "分享和郵件發送報告是高級版功能。一次性購買即可解鎖，所有裝置通用。", "Compartir y enviar informes por correo es una función Premium. Desbloquéela con una compra única válida en todos sus dispositivos.", "Compartilhar e enviar relatórios por e-mail é um recurso Premium. Desbloqueie com uma compra única válida em todos os seus dispositivos.")
+    readonly property string subscribeBtn: t("Unlock Premium", "Débloquer Premium", "Premium freischalten", "Разблокировать", "Sblocca Premium", "购买高级版", "購買高級版", "Desbloquear Premium", "Desbloquear Premium")
+    readonly property string subscribeNotNow: t("Not now", "Plus tard", "Später", "Не сейчас", "Non ora", "以后再说", "以後再說", "Ahora no", "Agora não")
+    readonly property string restoreBtn: t("Restore Purchases", "Restaurer les achats", "Käufe wiederherstellen", "Восстановить покупки", "Ripristina acquisti", "恢复购买", "恢復購買", "Restaurar compras", "Restaurar compras")
+    readonly property string restoreOk: t("Purchases restored.", "Achats restaurés.", "Käufe wiederhergestellt.", "Покупки восстановлены.", "Acquisti ripristinati.", "购买已恢复。", "購買已恢復。", "Compras restauradas.", "Compras restauradas.")
+    readonly property string restoreFail: t("No previous purchases found.", "Aucun achat précédent trouvé.", "Keine früheren Käufe gefunden.", "Предыдущие покупки не найдены.", "Nessun acquisto precedente trovato.", "未找到之前的购买记录。", "未找到之前的購買記錄。", "No se encontraron compras anteriores.", "Nenhuma compra anterior encontrada.")
+    readonly property string restoreError: t("Restore failed. Please try again.", "Échec de la restauration. Veuillez réessayer.", "Wiederherstellung fehlgeschlagen. Bitte versuchen Sie es erneut.", "Ошибка восстановления. Попробуйте снова.", "Ripristino non riuscito. Riprova.", "恢复失败，请重试。", "恢復失敗，請重試。", "Error al restaurar. Inténtelo de nuevo.", "Falha ao restaurar. Tente novamente.")
+    readonly property string confirmShareTitle: t("Share Report", "Partager le rapport", "Bericht teilen", "Поделиться отчётом", "Condividi rapporto", "分享报告", "分享報告", "Compartir informe", "Compartilhar relatório")
+    readonly property string confirmShareBody: t("Share this diagnostic report now?", "Partager ce rapport de diagnostic maintenant ?", "Diesen Diagnosebericht jetzt teilen?", "Поделиться этим отчётом диагностики?", "Condividere ora questo rapporto diagnostico?", "确认现在分享此诊断报告？", "確認現在分享此診斷報告？", "¿Compartir este informe de diagnóstico ahora?", "Compartilhar este relatório de diagnóstico agora?")
+    readonly property string dialogCancel: t("Cancel", "Annuler", "Abbrechen", "Отмена", "Annulla", "取消", "取消", "Cancelar", "Cancelar")
+    readonly property string reportResultsAvailable: t(" results available", " résultats disponibles", " Ergebnisse verfügbar", " результатов", " risultati disponibili", " 个结果可用", " 個結果可用", " resultados disponibles", " resultados disponíveis")
+    readonly property string reportNoResults: t("No diagnostic results", "Aucun résultat de diagnostic", "Keine Diagnoseergebnisse", "Нет результатов", "Nessun risultato", "无诊断结果", "無診斷結果", "Sin resultados de diagnóstico", "Sem resultados de diagnóstico")
 
     // ── Target Analysis ──
-    readonly property string targetAnalysis: t("Target Analysis","Analyse de la cible","Zielanalyse","Анализ цели","Analisi obiettivo","目标分析","目標分析")
-    readonly property string knownPortRef: t("Known Port Reference","Référence des ports connus","Bekannte Ports Referenz","Справочник портов","Riferimento porte note","已知端口参考","已知埠參考")
-    readonly property string targetTypeLabel: t("Type    :","Type    :","Typ     :","Тип     :","Tipo    :","类型    :","類型    :")
-    readonly property string targetTypeUrl: t("URL","URL","URL","URL","URL","URL","URL")
-    readonly property string targetTypeIp: t("Remote Host (IP)","Hôte distant (IP)","Remote Host (IP)","Удаленный хост (IP)","Host remoto (IP)","远程主机(IP)","遠端主機(IP)")
-    readonly property string targetTypeHostname: t("Remote Host (Hostname)","Hôte distant (nom)","Remote Host (Hostname)","Удаленный хост (имя)","Host remoto (nome)","远程主机(主机名)","遠端主機(主機名)")
+    readonly property string targetAnalysis: t("Target Analysis", "Analyse de la cible", "Zielanalyse", "Анализ цели", "Analisi obiettivo", "目标分析", "目標分析", "Análisis del objetivo", "Análise do alvo")
+    readonly property string knownPortRef: t("Known Port Reference", "Référence des ports connus", "Bekannte Ports Referenz", "Справочник портов", "Riferimento porte note", "已知端口参考", "已知埠參考", "Referencia de puertos conocidos", "Referência de portas conhecidas")
+    readonly property string targetTypeLabel: t("Type    :", "Type    :", "Typ     :", "Тип     :", "Tipo    :", "类型    :", "類型    :", "Tipo    :", "Tipo    :")
+    readonly property string targetTypeUrl: t("URL", "URL", "URL", "URL", "URL", "URL", "URL", "URL", "URL")
+    readonly property string targetTypeIp: t("Remote Host (IP)", "Hôte distant (IP)", "Remote Host (IP)", "Удаленный хост (IP)", "Host remoto (IP)", "远程主机(IP)", "遠端主機(IP)", "Host remoto (IP)", "Host remoto (IP)")
+    readonly property string targetTypeHostname: t("Remote Host (Hostname)", "Hôte distant (nom)", "Remote Host (Hostname)", "Удаленный хост (имя)", "Host remoto (nome)", "远程主机(主机名)", "遠端主機(主機名)", "Host remoto (nombre)", "Host remoto (nome)")
 
     // ── Live Progress ──
-    readonly property string errorPrefix: t("Error: ","Erreur : ","Fehler: ","Ошибка: ","Errore: ","错误: ","錯誤: ")
-    readonly property string runningStatus: t("Running","En cours","Läuft","Выполняется","In corso","运行中","運行中")
-    readonly property string completeStatus: t("Complete","Terminé","Abgeschlossen","Завершено","Completato","完成","完成")
-    readonly property string cancelledStatus: t("Cancelled","Annulé","Abgebrochen","Отменено","Annullato","已取消","已取消")
-    readonly property string errorStatus: t("Error","Erreur","Fehler","Ошибка","Errore","错误","錯誤")
-    readonly property string readyStatus: t("Ready","Prêt","Bereit","Готов","Pronto","就绪","就緒")
+    readonly property string errorPrefix: t("Error: ", "Erreur : ", "Fehler: ", "Ошибка: ", "Errore: ", "错误: ", "錯誤: ", "Error: ", "Erro: ")
+    readonly property string runningStatus: t("Running", "En cours", "Läuft", "Выполняется", "In corso", "运行中", "運行中", "En ejecución", "Em execução")
+    readonly property string completeStatus: t("Complete", "Terminé", "Abgeschlossen", "Завершено", "Completato", "完成", "完成", "Completado", "Concluído")
+    readonly property string cancelledStatus: t("Cancelled", "Annulé", "Abgebrochen", "Отменено", "Annullato", "已取消", "已取消", "Cancelado", "Cancelado")
+    readonly property string errorStatus: t("Error", "Erreur", "Fehler", "Ошибка", "Errore", "错误", "錯誤", "Error", "Erro")
+    readonly property string readyStatus: t("Ready", "Prêt", "Bereit", "Готов", "Pronto", "就绪", "就緒", "Listo", "Pronto")
 
     // ── Dashboard ──
-    readonly property string diagRunComplete: t("Diagnostic Run Complete","Diagnostic terminé","Diagnoselauf abgeschlossen","Диагностика завершена","Corsa diagnostica completata","诊断运行完成","診斷運行完成")
-    readonly property string targetLabel: t("Target: ","Cible : ","Ziel: ","Цель: ","Obiettivo: ","目标: ","目標: ")
-    readonly property string naLabel: t("N/A","N/D","k.A.","Н/Д","N/D","不适用","不適用")
+    readonly property string diagRunComplete: t("Diagnostic Run Complete", "Diagnostic terminé", "Diagnoselauf abgeschlossen", "Диагностика завершена", "Corsa diagnostica completata", "诊断运行完成", "診斷運行完成", "Ejecución de diagnóstico completada", "Execução de diagnóstico concluída")
+    readonly property string targetLabel: t("Target: ", "Cible : ", "Ziel: ", "Цель: ", "Obiettivo: ", "目标: ", "目標: ", "Objetivo: ", "Alvo: ")
+    readonly property string naLabel: t("N/A", "N/D", "k.A.", "Н/Д", "N/D", "不适用", "不適用", "N/D", "N/D")
 
     // ── Summary cards ──
-    readonly property string summaryPass: t("Pass","Réussi","Bestanden","Пройден","Superato","通过","通過")
-    readonly property string summaryWarning: t("Warning","Avertissement","Warnung","Предупреждение","Avviso","警告","警告")
-    readonly property string summaryFail: t("Fail","Échec","Fehlgeschlagen","Неудача","Fallito","失败","失敗")
-    readonly property string summarySkipped: t("Skipped","Ignoré","Übersprungen","Пропущено","Saltato","已跳过","已跳過")
-    readonly property string summaryInfo: t("Info","Info","Info","Инфо","Info","信息","資訊")
+    readonly property string summaryPass: t("Pass", "Réussi", "Bestanden", "Пройден", "Superato", "通过", "通過", "Correcto", "Aprovado")
+    readonly property string summaryWarning: t("Warning", "Avertissement", "Warnung", "Предупреждение", "Avviso", "警告", "警告", "Advertencia", "Aviso")
+    readonly property string summaryFail: t("Fail", "Échec", "Fehlgeschlagen", "Неудача", "Fallito", "失败", "失敗", "Fallido", "Falhou")
+    readonly property string summarySkipped: t("Skipped", "Ignoré", "Übersprungen", "Пропущено", "Saltato", "已跳过", "已跳過", "Omitido", "Ignorado")
+    readonly property string summaryInfo: t("Info", "Info", "Info", "Инфо", "Info", "信息", "資訊", "Info", "Info")
 
     // ── TestResultItem ──
-    readonly property string diagRunning: t("Running...","En cours...","Läuft...","Выполняется...","In corso...","运行中...","運行中...")
+    readonly property string diagRunning: t("Running...", "En cours...", "Läuft...", "Выполняется...", "In corso...", "运行中...", "運行中...", "Ejecutando...", "Executando...")
 
     // ── Placeholder ──
-    readonly property string placeholderMsg: t("SMTP configuration is a placeholder and will be implemented in a future update.",
-        "La configuration SMTP est un espace réservé et sera implémentée dans une prochaine mise à jour.",
-        "Die SMTP-Konfiguration ist ein Platzhalter und wird in einem zukünftigen Update implementiert.",
-        "Конфигурация SMTP является заполнителем и будет реализована в будущем обновлении.",
-        "La configurazione SMTP è un segnaposto e sarà implementata in un futuro aggiornamento.",
-        "SMTP配置为占位符，将在未来的更新中实现。","SMTP配置為預留位置，將在未來的更新中實現。")
+    readonly property string placeholderMsg: t("SMTP configuration is a placeholder and will be implemented in a future update.", "La configuration SMTP est un espace réservé et sera implémentée dans une prochaine mise à jour.", "Die SMTP-Konfiguration ist ein Platzhalter und wird in einem zukünftigen Update implementiert.", "Конфигурация SMTP является заполнителем и будет реализована в будущем обновлении.", "La configurazione SMTP è un segnaposto e sarà implementata in un futuro aggiornamento.", "SMTP配置为占位符，将在未来的更新中实现。", "SMTP配置為預留位置，將在未來的更新中實現。", "La configuración SMTP es un marcador de posición y se implementará en una futura actualización.", "A configuração SMTP é um espaço reservado e será implementada em uma atualização futura.")
 
     // ── Test names (all 38, ids 0-37) ──
     function diagName(id) {
         if (lang <= 0) return ""  // English uses C++ names directly
         var names = {
-            0:  t("Network Adapters","Adaptateurs réseau","Netzwerkadapter","Сетевые адаптеры","Schede di rete","网络适配器","網路適配器"),
-            1:  t("NIC Advanced","Carte réseau avancée","Erweiterte NIC","NIC расширенный","NIC avanzata","NIC高级","NIC進階"),
-            2:  t("WiFi Information","Informations WiFi","WLAN-Information","Информация о WiFi","Informazioni WiFi","WiFi信息","WiFi資訊"),
-            3:  t("Wired Information","Informations filaire","Kabelgebundene Information","Информация о проводной сети","Informazioni cablate","有线信息","有線資訊"),
-            4:  t("DHCP Status","Statut DHCP","DHCP-Status","Статус DHCP","Stato DHCP","DHCP状态","DHCP狀態"),
-            5:  t("IP Configuration","Configuration IP","IP-Konfiguration","IP конфигурация","Configurazione IP","IP配置","IP配置"),
-            6:  t("Active Connections","Connexions actives","Aktive Verbindungen","Активные соединения","Connessioni attive","活动连接","活動連接"),
-            7:  t("Network Profile","Profil réseau","Netzwerkprofil","Сетевой профиль","Profilo di rete","网络配置文件","網路設定檔"),
-            8:  t("TCP Settings","Paramètres TCP","TCP-Einstellungen","Настройки TCP","Impostazioni TCP","TCP设置","TCP設定"),
-            9:  t("Default Gateway","Passerelle par défaut","Standardgateway","Шлюз по умолчанию","Gateway predefinito","默认网关","默認閘道"),
-            10: t("Routing Table","Table de routage","Routingtabelle","Таблица маршрутизации","Tabella di routing","路由表","路由表"),
-            11: t("ARP Table","Table ARP","ARP-Tabelle","ARP таблица","Tabella ARP","ARP表","ARP表"),
-            12: t("Proxy Settings","Paramètres proxy","Proxy-Einstellungen","Настройки прокси","Impostazioni proxy","代理设置","代理設定"),
-            13: t("Netskope Status","Statut Netskope","Netskope-Status","Статус Netskope","Stato Netskope","Netskope状态","Netskope狀態"),
-            14: t("DNS Servers","Serveurs DNS","DNS-Server","DNS серверы","Server DNS","DNS服务器","DNS伺服器"),
-            15: t("DNS Cache","Cache DNS","DNS-Cache","DNS кэш","Cache DNS","DNS缓存","DNS快取"),
-            16: t("DNS Pollution","Pollution DNS","DNS-Verschmutzung","Загрязнение DNS","Inquinamento DNS","DNS污染","DNS污染"),
-            17: t("Internet Connectivity & Speed","Connectivité et débit","Internet & Geschwindigkeit","Интернет и скорость","Connettività e velocità","互联网连接与速度","網際網路連線與速度"),
-            18: t("Internet Connectivity & Speed","Connectivité et débit","Internet & Geschwindigkeit","Интернет и скорость","Connettività e velocità","互联网连接与速度","網際網路連線與速度"),
-            19: t("DNS Resolution","Résolution DNS","DNS-Auflösung","DNS разрешение","Risoluzione DNS","DNS解析","DNS解析"),
-            20: t("Ping","Ping","Ping","Пинг","Ping","Ping","Ping"),
-            21: t("Traceroute","Traceroute","Traceroute","Трассировка","Traceroute","路由追踪","路由追蹤"),
-            22: t("PathPing","PathPing","PathPing","PathPing","PathPing","路径Ping","路徑Ping"),
-            23: t("MTU Discovery","Découverte MTU","MTU-Erkennung","MTU обнаружение","Scoperta MTU","MTU发现","MTU發現"),
-            24: t("Port Scan","Scan de ports","Port-Scan","Сканирование портов","Scansione porte","端口扫描","端口掃描"),
-            25: t("URL Parsing","Analyse d'URL","URL-Analyse","Парсинг URL","Analisi URL","URL解析","URL解析"),
-            26: t("TCP Connect","Connexion TCP","TCP-Verbindung","TCP соединение","Connessione TCP","TCP连接","TCP連接"),
-            27: t("Service Banner","Bannière de service","Service-Banner","Баннер сервиса","Banner del servizio","服务横幅","服務橫幅"),
-            28: t("HTTP Request","Requête HTTP","HTTP-Anfrage","HTTP запрос","Richiesta HTTP","HTTP请求","HTTP請求"),
-            29: t("HTTP Headers","En-têtes HTTP","HTTP-Header","HTTP заголовки","Intestazioni HTTP","HTTP头","HTTP標頭"),
-            30: t("Security Headers","En-têtes de sécurité","Sicherheitsheader","Заголовки безопасности","Intestazioni sicurezza","安全头","安全標頭"),
-            31: t("SSL Certificate","Certificat SSL","SSL-Zertifikat","SSL сертификат","Certificato SSL","SSL证书","SSL憑證"),
-            32: t("HTTP Redirect","Redirection HTTP","HTTP-Weiterleitung","HTTP редирект","Reindirizzamento HTTP","HTTP重定向","HTTP重定向"),
-            33: t("HTTP Compression","Compression HTTP","HTTP-Komprimierung","HTTP сжатие","Compressione HTTP","HTTP压缩","HTTP壓縮"),
-            34: t("HTTP Timing","Chronométrage HTTP","HTTP-Timing","HTTP тайминг","Temporizzazione HTTP","HTTP计时","HTTP計時"),
-            35: t("FTP Diagnostics","Diagnostics FTP","FTP-Diagnose","FTP диагностика","Diagnostica FTP","FTP诊断","FTP診斷"),
-            36: t("SSH Diagnostics","Diagnostics SSH","SSH-Diagnose","SSH диагностика","Diagnostica SSH","SSH诊断","SSH診斷"),
-            37: t("Email Diagnostics","Diagnostics email","E-Mail-Diagnose","Диагностика почты","Diagnostica email","电子邮件诊断","電子郵件診斷"),
+            0:  t("Network Adapters", "Adaptateurs réseau", "Netzwerkadapter", "Сетевые адаптеры", "Schede di rete", "网络适配器", "網路適配器", "Adaptadores de red", "Adaptadores de rede"),
+            1:  t("NIC Advanced", "Carte réseau avancée", "Erweiterte NIC", "NIC расширенный", "NIC avanzata", "NIC高级", "NIC進階", "NIC avanzada", "NIC avançada"),
+            2:  t("WiFi Information", "Informations WiFi", "WLAN-Information", "Информация о WiFi", "Informazioni WiFi", "WiFi信息", "WiFi資訊", "Información WiFi", "Informações WiFi"),
+            3:  t("Wired Information", "Informations filaire", "Kabelgebundene Information", "Информация о проводной сети", "Informazioni cablate", "有线信息", "有線資訊", "Información por cable", "Informações com fio"),
+            4:  t("DHCP Status", "Statut DHCP", "DHCP-Status", "Статус DHCP", "Stato DHCP", "DHCP状态", "DHCP狀態", "Estado DHCP", "Estado DHCP"),
+            5:  t("IP Configuration", "Configuration IP", "IP-Konfiguration", "IP конфигурация", "Configurazione IP", "IP配置", "IP配置", "Configuración IP", "Configuração IP"),
+            6:  t("Active Connections", "Connexions actives", "Aktive Verbindungen", "Активные соединения", "Connessioni attive", "活动连接", "活動連接", "Conexiones activas", "Conexões ativas"),
+            7:  t("Network Profile", "Profil réseau", "Netzwerkprofil", "Сетевой профиль", "Profilo di rete", "网络配置文件", "網路設定檔", "Perfil de red", "Perfil de rede"),
+            8:  t("TCP Settings", "Paramètres TCP", "TCP-Einstellungen", "Настройки TCP", "Impostazioni TCP", "TCP设置", "TCP設定", "Configuración TCP", "Configurações TCP"),
+            9:  t("Default Gateway", "Passerelle par défaut", "Standardgateway", "Шлюз по умолчанию", "Gateway predefinito", "默认网关", "默認閘道", "Puerta de enlace predeterminada", "Gateway padrão"),
+            10: t("Routing Table", "Table de routage", "Routingtabelle", "Таблица маршрутизации", "Tabella di routing", "路由表", "路由表", "Tabla de enrutamiento", "Tabela de roteamento"),
+            11: t("ARP Table", "Table ARP", "ARP-Tabelle", "ARP таблица", "Tabella ARP", "ARP表", "ARP表", "Tabla ARP", "Tabela ARP"),
+            12: t("Proxy Settings", "Paramètres proxy", "Proxy-Einstellungen", "Настройки прокси", "Impostazioni proxy", "代理设置", "代理設定", "Configuración de proxy", "Configurações de proxy"),
+            13: t("Netskope Status", "Statut Netskope", "Netskope-Status", "Статус Netskope", "Stato Netskope", "Netskope状态", "Netskope狀態", "Estado de Netskope", "Estado do Netskope"),
+            14: t("DNS Servers", "Serveurs DNS", "DNS-Server", "DNS серверы", "Server DNS", "DNS服务器", "DNS伺服器", "Servidores DNS", "Servidores DNS"),
+            15: t("DNS Cache", "Cache DNS", "DNS-Cache", "DNS кэш", "Cache DNS", "DNS缓存", "DNS快取", "Caché DNS", "Cache DNS"),
+            16: t("DNS Pollution", "Pollution DNS", "DNS-Verschmutzung", "Загрязнение DNS", "Inquinamento DNS", "DNS污染", "DNS污染", "Contaminación DNS", "Poluição DNS"),
+            17: t("Internet Connectivity & Speed", "Connectivité et débit", "Internet & Geschwindigkeit", "Интернет и скорость", "Connettività e velocità", "互联网连接与速度", "網際網路連線與速度", "Conectividad y velocidad de Internet", "Conectividade e velocidade da Internet"),
+            18: t("Internet Connectivity & Speed", "Connectivité et débit", "Internet & Geschwindigkeit", "Интернет и скорость", "Connettività e velocità", "互联网连接与速度", "網際網路連線與速度", "Conectividad y velocidad de Internet", "Conectividade e velocidade da Internet"),
+            19: t("DNS Resolution", "Résolution DNS", "DNS-Auflösung", "DNS разрешение", "Risoluzione DNS", "DNS解析", "DNS解析", "Resolución DNS", "Resolução DNS"),
+            20: t("Ping", "Ping", "Ping", "Пинг", "Ping", "Ping", "Ping", "Ping", "Ping"),
+            21: t("Traceroute", "Traceroute", "Traceroute", "Трассировка", "Traceroute", "路由追踪", "路由追蹤", "Traceroute", "Traceroute"),
+            22: t("PathPing", "PathPing", "PathPing", "PathPing", "PathPing", "路径Ping", "路徑Ping", "PathPing", "PathPing"),
+            23: t("MTU Discovery", "Découverte MTU", "MTU-Erkennung", "MTU обнаружение", "Scoperta MTU", "MTU发现", "MTU發現", "Descubrimiento de MTU", "Descoberta de MTU"),
+            24: t("Port Scan", "Scan de ports", "Port-Scan", "Сканирование портов", "Scansione porte", "端口扫描", "端口掃描", "Escaneo de puertos", "Verificação de portas"),
+            25: t("URL Parsing", "Analyse d'URL", "URL-Analyse", "Парсинг URL", "Analisi URL", "URL解析", "URL解析", "Análisis de URL", "Análise de URL"),
+            26: t("TCP Connect", "Connexion TCP", "TCP-Verbindung", "TCP соединение", "Connessione TCP", "TCP连接", "TCP連接", "Conexión TCP", "Conexão TCP"),
+            27: t("Service Banner", "Bannière de service", "Service-Banner", "Баннер сервиса", "Banner del servizio", "服务横幅", "服務橫幅", "Banner de servicio", "Banner de serviço"),
+            28: t("HTTP Request", "Requête HTTP", "HTTP-Anfrage", "HTTP запрос", "Richiesta HTTP", "HTTP请求", "HTTP請求", "Solicitud HTTP", "Requisição HTTP"),
+            29: t("HTTP Headers", "En-têtes HTTP", "HTTP-Header", "HTTP заголовки", "Intestazioni HTTP", "HTTP头", "HTTP標頭", "Encabezados HTTP", "Cabeçalhos HTTP"),
+            30: t("Security Headers", "En-têtes de sécurité", "Sicherheitsheader", "Заголовки безопасности", "Intestazioni sicurezza", "安全头", "安全標頭", "Encabezados de seguridad", "Cabeçalhos de segurança"),
+            31: t("SSL Certificate", "Certificat SSL", "SSL-Zertifikat", "SSL сертификат", "Certificato SSL", "SSL证书", "SSL憑證", "Certificado SSL", "Certificado SSL"),
+            32: t("HTTP Redirect", "Redirection HTTP", "HTTP-Weiterleitung", "HTTP редирект", "Reindirizzamento HTTP", "HTTP重定向", "HTTP重定向", "Redirección HTTP", "Redirecionamento HTTP"),
+            33: t("HTTP Compression", "Compression HTTP", "HTTP-Komprimierung", "HTTP сжатие", "Compressione HTTP", "HTTP压缩", "HTTP壓縮", "Compresión HTTP", "Compressão HTTP"),
+            34: t("HTTP Timing", "Chronométrage HTTP", "HTTP-Timing", "HTTP тайминг", "Temporizzazione HTTP", "HTTP计时", "HTTP計時", "Tiempos HTTP", "Tempos HTTP"),
+            35: t("FTP Diagnostics", "Diagnostics FTP", "FTP-Diagnose", "FTP диагностика", "Diagnostica FTP", "FTP诊断", "FTP診斷", "Diagnóstico FTP", "Diagnóstico FTP"),
+            36: t("SSH Diagnostics", "Diagnostics SSH", "SSH-Diagnose", "SSH диагностика", "Diagnostica SSH", "SSH诊断", "SSH診斷", "Diagnóstico SSH", "Diagnóstico SSH"),
+            37: t("Email Diagnostics", "Diagnostics email", "E-Mail-Diagnose", "Диагностика почты", "Diagnostica email", "电子邮件诊断", "電子郵件診斷", "Diagnóstico de correo", "Diagnóstico de e-mail"),
         }
         return typeof names[id] === 'string' ? names[id] : ""
     }
@@ -214,63 +203,63 @@ Item {
     function diagDesc(id) {
         if (lang <= 0) return ""  // English: use C++ descriptions
         var descs = {
-            0:  t("List all network adapters and their operational state","Lister toutes les cartes réseau et leur état","Alle Netzwerkadapter und deren Betriebszustand auflisten","Список всех сетевых адаптеров и их состояние","Elenca tutte le schede di rete e il loro stato","列出所有网络适配器及其运行状态","列出所有網路適配器及其運行狀態"),
-            1:  t("Driver version, hardware info, and negotiated link speed","Version du pilote, infos matérielles et vitesse de liaison","Treiberversion, Hardware-Info und ausgehandelte Verbindungsgeschwindigkeit","Версия драйвера, информация об оборудовании и скорость соединения","Versione driver, info hardware e velocità di collegamento","驱动程序版本、硬件信息和协商链路速度","驅動程式版本、硬體資訊和協商鏈路速度"),
-            2:  t("Signal strength, SSID, channel, and link quality","Force du signal, SSID, canal et qualité de liaison","Signalstärke, SSID, Kanal und Verbindungsqualität","Уровень сигнала, SSID, канал и качество связи","Potenza segnale, SSID, canale e qualità collegamento","信号强度、SSID、信道和链路质量","訊號強度、SSID、頻道和鏈路品質"),
-            3:  t("Ethernet link status, speed, and duplex mode","État de la liaison Ethernet, vitesse et mode duplex","Ethernet-Verbindungsstatus, Geschwindigkeit und Duplexmodus","Статус Ethernet соединения, скорость и дуплексный режим","Stato collegamento Ethernet, velocità e modalità duplex","以太网链路状态、速度和双工模式","乙太網鏈路狀態、速度和雙工模式"),
-            4:  t("DHCP lease info, server address, and expiration","Infos de bail DHCP, adresse du serveur et expiration","DHCP-Lease-Info, Serveradresse und Ablauf","Информация о DHCP аренде, адрес сервера и срок действия","Info lease DHCP, indirizzo server e scadenza","DHCP租约信息、服务器地址和过期时间","DHCP租約資訊、伺服器位址和過期時間"),
-            5:  t("IP addresses, subnet mask, default gateway, DNS servers","Adresses IP, masque de sous-réseau, passerelle, serveurs DNS","IP-Adressen, Subnetzmaske, Standardgateway, DNS-Server","IP адреса, маска подсети, шлюз по умолчанию, DNS серверы","Indirizzi IP, subnet mask, gateway predefinito, server DNS","IP地址、子网掩码、默认网关、DNS服务器","IP位址、子網路遮罩、預設閘道、DNS伺服器"),
-            6:  t("TCP/UDP connections: ESTABLISHED, LISTENING, etc.","Connexions TCP/UDP: ÉTABLIES, EN ÉCOUTE, etc.","TCP/UDP-Verbindungen: HERGESTELLT, HÖREND, usw.","TCP/UDP соединения: УСТАНОВЛЕНО, ПРОСЛУШИВАЕТСЯ и т.д.","Connessioni TCP/UDP: STABILITE, IN ASCOLTO, ecc.","TCP/UDP连接：已建立、监听等","TCP/UDP連線：已建立、監聽等"),
-            7:  t("Active network profile type (Domain/Private/Public)","Type de profil réseau actif (Domaine/Privé/Public)","Aktiver Netzwerkprofiltyp (Domäne/Privat/Öffentlich)","Тип активного сетевого профиля (Доменный/Частный/Общественный)","Tipo profilo rete attivo (Dominio/Privato/Pubblico)","活动网络配置文件类型（域/专用/公用）","活動網路設定檔類型（網域/私人/公用）"),
-            8:  t("TCP/IP stack parameters and configurations","Paramètres et configuration de la pile TCP/IP","TCP/IP-Stack-Parameter und Konfiguration","Параметры и конфигурация стека TCP/IP","Parametri e configurazione stack TCP/IP","TCP/IP堆栈参数和配置","TCP/IP堆疊參數和組態"),
-            9:  t("Default gateway reachability and response time","Accessibilité et temps de réponse de la passerelle","Erreichbarkeit und Antwortzeit des Standardgateways","Доступность и время отклика шлюза по умолчанию","Raggiungibilità e tempo risposta gateway predefinito","默认网关可达性和响应时间","預設閘道可達性和回應時間"),
-            10: t("IPv4 and IPv6 routing table entries","Entrées de la table de routage IPv4 et IPv6","IPv4- und IPv6-Routingtabelleneinträge","Записи таблицы маршрутизации IPv4 и IPv6","Voci tabella routing IPv4 e IPv6","IPv4和IPv6路由表条目","IPv4和IPv6路由表條目"),
-            11: t("ARP cache entries for local network discovery","Entrées du cache ARP pour découverte réseau local","ARP-Cache-Einträge für lokale Netzwerkerkennung","Записи ARP кэша для обнаружения локальной сети","Voci cache ARP per rilevamento rete locale","ARP缓存条目用于本地网络发现","ARP快取條目用於本地網路探索"),
-            12: t("System proxy configuration and auto-detection","Configuration et détection automatique du proxy système","System-Proxy-Konfiguration und Auto-Erkennung","Конфигурация системного прокси и автоопределение","Configurazione proxy di sistema e rilevamento automatico","系统代理配置和自动检测","系統代理組態和自動偵測"),
-            13: t("Netskope client status and connection health","Statut du client Netskope et santé de la connexion","Netskope-Client-Status und Verbindungszustand","Статус клиента Netskope и состояние соединения","Stato client Netskope e salute connessione","Netskope客户端状态和连接健康","Netskope用戶端狀態和連線健康"),
-            14: t("Configured DNS servers and their responsiveness","Serveurs DNS configurés et leur réactivité","Konfigurierte DNS-Server und deren Reaktionsfähigkeit","Настроенные DNS серверы и их отзывчивость","Server DNS configurati e loro reattività","配置的DNS服务器及其响应性","設定的DNS伺服器及其回應性"),
-            15: t("DNS resolver cache entries and statistics","Entrées et statistiques du cache du résolveur DNS","DNS-Resolver-Cache-Einträge und Statistiken","Записи и статистика кэша DNS резолвера","Voci e statistiche cache resolver DNS","DNS解析器缓存条目和统计","DNS解析器快取條目和統計"),
-            16: t("Check for DNS hijacking or spoofing indicators","Vérification des indicateurs de détournement DNS","Prüfung auf DNS-Hijacking oder Spoofing","Проверка на признаки перехвата DNS","Controllo indicatori dirottamento DNS","检查DNS劫持或欺骗指标","檢查DNS劫持或欺騙指標"),
-            17: t("Connectivity check + Speedtest.net bandwidth test","Test de connectivité + bande passante Speedtest.net","Konnektivitätsprüfung + Speedtest.net-Bandbreitentest","Проверка соединения + тест скорости Speedtest.net","Controllo connettività + test larghezza di banda Speedtest.net","连接检查+Speedtest.net带宽测试","連線檢查+Speedtest.net頻寬測試"),
-            18: t("Connectivity check + Speedtest.net bandwidth test","Test de connectivité + bande passante Speedtest.net","Konnektivitätsprüfung + Speedtest.net-Bandbreitentest","Проверка соединения + тест скорости Speedtest.net","Controllo connettività + test larghezza di banda Speedtest.net","连接检查+Speedtest.net带宽测试","連線檢查+Speedtest.net頻寬測試"),
-            19: t("Resolve target hostname to IP address(es)","Résoudre le nom d'hôte cible en adresse(s) IP","Zielhostname in IP-Adresse(n) auflösen","Разрешить имя хоста цели в IP адрес(а)","Risolvi hostname target in indirizzo/i IP","将目标主机名解析为IP地址","將目標主機名稱解析為IP位址"),
-            20: t("TCP connect round-trip time and packet loss","Temps aller-retour de connexion TCP et perte de paquets","TCP-Verbindungsumlaufzeit und Paketverlust","Время кругового обхода TCP соединения и потеря пакетов","Tempo andata/ritorno connessione TCP e perdita pacchetti","TCP连接往返时间和丢包率","TCP連線往返時間和丟包率"),
-            21: t("Route path and per-hop latency to target","Chemin de route et latence par saut vers la cible","Routenpfad und Hop-Latenz zum Ziel","Путь маршрута и задержка на каждом хопе до цели","Percorso di route e latenza per hop verso target","到目标的路由路径和每跳延迟","到目標的路由路徑和每跳延遲"),
-            22: t("Combined traceroute and ping with per-hop loss","Traceroute et ping combinés avec perte par saut","Kombinierter Traceroute und Ping mit Hop-Verlust","Комбинированная трассировка и пинг с потерей на хопе","Traceroute e ping combinati con perdita per hop","组合路由追踪和ping及每跳丢包","組合路由追蹤和ping及每跳丟包"),
-            23: t("Path MTU discovery to target host","Découverte du MTU du chemin vers l'hôte cible","Pfad-MTU-Erkennung zum Zielhost","Обнаружение MTU пути к целевому хосту","Scoperta MTU percorso verso host target","到目标主机的路径MTU发现","到目標主機的路徑MTU發現"),
-            24: t("TCP port scan (common / custom range / both)","Scan de ports TCP (communs / plage personnalisée / les deux)","TCP-Port-Scan (gängig / benutzerdefinierter Bereich / beides)","Сканирование TCP портов (стандартные / пользовательский диапазон / оба)","Scansione porte TCP (comuni / intervallo personalizzato / entrambi)","TCP端口扫描（常用/自定义范围/两者）","TCP埠掃描（常用/自訂範圍/兩者）"),
-            25: t("Parse and validate the target URL components","Analyser et valider les composants de l'URL cible","Komponenten der Ziel-URL analysieren und validieren","Разбор и проверка компонентов целевого URL","Analizza e convalida i componenti URL target","解析和验证目标URL组件","解析和驗證目標URL元件"),
-            26: t("TCP connectivity check to the URL host on default port","Vérification de connectivité TCP vers l'hôte URL sur le port par défaut","TCP-Konnektivitätsprüfung zum URL-Host auf Standardport","Проверка TCP соединения с хостом URL на порту по умолчанию","Controllo connettività TCP all'host URL su porta predefinita","对URL主机的默认端口进行TCP连接检查","對URL主機的預設埠進行TCP連線檢查"),
-            27: t("Service banner detection for text-based protocols","Détection de bannière de service pour protocoles texte","Service-Banner-Erkennung für textbasierte Protokolle","Обнаружение баннера сервиса для текстовых протоколов","Rilevamento banner servizio per protocolli testuali","基于文本协议的服务横幅检测","基於文字協定的服務橫幅偵測"),
-            28: t("HTTP request/response headers and timing","En-têtes et chronométrage des requêtes/réponses HTTP","HTTP-Anfrage-/Antwort-Header und Timing","Заголовки и тайминг HTTP запросов/ответов","Intestazioni e temporizzazione richiesta/risposta HTTP","HTTP请求/响应头和计时","HTTP請求/回應標頭和計時"),
-            29: t("HTTP response headers from the target server","En-têtes de réponse HTTP du serveur cible","HTTP-Antwort-Header vom Zielserver","HTTP заголовки ответа от целевого сервера","Intestazioni risposta HTTP dal server target","来自目标服务器的HTTP响应头","來自目標伺服器的HTTP回應標頭"),
-            30: t("Security-related HTTP headers (HSTS, CSP, etc.)","En-têtes HTTP de sécurité (HSTS, CSP, etc.)","Sicherheitsrelevante HTTP-Header (HSTS, CSP, usw.)","Заголовки безопасности HTTP (HSTS, CSP и т.д.)","Intestazioni HTTP di sicurezza (HSTS, CSP, ecc.)","安全相关的HTTP头（HSTS、CSP等）","安全相關的HTTP標頭（HSTS、CSP等）"),
-            31: t("SSL/TLS certificate chain and validity check","Chaîne de certificats SSL/TLS et vérification de validité","SSL/TLS-Zertifikatskette und Gültigkeitsprüfung","Цепочка SSL/TLS сертификатов и проверка действительности","Catena certificati SSL/TLS e controllo validità","SSL/TLS证书链和有效性检查","SSL/TLS憑證鏈和有效性檢查"),
-            32: t("HTTP redirect chain and final destination","Chaîne de redirection HTTP et destination finale","HTTP-Weiterleitungskette und Endziel","Цепочка HTTP редиректов и конечный пункт","Catena reindirizzamento HTTP e destinazione finale","HTTP重定向链和最终目的地","HTTP重定向鏈和最終目的地"),
-            33: t("Supported compression methods and encoding","Méthodes de compression et encodage prises en charge","Unterstützte Komprimierungsmethoden und Kodierung","Поддерживаемые методы сжатия и кодирования","Metodi compressione e codifica supportati","支持的压缩方法和编码","支援的壓縮方法和編碼"),
-            34: t("HTTP request timing breakdown (DNS, connect, SSL, etc.)","Décomposition du chronométrage HTTP (DNS, connexion, SSL, etc.)","HTTP-Anfrage-Timing-Aufschlüsselung (DNS, Verbindung, SSL, usw.)","Разбивка тайминга HTTP запроса (DNS, соединение, SSL и т.д.)","Scomposizione temporizzazione richiesta HTTP (DNS, connessione, SSL, ecc.)","HTTP请求时间分解（DNS、连接、SSL等）","HTTP請求時間分解（DNS、連線、SSL等）"),
-            35: t("FTP service reachability and banner detection","Accessibilité du service FTP et détection de bannière","FTP-Diensterreichbarkeit und Banner-Erkennung","Доступность FTP сервиса и обнаружение баннера","Raggiungibilità servizio FTP e rilevamento banner","FTP服务可达性和横幅检测","FTP服務可達性和橫幅偵測"),
-            36: t("SSH version and key exchange detection","Version SSH et détection d'échange de clés","SSH-Version und Schlüsselaustauscherkennung","Обнаружение версии SSH и обмена ключами","Versione SSH e rilevamento scambio chiavi","SSH版本和密钥交换检测","SSH版本和金鑰交換偵測"),
-            37: t("SMTP/IMAP/POP3 service detection and banner","Détection de service SMTP/IMAP/POP3 et bannière","SMTP/IMAP/POP3-Diensterkennung und Banner","Обнаружение сервиса SMTP/IMAP/POP3 и баннера","Rilevamento servizio SMTP/IMAP/POP3 e banner","SMTP/IMAP/POP3服务检测和横幅","SMTP/IMAP/POP3服務偵測和橫幅"),
+            0:  t("List all network adapters and their operational state", "Lister toutes les cartes réseau et leur état", "Alle Netzwerkadapter und deren Betriebszustand auflisten", "Список всех сетевых адаптеров и их состояние", "Elenca tutte le schede di rete e il loro stato", "列出所有网络适配器及其运行状态", "列出所有網路適配器及其運行狀態", "Enumera todos los adaptadores de red y su estado operativo", "Lista todos os adaptadores de rede e seu estado operacional"),
+            1:  t("Driver version, hardware info, and negotiated link speed", "Version du pilote, infos matérielles et vitesse de liaison", "Treiberversion, Hardware-Info und ausgehandelte Verbindungsgeschwindigkeit", "Версия драйвера, информация об оборудовании и скорость соединения", "Versione driver, info hardware e velocità di collegamento", "驱动程序版本、硬件信息和协商链路速度", "驅動程式版本、硬體資訊和協商鏈路速度", "Versión del controlador, información de hardware y velocidad de enlace negociada", "Versão do driver, informações de hardware e velocidade de link negociada"),
+            2:  t("Signal strength, SSID, channel, and link quality", "Force du signal, SSID, canal et qualité de liaison", "Signalstärke, SSID, Kanal und Verbindungsqualität", "Уровень сигнала, SSID, канал и качество связи", "Potenza segnale, SSID, canale e qualità collegamento", "信号强度、SSID、信道和链路质量", "訊號強度、SSID、頻道和鏈路品質", "Intensidad de señal, SSID, canal y calidad del enlace", "Intensidade do sinal, SSID, canal e qualidade do link"),
+            3:  t("Ethernet link status, speed, and duplex mode", "État de la liaison Ethernet, vitesse et mode duplex", "Ethernet-Verbindungsstatus, Geschwindigkeit und Duplexmodus", "Статус Ethernet соединения, скорость и дуплексный режим", "Stato collegamento Ethernet, velocità e modalità duplex", "以太网链路状态、速度和双工模式", "乙太網鏈路狀態、速度和雙工模式", "Estado del enlace Ethernet, velocidad y modo dúplex", "Estado do link Ethernet, velocidade e modo duplex"),
+            4:  t("DHCP lease info, server address, and expiration", "Infos de bail DHCP, adresse du serveur et expiration", "DHCP-Lease-Info, Serveradresse und Ablauf", "Информация о DHCP аренде, адрес сервера и срок действия", "Info lease DHCP, indirizzo server e scadenza", "DHCP租约信息、服务器地址和过期时间", "DHCP租約資訊、伺服器位址和過期時間", "Información de concesión DHCP, dirección del servidor y expiración", "Informações de concessão DHCP, endereço do servidor e expiração"),
+            5:  t("IP addresses, subnet mask, default gateway, DNS servers", "Adresses IP, masque de sous-réseau, passerelle, serveurs DNS", "IP-Adressen, Subnetzmaske, Standardgateway, DNS-Server", "IP адреса, маска подсети, шлюз по умолчанию, DNS серверы", "Indirizzi IP, subnet mask, gateway predefinito, server DNS", "IP地址、子网掩码、默认网关、DNS服务器", "IP位址、子網路遮罩、預設閘道、DNS伺服器", "Direcciones IP, máscara de subred, puerta de enlace predeterminada, servidores DNS", "Endereços IP, máscara de sub-rede, gateway padrão, servidores DNS"),
+            6:  t("TCP/UDP connections: ESTABLISHED, LISTENING, etc.", "Connexions TCP/UDP: ÉTABLIES, EN ÉCOUTE, etc.", "TCP/UDP-Verbindungen: HERGESTELLT, HÖREND, usw.", "TCP/UDP соединения: УСТАНОВЛЕНО, ПРОСЛУШИВАЕТСЯ и т.д.", "Connessioni TCP/UDP: STABILITE, IN ASCOLTO, ecc.", "TCP/UDP连接：已建立、监听等", "TCP/UDP連線：已建立、監聽等", "Conexiones TCP/UDP: ESTABLECIDA, ESCUCHANDO, etc.", "Conexões TCP/UDP: ESTABELECIDA, ESCUTANDO, etc."),
+            7:  t("Active network profile type (Domain/Private/Public)", "Type de profil réseau actif (Domaine/Privé/Public)", "Aktiver Netzwerkprofiltyp (Domäne/Privat/Öffentlich)", "Тип активного сетевого профиля (Доменный/Частный/Общественный)", "Tipo profilo rete attivo (Dominio/Privato/Pubblico)", "活动网络配置文件类型（域/专用/公用）", "活動網路設定檔類型（網域/私人/公用）", "Tipo de perfil de red activo (Dominio/Privado/Público)", "Tipo de perfil de rede ativo (Domínio/Privado/Público)"),
+            8:  t("TCP/IP stack parameters and configurations", "Paramètres et configuration de la pile TCP/IP", "TCP/IP-Stack-Parameter und Konfiguration", "Параметры и конфигурация стека TCP/IP", "Parametri e configurazione stack TCP/IP", "TCP/IP堆栈参数和配置", "TCP/IP堆疊參數和組態", "Parámetros y configuraciones de la pila TCP/IP", "Parâmetros e configurações da pilha TCP/IP"),
+            9:  t("Default gateway reachability and response time", "Accessibilité et temps de réponse de la passerelle", "Erreichbarkeit und Antwortzeit des Standardgateways", "Доступность и время отклика шлюза по умолчанию", "Raggiungibilità e tempo risposta gateway predefinito", "默认网关可达性和响应时间", "預設閘道可達性和回應時間", "Accesibilidad y tiempo de respuesta de la puerta de enlace predeterminada", "Acessibilidade e tempo de resposta do gateway padrão"),
+            10: t("IPv4 and IPv6 routing table entries", "Entrées de la table de routage IPv4 et IPv6", "IPv4- und IPv6-Routingtabelleneinträge", "Записи таблицы маршрутизации IPv4 и IPv6", "Voci tabella routing IPv4 e IPv6", "IPv4和IPv6路由表条目", "IPv4和IPv6路由表條目", "Entradas de la tabla de enrutamiento IPv4 e IPv6", "Entradas da tabela de roteamento IPv4 e IPv6"),
+            11: t("ARP cache entries for local network discovery", "Entrées du cache ARP pour découverte réseau local", "ARP-Cache-Einträge für lokale Netzwerkerkennung", "Записи ARP кэша для обнаружения локальной сети", "Voci cache ARP per rilevamento rete locale", "ARP缓存条目用于本地网络发现", "ARP快取條目用於本地網路探索", "Entradas de caché ARP para el descubrimiento de la red local", "Entradas de cache ARP para descoberta da rede local"),
+            12: t("System proxy configuration and auto-detection", "Configuration et détection automatique du proxy système", "System-Proxy-Konfiguration und Auto-Erkennung", "Конфигурация системного прокси и автоопределение", "Configurazione proxy di sistema e rilevamento automatico", "系统代理配置和自动检测", "系統代理組態和自動偵測", "Configuración del proxy del sistema y detección automática", "Configuração de proxy do sistema e detecção automática"),
+            13: t("Netskope client status and connection health", "Statut du client Netskope et santé de la connexion", "Netskope-Client-Status und Verbindungszustand", "Статус клиента Netskope и состояние соединения", "Stato client Netskope e salute connessione", "Netskope客户端状态和连接健康", "Netskope用戶端狀態和連線健康", "Estado del cliente Netskope y salud de la conexión", "Estado do cliente Netskope e integridade da conexão"),
+            14: t("Configured DNS servers and their responsiveness", "Serveurs DNS configurés et leur réactivité", "Konfigurierte DNS-Server und deren Reaktionsfähigkeit", "Настроенные DNS серверы и их отзывчивость", "Server DNS configurati e loro reattività", "配置的DNS服务器及其响应性", "設定的DNS伺服器及其回應性", "Servidores DNS configurados y su capacidad de respuesta", "Servidores DNS configurados e sua capacidade de resposta"),
+            15: t("DNS resolver cache entries and statistics", "Entrées et statistiques du cache du résolveur DNS", "DNS-Resolver-Cache-Einträge und Statistiken", "Записи и статистика кэша DNS резолвера", "Voci e statistiche cache resolver DNS", "DNS解析器缓存条目和统计", "DNS解析器快取條目和統計", "Entradas y estadísticas de la caché del resolvedor DNS", "Entradas e estatísticas do cache do resolvedor DNS"),
+            16: t("Check for DNS hijacking or spoofing indicators", "Vérification des indicateurs de détournement DNS", "Prüfung auf DNS-Hijacking oder Spoofing", "Проверка на признаки перехвата DNS", "Controllo indicatori dirottamento DNS", "检查DNS劫持或欺骗指标", "檢查DNS劫持或欺騙指標", "Comprobar indicadores de secuestro o suplantación de DNS", "Verificar indicadores de sequestro ou falsificação de DNS"),
+            17: t("Connectivity check + Speedtest.net bandwidth test", "Test de connectivité + bande passante Speedtest.net", "Konnektivitätsprüfung + Speedtest.net-Bandbreitentest", "Проверка соединения + тест скорости Speedtest.net", "Controllo connettività + test larghezza di banda Speedtest.net", "连接检查+Speedtest.net带宽测试", "連線檢查+Speedtest.net頻寬測試", "Comprobación de conectividad + prueba de ancho de banda de Speedtest.net", "Verificação de conectividade + teste de largura de banda do Speedtest.net"),
+            18: t("Connectivity check + Speedtest.net bandwidth test", "Test de connectivité + bande passante Speedtest.net", "Konnektivitätsprüfung + Speedtest.net-Bandbreitentest", "Проверка соединения + тест скорости Speedtest.net", "Controllo connettività + test larghezza di banda Speedtest.net", "连接检查+Speedtest.net带宽测试", "連線檢查+Speedtest.net頻寬測試", "Comprobación de conectividad + prueba de ancho de banda de Speedtest.net", "Verificação de conectividade + teste de largura de banda do Speedtest.net"),
+            19: t("Resolve target hostname to IP address(es)", "Résoudre le nom d'hôte cible en adresse(s) IP", "Zielhostname in IP-Adresse(n) auflösen", "Разрешить имя хоста цели в IP адрес(а)", "Risolvi hostname target in indirizzo/i IP", "将目标主机名解析为IP地址", "將目標主機名稱解析為IP位址", "Resolver el nombre de host objetivo a dirección(es) IP", "Resolver o nome de host alvo para endereço(s) IP"),
+            20: t("TCP connect round-trip time and packet loss", "Temps aller-retour de connexion TCP et perte de paquets", "TCP-Verbindungsumlaufzeit und Paketverlust", "Время кругового обхода TCP соединения и потеря пакетов", "Tempo andata/ritorno connessione TCP e perdita pacchetti", "TCP连接往返时间和丢包率", "TCP連線往返時間和丟包率", "Tiempo de ida y vuelta de conexión TCP y pérdida de paquetes", "Tempo de ida e volta da conexão TCP e perda de pacotes"),
+            21: t("Route path and per-hop latency to target", "Chemin de route et latence par saut vers la cible", "Routenpfad und Hop-Latenz zum Ziel", "Путь маршрута и задержка на каждом хопе до цели", "Percorso di route e latenza per hop verso target", "到目标的路由路径和每跳延迟", "到目標的路由路徑和每跳延遲", "Ruta y latencia por salto hasta el objetivo", "Caminho da rota e latência por salto até o alvo"),
+            22: t("Combined traceroute and ping with per-hop loss", "Traceroute et ping combinés avec perte par saut", "Kombinierter Traceroute und Ping mit Hop-Verlust", "Комбинированная трассировка и пинг с потерей на хопе", "Traceroute e ping combinati con perdita per hop", "组合路由追踪和ping及每跳丢包", "組合路由追蹤和ping及每跳丟包", "Traceroute y ping combinados con pérdida por salto", "Traceroute e ping combinados com perda por salto"),
+            23: t("Path MTU discovery to target host", "Découverte du MTU du chemin vers l'hôte cible", "Pfad-MTU-Erkennung zum Zielhost", "Обнаружение MTU пути к целевому хосту", "Scoperta MTU percorso verso host target", "到目标主机的路径MTU发现", "到目標主機的路徑MTU發現", "Descubrimiento de MTU de ruta hasta el host objetivo", "Descoberta de MTU de caminho até o host alvo"),
+            24: t("TCP port scan (common / custom range / both)", "Scan de ports TCP (communs / plage personnalisée / les deux)", "TCP-Port-Scan (gängig / benutzerdefinierter Bereich / beides)", "Сканирование TCP портов (стандартные / пользовательский диапазон / оба)", "Scansione porte TCP (comuni / intervallo personalizzato / entrambi)", "TCP端口扫描（常用/自定义范围/两者）", "TCP埠掃描（常用/自訂範圍/兩者）", "Escaneo de puertos TCP (comunes / rango personalizado / ambos)", "Verificação de portas TCP (comuns / intervalo personalizado / ambos)"),
+            25: t("Parse and validate the target URL components", "Analyser et valider les composants de l'URL cible", "Komponenten der Ziel-URL analysieren und validieren", "Разбор и проверка компонентов целевого URL", "Analizza e convalida i componenti URL target", "解析和验证目标URL组件", "解析和驗證目標URL元件", "Analizar y validar los componentes de la URL objetivo", "Analisar e validar os componentes da URL alvo"),
+            26: t("TCP connectivity check to the URL host on default port", "Vérification de connectivité TCP vers l'hôte URL sur le port par défaut", "TCP-Konnektivitätsprüfung zum URL-Host auf Standardport", "Проверка TCP соединения с хостом URL на порту по умолчанию", "Controllo connettività TCP all'host URL su porta predefinita", "对URL主机的默认端口进行TCP连接检查", "對URL主機的預設埠進行TCP連線檢查", "Comprobación de conectividad TCP al host de la URL en el puerto predeterminado", "Verificação de conectividade TCP ao host da URL na porta padrão"),
+            27: t("Service banner detection for text-based protocols", "Détection de bannière de service pour protocoles texte", "Service-Banner-Erkennung für textbasierte Protokolle", "Обнаружение баннера сервиса для текстовых протоколов", "Rilevamento banner servizio per protocolli testuali", "基于文本协议的服务横幅检测", "基於文字協定的服務橫幅偵測", "Detección de banner de servicio para protocolos basados en texto", "Detecção de banner de serviço para protocolos baseados em texto"),
+            28: t("HTTP request/response headers and timing", "En-têtes et chronométrage des requêtes/réponses HTTP", "HTTP-Anfrage-/Antwort-Header und Timing", "Заголовки и тайминг HTTP запросов/ответов", "Intestazioni e temporizzazione richiesta/risposta HTTP", "HTTP请求/响应头和计时", "HTTP請求/回應標頭和計時", "Encabezados y tiempos de solicitud/respuesta HTTP", "Cabeçalhos e tempos de requisição/resposta HTTP"),
+            29: t("HTTP response headers from the target server", "En-têtes de réponse HTTP du serveur cible", "HTTP-Antwort-Header vom Zielserver", "HTTP заголовки ответа от целевого сервера", "Intestazioni risposta HTTP dal server target", "来自目标服务器的HTTP响应头", "來自目標伺服器的HTTP回應標頭", "Encabezados de respuesta HTTP del servidor objetivo", "Cabeçalhos de resposta HTTP do servidor alvo"),
+            30: t("Security-related HTTP headers (HSTS, CSP, etc.)", "En-têtes HTTP de sécurité (HSTS, CSP, etc.)", "Sicherheitsrelevante HTTP-Header (HSTS, CSP, usw.)", "Заголовки безопасности HTTP (HSTS, CSP и т.д.)", "Intestazioni HTTP di sicurezza (HSTS, CSP, ecc.)", "安全相关的HTTP头（HSTS、CSP等）", "安全相關的HTTP標頭（HSTS、CSP等）", "Encabezados HTTP de seguridad (HSTS, CSP, etc.)", "Cabeçalhos HTTP de segurança (HSTS, CSP, etc.)"),
+            31: t("SSL/TLS certificate chain and validity check", "Chaîne de certificats SSL/TLS et vérification de validité", "SSL/TLS-Zertifikatskette und Gültigkeitsprüfung", "Цепочка SSL/TLS сертификатов и проверка действительности", "Catena certificati SSL/TLS e controllo validità", "SSL/TLS证书链和有效性检查", "SSL/TLS憑證鏈和有效性檢查", "Cadena de certificados SSL/TLS y comprobación de validez", "Cadeia de certificados SSL/TLS e verificação de validade"),
+            32: t("HTTP redirect chain and final destination", "Chaîne de redirection HTTP et destination finale", "HTTP-Weiterleitungskette und Endziel", "Цепочка HTTP редиректов и конечный пункт", "Catena reindirizzamento HTTP e destinazione finale", "HTTP重定向链和最终目的地", "HTTP重定向鏈和最終目的地", "Cadena de redirección HTTP y destino final", "Cadeia de redirecionamento HTTP e destino final"),
+            33: t("Supported compression methods and encoding", "Méthodes de compression et encodage prises en charge", "Unterstützte Komprimierungsmethoden und Kodierung", "Поддерживаемые методы сжатия и кодирования", "Metodi compressione e codifica supportati", "支持的压缩方法和编码", "支援的壓縮方法和編碼", "Métodos de compresión y codificación admitidos", "Métodos de compressão e codificação suportados"),
+            34: t("HTTP request timing breakdown (DNS, connect, SSL, etc.)", "Décomposition du chronométrage HTTP (DNS, connexion, SSL, etc.)", "HTTP-Anfrage-Timing-Aufschlüsselung (DNS, Verbindung, SSL, usw.)", "Разбивка тайминга HTTP запроса (DNS, соединение, SSL и т.д.)", "Scomposizione temporizzazione richiesta HTTP (DNS, connessione, SSL, ecc.)", "HTTP请求时间分解（DNS、连接、SSL等）", "HTTP請求時間分解（DNS、連線、SSL等）", "Desglose de tiempos de solicitud HTTP (DNS, conexión, SSL, etc.)", "Detalhamento dos tempos de requisição HTTP (DNS, conexão, SSL, etc.)"),
+            35: t("FTP service reachability and banner detection", "Accessibilité du service FTP et détection de bannière", "FTP-Diensterreichbarkeit und Banner-Erkennung", "Доступность FTP сервиса и обнаружение баннера", "Raggiungibilità servizio FTP e rilevamento banner", "FTP服务可达性和横幅检测", "FTP服務可達性和橫幅偵測", "Accesibilidad del servicio FTP y detección de banner", "Acessibilidade do serviço FTP e detecção de banner"),
+            36: t("SSH version and key exchange detection", "Version SSH et détection d'échange de clés", "SSH-Version und Schlüsselaustauscherkennung", "Обнаружение версии SSH и обмена ключами", "Versione SSH e rilevamento scambio chiavi", "SSH版本和密钥交换检测", "SSH版本和金鑰交換偵測", "Detección de versión SSH e intercambio de claves", "Detecção de versão SSH e troca de chaves"),
+            37: t("SMTP/IMAP/POP3 service detection and banner", "Détection de service SMTP/IMAP/POP3 et bannière", "SMTP/IMAP/POP3-Diensterkennung und Banner", "Обнаружение сервиса SMTP/IMAP/POP3 и баннера", "Rilevamento servizio SMTP/IMAP/POP3 e banner", "SMTP/IMAP/POP3服务检测和横幅", "SMTP/IMAP/POP3服務偵測和橫幅", "Detección de servicio SMTP/IMAP/POP3 y banner", "Detecção de serviço SMTP/IMAP/POP3 e banner"),
         }
         return typeof descs[id] === 'string' ? descs[id] : ""
     }
 
     // ── Dashboard summary + common labels ──
-    readonly property string totalDiagsLabel: t("Total Diagnostics","Total diagnostics","Diagnosen insgesamt","Всего диагностик","Diagnostiche totali","总诊断数","總診斷數")
-    readonly property string totalTimeLabel: t("Total Time","Temps total","Gesamtzeit","Общее время","Tempo totale","总时间","總時間")
-    readonly property string completedLabel: t("Completed","Terminé","Abgeschlossen","Завершено","Completato","已完成","已完成")
-    readonly property string resetLabel: t("Reset","Réinitialiser","Zurücksetzen","Сброс","Ripristina","重置","重置")
-    readonly property string diagsSuffix: t(" tests"," tests"," Tests"," тестов"," test"," 个测试"," 個測試")
+    readonly property string totalDiagsLabel: t("Total Diagnostics", "Total diagnostics", "Diagnosen insgesamt", "Всего диагностик", "Diagnostiche totali", "总诊断数", "總診斷數", "Diagnósticos totales", "Diagnósticos totais")
+    readonly property string totalTimeLabel: t("Total Time", "Temps total", "Gesamtzeit", "Общее время", "Tempo totale", "总时间", "總時間", "Tiempo total", "Tempo total")
+    readonly property string completedLabel: t("Completed", "Terminé", "Abgeschlossen", "Завершено", "Completato", "已完成", "已完成", "Completado", "Concluído")
+    readonly property string resetLabel: t("Reset", "Réinitialiser", "Zurücksetzen", "Сброс", "Ripristina", "重置", "重置", "Restablecer", "Redefinir")
+    readonly property string diagsSuffix: t(" tests", " tests", " Tests", " тестов", " test", " 个测试", " 個測試", " pruebas", " testes")
 
     // ── Settings screen ──
-    readonly property string languageSection: t("Language","Langue","Sprache","Язык","Lingua","语言","語言")
-    readonly property string emailConfigSection: t("Email (SMTP) Configuration","Configuration email (SMTP)","E-Mail (SMTP) Konfiguration","Настройка email (SMTP)","Configurazione email (SMTP)","电子邮件(SMTP)配置","電子郵件(SMTP)配置")
-    readonly property string aboutSection: t("About","À propos","Über","О программе","Informazioni","关于","關於")
-    readonly property string smtpServerLabel: t("SMTP Server","Serveur SMTP","SMTP-Server","SMTP-сервер","Server SMTP","SMTP服务器","SMTP伺服器")
-    readonly property string portLabel: t("Port","Port","Port","Порт","Porta","端口","埠")
-    readonly property string usernameLabel: t("Username","Nom d'utilisateur","Benutzername","Имя пользователя","Nome utente","用户名","使用者名稱")
-    readonly property string passwordLabel: t("Password","Mot de passe","Passwort","Пароль","Password","密码","密碼")
-    readonly property string fromAddrLabel: t("From Address","Adresse d'expédition","Absenderadresse","Адрес отправителя","Indirizzo mittente","发件地址","發件地址")
-    readonly property string simulatorTitle: t("NetAnalysis Simulator","Simulateur NetAnalysis","NetAnalysis Simulator","Симулятор NetAnalysis","Simulatore NetAnalysis","NetAnalysis 模拟器","NetAnalysis 模擬器")
+    readonly property string languageSection: t("Language", "Langue", "Sprache", "Язык", "Lingua", "语言", "語言", "Idioma", "Idioma")
+    readonly property string emailConfigSection: t("Email (SMTP) Configuration", "Configuration email (SMTP)", "E-Mail (SMTP) Konfiguration", "Настройка email (SMTP)", "Configurazione email (SMTP)", "电子邮件(SMTP)配置", "電子郵件(SMTP)配置", "Configuración de correo (SMTP)", "Configuração de e-mail (SMTP)")
+    readonly property string aboutSection: t("About", "À propos", "Über", "О программе", "Informazioni", "关于", "關於", "Acerca de", "Sobre")
+    readonly property string smtpServerLabel: t("SMTP Server", "Serveur SMTP", "SMTP-Server", "SMTP-сервер", "Server SMTP", "SMTP服务器", "SMTP伺服器", "Servidor SMTP", "Servidor SMTP")
+    readonly property string portLabel: t("Port", "Port", "Port", "Порт", "Porta", "端口", "埠", "Puerto", "Porta")
+    readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
+    readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
+    readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")
+    readonly property string simulatorTitle: t("NetAnalysis Simulator", "Simulateur NetAnalysis", "NetAnalysis Simulator", "Симулятор NetAnalysis", "Simulatore NetAnalysis", "NetAnalysis 模拟器", "NetAnalysis 模擬器", "Simulador NetAnalysis", "Simulador NetAnalysis")
 }
