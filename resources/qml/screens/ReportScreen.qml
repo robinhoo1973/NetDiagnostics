@@ -90,19 +90,15 @@ Item {
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
         contentWidth: width
-        contentHeight: holder.height
+        contentHeight: reportCol.implicitHeight + (page.isMobile ? 30 : 52)
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        Item {
-            id: holder
-            width: reportFlick.width
-            height: Math.max(reportFlick.height, reportCol.implicitHeight + (page.isMobile ? 24 : 40))
-
-            ColumnLayout {
-                id: reportCol
-                width: Math.min(440, reportFlick.width - (page.isMobile ? 32 : 80))
-                anchors.centerIn: parent
-                spacing: 0
+        ColumnLayout {
+            id: reportCol
+            x: (reportFlick.width - width) / 2
+            y: page.isMobile ? 14 : 24
+            width: Math.min(440, reportFlick.width - (page.isMobile ? 32 : 80))
+            spacing: 0
 
             // Icon container
             Rectangle {
@@ -170,7 +166,6 @@ Item {
                 }
             }
             Item { Layout.preferredHeight: page.isMobile ? 16 : 40 }
-            }
         }
     }
 
@@ -240,8 +235,8 @@ Item {
                             color: "#1A1A2E"
                             wrapMode: Text.WordWrap
                             font.pixelSize: 13
-                            font.family: "Georgia"
-                            lineHeight: 1.3
+                            font.family: "Helvetica"
+                            lineHeight: 1.35
                         }
                     }
                 }
