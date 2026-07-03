@@ -12,8 +12,14 @@ Item {
     // Listen for restore-purchases result
     Connections {
         target: appState
-        function onRestoreCompleted(restoredAny) {
-            restoreToast.text = restoredAny ? Tr.restoreOk : Tr.restoreFail
+        function onRestoreCompleted(restoredAny, isError) {
+            if (isError) {
+                restoreToast.text = Tr.restoreError
+            } else if (restoredAny) {
+                restoreToast.text = Tr.restoreOk
+            } else {
+                restoreToast.text = Tr.restoreFail
+            }
             restoreToastTimer.restart()
         }
     }
