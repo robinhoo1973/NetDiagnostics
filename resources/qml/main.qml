@@ -9,28 +9,37 @@ ApplicationWindow {
     minimumWidth: 360; minimumHeight: 400
     color: Theme.bgDark
 
-    Component.onCompleted: {
-        // Defer screen geometry read until the window is mapped to a screen
-        // (root.screen is null before the window is shown).
-        Qt.callLater(function() {
-            var scr = root.screen
-            if (!scr) return  // guard: window not yet assigned to a screen
+    // ── Window sizing: 90% of current screen, centered ──
+    // Uses onScreenChanged instead of Component.onCompleted + Qt.callLater
+    // because: (1) it fires when the window is first mapped to a screen
+    // (screen transitions from null), and (2) it fires on every monitor
+    // migration, so the window re-sizes correctly when dragged between
+    // screens of different resolutions.
+    function sizeToScreen() {
+        var scr = root.screen
+        if (!scr) return  // guard: window not yet assigned to a screen
 
-            // Use availableGeometry (QRect) — contains x, y, width, height
-            // of the current screen's usable area.  DO NOT use
-            // desktopAvailableWidth/Height — those span the entire virtual
-            // desktop across all monitors, the root cause of oversize windows.
-            var ag = scr.availableGeometry
+        // Use availableGeometry (QRect) — contains x, y, width, height of
+        // the current screen's usable area.  DO NOT use desktopAvailableWidth
+        // /Height — those span the entire virtual desktop across all monitors,
+        // the root cause of the oversize-window bug.
+        var ag = scr.availableGeometry
 
-            // 90% of the current screen's usable area.
-            width  = ag.width  * 0.9
-            height = ag.height * 0.9
+        // 90% of the current screen's usable area.
+        width  = ag.width  * 0.9
+        height = ag.height * 0.9
 
-            // Center on the current screen.
-            x = ag.x + (ag.width  - width)  / 2
-            y = ag.y + (ag.height - height) / 2
-        })
+        // Center on the current screen.
+        x = ag.x + (ag.width  - width)  / 2
+        y = ag.y + (ag.height - height) / 2
     }
+
+    Connections {
+        target: root
+        function onScreenChanged(screen) { if (screen) sizeToScreen() }
+    }
+
+    Component.onCompleted: sizeToScreen()
 
     // ── Monospace font — loaded once at root, inherited by all child Labels ──
     // Setting font.family on the Window propagates to every Item/Label in the
