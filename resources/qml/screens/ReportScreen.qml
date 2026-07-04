@@ -86,24 +86,18 @@ Item {
     // when it fits and lets it scroll when it's taller than the viewport (portrait),
     // so nothing is clipped off-screen.
     //
-    // contentHeight is set imperatively via syncContentHeight(), which fires
-    // AFTER the ColumnLayout's deferred layout pass completes (onHeightChanged
-    // signals that the layout has set the actual height).  We cannot use a
-    // declarative binding on implicitHeight or childrenRect because both are
-    // computed during the deferred pass — a binding re-evaluates synchronously
-    // on dependency change and reads a stale value.
+    // contentHeight binds to reportCol.height — the ACTUAL allocated height
+    // set by the Layout manager during the deferred layout pass.  Unlike
+    // implicitHeight (a preferred-size hint), height has a direct NOTIFY
+    // signal that fires synchronously when the Layout sets the new value,
+    // so the declarative binding always re-evaluates with the correct size.
     Flickable {
         id: reportFlick
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
         contentWidth: width
-        // Initial value — updated by syncContentHeight() after layout
-        contentHeight: reportCol.y + reportCol.implicitHeight + (page.isMobile ? 30 : 52)
+        contentHeight: reportCol.y + reportCol.height + (page.isMobile ? 30 : 52)
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-
-        function syncContentHeight() {
-            contentHeight = reportCol.y + reportCol.implicitHeight + (page.isMobile ? 30 : 52)
-        }
 
         ColumnLayout {
             id: reportCol
@@ -116,10 +110,6 @@ Item {
             width: page.isMobile ? reportFlick.width * 0.94 : reportFlick.width - 80
             spacing: 0
 
-            // After the deferred Layout pass finishes and the actual height
-            // is set, update the Flickable's contentHeight imperatively.
-            onHeightChanged: reportFlick.syncContentHeight()
-
             // Icon container
             Rectangle {
                 Layout.preferredWidth: page.isMobile ? 72 : 100; Layout.preferredHeight: page.isMobile ? 72 : 100
@@ -130,11 +120,13 @@ Item {
             }
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
-            // Title
+            // Title — fill column width so long translations fit
             Label {
+                Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 text: Tr.reportPreview
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: Theme.textPrimary
+                elide: Text.ElideRight; maximumLineCount: 1
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
 
@@ -180,10 +172,12 @@ Item {
                     AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: "white" }
                     Item { width: 8 }
                     Label {
+                        Layout.fillWidth: true
                         text: page.isRunning ? Tr.runningStatus
                               : (hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults)
                         font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
                         color: page.isRunning ? Theme.cyan : (hasResults ? Theme.passGreen : Theme.warnYellow)
+                        elide: Text.ElideRight
                     }
                 }
             }
