@@ -12,8 +12,8 @@ ApplicationWindow {
     Component.onCompleted: {
         var dw = Screen.desktopAvailableWidth
         var dh = Screen.desktopAvailableHeight
-        width = Math.max(800, dw * 0.9)
-        height = Math.max(500, dh * 0.9)
+        width = dw * 0.9
+        height = dh * 0.9
         x = Math.max(0, (dw - width) / 2)
         y = Math.max(0, (dh - height) / 2)
     }
