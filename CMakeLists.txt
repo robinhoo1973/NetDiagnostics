@@ -148,8 +148,7 @@ function(configure_netdiag_target TARGET)
 
     if(NO_CURL)
         target_compile_definitions(${TARGET} PRIVATE NO_CURL)
-    endif()
-    if(NOT (IOS OR ANDROID))
+    elseif(NOT (IOS OR ANDROID))
         target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
     endif()
 
@@ -173,12 +172,15 @@ if(APPLE AND NOT IOS)
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-        MACOSX_BUNDLE_ICON_FILE "netanalysis.icns"
     )
-    set_source_files_properties(
-        "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns"
-        PROPERTIES MACOSX_PACKAGE_LOCATION "Resources"
-    )
+    if(EXISTS "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns")
+        set_target_properties(net_diagnostic PROPERTIES
+            MACOSX_BUNDLE_ICON_FILE "netanalysis.icns")
+        set_source_files_properties(
+            "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns"
+            PROPERTIES MACOSX_PACKAGE_LOCATION "Resources"
+        )
+    endif()
 endif()
 
 # iOS: configure app bundle metadata
