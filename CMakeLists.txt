@@ -79,7 +79,7 @@ set(QML_RESOURCES
     resources/resources.qrc
 )
 
-qt_add_executable(net_diagnostic ${SOURCES} ${QML_RESOURCES})
+qt_add_executable(net_diagnostic WIN32 ${SOURCES} ${QML_RESOURCES})
 
 # Android: enable APK target generation (Qt 6.5+ auto-generates apk target
 # when QT_ANDROID_PACKAGE_SOURCE_DIR is set)
