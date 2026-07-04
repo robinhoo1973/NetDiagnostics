@@ -16,8 +16,8 @@
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define INSTALLER_NAME   "NetDiagnostic-Windows-x86_64.exe"
 !define MAIN_EXE         "net_diagnostic.exe"
-!define SOURCE_DIR       "dist\installer"
-!define OUTPUT_DIR       "dist"
+!define SOURCE_DIR       "${SOURCE_DIR_WIN}"
+!define OUTPUT_DIR       "${OUTDIR_WIN}"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "${OUTPUT_DIR}\${INSTALLER_NAME}"
@@ -27,8 +27,8 @@ RequestExecutionLevel admin
 
 ; --- Interface settings ---
 !define MUI_ABORTWARNING
-!define MUI_ICON "resources\icons\netanalysis.ico"
-!define MUI_UNICON "resources\icons\netanalysis.ico"
+!define MUI_ICON "${ICON_WIN}"
+!define MUI_UNICON "${ICON_WIN}"
 
 ; --- Pages ---
 !insertmacro MUI_PAGE_WELCOME

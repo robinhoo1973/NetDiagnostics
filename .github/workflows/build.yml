@@ -443,10 +443,14 @@ jobs:
       - name: Build NSIS installer
         shell: msys2 {0}
         run: |
+          cd "$GITHUB_WORKSPACE"
           mkdir -p dist/installer
           cp dist/netdiag-win-x86_64.exe dist/installer/net_diagnostic.exe
           cp dist/netdiag-sim-win-x86_64.exe dist/installer/ 2>/dev/null || true
-          makensis scripts/installer/NetDiagnostic.nsi
+          makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
+                   -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
+                   -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
+                   scripts/installer/NetDiagnostic.nsi
           ls -lh dist/NetDiagnostic-Windows-x86_64.exe
 
       - name: Upload artifacts
