@@ -75,7 +75,7 @@ jobs:
           Version: 0.0.1
           Architecture: amd64
           Maintainer: robinhoo1973
-          Depends: libqt6core6t64, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64
+          Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostic-Linux-x86_64.deb
@@ -159,7 +159,7 @@ jobs:
           Version: 0.0.1
           Architecture: arm64
           Maintainer: robinhoo1973
-          Depends: libqt6core6t64, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64
+          Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostic-Linux-arm64.deb
