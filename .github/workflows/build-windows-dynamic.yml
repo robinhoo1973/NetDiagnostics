@@ -1,0 +1,81 @@
+name: Windows Dynamic Build
+
+on:
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  windows-dynamic:
+    name: Windows x86_64 (dynamic Qt6 + NSIS)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-curl
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-declarative
+            mingw-w64-ucrt-x86_64-qt6-quickcontrols2
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-qt6-translations
+            mingw-w64-ucrt-x86_64-nsis
+
+      - name: Build Production + Simulator
+        shell: msys2 {0}
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -B build -S .
+          ninja -C build net_diagnostic
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -B build-sim -S .
+          ninja -C build-sim net_diagnostic_sim
+
+      - name: Deploy Qt DLLs (windeployqt)
+        shell: msys2 {0}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p dist/installer
+          cp build/net_diagnostic.exe dist/installer/
+          cp build-sim/net_diagnostic_sim.exe dist/installer/ 2>/dev/null || true
+          windeployqt dist/installer/net_diagnostic.exe \
+            --qmldir resources/qml \
+            --no-translations \
+            --no-compiler-runtime
+          # Also deploy for sim if it exists
+          if [ -f dist/installer/net_diagnostic_sim.exe ]; then
+            windeployqt dist/installer/net_diagnostic_sim.exe \
+              --qmldir resources/qml \
+              --no-translations \
+              --no-compiler-runtime
+          fi
+          echo "=== Deployed files ==="
+          ls -R dist/installer/
+
+      - name: Build NSIS installer
+        shell: msys2 {0}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
+                   -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
+                   -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
+                   -DPRODUCT_VERSION="0.0.1-dynamic" \
+                   scripts/installer/NetDiagnostic.nsi
+          ls -lh dist/NetDiagnostic-Windows-x86_64.exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-Windows-x86_64-dynamic
+          path: |
+            dist/NetDiagnostic-Windows-x86_64.exe
+          if-no-files-found: error
