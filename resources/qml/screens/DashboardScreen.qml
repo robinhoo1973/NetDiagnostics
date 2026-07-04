@@ -38,7 +38,7 @@ Item {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: "dashboard"; size: 20; color: Theme.cyan }
             Item { width: 10 }
-            Label { text: Tr.dashboard; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+            Label { text: Tr.dashboard; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
             Item { Layout.fillWidth: true }
             // Reset button (Flutter: IconButton refresh)
             Rectangle {
@@ -46,7 +46,7 @@ Item {
                 implicitWidth: 60; implicitHeight: 32; radius: 6; color: "transparent"
                 border { width: 1; color: "#5A5A7A" }
                 MouseArea { anchors.fill: parent; onClicked: appState.reset() }
-                Label { anchors.centerIn: parent; text: Tr.resetLabel; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
+                Label { anchors.centerIn: parent; text: Tr.resetLabel; font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textSecondary }
             }
         }
     }
@@ -55,8 +55,8 @@ Item {
     Column {
         anchors.centerIn: parent; spacing: 16; visible: !hasData
         AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(Theme.textPrimary, 0.15) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.noData; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runFromDiag; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; color: Qt.alpha(Theme.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
+        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.noData; font.family: Theme.monoFont; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
+        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runFromDiag; font.family: Theme.monoFont; font.pixelSize: 13; color: Qt.alpha(Theme.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
     }
 
     Flickable {
@@ -78,14 +78,14 @@ Item {
                     AppIcon { name: "check"; size: 28; color: Theme.passGreen }
                     Item { width: 14 }
                     ColumnLayout { spacing: 4
-                        Label { text: Tr.diagRunComplete; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.DemiBold; color: Theme.textPrimary }
+                        Label { text: Tr.diagRunComplete; font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: Theme.textPrimary }
                         RowLayout { spacing: 4
                             AppIcon { name: "target"; size: 12; color: Qt.alpha(Theme.textPrimary, 0.7) }
-                            Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
+                            Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textSecondary }
                         }
                         RowLayout { spacing: 4
                             AppIcon { name: "timer"; size: 12; color: Qt.alpha(Theme.textPrimary, 0.7) }
-                            Label { text: fmtTimestamp(); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
+                            Label { text: fmtTimestamp(); font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textSecondary }
                         }
                     }
                 }
@@ -96,7 +96,7 @@ Item {
             Item { Layout.preferredHeight: 32 }
 
             // ── Per-Group Results header ────────────────────────────────
-            Label { text: Tr.perGroup; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+            Label { text: Tr.perGroup; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
             Item { Layout.preferredHeight: 12 }
 
             Repeater {
@@ -117,7 +117,7 @@ Item {
                 Layout.fillWidth: true; implicitHeight: sumCol.implicitHeight + 32; radius: 12
                 color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
                 ColumnLayout { id: sumCol; anchors { fill: parent; margins: 16 }
-                    Label { text: Tr.summary; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+                    Label { text: Tr.summary; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     ColumnLayout {
                     Layout.fillWidth: true; spacing: 10
@@ -127,7 +127,7 @@ Item {
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2A2A4A"; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 12; visible: _totalCompleted > 0 }
-                    Label { text: Tr.layerTimings; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.textSecondary; visible: _totalCompleted > 0 }
+                    Label { text: Tr.layerTimings; font.family: Theme.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: Theme.textSecondary; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
                     Repeater {
                         model: {
@@ -142,8 +142,8 @@ Item {
                             visible: hasData
                             Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 2; color: Theme.accentBlue }
                             Item { width: 10 }
-                            Label { Layout.fillWidth: true; text: Tr.groupName(modelData); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textPrimary }
-                            Label { text: calcLayerTiming(modelData); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary }
+                            Label { Layout.fillWidth: true; text: Tr.groupName(modelData); font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textPrimary }
+                            Label { text: calcLayerTiming(modelData); font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textSecondary }
                         }
                     }
                 }
@@ -190,14 +190,14 @@ Item {
             RowLayout {
                 Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: Theme.accentBlue }
                 Item { width: 10 }
-                Label { Layout.fillWidth: true; text: Tr.groupName(groupIndex); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.textPrimary }
+                Label { Layout.fillWidth: true; text: Tr.groupName(groupIndex); font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: Theme.textPrimary }
                 DashboardBadge { accent: Theme.passGreen;  v: _stat.pass }
                 DashboardBadge { accent: Theme.warnYellow; v: _stat.warn }
                 DashboardBadge { accent: Theme.failRed;   v: _stat.fail }
                 DashboardBadge { accent: Theme.skipGray;  v: _stat.skip }
                 DashboardBadge { accent: Theme.accentBlue; v: _stat.info||0 }
                 Item { width: 8 }
-                Label { text: getDurFromResults(groupIndex); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textSecondary }
+                Label { text: getDurFromResults(groupIndex); font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textSecondary }
             }
             Rectangle { Layout.fillWidth: true; implicitHeight: 4; radius: 2; color: "#2A2A4A"
                 Rectangle {
@@ -213,8 +213,8 @@ Item {
                 delegate: RowLayout {
                     AppIcon { name: page.statusIcon(modelData.status); size: 10; color: "white" }
                     Item { width: 6 }
-                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; color:Theme.textSecondary; elide:Text.ElideRight }
-                    Label { text: page.fmtDur(modelData.durationMs); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:Qt.alpha(Theme.textSecondary,0.6) }
+                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:Theme.monoFont; font.pixelSize:11; color:Theme.textSecondary; elide:Text.ElideRight }
+                    Label { text: page.fmtDur(modelData.durationMs); font.family:Theme.monoFont; font.pixelSize:10; color:Qt.alpha(Theme.textSecondary,0.6) }
                 }
             }
         }
@@ -223,7 +223,7 @@ Item {
     component DashboardBadge: Rectangle {
         property color accent: Theme.passGreen; property int v: 0
         visible: v > 0; implicitWidth: 22; implicitHeight: 16; radius: 4; color: Qt.alpha(accent, 0.15)
-        Label { anchors.centerIn: parent; text: v; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; font.weight: Font.Bold; color: accent }
+        Label { anchors.centerIn: parent; text: v; font.family: Theme.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: accent }
     }
 
     component SummaryStat: RowLayout {
@@ -233,11 +233,11 @@ Item {
         AppIcon { name: appIcon; size: 16; color: clr; Layout.alignment: Qt.AlignVCenter }
         Label {
             Layout.fillWidth: true
-            text: lbl; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textSecondary
+            text: lbl; font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textSecondary
             elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
         }
         Label {
-            text: val; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: clr
+            text: val; font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: clr
             horizontalAlignment: Text.AlignRight; verticalAlignment: Text.AlignVCenter
         }
     }

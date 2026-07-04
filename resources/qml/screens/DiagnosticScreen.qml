@@ -160,7 +160,7 @@ Item {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 AppIcon { name: "wifi"; size: 20; color: Theme.cyan }
                 Item { width: 10 }
-                Label { text: "NetDiagnostics"; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
+                Label { text: "NetDiagnostics"; font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary }
             }
         }
 
@@ -173,7 +173,7 @@ Item {
         ColumnLayout {
             visible: !compact; spacing: 2
             Layout.leftMargin: 12; Layout.rightMargin: 12
-            Label { text: Tr.diagGroup; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
+            Label { text: Tr.diagGroup; font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
             Item { Layout.preferredHeight: 6 }
 
             // G1
@@ -185,7 +185,7 @@ Item {
                         enabled: !page._runActive
                         onClicked: appState.setGroupEnabled(0, cb0.checked) }
                     Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(0); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12 }
+                    Label { Layout.fillWidth: true; text: Tr.groupName(0); font.family:Theme.monoFont; font.pixelSize:12 }
                 }
             }
             // G2
@@ -197,7 +197,7 @@ Item {
                         enabled: !page._runActive
                         onClicked: appState.setGroupEnabled(1, cb1.checked) }
                     Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(1); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12 }
+                    Label { Layout.fillWidth: true; text: Tr.groupName(1); font.family:Theme.monoFont; font.pixelSize:12 }
                 }
             }
             // G3
@@ -209,7 +209,7 @@ Item {
                         enabled: !page._runActive
                         onClicked: appState.setGroupEnabled(2, cb2.checked) }
                     Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(2); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12 }
+                    Label { Layout.fillWidth: true; text: Tr.groupName(2); font.family:Theme.monoFont; font.pixelSize:12 }
                 }
             }
             // G4
@@ -221,7 +221,7 @@ Item {
                         enabled: !page._runActive && page._snapG3en
                         onClicked: appState.setGroupEnabled(3, cb3.checked) }
                     Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(3); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12 }
+                    Label { Layout.fillWidth: true; text: Tr.groupName(3); font.family:Theme.monoFont; font.pixelSize:12 }
                 }
             }
             // G5
@@ -233,7 +233,7 @@ Item {
                         enabled: !page._runActive && page._snapG4en
                         onClicked: appState.setGroupEnabled(4, cb4.checked) }
                     Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(4); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12 }
+                    Label { Layout.fillWidth: true; text: Tr.groupName(4); font.family:Theme.monoFont; font.pixelSize:12 }
                 }
             }
         }
@@ -286,13 +286,13 @@ Item {
                           appState.runStatus === 2 ? Tr.complete :
                           appState.runStatus === 3 ? Tr.cancelled :
                           appState.runStatus === 4 ? Tr.errorCheck : Tr.results
-                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary
+                    font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary
                 }
                 // Progress counter — visible during run
                 Label {
                     visible: appState.runStatus === 1 && appState.totalDiags > 0
                     text: appState.totalCompleted + " / " + appState.totalDiags
-                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
+                    font.family: Theme.monoFont; font.pixelSize: 12
                     font.weight: Font.DemiBold; color: Theme.cyan
                 }
                 Item { Layout.fillWidth: true }
@@ -306,7 +306,7 @@ Item {
                 anchors.centerIn: parent; spacing: 16
                 visible: appState.runStatus === 0 && appState.totalCompleted === 0
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "wifi"; size: 80; color: Qt.alpha(Theme.textPrimary, 0.15) }
-                Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runDiag; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
+                Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runDiag; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.Medium; color: Qt.alpha(Theme.textSecondary, 0.6) }
             }
             // Flickable results list — scrolls when content exceeds viewport
             Flickable {
@@ -406,19 +406,19 @@ Item {
                     id: detailCol; spacing: 8
                     // Allow Column to grow wider than viewport for horizontal scrolling
                     width: Math.max(parent.width, implicitWidth)
-                    Label { id: dtTitle; text: ""; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:16; font.weight:Font.DemiBold; color:"#FFFFFF"; elide:Text.ElideRight }
-                    Label { id: dtStatus; text: ""; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12; color:"#A0A0B8" }
-                    Label { id: dtSummary; text: ""; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12; color:"#E0E0E0"; wrapMode:Text.WordWrap }
+                    Label { id: dtTitle; text: ""; textFormat:Text.PlainText; font.family:Theme.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"#FFFFFF"; elide:Text.ElideRight }
+                    Label { id: dtStatus; text: ""; textFormat:Text.PlainText; font.family:Theme.monoFont; font.pixelSize:12; color:"#A0A0B8" }
+                    Label { id: dtSummary; text: ""; textFormat:Text.PlainText; font.family:Theme.monoFont; font.pixelSize:12; color:"#E0E0E0"; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: "#3A3A5A" }
                     Repeater {
                         model: currentDetail.properties || []
                         delegate: Row {
                             spacing: 4
-                            Label { text: (modelData["label"]||"?")+":"; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; font.weight:Font.DemiBold; color:"#A0A0B8"; width:120 }
-                            Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; color:"#E0E0E0"; wrapMode:Text.WordWrap }
+                            Label { text: (modelData["label"]||"?")+":"; textFormat:Text.PlainText; font.family:Theme.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:"#A0A0B8"; width:120 }
+                            Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:Theme.monoFont; font.pixelSize:11; color:"#E0E0E0"; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name + ", " + Theme.monoFont; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

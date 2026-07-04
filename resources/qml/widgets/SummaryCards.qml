@@ -12,8 +12,8 @@ ColumnLayout {
 
     // Header: "Summary" + "Total: N"
     RowLayout {
-        Label { Layout.fillWidth: true; text: Tr.summary; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-        Label { text: Tr.totalDiagsLabel + (pass+warn+fail+skip+info); font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.textSecondary }
+        Label { Layout.fillWidth: true; text: Tr.summary; font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
+        Label { text: Tr.totalDiagsLabel + (pass+warn+fail+skip+info); font.family: Theme.monoFont; font.pixelSize: 10; color: Theme.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
@@ -55,13 +55,13 @@ ColumnLayout {
             }
             Item { Layout.fillWidth: true }
             Label {
-                text: label; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; font.weight: Font.Medium
+                text: label; font.family: Theme.monoFont; font.pixelSize: 10; font.weight: Font.Medium
                 color: Qt.alpha(Theme.textSecondary, 0.8)
             }
             Item { width: 8 }
             Label {
                 text: ("   " + count).slice(-3)
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: accent
+                font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: accent
                 horizontalAlignment: Text.AlignRight
             }
         }

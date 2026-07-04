@@ -61,16 +61,16 @@ Rectangle {
             spacing: 8
             Rectangle { width:3; height:24; radius:2; color:isRunning?"#00BCD4":"#0078D4" }
             ColumnLayout { spacing:1
-                Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:13; font.weight:Font.DemiBold; color:"#E0E0E0" }
-                Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; font.italic:true; color:"#00BCD4"; elide:Text.ElideRight }
+                Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:Theme.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:"#E0E0E0" }
+                Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:Theme.monoFont; font.pixelSize:10; font.italic:true; color:"#00BCD4"; elide:Text.ElideRight }
             }
             Item { Layout.fillWidth:true }
-            Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:11; font.weight:Font.Medium; color:"#A0A0B8" }
-            Rectangle { visible:groupPass>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#4ADE80",0.15); Label { anchors.centerIn:parent; text:groupPass; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#4ADE80"; font.weight:Font.Bold } }
-            Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#FACC15",0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#FACC15"; font.weight:Font.Bold } }
-            Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#EF4444",0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#EF4444"; font.weight:Font.Bold } }
-            Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#888888",0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#888888"; font.weight:Font.Bold } }
-            Rectangle { visible:groupInfo>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#0078D4",0.15); Label { anchors.centerIn:parent; text:groupInfo; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#0078D4"; font.weight:Font.Bold } }
+            Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:Theme.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:"#A0A0B8" }
+            Rectangle { visible:groupPass>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#4ADE80",0.15); Label { anchors.centerIn:parent; text:groupPass; font.family:Theme.monoFont; font.pixelSize:10; color:"#4ADE80"; font.weight:Font.Bold } }
+            Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#FACC15",0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:Theme.monoFont; font.pixelSize:10; color:"#FACC15"; font.weight:Font.Bold } }
+            Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#EF4444",0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:Theme.monoFont; font.pixelSize:10; color:"#EF4444"; font.weight:Font.Bold } }
+            Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#888888",0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:Theme.monoFont; font.pixelSize:10; color:"#888888"; font.weight:Font.Bold } }
+            Rectangle { visible:groupInfo>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#0078D4",0.15); Label { anchors.centerIn:parent; text:groupInfo; font.family:Theme.monoFont; font.pixelSize:10; color:"#0078D4"; font.weight:Font.Bold } }
             Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:"#A0A0B8" }
         }
 

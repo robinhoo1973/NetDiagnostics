@@ -32,7 +32,7 @@ Item {
                 anchors { leftMargin: 16; rightMargin: 16 }
                 AppIcon { name: "config"; size: 20; color: Theme.cyan }
                 Item { width: 10 }
-                Label { text: Tr.diagConfig; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+                Label { text: Tr.diagConfig; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
             }
             // TabBar — Flutter: G1..G5 tabs
             Rectangle {
@@ -54,7 +54,7 @@ Item {
                             contentItem: Label {
                                 anchors.centerIn: parent
                                 text: "G" + (index + 1)
-                                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
+                                font.family: Theme.monoFont; font.pixelSize: 12
                                 font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
                                 color: index === currentGroup ? Theme.cyan : Theme.textSecondary
                             }
@@ -80,11 +80,11 @@ Item {
                 ColumnLayout { spacing: 2
                     Label {
                         text: Tr.groupName(currentGroup)
-                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.textPrimary
+                        font.family: Theme.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.textPrimary
                     }
                     Label {
                         text: getDiagCountForGroup(currentGroup) + Tr.diagsSuffix
-                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textSecondary
+                        font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textSecondary
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -96,7 +96,7 @@ Item {
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
                         AppIcon { name: "check"; size: 14; color: Theme.textPrimary }
-                        Label { text: Tr.selectAll; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textPrimary }
+                        Label { text: Tr.selectAll; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -113,7 +113,7 @@ Item {
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
                         AppIcon { name: "close"; size: 14; color: Theme.textPrimary }
-                        Label { text: Tr.deselectAll; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textPrimary }
+                        Label { text: Tr.deselectAll; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -157,13 +157,13 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             text: getDisplayName(modelData)
-                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.textPrimary
+                            font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.textPrimary
                             elide: Text.ElideRight
                         }
                         Label {
                             Layout.fillWidth: true
                             text: getDiagDescription(modelData)
-                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11
+                            font.family: Theme.monoFont; font.pixelSize: 11
                             color: Qt.alpha(Theme.textSecondary, 0.6)
                             elide: Text.ElideRight; maximumLineCount: 2
                             visible: text !== ""
