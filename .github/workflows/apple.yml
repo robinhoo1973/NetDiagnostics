@@ -195,7 +195,6 @@ jobs:
           security create-keychain -p "" "$MAC_KEYCHAIN"
           security unlock-keychain -p "" "$MAC_KEYCHAIN"
           security set-keychain-settings -lut 21600 "$MAC_KEYCHAIN"
-          security list-keychains -d user -s "$MAC_KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
           echo -n "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
             | base64 -d > "$RUNNER_TEMP/mac-dist-cert.p12"
           security import "$RUNNER_TEMP/mac-dist-cert.p12" \
