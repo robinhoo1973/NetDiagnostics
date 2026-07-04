@@ -1,0 +1,367 @@
+App Store Connect 提交清单 — NetDiagnostics
+============================================
+
+重要: 所有描述字段不要使用装饰字符 (━━━, ✓, ✗, ★, emoji 等).
+      App Store Connect 会报 "invalid characters" 错误.
+
+
+错误 1: "You must choose a build"
+--------------------------------
+解决: iOS App 1.0 页面 -> "构建版本" -> 选择 CI 上传的 build
+
+
+错误 2: "You must complete the Contact Information section"
+----------------------------------------------------------
+路径: App Store Connect -> 用户和访问 -> 编辑个人信息
+或: App 页面 -> App 信息 -> 联系信息
+
+
+错误 3: "You must enter a Privacy Policy URL" / App Privacy
+-----------------------------------------------------------
+A) 隐私政策文件: doc/privacy-policy.html
+
+B) 配置 GitHub Pages:
+   仓库 Settings -> Pages -> Source: Deploy from a branch
+   -> Branch: master -> /docs -> Save
+
+C) URL (等 Pages 生效后):
+   https://robinhoo1973.github.io/NetDiagnostics/privacy-policy.html
+
+D) App Store Connect -> App 隐私 -> 隐私政策 URL -> 填入上述 URL
+
+E) App 隐私 -> 数据收集: 全部选 "No" (不收集任何数据)
+
+
+错误 4: "You must set up Content Rights Information"
+-----------------------------------------------------
+路径: App 信息 -> 内容版权
+选择: "否" (此 App 不包含、展示或访问第三方内容)
+
+
+========================================================================
+ 所有语言: Support URL (统一)
+========================================================================
+
+https://github.com/robinhoo1973/NetDiagnostics/issues
+
+
+========================================================================
+ 所有语言: Privacy Policy URL (统一)
+========================================================================
+
+https://robinhoo1973.github.io/NetDiagnostics/privacy-policy.html
+
+
+========================================================================
+ English (U.S.) — Description (纯文本, 不含特殊字符)
+========================================================================
+
+NetDiagnostics is a professional cross-platform network diagnostic toolkit for IT professionals, developers, and power users. It runs on iOS, Android, Windows, macOS, and Linux.
+
+FIVE DIAGNOSTIC GROUPS (38 tests):
+
+System & Adapters (8 tests) — Network adapters, MAC addresses, DHCP servers, gateways, routing tables, active TCP/UDP connections, ARP table, and TCP settings.
+
+Connectivity & Security (6 tests) — Network profile, TCP/IP stack parameters, default gateway reachability, IPv4/IPv6 routing table, ARP cache, and system proxy configuration.
+
+Internet & DNS (5 tests) — DNS servers with latency benchmarking, DNS cache statistics, DNS pollution/hijacking detection, Netskope client status, and internet speed test.
+
+Remote Host (6 tests) — DNS resolution, ping with latency and jitter, traceroute, combined pathPing with per-hop loss, path MTU discovery, and TCP port scanning (common ports or custom 1-65535).
+
+Website / URL (13 tests) — URL parsing and validation, TCP connectivity check, service banner detection, HTTP request/response headers, security headers (HSTS, CSP), SSL/TLS certificate chain, HTTP redirect chain, compression methods, request timing breakdown, plus FTP, SSH, and Email diagnostics.
+
+KEY FEATURES:
+- Real-time diagnostic engine with live result streaming
+- PDF and HTML reports with export and sharing
+- Custom port scanning (common ports or 1-65535)
+- Dark theme UI, 9 interface languages
+- Premium one-time purchase unlocks report sharing
+- Works offline for local diagnostics
+- No data collection: your network data stays on your device
+
+
+========================================================================
+ English (U.S.) — Keywords
+========================================================================
+
+network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
+
+
+========================================================================
+ 简体中文 — Description (纯文本)
+========================================================================
+
+网络诊断(NetDiagnostics)是一款专业的跨平台网络诊断工具，适用于IT运维人员、开发者和高级用户。支持iOS、Android、Windows、macOS和Linux。
+
+五大诊断组(共38项测试):
+
+系统和适配器(8项) — 网卡信息、MAC地址、DHCP服务器、网关、路由表、活动TCP/UDP连接、ARP表、TCP设置。
+
+连接与安全(6项) — 网络配置文件、TCP/IP参数、默认网关可达性、路由表、ARP缓存、系统代理配置。
+
+互联网与DNS(5项) — DNS服务器延迟测试、DNS缓存统计、DNS污染检测、Netskope客户端状态、互联网速度测试。
+
+远程主机(6项) — DNS解析、Ping延迟与抖动、路由追踪、路径Ping、MTU发现、TCP端口扫描(常用端口或自定义范围1-65535)。
+
+网站/URL(13项) — URL解析验证、TCP连接检查、服务横幅检测、HTTP请求响应头、安全头(HSTS/CSP)、SSL/TLS证书链、HTTP重定向、压缩方法、请求计时、FTP/SSH/邮件诊断。
+
+主要功能:
+- 实时诊断引擎，结果即时显示
+- PDF和HTML报告导出与分享
+- 自定义端口扫描(1-65535)
+- 深色主题界面，9种语言
+- 一次性购买解锁报告分享功能
+- 支持离线本地诊断
+- 不收集任何数据，网络数据仅保留在设备上
+
+
+========================================================================
+ 简体中文 — Keywords
+========================================================================
+
+网络,诊断,Ping,路由追踪,DNS,端口扫描,WiFi,IP,测速,工具
+
+
+========================================================================
+ 繁體中文 — Description (纯文本)
+========================================================================
+
+網路診斷(NetDiagnostics)是一款專業的跨平台網路診斷工具，適用於IT維運人員、開發者和進階使用者。支援iOS、Android、Windows、macOS和Linux。
+
+五大診斷組(共38項測試):
+
+系統和介面卡(8項) — 網卡資訊、MAC位址、DHCP伺服器、閘道、路由表、活動TCP/UDP連線、ARP表、TCP設定。
+
+連線與安全(6項) — 網路設定檔、TCP/IP參數、預設閘道可達性、路由表、ARP快取、系統代理配置。
+
+網際網路與DNS(5項) — DNS伺服器延遲測試、DNS快取統計、DNS汙染檢測、Netskope用戶端狀態、網際網路速度測試。
+
+遠端主機(6項) — DNS解析、Ping延遲與抖動、路由追蹤、路徑Ping、MTU發現、TCP埠掃描(常用埠或自訂範圍1-65535)。
+
+網站/URL(13項) — URL解析驗證、TCP連線檢查、服務橫幅檢測、HTTP請求回應標頭、安全標頭(HSTS/CSP)、SSL/TLS憑證鏈、HTTP重定向、壓縮方法、請求計時、FTP/SSH/郵件診斷。
+
+主要功能:
+- 即時診斷引擎，結果即時顯示
+- PDF和HTML報告匯出與分享
+- 自訂埠掃描(1-65535)
+- 深色主題介面，9種語言
+- 一次性購買解鎖報告分享功能
+- 支援離線本機診斷
+- 不收集任何資料，網路資料僅保留在裝置上
+
+
+========================================================================
+ 繁體中文 — Keywords
+========================================================================
+
+網路,診斷,Ping,路由追蹤,DNS,埠掃描,WiFi,IP,測速,工具
+
+
+========================================================================
+ Francais — Description (纯文本)
+========================================================================
+
+NetDiagnostics est un outil de diagnostic reseau professionnel multiplateforme pour les professionnels IT, les developpeurs et les utilisateurs avances. Disponible sur iOS, Android, Windows, macOS et Linux.
+
+CINQ GROUPES DE DIAGNOSTIC (38 tests):
+
+Systeme et adaptateurs (8 tests) — Interfaces reseau, adresses MAC, serveurs DHCP, passerelles, tables de routage, connexions TCP/UDP actives, table ARP et parametres TCP.
+
+Connectivite et securite (6 tests) — Profil reseau, parametres de la pile TCP/IP, accessibilite de la passerelle par defaut, table de routage IPv4/IPv6, cache ARP et configuration du proxy systeme.
+
+Internet et DNS (5 tests) — Serveurs DNS avec analyse comparative de latence, statistiques du cache DNS, detection de pollution/detournement DNS, etat du client Netskope et test de vitesse Internet.
+
+Hote distant (6 tests) — Resolution DNS, ping avec latence et gigue, traceroute, pathPing combine avec perte par saut, decouverte du MTU de chemin et analyse des ports TCP (ports courants ou plage personnalisee 1-65535).
+
+Site Web / URL (13 tests) — Analyse et validation d'URL, verification de connectivite TCP, detection de banniere de service, en-tetes de requete/reponse HTTP, en-tetes de securite (HSTS, CSP), chaine de certificats SSL/TLS, chaine de redirection HTTP, methodes de compression, ventilation des temps de requete, et diagnostics FTP, SSH et Email.
+
+FONCTIONNALITES PRINCIPALES:
+- Moteur de diagnostic en temps reel avec affichage instantane des resultats
+- Rapports PDF et HTML avec exportation et partage
+- Analyse de ports personnalisable (ports courants ou 1-65535)
+- Interface sombre, 9 langues
+- Achat unique Premium debloquant le partage des rapports
+- Fonctionne hors ligne pour les diagnostics locaux
+- Aucune collecte de donnees : vos donnees reseau restent sur votre appareil
+
+
+========================================================================
+ Francais — Keywords
+========================================================================
+
+reseau,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,outil
+
+
+========================================================================
+ Deutsch — Description (纯文本)
+========================================================================
+
+NetDiagnostics ist ein professionelles plattformubergreifendes Netzwerkdiagnose-Toolkit fur IT-Experten, Entwickler und Power-User. Es lauft auf iOS, Android, Windows, macOS und Linux.
+
+FUNF DIAGNOSEGRUPPEN (38 Tests):
+
+System & Adapter (8 Tests) — Netzwerkadapter, MAC-Adressen, DHCP-Server, Gateways, Routing-Tabellen, aktive TCP/UDP-Verbindungen, ARP-Tabelle und TCP-Einstellungen.
+
+Konnektivitat & Sicherheit (6 Tests) — Netzwerkprofil, TCP/IP-Stack-Parameter, Standardgateway-Erreichbarkeit, IPv4/IPv6-Routingtabelle, ARP-Cache und System-Proxy-Konfiguration.
+
+Internet & DNS (5 Tests) — DNS-Server mit Latenz-Benchmarking, DNS-Cache-Statistiken, DNS-Manipulationserkennung, Netskope-Client-Status und Internet-Geschwindigkeitstest.
+
+Remote Host (6 Tests) — DNS-Auflosung, Ping mit Latenz und Jitter, Traceroute, kombiniertes PathPing mit Hop-Verlust, Pfad-MTU-Erkennung und TCP-Port-Scan (gangige Ports oder benutzerdefinierter Bereich 1-65535).
+
+Website / URL (13 Tests) — URL-Analyse und -Validierung, TCP-Konnektivitatsprufung, Service-Banner-Erkennung, HTTP-Anfrage-/Antwort-Header, Sicherheitsheader (HSTS, CSP), SSL/TLS-Zertifikatskette, HTTP-Weiterleitungskette, Komprimierungsmethoden, Timing-Aufschlusselung sowie FTP-, SSH- und E-Mail-Diagnose.
+
+HAUPTMERKMALE:
+- Echtzeit-Diagnose-Engine mit Live-Ergebnisanzeige
+- PDF- und HTML-Berichte mit Export und Freigabe
+- Anpassbarer Port-Scan (gangige Ports oder 1-65535)
+- Dunkles Design, 9 Sprachen
+- Einmaliger Premium-Kauf fur Berichtsfreigabe
+- Funktioniert offline fur lokale Diagnosen
+- Keine Datenerfassung: Ihre Netzwerkdaten bleiben auf Ihrem Gerat
+
+
+========================================================================
+ Deutsch — Keywords
+========================================================================
+
+Netzwerk,Diagnose,Ping,Traceroute,DNS,Port,Scan,WLAN,IP,Tool
+
+
+========================================================================
+ Русский — Description (纯文本)
+========================================================================
+
+NetDiagnostics — это профессиональный кроссплатформенный инструмент сетевой диагностики для IT-специалистов, разработчиков и опытных пользователей. Работает на iOS, Android, Windows, macOS и Linux.
+
+ПЯТЬ ДИАГНОСТИЧЕСКИХ ГРУПП (38 тестов):
+
+Система и адаптеры (8 тестов) — Сетевые адаптеры, MAC-адреса, DHCP-серверы, шлюзы, таблицы маршрутизации, активные соединения TCP/UDP, таблица ARP и настройки TCP.
+
+Подключение и безопасность (6 тестов) — Сетевой профиль, параметры стека TCP/IP, доступность шлюза по умолчанию, таблица маршрутизации IPv4/IPv6, кэш ARP и конфигурация системного прокси.
+
+Интернет и DNS (5 тестов) — DNS-серверы с бенчмаркингом задержки, статистика кэша DNS, обнаружение загрязнения/перехвата DNS, статус клиента Netskope и тест скорости интернета.
+
+Удаленный хост (6 тестов) — Разрешение DNS, ping с задержкой и джиттером, traceroute, комбинированный pathPing с потерями на каждом хопе, обнаружение MTU пути и сканирование портов TCP (стандартные порты или пользовательский диапазон 1-65535).
+
+Веб-сайт / URL (13 тестов) — Разбор и проверка URL, проверка подключения TCP, обнаружение баннера сервиса, заголовки HTTP-запросов/ответов, заголовки безопасности (HSTS, CSP), цепочка сертификатов SSL/TLS, цепочка перенаправления HTTP, методы сжатия, разбивка времени запроса, а также диагностика FTP, SSH и Email.
+
+КЛЮЧЕВЫЕ ВОЗМОЖНОСТИ:
+- Диагностический движок реального времени с отображением результатов
+- Отчеты в формате PDF и HTML с экспортом и возможностью поделиться
+- Настраиваемое сканирование портов (стандартные или 1-65535)
+- Темная тема оформления, 9 языков
+- Разовая Premium-покупка для отправки отчетов
+- Работает офлайн для локальной диагностики
+- Без сбора данных: ваши сетевые данные остаются на устройстве
+
+
+========================================================================
+ Русский — Keywords
+========================================================================
+
+сеть,диагностика,ping,трассировка,DNS,порт,сканирование,WiFi,IP,утилита
+
+
+========================================================================
+ Italiano — Description (纯文本)
+========================================================================
+
+NetDiagnostics e un toolkit professionale di diagnostica di rete multipiattaforma per professionisti IT, sviluppatori e utenti esperti. Funziona su iOS, Android, Windows, macOS e Linux.
+
+CINQUE GRUPPI DIAGNOSTICI (38 test):
+
+Sistema e schede (8 test) — Interfacce di rete, indirizzi MAC, server DHCP, gateway, tabelle di routing, connessioni TCP/UDP attive, tabella ARP e impostazioni TCP.
+
+Connettivita e sicurezza (6 test) — Profilo di rete, parametri dello stack TCP/IP, raggiungibilita del gateway predefinito, tabella di routing IPv4/IPv6, cache ARP e configurazione del proxy di sistema.
+
+Internet e DNS (5 test) — Server DNS con benchmark di latenza, statistiche della cache DNS, rilevamento di inquinamento/dirottamento DNS, stato del client Netskope e test di velocita Internet.
+
+Host remoto (6 test) — Risoluzione DNS, ping con latenza e jitter, traceroute, pathPing combinato con perdita per hop, scoperta MTU del percorso e scansione delle porte TCP (porte comuni o intervallo personalizzato 1-65535).
+
+Sito Web / URL (13 test) — Analisi e convalida dell'URL, controllo della connettivita TCP, rilevamento del banner di servizio, intestazioni di richiesta/risposta HTTP, intestazioni di sicurezza (HSTS, CSP), catena di certificati SSL/TLS, catena di reindirizzamento HTTP, metodi di compressione, suddivisione dei tempi di richiesta, oltre a diagnostica FTP, SSH ed Email.
+
+FUNZIONALITA PRINCIPALI:
+- Motore diagnostico in tempo reale con risultati in diretta
+- Rapporti PDF e HTML con esportazione e condivisione
+- Scansione porte personalizzabile (porte comuni o 1-65535)
+- Interfaccia a tema scuro, 9 lingue
+- Acquisto Premium una tantum per la condivisione dei rapporti
+- Funziona offline per la diagnostica locale
+- Nessuna raccolta dati: i tuoi dati di rete rimangono sul tuo dispositivo
+
+
+========================================================================
+ Italiano — Keywords
+========================================================================
+
+rete,diagnostica,ping,traceroute,DNS,porta,scansione,wifi,IP,strumento
+
+
+========================================================================
+ Espanol — Description (纯文本)
+========================================================================
+
+NetDiagnostics es un conjunto de herramientas de diagnostico de red profesional multiplataforma para profesionales de TI, desarrolladores y usuarios avanzados. Funciona en iOS, Android, Windows, macOS y Linux.
+
+CINCO GRUPOS DE DIAGNOSTICO (38 pruebas):
+
+Sistema y adaptadores (8 pruebas) — Interfaces de red, direcciones MAC, servidores DHCP, puertas de enlace, tablas de enrutamiento, conexiones TCP/UDP activas, tabla ARP y configuracion TCP.
+
+Conectividad y seguridad (6 pruebas) — Perfil de red, parametros de la pila TCP/IP, accesibilidad de la puerta de enlace predeterminada, tabla de enrutamiento IPv4/IPv6, cache ARP y configuracion del proxy del sistema.
+
+Internet y DNS (5 pruebas) — Servidores DNS con evaluacion comparativa de latencia, estadisticas de cache DNS, deteccion de contaminacion/secuestro de DNS, estado del cliente Netskope y prueba de velocidad de Internet.
+
+Host remoto (6 pruebas) — Resolucion DNS, ping con latencia y fluctuacion, traceroute, pathPing combinado con perdida por salto, descubrimiento de MTU de ruta y escaneo de puertos TCP (puertos comunes o rango personalizado 1-65535).
+
+Sitio web / URL (13 pruebas) — Analisis y validacion de URL, verificacion de conectividad TCP, deteccion de banner de servicio, encabezados de solicitud/respuesta HTTP, encabezados de seguridad (HSTS, CSP), cadena de certificados SSL/TLS, cadena de redireccion HTTP, metodos de compresion, desglose de tiempos de solicitud, ademas de diagnostico FTP, SSH y correo electronico.
+
+CARACTERISTICAS PRINCIPALES:
+- Motor de diagnostico en tiempo real con resultados en vivo
+- Informes en PDF y HTML con exportacion y uso compartido
+- Escaneo de puertos personalizable (puertos comunes o 1-65535)
+- Interfaz con tema oscuro, 9 idiomas
+- Compra Premium unica para compartir informes
+- Funciona sin conexion para diagnosticos locales
+- Sin recopilacion de datos: sus datos de red permanecen en su dispositivo
+
+
+========================================================================
+ Espanol — Keywords
+========================================================================
+
+red,diagnostico,ping,traceroute,DNS,puerto,escaneo,wifi,IP,herramienta
+
+
+========================================================================
+ Portugues — Description (纯文本)
+========================================================================
+
+NetDiagnostics e um kit de ferramentas de diagnostico de rede profissional multiplataforma para profissionais de TI, desenvolvedores e usuarios avancados. Funciona em iOS, Android, Windows, macOS e Linux.
+
+CINCO GRUPOS DE DIAGNOSTICO (38 testes):
+
+Sistema e adaptadores (8 testes) — Interfaces de rede, enderecos MAC, servidores DHCP, gateways, tabelas de roteamento, conexoes TCP/UDP ativas, tabela ARP e configuracoes TCP.
+
+Conectividade e seguranca (6 testes) — Perfil de rede, parametros da pilha TCP/IP, acessibilidade do gateway padrao, tabela de roteamento IPv4/IPv6, cache ARP e configuracao de proxy do sistema.
+
+Internet e DNS (5 testes) — Servidores DNS com benchmarking de latencia, estatisticas de cache DNS, deteccao de poluicao/sequestro de DNS, status do cliente Netskope e teste de velocidade da Internet.
+
+Host remoto (6 testes) — Resolucao DNS, ping com latencia e jitter, traceroute, pathPing combinado com perda por salto, descoberta de MTU de caminho e verificacao de portas TCP (portas comuns ou intervalo personalizado 1-65535).
+
+Site / URL (13 testes) — Analise e validacao de URL, verificacao de conectividade TCP, deteccao de banner de servico, cabecalhos de requisicao/resposta HTTP, cabecalhos de seguranca (HSTS, CSP), cadeia de certificados SSL/TLS, cadeia de redirecionamento HTTP, metodos de compressao, detalhamento dos tempos de requisicao, alem de diagnostico FTP, SSH e Email.
+
+PRINCIPAIS RECURSOS:
+- Mecanismo de diagnostico em tempo real com resultados ao vivo
+- Relatorios em PDF e HTML com exportacao e compartilhamento
+- Verificacao de portas personalizavel (portas comuns ou 1-65535)
+- Interface com tema escuro, 9 idiomas
+- Compra Premium unica para compartilhamento de relatorios
+- Funciona offline para diagnosticos locais
+- Sem coleta de dados: seus dados de rede permanecem no seu dispositivo
+
+
+========================================================================
+ Portugues — Keywords
+========================================================================
+
+rede,diagnostico,ping,traceroute,DNS,porta,verificacao,wifi,IP,ferramenta
