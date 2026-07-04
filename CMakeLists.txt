@@ -81,6 +81,17 @@ set(QML_RESOURCES
 
 qt_add_executable(net_diagnostic WIN32 ${SOURCES} ${QML_RESOURCES})
 
+# Belt-and-suspenders: ensure Windows GUI subsystem (no console window).
+# CMake WIN32 flag may not always translate correctly through
+# qt_add_executable on MinGW — set the property explicitly and
+# add -mwindows for MinGW toolchains.
+if(WIN32)
+    set_target_properties(net_diagnostic PROPERTIES WIN32_EXECUTABLE TRUE)
+    if(MINGW)
+        target_link_options(net_diagnostic PRIVATE -mwindows)
+    endif()
+endif()
+
 # Android: enable APK target generation (Qt 6.5+ auto-generates apk target
 # when QT_ANDROID_PACKAGE_SOURCE_DIR is set)
 if(ANDROID)
@@ -232,6 +243,12 @@ if(BUILD_SIMULATOR)
     list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
     qt_add_executable(net_diagnostic_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
+    if(WIN32)
+        set_target_properties(net_diagnostic_sim PROPERTIES WIN32_EXECUTABLE TRUE)
+        if(MINGW)
+            target_link_options(net_diagnostic_sim PRIVATE -mwindows)
+        endif()
+    endif()
     target_link_libraries(net_diagnostic_sim PRIVATE
         Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
         Qt6::Network
