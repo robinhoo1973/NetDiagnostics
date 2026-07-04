@@ -75,7 +75,7 @@ jobs:
           Version: 0.0.1
           Architecture: amd64
           Maintainer: robinhoo1973
-          Depends: qt6-base, qt6-declarative, libqt6quickcontrols2-6, libcurl
+          Depends: libqt6core6t64, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostic-Linux-x86_64.deb
@@ -86,7 +86,7 @@ jobs:
         run: |
           sudo gem install fpm
           fpm -s dir -t rpm -n netdiagnostic -v 0.0.1 --architecture x86_64 \
-            --depends "qt6-base" --depends "qt6-declarative" --depends "libcurl" \
+            --depends "libqt6core6t64" --depends "libqt6gui6" --depends "libqt6quick6" --depends "libqt6quickcontrols2-6" --depends "libqt6widgets6" --depends "libqt6network6" --depends "libcurl4t64" \
             build/net_diagnostic=/usr/bin/net_diagnostic
           mv netdiagnostic*.rpm NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || true
           ls -lh NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
@@ -159,7 +159,7 @@ jobs:
           Version: 0.0.1
           Architecture: arm64
           Maintainer: robinhoo1973
-          Depends: qt6-base, qt6-declarative, libqt6quickcontrols2-6, libcurl
+          Depends: libqt6core6t64, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostic-Linux-arm64.deb
@@ -170,7 +170,7 @@ jobs:
         run: |
           sudo gem install fpm
           fpm -s dir -t rpm -n netdiagnostic -v 0.0.1 --architecture aarch64 \
-            --depends "qt6-base" --depends "qt6-declarative" --depends "libcurl" \
+            --depends "libqt6core6t64" --depends "libqt6gui6" --depends "libqt6quick6" --depends "libqt6quickcontrols2-6" --depends "libqt6widgets6" --depends "libqt6network6" --depends "libcurl4t64" \
             build/net_diagnostic=/usr/bin/net_diagnostic
           mv netdiagnostic*.rpm NetDiagnostic-Linux-arm64.rpm 2>/dev/null || true
           ls -lh NetDiagnostic-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
