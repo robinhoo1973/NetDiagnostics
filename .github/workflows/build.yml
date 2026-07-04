@@ -355,75 +355,8 @@ jobs:
             dist/**
           if-no-files-found: error
 
-  # ===================================================================
-  # macOS x86_64 - native Apple Clang + simulator
-  # ===================================================================
-  # macOS arm64 - native Apple Clang + simulator
-  # ===================================================================
-  macos-arm64:
-    name: macOS arm64
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          brew install cmake ninja qt@6
-
-      - name: Generate macOS app icon (.icns)
-        run: |
-          mkdir -p icon.iconset
-          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
-          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
-          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
-          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
-          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
-          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
-        continue-on-error: true
-
-      - name: Configure (production)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build -S .
-
-      - name: Build (production)
-        run: ninja -C build net_diagnostic
-
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostic_sim
-
-      - name: Package DMG (production)
-        run: |
-          if [ -d build/net_diagnostic.app ]; then
-            echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
-            ls -lh NetDiagnostic-macOS-arm64.dmg
-          else
-            echo "No .app bundle found; falling back to binary packaging"
-            mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
-            cp build/net_diagnostic pkg/NetDiagnostic.app/Contents/MacOS/
-            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg || true
-          fi
-        continue-on-error: true
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostic-macOS-arm64
-          path: |
-            build/net_diagnostic
-            build/net_diagnostic.app
-            build-sim/net_diagnostic_sim
-            *.dmg
-          if-no-files-found: error
+  # macOS + iOS builds moved to .github/workflows/apple.yml
+  # (build + TestFlight deploy for Apple platforms)
 
   # ===================================================================
   # Android x86_64 - cross-compile via aqtinstall + NDK
@@ -657,123 +590,8 @@ jobs:
             NetDiagnostic-Android-arm64.apk
           if-no-files-found: error
 
-  # ===================================================================
-  # iOS - native build via aqtinstall + Xcode, production only
-  # ===================================================================
-  ios:
-    name: iOS
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Select Xcode (prefer 26+)
-        run: |
-          set -euo pipefail
-
-          CANDIDATES=()
-          FALLBACKS=()
-          for app in /Applications/Xcode_*.app; do
-            [ -d "$app" ] || continue
-            FALLBACKS+=("$app")
-            ver="${app##*/Xcode_}"
-            ver="${ver%.app}"
-            major="${ver%%.*}"
-            if [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )); then
-              CANDIDATES+=("$app")
-            fi
-          done
-
-          if [ "${#FALLBACKS[@]}" -eq 0 ]; then
-            echo "ERROR: No Xcode installation found on this runner."
-            ls -1 /Applications/Xcode*.app || true
-            exit 1
-          fi
-
-          if [ "${#CANDIDATES[@]}" -gt 0 ]; then
-            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
-          else
-            echo "WARNING: Xcode 26+ not found; falling back to latest installed Xcode."
-            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
-          fi
-
-          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
-          xcodebuild -version
-          echo "SDK path: $(xcrun --sdk iphoneos --show-sdk-path)"
-
-      - name: Install dependencies
-        run: brew install cmake ninja
-
-      - name: Cache Qt6 macOS desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: ~/qt-desktop
-          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac desktop $QT_VERSION clang_64 -O ~/qt-desktop
-
-      - name: Cache Qt6 iOS
-        id: cache-qt-ios
-        uses: actions/cache@v4
-        with:
-          path: ~/qt-ios
-          key: qt6-ios-${{ env.QT_VERSION }}-v4
-
-      - name: Install Qt6 for iOS via aqt
-        if: steps.cache-qt-ios.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -O ~/qt-ios
-
-      - name: Configure
-        run: |
-          echo "=== DEBUG: Checking Qt installation ==="
-          ls -la "$HOME/qt-desktop/$QT_VERSION/" 2>&1 || echo "qt-desktop not found"
-          ls -la "$HOME/qt-ios/$QT_VERSION/" 2>&1 || echo "qt-ios not found"
-          echo "=== DEBUG: Checking SDK ==="
-          xcrun --sdk iphoneos --show-sdk-path 2>&1
-          echo "=== DEBUG: Configuring ==="
-          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
-          "$HOME/qt-ios/$QT_VERSION/ios/bin/qt-cmake" \
-            -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DQT_HOST_PATH="$HOME/qt-desktop/$QT_VERSION/macos" \
-            -DCMAKE_OSX_ARCHITECTURES="arm64" \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
-            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
-            -B build -S . 2>&1 | tail -50
-
-      - name: Build
-        run: ninja -v -C build net_diagnostic 2>&1 | tail -100
-
-      - name: Verify bundle
-        run: |
-          if [ -d build/net_diagnostic.app ]; then
-            echo "[OK] .app bundle generated"
-            ls -la build/net_diagnostic.app/
-          else
-            echo "[X] No .app bundle"
-            exit 1
-          fi
-
-      - name: Package IPA
-        run: |
-          mkdir -p Payload
-          cp -R build/net_diagnostic.app Payload/
-          zip -r NetDiagnostic-iOS.ipa Payload
-          ls -lh NetDiagnostic-iOS.ipa
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostic-iOS
-          path: |
-            build/net_diagnostic.app
-            NetDiagnostic-iOS.ipa
-          if-no-files-found: error
+  # iOS build moved to .github/workflows/apple.yml
+  # (combined macOS + iOS build with TestFlight deploy)
 
   # ===================================================================
   # Release - create GitHub Release on tag push
@@ -784,10 +602,8 @@ jobs:
       - linux-x86_64
       - linux-arm64
       - windows-x86_64
-      - macos-arm64
       - android-x86_64
       - android-arm64
-      - ios
     if: startsWith(github.ref, 'refs/tags/') && !failure() && !cancelled()
     runs-on: ubuntu-latest
     permissions:

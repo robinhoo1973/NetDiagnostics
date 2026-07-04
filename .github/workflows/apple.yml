@@ -1,0 +1,458 @@
+name: Apple Build & Deploy
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: apple-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: 6.8.3
+  BUNDLE_ID: "com.netdiagnostic.app"
+  APP_NAME: "NetDiagnostics"
+  APP_SKU: "netdiag.ios.001"
+  APP_LOCALE: "en-US"
+  PROFILE_NAME: "NetDiagnostics AppStore"
+  QT_INSTALL_DIR: "/Users/runner/qt-ios"
+  QT_HOST_DIR: "/Users/runner/qt-desktop"
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # macOS arm64 — native Apple Clang + simulator + DMG
+  # ═══════════════════════════════════════════════════════════════════════
+  macos-arm64:
+    name: macOS arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja qt@6
+
+      - name: Generate macOS app icon (.icns)
+        run: |
+          mkdir -p icon.iconset
+          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
+          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
+          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
+          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
+          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
+          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
+        continue-on-error: true
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Package DMG (production)
+        run: |
+          if [ -d build/net_diagnostic.app ]; then
+            echo "Packaging .app into DMG..."
+            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
+            ls -lh NetDiagnostic-macOS-arm64.dmg
+          else
+            echo "No .app bundle found; falling back to binary packaging"
+            mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
+            cp build/net_diagnostic pkg/NetDiagnostic.app/Contents/MacOS/
+            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg || true
+          fi
+        continue-on-error: true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-arm64
+          path: |
+            build/net_diagnostic
+            build/net_diagnostic.app
+            build-sim/net_diagnostic_sim
+            *.dmg
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # iOS — native build via aqtinstall + Xcode, production IPA
+  # ═══════════════════════════════════════════════════════════════════════
+  ios:
+    name: iOS Build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26+
+        run: |
+          set -euo pipefail
+          CANDIDATES=(); FALLBACKS=()
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            FALLBACKS+=("$app")
+            ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
+            [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
+          done
+          if [ ${#FALLBACKS[@]} -eq 0 ]; then
+            echo "ERROR: No Xcode installation found."; exit 1
+          fi
+          if [ ${#CANDIDATES[@]} -gt 0 ]; then
+            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          else
+            echo "WARNING: Xcode 26+ not found; falling back to latest."
+            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+          fi
+          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+          xcodebuild -version
+          echo "iOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
+
+      - name: Install dependencies
+        run: brew install cmake ninja python3
+
+      - name: Cache Qt6 macOS desktop (host tools)
+        id: cache-qt-desktop
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_HOST_DIR }}
+          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
+
+      - name: Install Qt6 desktop via aqt
+        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
+        run: |
+          pip3 install --break-system-packages aqtinstall
+          aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
+
+      - name: Cache Qt6 iOS
+        id: cache-qt-ios
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_INSTALL_DIR }}
+          key: qt6-ios-${{ env.QT_VERSION }}-v4
+
+      - name: Install Qt6 for iOS via aqt
+        if: steps.cache-qt-ios.outputs.cache-hit != 'true'
+        run: |
+          pip3 install --break-system-packages aqtinstall
+          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+
+      - name: Configure
+        run: |
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -B build -S .
+
+      - name: Build
+        run: ninja -v -C build net_diagnostic
+
+      - name: Verify bundle
+        run: |
+          if [ -d build/net_diagnostic.app ]; then
+            echo "[OK] .app bundle generated"
+            ls -la build/net_diagnostic.app/
+          else
+            echo "[X] No .app bundle"; exit 1
+          fi
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/net_diagnostic.app Payload/
+          zip -r NetDiagnostic-iOS.ipa Payload
+          ls -lh NetDiagnostic-iOS.ipa
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-iOS
+          path: |
+            build/net_diagnostic.app
+            NetDiagnostic-iOS.ipa
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # TestFlight — sign, package, and upload iOS app
+  # ═══════════════════════════════════════════════════════════════════════
+  deploy-testflight:
+    name: Deploy to TestFlight
+    needs: ios
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+    runs-on: macos-latest
+    environment: TestFlight
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26+
+        run: |
+          set -euo pipefail
+          CANDIDATES=(); FALLBACKS=()
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            FALLBACKS+=("$app")
+            ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
+            [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
+          done
+          if [ ${#FALLBACKS[@]} -eq 0 ]; then
+            echo "ERROR: No Xcode installation found."; exit 1
+          fi
+          if [ ${#CANDIDATES[@]} -gt 0 ]; then
+            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          else
+            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+          fi
+          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install dependencies
+        run: brew install cmake ninja python3
+
+      - name: Cache Qt6 macOS desktop (host tools)
+        id: cache-qt-desktop
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_HOST_DIR }}
+          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
+
+      - name: Install Qt6 desktop via aqt
+        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
+        run: |
+          pip3 install --break-system-packages aqtinstall
+          aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
+
+      - name: Cache Qt6 iOS
+        id: cache-qt-ios
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.QT_INSTALL_DIR }}
+          key: qt6-ios-${{ env.QT_VERSION }}-v4
+
+      - name: Install Qt6 for iOS via aqt
+        if: steps.cache-qt-ios.outputs.cache-hit != 'true'
+        run: |
+          pip3 install --break-system-packages aqtinstall
+          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+
+      # ── ASC key ──
+      - name: Prepare App Store Connect key
+        run: |
+          KEYFILE="$RUNNER_TEMP/asc-key.p8"
+          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+          echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
+
+      - name: Generate App Store Connect JWT
+        id: jwt
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT=$(asc_jwt \
+            "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            "$ASC_KEYFILE")
+          echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
+
+      # ── Bundle ID ──
+      - name: Register Bundle ID + WiFi capability
+        id: bundle
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
+          echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
+
+      # ── App Store Connect app ──
+      - name: Ensure App Store Connect app
+        id: asc-app
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          APP_ID=$(asc_app_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID" "$APP_SKU" "$APP_LOCALE")
+          echo "app_id=${APP_ID}" >> "$GITHUB_OUTPUT"
+
+      # ── Distribution certificate ──
+      - name: Import iOS distribution certificate
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          echo "${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}" \
+            | base64 -d > "$RUNNER_TEMP/dist-cert.p12"
+          security import "$RUNNER_TEMP/dist-cert.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}" \
+            -A -T /usr/bin/codesign -T /usr/bin/xcodebuild
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1
+
+      - name: Find distribution certificate
+        id: cert-id
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          CERT_ID=$(asc_cert_find_distribution "$JWT")
+          if [ -n "$CERT_ID" ]; then
+            echo "cert_id=${CERT_ID}" >> "$GITHUB_OUTPUT"
+            echo "auto_signing=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "cert_id=" >> "$GITHUB_OUTPUT"
+            echo "auto_signing=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Provisioning profile ──
+      - name: Ensure provisioning profile
+        id: profile
+        run: |
+          if [ -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
+            echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" \
+              | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+            PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
+              <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+            if [ -n "$PROFILE_UUID" ]; then
+              PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+              mkdir -p "$PROFILE_DIR"
+              cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
+              echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+              echo "[OK] User-provided profile (UUID: ${PROFILE_UUID})"
+              exit 0
+            fi
+          fi
+          if [ "${{ steps.cert-id.outputs.auto_signing }}" != "true" ]; then
+            source scripts/ios/asc-app.sh
+            JWT="${{ steps.jwt.outputs.jwt }}"
+            BID="${{ steps.bundle.outputs.bundle_id }}"
+            CID="${{ steps.cert-id.outputs.cert_id }}"
+            PROFILE_ID=$(asc_profile_ensure "$JWT" "$PROFILE_NAME" "$BID" "$CID")
+            if [ -n "$PROFILE_ID" ]; then
+              PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
+              if [ -n "$PROFILE_B64" ]; then
+                echo "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+                PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
+                  <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+                if [ -n "$PROFILE_UUID" ]; then
+                  PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+                  mkdir -p "$PROFILE_DIR"
+                  cp "$RUNNER_TEMP/profile.mobileprovision" "$PROFILE_DIR/${PROFILE_UUID}.mobileprovision"
+                  echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+                  echo "[OK] Auto-created profile (UUID: ${PROFILE_UUID})"
+                  exit 0
+                fi
+              fi
+            fi
+          fi
+          echo "profile_uuid=" >> "$GITHUB_OUTPUT"
+          echo "[INFO] Falling back to Xcode automatic signing"
+
+      # ── Build & Archive ──
+      - name: Set build number
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
+
+      - name: Configure CMake for iOS (Xcode)
+        run: |
+          export IOS_TEAM_ID="${{ secrets.IOS_TEAM_ID }}"
+          export ND_WIFI_ENTITLEMENT=1
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -B build-ios -S .
+
+      - name: Build and archive
+        run: |
+          PROFILE_UUID="${{ steps.profile.outputs.profile_uuid }}"
+          if [ -n "$PROFILE_UUID" ]; then
+            echo "Manual signing with profile: $PROFILE_UUID"
+            xcodebuild archive \
+              -project build-ios/NetDiagnostic.xcodeproj \
+              -scheme net_diagnostic \
+              -sdk iphoneos \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
+              CODE_SIGN_STYLE="Manual" \
+              PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" \
+              CODE_SIGN_IDENTITY="iPhone Distribution" \
+              -verbose 2>&1 | tail -100
+          else
+            echo "Automatic signing"
+            xcodebuild archive \
+              -project build-ios/NetDiagnostic.xcodeproj \
+              -scheme net_diagnostic \
+              -sdk iphoneos \
+              -configuration Release \
+              -destination 'generic/platform=iOS' \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
+              CODE_SIGN_STYLE="Automatic" \
+              -allowProvisioningUpdates \
+              -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+              -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+              -authenticationKeyPath "$ASC_KEYFILE" \
+              -verbose 2>&1 | tail -100
+          fi
+          [ -d build-ios/NetDiagnostic.xcarchive ] || { echo "[X] Archive failed"; exit 1; }
+          echo "[OK] Archive created"
+
+      # ── Package IPA ──
+      - name: Package IPA from archive
+        run: |
+          APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostic.app"
+          [ -d "$APP_PATH" ] || APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
+          [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r NetDiagnostic-iOS.ipa Payload
+          ls -lh NetDiagnostic-iOS.ipa
+
+      # ── Upload to TestFlight ──
+      - name: Upload to TestFlight
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          cp "$ASC_KEYFILE" \
+            ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          xcrun altool --upload-app \
+            -f NetDiagnostic-iOS.ipa \
+            -t ios \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            --verbose
+          echo "[OK] Uploaded to TestFlight"
+
+      # ── Cleanup ──
+      - name: Clean up keys
+        if: always()
+        run: |
+          rm -f "$ASC_KEYFILE" 2>/dev/null || true
+          rm -f ~/.appstoreconnect/private_keys/AuthKey_*.p8 2>/dev/null || true
