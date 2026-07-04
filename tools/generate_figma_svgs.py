@@ -1,601 +1,575 @@
 #!/usr/bin/env python3
-"""Generate accurate Figma SVGs from Qt6 QML source templates.
+"""Generate accurate Figma SVGs from Qt6 QML source — v2 with 5-Why fixes.
 
-Reads QML layout rules (colors, fonts, spacings, component structure) and
-generates pixel-accurate SVG mockups for each screen, platform, and device
-size, mirroring the screenshot directory structure.
+Fixes applied (see 5-Why analysis):
+  F1: Removed fake iOS status bar (QML uses FramelessWindowHint)
+  F2: Removed fake bottom tab bar (QML uses top nav bar only)
+  F3: Nav bar exact from AppContent.qml: compact=32px/44px tabs,
+      desktop=36px/100px tabs, center-aligned, active bg no indicator line
+  F4: Font: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+  F5: Diagnostic sidebar: full SidebarContent tree (260px)
+  F6: Dashboard: exact 24px padding (width-48, x=24 from QML)
+  F7: Config: 84px AppBar (44 title + 38 tabs + 2 border)
+  F8: DiagGroupPanel: 3×24 accent bar, badges, progress, tree connector
+  F9: Wide breakpoint: width >= 600 (not isMobile)
 
 Directory structure (matches screenshot/):
-  figma/{platform}/{size}/{device}/{screen}.svg
-
-Devices:
-  ios/phone/6.1  -> 375×812  (iPhone 11 Pro / X / XS, @3x)
-  ios/phone/6.3  -> 402×874  (iPhone 16 Pro, @3x)
-  ios/phone/6.5  -> 414×896  (iPhone 11 Pro Max, @3x)
-  ios/phone/6.9  -> 440×956  (iPhone 16 Pro Max, @3x)
-  ios/tablet/13  -> 1032×1376 (iPad 13", @2x)
+  figma/{os}/{size}/{device}/{screen}.svg
 """
 
 import os, html, math
 
-# ═══════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 # Theme — exact from AppTheme.qml
-# ═══════════════════════════════════════════════════════════════════════
-THEME = {
+# ═══════════════════════════════════════════════════════════════
+T = {
     "bgDark": "#1E1E2E", "bgSidebar": "#252538", "bgCard": "#16213E",
     "bgInput": "#2A2A4A", "appBar": "#1A1A2E",
-    "textPrimary": "#E0E0E0", "textSecondary": "#A0A0B8", "textMuted": "#606080",
-    "accent": "#E94560", "accentBlue": "#0078D4", "cyan": "#00BCD4",
-    "passGreen": "#4ADE80", "warnYellow": "#FACC15", "failRed": "#EF4444",
-    "skipGray": "#888888", "infoBlue": "#0078D4",
-    "borderCard": "#3A3A5A", "borderSubtle": "#2A2A4A", "borderFocused": "#0078D4",
-    "radiusCard": 12, "radiusButton": 8, "radiusSmall": 6, "sidebarWidth": 260,
+    "t1": "#E0E0E0", "t2": "#A0A0B8", "t3": "#606080",
+    "accent": "#E94560", "blue": "#0078D4", "cyan": "#00BCD4",
+    "green": "#4ADE80", "yellow": "#FACC15", "red": "#EF4444",
+    "gray": "#888888",
+    "border": "#3A3A5A", "border2": "#2A2A4A",
 }
+# Exact font stack from QML Labels
+FONT = "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
 
-FONT = 'JetBrains Mono, DejaVu Sans Mono, monospace'
-
-# ═══════════════════════════════════════════════════════════════════════
-# Device definitions (logical/CSS pixels: physical / scale factor)
-# ═══════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
+# Devices (logical pixels = physical / scale factor)
+# ═══════════════════════════════════════════════════════════════
 DEVICES = {
-    "ios/phone/6.1":  {"w": 375, "h": 812, "scale": 3, "name": "iPhone 6.1″", "isMobile": True, "os": "ios"},
-    "ios/phone/6.3":  {"w": 402, "h": 874, "scale": 3, "name": "iPhone 6.3″", "isMobile": True, "os": "ios"},
-    "ios/phone/6.5":  {"w": 414, "h": 896, "scale": 3, "name": "iPhone 6.5″", "isMobile": True, "os": "ios"},
-    "ios/phone/6.9":  {"w": 440, "h": 956, "scale": 3, "name": "iPhone 6.9″", "isMobile": True, "os": "ios"},
-    "ios/tablet/13":  {"w": 1032, "h": 1376, "scale": 2, "name": "iPad 13″", "isMobile": False, "os": "ios"},
+    "ios/phone/6.1":  {"w": 375, "h": 812, "scale": 3, "name": "iPhone 6.1″"},
+    "ios/phone/6.3":  {"w": 402, "h": 874, "scale": 3, "name": "iPhone 6.3″"},
+    "ios/phone/6.5":  {"w": 414, "h": 896, "scale": 3, "name": "iPhone 6.5″"},
+    "ios/phone/6.9":  {"w": 440, "h": 956, "scale": 3, "name": "iPhone 6.9″"},
+    "ios/tablet/13":  {"w": 1032, "h": 1376, "scale": 2, "name": "iPad 13″"},
 }
 
 SCREENS = ["dashboard", "diagnostics", "config", "report", "settings"]
 
-# ═══════════════════════════════════════════════════════════════════════
-# SVG builder
-# ═══════════════════════════════════════════════════════════════════════
-class SVG:
-    def __init__(self, w, h):
-        self.w, self.h = w, h
-        self.parts = []
-        self.defs_content = []
-        self._id = 0
+# ═══════════════════════════════════════════════════════════════
+# SVG Builder
+# ═══════════════════════════════════════════════════════════════
+class S:
+    def __init__(s, w, h):
+        s.W, s.H = w, h
+        s.p = []
+        s._n = 0
+        s._defs = []
 
-    def uid(self): self._id += 1; return f"g{self._id}"
+    def df(s, x): s._defs.append(x)
 
-    def add_def(self, s): self.defs_content.append(s)
+    def r(s, x, y, w, h, rx=0, f=None, st=None, sw=1, o=None):
+        a = [f'x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}"']
+        if rx: a.append(f'rx="{rx}"')
+        if f: a.append(f'fill="{f}"')
+        if st: a.append(f'stroke="{st}" stroke-width="{sw}"')
+        if o is not None: a.append(f'opacity="{o}"')
+        s.p.append(f'<rect {" ".join(a)}/>')
+        return s
 
-    def raw(self, s): self.parts.append(s); return self
+    def t(s, x, y, txt, sz=12, clr=T["t1"], a="start", w="normal", mx=None):
+        t = html.escape(str(txt))
+        at = [f'font-family="{FONT}"', f'font-size="{sz}"', f'fill="{clr}"',
+              f'text-anchor="{a}"', f'font-weight="{w}"']
+        if mx: at.append(f'class="elide"')
+        s.p.append(f'<text x="{x:.1f}" y="{y:.1f}" {" ".join(at)}>{t}</text>')
+        return s
 
-    def rect(self, x, y, w, h, rx=0, fill=None, stroke=None, sw=1, opacity=None, cls=None):
-        a = []
-        if cls: a.append(f'class="{cls}"')
+    def c(s, cx, cy, r, f=None, st=None, sw=1):
+        a = [f'cx="{cx:.1f}" cy="{cy:.1f}" r="{r:.1f}"']
+        if f: a.append(f'fill="{f}"')
+        if st: a.append(f'stroke="{st}" stroke-width="{sw}"')
+        s.p.append(f'<circle {" ".join(a)}/>')
+        return s
+
+    def ln(s, x1, y1, x2, y2, st=T["border"], sw=1):
+        s.p.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{st}" stroke-width="{sw}"/>')
+        return s
+
+    def g(s, t=None, o=None):
+        a = ""
+        if t: a += f' transform="{t}"'
+        if o is not None: a += f' opacity="{o}"'
+        s.p.append(f'<g{a}>')
+        return _G(s)
+
+    def badge(s, x, y, count, color, w=24, h=17):
+        """Dashboard-style badge pill."""
+        if count <= 0: return 0
+        s.r(x, y, w, h, rx=4, f=_alpha(color, 0.15))
+        s.t(x + w/2, y + h/2 + 3.5, str(count), sz=10, clr=color, a="middle", w="bold")
+        return w + 4
+
+    def progress(s, x, y, w, h, pct, color):
+        s.r(x, y, w, h, rx=h/2, f=T["border2"])
+        if pct > 0:
+            s.r(x, y, w * pct, h, rx=h/2, f=color)
+
+    def switch(s, x, y, on):
+        """iOS-style toggle switch."""
+        sw_w, sw_h = 40, 22
+        if on:
+            s.r(x, y, sw_w, sw_h, rx=11, f=T["blue"])
+            s.c(x + sw_w - 11, y + 11, 9, f="#FFFFFF")
         else:
-            if fill: a.append(f'fill="{fill}"')
-            if stroke: a.append(f'stroke="{stroke}" stroke-width="{sw}"')
-            if rx: a.append(f'rx="{rx}"')
-        if opacity is not None: a.append(f'opacity="{opacity}"')
-        self.parts.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" {" ".join(a)}/>')
-        return self
+            s.r(x, y, sw_w, sw_h, rx=11, f="#5A5A7A")
+            s.c(x + 11, y + 11, 9, f="#FFFFFF")
 
-    def text(self, x, y, text, size=12, fill="#E0E0E0", anchor="start", weight="normal", font=None, ellipsis_w=0):
-        t = html.escape(str(text))
-        ff = font or FONT
-        if ellipsis_w:
-            self.parts.append(f'<text x="{x}" y="{y}" font-family="{ff}" font-size="{size}" fill="{fill}" text-anchor="{anchor}" font-weight="{weight}"><tspan>{t}</tspan></text>')
-        else:
-            self.parts.append(f'<text x="{x}" y="{y}" font-family="{ff}" font-size="{size}" fill="{fill}" text-anchor="{anchor}" font-weight="{weight}">{t}</text>')
-        return self
+    def checkbox(s, x, y, checked, sz=16):
+        s.r(x, y, sz, sz, rx=3, f=T["blue"] if checked else "none", st=T["blue"] if checked else "#5A5A7A", sw=1.5)
+        if checked:
+            s.t(x+sz/2, y+sz/2+3, "✓", sz=10, clr="#FFFFFF", a="middle")
 
-    def circle(self, cx, cy, r, fill=None, stroke=None, sw=1):
-        a = []
-        if fill: a.append(f'fill="{fill}"')
-        if stroke: a.append(f'stroke="{stroke}" stroke-width="{sw}"')
-        self.parts.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" {" ".join(a)}/>')
-        return self
-
-    def line(self, x1, y1, x2, y2, stroke="#3A3A5A", sw=1):
-        self.parts.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="{stroke}" stroke-width="{sw}"/>')
-        return self
-
-    def group(self, transform=None, opacity=None):
-        self.parts.append('<g' + (f' transform="{transform}"' if transform else '') + (f' opacity="{opacity}"' if opacity is not None else '') + '>')
-        return _GroupCtx(self)
-
-    def to_xml(self):
+    def to_xml(s):
         lines = [f'<?xml version="1.0" encoding="UTF-8"?>',
-                 f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {self.w} {self.h}" width="{self.w}" height="{self.h}">']
-        if self.defs_content:
+                 f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {s.W} {s.H}" width="{s.W}" height="{s.H}">']
+        if s._defs:
             lines.append('<defs>')
-            lines.extend(self.defs_content)
+            lines.extend(s._defs)
             lines.append('</defs>')
-        lines.extend(self.parts)
+            lines.append('<style>.elide{overflow:hidden;text-overflow:ellipsis;}</style>')
+        lines.extend(s.p)
         lines.append('</svg>')
         return '\n'.join(lines)
 
 
-class _GroupCtx:
-    def __init__(self, svg): self.svg = svg
-    def __enter__(self): return self.svg
-    def __exit__(self, *a): self.svg.parts.append('</g>')
+class _G:
+    def __init__(s, svg): s.s = svg
+    def __enter__(s): return s.s
+    def __exit__(s, *a): s.s.p.append('</g>')
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# Shared components (exact from QML)
-# ═══════════════════════════════════════════════════════════════════════
-
-def draw_nav_bar(svg, dev, active_tab=1):
-    """Navigation bar from AppContent.qml — compact on mobile, full on desktop."""
-    is_compact = dev["isMobile"]
-    bar_h = 32 if is_compact else 36
-    svg.rect(0, 0, svg.w, bar_h, fill=THEME["appBar"])
-    svg.line(0, bar_h - 1, svg.w, bar_h - 1, "#3A3A5A")
-
-    tabs = [
-        ("⊞", "Dashboard", "dashboard"),
-        ("⚡", "Diag", "diagnostics"),
-        ("⚙", "Config", "config"),
-        ("📄", "Report", "report"),
-        ("⚙", "Settings", "settings"),
-    ]
-    tab_w = 44 if is_compact else 100
-    tab_start = (svg.w - len(tabs) * tab_w) // 2 if not is_compact else svg.w - len(tabs) * tab_w - 4
-
-    for i, (icon, label, _) in enumerate(tabs):
-        x = tab_start + i * tab_w
-        active = (i == active_tab)
-        tab_cy = bar_h // 2
-
-        if active:
-            svg.rect(x, 2, tab_w, bar_h - 2, rx=6, fill=f"rgba(0,188,212,0.12)")
-            if not is_compact:
-                svg.rect(x, bar_h - 2, tab_w, 2, fill=THEME["cyan"])
-            fill = THEME["cyan"]
-        else:
-            fill = "rgba(224,224,224,0.55)" if is_compact else "rgba(224,224,224,0.7)"
-
-        if is_compact:
-            svg.text(x + tab_w // 2, bar_h // 2 + 3, icon, size=12, fill=fill, anchor="middle")
-        else:
-            svg.text(x + tab_w // 2, bar_h // 2 + 3, f"{icon} {label}", size=10, fill=fill, anchor="middle")
-
-    # Close button on desktop
-    if not is_compact:
-        cx = svg.w - 20
-        svg.rect(cx - 14, 4, 28, 28, rx=6, fill="transparent", stroke="#5A5A7A")
-        svg.text(cx, bar_h // 2 + 4, "✕", size=12, fill=THEME["textSecondary"], anchor="middle")
-
-    return bar_h
-
-
-def draw_status_bar(svg, dev):
-    """iOS status bar."""
-    if dev["os"] != "ios":
-        return 0
-    h = 24 if dev["isMobile"] else 20
-    svg.rect(0, 0, svg.w, h, fill="#000000")
-    time_str = "9:41"
-    svg.text(16, h - 7, time_str, size=10 if dev["isMobile"] else 9, fill="#FFFFFF", anchor="start")
-    svg.text(svg.w - 16, h - 7, "Wi-Fi", size=10 if dev["isMobile"] else 9, fill="#FFFFFF", anchor="end")
-    return h
-
-
-def draw_bottom_tab_bar(svg, dev, active_tab=1):
-    """iOS-style bottom tab bar for mobile."""
-    if not dev["isMobile"]:
-        return 0
-    bar_h = 50
-    y = svg.h - bar_h
-    svg.rect(0, y, svg.w, bar_h, fill=THEME["appBar"])
-    svg.line(0, y, svg.w, y, THEME["borderCard"])
-
-    tabs = [
-        ("Dashboard", "dashboard"),
-        ("Diag", "diagnostics"),
-        ("Config", "config"),
-        ("Report", "report"),
-        ("Settings", "settings"),
-    ]
-    tab_w = svg.w // len(tabs)
-    for i, (label, _) in enumerate(tabs):
-        x = i * tab_w
-        cy = y + bar_h // 2 + 2
-        active = (i == active_tab)
-        fill = THEME["cyan"] if active else THEME["textMuted"]
-        svg.text(x + tab_w // 2, cy, label[:8], size=9, fill=fill, anchor="middle")
-
-    return bar_h
-
-
-def draw_app_bar(svg, dev, icon, title, subtitle=None, bar_h=52):
-    """Standard AppBar from Dashboard/Report/Settings QML."""
-    svg.rect(0, 0, svg.w, bar_h, fill=THEME["appBar"])
-    svg.line(0, bar_h - 1, svg.w, bar_h - 1, THEME["borderCard"])
-
-    # Icon
-    if icon == "dashboard":
-        draw_dashboard_icon(svg, 16, bar_h // 2, 20, THEME["cyan"])
-    elif icon == "report":
-        draw_report_icon(svg, 16, bar_h // 2, 20, THEME["cyan"])
-    elif icon == "settings":
-        draw_settings_icon(svg, 16, bar_h // 2, 20, THEME["cyan"])
-
-    svg.text(42, bar_h // 2 + 4, title, size=15, fill=THEME["textPrimary"], weight="bold")
-    if subtitle:
-        svg.text(42, bar_h // 2 + 20, subtitle, size=11, fill=THEME["textSecondary"])
-    return bar_h
-
-
-# ── Icon drawing helpers (simple geometric) ──
-
-def draw_dashboard_icon(svg, cx, cy, size, color):
-    """Simple dashboard icon: grid pattern."""
-    s = size / 2
-    for dx, dy in [(-s/2, -s/2), (s/2, -s/2), (-s/2, s/2), (s/2, s/2)]:
-        svg.rect(cx + dx - s/3, cy + dy - s/3, s*2/3, s*2/3, rx=2, fill=color, opacity=0.8)
-
-def draw_report_icon(svg, cx, cy, size, color):
-    """Document icon."""
-    svg.rect(cx - size/3, cy - size/2, size*2/3, size, rx=3, stroke=color, sw=2, fill="none")
-    for i in range(3):
-        svg.line(cx - size/4, cy - size/4 + i * 5, cx + size/4, cy - size/4 + i * 5, color, 1.5)
-
-def draw_settings_icon(svg, cx, cy, size, color):
-    """Gear icon."""
-    r = size / 3
-    svg.circle(cx, cy, r, stroke=color, sw=2, fill="none")
-    svg.circle(cx, cy, r/2, stroke=color, sw=1.5, fill="none")
-
-def draw_check_icon(svg, cx, cy, size, color):
-    svg.line(cx - size/3, cy, cx, cy + size/3, color, 2)
-    svg.line(cx, cy + size/3, cx + size*2/3, cy - size/3, color, 2)
-
-def draw_badge(svg, x, y, text, color, count=0):
-    """Badge pill from DashboardBadge."""
-    if count <= 0:
-        return 0
-    w = 22; h = 16
-    svg.rect(x, y, w, h, rx=4, fill=f"rgba({_hex_to_rgba(color, 0.15)})")
-    svg.text(x + w/2, y + h/2 + 3, str(count), size=10, fill=color, anchor="middle", weight="bold")
-    return w + 4
-
-
-def _hex_to_rgba(hex_color, alpha):
-    """Convert hex to rgba string."""
+def _alpha(hex_color, a):
     c = hex_color.lstrip('#')
-    r, g, b = int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
-    return f"{r},{g},{b},{alpha}"
+    r, g, b = int(c[0:2],16), int(c[2:4],16), int(c[4:6],16)
+    return f"rgba({r},{g},{b},{a})"
 
 
-def draw_progress_bar(svg, x, y, w, h, pct, fill_color):
-    """Progress bar with background."""
-    svg.rect(x, y, w, h, rx=h/2, fill=THEME["borderSubtle"])
-    svg.rect(x, y, w * pct, h, rx=h/2, fill=fill_color)
+# ═══════════════════════════════════════════════════════════════
+# F2+F3: Exact Nav Bar from AppContent.qml
+# ═══════════════════════════════════════════════════════════════
+def draw_nav_bar(s, W, compact, active_tab):
+    """AppContent.qml nav bar — exact."""
+    bar_h = 32 if compact else 36
+    s.r(0, 0, W, bar_h, f=T["appBar"])
+    # In QML the nav bar is part of ColumnLayout with no explicit border,
+    # but it has a 1px separator at the bottom of the content area.
 
-
-# ═══════════════════════════════════════════════════════════════════════
-# Screen generators
-# ═══════════════════════════════════════════════════════════════════════
-
-def gen_dashboard(svg, dev):
-    """DashboardScreen.qml — 1:1"""
-    nav_h = draw_nav_bar(svg, dev, active_tab=0)
-    top = nav_h
-    appbar_h = 52
-    svg.rect(0, top, svg.w, appbar_h, fill=THEME["appBar"])
-    svg.line(0, top + appbar_h - 1, svg.w, top + appbar_h - 1, THEME["borderCard"])
-    draw_dashboard_icon(svg, 16, top + appbar_h // 2, 20, THEME["cyan"])
-    svg.text(42, top + appbar_h // 2 + 4, "Dashboard", size=15, fill=THEME["textPrimary"], weight="bold")
-
-    # Reset button
-    rx_btn = svg.w - 76
-    svg.rect(rx_btn, top + 10, 60, 32, rx=6, fill="transparent", stroke="#5A5A7A")
-    svg.text(rx_btn + 30, top + appbar_h // 2 + 4, "Reset", size=12, fill=THEME["textSecondary"], anchor="middle")
-
-    cy = top + appbar_h + 24
-    pad = 24 if not dev["isMobile"] else 16
-    cw = svg.w - pad * 2
-
-    # ── Run Info Card ──
-    card_cy = cy
-    card_h = 80
-    svg.rect(pad, card_cy, cw, card_h, rx=12, fill=THEME["bgCard"], stroke=THEME["borderSubtle"])
-    draw_check_icon(svg, pad + 30, card_cy + card_h // 2, 28, THEME["passGreen"])
-    svg.text(pad + 54, card_cy + 24, "Diagnostic Run Complete", size=16, fill=THEME["textPrimary"], weight="bold")
-    svg.text(pad + 54, card_cy + 44, "Target: 192.168.1.1", size=12, fill=THEME["textSecondary"])
-    svg.text(pad + 54, card_cy + 62, "14:32:18", size=12, fill=THEME["textSecondary"])
-
-    cy = card_cy + card_h + 24
-
-    # ── Summary Cards ──
-    summary_items = [
-        ("Pass", THEME["passGreen"], 32),
-        ("Info", THEME["accentBlue"], 0),
-        ("Warning", THEME["warnYellow"], 4),
-        ("Fail", THEME["failRed"], 1),
-        ("Skipped", THEME["skipGray"], 1),
+    TABS = [
+        ("dashboard",  "⊞", "Dashboard"),
+        ("diagnostic", "⚡", "Diag"),
+        ("config",     "⚙", "Config"),
+        ("report",     "📄", "Report"),
+        ("settings",   "⚙", "Settings"),
     ]
-    svg.text(pad, cy, "Summary", size=11, fill=THEME["textSecondary"], weight="bold")
-    svg.text(svg.w - pad, cy, "Total: 38", size=10, fill=THEME["textSecondary"], anchor="end")
-    cy += 18
-    for label, color, count in summary_items:
-        sh = 32
-        svg.rect(pad, cy, cw, sh, rx=6, fill=f"rgba({_hex_to_rgba(color, 0.06)})", stroke=f"rgba({_hex_to_rgba(color, 0.2)})")
-        svg.text(pad + 8, cy + sh // 2 + 3, label, size=10, fill=f"rgba({_hex_to_rgba(THEME['textSecondary'], 0.8)})")
-        svg.text(svg.w - pad - 8, cy + sh // 2 + 5, f"{count:3d}", size=16, fill=color, anchor="end", weight="bold")
-        cy += sh + 4
+    tab_w = 44 if compact else 100
 
+    if compact:
+        # Mobile: right-aligned tabs (from QML: Row { spacing: 0 })
+        start_x = W - len(TABS) * tab_w - 4
+    else:
+        # Desktop: centered (RowLayout with spacer Items)
+        start_x = (W - len(TABS) * tab_w) // 2
+
+    for i, (screen, icon, label) in enumerate(TABS):
+        x = start_x + i * tab_w
+        active = (i == active_tab)
+        # Background on active
+        if active:
+            s.r(x, bar_h/2 - 16, tab_w, 32, rx=6, f=_alpha(T["cyan"], 0.12))
+        if compact:
+            # Icon only, centered
+            s.t(x + tab_w/2, bar_h/2 + 3, icon, sz=14,
+                clr=T["cyan"] if active else _alpha(T["t1"], 0.55), a="middle")
+        else:
+            # Icon + label
+            ic_x = x + 8
+            s.t(ic_x + 6, bar_h/2 + 3, icon, sz=12,
+                clr=T["cyan"] if active else _alpha(T["t1"], 0.55), a="middle")
+            s.t(ic_x + 18, bar_h/2 + 3, label, sz=10,
+                clr=T["cyan"] if active else _alpha(T["t1"], 0.7),
+                w="bold" if active else "normal")
+
+    # Close button — desktop only
+    if not compact:
+        cx = W - 22
+        s.r(cx - 14, 4, 28, 28, rx=6, f="transparent", st="#5A5A7A")
+        s.t(cx, bar_h/2 + 3, "✕", sz=12, clr=_alpha(T["t1"], 0.7), a="middle")
+
+    return bar_h
+
+
+# ═══════════════════════════════════════════════════════════════
+# F5: Diagnostic Sidebar — full SidebarContent from DiagnosticScreen.qml
+# ═══════════════════════════════════════════════════════════════
+def draw_diag_sidebar(s, W, H, top, sidebar_w, compact):
+    """Full SidebarContent component from DiagnosticScreen.qml."""
+    sw = sidebar_w
+    sx = 12  # left/right margin inside sidebar
+
+    # Sidebar bg
+    s.r(0, top, sw, H - top, f=T["bgSidebar"])
+
+    cy = top
+
+    # Header — Rectangle with border bottom
+    s.r(0, cy, sw, 48, f="transparent", st=T["border"])
+    s.t(16, cy + 30, "NetDiagnostics", sz=16, clr=T["t1"], w="bold")
+    cy += 60
+
+    if compact:
+        # Compact mode: only target input + run button visible
+        # Target input
+        s.t(sx, cy, "Target", sz=11, clr=T["t2"], w="bold")
+        cy += 18
+        s.r(sx, cy, sw - 24, 40, rx=8, f=T["bgInput"], st=T["border"])
+        s.t(sx + 10, cy + 25, "Enter URL, IP address, or hostname...", sz=11,
+            clr=_alpha(T["t2"], 0.4))
+        cy += 48
+
+        # Run button
+        s.r(sx, cy, sw - 72, 38, rx=8, f=T["blue"])
+        s.t(sx + (sw - 72)/2, cy + 25, "▶ Run Diagnostics", sz=12, clr="#FFFFFF", a="middle", w="bold")
+        # Stop button placeholder
+        s.r(sx + sw - 66, cy, 42, 38, rx=8, f="transparent", st=_alpha(T["red"], 0.5))
+        s.t(sx + sw - 45, cy + 25, "■", sz=12, clr=T["red"], a="middle")
+        return cy + 50
+
+    # Full sidebar content
+    # Target input
+    s.t(sx, cy, "Target", sz=11, clr=T["t2"], w="bold")
+    cy += 18
+    s.r(sx, cy, sw - 24, 40, rx=8, f=T["bgInput"], st=T["border"])
+    s.t(sx + 10, cy + 25, "Enter URL, IP address, or hostname...", sz=11,
+        clr=_alpha(T["t2"], 0.4))
+    cy += 48
+
+    # Run button + stop
+    s.r(sx, cy, sw - 72, 38, rx=8, f=T["blue"])
+    s.t(sx + (sw - 72)/2, cy + 25, "▶ Run Diagnostics", sz=12, clr="#FFFFFF", a="middle", w="bold")
+    s.r(sx + sw - 66, cy, 42, 38, rx=8, f="transparent", st=_alpha(T["red"], 0.5))
+    s.t(sx + sw - 45, cy + 25, "■", sz=12, clr=T["red"], a="middle")
+    cy += 46
+
+    # "Diagnosis Group" label
+    s.t(sx, cy, "Diagnosis Group", sz=11, clr=T["t2"], w="bold")
+    cy += 12
+
+    # G1-G5 checkboxes
+    groups = [
+        ("G1 System & Adapters", True),
+        ("G2 Connectivity & Security", True),
+        ("G3 Internet & DNS", True),
+        ("G4 Remote Host", False),
+        ("G5 Website / URL", False),
+    ]
+    for gname, checked in groups:
+        s.r(sx, cy, sw - 24, 32, rx=6, f=_alpha(T["blue"], 0.12) if checked else "transparent")
+        s.checkbox(sx + 8, cy + 8, checked)
+        s.t(sx + 32, cy + 20, gname, sz=12,
+            clr=T["t1"] if checked else T["t2"])
+        cy += 34
+
+    cy += 2
+
+    # PortScanConfig card
+    port_h = 106
+    s.r(sx, cy, sw - 24, port_h, rx=8, f=_alpha(T["bgCard"], 0.5),
+        st=_alpha(T["blue"], 0.3))
+    s.t(sx + 10, cy + 16, "Port Scan", sz=11, clr=T["blue"], w="bold")
+    # Common ports checkbox
+    s.checkbox(sx + 10, cy + 26, True)
+    s.t(sx + 34, cy + 36, "Scan Common Ports", sz=11, clr=T["t1"])
+    # Range
+    s.t(sx + 10, cy + 56, "Range:", sz=11, clr=T["t2"])
+    s.r(sx + 10, cy + 62, 96, 28, rx=4, f="transparent", st=T["border"])
+    s.t(sx + 18, cy + 80, "From", sz=11, clr=T["t2"])
+    s.t(sx + 114, cy + 80, "–", sz=13, clr=T["t2"])
+    s.r(sx + 126, cy + 62, 96, 28, rx=4, f="transparent", st=T["border"])
+    s.t(sx + 134, cy + 80, "To", sz=11, clr=T["t2"])
+    cy += port_h + 8
+
+    # Divider
+    s.r(sx, cy, sw - 24, 20, f="transparent")
+    s.ln(sx, cy + 10, sw - sx, cy + 10, T["border"])
     cy += 20
 
+    # TargetAnalysisPanel (if target non-empty)
+    s.r(sx, cy, sw - 24, 70, rx=8, f=_alpha(T["bgCard"], 0.5), st=_alpha(T["blue"], 0.3))
+    s.t(sx + 10, cy + 16, "Target Analysis", sz=11, clr=T["blue"], w="bold")
+    s.t(sx + 10, cy + 34, "Type    : IPv4 Address", sz=10, clr=T["t2"])
+    s.t(sx + 10, cy + 50, "Host    : 192.168.1.1", sz=10, clr=T["t1"])
+    s.t(sx + 10, cy + 64, "RFC1918 Private", sz=10, clr=T["t2"])
+    cy += 80
+
+    # Spacer
+    # (QML: Item { Layout.fillHeight: true })
+
+    # SummaryCards at bottom
+    sum_y = max(cy, H - 180)
+    s.r(0, sum_y - 8, sw, H - sum_y + 8, f="transparent", st=T["border"])
+    s.t(sx, sum_y + 12, "Summary", sz=11, clr=T["t2"], w="bold")
+    s.t(sw - sx, sum_y + 12, "Total: 38", sz=10, clr=T["t2"], a="end")
+    sum_cy = sum_y + 24
+    for label, color, count in [("Pass", T["green"], 32), ("Warning", T["yellow"], 4),
+                                 ("Fail", T["red"], 1), ("Skipped", T["gray"], 1)]:
+        sh = 26
+        s.r(sx, sum_cy, sw - 24, sh, rx=6, f=_alpha(color, 0.06), st=_alpha(color, 0.2))
+        s.t(sx + 8, sum_cy + sh/2 + 3, label, sz=10, clr=_alpha(T["t2"], 0.8))
+        s.t(sw - 16, sum_cy + sh/2 + 5, f"{count:2d}", sz=14, clr=color, a="end", w="bold")
+        sum_cy += sh + 3
+
+    return H  # sidebar fills entire height
+
+
+# ═══════════════════════════════════════════════════════════════
+# Screen generators
+# ═══════════════════════════════════════════════════════════════
+
+def gen_dashboard(s, W, H, compact):
+    """DashboardScreen.qml — F6: exact 24px padding."""
+    top = draw_nav_bar(s, W, compact, active_tab=0)
+
+    # AppBar — 52px
+    appbar_h = 52
+    s.r(0, top, W, appbar_h, f=T["appBar"])
+    s.ln(0, top + appbar_h - 1, W, top + appbar_h - 1, T["border"])
+    s.t(16, top + appbar_h/2 + 4, "Dashboard", sz=15, clr=T["t1"], w="bold")
+
+    # Reset button
+    s.r(W - 76, top + 10, 60, 32, rx=6, f="transparent", st="#5A5A7A")
+    s.t(W - 46, top + appbar_h/2 + 4, "Reset", sz=12, clr=T["t2"], a="middle")
+
+    cy = top + appbar_h + 24  # QML: Item { Layout.preferredHeight: 24 }
+    pad = 24  # F6: exact from QML width: parent.width-48, x: 24
+    cw = W - pad * 2
+
+    # ── Run Info Header Card ──
+    card_h = 80
+    s.r(pad, cy, cw, card_h, rx=12, f=T["bgCard"], st=T["border2"])
+    s.t(pad + 16, cy + 24, "Diagnostic Run Complete", sz=16, clr=T["t1"], w="bold")
+    s.t(pad + 16, cy + 46, "Target: 192.168.1.1", sz=12, clr=T["t2"])
+    s.t(pad + 16, cy + 64, "14:32:18", sz=12, clr=T["t2"])
+    cy += card_h + 24
+
+    # ── Summary Cards (SummaryCards.qml inline) ──
+    s.t(pad, cy, "Summary", sz=11, clr=T["t2"], w="bold")
+    s.t(W - pad, cy, "Total: 38", sz=10, clr=T["t2"], a="end")
+    cy += 16
+    for label, color, count in [("Pass", T["green"], 32), ("Info", T["blue"], 0),
+                                 ("Warning", T["yellow"], 4), ("Fail", T["red"], 1),
+                                 ("Skipped", T["gray"], 1)]:
+        sh = 32
+        s.r(pad, cy, cw, sh, rx=6, f=_alpha(color, 0.06), st=_alpha(color, 0.2))
+        s.t(pad + 8, cy + sh/2 + 3, label, sz=10, clr=_alpha(T["t2"], 0.8))
+        s.t(W - pad - 8, cy + sh/2 + 5, f"{count:3d}", sz=16, clr=color, a="end", w="bold")
+        cy += sh + 4
+    cy += 16
+
     # ── Per-Group Results ──
-    svg.text(pad, cy, "Per-Group Results", size=15, fill=THEME["textPrimary"], weight="bold")
+    s.t(pad, cy, "Per-Group Results", sz=15, clr=T["t1"], w="bold")
     cy += 22
 
     groups = [
-        ("G1 System & Adapters", [("pass", 8), ("warn", 0), ("fail", 0), ("skip", 0)], 0.85, "2.1s"),
-        ("G2 Connectivity & Security", [("pass", 6), ("warn", 0), ("fail", 0), ("skip", 0)], 0.72, "1.8s"),
-        ("G3 Internet & DNS", [("pass", 4), ("warn", 1), ("fail", 0), ("skip", 0)], 0.60, "3.4s"),
-        ("G4 Remote Host", [("pass", 6), ("warn", 0), ("fail", 0), ("skip", 0)], 0.90, "2.2s"),
-        ("G5 Website / URL", [("pass", 8), ("warn", 3), ("fail", 1), ("skip", 1)], 0.70, "5.1s"),
+        ("G1: System & Adapters", 8, 8, 0, 0, 0, 0.95, "2.1s"),
+        ("G2: Connectivity & Security", 6, 6, 0, 0, 0, 0.85, "1.8s"),
+        ("G3: Internet & DNS", 5, 4, 0, 1, 0, 0.65, "3.4s"),
+        ("G4: Remote Host", 6, 6, 0, 0, 0, 0.92, "2.2s"),
+        ("G5: Website / URL", 13, 8, 0, 3, 1, 0.78, "5.1s"),
     ]
 
-    badge_colors = {"pass": THEME["passGreen"], "warn": THEME["warnYellow"],
-                    "fail": THEME["failRed"], "skip": THEME["skipGray"]}
+    for gname, total, p, w, f, sk, pct, dur in groups:
+        gh = 90
+        s.r(pad, cy, cw, gh, rx=10, f=T["bgCard"], st=T["border2"])
+        # F8: accent bar 3×24 (reduced in compact for space)
+        bar_x = pad + 14
+        s.r(bar_x, cy + 12, 3, 24, rx=2, f=T["blue"])
+        # Group name
+        s.t(bar_x + 11, cy + 18, gname, sz=13, clr=T["t1"], w="bold")
 
-    for gname, stats, pct, dur in groups:
-        gh = 100
-        svg.rect(pad, cy, cw, gh, rx=10, fill=THEME["bgCard"], stroke=THEME["borderSubtle"])
-        # Accent bar
-        svg.rect(pad + 14, cy + 18, 3, 20, rx=2, fill=THEME["accentBlue"])
-        svg.text(pad + 27, cy + 24, gname, size=13, fill=THEME["textPrimary"], weight="bold")
-
-        # Badges
-        bx = svg.w - pad - 16
-        for stype, count in reversed(stats):
-            if count > 0:
-                bw = 22; bh = 16
+        # Badges from right
+        bx = W - pad - 16
+        for cnt, clr in [(sk, T["gray"]), (f, T["red"]), (w, T["yellow"]), (p, T["green"])]:
+            if cnt > 0:
+                bw = 24; bh = 17
                 bx -= bw + 4
-                svg.rect(bx, cy + 16, bw, bh, rx=4, fill=f"rgba({_hex_to_rgba(badge_colors[stype], 0.15)})")
-                svg.text(bx + bw/2, cy + 16 + bh/2 + 3, str(count), size=10, fill=badge_colors[stype], anchor="middle", weight="bold")
+                s.r(bx, cy + 11, bw, bh, rx=4, f=_alpha(clr, 0.15))
+                s.t(bx + bw/2, cy + 11 + bh/2 + 3, str(cnt), sz=10, clr=clr, a="middle", w="bold")
 
         # Duration
-        svg.text(svg.w - pad - 16, cy + 36, dur, size=11, fill=THEME["textSecondary"], anchor="end")
+        s.t(W - pad - 16, cy + 32, dur, sz=11, clr=T["t2"], a="end")
 
-        # Progress
-        draw_progress_bar(svg, pad + 14, cy + 52, cw - 28, 4, pct, THEME["passGreen"] if pct > 0.8 else THEME["warnYellow"])
+        # F8: Progress bar
+        pr_y = cy + 44
+        s.r(bar_x, pr_y, cw - 28, 4, rx=2, f=T["border2"])
+        color = T["red"] if f > 0 else (T["yellow"] if w > 0 else T["green"])
+        s.r(bar_x, pr_y, (cw - 28) * pct, 4, rx=2, f=color)
 
-        # Mini test list
-        mini_y = cy + 68
-        for j, (stype, scount) in enumerate(stats):
-            if scount > 0:
-                ic = badge_colors[stype]
-                svg.circle(pad + 18, mini_y + 2, 4, fill=ic)
-                svg.text(pad + 26, mini_y + 5, f"Test {j+1}.{stype}", size=10, fill=THEME["textSecondary"])
-                mini_y += 14
+        # Tree connector + test items
+        ti_y = cy + 56
+        for ti in range(min(3, total)):
+            if ti_y > cy + gh - 8: break
+            # Tree connector vertical line
+            s.r(bar_x + 7, ti_y - 8, 2, 16 - 8, f=T["border2"])
+            s.c(bar_x + 12, ti_y, 4, f=T["green"] if ti < (total - f) else (T["yellow"] if ti < (total - f + w) else T["red"]))
+            s.t(bar_x + 20, ti_y + 3, f"Test {ti+1}.{'pass' if ti < (total-f-w) else 'warn' if ti < (total-f) else 'fail'}", sz=10, clr=T["t2"])
+            ti_y += 14
 
         cy += gh + 8
 
-    # ── Overall Summary Card ──
-    cy += 12
-    card2_h = 160
-    svg.rect(pad, cy, cw, card2_h, rx=12, fill=THEME["bgCard"], stroke=THEME["borderSubtle"])
-    svg.text(pad + 16, cy + 24, "Summary", size=15, fill=THEME["textPrimary"], weight="bold")
-    items = [
-        ("Total Diagnostics", "38", THEME["cyan"]),
-        ("Total Time", "12.4s", THEME["accentBlue"]),
-        ("Completed", "38", THEME["passGreen"]),
-    ]
-    iy = cy + 54
-    for lbl, val, clr in items:
-        svg.text(pad + 16, iy + 4, lbl, size=12, fill=THEME["textSecondary"])
-        svg.text(svg.w - pad - 16, iy + 8, val, size=16, fill=clr, anchor="end", weight="bold")
+    # ── Overall Summary ──
+    cy += 4
+    s2_h = 150
+    s.r(pad, cy, cw, s2_h, rx=12, f=T["bgCard"], st=T["border2"])
+    s.t(pad + 16, cy + 22, "Summary", sz=15, clr=T["t1"], w="bold")
+    iy = cy + 50
+    for lbl, val, clr in [("Total Diagnostics", "38", T["cyan"]),
+                           ("Total Time", "12.4s", T["blue"]),
+                           ("Completed", "38", T["green"])]:
+        s.t(pad + 16, iy, lbl, sz=12, clr=T["t2"])
+        s.t(W - pad - 16, iy + 4, val, sz=16, clr=clr, a="end", w="bold")
         iy += 24
-
-    # Layer timings
-    svg.line(pad + 16, iy, svg.w - pad - 16, iy, THEME["borderSubtle"])
+    s.ln(pad + 16, iy, W - pad - 16, iy, T["border2"])
     iy += 8
-    svg.text(pad + 16, iy + 12, "Layer Timings", size=12, fill=THEME["textSecondary"], weight="bold")
-    iy += 24
-    for gi, gname in enumerate(["G1 System & Adapters", "G2 Connectivity", "G3 Internet & DNS", "G4 Remote Host", "G5 Website / URL"]):
-        if iy + 16 > cy + card2_h - 8:
-            break
-        svg.rect(pad + 16, iy, 8, 8, rx=2, fill=THEME["accentBlue"])
-        svg.text(pad + 30, iy + 8, gname[:30], size=11, fill=THEME["textPrimary"])
-        svg.text(svg.w - pad - 16, iy + 8, f"{2.0 + gi * 0.8:.1f}s", size=11, fill=THEME["textSecondary"], anchor="end")
+    s.t(pad + 16, iy + 8, "Layer Timings", sz=12, clr=T["t2"], w="bold")
+    iy += 20
+    for gi, gn in enumerate(["G1 System & Adapters", "G2 Connectivity", "G3 Internet & DNS",
+                              "G4 Remote Host", "G5 Website / URL"]):
+        if iy + 16 > cy + s2_h - 4: break
+        s.r(pad + 16, iy, 8, 8, rx=2, f=T["blue"])
+        s.t(pad + 30, iy + 8, gn, sz=11, clr=T["t1"])
+        s.t(W - pad - 16, iy + 8, f"{2.0 + gi*0.8:.1f}s", sz=11, clr=T["t2"], a="end")
         iy += 18
 
-    return svg
+    return s
 
 
-def gen_diagnostics(svg, dev):
-    """DiagnosticScreen.qml — wide/narrow sidebar layout."""
-    nav_h = draw_nav_bar(svg, dev, active_tab=1)
-    top = nav_h
-    is_wide = svg.w >= 600
-    sidebar_w = 260 if is_wide else svg.w
+def gen_diagnostics(s, W, H, compact):
+    """DiagnosticScreen.qml — F5+F9: full sidebar, 600px breakpoint."""
+    top = draw_nav_bar(s, W, compact, active_tab=1)
+
+    # F9: wide detection by screen width, not device type
+    is_wide = W >= 600
 
     if is_wide:
-        # Wide: sidebar | divider | content
-        svg.rect(0, top, sidebar_w, svg.h - top, fill=THEME["bgSidebar"])
-        svg.line(sidebar_w, top, sidebar_w, svg.h - top, THEME["borderCard"])
+        sidebar_w = 260
+        draw_diag_sidebar(s, W, H, top, sidebar_w, compact=False)
         content_x = sidebar_w + 1
-        content_w = svg.w - content_x
+        content_w = W - content_x
+        # Divider
+        s.ln(sidebar_w, top, sidebar_w, H, T["border"])
     else:
-        # Narrow: sidebar on top (29-50% height)
-        sidebar_h = int((svg.h - top) * 0.29)
-        svg.rect(0, top, svg.w, sidebar_h, fill=THEME["bgSidebar"])
-        svg.line(0, top + sidebar_h, svg.w, top + sidebar_h, THEME["borderCard"])
+        sidebar_h = int((H - top) * 0.29)
+        draw_diag_sidebar(s, W, top + sidebar_h + 1, top, W, compact=True)
+        s.ln(0, top + sidebar_h, W, top + sidebar_h, T["border"])
         content_x = 0
-        content_w = svg.w
+        content_w = W
         top = top + sidebar_h + 1
 
-    # ── Sidebar content ──
-    sx = 12 if is_wide else 16
-    sy = top - (0 if is_wide else 0) + 12 if is_wide else nav_h + 12
+    # ── Content area header ──
+    s.r(content_x, top, content_w, 41, f=T["appBar"])
+    s.t(content_x + 16, top + 26, "Results", sz=15, clr=T["t1"], w="bold")
+    s.t(content_x + content_w - 16, top + 26, "38 / 38", sz=12, clr=T["cyan"], a="end", w="bold")
 
-    if is_wide:
-        # Header
-        svg.rect(0, nav_h, sidebar_w, 48, fill="transparent", stroke=THEME["borderCard"])
-        svg.text(sx, nav_h + 30, "NetDiagnostics", size=16, fill=THEME["textPrimary"], weight="bold")
-
-        sy = nav_h + 60
-
-        # Target input
-        svg.text(sx, sy, "Target", size=11, fill=THEME["textSecondary"], weight="bold")
-        sy += 18
-        svg.rect(sx, sy, sidebar_w - 24, 40, rx=8, fill=THEME["bgInput"], stroke=THEME["borderCard"])
-        svg.text(sx + 10, sy + 26, "Enter URL, IP address, or hostname...", size=11, fill=f"rgba({_hex_to_rgba(THEME['textSecondary'], 0.4)})")
-        sy += 48
-
-        # Run button
-        svg.rect(sx, sy, sidebar_w - 72, 38, rx=8, fill=THEME["accentBlue"])
-        svg.text(sx + (sidebar_w - 72) // 2, sy + 25, "▶ Run Diagnostics", size=12, fill="#FFFFFF", anchor="middle", weight="bold")
-        # Stop button
-        svg.rect(sx + sidebar_w - 66, sy, 42, 38, rx=8, fill="transparent", stroke=f"rgba(239,68,68,0.5)")
-        svg.text(sx + sidebar_w - 45, sy + 25, "■", size=12, fill=THEME["failRed"], anchor="middle")
-        sy += 52
-
-        # Diagnosis Group label
-        svg.text(sx, sy, "Diagnosis Group", size=11, fill=THEME["textSecondary"], weight="bold")
-        sy += 18
-
-        # Group checkboxes
-        groups = [
-            ("G1 System & Adapters", True),
-            ("G2 Connectivity & Security", True),
-            ("G3 Internet & DNS", True),
-            ("G4 Remote Host", False),
-            ("G5 Website / URL", False),
-        ]
-        for gname, checked in groups:
-            svg.rect(sx, sy, sidebar_w - 24, 32, rx=6, fill=f"rgba(0,120,212,0.12)" if checked else "transparent")
-            # Checkbox
-            cbx = sx + 8
-            cby = sy + 8
-            svg.rect(cbx, cby, 16, 16, rx=3, fill=THEME["accentBlue"] if checked else "none", stroke=THEME["accentBlue"] if checked else "#5A5A7A", sw=1.5)
-            if checked:
-                svg.text(cbx + 8, cby + 11, "✓", size=10, fill="#FFFFFF", anchor="middle")
-            svg.text(cbx + 24, sy + 20, gname, size=12, fill=THEME["textPrimary"] if checked else THEME["textSecondary"])
-            sy += 34
-
-        sy += 8
-
-        # Port Scan card
-        port_h = 108
-        svg.rect(sx, sy, sidebar_w - 24, port_h, rx=8, fill=f"rgba(22,33,62,0.5)", stroke=f"rgba(0,120,212,0.3)")
-        svg.text(sx + 10, sy + 18, "Port Scan", size=11, fill=THEME["accentBlue"], weight="bold")
-        # Common ports checkbox
-        svg.rect(sx + 10, sy + 28, 16, 16, rx=3, fill=THEME["cyan"])
-        svg.text(sx + 10 + 8, sy + 28 + 11, "✓", size=10, fill=THEME["bgDark"], anchor="middle")
-        svg.text(sx + 30, sy + 38, "Scan Common Ports", size=11, fill=THEME["textPrimary"])
-        # Range
-        svg.text(sx + 10, sy + 58, "Range:", size=11, fill=THEME["textSecondary"])
-        svg.rect(sx + 10, sy + 64, 100, 28, rx=4, fill="transparent", stroke=THEME["borderCard"])
-        svg.text(sx + 18, sy + 82, "From", size=11, fill=THEME["textSecondary"])
-        svg.rect(sx + 120, sy + 64, 100, 28, rx=4, fill="transparent", stroke=THEME["borderCard"])
-        svg.text(sx + 128, sy + 82, "To", size=11, fill=THEME["textSecondary"])
-        sy += port_h + 12
-
-        # Divider
-        svg.line(sx, sy, sidebar_w - 12, sy, THEME["borderCard"])
-        sy += 12
-
-    # ── Summary cards in sidebar ──
-    summary_sy = sy if is_wide else nav_h + 12
-    if is_wide:
-        svg.text(sx, sy, "Summary", size=11, fill=THEME["textSecondary"], weight="bold")
-        svg.text(sidebar_w - 12, sy, "Total: 38", size=10, fill=THEME["textSecondary"], anchor="end")
-        sy += 16
-        for label, color, count in [("Pass", THEME["passGreen"], 32), ("Info", THEME["accentBlue"], 0),
-                                     ("Warning", THEME["warnYellow"], 4), ("Fail", THEME["failRed"], 1),
-                                     ("Skipped", THEME["skipGray"], 1)]:
-            sh = 28
-            svg.rect(sx, sy, sidebar_w - 24, sh, rx=6, fill=f"rgba({_hex_to_rgba(color, 0.06)})", stroke=f"rgba({_hex_to_rgba(color, 0.2)})")
-            svg.text(sx + 8, sy + sh // 2 + 3, label, size=10, fill=THEME["textSecondary"])
-            svg.text(sidebar_w - 20, sy + sh // 2 + 5, f"{count}", size=14, fill=color, anchor="end", weight="bold")
-            sy += sh + 3
-
-    # ── Content area ──
-    chead_y = top + 1
-    # Header bar
-    svg.rect(content_x, chead_y, content_w, 41, fill=THEME["appBar"])
-    svg.text(content_x + 16, chead_y + 26, "Results", size=15, fill=THEME["textPrimary"], weight="bold")
-    svg.text(content_x + content_w - 16, chead_y + 26, "38 / 38", size=12, fill=THEME["cyan"], anchor="end", weight="bold")
-
-    cy = chead_y + 45
+    cy = top + 45
     cpad = 8
+    cw_content = content_w - cpad * 2
 
-    # Group panels
+    # F8: DiagGroupPanel per group
     result_groups = [
-        ("G1 System & Adapters", "8/8", 0),
-        ("G2 Connectivity & Security", "6/6", 0),
-        ("G3 Internet & DNS", "4/5", 1),
-        ("G4 Remote Host", "6/6", 0),
-        ("G5 Website / URL", "12/13", 1),
+        ("G1: System & Adapters", 8, 8, 0, 0, 0),
+        ("G2: Connectivity & Security", 6, 6, 0, 0, 0),
+        ("G3: Internet & DNS", 5, 4, 1, 0, 0),
+        ("G4: Remote Host", 6, 6, 0, 0, 0),
+        ("G5: Website / URL", 13, 8, 3, 1, 1),
     ]
 
-    for gi, (gname, progress, fails) in enumerate(result_groups):
-        gh = min(100, (svg.h - cy - 20) // len(result_groups))
-        if cy + gh > svg.h - 20:
-            break
+    for gi, (gname, total, p, w, f, sk) in enumerate(result_groups):
+        gh = min(95, max(70, (H - cy - 20) // len(result_groups)))
+        if cy + gh >= H - 10: break
 
-        has_fail = fails > 0
-        header_color = THEME["failRed"] if has_fail else THEME["passGreen"]
-        header_bg = f"rgba(239,68,68,0.10)" if has_fail else f"rgba(74,222,128,0.08)"
+        s.r(content_x + cpad, cy, cw_content, gh, rx=10, f=T["bgCard"], st=T["border2"])
 
-        svg.rect(content_x + cpad, cy, content_w - cpad * 2, gh, rx=8, fill=THEME["bgCard"], stroke=THEME["borderCard"])
-        # Group header
-        svg.rect(content_x + cpad, cy, content_w - cpad * 2, 36, rx=8, fill=header_bg)
-        svg.text(content_x + cpad + 16, cy + 24, gname, size=13, fill=THEME["textPrimary"], weight="bold")
-        svg.text(content_x + content_w - cpad - 16, cy + 24, progress, size=12, fill=header_color, anchor="end", weight="bold")
+        # Header: accent bar + name + count + badges + expand arrow
+        hdr_y = cy + 8
+        s.r(content_x + cpad + 12, hdr_y, 3, 22, rx=2, f=T["blue"])
+        s.t(content_x + cpad + 23, hdr_y + 4, gname, sz=13, clr=T["t1"], w="bold")
+        # Count
+        s.t(content_x + cpad + cw_content - 30, hdr_y + 14, f"{p}/{total}", sz=11, clr=T["t2"], a="end")
+        # Expand arrow
+        s.t(content_x + cpad + cw_content - 16, hdr_y + 4, "▼", sz=10, clr=T["t2"], a="end")
 
-        # Test items (truncated to fit)
-        items_y = cy + 44
-        for ti in range(min(3, (gh - 50) // 16)):
-            if items_y > cy + gh - 8:
-                break
-            dot_color = THEME["passGreen"] if ti < 2 else (THEME["warnYellow"] if fails > 0 and ti == 2 else THEME["passGreen"])
-            svg.circle(content_x + cpad + 20, items_y + 4, 4, fill=dot_color)
-            svg.text(content_x + cpad + 32, items_y + 8, f"Test {gi+1}.{ti+1} — ok", size=10, fill=THEME["textSecondary"])
-            items_y += 16
+        # Badges
+        bx = content_x + cpad + cw_content - 50
+        for cnt, clr in [(sk, T["gray"]), (f, T["red"]), (w, T["yellow"]), (p, T["green"])]:
+            if cnt > 0:
+                bx -= 28
+                s.r(bx, hdr_y, 26, 18, rx=4, f=_alpha(clr, 0.15))
+                s.t(bx + 13, hdr_y + 12, str(cnt), sz=10, clr=clr, a="middle", w="bold")
+
+        # Progress bar
+        pct = p / total if total > 0 else 0
+        pr_color = T["red"] if f > 0 else (T["yellow"] if w > 0 else T["green"])
+        s.r(content_x + cpad + 12, cy + 38, cw_content - 24, 4, rx=2, f=T["border2"])
+        s.r(content_x + cpad + 12, cy + 38, (cw_content - 24) * pct, 4, rx=2, f=pr_color)
+
+        # Expanded tree items
+        sep_y = cy + 46
+        s.ln(content_x + cpad + 12, sep_y, content_x + cpad + cw_content - 12, sep_y, T["border2"])
+        ti_y = sep_y + 4
+        for ti in range(min(3, total)):
+            if ti_y > cy + gh - 6: break
+            # Tree connector vertical line
+            s.r(content_x + cpad + 20, ti_y, 2, 12, f=T["border2"])
+            status_color = T["red"] if ti >= total - f else (T["yellow"] if ti >= total - f - w else T["green"])
+            s.c(content_x + cpad + 28, ti_y + 6, 4, f=status_color)
+            s.t(content_x + cpad + 36, ti_y + 9, f"Test {gi+1}.{ti+1}", sz=10, clr=T["t2"])
+            s.t(content_x + cpad + cw_content - 16, ti_y + 9, f"{10+ti*5}ms", sz=10, clr=_alpha(T["t2"], 0.6), a="end")
+            ti_y += 14
 
         cy += gh + 4
 
-    return svg
+    return s
 
 
-def gen_config(svg, dev):
-    """ConfigScreen.qml — AppBar with tabs + action bar + test list."""
-    nav_h = draw_nav_bar(svg, dev, active_tab=2)
-    top = nav_h
+def gen_config(s, W, H, compact):
+    """ConfigScreen.qml — F7: 84px AppBar with tab row."""
+    top = draw_nav_bar(s, W, compact, active_tab=2)
+
+    # F7: AppBar 84px = 44 (title) + 38 (tabs) + 2
     appbar_h = 84
+    s.r(0, top, W, appbar_h, f=T["appBar"])
+    s.ln(0, top + appbar_h - 1, W, top + appbar_h - 1, T["border"])
 
-    svg.rect(0, top, svg.w, appbar_h, fill=THEME["appBar"])
-    svg.line(0, top + appbar_h - 1, svg.w, top + appbar_h - 1, THEME["borderCard"])
+    # Title row (44px)
+    s.t(16, top + 26, "Diagnostic Config", sz=15, clr=T["t1"], w="bold")
 
-    # AppBar title
-    draw_settings_icon(svg, 16, top + 22, 20, THEME["cyan"])
-    svg.text(42, top + 24, "Diagnostic Config", size=15, fill=THEME["textPrimary"], weight="bold")
-
-    # Tabs
+    # Tab row (38px from y=44)
     tab_y = top + 44
     tab_names = ["G1", "G2", "G3", "G4", "G5"]
-    tab_w = svg.w // len(tab_names)
-    for i, tname in enumerate(tab_names):
+    tab_w = W // len(tab_names)
+    for i, tn in enumerate(tab_names):
         x = i * tab_w
         active = (i == 0)
-        svg.text(x + tab_w // 2, tab_y + 20, tname, size=12, fill=THEME["cyan"] if active else THEME["textSecondary"], anchor="middle", weight="bold" if active else "normal")
+        s.t(x + tab_w/2, tab_y + 22, tn, sz=12,
+            clr=T["cyan"] if active else T["t2"], a="middle",
+            w="bold" if active else "normal")
         if active:
-            svg.rect(x, tab_y + 36, tab_w, 2, fill=THEME["cyan"])
+            s.r(x, tab_y + 36, tab_w, 2, f=T["cyan"])
 
     # Action bar
     ay = top + appbar_h
-    svg.rect(0, ay, svg.w, 60, fill=f"rgba(22,33,62,0.5)", stroke=THEME["borderSubtle"])
-    svg.text(16, ay + 24, "G1 System & Adapters", size=14, fill=THEME["textPrimary"], weight="bold")
-    svg.text(16, ay + 42, "8 diagnostics", size=11, fill=THEME["textSecondary"])
+    s.r(0, ay, W, 60, f=_alpha(T["bgCard"], 0.5), st=T["border2"])
+    s.t(16, ay + 24, "G1 System & Adapters", sz=14, clr=T["t1"], w="bold")
+    s.t(16, ay + 44, "8 diagnostics", sz=11, clr=T["t2"])
 
-    # Select All button
-    sa_x = svg.w - 240
-    svg.rect(sa_x, ay + 14, 110, 32, rx=6, fill="transparent", stroke=THEME["borderCard"])
-    svg.text(sa_x + 55, ay + 32, "Select All", size=11, fill=THEME["textPrimary"], anchor="middle")
-    svg.rect(sa_x + 118, ay + 14, 110, 32, rx=6, fill="transparent", stroke=THEME["borderCard"])
-    svg.text(sa_x + 118 + 55, ay + 32, "Deselect All", size=11, fill=THEME["textPrimary"], anchor="middle")
+    # Select All / Deselect All buttons
+    sa_x = W - 244
+    s.r(sa_x, ay + 14, 110, 32, rx=6, f="transparent", st=T["border"])
+    s.t(sa_x + 55, ay + 32, "Select All", sz=11, clr=T["t1"], a="middle")
+    s.r(sa_x + 118, ay + 14, 110, 32, rx=6, f="transparent", st=T["border"])
+    s.t(sa_x + 118 + 55, ay + 32, "Deselect All", sz=11, clr=T["t1"], a="middle")
 
     # Test list
     ly = ay + 60
@@ -611,178 +585,148 @@ def gen_config(svg, dev):
     ]
 
     item_h = 54
-    visible_items = (svg.h - ly) // item_h
-    for ti in range(min(len(tests), visible_items)):
+    for ti in range(min(len(tests), int((H - ly - 10) / item_h))):
         iy = ly + ti * item_h
-        if iy + item_h > svg.h - 20:
-            break
         name, desc, enabled = tests[ti]
 
         # Separator
-        svg.line(16, iy + item_h - 1, svg.w - 16, iy + item_h - 1, THEME["borderSubtle"])
+        s.ln(16, iy + item_h - 1, W - 16, iy + item_h - 1, T["border2"])
 
-        # Icon
-        ic = THEME["passGreen"] if enabled else THEME["textMuted"]
-        svg.circle(28, iy + item_h // 2, 7, fill=ic)
+        # Leading icon
+        s.c(28, iy + item_h/2, 7, f=T["green"] if enabled else T["t3"])
 
         # Text
-        svg.text(50, iy + 20, name, size=13, fill=THEME["textPrimary"])
-        svg.text(50, iy + 36, desc[:50], size=10, fill=f"rgba({_hex_to_rgba(THEME['textSecondary'], 0.6)})")
+        s.t(50, iy + 18, name, sz=13, clr=T["t1"])
+        if desc:
+            s.t(50, iy + 34, desc[:55] + ("..." if len(desc) > 55 else ""), sz=10,
+                clr=_alpha(T["t2"], 0.6))
 
         # Switch
-        sw_x = svg.w - 60
-        sw_y = iy + item_h // 2 - 10
-        sw_w = 40; sw_h = 20
-        if enabled:
-            svg.rect(sw_x, sw_y, sw_w, sw_h, rx=10, fill=THEME["accentBlue"])
-            svg.circle(sw_x + sw_w - 10, sw_y + 10, 8, fill="#FFFFFF")
-        else:
-            svg.rect(sw_x, sw_y, sw_w, sw_h, rx=10, fill="#5A5A7A")
-            svg.circle(sw_x + 10, sw_y + 10, 8, fill="#FFFFFF")
+        s.switch(W - 60, iy + item_h/2 - 11, enabled)
 
-    return svg
+    return s
 
 
-def gen_report(svg, dev):
-    """ReportScreen.qml — centered layout with export buttons."""
-    nav_h = draw_nav_bar(svg, dev, active_tab=3)
-    top = nav_h
-    is_mobile = dev["isMobile"]
+def gen_report(s, W, H, compact):
+    """ReportScreen.qml — centered layout."""
+    top = draw_nav_bar(s, W, compact, active_tab=3)
 
-    # AppBar
-    svg.rect(0, top, svg.w, 52, fill=THEME["appBar"])
-    svg.line(0, top + 51, svg.w, top + 51, THEME["borderCard"])
-    draw_report_icon(svg, 16, top + 26, 20, THEME["cyan"])
-    svg.text(42, top + 30, "Report Preview", size=15, fill=THEME["textPrimary"], weight="bold")
+    # AppBar 52px
+    appbar_h = 52
+    s.r(0, top, W, appbar_h, f=T["appBar"])
+    s.ln(0, top + appbar_h - 1, W, top + appbar_h - 1, T["border"])
+    s.t(16, top + appbar_h/2 + 4, "Report Preview", sz=15, clr=T["t1"], w="bold")
 
-    # Centered content
-    center_x = svg.w // 2
-    cy = top + 52 + (24 if not is_mobile else 14)
+    cy = top + appbar_h + (14 if compact else 24)
+    cx = W / 2
 
     # Icon container
-    icon_size = 72 if is_mobile else 100
-    svg.rect(center_x - icon_size // 2, cy, icon_size, icon_size, rx=24,
-             fill=f"rgba({_hex_to_rgba(THEME['cyan'], 0.08)})",
-             stroke=f"rgba({_hex_to_rgba(THEME['cyan'], 0.2)})", sw=1.5)
-    draw_report_icon(svg, center_x, cy + icon_size // 2, icon_size * 0.45, f"rgba({_hex_to_rgba(THEME['cyan'], 0.6)})")
-    cy += icon_size + (24 if not is_mobile else 14)
+    icon_sz = 72 if compact else 100
+    s.r(cx - icon_sz/2, cy, icon_sz, icon_sz, rx=24,
+        f=_alpha(T["cyan"], 0.08), st=_alpha(T["cyan"], 0.2), sw=1.5)
+    s.t(cx, cy + icon_sz/2 + 5, "📄", sz=icon_sz*0.4, clr=_alpha(T["cyan"], 0.6), a="middle")
+    cy += icon_sz + (14 if compact else 24)
 
     # Title
-    title_size = 19 if is_mobile else 22
-    svg.text(center_x, cy, "Report Preview", size=title_size, fill=THEME["textPrimary"], anchor="middle", weight="bold")
-    cy += title_size + (12 if not is_mobile else 8)
+    title_sz = 19 if compact else 22
+    s.t(cx, cy, "Report Preview", sz=title_sz, clr=T["t1"], a="middle", w="bold")
+    cy += title_sz + (8 if compact else 12)
 
     # Subtitle
-    svg.text(center_x, cy, "Generate a PDF or HTML report from your latest diagnostic run.",
-             size=14, fill=f"rgba({_hex_to_rgba(THEME['textSecondary'], 0.6)})", anchor="middle")
-    cy += 14 + (24 if not is_mobile else 16)
+    s.t(cx, cy, "Generate a PDF or HTML report from your latest diagnostic run.",
+        sz=14, clr=_alpha(T["t2"], 0.6), a="middle")
+    cy += 14 + (16 if compact else 24)
 
     # Export buttons
-    col_w = min(320, svg.w - 48)
+    col_w = min(320, W - 48)
+    btn_x = cx - col_w/2
     btn_h = 48
-    btn_x = center_x - col_w // 2
 
-    for icon_name, label, accent in [
-        ("report", "Preview PDF Summary", THEME["cyan"]),
-        ("globe", "Preview Full HTML Report", THEME["accentBlue"]),
-    ]:
-        svg.rect(btn_x, cy, col_w, btn_h, rx=10,
-                 fill=f"rgba({_hex_to_rgba(accent, 0.10)})",
-                 stroke=f"rgba({_hex_to_rgba(accent, 0.35)})")
-        svg.text(btn_x + 40, cy + btn_h // 2 + 4, label, size=13, fill=THEME["textPrimary"])
+    for label, accent in [("Preview PDF Summary", T["cyan"]), ("Preview Full HTML Report", T["blue"])]:
+        s.r(btn_x, cy, col_w, btn_h, rx=10, f=_alpha(accent, 0.10), st=_alpha(accent, 0.35))
+        s.t(btn_x + 40, cy + btn_h/2 + 4, label, sz=13, clr=T["t1"])
         cy += btn_h + 10
 
-    cy += (18 if is_mobile else 32)
+    cy += (18 if compact else 32)
 
     # Status indicator
-    has_results = True
-    status_color = THEME["passGreen"]
-    status_text = "38 results available"
-    status_bg = f"rgba({_hex_to_rgba(status_color, 0.1)})"
-    status_border = f"rgba({_hex_to_rgba(status_color, 0.3)})"
-
-    status_w = 280
     status_h = 40
-    svg.rect(center_x - status_w // 2, cy, status_w, status_h, rx=8, fill=status_bg, stroke=status_border)
-    svg.text(center_x, cy + status_h // 2 + 4, status_text, size=12, fill=status_color, anchor="middle")
+    s.r(cx - 140, cy, 280, status_h, rx=8, f=_alpha(T["green"], 0.1), st=_alpha(T["green"], 0.3))
+    s.t(cx, cy + status_h/2 + 4, "38 results available", sz=12, clr=T["green"], a="middle")
 
-    return svg
+    return s
 
 
-def gen_settings(svg, dev):
-    """SettingsScreen.qml — Language, Premium, About sections."""
-    nav_h = draw_nav_bar(svg, dev, active_tab=4)
-    top = nav_h
-    is_mobile = dev["isMobile"]
+def gen_settings(s, W, H, compact):
+    """SettingsScreen.qml — language, premium, about."""
+    top = draw_nav_bar(s, W, compact, active_tab=4)
 
-    # AppBar
-    svg.rect(0, top, svg.w, 52, fill=THEME["appBar"])
-    svg.line(0, top + 51, svg.w, top + 51, THEME["borderCard"])
-    draw_settings_icon(svg, 16, top + 26, 20, THEME["cyan"])
-    svg.text(42, top + 30, "Settings", size=15, fill=THEME["textPrimary"], weight="bold")
+    # AppBar 52px
+    appbar_h = 52
+    s.r(0, top, W, appbar_h, f=T["appBar"])
+    s.ln(0, top + appbar_h - 1, W, top + appbar_h - 1, T["border"])
+    s.t(16, top + appbar_h/2 + 4, "Settings", sz=15, clr=T["t1"], w="bold")
 
     pad = 24
-    cw = svg.w - pad * 2
-    cy = top + 52 + 24
+    cw = W - pad * 2
+    cy = top + appbar_h + 24
 
     # ── Language Section ──
-    svg.rect(pad, cy, 30, 30, rx=8, fill=f"rgba({_hex_to_rgba(THEME['cyan'], 0.1)})")
-    svg.text(pad + 15, cy + 20, "🌐", size=14, fill=THEME["cyan"], anchor="middle")
-    svg.text(pad + 42, cy + 20, "Language", size=16, fill=THEME["textPrimary"], weight="bold")
+    # Section header
+    s.r(pad, cy, 30, 30, rx=8, f=_alpha(T["cyan"], 0.1))
+    s.t(pad + 15, cy + 20, "🌐", sz=14, clr=T["cyan"], a="middle")
+    s.t(pad + 42, cy + 20, "Language", sz=16, clr=T["t1"], w="bold")
     cy += 42
 
+    # Dropdown card
     lang_h = 50
-    svg.rect(pad, cy, cw, lang_h, rx=12, fill=THEME["bgCard"], stroke=THEME["borderSubtle"])
-    # Dropdown
-    dd_h = 44
-    svg.rect(pad + 16, cy + 3, cw - 32, dd_h, rx=6, fill=THEME["bgInput"], stroke=THEME["borderCard"])
-    svg.text(pad + 28, cy + lang_h // 2 + 3, "English", size=13, fill=THEME["textPrimary"])
-    svg.text(svg.w - pad - 28, cy + lang_h // 2 + 4, "▾", size=12, fill=THEME["textSecondary"], anchor="end")
+    s.r(pad, cy, cw, lang_h, rx=12, f=T["bgCard"], st=T["border2"])
+    s.r(pad + 16, cy + 3, cw - 32, 44, rx=6, f=T["bgInput"], st=T["border"])
+    s.t(pad + 28, cy + lang_h/2 + 3, "English", sz=13, clr=T["t1"])
+    s.t(W - pad - 28, cy + lang_h/2 + 4, "▾", sz=12, clr=T["t2"], a="end")
     cy += lang_h + 20
 
-    # ── Premium Section (mobile only) ──
-    if is_mobile:
-        svg.rect(pad, cy, 30, 30, rx=8, fill=f"rgba({_hex_to_rgba(THEME['warnYellow'], 0.1)})")
-        svg.text(pad + 15, cy + 20, "⭐", size=14, fill=THEME["warnYellow"], anchor="middle")
-        svg.text(pad + 42, cy + 20, "Premium", size=16, fill=THEME["textPrimary"], weight="bold")
+    # ── Premium Section (compact/mobile only) ──
+    if compact:
+        s.r(pad, cy, 30, 30, rx=8, f=_alpha(T["yellow"], 0.1))
+        s.t(pad + 15, cy + 20, "⭐", sz=14, clr=T["yellow"], a="middle")
+        s.t(pad + 42, cy + 20, "Premium", sz=16, clr=T["t1"], w="bold")
         cy += 42
 
         prem_h = 100
-        svg.rect(pad, cy, cw, prem_h, rx=12, fill=THEME["bgCard"], stroke=THEME["borderSubtle"])
-        svg.text(pad + 16, cy + 24, "Share & email reports require Premium.", size=12, fill=THEME["textSecondary"])
-        # Restore button
-        svg.rect(pad + 16, cy + 44, cw - 32, 40, rx=8,
-                 fill=f"rgba({_hex_to_rgba(THEME['warnYellow'], 0.12)})",
-                 stroke=f"rgba({_hex_to_rgba(THEME['warnYellow'], 0.4)})")
-        svg.text(pad + cw // 2, cy + 66, "Restore Purchases", size=13, fill=THEME["warnYellow"], anchor="middle", weight="bold")
+        s.r(pad, cy, cw, prem_h, rx=12, f=T["bgCard"], st=T["border2"])
+        s.t(pad + 16, cy + 22, "Share & email reports require Premium.", sz=12, clr=T["t2"])
+        s.r(pad + 16, cy + 44, cw - 32, 40, rx=8,
+            f=_alpha(T["yellow"], 0.12), st=_alpha(T["yellow"], 0.4))
+        s.t(W/2, cy + 66, "Restore Purchases", sz=13, clr=T["yellow"], a="middle", w="bold")
         cy += prem_h + 32
 
     # ── About Section ──
-    svg.rect(pad, cy, 30, 30, rx=8, fill=f"rgba({_hex_to_rgba(THEME['accentBlue'], 0.1)})")
-    svg.text(pad + 15, cy + 20, "ℹ", size=14, fill=THEME["accentBlue"], anchor="middle")
-    svg.text(pad + 42, cy + 20, "About", size=16, fill=THEME["textPrimary"], weight="bold")
+    s.r(pad, cy, 30, 30, rx=8, f=_alpha(T["blue"], 0.1))
+    s.t(pad + 15, cy + 20, "ℹ", sz=14, clr=T["blue"], a="middle")
+    s.t(pad + 42, cy + 20, "About", sz=16, clr=T["t1"], w="bold")
     cy += 42
 
-    about_h = 260 if is_mobile else 280
-    svg.rect(pad, cy, cw, about_h, rx=12, fill=THEME["bgCard"], stroke=THEME["borderSubtle"])
+    about_h = 280 if compact else 260
+    if cy + about_h > H - 10:
+        about_h = H - cy - 10
+
+    s.r(pad, cy, cw, about_h, rx=12, f=T["bgCard"], st=T["border2"])
 
     # App icon + name
-    svg.rect(pad + 16, cy + 16, 48, 48, rx=12, fill=f"rgba({_hex_to_rgba(THEME['accentBlue'], 0.15)})")
-    svg.text(pad + 40, cy + 44, "📡", size=24, fill=THEME["accentBlue"], anchor="middle")
-    svg.text(pad + 78, cy + 32, "NetDiagnostics", size=18, fill=THEME["textPrimary"], weight="bold")
-    svg.text(pad + 78, cy + 50, "Version 6.9.0 (Build 20260704)", size=12, fill=THEME["textSecondary"])
+    s.r(pad + 16, cy + 16, 48, 48, rx=12, f=_alpha(T["blue"], 0.15))
+    s.t(pad + 40, cy + 44, "📡", sz=24, clr=T["blue"], a="middle")
+    s.t(pad + 78, cy + 32, "NetDiagnostics", sz=18, clr=T["t1"], w="bold")
+    s.t(pad + 78, cy + 50, "Version 6.9.0 (Build 20260704)", sz=12, clr=T["t2"])
 
     # Divider
-    svg.line(pad + 16, cy + 80, svg.w - pad - 16, cy + 80, THEME["borderSubtle"])
+    s.ln(pad + 16, cy + 80, W - pad - 16, cy + 80, T["border2"])
 
     # Description
-    desc_y = cy + 96
-    svg.text(pad + 16, desc_y, "A cross-platform network diagnostic tool", size=13, fill=THEME["textSecondary"])
-    desc_y += 20
-    svg.text(pad + 16, desc_y, "with real-time testing and detailed reports.", size=13, fill=THEME["textSecondary"])
+    s.t(pad + 16, cy + 96, "A cross-platform network diagnostic tool", sz=13, clr=T["t2"])
+    s.t(pad + 16, cy + 116, "with real-time testing and detailed reports.", sz=13, clr=T["t2"])
 
-    # Feature list
-    feat_y = cy + 140
+    # Features
     features = [
         "💻 Cross-platform (iOS, Android, Desktop)",
         "⚡ Real-time diagnostics",
@@ -790,19 +734,18 @@ def gen_settings(svg, dev):
         "🌙 Dark theme",
         "🖥 Simulator mode (desktop)",
     ]
+    feat_y = cy + 144
     for feat in features:
-        if feat_y > cy + about_h - 12:
-            break
-        svg.text(pad + 16, feat_y, feat, size=12, fill=f"rgba({_hex_to_rgba(THEME['textSecondary'], 0.8)})")
+        if feat_y > cy + about_h - 12: break
+        s.t(pad + 16, feat_y, feat, sz=12, clr=_alpha(T["t2"], 0.8))
         feat_y += 22
 
-    return svg
+    return s
 
 
-# ═══════════════════════════════════════════════════════════════════════
-# Main generator
-# ═══════════════════════════════════════════════════════════════════════
-
+# ═══════════════════════════════════════════════════════════════
+# Main
+# ═══════════════════════════════════════════════════════════════
 GENERATORS = {
     "dashboard": gen_dashboard,
     "diagnostics": gen_diagnostics,
@@ -813,38 +756,26 @@ GENERATORS = {
 
 
 def generate_all(output_dir):
-    """Generate all SVGs into output_dir with screenshot-matching structure."""
     for dev_path, dev in DEVICES.items():
+        W, H = dev["w"], dev["h"]
+        # F9: compact determined by screen width, not device.isMobile
+        compact = W < 600
         for screen in SCREENS:
-            w, h = dev["w"], dev["h"]
-            svg = SVG(w, h)
-
-            # Draw iOS status bar
-            status_h = draw_status_bar(svg, dev)
-
-            # Generate screen content
+            svg = S(W, H)
             gen = GENERATORS[screen]
-            gen(svg, dev)
-
-            # Draw bottom tab bar for mobile
-            draw_bottom_tab_bar(svg, dev, active_tab=SCREENS.index(screen))
-
-            # Write file
+            gen(svg, W, H, compact)
             out_path = os.path.join(output_dir, dev_path, f"{screen}.svg")
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             with open(out_path, 'w', encoding='utf-8') as f:
                 f.write(svg.to_xml())
-            print(f"  ✓ {out_path} ({w}×{h})")
+            print(f"  ✓ {out_path} ({W}×{H}, {'compact' if compact else 'wide'})")
 
 
 if __name__ == "__main__":
     import sys
     output = sys.argv[1] if len(sys.argv) > 1 else "resources/doc/figma"
-    print(f"Generating Figma SVGs → {output}")
-    print(f"  Devices: {len(DEVICES)}")
-    print(f"  Screens: {len(SCREENS)}")
-    print(f"  Total SVGs: {len(DEVICES) * len(SCREENS)}")
+    print(f"Generating Figma SVGs v2 → {output}")
+    print(f"  {len(DEVICES)} devices × {len(SCREENS)} screens = {len(DEVICES)*len(SCREENS)} SVGs")
     print()
     generate_all(output)
-    print()
-    print("Done!")
+    print(f"\nDone! {len(DEVICES)*len(SCREENS)} SVGs generated.")

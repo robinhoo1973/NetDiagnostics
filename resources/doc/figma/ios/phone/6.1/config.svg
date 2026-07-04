@@ -1,87 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 375 812" width="375" height="812">
-<rect x="0" y="0" width="375" height="24" fill="#000000"/>
-<text x="16" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="start" font-weight="normal">9:41</text>
-<text x="359" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="end" font-weight="normal">Wi-Fi</text>
-<rect x="0" y="0" width="375" height="32" fill="#1A1A2E"/>
-<line x1="0" y1="31" x2="375" y2="31" stroke="#3A3A5A" stroke-width="1"/>
-<text x="173" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
-<text x="217" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚡</text>
-<rect x="239" y="2" width="44" height="30" fill="rgba(0,188,212,0.12)" rx="6"/>
-<text x="261" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="normal">⚙</text>
-<text x="305" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">📄</text>
-<text x="349" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
-<rect x="0" y="32" width="375" height="84" fill="#1A1A2E"/>
-<line x1="0" y1="115" x2="375" y2="115" stroke="#3A3A5A" stroke-width="1"/>
-<circle cx="16" cy="54" r="6.666666666666667" fill="none" stroke="#00BCD4" stroke-width="2"/>
-<circle cx="16" cy="54" r="3.3333333333333335" fill="none" stroke="#00BCD4" stroke-width="1.5"/>
-<text x="42" y="56" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Diagnostic Config</text>
-<text x="37" y="96" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="bold">G1</text>
-<rect x="0" y="112" width="75" height="2" fill="#00BCD4"/>
-<text x="112" y="96" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G2</text>
-<text x="187" y="96" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G3</text>
-<text x="262" y="96" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G4</text>
-<text x="337" y="96" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G5</text>
-<rect x="0" y="116" width="375" height="60" fill="rgba(22,33,62,0.5)" stroke="#2A2A4A" stroke-width="1"/>
-<text x="16" y="140" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="14" fill="#E0E0E0" text-anchor="start" font-weight="bold">G1 System &amp; Adapters</text>
-<text x="16" y="158" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="normal">8 diagnostics</text>
-<rect x="135" y="130" width="110" height="32" fill="transparent" stroke="#3A3A5A" stroke-width="1" rx="6"/>
-<text x="190" y="148" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#E0E0E0" text-anchor="middle" font-weight="normal">Select All</text>
-<rect x="253" y="130" width="110" height="32" fill="transparent" stroke="#3A3A5A" stroke-width="1" rx="6"/>
-<text x="308" y="148" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#E0E0E0" text-anchor="middle" font-weight="normal">Deselect All</text>
-<line x1="16" y1="229" x2="359" y2="229" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="203" r="7" fill="#4ADE80"/>
-<text x="50" y="196" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Network Adapters</text>
-<text x="50" y="212" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">List all network adapters and their operational st</text>
-<rect x="315" y="193" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="203" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="283" x2="359" y2="283" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="257" r="7" fill="#4ADE80"/>
-<text x="50" y="250" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">NIC Advanced</text>
-<text x="50" y="266" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Driver version, hardware info, and negotiated link</text>
-<rect x="315" y="247" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="257" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="337" x2="359" y2="337" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="311" r="7" fill="#4ADE80"/>
-<text x="50" y="304" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">WiFi Information</text>
-<text x="50" y="320" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Signal strength, SSID, channel, and link quality</text>
-<rect x="315" y="301" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="311" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="391" x2="359" y2="391" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="365" r="7" fill="#4ADE80"/>
-<text x="50" y="358" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Wired Information</text>
-<text x="50" y="374" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Ethernet link status, speed, and duplex mode</text>
-<rect x="315" y="355" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="365" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="445" x2="359" y2="445" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="419" r="7" fill="#606080"/>
-<text x="50" y="412" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">DHCP Status</text>
-<text x="50" y="428" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">DHCP lease info, server address, and expiration</text>
-<rect x="315" y="409" width="40" height="20" fill="#5A5A7A" rx="10"/>
-<circle cx="325" cy="419" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="499" x2="359" y2="499" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="473" r="7" fill="#4ADE80"/>
-<text x="50" y="466" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">IP Configuration</text>
-<text x="50" y="482" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">IP addresses, subnet mask, default gateway, DNS se</text>
-<rect x="315" y="463" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="473" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="553" x2="359" y2="553" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="527" r="7" fill="#4ADE80"/>
-<text x="50" y="520" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Active Connections</text>
-<text x="50" y="536" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">TCP/UDP connections: ESTABLISHED, LISTENING, etc.</text>
-<rect x="315" y="517" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="527" r="8" fill="#FFFFFF"/>
-<line x1="16" y1="607" x2="359" y2="607" stroke="#2A2A4A" stroke-width="1"/>
-<circle cx="28" cy="581" r="7" fill="#4ADE80"/>
-<text x="50" y="574" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Network Profile</text>
-<text x="50" y="590" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Active network profile type (Domain/Private/Public</text>
-<rect x="315" y="571" width="40" height="20" fill="#0078D4" rx="10"/>
-<circle cx="345" cy="581" r="8" fill="#FFFFFF"/>
-<rect x="0" y="762" width="375" height="50" fill="#1A1A2E"/>
-<line x1="0" y1="762" x2="375" y2="762" stroke="#3A3A5A" stroke-width="1"/>
-<text x="37" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Dashboar</text>
-<text x="112" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Diag</text>
-<text x="187" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#00BCD4" text-anchor="middle" font-weight="normal">Config</text>
-<text x="262" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Report</text>
-<text x="337" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Settings</text>
+<rect x="0.0" y="0.0" width="375.0" height="32.0" fill="#1A1A2E"/>
+<text x="173.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<text x="217.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚡</text>
+<rect x="239.0" y="0.0" width="44.0" height="32.0" rx="6" fill="rgba(0,188,212,0.12)"/>
+<text x="261.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#00BCD4" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="305.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">📄</text>
+<text x="349.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="0.0" y="32.0" width="375.0" height="84.0" fill="#1A1A2E"/>
+<line x1="0.0" y1="115.0" x2="375.0" y2="115.0" stroke="#3A3A5A" stroke-width="1"/>
+<text x="16.0" y="58.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Diagnostic Config</text>
+<text x="37.5" y="98.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="bold">G1</text>
+<rect x="0.0" y="112.0" width="75.0" height="2.0" fill="#00BCD4"/>
+<text x="112.5" y="98.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G2</text>
+<text x="187.5" y="98.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G3</text>
+<text x="262.5" y="98.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G4</text>
+<text x="337.5" y="98.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">G5</text>
+<rect x="0.0" y="116.0" width="375.0" height="60.0" fill="rgba(22,33,62,0.5)" stroke="#2A2A4A" stroke-width="1"/>
+<text x="16.0" y="140.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#E0E0E0" text-anchor="start" font-weight="bold">G1 System &amp; Adapters</text>
+<text x="16.0" y="160.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="normal">8 diagnostics</text>
+<rect x="131.0" y="130.0" width="110.0" height="32.0" rx="6" fill="transparent" stroke="#3A3A5A" stroke-width="1"/>
+<text x="186.0" y="148.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#E0E0E0" text-anchor="middle" font-weight="normal">Select All</text>
+<rect x="249.0" y="130.0" width="110.0" height="32.0" rx="6" fill="transparent" stroke="#3A3A5A" stroke-width="1"/>
+<text x="304.0" y="148.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#E0E0E0" text-anchor="middle" font-weight="normal">Deselect All</text>
+<line x1="16.0" y1="229.0" x2="359.0" y2="229.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="203.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="194.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Network Adapters</text>
+<text x="50.0" y="210.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">List all network adapters and their operational state</text>
+<rect x="315.0" y="192.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="203.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="283.0" x2="359.0" y2="283.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="257.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="248.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">NIC Advanced</text>
+<text x="50.0" y="264.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Driver version, hardware info, and negotiated link spee...</text>
+<rect x="315.0" y="246.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="257.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="337.0" x2="359.0" y2="337.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="311.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="302.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">WiFi Information</text>
+<text x="50.0" y="318.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Signal strength, SSID, channel, and link quality</text>
+<rect x="315.0" y="300.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="311.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="391.0" x2="359.0" y2="391.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="365.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="356.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Wired Information</text>
+<text x="50.0" y="372.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Ethernet link status, speed, and duplex mode</text>
+<rect x="315.0" y="354.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="365.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="445.0" x2="359.0" y2="445.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="419.0" r="7.0" fill="#606080"/>
+<text x="50.0" y="410.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">DHCP Status</text>
+<text x="50.0" y="426.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">DHCP lease info, server address, and expiration</text>
+<rect x="315.0" y="408.0" width="40.0" height="22.0" rx="11" fill="#5A5A7A"/>
+<circle cx="326.0" cy="419.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="499.0" x2="359.0" y2="499.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="473.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="464.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">IP Configuration</text>
+<text x="50.0" y="480.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">IP addresses, subnet mask, default gateway, DNS servers</text>
+<rect x="315.0" y="462.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="473.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="553.0" x2="359.0" y2="553.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="527.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="518.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Active Connections</text>
+<text x="50.0" y="534.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">TCP/UDP connections: ESTABLISHED, LISTENING, etc.</text>
+<rect x="315.0" y="516.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="527.0" r="9.0" fill="#FFFFFF"/>
+<line x1="16.0" y1="607.0" x2="359.0" y2="607.0" stroke="#2A2A4A" stroke-width="1"/>
+<circle cx="28.0" cy="581.0" r="7.0" fill="#4ADE80"/>
+<text x="50.0" y="572.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Network Profile</text>
+<text x="50.0" y="588.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.6)" text-anchor="start" font-weight="normal">Active network profile type (Domain/Private/Public)</text>
+<rect x="315.0" y="570.0" width="40.0" height="22.0" rx="11" fill="#0078D4"/>
+<circle cx="344.0" cy="581.0" r="9.0" fill="#FFFFFF"/>
 </svg>
