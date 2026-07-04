@@ -6,7 +6,6 @@ ApplicationWindow {
     title: "NetDiagnostics"
     visible: true
     flags: Qt.FramelessWindowHint
-    minimumWidth: 360; minimumHeight: 400
     color: Theme.bgDark
 
     // Maximize to fill the current screen's available area (respects
