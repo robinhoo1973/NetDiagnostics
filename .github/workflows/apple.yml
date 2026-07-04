@@ -195,14 +195,17 @@ jobs:
           security create-keychain -p "" "$MAC_KEYCHAIN"
           security unlock-keychain -p "" "$MAC_KEYCHAIN"
           security set-keychain-settings -lut 21600 "$MAC_KEYCHAIN"
+          security list-keychains -d user -s "$MAC_KEYCHAIN" $(security list-keychains -d user | sed 's/"//g')
           echo -n "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
             | base64 -d > "$RUNNER_TEMP/mac-dist-cert.p12"
           security import "$RUNNER_TEMP/mac-dist-cert.p12" \
             -k "$MAC_KEYCHAIN" \
             -P "${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}" \
             -A -T /usr/bin/productbuild -T /usr/bin/pkgbuild
-          MAC_IDENTITY=$(security find-identity -v -p basic "$MAC_KEYCHAIN" \
-            | grep "Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "=== All identities in keychain ==="
+          security find-identity -v "$MAC_KEYCHAIN" || true
+          MAC_IDENTITY=$(security find-identity -v "$MAC_KEYCHAIN" \
+            | grep -i "installer\|distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/')
           echo "MAC_KEYCHAIN=${MAC_KEYCHAIN}" >> "$GITHUB_ENV"
           echo "MAC_IDENTITY=${MAC_IDENTITY}" >> "$GITHUB_ENV"
           echo "Mac identity: $MAC_IDENTITY"
