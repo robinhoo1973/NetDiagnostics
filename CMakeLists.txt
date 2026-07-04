@@ -79,18 +79,82 @@ set(QML_RESOURCES
     resources/resources.qrc
 )
 
+# ── iOS SDK detection (once, shared by both targets) ─────────────────
+if(IOS)
+    execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
+        OUTPUT_VARIABLE IOS_SDK_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE XCRUN_RESULT
+        ERROR_VARIABLE XCRUN_ERROR)
+    if(NOT XCRUN_RESULT EQUAL 0 OR IOS_SDK_PATH STREQUAL "")
+        message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}\n  iOS builds require Xcode with the iPhoneOS SDK installed.")
+    endif()
+    set(IOS_FRAMEWORKS_DIR "${IOS_SDK_PATH}/System/Library/Frameworks")
+endif()
+
 qt_add_executable(net_diagnostic WIN32 ${SOURCES} ${QML_RESOURCES})
 
-# Belt-and-suspenders: ensure Windows GUI subsystem (no console window).
-# CMake WIN32 flag may not always translate correctly through
-# qt_add_executable on MinGW — set the property explicitly and
-# add -mwindows for MinGW toolchains.
-if(WIN32)
-    set_target_properties(net_diagnostic PROPERTIES WIN32_EXECUTABLE TRUE)
-    if(MINGW)
-        target_link_options(net_diagnostic PRIVATE -mwindows)
+# Shared target configuration — eliminates ~60 lines of duplication
+# between net_diagnostic and net_diagnostic_sim.
+function(configure_netdiag_target TARGET)
+    # Belt-and-suspenders: ensure Windows GUI subsystem (no console window)
+    if(WIN32)
+        set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE TRUE)
+        if(MINGW)
+            target_link_options(${TARGET} PRIVATE -mwindows)
+        endif()
     endif()
-endif()
+
+    target_link_libraries(${TARGET} PRIVATE
+        Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
+        Qt6::Network
+    )
+
+    if(NOT IOS AND NOT ANDROID)
+        target_link_libraries(${TARGET} PRIVATE Qt6::Widgets)
+    endif()
+    if(TARGET CURL::libcurl)
+        target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
+    endif()
+
+    if(WIN32)
+        target_link_libraries(${TARGET} PRIVATE
+            ws2_32 winhttp iphlpapi wlanapi dnsapi
+            ole32 shell32 user32 gdi32
+            rpcrt4 wldap32 crypt32
+        )
+    elseif(NOT ANDROID)
+        target_link_libraries(${TARGET} PRIVATE resolv)
+    endif()
+
+    if(IOS)
+        target_compile_definitions(${TARGET} PRIVATE PLATFORM_IOS)
+        target_compile_options(${TARGET} PRIVATE -F "${IOS_FRAMEWORKS_DIR}")
+        target_link_options(${TARGET} PRIVATE -F "${IOS_FRAMEWORKS_DIR}")
+        target_link_libraries(${TARGET} PRIVATE
+            "-framework NetworkExtension"
+            "-framework CoreLocation"
+            "-framework CoreTelephony"
+            "-framework Network"
+            "-framework CFNetwork"
+            "-framework SystemConfiguration"
+            "-framework StoreKit"
+        )
+    elseif(ANDROID)
+        target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID)
+    endif()
+
+    if(NO_CURL)
+        target_compile_definitions(${TARGET} PRIVATE NO_CURL)
+    endif()
+    if(NOT (IOS OR ANDROID))
+        target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
+    endif()
+
+    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+endfunction()
+
+configure_netdiag_target(net_diagnostic)
 
 # Android: enable APK target generation (Qt 6.5+ auto-generates apk target
 # when QT_ANDROID_PACKAGE_SOURCE_DIR is set)
@@ -158,77 +222,6 @@ if(IOS)
     endif()
 endif()
 
-target_link_libraries(net_diagnostic PRIVATE
-    Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
-    Qt6::Network
-)
-
-# Platform macros for source-level conditional compilation
-if(IOS)
-    target_compile_definitions(net_diagnostic PRIVATE PLATFORM_IOS)
-    # iOS frameworks needed for network diagnostics
-    # -G Ninja: find_library handles -F automatically
-    # -G Xcode: must explicitly add -F to BOTH compile and link options
-    execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
-        OUTPUT_VARIABLE IOS_SDK_PATH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE XCRUN_RESULT
-        ERROR_VARIABLE XCRUN_ERROR)
-    if(NOT XCRUN_RESULT EQUAL 0 OR IOS_SDK_PATH STREQUAL "")
-        message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}\n  iOS builds require Xcode with the iPhoneOS SDK installed.")
-    endif()
-    set(IOS_FRAMEWORKS_DIR "${IOS_SDK_PATH}/System/Library/Frameworks")
-
-    target_compile_options(net_diagnostic PRIVATE
-        -F "${IOS_FRAMEWORKS_DIR}"
-    )
-    target_link_options(net_diagnostic PRIVATE
-        -F "${IOS_FRAMEWORKS_DIR}"
-    )
-    target_link_libraries(net_diagnostic PRIVATE
-        "-framework NetworkExtension"
-        "-framework CoreLocation"
-        "-framework CoreTelephony"
-        "-framework Network"
-        "-framework CFNetwork"
-        "-framework SystemConfiguration"
-        "-framework StoreKit"
-    )
-elseif(ANDROID)
-    target_compile_definitions(net_diagnostic PRIVATE PLATFORM_ANDROID)
-endif()
-if(NO_CURL)
-    target_compile_definitions(net_diagnostic PRIVATE NO_CURL)
-endif()
-
-if(NOT IOS AND NOT ANDROID)
-    target_link_libraries(net_diagnostic PRIVATE Qt6::Widgets)
-endif()
-if(TARGET CURL::libcurl)
-    target_link_libraries(net_diagnostic PRIVATE CURL::libcurl)
-endif()
-if(WIN32)
-    target_link_libraries(net_diagnostic PRIVATE
-        ws2_32 winhttp iphlpapi wlanapi dnsapi
-        ole32 shell32 user32 gdi32
-        rpcrt4 wldap32 crypt32
-    )
-elseif(NOT ANDROID)
-    # Android Bionic libc includes resolver; all other platforms need -lresolv
-    # (iOS 26 SDK has versioned resolver symbols in separate libresolv.tbd)
-    target_link_libraries(net_diagnostic PRIVATE resolv)
-endif()
-
-# iOS/Android use dynamic system libcurl, CURL_STATICLIB not applicable
-if(NOT (IOS OR ANDROID))
-    target_compile_definitions(net_diagnostic PRIVATE CURL_STATICLIB)
-endif()
-
-target_include_directories(net_diagnostic PRIVATE
-    ${CMAKE_SOURCE_DIR}/src
-)
-
-
 option(BUILD_TESTS "Build test suite" OFF)
 if(BUILD_TESTS)
     enable_testing()
@@ -243,57 +236,5 @@ if(BUILD_SIMULATOR)
     list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
     qt_add_executable(net_diagnostic_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
-    if(WIN32)
-        set_target_properties(net_diagnostic_sim PROPERTIES WIN32_EXECUTABLE TRUE)
-        if(MINGW)
-            target_link_options(net_diagnostic_sim PRIVATE -mwindows)
-        endif()
-    endif()
-    target_link_libraries(net_diagnostic_sim PRIVATE
-        Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
-        Qt6::Network
-    )
-    if(NOT IOS AND NOT ANDROID)
-        target_link_libraries(net_diagnostic_sim PRIVATE Qt6::Widgets)
-    endif()
-    if(TARGET CURL::libcurl)
-        target_link_libraries(net_diagnostic_sim PRIVATE CURL::libcurl)
-    endif()
-    if(WIN32)
-        target_link_libraries(net_diagnostic_sim PRIVATE
-            ws2_32 winhttp iphlpapi wlanapi dnsapi
-            ole32 shell32 user32 gdi32
-            rpcrt4 wldap32 crypt32
-        )
-    elseif(NOT ANDROID)
-        target_link_libraries(net_diagnostic_sim PRIVATE resolv)
-    endif()
-    if(NO_CURL)
-        target_compile_definitions(net_diagnostic_sim PRIVATE NO_CURL)
-    endif()
-    if(NOT (IOS OR ANDROID))
-        target_compile_definitions(net_diagnostic_sim PRIVATE CURL_STATICLIB)
-    endif()
-    # iOS simulator: same compile definition and frameworks as main target
-    if(IOS)
-        target_compile_definitions(net_diagnostic_sim PRIVATE PLATFORM_IOS)
-        target_compile_options(net_diagnostic_sim PRIVATE
-            -F "${IOS_FRAMEWORKS_DIR}"
-        )
-        target_link_options(net_diagnostic_sim PRIVATE
-            -F "${IOS_FRAMEWORKS_DIR}"
-        )
-        target_link_libraries(net_diagnostic_sim PRIVATE
-            "-framework NetworkExtension"
-            "-framework CoreLocation"
-            "-framework CoreTelephony"
-            "-framework Network"
-            "-framework CFNetwork"
-            "-framework SystemConfiguration"
-            "-framework StoreKit"
-        )
-    endif()
-    target_include_directories(net_diagnostic_sim PRIVATE
-        ${CMAKE_SOURCE_DIR}/src
-    )
+    configure_netdiag_target(net_diagnostic_sim)
 endif()
