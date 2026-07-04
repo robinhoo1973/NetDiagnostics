@@ -195,7 +195,7 @@ jobs:
           security create-keychain -p "" "$MAC_KEYCHAIN"
           security unlock-keychain -p "" "$MAC_KEYCHAIN"
           security set-keychain-settings -lut 21600 "$MAC_KEYCHAIN"
-          echo "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
+          echo -n "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
             | base64 -d > "$RUNNER_TEMP/mac-dist-cert.p12"
           security import "$RUNNER_TEMP/mac-dist-cert.p12" \
             -k "$MAC_KEYCHAIN" \
@@ -241,7 +241,7 @@ jobs:
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
-          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
+          echo -n "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
           chmod 600 "$K"
           echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
 
@@ -279,7 +279,7 @@ jobs:
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          echo "${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}" \
+          echo -n "${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}" \
             | base64 -d > "$RUNNER_TEMP/dist-cert.p12"
           security import "$RUNNER_TEMP/dist-cert.p12" \
             -k "$KEYCHAIN_PATH" \
@@ -306,7 +306,7 @@ jobs:
         id: profile
         run: |
           if [ -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
-            echo "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" \
+            echo -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" \
               | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
             PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
               <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
@@ -328,7 +328,7 @@ jobs:
             if [ -n "$PROFILE_ID" ]; then
               PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
               if [ -n "$PROFILE_B64" ]; then
-                echo "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+                echo -n "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
                 PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin \
                   <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
                 if [ -n "$PROFILE_UUID" ]; then
