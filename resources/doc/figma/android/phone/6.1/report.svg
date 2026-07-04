@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 800" width="360" height="800">
+<rect x="0.0" y="0.0" width="360.0" height="32.0" fill="#1A1A2E"/>
+<text x="158.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<text x="202.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚡</text>
+<text x="246.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="268.0" y="0.0" width="44.0" height="32.0" rx="6" fill="rgba(0,188,212,0.12)"/>
+<text x="290.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#00BCD4" text-anchor="middle" font-weight="normal">📄</text>
+<text x="334.0" y="19.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="0.0" y="32.0" width="360.0" height="52.0" fill="#1A1A2E"/>
+<line x1="0.0" y1="83.0" x2="360.0" y2="83.0" stroke="#3A3A5A" stroke-width="1"/>
+<text x="42.0" y="62.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Report Preview</text>
+<rect x="144.0" y="98.0" width="72.0" height="72.0" rx="24" fill="rgba(0,188,212,0.08)" stroke="rgba(0,188,212,0.2)" stroke-width="1.5"/>
+<text x="180.0" y="139.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="32" fill="rgba(0,188,212,0.6)" text-anchor="middle" font-weight="normal">📄</text>
+<text x="180.0" y="184.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="19" fill="#E0E0E0" text-anchor="middle" font-weight="bold">Report Preview</text>
+<text x="180.0" y="211.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="rgba(160,160,184,0.6)" text-anchor="middle" font-weight="normal">Generate a PDF or HTML report from your latest diagnostic run.</text>
+<rect x="24.0" y="241.0" width="312.0" height="48.0" rx="10" fill="rgba(0,188,212,0.1)" stroke="rgba(0,188,212,0.35)" stroke-width="1"/>
+<text x="64.0" y="269.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Preview PDF Summary</text>
+<rect x="24.0" y="299.0" width="312.0" height="48.0" rx="10" fill="rgba(0,120,212,0.1)" stroke="rgba(0,120,212,0.35)" stroke-width="1"/>
+<text x="64.0" y="327.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Preview Full HTML Report</text>
+<rect x="40.0" y="375.0" width="280.0" height="40.0" rx="8" fill="rgba(74,222,128,0.1)" stroke="rgba(74,222,128,0.3)" stroke-width="1"/>
+<text x="180.0" y="399.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#4ADE80" text-anchor="middle" font-weight="normal">38 results available</text>
+</svg>

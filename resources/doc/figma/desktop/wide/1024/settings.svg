@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 768" width="1024" height="768">
+<rect x="0.0" y="0.0" width="1024.0" height="36.0" fill="#1A1A2E"/>
+<text x="276.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<text x="290.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Dashboard</text>
+<text x="376.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚡</text>
+<text x="390.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Diag</text>
+<text x="476.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="490.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Config</text>
+<text x="576.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">📄</text>
+<text x="590.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Report</text>
+<rect x="662.0" y="2.0" width="100.0" height="32.0" rx="6" fill="rgba(0,188,212,0.12)"/>
+<text x="676.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="690.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#00BCD4" text-anchor="start" font-weight="bold">Settings</text>
+<rect x="988.0" y="4.0" width="28.0" height="28.0" rx="6" fill="transparent" stroke="#5A5A7A" stroke-width="1"/>
+<text x="1002.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.7)" text-anchor="middle" font-weight="normal">✕</text>
+<rect x="0.0" y="36.0" width="1024.0" height="52.0" fill="#1A1A2E"/>
+<line x1="0.0" y1="87.0" x2="1024.0" y2="87.0" stroke="#3A3A5A" stroke-width="1"/>
+<text x="42.0" y="66.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Settings</text>
+<rect x="24.0" y="112.0" width="30.0" height="30.0" rx="8" fill="rgba(0,188,212,0.1)"/>
+<text x="66.0" y="132.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">Language</text>
+<rect x="24.0" y="154.0" width="976.0" height="56.0" rx="12" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="40.0" y="160.0" width="944.0" height="44.0" rx="6" fill="#2A2A4A" stroke="#3A3A5A" stroke-width="1"/>
+<text x="52.0" y="185.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">English</text>
+<text x="972.0" y="186.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="end" font-weight="normal">▾</text>
+<rect x="24.0" y="230.0" width="30.0" height="30.0" rx="8" fill="rgba(0,120,212,0.1)"/>
+<text x="66.0" y="250.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">About</text>
+<rect x="24.0" y="272.0" width="976.0" height="280.0" rx="12" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="40.0" y="288.0" width="48.0" height="48.0" rx="12" fill="rgba(0,120,212,0.15)"/>
+<text x="64.0" y="316.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="24" fill="#0078D4" text-anchor="middle" font-weight="normal">📡</text>
+<text x="102.0" y="304.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="18" fill="#E0E0E0" text-anchor="start" font-weight="bold">NetDiagnostics</text>
+<text x="102.0" y="322.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Version 6.9.0 (Build 20260704)</text>
+<line x1="40.0" y1="352.0" x2="984.0" y2="352.0" stroke="#2A2A4A" stroke-width="1"/>
+<text x="40.0" y="368.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#A0A0B8" text-anchor="start" font-weight="normal">A cross-platform network diagnostic tool</text>
+<text x="40.0" y="388.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#A0A0B8" text-anchor="start" font-weight="normal">with real-time testing and detailed reports.</text>
+<text x="40.0" y="416.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">💻 Cross-platform (iOS, Android, Desktop)</text>
+<text x="40.0" y="438.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">⚡ Real-time diagnostics</text>
+<text x="40.0" y="460.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">📊 Detailed report generation</text>
+<text x="40.0" y="482.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">🌙 Dark theme</text>
+<text x="40.0" y="504.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">🖥 Simulator mode (desktop)</text>
+</svg>

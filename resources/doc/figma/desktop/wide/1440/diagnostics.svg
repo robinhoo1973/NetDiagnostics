@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" width="1440" height="900">
+<rect x="0.0" y="0.0" width="1440.0" height="36.0" fill="#1A1A2E"/>
+<text x="484.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<text x="498.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Dashboard</text>
+<rect x="570.0" y="2.0" width="100.0" height="32.0" rx="6" fill="rgba(0,188,212,0.12)"/>
+<text x="584.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="normal">⚡</text>
+<text x="598.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#00BCD4" text-anchor="start" font-weight="bold">Diag</text>
+<text x="684.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="698.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Config</text>
+<text x="784.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">📄</text>
+<text x="798.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Report</text>
+<text x="884.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="898.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="start" font-weight="normal">Settings</text>
+<rect x="1404.0" y="4.0" width="28.0" height="28.0" rx="6" fill="transparent" stroke="#5A5A7A" stroke-width="1"/>
+<text x="1418.0" y="21.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(224,224,224,0.7)" text-anchor="middle" font-weight="normal">✕</text>
+<rect x="0.0" y="36.0" width="260.0" height="864.0" fill="#252538"/>
+<rect x="0.0" y="36.0" width="260.0" height="48.0" fill="transparent" stroke="#3A3A5A" stroke-width="1"/>
+<text x="16.0" y="66.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">NetDiagnostics</text>
+<text x="12.0" y="96.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="bold">Target</text>
+<rect x="12.0" y="108.0" width="236.0" height="40.0" rx="8" fill="#2A2A4A" stroke="#3A3A5A" stroke-width="1"/>
+<text x="22.0" y="133.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.4)" text-anchor="start" font-weight="normal">Enter URL, IP address, or hostname...</text>
+<rect x="12.0" y="156.0" width="188.0" height="38.0" rx="8" fill="#0078D4"/>
+<text x="106.0" y="181.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#FFFFFF" text-anchor="middle" font-weight="bold">▶ Run Diagnostics</text>
+<rect x="206.0" y="156.0" width="42.0" height="38.0" rx="8" fill="transparent" stroke="rgba(239,68,68,0.5)" stroke-width="1"/>
+<text x="227.0" y="181.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#EF4444" text-anchor="middle" font-weight="normal">■</text>
+<text x="12.0" y="202.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="bold">Diagnosis Group</text>
+<rect x="12.0" y="219.0" width="236.0" height="32.0" rx="6" fill="rgba(0,120,212,0.12)"/>
+<rect x="20.0" y="227.0" width="16.0" height="16.0" rx="3" fill="#0078D4" stroke="#0078D4" stroke-width="1.5"/>
+<text x="28.0" y="238.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#FFFFFF" text-anchor="middle" font-weight="normal">✓</text>
+<text x="44.0" y="239.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#E0E0E0" text-anchor="start" font-weight="normal">G1 System &amp; Adapters</text>
+<rect x="12.0" y="253.0" width="236.0" height="32.0" rx="6" fill="rgba(0,120,212,0.12)"/>
+<rect x="20.0" y="261.0" width="16.0" height="16.0" rx="3" fill="#0078D4" stroke="#0078D4" stroke-width="1.5"/>
+<text x="28.0" y="272.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#FFFFFF" text-anchor="middle" font-weight="normal">✓</text>
+<text x="44.0" y="273.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#E0E0E0" text-anchor="start" font-weight="normal">G2 Connectivity &amp; Security</text>
+<rect x="12.0" y="287.0" width="236.0" height="32.0" rx="6" fill="rgba(0,120,212,0.12)"/>
+<rect x="20.0" y="295.0" width="16.0" height="16.0" rx="3" fill="#0078D4" stroke="#0078D4" stroke-width="1.5"/>
+<text x="28.0" y="306.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#FFFFFF" text-anchor="middle" font-weight="normal">✓</text>
+<text x="44.0" y="307.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#E0E0E0" text-anchor="start" font-weight="normal">G3 Internet &amp; DNS</text>
+<rect x="12.0" y="321.0" width="236.0" height="32.0" rx="6" fill="transparent"/>
+<rect x="20.0" y="329.0" width="16.0" height="16.0" rx="3" fill="none" stroke="#5A5A7A" stroke-width="1.5"/>
+<text x="44.0" y="341.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">G4 Remote Host</text>
+<rect x="12.0" y="355.0" width="236.0" height="32.0" rx="6" fill="transparent"/>
+<rect x="20.0" y="363.0" width="16.0" height="16.0" rx="3" fill="none" stroke="#5A5A7A" stroke-width="1.5"/>
+<text x="44.0" y="375.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="rgba(160,160,184,0.5)" text-anchor="start" font-weight="normal">G5 Website / URL</text>
+<rect x="12.0" y="395.0" width="236.0" height="106.0" rx="8" fill="rgba(22,33,62,0.5)" stroke="rgba(0,120,212,0.3)" stroke-width="1"/>
+<text x="22.0" y="411.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#0078D4" text-anchor="start" font-weight="bold">◉ Port Scan</text>
+<rect x="22.0" y="421.0" width="16.0" height="16.0" rx="3" fill="#0078D4" stroke="#0078D4" stroke-width="1.5"/>
+<text x="30.0" y="432.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#FFFFFF" text-anchor="middle" font-weight="normal">✓</text>
+<text x="42.0" y="431.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#E0E0E0" text-anchor="start" font-weight="normal">Scan Common Ports</text>
+<text x="22.0" y="451.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="normal">Range:</text>
+<rect x="22.0" y="457.0" width="96.0" height="28.0" rx="4" fill="transparent" stroke="#3A3A5A" stroke-width="1"/>
+<text x="30.0" y="475.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="normal">From</text>
+<text x="126.0" y="475.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#A0A0B8" text-anchor="start" font-weight="normal">–</text>
+<rect x="138.0" y="457.0" width="96.0" height="28.0" rx="4" fill="transparent" stroke="#3A3A5A" stroke-width="1"/>
+<text x="146.0" y="475.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="normal">To</text>
+<rect x="12.0" y="509.0" width="236.0" height="20.0" fill="transparent"/>
+<line x1="12.0" y1="519.0" x2="248.0" y2="519.0" stroke="#3A3A5A" stroke-width="1"/>
+<rect x="12.0" y="529.0" width="236.0" height="74.0" rx="8" fill="rgba(22,33,62,0.5)" stroke="rgba(0,120,212,0.3)" stroke-width="1"/>
+<text x="22.0" y="545.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#0078D4" text-anchor="start" font-weight="bold">Target Analysis</text>
+<text x="22.0" y="561.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Type    : IPv4 Address</text>
+<text x="22.0" y="577.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#E0E0E0" text-anchor="start" font-weight="normal">Host    : 192.168.1.1</text>
+<text x="22.0" y="593.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">RFC1918 Private</text>
+<rect x="0.0" y="611.0" width="260.0" height="289.0" fill="transparent" stroke="#3A3A5A" stroke-width="1"/>
+<text x="12.0" y="627.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="bold">Summary</text>
+<text x="248.0" y="627.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">Total: 38</text>
+<rect x="12.0" y="635.0" width="236.0" height="26.0" rx="6" fill="rgba(74,222,128,0.06)" stroke="rgba(74,222,128,0.2)" stroke-width="1"/>
+<text x="20.0" y="651.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Pass</text>
+<text x="244.0" y="653.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#4ADE80" text-anchor="end" font-weight="bold">32</text>
+<rect x="12.0" y="664.0" width="236.0" height="26.0" rx="6" fill="rgba(250,204,21,0.06)" stroke="rgba(250,204,21,0.2)" stroke-width="1"/>
+<text x="20.0" y="680.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Warning</text>
+<text x="244.0" y="682.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#FACC15" text-anchor="end" font-weight="bold"> 4</text>
+<rect x="12.0" y="693.0" width="236.0" height="26.0" rx="6" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+<text x="20.0" y="709.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Fail</text>
+<text x="244.0" y="711.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#EF4444" text-anchor="end" font-weight="bold"> 1</text>
+<rect x="12.0" y="722.0" width="236.0" height="26.0" rx="6" fill="rgba(136,136,136,0.06)" stroke="rgba(136,136,136,0.2)" stroke-width="1"/>
+<text x="20.0" y="738.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Skipped</text>
+<text x="244.0" y="740.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="14" fill="#888888" text-anchor="end" font-weight="bold"> 1</text>
+<line x1="260.0" y1="36.0" x2="260.0" y2="900.0" stroke="#3A3A5A" stroke-width="1"/>
+<rect x="261.0" y="36.0" width="1179.0" height="41.0" fill="#1A1A2E"/>
+<text x="277.0" y="62.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Results</text>
+<text x="1424.0" y="62.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#00BCD4" text-anchor="end" font-weight="bold">38 / 38</text>
+<rect x="269.0" y="81.0" width="1163.0" height="88.0" rx="10" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="281.0" y="89.0" width="3.0" height="22.0" rx="2" fill="#0078D4"/>
+<text x="292.0" y="93.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G1: System &amp; Adapters</text>
+<text x="1404.0" y="103.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">8/8</text>
+<rect x="1348.0" y="89.0" width="26.0" height="18.0" rx="4" fill="rgba(74,222,128,0.15)"/>
+<text x="1361.0" y="101.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">8</text>
+<text x="1418.0" y="93.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">▼</text>
+<rect x="281.0" y="119.0" width="1139.0" height="4.0" rx="2" fill="#2A2A4A"/>
+<rect x="281.0" y="119.0" width="1139.0" height="4.0" rx="2" fill="#4ADE80"/>
+<line x1="281.0" y1="127.0" x2="1420.0" y2="127.0" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="289.0" y="131.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="137.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="140.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.1</text>
+<rect x="1372.0" y="133.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="140.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">10ms</text>
+<rect x="289.0" y="145.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="151.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="154.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.2</text>
+<rect x="1372.0" y="147.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="154.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">15ms</text>
+<rect x="269.0" y="173.0" width="1163.0" height="88.0" rx="10" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="281.0" y="181.0" width="3.0" height="22.0" rx="2" fill="#0078D4"/>
+<text x="292.0" y="185.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G2: Connectivity &amp; Security</text>
+<text x="1404.0" y="195.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">6/6</text>
+<rect x="1348.0" y="181.0" width="26.0" height="18.0" rx="4" fill="rgba(74,222,128,0.15)"/>
+<text x="1361.0" y="193.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">6</text>
+<text x="1418.0" y="185.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">▼</text>
+<rect x="281.0" y="211.0" width="1139.0" height="4.0" rx="2" fill="#2A2A4A"/>
+<rect x="281.0" y="211.0" width="1139.0" height="4.0" rx="2" fill="#4ADE80"/>
+<line x1="281.0" y1="219.0" x2="1420.0" y2="219.0" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="289.0" y="223.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="229.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="232.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 2.1</text>
+<rect x="1372.0" y="225.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="232.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">10ms</text>
+<rect x="289.0" y="237.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="243.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="246.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 2.2</text>
+<rect x="1372.0" y="239.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="246.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">15ms</text>
+<rect x="269.0" y="265.0" width="1163.0" height="88.0" rx="10" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="281.0" y="273.0" width="3.0" height="22.0" rx="2" fill="#0078D4"/>
+<text x="292.0" y="277.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G3: Internet &amp; DNS</text>
+<text x="1404.0" y="287.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">4/5</text>
+<rect x="1348.0" y="273.0" width="26.0" height="18.0" rx="4" fill="rgba(250,204,21,0.15)"/>
+<text x="1361.0" y="285.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#FACC15" text-anchor="middle" font-weight="bold">1</text>
+<rect x="1320.0" y="273.0" width="26.0" height="18.0" rx="4" fill="rgba(74,222,128,0.15)"/>
+<text x="1333.0" y="285.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">4</text>
+<text x="1418.0" y="277.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">▼</text>
+<rect x="281.0" y="303.0" width="1139.0" height="4.0" rx="2" fill="#2A2A4A"/>
+<rect x="281.0" y="303.0" width="911.2" height="4.0" rx="2" fill="#4ADE80"/>
+<line x1="281.0" y1="311.0" x2="1420.0" y2="311.0" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="289.0" y="315.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="321.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="324.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 3.1</text>
+<rect x="1372.0" y="317.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="324.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">10ms</text>
+<rect x="289.0" y="329.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="335.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="338.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 3.2</text>
+<rect x="1372.0" y="331.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="338.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">15ms</text>
+<rect x="269.0" y="357.0" width="1163.0" height="88.0" rx="10" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="281.0" y="365.0" width="3.0" height="22.0" rx="2" fill="#0078D4"/>
+<text x="292.0" y="369.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G4: Remote Host</text>
+<text x="1404.0" y="379.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">6/6</text>
+<rect x="1348.0" y="365.0" width="26.0" height="18.0" rx="4" fill="rgba(74,222,128,0.15)"/>
+<text x="1361.0" y="377.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">6</text>
+<text x="1418.0" y="369.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">▼</text>
+<rect x="281.0" y="395.0" width="1139.0" height="4.0" rx="2" fill="#2A2A4A"/>
+<rect x="281.0" y="395.0" width="1139.0" height="4.0" rx="2" fill="#4ADE80"/>
+<line x1="281.0" y1="403.0" x2="1420.0" y2="403.0" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="289.0" y="407.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="413.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="416.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 4.1</text>
+<rect x="1372.0" y="409.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="416.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">10ms</text>
+<rect x="289.0" y="421.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="427.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="430.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 4.2</text>
+<rect x="1372.0" y="423.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="430.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">15ms</text>
+<rect x="269.0" y="449.0" width="1163.0" height="86.0" rx="10" fill="#16213E" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="281.0" y="457.0" width="3.0" height="22.0" rx="2" fill="#0078D4"/>
+<text x="292.0" y="461.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G5: Website / URL</text>
+<text x="1404.0" y="471.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">8/13</text>
+<rect x="1348.0" y="457.0" width="26.0" height="18.0" rx="4" fill="rgba(136,136,136,0.15)"/>
+<text x="1361.0" y="469.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#888888" text-anchor="middle" font-weight="bold">1</text>
+<rect x="1320.0" y="457.0" width="26.0" height="18.0" rx="4" fill="rgba(239,68,68,0.15)"/>
+<text x="1333.0" y="469.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#EF4444" text-anchor="middle" font-weight="bold">1</text>
+<rect x="1292.0" y="457.0" width="26.0" height="18.0" rx="4" fill="rgba(250,204,21,0.15)"/>
+<text x="1305.0" y="469.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#FACC15" text-anchor="middle" font-weight="bold">3</text>
+<rect x="1264.0" y="457.0" width="26.0" height="18.0" rx="4" fill="rgba(74,222,128,0.15)"/>
+<text x="1277.0" y="469.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">8</text>
+<text x="1418.0" y="461.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">▼</text>
+<rect x="281.0" y="487.0" width="1139.0" height="4.0" rx="2" fill="#2A2A4A"/>
+<rect x="281.0" y="487.0" width="700.9" height="4.0" rx="2" fill="#4ADE80"/>
+<line x1="281.0" y1="495.0" x2="1420.0" y2="495.0" stroke="#2A2A4A" stroke-width="1"/>
+<rect x="289.0" y="499.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="505.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="508.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 5.1</text>
+<rect x="1372.0" y="501.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="508.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">10ms</text>
+<rect x="289.0" y="513.0" width="2.0" height="12.0" fill="#2A2A4A"/>
+<circle cx="297.0" cy="519.0" r="4.0" fill="#4ADE80"/>
+<text x="305.0" y="522.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 5.2</text>
+<rect x="1372.0" y="515.0" width="40.0" height="18.0" rx="4" fill="#2A2A4A"/>
+<text x="1416.0" y="522.0" font-family="JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">15ms</text>
+</svg>
