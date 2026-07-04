@@ -98,55 +98,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode 26+
-        run: |
-          set -euo pipefail
-          CANDIDATES=(); FALLBACKS=()
-          for app in /Applications/Xcode_*.app; do
-            [ -d "$app" ] || continue
-            FALLBACKS+=("$app")
-            ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
-            [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
-          done
-          if [ ${#FALLBACKS[@]} -eq 0 ]; then
-            echo "ERROR: No Xcode installation found."; exit 1
-          fi
-          if [ ${#CANDIDATES[@]} -gt 0 ]; then
-            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
-          else
-            echo "WARNING: Xcode 26+ not found; falling back to latest."
-            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
-          fi
-          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
-          xcodebuild -version
-          echo "iOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
+      - uses: ./.github/actions/select-xcode
 
       - name: Install dependencies
         run: |
           brew install cmake ninja python3
           pip3 install --break-system-packages aqtinstall
 
-      # Qt6 desktop (host tools) for iOS build
-        id: cache-qt-desktop
-        uses: actions/cache@v4
+      - uses: ./.github/actions/install-qt-aqt
         with:
-          path: ${{ env.QT_HOST_DIR }}
-          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-desktop
 
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
-
-      - name: Cache Qt6 iOS
-        id: cache-qt-ios
-        uses: actions/cache@v4
+      - uses: ./.github/actions/install-qt-aqt
         with:
-          path: ${{ env.QT_INSTALL_DIR }}
-          key: qt6-ios-${{ env.QT_VERSION }}-v4
-
-      - name: Install Qt6 for iOS via aqt
-        if: steps.cache-qt-ios.outputs.cache-hit != 'true'
-        run: aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios
 
       - name: Configure
         run: |
@@ -201,26 +174,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # ── Common setup ─────────────────────────────────────────────────
-      - name: Select Xcode 26+
-        run: |
-          set -euo pipefail
-          CANDIDATES=(); FALLBACKS=()
-          for app in /Applications/Xcode_*.app; do
-            [ -d "$app" ] || continue
-            FALLBACKS+=("$app")
-            ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
-            [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
-          done
-          if [ ${#FALLBACKS[@]} -eq 0 ]; then
-            echo "ERROR: No Xcode installation found."; exit 1
-          fi
-          if [ ${#CANDIDATES[@]} -gt 0 ]; then
-            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
-          else
-            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
-          fi
-          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
-          xcodebuild -version
+      - uses: ./.github/actions/select-xcode
 
       - name: Install dependencies
         run: |
@@ -251,27 +205,21 @@ jobs:
           ls -lh NetDiagnostic-macOS.pkg
 
       # ── iOS: rebuild + sign + archive → .ipa ─────────────────────────
-      - name: Cache Qt6 macOS desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
+      - uses: ./.github/actions/install-qt-aqt
         with:
-          path: ${{ env.QT_HOST_DIR }}
-          key: qt6-ios-desktop-${{ env.QT_VERSION }}-v1
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-desktop
 
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
-
-      - name: Cache Qt6 iOS
-        id: cache-qt-ios
-        uses: actions/cache@v4
+      - uses: ./.github/actions/install-qt-aqt
         with:
-          path: ${{ env.QT_INSTALL_DIR }}
-          key: qt6-ios-${{ env.QT_VERSION }}-v4
-
-      - name: Install Qt6 for iOS via aqt
-        if: steps.cache-qt-ios.outputs.cache-hit != 'true'
-        run: aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios
 
       - name: Generate App Store Connect JWT
         id: jwt

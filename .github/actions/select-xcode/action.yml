@@ -1,0 +1,28 @@
+name: Select Xcode 26+
+description: Selects the latest Xcode 26+ installation
+runs:
+  using: composite
+  steps:
+    - name: Select Xcode 26+
+      shell: bash
+      run: |
+        set -euo pipefail
+        CANDIDATES=(); FALLBACKS=()
+        for app in /Applications/Xcode_*.app; do
+          [ -d "$app" ] || continue
+          FALLBACKS+=("$app")
+          ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
+          [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
+        done
+        if [ ${#FALLBACKS[@]} -eq 0 ]; then
+          echo "ERROR: No Xcode installation found."; exit 1
+        fi
+        if [ ${#CANDIDATES[@]} -gt 0 ]; then
+          SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+        else
+          echo "WARNING: Xcode 26+ not found; falling back to latest."
+          SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+        fi
+        sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+        xcodebuild -version
+        echo "iOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
