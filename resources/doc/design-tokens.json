@@ -1,0 +1,216 @@
+{
+  "name": "NetDiagnostic Design Spec",
+  "version": "1.1.0",
+  "source": "Qt6 QML source code (SimulatorScreen.qml, AppContent.qml, AppTheme.qml)",
+  "platforms": ["linux", "windows", "macos", "android", "ios"],
+  "devices": [
+    {"type": "desktop", "form_factor": "wide", "width": 1100, "height": 750},
+    {"type": "desktop", "form_factor": "narrow", "width": 599, "height": 750},
+    {"type": "tablet", "form_factor": "wide", "width": 800, "height": 600},
+    {"type": "phone", "form_factor": "narrow", "width": 360, "height": 800}
+  ],
+  "simulator_devices": {
+    "desktop": [
+      {"id": "win-x64",   "name": "Windows 11 (x64)",     "os": "windows", "w": 1024, "h": 640, "bezel": 0,  "radius": 8},
+      {"id": "win-arm64", "name": "Windows 11 (ARM64)",   "os": "windows", "w": 1024, "h": 640, "bezel": 0,  "radius": 8},
+      {"id": "lx-x64",    "name": "Ubuntu 24.04 (x64)",   "os": "linux",   "w": 1024, "h": 640, "bezel": 0,  "radius": 8},
+      {"id": "lx-arm64",  "name": "Ubuntu 24.04 (ARM64)", "os": "linux",   "w": 1024, "h": 640, "bezel": 0,  "radius": 8},
+      {"id": "mac-x64",   "name": "macOS 15 (x64)",       "os": "macos",   "w": 1024, "h": 640, "bezel": 0,  "radius": 8},
+      {"id": "mac-arm64", "name": "macOS 15 (ARM64)",     "os": "macos",   "w": 1024, "h": 640, "bezel": 0,  "radius": 8}
+    ],
+    "ios": [
+      {"id": "ios-iphone-se",    "name": "iPhone SE (3rd gen)",   "w": 375, "h": 667,  "bezel": 8,  "island": false, "radius": 20},
+      {"id": "ios-iphone15",     "name": "iPhone 15 Pro",         "w": 393, "h": 852,  "bezel": 12, "island": true,  "radius": 55},
+      {"id": "ios-iphone15pm",   "name": "iPhone 15 Pro Max",     "w": 430, "h": 932,  "bezel": 12, "island": true,  "radius": 55},
+      {"id": "ios-iphone16",     "name": "iPhone 16",             "w": 402, "h": 874,  "bezel": 11, "island": true,  "radius": 55},
+      {"id": "ios-iphone16pm",   "name": "iPhone 16 Pro Max",     "w": 440, "h": 956,  "bezel": 11, "island": true,  "radius": 55},
+      {"id": "ios-ipad-mini",    "name": "iPad mini (6th gen)",   "w": 744, "h": 1133, "bezel": 14, "island": false, "radius": 16},
+      {"id": "ios-ipadpro11",    "name": "iPad Pro 11″ (M4)",     "w": 834, "h": 1210, "bezel": 14, "island": false, "radius": 18},
+      {"id": "ios-ipadpro13",    "name": "iPad Pro 12.9″ (M4)",   "w": 1024,"h": 1366, "bezel": 14, "island": false, "radius": 18}
+    ],
+    "android": [
+      {"id": "android-pixel8",   "name": "Pixel 8 (Android 14)",  "w": 412, "h": 915,  "bezel": 8,  "island": false, "radius": 20},
+      {"id": "android-pixel9",   "name": "Pixel 9 Pro (Android 15)","w": 448,"h": 1008, "bezel": 7,  "island": false, "radius": 20},
+      {"id": "android-s24",      "name": "Galaxy S24 (Android)",  "w": 360, "h": 780,  "bezel": 6,  "island": false, "radius": 16},
+      {"id": "android-s24u",     "name": "Galaxy S24 Ultra (Android)","w":384,"h": 854,  "bezel": 6,  "island": false, "radius": 16},
+      {"id": "android-oneplus",  "name": "OnePlus 12 (Android)",  "w": 412, "h": 917,  "bezel": 7,  "island": false, "radius": 18}
+    ]
+  },
+  "simulator_ux": {
+    "auto_scale": "Scale transform maps device frame into window (min 0.1×, max window-fit). 200ms polling timer for ARM64 signal reliability.",
+    "compact_mode": "Enabled for iOS/Android: nav bar icon-only (44px), right-aligned, close button hidden. os===ios||os===android triggers compact.",
+    "orientation": "Portrait/Landscape toggle swaps width↔height, recalculates scale in real time.",
+    "frame_style": {
+      "desktop": "Thin 1px border, #1E1E2E fill, corner radius = device.radius + 2px",
+      "mobile": "No border, #0A0A0A fill (bezel), outer corner radius = device.radius + device.bezel"
+    },
+    "os_badges": {
+      "windows": {"icon": "windows", "color": "#00A4EF", "label": "Windows"},
+      "linux":   {"icon": "linux",   "color": "#FCC624", "label": "Linux"},
+      "macos":   {"icon": "apple",   "color": "#007AFF", "label": "macOS"},
+      "ios":     {"icon": "apple",   "color": "#007AFF", "label": "iOS"},
+      "android": {"icon": "android", "color": "#3DDC84", "label": "Android"}
+    }
+  },
+  "breakpoints": { "wide_min": 600 },
+
+  "colors": {
+    "bgDark":        {"hex": "#1E1E2E", "role": "Scaffold background, dialog bg"},
+    "bgSidebar":     {"hex": "#252538", "role": "Sidebar panel, context menu bg"},
+    "bgCard":        {"hex": "#16213E", "role": "Card containers"},
+    "bgAppBar":      {"hex": "#1A1A2E", "role": "AppBar, header bar, status bar"},
+    "bgSimulator":   {"hex": "#2D2D2D", "role": "Simulator scaffold only"},
+    "accentBlue":    {"hex": "#0078D4", "role": "Primary accent, buttons, active states"},
+    "accent":        {"hex": "#E94560", "role": "Secondary accent (minimal use)"},
+    "cyan":          {"hex": "#00BCD4", "role": "Running state, tab indicator, accents"},
+    "passGreen":     {"hex": "#4ADE80", "role": "Pass / success"},
+    "warnYellow":    {"hex": "#FACC15", "role": "Warning / caution"},
+    "failRed":       {"hex": "#EF4444", "role": "Fail / error"},
+    "skipGray":      {"hex": "#888888", "role": "Skipped / disabled"},
+    "textPrimary":   {"hex": "#E0E0E0", "role": "Primary text"},
+    "textSecondary": {"hex": "#A0A0B8", "role": "Secondary text, labels"},
+    "borderOuter":   {"hex": "#3A3A5A", "role": "Outer borders, dividers"},
+    "borderInner":   {"hex": "#2A2A4A", "role": "Subtle borders, progress bar bg"},
+    "inactiveThumb": {"hex": "#5A5A7A", "role": "Inactive switch/checkbox border"},
+    "white":         {"hex": "#FFFFFF", "role": "Check color, button foreground"}
+  },
+
+  "typography": {
+    "fontFamily": "JetBrains Mono",
+    "iconFont": "Phosphor Icons (SVG, via AppIcon.qml)",
+    "scale": [
+      {"size": 22, "weight": 700, "usage": "Dashboard stat values"},
+      {"size": 20, "weight": 700, "usage": "SummaryCard count, lineHeight 1.0"},
+      {"size": 18, "weight": 700, "usage": "About app name"},
+      {"size": 16, "weight": 700, "usage": "Sidebar 'NetDiagnostic' title"},
+      {"size": 16, "weight": 600, "usage": "Dialog title, Section header"},
+      {"size": 15, "weight": 600, "usage": "Content header title, Per-Group header"},
+      {"size": 14, "weight": 600, "usage": "Config group label"},
+      {"size": 13, "weight": 600, "usage": "Group card label"},
+      {"size": 12, "weight": 600, "usage": "Button text, status label"},
+      {"size": 12, "weight": 500, "usage": "Test name, body text, TextField input"},
+      {"size": 11, "weight": 600, "usage": "Detail label, section label, letterSpacing 0.5-0.6"},
+      {"size": 11, "weight": 400, "usage": "Secondary labels, meta text"},
+      {"size": 10, "weight": 700, "usage": "Status badge count"},
+      {"size": 10, "weight": 400, "usage": "Running subtitle (italic, cyan), summary line"},
+      {"size": 9,  "weight": 500, "usage": "SummaryCard label, progress %, timing row"},
+      {"size": 9,  "weight": 400, "usage": "Metric chip, port reference"}
+    ],
+    "special": [
+      {"style": "italic", "color": "cyan", "size": 10, "usage": "Running test name"},
+      {"style": "italic", "color": "cyan", "size": 11, "usage": "Current test in progress"},
+      {"family": "JetBrains Mono", "size": 11, "usage": "Duration values, code output"},
+      {"family": "JetBrains Mono", "size": 9,  "usage": "Inline metrics, timing rows"}
+    ]
+  },
+
+  "spacing": {
+    "screen_padding": {"all": 24, "usage": "Dashboard, Settings body"},
+    "standard_gap": 8,
+    "section_gap": {"small": 24, "large": 32},
+    "button_height": {"run": 38, "small": 32},
+    "sidebar_width": 260,
+    "icon_sizes": {"app": 20, "small": 14, "tiny": 12, "stat": 20, "large": 28, "hero": 80},
+    "border_radius": {
+      "card": 12, "group_card": 10, "summary_card": 8, "input": 8,
+      "button": 8, "badge": 4, "chip": 3, "accent_bar": 2,
+      "dialog": 12, "section_icon": 24, "checkbox_row": 6,
+      "port_field": 4, "lang_btn": 8, "notice": 8, "detail_box": 6
+    }
+  },
+
+  "screens": {
+    "DiagnosticMain": {
+      "route": "/diagnostics",
+      "layout_wide": "Row [ Sidebar(260px) | VerticalDivider(1px) | Content(flex) ]",
+      "layout_narrow": "Column [ Sidebar(35-55% flex) | Divider(1px) | Content(45-65% flex) ]",
+      "sidebar": {
+        "bg": "#252538",
+        "sections": [
+          {"name": "header", "padding": "14px 16px", "border_bottom": "#3A3A5A", "children": "Icon(cyan,20) + SizedBox(10) + Text('NetDiagnostic',16,w700)"},
+          {"name": "target_input", "padding": "12px 12px 4px", "children": "TargetInputPanel widget"},
+          {"name": "layer_checkboxes", "padding": "0 12px", "show_when": "!compact", "children": "'Diagnosis Group' label + 5 group checkboxes"},
+          {"name": "port_scan", "children": "PortScanConfig widget"},
+          {"name": "target_analysis", "show_when": "target non-empty && !compact", "children": "'Target Analysis' card"},
+          {"name": "summary_cards", "padding": "LTRB 12,8,12,16", "border_top": "#3A3A5A", "children": "SummaryCards widget"}
+        ]
+      },
+      "content": {
+        "header": {"bg": "#1A1A2E", "padding": "10px 16px", "border_bottom": "#3A3A5A", "children": "Icon(cyan,18) + SizedBox(8) + title + Spacer + Reset button (if completed)"},
+        "body": {"states": {
+          "idle": "Center: Icon(wifi,80,dim) + 'Enter a target and press Run' + 'Analyze your network...'",
+          "running_no_results": "Center: CircularProgressIndicator(40x40,cyan,strokeWidth3) + 'Starting diagnostics...'",
+          "results": "ListView: TestGroupPanel for each group with results"
+        }},
+        "footer": {"states": {
+          "running_or_completed": "LiveProgressPanel widget",
+          "idle": "Container(#1A1A2E,borderTop#3A3A5A): Icon(check_circle_outline,14) + 'Ready'"
+        }}
+      }
+    },
+    "Dashboard": {
+      "route": "/dashboard",
+      "appbar": "title: Icon(dashboard,20,cyan) + SizedBox(10) + 'Dashboard'",
+      "body": {
+        "empty": "Center: Icon(assessment,80,dim20%) + 'No diagnostic data yet' + subtext",
+        "has_data": "SingleChildScrollView(padding24): RunInfoCard + SummaryCards + PerGroupResults + OverallSummary"
+      }
+    },
+    "Config": {
+      "route": "/config",
+      "appbar": "title: Icon(tune,20,cyan) + SizedBox(10) + 'Test Configuration', bottom: TabBar(5 tabs G1-G5)",
+      "body": "TabBarView: action_bar(SelectAll/DeselectAll) + ListView of SwitchListTile for each test"
+    },
+    "Report": {
+      "route": "/report",
+      "appbar": "title: Icon(description,20,cyan) + SizedBox(10) + 'Report Preview'",
+      "body": "Center: icon_container(100x100,borderRadius24) + title + subtitle + 4 feature_rows + status_indicator"
+    },
+    "Settings": {
+      "route": "/settings",
+      "appbar": "title: Icon(settings,20,cyan) + SizedBox(10) + 'Settings'",
+      "body": "SingleChildScrollView(padding24): Language_toggle + SMTP_placeholder + About_section"
+    },
+    "Simulator": {
+      "route": "/simulator",
+      "bg": "#2D2D2D",
+      "appbar": "title: 'NetDiagnostic Simulator', actions: [DeviceSelector dropdown, rotate_btn, OS_badge]",
+      "body": "Scale transform (min 0.3×, max 2.5×) → DeviceFrame(device, orientation) → StackView(5 tab screens)"
+    }
+  },
+
+  "widgets": {
+    "TargetInputPanel": {
+      "structure": "Column [ label_row + text_field_container( borderRadius8, border accentBlue/3A3A5A, bg #1E1E2E60%, icon + TextField(fontSize12) + clear_btn ) + SizedBox(8) + button_row( Run(38px, #0078D4, fontSize12 w600) + Cancel(38px, #EF4444, fontSize11) ) ]"
+    },
+    "TestGroupPanel": {
+      "structure": "Rectangle(bg #16213E, borderRadius10) [ Column: header_row(accent_bar 3×24 + label 13/w600 + count 11/w500 + badges 10/w700) + progress_bar(h3, bg #2A2A4A, fill cyan/passGreen) + Rectangle divider + Repeater(TestResultItem_list) ]"
+    },
+    "TestResultItem": {
+      "pending": "Row [ AnimatedImage(spinner, 18×18, cyan) | name(12, dim) | 'Running...'(10, italic, cyan) ]",
+      "completed": "ItemDelegate(borderRadius6) > Row [ status_icon(18) | name(12,w500,statusColor) + summary(10) + metric_chips(bg #2A2A4A, borderRadius3, fontSize9) | duration(10,monospace,bg #2A2A4A,borderRadius4) ] + detail_section(properties,depth)",
+      "detail_dialog": "QDialog(#1E1E2E, borderRadius12, border #3A3A5A, maxW600, maxH600) > header + ScrollView( status+duration + summary_box(#252538) + properties + details_box(#1A1A2E) + raw_output + error_box(#EF444410%) ) + footer(Copy + Close)"
+    },
+    "SummaryCards": {
+      "structure": "Column [ label_row('Summary' 11/w600/letterSpacing0.6 + 'Total: N' 10) + 2x2_grid: Row[Pass+Warning] gap6 + Row[Fail+Skipped] gap6 ], each_card: borderRadius8, bg color8%, border color25%, icon(20) + count(20/w700/height1.0) + label(9/w500/dim80%)"
+    },
+    "LiveProgressPanel": {
+      "structure": "Container(#1A1A2E, borderTop #3A3A5A, boxShadow) > Column [ status_row(icon+label+SizedBox(8)+currentTestName+Spacer+count) + SizedBox(8) + layer_progress_bar(running only, height4, cyan) + overall_progress_bar(height4-6, passGreen/cyan/accentBlue) + error_msg + timings_row(completed only, horizontal scroll, fontSize9 JetBrainsMono) ]"
+    },
+    "PortScanConfig": {
+      "structure": "Container(bg #16213E80%, borderRadius8, border #0078D430%) > Column [ header_row(Icon(portable_wifi_off,14,#0078D4)+'Port Scan' 11/w600/#0078D4) + SizedBox(6) + checkbox_row(20x20,activeColor cyan,'Scan Common Ports' 11) + SizedBox(8) + range_label + SizedBox(4) + from_to_fields(OutlineInputBorder borderRadius4) + validation_hint(failRed,11) ]"
+    }
+  },
+
+  "navigation": {
+    "type": "Qt Quick StackView (QML component-based, no BottomNavigationBar)",
+    "initial_tab": 1,
+    "tabs": ["Dashboard", "Diagnostics", "Config", "Report", "Settings"],
+    "tab_width": 100,
+    "tab_height": 32,
+    "nav_bar_height": 36,
+    "compact_nav_height": 32,
+    "compact_tab_width": 44,
+    "compact_icons_only": true
+  }
+}
