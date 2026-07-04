@@ -70,8 +70,8 @@ ApplicationWindow {
     function recalcScale() {
         var w = page.width; var h = page.height - 48
         var p = portrait; var d = cur()
+        if (w <= 0 || h <= 0 || !d) { return }
         console.warn("[SIM] recalcScale w=", w, "h=", h, "portrait=", p, "dev=", d.name)
-        if (w <= 0 || h <= 0) { console.warn("[SIM] recalcScale SKIP"); return }
         var dev_sw = p ? d.w : d.h
         var dev_sh = p ? d.h : d.w
         var dev_bh = isDesktop() ? 0 : (d.bezel || 0)
