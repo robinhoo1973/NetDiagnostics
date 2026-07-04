@@ -10,16 +10,30 @@ ApplicationWindow {
     color: Theme.bgDark
 
     Component.onCompleted: {
-        // Screen geometry is not available at Component.onCompleted
-        // (window not yet mapped to a screen). Defer via Qt.callLater.
+        // Defer screen geometry read until the window is mapped to a screen
+        // (root.screen is null before the window is shown).
         Qt.callLater(function() {
             var scr = root.screen
-            var sw = scr.desktopAvailableWidth
-            var sh = scr.desktopAvailableHeight
-            width  = sw * 0.9
-            height = sh * 0.9
-            x = scr.virtualX + (sw - width)  / 2
-            y = scr.virtualY + (sh - height) / 2
+            if (!scr) return  // guard: window not yet assigned to a screen
+
+            // Use availableSize for the screen the window lives on.
+            // DO NOT use desktopAvailableWidth/Height — those span the
+            // entire virtual desktop across all monitors, causing the
+            // window to overshoot the current screen on multi-monitor
+            // setups (the root cause of the "oversize window" bug).
+            var as = scr.availableSize
+            var sw = as.width
+            var sh = as.height
+
+            // 90% of screen, clamped to never exceed the screen bounds.
+            width  = Math.min(sw * 0.9, sw)
+            height = Math.min(sh * 0.9, sh)
+
+            // Center on the current screen (use availableGeometry origin
+            // so the window aligns to the correct monitor on multi-head).
+            var ag = scr.availableGeometry
+            x = ag.x + (sw - width)  / 2
+            y = ag.y + (sh - height) / 2
         })
     }
 

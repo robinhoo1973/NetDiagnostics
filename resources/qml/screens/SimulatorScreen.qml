@@ -16,10 +16,18 @@ ApplicationWindow {
         // Defer: screen geometry not valid at Component.onCompleted
         Qt.callLater(function() {
             var scr = page.screen
-            width = scr.desktopAvailableWidth
-            height = scr.desktopAvailableHeight
-            x = scr.virtualX
-            y = scr.virtualY
+            if (!scr) return  // guard: window not yet assigned to screen
+
+            // Use availableSize of the current screen — NOT desktopAvailableWidth
+            // which spans the entire virtual desktop on multi-monitor setups.
+            var as = scr.availableSize
+            width  = as.width
+            height = as.height
+
+            // Position at the origin of the current screen's available area.
+            var ag = scr.availableGeometry
+            x = ag.x
+            y = ag.y
             recalcScale()
         })
     }
