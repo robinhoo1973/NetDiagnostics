@@ -70,7 +70,7 @@ ApplicationWindow {
         // All dimensions at natural size — Scale transform handles visual scaling
         deviceFrame.width = fw; deviceFrame.height = fh
         deviceFrame.radius = desktop ? d.radius+2 : d.radius+dev_bh
-        deviceFrame.color = desktop ? "#1E1E2E" : "#0A0A0A"
+        deviceFrame.color = desktop ? Theme.bgDark : "#0A0A0A"
         deviceFrame.border.width = desktop ? 1 : 0
         screenRect.x = dev_bh; screenRect.y = dev_bh
         screenRect.width = dev_sw; screenRect.height = dev_sh + 36
@@ -107,12 +107,12 @@ ApplicationWindow {
             Layout.fillWidth: true; implicitHeight: 48; color: "#1A1A2E"; z: 10
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 12 }
-                Label { text:"NetDiagnostics Simulator"; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:16; font.weight:Font.DemiBold; color:"white" }
+                Label { text:"NetDiagnostics Simulator"; font.family:Theme.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"white" }
                 Item { Layout.fillWidth:true }
                 Rectangle { implicitWidth:180; implicitHeight:34; radius:4; color:Qt.alpha("white",0.08); border{width:1;color:Qt.alpha("white",0.15)}
                     RowLayout { anchors.fill:parent; anchors.margins:8
                         AppIcon { name:osIcon(cur().os); size:14; color:osColor(cur().os) }
-                        Label { Layout.fillWidth:true; text:cur().name; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:12; color:"white" }
+                        Label { Layout.fillWidth:true; text:cur().name; font.family:Theme.monoFont; font.pixelSize:12; color:"white" }
                         Label { text:"▾"; font.pixelSize:14; color:Qt.alpha("white",0.6) }
                     }
                     MouseArea { anchors.fill:parent; onClicked:devicePopup.open() }
@@ -141,7 +141,7 @@ ApplicationWindow {
                     // ── Screen ──────────────────────────────────────────
                     Rectangle {
                         id: screenRect
-                        color: "#1E1E2E"; clip: true
+                        color: Theme.bgDark; clip: true
 
                         // ── Production GUI (shared with main.qml) ────────────────
                         AppContent {
@@ -163,7 +163,7 @@ ApplicationWindow {
         y: 90; x: Math.max(page.width-310,0)
         closePolicy: Popup.CloseOnEscape|Popup.CloseOnPressOutside
         width: 290; height: Math.min(450, devices.length*54+16); padding: 8
-        background: Rectangle { radius:10; color:"#1E1E2E"; border{width:1;color:"#3A3A5A"} }
+        background: Rectangle { radius:10; color:Theme.bgDark; border{width:1;color:"#3A3A5A"} }
         ListView {
             anchors.fill:parent; clip:true; model:devices
             delegate: ItemDelegate {
@@ -172,11 +172,11 @@ ApplicationWindow {
                     Rectangle { implicitWidth:32; implicitHeight:32; radius:8; color:Qt.alpha(osColor(modelData.os),0.15)
                         AppIcon { anchors.centerIn:parent; name:osIcon(modelData.os); size:18; color:osColor(modelData.os) } }
                     ColumnLayout { spacing:1
-                        Label { text:modelData.name; font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:13; color:"white" }
+                        Label { text:modelData.name; font.family:Theme.monoFont; font.pixelSize:13; color:"white" }
                         RowLayout { spacing:6
                             Rectangle { implicitWidth:44; implicitHeight:16; radius:3; color:Qt.alpha(osColor(modelData.os),0.2)
-                                Label { anchors.centerIn:parent; text:osLabel(modelData.os); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:8; font.weight:Font.DemiBold; color:osColor(modelData.os) } }
-                            Label { text:(modelData.w)+"×"+(modelData.h); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:9; color:Qt.alpha("white",0.4) }
+                                Label { anchors.centerIn:parent; text:osLabel(modelData.os); font.family:Theme.monoFont; font.pixelSize:8; font.weight:Font.DemiBold; color:osColor(modelData.os) } }
+                            Label { text:(modelData.w)+"×"+(modelData.h); font.family:Theme.monoFont; font.pixelSize:9; color:Qt.alpha("white",0.4) }
                         }
                     }
                 }
