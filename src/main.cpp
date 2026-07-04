@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #endif
+#include <QQuickWindow>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QVariantMap>
@@ -134,6 +135,18 @@ int main(int argc, char *argv[])
     if (engine.rootObjects().isEmpty()) {
         qCritical() << "QML engine failed to load" << url;
         return -1;
+    }
+
+    // ── Maximize the window atomically via C++ ───────────────────────────
+    // QML's visibility: Window.Maximized sets the flag after the window is
+    // already visible, which some WMs silently ignore for frameless windows.
+    // C++ showMaximized() maps the window in maximized state from its first
+    // frame — no transient "default-size then maximize" race.
+    {
+        QQuickWindow *win = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        if (win) {
+            win->showMaximized();
+        }
     }
 
     int ret = app.exec();
