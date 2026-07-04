@@ -190,84 +190,11 @@ jobs:
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
-  # macOS TestFlight — download DMG, package .pkg, upload to App Store
-  # ═══════════════════════════════════════════════════════════════════════
-  deploy-macos-testflight:
-    name: Deploy macOS to TestFlight
-    needs: macos-arm64
-    if: (!failure()) && (!cancelled())
-    runs-on: macos-latest
-    environment: TestFlight
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Select Xcode 26+
-        run: |
-          set -euo pipefail
-          CANDIDATES=(); FALLBACKS=()
-          for app in /Applications/Xcode_*.app; do
-            [ -d "$app" ] || continue
-            FALLBACKS+=("$app")
-            ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
-            [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
-          done
-          if [ ${#FALLBACKS[@]} -eq 0 ]; then
-            echo "ERROR: No Xcode installation found."; exit 1
-          fi
-          if [ ${#CANDIDATES[@]} -gt 0 ]; then
-            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
-          else
-            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
-          fi
-          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
-          xcodebuild -version
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: NetDiagnostic-macOS-arm64
-          path: macos-artifact
-
-      - name: Prepare ASC key
-        run: |
-          KEYFILE="$RUNNER_TEMP/asc-key.p8"
-          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
-          chmod 600 "$KEYFILE"
-          echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
-
-      - name: Package as .pkg for Mac App Store
-        run: |
-          APP=$(find macos-artifact -name "*.app" -type d | head -1)
-          if [ -z "$APP" ]; then
-            echo "ERROR: No .app bundle found in artifact"; exit 1
-          fi
-          echo "Found app: $APP"
-          # Create a signed .pkg for TestFlight / Mac App Store submission
-          # (code-sign skipped: add MACOS_DISTRIBUTION_CERT_BASE64 secret to enable)
-          productbuild --component "$APP" /Applications NetDiagnostic-macOS.pkg
-          ls -lh NetDiagnostic-macOS.pkg
-
-      - name: Upload to App Store Connect (macOS)
-        run: |
-          xcrun altool --upload-app \
-            -f NetDiagnostic-macOS.pkg \
-            -t macos \
-            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-            --verbose
-          echo "[OK] macOS build uploaded to TestFlight"
-
-      - name: Clean up keys
-        if: always()
-        run: |
-          rm -f "$ASC_KEYFILE" 2>/dev/null || true
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # TestFlight — sign, package, and upload iOS app
+  # TestFlight — upload macOS .pkg + iOS .ipa to Apple TestFlight
   # ═══════════════════════════════════════════════════════════════════════
   deploy-testflight:
     name: Deploy to TestFlight
-    needs: ios
+    needs: [macos-arm64, ios]
     if: (!failure()) && (!cancelled())
     runs-on: macos-latest
     environment: TestFlight
@@ -275,6 +202,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── Common setup ─────────────────────────────────────────────────
       - name: Select Xcode 26+
         run: |
           set -euo pipefail
@@ -299,6 +227,30 @@ jobs:
       - name: Install dependencies
         run: brew install cmake ninja python3
 
+      - name: Prepare ASC key
+        run: |
+          KEYFILE="$RUNNER_TEMP/asc-key.p8"
+          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+          echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
+
+      # ── macOS: download artifact → .pkg ───────────────────────────────
+      - uses: actions/download-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-arm64
+          path: macos-artifact
+
+      - name: Package macOS .pkg
+        run: |
+          APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: No .app bundle found in macOS artifact"; exit 1
+          fi
+          echo "macOS app: $APP"
+          productbuild --component "$APP" /Applications NetDiagnostic-macOS.pkg
+          ls -lh NetDiagnostic-macOS.pkg
+
+      # ── iOS: rebuild + sign + archive → .ipa ─────────────────────────
       - name: Cache Qt6 macOS desktop (host tools)
         id: cache-qt-desktop
         uses: actions/cache@v4
@@ -325,14 +277,6 @@ jobs:
           pip3 install --break-system-packages aqtinstall
           aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
 
-      # ── ASC key ──
-      - name: Prepare App Store Connect key
-        run: |
-          KEYFILE="$RUNNER_TEMP/asc-key.p8"
-          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
-          chmod 600 "$KEYFILE"
-          echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
-
       - name: Generate App Store Connect JWT
         id: jwt
         run: |
@@ -343,7 +287,6 @@ jobs:
             "$ASC_KEYFILE")
           echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
 
-      # ── Bundle ID ──
       - name: Register Bundle ID + WiFi capability
         id: bundle
         run: |
@@ -352,7 +295,6 @@ jobs:
           BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
           echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
 
-      # ── App Store Connect app ──
       - name: Ensure App Store Connect app
         id: asc-app
         run: |
@@ -361,7 +303,6 @@ jobs:
           APP_ID=$(asc_app_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID" "$APP_SKU" "$APP_LOCALE")
           echo "app_id=${APP_ID}" >> "$GITHUB_OUTPUT"
 
-      # ── Distribution certificate ──
       - name: Import iOS distribution certificate
         run: |
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
@@ -393,7 +334,6 @@ jobs:
             echo "auto_signing=true" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── Provisioning profile ──
       - name: Ensure provisioning profile
         id: profile
         run: |
@@ -437,7 +377,6 @@ jobs:
           echo "profile_uuid=" >> "$GITHUB_OUTPUT"
           echo "[INFO] Falling back to Xcode automatic signing"
 
-      # ── Build & Archive ──
       - name: Set build number
         run: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
@@ -456,7 +395,7 @@ jobs:
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -B build-ios -S .
 
-      - name: Build and archive
+      - name: Build and archive iOS
         run: |
           PROFILE_UUID="${{ steps.profile.outputs.profile_uuid }}"
           if [ -n "$PROFILE_UUID" ]; then
@@ -491,10 +430,9 @@ jobs:
               -verbose 2>&1 | tail -100
           fi
           [ -d build-ios/NetDiagnostic.xcarchive ] || { echo "[X] Archive failed"; exit 1; }
-          echo "[OK] Archive created"
+          echo "[OK] iOS archive created"
 
-      # ── Package IPA ──
-      - name: Package IPA from archive
+      - name: Package iOS IPA
         run: |
           APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostic.app"
           [ -d "$APP_PATH" ] || APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
@@ -504,19 +442,29 @@ jobs:
           zip -r NetDiagnostic-iOS.ipa Payload
           ls -lh NetDiagnostic-iOS.ipa
 
-      # ── Upload to TestFlight ──
-      - name: Upload to TestFlight
+      # ── Upload both to TestFlight ─────────────────────────────────────
+      - name: Upload macOS to TestFlight
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           cp "$ASC_KEYFILE" \
             ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          xcrun altool --upload-app \
+            -f NetDiagnostic-macOS.pkg \
+            -t macos \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            --verbose
+          echo "[OK] macOS uploaded to TestFlight"
+
+      - name: Upload iOS to TestFlight
+        run: |
           xcrun altool --upload-app \
             -f NetDiagnostic-iOS.ipa \
             -t ios \
             --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
             --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
             --verbose
-          echo "[OK] Uploaded to TestFlight"
+          echo "[OK] iOS uploaded to TestFlight"
 
       # ── Cleanup ──
       - name: Clean up keys
