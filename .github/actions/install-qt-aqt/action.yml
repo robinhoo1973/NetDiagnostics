@@ -1,0 +1,33 @@
+name: Install Qt via aqtinstall
+description: Installs a Qt target via aqtinstall with caching
+inputs:
+  qt_version:
+    description: Qt version (e.g. 6.8.3)
+    required: true
+  target:
+    description: aqt target (desktop, ios, android)
+    required: true
+  arch:
+    description: aqt architecture (clang_64, ios, android_x86_64, etc.)
+    required: true
+  install_dir:
+    description: Installation directory
+    required: true
+  cache_key_prefix:
+    description: Prefix for the cache key
+    required: false
+    default: qt6-aqt
+runs:
+  using: composite
+  steps:
+    - name: Cache Qt6 ${{ inputs.target }} ${{ inputs.arch }}
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.install_dir }}
+        key: ${{ inputs.cache_key_prefix }}-${{ inputs.target }}-${{ inputs.arch }}-${{ inputs.qt_version }}-v1
+
+    - name: Install Qt6 ${{ inputs.target }} ${{ inputs.arch }}
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: aqt install-qt mac ${{ inputs.target }} ${{ inputs.qt_version }} ${{ inputs.arch }} -O ${{ inputs.install_dir }}
