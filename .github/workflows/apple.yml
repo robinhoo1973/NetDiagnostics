@@ -190,6 +190,79 @@ jobs:
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
+  # macOS TestFlight — download DMG, package .pkg, upload to App Store
+  # ═══════════════════════════════════════════════════════════════════════
+  deploy-macos-testflight:
+    name: Deploy macOS to TestFlight
+    needs: macos-arm64
+    if: (!failure()) && (!cancelled())
+    runs-on: macos-latest
+    environment: TestFlight
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 26+
+        run: |
+          set -euo pipefail
+          CANDIDATES=(); FALLBACKS=()
+          for app in /Applications/Xcode_*.app; do
+            [ -d "$app" ] || continue
+            FALLBACKS+=("$app")
+            ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
+            [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
+          done
+          if [ ${#FALLBACKS[@]} -eq 0 ]; then
+            echo "ERROR: No Xcode installation found."; exit 1
+          fi
+          if [ ${#CANDIDATES[@]} -gt 0 ]; then
+            SELECTED_XCODE=$(printf '%s\n' "${CANDIDATES[@]}" | sort -V | tail -1)
+          else
+            SELECTED_XCODE=$(printf '%s\n' "${FALLBACKS[@]}" | sort -V | tail -1)
+          fi
+          sudo xcode-select -s "$SELECTED_XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-arm64
+          path: macos-artifact
+
+      - name: Prepare ASC key
+        run: |
+          KEYFILE="$RUNNER_TEMP/asc-key.p8"
+          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+          echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
+
+      - name: Package as .pkg for Mac App Store
+        run: |
+          APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: No .app bundle found in artifact"; exit 1
+          fi
+          echo "Found app: $APP"
+          # Create a signed .pkg for TestFlight / Mac App Store submission
+          # (code-sign skipped: add MACOS_DISTRIBUTION_CERT_BASE64 secret to enable)
+          productbuild --component "$APP" /Applications NetDiagnostic-macOS.pkg
+          ls -lh NetDiagnostic-macOS.pkg
+
+      - name: Upload to App Store Connect (macOS)
+        run: |
+          xcrun altool --upload-app \
+            -f NetDiagnostic-macOS.pkg \
+            -t macos \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            --verbose
+          echo "[OK] macOS build uploaded to TestFlight"
+
+      - name: Clean up keys
+        if: always()
+        run: |
+          rm -f "$ASC_KEYFILE" 2>/dev/null || true
+
+  # ═══════════════════════════════════════════════════════════════════════
   # TestFlight — sign, package, and upload iOS app
   # ═══════════════════════════════════════════════════════════════════════
   deploy-testflight:
