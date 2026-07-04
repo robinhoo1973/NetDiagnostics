@@ -389,22 +389,28 @@ jobs:
           zip -r NetDiagnostic-iOS.ipa Payload
           ls -lh NetDiagnostic-iOS.ipa
 
-      # ── Upload both to TestFlight ─────────────────────────────────────
-      - name: Upload to TestFlight
+      # ── Upload iOS to TestFlight (primary) ────────────────────────────
+      - name: Upload iOS to TestFlight
         run: |
-          upload() {
-            local file="$1" type="$2" label="$3"
-            echo "Uploading ${label}..."
-            xcrun altool --upload-app \
-              -f "$file" \
-              -t "$type" \
-              --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
-              --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-              --verbose
-            echo "[OK] ${label} uploaded to TestFlight"
-          }
-          upload NetDiagnostic-macOS.pkg macos "macOS"
-          upload NetDiagnostic-iOS.ipa  ios   "iOS"
+          xcrun altool --upload-app \
+            -f NetDiagnostic-iOS.ipa \
+            -t ios \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            --verbose
+          echo "[OK] iOS uploaded to TestFlight"
+
+      # ── Upload macOS to TestFlight (requires Mac distribution cert) ───
+      - name: Upload macOS to TestFlight
+        continue-on-error: true
+        run: |
+          xcrun altool --upload-app \
+            -f NetDiagnostic-macOS.pkg \
+            -t macos \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+            --verbose
+          echo "[OK] macOS uploaded to TestFlight"
 
       # ── Cleanup ──
       - name: Clean up keys
