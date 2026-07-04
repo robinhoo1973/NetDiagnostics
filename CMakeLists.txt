@@ -124,6 +124,8 @@ function(configure_netdiag_target TARGET)
             rpcrt4 wldap32 crypt32
         )
     elseif(NOT ANDROID)
+        # Android Bionic libc includes resolver; all other platforms need -lresolv
+        # (iOS 26 SDK has versioned resolver symbols in separate libresolv.tbd)
         target_link_libraries(${TARGET} PRIVATE resolv)
     endif()
 
