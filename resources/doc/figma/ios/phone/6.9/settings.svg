@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 956" width="440" height="956">
+<rect x="0" y="0" width="440" height="24" fill="#000000"/>
+<text x="16" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="start" font-weight="normal">9:41</text>
+<text x="424" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="end" font-weight="normal">Wi-Fi</text>
+<rect x="0" y="0" width="440" height="32" fill="#1A1A2E"/>
+<line x1="0" y1="31" x2="440" y2="31" stroke="#3A3A5A" stroke-width="1"/>
+<text x="238" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<text x="282" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚡</text>
+<text x="326" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="370" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">📄</text>
+<rect x="392" y="2" width="44" height="30" fill="rgba(0,188,212,0.12)" rx="6"/>
+<text x="414" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="0" y="32" width="440" height="52" fill="#1A1A2E"/>
+<line x1="0" y1="83" x2="440" y2="83" stroke="#3A3A5A" stroke-width="1"/>
+<circle cx="16" cy="58" r="6.666666666666667" fill="none" stroke="#00BCD4" stroke-width="2"/>
+<circle cx="16" cy="58" r="3.3333333333333335" fill="none" stroke="#00BCD4" stroke-width="1.5"/>
+<text x="42" y="62" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Settings</text>
+<rect x="24" y="108" width="30" height="30" fill="rgba(0,188,212,0.1)" rx="8"/>
+<text x="39" y="128" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="14" fill="#00BCD4" text-anchor="middle" font-weight="normal">🌐</text>
+<text x="66" y="128" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">Language</text>
+<rect x="24" y="150" width="392" height="50" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="12"/>
+<rect x="40" y="153" width="360" height="44" fill="#2A2A4A" stroke="#3A3A5A" stroke-width="1" rx="6"/>
+<text x="52" y="178" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">English</text>
+<text x="388" y="179" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="end" font-weight="normal">▾</text>
+<rect x="24" y="220" width="30" height="30" fill="rgba(250,204,21,0.1)" rx="8"/>
+<text x="39" y="240" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="14" fill="#FACC15" text-anchor="middle" font-weight="normal">⭐</text>
+<text x="66" y="240" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">Premium</text>
+<rect x="24" y="262" width="392" height="100" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="12"/>
+<text x="40" y="286" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Share &amp; email reports require Premium.</text>
+<rect x="40" y="306" width="360" height="40" fill="rgba(250,204,21,0.12)" stroke="rgba(250,204,21,0.4)" stroke-width="1" rx="8"/>
+<text x="220" y="328" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#FACC15" text-anchor="middle" font-weight="bold">Restore Purchases</text>
+<rect x="24" y="394" width="30" height="30" fill="rgba(0,120,212,0.1)" rx="8"/>
+<text x="39" y="414" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="14" fill="#0078D4" text-anchor="middle" font-weight="normal">ℹ</text>
+<text x="66" y="414" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">About</text>
+<rect x="24" y="436" width="392" height="260" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="12"/>
+<rect x="40" y="452" width="48" height="48" fill="rgba(0,120,212,0.15)" rx="12"/>
+<text x="64" y="480" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="24" fill="#0078D4" text-anchor="middle" font-weight="normal">📡</text>
+<text x="102" y="468" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="18" fill="#E0E0E0" text-anchor="start" font-weight="bold">NetDiagnostics</text>
+<text x="102" y="486" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Version 6.9.0 (Build 20260704)</text>
+<line x1="40" y1="516" x2="400" y2="516" stroke="#2A2A4A" stroke-width="1"/>
+<text x="40" y="532" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#A0A0B8" text-anchor="start" font-weight="normal">A cross-platform network diagnostic tool</text>
+<text x="40" y="552" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#A0A0B8" text-anchor="start" font-weight="normal">with real-time testing and detailed reports.</text>
+<text x="40" y="576" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">💻 Cross-platform (iOS, Android, Desktop)</text>
+<text x="40" y="598" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">⚡ Real-time diagnostics</text>
+<text x="40" y="620" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">📊 Detailed report generation</text>
+<text x="40" y="642" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">🌙 Dark theme</text>
+<text x="40" y="664" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">🖥 Simulator mode (desktop)</text>
+<rect x="0" y="906" width="440" height="50" fill="#1A1A2E"/>
+<line x1="0" y1="906" x2="440" y2="906" stroke="#3A3A5A" stroke-width="1"/>
+<text x="44" y="933" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Dashboar</text>
+<text x="132" y="933" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Diag</text>
+<text x="220" y="933" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Config</text>
+<text x="308" y="933" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Report</text>
+<text x="396" y="933" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#00BCD4" text-anchor="middle" font-weight="normal">Settings</text>
+</svg>

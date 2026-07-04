@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1032 1376" width="1032" height="1376">
+<rect x="0" y="0" width="1032" height="20" fill="#000000"/>
+<text x="16" y="13" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#FFFFFF" text-anchor="start" font-weight="normal">9:41</text>
+<text x="1016" y="13" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#FFFFFF" text-anchor="end" font-weight="normal">Wi-Fi</text>
+<rect x="0" y="0" width="1032" height="36" fill="#1A1A2E"/>
+<line x1="0" y1="35" x2="1032" y2="35" stroke="#3A3A5A" stroke-width="1"/>
+<rect x="266" y="2" width="100" height="34" fill="rgba(0,188,212,0.12)" rx="6"/>
+<rect x="266" y="34" width="100" height="2" fill="#00BCD4"/>
+<text x="316" y="21" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#00BCD4" text-anchor="middle" font-weight="normal">⊞ Dashboard</text>
+<text x="416" y="21" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="middle" font-weight="normal">⚡ Diag</text>
+<text x="516" y="21" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="middle" font-weight="normal">⚙ Config</text>
+<text x="616" y="21" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="middle" font-weight="normal">📄 Report</text>
+<text x="716" y="21" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(224,224,224,0.7)" text-anchor="middle" font-weight="normal">⚙ Settings</text>
+<rect x="998" y="4" width="28" height="28" fill="transparent" stroke="#5A5A7A" stroke-width="1" rx="6"/>
+<text x="1012" y="22" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">✕</text>
+<rect x="0" y="36" width="1032" height="52" fill="#1A1A2E"/>
+<line x1="0" y1="87" x2="1032" y2="87" stroke="#3A3A5A" stroke-width="1"/>
+<rect x="7.666666666666666" y="53.666666666666664" width="6.666666666666667" height="6.666666666666667" fill="#00BCD4" rx="2" opacity="0.8"/>
+<rect x="17.666666666666668" y="53.666666666666664" width="6.666666666666667" height="6.666666666666667" fill="#00BCD4" rx="2" opacity="0.8"/>
+<rect x="7.666666666666666" y="63.666666666666664" width="6.666666666666667" height="6.666666666666667" fill="#00BCD4" rx="2" opacity="0.8"/>
+<rect x="17.666666666666668" y="63.666666666666664" width="6.666666666666667" height="6.666666666666667" fill="#00BCD4" rx="2" opacity="0.8"/>
+<text x="42" y="66" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Dashboard</text>
+<rect x="956" y="46" width="60" height="32" fill="transparent" stroke="#5A5A7A" stroke-width="1" rx="6"/>
+<text x="986" y="66" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="middle" font-weight="normal">Reset</text>
+<rect x="24" y="112" width="984" height="80" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="12"/>
+<line x1="44.666666666666664" y1="152" x2="54" y2="161.33333333333334" stroke="#4ADE80" stroke-width="2"/>
+<line x1="54" y1="161.33333333333334" x2="72.66666666666667" y2="142.66666666666666" stroke="#4ADE80" stroke-width="2"/>
+<text x="78" y="136" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#E0E0E0" text-anchor="start" font-weight="bold">Diagnostic Run Complete</text>
+<text x="78" y="156" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Target: 192.168.1.1</text>
+<text x="78" y="174" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">14:32:18</text>
+<text x="24" y="216" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="start" font-weight="bold">Summary</text>
+<text x="1008" y="216" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="end" font-weight="normal">Total: 38</text>
+<rect x="24" y="234" width="984" height="32" fill="rgba(74,222,128,0.06)" stroke="rgba(74,222,128,0.2)" stroke-width="1" rx="6"/>
+<text x="32" y="253" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Pass</text>
+<text x="1000" y="255" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#4ADE80" text-anchor="end" font-weight="bold"> 32</text>
+<rect x="24" y="270" width="984" height="32" fill="rgba(0,120,212,0.06)" stroke="rgba(0,120,212,0.2)" stroke-width="1" rx="6"/>
+<text x="32" y="289" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Info</text>
+<text x="1000" y="291" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#0078D4" text-anchor="end" font-weight="bold">  0</text>
+<rect x="24" y="306" width="984" height="32" fill="rgba(250,204,21,0.06)" stroke="rgba(250,204,21,0.2)" stroke-width="1" rx="6"/>
+<text x="32" y="325" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Warning</text>
+<text x="1000" y="327" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#FACC15" text-anchor="end" font-weight="bold">  4</text>
+<rect x="24" y="342" width="984" height="32" fill="rgba(239,68,68,0.06)" stroke="rgba(239,68,68,0.2)" stroke-width="1" rx="6"/>
+<text x="32" y="361" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Fail</text>
+<text x="1000" y="363" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#EF4444" text-anchor="end" font-weight="bold">  1</text>
+<rect x="24" y="378" width="984" height="32" fill="rgba(136,136,136,0.06)" stroke="rgba(136,136,136,0.2)" stroke-width="1" rx="6"/>
+<text x="32" y="397" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="rgba(160,160,184,0.8)" text-anchor="start" font-weight="normal">Skipped</text>
+<text x="1000" y="399" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#888888" text-anchor="end" font-weight="bold">  1</text>
+<text x="24" y="434" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Per-Group Results</text>
+<rect x="24" y="456" width="984" height="100" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="10"/>
+<rect x="38" y="474" width="3" height="20" fill="#0078D4" rx="2"/>
+<text x="51" y="480" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G1 System &amp; Adapters</text>
+<rect x="966" y="472" width="22" height="16" fill="rgba(74,222,128,0.15)" rx="4"/>
+<text x="977.0" y="483.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">8</text>
+<text x="992" y="492" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">2.1s</text>
+<rect x="38" y="508" width="956" height="4" fill="#2A2A4A" rx="2.0"/>
+<rect x="38" y="508" width="812.6" height="4" fill="#4ADE80" rx="2.0"/>
+<circle cx="42" cy="526" r="4" fill="#4ADE80"/>
+<text x="50" y="529" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.pass</text>
+<rect x="24" y="564" width="984" height="100" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="10"/>
+<rect x="38" y="582" width="3" height="20" fill="#0078D4" rx="2"/>
+<text x="51" y="588" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G2 Connectivity &amp; Security</text>
+<rect x="966" y="580" width="22" height="16" fill="rgba(74,222,128,0.15)" rx="4"/>
+<text x="977.0" y="591.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">6</text>
+<text x="992" y="600" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">1.8s</text>
+<rect x="38" y="616" width="956" height="4" fill="#2A2A4A" rx="2.0"/>
+<rect x="38" y="616" width="688.3199999999999" height="4" fill="#FACC15" rx="2.0"/>
+<circle cx="42" cy="634" r="4" fill="#4ADE80"/>
+<text x="50" y="637" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.pass</text>
+<rect x="24" y="672" width="984" height="100" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="10"/>
+<rect x="38" y="690" width="3" height="20" fill="#0078D4" rx="2"/>
+<text x="51" y="696" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G3 Internet &amp; DNS</text>
+<rect x="966" y="688" width="22" height="16" fill="rgba(250,204,21,0.15)" rx="4"/>
+<text x="977.0" y="699.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FACC15" text-anchor="middle" font-weight="bold">1</text>
+<rect x="940" y="688" width="22" height="16" fill="rgba(74,222,128,0.15)" rx="4"/>
+<text x="951.0" y="699.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">4</text>
+<text x="992" y="708" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">3.4s</text>
+<rect x="38" y="724" width="956" height="4" fill="#2A2A4A" rx="2.0"/>
+<rect x="38" y="724" width="573.6" height="4" fill="#FACC15" rx="2.0"/>
+<circle cx="42" cy="742" r="4" fill="#4ADE80"/>
+<text x="50" y="745" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.pass</text>
+<circle cx="42" cy="756" r="4" fill="#FACC15"/>
+<text x="50" y="759" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 2.warn</text>
+<rect x="24" y="780" width="984" height="100" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="10"/>
+<rect x="38" y="798" width="3" height="20" fill="#0078D4" rx="2"/>
+<text x="51" y="804" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G4 Remote Host</text>
+<rect x="966" y="796" width="22" height="16" fill="rgba(74,222,128,0.15)" rx="4"/>
+<text x="977.0" y="807.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">6</text>
+<text x="992" y="816" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">2.2s</text>
+<rect x="38" y="832" width="956" height="4" fill="#2A2A4A" rx="2.0"/>
+<rect x="38" y="832" width="860.4" height="4" fill="#4ADE80" rx="2.0"/>
+<circle cx="42" cy="850" r="4" fill="#4ADE80"/>
+<text x="50" y="853" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.pass</text>
+<rect x="24" y="888" width="984" height="100" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="10"/>
+<rect x="38" y="906" width="3" height="20" fill="#0078D4" rx="2"/>
+<text x="51" y="912" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G5 Website / URL</text>
+<rect x="966" y="904" width="22" height="16" fill="rgba(136,136,136,0.15)" rx="4"/>
+<text x="977.0" y="915.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#888888" text-anchor="middle" font-weight="bold">1</text>
+<rect x="940" y="904" width="22" height="16" fill="rgba(239,68,68,0.15)" rx="4"/>
+<text x="951.0" y="915.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#EF4444" text-anchor="middle" font-weight="bold">1</text>
+<rect x="914" y="904" width="22" height="16" fill="rgba(250,204,21,0.15)" rx="4"/>
+<text x="925.0" y="915.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FACC15" text-anchor="middle" font-weight="bold">3</text>
+<rect x="888" y="904" width="22" height="16" fill="rgba(74,222,128,0.15)" rx="4"/>
+<text x="899.0" y="915.0" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#4ADE80" text-anchor="middle" font-weight="bold">8</text>
+<text x="992" y="924" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="11" fill="#A0A0B8" text-anchor="end" font-weight="normal">5.1s</text>
+<rect x="38" y="940" width="956" height="4" fill="#2A2A4A" rx="2.0"/>
+<rect x="38" y="940" width="669.1999999999999" height="4" fill="#FACC15" rx="2.0"/>
+<circle cx="42" cy="958" r="4" fill="#4ADE80"/>
+<text x="50" y="961" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.pass</text>
+<circle cx="42" cy="972" r="4" fill="#FACC15"/>
+<text x="50" y="975" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 2.warn</text>
+<circle cx="42" cy="986" r="4" fill="#EF4444"/>
+<text x="50" y="989" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 3.fail</text>
+<circle cx="42" cy="1000" r="4" fill="#888888"/>
+<text x="50" y="1003" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 4.skip</text>
+<rect x="24" y="1008" width="984" height="160" fill="#16213E" stroke="#2A2A4A" stroke-width="1" rx="12"/>
+<text x="40" y="1032" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Summary</text>
+<text x="40" y="1066" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Total Diagnostics</text>
+<text x="992" y="1070" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#00BCD4" text-anchor="end" font-weight="bold">38</text>
+<text x="40" y="1090" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Total Time</text>
+<text x="992" y="1094" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#0078D4" text-anchor="end" font-weight="bold">12.4s</text>
+<text x="40" y="1114" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="normal">Completed</text>
+<text x="992" y="1118" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="16" fill="#4ADE80" text-anchor="end" font-weight="bold">38</text>
+<line x1="40" y1="1134" x2="992" y2="1134" stroke="#2A2A4A" stroke-width="1"/>
+<text x="40" y="1154" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#A0A0B8" text-anchor="start" font-weight="bold">Layer Timings</text>
+</svg>

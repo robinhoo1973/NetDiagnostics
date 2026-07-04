@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 402 874" width="402" height="874">
+<rect x="0" y="0" width="402" height="24" fill="#000000"/>
+<text x="16" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="start" font-weight="normal">9:41</text>
+<text x="386" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="end" font-weight="normal">Wi-Fi</text>
+<rect x="0" y="0" width="402" height="32" fill="#1A1A2E"/>
+<line x1="0" y1="31" x2="402" y2="31" stroke="#3A3A5A" stroke-width="1"/>
+<text x="200" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<text x="244" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚡</text>
+<text x="288" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="310" y="2" width="44" height="30" fill="rgba(0,188,212,0.12)" rx="6"/>
+<text x="332" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="normal">📄</text>
+<text x="376" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="0" y="32" width="402" height="52" fill="#1A1A2E"/>
+<line x1="0" y1="83" x2="402" y2="83" stroke="#3A3A5A" stroke-width="1"/>
+<rect x="9.333333333333332" y="48.0" width="13.333333333333334" height="20" fill="none" stroke="#00BCD4" stroke-width="2" rx="3"/>
+<line x1="11.0" y1="53.0" x2="21.0" y2="53.0" stroke="#00BCD4" stroke-width="1.5"/>
+<line x1="11.0" y1="58.0" x2="21.0" y2="58.0" stroke="#00BCD4" stroke-width="1.5"/>
+<line x1="11.0" y1="63.0" x2="21.0" y2="63.0" stroke="#00BCD4" stroke-width="1.5"/>
+<text x="42" y="62" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Report Preview</text>
+<rect x="165" y="98" width="72" height="72" fill="rgba(0,188,212,0.08)" stroke="rgba(0,188,212,0.2)" stroke-width="1.5" rx="24"/>
+<rect x="190.2" y="117.8" width="21.599999999999998" height="32.4" fill="none" stroke="rgba(0,188,212,0.6)" stroke-width="2" rx="3"/>
+<line x1="192.9" y1="125.9" x2="209.1" y2="125.9" stroke="rgba(0,188,212,0.6)" stroke-width="1.5"/>
+<line x1="192.9" y1="130.9" x2="209.1" y2="130.9" stroke="rgba(0,188,212,0.6)" stroke-width="1.5"/>
+<line x1="192.9" y1="135.9" x2="209.1" y2="135.9" stroke="rgba(0,188,212,0.6)" stroke-width="1.5"/>
+<text x="201" y="184" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="19" fill="#E0E0E0" text-anchor="middle" font-weight="bold">Report Preview</text>
+<text x="201" y="211" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="14" fill="rgba(160,160,184,0.6)" text-anchor="middle" font-weight="normal">Generate a PDF or HTML report from your latest diagnostic run.</text>
+<rect x="41" y="241" width="320" height="48" fill="rgba(0,188,212,0.1)" stroke="rgba(0,188,212,0.35)" stroke-width="1" rx="10"/>
+<text x="81" y="269" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Preview PDF Summary</text>
+<rect x="41" y="299" width="320" height="48" fill="rgba(0,120,212,0.1)" stroke="rgba(0,120,212,0.35)" stroke-width="1" rx="10"/>
+<text x="81" y="327" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="normal">Preview Full HTML Report</text>
+<rect x="61" y="375" width="280" height="40" fill="rgba(74,222,128,0.1)" stroke="rgba(74,222,128,0.3)" stroke-width="1" rx="8"/>
+<text x="201" y="399" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#4ADE80" text-anchor="middle" font-weight="normal">38 results available</text>
+<rect x="0" y="824" width="402" height="50" fill="#1A1A2E"/>
+<line x1="0" y1="824" x2="402" y2="824" stroke="#3A3A5A" stroke-width="1"/>
+<text x="40" y="851" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Dashboar</text>
+<text x="120" y="851" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Diag</text>
+<text x="200" y="851" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Config</text>
+<text x="280" y="851" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#00BCD4" text-anchor="middle" font-weight="normal">Report</text>
+<text x="360" y="851" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Settings</text>
+</svg>

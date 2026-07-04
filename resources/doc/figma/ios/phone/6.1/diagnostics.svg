@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 375 812" width="375" height="812">
+<rect x="0" y="0" width="375" height="24" fill="#000000"/>
+<text x="16" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="start" font-weight="normal">9:41</text>
+<text x="359" y="17" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#FFFFFF" text-anchor="end" font-weight="normal">Wi-Fi</text>
+<rect x="0" y="0" width="375" height="32" fill="#1A1A2E"/>
+<line x1="0" y1="31" x2="375" y2="31" stroke="#3A3A5A" stroke-width="1"/>
+<text x="173" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⊞</text>
+<rect x="195" y="2" width="44" height="30" fill="rgba(0,188,212,0.12)" rx="6"/>
+<text x="217" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#00BCD4" text-anchor="middle" font-weight="normal">⚡</text>
+<text x="261" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<text x="305" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">📄</text>
+<text x="349" y="19" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="rgba(224,224,224,0.55)" text-anchor="middle" font-weight="normal">⚙</text>
+<rect x="0" y="32" width="375" height="226" fill="#252538"/>
+<line x1="0" y1="258" x2="375" y2="258" stroke="#3A3A5A" stroke-width="1"/>
+<rect x="0" y="260" width="375" height="41" fill="#1A1A2E"/>
+<text x="16" y="286" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="15" fill="#E0E0E0" text-anchor="start" font-weight="bold">Results</text>
+<text x="359" y="286" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#00BCD4" text-anchor="end" font-weight="bold">38 / 38</text>
+<rect x="8" y="305" width="359" height="97" fill="#16213E" stroke="#3A3A5A" stroke-width="1" rx="8"/>
+<rect x="8" y="305" width="359" height="36" fill="rgba(74,222,128,0.08)" rx="8"/>
+<text x="24" y="329" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G1 System &amp; Adapters</text>
+<text x="351" y="329" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#4ADE80" text-anchor="end" font-weight="bold">8/8</text>
+<circle cx="28" cy="353" r="4" fill="#4ADE80"/>
+<text x="40" y="357" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.1 — ok</text>
+<circle cx="28" cy="369" r="4" fill="#4ADE80"/>
+<text x="40" y="373" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 1.2 — ok</text>
+<rect x="8" y="406" width="359" height="77" fill="#16213E" stroke="#3A3A5A" stroke-width="1" rx="8"/>
+<rect x="8" y="406" width="359" height="36" fill="rgba(74,222,128,0.08)" rx="8"/>
+<text x="24" y="430" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G2 Connectivity &amp; Security</text>
+<text x="351" y="430" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#4ADE80" text-anchor="end" font-weight="bold">6/6</text>
+<circle cx="28" cy="454" r="4" fill="#4ADE80"/>
+<text x="40" y="458" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="10" fill="#A0A0B8" text-anchor="start" font-weight="normal">Test 2.1 — ok</text>
+<rect x="8" y="487" width="359" height="61" fill="#16213E" stroke="#3A3A5A" stroke-width="1" rx="8"/>
+<rect x="8" y="487" width="359" height="36" fill="rgba(239,68,68,0.10)" rx="8"/>
+<text x="24" y="511" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G3 Internet &amp; DNS</text>
+<text x="351" y="511" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#EF4444" text-anchor="end" font-weight="bold">4/5</text>
+<rect x="8" y="552" width="359" height="48" fill="#16213E" stroke="#3A3A5A" stroke-width="1" rx="8"/>
+<rect x="8" y="552" width="359" height="36" fill="rgba(74,222,128,0.08)" rx="8"/>
+<text x="24" y="576" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G4 Remote Host</text>
+<text x="351" y="576" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#4ADE80" text-anchor="end" font-weight="bold">6/6</text>
+<rect x="8" y="604" width="359" height="37" fill="#16213E" stroke="#3A3A5A" stroke-width="1" rx="8"/>
+<rect x="8" y="604" width="359" height="36" fill="rgba(239,68,68,0.10)" rx="8"/>
+<text x="24" y="628" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="13" fill="#E0E0E0" text-anchor="start" font-weight="bold">G5 Website / URL</text>
+<text x="351" y="628" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" fill="#EF4444" text-anchor="end" font-weight="bold">12/13</text>
+<rect x="0" y="762" width="375" height="50" fill="#1A1A2E"/>
+<line x1="0" y1="762" x2="375" y2="762" stroke="#3A3A5A" stroke-width="1"/>
+<text x="37" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Dashboar</text>
+<text x="112" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#00BCD4" text-anchor="middle" font-weight="normal">Diag</text>
+<text x="187" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Config</text>
+<text x="262" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Report</text>
+<text x="337" y="789" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="9" fill="#606080" text-anchor="middle" font-weight="normal">Settings</text>
+</svg>
