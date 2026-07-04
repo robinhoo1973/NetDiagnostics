@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
+import "../theme"
+import "../utils"
 import "../"
 
 ApplicationWindow {
@@ -9,7 +11,7 @@ ApplicationWindow {
     objectName: "simulator"
     title: "NetDiagnostics Simulator"
     visible: true
-    color: "#2D2D2D"
+    color: Theme.bgDark
     property int currentTab: 1
 
     // Maximize to fill the current screen's available area.
@@ -17,9 +19,7 @@ ApplicationWindow {
     // after the window manager assigns the final geometry.
     visibility: Window.Maximized
 
-    FontLoader { source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }
-    FontLoader { source: "qrc:/fonts/JetBrainsMono-Bold.ttf" }
-    FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
+    AppFonts {}
 
     property var devices: [
         // ── Desktop ──────────────────────────────────────────────────
