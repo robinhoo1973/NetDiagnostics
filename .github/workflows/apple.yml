@@ -443,32 +443,24 @@ jobs:
           ls -lh NetDiagnostic-iOS.ipa
 
       # ── Upload both to TestFlight ─────────────────────────────────────
-      - name: Upload macOS to TestFlight
+      - name: Upload to TestFlight
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          cp "$ASC_KEYFILE" \
-            ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
-          xcrun altool --upload-app \
-            -f NetDiagnostic-macOS.pkg \
-            -t macos \
-            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-            --verbose
-          echo "[OK] macOS uploaded to TestFlight"
-
-      - name: Upload iOS to TestFlight
-        run: |
-          xcrun altool --upload-app \
-            -f NetDiagnostic-iOS.ipa \
-            -t ios \
-            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
-            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-            --verbose
-          echo "[OK] iOS uploaded to TestFlight"
+          upload() {
+            local file="$1" type="$2" label="$3"
+            echo "Uploading ${label}..."
+            xcrun altool --upload-app \
+              -f "$file" \
+              -t "$type" \
+              --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+              --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+              --verbose
+            echo "[OK] ${label} uploaded to TestFlight"
+          }
+          upload NetDiagnostic-macOS.pkg macos "macOS"
+          upload NetDiagnostic-iOS.ipa  ios   "iOS"
 
       # ── Cleanup ──
       - name: Clean up keys
         if: always()
         run: |
           rm -f "$ASC_KEYFILE" 2>/dev/null || true
-          rm -f ~/.appstoreconnect/private_keys/AuthKey_*.p8 2>/dev/null || true
