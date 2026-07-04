@@ -12,29 +12,10 @@ ApplicationWindow {
     color: "#2D2D2D"
     property int currentTab: 1
 
-    // ── Window sizing: fill current screen, origin position ──
-    // Uses onScreenChanged (same pattern as main.qml) for correct
-    // handling of initial screen assignment and monitor migration.
-    function sizeToScreen() {
-        var scr = page.screen
-        if (!scr) return
-
-        // Use availableGeometry of the current screen — NOT
-        // desktopAvailableWidth which spans the virtual desktop.
-        var ag = scr.availableGeometry
-        width  = ag.width
-        height = ag.height
-        x = ag.x
-        y = ag.y
-        recalcScale()
-    }
-
-    Connections {
-        target: page
-        function onScreenChanged(screen) { if (screen) sizeToScreen() }
-    }
-
-    Component.onCompleted: sizeToScreen()
+    // Maximize to fill the current screen's available area.
+    // onWidthChanged/onHeightChanged handlers will trigger recalcScale()
+    // after the window manager assigns the final geometry.
+    visibility: Window.Maximized
 
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Bold.ttf" }
