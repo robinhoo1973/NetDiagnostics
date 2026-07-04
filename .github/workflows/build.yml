@@ -768,25 +768,10 @@ jobs:
           set -euo pipefail
           LATEST=$(git tag -l 'v*' | sort -V | tail -1)
           if [ -z "$LATEST" ]; then
-            LATEST="v0.0.0"
+            LATEST="v0.0.1"
           fi
-          echo "Latest tag: $LATEST"
-
-          # Always auto-bump patch version
-          VER="${LATEST#v}"
-          IFS='.' read -r MAJ MIN PAT <<< "$VER"
-          MAJ=${MAJ:-0}; MIN=${MIN:-0}; PAT=${PAT:-0}
-          PAT=$((PAT + 1))
-          NEXT="v${MAJ}.${MIN}.${PAT}"
-          echo "next_tag=${NEXT}" >> "$GITHUB_OUTPUT"
-          echo "Next tag: $NEXT"
-
-      - name: Create and push tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag "${{ steps.version.outputs.next_tag }}"
-          git push origin "${{ steps.version.outputs.next_tag }}"
+          echo "next_tag=${LATEST}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: $LATEST"
 
       - uses: actions/download-artifact@v4
         with:
