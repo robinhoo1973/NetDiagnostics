@@ -52,25 +52,26 @@ ApplicationWindow {
     onWidthChanged: recalcScale()
     onHeightChanged: recalcScale()
 
-    // Polling fallback — ARM64 Qt signals may be dropped, Timer guarantees update
-    Timer { interval: 200; running: true; repeat: true; onTriggered: recalcScale() }
+    // Polling fallback — ARM64 Qt signals may be dropped; gate to Linux only
+    readonly property bool needsScalePolling: Qt.platform.os === "linux"
+    Timer { interval: 200; running: needsScalePolling; repeat: true; onTriggered: recalcScale() }
 
     function recalcScale() {
         var w = page.width; var h = page.height - 48
         var p = portrait; var d = cur()
         if (w <= 0 || h <= 0 || !d) { return }
-        console.warn("[SIM] recalcScale w=", w, "h=", h, "portrait=", p, "dev=", d.name)
+        var desktop = isDesktop()
         var dev_sw = p ? d.w : d.h
         var dev_sh = p ? d.h : d.w
-        var dev_bh = isDesktop() ? 0 : (d.bezel || 0)
+        var dev_bh = desktop ? 0 : (d.bezel || 0)
         var fw = dev_sw + dev_bh*2
         var fh = dev_sh + dev_bh*2 + 36
 	var s = Math.max(0.1, Math.min((w-16)/fw, (h-16)/fh))
         // All dimensions at natural size — Scale transform handles visual scaling
         deviceFrame.width = fw; deviceFrame.height = fh
-        deviceFrame.radius = isDesktop() ? d.radius+2 : d.radius+dev_bh
-        deviceFrame.color = isDesktop() ? "#1E1E2E" : "#0A0A0A"
-        deviceFrame.border.width = isDesktop() ? 1 : 0
+        deviceFrame.radius = desktop ? d.radius+2 : d.radius+dev_bh
+        deviceFrame.color = desktop ? "#1E1E2E" : "#0A0A0A"
+        deviceFrame.border.width = desktop ? 1 : 0
         screenRect.x = dev_bh; screenRect.y = dev_bh
         screenRect.width = dev_sw; screenRect.height = dev_sh + 36
         screenRect.radius = d.radius
@@ -79,31 +80,23 @@ ApplicationWindow {
         scaled.scale = s
         scaled.x = (page.width - fw * s) / 2
         scaled.y = 0
-        console.warn("[SIM] fw=",fw,"fh=",fh,"scale=",s,"x=",scaled.x,"y=",scaled.y)
     }
 
     function cur() { return devices[currentDevice] }
     function isMobile() { var d = cur(); return d.os === "ios" || d.os === "android" }
     function isDesktop(){ return !isMobile() }
 
-    function osIcon(os) {
-        if (os==="linux")   return "linux";   if (os==="windows") return "windows"
-        if (os==="macos")   return "apple";   if (os==="ios")     return "apple"
-        if (os==="android") return "android"
-        return "circle"
-    }
-    function osColor(os) {
-        if (os==="linux")   return "#FCC624"; if (os==="windows") return "#00A4EF"
-        if (os==="macos")   return "#007AFF"; if (os==="ios")     return "#007AFF"
-        if (os==="android") return "#3DDC84"
-        return "#888"
-    }
-    function osLabel(os) {
-        if (os==="linux")   return "Linux";   if (os==="windows") return "Windows"
-        if (os==="macos")   return "macOS";   if (os==="ios")     return "iOS"
-        if (os==="android") return "Android"
-        return os
-    }
+    // OS metadata lookup — replaces osIcon/osColor/osLabel functions
+    readonly property var osMeta: ({
+        linux:   { icon:"linux",   color:"#FCC624", label:"Linux"   },
+        windows: { icon:"windows", color:"#00A4EF", label:"Windows" },
+        macos:   { icon:"apple",   color:"#007AFF", label:"macOS"   },
+        ios:     { icon:"apple",   color:"#007AFF", label:"iOS"     },
+        android: { icon:"android", color:"#3DDC84", label:"Android" }
+    })
+    function osIcon(os)  { var m=osMeta[os]; return m ? m.icon  : "circle" }
+    function osColor(os) { var m=osMeta[os]; return m ? m.color : "#888"   }
+    function osLabel(os) { var m=osMeta[os]; return m ? m.label : os       }
 
     // ── Outer layout ────────────────────────────────────────────────────
     ColumnLayout {
@@ -155,7 +148,7 @@ ApplicationWindow {
                             id: appContent
                             anchors.fill: parent
                             onCloseRequested: close()
-                            compact: cur().os === "ios" || cur().os === "android"
+                            compact: isMobile()
                             onCurrentTabChanged: page.currentTab = appContent.currentTab
                         }
                     }

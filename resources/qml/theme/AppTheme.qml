@@ -32,4 +32,7 @@ QtObject {
     readonly property real radiusButton:     8
     readonly property real radiusSmall:      6
     readonly property real sidebarWidth:     260
+
+    // ── Typography ────────────────────────────────────────────────────────
+    readonly property string monoFont: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
 }
