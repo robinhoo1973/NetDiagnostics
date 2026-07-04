@@ -10,15 +10,17 @@ ApplicationWindow {
     color: Theme.bgDark
 
     Component.onCompleted: {
-        // Use primary screen geometry to avoid multi-monitor overflow.
-        // Screen.desktopAvailableWidth can span all monitors on some platforms.
-        var scr = Screen
-        var sw = scr.width
-        var sh = scr.height
-        width  = Math.min(sw * 0.9, sw)
-        height = Math.min(sh * 0.9, sh)
-        x = Math.max(0, (sw - width)  / 2)
-        y = Math.max(0, (sh - height) / 2)
+        // Screen geometry is not available at Component.onCompleted
+        // (window not yet mapped to a screen). Defer via Qt.callLater.
+        Qt.callLater(function() {
+            var scr = root.screen
+            var sw = scr.desktopAvailableWidth
+            var sh = scr.desktopAvailableHeight
+            width  = sw * 0.9
+            height = sh * 0.9
+            x = scr.virtualX + (sw - width)  / 2
+            y = scr.virtualY + (sh - height) / 2
+        })
     }
 
     // ── Monospace font — loaded once at root, inherited by all child Labels ──

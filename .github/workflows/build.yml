@@ -616,7 +616,8 @@ jobs:
       - name: Collect individual assets
         run: |
           cd artifacts
-          find . -type f ! -name "*.tar.xz" | while read f; do
+          mkdir -p release-assets
+          find . -type f ! -name "*.tar.xz" ! -name "*.o" ! -name "*.obj" | while read f; do
             base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
             dir=$(dirname "$f" | tr '[:upper:]' '[:lower:]')
             case "$dir" in
@@ -642,16 +643,16 @@ jobs:
               *.exe)       name="netdiagnostic-${os}-${arch}.exe" ;;
               *)           name="$base" ;;
             esac
-            cp "$f" "$name"
+            cp "$f" "release-assets/$name"
             echo "Asset: $name"
           done
-          ls -lh
+          ls -lh release-assets/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/*
+            artifacts/release-assets/*
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

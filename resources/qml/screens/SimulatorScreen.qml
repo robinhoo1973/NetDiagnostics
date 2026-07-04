@@ -13,10 +13,15 @@ ApplicationWindow {
     property int currentTab: 1
 
     Component.onCompleted: {
-        width = Screen.desktopAvailableWidth
-        height = Screen.desktopAvailableHeight
-        x = 0; y = 0
-        Qt.callLater(recalcScale)
+        // Defer: screen geometry not valid at Component.onCompleted
+        Qt.callLater(function() {
+            var scr = page.screen
+            width = scr.desktopAvailableWidth
+            height = scr.desktopAvailableHeight
+            x = scr.virtualX
+            y = scr.virtualY
+            recalcScale()
+        })
     }
 
     FontLoader { source: "qrc:/fonts/JetBrainsMono-Regular.ttf" }
