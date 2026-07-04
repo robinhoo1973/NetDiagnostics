@@ -231,7 +231,7 @@ if(BUILD_SIMULATOR)
     set(SIM_SOURCES ${SOURCES})
     list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    qt_add_executable(net_diagnostic_sim ${SIM_SOURCES} ${QML_RESOURCES})
+    qt_add_executable(net_diagnostic_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
     target_link_libraries(net_diagnostic_sim PRIVATE
         Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
         Qt6::Network
