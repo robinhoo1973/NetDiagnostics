@@ -183,7 +183,8 @@ jobs:
 
       - name: Prepare ASC key
         run: |
-          KEYFILE="$RUNNER_TEMP/asc-key.p8"
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEYFILE=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
           echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
           chmod 600 "$KEYFILE"
           echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
@@ -408,3 +409,4 @@ jobs:
         if: always()
         run: |
           rm -f "$ASC_KEYFILE" 2>/dev/null || true
+          rm -f ~/.appstoreconnect/private_keys/AuthKey_*.p8 2>/dev/null || true
