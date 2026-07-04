@@ -10,12 +10,15 @@ ApplicationWindow {
     color: Theme.bgDark
 
     Component.onCompleted: {
-        var dw = Screen.desktopAvailableWidth
-        var dh = Screen.desktopAvailableHeight
-        width = dw * 0.9
-        height = dh * 0.9
-        x = Math.max(0, (dw - width) / 2)
-        y = Math.max(0, (dh - height) / 2)
+        // Use primary screen geometry to avoid multi-monitor overflow.
+        // Screen.desktopAvailableWidth can span all monitors on some platforms.
+        var scr = Screen
+        var sw = scr.width
+        var sh = scr.height
+        width  = Math.min(sw * 0.9, sw)
+        height = Math.min(sh * 0.9, sh)
+        x = Math.max(0, (sw - width)  / 2)
+        y = Math.max(0, (sh - height) / 2)
     }
 
     // ── Monospace font — loaded once at root, inherited by all child Labels ──
