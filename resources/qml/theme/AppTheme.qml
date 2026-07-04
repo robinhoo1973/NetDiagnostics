@@ -1,5 +1,10 @@
 import QtQuick
 
+// NOTE: This file is a reference copy of the C++ Theme QVariantMap
+// (src/main.cpp lines 90-114).  At runtime, QML resolves "Theme" to
+// the C++ context property set via rootContext()->setContextProperty(),
+// NOT to this QtObject.  Keep values in sync with main.cpp and
+// main_simulator.cpp — this file is documentation, not the runtime source.
 QtObject {
     // ── Background layers (exact Flutter AppTheme) ─────────────────────
     readonly property string bgDark:          "#1E1E2E"
