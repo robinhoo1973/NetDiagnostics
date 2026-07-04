@@ -1,84 +1,98 @@
-# Figma Design Files
+# Figma Design Reference
 
-Design mockups for the NetDiagnostic Qt6 QML application. SVGs are ready for import into Figma — drag-and-drop or File → Import.
+Design specifications for the NetDiagnostics app. Open `design-preview.html` in any browser for an interactive, size-switchable preview of all screens across all platforms.
 
-## File List
-
-| File | Content | Size |
-|------|---------|------|
-| `00-design-system.svg` | Design system: color palette, typography, spacing, radii | 900×500 |
-| `01-diagnostics-desktop-wide.svg` | Diagnostics page — wide screen (≥600px) with sidebar | 1100×750 |
-| `02-diagnostics-phone-narrow.svg` | Diagnostics page — phone narrow (<600px) without sidebar | 375×812 |
-| `03-dashboard-desktop.svg` | Dashboard overview with per-group results | 1100×700 |
-| `04-config-desktop.svg` | Config page (TabBar + SwitchListTile) | 1100×700 |
-| `05-simulator-desktop.svg` | Simulator page with device frame | 1100×700 |
-
-## Layout Architecture (from Qt6 QML source)
+## Quick Start
 
 ```
-ApplicationWindow (Qt.FramelessWindowHint)
-├── AppContent.qml
-│   ├── Navigation Bar (36px, #1A1A2E)
-│   │   ├── 5 Tabs: Dashboard | Diagnostics | Config | Report | Settings
-│   │   │   (100px each, icon + label, 2px spacing, right-aligned)
-│   │   └── ✕ Close button (far right)
-│   └── StackView (5 screens, switched by tab)
-│       ├── DashboardScreen.qml     — AppBar + Run Info + Group Rows + Summary
-│       ├── DiagnosticScreen.qml    — Sidebar(260px) + Content(expandable cards)
-│       ├── ConfigScreen.qml        — AppBar + TabBar(G1-G5) + SwitchListTile
-│       ├── ReportScreen.qml        — Report preview (planned)
-│       └── SettingsScreen.qml      — Application settings
-│
-└── SimulatorScreen.qml (separate ApplicationWindow)
-    └── Device frame + StackView with same 5 tabs
+open doc/figma/design-preview.html
 ```
 
-## Import into Figma
+The preview shows all 5 screens (Dashboard, Diagnostics, Config, Report, Settings) in phone (<600px) and tablet/desktop (>=600px) layouts, for iOS, Android, and Desktop platforms. Use the toolbar to filter by screen, platform, or size.
 
-### Method 1: Drag-and-drop (recommended)
-1. Open your Figma project
-2. Drag the `.svg` file directly onto the Figma canvas
-3. Figma auto-converts SVG to editable Figma layers
-4. All colors, text, and shapes are preserved
+## Screen Summary
 
-### Method 2: File → Import
-1. Figma menu → File → Import
-2. Select the `.svg` file
-3. Imported as an independent Frame
+| Screen | Description | Mobile | Desktop |
+|--------|-------------|--------|---------|
+| **Dashboard** | Post-run summary with stats, per-group results, target info | Full-width cards | Centered layout with sidebar |
+| **Diagnostics** | 5 expandable groups, 38 tests, live progress, detail dialog | Top-down with swipe expand | Sidebar (260px) + content area |
+| **Config** | Group toggle, port scan settings, test selection | Single column | Wider layout |
+| **Report** | PDF/HTML preview, share flow, Premium IAP dialog | Compact buttons, centered | Larger preview area |
+| **Settings** | Language (9), Restore Purchases (mobile), About, debug toggle | Stacked sections | Two-column options |
 
-### Method 3: Design Tokens plugin
-1. Install the "Design Tokens" Figma plugin
-2. Use `doc/design-tokens.json`
-3. Batch-import all color, typography, and spacing tokens
+## Platforms & Sizes
 
-## Design System (from AppTheme.qml)
+| Platform | Narrow (<600px) | Wide (>=600px) |
+|----------|-----------------|-----------------|
+| **iOS** | 375 x 812 (iPhone) | 768 x 1024 (iPad) |
+| **Android** | 360 x 800 (phone) | 600 x 960 (tablet) |
+| **Desktop** | N/A | 800 x 600+ (Windows/macOS/Linux) |
+
+## Design System (from C++ Theme injection)
+
+### Color Palette
 
 | Token | Hex | Usage |
 |-------|-----|-------|
 | bgDark | #1E1E2E | Page background |
-| bgSidebar | #252538 | Sidebar |
-| bgCard | #16213E | Card container |
-| bgInput | #2A2A4A | Input field / borderSubtle |
-| AppBar | #1A1A2E | Top bar / header |
+| bgSidebar | #252538 | Sidebar / hover states |
+| bgCard | #16213E | Card containers |
+| bgInput | #2A2A4A | Input fields, subtle borders |
+| AppBar | #1A1A2E | Top bar / navigation header |
 | textPrimary | #E0E0E0 | Primary text |
 | textSecondary | #A0A0B8 | Secondary / muted text |
 | textMuted | #606080 | Dimmed text |
-| accentBlue | #0078D4 | Primary accent (buttons, active) |
-| accent | #E94560 | Secondary accent |
-| cyan | #00BCD4 | Running / active state |
-| passGreen | #4ADE80 | Test pass |
-| warnYellow | #FACC15 | Test warning |
-| failRed | #EF4444 | Test fail |
-| skipGray | #888888 | Test skipped |
-| infoBlue | #0078D4 | Info badge |
-| borderCard | #3A3A5A | Card / outer border |
-| borderSubtle | #2A2A4A | Subtle / inner border |
-| borderFocused | #0078D4 | Focused border |
-| Sim bg | #2D2D2D | Simulator background |
+| accentBlue | #0078D4 | Primary action color |
+| cyan | #00BCD4 | Running state / active indicators |
+| passGreen | #4ADE80 | Test pass badge |
+| warnYellow | #FACC15 | Test warning / Premium badge |
+| failRed | #EF4444 | Test fail badge |
+| skipGray | #888888 | Test skipped badge |
+| borderCard | #3A3A5A | Card borders |
+| borderSubtle | #2A2A4A | Inner / subtle borders |
+| borderFocused | #0078D4 | Focused element border |
+| simBg | #2D2D2D | Simulator background |
 
-- **Font**: JetBrains Mono (headings) + DejaVu Sans Mono (monospace content, box-drawing glyphs)
-- **Icons**: Phosphor Icons (SVG, via AppIcon.qml)
-- **Breakpoint**: ≥600px wide / <600px narrow
-- **Sidebar**: 260px (wide screens only)
-- **Border radius**: 2 (bars), 4 (badges), 6 (buttons), 8 (cards/inputs), 10 (group cards), 12 (theme cards), 24 (report icon), 55 (device frame)
-- **Spacing**: Screen padding 24px, item gap 8px, section gap 24/32px
+### Typography
+
+- **Primary**: JetBrains Mono (headings, UI text)
+- **Monospace content**: DejaVu Sans Mono (diagnostic output, box-drawing)
+- **Fallback**: Noto Sans Mono CJK SC (Chinese), Microsoft YaHei (Windows CJK)
+- **Sizes**: 11px (badges/toast), 12px (body/secondary), 13px (button labels), 14-15px (subtitle), 16-19px (headings), 22px (page title)
+
+### Layout
+
+- **Breakpoint**: 600px (wider -> sidebar visible)
+- **Sidebar width**: 260px (desktop)
+- **Screen padding**: 24px (desktop), 16px (mobile)
+- **Card radius**: 8px (standard), 12px (sections), 24px (icon containers)
+- **Button radius**: 6-10px
+- **AppBar height**: 52px (report), 36px (navigation)
+
+### Current Screens (from QML source)
+
+```
+ApplicationWindow
+├── Navigation Bar (tabs: Dashboard | Diagnostics | Config | Report | Settings)
+│   └── iOS/Android: no desktop nav (single-page with bottom tabs)
+└── StackView
+    ├── DashboardScreen  — Summary cards + per-group stats + target info
+    ├── DiagnosticScreen — 5 expandable groups with live results + detail dialog
+    ├── ConfigScreen     — Group toggle + port scan config + test selection
+    ├── ReportScreen     — PDF/HTML preview + share flow + Premium IAP dialog
+    └── SettingsScreen   — Language (9) + Premium section (Restore on mobile) + About
+
+SimulatorScreen (desktop only):
+    └── Device frame wrapper around the same 5 screens
+```
+
+## Architecture Notes
+
+- **Theme**: Injected from C++ as `QVariantMap` via `rootContext()->setContextProperty("Theme", theme)`; 20 color constants + 3 radius values
+- **Responsive**: `Qt.platform.os === "ios" || Qt.platform.os === "android"` drives mobile/desktop layout branches; screen width >= 600px enables sidebar
+- **IAP Flow**: ReportScreen's share button gates behind `appState.isPremium`; two-stage dialog (subscribe prompt -> confirm share); StoreKit (iOS) or direct grant (desktop)
+- **Languages**: 9 (EN, FR, DE, RU, IT, ZH_CN, ZH_TW, ES, PT); all strings in `Translations.qml` via `Tr.*` singleton
+
+## Legacy SVGs
+
+The SVG files (`00-design-system.svg` through `05-simulator-desktop.svg`) are legacy reference exports from an earlier design iteration. For the most current design reference, use `design-preview.html`.
