@@ -131,6 +131,10 @@ int main(int argc, char *argv[])
         },
         Qt::QueuedConnection);
     engine.load(url);
+    if (engine.rootObjects().isEmpty()) {
+        qCritical() << "QML engine failed to load" << url;
+        return -1;
+    }
 
     int ret = app.exec();
     #ifndef NO_CURL
