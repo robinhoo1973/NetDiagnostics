@@ -43,6 +43,7 @@ xa-tmp*/
 
 # Backup files
 *.bak
+commit_msg.txt
 
 # Certificates — entire directory excluded (private keys, certs, CSR)
 resources/cert/
