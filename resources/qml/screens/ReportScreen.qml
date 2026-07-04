@@ -86,19 +86,24 @@ Item {
     // when it fits and lets it scroll when it's taller than the viewport (portrait),
     // so nothing is clipped off-screen.
     //
-    // contentHeight uses childrenRect.height (real-time item geometry) rather
-    // than implicitHeight (deferred Layout property) to avoid the Qt Quick
-    // Layouts deferred-update race: when text changes incrementally after
-    // diagnostics complete, the Flickable binding would read a stale
-    // implicitHeight value before the Layout pass recomputed it. A language
-    // switch masked the bug by forcing a full synchronous re-layout.
+    // contentHeight is set imperatively via syncContentHeight(), which fires
+    // AFTER the ColumnLayout's deferred layout pass completes (onHeightChanged
+    // signals that the layout has set the actual height).  We cannot use a
+    // declarative binding on implicitHeight or childrenRect because both are
+    // computed during the deferred pass — a binding re-evaluates synchronously
+    // on dependency change and reads a stale value.
     Flickable {
         id: reportFlick
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
         contentWidth: width
-        contentHeight: reportCol.y + reportCol.childrenRect.height + (page.isMobile ? 30 : 52)
+        // Initial value — updated by syncContentHeight() after layout
+        contentHeight: reportCol.y + reportCol.implicitHeight + (page.isMobile ? 30 : 52)
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+        function syncContentHeight() {
+            contentHeight = reportCol.y + reportCol.implicitHeight + (page.isMobile ? 30 : 52)
+        }
 
         ColumnLayout {
             id: reportCol
@@ -111,14 +116,9 @@ Item {
             width: page.isMobile ? reportFlick.width * 0.94 : reportFlick.width - 80
             spacing: 0
 
-            // Belt-and-suspenders: if the deferred Layout pass updates
-            // implicitHeight but childrenRect didn't fire a change
-            // notification, force the Flickable to re-read contentHeight.
-            onImplicitHeightChanged: {
-                reportFlick.contentHeight = Qt.binding(function() {
-                    return reportCol.y + reportCol.childrenRect.height + (page.isMobile ? 30 : 52)
-                })
-            }
+            // After the deferred Layout pass finishes and the actual height
+            // is set, update the Flickable's contentHeight imperatively.
+            onHeightChanged: reportFlick.syncContentHeight()
 
             // Icon container
             Rectangle {
@@ -138,13 +138,15 @@ Item {
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
 
-            // Subtitle
+            // Subtitle — MUST fill the column width for text to wrap
             Label {
+                Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 text: page.isRunning ? Tr.runningDots
                       : (page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst)
                 font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 14; color: Qt.alpha(Theme.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
+                wrapMode: Text.WordWrap
             }
             Item { Layout.preferredHeight: page.isMobile ? 16 : 24 }
 
