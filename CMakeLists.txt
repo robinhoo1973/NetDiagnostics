@@ -110,10 +110,12 @@ if(IOS)
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
+        MACOSX_BUNDLE_BUNDLE_NAME "NetDiagnostics"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_COPYRIGHT "Copyright © Robin Hu. All rights reserved."
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.netdiagnostic.app"
+        XCODE_ATTRIBUTE_PRODUCT_NAME "NetDiagnostics"
         XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
     )
     # Add asset catalog to sources for Xcode
