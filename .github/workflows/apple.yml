@@ -201,7 +201,7 @@ jobs:
             -k "$MAC_KEYCHAIN" \
             -P "${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}" \
             -A -T /usr/bin/productbuild -T /usr/bin/pkgbuild
-          MAC_IDENTITY=$(security find-identity -v -p macappstore "$MAC_KEYCHAIN" \
+          MAC_IDENTITY=$(security find-identity -v -p basic "$MAC_KEYCHAIN" \
             | grep "Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/')
           echo "MAC_KEYCHAIN=${MAC_KEYCHAIN}" >> "$GITHUB_ENV"
           echo "MAC_IDENTITY=${MAC_IDENTITY}" >> "$GITHUB_ENV"
