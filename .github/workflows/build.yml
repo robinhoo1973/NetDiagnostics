@@ -351,31 +351,16 @@ jobs:
           if-no-files-found: error
 
   # ===================================================================
-  # macOS x86_64 — cross-compile on Apple Silicon via aqt (no Intel runner)
+  # macOS x86_64 — Intel Mac native build (macos-13) + DMG
   # ===================================================================
-  # GitHub removed macos-13 (Intel) runner. Build on macos-latest (arm64)
-  # with aqtinstall-provided Qt6 SDK which includes x86_64 slices.
   macos-x86_64:
     name: macOS x86_64
-    runs-on: macos-latest
+    runs-on: macos-13
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install host dependencies
-        run: brew install cmake ninja python3
-
-      - name: Cache Qt6 macOS desktop (x86_64 cross)
-        id: cache-qt-macos-x64
-        uses: actions/cache@v4
-        with:
-          path: /Users/runner/qt-macos
-          key: qt6-macos-desktop-${{ env.QT_VERSION }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-macos-x64.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac desktop $QT_VERSION clang_64 -O /Users/runner/qt-macos
+      - name: Install dependencies
+        run: brew install cmake ninja qt@6
 
       - name: Generate macOS app icon (.icns)
         run: |
@@ -392,7 +377,7 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DCMAKE_OSX_ARCHITECTURES="x86_64" \
-            -DCMAKE_PREFIX_PATH="/Users/runner/qt-macos/$QT_VERSION/clang_64" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build -S .
 
       - name: Build (production)
@@ -403,7 +388,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
             -DCMAKE_OSX_ARCHITECTURES="x86_64" \
-            -DCMAKE_PREFIX_PATH="/Users/runner/qt-macos/$QT_VERSION/clang_64" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build-sim -S .
 
       - name: Build (simulator)
