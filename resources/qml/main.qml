@@ -8,25 +8,10 @@ ApplicationWindow {
     flags: Qt.FramelessWindowHint
     color: Theme.bgDark
 
-    // Fill the current screen's available area (respects taskbar/dock).
-    // Qt docs: "Screen type is not valid at Component.onCompleted" —
-    // root.screen is null at that point.  Use Qt.application.screens[0]
-    // instead, which is a C++-backed property independent of window
-    // placement.  onScreenChanged handles monitor migration.
-    function fillScreen() {
-        var screens = Qt.application.screens
-        if (!screens || screens.length === 0) return
-        var ag = screens[0].availableGeometry
-        root.x = ag.x
-        root.y = ag.y
-        root.width  = ag.width
-        root.height = ag.height
-    }
-    Connections {
-        target: root
-        function onScreenChanged(screen) { if (screen) fillScreen() }
-    }
-    Component.onCompleted: fillScreen()
+    // Window maximization is handled by C++ showMaximized() in main.cpp —
+    // it maps the window in maximized state from the first frame, avoiding
+    // the QML property-order race where visibility: Window.Maximized can be
+    // silently ignored for frameless windows.
 
     // ── Monospace font — loaded once at root, inherited by all child Labels ──
     // Setting font.family on the Window propagates to every Item/Label in the
