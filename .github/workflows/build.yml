@@ -2,17 +2,6 @@ name: Build & Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version_bump:
-        description: 'Version bump: patch (v0.0.1→v0.0.2), minor (v0.0.1→v0.1.0), major (v0.0.1→v1.0.0), or auto (keep latest)'
-        required: true
-        type: choice
-        default: 'patch'
-        options:
-          - patch
-          - minor
-          - major
-          - auto
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -783,20 +772,12 @@ jobs:
           fi
           echo "Latest tag: $LATEST"
 
-          BUMP="${{ inputs.version_bump }}"
-          if [ "$BUMP" = "auto" ]; then
-            NEXT="$LATEST"
-          else
-            VER="${LATEST#v}"
-            IFS='.' read -r MAJ MIN PAT <<< "$VER"
-            MAJ=${MAJ:-0}; MIN=${MIN:-0}; PAT=${PAT:-0}
-            case "$BUMP" in
-              major) MAJ=$((MAJ + 1)); MIN=0; PAT=0 ;;
-              minor) MIN=$((MIN + 1)); PAT=0 ;;
-              patch) PAT=$((PAT + 1)) ;;
-            esac
-            NEXT="v${MAJ}.${MIN}.${PAT}"
-          fi
+          # Always auto-bump patch version
+          VER="${LATEST#v}"
+          IFS='.' read -r MAJ MIN PAT <<< "$VER"
+          MAJ=${MAJ:-0}; MIN=${MIN:-0}; PAT=${PAT:-0}
+          PAT=$((PAT + 1))
+          NEXT="v${MAJ}.${MIN}.${PAT}"
           echo "next_tag=${NEXT}" >> "$GITHUB_OUTPUT"
           echo "Next tag: $NEXT"
 
