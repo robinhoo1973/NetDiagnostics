@@ -83,7 +83,7 @@ ApplicationWindow {
     }
 
     function cur() { return devices[currentDevice] }
-    function isMobile() { var d = cur(); return d.os === "ios" || d.os === "android" }
+    function isMobile() { var d = cur(); return d ? (d.os === "ios" || d.os === "android") : false }
     function isDesktop(){ return !isMobile() }
 
     // OS metadata lookup — replaces osIcon/osColor/osLabel functions
