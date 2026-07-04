@@ -9,13 +9,14 @@ ApplicationWindow {
     color: Theme.bgDark
 
     // Fill the current screen's available area (respects taskbar/dock).
-    // Manual geometry via screen.availableGeometry is required because
-    // FramelessWindowHint + Window.Maximized are incompatible: the window
-    // manager cannot negotiate maximize geometry for an undecorated window.
+    // Qt docs: "Screen type is not valid at Component.onCompleted" —
+    // root.screen is null at that point.  Use Qt.application.screens[0]
+    // instead, which is a C++-backed property independent of window
+    // placement.  onScreenChanged handles monitor migration.
     function fillScreen() {
-        var scr = root.screen
-        if (!scr) return
-        var ag = scr.availableGeometry
+        var screens = Qt.application.screens
+        if (!screens || screens.length === 0) return
+        var ag = screens[0].availableGeometry
         root.x = ag.x
         root.y = ag.y
         root.width  = ag.width
