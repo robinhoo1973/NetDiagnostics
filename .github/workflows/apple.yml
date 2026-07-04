@@ -183,14 +183,6 @@ jobs:
           brew install cmake ninja python3
           pip3 install --break-system-packages aqtinstall
 
-      - name: Prepare ASC key
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          KEYFILE=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
-          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$KEYFILE"
-          chmod 600 "$KEYFILE"
-          echo "ASC_KEYFILE=${KEYFILE}" >> "$GITHUB_ENV"
-
       # ── macOS: download artifact → .pkg ───────────────────────────────
       - uses: actions/download-artifact@v4
         with:
@@ -223,6 +215,14 @@ jobs:
           arch: ios
           install_dir: ${{ env.QT_INSTALL_DIR }}
           cache_key_prefix: qt6-ios
+
+      - name: Write ASC key (late, clean early)
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          echo "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
+          chmod 600 "$K"
+          echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
 
       - name: Generate App Store Connect JWT
         id: jwt
@@ -389,7 +389,7 @@ jobs:
           zip -r NetDiagnostic-iOS.ipa Payload
           ls -lh NetDiagnostic-iOS.ipa
 
-      # ── Upload iOS to TestFlight (primary) ────────────────────────────
+      # ── Upload + immediate cleanup ────────────────────────────────────
       - name: Upload iOS to TestFlight
         run: |
           xcrun altool --upload-app \
@@ -400,7 +400,6 @@ jobs:
             --verbose
           echo "[OK] iOS uploaded to TestFlight"
 
-      # ── Upload macOS to TestFlight (requires Mac distribution cert) ───
       - name: Upload macOS to TestFlight
         continue-on-error: true
         run: |
@@ -412,9 +411,7 @@ jobs:
             --verbose
           echo "[OK] macOS uploaded to TestFlight"
 
-      # ── Cleanup ──
       - name: Clean up keys
         if: always()
         run: |
           rm -f "$ASC_KEYFILE" 2>/dev/null || true
-          rm -f ~/.appstoreconnect/private_keys/AuthKey_*.p8 2>/dev/null || true
