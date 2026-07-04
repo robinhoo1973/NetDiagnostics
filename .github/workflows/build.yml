@@ -532,7 +532,6 @@ jobs:
         with:
           name: NetDiagnostic-Android-x86_64
           path: |
-            build/libnet_diagnostic_x86_64.so
             NetDiagnostic-Android-x86_64.apk
           if-no-files-found: error
 
@@ -648,7 +647,6 @@ jobs:
         with:
           name: NetDiagnostic-Android-arm64
           path: |
-            build/libnet_diagnostic_arm64-v8a.so
             NetDiagnostic-Android-arm64.apk
           if-no-files-found: error
 
@@ -736,7 +734,7 @@ jobs:
                 *.dmg)      name="netdiagnostic-${os}-${arch}.dmg" ;;
                 *.ipa)      name="netdiagnostic-${os}-${arch}.ipa" ;;
                 *.apk)      name="netdiagnostic-${os}-${arch}.apk" ;;
-                *.so)       name="netdiagnostic-${os}-${arch}.so" ;;
+
                 *.exe)      name="netdiagnostic-${os}-${arch}.exe" ;;
                 *)          name="$base" ;;
               esac
