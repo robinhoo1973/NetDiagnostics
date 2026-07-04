@@ -6,13 +6,13 @@ Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML an
 
 ### Diagnostic Engine (38 tests in 5 groups)
 
-| Group | Name | Tests | Description |
-|-------|------|-------|-------------|
-| G1 | System & Adapters | 13 | Network adapters, NIC advanced, WiFi, wired, DHCP, IP config, active connections, network profile, TCP settings, default gateway, routing table, ARP table, proxy settings |
-| G2 | Connectivity & Security | 1 | Netskope status |
-| G3 | Internet & DNS | 5 | DNS servers, DNS cache, DNS pollution, Internet connectivity & speed (×2) |
-| G4 | Remote Host | 8 | DNS resolution, ping, traceroute, pathPing, MTU discovery, port scan, URL parsing, TCP connect |
-| G5 | Website / URL | 11 | Service banner, HTTP request, HTTP headers, security headers, SSL certificate, HTTP redirect, HTTP compression, HTTP timing, FTP, SSH, Email diagnostics |
+| Group | Tests | Description |
+|-------|-------|-------------|
+| **G1** — System & Adapters | 8 | Network Adapters, NIC Advanced, WiFi Information, Wired Information, DHCP Status, IP Configuration, Active Connections, Cellular Info |
+| **G2** — Connectivity & Security | 6 | Network Profile, TCP Settings, Default Gateway, Routing Table, ARP Table, Proxy Settings |
+| **G3** — Internet & DNS | 5 | Netskope Status, DNS Servers, DNS Cache, DNS Pollution, Internet Connectivity & Speed |
+| **G4** — Remote Host | 6 | DNS Resolution, Ping, Traceroute, PathPing, MTU Discovery, Port Scan |
+| **G5** — Website / URL | 13 | URL Parsing, TCP Connect, Service Banner, HTTP Request, HTTP Headers, Security Headers, SSL Certificate, HTTP Redirect, HTTP Compression, HTTP Timing, FTP Diagnostics, SSH Diagnostics, Email Diagnostics |
 
 ### Key Features
 
