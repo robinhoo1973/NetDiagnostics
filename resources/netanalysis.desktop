@@ -6,5 +6,5 @@ Comment=Cross-platform network diagnostic and analysis tool
 Exec=net_diagnostic
 Icon=netanalysis
 Terminal=false
-Categories=Network;Qt;System;
+Categories=System;
 Keywords=network;diagnostic;ping;traceroute;portscan;dns;wifi;
