@@ -696,35 +696,57 @@ jobs:
         run: |
           cd artifacts
           mkdir -p release-assets
-          find . -type f ! -name "*.tar.xz" ! -name "*.o" ! -name "*.obj" | while read f; do
-            base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
-            dir=$(dirname "$f" | tr '[:upper:]' '[:lower:]')
-            case "$dir" in
-              *windows*)   os="windows"; arch="x86_64" ;;
-              *linux*86*)  os="linux";   arch="x86_64" ;;
-              *linux*arm*) os="linux";   arch="arm64" ;;
-              *macos*)      os="macos";   arch="arm64" ;;
-              *android*x86*)  os="android"; arch="x86_64" ;;
-              *android*arm*)  os="android"; arch="arm64" ;;
-              *ios*)       os="ios";     arch="arm64" ;;
-              *)           os="unknown"; arch="unknown" ;;
+
+          # Debug: show all downloaded artifact files
+          echo "=== All downloaded files ==="
+          find . -type f | sort
+          echo "============================"
+
+          # Copy assets with consistent naming: netdiagnostic-{os}-{arch}.{ext}
+          for dir in */; do
+            dir_lower=$(echo "$dir" | tr '[:upper:]' '[:lower:]')
+            case "$dir_lower" in
+              *windows*)
+                os="windows"; arch="x86_64" ;;
+              *linux-x86_64*|*linux*86*)
+                os="linux"; arch="x86_64" ;;
+              *linux-arm64*|*linux*arm*)
+                os="linux"; arch="arm64" ;;
+              *macos*)
+                os="macos"; arch="arm64" ;;
+              *android-x86_64*|*android*x86*)
+                os="android"; arch="x86_64" ;;
+              *android-arm64*|*android*arm*)
+                os="android"; arch="arm64" ;;
+              *ios*)
+                os="ios"; arch="arm64" ;;
+              *)
+                echo "Skipping unknown: $dir"; continue ;;
             esac
-            ext="${base##*.}"
-            case "$base" in
-              *sim*)       name="netdiagnostic-${os}-${arch}-sim.${ext}" ;;
-              *.appimage)  name="netdiagnostic-${os}-${arch}.AppImage" ;;
-              *.deb)       name="netdiagnostic-${os}-${arch}.deb" ;;
-              *.rpm)       name="netdiagnostic-${os}-${arch}.rpm" ;;
-              *.dmg)       name="netdiagnostic-${os}-${arch}.dmg" ;;
-              *.ipa)       name="netdiagnostic-${os}-${arch}.ipa" ;;
-              *.apk)       name="netdiagnostic-${os}-${arch}.apk" ;;
-              *.so)        name="netdiagnostic-${os}-${arch}.so" ;;
-              *.exe)       name="netdiagnostic-${os}-${arch}.exe" ;;
-              *)           name="$base" ;;
-            esac
-            cp "$f" "release-assets/$name"
-            echo "Asset: $name"
+            echo "Processing: $dir → $os/$arch"
+            while IFS= read -r f; do
+              base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
+              ext="${base##*.}"
+              case "$base" in
+                *simulator*|*sim*)
+                  name="netdiagnostic-${os}-${arch}-sim.${ext}" ;;
+                *.appimage) name="netdiagnostic-${os}-${arch}.AppImage" ;;
+                *.deb)      name="netdiagnostic-${os}-${arch}.deb" ;;
+                *.rpm)      name="netdiagnostic-${os}-${arch}.rpm" ;;
+                *.dmg)      name="netdiagnostic-${os}-${arch}.dmg" ;;
+                *.ipa)      name="netdiagnostic-${os}-${arch}.ipa" ;;
+                *.apk)      name="netdiagnostic-${os}-${arch}.apk" ;;
+                *.so)       name="netdiagnostic-${os}-${arch}.so" ;;
+                *.exe)      name="netdiagnostic-${os}-${arch}.exe" ;;
+                *)          name="$base" ;;
+              esac
+              cp "$f" "release-assets/$name"
+              echo "  → $name"
+            done < <(find "$dir" -type f ! -name "*.o" ! -name "*.obj")
           done
+
+          echo ""
+          echo "=== Release assets ==="
           ls -lh release-assets/
 
       - name: Create Release
