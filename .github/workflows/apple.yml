@@ -122,9 +122,11 @@ jobs:
           echo "iOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
 
       - name: Install dependencies
-        run: brew install cmake ninja python3
+        run: |
+          brew install cmake ninja python3
+          pip3 install --break-system-packages aqtinstall
 
-      - name: Cache Qt6 macOS desktop (host tools)
+      # Qt6 desktop (host tools) for iOS build
         id: cache-qt-desktop
         uses: actions/cache@v4
         with:
@@ -133,9 +135,7 @@ jobs:
 
       - name: Install Qt6 desktop via aqt
         if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
+        run: aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
 
       - name: Cache Qt6 iOS
         id: cache-qt-ios
@@ -146,9 +146,7 @@ jobs:
 
       - name: Install Qt6 for iOS via aqt
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+        run: aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
 
       - name: Configure
         run: |
@@ -225,7 +223,9 @@ jobs:
           xcodebuild -version
 
       - name: Install dependencies
-        run: brew install cmake ninja python3
+        run: |
+          brew install cmake ninja python3
+          pip3 install --break-system-packages aqtinstall
 
       - name: Prepare ASC key
         run: |
@@ -260,9 +260,7 @@ jobs:
 
       - name: Install Qt6 desktop via aqt
         if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
+        run: aqt install-qt mac desktop $QT_VERSION clang_64 -O $QT_HOST_DIR
 
       - name: Cache Qt6 iOS
         id: cache-qt-ios
@@ -273,9 +271,7 @@ jobs:
 
       - name: Install Qt6 for iOS via aqt
         if: steps.cache-qt-ios.outputs.cache-hit != 'true'
-        run: |
-          pip3 install --break-system-packages aqtinstall
-          aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
+        run: aqt install-qt mac ios $QT_VERSION ios -O $QT_INSTALL_DIR
 
       - name: Generate App Store Connect JWT
         id: jwt
