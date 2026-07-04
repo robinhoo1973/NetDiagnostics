@@ -8,10 +8,24 @@ ApplicationWindow {
     flags: Qt.FramelessWindowHint
     color: Theme.bgDark
 
-    // Maximize to fill the current screen's available area (respects
-    // taskbar/dock).  Handles multi-monitor and screen changes natively —
-    // no manual geometry math needed.
-    visibility: Window.Maximized
+    // Fill the current screen's available area (respects taskbar/dock).
+    // Manual geometry via screen.availableGeometry is required because
+    // FramelessWindowHint + Window.Maximized are incompatible: the window
+    // manager cannot negotiate maximize geometry for an undecorated window.
+    function fillScreen() {
+        var scr = root.screen
+        if (!scr) return
+        var ag = scr.availableGeometry
+        root.x = ag.x
+        root.y = ag.y
+        root.width  = ag.width
+        root.height = ag.height
+    }
+    Connections {
+        target: root
+        function onScreenChanged(screen) { if (screen) fillScreen() }
+    }
+    Component.onCompleted: fillScreen()
 
     // ── Monospace font — loaded once at root, inherited by all child Labels ──
     // Setting font.family on the Window propagates to every Item/Label in the
