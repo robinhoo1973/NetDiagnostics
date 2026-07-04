@@ -18,14 +18,11 @@ ApplicationWindow {
             var scr = page.screen
             if (!scr) return  // guard: window not yet assigned to screen
 
-            // Use availableSize of the current screen — NOT desktopAvailableWidth
-            // which spans the entire virtual desktop on multi-monitor setups.
-            var as = scr.availableSize
-            width  = as.width
-            height = as.height
-
-            // Position at the origin of the current screen's available area.
+            // Use availableGeometry (QRect: x, y, width, height) of the
+            // current screen.  NOT desktopAvailableWidth — see main.qml.
             var ag = scr.availableGeometry
+            width  = ag.width
+            height = ag.height
             x = ag.x
             y = ag.y
             recalcScale()

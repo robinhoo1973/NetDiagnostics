@@ -16,24 +16,19 @@ ApplicationWindow {
             var scr = root.screen
             if (!scr) return  // guard: window not yet assigned to a screen
 
-            // Use availableSize for the screen the window lives on.
-            // DO NOT use desktopAvailableWidth/Height — those span the
-            // entire virtual desktop across all monitors, causing the
-            // window to overshoot the current screen on multi-monitor
-            // setups (the root cause of the "oversize window" bug).
-            var as = scr.availableSize
-            var sw = as.width
-            var sh = as.height
-
-            // 90% of screen, clamped to never exceed the screen bounds.
-            width  = Math.min(sw * 0.9, sw)
-            height = Math.min(sh * 0.9, sh)
-
-            // Center on the current screen (use availableGeometry origin
-            // so the window aligns to the correct monitor on multi-head).
+            // Use availableGeometry (QRect) — contains x, y, width, height
+            // of the current screen's usable area.  DO NOT use
+            // desktopAvailableWidth/Height — those span the entire virtual
+            // desktop across all monitors, the root cause of oversize windows.
             var ag = scr.availableGeometry
-            x = ag.x + (sw - width)  / 2
-            y = ag.y + (sh - height) / 2
+
+            // 90% of the current screen's usable area.
+            width  = ag.width  * 0.9
+            height = ag.height * 0.9
+
+            // Center on the current screen.
+            x = ag.x + (ag.width  - width)  / 2
+            y = ag.y + (ag.height - height) / 2
         })
     }
 
