@@ -78,7 +78,7 @@ Item {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: "report"; size: 20; color: Theme.cyan }
             Item { width: 10 }
-            Label { text: Tr.reportPreview; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+            Label { text: Tr.reportPreview; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
         }
     }
 
@@ -125,7 +125,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 text: Tr.reportPreview
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: Theme.textPrimary
+                font.family: Theme.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: Theme.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
@@ -136,7 +136,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: page.isRunning ? Tr.runningDots
                       : (page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst)
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 14; color: Qt.alpha(Theme.textSecondary, 0.6)
+                font.family: Theme.monoFont; font.pixelSize: 14; color: Qt.alpha(Theme.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
                 wrapMode: Text.WordWrap
             }
@@ -152,7 +152,7 @@ Item {
                     text: page.toast !== "" ? page.toast
                           : (page.lastFailed ? Tr.reportExportFailed : (Tr.reportSavedTo + " " + page.lastPath))
                     color: page.lastFailed ? Theme.failRed : (page.toast !== "" ? Theme.cyan : Theme.passGreen)
-                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11
+                    font.family: Theme.monoFont; font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere; horizontalAlignment: Text.AlignHCenter
                 }
             }
@@ -175,7 +175,7 @@ Item {
                         Layout.fillWidth: true
                         text: page.isRunning ? Tr.runningStatus
                               : (hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults)
-                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12
+                        font.family: Theme.monoFont; font.pixelSize: 12
                         color: page.isRunning ? Theme.cyan : (hasResults ? Theme.passGreen : Theme.warnYellow)
                         elide: Text.ElideRight
                     }
@@ -220,7 +220,7 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             text: page.previewFormat === "pdf" ? Tr.previewPdfTitle : Tr.previewHtmlTitle
-                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary
+                            font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary
                             elide: Text.ElideRight
                         }
                         Rectangle {
@@ -314,7 +314,7 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle
-                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                    font.family: Theme.monoFont
                     font.pixelSize: 17; font.weight: Font.Bold; color: Theme.textPrimary
                     wrapMode: Text.WordWrap
                 }
@@ -323,7 +323,7 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody
-                    font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+                    font.family: Theme.monoFont
                     font.pixelSize: 13; color: Theme.textSecondary
                     wrapMode: Text.WordWrap; lineHeight: 1.25
                 }
@@ -338,7 +338,7 @@ Item {
                         anchors.centerIn: parent; spacing: 5
                         AppIcon { name: "badge-check"; size: 12; color: Theme.warnYellow }
                         Label { text: Tr.premiumBadge; color: Theme.warnYellow
-                            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.Bold }
+                            font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
                     }
                 }
                 // Action buttons
@@ -379,7 +379,7 @@ Item {
             anchors.centerIn: parent
             text: dbtn.label
             color: dbtn.filled ? "#101018" : dbtn.accent
-            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
     }
@@ -405,7 +405,7 @@ Item {
                 text: pbtn.label + (pbtn.locked ? "  " + Tr.premiumBadge : "")
                 elide: Text.ElideRight; maximumLineCount: 1
                 color: Theme.textPrimary
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; font.weight: Font.Medium
+                font.family: Theme.monoFont; font.pixelSize: 12; font.weight: Font.Medium
             }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pbtn.clicked() }
@@ -429,7 +429,7 @@ Item {
             Item { width: 12 }
             Label { Layout.fillWidth: true; text: btn.label; color: Theme.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 13; font.weight: Font.Medium }
+                font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
         }
         MouseArea { anchors.fill: parent; enabled: page.canReport
             cursorShape: Qt.PointingHandCursor; onClicked: btn.clicked() }

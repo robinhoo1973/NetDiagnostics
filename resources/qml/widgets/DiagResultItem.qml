@@ -21,12 +21,12 @@ Item {
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
-            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: "#666666"
+            font.family: Theme.monoFont; font.pixelSize: 12; color: "#666666"
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Label {
             visible: itemData.isRunning; text: Tr.diagRunning
-            font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; font.italic:true; color:"#00BCD4"
+            font.family:Theme.monoFont; font.pixelSize:10; font.italic:true; color:"#00BCD4"
         }
     }
 
@@ -41,14 +41,14 @@ Item {
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
-            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; font.weight: Font.Medium
+            font.family: Theme.monoFont; font.pixelSize: 12; font.weight: Font.Medium
             color: { var s=itemData.status; return(s===0)?"#E0E0E0":(s===2?"#EF4444":"#A0A0B8") }
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Rectangle {
             visible: (itemData.durationMs||0)>0; implicitWidth:durText.implicitWidth+12; implicitHeight:20; radius:4
             color: "#2A2A4A"
-            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:"JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize:10; color:"#A0A0B8" }
+            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:Theme.monoFont; font.pixelSize:10; color:"#A0A0B8" }
         }
     }
 

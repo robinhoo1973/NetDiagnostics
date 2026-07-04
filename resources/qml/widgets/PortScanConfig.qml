@@ -15,7 +15,7 @@ Rectangle {
         RowLayout {
             AppIcon { name: "portscan"; size: 14; color: Theme.accentBlue }
             Item { width: 6 }
-            Label { text: Tr.portScan; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accentBlue }
+            Label { text: Tr.portScan; font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.accentBlue }
         }
         Item { Layout.preferredHeight: 6 }
         // Common ports checkbox
@@ -27,21 +27,21 @@ Rectangle {
                 onCheckedChanged: appState.portScanCommon = checked
             }
             Item { width: 6 }
-            Label { text: Tr.scanCommon; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textPrimary }
+            Label { text: Tr.scanCommon; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary }
         }
         Item { Layout.preferredHeight: 8 }
         // Range label
         RowLayout {
             AppIcon { name: "tune"; size: 12; color: Qt.alpha(Theme.textPrimary, 0.7) }
             Item { width: 4 }
-            Label { text: Tr.range; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textSecondary }
+            Label { text: Tr.range; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textSecondary }
         }
         Item { Layout.preferredHeight: 4 }
         // From / To fields
         RowLayout {
             TextField {
                 id: fromField; Layout.fillWidth: true; implicitHeight: 28
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textPrimary
+                font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary
                 text: appState.portScanFrom > 0 ? appState.portScanFrom : ""
                 placeholderText: "From"
                 placeholderTextColor: Theme.textSecondary
@@ -54,7 +54,7 @@ Rectangle {
             Item { width: 8 }
             TextField {
                 id: toField; Layout.fillWidth: true; implicitHeight: 28
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.textPrimary
+                font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary
                 text: appState.portScanTo > 0 ? appState.portScanTo : ""
                 placeholderText: "To"
                 placeholderTextColor: Theme.textSecondary
@@ -66,7 +66,7 @@ Rectangle {
         // Validation hint
         Label {
             visible: appState.portScanFrom > 0 && appState.portScanTo > 0 && appState.portScanFrom > appState.portScanTo
-            text: Tr.fromMust; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.failRed
+            text: Tr.fromMust; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.failRed
         }
     }
 }

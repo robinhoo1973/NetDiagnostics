@@ -96,7 +96,7 @@ Item {
                                     }
                                     Label {
                                         text: navBtn.labelText
-                                        font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10
+                                        font.family: Theme.monoFont; font.pixelSize: 10
                                         font.weight: navBtn.active ? Font.DemiBold : Font.Normal
                                         color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.7)
                                     }

@@ -9,7 +9,7 @@ ColumnLayout {
     RowLayout {
         AppIcon { name: "target"; size: 13; color: Qt.alpha(Theme.textPrimary, 0.7) }
         Item { width: 5 }
-        Label { text: Tr.target; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
+        Label { text: Tr.target; font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
@@ -28,7 +28,7 @@ ColumnLayout {
             TextField {
                 id: targetField
                 Layout.fillWidth: true; Layout.fillHeight: true
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; color: Theme.textPrimary
+                font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textPrimary
                 placeholderText: Tr.enterTarget
                 placeholderTextColor: Qt.alpha(Theme.textSecondary, 0.4)
                 text: appState.target
@@ -55,7 +55,7 @@ ColumnLayout {
         Label {
             Layout.fillWidth: true
             text: page._snapTargetError || ""
-            font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 10; color: Theme.failRed
+            font.family: Theme.monoFont; font.pixelSize: 10; color: Theme.failRed
             wrapMode: Text.WordWrap
         }
     }
@@ -68,7 +68,7 @@ ColumnLayout {
             Label {
                 anchors.centerIn: parent
                 text: appState.runStatus === 1 ? Tr.running : Tr.runDiag
-                font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 12; font.weight: Font.DemiBold
+                font.family: Theme.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
                 color: appState.canRun() || appState.runStatus === 1 ? "white" : Qt.alpha("white", 0.4)
             }
             MouseArea {
@@ -87,7 +87,7 @@ ColumnLayout {
             visible: appState.runStatus === 1
             Layout.preferredWidth: 80; implicitHeight: 38; radius: 8
             color: "transparent"; border { width: 1; color: Qt.alpha(Theme.failRed, 0.5) }
-            Label { anchors.centerIn: parent; text: Tr.stop; font.family: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"; font.pixelSize: 11; color: Theme.failRed }
+            Label { anchors.centerIn: parent; text: Tr.stop; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.failRed }
             MouseArea { anchors.fill: parent; onClicked: appState.cancel() }
         }
     }
