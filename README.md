@@ -1,302 +1,240 @@
-# NetAnalysis
+# NetDiagnostics
 
-Cross-platform network diagnostic tool. Built with Qt 6 / QML and libcurl.
+Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML and libcurl. Runs on **iOS, Android, Windows, macOS, and Linux**.
 
 ## Features
 
-### Diagnostic Groups (38 tests)
+### Diagnostic Engine (38 tests in 5 groups)
 
 | Group | Name | Tests | Description |
 |-------|------|-------|-------------|
-| G1 | System & Adapters | 7 | Network adapters, NIC advanced, WiFi, wired, DHCP status, IP configuration, active connections |
-| G2 | Connectivity & Security | 6 | Network profile, TCP settings, default gateway, routing table, ARP table, proxy settings |
-| G3 | Internet & DNS | 5 | Netskope status, DNS servers, DNS cache, DNS pollution, Internet speed test |
-| G4 | Remote Host | 6 | DNS resolution, ping, traceroute, pathPing, MTU discovery, port scan |
-| G5 | Website / URL | 13 | URL parsing, TCP connect, service banner, curl verbose, HTTP headers, security headers, SSL certificate, HTTP redirect, HTTP compression, HTTP timing, FTP, SSH, Email diagnostics |
+| G1 | System & Adapters | 13 | Network adapters, NIC advanced, WiFi, wired, DHCP, IP config, active connections, network profile, TCP settings, default gateway, routing table, ARP table, proxy settings |
+| G2 | Connectivity & Security | 1 | Netskope status |
+| G3 | Internet & DNS | 5 | DNS servers, DNS cache, DNS pollution, Internet connectivity & speed (×2) |
+| G4 | Remote Host | 8 | DNS resolution, ping, traceroute, pathPing, MTU discovery, port scan, URL parsing, TCP connect |
+| G5 | Website / URL | 11 | Service banner, HTTP request, HTTP headers, security headers, SSL certificate, HTTP redirect, HTTP compression, HTTP timing, FTP, SSH, Email diagnostics |
 
 ### Key Features
 
-- **Pure C++ diagnostics** — zero shell commands, direct OS API calls (Linux `/proc`/`/sys`, Windows Win32 API)
-- **libcurl integration** — full HTTP/HTTPS support with curl-compatible verbose output
-- **DNS resolution** — dig-style output with HEADER/QUESTION/ANSWER/AUTHORITY/ADDITIONAL sections
+- **Cross-platform** — single codebase for iOS, Android, Windows, macOS, Linux
+- **Pure C++ diagnostics** — zero shell commands, direct OS API calls
+- **Real-time engine** — results stream live as each test completes
+- **Report export** — PDF (one-page summary) and HTML (full detail) with embedded styling
+- **Premium IAP** — non-consumable unlock for report sharing via OS share sheet / email
+- **9-language UI** — English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, Español, Português
+- **Dark theme** — custom dark UI with cyan/purple accent palette
+- **Port scanner** — concurrent non-blocking socket scan with range merging (1–65535)
+- **DNS diagnostics** — dig-style output with HEADER/QUESTION/ANSWER sections, DNSSEC validation, pollution detection
 - **Speed test** — Ookla-compatible download/upload bandwidth measurement
-- **Port scanner** — concurrent non-blocking socket scan with range merging
-- **7-language UI** — English, French, German, Russian, Italian, Simplified/Traditional Chinese
-- **Monospace detail output** — JetBrains Mono + DejaVu Sans Mono for aligned diagnostic tables
-- **Badge-style status icons** — colored SVG badges for Pass/Warning/Fail/Skip/Error/Info
 - **Group-sequential execution** — `std::thread` concurrency with `std::atomic` group tracking
-- **Native C++ QDialog** — detail view with Status/Duration/Summary/Properties/Raw Output
 - **Single-instance lock** — prevents duplicate application instances
-- **Simulator mode** — device-frame UI for testing on desktop (Linux/Windows/macOS)
+- **Simulator mode** — device-frame UI for testing on desktop
+
+## Supported Platforms
+
+| Platform | Arch | Status |
+|----------|------|--------|
+| iOS | arm64 | ✅ Full support (StoreKit IAP, share sheet, WiFi SSID) |
+| Android | arm64 | ✅ Full support (share sheet via FileProvider) |
+| Linux | arm64 / x86_64 | ✅ Full support |
+| Windows | x86_64 / ARM64 | ✅ Full support |
+| macOS | x86_64 / arm64 | ✅ Full support |
 
 ## Project Structure
 
 ```
-NetDiagnostic-QT/
 ├── CMakeLists.txt              # Build configuration
-├── README.md                   # This file
+├── README.md
 ├── doc/
-│   ├── PROJECT_CHANGES.md      # Complete file manifest & change log
-├── .gitignore
+│   ├── PROJECT_CHANGES.md      # File manifest & change log
+│   └── app-store-localization.txt  # App Store listing (9 languages)
 ├── scripts/
-│   ├── build-all.sh            # Self-contained multi-platform build system
-│   ├── build-static.ps1        # Static build script (Windows)
-│   ├── generate-icons.sh       # Icon generation helper
+│   ├── build-all.sh            # Multi-platform build system
+│   ├── build-static.ps1        # Static build (Windows)
+│   ├── generate-icons.sh       # Icon generation
 │   └── toolchain/              # CMake toolchain files
-│       ├── linux-arm64.cmake
-│       ├── linux-x86_64.cmake
-│       ├── windows-x86_64.cmake
-│       └── windows-arm64.cmake
 ├── src/
 │   ├── main.cpp                # Production entry point
 │   ├── main_simulator.cpp      # Simulator entry point
 │   ├── app/
-│   │   ├── AppState.h/.cpp     # Application state & diagnostic orchestration
-│   │   └── NativeService.h/.cpp # Native OS service integration
+│   │   ├── AppState.h/.cpp     # Central state & diagnostic orchestration
+│   │   ├── NativeService.h/.cpp
+│   │   └── PremiumManager.h/.cpp
 │   ├── engine/
-│   │   ├── PlatformCommand.h/.cpp  # Cross-platform command execution
+│   │   ├── PlatformShare_ios.mm / PlatformShare_android.cpp
+│   │   ├── PlatformStore_ios.mm          # iOS StoreKit IAP
+│   │   ├── IosWiFiHelper.mm              # iOS WiFi SSID access
 │   │   ├── diagnostic/
-│   │   │   ├── DiagnosticEngine.h/.cpp  # Diagnostic engine core
-│   │   │   ├── G1G2G3Native.h/.cpp      # G1/G2/G3 native diagnostics
-│   │   │   ├── G4RemoteHost.h/.cpp      # G4 remote host tests
-│   │   │   └── G5WebsiteUrl.h/.cpp      # G5 website/URL tests
-│   │   └── runner/
-│   │       └── NetworkProbe.h/.cpp      # Network probing utilities
+│   │   │   ├── G1G2G3Native.h/.cpp       # G1/G2/G3 native diagnostics
+│   │   │   ├── G4RemoteHost.h/.cpp       # G4 remote host tests
+│   │   │   └── G5WebsiteUrl.h/.cpp       # G5 website/URL tests
+│   │   ├── runner/
+│   │   │   └── NetworkProbe.h/.cpp       # Network probing utilities
+│   │   └── task/
+│   │       ├── DiagnosticTask.h/.cpp     # Task abstraction
+│   │       ├── TaskFactory.h/.cpp        # Task creation
+│   │       ├── IosHttpTask.mm            # iOS NSURLSession HTTP
+│   │       ├── IosDnsTask.mm             # iOS DNSService DNS
+│   │       ├── IosNetworkInfo.mm         # iOS network info
+│   │       └── AndroidNetworkInfo.cpp    # Android JNI network info
 │   ├── models/
 │   │   ├── DiagnosticResult.h/.cpp  # Immutable result struct
 │   │   ├── DiagId.h                 # Test IDs, groups, statuses (38 tests)
-│   │   └── ResultProperty.h         # Key-value result properties with severity
+│   │   └── ResultProperty.h         # Key-value result properties
 │   └── util/
-│       ├── DebugSwitch.h            # Trace macros (disabled by default)
-│       ├── Logger.h/.cpp            # Logging utility
-│       └── PingParser.h/.cpp        # Ping output parser
+│       ├── DebugSwitch.h            # Trace macros
+│       ├── Logger.h/.cpp            # File-based debug logger
+│       ├── PingParser.h/.cpp        # Ping output parser
+│       ├── DnsResolver.h/.cpp       # DNS resolution utility
+│       ├── DiagnosticFormatter.h/.cpp  # Dig-style output formatter
+│       ├── PlatformShare.h          # Cross-platform share abstraction
+│       └── PlatformStore.h          # Cross-platform IAP abstraction
 ├── resources/
-│   ├── resources.qrc            # Qt resource file
-│   ├── netanalysis.desktop      # Linux desktop entry
-│   ├── netanalysis.rc           # Windows resource file (icon embed)
-│   ├── config/                  # Platform config files
-│   │   ├── android.conf, ios.conf, linux.conf, windows.conf
-│   ├── fonts/
-│   │   ├── JetBrainsMono-Regular.ttf, JetBrainsMono-Bold.ttf
-│   │   └── DejaVuSansMono.ttf
-│   ├── icons/                   # 40+ SVG/PNG/ICO icons
-│   │   ├── app-icon.svg, netanalysis.ico, netanalysis.png
-│   │   ├── badge-*.svg (check/close/warning/info/skip/error/circle/refresh)
-│   │   ├── dashboard, diagnostics, config, report, settings
-│   │   ├── check, circle, close, error, info, warning, skip
-│   │   ├── play, stop, refresh, timer, spinner, target, globe
-│   │   ├── portscan, wifi, tune, mail
-│   │   ├── windows, linux, apple, android
-│   │   └── sim-icon-*.svg (beaker/bug/flask/monitor-play/network-lab)
-│   └── qml/
-│       ├── main.qml             # Main window
-│       ├── AppContent.qml       # Content layout
-│       ├── theme/
-│       │   ├── AppTheme.qml     # Theme constants (C++ injected)
-│       │   ├── Translations.qml # 7-language translations
-│       │   └── qmldir
-│       ├── screens/
-│       │   ├── DashboardScreen.qml    # Overview dashboard
-│       │   ├── DiagnosticScreen.qml   # Main diagnostic tree view
-│       │   ├── ConfigScreen.qml       # Test selection (SwitchListTile)
-│       │   ├── ReportScreen.qml       # Report preview (planned)
-│       │   ├── SettingsScreen.qml     # Application settings
-│       │   └── SimulatorScreen.qml    # Device frame simulator
-│       └── widgets/
-│           ├── AppIcon.qml            # SVG icon component
-│           ├── DiagGroupPanel.qml     # Expandable group panel
-│           ├── DiagResultItem.qml     # Individual test result row
-│           ├── LiveProgressPanel.qml  # Runtime progress display
-│           ├── PortScanConfig.qml     # Port scan configuration
-│           ├── SummaryCards.qml       # Pass/Warn/Fail/Skip summary
-│           ├── TargetAnalysisPanel.qml # Target analysis section
-│           └── TargetInputPanel.qml   # Target host input
+│   ├── resources.qrc               # Qt resource file
+│   ├── Info.plist                   # iOS bundle metadata
+│   ├── NetDiagnostic.entitlements   # iOS code-signing entitlements
+│   ├── netanalysis.rc              # Windows resource (icon embed)
+│   ├── icons/                       # SVG/PNG/ICO app + status icons
+│   ├── fonts/                       # JetBrains Mono + DejaVu Sans Mono
+│   ├── qml/
+│   │   ├── main.qml                 # Main window
+│   │   ├── AppContent.qml           # Content layout
+│   │   ├── theme/
+│   │   │   ├── AppTheme.qml         # Theme constants (C++ injected)
+│   │   │   ├── Translations.qml     # 9-language translations
+│   │   │   └── qmldir
+│   │   ├── screens/
+│   │   │   ├── DashboardScreen.qml  # Overview dashboard
+│   │   │   ├── DiagnosticScreen.qml # Diagnostic tree view
+│   │   │   ├── ConfigScreen.qml     # Test selection
+│   │   │   ├── ReportScreen.qml     # Report preview + share/Premium flow
+│   │   │   ├── SettingsScreen.qml   # App settings + restore purchases
+│   │   │   └── SimulatorScreen.qml  # Device frame simulator
+│   │   └── widgets/
+│   │       ├── AppIcon.qml          # SVG icon component
+│   │       ├── DiagGroupPanel.qml   # Expandable group panel
+│   │       ├── DiagResultItem.qml   # Individual test result row
+│   │       ├── LiveProgressPanel.qml
+│   │       ├── PortScanConfig.qml
+│   │       ├── SummaryCards.qml
+│   │       ├── TargetAnalysisPanel.qml
+│   │       └── TargetInputPanel.qml
+│   ├── android/
+│   │   ├── AndroidManifest.xml
+│   │   └── res/xml/file_paths.xml   # FileProvider for share sheet
+│   └── Assets.xcassets/             # iOS app icon
 ├── tests/
 │   ├── CMakeLists.txt
-│   └── test_engine_quick.cpp     # 19 headless tests
-└── doc/
-    ├── design-spec.html          # Design specification
-    └── design-tokens.json        # Design tokens
+│   └── test_engine_quick.cpp
+└── .github/workflows/
+    ├── build.yml                    # CI/CD builds
+    └── deploy-testflight.yml        # Automated TestFlight deployment
 ```
 
 ## Build
 
-### Quick Start (automated, all platforms)
+### Quick Start (automated)
 
 ```bash
-# Check dependencies only
-./scripts/build-all.sh --check-only
-
 # Native build (auto-detect host platform)
 ./scripts/build-all.sh
-
-# Auto-fix ALL missing deps (installs cross-compilers, Qt6, ninja, cmake)
-./scripts/build-all.sh --fix --target all
 
 # Cross-compile specific target + simulator
 ./scripts/build-all.sh --target windows-x86_64 --sim
 
-# Clean rebuild, skip dep check
-./scripts/build-all.sh --target linux-arm64 --clean --no-check
+# Auto-fix ALL missing dependencies
+./scripts/build-all.sh --fix --target all
 ```
 
-### Build System Features
+### Manual Build
 
-| Feature | Description |
-|---------|-------------|
-| `--fix` | Auto-installs missing tools from source (ninja, cmake, mingw-w64, LLVM-MinGW, Qt6) |
-| `--target all` | Builds linux-arm64, linux-x86_64, windows-x86_64, windows-arm64 |
-| `--sim` / `--sim-only` | Also build simulator variant with device-frame UI |
-| `--clean` | Remove previous build artifacts |
-| Cross-compilation | mingw-w64 (x86_64), LLVM-MinGW (aarch64), linux-gnu (x86_64) |
-| Smart TMPDIR | Auto-detects small tmpfs and uses `~/.cache` for Qt6 source builds |
-
-### CI/CD (GitHub Actions)
-
-Automated builds for every push and PR via `.github/workflows/build.yml`:
-
-| Platform | Arch | Compiler | Simulator |
-|----------|------|----------|-----------|
-| Linux | x86_64 | GCC | ✅ |
-| Linux | arm64 | GCC (cross) | — |
-| Windows | x86_64 | mingw-w64 | ✅ |
-| Windows | arm64 | LLVM-MinGW | — |
-| macOS | x86_64 | Apple Clang | ✅ |
-| macOS | arm64 | Apple Clang | ✅ |
-
-### Manual Build (single platform)
-
-#### Linux (arm64 / x86_64)
+#### Linux / macOS
 
 ```bash
-# Install dependencies
-sudo apt install qt6-base-dev qt6-quickcontrols2-dev libcurl4-openssl-dev cmake ninja-build
+# Dependencies
+sudo apt install qt6-base-dev qt6-quickcontrols2-dev libcurl4-openssl-dev cmake ninja-build  # Linux
+brew install qt@6 cmake ninja curl                                                             # macOS
 
 # Build
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
 ninja -C build net_diagnostic
-
-# Output: build/net_diagnostic
 ```
 
-#### Windows (cross-compile from Linux)
+#### iOS
 
 ```bash
-# x86_64 — mingw-w64 (GCC)
-./scripts/build-all.sh --target windows-x86_64 --fix
-
-# ARM64 — LLVM-MinGW (Clang)
-./scripts/build-all.sh --target windows-arm64 --fix
+cmake -G Xcode \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/ios.toolchain.cmake \
+  -B build/ios
+# Open build/ios/*.xcodeproj in Xcode → select device → Build
 ```
 
-#### macOS
+#### Android
 
 ```bash
-# Prerequisites: Xcode Command Line Tools, Homebrew
-brew install qt@6 cmake ninja curl
-
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
-ninja -C build net_diagnostic
+cmake -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/android.toolchain.cmake \
+  -DANDROID_ABI=arm64-v8a \
+  -B build/android
+ninja -C build/android net_diagnostic
 ```
 
-### Simulator
+#### Simulator
 
 ```bash
 cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
 ninja -C build net_diagnostic_sim
 ```
 
-Simulator mode is limited to **Linux / Windows / macOS** (desktop platforms with full Qt6 QuickControls2 support).
-
 ### Headless Test
 
 ```bash
-ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen \
-    ./build/net_diagnostic
+ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostic
 ```
 
-## Supported Platforms
+## CI/CD
 
-| Platform | Arch | Compiler | Status |
-|----------|------|----------|--------|
-| Linux | arm64 | GCC | ✅ Full support (native) |
-| Linux | x86_64 | GCC | ✅ Full support (cross-compile) |
-| Windows | x86_64 | mingw-w64 (GCC) | ✅ Cross-compile via `--fix` |
-| Windows | ARM64 | LLVM-MinGW (Clang) | ✅ Cross-compile (Qt6 via vcpkg/MSYS2) |
-| macOS | x86_64 / arm64 | Apple Clang | ✅ Full support |
-| Android | — | NDK | ⚠️ Mostly works |
-| iOS | — | Xcode | ⚠️ Compiles, sandbox restrictions |
+Automated builds via `.github/workflows/build.yml` for every push and PR:
+
+| Platform | Arch | Compiler | Simulator |
+|----------|------|----------|-----------|
+| Linux | x86_64 / arm64 | GCC | ✅ |
+| Windows | x86_64 / ARM64 | mingw-w64 / LLVM-MinGW | ✅ |
+| macOS | x86_64 / arm64 | Apple Clang | ✅ |
+
+## Deployment (iOS TestFlight)
+
+Automated via `.github/workflows/deploy-testflight.yml`.
+
+**Required GitHub Secrets:**
+
+| Secret | Source |
+|--------|--------|
+| `APPSTORE_CONNECT_ISSUER_ID` | App Store Connect → Users and Access → Integrations → Keys |
+| `APPSTORE_CONNECT_KEY_ID` | Same page |
+| `APPSTORE_CONNECT_API_KEY` | Downloaded `.p8` file |
+| `IOS_TEAM_ID` | developer.apple.com/account → Membership |
+| `IOS_DISTRIBUTION_CERT_BASE64` | `base64 -i dist.p12` |
+| `IOS_DISTRIBUTION_CERT_PASSWORD` | .p12 export password |
+
+See the workflow file for full details.
+
+## In-App Purchase
+
+The app includes a **non-consumable Premium** IAP (Product ID: `com.netdiagnostic.app.premium`) that unlocks report sharing. Implementation:
+
+- **iOS**: StoreKit via `SKProductsRequest` + `SKPaymentQueue` (`src/engine/PlatformStore_ios.mm`)
+- **Restore**: `restoreCompletedTransactions` with error/no-purchase distinction
+- **Persistence**: `QSettings` for offline unlock survival; manual Restore Purchases button in Settings
+- **Sandbox testing**: App Store Connect → Sandbox Testers → test account
 
 ## Dependencies
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| Qt 6 | ≥ 6.2 | Core, Concurrent, Quick, QuickControls2, Widgets, Network |
-| libcurl | ≥ 7.80 | HTTP/HTTPS diagnostics (G5) |
+| Qt 6 | ≥ 6.2 | Core, Concurrent, Quick, QuickControls2, Network |
+| libcurl | ≥ 7.80 | HTTP/HTTPS diagnostics (desktop; iOS uses NSURLSession) |
 | CMake | ≥ 3.22 | Build system |
-| Ninja | any | Build tool (optional, Make works too) |
-
-### Platform-specific
-
-| Platform | Libraries |
-|----------|-----------|
-| Linux | resolv (DNS), glibc |
-| Windows | ws2_32, winhttp, iphlpapi, wlanapi, dnsapi, ole32, shell32 |
-| macOS | resolv (DNS), SystemConfiguration, CoreFoundation |
-| iOS | libcurl, resolv (DNS), SystemConfiguration |
-
-## Deployment
-
-### TestFlight (iOS)
-
-Fully automated deployment via `.github/workflows/deploy-testflight.yml`. The workflow handles everything — no manual Apple Developer Portal steps needed.
-
-**What it auto-creates (first run only, skips if exists):**
-1. **Bundle ID** `com.netdiagnostic.app` in Apple Developer Portal
-2. **App Store Connect app** named `NetDiagnostic`
-3. **App Store Provisioning Profile** linked to your distribution certificate
-
-#### Triggers
-
-- **Automatic:** after the `Build & Release` workflow succeeds on `master`
-- **Manual:** `workflow_dispatch` from GitHub Actions UI
-
-#### Required GitHub Secrets
-
-Only **6 secrets** needed (5 for first-time, `IOS_PROVISIONING_PROFILE_BASE64` is optional):
-
-| Secret | How to obtain |
-|--------|---------------|
-| `APPSTORE_CONNECT_ISSUER_ID` | App Store Connect → Users and Access → Integrations → Keys |
-| `APPSTORE_CONNECT_KEY_ID` | Same page — displayed alongside Issuer ID |
-| `APPSTORE_CONNECT_API_KEY` | Downloaded `.p8` file content |
-| `IOS_TEAM_ID` | [developer.apple.com/account](https://developer.apple.com/account) → Membership |
-| `IOS_DISTRIBUTION_CERT_BASE64` | `base64 -i dist.p12 \| tr -d '\n'` |
-| `IOS_DISTRIBUTION_CERT_PASSWORD` | Password set when exporting `.p12` from Keychain |
-| `IOS_PROVISIONING_PROFILE_BASE64` | *(Optional)* Skip auto-creation by providing your own |
-
-#### One-time manual setup (only the cert)
-
-**1. Create Distribution Certificate** (the ONLY manual step):
-- Xcode → Settings → Accounts → your Apple ID → Manage Certificates
-- Click **+** → **Apple Distribution**
-
-**2. Export .p12 from Keychain**:
-- Open Keychain Access → find your **Apple Distribution** certificate
-- Right-click → Export → `.p12` format → set a password
-- `base64 -i dist.p12 | tr -d '\n'` → paste into `IOS_DISTRIBUTION_CERT_BASE64`
-- Password → paste into `IOS_DISTRIBUTION_CERT_PASSWORD`
-
-**3. Create App Store Connect API Key** (Developer permission is sufficient):
-- App Store Connect → Users and Access → Integrations → Keys → **+**
-- Name: `CI-Upload-Key`, Access: **Developer**
-- Save the Issuer ID, Key ID, and downloaded `.p8` file
-
-Everything else (Bundle ID, App Store Connect app, Provisioning Profile) is auto-created on first workflow run.
-
-#### Verification
-
-After the workflow succeeds, check [App Store Connect → TestFlight](https://appstoreconnect.apple.com). The build will appear after ~15-30 minutes of processing. Add internal testers (up to 100, no review needed) or external testers (requires Beta App Review).
 
 ## License
 
