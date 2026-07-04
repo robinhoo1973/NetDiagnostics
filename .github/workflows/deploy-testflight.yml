@@ -23,10 +23,10 @@ jobs:
     env:
       QT_VERSION: "6.8.3"
       BUNDLE_ID: "com.netdiagnostic.app"
-      APP_NAME: "NetDiagnostic"
+      APP_NAME: "NetDiagnostics"
       APP_SKU: "netdiag.ios.001"
       APP_LOCALE: "en-US"
-      PROFILE_NAME: "NetDiagnostic AppStore"
+      PROFILE_NAME: "NetDiagnostics AppStore"
       QT_INSTALL_DIR: "/Users/runner/qt-ios"
       QT_HOST_DIR: "/Users/runner/qt-desktop"
 
