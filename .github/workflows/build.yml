@@ -355,8 +355,144 @@ jobs:
             dist/**
           if-no-files-found: error
 
-  # macOS + iOS builds moved to .github/workflows/apple.yml
-  # (build + TestFlight deploy for Apple platforms)
+  # ===================================================================
+  # macOS x86_64 — Intel Mac native build + simulator + DMG
+  # ===================================================================
+  macos-x86_64:
+    name: macOS x86_64
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja qt@6
+
+      - name: Generate macOS app icon (.icns)
+        run: |
+          mkdir -p icon.iconset
+          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
+          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
+          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
+          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
+          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
+          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
+        continue-on-error: true
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Package DMG (production)
+        run: |
+          if [ -d build/net_diagnostic.app ]; then
+            echo "Packaging .app into DMG..."
+            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostic.app -ov -format UDZO NetDiagnostic-macOS-x86_64.dmg
+            ls -lh NetDiagnostic-macOS-x86_64.dmg
+          else
+            echo "No .app bundle found; falling back to binary packaging"
+            mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
+            cp build/net_diagnostic pkg/NetDiagnostic.app/Contents/MacOS/
+            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-x86_64.dmg || true
+          fi
+        continue-on-error: true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-x86_64
+          path: |
+            build/net_diagnostic
+            build/net_diagnostic.app
+            build-sim/net_diagnostic_sim
+            *.dmg
+          if-no-files-found: error
+
+  # ===================================================================
+  # macOS arm64 — Apple Silicon native build + simulator + DMG
+  # ===================================================================
+  macos-arm64:
+    name: macOS arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja qt@6
+
+      - name: Generate macOS app icon (.icns)
+        run: |
+          mkdir -p icon.iconset
+          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
+          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
+          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
+          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
+          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
+          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
+        continue-on-error: true
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostic
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostic_sim
+
+      - name: Package DMG (production)
+        run: |
+          if [ -d build/net_diagnostic.app ]; then
+            echo "Packaging .app into DMG..."
+            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
+            ls -lh NetDiagnostic-macOS-arm64.dmg
+          else
+            echo "No .app bundle found; falling back to binary packaging"
+            mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
+            cp build/net_diagnostic pkg/NetDiagnostic.app/Contents/MacOS/
+            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg || true
+          fi
+        continue-on-error: true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostic-macOS-arm64
+          path: |
+            build/net_diagnostic
+            build/net_diagnostic.app
+            build-sim/net_diagnostic_sim
+            *.dmg
+          if-no-files-found: error
+
+  # iOS build remains in .github/workflows/apple.yml
+  # (combined with TestFlight deploy for Apple platforms)
 
   # ===================================================================
   # Android x86_64 - cross-compile via aqtinstall + NDK
@@ -602,6 +738,8 @@ jobs:
       - linux-x86_64
       - linux-arm64
       - windows-x86_64
+      - macos-x86_64
+      - macos-arm64
       - android-x86_64
       - android-arm64
     if: startsWith(github.ref, 'refs/tags/') && !failure() && !cancelled()
@@ -624,7 +762,9 @@ jobs:
               *windows*)   os="windows"; arch="x86_64" ;;
               *linux*86*)  os="linux";   arch="x86_64" ;;
               *linux*arm*) os="linux";   arch="arm64" ;;
-              *macos*)     os="macos";   arch="arm64" ;;
+              *macos*x86*)  os="macos";   arch="x86_64" ;;
+              *macos*arm*)  os="macos";   arch="arm64" ;;
+              *macos*)      os="macos";   arch="arm64" ;;
               *android*x86*)  os="android"; arch="x86_64" ;;
               *android*arm*)  os="android"; arch="arm64" ;;
               *ios*)       os="ios";     arch="arm64" ;;
