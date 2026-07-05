@@ -873,16 +873,14 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Compute next version
+      - name: Compute release tag
         id: version
         run: |
           set -euo pipefail
-          LATEST=$(git tag -l 'v*' | sort -V | tail -1)
-          if [ -z "$LATEST" ]; then
-            LATEST="v0.0.1"
-          fi
-          echo "next_tag=${LATEST}" >> "$GITHUB_OUTPUT"
-          echo "Release tag: $LATEST"
+          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          echo "next_tag=${LATEST:-v0.0.1}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${LATEST:-v0.0.1}"
 
       - uses: actions/download-artifact@v4
         with:
