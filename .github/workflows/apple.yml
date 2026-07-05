@@ -277,61 +277,67 @@ jobs:
 
       - name: Setup macOS keychain (inline)
         id: mac-keychain
-        env:
-          INST_CERT_B64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
-          INST_CERT_PW: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
-          APP_CERT_B64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
-          APP_CERT_PW: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
         run: |
-          set -euo pipefail
-          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
-          KEYCHAIN_PATH="$RUNNER_TEMP/signing-${RANDOM}.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32) || { echo "ERROR: openssl rand failed"; exit 1; }
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing-$$.keychain-db"
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security default-keychain -s "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" || {
+            echo "ERROR: security create-keychain failed (exit $?)"
+            echo "  macOS version: $(sw_vers -productVersion)"
+            exit 1
+          }
+          security default-keychain -s "$KEYCHAIN_PATH" || true
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" || true
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH" || true
 
           TOOLS="/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
           TOOL_ARGS=""
           for tool in $TOOLS; do TOOL_ARGS="$TOOL_ARGS -T $tool"; done
 
           # ── Import primary cert (Installer) ──
-          if [ -n "${INST_CERT_B64:-}" ]; then
-            printf '%s' "$INST_CERT_B64" > "$RUNNER_TEMP/signing-cert.b64"
+          INST_B64='${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}'
+          INST_PW='${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}'
+          if [ -n "$INST_B64" ]; then
+            printf '%s' "$INST_B64" > "$RUNNER_TEMP/signing-cert.b64"
             base64 -d "$RUNNER_TEMP/signing-cert.b64" > "$RUNNER_TEMP/signing-cert.p12" 2>/dev/null
-            if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$INST_CERT_PW" > /dev/null 2>&1; then
-              echo "[OK] openssl verified primary cert password"
+            if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$INST_PW" > /dev/null 2>&1; then
+              echo "[OK] openssl verified Installer cert password"
             else
-              echo "ERROR: Primary cert (Installer) — openssl pkcs12 verification FAILED"
-              echo "  Password or base64 content is wrong. Check MACOS_INSTALLER_CERT_* secrets."
+              echo "ERROR: Installer cert — openssl pkcs12 verification FAILED"
+              echo "  Check MACOS_INSTALLER_CERT_BASE64 and MACOS_INSTALLER_CERT_PASSWORD secrets."
               exit 1
             fi
             security import "$RUNNER_TEMP/signing-cert.p12" \
               -k "$KEYCHAIN_PATH" \
-              -P "$INST_CERT_PW" \
+              -P "$INST_PW" \
               -A $TOOL_ARGS
             rm -f "$RUNNER_TEMP/signing-cert.p12" "$RUNNER_TEMP/signing-cert.b64"
-            echo "[OK] primary cert imported"
+            echo "[OK] Installer cert imported"
+          else
+            echo "WARNING: MACOS_INSTALLER_CERT_BASE64 secret is empty — skipping Installer cert"
           fi
 
           # ── Import secondary cert (App Distribution) ──
-          if [ -n "${APP_CERT_B64:-}" ]; then
-            printf '%s' "$APP_CERT_B64" > "$RUNNER_TEMP/signing-cert.b64"
+          APP_B64='${{ secrets.MACOS_APP_CERT_BASE64 }}'
+          APP_PW='${{ secrets.MACOS_APP_CERT_PASSWORD }}'
+          if [ -n "$APP_B64" ]; then
+            printf '%s' "$APP_B64" > "$RUNNER_TEMP/signing-cert.b64"
             base64 -d "$RUNNER_TEMP/signing-cert.b64" > "$RUNNER_TEMP/signing-cert.p12" 2>/dev/null
-            if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$APP_CERT_PW" > /dev/null 2>&1; then
-              echo "[OK] openssl verified secondary cert password"
+            if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$APP_PW" > /dev/null 2>&1; then
+              echo "[OK] openssl verified App cert password"
             else
-              echo "ERROR: Secondary cert (App) — openssl pkcs12 verification FAILED"
-              echo "  Password or base64 content is wrong. Check MACOS_APP_CERT_* secrets."
+              echo "ERROR: App cert — openssl pkcs12 verification FAILED"
+              echo "  Check MACOS_APP_CERT_BASE64 and MACOS_APP_CERT_PASSWORD secrets."
               exit 1
             fi
             security import "$RUNNER_TEMP/signing-cert.p12" \
               -k "$KEYCHAIN_PATH" \
-              -P "$APP_CERT_PW" \
+              -P "$APP_PW" \
               -A $TOOL_ARGS
             rm -f "$RUNNER_TEMP/signing-cert.p12" "$RUNNER_TEMP/signing-cert.b64"
-            echo "[OK] secondary cert imported"
+            echo "[OK] App cert imported"
+          else
+            echo "WARNING: MACOS_APP_CERT_BASE64 secret is empty — skipping App cert"
           fi
 
           security set-key-partition-list -S apple-tool:,apple: \
