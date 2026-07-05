@@ -7,22 +7,21 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        # Try xcode-select discovery first (most reliable across runner images)
         XCDEV=$(xcode-select -p 2>/dev/null || echo "")
-        if [ -n "$XCDEV" ] && [ -d "$XCDEV" ]; then
-          echo "Found Xcode at: $XCDEV"
-        else
-          # Fallback: search default paths
-          for path in /Applications/Xcode.app /Applications/Xcode_*.app; do
-            if [ -d "$path" ]; then
-              sudo xcode-select -s "$path/Contents/Developer" 2>/dev/null || true
-              XCDEV=$(xcode-select -p 2>/dev/null || echo "")
-              [ -n "$XCDEV" ] && break
+        if [ -z "$XCDEV" ] || [ ! -d "$XCDEV" ]; then
+          for d in /Applications/Xcode.app /Applications/Xcode_*.app; do
+            if [ -d "$d/Contents/Developer" ]; then
+              sudo xcode-select -s "$d/Contents/Developer" 2>/dev/null || true
+              XCDEV="$d/Contents/Developer"
+              break
             fi
           done
         fi
         if [ -z "$XCDEV" ] || [ ! -d "$XCDEV" ]; then
-          echo "ERROR: No Xcode installation found."; exit 1
+          echo "ERROR: No Xcode installation found."
+          echo "Checked: xcode-select -p, /Applications/Xcode*.app"
+          exit 1
         fi
+        sudo xcode-select -s "$XCDEV" 2>/dev/null || true
         xcodebuild -version
         echo "iOS SDK: $(xcrun --sdk iphoneos --show-sdk-version 2>/dev/null || echo 'N/A')"
