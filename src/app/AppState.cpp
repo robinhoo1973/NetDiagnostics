@@ -70,10 +70,18 @@ AppState::~AppState() {
     }
 }
 
-// ── App version / build number ──────────────────────────────────────────
+// ── App version / edition / build number ─────────────────────────────────
 QString AppState::appVersion() const {
     const QString v = QCoreApplication::applicationVersion();
     return v.isEmpty() ? QStringLiteral("0.0.1") : v;
+}
+
+QString AppState::appEdition() const {
+#ifdef ND_BUILD_NUMBER
+    return QStringLiteral(ND_BUILD_NUMBER);
+#else
+    return QStringLiteral("0");
+#endif
 }
 
 QString AppState::buildNumber() const {

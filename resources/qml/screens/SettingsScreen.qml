@@ -205,7 +205,8 @@ Item {
                                 property int taps: 0
                                 Layout.fillWidth: true
                                 text: "Version " + appState.appVersion
-                                      + (appState.buildNumber.length > 0 ? " (Build " + appState.buildNumber + ")" : "")
+                                      + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
+                                      + (appState.buildNumber.length > 0 ? " Build " + appState.buildNumber : "")
                                 font.family: Theme.monoFont; font.pixelSize: 12; color: Theme.textSecondary
                                 wrapMode: Text.WordWrap
                                 // Hidden debug toggle: tap the version 7× to toggle premium

@@ -38,6 +38,7 @@ class AppState : public QObject {
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
+    Q_PROPERTY(QString appEdition READ appEdition CONSTANT)
     Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
     Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
@@ -48,6 +49,7 @@ public:
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
+    QString appEdition() const;
     QString buildNumber() const;
 
     // ── Target ─────────────────────────────────────────────────────────────
