@@ -25,23 +25,33 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
-  # macOS arm64 — native Apple Clang + simulator + DMG
+  # Version — compute once, shared by all build jobs
   # ═══════════════════════════════════════════════════════════════════════
-  macos-arm64:
-    name: macOS arm64
-    runs-on: macos-latest
+  version:
+    name: Detect Version
+    runs-on: ubuntu-latest
+    outputs:
+      pkg_version: ${{ steps.v.outputs.pkg_version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Detect release version
+      - id: v
         run: |
           LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
           VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER:-0.0.1}"
+          echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # macOS arm64 — native Apple Clang + simulator + DMG
+  # ═══════════════════════════════════════════════════════════════════════
+  macos-arm64:
+    name: macOS arm64
+    needs: [version]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: brew install cmake ninja qt@6
@@ -60,7 +70,7 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=macos-arm64 \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
@@ -73,7 +83,7 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=macos-arm64 \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
@@ -109,6 +119,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   ios:
     name: iOS Build
+    needs: [version]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -141,7 +152,7 @@ jobs:
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=ios \
             -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
@@ -183,7 +194,7 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════
   deploy-testflight:
     name: Deploy to TestFlight
-    needs: [macos-arm64, ios]
+    needs: [version, macos-arm64, ios]
     if: (!failure()) && (!cancelled())
     runs-on: macos-latest
     environment: TestFlight
@@ -375,7 +386,7 @@ jobs:
           "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=ios \
             -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
