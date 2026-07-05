@@ -187,15 +187,15 @@ if(APPLE AND NOT IOS)
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
-        XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "12.0"
+        XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "26.0"
     )
-    # arm64-only requires macOS 12.0+.  LSMinimumSystemVersion and
+    # arm64-only requires macOS 26.0+.  LSMinimumSystemVersion and
     # LSApplicationCategoryType are App Store submission requirements.
     if(IOS)
         # iOS uses a separate Info.plist
     else()
         set_target_properties(net_diagnostic PROPERTIES
-            XCODE_ATTRIBUTE_LSMinimumSystemVersion "12.0"
+            XCODE_ATTRIBUTE_LSMinimumSystemVersion "26.0"
             XCODE_ATTRIBUTE_LSApplicationCategoryType "public.app-category.utilities"
         )
     endif()
