@@ -202,6 +202,9 @@ if(APPLE AND NOT IOS)
     if(EXISTS "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns")
         set_target_properties(net_diagnostics PROPERTIES
             MACOSX_BUNDLE_ICON_FILE "netanalysis.icns")
+        target_sources(net_diagnostics PRIVATE
+            "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns"
+        )
         set_source_files_properties(
             "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns"
             PROPERTIES MACOSX_PACKAGE_LOCATION "Resources"
