@@ -24,11 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           fetch-tags: true
 
       - name: Detect package version
         run: |
           VER=$(git tag -l 'v*' | sort -V | tail -1)
+          if [ -z "$VER" ]; then VER="v0.0.1"; fi
           echo "PKG_VERSION=${VER#v}" >> "$GITHUB_ENV"
           echo "Package version: ${VER#v}"
 
@@ -158,11 +160,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           fetch-tags: true
 
       - name: Detect package version
         run: |
           VER=$(git tag -l 'v*' | sort -V | tail -1)
+          if [ -z "$VER" ]; then VER="v0.0.1"; fi
           echo "PKG_VERSION=${VER#v}" >> "$GITHUB_ENV"
           echo "Package version: ${VER#v}"
 
@@ -487,7 +491,6 @@ jobs:
             mingw-w64-ucrt-x86_64-curl
             mingw-w64-ucrt-x86_64-qt6-base
             mingw-w64-ucrt-x86_64-qt6-declarative
-            mingw-w64-ucrt-x86_64-qt6-quickcontrols2
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-qt6-translations
             mingw-w64-ucrt-x86_64-nsis
