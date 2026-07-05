@@ -30,8 +30,8 @@ jobs:
           fetch-tags: true
       - id: v
         run: |
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
           VER="${LATEST#v}"
           echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VER:-0.0.1}"
@@ -662,7 +662,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build git
           git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
           VER="${LATEST#v}"
           echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
           echo "Package version: ${VER:-0.0.1}"
@@ -785,7 +785,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build git
           git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
           VER="${LATEST#v}"
           echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
           echo "Package version: ${VER:-0.0.1}"
@@ -924,7 +924,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
           echo "next_tag=${LATEST:-v0.0.1}" >> "$GITHUB_OUTPUT"
           echo "Release tag: ${LATEST:-v0.0.1}"
 
