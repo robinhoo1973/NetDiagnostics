@@ -23,6 +23,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Detect package version
+        run: |
+          VER=$(git tag -l 'v*' | sort -V | tail -1)
+          echo "PKG_VERSION=${VER#v}" >> "$GITHUB_ENV"
+          echo "Package version: ${VER#v}"
 
       - name: Install dependencies
         run: |
@@ -56,7 +64,6 @@ jobs:
         run: ninja -C build-sim net_diagnostic_sim
 
       - name: Build AppImage (production)
-        continue-on-error: true
         run: |
           wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
           chmod +x linuxdeployqt-continuous-x86_64.AppImage
@@ -68,7 +75,6 @@ jobs:
           mv *.AppImage NetDiagnostic-Linux-x86_64.AppImage 2>/dev/null || true
 
       - name: Package deb
-        continue-on-error: true
         run: |
           mkdir -p pkg-deb/usr/bin pkg-deb/usr/share/applications pkg-deb/usr/share/icons/hicolor/256x256/apps pkg-deb/DEBIAN
           cp build/net_diagnostic pkg-deb/usr/bin/
@@ -76,7 +82,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
           Package: netdiagnostic
-          Version: 0.0.1
+          Version: ${{ env.PKG_VERSION }}
           Architecture: amd64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -86,10 +92,9 @@ jobs:
           ls -lh NetDiagnostic-Linux-x86_64.deb
 
       - name: Package rpm
-        continue-on-error: true
         run: |
           sudo gem install fpm
-          fpm -s dir -t rpm -n netdiagnostic -v 0.0.1 --architecture x86_64 \
+          fpm -s dir -t rpm -n netdiagnostic -v "$PKG_VERSION" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostic=/usr/bin/net_diagnostic \
             resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
@@ -98,7 +103,6 @@ jobs:
           ls -lh NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Build AppImage (simulator)
-        continue-on-error: true
         run: |
           mkdir -p AppDir-sim/usr/bin AppDir-sim/usr/share/applications AppDir-sim/usr/share/icons/hicolor/256x256/apps
           cp build-sim/net_diagnostic_sim AppDir-sim/usr/bin/
@@ -108,7 +112,6 @@ jobs:
           mv *.AppImage NetDiagnostic-Linux-x86_64-sim.AppImage 2>/dev/null || true
 
       - name: Package deb (simulator)
-        continue-on-error: true
         run: |
           mkdir -p pkg-deb-sim/usr/bin pkg-deb-sim/usr/share/applications pkg-deb-sim/usr/share/icons/hicolor/256x256/apps pkg-deb-sim/DEBIAN
           cp build-sim/net_diagnostic_sim pkg-deb-sim/usr/bin/
@@ -116,7 +119,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
           Package: netdiagnostic-sim
-          Version: 0.0.1
+          Version: ${{ env.PKG_VERSION }}
           Architecture: amd64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -126,9 +129,8 @@ jobs:
           ls -lh NetDiagnostic-Linux-x86_64-sim.deb
 
       - name: Package rpm (simulator)
-        continue-on-error: true
         run: |
-          fpm -s dir -t rpm -n netdiagnostic-sim -v 0.0.1 --architecture x86_64 \
+          fpm -s dir -t rpm -n netdiagnostic-sim -v "$PKG_VERSION" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build-sim/net_diagnostic_sim=/usr/bin/net_diagnostic_sim \
             resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
@@ -155,6 +157,14 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Detect package version
+        run: |
+          VER=$(git tag -l 'v*' | sort -V | tail -1)
+          echo "PKG_VERSION=${VER#v}" >> "$GITHUB_ENV"
+          echo "Package version: ${VER#v}"
 
       - name: Install dependencies
         run: |
@@ -190,7 +200,6 @@ jobs:
       # linuxdeployqt does not provide an arm64 AppImage binary.
       # Fall back to the native linuxdeployqt from apt (built for arm64).
       - name: Build AppImage (production)
-        continue-on-error: true
         run: |
           if command -v linuxdeployqt &>/dev/null || sudo apt-get install -y -qq linuxdeployqt 2>/dev/null; then
             mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
@@ -204,7 +213,6 @@ jobs:
           fi
 
       - name: Package deb
-        continue-on-error: true
         run: |
           mkdir -p pkg-deb/usr/bin pkg-deb/usr/share/applications pkg-deb/usr/share/icons/hicolor/256x256/apps pkg-deb/DEBIAN
           cp build/net_diagnostic pkg-deb/usr/bin/
@@ -212,7 +220,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
           Package: netdiagnostic
-          Version: 0.0.1
+          Version: ${{ env.PKG_VERSION }}
           Architecture: arm64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -222,10 +230,9 @@ jobs:
           ls -lh NetDiagnostic-Linux-arm64.deb
 
       - name: Package rpm
-        continue-on-error: true
         run: |
           sudo gem install fpm
-          fpm -s dir -t rpm -n netdiagnostic -v 0.0.1 --architecture aarch64 \
+          fpm -s dir -t rpm -n netdiagnostic -v "$PKG_VERSION" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostic=/usr/bin/net_diagnostic \
             resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
@@ -234,7 +241,6 @@ jobs:
           ls -lh NetDiagnostic-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Build AppImage (simulator)
-        continue-on-error: true
         run: |
           if command -v linuxdeployqt &>/dev/null || sudo apt-get install -y -qq linuxdeployqt 2>/dev/null; then
             mkdir -p AppDir-sim/usr/bin AppDir-sim/usr/share/applications AppDir-sim/usr/share/icons/hicolor/256x256/apps
@@ -246,7 +252,6 @@ jobs:
           fi
 
       - name: Package deb (simulator)
-        continue-on-error: true
         run: |
           mkdir -p pkg-deb-sim/usr/bin pkg-deb-sim/usr/share/applications pkg-deb-sim/usr/share/icons/hicolor/256x256/apps pkg-deb-sim/DEBIAN
           cp build-sim/net_diagnostic_sim pkg-deb-sim/usr/bin/
@@ -254,7 +259,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
           Package: netdiagnostic-sim
-          Version: 0.0.1
+          Version: ${{ env.PKG_VERSION }}
           Architecture: arm64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -264,9 +269,8 @@ jobs:
           ls -lh NetDiagnostic-Linux-arm64-sim.deb
 
       - name: Package rpm (simulator)
-        continue-on-error: true
         run: |
-          fpm -s dir -t rpm -n netdiagnostic-sim -v 0.0.1 --architecture aarch64 \
+          fpm -s dir -t rpm -n netdiagnostic-sim -v "$PKG_VERSION" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build-sim/net_diagnostic_sim=/usr/bin/net_diagnostic_sim \
             resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
