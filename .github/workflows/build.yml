@@ -100,7 +100,7 @@ jobs:
           cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
-         Package: netdiagnostics
+          Package: netdiagnostics
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
           Maintainer: robinhoo1973
@@ -137,7 +137,7 @@ jobs:
           cp resources/netanalysis-sim.desktop pkg-deb-sim/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
-         Package: netdiagnostics-sim
+          Package: netdiagnostics-sim
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
           Maintainer: robinhoo1973
@@ -237,7 +237,7 @@ jobs:
           cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
-         Package: netdiagnostics
+          Package: netdiagnostics
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
           Maintainer: robinhoo1973
@@ -276,7 +276,7 @@ jobs:
           cp resources/netanalysis-sim.desktop pkg-deb-sim/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
-         Package: netdiagnostics-sim
+          Package: netdiagnostics-sim
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
           Maintainer: robinhoo1973
