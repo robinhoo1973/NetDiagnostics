@@ -235,6 +235,9 @@ jobs:
       - name: Install macOS provisioning profile
         run: |
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: No .app bundle found in macOS artifact"; exit 1
+          fi
           if [ -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
             echo -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" \
               | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
@@ -332,6 +335,7 @@ jobs:
           source scripts/ios/asc-app.sh
           JWT="${{ steps.jwt.outputs.jwt }}"
           BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
+          asc_bundle_capability_enable "$JWT" "$BID" ACCESS_WIFI_INFORMATION
           echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
 
       - name: Ensure App Store Connect app
