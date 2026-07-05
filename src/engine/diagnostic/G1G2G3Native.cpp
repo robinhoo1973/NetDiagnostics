@@ -540,6 +540,9 @@ DiagnosticResult activeConnections(DiagId id) {
 #ifdef PLATFORM_IOS
         out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
         out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
+#elif defined(__APPLE__)
+        out.append(QStringLiteral("  [macOS] Active connections: unavailable (/proc/net not available)"));
+        out.append(QStringLiteral("  Use 'netstat -an' in Terminal for equivalent information"));
 #else
         out.append(QStringLiteral("  (no active connections)"));
 #endif
