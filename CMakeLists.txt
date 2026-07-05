@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 project(NetDiagnostic VERSION 0.0.1 LANGUAGES CXX)
 
+if(NOT DEFINED APP_EDITION)
+    set(APP_EDITION "dev")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -100,6 +104,7 @@ qt_add_executable(net_diagnostic WIN32 ${SOURCES} ${QML_RESOURCES})
 # Shared target configuration — eliminates ~60 lines of duplication
 # between net_diagnostic and net_diagnostic_sim.
 function(configure_netdiag_target TARGET)
+    target_compile_definitions(${TARGET} PRIVATE APP_EDITION="${APP_EDITION}")
     # Belt-and-suspenders: ensure Windows GUI subsystem (no console window)
     if(WIN32)
         set_target_properties(${TARGET} PROPERTIES WIN32_EXECUTABLE TRUE)
