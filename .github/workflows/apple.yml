@@ -32,6 +32,16 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Detect release version
+        run: |
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          VER="${LATEST#v}"
+          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${VER:-0.0.1}"
 
       - name: Install dependencies
         run: brew install cmake ninja qt@6
@@ -50,6 +60,8 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build -S .
 
@@ -60,6 +72,8 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build-sim -S .
 
@@ -85,9 +99,6 @@ jobs:
         with:
           name: NetDiagnostic-macOS-arm64
           path: |
-            build/net_diagnostic
-            build/net_diagnostic.app
-            build-sim/net_diagnostic_sim
             *.dmg
           if-no-files-found: error
 
@@ -128,6 +139,8 @@ jobs:
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
@@ -359,6 +372,8 @@ jobs:
           "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
             -G Xcode \
             -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
