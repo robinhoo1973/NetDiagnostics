@@ -186,7 +186,7 @@ if(APPLE AND NOT IOS)
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info-macos.plist"
         XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "26.0"
     )
     # arm64-only requires macOS 26.0+.  LSMinimumSystemVersion and
