@@ -259,27 +259,26 @@ jobs:
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           echo "macOS app: $APP"
           KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
-          CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
-          PKG_ID="${{ steps.mac-keychain.outputs.installer_identity }}"
+          IDENT="${{ steps.mac-keychain.outputs.identity }}"
           # Sign inner binary first (required before signing the .app bundle)
           BIN="$APP/Contents/MacOS/net_diagnostics"
           if [ -f "$BIN" ]; then
             codesign --force --options runtime --timestamp \
               --entitlements resources/macos.entitlements \
-              --sign "$CODE_ID" --keychain "$KCHAIN" \
+              --sign "$IDENT" --keychain "$KCHAIN" \
               "$BIN"
             echo "[OK] binary signed"
           fi
           # Sign the .app bundle
           codesign --force --options runtime --timestamp \
             --entitlements resources/macos.entitlements \
-            --sign "$CODE_ID" --keychain "$KCHAIN" \
+            --sign "$IDENT" --keychain "$KCHAIN" \
             "$APP"
           echo "[OK] .app signed with entitlements"
           # Package as signed .pkg for App Store
           pkgbuild --component "$APP" \
             --install-location /Applications \
-            --sign "$PKG_ID" --keychain "$KCHAIN" \
+            --sign "$IDENT" --keychain "$KCHAIN" \
             NetDiagnostics-macOS.pkg
           ls -lh NetDiagnostics-macOS.pkg
 

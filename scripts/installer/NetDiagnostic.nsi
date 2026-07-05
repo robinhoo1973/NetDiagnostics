@@ -9,7 +9,9 @@
 
 ; --- Application metadata ---
 !define PRODUCT_NAME     "NetDiagnostics"
-!define PRODUCT_VERSION  "0.0.1"
+!ifndef PRODUCT_VERSION
+!define PRODUCT_VERSION "0.0.1"
+!endif
 !define PRODUCT_PUBLISHER "Otis"
 !define PRODUCT_WEB_SITE "https://github.com/robinhoo1973/NetDiagnostics"
 !define PRODUCT_DIR_REGKEY "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}"
