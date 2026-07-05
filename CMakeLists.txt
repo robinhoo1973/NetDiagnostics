@@ -186,7 +186,19 @@ if(APPLE AND NOT IOS)
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
+        XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "12.0"
     )
+    # arm64-only requires macOS 12.0+.  LSMinimumSystemVersion and
+    # LSApplicationCategoryType are App Store submission requirements.
+    if(IOS)
+        # iOS uses a separate Info.plist
+    else()
+        set_target_properties(net_diagnostic PROPERTIES
+            XCODE_ATTRIBUTE_LSMinimumSystemVersion "12.0"
+            XCODE_ATTRIBUTE_LSApplicationCategoryType "public.app-category.utilities"
+        )
+    endif()
     if(EXISTS "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns")
         set_target_properties(net_diagnostic PROPERTIES
             MACOSX_BUNDLE_ICON_FILE "netanalysis.icns")
@@ -194,6 +206,8 @@ if(APPLE AND NOT IOS)
             "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns"
             PROPERTIES MACOSX_PACKAGE_LOCATION "Resources"
         )
+    else()
+        message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
     endif()
 endif()
 
