@@ -36,6 +36,8 @@ runs:
     - id: setup
       shell: bash
       env:
+        CERT_BASE64: ${{ inputs.cert_base64 }}
+        CERT_PASSWORD: ${{ inputs.cert_password }}
         CERT_BASE64_2: ${{ inputs.cert_base64_2 }}
         CERT_PASSWORD_2: ${{ inputs.cert_password_2 }}
       run: |
@@ -49,20 +51,20 @@ runs:
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
         # Decode and import the certificate
-        echo -n "${{ inputs.cert_base64 }}" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
+        echo -n "${CERT_BASE64}" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
         TOOL_ARGS=""
         for tool in ${{ inputs.allowed_tools }}; do
           TOOL_ARGS="$TOOL_ARGS -T $tool"
         done
         security import "$RUNNER_TEMP/signing-cert.p12" \
           -k "$KEYCHAIN_PATH" \
-          -P "${{ inputs.cert_password }}" \
+          -P "${CERT_PASSWORD}" \
           -A $TOOL_ARGS
         rm -f "$RUNNER_TEMP/signing-cert.p12"
 
         # Optionally import a second certificate (e.g. Mac App Distribution for .app signing)
         if [ -n "${CERT_BASE64_2:-}" ]; then
-          echo -n "$CERT_BASE64_2" | base64 -d > "$RUNNER_TEMP/signing-cert2.p12"
+          echo -n "${CERT_BASE64_2}" | base64 -d > "$RUNNER_TEMP/signing-cert2.p12"
           security import "$RUNNER_TEMP/signing-cert2.p12" \
             -k "$KEYCHAIN_PATH" \
             -P "${CERT_PASSWORD_2:-}" \
