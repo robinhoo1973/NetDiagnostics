@@ -36,6 +36,14 @@ Item {
     ColumnLayout {
         anchors.fill: parent; spacing: 0
 
+        // ── Screen stack (fills remaining space above the dock) ──────
+        StackView {
+            id: stackView
+            Layout.fillWidth: true; Layout.fillHeight: true
+            initialItem: diagnosticComp
+        }
+
+        // ── Bottom dock navigation bar ───────────────────────────────
         Rectangle {
             Layout.fillWidth: true; implicitHeight: compact ? 32 : 36
             color: "#1A1A2E"
@@ -127,12 +135,6 @@ Item {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: content.closeRequested() }
                 }
             }
-        }
-
-        StackView {
-            id: stackView
-            Layout.fillWidth: true; Layout.fillHeight: true
-            initialItem: diagnosticComp
         }
     }
 }
