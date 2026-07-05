@@ -55,15 +55,19 @@ runs:
 
         # Find signing identities.  "Installer" certs can only sign .pkg,
         # "Application" certs can sign code.  Output both separately.
-        CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep -i "Apple Development\|Mac Developer\|iPhone Developer\|iPhone Distribution" \
-          | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-        INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep -i "Developer Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
-        # Fallbacks
-        if [ -z "$CODE_IDENTITY" ]; then
-          CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-            | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        # Use { } || true because set -o pipefail would kill the script when
+        # grep finds no match, before the fallback below can run.
+        CODE_IDENTITY=""
+        { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -iE "Apple (Development|Distribution)|Mac Developer|iPhone (Developer|Distribution)" \
+          | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+        INSTALLER_IDENTITY=""
+        { INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -iE "Developer Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+        # Fallback: pick any valid non-revoked non-expired non-Installer identity
+        if [ -z "$CODE_IDENTITY" ] || [ "$CODE_IDENTITY" = "null" ]; then
+          { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+            | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
         fi
         if [ -z "$INSTALLER_IDENTITY" ]; then
           INSTALLER_IDENTITY="$CODE_IDENTITY"
