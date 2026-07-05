@@ -85,11 +85,24 @@ jobs:
           if [ -d build/net_diagnostics.app ]; then
             QT_PREFIX="$(brew --prefix qt)"
             echo "Qt prefix: ${QT_PREFIX}"
-            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app -verbose=1
+            # -qmldir is required so macdeployqt scans QML source files and
+            # deploys all imported QML modules (QtQuick, QtQuick.Controls,
+            # QtQuick.Layouts, etc.).  Binary-only auto-detection is unreliable
+            # when QML files are embedded in .qrc resources.
+            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
+              -qmldir="${GITHUB_WORKSPACE}/resources/qml" \
+              -verbose=1
             echo "[OK] Qt frameworks bundled into .app"
             ls -la build/net_diagnostics.app/Contents/Frameworks/ 2>/dev/null || echo "  (no Frameworks dir)"
           else
             echo "[WARN] No .app bundle found; skipping macdeployqt"
+          fi
+
+      - name: Ad-hoc code sign (DMG artifact)
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            codesign --force --deep --sign - build/net_diagnostics.app
+            echo "[OK] .app ad-hoc signed"
           fi
 
       - name: Configure (simulator)
@@ -109,8 +122,15 @@ jobs:
         continue-on-error: true
         run: |
           if [ -d build/net_diagnostics.app ]; then
-            echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
+            echo "Creating DMG with installer layout..."
+            rm -rf dmg-staging
+            mkdir -p dmg-staging
+            cp -R build/net_diagnostics.app dmg-staging/
+            ln -s /Applications dmg-staging/Applications
+            hdiutil create -volname "NetDiagnostic" \
+              -srcfolder dmg-staging \
+              -ov -format UDZO \
+              NetDiagnostics-macOS-arm64.dmg
             ls -lh NetDiagnostics-macOS-arm64.dmg
           else
             echo "No .app bundle found; falling back to binary packaging"
