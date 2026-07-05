@@ -19,7 +19,7 @@ ApplicationWindow {
     // DejaVu Sans Mono first — it has 128 box-drawing glyphs + symbols (✓ ✗ ⚠)
     // that JetBrains Mono lacks. Without DejaVu, Qt 6.8's contextFontMerging
     // (default on) pulls glyphs from proportional system fonts → breaks alignment.
-    font.family: "DejaVu Sans Mono"
+    font.family: "DejaVu Sans Mono, JetBrains Mono, monospace"
 
     FontLoader {
         id: appFontRegular
