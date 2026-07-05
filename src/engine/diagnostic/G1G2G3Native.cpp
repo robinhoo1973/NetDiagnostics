@@ -416,12 +416,14 @@ DiagnosticResult networkAdapters(DiagId id) {
         const IfInfo& info = it.value();
         bool isLoopback = (info.flags & IFF_LOOPBACK);
 
-        // Read MTU, operstate from /sys
+        // Read MTU, operstate from /sys (Linux only — not available on macOS)
         QString mtu = QStringLiteral("-"), state = QStringLiteral("DOWN");
+#ifndef __APPLE__
         QFile mtuFile(QStringLiteral("/sys/class/net/%1/mtu").arg(info.name));
         if (mtuFile.open(QIODevice::ReadOnly)) mtu = QString::fromLatin1(mtuFile.readAll().trimmed());
         QFile stateFile(QStringLiteral("/sys/class/net/%1/operstate").arg(info.name));
         if (stateFile.open(QIODevice::ReadOnly)) state = QString::fromLatin1(stateFile.readAll().trimmed()).toUpper();
+#endif
         if (isLoopback) state = QStringLiteral("UP");
 
         QString mac = info.mac.isEmpty() ? QStringLiteral("-") : info.mac;
@@ -707,12 +709,16 @@ DiagnosticResult ipConfiguration(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("   Host Name . . . . . . . . . . . . : %1")
         .arg(gethostname(hostname, sizeof(hostname)) == 0 ? QString::fromLatin1(hostname) : QStringLiteral("Unknown")));
-    // IP forwarding status
+    // IP forwarding status (Linux only — /proc/sys not available on macOS/iOS)
+#if !defined(__APPLE__) && !defined(PLATFORM_ANDROID)
     QFile ipForward(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     bool routingEnabled = false;
     if (ipForward.open(QIODevice::ReadOnly))
         routingEnabled = ipForward.readAll().trimmed() == "1";
     out.append(QStringLiteral("   IP Routing Enabled. . . . . . . . : %1").arg(routingEnabled ? "Yes" : "No"));
+#else
+    out.append(QStringLiteral("   IP Routing Enabled. . . . . . . . : Unknown"));
+#endif
     // DNS suffix search list from resolv.conf
     QStringList dnsServers, searchDomains;
     QFile resolv(QStringLiteral("/etc/resolv.conf"));
@@ -799,11 +805,13 @@ DiagnosticResult ipConfiguration(DiagId id) {
             QString adapterLabel;
             if (isLoopback)
                 adapterLabel = QStringLiteral("Unknown adapter %1:").arg(ifName);
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS) || defined(__APPLE__)
             else if (ifName.startsWith("en"))
                 adapterLabel = QStringLiteral("Wireless LAN adapter %1:").arg(ifName);
+# ifdef PLATFORM_IOS
             else if (ifName.startsWith("pdp_ip"))
                 adapterLabel = QStringLiteral("Cellular adapter %1:").arg(ifName);
+# endif
 #else
             else if (QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName)))
                 adapterLabel = QStringLiteral("Wireless LAN adapter %1:").arg(ifName);
