@@ -42,8 +42,13 @@ runs:
         SECONDARY_CERT_PASSWORD: ${{ inputs.secondary_cert_password }}
         ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
       run: |
-        set -euo pipefail
-        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        KEYCHAIN_PASSWORD=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)
+        if [ -z "$KEYCHAIN_PASSWORD" ]; then
+          KEYCHAIN_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))" 2>/dev/null)
+        fi
+        if [ -z "$KEYCHAIN_PASSWORD" ]; then
+          echo "ERROR: cannot generate keychain password"; exit 1
+        fi
         KEYCHAIN_PATH="$RUNNER_TEMP/signing-${RANDOM}.keychain-db"
 
         security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
