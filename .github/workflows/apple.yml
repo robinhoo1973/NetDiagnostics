@@ -201,7 +201,7 @@ jobs:
     name: Deploy to TestFlight
     needs: [version, macos-arm64, ios]
     if: (!failure()) && (!cancelled())
-    runs-on: macos-latest
+    runs-on: macos-15
     environment: TestFlight
 
     steps:
