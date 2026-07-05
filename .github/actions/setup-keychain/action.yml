@@ -98,11 +98,11 @@ runs:
         # Find signing identities
         CODE_IDENTITY=""
         { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep -iE "Apple (Development|Distribution)|Mac Developer|iPhone (Developer|Distribution)" \
+          | grep -iE "Apple (Development|Distribution)|Developer ID|Mac Developer|iPhone (Developer|Distribution)" \
           | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
         INSTALLER_IDENTITY=""
         { INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep -iE "Developer Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+          | grep -iE "Developer ID Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
         if [ -z "$CODE_IDENTITY" ] || [ "$CODE_IDENTITY" = "null" ]; then
           { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
             | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
