@@ -627,16 +627,60 @@ jobs:
             echo "[WARN] No .app bundle found; skipping macdeployqt"
           fi
 
-      - name: Ad-hoc code sign (production)
+      - name: Code sign (Developer ID or ad-hoc)
+        id: sign
         run: |
           if [ -d build/net_diagnostics.app ]; then
-            echo "Ad-hoc signing .app bundle..."
-            codesign --force --deep --sign - build/net_diagnostics.app
-            echo "[OK] .app signed (ad-hoc)"
+            if [ -n "${DEV_ID_CERT_BASE64:-}" ] && [ -n "${DEV_ID_CERT_PASSWORD:-}" ]; then
+              echo "=== Developer ID signing (Hardened Runtime) ==="
+              # Import Developer ID certificate
+              KEYCHAIN_PATH="$RUNNER_TEMP/devid-${RANDOM}.keychain-db"
+              KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+              security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+              security default-keychain -s "$KEYCHAIN_PATH"
+              security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+              security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+              printf '%s' "$DEV_ID_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/devid.p12"
+              security import "$RUNNER_TEMP/devid.p12" \
+                -k "$KEYCHAIN_PATH" -P "$DEV_ID_CERT_PASSWORD" \
+                -t cert -f pkcs12 -A -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple: \
+                -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1 || true
+              rm -f "$RUNNER_TEMP/devid.p12"
+              # Find the Developer ID identity
+              DEV_ID=$(security find-identity -v "$KEYCHAIN_PATH" \
+                | grep -i "Developer ID" | grep -vi "Installer" \
+                | head -1 | sed 's/.*"\(.*\)".*/\1/')
+              if [ -z "$DEV_ID" ]; then
+                echo "ERROR: No Developer ID Application identity found in keychain"
+                exit 1
+              fi
+              echo "Signing identity: ${DEV_ID}"
+              # Sign with Hardened Runtime entitlements
+              codesign --force --options runtime --timestamp \
+                --entitlements resources/macos-dev-id.entitlements \
+                --sign "$DEV_ID" --keychain "$KEYCHAIN_PATH" \
+                build/net_diagnostics.app
+              echo "[OK] Signed with Developer ID + Hardened Runtime"
+              echo "signed=true" >> "$GITHUB_OUTPUT"
+              echo "keychain_path=${KEYCHAIN_PATH}" >> "$GITHUB_OUTPUT"
+              echo "dev_id=${DEV_ID}" >> "$GITHUB_OUTPUT"
+            else
+              echo "=== Ad-hoc signing (no Developer ID cert configured) ==="
+              echo "Set MACOS_DEV_ID_CERT_BASE64 + MACOS_DEV_ID_CERT_PASSWORD"
+              echo "secrets for full notarized Developer ID distribution."
+              codesign --force --deep --sign - build/net_diagnostics.app
+              echo "[OK] .app signed (ad-hoc)"
+              echo "signed=false" >> "$GITHUB_OUTPUT"
+            fi
             codesign -dvvv build/net_diagnostics.app 2>&1 || true
           else
             echo "[WARN] No .app bundle found; skipping code sign"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
+        env:
+          DEV_ID_CERT_BASE64: ${{ secrets.MACOS_DEV_ID_CERT_BASE64 }}
+          DEV_ID_CERT_PASSWORD: ${{ secrets.MACOS_DEV_ID_CERT_PASSWORD }}
 
       - name: Configure (simulator)
         run: |
@@ -674,6 +718,41 @@ jobs:
             hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
           fi
         continue-on-error: true
+
+      - name: Notarize + Staple DMG (Developer ID only)
+        if: steps.sign.outputs.signed == 'true'
+        continue-on-error: true
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_API_KEY: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: |
+          DMG="NetDiagnostics-macOS-arm64.dmg"
+          if [ ! -f "$DMG" ]; then
+            echo "[WARN] DMG not found; skipping notarization"
+            exit 0
+          fi
+          # Write ASC API key for notarytool
+          if [ -z "${ASC_API_KEY:-}" ] || [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ]; then
+            echo "[WARN] App Store Connect API credentials not set; skipping notarization"
+            echo "  Required secrets: APPSTORE_CONNECT_KEY_ID, APPSTORE_CONNECT_ISSUER_ID, APPSTORE_CONNECT_API_KEY"
+            exit 0
+          fi
+          mkdir -p ~/.appstoreconnect/private_keys
+          ASC_KEYFILE=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          echo -n "$ASC_API_KEY" > "$ASC_KEYFILE"
+          chmod 600 "$ASC_KEYFILE"
+          echo "=== Submitting DMG for notarization ==="
+          xcrun notarytool submit "$DMG" \
+            --key "$ASC_KEYFILE" \
+            --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" \
+            --wait
+          echo "[OK] Notarization complete"
+          echo "=== Stapling notarization ticket ==="
+          xcrun stapler staple "$DMG"
+          echo "[OK] Notarization ticket stapled to DMG"
+          rm -f "$ASC_KEYFILE"
 
       - name: Package DMG (simulator)
         continue-on-error: true
