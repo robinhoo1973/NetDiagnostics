@@ -1102,43 +1102,42 @@ DiagnosticResult pathPing(const QString& target) {
     }
 
     // ── Phase 2: Ping each hop for per-hop statistics ──────────────────
-    // NOTE: ping() uses TCP connect (ports 443,80,22,8080,8443) to measure RTT.
-    // Routers typically do NOT run TCP servers, so per-hop statistics will show
-    // 100% loss for intermediate hops. Windows pathping.exe uses ICMP Echo for
-    // this phase, which routers DO respond to. A future improvement would be to
-    // implement ICMP Echo (raw socket) for per-hop statistics on Linux (requires
-    // root or CAP_NET_RAW) while keeping TCP connect for reachability checks.
-    // For now, the route discovery (Phase 1) works correctly via traceroute.
+    // ping() uses TCP connect (ports 443,80,22,8080,8443) to measure RTT.
+    // Intermediate routers do NOT run TCP servers — pinging them wastes
+    // ~60 s per hop (5 ports × 4 iterations × 3 s timeout). We only ping
+    // the FINAL hop (target), which typically does run a TCP service.
+    // A future improvement would implement ICMP Echo (raw socket) for
+    // full per-hop statistics matching Windows pathping.exe behaviour.
     struct HopStats { int sent; int rcvd; double loss; int avgMs; };
     QVector<HopStats> hopStats;
-    for (int i = 1; i < hops.size(); ++i) {
-        HopStats hs = {4, 0, 100.0, 0};
-        if (!hops[i].ip.isEmpty()) {
-            auto pr = ping(hops[i].ip);
-            // Parse: "    Packets: Sent = 4, Received = 3, Lost = 1 (25.0% loss),"
-            // Parse: "    Minimum = 8ms, Maximum = 12ms, Average = 10ms"
-            for (const QString& pline : pr.rawOutput.split('\n')) {
-                if (pline.contains(QStringLiteral("Packets:"))) {
-                    auto si = pline.indexOf(QStringLiteral("Sent = "));
-                    auto ri = pline.indexOf(QStringLiteral("Received = "));
-                    auto pi = pline.indexOf('(');
-                    if (si > 0 && ri > 0) {
-                        hs.sent = pline.mid(si + 7, pline.indexOf(',', si) - si - 7).trimmed().toInt();
-                        hs.rcvd = pline.mid(ri + 11, pline.indexOf(',', ri) - ri - 11).trimmed().toInt();
-                    }
-                    if (pi > 0) {
-                        auto pe = pline.indexOf('%', pi);
-                        if (pe > pi) hs.loss = pline.mid(pi + 1, pe - pi - 1).toDouble();
-                    }
+    // Pre-fill with N/A for all intermediate hops
+    for (int i = 1; i < hops.size(); ++i)
+        hopStats.append({4, 0, 100.0, 0});
+    // Only ping the final (target) hop
+    if (hops.size() > 1 && !hops.last().ip.isEmpty()) {
+        int lastIdx = hopStats.size() - 1;
+        auto& hs = hopStats[lastIdx];
+        auto pr = ping(hops.last().ip);
+        for (const QString& pline : pr.rawOutput.split('\n')) {
+            if (pline.contains(QStringLiteral("Packets:"))) {
+                auto si = pline.indexOf(QStringLiteral("Sent = "));
+                auto ri = pline.indexOf(QStringLiteral("Received = "));
+                auto pi = pline.indexOf('(');
+                if (si > 0 && ri > 0) {
+                    hs.sent = pline.mid(si + 7, pline.indexOf(',', si) - si - 7).trimmed().toInt();
+                    hs.rcvd = pline.mid(ri + 11, pline.indexOf(',', ri) - ri - 11).trimmed().toInt();
                 }
-                if (pline.contains(QStringLiteral("Average = "))) {
-                    auto ai = pline.indexOf(QStringLiteral("Average = "));
-                    auto ae = pline.indexOf(QStringLiteral("ms"), ai);
-                    if (ai > 0 && ae > ai) hs.avgMs = pline.mid(ai + 10, ae - ai - 10).trimmed().toInt();
+                if (pi > 0) {
+                    auto pe = pline.indexOf('%', pi);
+                    if (pe > pi) hs.loss = pline.mid(pi + 1, pe - pi - 1).toDouble();
                 }
             }
+            if (pline.contains(QStringLiteral("Average = "))) {
+                auto ai = pline.indexOf(QStringLiteral("Average = "));
+                auto ae = pline.indexOf(QStringLiteral("ms"), ai);
+                if (ai > 0 && ae > ai) hs.avgMs = pline.mid(ai + 10, ae - ai - 10).trimmed().toInt();
+            }
         }
-        hopStats.append(hs);
     }
 
     // ── Build output — strict Windows pathping.exe format ──────────────

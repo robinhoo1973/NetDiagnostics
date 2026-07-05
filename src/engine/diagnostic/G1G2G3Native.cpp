@@ -498,7 +498,7 @@ DiagnosticResult activeConnections(DiagId id) {
                 remote.size()>1 ? remote[1].toInt(nullptr, 16) : 0});
         }
     };
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     parseProcNet(QStringLiteral("/proc/net/tcp"),  QStringLiteral("TCP"),  false);
     parseProcNet(QStringLiteral("/proc/net/tcp6"), QStringLiteral("TCP6"), false);
     parseProcNet(QStringLiteral("/proc/net/udp"),  QStringLiteral("UDP"),  true);
@@ -547,6 +547,9 @@ DiagnosticResult activeConnections(DiagId id) {
 #ifdef PLATFORM_IOS
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (sandbox restricts socket enumeration)");
+#elif defined(__APPLE__)
+    r.status = DiagStatus::Skipped;
+    r.summary = QStringLiteral("Unavailable on macOS (/proc not available; use netstat -an)");
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Active connections enumerated");
@@ -618,8 +621,8 @@ DiagnosticResult cellularInfo(DiagId id) {
         r.status = DiagStatus::Info; r.summary = QStringLiteral("No cellular service");
     }
 #else
-    out.append(QStringLiteral("  [Not available] Cellular info requires iOS"));
-    r.status = DiagStatus::Info; r.summary = QStringLiteral("Platform not supported");
+    out.append(QStringLiteral("  [Skipped] Cellular info requires iOS — not applicable on this platform"));
+    r.status = DiagStatus::Skipped; r.summary = QStringLiteral("Not applicable (iOS only)");
 #endif
     out.append(QString());
     r.rawOutput = out.join('\n'); r.details = r.rawOutput;
@@ -765,7 +768,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
         // Build gateway map: ifName 闁?{dest, gw, mask}
         struct RouteEntry { QString ifName; uint32_t dest; uint32_t gw; uint32_t mask; };
         QVector<RouteEntry> routes;
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
         QFile routeFile(QStringLiteral("/proc/net/route"));
         if (routeFile.open(QIODevice::ReadOnly)) {
             QTextStream ts(&routeFile);
@@ -815,7 +818,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             out.append(QStringLiteral("   Connection-specific DNS Suffix  . :"));
 
             // Description (driver info from sysfs 闁?Linux only)
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
             QFile descFile(QStringLiteral("/sys/class/net/%1/device/uevent").arg(ifName));
             if (descFile.open(QIODevice::ReadOnly)) {
                 QString uevent = QString::fromLatin1(descFile.readAll());
@@ -832,7 +835,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
 
             // DHCP Enabled
             bool dhcpEnabled =
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
                 QFile::exists(QStringLiteral("/run/systemd/netif/leases/%1").arg(ifName))
                             || QFile::exists(QStringLiteral("/var/lib/dhcp/dhclient.%1.leases").arg(ifName));
 #else
@@ -857,7 +860,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             }
 
             // Lease info from dhclient or systemd-networkd (Linux only)
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
             if (dhcpEnabled) {
                 QStringList leasePaths = {
                     QStringLiteral("/run/systemd/netif/leases/%1").arg(ifName),
@@ -878,7 +881,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
 #endif // !PLATFORM_IOS (lease files)
 
             // Default Gateway
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
             for (const auto& re : routes) {
                 if (re.ifName == ifName && re.dest == 0 && re.gw != 0)
                     out.append(QStringLiteral("   Default Gateway . . . . . . . . . : %1").arg(ipToStr(re.gw)));
@@ -895,7 +898,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             }
 
             // Link speed + MTU (from sysfs 闁?Linux only)
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
             QFile speedFile(QStringLiteral("/sys/class/net/%1/speed").arg(ifName));
             if (speedFile.open(QIODevice::ReadOnly)) {
                 QString s = QString::fromLatin1(speedFile.readAll().trimmed());
@@ -1021,7 +1024,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             }
 #endif
 
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
             QFile wfile(QStringLiteral("/proc/net/wireless"));
             if (wfile.open(QIODevice::ReadOnly)) {
                 QTextStream ts(&wfile); ts.readLine(); ts.readLine();
@@ -1036,7 +1039,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             }
 #endif // !PLATFORM_IOS (/proc/net/wireless)
 
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
             QFile rateFile(QStringLiteral("/sys/class/net/%1/wireless/bitrate").arg(ifName));
             if (rateFile.open(QIODevice::ReadOnly)) bitrate = QString::fromLatin1(rateFile.readAll().trimmed());
 #endif
@@ -1207,7 +1210,7 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
             seenWired.insert(ifName);
 
             auto rd = [&](const QString& prop) {
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
                 QFile f(QStringLiteral("/sys/class/net/%1/%2").arg(ifName, prop));
                 if (f.open(QIODevice::ReadOnly)) return QString::fromLatin1(f.readAll().trimmed());
 #endif
@@ -1449,7 +1452,7 @@ DiagnosticResult routingTable(DiagId id) {
     };
     QList<QStringList> routeRows;
 
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&routeFile);
@@ -1518,7 +1521,7 @@ DiagnosticResult arpTable(DiagId id) {
     }
 #else
     // Linux: parse /proc/net/arp
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     QFile arpFile(QStringLiteral("/proc/net/arp"));
     if (arpFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&arpFile);
@@ -1584,7 +1587,7 @@ DiagnosticResult networkProfile(DiagId id) {
     out.append(QStringLiteral("  Hostname: %1").arg(QString::fromLatin1(hostname)));
 
     // Check common network profiles via /proc/sys/net
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     QFile fwd(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     if (fwd.open(QIODevice::ReadOnly))
         out.append(QStringLiteral("  IP Forwarding: %1").arg(QString::fromLatin1(fwd.readAll().trimmed()) == "1" ? "Enabled" : "Disabled"));
@@ -1618,7 +1621,7 @@ DiagnosticResult tcpSettings(DiagId id) {
         {"Value",    0, false},
     };
     QList<QStringList> tcpRows;
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     auto readSys = [&](const QString& path, const QString& label) {
         QFile f(path);
         QString val = f.open(QIODevice::ReadOnly) ? QString::fromLatin1(f.readAll().trimmed()) : QStringLiteral("-");
@@ -1674,7 +1677,7 @@ DiagnosticResult defaultGateway(DiagId id) {
         FreeMibTable(ft);
     }
 #else
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&routeFile);
@@ -1699,10 +1702,15 @@ DiagnosticResult defaultGateway(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
+    r.status = DiagStatus::Skipped;
+    r.summary = QStringLiteral("Unavailable on macOS (/proc/net/route not available; use netstat -rn)");
+#else
     r.status = (defaultGw != QStringLiteral("Not found")) ? DiagStatus::Pass : DiagStatus::Warning;
     r.summary = (defaultGw != QStringLiteral("Not found"))
         ? QStringLiteral("Default gateway: %1").arg(defaultGw)
         : QStringLiteral("No default gateway");
+#endif
     r.durationMs = t.elapsed();
     return r;
 }
