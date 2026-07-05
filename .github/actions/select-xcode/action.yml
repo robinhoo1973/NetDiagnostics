@@ -12,7 +12,7 @@ runs:
           [ -d "$app" ] || continue
           FALLBACKS+=("$app")
           ver="${app##*/Xcode_}"; ver="${ver%.app}"; major="${ver%%.*}"
-          [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 26 )) && CANDIDATES+=("$app")
+          [[ "$major" =~ ^[0-9]+$ ]] && (( major >= 16 )) && CANDIDATES+=("$app")
         done
         if [ ${#FALLBACKS[@]} -eq 0 ]; then
           echo "ERROR: No Xcode installation found."; exit 1
