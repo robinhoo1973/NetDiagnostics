@@ -986,7 +986,10 @@ jobs:
                 *.ipa)      name="netdiagnostics-${os}-${arch}.ipa" ;;
                 *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
 
-                *.exe)      name="netdiagnostics-${os}-${arch}${suffix}.exe" ;;
+                *netdiagnostics-*.exe)
+                  name="netdiagnostics-${os}-${arch}${suffix}-setup.exe" ;;
+                *.exe)
+                  name="netdiagnostics-${os}-${arch}${suffix}.exe" ;;
                 *)          name="$base" ;;
               esac
               cp "$f" "release-assets/$name"
