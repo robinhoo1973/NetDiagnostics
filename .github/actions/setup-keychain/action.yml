@@ -1,18 +1,18 @@
 name: Setup macOS Keychain
 description: Create a temporary keychain, import a certificate, and authorize tools
 inputs:
-  cert_base64:
-    description: Base64-encoded .p12 certificate
+  primary_cert_base64:
+    description: Base64-encoded primary .p12 certificate (e.g. Mac Installer Distribution or iOS Distribution)
     required: true
-  cert_password:
-    description: Password for the .p12 certificate
+  primary_cert_password:
+    description: Password for the primary .p12 certificate
     required: true
-  cert_base64_2:
-    description: Optional second Base64-encoded .p12 certificate (e.g. Mac App Distribution cert)
+  secondary_cert_base64:
+    description: Optional secondary Base64-encoded .p12 certificate (e.g. Mac App Distribution cert for .app signing)
     required: false
     default: ""
-  cert_password_2:
-    description: Password for the optional second .p12 certificate
+  secondary_cert_password:
+    description: Password for the optional secondary .p12 certificate
     required: false
     default: ""
   allowed_tools:
@@ -36,8 +36,11 @@ runs:
     - id: setup
       shell: bash
       env:
-        CERT_BASE64_2: ${{ inputs.cert_base64_2 }}
-        CERT_PASSWORD_2: ${{ inputs.cert_password_2 }}
+        PRIMARY_CERT_BASE64: ${{ inputs.primary_cert_base64 }}
+        PRIMARY_CERT_PASSWORD: ${{ inputs.primary_cert_password }}
+        SECONDARY_CERT_BASE64: ${{ inputs.secondary_cert_base64 }}
+        SECONDARY_CERT_PASSWORD: ${{ inputs.secondary_cert_password }}
+        ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
       run: |
         set -euo pipefail
         KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -49,25 +52,25 @@ runs:
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
         # Decode and import the certificate
-        echo -n "${{ inputs.cert_base64 }}" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
+        echo -n "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
         TOOL_ARGS=""
-        for tool in ${{ inputs.allowed_tools }}; do
+        for tool in $ALLOWED_TOOLS; do
           TOOL_ARGS="$TOOL_ARGS -T $tool"
         done
         security import "$RUNNER_TEMP/signing-cert.p12" \
           -k "$KEYCHAIN_PATH" \
-          -P "${{ inputs.cert_password }}" \
+          -P "$PRIMARY_CERT_PASSWORD" \
           -A $TOOL_ARGS
         rm -f "$RUNNER_TEMP/signing-cert.p12"
 
-        # Optionally import a second certificate (e.g. Mac App Distribution for .app signing)
-        if [ -n "${CERT_BASE64_2:-}" ]; then
-          echo -n "$CERT_BASE64_2" | base64 -d > "$RUNNER_TEMP/signing-cert2.p12"
-          security import "$RUNNER_TEMP/signing-cert2.p12" \
+        # Optionally import a secondary certificate (e.g. Mac App Distribution for .app signing)
+        if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
+          echo -n "$SECONDARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert-secondary.p12"
+          security import "$RUNNER_TEMP/signing-cert-secondary.p12" \
             -k "$KEYCHAIN_PATH" \
-            -P "${CERT_PASSWORD_2:-}" \
+            -P "${SECONDARY_CERT_PASSWORD:-}" \
             -A $TOOL_ARGS
-          rm -f "$RUNNER_TEMP/signing-cert2.p12"
+          rm -f "$RUNNER_TEMP/signing-cert-secondary.p12"
         fi
 
         # Allow codesign/xcodebuild to access the key without prompting
