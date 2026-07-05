@@ -58,7 +58,7 @@ runs:
         done
 
         # ── Import primary cert ──
-        echo -n "$PRIMARY_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/signing-cert.p12"
+        printf '%s' "$PRIMARY_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/signing-cert.p12"
         if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$PRIMARY_CERT_PASSWORD" > /dev/null 2>&1; then
           echo "[OK] openssl verified primary cert"
         else
@@ -75,7 +75,7 @@ runs:
 
         # ── Import secondary cert (optional) ──
         if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
-          echo -n "$SECONDARY_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/signing-cert-secondary.p12"
+          printf '%s' "$SECONDARY_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/signing-cert-secondary.p12"
           if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert-secondary.p12" -nokeys -passin pass:"${SECONDARY_CERT_PASSWORD:-}" > /dev/null 2>&1; then
             echo "[OK] openssl verified secondary cert"
           else

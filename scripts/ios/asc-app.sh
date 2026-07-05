@@ -48,19 +48,33 @@ _ecdsa_sign_jwt() {
     local der_file raw_file
     der_file=$(mktemp /tmp/jwt_der.XXXXXX)
     raw_file=$(mktemp /tmp/jwt_raw.XXXXXX)
+    # Ensure temp files are cleaned up even on error or signal
+    trap "rm -f '$der_file' '$raw_file'" EXIT
     # openssl produces DER-encoded signature; convert to raw R||S (64 bytes for P-256)
-    openssl dgst -sha256 -sign "$key_path" -out "$der_file" 2>/dev/null
+    if ! openssl dgst -sha256 -sign "$key_path" -out "$der_file" 2>/dev/null; then
+        echo "ERROR: openssl dgst -sign failed — check key file at $key_path" >&2
+        exit 1
+    fi
     # Use asn1parse to extract r and s hex values, then pad to 32 bytes each
-    openssl asn1parse -inform DER -in "$der_file" 2>/dev/null | \
-      awk '/INTEGER/ {gsub(/.*:/,""); gsub(/[ \t]/,""); print}' | \
-      python3 -c "
+    if ! openssl asn1parse -inform DER -in "$der_file" 2>/dev/null | \
+         awk '/INTEGER/ {gsub(/.*:/,""); gsub(/[ \t]/,""); print}' | \
+         python3 -c "
 import sys
 lines = [l.strip() for l in sys.stdin if l.strip()]
-if len(lines) >= 2:
+if len(lines) < 2:
+    print('ERROR: asn1parse produced fewer than 2 INTEGER values', file=sys.stderr)
+    sys.exit(1)
+try:
     r = bytes.fromhex(lines[0].zfill(64)[-64:])
     s = bytes.fromhex(lines[1].zfill(64)[-64:])
-    sys.stdout.buffer.write(r + s)
-" > "$raw_file" 2>/dev/null
+except ValueError as e:
+    print(f'ERROR: invalid hex from asn1parse: {e}', file=sys.stderr)
+    sys.exit(1)
+sys.stdout.buffer.write(r + s)
+" > "$raw_file"; then
+        echo "ERROR: DER→raw signature conversion failed" >&2
+        exit 1
+    fi
     base64 < "$raw_file" | tr -d '\n' | tr -d '=' | tr '/+' '_-'
     rm -f "$der_file" "$raw_file"
 }
