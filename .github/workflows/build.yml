@@ -476,6 +476,7 @@ jobs:
           makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
                    -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
                    -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
+                   -DPRODUCT_VERSION="${{ needs.version.outputs.pkg_version }}" \
                    scripts/installer/NetDiagnostic.nsi
           ls -lh dist/NetDiagnostic-Windows-x86_64.exe
 
@@ -558,7 +559,7 @@ jobs:
           makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
                    -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
                    -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
-                   -DPRODUCT_VERSION="${PKG_VERSION:-0.0.1}" \
+                   -DPRODUCT_VERSION="${{ needs.version.outputs.pkg_version }}" \
                    scripts/installer/NetDiagnostic.nsi
           ls -lh dist/NetDiagnostic-Windows-x86_64.exe
 
@@ -908,6 +909,7 @@ jobs:
   release:
     name: Create Release
     needs:
+      - version
       - linux-x86_64
       - linux-arm64
       - windows-x86_64-static
@@ -916,7 +918,6 @@ jobs:
       - android-x86_64
       - android-arm64
     if: (!failure()) && (!cancelled())
-    needs: [version]
     runs-on: ubuntu-latest
     permissions:
       contents: write
