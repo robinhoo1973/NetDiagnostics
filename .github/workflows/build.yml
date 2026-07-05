@@ -536,10 +536,16 @@ jobs:
         shell: msys2 {0}
         run: |
           cd "$GITHUB_WORKSPACE"
-          export PATH="/ucrt64/bin:$PATH"
+          export MSYS2_PATH="/ucrt64/bin"
+          export PATH="$MSYS2_PATH:$PATH"
+          echo "=== PATH ===" && echo "$PATH" | tr ':' '\n' | head -20
+          echo "=== Qt6 DLLs ===" && ls "$MSYS2_PATH/Qt6"*.dll 2>/dev/null || echo "(none found)"
           mkdir -p dist/installer
           cp build/net_diagnostic.exe dist/installer/
           cp build-sim/net_diagnostic_sim.exe dist/installer/ 2>/dev/null || true
+          # Copy MSYS2 runtime DLLs needed by the exe
+          cp "$MSYS2_PATH"/lib{gcc_s_seh,stdc++,winpthread}-*.dll dist/installer/ 2>/dev/null || true
+          cp "$MSYS2_PATH"/lib{ssl,crypto}-*.dll dist/installer/ 2>/dev/null || true
           windeployqt dist/installer/net_diagnostic.exe \
             --qmldir "$(cygpath -w "$PWD/resources/qml")" \
             --no-translations \
