@@ -107,12 +107,15 @@ jobs:
           fi
         continue-on-error: true
 
+      - name: Tar .app (preserve symlinks + permissions)
+        run: tar -czf NetDiagnostics-macOS.tar.gz -C build net_diagnostics.app
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: NetDiagnostics-macOS-arm64
           path: |
-            build/net_diagnostics.app
+            NetDiagnostics-macOS.tar.gz
             *.dmg
           if-no-files-found: error
 
@@ -212,11 +215,16 @@ jobs:
           brew install cmake ninja python3
           pip3 install --break-system-packages aqtinstall
 
-      # ── macOS: download artifact → inject plist → sign → .pkg ─────────
+      # ── macOS: download artifact → untar → inject plist → sign → .pkg ──
       - uses: actions/download-artifact@v4
         with:
           name: NetDiagnostics-macOS-arm64
           path: macos-artifact
+
+      - name: Extract macOS .app from tarball
+        run: |
+          tar -xzf macos-artifact/NetDiagnostics-macOS.tar.gz -C macos-artifact/
+          ls -R macos-artifact/build/
 
       - name: Inject required Info.plist keys (macOS App Store)
         run: |
@@ -235,6 +243,9 @@ jobs:
       - name: Install macOS provisioning profile
         run: |
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          if [ -z "$APP" ]; then
+            echo "ERROR: No .app bundle found in macOS artifact"; exit 1
+          fi
           if [ -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
             echo -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" \
               | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
@@ -250,8 +261,10 @@ jobs:
       - uses: ./.github/actions/setup-keychain
         id: mac-keychain
         with:
-          cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
-          cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          primary_cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          secondary_cert_base64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          secondary_cert_password: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
           allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
 
       - name: Sign .app with entitlements and package as .pkg
@@ -261,6 +274,12 @@ jobs:
           KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
           CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
           PKG_ID="${{ steps.mac-keychain.outputs.installer_identity }}"
+          if [ -z "$CODE_ID" ]; then
+            echo "ERROR: No Mac App Distribution (code signing) identity found in keychain."
+            echo "  Add the MACOS_APP_CERT_BASE64 / MACOS_APP_CERT_PASSWORD secrets containing"
+            echo "  a '3rd Party Mac Developer Application' or 'Apple Distribution' certificate."
+            exit 1
+          fi
           # Sign inner binary first (required before signing the .app bundle)
           BIN="$APP/Contents/MacOS/net_diagnostics"
           if [ -f "$BIN" ]; then
@@ -324,6 +343,7 @@ jobs:
           source scripts/ios/asc-app.sh
           JWT="${{ steps.jwt.outputs.jwt }}"
           BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
+          asc_bundle_capability_enable "$JWT" "$BID" ACCESS_WIFI_INFORMATION
           echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
 
       - name: Ensure App Store Connect app
@@ -337,8 +357,8 @@ jobs:
       - uses: ./.github/actions/setup-keychain
         id: ios-keychain
         with:
-          cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
-          cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          primary_cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
           allowed_tools: "/usr/bin/codesign /usr/bin/xcodebuild"
 
       - name: Find distribution certificate
