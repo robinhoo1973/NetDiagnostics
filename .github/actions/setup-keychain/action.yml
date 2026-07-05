@@ -52,8 +52,7 @@ runs:
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
         # Decode and import the certificate
-        echo -n "$PRIMARY_CERT_BASE64" > "$RUNNER_TEMP/signing-cert.b64"
-        base64 -d "$RUNNER_TEMP/signing-cert.b64" > "$RUNNER_TEMP/signing-cert.p12" 2>/dev/null
+        echo -n "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
         if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$PRIMARY_CERT_PASSWORD" > /dev/null 2>&1; then
           echo "[OK] openssl verified primary cert"
         else
