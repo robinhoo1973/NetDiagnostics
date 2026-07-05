@@ -662,16 +662,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup host dependencies + version
+      - name: Install host dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build git
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
-          VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER:-0.0.1}"
+            build-essential cmake ninja-build
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -786,16 +781,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup host dependencies + version
+      - name: Install host dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build git
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
-          VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER:-0.0.1}"
+            build-essential cmake ninja-build
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -923,18 +913,13 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
 
       - name: Compute release tag
         id: version
         run: |
-          set -euo pipefail
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
-          echo "next_tag=${LATEST:-v0.0.1}" >> "$GITHUB_OUTPUT"
-          echo "Release tag: ${LATEST:-v0.0.1}"
+          TAG="v${{ needs.version.outputs.pkg_version }}"
+          echo "next_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Release tag: ${TAG}"
 
       - uses: actions/download-artifact@v4
         with:
