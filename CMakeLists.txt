@@ -5,7 +5,7 @@ endif()
 project(NetDiagnostic VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 
 if(NOT DEFINED APP_EDITION)
-    set(APP_EDITION "dev")
+    set(APP_EDITION "")
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
