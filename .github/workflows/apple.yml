@@ -250,10 +250,10 @@ jobs:
       - uses: ./.github/actions/setup-keychain
         id: mac-keychain
         with:
-          cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
-          cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
-          cert_base64_2: ${{ secrets.MACOS_APP_CERT_BASE64 }}
-          cert_password_2: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
+          primary_cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          secondary_cert_base64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          secondary_cert_password: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
           allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
 
       - name: Sign .app with entitlements and package as .pkg
@@ -345,8 +345,8 @@ jobs:
       - uses: ./.github/actions/setup-keychain
         id: ios-keychain
         with:
-          cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
-          cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          primary_cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
           allowed_tools: "/usr/bin/codesign /usr/bin/xcodebuild"
 
       - name: Find distribution certificate
