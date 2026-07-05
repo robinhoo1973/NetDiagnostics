@@ -183,7 +183,7 @@ ninja -C build/android net_diagnostics
 
 ```bash
 cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
-ninja -C build net_diagnosticss_sim
+ninja -C build net_diagnostics_sim
 ```
 
 ### Headless Test

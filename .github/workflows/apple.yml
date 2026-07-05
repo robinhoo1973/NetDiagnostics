@@ -64,7 +64,6 @@ jobs:
           sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
           sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
           sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
-          sips -z 1024 1024 resources/icons/netanalysis.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
           iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
         continue-on-error: true
 
@@ -247,38 +246,50 @@ jobs:
             echo "  Generate one at: https://developer.apple.com/account/resources/profiles/list"
           fi
 
-      - uses: ./.github/actions/setup-keychain
-        id: mac-keychain
-        with:
-          cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
-          cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
-          allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
+      - name: Import Mac Installer Distribution certificate
+        run: |
+          MAC_KEYCHAIN="$RUNNER_TEMP/mac-signing.keychain-db"
+          security create-keychain -p "" "$MAC_KEYCHAIN"
+          security unlock-keychain -p "" "$MAC_KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$MAC_KEYCHAIN"
+          echo -n "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
+            | base64 -d > "$RUNNER_TEMP/mac-dist-cert.p12"
+          security import "$RUNNER_TEMP/mac-dist-cert.p12" \
+            -k "$MAC_KEYCHAIN" \
+            -P "${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}" \
+            -A -T /usr/bin/productbuild -T /usr/bin/pkgbuild -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "" "$MAC_KEYCHAIN" > /dev/null 2>&1 || true
+          echo "=== All identities in keychain ==="
+          security find-identity -v "$MAC_KEYCHAIN" || true
+          MAC_IDENTITY=$(security find-identity -v "$MAC_KEYCHAIN" \
+            | grep "3rd Party Mac Developer Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          if [ -z "$MAC_IDENTITY" ]; then
+            MAC_IDENTITY=$(security find-identity -v "$MAC_KEYCHAIN" \
+              | grep -i "installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          fi
+          echo "MAC_KEYCHAIN=${MAC_KEYCHAIN}" >> "$GITHUB_ENV"
+          echo "MAC_IDENTITY=${MAC_IDENTITY}" >> "$GITHUB_ENV"
+          echo "Mac identity: $MAC_IDENTITY"
 
       - name: Sign .app with entitlements and package as .pkg
         run: |
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           echo "macOS app: $APP"
-          KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
-          IDENT="${{ steps.mac-keychain.outputs.identity }}"
-          # Sign inner binary first (required before signing the .app bundle)
-          BIN="$APP/Contents/MacOS/net_diagnostics"
-          if [ -f "$BIN" ]; then
-            codesign --force --options runtime --timestamp \
-              --entitlements resources/macos.entitlements \
-              --sign "$IDENT" --keychain "$KCHAIN" \
-              "$BIN"
-            echo "[OK] binary signed"
-          fi
-          # Sign the .app bundle
+          # Sign the binary with entitlements (sandbox + network).
+          # --options runtime enables hardened runtime (required for App Store).
+          # Do NOT use --deep (deprecated, breaks nested bundle signing).
           codesign --force --options runtime --timestamp \
             --entitlements resources/macos.entitlements \
-            --sign "$IDENT" --keychain "$KCHAIN" \
+            --sign "$MAC_IDENTITY" \
+            --keychain "$MAC_KEYCHAIN" \
             "$APP"
           echo "[OK] .app signed with entitlements"
           # Package as signed .pkg for App Store
           pkgbuild --component "$APP" \
             --install-location /Applications \
-            --sign "$IDENT" --keychain "$KCHAIN" \
+            --sign "$MAC_IDENTITY" \
+            --keychain "$MAC_KEYCHAIN" \
             NetDiagnostic-macOS.pkg
           ls -lh NetDiagnostic-macOS.pkg
 
@@ -333,12 +344,22 @@ jobs:
           APP_ID=$(asc_app_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID" "$APP_SKU" "$APP_LOCALE")
           echo "app_id=${APP_ID}" >> "$GITHUB_OUTPUT"
 
-      - uses: ./.github/actions/setup-keychain
-        id: ios-keychain
-        with:
-          cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
-          cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
-          allowed_tools: "/usr/bin/codesign /usr/bin/xcodebuild"
+      - name: Import iOS distribution certificate
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          echo -n "${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}" \
+            | base64 -d > "$RUNNER_TEMP/dist-cert.p12"
+          security import "$RUNNER_TEMP/dist-cert.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}" \
+            -A -T /usr/bin/codesign -T /usr/bin/xcodebuild
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1
 
       - name: Find distribution certificate
         id: cert-id
