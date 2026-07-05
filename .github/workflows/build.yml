@@ -15,25 +15,36 @@ env:
   ANDROID_API_LEVEL: "26"
 
 jobs:
-  # ===================================================================
-  # Linux x86_64 - native GCC build + simulator
-  # ===================================================================
-  linux-x86_64:
-    name: Linux x86_64
+  # ═══════════════════════════════════════════════════════════════════════
+  # Version — compute once, shared by all build jobs
+  # ═══════════════════════════════════════════════════════════════════════
+  version:
+    name: Detect Version
     runs-on: ubuntu-latest
+    outputs:
+      pkg_version: ${{ steps.v.outputs.pkg_version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           fetch-tags: true
-
-      - name: Detect release version
+      - id: v
         run: |
-          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
           LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
           VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER:-0.0.1}"
+          echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VER:-0.0.1}"
+
+  # ===================================================================
+  # Linux x86_64 - native GCC build + simulator
+  # ===================================================================
+  linux-x86_64:
+    name: Linux x86_64
+    needs: [version]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install dependencies
         run: |
@@ -52,7 +63,7 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build -S .
 
@@ -63,7 +74,7 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build-sim -S .
 
@@ -89,7 +100,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
           Package: netdiagnostic
-          Version: ${{ env.PKG_VERSION }}
+          Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -101,7 +112,7 @@ jobs:
       - name: Package rpm
         run: |
           sudo gem install fpm
-          fpm -s dir -t rpm -n netdiagnostic -v "$PKG_VERSION" --architecture x86_64 \
+          fpm -s dir -t rpm -n netdiagnostic -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostic=/usr/bin/net_diagnostic \
             resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
@@ -126,7 +137,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
           Package: netdiagnostic-sim
-          Version: ${{ env.PKG_VERSION }}
+          Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -137,7 +148,7 @@ jobs:
 
       - name: Package rpm (simulator)
         run: |
-          fpm -s dir -t rpm -n netdiagnostic-sim -v "$PKG_VERSION" --architecture x86_64 \
+          fpm -s dir -t rpm -n netdiagnostic-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build-sim/net_diagnostic_sim=/usr/bin/net_diagnostic_sim \
             resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
@@ -161,20 +172,10 @@ jobs:
   # ===================================================================
   linux-arm64:
     name: Linux arm64
+    needs: [version]
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Detect release version
-        run: |
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
-          VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER:-0.0.1}"
 
       - name: Install dependencies
         run: |
@@ -193,7 +194,7 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build -S .
 
@@ -204,7 +205,7 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build-sim -S .
 
@@ -234,7 +235,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
           Package: netdiagnostic
-          Version: ${{ env.PKG_VERSION }}
+          Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -246,7 +247,7 @@ jobs:
       - name: Package rpm
         run: |
           sudo gem install fpm
-          fpm -s dir -t rpm -n netdiagnostic -v "$PKG_VERSION" --architecture aarch64 \
+          fpm -s dir -t rpm -n netdiagnostic -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostic=/usr/bin/net_diagnostic \
             resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
@@ -273,7 +274,7 @@ jobs:
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
           Package: netdiagnostic-sim
-          Version: ${{ env.PKG_VERSION }}
+          Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
@@ -284,7 +285,7 @@ jobs:
 
       - name: Package rpm (simulator)
         run: |
-          fpm -s dir -t rpm -n netdiagnostic-sim -v "$PKG_VERSION" --architecture aarch64 \
+          fpm -s dir -t rpm -n netdiagnostic-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build-sim/net_diagnostic_sim=/usr/bin/net_diagnostic_sim \
             resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
@@ -308,22 +309,10 @@ jobs:
   # ===================================================================
   windows-x86_64-static:
     name: Windows x86_64 Static
+    needs: [version]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Detect release version
-        shell: msys2 {0}
-        run: |
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
-          VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "APP_EDITION=static" >> "$GITHUB_ENV"
-          echo "Version: ${VER:-0.0.1} (static)"
 
       - uses: msys2/setup-msys2@v2
         with:
@@ -411,7 +400,7 @@ jobs:
           mkdir -p dist
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}"
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}"
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
@@ -502,22 +491,10 @@ jobs:
   # ===================================================================
   windows-x86_64-dynamic:
     name: Windows x86_64 Dynamic
+    needs: [version]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Detect release version
-        shell: msys2 {0}
-        run: |
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
-          VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "APP_EDITION=dynamic" >> "$GITHUB_ENV"
-          echo "Version: ${VER:-0.0.1} (dynamic)"
 
       - uses: msys2/setup-msys2@v2
         with:
@@ -538,16 +515,16 @@ jobs:
         shell: msys2 {0}
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION="${APP_EDITION:-dynamic}" \
+            -DAPP_EDITION=dynamic \
             -B build -S .
           ninja -C build net_diagnostic
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION="${APP_EDITION:-dynamic}" \
+            -DAPP_EDITION=dynamic \
             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
 
@@ -578,7 +555,7 @@ jobs:
           makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
                    -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
                    -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
-                   -DPRODUCT_VERSION="0.0.1" \
+                   -DPRODUCT_VERSION="${PKG_VERSION:-0.0.1}" \
                    scripts/installer/NetDiagnostic.nsi
           ls -lh dist/NetDiagnostic-Windows-x86_64.exe
 
@@ -595,20 +572,10 @@ jobs:
   # ===================================================================
   macos-arm64:
     name: macOS arm64
+    needs: [version]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-
-      - name: Detect release version
-        run: |
-          git fetch --tags --force 2>/dev/null || true
-          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
-          VER="${LATEST#v}"
-          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER:-0.0.1}"
 
       - name: Install dependencies
         run: brew install cmake ninja qt@6
@@ -627,7 +594,7 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build -S .
@@ -639,7 +606,7 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build-sim -S .
@@ -684,6 +651,7 @@ jobs:
   # ===================================================================
   android-x86_64:
     name: Android x86_64
+    needs: [version]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -735,7 +703,7 @@ jobs:
         run: |
           echo "[Android x86_64] Configuring..."
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
             -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
@@ -806,6 +774,7 @@ jobs:
   # ===================================================================
   android-arm64:
     name: Android arm64
+    needs: [version]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -857,7 +826,7 @@ jobs:
         run: |
           echo "[Android arm64] Configuring..."
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
             -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
@@ -940,6 +909,7 @@ jobs:
       - android-x86_64
       - android-arm64
     if: (!failure()) && (!cancelled())
+    needs: [version]
     runs-on: ubuntu-latest
     permissions:
       contents: write
