@@ -231,6 +231,21 @@ jobs:
           echo "=== Info.plist after injection ==="
           /usr/libexec/PlistBuddy -c "Print" "$PLIST" | grep -E "LSMinimum|LSCategory" || true
 
+      - name: Install macOS provisioning profile
+        run: |
+          APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          if [ -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
+            echo -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" \
+              | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
+            # Embed in .app (macOS App Store requirement)
+            cp "$RUNNER_TEMP/mac-profile.provisionprofile" "$APP/Contents/embedded.provisionprofile"
+            echo "[OK] macOS provisioning profile embedded"
+          else
+            echo "[WARN] MACOS_PROVISIONING_PROFILE_BASE64 not set —"
+            echo "  macOS TestFlight upload will fail with profile-missing error."
+            echo "  Generate one at: https://developer.apple.com/account/resources/profiles/list"
+          fi
+
       - name: Import Mac Installer Distribution certificate
         run: |
           MAC_KEYCHAIN="$RUNNER_TEMP/mac-signing.keychain-db"
