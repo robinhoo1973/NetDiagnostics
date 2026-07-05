@@ -42,13 +42,8 @@ runs:
         SECONDARY_CERT_PASSWORD: ${{ inputs.secondary_cert_password }}
         ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
       run: |
-        KEYCHAIN_PASSWORD=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64)
-        if [ -z "$KEYCHAIN_PASSWORD" ]; then
-          KEYCHAIN_PASSWORD=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))" 2>/dev/null)
-        fi
-        if [ -z "$KEYCHAIN_PASSWORD" ]; then
-          echo "ERROR: cannot generate keychain password"; exit 1
-        fi
+        set -euo pipefail
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
         KEYCHAIN_PATH="$RUNNER_TEMP/signing-${RANDOM}.keychain-db"
 
         security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -57,7 +52,7 @@ runs:
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
 
         # Decode and import the certificate
-        printf '%s' "$PRIMARY_CERT_BASE64" > "$RUNNER_TEMP/signing-cert.b64"
+        echo -n "$PRIMARY_CERT_BASE64" > "$RUNNER_TEMP/signing-cert.b64"
         base64 -d "$RUNNER_TEMP/signing-cert.b64" > "$RUNNER_TEMP/signing-cert.p12" 2>/dev/null
         if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$PRIMARY_CERT_PASSWORD" > /dev/null 2>&1; then
           echo "[OK] openssl verified primary cert"
@@ -78,7 +73,7 @@ runs:
 
         # Optionally import a secondary certificate (e.g. Mac App Distribution for .app signing)
         if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
-          printf '%s' "$SECONDARY_CERT_BASE64" > "$RUNNER_TEMP/signing-cert-secondary.b64"
+          echo -n "$SECONDARY_CERT_BASE64" > "$RUNNER_TEMP/signing-cert-secondary.b64"
           base64 -d "$RUNNER_TEMP/signing-cert-secondary.b64" > "$RUNNER_TEMP/signing-cert-secondary.p12" 2>/dev/null
           if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert-secondary.p12" -nokeys -passin pass:"${SECONDARY_CERT_PASSWORD:-}" > /dev/null 2>&1; then
             echo "[OK] openssl verified secondary cert"
