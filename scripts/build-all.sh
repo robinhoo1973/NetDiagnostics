@@ -903,11 +903,11 @@ build_sim() {
       cmake "${cmake_args[@]}" -B "$build_dir" -S "$PROJECT_DIR" > "$build_dir/cmake.log" 2>&1
     ) || { err "  CMake failed — $build_dir/cmake.log"; return 1; }
     info "  Compiling..."
-    cmake --build "$build_dir" --target net_diagnosticss_sim -j"$JOBS" > "$build_dir/build.log" 2>&1 || {
+    cmake --build "$build_dir" --target net_diagnostics_sim -j"$JOBS" > "$build_dir/build.log" 2>&1 || {
         warn "  Build failed — $build_dir/build.log"; return 1
     }
     local out_name="netdiag-sim-${tag}"
-    cp "$build_dir/net_diagnosticss_sim${ext}" "$DIST_DIR/${out_name}${ext}" || true
+    cp "$build_dir/net_diagnostics_sim${ext}" "$DIST_DIR/${out_name}${ext}" || true
     log "  → dist/${out_name}${ext}"
 }
 
