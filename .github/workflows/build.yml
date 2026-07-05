@@ -719,9 +719,22 @@ jobs:
           fi
         continue-on-error: true
 
+      - name: Package PKG installer
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            echo "Building .pkg installer..."
+            pkgbuild --component build/net_diagnostics.app \
+              --install-location /Applications \
+              --sign - \
+              NetDiagnostics-macOS-arm64.pkg
+            ls -lh NetDiagnostics-macOS-arm64.pkg
+            echo "[OK] .pkg installer created"
+          else
+            echo "[WARN] No .app bundle; skipping .pkg"
+          fi
+
       - name: Notarize + Staple DMG (Developer ID only)
         if: steps.sign.outputs.signed == 'true'
-        continue-on-error: true
         env:
           ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
@@ -729,14 +742,13 @@ jobs:
         run: |
           DMG="NetDiagnostics-macOS-arm64.dmg"
           if [ ! -f "$DMG" ]; then
-            echo "[WARN] DMG not found; skipping notarization"
-            exit 0
+            echo "[ERROR] DMG not found — cannot notarize"
+            exit 1
           fi
-          # Write ASC API key for notarytool
           if [ -z "${ASC_API_KEY:-}" ] || [ -z "${ASC_KEY_ID:-}" ] || [ -z "${ASC_ISSUER_ID:-}" ]; then
-            echo "[WARN] App Store Connect API credentials not set; skipping notarization"
-            echo "  Required secrets: APPSTORE_CONNECT_KEY_ID, APPSTORE_CONNECT_ISSUER_ID, APPSTORE_CONNECT_API_KEY"
-            exit 0
+            echo "[ERROR] ASC credentials not set — cannot notarize"
+            echo "Required: APPSTORE_CONNECT_KEY_ID, APPSTORE_CONNECT_ISSUER_ID, APPSTORE_CONNECT_API_KEY"
+            exit 1
           fi
           mkdir -p ~/.appstoreconnect/private_keys
           ASC_KEYFILE=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
@@ -751,7 +763,7 @@ jobs:
           echo "[OK] Notarization complete"
           echo "=== Stapling notarization ticket ==="
           xcrun stapler staple "$DMG"
-          echo "[OK] Notarization ticket stapled to DMG"
+          echo "[OK] Notarization ticket stapled"
           rm -f "$ASC_KEYFILE"
 
       - name: Package DMG (simulator)
@@ -768,6 +780,7 @@ jobs:
           name: NetDiagnostics-macOS-arm64
           path: |
             *.dmg
+            *.pkg
           if-no-files-found: error
 
   # iOS build in .github/workflows/apple.yml
@@ -1095,6 +1108,7 @@ jobs:
                 *.deb)      name="netdiagnostics-${os}-${arch}.deb" ;;
                 *.rpm)      name="netdiagnostics-${os}-${arch}.rpm" ;;
                 *.dmg)      name="netdiagnostics-${os}-${arch}.dmg" ;;
+                *.pkg)      name="netdiagnostics-${os}-${arch}.pkg" ;;
                 *.ipa)      name="netdiagnostics-${os}-${arch}.ipa" ;;
                 *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
                 *.tar.gz)   name="netdiagnostics-${os}-${arch}.tar.gz" ;;
