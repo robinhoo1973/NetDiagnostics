@@ -27,11 +27,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Detect package version
+      - name: Detect release version
         run: |
-          PKG_VER=$(grep -oP 'project\(NetDiagnostic VERSION \K[0-9.]+' CMakeLists.txt)
-          echo "PKG_VERSION=${PKG_VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${PKG_VER:-0.0.1}"
+          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          echo "PKG_VERSION=${LATEST#v:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${LATEST#v:-0.0.1}"
 
       - name: Install dependencies
         run: |
@@ -162,11 +163,12 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Detect package version
+      - name: Detect release version
         run: |
-          PKG_VER=$(grep -oP 'project\(NetDiagnostic VERSION \K[0-9.]+' CMakeLists.txt)
-          echo "PKG_VERSION=${PKG_VER:-0.0.1}" >> "$GITHUB_ENV"
-          echo "Package version: ${PKG_VER:-0.0.1}"
+          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          echo "PKG_VERSION=${LATEST#v:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${LATEST#v:-0.0.1}"
 
       - name: Install dependencies
         run: |
