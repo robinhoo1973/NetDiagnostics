@@ -252,6 +252,8 @@ jobs:
         with:
           cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
           cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          cert_base64_2: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          cert_password_2: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
           allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
 
       - name: Sign .app with entitlements and package as .pkg
@@ -261,6 +263,12 @@ jobs:
           KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
           CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
           PKG_ID="${{ steps.mac-keychain.outputs.installer_identity }}"
+          if [ -z "$CODE_ID" ]; then
+            echo "ERROR: No Mac App Distribution (code signing) identity found in keychain."
+            echo "  Add the MACOS_APP_CERT_BASE64 / MACOS_APP_CERT_PASSWORD secrets containing"
+            echo "  a '3rd Party Mac Developer Application' or 'Apple Distribution' certificate."
+            exit 1
+          fi
           # Sign inner binary first (required before signing the .app bundle)
           BIN="$APP/Contents/MacOS/net_diagnostics"
           if [ -f "$BIN" ]; then
