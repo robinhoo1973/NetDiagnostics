@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
     theme["radiusButton"] = 8.0;
     theme["radiusSmall"]  = 6.0;
     theme["sidebarWidth"] = 260.0;
-    theme["monoFont"]     = QStringLiteral("JetBrains Mono");
+    theme["monoFont"]     = QStringLiteral("JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei");
     engine.rootContext()->setContextProperty("Theme", theme);
 
     engine.rootContext()->setContextProperty("appState", &appState);
