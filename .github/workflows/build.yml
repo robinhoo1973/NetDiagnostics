@@ -29,10 +29,9 @@ jobs:
 
       - name: Detect package version
         run: |
-          VER=$(git tag -l 'v*' | sort -V | tail -1)
-          if [ -z "$VER" ]; then VER="v0.0.1"; fi
-          echo "PKG_VERSION=${VER#v}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER#v}"
+          PKG_VER=$(grep -oP 'project\(NetDiagnostic VERSION \K[0-9.]+' CMakeLists.txt)
+          echo "PKG_VERSION=${PKG_VER:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${PKG_VER:-0.0.1}"
 
       - name: Install dependencies
         run: |
@@ -165,10 +164,9 @@ jobs:
 
       - name: Detect package version
         run: |
-          VER=$(git tag -l 'v*' | sort -V | tail -1)
-          if [ -z "$VER" ]; then VER="v0.0.1"; fi
-          echo "PKG_VERSION=${VER#v}" >> "$GITHUB_ENV"
-          echo "Package version: ${VER#v}"
+          PKG_VER=$(grep -oP 'project\(NetDiagnostic VERSION \K[0-9.]+' CMakeLists.txt)
+          echo "PKG_VERSION=${PKG_VER:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${PKG_VER:-0.0.1}"
 
       - name: Install dependencies
         run: |
