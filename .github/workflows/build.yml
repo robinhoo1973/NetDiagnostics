@@ -333,7 +333,6 @@ jobs:
             mingw-w64-ucrt-x86_64-brotli
             mingw-w64-ucrt-x86_64-pcre2
             mingw-w64-ucrt-x86_64-libb2
-            mingw-w64-ucrt-x86_64-nsis
 
       # - Cache A: Qt source code (extracted tarball) -
       - name: Cache Qt source tarball
@@ -466,20 +465,6 @@ jobs:
           echo ""
           echo "  === All executables are fully static (zero non-OS DLL) ==="
 
-      - name: Build NSIS installer
-        shell: msys2 {0}
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          mkdir -p dist/installer
-          cp dist/netdiag-win-x86_64-standalone.exe dist/installer/net_diagnostics.exe
-          cp dist/netdiag-win-x86_64-sim-standalone.exe dist/installer/ 2>/dev/null || true
-          makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
-                   -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
-                   -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
-                   -DPRODUCT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-                   scripts/installer/NetDiagnostic.nsi
-          ls -lh dist/NetDiagnostics-Windows-x86_64.exe
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -487,7 +472,6 @@ jobs:
           path: |
             dist/netdiag-win-x86_64-standalone.exe
             dist/netdiag-win-x86_64-sim-standalone.exe
-            dist/NetDiagnostics-Windows-x86_64.exe
           if-no-files-found: error
 
   # ===================================================================
@@ -536,12 +520,11 @@ jobs:
         shell: msys2 {0}
         run: |
           cd "$GITHUB_WORKSPACE"
+          QT_BIN=/ucrt64/bin
+          export PATH="$QT_BIN:$PATH"
           mkdir -p dist/installer
           cp build/net_diagnostics.exe dist/installer/
           cp build-sim/net_diagnostics_sim.exe dist/installer/ 2>/dev/null || true
-          # --libdir tells windeployqt where to find Qt DLLs (avoids PATH issues)
-          # UCRT64 Qt6 DLLs live in /ucrt64/bin on MSYS2
-          QT_BIN=/ucrt64/bin
           windeployqt dist/installer/net_diagnostics.exe \
             --libdir "$QT_BIN" \
             --qmldir "$(cygpath -w "$PWD/resources/qml")" \
@@ -555,7 +538,6 @@ jobs:
               --no-compiler-runtime
           fi
           # windeployqt only copies Qt DLLs. Manually copy third-party deps
-          # that dynamic linking requires: curl + OpenSSL runtime DLLs
           for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
                      libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
             cp "$QT_BIN/${dll}.dll" dist/installer/ 2>/dev/null || true
