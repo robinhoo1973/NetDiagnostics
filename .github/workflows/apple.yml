@@ -297,6 +297,16 @@ jobs:
             echo "  a '3rd Party Mac Developer Application' or 'Apple Distribution' certificate."
             exit 1
           fi
+          # Sign frameworks first (inside-out signing order — required
+          # after macdeployqt bundles Qt into Contents/Frameworks/)
+          if [ -d "$APP/Contents/Frameworks" ]; then
+            find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
+              codesign --force --options runtime --timestamp \
+                --sign "$CODE_ID" --keychain "$KCHAIN" \
+                "$fw"
+            done
+            echo "[OK] frameworks signed"
+          fi
           # Sign inner binary first (required before signing the .app bundle)
           BIN="$APP/Contents/MacOS/net_diagnostics"
           if [ -f "$BIN" ]; then
@@ -306,7 +316,7 @@ jobs:
               "$BIN"
             echo "[OK] binary signed"
           fi
-          # Sign the .app bundle
+          # Sign the .app bundle (deep signs all nested code)
           codesign --force --options runtime --timestamp \
             --entitlements resources/macos.entitlements \
             --sign "$CODE_ID" --keychain "$KCHAIN" \
