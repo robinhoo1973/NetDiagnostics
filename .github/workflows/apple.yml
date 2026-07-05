@@ -111,7 +111,6 @@ jobs:
         with:
           name: NetDiagnostic-macOS-arm64
           path: |
-            build/net_diagnostic.app
             *.dmg
           if-no-files-found: error
 
