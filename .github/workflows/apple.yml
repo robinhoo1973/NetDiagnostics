@@ -80,6 +80,18 @@ jobs:
       - name: Build (production)
         run: ninja -C build net_diagnostics
 
+      - name: Bundle Qt frameworks (macdeployqt)
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            QT_PREFIX="$(brew --prefix qt)"
+            echo "Qt prefix: ${QT_PREFIX}"
+            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app -verbose=1
+            echo "[OK] Qt frameworks bundled into .app"
+            ls -la build/net_diagnostics.app/Contents/Frameworks/ 2>/dev/null || echo "  (no Frameworks dir)"
+          else
+            echo "[WARN] No .app bundle found; skipping macdeployqt"
+          fi
+
       - name: Configure (simulator)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
