@@ -15,9 +15,12 @@ outputs:
   keychain_path:
     description: Path to the created keychain
     value: ${{ steps.setup.outputs.keychain_path }}
-  identity:
-    description: Common name of the imported signing identity
-    value: ${{ steps.setup.outputs.identity }}
+  code_identity:
+    description: Signing identity for codesign (Application cert)
+    value: ${{ steps.setup.outputs.code_identity }}
+  installer_identity:
+    description: Signing identity for pkgbuild/productbuild (Installer cert)
+    value: ${{ steps.setup.outputs.installer_identity }}
 
 runs:
   using: composite
@@ -50,16 +53,25 @@ runs:
         security set-key-partition-list -S apple-tool:,apple: \
           -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1 || true
 
-        # Find the signing identity
-        IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep "Developer Installer\|Apple Distribution\|Mac Developer\|iPhone Distribution\|iPhone Developer" \
-          | head -1 | sed 's/.*"\(.*\)".*/\1/')
-        if [ -z "$IDENTITY" ]; then
-          IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-            | grep -vi "REVOKED\|expired" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        # Find signing identities.  "Installer" certs can only sign .pkg,
+        # "Application" certs can sign code.  Output both separately.
+        CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -i "Apple Development\|Mac Developer\|iPhone Developer\|iPhone Distribution" \
+          | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -i "Developer Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        # Fallbacks
+        if [ -z "$CODE_IDENTITY" ]; then
+          CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+            | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        fi
+        if [ -z "$INSTALLER_IDENTITY" ]; then
+          INSTALLER_IDENTITY="$CODE_IDENTITY"
         fi
 
         echo "keychain_path=${KEYCHAIN_PATH}" >> "$GITHUB_OUTPUT"
-        echo "identity=${IDENTITY}" >> "$GITHUB_OUTPUT"
+        echo "code_identity=${CODE_IDENTITY}" >> "$GITHUB_OUTPUT"
+        echo "installer_identity=${INSTALLER_IDENTITY}" >> "$GITHUB_OUTPUT"
         echo "Keychain: $KEYCHAIN_PATH"
-        echo "Identity: $IDENTITY"
+        echo "Code identity: $CODE_IDENTITY"
+        echo "Installer identity: $INSTALLER_IDENTITY"
