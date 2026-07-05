@@ -884,9 +884,9 @@ build_one() {
       cmake "${cmake_args[@]}" -B "$build_dir" -S "$PROJECT_DIR" > "$build_dir/cmake.log" 2>&1
     ) || { err "  CMake failed — $build_dir/cmake.log"; return 1; }
     info "  Compiling..."
-    cmake --build "$build_dir" --target net_diagnostic -j"$JOBS" > "$build_dir/build.log" 2>&1 \
+    cmake --build "$build_dir" --target net_diagnostics -j"$JOBS" > "$build_dir/build.log" 2>&1 \
         || { err "  Build failed — $build_dir/build.log"; return 1; }
-    cp "$build_dir/net_diagnostic${ext}" "$DIST_DIR/netdiag-${tag}${ext}" || return 1
+    cp "$build_dir/net_diagnostics${ext}" "$DIST_DIR/netdiag-${tag}${ext}" || return 1
     log "  → dist/netdiag-${tag}${ext}"
 }
 
@@ -903,11 +903,11 @@ build_sim() {
       cmake "${cmake_args[@]}" -B "$build_dir" -S "$PROJECT_DIR" > "$build_dir/cmake.log" 2>&1
     ) || { err "  CMake failed — $build_dir/cmake.log"; return 1; }
     info "  Compiling..."
-    cmake --build "$build_dir" --target net_diagnostic_sim -j"$JOBS" > "$build_dir/build.log" 2>&1 || {
+    cmake --build "$build_dir" --target net_diagnosticss_sim -j"$JOBS" > "$build_dir/build.log" 2>&1 || {
         warn "  Build failed — $build_dir/build.log"; return 1
     }
     local out_name="netdiag-sim-${tag}"
-    cp "$build_dir/net_diagnostic_sim${ext}" "$DIST_DIR/${out_name}${ext}" || true
+    cp "$build_dir/net_diagnosticss_sim${ext}" "$DIST_DIR/${out_name}${ext}" || true
     log "  → dist/${out_name}${ext}"
 }
 
@@ -986,7 +986,7 @@ if [[ "$CLEAN" == "true" ]]; then
     # Old: netdiag-sim-linux-arm64-linux (3 hyphens after sim)
     # New: netdiag-sim-linux-arm64        (2 hyphens after sim) — KEEP
     for f in "$DIST_DIR"/netdiag-sim-*-*-* \
-             "$DIST_DIR"/net_diagnostic-* "$DIST_DIR"/net_diagnostic; do
+             "$DIST_DIR"/net_diagnostics-* "$DIST_DIR"/net_diagnostics; do
         [[ -f "$f" ]] && rm -f "$f"
     done 2>/dev/null || true
 fi

@@ -354,10 +354,10 @@ if [ "$($script:PROD_FLAG)" = "ON" ]; then
         "`${PROJ}" > "`$DIST/cmake-prod.log" 2>&1
 
     echo "  -> Ninja build..."
-    ninja net_diagnostic > "`$DIST/ninja-prod.log" 2>&1
+    ninja net_diagnostics > "`$DIST/ninja-prod.log" 2>&1
 
     # Strip debug symbols to reduce size
-    strip net_diagnostic$ext 2>/dev/null || true
+    strip net_diagnostics$ext 2>/dev/null || true
 
     echo "  [DONE] Production: $($script:PROD_NAME)"
 fi
@@ -382,10 +382,10 @@ if [ "$($script:SIM_FLAG)" = "ON" ]; then
         "`${PROJ}" > "`$DIST/cmake-sim.log" 2>&1
 
     echo "  -> Ninja build..."
-    ninja net_diagnostic_sim > "`$DIST/ninja-sim.log" 2>&1
+    ninja net_diagnosticss_sim > "`$DIST/ninja-sim.log" 2>&1
 
     # Strip debug symbols to reduce size
-    strip net_diagnostic_sim$ext 2>/dev/null || true
+    strip net_diagnosticss_sim$ext 2>/dev/null || true
 
     echo "  [DONE] Simulator: $($script:SIM_NAME)"
 fi
@@ -424,8 +424,8 @@ exit 0
     }
 
     # Copy artifacts from build dir to dist (PowerShell handles OneDrive redirects)
-    $prod_build = Join-Path $BUILD_DIR "prod\net_diagnostic$ext"
-    $sim_build  = Join-Path $BUILD_DIR "sim\net_diagnostic_sim$ext"
+    $prod_build = Join-Path $BUILD_DIR "prod\net_diagnostics$ext"
+    $sim_build  = Join-Path $BUILD_DIR "sim\net_diagnosticss_sim$ext"
     if ($script:PROD_FLAG -eq "ON" -and (Test-Path $prod_build)) {
         # Retry up to 5 times for file-in-use
         $copied = $false
