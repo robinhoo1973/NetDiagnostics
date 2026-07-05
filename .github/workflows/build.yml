@@ -52,6 +52,8 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build -S .
 
       - name: Build (production)
@@ -61,6 +63,8 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build-sim -S .
 
       - name: Build (simulator)
@@ -189,6 +193,8 @@ jobs:
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build -S .
 
       - name: Build (production)
@@ -198,6 +204,8 @@ jobs:
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build-sim -S .
 
       - name: Build (simulator)
@@ -501,10 +509,14 @@ jobs:
         shell: msys2 {0}
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build -S .
           ninja -C build net_diagnostic
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -B build-sim -S .
           ninja -C build-sim net_diagnostic_sim
 
@@ -555,6 +567,17 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Detect release version
+        run: |
+          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          VER="${LATEST#v}"
+          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${VER:-0.0.1}"
 
       - name: Install dependencies
         run: brew install cmake ninja qt@6
@@ -630,11 +653,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install host dependencies
+      - name: Setup host dependencies + version
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
+            build-essential cmake ninja-build git
+          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          VER="${LATEST#v}"
+          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${VER:-0.0.1}"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -672,6 +700,8 @@ jobs:
         run: |
           echo "[Android x86_64] Configuring..."
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
             -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
             -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
@@ -745,11 +775,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install host dependencies
+      - name: Setup host dependencies + version
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
+            build-essential cmake ninja-build git
+          git fetch --tags --force 2>/dev/null || true
+          LATEST=$(git tag --list 'v[0-9]*' --sort=-version:refname | head -1)
+          VER="${LATEST#v}"
+          echo "PKG_VERSION=${VER:-0.0.1}" >> "$GITHUB_ENV"
+          echo "Package version: ${VER:-0.0.1}"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -787,6 +822,8 @@ jobs:
         run: |
           echo "[Android arm64] Configuring..."
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${PKG_VERSION:-0.0.1}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DCMAKE_PREFIX_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
             -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
             -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
