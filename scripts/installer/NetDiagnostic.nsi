@@ -1,20 +1,20 @@
 ;=============================================================================
 ; NetDiagnostic - Windows Installer (NSIS)
 ; Input:  dist/installer/ (populated by windeployqt)
-; Output: dist/NetDiagnostic-Windows-x86_64.exe
+; Output: dist/NetDiagnostics-Windows-x86_64.exe
 ;=============================================================================
 
 !include "MUI2.nsh"
 !include "FileFunc.nsh"
 
 ; --- Application metadata ---
-!define PRODUCT_NAME     "NetDiagnostic"
+!define PRODUCT_NAME     "NetDiagnostics"
 !define PRODUCT_VERSION  "0.0.1"
 !define PRODUCT_PUBLISHER "Otis"
 !define PRODUCT_WEB_SITE "https://github.com/robinhoo1973/NetDiagnostics"
 !define PRODUCT_DIR_REGKEY "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
-!define INSTALLER_NAME   "NetDiagnostic-Windows-x86_64.exe"
+!define INSTALLER_NAME   "NetDiagnostics-Windows-x86_64.exe"
 !define MAIN_EXE         "net_diagnostics.exe"
 !define SOURCE_DIR       "${SOURCE_DIR_WIN}"
 !define OUTPUT_DIR       "${OUTDIR_WIN}"
@@ -42,7 +42,7 @@ RequestExecutionLevel admin
 ;=============================================================================
 ; Install section
 ;=============================================================================
-Section "NetDiagnostic" SecMain
+Section "NetDiagnostics" SecMain
   SetOutPath "$INSTDIR"
   SetOverwrite ifnewer
 
