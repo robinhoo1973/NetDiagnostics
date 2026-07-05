@@ -13,12 +13,12 @@
 #
 # To manually create the profile:
 #   1. Go to https://developer.apple.com/account/resources/profiles/list
-#   2. Click "+" → "App Store Connect (Mac)"
-#   3. Select your App ID (com.netdiagnostic.app)
-#   4. Select your "3rd Party Mac Developer Installer" certificate
-#   5. Download the .provisionprofile file
-#   6. Run this script with the downloaded file
-#   7. Or manually: base64 -w0 profile.provisionprofile | gh secret set MACOS_PROVISIONING_PROFILE_BASE64
+#   2. Click "+" → Distribution → "App Store Connect" (macOS)
+#   3. Profile Name:           NetDiagnostics Mac App Store  (any name works)
+#   4. App ID:                 com.netdiagnostic.app
+#   5. Certificates:           Select your "3rd Party Mac Developer Installer"
+#   6. Download the .provisionprofile file
+#   7. Run this script with the downloaded file
 # ============================================================================
 
 set -euo pipefail
