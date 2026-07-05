@@ -525,6 +525,11 @@ jobs:
           mkdir -p dist/installer
           cp build/net_diagnostics.exe dist/installer/
           cp build-sim/net_diagnostics_sim.exe dist/installer/ 2>/dev/null || true
+          # Copy runtime DLLs first so windeployqt can launch the exe for QML scanning
+          for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
+                     libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
+            cp "$QT_BIN/${dll}.dll" dist/installer/ 2>/dev/null || true
+          done
           QT_BIN_WIN="$(cygpath -w "$QT_BIN")"
           windeployqt dist/installer/net_diagnostics.exe \
             --libdir "$QT_BIN_WIN" \
@@ -538,11 +543,6 @@ jobs:
               --no-translations \
               --no-compiler-runtime
           fi
-          # windeployqt only copies Qt DLLs. Manually copy third-party deps
-          for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
-                     libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
-            cp "$QT_BIN/${dll}.dll" dist/installer/ 2>/dev/null || true
-          done
           echo "=== Deployed files ==="
           ls -R dist/installer/
 
