@@ -418,7 +418,7 @@ Item {
                             Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:Theme.monoFont; font.pixelSize:11; color:"#E0E0E0"; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name + ", " + Theme.monoFont; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

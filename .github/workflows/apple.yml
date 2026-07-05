@@ -94,8 +94,11 @@ jobs:
         run: ninja -C build-sim net_diagnostics_sim
 
       - name: Package DMG (production)
+        continue-on-error: true
         run: |
+          if [ -d build/net_diagnostics.app ]; then
             echo "Packaging .app into DMG..."
+            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
             ls -lh NetDiagnostics-macOS-arm64.dmg
           else
             echo "No .app bundle found; falling back to binary packaging"
@@ -103,7 +106,6 @@ jobs:
             cp build/net_diagnostics pkg/NetDiagnostic.app/Contents/MacOS/
             hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
           fi
-        continue-on-error: true
 
       - name: Tar .app (preserve symlinks + permissions)
         run: tar -czf NetDiagnostics-macOS.tar.gz -C build net_diagnostics.app
@@ -169,7 +171,9 @@ jobs:
 
       - name: Verify bundle
         run: |
+          if [ -d build/net_diagnostics.app ]; then
             echo "[OK] .app bundle generated"
+            ls -la build/net_diagnostics.app/
           else
             echo "[X] No .app bundle"; exit 1
           fi
