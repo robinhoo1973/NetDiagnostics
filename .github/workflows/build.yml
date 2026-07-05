@@ -91,7 +91,7 @@ jobs:
           cp resources/netanalysis.desktop AppDir/usr/share/applications/
           cp resources/icons/netanalysis.png AppDir/usr/share/icons/hicolor/256x256/apps/
           ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/share/applications/netanalysis.desktop -appimage -no-copy-copyright-files -no-translations || true
-          mv *.AppImage NetDiagnostic-Linux-x86_64.AppImage 2>/dev/null || true
+          mv *.AppImage NetDiagnostics-Linux-x86_64.AppImage 2>/dev/null || true
 
       - name: Package deb
         run: |
@@ -100,26 +100,26 @@ jobs:
           cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
-          Package: netdiagnostic
+         Package: netdiagnostics
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
-          dpkg-deb --build pkg-deb NetDiagnostic-Linux-x86_64.deb
-          ls -lh NetDiagnostic-Linux-x86_64.deb
+          dpkg-deb --build pkg-deb NetDiagnostics-Linux-x86_64.deb
+          ls -lh NetDiagnostics-Linux-x86_64.deb
 
       - name: Package rpm
         run: |
           sudo gem install fpm
-          fpm -s dir -t rpm -n netdiagnostic -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
+          fpm -s dir -t rpm -n netdiagnostics -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostics=/usr/bin/net_diagnostics \
             resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
             resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostic*.rpm NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || true
-          ls -lh NetDiagnostic-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
+          mv netdiagnostics*.rpm NetDiagnostics-Linux-x86_64.rpm 2>/dev/null || true
+          ls -lh NetDiagnostics-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Build AppImage (simulator)
         run: |
@@ -128,7 +128,7 @@ jobs:
           cp resources/netanalysis-sim.desktop AppDir-sim/usr/share/applications/
           cp resources/icons/netanalysis.png AppDir-sim/usr/share/icons/hicolor/256x256/apps/
           ./linuxdeployqt-continuous-x86_64.AppImage AppDir-sim/usr/share/applications/netanalysis-sim.desktop -appimage -no-copy-copyright-files -no-translations || true
-          mv *.AppImage NetDiagnostic-Linux-x86_64-sim.AppImage 2>/dev/null || true
+          mv *.AppImage NetDiagnostics-Linux-x86_64-sim.AppImage 2>/dev/null || true
 
       - name: Package deb (simulator)
         run: |
@@ -137,30 +137,30 @@ jobs:
           cp resources/netanalysis-sim.desktop pkg-deb-sim/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
-          Package: netdiagnostic-sim
+         Package: netdiagnostics-sim
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: NetDiagnostic Simulator - Network diagnostics testing tool
           EOF
-          dpkg-deb --build pkg-deb-sim NetDiagnostic-Linux-x86_64-sim.deb
-          ls -lh NetDiagnostic-Linux-x86_64-sim.deb
+          dpkg-deb --build pkg-deb-sim NetDiagnostics-Linux-x86_64-sim.deb
+          ls -lh NetDiagnostics-Linux-x86_64-sim.deb
 
       - name: Package rpm (simulator)
         run: |
-          fpm -s dir -t rpm -n netdiagnostic-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
+          fpm -s dir -t rpm -n netdiagnostics-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build-sim/net_diagnostics_sim=/usr/bin/net_diagnostics_sim \
             resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
             resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostic-sim*.rpm NetDiagnostic-Linux-x86_64-sim.rpm 2>/dev/null || true
-          ls -lh NetDiagnostic-Linux-x86_64-sim.rpm 2>/dev/null || echo "(rpm skipped)"
+          mv netdiagnostics-sim*.rpm NetDiagnostics-Linux-x86_64-sim.rpm 2>/dev/null || true
+          ls -lh NetDiagnostics-Linux-x86_64-sim.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-Linux-x86_64
+          name: NetDiagnostics-Linux-x86_64
           path: |
             *.AppImage
             *.deb
@@ -225,7 +225,7 @@ jobs:
             cp resources/netanalysis.desktop AppDir/usr/share/applications/
             cp resources/icons/netanalysis.png AppDir/usr/share/icons/hicolor/256x256/apps/
             linuxdeployqt AppDir/usr/share/applications/netanalysis.desktop -appimage -no-copy-copyright-files -no-translations || true
-            mv *.AppImage NetDiagnostic-Linux-arm64.AppImage 2>/dev/null || true
+            mv *.AppImage NetDiagnostics-Linux-arm64.AppImage 2>/dev/null || true
           else
             echo "(AppImage skipped: no arm64 linuxdeployqt available)"
           fi
@@ -237,26 +237,26 @@ jobs:
           cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb/DEBIAN/control << EOF
-          Package: netdiagnostic
+         Package: netdiagnostics
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
-          dpkg-deb --build pkg-deb NetDiagnostic-Linux-arm64.deb
-          ls -lh NetDiagnostic-Linux-arm64.deb
+          dpkg-deb --build pkg-deb NetDiagnostics-Linux-arm64.deb
+          ls -lh NetDiagnostics-Linux-arm64.deb
 
       - name: Package rpm
         run: |
           sudo gem install fpm
-          fpm -s dir -t rpm -n netdiagnostic -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
+          fpm -s dir -t rpm -n netdiagnostics -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostics=/usr/bin/net_diagnostics \
             resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
             resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostic*.rpm NetDiagnostic-Linux-arm64.rpm 2>/dev/null || true
-          ls -lh NetDiagnostic-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
+          mv netdiagnostics*.rpm NetDiagnostics-Linux-arm64.rpm 2>/dev/null || true
+          ls -lh NetDiagnostics-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Build AppImage (simulator)
         run: |
@@ -266,7 +266,7 @@ jobs:
             cp resources/netanalysis-sim.desktop AppDir-sim/usr/share/applications/
             cp resources/icons/netanalysis.png AppDir-sim/usr/share/icons/hicolor/256x256/apps/
             linuxdeployqt AppDir-sim/usr/share/applications/netanalysis-sim.desktop -appimage -no-copy-copyright-files -no-translations || true
-            mv *.AppImage NetDiagnostic-Linux-arm64-sim.AppImage 2>/dev/null || true
+            mv *.AppImage NetDiagnostics-Linux-arm64-sim.AppImage 2>/dev/null || true
           fi
 
       - name: Package deb (simulator)
@@ -276,30 +276,30 @@ jobs:
           cp resources/netanalysis-sim.desktop pkg-deb-sim/usr/share/applications/
           cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
           cat > pkg-deb-sim/DEBIAN/control << EOF
-          Package: netdiagnostic-sim
+         Package: netdiagnostics-sim
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
           Maintainer: robinhoo1973
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: NetDiagnostic Simulator - Network diagnostics testing tool
           EOF
-          dpkg-deb --build pkg-deb-sim NetDiagnostic-Linux-arm64-sim.deb
-          ls -lh NetDiagnostic-Linux-arm64-sim.deb
+          dpkg-deb --build pkg-deb-sim NetDiagnostics-Linux-arm64-sim.deb
+          ls -lh NetDiagnostics-Linux-arm64-sim.deb
 
       - name: Package rpm (simulator)
         run: |
-          fpm -s dir -t rpm -n netdiagnostic-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
+          fpm -s dir -t rpm -n netdiagnostics-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build-sim/net_diagnostics_sim=/usr/bin/net_diagnostics_sim \
             resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
             resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostic-sim*.rpm NetDiagnostic-Linux-arm64-sim.rpm 2>/dev/null || true
-          ls -lh NetDiagnostic-Linux-arm64-sim.rpm 2>/dev/null || echo "(rpm skipped)"
+          mv netdiagnostics-sim*.rpm NetDiagnostics-Linux-arm64-sim.rpm 2>/dev/null || true
+          ls -lh NetDiagnostics-Linux-arm64-sim.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-Linux-arm64
+          name: NetDiagnostics-Linux-arm64
           path: |
             *.AppImage
             *.deb
@@ -478,16 +478,16 @@ jobs:
                    -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
                    -DPRODUCT_VERSION="${{ needs.version.outputs.pkg_version }}" \
                    scripts/installer/NetDiagnostic.nsi
-          ls -lh dist/NetDiagnostic-Windows-x86_64.exe
+          ls -lh dist/NetDiagnostics-Windows-x86_64.exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-Windows-x86_64-Static
+          name: NetDiagnostics-Windows-x86_64-Static
           path: |
             dist/netdiag-win-x86_64-standalone.exe
             dist/netdiag-win-x86_64-sim-standalone.exe
-            dist/NetDiagnostic-Windows-x86_64.exe
+            dist/NetDiagnostics-Windows-x86_64.exe
           if-no-files-found: error
 
   # ===================================================================
@@ -572,14 +572,14 @@ jobs:
                    -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
                    -DPRODUCT_VERSION="${{ needs.version.outputs.pkg_version }}" \
                    scripts/installer/NetDiagnostic.nsi
-          ls -lh dist/NetDiagnostic-Windows-x86_64.exe
+          ls -lh dist/NetDiagnostics-Windows-x86_64.exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-Windows-x86_64-Dynamic
+          name: NetDiagnostics-Windows-x86_64-Dynamic
           path: |
-            dist/NetDiagnostic-Windows-x86_64.exe
+            dist/NetDiagnostics-Windows-x86_64.exe
           if-no-files-found: error
 
   # ===================================================================
@@ -635,13 +635,13 @@ jobs:
         run: |
           if [ -d build/net_diagnostics.app ]; then
             echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
-            ls -lh NetDiagnostic-macOS-arm64.dmg
+            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
+            ls -lh NetDiagnostics-macOS-arm64.dmg
           else
             echo "No .app bundle found; falling back to binary packaging"
             mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
             cp build/net_diagnostics pkg/NetDiagnostic.app/Contents/MacOS/
-            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg || true
+            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
           fi
         continue-on-error: true
 
@@ -650,13 +650,13 @@ jobs:
         run: |
           mkdir -p pkg-sim/NetDiagnostic.app/Contents/MacOS
           cp build-sim/net_diagnostics_sim pkg-sim/NetDiagnostic.app/Contents/MacOS/
-          hdiutil create -volname "NetDiagnostic Sim" -srcfolder pkg-sim/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64-sim.dmg || true
-          ls -lh NetDiagnostic-macOS-arm64-sim.dmg 2>/dev/null || echo "(sim DMG skipped)"
+          hdiutil create -volname "NetDiagnostic Sim" -srcfolder pkg-sim/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64-sim.dmg || true
+          ls -lh NetDiagnostics-macOS-arm64-sim.dmg 2>/dev/null || echo "(sim DMG skipped)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-macOS-arm64
+          name: NetDiagnostics-macOS-arm64
           path: |
             *.dmg
           if-no-files-found: error
@@ -771,15 +771,15 @@ jobs:
           if [ -z "$APK" ]; then
             echo "ERROR: no APK produced by the 'apk' target"; exit 1
           fi
-          cp "$APK" NetDiagnostic-Android-x86_64.apk
-          ls -lh NetDiagnostic-Android-x86_64.apk
+          cp "$APK" NetDiagnostics-Android-x86_64.apk
+          ls -lh NetDiagnostics-Android-x86_64.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-Android-x86_64
+          name: NetDiagnostics-Android-x86_64
           path: |
-            NetDiagnostic-Android-x86_64.apk
+            NetDiagnostics-Android-x86_64.apk
           if-no-files-found: error
 
   # ===================================================================
@@ -890,15 +890,15 @@ jobs:
           if [ -z "$APK" ]; then
             echo "ERROR: no APK produced by the 'apk' target"; exit 1
           fi
-          cp "$APK" NetDiagnostic-Android-arm64.apk
-          ls -lh NetDiagnostic-Android-arm64.apk
+          cp "$APK" NetDiagnostics-Android-arm64.apk
+          ls -lh NetDiagnostics-Android-arm64.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: NetDiagnostic-Android-arm64
+          name: NetDiagnostics-Android-arm64
           path: |
-            NetDiagnostic-Android-arm64.apk
+            NetDiagnostics-Android-arm64.apk
           if-no-files-found: error
 
   # iOS build moved to .github/workflows/apple.yml
@@ -946,7 +946,7 @@ jobs:
           find . -type f | sort
           echo "============================"
 
-          # Copy assets with consistent naming: netdiagnostic-{os}-{arch}.{ext}
+          # Copy assets with consistent naming: netdiagnostics-{os}-{arch}.{ext}
           for dir in */; do
             dir_lower=$(echo "$dir" | tr '[:upper:]' '[:lower:]')
             suffix=""
@@ -978,15 +978,15 @@ jobs:
               ext="${base##*.}"
               case "$base" in
                 *-sim.*|*-sim-*)
-                  name="netdiagnostic-${os}-${arch}-sim.${ext}" ;;
-                *.appimage) name="netdiagnostic-${os}-${arch}.AppImage" ;;
-                *.deb)      name="netdiagnostic-${os}-${arch}.deb" ;;
-                *.rpm)      name="netdiagnostic-${os}-${arch}.rpm" ;;
-                *.dmg)      name="netdiagnostic-${os}-${arch}.dmg" ;;
-                *.ipa)      name="netdiagnostic-${os}-${arch}.ipa" ;;
-                *.apk)      name="netdiagnostic-${os}-${arch}.apk" ;;
+                  name="netdiagnostics-${os}-${arch}-sim.${ext}" ;;
+                *.appimage) name="netdiagnostics-${os}-${arch}.AppImage" ;;
+                *.deb)      name="netdiagnostics-${os}-${arch}.deb" ;;
+                *.rpm)      name="netdiagnostics-${os}-${arch}.rpm" ;;
+                *.dmg)      name="netdiagnostics-${os}-${arch}.dmg" ;;
+                *.ipa)      name="netdiagnostics-${os}-${arch}.ipa" ;;
+                *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
 
-                *.exe)      name="netdiagnostic-${os}-${arch}${suffix}.exe" ;;
+                *.exe)      name="netdiagnostics-${os}-${arch}${suffix}.exe" ;;
                 *)          name="$base" ;;
               esac
               cp "$f" "release-assets/$name"
