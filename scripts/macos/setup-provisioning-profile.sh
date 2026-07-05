@@ -4,7 +4,7 @@
 # GitHub secret for the apple.yml TestFlight workflow.
 #
 # Prerequisites:
-#   1. Apple Developer account with Mac App Store Distribution cert
+#   1. Apple Developer account with App Store Connect (Mac) cert
 #   2. App ID registered with Mac capabilities enabled
 #   3. gh CLI authenticated (gh auth login)
 #
@@ -13,12 +13,12 @@
 #
 # To manually create the profile:
 #   1. Go to https://developer.apple.com/account/resources/profiles/list
-#   2. Click "+" → "Mac App Store Distribution"
-#   3. Select your App ID (com.netdiagnostic.app)
-#   4. Select your "3rd Party Mac Developer Installer" certificate
-#   5. Download the .provisionprofile file
-#   6. Run this script with the downloaded file
-#   7. Or manually: base64 -w0 profile.provisionprofile | gh secret set MACOS_PROVISIONING_PROFILE_BASE64
+#   2. Click "+" → Distribution → "App Store Connect" (macOS)
+#   3. Profile Name:           NetDiagnostics Mac App Store  (any name works)
+#   4. App ID:                 com.netdiagnostic.app
+#   5. Certificates:           Select your "3rd Party Mac Developer Installer"
+#   6. Download the .provisionprofile file
+#   7. Run this script with the downloaded file
 # ============================================================================
 
 set -euo pipefail
@@ -30,7 +30,7 @@ if [ -z "$PROFILE" ] || [ ! -f "$PROFILE" ]; then
     echo "First, create the profile at:"
     echo "  https://developer.apple.com/account/resources/profiles/list"
     echo ""
-    echo "Select: Mac App Store Distribution"
+    echo "Select: App Store Connect (Mac)"
     echo "App ID: com.netdiagnostic.app"
     echo "Certificate: 3rd Party Mac Developer Installer"
     exit 1
