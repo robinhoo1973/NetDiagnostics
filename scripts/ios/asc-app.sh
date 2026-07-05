@@ -45,9 +45,10 @@ asc_jwt() {
 # Outputs base64url-encoded raw 64-byte ECDSA signature
 _ecdsa_sign_jwt() {
     local key_path="$1"
-    local der_file raw_file
-    der_file=$(mktemp /tmp/jwt_der.XXXXXX)
-    raw_file=$(mktemp /tmp/jwt_raw.XXXXXX)
+    local tmp_dir der_file raw_file
+    tmp_dir="${RUNNER_TEMP:-/tmp}"
+    der_file=$(mktemp "${tmp_dir}/jwt_der.XXXXXX")
+    raw_file=$(mktemp "${tmp_dir}/jwt_raw.XXXXXX")
     # Ensure temp files are cleaned up even on error or signal
     trap "rm -f '$der_file' '$raw_file'" EXIT
     # openssl produces DER-encoded signature; convert to raw R||S (64 bytes for P-256)
@@ -56,6 +57,7 @@ _ecdsa_sign_jwt() {
         exit 1
     fi
     # Use asn1parse to extract r and s hex values, then pad to 32 bytes each
+    set -o pipefail
     if ! openssl asn1parse -inform DER -in "$der_file" 2>/dev/null | \
          awk '/INTEGER/ {gsub(/.*:/,""); gsub(/[ \t]/,""); print}' | \
          python3 -c "

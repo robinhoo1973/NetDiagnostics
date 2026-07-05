@@ -616,6 +616,17 @@ jobs:
             echo "[WARN] No .app bundle found; skipping macdeployqt"
           fi
 
+      - name: Ad-hoc code sign (production)
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            echo "Ad-hoc signing .app bundle..."
+            codesign --force --deep --sign - build/net_diagnostics.app
+            echo "[OK] .app signed (ad-hoc)"
+            codesign -dvvv build/net_diagnostics.app 2>&1 || true
+          else
+            echo "[WARN] No .app bundle found; skipping code sign"
+          fi
+
       - name: Configure (simulator)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
