@@ -36,8 +36,33 @@ asc_jwt() {
     payload=$(printf '{"iss":"%s","iat":%d,"exp":%d,"aud":"appstoreconnect-v1"}' \
         "$issuer_id" "$now" "$exp" | base64 | tr -d '\n' | tr -d '=' | tr '/+' '_-')
     local signature
-    signature=$(printf '%s.%s' "$header" "$payload" | openssl dgst -sha256 -sign "$key_path" | base64 | tr -d '\n' | tr -d '=' | tr '/+' '_-')
+    signature=$(printf '%s.%s' "$header" "$payload" | _ecdsa_sign_jwt "$key_path")
     echo "${header}.${payload}.${signature}"
+}
+
+# ── Sign JWT input with ES256 using openssl + DER→raw conversion ──
+# Reads signing input from stdin, path to P-256 private key .p8 as $1
+# Outputs base64url-encoded raw 64-byte ECDSA signature
+_ecdsa_sign_jwt() {
+    local key_path="$1"
+    local der_file raw_file
+    der_file=$(mktemp /tmp/jwt_der.XXXXXX)
+    raw_file=$(mktemp /tmp/jwt_raw.XXXXXX)
+    # openssl produces DER-encoded signature; convert to raw R||S (64 bytes for P-256)
+    openssl dgst -sha256 -sign "$key_path" -out "$der_file" 2>/dev/null
+    # Use asn1parse to extract r and s hex values, then pad to 32 bytes each
+    openssl asn1parse -inform DER -in "$der_file" 2>/dev/null | \
+      awk '/INTEGER/ {gsub(/.*:/,""); gsub(/[ \t]/,""); print}' | \
+      python3 -c "
+import sys
+lines = [l.strip() for l in sys.stdin if l.strip()]
+if len(lines) >= 2:
+    r = bytes.fromhex(lines[0].zfill(64)[-64:])
+    s = bytes.fromhex(lines[1].zfill(64)[-64:])
+    sys.stdout.buffer.write(r + s)
+" > "$raw_file" 2>/dev/null
+    base64 < "$raw_file" | tr -d '\n' | tr -d '=' | tr '/+' '_-'
+    rm -f "$der_file" "$raw_file"
 }
 
 # ─────────────────────────────────────────────────────────────────────
