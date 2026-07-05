@@ -609,9 +609,20 @@ jobs:
           if [ -d build/net_diagnostics.app ]; then
             QT_PREFIX="$(brew --prefix qt)"
             echo "Qt prefix: ${QT_PREFIX}"
-            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app -verbose=1
+            # -qmldir is required so macdeployqt scans QML source files and
+            # deploys all imported QML modules (QtQuick, QtQuick.Controls,
+            # QtQuick.Layouts, etc.).  Binary-only auto-detection is unreliable
+            # when QML files are embedded in .qrc resources.
+            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
+              -qmldir="${GITHUB_WORKSPACE}/resources/qml" \
+              -verbose=1
             echo "[OK] Qt frameworks bundled into .app"
+            echo "=== Framework contents ==="
             ls -la build/net_diagnostics.app/Contents/Frameworks/ 2>/dev/null || echo "  (no Frameworks dir)"
+            echo "=== QML modules ==="
+            ls build/net_diagnostics.app/Contents/Resources/qml/ 2>/dev/null || echo "  (no QML dir)"
+            echo "=== Plugins ==="
+            ls build/net_diagnostics.app/Contents/PlugIns/ 2>/dev/null || echo "  (no PlugIns dir)"
           else
             echo "[WARN] No .app bundle found; skipping macdeployqt"
           fi
@@ -643,8 +654,18 @@ jobs:
       - name: Package DMG (production)
         run: |
           if [ -d build/net_diagnostics.app ]; then
-            echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
+            echo "Creating DMG with installer layout..."
+            rm -rf dmg-staging
+            mkdir -p dmg-staging
+            cp -R build/net_diagnostics.app dmg-staging/
+            # /Applications symlink so users can drag the app to install
+            ln -s /Applications dmg-staging/Applications
+            echo "dmg-staging contents:"
+            ls -la dmg-staging/
+            hdiutil create -volname "NetDiagnostic" \
+              -srcfolder dmg-staging \
+              -ov -format UDZO \
+              NetDiagnostics-macOS-arm64.dmg
             ls -lh NetDiagnostics-macOS-arm64.dmg
           else
             echo "No .app bundle found; falling back to binary packaging"
