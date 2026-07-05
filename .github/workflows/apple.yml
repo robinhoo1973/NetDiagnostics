@@ -252,6 +252,8 @@ jobs:
           security create-keychain -p "" "$MAC_KEYCHAIN"
           security unlock-keychain -p "" "$MAC_KEYCHAIN"
           security set-keychain-settings -lut 21600 "$MAC_KEYCHAIN"
+          # Add to search list so codesign/pkgbuild can find the identity
+          security list-keychains -d system -s "$MAC_KEYCHAIN" $(security list-keychains -d system | sed 's/.*"\(.*\)".*/\1/') 2>/dev/null || true
           echo -n "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
             | base64 -d > "$RUNNER_TEMP/mac-dist-cert.p12"
           security import "$RUNNER_TEMP/mac-dist-cert.p12" \
@@ -292,6 +294,8 @@ jobs:
             --keychain "$MAC_KEYCHAIN" \
             NetDiagnostic-macOS.pkg
           ls -lh NetDiagnostic-macOS.pkg
+          # Restore default keychain search list (avoid polluting iOS signing)
+          security list-keychains -d system -s login.keychain 2>/dev/null || true
 
       # ── iOS: rebuild + sign + archive → .ipa ─────────────────────────
       - uses: ./.github/actions/install-qt-aqt
