@@ -102,10 +102,10 @@ if(IOS)
     endif()
 endif()
 
-qt_add_executable(net_diagnostic WIN32 ${SOURCES} ${QML_RESOURCES})
+qt_add_executable(net_diagnostics WIN32 ${SOURCES} ${QML_RESOURCES})
 
 # Shared target configuration — eliminates ~60 lines of duplication
-# between net_diagnostic and net_diagnostic_sim.
+# between net_diagnostics and net_diagnostics_sim.
 function(configure_netdiag_target TARGET)
     target_compile_definitions(${TARGET} PRIVATE APP_EDITION="${APP_EDITION}")
     if(DEFINED ND_BUILD_NUMBER)
@@ -169,19 +169,19 @@ function(configure_netdiag_target TARGET)
     target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 endfunction()
 
-configure_netdiag_target(net_diagnostic)
+configure_netdiag_target(net_diagnostics)
 
 # Android: enable APK target generation (Qt 6.5+ auto-generates apk target
 # when QT_ANDROID_PACKAGE_SOURCE_DIR is set)
 if(ANDROID)
-    set_target_properties(net_diagnostic PROPERTIES
+    set_target_properties(net_diagnostics PROPERTIES
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/resources/android"
     )
 endif()
 
 # macOS desktop: build as .app bundle
 if(APPLE AND NOT IOS)
-    set_target_properties(net_diagnostic PROPERTIES
+    set_target_properties(net_diagnostics PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
@@ -194,13 +194,13 @@ if(APPLE AND NOT IOS)
     if(IOS)
         # iOS uses a separate Info.plist
     else()
-        set_target_properties(net_diagnostic PROPERTIES
+        set_target_properties(net_diagnostics PROPERTIES
             XCODE_ATTRIBUTE_LSMinimumSystemVersion "26.0"
             XCODE_ATTRIBUTE_LSApplicationCategoryType "public.app-category.utilities"
         )
     endif()
     if(EXISTS "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns")
-        set_target_properties(net_diagnostic PROPERTIES
+        set_target_properties(net_diagnostics PROPERTIES
             MACOSX_BUNDLE_ICON_FILE "netanalysis.icns")
         set_source_files_properties(
             "${CMAKE_SOURCE_DIR}/resources/icons/netanalysis.icns"
@@ -213,7 +213,7 @@ endif()
 
 # iOS: configure app bundle metadata
 if(IOS)
-    set_target_properties(net_diagnostic PROPERTIES
+    set_target_properties(net_diagnostics PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
@@ -226,7 +226,7 @@ if(IOS)
         XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME "AppIcon"
     )
     # Add asset catalog to sources for Xcode
-    target_sources(net_diagnostic PRIVATE
+    target_sources(net_diagnostics PRIVATE
         "${CMAKE_SOURCE_DIR}/resources/Assets.xcassets"
     )
     set_source_files_properties(
@@ -235,12 +235,12 @@ if(IOS)
     )
     # Code signing: manual in CI, automatic on developer machines
     if(DEFINED ENV{IOS_TEAM_ID})
-        set_target_properties(net_diagnostic PROPERTIES
+        set_target_properties(net_diagnostics PROPERTIES
             XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Manual"
             XCODE_ATTRIBUTE_DEVELOPMENT_TEAM "$ENV{IOS_TEAM_ID}"
         )
     else()
-        set_target_properties(net_diagnostic PROPERTIES
+        set_target_properties(net_diagnostics PROPERTIES
             XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"
         )
     endif()
@@ -248,7 +248,7 @@ if(IOS)
     # Requires "Access WiFi Information" capability enabled on the App ID.
     # Enable manually: https://developer.apple.com/account/resources/identifiers/list
     if(DEFINED ENV{ND_WIFI_ENTITLEMENT})
-        set_target_properties(net_diagnostic PROPERTIES
+        set_target_properties(net_diagnostics PROPERTIES
             XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/resources/netdiagnostic.entitlements"
         )
     endif()
@@ -276,6 +276,6 @@ if(BUILD_SIMULATOR)
         endif()
     endif()
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    qt_add_executable(net_diagnostic_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
-    configure_netdiag_target(net_diagnostic_sim)
+    qt_add_executable(net_diagnostics_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
+    configure_netdiag_target(net_diagnostics_sim)
 endif()

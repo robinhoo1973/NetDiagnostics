@@ -15,7 +15,7 @@
 !define PRODUCT_DIR_REGKEY "Software\${PRODUCT_PUBLISHER}\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define INSTALLER_NAME   "NetDiagnostic-Windows-x86_64.exe"
-!define MAIN_EXE         "net_diagnostic.exe"
+!define MAIN_EXE         "net_diagnostics.exe"
 !define SOURCE_DIR       "${SOURCE_DIR_WIN}"
 !define OUTPUT_DIR       "${OUTDIR_WIN}"
 

@@ -77,7 +77,7 @@ jobs:
             -B build -S .
 
       - name: Build (production)
-        run: ninja -C build net_diagnostic
+        run: ninja -C build net_diagnostics
 
       - name: Configure (simulator)
         run: |
@@ -90,18 +90,18 @@ jobs:
             -B build-sim -S .
 
       - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostic_sim
+        run: ninja -C build-sim net_diagnostics_sim
 
       - name: Package DMG (production)
         run: |
-          if [ -d build/net_diagnostic.app ]; then
+          if [ -d build/net_diagnostics.app ]; then
             echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
+            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg
             ls -lh NetDiagnostic-macOS-arm64.dmg
           else
             echo "No .app bundle found; falling back to binary packaging"
             mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
-            cp build/net_diagnostic pkg/NetDiagnostic.app/Contents/MacOS/
+            cp build/net_diagnostics pkg/NetDiagnostic.app/Contents/MacOS/
             hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostic-macOS-arm64.dmg || true
           fi
         continue-on-error: true
@@ -111,7 +111,7 @@ jobs:
         with:
           name: NetDiagnostic-macOS-arm64
           path: |
-            build/net_diagnostic.app
+            build/net_diagnostics.app
             *.dmg
           if-no-files-found: error
 
@@ -163,13 +163,13 @@ jobs:
             -B build -S .
 
       - name: Build
-        run: ninja -v -C build net_diagnostic
+        run: ninja -v -C build net_diagnostics
 
       - name: Verify bundle
         run: |
-          if [ -d build/net_diagnostic.app ]; then
+          if [ -d build/net_diagnostics.app ]; then
             echo "[OK] .app bundle generated"
-            ls -la build/net_diagnostic.app/
+            ls -la build/net_diagnostics.app/
           else
             echo "[X] No .app bundle"; exit 1
           fi
@@ -177,7 +177,7 @@ jobs:
       - name: Package IPA
         run: |
           mkdir -p Payload
-          cp -R build/net_diagnostic.app Payload/
+          cp -R build/net_diagnostics.app Payload/
           zip -r NetDiagnostic-iOS.ipa Payload
           ls -lh NetDiagnostic-iOS.ipa
 
@@ -186,7 +186,7 @@ jobs:
         with:
           name: NetDiagnostic-iOS
           path: |
-            build/net_diagnostic.app
+            build/net_diagnostics.app
             NetDiagnostic-iOS.ipa
           if-no-files-found: error
 
@@ -446,7 +446,7 @@ jobs:
             echo "Manual signing with profile: $PROFILE_UUID"
             xcodebuild archive \
               -project build-ios/NetDiagnostic.xcodeproj \
-              -scheme net_diagnostic \
+              -scheme net_diagnostics \
               -sdk iphoneos \
               -configuration Release \
               -destination 'generic/platform=iOS' \
@@ -460,7 +460,7 @@ jobs:
             echo "Automatic signing"
             xcodebuild archive \
               -project build-ios/NetDiagnostic.xcodeproj \
-              -scheme net_diagnostic \
+              -scheme net_diagnostics \
               -sdk iphoneos \
               -configuration Release \
               -destination 'generic/platform=iOS' \
@@ -478,7 +478,7 @@ jobs:
 
       - name: Package iOS IPA
         run: |
-          APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostic.app"
+          APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostics.app"
           [ -d "$APP_PATH" ] || APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
           [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
           mkdir -p Payload
