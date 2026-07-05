@@ -1,0 +1,77 @@
+name: Setup macOS Keychain
+description: Create a temporary keychain, import a certificate, and authorize tools
+inputs:
+  cert_base64:
+    description: Base64-encoded .p12 certificate
+    required: true
+  cert_password:
+    description: Password for the .p12 certificate
+    required: true
+  allowed_tools:
+    description: Space-separated paths of tools allowed to access the key
+    required: false
+    default: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild /usr/bin/xcodebuild"
+outputs:
+  keychain_path:
+    description: Path to the created keychain
+    value: ${{ steps.setup.outputs.keychain_path }}
+  code_identity:
+    description: Signing identity for codesign (Application cert)
+    value: ${{ steps.setup.outputs.code_identity }}
+  installer_identity:
+    description: Signing identity for pkgbuild/productbuild (Installer cert)
+    value: ${{ steps.setup.outputs.installer_identity }}
+
+runs:
+  using: composite
+  steps:
+    - id: setup
+      shell: bash
+      run: |
+        set -euo pipefail
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        KEYCHAIN_PATH="$RUNNER_TEMP/signing-${RANDOM}.keychain-db"
+
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security default-keychain -s "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+        # Decode and import the certificate
+        echo -n "${{ inputs.cert_base64 }}" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
+        TOOL_ARGS=""
+        for tool in ${{ inputs.allowed_tools }}; do
+          TOOL_ARGS="$TOOL_ARGS -T $tool"
+        done
+        security import "$RUNNER_TEMP/signing-cert.p12" \
+          -k "$KEYCHAIN_PATH" \
+          -P "${{ inputs.cert_password }}" \
+          -A $TOOL_ARGS
+        rm -f "$RUNNER_TEMP/signing-cert.p12"
+
+        # Allow codesign/xcodebuild to access the key without prompting
+        security set-key-partition-list -S apple-tool:,apple: \
+          -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1 || true
+
+        # Find signing identities.  "Installer" certs can only sign .pkg,
+        # "Application" certs can sign code.  Output both separately.
+        CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -i "Apple Development\|Mac Developer\|iPhone Developer\|iPhone Distribution" \
+          | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -i "Developer Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        # Fallbacks
+        if [ -z "$CODE_IDENTITY" ]; then
+          CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+            | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        fi
+        if [ -z "$INSTALLER_IDENTITY" ]; then
+          INSTALLER_IDENTITY="$CODE_IDENTITY"
+        fi
+
+        echo "keychain_path=${KEYCHAIN_PATH}" >> "$GITHUB_OUTPUT"
+        echo "code_identity=${CODE_IDENTITY}" >> "$GITHUB_OUTPUT"
+        echo "installer_identity=${INSTALLER_IDENTITY}" >> "$GITHUB_OUTPUT"
+        echo "Keychain: $KEYCHAIN_PATH"
+        echo "Code identity: $CODE_IDENTITY"
+        echo "Installer identity: $INSTALLER_IDENTITY"
