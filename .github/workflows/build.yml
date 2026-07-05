@@ -525,14 +525,15 @@ jobs:
           mkdir -p dist/installer
           cp build/net_diagnostics.exe dist/installer/
           cp build-sim/net_diagnostics_sim.exe dist/installer/ 2>/dev/null || true
+          QT_BIN_WIN="$(cygpath -w "$QT_BIN")"
           windeployqt dist/installer/net_diagnostics.exe \
-            --libdir "$QT_BIN" \
+            --libdir "$QT_BIN_WIN" \
             --qmldir "$(cygpath -w "$PWD/resources/qml")" \
             --no-translations \
             --no-compiler-runtime
           if [ -f dist/installer/net_diagnostics_sim.exe ]; then
             windeployqt dist/installer/net_diagnostics_sim.exe \
-              --libdir "$QT_BIN" \
+              --libdir "$QT_BIN_WIN" \
               --qmldir "$(cygpath -w "$PWD/resources/qml")" \
               --no-translations \
               --no-compiler-runtime
