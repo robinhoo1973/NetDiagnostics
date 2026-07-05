@@ -931,6 +931,9 @@ jobs:
           echo "============================"
 
           # Copy assets with consistent naming: netdiagnostics-{os}-{arch}.{ext}
+          # Only whitelisted package types are published — unknown files
+          # (raw binaries, .plist metadata, etc.) are skipped as a
+          # defense-in-depth measure against leaked intermediate build artifacts.
           for dir in */; do
             dir_lower=$(echo "$dir" | tr '[:upper:]' '[:lower:]')
             suffix=""
@@ -971,16 +974,25 @@ jobs:
                 *.dmg)      name="netdiagnostics-${os}-${arch}.dmg" ;;
                 *.ipa)      name="netdiagnostics-${os}-${arch}.ipa" ;;
                 *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
+                *.tar.gz)   name="netdiagnostics-${os}-${arch}.tar.gz" ;;
 
                 *netdiagnostics-*.exe)
                   name="netdiagnostics-${os}-${arch}${suffix}-setup.exe" ;;
                 *.exe)
                   name="netdiagnostics-${os}-${arch}${suffix}.exe" ;;
-                *)          name="$base" ;;
+                *)
+                  echo "  ! Skipping non-whitelisted file: $base"
+                  continue ;;
               esac
               cp "$f" "release-assets/$name"
               echo "  → $name"
-            done < <(find "$dir" -type f ! -name "*.o" ! -name "*.obj")
+            done < <(find "$dir" -type f \
+              ! -name "*.o" ! -name "*.obj" \
+              ! -iname "info.plist" \
+              ! -name "net_diagnostics" \
+              ! -name "net_diagnostics_sim" \
+              ! -name "*.app" \
+              ! -path "*/.app/*")
           done
 
           echo ""
