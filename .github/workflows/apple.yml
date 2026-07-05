@@ -312,9 +312,10 @@ jobs:
             --sign "$CODE_ID" --keychain "$KCHAIN" \
             "$APP"
           echo "[OK] .app signed with entitlements"
-          # Package as signed .pkg for App Store
-          pkgbuild --component "$APP" \
-            --install-location /Applications \
+          # Package as signed product archive (.pkg) for App Store / TestFlight
+          # pkgbuild creates a component package; productbuild creates a
+          # product archive — TestFlight only accepts product archives.
+          productbuild --component "$APP" /Applications \
             --sign "$PKG_ID" --keychain "$KCHAIN" \
             NetDiagnostics-macOS.pkg
           ls -lh NetDiagnostics-macOS.pkg
