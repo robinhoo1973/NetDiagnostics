@@ -536,16 +536,17 @@ jobs:
         shell: msys2 {0}
         run: |
           cd "$GITHUB_WORKSPACE"
+          export PATH="/ucrt64/bin:$PATH"
           mkdir -p dist/installer
           cp build/net_diagnostic.exe dist/installer/
           cp build-sim/net_diagnostic_sim.exe dist/installer/ 2>/dev/null || true
           windeployqt dist/installer/net_diagnostic.exe \
-            --qmldir resources/qml \
+            --qmldir "$(cygpath -w "$PWD/resources/qml")" \
             --no-translations \
             --no-compiler-runtime
           if [ -f dist/installer/net_diagnostic_sim.exe ]; then
             windeployqt dist/installer/net_diagnostic_sim.exe \
-              --qmldir resources/qml \
+              --qmldir "$(cygpath -w "$PWD/resources/qml")" \
               --no-translations \
               --no-compiler-runtime
           fi
