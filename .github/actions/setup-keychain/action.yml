@@ -50,9 +50,15 @@ runs:
         security default-keychain -s "$KEYCHAIN_PATH"
         security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security list-keychain -d user -s "$KEYCHAIN_PATH"
 
-        # Decode and import the certificate
-        echo -n "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
+        TOOL_ARGS=""
+        for tool in $ALLOWED_TOOLS; do
+          TOOL_ARGS="$TOOL_ARGS -T $tool"
+        done
+
+        # ── Import primary cert ──
+        echo -n "$PRIMARY_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/signing-cert.p12"
         if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$PRIMARY_CERT_PASSWORD" > /dev/null 2>&1; then
           echo "[OK] openssl verified primary cert"
         else
@@ -60,20 +66,16 @@ runs:
           echo "  Password or base64 content is incorrect."
           exit 1
         fi
-        TOOL_ARGS=""
-        for tool in $ALLOWED_TOOLS; do
-          TOOL_ARGS="$TOOL_ARGS -T $tool"
-        done
         security import "$RUNNER_TEMP/signing-cert.p12" \
           -k "$KEYCHAIN_PATH" \
           -P "$PRIMARY_CERT_PASSWORD" \
+          -t cert -f pkcs12 \
           -A $TOOL_ARGS
-        rm -f "$RUNNER_TEMP/signing-cert.p12" "$RUNNER_TEMP/signing-cert.b64"
+        rm -f "$RUNNER_TEMP/signing-cert.p12"
 
-        # Optionally import a secondary certificate (e.g. Mac App Distribution for .app signing)
+        # ── Import secondary cert (optional) ──
         if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
-          echo -n "$SECONDARY_CERT_BASE64" > "$RUNNER_TEMP/signing-cert-secondary.b64"
-          base64 -d "$RUNNER_TEMP/signing-cert-secondary.b64" > "$RUNNER_TEMP/signing-cert-secondary.p12" 2>/dev/null
+          echo -n "$SECONDARY_CERT_BASE64" | base64 --decode -o "$RUNNER_TEMP/signing-cert-secondary.p12"
           if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert-secondary.p12" -nokeys -passin pass:"${SECONDARY_CERT_PASSWORD:-}" > /dev/null 2>&1; then
             echo "[OK] openssl verified secondary cert"
           else
@@ -84,18 +86,16 @@ runs:
           security import "$RUNNER_TEMP/signing-cert-secondary.p12" \
             -k "$KEYCHAIN_PATH" \
             -P "${SECONDARY_CERT_PASSWORD:-}" \
+            -t cert -f pkcs12 \
             -A $TOOL_ARGS
-          rm -f "$RUNNER_TEMP/signing-cert-secondary.p12" "$RUNNER_TEMP/signing-cert-secondary.b64"
+          rm -f "$RUNNER_TEMP/signing-cert-secondary.p12"
         fi
 
         # Allow codesign/xcodebuild to access the key without prompting
         security set-key-partition-list -S apple-tool:,apple: \
           -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1 || true
 
-        # Find signing identities.  "Installer" certs can only sign .pkg,
-        # "Application" certs can sign code.  Output both separately.
-        # Use { } || true because set -o pipefail would kill the script when
-        # grep finds no match, before the fallback below can run.
+        # Find signing identities
         CODE_IDENTITY=""
         { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
           | grep -iE "Apple (Development|Distribution)|Mac Developer|iPhone (Developer|Distribution)" \
@@ -103,7 +103,6 @@ runs:
         INSTALLER_IDENTITY=""
         { INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
           | grep -iE "Developer Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
-        # Fallback: pick any valid non-revoked non-expired non-Installer identity
         if [ -z "$CODE_IDENTITY" ] || [ "$CODE_IDENTITY" = "null" ]; then
           { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
             | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
