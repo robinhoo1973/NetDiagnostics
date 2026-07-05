@@ -7,6 +7,14 @@ inputs:
   cert_password:
     description: Password for the .p12 certificate
     required: true
+  cert_base64_2:
+    description: Optional second Base64-encoded .p12 certificate (e.g. Mac App Distribution cert)
+    required: false
+    default: ""
+  cert_password_2:
+    description: Password for the optional second .p12 certificate
+    required: false
+    default: ""
   allowed_tools:
     description: Space-separated paths of tools allowed to access the key
     required: false
@@ -27,6 +35,9 @@ runs:
   steps:
     - id: setup
       shell: bash
+      env:
+        CERT_BASE64_2: ${{ inputs.cert_base64_2 }}
+        CERT_PASSWORD_2: ${{ inputs.cert_password_2 }}
       run: |
         set -euo pipefail
         KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -48,6 +59,16 @@ runs:
           -P "${{ inputs.cert_password }}" \
           -A $TOOL_ARGS
         rm -f "$RUNNER_TEMP/signing-cert.p12"
+
+        # Optionally import a second certificate (e.g. Mac App Distribution for .app signing)
+        if [ -n "${CERT_BASE64_2:-}" ]; then
+          echo -n "$CERT_BASE64_2" | base64 -d > "$RUNNER_TEMP/signing-cert2.p12"
+          security import "$RUNNER_TEMP/signing-cert2.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "${CERT_PASSWORD_2:-}" \
+            -A $TOOL_ARGS
+          rm -f "$RUNNER_TEMP/signing-cert2.p12"
+        fi
 
         # Allow codesign/xcodebuild to access the key without prompting
         security set-key-partition-list -S apple-tool:,apple: \
