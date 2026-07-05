@@ -275,14 +275,89 @@ jobs:
             echo "  Generate one at: https://developer.apple.com/account/resources/profiles/list"
           fi
 
-      - uses: ./.github/actions/setup-keychain
+      - name: Setup macOS keychain (inline)
         id: mac-keychain
-        with:
-          primary_cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
-          primary_cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
-          secondary_cert_base64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
-          secondary_cert_password: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
-          allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
+        env:
+          INST_CERT_B64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+          INST_CERT_PW: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          APP_CERT_B64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          APP_CERT_PW: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing-${RANDOM}.keychain-db"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+          TOOLS="/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
+          TOOL_ARGS=""
+          for tool in $TOOLS; do TOOL_ARGS="$TOOL_ARGS -T $tool"; done
+
+          # ── Import primary cert (Installer) ──
+          if [ -n "${INST_CERT_B64:-}" ]; then
+            printf '%s' "$INST_CERT_B64" > "$RUNNER_TEMP/signing-cert.b64"
+            base64 -d "$RUNNER_TEMP/signing-cert.b64" > "$RUNNER_TEMP/signing-cert.p12" 2>/dev/null
+            if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$INST_CERT_PW" > /dev/null 2>&1; then
+              echo "[OK] openssl verified primary cert password"
+            else
+              echo "ERROR: Primary cert (Installer) — openssl pkcs12 verification FAILED"
+              echo "  Password or base64 content is wrong. Check MACOS_INSTALLER_CERT_* secrets."
+              exit 1
+            fi
+            security import "$RUNNER_TEMP/signing-cert.p12" \
+              -k "$KEYCHAIN_PATH" \
+              -P "$INST_CERT_PW" \
+              -A $TOOL_ARGS
+            rm -f "$RUNNER_TEMP/signing-cert.p12" "$RUNNER_TEMP/signing-cert.b64"
+            echo "[OK] primary cert imported"
+          fi
+
+          # ── Import secondary cert (App Distribution) ──
+          if [ -n "${APP_CERT_B64:-}" ]; then
+            printf '%s' "$APP_CERT_B64" > "$RUNNER_TEMP/signing-cert.b64"
+            base64 -d "$RUNNER_TEMP/signing-cert.b64" > "$RUNNER_TEMP/signing-cert.p12" 2>/dev/null
+            if openssl pkcs12 -in "$RUNNER_TEMP/signing-cert.p12" -nokeys -passin pass:"$APP_CERT_PW" > /dev/null 2>&1; then
+              echo "[OK] openssl verified secondary cert password"
+            else
+              echo "ERROR: Secondary cert (App) — openssl pkcs12 verification FAILED"
+              echo "  Password or base64 content is wrong. Check MACOS_APP_CERT_* secrets."
+              exit 1
+            fi
+            security import "$RUNNER_TEMP/signing-cert.p12" \
+              -k "$KEYCHAIN_PATH" \
+              -P "$APP_CERT_PW" \
+              -A $TOOL_ARGS
+            rm -f "$RUNNER_TEMP/signing-cert.p12" "$RUNNER_TEMP/signing-cert.b64"
+            echo "[OK] secondary cert imported"
+          fi
+
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1 || true
+
+          CODE_ID=""
+          { CODE_ID=$(security find-identity -v "$KEYCHAIN_PATH" \
+            | grep -iE "Apple (Development|Distribution)|Mac Developer|iPhone (Developer|Distribution)" \
+            | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+          INSTALLER_ID=""
+          { INSTALLER_ID=$(security find-identity -v "$KEYCHAIN_PATH" \
+            | grep -iE "Developer Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+          if [ -z "$CODE_ID" ] || [ "$CODE_ID" = "null" ]; then
+            { CODE_ID=$(security find-identity -v "$KEYCHAIN_PATH" \
+              | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+          fi
+          if [ -z "$INSTALLER_ID" ]; then
+            INSTALLER_ID="$CODE_ID"
+          fi
+
+          echo "keychain_path=${KEYCHAIN_PATH}" >> "$GITHUB_OUTPUT"
+          echo "code_identity=${CODE_ID}" >> "$GITHUB_OUTPUT"
+          echo "installer_identity=${INSTALLER_ID}" >> "$GITHUB_OUTPUT"
+          echo "Keychain: $KEYCHAIN_PATH"
+          echo "Code identity: $CODE_ID"
+          echo "Installer identity: $INSTALLER_ID"
 
       - name: Sign .app with entitlements and package as .pkg
         run: |
