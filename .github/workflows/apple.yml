@@ -64,7 +64,6 @@ jobs:
           sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
           sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
           sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
-          sips -z 1024 1024 resources/icons/netanalysis.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
           iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
         continue-on-error: true
 
@@ -251,7 +250,6 @@ jobs:
         run: |
           MAC_KEYCHAIN="$RUNNER_TEMP/mac-signing.keychain-db"
           security create-keychain -p "" "$MAC_KEYCHAIN"
-          security default-keychain -s "$MAC_KEYCHAIN"
           security unlock-keychain -p "" "$MAC_KEYCHAIN"
           security set-keychain-settings -lut 21600 "$MAC_KEYCHAIN"
           echo -n "${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}" \
@@ -278,17 +276,9 @@ jobs:
         run: |
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           echo "macOS app: $APP"
-          # Sign inner binary first (required before signing the .app bundle)
-          BIN="$APP/Contents/MacOS/net_diagnostics"
-          if [ -f "$BIN" ]; then
-            codesign --force --options runtime --timestamp \
-              --entitlements resources/macos.entitlements \
-              --sign "$MAC_IDENTITY" \
-              --keychain "$MAC_KEYCHAIN" \
-              "$BIN"
-            echo "[OK] binary signed"
-          fi
-          # Sign the .app bundle (codesign walks bundle, finds signed binary)
+          # Sign the binary with entitlements (sandbox + network).
+          # --options runtime enables hardened runtime (required for App Store).
+          # Do NOT use --deep (deprecated, breaks nested bundle signing).
           codesign --force --options runtime --timestamp \
             --entitlements resources/macos.entitlements \
             --sign "$MAC_IDENTITY" \

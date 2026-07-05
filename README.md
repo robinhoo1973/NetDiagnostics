@@ -157,7 +157,7 @@ brew install qt@6 cmake ninja curl                                              
 
 # Build
 cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
-ninja -C build net_diagnostic
+ninja -C build net_diagnostics
 ```
 
 #### iOS
@@ -176,20 +176,20 @@ cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
-ninja -C build/android net_diagnostic
+ninja -C build/android net_diagnostics
 ```
 
 #### Simulator
 
 ```bash
 cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
-ninja -C build net_diagnostic_sim
+ninja -C build net_diagnosticss_sim
 ```
 
 ### Headless Test
 
 ```bash
-ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostic
+ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostics
 ```
 
 ## CI/CD
