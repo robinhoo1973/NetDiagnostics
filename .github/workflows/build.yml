@@ -525,12 +525,13 @@ jobs:
           mkdir -p dist/installer
           cp build/net_diagnostics.exe dist/installer/
           cp build-sim/net_diagnostics_sim.exe dist/installer/ 2>/dev/null || true
-          # Deploy Qt DLLs, plugins, and QML modules into dist/installer/
-          # Note: --qmldir removed because Qt 6.7+ no longer ships qmlimportscanner.exe
-          # (MSYS2 uses the newer 'qml' tool); windeployqt detects QML module usage
-          # from the binary's DLL imports instead.
-          # Note: --libdir removed so Qt DLLs are deployed alongside the exe in
-          # dist/installer/ (required for the NSIS installer to bundle them).
+          # Deploy Qt DLLs, plugins, and QML modules into dist/installer/.
+          # Previously this command passed --qmldir and --libdir.
+          # --qmldir was removed because Qt 6.7+ on MSYS2 no longer ships
+          # qmlimportscanner.exe (the newer 'qml' tool is used instead), and
+          # windeployqt can detect required QML modules from binary analysis.
+          # --libdir was removed so Qt DLLs stay beside the exe in dist/installer/,
+          # which is required for NSIS packaging.
           windeployqt dist/installer/net_diagnostics.exe \
             --no-translations \
             --no-compiler-runtime
@@ -959,11 +960,12 @@ jobs:
             while IFS= read -r f; do
               base=$(basename "$f" | tr '[:upper:]' '[:lower:]')
               ext="${base##*.}"
+              normalized_ext="$ext"
+              [ "$normalized_ext" = "appimage" ] && normalized_ext="AppImage"
               case "$base" in
                 *-sim.*|*-sim-*)
-                  [ "$ext" = "appimage" ] && ext="AppImage"
-                  name="netdiagnostics-${os}-${arch}-sim.${ext}" ;;
-                *.appimage) name="netdiagnostics-${os}-${arch}.AppImage" ;;
+                  name="netdiagnostics-${os}-${arch}-sim.${normalized_ext}" ;;
+                *.appimage) name="netdiagnostics-${os}-${arch}.${normalized_ext}" ;;
                 *.deb)      name="netdiagnostics-${os}-${arch}.deb" ;;
                 *.rpm)      name="netdiagnostics-${os}-${arch}.rpm" ;;
                 *.dmg)      name="netdiagnostics-${os}-${arch}.dmg" ;;
