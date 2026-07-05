@@ -77,10 +77,10 @@ QString AppState::appVersion() const {
 }
 
 QString AppState::appEdition() const {
-#ifdef ND_BUILD_NUMBER
-    return QStringLiteral(ND_BUILD_NUMBER);
+#ifdef APP_EDITION
+    return QStringLiteral(APP_EDITION);
 #else
-    return QStringLiteral("0");
+    return QString();
 #endif
 }
 
