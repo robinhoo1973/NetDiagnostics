@@ -224,7 +224,7 @@ jobs:
             echo "ERROR: No .app bundle found in macOS artifact"; exit 1
           fi
           PLIST="$APP/Contents/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 12.0" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 26.0" "$PLIST" 2>/dev/null || \
             /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 12.0" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.utilities" "$PLIST" 2>/dev/null || \
             /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType public.app-category.utilities" "$PLIST"
