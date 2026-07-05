@@ -10,7 +10,12 @@
 #   asc_app_ensure JWT APP_NAME BUNDLE_ID SKU LOCALE      → idempotent ensure
 # ─────────────────────────────────────────────────────────────────────
 
-set -euo pipefail
+# Only apply strict mode when this script is executed directly, not when sourced.
+# Leaking set -euo pipefail into the calling shell would make non-zero return
+# values from any command abort the workflow step before error handling can run.
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  set -euo pipefail
+fi
 
 ASC_API="https://api.appstoreconnect.apple.com/v1"
 
@@ -475,7 +480,7 @@ asc_profile_download() {
     resp=$(curl -s -X GET "${ASC_API}/profiles/${profile_id}" \
         -H "Authorization: Bearer ${jwt}" \
         -H "Accept: application/json" \
-        -H "fields[profiles]=profileContent")
+        --data-urlencode "fields[profiles]=profileContent" --get)
 
     local content
     content=$(echo "$resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['data']['attributes'].get('profileContent',''))" 2>/dev/null || echo "")
