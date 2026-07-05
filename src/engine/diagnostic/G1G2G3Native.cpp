@@ -42,7 +42,7 @@ typedef SSIZE_T ssize_t;
 #include <tlhelp32.h>
 #define close closesocket
 #elif defined(__APPLE__)
-// macOS / iOS 闁?use AF_LINK+sockaddr_dl, no /proc, no /sys, no linux/wireless.h
+// macOS / iOS — use AF_LINK+sockaddr_dl, sysctl, routing socket
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
@@ -55,10 +55,11 @@ typedef SSIZE_T ssize_t;
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <net/if_dl.h>
-#ifdef __linux__
-#include <net/if_arp.h>
-#endif
 #include <net/if_types.h>
+#include <net/route.h>
+#include <netinet/tcp_var.h>
+#include <netinet/udp_var.h>
+#include <netinet/in_var.h>
 #ifdef PLATFORM_IOS
 #include "engine/IosWiFiHelper.h"
 #include "engine/task/IosNetworkInfo.h"
@@ -416,9 +417,21 @@ DiagnosticResult networkAdapters(DiagId id) {
         const IfInfo& info = it.value();
         bool isLoopback = (info.flags & IFF_LOOPBACK);
 
-        // Read MTU, operstate from /sys (Linux only — not available on macOS)
+        // Read MTU and operstate (Linux: /sys; macOS: ioctl)
         QString mtu = QStringLiteral("-"), state = QStringLiteral("DOWN");
-#ifndef __APPLE__
+#if defined(__APPLE__)
+        int tmpSock = socket(AF_INET, SOCK_DGRAM, 0);
+        if (tmpSock >= 0) {
+            struct ifreq ifr;
+            memset(&ifr, 0, sizeof(ifr));
+            strncpy(ifr.ifr_name, info.name.toUtf8().constData(), IFNAMSIZ-1);
+            if (ioctl(tmpSock, SIOCGIFMTU, &ifr) == 0)
+                mtu = QString::number(ifr.ifr_mtu);
+            if (ioctl(tmpSock, SIOCGIFFLAGS, &ifr) == 0)
+                state = (ifr.ifr_flags & IFF_UP) ? QStringLiteral("UP") : QStringLiteral("DOWN");
+            close(tmpSock);
+        }
+#else
         QFile mtuFile(QStringLiteral("/sys/class/net/%1/mtu").arg(info.name));
         if (mtuFile.open(QIODevice::ReadOnly)) mtu = QString::fromLatin1(mtuFile.readAll().trimmed());
         QFile stateFile(QStringLiteral("/sys/class/net/%1/operstate").arg(info.name));
@@ -505,6 +518,56 @@ DiagnosticResult activeConnections(DiagId id) {
     parseProcNet(QStringLiteral("/proc/net/tcp6"), QStringLiteral("TCP6"), false);
     parseProcNet(QStringLiteral("/proc/net/udp"),  QStringLiteral("UDP"),  true);
     parseProcNet(QStringLiteral("/proc/net/udp6"), QStringLiteral("UDP6"), true);
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    // ── macOS: enumerate TCP/UDP connections via sysctl pcblist ──────
+    {
+        auto macTcpState = [](int st) -> const char* {
+            switch(st){case 0:return"CLOSED";case 1:return"LISTEN";
+            case 2:return"SYN_SENT";case 3:return"SYN_RCVD";case 4:return"ESTABLISHED";
+            case 5:return"CLOSE_WAIT";case 6:return"FIN_WAIT_1";case 7:return"CLOSING";
+            case 8:return"LAST_ACK";case 9:return"FIN_WAIT_2";case 10:return"TIME_WAIT";
+            default:return"UNKNOWN";}
+        };
+        auto macOSEnumerate = [&](const char* sysctlName, const QString& proto, bool isUdp) {
+            size_t len = 0;
+            if (sysctlbyname(sysctlName, nullptr, &len, nullptr, 0) != 0 || len < 32) return;
+            QByteArray buf((int)len + 8192, '\0');
+            if (sysctlbyname(sysctlName, buf.data(), &len, nullptr, 0) != 0) return;
+            char* ptr = buf.data(); char* end = ptr + len;
+            while (ptr + 8 <= end) {
+                uint32_t elen = *(uint32_t*)ptr;          // xt_len
+                if (elen < 40 || ptr + elen > end) break;
+                // Scan for AF_INET sockaddr_in pair within this entry
+                for (int off = 24; off + 32 <= (int)elen; off += 4) {
+                    char* sp = ptr + off;
+                    if (*(uint8_t*)sp == 16 && *(uint8_t*)(sp+1) == AF_INET) {
+                        uint16_t lp = ntohs(*(uint16_t*)(sp + 2));
+                        uint32_t la = ntohl(*(uint32_t*)(sp + 4));
+                        uint16_t rp = ntohs(*(uint16_t*)(sp + 16 + 2));
+                        uint32_t ra = ntohl(*(uint32_t*)(sp + 16 + 4));
+                        // Search for TCP state byte (0–10) in remaining entry
+                        int state = 0;
+                        for (int o2 = off + 32; o2 + 1 < (int)elen; o2++) {
+                            uint8_t v = *(uint8_t*)(ptr + o2);
+                            if (v <= 10 && v != *(uint8_t*)(ptr + o2 - 1)) {
+                                state = (int)v; break;
+                            }
+                        }
+                        struct in_addr la_, ra_;
+                        la_.s_addr = htonl(la); ra_.s_addr = htonl(ra);
+                        rawConns.append({proto,
+                            ip4ToStr(la_), ip4ToStr(ra_),
+                            isUdp ? QStringLiteral("*:*") : QString::fromLatin1(macTcpState(state)),
+                            (int)lp, (int)rp});
+                        break;
+                    }
+                }
+                ptr += elen;
+            }
+        };
+        macOSEnumerate("net.inet.tcp.pcblist64", QStringLiteral("TCP"), false);
+        macOSEnumerate("net.inet.udp.pcblist64", QStringLiteral("UDP"), true);
+    }
 #endif
 #endif
 
@@ -540,9 +603,6 @@ DiagnosticResult activeConnections(DiagId id) {
 #ifdef PLATFORM_IOS
         out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
         out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
-#elif defined(__APPLE__)
-        out.append(QStringLiteral("  [macOS] Active connections: unavailable (/proc/net not available)"));
-        out.append(QStringLiteral("  Use 'netstat -an' in Terminal for equivalent information"));
 #else
         out.append(QStringLiteral("  (no active connections)"));
 #endif
@@ -552,9 +612,11 @@ DiagnosticResult activeConnections(DiagId id) {
 #ifdef PLATFORM_IOS
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (sandbox restricts socket enumeration)");
-#elif defined(__APPLE__)
-    r.status = DiagStatus::Skipped;
-    r.summary = QStringLiteral("Unavailable on macOS (/proc not available; use netstat -an)");
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    r.status = rawConns.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    r.summary = rawConns.isEmpty()
+        ? QStringLiteral("No active connections found")
+        : QStringLiteral("Active connections enumerated via sysctl");
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Active connections enumerated");
@@ -1488,6 +1550,48 @@ DiagnosticResult routingTable(DiagId id) {
     }
     if (!routeRows.isEmpty())
         out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    // ── macOS: enumerate routing table via sysctl NET_RT_DUMP ──
+    {
+        int mib[] = { CTL_NET, PF_ROUTE, 0, 0, NET_RT_DUMP, 0 };
+        size_t needed = 0;
+        if (sysctl(mib, 6, nullptr, &needed, nullptr, 0) == 0 && needed > 0) {
+            QByteArray rtbuf((int)needed + 4096, '\0');
+            if (sysctl(mib, 6, rtbuf.data(), &needed, nullptr, 0) == 0) {
+                char* ptr = rtbuf.data(); char* end = ptr + needed;
+                while (ptr + (int)sizeof(struct rt_msghdr) <= end) {
+                    auto* rtm = (struct rt_msghdr*)ptr;
+                    if (rtm->rtm_version != RTM_VERSION || rtm->rtm_msglen < sizeof(struct rt_msghdr))
+                        break;
+                    // Parse sockaddrs: [dst, gw, netmask, ...]
+                    struct sockaddr* sa = (struct sockaddr*)(rtm + 1);
+                    QString dst = QStringLiteral("-"), gw = QStringLiteral("-"),
+                            mask = QStringLiteral("-"), ifName = QStringLiteral("-");
+                    for (int i = 0; i < RTAX_MAX && sa->sa_len > 0; i++) {
+                        if (rtm->rtm_addrs & (1 << i)) {
+                            if (i == RTAX_DST && sa->sa_family == AF_INET)
+                                dst = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_GATEWAY && sa->sa_family == AF_INET)
+                                gw = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_NETMASK && sa->sa_family == AF_INET)
+                                mask = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_IFP && sa->sa_family == AF_LINK) {
+                                auto* sdl = (struct sockaddr_dl*)sa;
+                                ifName = QString::fromLatin1(sdl->sdl_data, sdl->sdl_nlen);
+                            }
+                            sa = (struct sockaddr*)((char*)sa + sa->sa_len);
+                        }
+                    }
+                    if (!dst.isEmpty() && dst != QStringLiteral("-"))
+                        routeRows.append({dst, mask, gw, ifName.left(9), QString::number(rtm->rtm_index)});
+                    ptr += rtm->rtm_msglen;
+                    if (rtm->rtm_msglen == 0) break; // safety
+                }
+            }
+        }
+        if (!routeRows.isEmpty())
+            out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
+    }
 #endif // !PLATFORM_IOS
 #ifdef PLATFORM_IOS
     out.append(QStringLiteral("  [iOS] Routing table: unavailable (restricted by Apple)"));
@@ -1531,6 +1635,13 @@ DiagnosticResult arpTable(DiagId id) {
         FreeMibTable(table);
     }
 #else
+    // Common ARP table columns (shared by Linux and macOS)
+    static const QVector<DiagnosticFormatter::ColSpec> kArpCols = {
+        {"Internet Address",  24, true},
+        {"Physical Address",  23, true},
+        {"Type",               0, false},
+    };
+    QList<QStringList> arpRows;
     // Linux: parse /proc/net/arp
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     QFile arpFile(QStringLiteral("/proc/net/arp"));
@@ -1538,12 +1649,6 @@ DiagnosticResult arpTable(DiagId id) {
         QTextStream ts(&arpFile);
         QString header = ts.readLine(); // skip header
         out.append(QStringLiteral("Interface: (all)"));
-        static const QVector<DiagnosticFormatter::ColSpec> kArpCols = {
-            {"Internet Address",  24, true},
-            {"Physical Address",  23, true},
-            {"Type",               0, false},
-        };
-        QList<QStringList> arpRows;
 
         while (!ts.atEnd()) {
             QString line = ts.readLine().trimmed();
@@ -1560,16 +1665,58 @@ DiagnosticResult arpTable(DiagId id) {
     } else {
         out.append(QStringLiteral("  (ARP table not available)"));
     }
-#else  // PLATFORM_IOS or __APPLE__
-    out.append(QStringLiteral("  [iOS/macOS] ARP table: unavailable (no public link-layer API)"));
-#endif // !PLATFORM_IOS && !__APPLE__
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    // ── macOS: ARP cache via sysctl NET_RT_FLAGS RTF_LLINFO ──
+    {
+        int mib[] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO };
+        size_t needed = 0;
+        if (sysctl(mib, 6, nullptr, &needed, nullptr, 0) == 0 && needed > 0) {
+            QByteArray arpBuf((int)needed + 4096, '\0');
+            if (sysctl(mib, 6, arpBuf.data(), &needed, nullptr, 0) == 0) {
+                char* ptr = arpBuf.data(); char* end = ptr + needed;
+                while (ptr + (int)sizeof(struct rt_msghdr) <= end) {
+                    auto* rtm = (struct rt_msghdr*)ptr;
+                    if (rtm->rtm_version != RTM_VERSION || rtm->rtm_msglen < sizeof(struct rt_msghdr))
+                        break;
+                    struct sockaddr* sa = (struct sockaddr*)(rtm + 1);
+                    QString ip, mac;
+                    for (int i = 0; i < RTAX_MAX && sa->sa_len > 0; i++) {
+                        if (rtm->rtm_addrs & (1 << i)) {
+                            if (i == RTAX_DST && sa->sa_family == AF_INET)
+                                ip = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            else if (i == RTAX_GATEWAY && sa->sa_family == AF_LINK) {
+                                auto* sdl = (struct sockaddr_dl*)sa;
+                                if (sdl->sdl_alen == 6)
+                                    mac = macToStr((const unsigned char*)LLADDR(sdl));
+                            }
+                            sa = (struct sockaddr*)((char*)sa + sa->sa_len);
+                        }
+                    }
+                    if (!ip.isEmpty() && !mac.isEmpty())
+                        arpRows.append({ip, mac, QStringLiteral("dynamic")});
+                    ptr += rtm->rtm_msglen;
+                    if (rtm->rtm_msglen == 0) break;
+                }
+            }
+        }
+        if (!arpRows.isEmpty())
+            out.append(QStringLiteral("  ") + DiagnosticFormatter::formatTable(kArpCols, arpRows).join(QStringLiteral("\n  ")));
+        else
+            out.append(QStringLiteral("  (no ARP entries found)"));
+    }
+#else  // PLATFORM_IOS
 #endif
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#if defined(PLATFORM_IOS) || defined(__APPLE__)
+#ifdef PLATFORM_IOS
     r.status = DiagStatus::Skipped;
-    r.summary = QStringLiteral("Unavailable on this platform (no public ARP API)");
+    r.summary = QStringLiteral("Unavailable on iOS (no public ARP API)");
+#elif defined(__APPLE__)
+    r.status = arpRows.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    r.summary = arpRows.isEmpty()
+        ? QStringLiteral("No ARP entries found")
+        : QStringLiteral("ARP table collected via sysctl");
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("ARP table collected");
@@ -1602,6 +1749,12 @@ DiagnosticResult networkProfile(DiagId id) {
     QFile fwd(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     if (fwd.open(QIODevice::ReadOnly))
         out.append(QStringLiteral("  IP Forwarding: %1").arg(QString::fromLatin1(fwd.readAll().trimmed()) == "1" ? "Enabled" : "Disabled"));
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    int fwd = 0; size_t fwdSz = sizeof(fwd);
+    if (sysctlbyname("net.inet.ip.forwarding", &fwd, &fwdSz, nullptr, 0) == 0)
+        out.append(QStringLiteral("  IP Forwarding: %1").arg(fwd ? QStringLiteral("Enabled") : QStringLiteral("Disabled")));
+    else
+        out.append(QStringLiteral("  IP Forwarding: Unknown"));
 #endif // !PLATFORM_IOS
 #ifdef PLATFORM_IOS
     out.append(QStringLiteral("  [iOS] IP forwarding: unavailable (restricted by Apple)"));
@@ -1643,8 +1796,39 @@ DiagnosticResult tcpSettings(DiagId id) {
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_timestamps"), QStringLiteral("Timestamps"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_sack"), QStringLiteral("Selective ACK"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_fastopen"), QStringLiteral("TCP Fast Open"));
-#else
-    out.append(QStringLiteral("  [iOS/macOS] TCP settings: unavailable (kernel sysctls restricted)"));
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    // ── macOS: read TCP settings via sysctl ──
+    auto macOSSysctl = [&](const char* name, const QString& label, bool isBool = false) {
+        int val = 0;
+        size_t sz = sizeof(val);
+        if (sysctlbyname(name, &val, &sz, nullptr, 0) == 0) {
+            if (isBool)
+                tcpRows.append({label, val ? QStringLiteral("1 (enabled)") : QStringLiteral("0 (disabled)")});
+            else
+                tcpRows.append({label, QString::number(val)});
+        } else {
+            tcpRows.append({label, QStringLiteral("-")});
+        }
+    };
+    auto macOSSysctlStr = [&](const char* name, const QString& label) {
+        size_t sz = 0;
+        if (sysctlbyname(name, nullptr, &sz, nullptr, 0) == 0 && sz > 0) {
+            QByteArray buf((int)sz, '\0');
+            if (sysctlbyname(name, buf.data(), &sz, nullptr, 0) == 0)
+                tcpRows.append({label, QString::fromLatin1(buf.trimmed())});
+            else
+                tcpRows.append({label, QStringLiteral("-")});
+        } else tcpRows.append({label, QStringLiteral("-")});
+    };
+    macOSSysctlStr("net.inet.tcp.cc", QStringLiteral("Congestion Algorithm"));
+    macOSSysctl("net.inet.tcp.rfc1323", QStringLiteral("Window Scaling (RFC1323)"), true);
+    macOSSysctl("net.inet.tcp.sack", QStringLiteral("Selective ACK"), true);
+    macOSSysctl("net.inet.tcp.fastopen", QStringLiteral("TCP Fast Open"), true);
+    macOSSysctl("net.inet.tcp.delayed_ack", QStringLiteral("Delayed ACK"), true);
+    macOSSysctl("net.inet.tcp.keepidle", QStringLiteral("Keepalive Idle (s)"));
+    macOSSysctl("net.inet.tcp.keepintvl", QStringLiteral("Keepalive Interval (s)"));
+#else  // PLATFORM_IOS
+    out.append(QStringLiteral("  [iOS] TCP settings: unavailable (kernel sysctls restricted)"));
 #endif
     if (!tcpRows.isEmpty())
         out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));
@@ -1652,9 +1836,14 @@ DiagnosticResult tcpSettings(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#if defined(PLATFORM_IOS) || defined(__APPLE__)
+#ifdef PLATFORM_IOS
     r.status = DiagStatus::Skipped;
-    r.summary = QStringLiteral("Unavailable on this platform (kernel sysctls restricted)");
+    r.summary = QStringLiteral("Unavailable on iOS (kernel sysctls restricted)");
+#elif defined(__APPLE__)
+    r.status = tcpRows.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    r.summary = tcpRows.isEmpty()
+        ? QStringLiteral("TCP settings unavailable")
+        : QStringLiteral("TCP settings collected via sysctl");
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("TCP settings collected");
@@ -1704,9 +1893,42 @@ DiagnosticResult defaultGateway(DiagId id) {
             }
         }
     }
-#else  // PLATFORM_IOS or __APPLE__
-    out.append(QStringLiteral("  [iOS/macOS] Default gateway: unavailable (requires /proc/net/route)"));
-#endif // !PLATFORM_IOS && !__APPLE__
+#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+    // ── macOS: get default gateway via PF_ROUTE routing socket ──
+    int routeSock = socket(PF_ROUTE, SOCK_RAW, 0);
+    if (routeSock >= 0) {
+        struct { struct rt_msghdr h; struct sockaddr_in d; } msg;
+        memset(&msg, 0, sizeof(msg));
+        msg.h.rtm_msglen = sizeof(msg);
+        msg.h.rtm_version = RTM_VERSION;
+        msg.h.rtm_type = RTM_GET;
+        msg.h.rtm_flags = RTF_GATEWAY;
+        msg.h.rtm_addrs = RTA_DST;
+        msg.d.sin_len = sizeof(struct sockaddr_in);
+        msg.d.sin_family = AF_INET;
+        if (write(routeSock, &msg, msg.h.rtm_msglen) >= 0) {
+            char resp[512];
+            ssize_t n = read(routeSock, resp, sizeof(resp));
+            if (n > (ssize_t)sizeof(struct rt_msghdr)) {
+                auto* rh = (struct rt_msghdr*)resp;
+                auto* sa = (struct sockaddr*)(rh + 1);
+                for (int i = 0; i < RTAX_MAX; i++) {
+                    if (rh->rtm_addrs & (1 << i)) {
+                        if (i == RTAX_GATEWAY && sa->sa_family == AF_INET) {
+                            defaultGw = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                            out.append(QStringLiteral("  Default Gateway . . . . . . . . . : %1").arg(defaultGw));
+                            break;
+                        }
+                        if (sa->sa_len > 0)
+                            sa = (struct sockaddr*)((char*)sa + sa->sa_len);
+                        else break;
+                    }
+                }
+            }
+        }
+        close(routeSock);
+    }
+#else  // PLATFORM_IOS
 #endif
     if (defaultGw == QStringLiteral("Not found"))
         out.append(QStringLiteral("  No default gateway configured"));
@@ -1714,8 +1936,10 @@ DiagnosticResult defaultGateway(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
-    r.status = DiagStatus::Skipped;
-    r.summary = QStringLiteral("Unavailable on macOS (/proc/net/route not available; use netstat -rn)");
+    r.status = (defaultGw != QStringLiteral("Not found")) ? DiagStatus::Pass : DiagStatus::Warning;
+    r.summary = (defaultGw != QStringLiteral("Not found"))
+        ? QStringLiteral("Default gateway: %1").arg(defaultGw)
+        : QStringLiteral("No default gateway (routing socket query returned empty)");
 #else
     r.status = (defaultGw != QStringLiteral("Not found")) ? DiagStatus::Pass : DiagStatus::Warning;
     r.summary = (defaultGw != QStringLiteral("Not found"))
