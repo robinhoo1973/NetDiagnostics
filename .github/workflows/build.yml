@@ -578,7 +578,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install cmake ninja qt@6
+        run: brew install cmake ninja qt
 
       - name: Generate macOS app icon (.icns)
         run: |
@@ -598,11 +598,23 @@ jobs:
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
             -B build -S .
 
       - name: Build (production)
         run: ninja -C build net_diagnostics
+
+      - name: Bundle Qt frameworks (macdeployqt)
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            QT_PREFIX="$(brew --prefix qt)"
+            echo "Qt prefix: ${QT_PREFIX}"
+            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app -verbose=1
+            echo "[OK] Qt frameworks bundled into .app"
+            ls -la build/net_diagnostics.app/Contents/Frameworks/ 2>/dev/null || echo "  (no Frameworks dir)"
+          else
+            echo "[WARN] No .app bundle found; skipping macdeployqt"
+          fi
 
       - name: Configure (simulator)
         run: |
@@ -611,7 +623,7 @@ jobs:
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
             -B build-sim -S .
 
       - name: Build (simulator)
