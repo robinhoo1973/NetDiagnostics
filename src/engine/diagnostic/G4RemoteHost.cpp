@@ -1079,7 +1079,7 @@ DiagnosticResult pathPing(const QString& target) {
     for (const QString& line : tr.rawOutput.split('\n')) {
         QString trimmed = line.trimmed();
         if (trimmed.isEmpty() || trimmed.startsWith("Tracing") || trimmed.startsWith("over") ||
-            trimmed.startsWith("Trace") || trimmed.startsWith("...")) continue;
+            trimmed.startsWith("Trace") || trimmed.startsWith("...") || trimmed.startsWith("Target")) continue;
         // Match "[IP]" at end of non-timeout lines
         auto rb = line.indexOf('[');
         if (rb > 0) {
@@ -1212,7 +1212,9 @@ DiagnosticResult pathPing(const QString& target) {
             const auto& nextHop = hops[i + 1];
             int nextIdx = i; // index into hopStats for the next hop (hopStats[0] = hop 1)
             QString linkLoss;
-            if (nextIdx < hopStats.size() && !nextHop.ip.isEmpty()) {
+            // Only show real stats for the target hop; intermediate routers
+            // are not pinged (TCP doesn't reach them), so show N/A.
+            if (nextIdx < hopStats.size() && !nextHop.ip.isEmpty() && nextHop.reached) {
                 auto& nhs = hopStats[nextIdx];
                 linkLoss = QStringLiteral("  %1/%2 = %3%")
                     .arg(nhs.sent - nhs.rcvd, 2).arg(nhs.sent, 2).arg((int)nhs.loss, 2);

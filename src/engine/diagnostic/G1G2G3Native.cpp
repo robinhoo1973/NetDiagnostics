@@ -1560,16 +1560,16 @@ DiagnosticResult arpTable(DiagId id) {
     } else {
         out.append(QStringLiteral("  (ARP table not available)"));
     }
-#else  // PLATFORM_IOS
-    out.append(QStringLiteral("  [iOS] ARP table: unavailable (no public link-layer API)"));
-#endif // !PLATFORM_IOS
+#else  // PLATFORM_IOS or __APPLE__
+    out.append(QStringLiteral("  [iOS/macOS] ARP table: unavailable (no public link-layer API)"));
+#endif // !PLATFORM_IOS && !__APPLE__
 #endif
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS) || defined(__APPLE__)
     r.status = DiagStatus::Skipped;
-    r.summary = QStringLiteral("Unavailable on iOS (no public ARP API)");
+    r.summary = QStringLiteral("Unavailable on this platform (no public ARP API)");
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("ARP table collected");
@@ -1644,7 +1644,7 @@ DiagnosticResult tcpSettings(DiagId id) {
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_sack"), QStringLiteral("Selective ACK"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_fastopen"), QStringLiteral("TCP Fast Open"));
 #else
-    out.append(QStringLiteral("  [iOS] TCP settings: unavailable (restricted by Apple)"));
+    out.append(QStringLiteral("  [iOS/macOS] TCP settings: unavailable (kernel sysctls restricted)"));
 #endif
     if (!tcpRows.isEmpty())
         out.append(DiagnosticFormatter::formatTable(kTcpCols, tcpRows));
@@ -1652,9 +1652,9 @@ DiagnosticResult tcpSettings(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS) || defined(__APPLE__)
     r.status = DiagStatus::Skipped;
-    r.summary = QStringLiteral("Unavailable on iOS (kernel sysctls restricted)");
+    r.summary = QStringLiteral("Unavailable on this platform (kernel sysctls restricted)");
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("TCP settings collected");
@@ -1704,9 +1704,9 @@ DiagnosticResult defaultGateway(DiagId id) {
             }
         }
     }
-#else  // PLATFORM_IOS
-    out.append(QStringLiteral("  [iOS] Default gateway: unavailable (restricted by Apple)"));
-#endif // !PLATFORM_IOS
+#else  // PLATFORM_IOS or __APPLE__
+    out.append(QStringLiteral("  [iOS/macOS] Default gateway: unavailable (requires /proc/net/route)"));
+#endif // !PLATFORM_IOS && !__APPLE__
 #endif
     if (defaultGw == QStringLiteral("Not found"))
         out.append(QStringLiteral("  No default gateway configured"));
