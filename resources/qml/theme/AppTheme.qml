@@ -39,5 +39,5 @@ QtObject {
     readonly property real sidebarWidth:     260
 
     // ── Typography ────────────────────────────────────────────────────────
-    readonly property string monoFont: "JetBrains Mono, Noto Sans Mono CJK SC, Microsoft YaHei"
+    readonly property string monoFont: "JetBrains Mono"
 }
