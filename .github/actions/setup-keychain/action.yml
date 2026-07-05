@@ -1,0 +1,105 @@
+name: Setup macOS Keychain
+description: Create a temporary keychain, import a certificate, and authorize tools
+inputs:
+  primary_cert_base64:
+    description: Base64-encoded primary .p12 certificate (e.g. Mac Installer Distribution or iOS Distribution)
+    required: true
+  primary_cert_password:
+    description: Password for the primary .p12 certificate
+    required: true
+  secondary_cert_base64:
+    description: Optional secondary Base64-encoded .p12 certificate (e.g. Mac App Distribution cert for .app signing)
+    required: false
+    default: ""
+  secondary_cert_password:
+    description: Password for the optional secondary .p12 certificate
+    required: false
+    default: ""
+  allowed_tools:
+    description: Space-separated paths of tools allowed to access the key
+    required: false
+    default: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild /usr/bin/xcodebuild"
+outputs:
+  keychain_path:
+    description: Path to the created keychain
+    value: ${{ steps.setup.outputs.keychain_path }}
+  code_identity:
+    description: Signing identity for codesign (Application cert)
+    value: ${{ steps.setup.outputs.code_identity }}
+  installer_identity:
+    description: Signing identity for pkgbuild/productbuild (Installer cert)
+    value: ${{ steps.setup.outputs.installer_identity }}
+
+runs:
+  using: composite
+  steps:
+    - id: setup
+      shell: bash
+      env:
+        PRIMARY_CERT_BASE64: ${{ inputs.primary_cert_base64 }}
+        PRIMARY_CERT_PASSWORD: ${{ inputs.primary_cert_password }}
+        SECONDARY_CERT_BASE64: ${{ inputs.secondary_cert_base64 }}
+        SECONDARY_CERT_PASSWORD: ${{ inputs.secondary_cert_password }}
+        ALLOWED_TOOLS: ${{ inputs.allowed_tools }}
+      run: |
+        set -euo pipefail
+        KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+        KEYCHAIN_PATH="$RUNNER_TEMP/signing-${RANDOM}.keychain-db"
+
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security default-keychain -s "$KEYCHAIN_PATH"
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+        security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+        # Decode and import the certificate
+        echo -n "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
+        TOOL_ARGS=""
+        for tool in $ALLOWED_TOOLS; do
+          TOOL_ARGS="$TOOL_ARGS -T $tool"
+        done
+        security import "$RUNNER_TEMP/signing-cert.p12" \
+          -k "$KEYCHAIN_PATH" \
+          -P "$PRIMARY_CERT_PASSWORD" \
+          -A $TOOL_ARGS
+        rm -f "$RUNNER_TEMP/signing-cert.p12"
+
+        # Optionally import a secondary certificate (e.g. Mac App Distribution for .app signing)
+        if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
+          echo -n "$SECONDARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert-secondary.p12"
+          security import "$RUNNER_TEMP/signing-cert-secondary.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "${SECONDARY_CERT_PASSWORD:-}" \
+            -A $TOOL_ARGS
+          rm -f "$RUNNER_TEMP/signing-cert-secondary.p12"
+        fi
+
+        # Allow codesign/xcodebuild to access the key without prompting
+        security set-key-partition-list -S apple-tool:,apple: \
+          -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" > /dev/null 2>&1 || true
+
+        # Find signing identities.  "Installer" certs can only sign .pkg,
+        # "Application" certs can sign code.  Output both separately.
+        # Use { } || true because set -o pipefail would kill the script when
+        # grep finds no match, before the fallback below can run.
+        CODE_IDENTITY=""
+        { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -iE "Apple (Development|Distribution)|Mac Developer|iPhone (Developer|Distribution)" \
+          | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+        INSTALLER_IDENTITY=""
+        { INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+          | grep -iE "Developer Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+        # Fallback: pick any valid non-revoked non-expired non-Installer identity
+        if [ -z "$CODE_IDENTITY" ] || [ "$CODE_IDENTITY" = "null" ]; then
+          { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
+            | grep -vi "REVOKED\|expired\|Installer" | grep '"' | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+        fi
+        if [ -z "$INSTALLER_IDENTITY" ]; then
+          INSTALLER_IDENTITY="$CODE_IDENTITY"
+        fi
+
+        echo "keychain_path=${KEYCHAIN_PATH}" >> "$GITHUB_OUTPUT"
+        echo "code_identity=${CODE_IDENTITY}" >> "$GITHUB_OUTPUT"
+        echo "installer_identity=${INSTALLER_IDENTITY}" >> "$GITHUB_OUTPUT"
+        echo "Keychain: $KEYCHAIN_PATH"
+        echo "Code identity: $CODE_IDENTITY"
+        echo "Installer identity: $INSTALLER_IDENTITY"
