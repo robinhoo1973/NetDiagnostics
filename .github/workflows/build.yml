@@ -525,24 +525,25 @@ jobs:
           mkdir -p dist/installer
           cp build/net_diagnostics.exe dist/installer/
           cp build-sim/net_diagnostics_sim.exe dist/installer/ 2>/dev/null || true
-          # Copy runtime DLLs first so windeployqt can launch the exe for QML scanning
-          for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
-                     libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
-            cp "$QT_BIN/${dll}.dll" dist/installer/ 2>/dev/null || true
-          done
-          QT_BIN_WIN="$(cygpath -w "$QT_BIN")"
+          # Deploy Qt DLLs, plugins, and QML modules into dist/installer/
+          # Note: --qmldir removed because Qt 6.7+ no longer ships qmlimportscanner.exe
+          # (MSYS2 uses the newer 'qml' tool); windeployqt detects QML module usage
+          # from the binary's DLL imports instead.
+          # Note: --libdir removed so Qt DLLs are deployed alongside the exe in
+          # dist/installer/ (required for the NSIS installer to bundle them).
           windeployqt dist/installer/net_diagnostics.exe \
-            --libdir "$QT_BIN_WIN" \
-            --qmldir "$(cygpath -w "$PWD/resources/qml")" \
             --no-translations \
             --no-compiler-runtime
           if [ -f dist/installer/net_diagnostics_sim.exe ]; then
             windeployqt dist/installer/net_diagnostics_sim.exe \
-              --libdir "$QT_BIN_WIN" \
-              --qmldir "$(cygpath -w "$PWD/resources/qml")" \
               --no-translations \
               --no-compiler-runtime
           fi
+          # Copy third-party runtime DLLs that windeployqt doesn't handle
+          for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
+                     libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
+            cp "$QT_BIN/${dll}.dll" dist/installer/ 2>/dev/null || true
+          done
           echo "=== Deployed files ==="
           ls -R dist/installer/
 
