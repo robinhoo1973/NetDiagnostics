@@ -1012,7 +1012,8 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             if (bssid.isEmpty()) bssid = QStringLiteral("-");
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
+            // Linux WiFi ioctl (requires <linux/wireless.h> — not available on Android Bionic)
             int sock = socket(AF_INET, SOCK_DGRAM, 0);
             if (sock >= 0) {
                 struct iwreq wrq; memset(&wrq, 0, sizeof(wrq));
