@@ -114,8 +114,12 @@ QtObject {
         secondary       = lt ? lSecondary     : dSecondary
     }
 
-    // React to theme mode changes
-    onModeChanged: applyTheme()
+    // Suppress applyTheme() during singleton init — onModeChanged fires
+    // when mode is first set to Dark, but calling applyTheme() cascades
+    // 22 property change signals which overloads the QML binding engine.
+    property bool _ready: false
+    Component.onCompleted: _ready = true
+    onModeChanged: { if (_ready) applyTheme() }
 
     // ── Convenience objects (reference active properties — updated by applyTheme)
     readonly property var colors: ({
