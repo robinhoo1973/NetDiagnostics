@@ -16,12 +16,12 @@ Item {
         visible: itemData.isPending; spacing: 8
         AppIcon {
             name: itemData.isRunning ? "spinner" : "badge-skip"; size: 12
-            color: itemData.isRunning ? "#00BCD4" : "#555555"
+            color: itemData.isRunning ? ThemeEngine.colors.primary : ThemeEngine.textMuted
             RotationAnimation on rotation { running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite }
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: "#666666"
+            font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Label {
@@ -37,7 +37,7 @@ Item {
         AppIcon {
             name: { var s=itemData.status; if(s===0)return"badge-check"; if(s===2)return"badge-close"; if(s===1)return"badge-warning"; if(s===4)return"badge-error"; if(s===5)return"badge-info"; return"badge-skip" }
             size: 12
-            color: "white"
+            color: { var s=itemData.status; return s===0?ThemeEngine.passGreen:(s===1?ThemeEngine.warnYellow:(s===2?ThemeEngine.failRed:(s===3?ThemeEngine.skipGray:ThemeEngine.infoBlue))) }
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)

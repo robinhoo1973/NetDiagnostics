@@ -16,7 +16,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
         color: Qt.alpha(ThemeEngine.bgDark, 0.6)
-        border { width: targetField.activeFocus ? 1.5 : 1; color: page._snapTargetError !== "" ? ThemeEngine.failRed : (targetField.activeFocus ? ThemeEngine.accentBlue : "#3A3A5A") }
+        border { width: targetField.activeFocus ? 1.5 : 1; color: page._snapTargetError !== "" ? ThemeEngine.failRed : (targetField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard) }
         RowLayout {
             anchors { fill: parent; leftMargin: 10; rightMargin: 4 }
             AppIcon {

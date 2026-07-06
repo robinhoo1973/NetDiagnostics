@@ -32,8 +32,8 @@ Item {
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 52; color: "#1A1A2E"
-        border { width: 1; color: "#3A3A5A" }
+        implicitHeight: 52; color: ThemeEngine.colors.navBar
+        border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: "dashboard"; size: 20; color: ThemeEngine.cyan }
@@ -44,7 +44,7 @@ Item {
             Rectangle {
                 visible: hasData
                 implicitWidth: 60; implicitHeight: 32; radius: 6; color: "transparent"
-                border { width: 1; color: "#5A5A7A" }
+                border { width: 1; color: ThemeEngine.colors.borderCard }
                 MouseArea { anchors.fill: parent; onClicked: appState.reset() }
                 Label { anchors.centerIn: parent; text: Tr.resetLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary }
             }
@@ -211,7 +211,7 @@ Item {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
-                    AppIcon { name: page.statusIcon(modelData.status); size: 10; color: "white" }
+                    AppIcon { name: page.statusIcon(modelData.status); size: 10; color: page.statusColor(modelData.status) }
                     Item { width: 6 }
                     Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textSecondary; elide:Text.ElideRight }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.textSecondary,0.6) }

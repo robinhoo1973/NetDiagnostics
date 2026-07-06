@@ -98,7 +98,7 @@ Item {
                 }
             }
         }
-        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: "#3A3A5A" }
+        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: ThemeEngine.colors.borderCard }
         ContentArea { Layout.fillWidth: true; Layout.fillHeight: true }
     }
 
@@ -119,7 +119,7 @@ Item {
                 }
             }
         }
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#3A3A5A" }
+        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ThemeEngine.colors.borderCard }
         ContentArea { Layout.fillWidth: true; Layout.fillHeight: true }
     }
 
@@ -155,10 +155,10 @@ Item {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 48
             color: "transparent"
-            border { width: 1; color: "#3A3A5A" }
+            border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "wifi"; size: 20; color: ThemeEngine.cyan }
+                AppIcon { name: "diagnostics"; size: 20; color: ThemeEngine.cyan }
                 Item { width: 10 }
                 Label { text: "NetDiagnostics"; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
             }
@@ -246,7 +246,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true; Layout.preferredHeight: 20; color: "transparent"
             visible: !compact
-            Rectangle { anchors.centerIn: parent; width: parent.width - 24; height: 1; color: "#3A3A5A" }
+            Rectangle { anchors.centerIn: parent; width: parent.width - 24; height: 1; color: ThemeEngine.colors.borderCard }
         }
 
         // Target Analysis
@@ -264,7 +264,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: summaryCards.implicitHeight + 24
             color: "transparent"
-            border { width: 1; color: "#3A3A5A" }
+            border { width: 1; color: ThemeEngine.colors.borderCard }
             SummaryCards { id: summaryCards; anchors { fill: parent; margins: 12; topMargin: 8; bottomMargin: 16 } }
         }
     }
@@ -276,7 +276,7 @@ Item {
         // Header bar — status label, progress counter
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 41
-            color: "#1A1A2E"
+            color: ThemeEngine.colors.navBar
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 AppIcon { name: "diagnostics"; size: 18; color: ThemeEngine.cyan }
@@ -409,7 +409,7 @@ Item {
                     Label { id: dtTitle; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"#FFFFFF"; elide:Text.ElideRight }
                     Label { id: dtStatus; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"#A0A0B8" }
                     Label { id: dtSummary; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"#E0E0E0"; wrapMode:Text.WordWrap }
-                    Rectangle { width: parent.width; height: 1; color: "#3A3A5A" }
+                    Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
                     Repeater {
                         model: currentDetail.properties || []
                         delegate: Row {

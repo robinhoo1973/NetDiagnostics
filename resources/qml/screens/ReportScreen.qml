@@ -72,8 +72,8 @@ Item {
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 52; color: "#1A1A2E"
-        border { width: 1; color: "#3A3A5A" }
+        implicitHeight: 52; color: ThemeEngine.colors.navBar
+        border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
@@ -169,7 +169,7 @@ Item {
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: "white" }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: page.isRunning ? ThemeEngine.colors.primary : (hasResults ? ThemeEngine.passGreen : ThemeEngine.infoBlue) }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
@@ -202,7 +202,7 @@ Item {
             height: Math.max(parent.height * 0.20, parent.height * 0.92)
             radius: 12; color: "#1F1F32"
             clip: true
-            border { width: 2; color: "#5A5A7A" }
+            border { width: 2; color: ThemeEngine.colors.borderCard }
 
             ColumnLayout {
                 anchors { fill: parent; margins: 12 }
@@ -249,7 +249,7 @@ Item {
                             width: parent.width
                             text: page.previewHtml
                             textFormat: Text.RichText
-                            color: "#1A1A2E"
+                            color: ThemeEngine.colors.navBar
                             wrapMode: Text.WordWrap
                             font.pixelSize: 13
                             font.family: "Helvetica"

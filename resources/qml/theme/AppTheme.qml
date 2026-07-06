@@ -28,7 +28,7 @@ QtObject {
     readonly property string infoBlue:        "#0078D4"
 
     // ── Borders ────────────────────────────────────────────────────────
-    readonly property string borderCard:      "#3A3A5A"
+    readonly property string borderCard:      ThemeEngine.colors.borderCard
     readonly property string borderSubtle:    "#2A2A4A"
     readonly property string borderFocused:   "#0078D4"
 
