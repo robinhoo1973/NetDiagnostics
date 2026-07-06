@@ -42,13 +42,13 @@ Item {
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
-            color: { var s=itemData.status; return(s===0)?"#E0E0E0":(s===2?"#EF4444":"#A0A0B8") }
+            color: { var s=itemData.status; return s===0?ThemeEngine.colors.textPrimary:(s===2?ThemeEngine.failRed:ThemeEngine.colors.textSecondary) }
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Rectangle {
             visible: (itemData.durationMs||0)>0; implicitWidth:durText.implicitWidth+12; implicitHeight:20; radius:4
-            color: "#2A2A4A"
-            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:"#A0A0B8" }
+            color: ThemeEngine.colors.borderCard
+            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
         }
     }
 

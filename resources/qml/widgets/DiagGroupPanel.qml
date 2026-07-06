@@ -12,8 +12,8 @@ Rectangle {
 
     height: cardColumn.implicitHeight + 16
     radius: 10
-    color: "#16213E"
-    border { width: 1; color: isRunning ? Qt.alpha("#00BCD4", 0.4) : "#2A2A4A" }
+    color: ThemeEngine.colors.card
+    border { width: 1; color: isRunning ? Qt.alpha("#00BCD4", 0.4) : ThemeEngine.colors.borderCard }
 
     // ── Computed state — all from C++ groupStats (single source of truth) ──
     property var allItems: { let _v = appState.resultsVersion; return appState.allDiagsForGroup(groupIndex) }
@@ -59,26 +59,26 @@ Rectangle {
         // ── Header ────────────────────────────────────────────────────
         RowLayout {
             spacing: 8
-            Rectangle { width:3; height:24; radius:2; color:isRunning?"#00BCD4":"#0078D4" }
+            Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.cyan:ThemeEngine.infoBlue }
             ColumnLayout { spacing:1
-                Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:"#E0E0E0" }
-                Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:"#00BCD4"; elide:Text.ElideRight }
+                Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
+                Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.cyan; elide:Text.ElideRight }
             }
             Item { Layout.fillWidth:true }
-            Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:"#A0A0B8" }
-            Rectangle { visible:groupPass>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#4ADE80",0.15); Label { anchors.centerIn:parent; text:groupPass; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:"#4ADE80"; font.weight:Font.Bold } }
-            Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#FACC15",0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:"#FACC15"; font.weight:Font.Bold } }
-            Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#EF4444",0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:"#EF4444"; font.weight:Font.Bold } }
-            Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#888888",0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:"#888888"; font.weight:Font.Bold } }
-            Rectangle { visible:groupInfo>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha("#0078D4",0.15); Label { anchors.centerIn:parent; text:groupInfo; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:"#0078D4"; font.weight:Font.Bold } }
-            Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:"#A0A0B8" }
+            Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
+            Rectangle { visible:groupPass>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.passGreen,0.15); Label { anchors.centerIn:parent; text:groupPass; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.passGreen; font.weight:Font.Bold } }
+            Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.warnYellow,0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.warnYellow; font.weight:Font.Bold } }
+            Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.failRed,0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.failRed; font.weight:Font.Bold } }
+            Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.skipGray,0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.skipGray; font.weight:Font.Bold } }
+            Rectangle { visible:groupInfo>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.infoBlue,0.15); Label { anchors.centerIn:parent; text:groupInfo; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.infoBlue; font.weight:Font.Bold } }
+            Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
         }
 
         // ── Progress bar ──────────────────────────────────────────────
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 4; Layout.topMargin: 6
             visible: isRunning || completedCount > 0
-            radius: 2; color: "#2A2A4A"
+            radius: 2; color: ThemeEngine.colors.borderCard
             Rectangle {
                 height: 4; radius: 2
                 width: enabledCount>0 ? parent.width*(completedCount/enabledCount) : 0
@@ -91,7 +91,7 @@ Rectangle {
             Layout.fillWidth: true; Layout.topMargin: 6
             visible: expanded
             spacing: 0
-            Rectangle { Layout.fillWidth:true; implicitHeight:1; color:"#2A2A4A" }
+            Rectangle { Layout.fillWidth:true; implicitHeight:1; color:ThemeEngine.colors.borderCard }
             Repeater {
                 model: root._modelVersion >= 0 ? root.itemsModel : []
                 delegate: Item {
@@ -100,7 +100,7 @@ Rectangle {
                     // TreeView connector: vertical line + horizontal stub
                     Rectangle {
                         anchors { top:parent.top; bottom:parent.bottom; left:parent.left; leftMargin:6 }
-                        width:2; color:"#2A2A4A"
+                        width:2; color:ThemeEngine.colors.borderCard
                     }
                     DiagResultItem {
                         id: testItem

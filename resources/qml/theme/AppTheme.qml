@@ -10,7 +10,7 @@ QtObject {
     readonly property string bgDark:          "#1E1E2E"
     readonly property string bgSidebar:       "#252538"
     readonly property string bgCard:          "#16213E"
-    readonly property string bgInput:         "#2A2A4A"
+    readonly property string bgInput:         ThemeEngine.colors.borderCard
 
     // ── Text ───────────────────────────────────────────────────────────
     readonly property string textPrimary:     "#E0E0E0"
@@ -29,7 +29,7 @@ QtObject {
 
     // ── Borders ────────────────────────────────────────────────────────
     readonly property string borderCard:      ThemeEngine.colors.borderCard
-    readonly property string borderSubtle:    "#2A2A4A"
+    readonly property string borderSubtle:    ThemeEngine.colors.borderCard
     readonly property string borderFocused:   "#0078D4"
 
     // ── Dimensions ─────────────────────────────────────────────────────

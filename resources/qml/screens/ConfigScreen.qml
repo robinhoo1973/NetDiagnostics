@@ -30,7 +30,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true; Layout.preferredHeight: 44
                 anchors { leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "config"; size: 20; color: ThemeEngine.cyan }
+                AppIcon { name: "config"; size: 20; color: ThemeEngine.colors.textPrimary }
                 Item { width: 10 }
                 Label { text: Tr.diagConfig; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
             }
@@ -74,7 +74,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 60
             color: Qt.alpha(ThemeEngine.bgCard, 0.5)
-            border { width: 1; color: "#2A2A4A" }
+            border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 ColumnLayout { spacing: 2
@@ -135,7 +135,7 @@ Item {
                 background: Rectangle { color: "transparent"
                     Rectangle {
                         anchors { bottom: parent.bottom; left: parent.left; right: parent.right; leftMargin: 16 }
-                        height: 1; color: "#2A2A4A"
+                        height: 1; color: ThemeEngine.colors.borderCard
                     }
                 }
 
