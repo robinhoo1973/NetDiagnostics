@@ -176,7 +176,11 @@ function Test-Dependencies {
 
     Write-Info "Checking required MSYS2 packages..."
     $pkgs_check = @()
-    foreach ($pkg in $required_pkgs) { $pkgs_check += "pacman -Q '$pkg' 2>/dev/null && echo '  [OK]  $pkg' || echo '  [MISS] $pkg'" }
+    $pkgs_check += "missing=0"
+    foreach ($pkg in $required_pkgs) {
+        $pkgs_check += "if pacman -Q '$pkg' 2>/dev/null; then echo '  [OK]  $pkg'; else echo '  [MISS] $pkg'; missing=1; fi"
+    }
+    $pkgs_check += "exit `$missing"
     $check_script = "#!/usr/bin/env bash`nset -e`n" + ($pkgs_check -join "`n") + "`n"
     $check_path = Join-Path $TEMP_DIR "check-pkgs.sh"
     $utf8 = New-Object System.Text.UTF8Encoding $false
@@ -208,10 +212,7 @@ function Initialize-BuildEnv {
             Write-Info "Cleaning build temp: $TEMP_DIR"
             Remove-Item -Recurse -Force $TEMP_DIR -ErrorAction SilentlyContinue
         }
-        Get-ChildItem $DIST_DIR -Filter "netdiag-*" -ErrorAction SilentlyContinue | Remove-Item -Force
-        Get-ChildItem $DIST_DIR -Filter "build-*.log" -ErrorAction SilentlyContinue | Remove-Item -Force
-        Get-ChildItem $DIST_DIR -Filter "build-*.cmake" -ErrorAction SilentlyContinue | Remove-Item -Force
-        Get-ChildItem $DIST_DIR -Filter "build-*.ninja" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Get-ChildItem "$DIST_DIR\*" -Include "netdiag-*", "build-*.log", "build-*.cmake", "build-*.ninja" -ErrorAction SilentlyContinue | Remove-Item -Force
         Write-Info "Cleaned dist/ artifacts and logs"
     }
 
@@ -235,10 +236,8 @@ function Initialize-BuildEnv {
 function Invoke-AppBuild {
     Write-Step "Static Build (Production + Simulator)"
 
-    $build_prod = $true
-    $build_sim  = $true
-    if ($ProdOnly) { $build_sim = $false }
-    if ($SimOnly)  { $build_prod = $false }
+    $build_prod = -not $SimOnly
+    $build_sim  = -not $ProdOnly
 
     $build_number = (Get-Date -Format "yyyyMMdd") + "00"
 
@@ -258,7 +257,6 @@ CMAKE_PREFIX_PATH="`$QT6_PREFIX"
 
 STATIC_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
 STATIC_LINK_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections $LINKER_GROUP_FLAGS"
-STATIC_C_FLAGS="-static -static-libgcc -O2"
 STANDARD_LIBS="$WIN_SYS_LIBS"
 
 echo "============================================"
@@ -293,7 +291,6 @@ build_target() {
         -DAPP_EDITION=static \
         -DCMAKE_CXX_FLAGS="`${STATIC_CXX_FLAGS}" \
         -DCMAKE_EXE_LINKER_FLAGS="`${STATIC_LINK_FLAGS}" \
-        -DCMAKE_C_FLAGS="`${STATIC_C_FLAGS}" \
         -DCMAKE_CXX_STANDARD_LIBRARIES="`${STANDARD_LIBS}" \
         -DCMAKE_PREFIX_PATH="`${CMAKE_PREFIX_PATH}" \
         -DBUILD_SIMULATOR="`${sim_flag}" \
@@ -409,7 +406,7 @@ set -euo pipefail
 DIST_DIR=`$(cygpath -u '$DIST_DIR')
 
 # System DLLs that are always OK (OS-provided)
-SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
+SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win|uuid"
 
 FAIL=0
 
@@ -423,7 +420,7 @@ check_exe() {
     echo "  Size: `$sz"
 
     local nonsys
-    nonsys=`$(objdump -p "`$exe" 2>/dev/null | grep "DLL Name" | awk '{print `$3}' | tr -d '\r' | grep -viE "`$SYSTEM_DLLS" || true)
+    nonsys=`$(objdump -p "`$exe" 2>/dev/null | grep "DLL Name" | awk '{print `$3}' | tr -d `$'\r' | grep -viE "`$SYSTEM_DLLS" || true)
 
     if [ -n "`$nonsys" ]; then
         echo "  [FAIL] Non-OS DLL dependencies found:"
