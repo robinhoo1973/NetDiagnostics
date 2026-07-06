@@ -13,7 +13,7 @@ ColumnLayout {
         AppIcon {
             name: status === 1 ? "spinner" : status === 2 ? "badge-check" : status === 3 ? "badge-close" : status === 4 ? "badge-error" : "badge-circle"
             size: 14
-            color: status === 1 ? ThemeEngine.colors.primary : (status === 2 ? ThemeEngine.passGreen : (status === 3 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary))
+            color: status === 1 ? ThemeEngine.colors.primary : (status === 2 ? ThemeEngine.passGreen : (status === 3 || status === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary))
             RotationAnimation on rotation { running: status === 1; from:0; to:360; duration:1000; loops:Animation.Infinite }
         }
         Label {

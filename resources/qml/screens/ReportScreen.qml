@@ -163,9 +163,9 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: statusRow.implicitWidth + 32; implicitHeight: 40; radius: 8
                 color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.1)
-                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.1) : Qt.alpha(ThemeEngine.warnYellow, 0.1))
+                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.1) : Qt.alpha(ThemeEngine.infoBlue, 0.1))
                 border { width: 1; color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.3)
-                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.3) : Qt.alpha(ThemeEngine.warnYellow, 0.3)) }
+                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.3) : Qt.alpha(ThemeEngine.infoBlue, 0.3)) }
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent

@@ -76,7 +76,7 @@ QtObject {
 
     // ── Theme switching (imperative JS — gated to skip init) ──────────
     property bool _ready: false
-    Component.onCompleted: _ready = true
+    Component.onCompleted: { _ready = true; applyTheme() }
 
     // Theme color keys — single source for both palette objects and assignment loop
     readonly property var _colorKeys: [
