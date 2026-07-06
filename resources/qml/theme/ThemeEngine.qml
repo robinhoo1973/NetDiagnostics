@@ -20,11 +20,11 @@ QtObject {
     property int mode: Dark  // default to dark (current behavior)
 
     // Detect OS color scheme (Qt 6.5+ built-in styleHints API).
-    // Qt.Dark resolves to Qt::GlobalColor::Dark (≠ Qt::ColorScheme::Dark).
-    // Must use Qt.ColorScheme.Dark for correct comparison.
-    readonly property bool systemIsDark: typeof Qt.styleHints.colorScheme !== "undefined"
-        ? Qt.styleHints.colorScheme === Qt.ColorScheme.Dark
-        : true  // Qt < 6.5 fallback: assume dark
+    // Qt.styleHints.colorScheme returns Qt::ColorScheme enum:
+    //   Unknown = 0, Light = 1, Dark = 2
+    // Using integer comparison avoids QML enum resolution issues with
+    // Qt.Dark (which maps to Qt::GlobalColor::Dark=7, not ColorScheme::Dark=2).
+    readonly property bool systemIsDark: Qt.styleHints.colorScheme === 2
 
     readonly property int effectiveMode: mode === System ? (systemIsDark ? Dark : Light) : mode
 
