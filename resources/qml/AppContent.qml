@@ -10,27 +10,25 @@ import "theme"
 
 Item {
     id: content
-    property alias stackView: stackView
-    property int currentTab: 1  // 0=Dash,1=Diag,2=Conf,3=Rpt,4=Sett
+    readonly property alias stackView: stackView
     property bool compact: false // mobile: icons only, right-aligned, no close
     signal closeRequested()
 
+    // ── Single source of truth for tab definitions ───────────────────
+    readonly property var tabScreens: ["dashboard","diagnostic","config","report","settings"]
+    readonly property var tabComponents: [dashboardComp, diagnosticComp, configComp, reportComp, settingsComp]
+    readonly property var tabLabels: [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.report, Tr.settings]
+
     function switchToTab(idx) {
-        var screens = ["dashboard","diagnostic","config","report","settings"]
-        var comps = [dashboardComp, diagnosticComp, configComp, reportComp, settingsComp]
-        if (idx < 0 || idx >= screens.length) return
+        if (idx < 0 || idx >= tabScreens.length) return
         for (var i = 0; i < stackView.depth; i++) {
             var item = stackView.get(i)
-            if (item && item.objectName === screens[idx]) {
-                currentTab = idx
+            if (item && item.objectName === tabScreens[idx]) {
                 stackView.pop(item)
                 return
             }
         }
-        if (comps[idx]) {
-            currentTab = idx
-            stackView.push(comps[idx].createObject(stackView))
-        }
+        stackView.push(tabComponents[idx].createObject(stackView))
     }
 
     Component { id: diagnosticComp; DiagnosticScreen { objectName: "diagnostic" } }
@@ -52,7 +50,7 @@ Item {
 
         // ── Bottom dock navigation bar ───────────────────────────────
         Rectangle {
-            Layout.fillWidth: true; Layout.fillHeight: false
+            Layout.fillWidth: true
             implicitHeight: compact ? 32 : 36
             color: "#1A1A2E"
             // Drag handle for frameless window (Qt.FramelessWindowHint)
@@ -84,8 +82,7 @@ Item {
                             property bool active: stackView.currentItem && stackView.currentItem.objectName === modelData.screen
                             property string labelText: {
                                 Tr.lang // force re-evaluation on language change
-                                var names = [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.report, Tr.settings]
-                                return names[index] || modelData.screen
+                                return content.tabLabels[index] || modelData.screen
                             }
                             implicitWidth: compact ? 44 : 100; implicitHeight: 32
                             background: Rectangle {

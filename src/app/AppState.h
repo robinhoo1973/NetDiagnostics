@@ -15,6 +15,9 @@
 #include <memory>
 #include "models/DiagId.h"
 #include "models/DiagnosticResult.h"
+#include "app/DiagnosticConfig.h"
+#include "app/ReportEngine.h"
+#include "app/PremiumStore.h"
 
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
@@ -71,11 +74,11 @@ public:
     QStringList groupLabels() const;
 
     // ── Port scan config ───────────────────────────────────────────────────
-    bool portScanCommon() const { return m_portScanCommon; }
+    bool portScanCommon() const { return m_config.portScanCommon(); }
     void setPortScanCommon(bool v);
-    int portScanFrom() const { return m_portScanFrom; }
+    int portScanFrom() const { return m_config.portScanFrom(); }
     void setPortScanFrom(int v);
-    int portScanTo() const { return m_portScanTo; }
+    int portScanTo() const { return m_config.portScanTo(); }
     void setPortScanTo(int v);
 
     // ── Invokable methods (callable from QML) ──────────────────────────────
@@ -115,7 +118,7 @@ public:
     Q_INVOKABLE void requestSavePath(const QString& format);
 
     // ── Premium / sharing ──────────────────────────────────────────────────
-    bool isPremium() const { return m_isPremium; }
+    bool isPremium() const { return m_premium.isPremium(); }
     Q_INVOKABLE void setPremium(bool v);
     // Cross-platform entry point for starting a Premium purchase.
     // iOS: StoreKit via PlatformStore_ios.mm; Android: (future) Play Billing.
@@ -126,7 +129,7 @@ public:
     // Desktop: no-op. Emits purchaseInProgressChanged while active.
     Q_INVOKABLE void restorePurchases();
     // True while a StoreKit / Play Billing purchase dialog is presented.
-    bool purchaseInProgress() const { return m_purchaseInProgress; }
+    bool purchaseInProgress() const { return m_premium.purchaseInProgress(); }
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);
 
@@ -180,6 +183,7 @@ private:
     static QString staticDiagDisplayName(DiagId id);
     void bumpVersion();
     void emailReportDesktop(const QString& path);
+    ReportData buildReportData() const;  // snapshot for ReportEngine
 
     QString m_target;
     RunStatus m_runStatus = RunStatus::Idle;
@@ -190,11 +194,11 @@ private:
     int m_totalCompleted = 0;
     int m_totalDiags = 0;
 
-    bool m_portScanCommon = true;
-    int m_portScanFrom = 0;
-    int m_portScanTo = 0;
+    // DiagnosticConfig owns port-scan settings + diag enable/disable state
+    DiagnosticConfig m_config;
+    // ReportEngine handles HTML/PDF generation + file dialogs
+    ReportEngine m_reportEngine;
 
-    QSet<DiagId> m_enabledDiags;
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_completedPerGroup;
     QMap<DiagGroup, int> m_totalPerGroup;
@@ -209,8 +213,7 @@ private:
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
     int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
-    bool m_isPremium = false;
-    bool m_purchaseInProgress = false;
+    PremiumStore m_premium;
 
     // Cached group stats — invalidated on progressChanged
     mutable QVariantList m_cachedGroupStats;

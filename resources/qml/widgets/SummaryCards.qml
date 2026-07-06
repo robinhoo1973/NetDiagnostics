@@ -17,11 +17,11 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 6 }
 
-    SummaryCard { Layout.fillWidth: true; accent: Theme.passGreen;  label: Tr.summaryPass;    count: summaryRoot.pass;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.accentBlue;label: Tr.summaryInfo;    count: summaryRoot.info;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.warnYellow; label: Tr.summaryWarning; count: summaryRoot.warn;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.failRed;   label: Tr.summaryFail;    count: summaryRoot.fail;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.skipGray;  label: Tr.summarySkipped; count: summaryRoot.skip;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: Theme.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: Theme.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: Theme.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: Theme.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: Theme.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;  rightAlign: summaryRoot.compact }
 
     Connections {
         target: appState
@@ -41,6 +41,7 @@ ColumnLayout {
     component SummaryCard: Rectangle {
         property color accent: Theme.passGreen
         property string label: ""
+        property string iconName: "badge-info"
         property int count: 0
         property bool rightAlign: false
         implicitHeight: 32; radius: 6; Layout.topMargin: 2
@@ -50,7 +51,7 @@ ColumnLayout {
         RowLayout {
             anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
             AppIcon {
-                name: label === "Pass" ? "badge-check" : (label === "Warning" ? "badge-warning" : (label === "Fail" ? "badge-close" : (label === "Skipped" ? "badge-skip" : "badge-info")))
+                name: iconName
                 size: 14; color: accent
             }
             Item { Layout.fillWidth: true }

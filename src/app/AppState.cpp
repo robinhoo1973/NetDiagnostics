@@ -44,24 +44,27 @@
 #endif
 
 AppState::AppState(QObject* parent) : QObject(parent) {
+    // Forward service signals to QML
+    connect(&m_config, &DiagnosticConfig::portScanConfigChanged,
+            this, &AppState::portScanConfigChanged);
+    connect(&m_reportEngine, &ReportEngine::savePathPicked,
+            this, &AppState::savePathPicked);
+    // Forward PremiumStore signals to QML
+    connect(&m_premium, &PremiumStore::premiumChanged,
+            this, &AppState::premiumChanged);
+    connect(&m_premium, &PremiumStore::purchaseInProgressChanged,
+            this, &AppState::purchaseInProgressChanged);
+    connect(&m_premium, &PremiumStore::premiumRequired,
+            this, &AppState::premiumRequired);
+    connect(&m_premium, &PremiumStore::restoreCompleted,
+            this, &AppState::restoreCompleted);
+
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
-    for (auto id : allDiagIds()) {
-        auto g = diagGroup(id);
-        if (g == DiagGroup::G1 || g == DiagGroup::G2 || g == DiagGroup::G3)
-            m_enabledDiags.insert(id);
-    }
+    m_config.enableDefaultGroups();
     // NOTE: iOS-unavailable tests (TCP settings, ARP table) are NOT hidden here.
     // They stay enabled and report DiagStatus::Skipped so the UI shows a skip
     // icon (like Active Connections). Default gateway / routing table / DHCP now
     // have working iOS implementations and return real data.
-
-    // Restore the Premium entitlement (non-consumable IAP com.netdiagnostic.app.premium).
-    // Persisted locally after a verified purchase / restore so the unlock survives
-    // app restarts without forcing the user to Restore every launch.
-    {
-        QSettings s;
-        m_isPremium = s.value(QStringLiteral("premium/unlocked"), false).toBool();
-    }
 }
 
 AppState::~AppState() {
@@ -277,66 +280,19 @@ void AppState::setTarget(const QString& t) {
 }
 
 // ── Port scan config ───────────────────────────────────────────────────────
-void AppState::setPortScanCommon(bool v) { if (m_portScanCommon != v) { m_portScanCommon = v; emit portScanConfigChanged(); bumpVersion(); } }
-void AppState::setPortScanFrom(int v) { if (m_portScanFrom != v) { m_portScanFrom = v; emit portScanConfigChanged(); bumpVersion(); } }
-void AppState::setPortScanTo(int v) { if (m_portScanTo != v) { m_portScanTo = v; emit portScanConfigChanged(); bumpVersion(); } }
+void AppState::setPortScanCommon(bool v) { m_config.setPortScanCommon(v); bumpVersion(); }
+void AppState::setPortScanFrom(int v) { m_config.setPortScanFrom(v); bumpVersion(); }
+void AppState::setPortScanTo(int v) { m_config.setPortScanTo(v); bumpVersion(); }
 
 // ── Group labels ───────────────────────────────────────────────────────────
-QStringList AppState::groupLabels() const {
-    return { QStringLiteral("System & Adapters"),
-             QStringLiteral("Connectivity & Security"),
-             QStringLiteral("Internet & DNS"),
-             QStringLiteral("Remote Host"),
-             QStringLiteral("Website / URL") };
-}
+QStringList AppState::groupLabels() const { return DiagnosticConfig::groupLabels(); }
 
-// ── Test enable/disable ────────────────────────────────────────────────────
-static bool isValidDiagId(int id) { return id >= 0 && id < 39; }
-static bool isValidGroup(int g) { return g >= 0 && g < 5; }
-
-bool AppState::isDiagEnabled(int diagIdInt) const {
-    if (!isValidDiagId(diagIdInt)) return false;
-    return m_enabledDiags.contains(static_cast<DiagId>(diagIdInt));
-}
-
-void AppState::setDiagEnabled(int diagIdInt, bool enabled) {
-    if (!isValidDiagId(diagIdInt)) return;
-    auto id = static_cast<DiagId>(diagIdInt);
-    if (enabled) m_enabledDiags.insert(id);
-    else m_enabledDiags.remove(id);
-    bumpVersion();
-}
-
-void AppState::setGroupEnabled(int groupInt, bool enabled) {
-    if (!isValidGroup(groupInt)) return;
-    auto g = static_cast<DiagGroup>(groupInt);
-    TRACE(" setGroupEnabled G%d = %d (before: %d tests in set)\n",
-            groupInt+1, enabled, (int)m_enabledDiags.size());
-    for (auto id : diagIdsForGroup(g)) {
-        if (enabled) m_enabledDiags.insert(id);
-        else m_enabledDiags.remove(id);
-    }
-    TRACE(" setGroupEnabled G%d = %d (after: %d tests in set)\n",
-            groupInt+1, enabled, (int)m_enabledDiags.size());
-    bumpVersion();
-}
-
-bool AppState::isGroupAllEnabled(int groupInt) const {
-    if (!isValidGroup(groupInt)) return false;
-    auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : diagIdsForGroup(g)) {
-        if (!m_enabledDiags.contains(id)) return false;
-    }
-    return true;
-}
-
-bool AppState::isGroupAnyEnabled(int groupInt) const {
-    auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : diagIdsForGroup(g)) {
-        if (m_enabledDiags.contains(id)) return true;
-    }
-    return false;
-}
+// ── Test enable/disable — delegated to DiagnosticConfig ──────────────
+bool AppState::isDiagEnabled(int diagIdInt) const { return m_config.isDiagEnabled(diagIdInt); }
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_config.setDiagEnabled(diagIdInt, enabled); bumpVersion(); }
+void AppState::setGroupEnabled(int groupInt, bool enabled) { m_config.setGroupEnabled(groupInt, enabled); bumpVersion(); }
+bool AppState::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }
+bool AppState::isGroupAnyEnabled(int groupInt) const { return m_config.isGroupAnyEnabled(groupInt); }
 
 // ── Run diagnostics ────────────────────────────────────────────────────────
 void AppState::runDiagnostics() {
@@ -371,23 +327,23 @@ void AppState::runDiagnostics() {
     // Build groups: group tests by DiagGroup (G1→G5 order)
     m_pendingGroups.clear();
     TRACE(" runDiagnostics: enabledTests=%d hasTarget=%d\n",
-            (int)m_enabledDiags.size(), hasTarget);
+            (int)m_config.enabledDiags().size(), hasTarget);
     // Per-group enabled counts (verify checkbox state)
     for (int g = 0; g < 5; ++g) {
         int enabledInGroup = 0;
         int totalInGroup = 0;
         auto group = static_cast<DiagGroup>(g);
-        for (auto id : diagIdsForGroup(group)) {
+        for (auto id : DiagnosticConfig::diagIdsForGroup(group)) {
             totalInGroup++;
-            if (m_enabledDiags.contains(id)) enabledInGroup++;
+            if (m_config.enabledDiags().contains(id)) enabledInGroup++;
         }
         TRACE("   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
     }
     for (int g = 0; g < 5; ++g) {
         GroupTask gt;
         gt.group = static_cast<DiagGroup>(g);
-        for (auto id : diagIdsForGroup(gt.group)) {
-            if (!m_enabledDiags.contains(id)) continue;
+        for (auto id : DiagnosticConfig::diagIdsForGroup(gt.group)) {
+            if (!m_config.enabledDiags().contains(id)) continue;
             if (gt.group == DiagGroup::G4 && !hasTarget) continue;
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
             gt.diagIds.append(id);
@@ -468,7 +424,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
 
     // Create task via factory — each task handles its own timeout internally
     int runGen = m_runGeneration.load(std::memory_order_acquire);
-    auto task = TaskFactory::createTask(id, m_target, m_portScanFrom, m_portScanTo, m_portScanCommon);
+    auto task = TaskFactory::createTask(id, m_target, m_config.portScanFrom(), m_config.portScanTo(), m_config.portScanCommon());
     if (!task) {
         onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Unknown DiagId")));
         return;
@@ -500,7 +456,7 @@ void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
     // Suppress stale results after cancel/reset
     if (m_runStatus != RunStatus::Running) return;
     if (m_results.contains(id)) return; // already handled by timeout/cancel
-    DiagGroup g = diagGroup(id);
+    DiagGroup g = DiagnosticConfig::diagGroup(id);
     m_results[id] = result;
     m_totalCompleted++;
     m_completedPerGroup[g]++;
@@ -547,7 +503,7 @@ void AppState::reset() {
 QVariantList AppState::resultsForGroup(int groupInt) const {
     QVariantList list;
     auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : diagIdsForGroup(g)) {
+    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         if (m_results.contains(id)) {
             const auto& r = m_results[id];
             QVariantMap m;
@@ -572,7 +528,7 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     QVariantList list;
     if (!isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : diagIdsForGroup(g)) {
+    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         list.append(static_cast<int>(id));
     }
     return list;
@@ -593,8 +549,8 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
     if (!isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     
-    for (auto id : diagIdsForGroup(g)) {
-        if (!m_enabledDiags.contains(id)) continue;
+    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
+        if (!m_config.enabledDiags().contains(id)) continue;
         
         if (m_results.contains(id)) {
             // Completed test
@@ -650,7 +606,7 @@ QVariantMap AppState::groupStats(int groupInt) const {
     // Before any run this is 0 — all counts show 0.
     int total = m_totalPerGroup.value(g, 0);
     int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, completed = 0;
-    for (auto id : diagIdsForGroup(g)) {
+    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         if (!m_results.contains(id)) continue;
         completed++;
         switch (m_results[id].status) {
@@ -734,440 +690,63 @@ QVariantList AppState::allGroupStats() const {
     return m_cachedGroupStats;
 }
 
-// ── Report export ─────────────────────────────────────────────
-namespace {
-QString reportStatusText(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("Pass");
-        case DiagStatus::Warning: return QStringLiteral("Warning");
-        case DiagStatus::Fail:    return QStringLiteral("Fail");
-        case DiagStatus::Skipped: return QStringLiteral("Skipped");
-        case DiagStatus::Error:   return QStringLiteral("Error");
-        case DiagStatus::Info:    return QStringLiteral("Info");
+
+ReportData AppState::buildReportData() const {
+    ReportData d;
+    d.target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
+    d.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    d.appVersion = appVersion();
+    d.buildNumber = buildNumber();
+    d.groupLabels = groupLabels();
+    d.results = m_results;
+    d.diagDisplayName = &AppState::staticDiagDisplayName;
+    for (int g = 0; g < 5; ++g) {
+        d.groupStats[g] = groupStats(g);
+        d.diagIdsInGroup[static_cast<DiagGroup>(g)] =
+            DiagnosticConfig::diagIdsForGroup(static_cast<DiagGroup>(g));
     }
-    return QStringLiteral("-");
+    return d;
 }
-QString reportStatusColor(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("#16a34a");
-        case DiagStatus::Warning: return QStringLiteral("#ca8a04");
-        case DiagStatus::Fail:    return QStringLiteral("#dc2626");
-        case DiagStatus::Skipped: return QStringLiteral("#6b7280");
-        case DiagStatus::Error:   return QStringLiteral("#dc2626");
-        case DiagStatus::Info:    return QStringLiteral("#2563eb");
-    }
-    return QStringLiteral("#111111");
-}
-// Short CSS class token for the rich HTML badges (pass/warn/fail/skip/info).
-QString reportStatusClass(DiagStatus s) {
-    switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("pass");
-        case DiagStatus::Warning: return QStringLiteral("warn");
-        case DiagStatus::Fail:    return QStringLiteral("fail");
-        case DiagStatus::Error:   return QStringLiteral("fail");
-        case DiagStatus::Info:    return QStringLiteral("info");
-        case DiagStatus::Skipped: return QStringLiteral("skip");
-    }
-    return QStringLiteral("skip");
-}
-// QML FileDialog hands back a file:// URL; convert to a local filesystem path.
-QString normalizeReportPath(const QString& p) {
-    return p.startsWith(QStringLiteral("file:")) ? QUrl(p).toLocalFile() : p;
-}
-} // namespace
 
 QString AppState::buildReportHtml(bool fullDetail) const {
-    const QString target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
-    const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-    const QStringList labels = groupLabels();
-    
-    // Color palette
-    const QString colorPass = QStringLiteral("#10B981");
-    const QString colorWarn = QStringLiteral("#F59E0B");
-    const QString colorFail = QStringLiteral("#EF4444");
-    const QString colorSkip = QStringLiteral("#9CA3AF");
-    const QString colorInfo = QStringLiteral("#3B82F6");
-
-    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
-    for (int g = 0; g < 5; ++g) {
-        QVariantMap s = groupStats(g);
-        tPass += s.value(QStringLiteral("pass")).toInt(); tWarn += s.value(QStringLiteral("warn")).toInt();
-        tFail += s.value(QStringLiteral("fail")).toInt(); tSkip += s.value(QStringLiteral("skip")).toInt();
-        tInfo += s.value(QStringLiteral("info")).toInt(); tTotal += s.value(QStringLiteral("total")).toInt();
-    }
-
-    QString h;
-    // Qt rich text (QTextDocument / QML Text.RichText) supports only a limited
-    // HTML4/CSS2 subset — no gradients / flex / border-radius. We use tables +
-    // bgcolor + <font>, wrapped in a sans-serif <div> (Qt defaults to a dated
-    // serif), so it renders cleanly in both the QML preview and the PDF.
-    h += QStringLiteral("<div style=\"font-family:'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif;color:#0F172A\">");
-
-    // ── Header band ──
-    h += QStringLiteral(
-        "<table width=\"100%\" cellpadding=\"16\" cellspacing=\"0\"><tr>"
-        "<td bgcolor=\"#0F172A\">"
-        "<font color=\"#FFFFFF\" size=\"6\"><b>Network Diagnostic Report</b></font><br/>"
-        "<font color=\"#E2E8F0\" size=\"3\">%1</font><br/>"
-        "<font color=\"#94A3B8\" size=\"2\">%2 &nbsp;&middot;&nbsp; v%3 (build %4)</font>"
-        "</td></tr></table><br/>")
-        .arg(target, ts, appVersion(), buildNumber());
-
-    // ── Summary cards (5) ──
-    auto card = [](const QString& bg, const QString& fg, int val, const QString& lbl) {
-        return QStringLiteral(
-            "<td width=\"20%\" align=\"center\" bgcolor=\"%1\">"
-            "<font color=\"%2\" size=\"6\"><b>%3</b></font><br/>"
-            "<font color=\"%2\" size=\"2\">%4</font></td>")
-            .arg(bg, fg).arg(val).arg(lbl);
-    };
-    h += QStringLiteral("<table width=\"100%\" cellpadding=\"12\" cellspacing=\"6\"><tr>");
-    h += card(QStringLiteral("#ECFDF5"), colorPass, tPass, QStringLiteral("Pass"));
-    h += card(QStringLiteral("#FFFBEB"), colorWarn, tWarn, QStringLiteral("Warning"));
-    h += card(QStringLiteral("#FEF2F2"), colorFail, tFail, QStringLiteral("Fail"));
-    h += card(QStringLiteral("#F1F5F9"), colorSkip, tSkip, QStringLiteral("Skipped"));
-    h += card(QStringLiteral("#EFF6FF"), colorInfo, tInfo, QStringLiteral("Info"));
-    h += QStringLiteral("</tr></table>");
-    h += QStringLiteral("<p align=\"center\"><font color=\"#64748B\" size=\"2\">%1 tests total</font></p><br/>")
-        .arg(tTotal);
-
-    // ── Per-group results — one table per group with a header band ──
-    for (int g = 0; g < 5; ++g) {
-        QVariantMap s = groupStats(g);
-        if (s.value(QStringLiteral("total")).toInt() == 0) continue;
-        const QString glabel = g < labels.size() ? labels[g].toHtmlEscaped() : QString();
-        h += QStringLiteral(
-            "<table width=\"100%\" cellpadding=\"9\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"#1E293B\">"
-            "<font color=\"#FFFFFF\" size=\"3\"><b>G%1 &middot; %2</b></font>"
-            "&nbsp;&nbsp;<font color=\"%3\" size=\"2\">%4 Pass</font>"
-            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%5\" size=\"2\">%6 Warn</font>"
-            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%7\" size=\"2\">%8 Fail</font>"
-            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%9\" size=\"2\">%10 Skip</font>"
-            "</td></tr></table>")
-            .arg(g+1).arg(glabel)
-            .arg(colorPass).arg(s.value(QStringLiteral("pass")).toInt())
-            .arg(colorWarn).arg(s.value(QStringLiteral("warn")).toInt())
-            .arg(colorFail).arg(s.value(QStringLiteral("fail")).toInt())
-            .arg(colorSkip).arg(s.value(QStringLiteral("skip")).toInt());
-        h += QStringLiteral(
-            "<table width=\"100%\" border=\"1\" cellpadding=\"9\" cellspacing=\"0\" bordercolor=\"#E2E8F0\">"
-            "<tr bgcolor=\"#F8FAFC\">"
-            "<th align=\"left\" width=\"40%\"><font color=\"#64748B\" size=\"2\">TEST</font></th>"
-            "<th align=\"left\" width=\"16%\"><font color=\"#64748B\" size=\"2\">STATUS</font></th>"
-            "<th align=\"left\"><font color=\"#64748B\" size=\"2\">SUMMARY</font></th></tr>");
-        bool alt = false;
-        for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
-            if (!m_results.contains(id)) continue;
-            const auto& r = m_results[id];
-            const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
-                                                          : r.displayName).toHtmlEscaped();
-            h += QStringLiteral(
-                "<tr bgcolor=\"%1\">"
-                "<td><font color=\"#0F172A\"><b>%2</b></font></td>"
-                "<td><font color=\"%3\"><b>&#9679;&nbsp;%4</b></font></td>"
-                "<td><font color=\"#475569\">%5</font></td></tr>")
-                .arg(alt ? QStringLiteral("#F8FAFC") : QStringLiteral("#FFFFFF"))
-                .arg(name)
-                .arg(reportStatusColor(r.status), reportStatusText(r.status))
-                .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
-            alt = !alt;
-        }
-        h += QStringLiteral("</table><br/>");
-    }
-
-    if (fullDetail) {
-        h += QStringLiteral("<table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"#0F172A\"><font color=\"#FFFFFF\" size=\"4\"><b>Detailed Output</b></font></td>"
-            "</tr></table><br/>");
-        for (int g = 0; g < 5; ++g) {
-            if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
-            h += QStringLiteral("<p><font color=\"#1E293B\" size=\"3\"><b>G%1 &middot; %2</b></font></p>")
-                .arg(g+1).arg(g < labels.size() ? labels[g].toHtmlEscaped() : QString());
-            for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
-                if (!m_results.contains(id)) continue;
-                const auto& r = m_results[id];
-                const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
-                                                              : r.displayName).toHtmlEscaped();
-                const QString statusColor = reportStatusColor(r.status);
-                h += QStringLiteral(
-                    "<table width=\"100%\" cellpadding=\"9\" cellspacing=\"0\"><tr>"
-                    "<td bgcolor=\"#F1F5F9\">"
-                    "<font color=\"%1\"><b>&#9679;</b></font> <font color=\"#0F172A\"><b>%2</b></font> "
-                    "<font color=\"%1\" size=\"2\"><b>%3</b></font> "
-                    "<font color=\"#94A3B8\" size=\"2\">%4 ms</font>")
-                    .arg(statusColor, name, reportStatusText(r.status))
-                    .arg(r.durationMs);
-                if (!r.summary.isEmpty())
-                    h += QStringLiteral("<br/><font color=\"#475569\" size=\"2\">%1</font>")
-                        .arg(r.summary.toHtmlEscaped());
-                h += QStringLiteral("</td></tr></table>");
-                const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
-                if (!body.trimmed().isEmpty())
-                    h += QStringLiteral(
-                        "<table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\" border=\"1\" bordercolor=\"#334155\">"
-                        "<tr><td bgcolor=\"#0F172A\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                        "font-size:11px;color:#E2E8F0\">%1</pre></td></tr></table><br/>")
-                        .arg(body.toHtmlEscaped());
-            }
-        }
-    }
-    h += QStringLiteral("<p align=\"center\"><font color=\"#94A3B8\" size=\"2\">"
-        "Generated by NetDiagnostics &middot; All times in milliseconds</font></p>");
-    h += QStringLiteral("</div>");
-    return h;
+    return ReportEngine::buildHtml(buildReportData(), fullDetail);
 }
 
 // Full standalone HTML document with a modern dark theme (styled after the
 // PowerShell NetDiagnostic report). Rendered by a real browser / mail client —
 // NOT by the in-app QML preview, which uses the Qt-subset buildReportHtml().
 QString AppState::buildRichHtmlDocument() const {
-    const QString target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
-    const QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
-    const QStringList labels = groupLabels();
-
-    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
-    for (int g = 0; g < 5; ++g) {
-        QVariantMap s = groupStats(g);
-        tPass += s.value(QStringLiteral("pass")).toInt(); tWarn += s.value(QStringLiteral("warn")).toInt();
-        tFail += s.value(QStringLiteral("fail")).toInt(); tSkip += s.value(QStringLiteral("skip")).toInt();
-        tInfo += s.value(QStringLiteral("info")).toInt(); tTotal += s.value(QStringLiteral("total")).toInt();
-    }
-
-    static const char* kCss =
-        "*{margin:0;padding:0;box-sizing:border-box}"
-        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:#1a1a2e;color:#e0e0e0;padding:24px}"
-        ".wrap{max-width:960px;margin:0 auto}"
-        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#16213e,#0f3460);border-radius:14px;margin-bottom:26px}"
-        ".header h1{font-size:26px;color:#00bcd4;margin-bottom:10px;letter-spacing:.5px}"
-        ".header p{font-size:13px;color:#a0a0b8;margin:3px 0}"
-        "h2{font-size:18px;color:#00bcd4;margin:26px 0 14px}"
-        "h3{font-size:15px;color:#7fb2e6;margin:20px 0 10px}"
-        ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
-        ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
-        ".card .count{display:block;font-size:30px;font-weight:700}"
-        ".card .label{font-size:11px;color:#a0a0b8;margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
-        ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ade80}"
-        ".card.warn{background:#2b2810;border:1px solid #5a5020}.card.warn .count{color:#facc15}"
-        ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#ef4444}"
-        ".card.skip{background:#1e1e2e;border:1px solid #333}.card.skip .count{color:#9aa0b5}"
-        ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#3b82f6}"
-        "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
-        "table.grid th{text-align:left;padding:11px 12px;background:#16213e;color:#a0a0b8;font-weight:600}"
-        "table.grid td{padding:9px 12px;border-bottom:1px solid #2a2a4a;vertical-align:top}"
-        "tr.sec td{background:#1a2840;color:#7fb2e6;font-weight:700}"
-        ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
-        ".badge.pass{background:#16281b;color:#4ade80}.badge.warn{background:#2b2810;color:#facc15}"
-        ".badge.fail{background:#2b1616;color:#ef4444}.badge.skip{background:#26262e;color:#9aa0b5}"
-        ".badge.info{background:#141f33;color:#3b82f6}"
-        "details.test{background:#16213e;border-radius:10px;margin-bottom:12px;overflow:hidden}"
-        "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
-        "details.test.pass>summary{border-left:4px solid #4ade80}details.test.warn>summary{border-left:4px solid #facc15}"
-        "details.test.fail>summary{border-left:4px solid #ef4444}details.test.skip>summary{border-left:4px solid #666}"
-        "details.test.info>summary{border-left:4px solid #3b82f6}"
-        ".body{padding:14px 16px 18px;border-top:1px solid #2a2a4a}"
-        ".analysis{background:#0f1629;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
-        ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
-        ".meta{color:#8890a6;font-size:11px;font-weight:400}"
-        ".footer{text-align:center;padding:20px;color:#5a5a72;font-size:11px;margin-top:28px;border-top:1px solid #23233a}";
-
-    auto card = [](const QString& cls, int n, const QString& lbl) {
-        return QStringLiteral("<div class=\"card %1\"><span class=\"count\">%2</span>"
-            "<span class=\"label\">%3</span></div>").arg(cls).arg(n).arg(lbl);
-    };
-
-    QString h;
-    h += QStringLiteral("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<title>Network Diagnostic Report &mdash; %1</title>\n<style>").arg(ts);
-    h += QString::fromLatin1(kCss);
-    h += QStringLiteral("</style>\n</head>\n<body>\n<div class=\"wrap\">\n");
-    h += QStringLiteral(
-        "<div class=\"header\"><h1>Network Diagnostic Report</h1>"
-        "<p>Generated: %1</p>"
-        "<p>Target: <b style=\"color:#e0e0e0\">%2</b></p>"
-        "<p>NetDiagnostics v%3 (build %4)</p></div>\n")
-        .arg(ts, target, appVersion(), buildNumber());
-
-    h += QStringLiteral("<div class=\"cards\">");
-    h += card(QStringLiteral("pass"), tPass, QStringLiteral("Pass"));
-    h += card(QStringLiteral("warn"), tWarn, QStringLiteral("Warning"));
-    h += card(QStringLiteral("fail"), tFail, QStringLiteral("Fail"));
-    h += card(QStringLiteral("skip"), tSkip, QStringLiteral("Skipped"));
-    h += card(QStringLiteral("info"), tInfo, QStringLiteral("Info"));
-    h += QStringLiteral("</div>\n");
-
-    // Summary table — per group, each test's basic result
-    h += QStringLiteral("<h2>Summary &middot; %1 tests</h2>\n").arg(tTotal);
-    h += QStringLiteral("<table class=\"grid\"><thead><tr><th style=\"width:44px\">#</th>"
-        "<th>Test</th><th style=\"width:96px\">Status</th><th>Summary</th></tr></thead><tbody>\n");
-    int idx = 0;
-    for (int g = 0; g < 5; ++g) {
-        if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
-        const QString glabel = g < labels.size() ? labels[g].toHtmlEscaped() : QString();
-        h += QStringLiteral("<tr class=\"sec\"><td colspan=\"4\">G%1 &middot; %2</td></tr>\n").arg(g+1).arg(glabel);
-        for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
-            if (!m_results.contains(id)) continue;
-            const auto& r = m_results[id];
-            const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
-                                                          : r.displayName).toHtmlEscaped();
-            ++idx;
-            h += QStringLiteral("<tr><td>%1</td><td>%2</td>"
-                "<td><span class=\"badge %3\">%4</span></td><td>%5</td></tr>\n")
-                .arg(idx).arg(name)
-                .arg(reportStatusClass(r.status), reportStatusText(r.status))
-                .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
-        }
-    }
-    h += QStringLiteral("</tbody></table>\n");
-
-    // Details — collapsible per test with summary + raw output
-    h += QStringLiteral("<h2>Test Details</h2>\n");
-    for (int g = 0; g < 5; ++g) {
-        if (groupStats(g).value(QStringLiteral("total")).toInt() == 0) continue;
-        const QString glabel = g < labels.size() ? labels[g].toHtmlEscaped() : QString();
-        h += QStringLiteral("<h3>G%1 &middot; %2</h3>\n").arg(g+1).arg(glabel);
-        for (auto id : diagIdsForGroup(static_cast<DiagGroup>(g))) {
-            if (!m_results.contains(id)) continue;
-            const auto& r = m_results[id];
-            const QString name = (r.displayName.isEmpty() ? staticDiagDisplayName(id)
-                                                          : r.displayName).toHtmlEscaped();
-            const QString cls = reportStatusClass(r.status);
-            h += QStringLiteral("<details class=\"test %1\"><summary>"
-                "<span class=\"badge %1\">%2</span> &nbsp;%3 "
-                "<span class=\"meta\">&middot; %4 ms</span></summary><div class=\"body\">")
-                .arg(cls, reportStatusText(r.status), name).arg(r.durationMs);
-            if (!r.summary.isEmpty())
-                h += QStringLiteral("<div class=\"analysis\">%1</div>").arg(r.summary.toHtmlEscaped());
-            const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
-            if (!body.trimmed().isEmpty())
-                h += QStringLiteral("<div class=\"raw\">%1</div>").arg(body.toHtmlEscaped());
-            h += QStringLiteral("</div></details>\n");
-        }
-    }
-
-    h += QStringLiteral("<div class=\"footer\">Generated by NetDiagnostics &middot; "
-        "All times in milliseconds</div>\n</div>\n</body>\n</html>\n");
-    return h;
+    return ReportEngine::buildRichDocument(buildReportData());
 }
-
 QString AppState::defaultReportPath(const QString& ext) const {
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    if (dir.isEmpty()) dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (dir.isEmpty()) dir = QDir::tempPath();
-    QDir().mkpath(dir);
-    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"));
-    return QDir(dir).filePath(QStringLiteral("NetDiagnostics_report_%1.%2").arg(stamp, ext));
+    return ReportEngine::defaultReportPath(ext);
 }
-
 QString AppState::exportHtml(const QString& filePath) const {
-    const QString path = normalizeReportPath(filePath);
-    QFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        Logger::instance().event(QStringLiteral("exportHtml: cannot open %1").arg(path));
-        return QString();
-    }
-    QTextStream ts(&f);
-    ts << buildRichHtmlDocument();
-    f.close();
-    return path;
+    return ReportEngine::exportHtml(filePath, buildRichHtmlDocument());
 }
 
 QString AppState::exportPdf(const QString& filePath) const {
-    const QString path = normalizeReportPath(filePath);
-    QPdfWriter writer(path);
-    writer.setPageSize(QPageSize(QPageSize::A4));
-    writer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
-    writer.setTitle(QStringLiteral("Network Diagnostic Report"));
-
-    QTextDocument doc;
-    doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 10));
-    doc.setHtml(buildReportHtml(false)); // summary only -> ~1 page
-    doc.print(&writer);
-    return QFile::exists(path) ? path : QString();
+    return ReportEngine::exportPdf(filePath, buildReportHtml(false));
 }
 
 void AppState::requestSavePath(const QString& format) {
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
-    auto* dlg = new QFileDialog(nullptr, QStringLiteral("Save Report"),
-                                defaultReportPath(format));
-    dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setAcceptMode(QFileDialog::AcceptSave);
-    dlg->setNameFilter(format == QLatin1String("pdf")
-        ? QStringLiteral("PDF document (*.pdf)")
-        : QStringLiteral("HTML document (*.html)"));
-    dlg->setDefaultSuffix(format);
-    connect(dlg, &QFileDialog::fileSelected, this, [this, format](const QString& p) {
-        if (!p.isEmpty()) emit savePathPicked(format, p);
-    });
-    dlg->open(); // non-modal (show()-style) — avoids the ARM64 exec() crash
-#else
-    // Mobile: no native file dialog — save straight to the Documents folder.
-    emit savePathPicked(format, defaultReportPath(format));
-#endif
+    m_reportEngine.requestSavePath(format);
 }
 
 void AppState::setPremium(bool v) {
-    if (m_isPremium == v) return;
-    m_isPremium = v;
-    // Persist the non-consumable unlock so it survives restarts.
-    QSettings().setValue(QStringLiteral("premium/unlocked"), v);
-    emit premiumChanged();
+    m_premium.setPremium(v);
 }
 
 void AppState::requestSubscription() {
-    // Cross-platform entry point invoked from the QML "Subscribe" button.
-    if (m_isPremium) return;       // already subscribed — shouldn't happen (UI guards)
-    if (m_purchaseInProgress) return;
-
-#if defined(PLATFORM_IOS)
-    // ── iOS: real StoreKit purchase flow ──────────────────────────────
-    m_purchaseInProgress = true;
-    emit purchaseInProgressChanged();
-
-    platformStartPurchase([this](bool success) {
-        m_purchaseInProgress = false;
-        emit purchaseInProgressChanged();
-
-        if (success) {
-            setPremium(true);           // emits premiumChanged → QML continues to share step
-        }
-        // On failure (including user-cancelled) we stay non-premium.
-    });
-#else
-    // Android / Desktop: store SDK not wired yet → grant Premium directly
-    // so the share flow remains usable. Replace with platformStartPurchase
-    // once Google Play Billing is integrated.
-    setPremium(true);
-#endif
+    m_premium.requestSubscription();
 }
 
 void AppState::restorePurchases() {
-    if (m_isPremium) return;       // already unlocked
-    if (m_purchaseInProgress) return;
-
-#if defined(PLATFORM_IOS)
-    // ── iOS: real StoreKit restore flow ───────────────────────────────
-    m_purchaseInProgress = true;
-    emit purchaseInProgressChanged();
-
-    platformRestorePurchases([this](bool restoredAny, bool isError) {
-        m_purchaseInProgress = false;
-        emit purchaseInProgressChanged();
-
-        if (restoredAny) {
-            setPremium(true);
-        }
-        emit restoreCompleted(restoredAny, isError);
-    });
-#else
-    // Android / Desktop: no store to restore from.
-    emit restoreCompleted(false, false);
-#endif
+    m_premium.restorePurchases();
 }
 
 void AppState::shareReport(const QString& format) {
-    if (!m_isPremium) { emit premiumRequired(); return; }
+    if (!m_premium.isPremium()) { emit premiumRequired(); return; }
     const QString ext = (format == QLatin1String("pdf")) ? QStringLiteral("pdf")
                                                          : QStringLiteral("html");
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
@@ -1192,32 +771,11 @@ void AppState::shareReport(const QString& format) {
 }
 
 void AppState::emailReportDesktop(const QString& path) {
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
-    const QString subject = QStringLiteral("Network Diagnostic Report");
-#ifdef Q_OS_LINUX
-    // xdg-email can attach the file directly to a new mail.
-    if (QProcess::startDetached(QStringLiteral("xdg-email"),
-            {QStringLiteral("--subject"), subject, QStringLiteral("--attach"), path}))
-        return;
-#endif
-    // Fallback (Windows/macOS or no xdg-email): mailto cannot attach, so open the
-    // default mail client with a note and reveal the saved file for manual attach.
-    QUrl mailto;
-    mailto.setScheme(QStringLiteral("mailto"));
-    QUrlQuery q;
-    q.addQueryItem(QStringLiteral("subject"), subject);
-    q.addQueryItem(QStringLiteral("body"),
-        QStringLiteral("The Network Diagnostic report is saved at: %1").arg(path));
-    mailto.setQuery(q);
-    QDesktopServices::openUrl(mailto);
-    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
-#else
-    Q_UNUSED(path);
-#endif
+    ReportEngine::emailReportDesktop(path);
 }
 
 void AppState::showDetailDialog(int diagIdInt) {
-    if (!isValidDiagId(diagIdInt)) return;
+    if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return;
     auto id = static_cast<DiagId>(diagIdInt);
     if (!m_results.contains(id)) return;
     
@@ -1299,7 +857,7 @@ void AppState::showDetailDialog(int diagIdInt) {
 
 QVariantMap AppState::getDetailResult(int diagIdInt) const {
     QVariantMap m;
-    if (!isValidDiagId(diagIdInt)) return m;
+    if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return m;
     auto id = static_cast<DiagId>(diagIdInt);
     if (!m_results.contains(id)) return m;
     

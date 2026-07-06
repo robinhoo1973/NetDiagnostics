@@ -7,6 +7,9 @@
 // - DHCP status: Always system-managed on iOS (no lease file access)
 // - ARP table: Unavailable (link-layer, no public API)
 // =============================================================================
+
+#ifdef PLATFORM_IOS
+
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <sys/socket.h>
 #import <sys/sysctl.h>
@@ -380,4 +383,6 @@ DiagnosticResult iosRoutingTableDiag(DiagId id) {
         : QStringLiteral("Default via %1").arg(defaultGw);
     return r;
 }
+
+#endif // PLATFORM_IOS
 

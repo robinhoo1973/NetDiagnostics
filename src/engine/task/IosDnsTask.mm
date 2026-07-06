@@ -4,6 +4,9 @@
 // CFHost provides proper iOS DNS resolution with system cache and timeout
 // control. Available since iOS 2.0. Replaces generic getaddrinfo+GCD.
 // =============================================================================
+
+#ifdef PLATFORM_IOS
+
 #include "engine/task/DiagnosticTask.h"
 #include "engine/diagnostic/G4RemoteHost.h"
 #include "util/DiagnosticFormatter.h"
@@ -132,3 +135,5 @@ DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) 
     r.details = r.rawOutput;
     return r;
 }
+
+#endif // PLATFORM_IOS
