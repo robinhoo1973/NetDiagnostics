@@ -72,9 +72,11 @@ function(configure_netdiag_target TARGET)
         # CURL_STATICLIB should only be defined when linking statically.
         # find_package(CURL) may return shared libs on developer machines
         # or CI runners.  Check the actual library type first.
-        get_target_property(_curl_type CURL::libcurl TYPE 2>/dev/null || true)
-        if(_curl_type STREQUAL "STATIC_LIBRARY")
-            target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
+        if(TARGET CURL::libcurl)
+            get_target_property(_curl_type CURL::libcurl TYPE)
+            if(_curl_type STREQUAL "STATIC_LIBRARY")
+                target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
+            endif()
         endif()
     endif()
 

@@ -48,6 +48,9 @@ commit_msg.txt
 # Certificates — entire directory excluded (private keys, certs, CSR)
 resources/cert/
 
+# Code review artifacts (generated JSON reports)
+review/
+
 # Windows / OneDrive sync artifacts on this mounted working tree:
 #  - stray build binaries (netdiag-*.exe)
 #  - backslash-path files ( ".\dist\...", ".\scripts\..." )

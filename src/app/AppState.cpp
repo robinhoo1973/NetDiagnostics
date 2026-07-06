@@ -526,7 +526,7 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
 
 QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     QVariantList list;
-    if (!isValidGroup(groupInt)) return list;
+    if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         list.append(static_cast<int>(id));
@@ -546,7 +546,7 @@ QVariantList AppState::visibleGroups() const {
 
 QVariantList AppState::allDiagsForGroup(int groupInt) const {
     QVariantList list;
-    if (!isValidGroup(groupInt)) return list;
+    if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {

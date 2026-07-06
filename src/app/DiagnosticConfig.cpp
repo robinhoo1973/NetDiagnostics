@@ -26,38 +26,25 @@ void DiagnosticConfig::setPortScanTo(int v) {
     if (m_portScanTo != v) { m_portScanTo = v; emit portScanConfigChanged(); }
 }
 
-// ── Group labels ──────────────────────────────────────────────────────
+// ── Group queries — delegate to canonical DiagId.h (single source of truth)
 QStringList DiagnosticConfig::groupLabels() {
-    return { QStringLiteral("System & Adapters"),
-             QStringLiteral("Connectivity & Security"),
-             QStringLiteral("Internet & DNS"),
-             QStringLiteral("Remote Host"),
-             QStringLiteral("Website / URL") };
+    return { diagGroupLabel(DiagGroup::G1), diagGroupLabel(DiagGroup::G2),
+             diagGroupLabel(DiagGroup::G3), diagGroupLabel(DiagGroup::G4),
+             diagGroupLabel(DiagGroup::G5) };
 }
 
-// ── Static helpers (now inline in DiagnosticConfig.h) ─────────────────
-
 QList<DiagId> DiagnosticConfig::allDiagIds() {
-    QList<DiagId> ids;
-    for (int i = 0; i < 38; ++i) ids.append(static_cast<DiagId>(i));
-    return ids;
+    const auto& v = ::allDiagIds();          // DiagId.h free function (static cache, O(1))
+    return QList<DiagId>(v.begin(), v.end());
 }
 
 QList<DiagId> DiagnosticConfig::diagIdsForGroup(DiagGroup group) {
-    QList<DiagId> ids;
-    for (auto id : allDiagIds()) {
-        if (diagGroup(id) == group) ids.append(id);
-    }
-    return ids;
+    const auto& v = ::diagIdsForGroup(group); // DiagId.h free function (static cache, O(1))
+    return QList<DiagId>(v.begin(), v.end());
 }
 
 DiagGroup DiagnosticConfig::diagGroup(DiagId id) {
-    auto i = static_cast<int>(id);
-    if (i <= 4) return DiagGroup::G1;       // 0-4: Network adapters + MAC + IP
-    if (i <= 13) return DiagGroup::G2;       // 5-13: Gateway, routing, ARP, DHCP, DNS servers, connections
-    if (i <= 22) return DiagGroup::G3;       // 14-22: Ping, DNS resolution, traceroute, speed test
-    if (i <= 29) return DiagGroup::G4;       // 23-29: Remote host diagnostics
-    return DiagGroup::G5;                    // 30-37: Website/URL diagnostics
+    return ::diagGroup(id);                  // DiagId.h free function (exhaustive switch)
 }
 
 // ── Diag enable/disable ───────────────────────────────────────────────
@@ -112,7 +99,7 @@ QVariantMap DiagnosticConfig::groupStats(int groupInt,
         if (it == results.end()) continue;
         switch (it->status) {
         case DiagStatus::Pass: ++pass; break;
-        case DiagStatus::Warn: ++warn; break;
+        case DiagStatus::Warning: ++warn; break;
         case DiagStatus::Fail: ++fail; break;
         case DiagStatus::Skipped: ++skip; break;
         default: ++info; break;
