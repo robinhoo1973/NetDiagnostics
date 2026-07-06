@@ -51,8 +51,8 @@ Item {
         // ── Bottom dock navigation bar ───────────────────────────────
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: compact ? 32 : 36
-            color: "#1A1A2E"
+            implicitHeight: compact ? 32 : 48
+            color: ThemeEngine.colors.navBar
             // Drag handle for frameless window (Qt.FramelessWindowHint)
             MouseArea {
                 anchors.fill: parent
@@ -66,7 +66,7 @@ Item {
                 }
             }
             RowLayout {
-                anchors { fill: parent; leftMargin: compact ? 0 : 8; rightMargin: compact ? 4 : 8 }
+                anchors { fill: parent; leftMargin: compact ? 0 : 12; rightMargin: compact ? 4 : 12 }
                 Item { Layout.fillWidth: true }
                 Row { spacing: compact ? 0 : 2
                     Repeater {
@@ -84,32 +84,35 @@ Item {
                                 Tr.lang // force re-evaluation on language change
                                 return content.tabLabels[index] || modelData.screen
                             }
-                            implicitWidth: compact ? 44 : 100; implicitHeight: 32
+                            implicitWidth: compact ? 44 : 110; implicitHeight: compact ? 32 : 40
                             background: Rectangle {
-                                color: navBtn.active ? Qt.alpha(Theme.cyan, 0.12) : "transparent"
-                                radius: 6
+                                color: navBtn.active ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
+                                radius: ThemeEngine.radius.md
                             }
                             contentItem: Item {
-                                // Compact (mobile): icon only, brighter color
+                                // Compact (mobile): icon only
                                 AppIcon {
                                     visible: content.compact
                                     anchors.centerIn: parent
-                                    name: modelData.icon; size: 14
-                                    color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
+                                    name: modelData.icon; size: 18
+                                    color: navBtn.active ? ThemeEngine.colors.primary
+                                                          : ThemeEngine.colors.textSecondary
                                 }
-                                // Desktop: icon + text, brighter color
+                                // Desktop: icon + text, centered
                                 RowLayout {
                                     visible: !content.compact
-                                    anchors.centerIn: parent; spacing: 4
+                                    anchors.centerIn: parent; spacing: 6
                                     AppIcon {
-                                        name: modelData.icon; size: 12
-                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.55)
+                                        name: modelData.icon; size: 18
+                                        color: navBtn.active ? ThemeEngine.colors.primary
+                                                              : ThemeEngine.colors.textSecondary
                                     }
                                     Label {
                                         text: navBtn.labelText
-                                        font.family: Theme.monoFont; font.pixelSize: 10
+                                        font.family: ThemeEngine.fontMono; font.pixelSize: 12
                                         font.weight: navBtn.active ? Font.DemiBold : Font.Normal
-                                        color: navBtn.active ? Theme.cyan : Qt.alpha(Theme.textPrimary, 0.7)
+                                        color: navBtn.active ? ThemeEngine.colors.primary
+                                                              : ThemeEngine.colors.textSecondary
                                     }
                                 }
                             }
@@ -117,12 +120,13 @@ Item {
                         }
                     }
                 }
-                Item { width: compact ? 0 : 12; visible: !compact }
+                Item { Layout.fillWidth: true }
+                Item { width: compact ? 0 : 8; visible: !compact }
                 Rectangle {
                     visible: !compact
-                    implicitWidth: 28; implicitHeight: 28; radius: 6
-                    color: "transparent"; border { width: 1; color: "#5A5A7A" }
-                    AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: Qt.alpha(Theme.textPrimary, 0.7) }
+                    implicitWidth: 32; implicitHeight: 32; radius: ThemeEngine.radius.sm
+                    color: "transparent"; border { width: 1; color: ThemeEngine.colors.borderCard }
+                    AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.textSecondary }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: content.closeRequested() }
                 }
             }

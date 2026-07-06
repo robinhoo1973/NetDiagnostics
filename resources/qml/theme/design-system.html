@@ -1,0 +1,281 @@
+<!-- @dsCard group="Design System" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetDiagnostics Design System</title>
+<style>
+:root {
+  --dark-surface: #0F172A; --dark-card: #1E293B; --dark-input: #334155;
+  --dark-primary: #38BDF8; --dark-cyan: #22D3EE; --dark-text: #F1F5F9;
+  --dark-text-2: #94A3B8; --dark-accent: #FB7185; --dark-success: #4ADE80;
+  --dark-warn: #FBBF24; --dark-fail: #F87171; --dark-border: #334155;
+  --light-surface: #F8FAFC; --light-card: #FFFFFF; --light-input: #F1F5F9;
+  --light-primary: #0EA5E9; --light-cyan: #06B6D4; --light-text: #0F172A;
+  --light-text-2: #475569; --light-accent: #F43F5E; --light-success: #10B981;
+  --light-warn: #F59E0B; --light-fail: #EF4444; --light-border: #E2E8F0;
+  --radius: 12px; --radius-sm: 6px; --spacing: 16px; --mono: 'JetBrains Mono', monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a14;color:#e0e0e0;padding:24px}
+h1{font-size:24px;color:#22D3EE;margin-bottom:8px}
+h2{font-size:14px;color:#94A3B8;margin-bottom:24px;font-weight:400}
+.grid{display:flex;gap:24px;flex-wrap:wrap}
+.panel{flex:1;min-width:400px;border-radius:16px;overflow:hidden}
+.panel.dark{background:var(--dark-surface);border:1px solid var(--dark-border)}
+.panel.light{background:var(--light-surface);border:1px solid var(--light-border)}
+
+/* ═══════ NAV BAR ═══════ */
+.nav{display:flex;align-items:center;height:48px;padding:0 16px;gap:4px}
+.nav.dark{background:#0F172A;border-bottom:1px solid var(--dark-border)}
+.nav.light{background:#FFF;border-bottom:1px solid var(--light-border)}
+.nav .spacer{flex:1}
+.nav-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;
+  font-family:var(--mono);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;border:none}
+.nav-btn.dark{color:var(--dark-text-2);background:transparent}
+.nav-btn.dark:hover{background:rgba(56,189,248,.08);color:#38BDF8}
+.nav-btn.dark.active{background:rgba(34,211,238,.12);color:#22D3EE}
+.nav-btn.light{color:var(--light-text-2);background:transparent}
+.nav-btn.light:hover{background:rgba(14,165,233,.08);color:#0EA5E9}
+.nav-btn.light.active{background:rgba(6,182,212,.12);color:#06B6D4}
+.nav-btn svg{width:18px;height:18px}
+.nav-close{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:14px;border:none}
+.nav-close.dark{background:transparent;border:1px solid var(--dark-border);color:var(--dark-text-2)}
+.nav-close.light{background:transparent;border:1px solid var(--light-border);color:var(--light-text-2)}
+
+/* ═══════ CONTENT ═══════ */
+.content{padding:16px}
+.card{border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.card.dark{background:var(--dark-card);border:1px solid var(--dark-border)}
+.card.light{background:var(--light-card);border:1px solid var(--light-border);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h3{font-size:13px;font-weight:600;margin-bottom:8px}
+.card.dark h3{color:var(--dark-text)}
+.card.light h3{color:var(--light-text)}
+
+/* ═══════ STAT CARDS ═══════ */
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat{flex:1;min-width:80px;text-align:center;padding:14px 10px;border-radius:10px}
+.stat .count{font-size:28px;font-weight:700;font-family:var(--mono)}
+.stat .label{font-size:11px;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.stat.pass.dark{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2)}.stat.pass.dark .count{color:#4ADE80}
+.stat.pass.light{background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15)}.stat.pass.light .count{color:#10B981}
+.stat.warn.dark{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2)}.stat.warn.dark .count{color:#FBBF24}
+.stat.warn.light{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15)}.stat.warn.light .count{color:#F59E0B}
+.stat.fail.dark{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2)}.stat.fail.dark .count{color:#F87171}
+.stat.fail.light{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15)}.stat.fail.light .count{color:#EF4444}
+.stat.skip.dark{background:rgba(156,163,175,.08);border:1px solid rgba(156,163,175,.2)}.stat.skip.dark .count,.stat.skip.dark .label{color:#9CA3AF}
+.stat.skip.light{background:rgba(156,163,175,.06);border:1px solid rgba(156,163,175,.15)}.stat.skip.light .count,.stat.skip.light .label{color:#9CA3AF}
+.stat.info.dark{background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2)}.stat.info.dark .count{color:#60A5FA}
+.stat.info.light{background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15)}.stat.info.light .count{color:#3B82F6}
+
+.stat .label.dark{color:var(--dark-text-2)}
+.stat .label.light{color:var(--light-text-2)}
+
+/* ═══════ THEME TOGGLE ═══════ */
+.theme-toggle{display:flex;gap:4px;background:rgba(255,255,255,.06);border-radius:8px;padding:3px}
+.theme-btn{padding:6px 14px;border-radius:6px;border:none;cursor:pointer;
+  font-family:var(--mono);font-size:11px;color:#94A3B8;background:transparent;transition:all .15s}
+.theme-btn.active{background:#38BDF8;color:#0F172A;font-weight:600}
+
+/* ═══════ TABLE ═══════ */
+table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)}
+th{text-align:left;padding:8px 12px;font-weight:600;font-size:11px}
+td{padding:8px 12px;border-bottom:1px solid}
+.dark th{background:#1E293B;color:#94A3B8}
+.dark td{border-color:#1E293B;color:#E2E8F0}
+.light th{background:#F1F5F9;color:#64748B}
+.light td{border-color:#F1F5F9;color:#334155}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:10px;font-weight:700}
+.badge.pass{background:rgba(74,222,128,.15);color:#4ADE80}
+.badge.warn{background:rgba(251,191,36,.15);color:#FBBF24}
+
+/* ═══════ COLOR SWATCH ═══════ */
+.swatches{display:flex;gap:16px;flex-wrap:wrap;margin-top:8px}
+.swatch{width:80px}
+.swatch-box{height:48px;border-radius:8px;margin-bottom:4px}
+.swatch-label{font-size:10px;font-family:var(--mono);color:#94A3B8}
+
+/* ═══════ FOOTER ═══════ */
+.footer{text-align:center;padding:20px;color:#475569;font-size:11px;font-family:var(--mono);margin-top:24px}
+</style>
+</head>
+<body>
+
+<h1>NetDiagnostics — Modern Design System</h1>
+<h2>Material Design 3 inspired — Light &amp; Dark themes — JetBrains Mono typography</h2>
+
+<div class="grid">
+<!-- ═══════════════════ DARK THEME ═══════════════════ -->
+<div class="panel dark">
+  <div class="nav dark">
+    <div class="spacer"></div>
+    <button class="nav-btn dark active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-btn dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Diagnostic
+    </button>
+    <button class="nav-btn dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Config
+    </button>
+    <button class="nav-btn dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      Report
+    </button>
+    <button class="nav-btn dark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83"/></svg>
+      Settings
+    </button>
+    <div class="spacer"></div>
+    <button class="nav-close dark">✕</button>
+  </div>
+
+  <div class="content">
+    <div class="theme-toggle" style="margin-bottom:12px">
+      <button class="theme-btn active">Dark</button>
+      <button class="theme-btn">Light</button>
+    </div>
+    <div class="card dark">
+      <h3>Network Diagnostic Report — google.com</h3>
+      <p style="color:#94A3B8;font-size:11px;font-family:var(--mono)">2026-07-06 12:00 · v0.0.2 (build 500)</p>
+    </div>
+    <div class="stats">
+      <div class="stat pass dark"><div class="count">28</div><div class="label dark">Pass</div></div>
+      <div class="stat warn dark"><div class="count">3</div><div class="label dark">Warn</div></div>
+      <div class="stat fail dark"><div class="count">1</div><div class="label dark">Fail</div></div>
+      <div class="stat skip dark"><div class="count">4</div><div class="label dark">Skip</div></div>
+      <div class="stat info dark"><div class="count">2</div><div class="label dark">Info</div></div>
+    </div>
+    <table class="dark" style="margin-bottom:12px">
+      <tr><th>#</th><th>Test</th><th>Status</th><th>Summary</th></tr>
+      <tr><td>1</td><td>Network Adapters</td><td><span class="badge pass">Pass</span></td><td>2 adapters detected</td></tr>
+      <tr><td>2</td><td>Default Gateway</td><td><span class="badge pass">Pass</span></td><td>192.168.1.1</td></tr>
+      <tr><td>3</td><td>DNS Servers</td><td><span class="badge warn">Warn</span></td><td>Response > 100ms</td></tr>
+      <tr><td>4</td><td>Ping</td><td><span class="badge pass">Pass</span></td><td>12ms avg</td></tr>
+    </table>
+    <div class="card dark">
+      <h3>Color Palette</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="swatch-box" style="background:#0F172A"></div><div class="swatch-label">Surface</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#1E293B"></div><div class="swatch-label">Card</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#334155"></div><div class="swatch-label">Input</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#38BDF8"></div><div class="swatch-label">Primary</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#22D3EE"></div><div class="swatch-label">Cyan</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#4ADE80"></div><div class="swatch-label">Pass</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#F87171"></div><div class="swatch-label">Fail</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">NetDiagnostics Dark Theme · Generated 2026-07-06</div>
+</div>
+
+<!-- ═══════════════════ LIGHT THEME ═══════════════════ -->
+<div class="panel light">
+  <div class="nav light">
+    <div class="spacer"></div>
+    <button class="nav-btn light active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-btn light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+      Diagnostic
+    </button>
+    <button class="nav-btn light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83"/></svg>
+      Config
+    </button>
+    <button class="nav-btn light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Report
+    </button>
+    <button class="nav-btn light">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg>
+      Settings
+    </button>
+    <div class="spacer"></div>
+    <button class="nav-close light">✕</button>
+  </div>
+
+  <div class="content">
+    <div class="theme-toggle" style="margin-bottom:12px">
+      <button class="theme-btn">Dark</button>
+      <button class="theme-btn active">Light</button>
+    </div>
+    <div class="card light">
+      <h3>Network Diagnostic Report — google.com</h3>
+      <p style="color:#64748B;font-size:11px;font-family:var(--mono)">2026-07-06 12:00 · v0.0.2 (build 500)</p>
+    </div>
+    <div class="stats">
+      <div class="stat pass light"><div class="count">28</div><div class="label light">Pass</div></div>
+      <div class="stat warn light"><div class="count">3</div><div class="label light">Warn</div></div>
+      <div class="stat fail light"><div class="count">1</div><div class="label light">Fail</div></div>
+      <div class="stat skip light"><div class="count">4</div><div class="label light">Skip</div></div>
+      <div class="stat info light"><div class="count">2</div><div class="label light">Info</div></div>
+    </div>
+    <table class="light" style="margin-bottom:12px">
+      <tr><th>#</th><th>Test</th><th>Status</th><th>Summary</th></tr>
+      <tr><td>1</td><td>Network Adapters</td><td><span class="badge pass">Pass</span></td><td>2 adapters detected</td></tr>
+      <tr><td>2</td><td>Default Gateway</td><td><span class="badge pass">Pass</span></td><td>192.168.1.1</td></tr>
+      <tr><td>3</td><td>DNS Servers</td><td><span class="badge warn">Warn</span></td><td>Response > 100ms</td></tr>
+      <tr><td>4</td><td>Ping</td><td><span class="badge pass">Pass</span></td><td>12ms avg</td></tr>
+    </table>
+    <div class="card light">
+      <h3>Color Palette</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="swatch-box" style="background:#F8FAFC"></div><div class="swatch-label">Surface</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#FFFFFF"></div><div class="swatch-label">Card</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#F1F5F9"></div><div class="swatch-label">Input</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#0EA5E9"></div><div class="swatch-label">Primary</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#06B6D4"></div><div class="swatch-label">Cyan</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#10B981"></div><div class="swatch-label">Pass</div></div>
+        <div class="swatch"><div class="swatch-box" style="background:#EF4444"></div><div class="swatch-label">Fail</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">NetDiagnostics Light Theme · Generated 2026-07-06</div>
+</div>
+</div>
+
+<h2 style="margin-top:32px">Design Tokens — Typography Scale</h2>
+<table class="dark" style="background:var(--dark-surface);border-radius:12px;margin-top:8px">
+  <tr><th>Token</th><th>Size</th><th>Usage</th><th style="width:60%">Sample</th></tr>
+  <tr><td style="color:#38BDF8">displayLarge</td><td>57px</td><td>Hero</td><td><span style="font-size:57px;font-family:var(--mono);color:#F1F5F9">Aa</span></td></tr>
+  <tr><td style="color:#38BDF8">headlineSmall</td><td>24px</td><td>Screen title</td><td><span style="font-size:24px;font-family:var(--mono);font-weight:600;color:#F1F5F9">Network Report</span></td></tr>
+  <tr><td style="color:#38BDF8">titleMedium</td><td>16px</td><td>Section header</td><td><span style="font-size:16px;font-family:var(--mono);font-weight:500;color:#F1F5F9">System &amp; Adapters</span></td></tr>
+  <tr><td style="color:#38BDF8">labelLarge</td><td>14px</td><td>Nav buttons</td><td><span style="font-size:14px;font-family:var(--mono);color:#94A3B8">Dashboard</span></td></tr>
+  <tr><td style="color:#38BDF8">bodyMedium</td><td>14px</td><td>Body text</td><td><span style="font-size:14px;font-family:var(--mono);color:#E2E8F0">Test completed in 245ms</span></td></tr>
+  <tr><td style="color:#38BDF8">monoCode</td><td>12px</td><td>Code / Logs</td><td><span style="font-size:12px;font-family:var(--mono);color:#38BDF8">192.168.1.1 → 12ms TTL=64</span></td></tr>
+  <tr><td style="color:#38BDF8">labelSmall</td><td>11px</td><td>Captions</td><td><span style="font-size:11px;font-family:var(--mono);color:#64748B">Generated by NetDiagnostics</span></td></tr>
+</table>
+
+<h2 style="margin-top:32px">Spacing — 4px Grid System</h2>
+<table class="dark" style="background:var(--dark-surface);border-radius:12px;margin-top:8px">
+  <tr><th>Token</th><th>Pixels</th><th>Usage</th></tr>
+  <tr><td style="color:#38BDF8">xs</td><td>4px</td><td>Icon-text gap, tight padding</td></tr>
+  <tr><td style="color:#38BDF8">sm</td><td>8px</td><td>Element gap, input padding</td></tr>
+  <tr><td style="color:#38BDF8">md</td><td>12px</td><td>Card internal padding, stat gap</td></tr>
+  <tr><td style="color:#38BDF8">lg</td><td>16px</td><td>Section padding, screen margin</td></tr>
+  <tr><td style="color:#38BDF8">xl</td><td>24px</td><td>Large section spacing</td></tr>
+  <tr><td style="color:#38BDF8">xxl</td><td>32px</td><td>Content block separation</td></tr>
+  <tr><td style="color:#38BDF8">xxxl</td><td>48px</td><td>Screen-level whitespace</td></tr>
+</table>
+
+<h2 style="margin-top:32px">Corner Radius — Rounded Scale</h2>
+<table class="dark" style="background:var(--dark-surface);border-radius:12px;margin-top:8px">
+  <tr><th>Token</th><th>Value</th><th>Usage</th><th>Preview</th></tr>
+  <tr><td style="color:#38BDF8">xs</td><td>4px</td><td>Small badges, tags</td><td><div style="width:60px;height:24px;background:#38BDF8;border-radius:4px"></div></td></tr>
+  <tr><td style="color:#38BDF8">sm</td><td>6px</td><td>Buttons, inputs</td><td><div style="width:60px;height:24px;background:#38BDF8;border-radius:6px"></div></td></tr>
+  <tr><td style="color:#38BDF8">md</td><td>8px</td><td>Nav buttons, chips</td><td><div style="width:60px;height:24px;background:#38BDF8;border-radius:8px"></div></td></tr>
+  <tr><td style="color:#38BDF8">lg</td><td>12px</td><td>Cards, panels</td><td><div style="width:60px;height:24px;background:#38BDF8;border-radius:12px"></div></td></tr>
+  <tr><td style="color:#38BDF8">xl</td><td>16px</td><td>Modals, dialogs</td><td><div style="width:60px;height:24px;background:#38BDF8;border-radius:16px"></div></td></tr>
+  <tr><td style="color:#38BDF8">full</td><td>9999</td><td>Pills, avatars</td><td><div style="width:60px;height:24px;background:#38BDF8;border-radius:9999px"></div></td></tr>
+</table>
+
+</body>
+</html>
