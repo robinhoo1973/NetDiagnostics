@@ -43,11 +43,13 @@ param(
     [switch]$SimOnly,
     [switch]$Clean,
     [switch]$NoCleanTemp,
+    [switch]$Debug,
     [string]$MsysPath = "C:\msys64",
     [string]$Qt6Prefix = "/ucrt64/qt6-static"
 )
 
 $ErrorActionPreference = "Stop"
+$nd_debug_val = if ($Debug) { "ON" } else { "OFF" }
 $Host.UI.RawUI.WindowTitle = "NetDiagnostic Static Build"
 
 # ============================================================================
@@ -296,6 +298,7 @@ build_target() {
         -DBUILD_SIMULATOR="`${sim_flag}" \
         -DNO_CURL=ON \
         -DBUILD_TESTS=OFF \
+        -DND_DEBUG=${nd_debug_val} \
         "`${PROJ}" 2>&1 | tee "`${DIST_DIR}/`${log_base}.cmake"
 
     echo ""

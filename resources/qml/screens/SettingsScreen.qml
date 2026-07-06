@@ -66,9 +66,9 @@ Item {
                         spacing: 6
                         Repeater {
                             model: [
-                                { label: "System", mode: ThemeEngine.System },
-                                { label: "Light",  mode: ThemeEngine.Light  },
-                                { label: "Dark",   mode: ThemeEngine.Dark   }
+                                { label: "System", mode: ThemeEngine.sysMode },
+                                { label: "Light",  mode: ThemeEngine.litMode },
+                                { label: "Dark",   mode: ThemeEngine.drkMode }
                             ]
                             delegate: Rectangle {
                                 implicitWidth: 90; implicitHeight: 36; radius: ThemeEngine.radius.md

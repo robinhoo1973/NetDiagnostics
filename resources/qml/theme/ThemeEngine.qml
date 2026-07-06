@@ -12,10 +12,10 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property int System: 0
-    readonly property int Light:  1
-    readonly property int Dark:   2
-    property int mode: Dark
+    readonly property int sysMode: 0
+    readonly property int litMode: 1
+    readonly property int drkMode: 2
+    property int mode: drkMode
 
     // ── Palettes as JS objects (2 properties — NOT 46 QML properties) ──
     readonly property var lightPalette: ({
@@ -79,7 +79,7 @@ QtObject {
     Component.onCompleted: _ready = true
 
     function applyTheme() {
-        var p = (mode === Light) ? lightPalette : darkPalette
+        var p = (mode === litMode) ? lightPalette : darkPalette
         bgDark          = p.surface
         bgSidebar       = p.sidebar
         bgCard          = p.card
