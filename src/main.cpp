@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 
     app.setApplicationName("NetDiagnostics");
     app.setApplicationDisplayName("NetDiagnostics");
-    app.setApplicationVersion("0.0.1");
+    app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
 

@@ -1,47 +1,105 @@
 // =============================================================================
 // ThemeEngine.qml — Runtime theme controller (singleton)
 //
-// Minimal stable version.  The full MD3 light/dark palette + system detection
-// will be re-enabled after crash root cause is identified.
+// Light/dark/system theme switching via flat property bindings.
+// No Qt API calls or JS object trees — stable across all platforms.
 // =============================================================================
 pragma Singleton
 import QtQuick
 
 QtObject {
-    property int mode: 2  // 0=System, 1=Light, 2=Dark
+    // ── Theme mode ────────────────────────────────────────────────────
+    readonly property int System: 0
+    readonly property int Light:  1
+    readonly property int Dark:   2
 
-    // ── Active colors (single palette, dark by default) ────────────────
-    readonly property string bgDark:          "#0F172A"
-    readonly property string bgSidebar:       "#0F172A"
-    readonly property string bgCard:          "#1E293B"
-    readonly property string bgInput:         "#334155"
-    readonly property string textPrimary:     "#F1F5F9"
-    readonly property string textSecondary:   "#94A3B8"
-    readonly property string textMuted:       "#64748B"
-    readonly property string accent:          "#FB7185"
-    readonly property string accentBlue:      "#818CF8"
-    readonly property string cyan:            "#22D3EE"
-    readonly property string passGreen:       "#4ADE80"
-    readonly property string warnYellow:      "#FBBF24"
-    readonly property string failRed:         "#F87171"
-    readonly property string skipGray:        "#9CA3AF"
-    readonly property string infoBlue:        "#60A5FA"
-    readonly property string borderCard:      "#334155"
-    readonly property string borderSubtle:    "#1E293B"
-    readonly property string borderFocused:   "#38BDF8"
-    readonly property string monoFont:        "JetBrains Mono"
-    readonly property real   radiusCard:      12
-    readonly property real   radiusButton:    8
-    readonly property real   radiusSmall:     6
-    readonly property real   sidebarWidth:    260
+    property int mode: Dark
 
-    // ── Placeholder for future theme switching ─────────────────────────
-    readonly property var colors: ({ surface: bgDark, card: bgCard, input: bgInput,
-        sidebar: bgSidebar, navBar: "#0F172A", primary: cyan, secondary: accentBlue,
-        primaryContainer: "#0C4A6E", textPrimary: textPrimary, textSecondary: textSecondary,
-        textMuted: textMuted, accent: accent, cyan: cyan, passGreen: passGreen,
-        warnYellow: warnYellow, failRed: failRed, skipGray: skipGray, infoBlue: infoBlue,
-        borderCard: borderCard, borderSubtle: borderSubtle, borderFocused: borderFocused })
+    // ── Light palette ─────────────────────────────────────────────────
+    readonly property string lSurface:          "#F8FAFC"
+    readonly property string lSidebar:          "#FFFFFF"
+    readonly property string lCard:             "#FFFFFF"
+    readonly property string lInput:            "#F1F5F9"
+    readonly property string lNavBar:           "#FFFFFF"
+    readonly property string lPrimary:          "#0EA5E9"
+    readonly property string lPrimaryContainer: "#E0F2FE"
+    readonly property string lSecondary:        "#6366F1"
+    readonly property string lTextPrimary:      "#0F172A"
+    readonly property string lTextSecondary:    "#475569"
+    readonly property string lTextMuted:        "#94A3B8"
+    readonly property string lAccent:           "#F43F5E"
+    readonly property string lCyan:             "#06B6D4"
+    readonly property string lPass:             "#10B981"
+    readonly property string lWarn:             "#F59E0B"
+    readonly property string lFail:             "#EF4444"
+    readonly property string lSkip:             "#9CA3AF"
+    readonly property string lInfo:             "#3B82F6"
+    readonly property string lBorderCard:       "#E2E8F0"
+    readonly property string lBorderSubtle:     "#F1F5F9"
+    readonly property string lBorderFocused:    "#0EA5E9"
+
+    // ── Dark palette ──────────────────────────────────────────────────
+    readonly property string dSurface:          "#0F172A"
+    readonly property string dSidebar:          "#0F172A"
+    readonly property string dCard:             "#1E293B"
+    readonly property string dInput:            "#334155"
+    readonly property string dNavBar:           "#0F172A"
+    readonly property string dPrimary:          "#38BDF8"
+    readonly property string dPrimaryContainer: "#0C4A6E"
+    readonly property string dSecondary:        "#818CF8"
+    readonly property string dTextPrimary:      "#F1F5F9"
+    readonly property string dTextSecondary:    "#94A3B8"
+    readonly property string dTextMuted:        "#64748B"
+    readonly property string dAccent:           "#FB7185"
+    readonly property string dCyan:             "#22D3EE"
+    readonly property string dPass:             "#4ADE80"
+    readonly property string dWarn:             "#FBBF24"
+    readonly property string dFail:             "#F87171"
+    readonly property string dSkip:             "#9CA3AF"
+    readonly property string dInfo:             "#60A5FA"
+    readonly property string dBorderCard:       "#334155"
+    readonly property string dBorderSubtle:     "#1E293B"
+    readonly property string dBorderFocused:    "#38BDF8"
+
+    // ── Active palette (picks light or dark based on mode) ────────────
+    readonly property bool isLight: mode === Light
+
+    // ── Public API — same keys as old C++ Theme for backward compat ────
+    readonly property string bgDark:          isLight ? lSurface       : dSurface
+    readonly property string bgSidebar:       isLight ? lSidebar       : dSidebar
+    readonly property string bgCard:          isLight ? lCard          : dCard
+    readonly property string bgInput:         isLight ? lInput         : dInput
+    readonly property string textPrimary:     isLight ? lTextPrimary   : dTextPrimary
+    readonly property string textSecondary:   isLight ? lTextSecondary : dTextSecondary
+    readonly property string textMuted:       isLight ? lTextMuted     : dTextMuted
+    readonly property string accent:          isLight ? lAccent        : dAccent
+    readonly property string accentBlue:      isLight ? lSecondary     : dSecondary
+    readonly property string cyan:            isLight ? lCyan          : dCyan
+    readonly property string passGreen:       isLight ? lPass          : dPass
+    readonly property string warnYellow:      isLight ? lWarn          : dWarn
+    readonly property string failRed:         isLight ? lFail          : dFail
+    readonly property string skipGray:        isLight ? lSkip          : dSkip
+    readonly property string infoBlue:        isLight ? lInfo          : dInfo
+    readonly property string borderCard:      isLight ? lBorderCard    : dBorderCard
+    readonly property string borderSubtle:    isLight ? lBorderSubtle  : dBorderSubtle
+    readonly property string borderFocused:   isLight ? lBorderFocused : dBorderFocused
+    readonly property string navBar:          isLight ? lNavBar        : dNavBar
+    readonly property string primary:         isLight ? lPrimary       : dPrimary
+    readonly property string primaryContainer:isLight ? lPrimaryContainer : dPrimaryContainer
+    readonly property string secondary:       isLight ? lSecondary     : dSecondary
+
+    // ── Convenience objects (minimal, stable) ─────────────────────────
+    readonly property var colors: ({
+        surface: bgDark, card: bgCard, input: bgInput, sidebar: bgSidebar,
+        navBar: navBar, primary: primary, primaryContainer: primaryContainer,
+        secondary: secondary, textPrimary: textPrimary,
+        textSecondary: textSecondary, textMuted: textMuted,
+        accent: accent, cyan: cyan, passGreen: passGreen,
+        warnYellow: warnYellow, failRed: failRed, skipGray: skipGray,
+        infoBlue: infoBlue, borderCard: borderCard,
+        borderSubtle: borderSubtle, borderFocused: borderFocused
+    })
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
-    readonly property string fontMono: monoFont
+    readonly property string fontMono: "JetBrains Mono"
+    readonly property string monoFont: fontMono
 }

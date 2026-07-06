@@ -7,7 +7,10 @@
 
 function(configure_netdiag_target TARGET)
     # ── Compile definitions ──────────────────────────────────────────
-    target_compile_definitions(${TARGET} PRIVATE APP_EDITION="${APP_EDITION}")
+    target_compile_definitions(${TARGET} PRIVATE
+        APP_EDITION="${APP_EDITION}"
+        PROJECT_VERSION="${PROJECT_VERSION}"
+    )
     if(DEFINED ND_BUILD_NUMBER)
         target_compile_definitions(${TARGET} PRIVATE ND_BUILD_NUMBER="${ND_BUILD_NUMBER}")
     endif()
