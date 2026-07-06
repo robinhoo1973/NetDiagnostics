@@ -95,10 +95,19 @@ QtObject {
 
     function applyTheme() {
         var p = (mode === litMode) ? lightPalette : darkPalette
-        for (var i = 0; i < _colorKeys.length; i++) {
-            var key = _colorKeys[i]
-            this[key[0]] = p[key[1]]
-        }
+        // NOTE: must use dot notation — this[key]=val does NOT trigger
+        // QML property change signals in static/cross-compiled builds
+        bgDark          = p.surface;       bgSidebar       = p.sidebar
+        bgCard          = p.card;          bgInput         = p.input
+        navBar          = p.navBar;        textPrimary     = p.textPrimary
+        textSecondary   = p.textSecondary; textMuted       = p.textMuted
+        accent          = p.accent;        accentBlue      = p.secondary
+        cyan            = p.cyan;          passGreen       = p.passGreen
+        warnYellow      = p.warnYellow;    failRed         = p.failRed
+        skipGray        = p.skipGray;      infoBlue        = p.infoBlue
+        borderCard      = p.borderCard;    borderSubtle    = p.borderSubtle
+        borderFocused   = p.borderFocused; primary         = p.primary
+        primaryContainer= p.primaryContainer; secondary     = p.secondary
     }
     onModeChanged: { if (_ready) applyTheme() }
 
