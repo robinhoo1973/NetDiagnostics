@@ -1,12 +1,20 @@
-﻿<#
+<#
 .SYNOPSIS
-    NetDiagnostic Static Build - Fully static linked compilation script
+    NetDiagnostic Static Build — Fully static linked compilation (zero non-OS DLL)
 .DESCRIPTION
-    Automated static compilation of production and simulator executables.
-    No non-OS DLL dependencies (fully static linked).
-    All temp files created under %%TEMP%% and auto-deleted on completion.
-    Final output in dist/ directory.
-    File naming: netdiag-{os}-{arch}.exe / netdiag-sim-{os}-{arch}.exe
+    Builds production + simulator executables with truly static linking using
+    the MSYS2 pre-built qt6-static package at /ucrt64/qt6-static.
+
+    All non-Qt dependencies (zlib, brotli, pcre2, freetype, harfbuzz, libpng,
+    libjpeg, libtiff, libwebp, OpenSSL, etc.) are linked statically from their
+    .a counterparts in /ucrt64/lib/.  Windows system DLLs (KERNEL32, USER32, …)
+    are the ONLY dynamic dependencies — the exe is fully portable with zero
+    third-party DLL requirements.
+
+    Mirrors the windows-x86_64-static job in .github/workflows/build.yml,
+    adapted for local builds using the pre-built MSYS2 static Qt6 package.
+
+    All build logs are written to dist/.
 
 .PARAMETER ProdOnly
     Build only production version (default: both)
@@ -15,23 +23,19 @@
 .PARAMETER Clean
     Clean previous build artifacts before building
 .PARAMETER NoCleanTemp
-    Keep temp files under %%TEMP%% (for debugging)
+    Keep temp files under %TEMP% (for debugging)
 .PARAMETER MsysPath
     MSYS2 installation path (default: C:\msys64)
-.PARAMETER Qt6StaticPath
-    Static Qt6 cmake path (default: auto-detect MSYS2 ucrt64/qt6-static)
+.PARAMETER Qt6Prefix
+    Static Qt6 cmake prefix path (default: /ucrt64/qt6-static within MSYS2)
 
 .EXAMPLE
     .\scripts\build-static.ps1
-    Build both production + simulator
+    Build both production + simulator (fully static, zero non-OS DLL)
 
 .EXAMPLE
     .\scripts\build-static.ps1 -ProdOnly -Clean
     Clean then build production only
-
-.EXAMPLE
-    .\scripts\build-static.ps1 -MsysPath D:\msys64
-    Specify MSYS2 path
 #>
 
 param(
@@ -40,7 +44,7 @@ param(
     [switch]$Clean,
     [switch]$NoCleanTemp,
     [string]$MsysPath = "C:\msys64",
-    [string]$Qt6StaticPath = ""
+    [string]$Qt6Prefix = "/ucrt64/qt6-static"
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,14 +53,23 @@ $Host.UI.RawUI.WindowTitle = "NetDiagnostic Static Build"
 # ============================================================================
 # 0. Constants & Paths
 # ============================================================================
-$SCRIPT_DIR   = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$PROJECT_DIR  = (Resolve-Path (Split-Path -Parent $SCRIPT_DIR)).Path
-$DIST_DIR     = Join-Path $PROJECT_DIR "dist"
-$TEMP_DIR     = Join-Path $env:TEMP "netdiag-static-build"
-$BUILD_DIR    = Join-Path $TEMP_DIR "build"
-$CMAKE_LOG    = Join-Path $TEMP_DIR "cmake.log"
-$NINJA_LOG    = Join-Path $TEMP_DIR "ninja.log"
-$BASH_SCRIPT  = Join-Path $TEMP_DIR "build.sh"
+$SCRIPT_DIR  = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
+$PROJECT_DIR = (Resolve-Path (Split-Path -Parent $SCRIPT_DIR)).Path
+$DIST_DIR    = Join-Path $PROJECT_DIR "dist"
+$TEMP_DIR    = Join-Path $env:TEMP "netdiag-static-build"
+
+# Windows system libraries required by static Qt6 and its dependencies.
+# Wrapped with --start-group/--end-group so the linker resolves circular refs.
+# These are all OS-provided DLLs (not third-party) — the resulting exe remains
+# portable across Windows 10+ installations.
+$WIN_SYS_LIBS = @(
+    "-lcrypt32", "-lws2_32", "-liphlpapi", "-lwinhttp",
+    "-lnetapi32", "-ld3d11", "-ldxgi", "-ldwrite",
+    "-luuid", "-loleaut32", "-lole32", "-lversion",
+    "-lwinmm", "-lncrypt", "-luserenv", "-lsetupapi"
+) -join " "
+
+$LINKER_GROUP_FLAGS = "-Wl,--start-group $WIN_SYS_LIBS -Wl,--end-group"
 
 # ============================================================================
 # 1. Helper Functions
@@ -65,20 +78,26 @@ function Write-Info  { Write-Host "  [INFO]  $args" -ForegroundColor Cyan }
 function Write-OK    { Write-Host "  [OK]    $args" -ForegroundColor Green }
 function Write-Warn  { Write-Host "  [WARN]  $args" -ForegroundColor Yellow }
 function Write-Err   { Write-Host "  [ERROR] $args" -ForegroundColor Red }
-function Write-Step  { Write-Host "`n-- $args --" -ForegroundColor White }
+function Write-Step  {
+    Write-Host ""
+    Write-Host ("=" * 60) -ForegroundColor Gray
+    Write-Host "  $args" -ForegroundColor White
+    Write-Host ("=" * 60) -ForegroundColor Gray
+}
 
 function ConvertTo-MsysPath {
     param([string]$WinPath)
-    ($WinPath -replace '\\','/' -replace '^([A-Za-z]):','/$1').ToLower()
+    ($WinPath -replace '\\', '/' -replace '^([A-Za-z]):', '/$1').ToLower()
 }
 
 function Show-Banner {
     Write-Host @"
 
-====================================================
+============================================================
      NetDiagnostic Static Build
-     Fully Static Linked - Zero non-OS DLL deps
-====================================================
+     MSYS2 qt6-static + fully static linking
+     Zero non-OS DLL dependencies
+============================================================
 
 "@ -ForegroundColor Cyan
 }
@@ -89,501 +108,374 @@ function Show-Banner {
 function Detect-Platform {
     Write-Step "Platform Detection"
 
-    $script:BUILD_OS = ""
-    $script:BUILD_ARCH = ""
-
-    # Cross-version OS detection (PS5/PS7 compatible)
-    $plat = [System.Environment]::OSVersion.Platform
-    $osEnv = [System.Environment]::GetEnvironmentVariable("OS")
-    if ([string]::IsNullOrEmpty($osEnv)) { $osEnv = "" }
-    if ($plat -eq "Win32NT" -or $osEnv -match "Windows") {
-        $script:BUILD_OS = "win"
-    }
-    elseif ($plat -eq "Unix") {
-        # PS7: $IsLinux/$IsMacOS; PS5: check further
-        $script:BUILD_OS = "linux"
-    }
-    else {
-        Write-Err "Cannot detect OS. Platform: $plat"
-        Write-Err "Supported: Windows, Linux, macOS"
-        exit 1
-    }
+    $script:BUILD_OS   = "win"
+    $script:BUILD_ARCH = "x86_64"
+    $script:EXE_EXT    = ".exe"
 
     $arch = [System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE")
-    if ($arch -eq "AMD64" -or $arch -eq "x86_64" -or $arch -eq "EM64T") {
-        $script:BUILD_ARCH = "x86_64"
-    }
-    elseif ($arch -eq "ARM64" -or $arch -eq "AArch64" -or $arch -eq "aarch64") {
-        $script:BUILD_ARCH = "arm64"
-    }
-    else {
-        Write-Err "Cannot detect CPU arch: $arch"
+    if ($arch -eq "ARM64" -or $arch -eq "AArch64") {
+        Write-Err "ARM64 Windows not yet supported for static builds."
+        Write-Err "Use the dynamic MSYS2 build instead."
         exit 1
     }
 
-    Write-OK "OS:   $script:BUILD_OS"
-    Write-OK "CPU:  $script:BUILD_ARCH"
-    Write-OK "Output: netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH).exe"
+    Write-OK "OS:    $script:BUILD_OS"
+    Write-OK "CPU:   $script:BUILD_ARCH"
+    Write-OK "Dist:  $DIST_DIR"
 }
 
 # ============================================================================
-# 3. Dependency Check
+# 3. MSYS2 Dependency Check
 # ============================================================================
 function Test-Dependencies {
-    Write-Step "Dependency Check"
+    Write-Step "MSYS2 Dependency Check"
 
-    $script:MSYS2_OK = $false
-    $script:QT6_STATIC_CMAKE = ""
-    $script:MSYS2_ENV = ""
-
-    # -- MSYS2 detection --
     $bash_exe = Join-Path $MsysPath "usr\bin\bash.exe"
-    if (Test-Path $bash_exe) {
-        Write-OK "MSYS2 installed: $MsysPath"
-        $script:MSYS2_OK = $true
-
-        $ucrt64 = Join-Path $MsysPath "ucrt64"
-        $mingw64 = Join-Path $MsysPath "mingw64"
-        $clang64 = Join-Path $MsysPath "clang64"
-        $clangarm64 = Join-Path $MsysPath "clangarm64"
-
-        if ($script:BUILD_ARCH -eq "arm64" -and (Test-Path $clangarm64)) {
-            $script:MSYS2_ENV = "clangarm64"
-            Write-OK "MSYS2 env: CLANGARM64"
-        }
-        elseif ($script:BUILD_ARCH -eq "x86_64" -and (Test-Path $ucrt64)) {
-            $script:MSYS2_ENV = "ucrt64"
-            Write-OK "MSYS2 env: UCRT64"
-        }
-        elseif ($script:BUILD_ARCH -eq "x86_64" -and (Test-Path $mingw64)) {
-            $script:MSYS2_ENV = "mingw64"
-            Write-OK "MSYS2 env: MINGW64"
-        }
-        elseif ($script:BUILD_ARCH -eq "x86_64" -and (Test-Path $clang64)) {
-            $script:MSYS2_ENV = "clang64"
-            Write-OK "MSYS2 env: CLANG64"
-        }
-        else {
-            Write-Err "MSYS2 installed but no matching compiler environment"
-            Write-Err "  Need: ucrt64/mingw64 (x86_64) or clangarm64 (ARM64)"
-            exit 1
-        }
-    }
-    else {
-        Write-Err "MSYS2 not found (expected: $MsysPath)"
-        Write-Err ""
-        Write-Err "Install MSYS2 (required):"
-        Write-Err "  1. Download: https://www.msys2.org/"
-        Write-Err "  2. After install, run MSYS2 UCRT64 terminal:"
-        Write-Err "     pacman -Syu"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-qt6-static"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-curl"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-cmake"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-ninja"
-        Write-Err "     pacman -S mingw-w64-ucrt-x86_64-gcc"
-        Write-Err "  3. Or specify path: -MsysPath D:\\msys64"
+    if (-not (Test-Path $bash_exe)) {
+        Write-Err "MSYS2 not found at: $MsysPath"
+        Write-Err "Install MSYS2: https://www.msys2.org/"
+        Write-Err "After install, run MSYS2 UCRT64 terminal and execute:"
+        Write-Err "  pacman -Syu"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-gcc"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-cmake"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-ninja"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-qt6-static"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-openssl"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-zlib"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-brotli"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-pcre2"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-libb2"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-libpng"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-libjpeg-turbo"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-libtiff"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-libwebp"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-freetype"
+        Write-Err "  pacman -S --needed mingw-w64-ucrt-x86_64-harfbuzz"
         exit 1
     }
 
-    # -- Static Qt6 detection --
-    if ($Qt6StaticPath -ne "") {
-        if (Test-Path (Join-Path $Qt6StaticPath "Qt6Config.cmake")) {
-            $script:QT6_STATIC_CMAKE = $Qt6StaticPath
-            Write-OK "Static Qt6 (specified): $Qt6StaticPath"
-        }
-        else {
-            Write-Err "Invalid static Qt6 path: $Qt6StaticPath"
-            exit 1
-        }
-    }
-    else {
-        $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
-        $candidates = @(
-            (Join-Path $msys_env_dir "qt6-static\lib\cmake\Qt6"),
-            (Join-Path $msys_env_dir "lib\cmake\Qt6")
-        )
-        $found = $false
-        foreach ($c in $candidates) {
-            if (Test-Path (Join-Path $c "Qt6Config.cmake")) {
-                $script:QT6_STATIC_CMAKE = $c
-                $found = $true
-                Write-OK "Static Qt6: $c"
-                break
-            }
-        }
-        if (-not $found) {
-            Write-Err "Static Qt6 not found. In MSYS2 $($script:MSYS2_ENV) terminal:"
-            Write-Err "  pacman -S mingw-w64-ucrt-x86_64-qt6-static"
-            Write-Err "  pacman -S mingw-w64-ucrt-x86_64-qt6-imageformats"
-            Write-Err "  pacman -S mingw-w64-ucrt-x86_64-qt6-svg"
-            Write-Err ""
-            Write-Err "Or use -Qt6StaticPath to specify static Qt6 cmake directory"
-            exit 1
-        }
+    $script:MSYS2_ENV = "ucrt64"
+
+    # Verify critical packages
+    $required_pkgs = @(
+        "mingw-w64-ucrt-x86_64-gcc",
+        "mingw-w64-ucrt-x86_64-cmake",
+        "mingw-w64-ucrt-x86_64-ninja",
+        "mingw-w64-ucrt-x86_64-qt6-static",
+        "mingw-w64-ucrt-x86_64-openssl",
+        "mingw-w64-ucrt-x86_64-zlib",
+        "mingw-w64-ucrt-x86_64-brotli",
+        "mingw-w64-ucrt-x86_64-pcre2",
+        "mingw-w64-ucrt-x86_64-libpng",
+        "mingw-w64-ucrt-x86_64-libjpeg-turbo",
+        "mingw-w64-ucrt-x86_64-libtiff",
+        "mingw-w64-ucrt-x86_64-libwebp",
+        "mingw-w64-ucrt-x86_64-freetype",
+        "mingw-w64-ucrt-x86_64-harfbuzz"
+    )
+
+    Write-Info "Checking required MSYS2 packages..."
+    $pkgs_check = @()
+    foreach ($pkg in $required_pkgs) { $pkgs_check += "pacman -Q '$pkg' 2>/dev/null && echo '  [OK]  $pkg' || echo '  [MISS] $pkg'" }
+    $check_script = "#!/usr/bin/env bash`nset -e`n" + ($pkgs_check -join "`n") + "`n"
+    $check_path = Join-Path $TEMP_DIR "check-pkgs.sh"
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($check_path, $check_script, $utf8)
+
+    $proc = Start-Process -FilePath $bash_exe `
+        -ArgumentList "-l", (ConvertTo-MsysPath $check_path) `
+        -NoNewWindow -Wait -PassThru
+
+    if ($proc.ExitCode -ne 0) {
+        Write-Err "Missing MSYS2 packages detected."
+        Write-Err "Install in MSYS2 UCRT64 terminal:"
+        Write-Err "  pacman -S --needed $($required_pkgs -join ' ')"
+        exit 1
     }
 
-    # -- Static libcurl check --
-    $msys_env_dir = Join-Path $MsysPath $script:MSYS2_ENV
-    $curl_a = Join-Path $msys_env_dir "lib\libcurl.a"
-    $curl_dll_a = Join-Path $msys_env_dir "lib\libcurl.dll.a"
-    if ((Test-Path $curl_a) -and -not (Test-Path $curl_dll_a)) {
-        Write-OK "Static libcurl: libcurl.a"
-    }
-    elseif (Test-Path $curl_a) {
-        Write-Warn "libcurl.a exists but libcurl.dll.a also present (may not be static)"
-    }
-    else {
-        Write-Warn "libcurl.a not found - install: pacman -S mingw-w64-ucrt-x86_64-curl"
-    }
+    Write-OK "All MSYS2 packages present"
+    Write-OK "Qt6 static prefix: $Qt6Prefix"
 }
 
 # ============================================================================
-# 4. Build Environment Setup
+# 4. Initialize Build Environment
 # ============================================================================
 function Initialize-BuildEnv {
     Write-Step "Build Environment Setup"
 
     if ($Clean) {
         if (Test-Path $TEMP_DIR) {
-            Write-Info "Cleaning old build temp files..."
+            Write-Info "Cleaning build temp: $TEMP_DIR"
             Remove-Item -Recurse -Force $TEMP_DIR -ErrorAction SilentlyContinue
         }
-        if (Test-Path $DIST_DIR) {
-            Write-Info "Cleaning old artifacts..."
-            Remove-Item (Join-Path $DIST_DIR "netdiag-*") -Force -ErrorAction SilentlyContinue
-            Remove-Item (Join-Path $DIST_DIR "netdiag-sim-*") -Force -ErrorAction SilentlyContinue
-        }
+        Get-ChildItem $DIST_DIR -Filter "netdiag-*" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Get-ChildItem $DIST_DIR -Filter "build-*.log" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Get-ChildItem $DIST_DIR -Filter "build-*.cmake" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Get-ChildItem $DIST_DIR -Filter "build-*.ninja" -ErrorAction SilentlyContinue | Remove-Item -Force
+        Write-Info "Cleaned dist/ artifacts and logs"
     }
 
-    $dirs = @($TEMP_DIR, $BUILD_DIR, $DIST_DIR)
-    foreach ($d in $dirs) {
+    foreach ($d in @($TEMP_DIR, $DIST_DIR)) {
         if (-not (Test-Path $d)) {
             New-Item -ItemType Directory -Path $d -Force | Out-Null
         }
     }
-    Write-OK "Temp dir: $TEMP_DIR"
-    Write-OK "Dist dir: $DIST_DIR"
+
+    Write-OK "Temp:  $TEMP_DIR"
+    Write-OK "Dist:  $DIST_DIR"
+
+    # Output file names
+    $script:PROD_NAME = "netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH)$($script:EXE_EXT)"
+    $script:SIM_NAME  = "netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH)-sim$($script:EXE_EXT)"
 }
 
 # ============================================================================
-# 5. Static Build (core)
+# 5. App Static Build (Production + Simulator in parallel)
 # ============================================================================
-function Invoke-StaticBuild {
-    Write-Step "Static Compilation"
+function Invoke-AppBuild {
+    Write-Step "Static Build (Production + Simulator)"
 
-    $script:PROD_FLAG = "OFF"
-    $script:SIM_FLAG  = "OFF"
+    $build_prod = $true
+    $build_sim  = $true
+    if ($ProdOnly) { $build_sim = $false }
+    if ($SimOnly)  { $build_prod = $false }
 
-    if ($ProdOnly) {
-        $script:PROD_FLAG = "ON"; $script:SIM_FLAG = "OFF"
-    }
-    elseif ($SimOnly) {
-        $script:PROD_FLAG = "OFF"; $script:SIM_FLAG = "ON"
-    }
-    else {
-        $script:PROD_FLAG = "ON"; $script:SIM_FLAG = "ON"
-    }
+    $build_number = (Get-Date -Format "yyyyMMdd") + "00"
 
-    $ext = ""
-    if ($script:BUILD_OS -eq "win") { $ext = ".exe" }
-    $script:PROD_NAME = "netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH)$ext"
-    $script:SIM_NAME  = "netdiag-sim-$($script:BUILD_OS)-$($script:BUILD_ARCH)$ext"
-
-    # -- Generate bash build script --
-    # Conventions:
-    #   `$VAR   -> Bash variable $VAR (backtick prevents PowerShell interpolation)
-    #   $PS_VAR -> PowerShell value, embedded directly into bash script
-    #
-    # We pass Windows paths and let the bash script convert via cygpath
-    # (MSYS2's native path converter), which handles junctions and OneDrive
-    # redirects correctly.
-    $bash_content = @"
+    $build_script = @"
 #!/usr/bin/env bash
-set -euo pipefail
+set -euxo pipefail
 
-# MSYS2 environment setup
-export MSYSTEM=$($script:MSYS2_ENV.ToString().ToUpper())
-export PATH=/$($script:MSYS2_ENV)/bin:/usr/bin:`$PATH
-export PKG_CONFIG_PATH=/$($script:MSYS2_ENV)/lib/pkgconfig
-export CMAKE_CXX_STANDARD=17
-export CMAKE_CXX_STANDARD_REQUIRED=ON
-export CURL_STATICLIB=1
+export MSYSTEM=UCRT64
+export PATH=/ucrt64/bin:/usr/bin:`$PATH
 
-# Convert Windows paths to MSYS2 Unix paths (handles OneDrive junctions etc.)
-PROJ=`$(cygpath -u "$($PROJECT_DIR)")
-BUILD=`$(cygpath -u "$($BUILD_DIR)")
-DIST=`$(cygpath -u "$($DIST_DIR)")
-TEMP_MSYS=`$(cygpath -u "$($TEMP_DIR)")
-QT6_CMAKE=`$(cygpath -u "$($script:QT6_STATIC_CMAKE)")
-export CMAKE_PREFIX_PATH="`$QT6_CMAKE/.."
+PROJ=`$(cygpath -u '$PROJECT_DIR')
+DIST_DIR=`$(cygpath -u '$DIST_DIR')
+BUILD_BASE=`$(cygpath -u '$TEMP_DIR/build')
+QT6_PREFIX='$Qt6Prefix'
 
-# Static link flags - core: fully static, zero non-OS DLLs
-# -static:              disable dynamic linking, use .a static libs only
-# -static-libgcc:       statically link libgcc
-# -static-libstdc++:    statically link libstdc++
-# --start-group/--end-group already handled by CMakeLists.txt
-STATIC_FLAGS="-static-libgcc -static-libstdc++ -static"
-LINK_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections"
+CMAKE_PREFIX_PATH="`$QT6_PREFIX"
 
-# Capture compiler info first (avoids PS subexpression confusion)
-COMPILER_VER=`$(gcc --version 2>/dev/null | head -1 || echo unknown)`
-QT6_CHECK=`$(cmake --find-package -DNAME=Qt6 -DCOMPILER_ID=GNU -DLANGUAGE=CXX -DMODE=EXIST 2>/dev/null || echo `$QT6_CMAKE)`
+STATIC_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
+STATIC_LINK_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections $LINKER_GROUP_FLAGS"
+STATIC_C_FLAGS="-static -static-libgcc -O2"
+STANDARD_LIBS="$WIN_SYS_LIBS"
 
-echo "==========================================="
-echo "  Compiler: `$COMPILER_VER"
-echo "  Qt6:      `$QT6_CHECK"
-echo "==========================================="
+echo "============================================"
+echo "  App Static Build"
+echo "  Qt6 prefix: `$QT6_PREFIX"
+echo "  Project:    `$PROJ"
+echo "  Dist:       `$DIST_DIR"
+echo "============================================"
 echo ""
 
-# -- Production version --
-if [ "$($script:PROD_FLAG)" = "ON" ]; then
-    echo "=== Building production: $($script:PROD_NAME) ==="
-    BUILD_DIR="`${BUILD}/prod"
-    rm -rf "`${BUILD_DIR}" && mkdir -p "`${BUILD_DIR}"
-    cd "`${BUILD_DIR}"
+# ---- Build function ----
+build_target() {
+    local target="`$1"      # net_diagnostics or net_diagnostics_sim
+    local sim_flag="`$2"    # OFF or ON
+    local out_name="`$3"    # output filename
+    local log_base="`$4"    # log file prefix under DIST_DIR
 
-    echo "  -> CMake configure..."
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_EXE_LINKER_FLAGS="`${LINK_FLAGS}" \
-        -DCMAKE_C_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/.." \
-        -DBUILD_SIMULATOR=OFF \
-        -DBUILD_TESTS=OFF \
-        "`${PROJ}" > "`$DIST/cmake-prod.log" 2>&1
+    local build_dir="`${BUILD_BASE}/`${target}"
 
-    echo "  -> Ninja build..."
-    ninja net_diagnostics > "`$DIST/ninja-prod.log" 2>&1
-
-    # Strip debug symbols to reduce size
-    strip net_diagnostics$ext 2>/dev/null || true
-
-    echo "  [DONE] Production: $($script:PROD_NAME)"
-fi
-
-# -- Simulator version --
-if [ "$($script:SIM_FLAG)" = "ON" ]; then
     echo ""
-    echo "=== Building simulator: $($script:SIM_NAME) ==="
-    BUILD_DIR="`${BUILD}/sim"
-    rm -rf "`${BUILD_DIR}" && mkdir -p "`${BUILD_DIR}"
-    cd "`${BUILD_DIR}"
+    echo "=============================================="
+    echo "  Configuring: `$target (SIMULATOR=`$sim_flag)"
+    echo "=============================================="
 
-    echo "  -> CMake configure..."
+    rm -rf "`${build_dir}" && mkdir -p "`${build_dir}"
+    cd "`${build_dir}"
+
     cmake -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_CXX_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_EXE_LINKER_FLAGS="`${LINK_FLAGS}" \
-        -DCMAKE_C_FLAGS="`${STATIC_FLAGS} -O2" \
-        -DCMAKE_PREFIX_PATH="`${QT6_CMAKE}/.." \
-        -DBUILD_SIMULATOR=ON \
+        -DPROJECT_VERSION="0.0.1" \
+        -DND_BUILD_NUMBER="$build_number" \
+        -DAPP_EDITION=static \
+        -DCMAKE_CXX_FLAGS="`${STATIC_CXX_FLAGS}" \
+        -DCMAKE_EXE_LINKER_FLAGS="`${STATIC_LINK_FLAGS}" \
+        -DCMAKE_C_FLAGS="`${STATIC_C_FLAGS}" \
+        -DCMAKE_CXX_STANDARD_LIBRARIES="`${STANDARD_LIBS}" \
+        -DCMAKE_PREFIX_PATH="`${CMAKE_PREFIX_PATH}" \
+        -DBUILD_SIMULATOR="`${sim_flag}" \
+        -DNO_CURL=ON \
         -DBUILD_TESTS=OFF \
-        "`${PROJ}" > "`$DIST/cmake-sim.log" 2>&1
+        "`${PROJ}" 2>&1 | tee "`${DIST_DIR}/`${log_base}.cmake"
 
-    echo "  -> Ninja build..."
-    ninja net_diagnostics_sim > "`$DIST/ninja-sim.log" 2>&1
+    echo ""
+    echo "=== Building: `$target ==="
+
+    if [ "`$target" = "net_diagnostics_sim" ]; then
+        ninja net_diagnostics_sim 2>&1 | tee "`${DIST_DIR}/`${log_base}.ninja"
+    else
+        ninja net_diagnostics 2>&1 | tee "`${DIST_DIR}/`${log_base}.ninja"
+    fi
 
     # Strip debug symbols to reduce size
-    strip net_diagnostics_sim$ext 2>/dev/null || true
+    echo ""
+    echo "=== Stripping + copying ==="
+    strip "`${target}.exe" 2>/dev/null || true
+    cp "`${target}.exe" "`${DIST_DIR}/`${out_name}"
 
-    echo "  [DONE] Simulator: $($script:SIM_NAME)"
+    local sz=`$(du -h "`${DIST_DIR}/`${out_name}" | cut -f1)
+    echo "  -> `$DIST_DIR/`${out_name}  (`$sz)"
+}
+
+# ---- Launch builds in parallel ----
+BUILD_PROD="$($build_prod.ToString().ToLower())"
+BUILD_SIM="$($build_sim.ToString().ToLower())"
+
+pids=()
+
+if [ "`$BUILD_PROD" = "true" ]; then
+    build_target "net_diagnostics" "OFF" "$($script:PROD_NAME)" "build-prod" &
+    pids+=(`$!)
+fi
+
+if [ "`$BUILD_SIM" = "true" ]; then
+    build_target "net_diagnostics_sim" "ON" "$($script:SIM_NAME)" "build-sim" &
+    pids+=(`$!)
+fi
+
+# ---- Wait for all ----
+echo "Waiting for `${#pids[@]} build(s) to complete..."
+echo ""
+
+failed=0
+for pid in "`${pids[@]}"; do
+    if ! wait "`$pid"; then
+        echo "ERROR: build process `$pid failed"
+        failed=1
+    fi
+done
+
+if [ "`$failed" -ne 0 ]; then
+    echo ""
+    echo "FATAL: One or more builds failed."
+    exit 1
 fi
 
 echo ""
-echo "==========================================="
-echo "  Static build complete"
-echo "==========================================="
-
+echo "=== All builds completed successfully ==="
 exit 0
 "@
 
-    # Write bash script to %TEMP% (Unix LF line endings)
-    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($BASH_SCRIPT, $bash_content, $utf8NoBom)
-    Write-Info "Build script generated: $BASH_SCRIPT"
+    $build_script_path = Join-Path $TEMP_DIR "build-app.sh"
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($build_script_path, $build_script, $utf8)
 
-    # Execute build
-    Write-Info "Starting MSYS2 static compilation..."
-    Write-Info "(Large Qt6 projects may take 5-15 minutes for first build)"
+    Write-Info "Starting builds in parallel..."
+    if ($build_prod) { Write-Info "  Production: $($script:PROD_NAME)" }
+    if ($build_sim)  { Write-Info "  Simulator:  $($script:SIM_NAME)" }
     Write-Host ""
 
     $bash_exe = Join-Path $MsysPath "usr\bin\bash.exe"
-    $msys_script = ConvertTo-MsysPath $BASH_SCRIPT
-
     $proc = Start-Process -FilePath $bash_exe `
-        -ArgumentList "-l", "$msys_script" `
+        -ArgumentList "-l", (ConvertTo-MsysPath $build_script_path) `
         -NoNewWindow -Wait -PassThru
 
-    Write-Host ""
-
     if ($proc.ExitCode -ne 0) {
-        Write-Err "Build failed (exit code: $($proc.ExitCode))"
-        Write-Err "Check logs at: $TEMP_DIR"
+        Write-Err "App build FAILED (exit: $($proc.ExitCode))"
+        Write-Err "Check logs in: $DIST_DIR"
         exit $proc.ExitCode
     }
 
-    # Copy artifacts from build dir to dist (PowerShell handles OneDrive redirects)
-    $prod_build = Join-Path $BUILD_DIR "prod\net_diagnostics$ext"
-    $sim_build  = Join-Path $BUILD_DIR "sim\net_diagnostics_sim$ext"
-    if ($script:PROD_FLAG -eq "ON" -and (Test-Path $prod_build)) {
-        # Retry up to 5 times for file-in-use
-        $copied = $false
-        for ($i = 1; $i -le 5; $i++) {
-            try {
-                Copy-Item $prod_build (Join-Path $DIST_DIR $script:PROD_NAME) -Force -ErrorAction Stop
-                $copied = $true; break
-            } catch {
-                if ($i -lt 5) { Start-Sleep -Seconds 1 }
-            }
-        }
-        if ($copied) { Write-OK "Copied: $($script:PROD_NAME)" }
-        else { Write-Warn "Could not copy production (file in use)" }
+    # Verify output
+    if ($build_prod) {
+        $p = Join-Path $DIST_DIR $script:PROD_NAME
+        if (Test-Path $p) {
+            $sz = [math]::Round((Get-Item $p).Length / 1MB, 1)
+            Write-OK "Production: $($script:PROD_NAME) ($sz MB)"
+        } else { Write-Err "Production not found: $p" }
     }
-    if ($script:SIM_FLAG -eq "ON" -and (Test-Path $sim_build)) {
-        # Retry up to 5 times for file-in-use (MSYS2 may hold handle briefly)
-        $copied = $false
-        for ($i = 1; $i -le 5; $i++) {
-            try {
-                Copy-Item $sim_build (Join-Path $DIST_DIR $script:SIM_NAME) -Force -ErrorAction Stop
-                $copied = $true
-                break
-            } catch {
-                if ($i -lt 5) { Start-Sleep -Seconds 1 }
-            }
-        }
-        if ($copied) { Write-OK "Copied: $($script:SIM_NAME)" }
-        else { Write-Warn "Could not copy simulator (file in use)" }
-    }
-
-    # Collect non-OS DLLs needed by the executables (MSYS2 Qt6-static limitation)
-    # Filter: only non-system DLLs; copy from MSYS2 /ucrt64/bin to dist/
-    $dll_collected = @{}
-    $msys_bin_dir = Join-Path $MsysPath "$($script:MSYS2_ENV)\bin"
-    $exe_paths = @()
-    if ($script:PROD_FLAG -eq "ON") { $exe_paths += Join-Path $DIST_DIR $script:PROD_NAME }
-    if ($script:SIM_FLAG -eq "ON") { $exe_paths += Join-Path $DIST_DIR $script:SIM_NAME }
-    
-    $system_dll_pattern = "api-ms|KERNEL|ADVAPI|GDI32|USER32|SHELL|ole32|WS2|ntdll|bcrypt|d3d|dxgi|DNSAPI|IPHLPAPI|SETUPAPI|WINHTTP|SHCORE|SHLWAPI|VERSION|WINMM|wlanapi|IMM32|dwmapi|DWrite|ncrypt|NETAPI|AUTHZ|UxTheme|comdlg32|CRYPT32|Secur32|USERENV|OLEAUT32|WTSAPI32|RPCRT4|USP10|WLDAP32"
-    
-    function Collect-Dlls {
-        param([string]$exe)
-        $dlls = & "$($MsysPath)\usr\bin\bash.exe" -l -c "export PATH=/ucrt64/bin:/usr/bin:`$PATH; objdump -p '$(ConvertTo-MsysPath $exe)' 2>/dev/null | grep 'DLL Name' | awk '{print `$3}' | grep -viE '$system_dll_pattern'" 2>$null
-        foreach ($dll in $dlls) {
-            $dll = $dll.Trim()
-            if ($dll -and -not $dll_collected[$dll]) {
-                $src = Join-Path $msys_bin_dir $dll
-                $dst = Join-Path $DIST_DIR $dll
-                if (Test-Path $src) {
-                    Copy-Item $src $dst -Force -ErrorAction SilentlyContinue
-                    $dll_collected[$dll] = $true
-                    Write-Info "  DLL: $dll"
-                    # Recursively check
-                    Collect-Dlls $dst
-                }
-            }
-        }
-    }
-    
-    foreach ($exe in $exe_paths) {
-        if (Test-Path $exe) {
-            Write-Info "Collecting DLLs for: $(Split-Path $exe -Leaf)"
-            Collect-Dlls $exe
-        }
-    }
-    if ($dll_collected.Count -gt 0) {
-        Write-Warn "Collected $($dll_collected.Count) non-OS DLL(s) — MSYS2 Qt6-static limitation"
-        Write-Warn "For truly zero-DLL builds, Qt6 must be rebuilt from source with -static"
+    if ($build_sim) {
+        $p = Join-Path $DIST_DIR $script:SIM_NAME
+        if (Test-Path $p) {
+            $sz = [math]::Round((Get-Item $p).Length / 1MB, 1)
+            Write-OK "Simulator:  $($script:SIM_NAME) ($sz MB)"
+        } else { Write-Err "Simulator not found: $p" }
     }
 }
 
 # ============================================================================
-# 6. Artifact Verification + DLL Dependency Check
+# 6. Verify Zero Non-OS DLL
 # ============================================================================
 function Test-StaticLinkage {
-    Write-Step "Artifact Verification + Static Link Check"
+    Write-Step "Static Linkage Verification (Zero non-OS DLL)"
 
-    $ext = ""
-    if ($script:BUILD_OS -eq "win") { $ext = ".exe" }
-
-    $prod_path = Join-Path $DIST_DIR $script:PROD_NAME
-    $sim_path  = Join-Path $DIST_DIR $script:SIM_NAME
-
-    $script:ProdBuilt = $false
-    $script:SimBuilt  = $false
-
-    # Check artifacts exist
-    if ($script:PROD_FLAG -eq "ON") {
-        if (Test-Path $prod_path) {
-            $prod_size = [math]::Round((Get-Item $prod_path).Length / 1MB, 1)
-            Write-OK "Production: $($script:PROD_NAME) ($($prod_size) MB)"
-            $script:ProdBuilt = $true
-        } else {
-            Write-Err "Production not generated: $prod_path"
-        }
-    }
-    if ($script:SIM_FLAG -eq "ON") {
-        if (Test-Path $sim_path) {
-            $sim_size = [math]::Round((Get-Item $sim_path).Length / 1MB, 1)
-            Write-OK "Simulator: $($script:SIM_NAME) ($($sim_size) MB)"
-            $script:SimBuilt = $true
-        } else {
-            Write-Err "Simulator not generated: $sim_path"
-        }
-    }
-
-    # DLL dependency check via MSYS2 objdump
-    if (-not $script:MSYS2_OK) { return }
-
-    $msys_dll_check = @'
+    $verify_script = @"
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-SYSTEM_DLLS="KERNEL32\.DLL|USER32\.DLL|GDI32\.DLL|ADVAPI32\.DLL|SHELL32\.DLL|ole32\.DLL|OLEAUT32\.DLL|WS2_32\.DLL|IPHLPAPI\.DLL|DNSAPI\.DLL|WINHTTP\.DLL|WLANAPI\.DLL|SETUPAPI\.DLL|SHCORE\.DLL|VERSION\.DLL|IMM32\.DLL|CRYPT32\.DLL|RPCRT4\.DLL|USP10\.DLL|WLDAP32\.DLL|NTDLL\.DLL|bcrypt\.dll|ncrypt\.dll|NETAPI32\.DLL|AUTHZ\.DLL|UxTheme\.DLL|comdlg32\.DLL|dwmapi\.DLL|SHLWAPI\.DLL|Secur32\.DLL|USERENV\.DLL|WINMM\.DLL|WSOCK32\.DLL|api-ms-win|ext-ms-win"
+DIST_DIR=`$(cygpath -u '$DIST_DIR')
+
+# System DLLs that are always OK (OS-provided)
+SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
+
+FAIL=0
 
 check_exe() {
-    local exe="$1" label="$2"
-    echo ""
-    echo "-- $label --"
-    if [ ! -f "$exe" ]; then
-        echo "  SKIP: file not found"
-        return
-    fi
-    local size_kb=$(du -k "$exe" | cut -f1)
-    echo "  Size: ${size_kb} KB"
+    local exe="`$1"
+    local label="`$2"
+    [ -f "`$exe" ] || { echo "  SKIP: `$label — file not found"; return; }
 
-    local non_sys=0
-    while IFS= read -r dll; do
-        if ! echo "$dll" | grep -qiE "$SYSTEM_DLLS"; then
-            echo "  [WARN] Non-system DLL: $dll"
-            non_sys=1
-        fi
-    done < <(objdump -p "$exe" 2>/dev/null | grep "DLL Name" | awk '{print $3}')
+    echo "  Checking: `$label"
+    local sz=`$(du -h "`$exe" | cut -f1)
+    echo "  Size: `$sz"
 
-    if [ $non_sys -eq 0 ]; then
-        echo "  [OK] No external DLL deps (OS system DLLs only)"
+    local nonsys
+    nonsys=`$(objdump -p "`$exe" 2>/dev/null | grep "DLL Name" | awk '{print `$3}' | tr -d '\r' | grep -viE "`$SYSTEM_DLLS" || true)
+
+    if [ -n "`$nonsys" ]; then
+        echo "  [FAIL] Non-OS DLL dependencies found:"
+        printf '    *** %s ***\n' `$nonsys
+        FAIL=1
     else
-        echo "  [ERR] Non-system DLL deps found - static link incomplete"
+        echo "  [OK] Zero non-OS DLL dependencies (fully static)"
     fi
 }
-'@
 
-    $msys_dll_check += @"
+check_exe "`$DIST_DIR/$($script:PROD_NAME)" "Production"
+echo ""
+check_exe "`$DIST_DIR/$($script:SIM_NAME)" "Simulator"
 
-check_exe "`$DIST/$($script:PROD_NAME)" "Production"
-check_exe "`$DIST/$($script:SIM_NAME)" "Simulator"
+echo ""
+
+if [ "`$FAIL" -ne 0 ]; then
+    echo "=============================================================="
+    echo "  ERROR: build is NOT zero-DLL."
+    echo "  The static link did not absorb the DLLs listed above."
+    echo "=============================================================="
+    exit 1
+fi
+
+echo "  ==============================================================="
+echo "    All executables are fully static (zero non-OS DLL)"
+echo "  ==============================================================="
+echo ""
+echo "  NOTE: G5 (Website / URL) diagnostics are DISABLED in the"
+echo "  static build. NO_CURL=ON means 13 of 38 network diagnostic"
+echo "  tests are skipped (HTTP, HTTPS, speed test, service banner)."
+echo "  The dynamic Windows build includes full G5 diagnostics."
+echo ""
 
 exit 0
 "@
 
-    $check_path = Join-Path $TEMP_DIR "check-deps.sh"
-    [System.IO.File]::WriteAllText($check_path, $msys_dll_check, (New-Object System.Text.UTF8Encoding $false))
-    $msys_check = ConvertTo-MsysPath $check_path
+    $verify_path = Join-Path $TEMP_DIR "verify-dll.sh"
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($verify_path, $verify_script, $utf8)
 
     $bash_exe = Join-Path $MsysPath "usr\bin\bash.exe"
-    $null = Start-Process -FilePath $bash_exe `
-        -ArgumentList "-l", "$msys_check" `
-        -NoNewWindow -Wait
+    $proc = Start-Process -FilePath $bash_exe `
+        -ArgumentList "-l", (ConvertTo-MsysPath $verify_path) `
+        -NoNewWindow -Wait -PassThru
+
+    if ($proc.ExitCode -ne 0) {
+        Write-Err "DLL verification FAILED — build is NOT fully static"
+        exit $proc.ExitCode
+    }
+
+    Write-OK "Zero non-OS DLL verification PASSED"
 }
 
 # ============================================================================
@@ -594,19 +486,10 @@ function Invoke-Cleanup {
         Write-Warn "Temp files retained: $TEMP_DIR"
         return
     }
-    Write-Step "Cleanup Temp Files"
-    # Copy build logs to dist before deleting temp
-    $logs = @("cmake-prod.log","ninja-prod.log","cmake-sim.log","ninja-sim.log")
-    foreach ($log in $logs) {
-        $src = Join-Path $TEMP_DIR $log
-        if (Test-Path $src) { Copy-Item $src $DIST_DIR -Force -ErrorAction SilentlyContinue }
-    }
+    Write-Step "Cleanup"
     if (Test-Path $TEMP_DIR) {
         Remove-Item -Recurse -Force $TEMP_DIR -ErrorAction SilentlyContinue
-        Write-OK "Deleted: $TEMP_DIR"
-    }
-    else {
-        Write-Info "No temp files to clean"
+        Write-OK "Removed temp dir: $TEMP_DIR"
     }
 }
 
@@ -615,32 +498,50 @@ function Invoke-Cleanup {
 # ============================================================================
 function Show-Report {
     Write-Host ""
-    Write-Host "====================================================" -ForegroundColor Green
-    Write-Host "              Build Results                         " -ForegroundColor Green
-    Write-Host "====================================================" -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Green
+    Write-Host "                   Build Results                           " -ForegroundColor Green
+    Write-Host "============================================================" -ForegroundColor Green
     Write-Host ""
 
-    Get-ChildItem $DIST_DIR -Filter "netdiag-*" | ForEach-Object {
-        $size = if ($_.Length -gt 1MB) {
-            "$([math]::Round($_.Length/1MB, 1)) MB"
-        } else {
-            "$([math]::Round($_.Length/1KB, 1)) KB"
+    $artifacts = Get-ChildItem $DIST_DIR -Filter "netdiag-*" -ErrorAction SilentlyContinue
+    $logs = Get-ChildItem $DIST_DIR -Filter "build-*" -ErrorAction SilentlyContinue
+
+    if ($artifacts) {
+        Write-Host "  Executables (zero non-OS DLL):" -ForegroundColor White
+        foreach ($f in $artifacts) {
+            $size = if ($f.Length -gt 1MB) {
+                "$([math]::Round($f.Length/1MB, 1)) MB"
+            } else {
+                "$([math]::Round($f.Length/1KB, 1)) KB"
+            }
+            $color = if ($f.Name -match "sim") { "Yellow" } else { "Cyan" }
+            Write-Host "    $($f.Name)" -ForegroundColor $color -NoNewline
+            Write-Host "  $size" -ForegroundColor Gray
         }
-        $color = if ($_.Name -match "sim") { "Yellow" } else { "Cyan" }
-        Write-Host "  $($_.Name)" -ForegroundColor $color -NoNewline
-        Write-Host "  $size" -ForegroundColor Gray
+    }
+
+    if ($logs) {
+        Write-Host ""
+        Write-Host "  Build Logs:" -ForegroundColor White
+        foreach ($f in ($logs | Sort-Object Name)) {
+            $size = "$([math]::Round($f.Length/1KB, 1)) KB"
+            Write-Host "    $($f.Name)" -ForegroundColor DarkGray -NoNewline
+            Write-Host "  $size" -ForegroundColor Gray
+        }
     }
 
     Write-Host ""
-    Write-Host "Output directory: $DIST_DIR" -ForegroundColor White
+    Write-Host "  Output directory: $DIST_DIR" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Run production:" -ForegroundColor Gray
+    Write-Host "    .\dist\$($script:PROD_NAME)" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Run simulator:" -ForegroundColor Gray
+    Write-Host "    .\dist\$($script:SIM_NAME)" -ForegroundColor White
     Write-Host ""
 
-    $ext = if ($script:BUILD_OS -eq "win") { ".exe" } else { "" }
-    Write-Host "Run production:" -ForegroundColor Gray
-    Write-Host "  .\dist\netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH)${ext}" -ForegroundColor White
-    Write-Host ""
-    Write-Host "Run simulator:" -ForegroundColor Gray
-    Write-Host "  .\dist\netdiag-sim-$($script:BUILD_OS)-$($script:BUILD_ARCH)${ext}" -ForegroundColor White
+    Write-Host "  NOTE: G5 (Website/URL) diagnostics are disabled (NO_CURL=ON)." -ForegroundColor DarkYellow
+    Write-Host "  Use the MSYS2 dynamic build for full 38-test diagnostics." -ForegroundColor DarkYellow
     Write-Host ""
 }
 
@@ -650,9 +551,9 @@ function Show-Report {
 try {
     Show-Banner
     Detect-Platform
-    Test-Dependencies
     Initialize-BuildEnv
-    Invoke-StaticBuild
+    Test-Dependencies
+    Invoke-AppBuild
     Test-StaticLinkage
     Invoke-Cleanup
     Show-Report
