@@ -1,1 +1,2 @@
 singleton Tr Translations.qml
+singleton ThemeEngine ThemeEngine.qml

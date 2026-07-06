@@ -4,6 +4,7 @@
         <file>qml/main.qml</file>
         <file>qml/utils/AppFonts.qml</file>
         <file>qml/theme/AppTheme.qml</file>
+        <file>qml/theme/ThemeEngine.qml</file>
         <file>qml/theme/Translations.qml</file>
         <file>qml/theme/qmldir</file>
         <file>qml/screens/DiagnosticScreen.qml</file>

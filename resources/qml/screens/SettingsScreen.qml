@@ -28,13 +28,13 @@ Item {
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 52; color: "#1A1A2E"
-        border { width: 1; color: "#3A3A5A" }
+        implicitHeight: 52; color: ThemeEngine.colors.navBar
+        border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "settings"; size: 20; color: Theme.cyan }
+            AppIcon { name: "settings"; size: 20; color: ThemeEngine.colors.primary }
             Item { width: 10 }
-            Label { text: Tr.settings; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+            Label { text: Tr.settings; font.family: ThemeEngine.fontMono; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
         }
     }
 
@@ -48,12 +48,64 @@ Item {
 
             Item { Layout.preferredHeight: 24 }
 
+            // ── Appearance Section ────────────────────────────────────
+            SectionHeader { iconName: "tune"; title: "Appearance" }
+            Item { Layout.preferredHeight: 12 }
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: themeCol.implicitHeight + 32; radius: 12
+                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
+                ColumnLayout {
+                    id: themeCol
+                    anchors { fill: parent; margins: 16 } spacing: 0
+                    Label {
+                        text: "Theme"
+                        font.family: ThemeEngine.fontMono; font.pixelSize: 13; color: ThemeEngine.colors.textPrimary
+                        Layout.bottomMargin: 12
+                    }
+                    RowLayout {
+                        spacing: 6
+                        Repeater {
+                            model: [
+                                { label: "System", mode: ThemeEngine.System },
+                                { label: "Light",  mode: ThemeEngine.Light  },
+                                { label: "Dark",   mode: ThemeEngine.Dark   }
+                            ]
+                            delegate: Rectangle {
+                                implicitWidth: 90; implicitHeight: 36; radius: ThemeEngine.radius.md
+                                color: ThemeEngine.mode === modelData.mode
+                                       ? ThemeEngine.colors.primaryContainer : "transparent"
+                                border {
+                                    width: 1
+                                    color: ThemeEngine.mode === modelData.mode
+                                           ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard
+                                }
+                                Label {
+                                    anchors.centerIn: parent
+                                    text: modelData.label
+                                    font.family: ThemeEngine.fontMono; font.pixelSize: 12
+                                    font.weight: ThemeEngine.mode === modelData.mode ? Font.DemiBold : Font.Normal
+                                    color: ThemeEngine.mode === modelData.mode
+                                           ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: ThemeEngine.mode = modelData.mode
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Item { Layout.preferredHeight: 24 }
+
             // ── Language Section ───────────────────────────────────────
             SectionHeader { iconName: "translate"; title: Tr.languageSection }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: langCol.implicitHeight + 32; radius: 12
-                color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
+                color: Theme.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: langCol
                     anchors { fill: parent; margins: 16 } spacing: 0
@@ -138,7 +190,7 @@ Item {
                 Item { Layout.preferredHeight: 12 }
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: restoreBtnCol.implicitHeight + 32; radius: 12
-                    color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
+                    color: Theme.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
                     ColumnLayout {
                         id: restoreBtnCol
                         anchors { fill: parent; margins: 16 } spacing: 0
@@ -189,7 +241,7 @@ Item {
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: aboutCol.implicitHeight + 32; radius: 12
-                color: Theme.bgCard; border { width: 1; color: "#2A2A4A" }
+                color: Theme.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: aboutCol
                     anchors { fill: parent; margins: 16 } spacing: 0
@@ -234,7 +286,7 @@ Item {
                         }
                     }
                     Item { Layout.preferredHeight: 16 }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: "#2A2A4A" }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard }
                     Item { Layout.preferredHeight: 12 }
                     Label { Layout.fillWidth: true; text: Tr.aboutDesc
                         font.family: Theme.monoFont; font.pixelSize: 13; color: Theme.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5 }
