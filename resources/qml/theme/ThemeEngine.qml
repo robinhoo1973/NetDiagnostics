@@ -1,8 +1,10 @@
 // =============================================================================
 // ThemeEngine.qml — Runtime theme controller (singleton)
 //
-// Light/dark/system theme switching via flat property bindings.
-// No Qt API calls or JS object trees — stable across all platforms.
+// Uses imperative JS assignment for theme switching (NOT declarative bindings).
+// QML singleton bindings with multi-level dependency chains cause crashes in
+// static/cross-compiled builds.  JS assignment avoids binding evaluation during
+// module import — all colors start as dark literals, updated on mode change.
 // =============================================================================
 pragma Singleton
 import QtQuick
@@ -15,7 +17,7 @@ QtObject {
 
     property int mode: Dark
 
-    // ── Light palette ─────────────────────────────────────────────────
+    // ── Light palette (readonly literals, never change) ──────────────
     readonly property string lSurface:          "#F8FAFC"
     readonly property string lSidebar:          "#FFFFFF"
     readonly property string lCard:             "#FFFFFF"
@@ -38,7 +40,7 @@ QtObject {
     readonly property string lBorderSubtle:     "#F1F5F9"
     readonly property string lBorderFocused:    "#0EA5E9"
 
-    // ── Dark palette ──────────────────────────────────────────────────
+    // ── Dark palette (readonly literals, never change) ───────────────
     readonly property string dSurface:          "#0F172A"
     readonly property string dSidebar:          "#0F172A"
     readonly property string dCard:             "#1E293B"
@@ -61,34 +63,61 @@ QtObject {
     readonly property string dBorderSubtle:     "#1E293B"
     readonly property string dBorderFocused:    "#38BDF8"
 
-    // ── Active palette (picks light or dark based on mode) ────────────
-    readonly property bool isLight: mode === Light
+    // ── Active colors — initialised to dark, updated via applyTheme() ─
+    property string bgDark:          dSurface
+    property string bgSidebar:       dSidebar
+    property string bgCard:          dCard
+    property string bgInput:         dInput
+    property string navBar:          dNavBar
+    property string textPrimary:     dTextPrimary
+    property string textSecondary:   dTextSecondary
+    property string textMuted:       dTextMuted
+    property string accent:          dAccent
+    property string accentBlue:      dSecondary
+    property string cyan:            dCyan
+    property string passGreen:       dPass
+    property string warnYellow:      dWarn
+    property string failRed:         dFail
+    property string skipGray:        dSkip
+    property string infoBlue:        dInfo
+    property string borderCard:      dBorderCard
+    property string borderSubtle:    dBorderSubtle
+    property string borderFocused:   dBorderFocused
+    property string primary:         dPrimary
+    property string primaryContainer: dPrimaryContainer
+    property string secondary:       dSecondary
 
-    // ── Public API — same keys as old C++ Theme for backward compat ────
-    readonly property string bgDark:          isLight ? lSurface       : dSurface
-    readonly property string bgSidebar:       isLight ? lSidebar       : dSidebar
-    readonly property string bgCard:          isLight ? lCard          : dCard
-    readonly property string bgInput:         isLight ? lInput         : dInput
-    readonly property string textPrimary:     isLight ? lTextPrimary   : dTextPrimary
-    readonly property string textSecondary:   isLight ? lTextSecondary : dTextSecondary
-    readonly property string textMuted:       isLight ? lTextMuted     : dTextMuted
-    readonly property string accent:          isLight ? lAccent        : dAccent
-    readonly property string accentBlue:      isLight ? lSecondary     : dSecondary
-    readonly property string cyan:            isLight ? lCyan          : dCyan
-    readonly property string passGreen:       isLight ? lPass          : dPass
-    readonly property string warnYellow:      isLight ? lWarn          : dWarn
-    readonly property string failRed:         isLight ? lFail          : dFail
-    readonly property string skipGray:        isLight ? lSkip          : dSkip
-    readonly property string infoBlue:        isLight ? lInfo          : dInfo
-    readonly property string borderCard:      isLight ? lBorderCard    : dBorderCard
-    readonly property string borderSubtle:    isLight ? lBorderSubtle  : dBorderSubtle
-    readonly property string borderFocused:   isLight ? lBorderFocused : dBorderFocused
-    readonly property string navBar:          isLight ? lNavBar        : dNavBar
-    readonly property string primary:         isLight ? lPrimary       : dPrimary
-    readonly property string primaryContainer:isLight ? lPrimaryContainer : dPrimaryContainer
-    readonly property string secondary:       isLight ? lSecondary     : dSecondary
+    // ── Theme switching (imperative JS — NO QML bindings on active colors)
+    function applyTheme() {
+        var lt = (mode === Light)
+        bgDark          = lt ? lSurface       : dSurface
+        bgSidebar       = lt ? lSidebar       : dSidebar
+        bgCard          = lt ? lCard          : dCard
+        bgInput         = lt ? lInput         : dInput
+        navBar          = lt ? lNavBar        : dNavBar
+        textPrimary     = lt ? lTextPrimary   : dTextPrimary
+        textSecondary   = lt ? lTextSecondary : dTextSecondary
+        textMuted       = lt ? lTextMuted     : dTextMuted
+        accent          = lt ? lAccent        : dAccent
+        accentBlue      = lt ? lSecondary     : dSecondary
+        cyan            = lt ? lCyan          : dCyan
+        passGreen       = lt ? lPass          : dPass
+        warnYellow      = lt ? lWarn          : dWarn
+        failRed         = lt ? lFail          : dFail
+        skipGray        = lt ? lSkip          : dSkip
+        infoBlue        = lt ? lInfo          : dInfo
+        borderCard      = lt ? lBorderCard    : dBorderCard
+        borderSubtle    = lt ? lBorderSubtle  : dBorderSubtle
+        borderFocused   = lt ? lBorderFocused : dBorderFocused
+        primary         = lt ? lPrimary       : dPrimary
+        primaryContainer= lt ? lPrimaryContainer : dPrimaryContainer
+        secondary       = lt ? lSecondary     : dSecondary
+    }
 
-    // ── Convenience objects (minimal, stable) ─────────────────────────
+    // React to theme mode changes
+    onModeChanged: applyTheme()
+
+    // ── Convenience objects (reference active properties — updated by applyTheme)
     readonly property var colors: ({
         surface: bgDark, card: bgCard, input: bgInput, sidebar: bgSidebar,
         navBar: navBar, primary: primary, primaryContainer: primaryContainer,
