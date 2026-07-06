@@ -48,10 +48,11 @@ Item {
             initialItem: diagnosticComp
         }
 
-        // ── Bottom dock navigation bar ───────────────────────────────
+        // ── Bottom dock navigation bar (Material Design 3 compliant) ──
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: compact ? 44 : 48
+            // M3: 80dp full, 56dp compact desktop.  Apple HIG: 44-48pt mobile.
+            implicitHeight: compact ? 48 : 56
             color: ThemeEngine.colors.navBar
             // Drag handle for frameless window (Qt.FramelessWindowHint)
             MouseArea {
@@ -66,9 +67,10 @@ Item {
                 }
             }
             RowLayout {
-                anchors { fill: parent; leftMargin: compact ? 0 : 12; rightMargin: compact ? 4 : 12 }
+                anchors { fill: parent; leftMargin: compact ? 0 : 16; rightMargin: compact ? 4 : 16 }
                 Item { Layout.fillWidth: true }
-                Row { spacing: compact ? 0 : 2
+                // M3 spec: 8dp minimum gap between touch targets.  4dp for same-group icons.
+                Row { spacing: compact ? 0 : 4
                     Repeater {
                         model: [
                             { screen: "dashboard",  icon: "dashboard" },
@@ -84,10 +86,11 @@ Item {
                                 Tr.lang // force re-evaluation on language change
                                 return content.tabLabels[index] || modelData.screen
                             }
-                            // Adaptive width: icon(18) + spacing(6) + text + padding(28)
+                            // M3: icon 24dp + gap 8dp + text + padding 12dp each side
                             implicitWidth: compact ? 48
-                                : Math.max(80, labelMetrics.width + 18 + 6 + 28)
-                            implicitHeight: compact ? 44 : 40
+                                : Math.max(80, labelMetrics.width + 24 + 8 + 24)
+                            // M3 touch target: 48dp minimum
+                            implicitHeight: compact ? 48 : 44
                             TextMetrics {
                                 id: labelMetrics
                                 font.family: ThemeEngine.fontMono; font.pixelSize: 12
@@ -98,20 +101,20 @@ Item {
                                 radius: ThemeEngine.radius.md
                             }
                             contentItem: Item {
-                                // Compact (mobile): icon only, 44pt touch target
+                                // Compact (mobile): M3 24dp icon, 48dp touch target
                                 AppIcon {
                                     visible: content.compact
                                     anchors.centerIn: parent
-                                    name: modelData.icon; size: 22
+                                    name: modelData.icon; size: 24
                                     color: navBtn.active ? ThemeEngine.colors.primary
                                                           : ThemeEngine.colors.textSecondary
                                 }
-                                // Desktop: icon + text, centered
+                                // Desktop: M3 icon 24dp + label 12sp, 8dp gap
                                 RowLayout {
                                     visible: !content.compact
-                                    anchors.centerIn: parent; spacing: 6
+                                    anchors.centerIn: parent; spacing: 8
                                     AppIcon {
-                                        name: modelData.icon; size: 18
+                                        name: modelData.icon; size: 24
                                         color: navBtn.active ? ThemeEngine.colors.primary
                                                               : ThemeEngine.colors.textSecondary
                                     }
@@ -129,12 +132,12 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                Item { width: compact ? 0 : 8; visible: !compact }
+                Item { width: compact ? 0 : 4; visible: !compact }
                 Rectangle {
                     visible: !compact
-                    implicitWidth: 32; implicitHeight: 32; radius: ThemeEngine.radius.sm
+                    implicitWidth: 36; implicitHeight: 36; radius: ThemeEngine.radius.md
                     color: "transparent"; border { width: 1; color: ThemeEngine.colors.borderCard }
-                    AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.textSecondary }
+                    AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: ThemeEngine.colors.textSecondary }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: content.closeRequested() }
                 }
             }
