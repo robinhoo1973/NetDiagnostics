@@ -18,21 +18,21 @@ ColumnLayout {
         }
         Label {
             text: status === 1 ? Tr.runningStatus : status === 2 ? Tr.completeStatus : status === 3 ? Tr.cancelledStatus : status === 4 ? Tr.errorStatus : Tr.readyStatus
-            font.family: Theme.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-            color: status === 1 ? Theme.cyan : status === 2 ? Theme.passGreen : status === 3 ? Theme.warnYellow : status === 4 ? Theme.failRed : Theme.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
+            color: status === 1 ? ThemeEngine.cyan : status === 2 ? ThemeEngine.passGreen : status === 3 ? ThemeEngine.warnYellow : status === 4 ? ThemeEngine.failRed : ThemeEngine.textSecondary
         }
-        AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: Theme.failRed }
+        AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: ThemeEngine.failRed }
         Item { Layout.fillWidth: true }
         Label {
             visible: status === 1
             text: appState.currentDiagLabel || ""
-            font.family: Theme.monoFont; font.pixelSize: 11; font.italic: true; color: Theme.cyan
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true; color: ThemeEngine.cyan
             elide: Text.ElideRight; Layout.maximumWidth: 300
         }
         Label {
             visible: appState.totalDiags > 0
             text: appState.totalCompleted + " / " + appState.totalDiags
-            font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary
         }
     }
 
@@ -40,7 +40,7 @@ ColumnLayout {
         visible: appState.errorMessage !== ""
         Layout.fillWidth: true; Layout.topMargin: 6
         text: Tr.errorPrefix + (appState.errorMessage || "")
-        font.family: Theme.monoFont; font.pixelSize: 10; color: Qt.alpha(Theme.failRed, 0.8)
+        font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: Qt.alpha(ThemeEngine.failRed, 0.8)
         maximumLineCount: 2; elide: Text.ElideRight
     }
 }
