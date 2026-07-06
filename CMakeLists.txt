@@ -64,6 +64,7 @@ configure_netdiag_target(net_diagnostics)
 setup_platform_bundle(net_diagnostics)
 
 # ── Simulator target ───────────────────────────────────────────────────
+option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
 option(BUILD_SIMULATOR "Build simulator variant" OFF)
 if(BUILD_SIMULATOR)
     set(SIM_SOURCES ${SOURCES})
