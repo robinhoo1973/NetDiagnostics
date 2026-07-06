@@ -1,12 +1,16 @@
 // =============================================================================
-// StartupLog.h — Crash diagnostic logging for Windows WIN32 builds (no console).
+// StartupLog.h — Crash diagnostic logging (DEBUG builds only).
 //
-// Writes timestamped startup events to %TEMP%\NetDiagnostics_startup.log.
-// Each run APPENDS to the file, so crash logs persist across launches.
+// Controlled by CMake option ND_DEBUG (default OFF).  When enabled, writes
+// timestamped startup events to %TEMP%\NetDiagnostics_startup.log.
+// When disabled, all macros compile to no-ops — zero runtime overhead.
 //
-// Usage:  STARTUP_LOG("QML engine loaded, rootObjects=%d", engine.rootObjects().size());
+// Enable:  cmake -DND_DEBUG=ON ...
+// Usage:   STARTUP_LOG("QML loaded, rootObjects=%d", count);
 // =============================================================================
 #pragma once
+
+#ifdef ND_DEBUG
 
 #include <QFile>
 #include <QTextStream>
@@ -24,7 +28,6 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
 
     QFile f(path);
-    // Append mode — crash logs survive across launches
     f.open(QIODevice::Append | QIODevice::WriteOnly | QIODevice::Text);
     QTextStream ts(&f);
 
@@ -38,7 +41,6 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     va_end(args);
 
     ts << QString::fromUtf8(buf);
-    // Only add file:line for non-trivial entries
     if (file && line > 0)
         ts << "  (" << file << ":" << line << ")";
     ts << "\n";
@@ -46,11 +48,17 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     f.close();
 
 #ifdef _WIN32
-    // Also emit to debugger if attached (DebugView / Visual Studio)
     OutputDebugStringA(buf);
     OutputDebugStringA("\n");
 #endif
 }
 
 #define STARTUP_LOG(fmt, ...) startup_log(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
-#define STARTUP_SEPARATOR() startup_log(nullptr, 0, "══════════════════════════════════════════")
+#define STARTUP_SEPARATOR()  startup_log(nullptr, 0, "══════════════════════════════════════════")
+
+#else  // !ND_DEBUG — compile to nothing
+
+#define STARTUP_LOG(fmt, ...) ((void)0)
+#define STARTUP_SEPARATOR()  ((void)0)
+
+#endif

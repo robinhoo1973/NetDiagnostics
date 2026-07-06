@@ -11,6 +11,9 @@ function(configure_netdiag_target TARGET)
         APP_EDITION="${APP_EDITION}"
         PROJECT_VERSION="${PROJECT_VERSION}"
     )
+    if(ND_DEBUG)
+        target_compile_definitions(${TARGET} PRIVATE ND_DEBUG)
+    endif()
     if(DEFINED ND_BUILD_NUMBER)
         target_compile_definitions(${TARGET} PRIVATE ND_BUILD_NUMBER="${ND_BUILD_NUMBER}")
     endif()
