@@ -309,8 +309,8 @@ Item {
     // ── Subcomponents ──────────────────────────────────────────────────
     component SectionHeader: RowLayout {
         property string iconName: ""; property string title: ""
-        Rectangle { implicitWidth: 30; implicitHeight: 30; radius: 8; color: Qt.alpha(ThemeEngine.cyan, 0.1)
-            AppIcon { anchors.centerIn: parent; name: iconName; size: 18; color: ThemeEngine.cyan } }
+        Rectangle { implicitWidth: 30; implicitHeight: 30; radius: 8; color: Qt.alpha(ThemeEngine.colors.primary, 0.1)
+            AppIcon { anchors.centerIn: parent; name: iconName; size: 18; color: ThemeEngine.colors.textPrimary } }
         Item { width: 12 }
         Label { text: title; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
     }
@@ -340,7 +340,7 @@ Item {
 
     component AboutRow: RowLayout {
         property string aboutIcon: ""; property string aboutText: ""
-        Label { text: aboutIcon; font.pixelSize: 16; color: Qt.alpha(ThemeEngine.cyan, 0.7); Layout.alignment: Qt.AlignTop }
+        Label { text: aboutIcon; font.pixelSize: 16; color: ThemeEngine.colors.textSecondary; Layout.alignment: Qt.AlignTop }
         Item { width: 10 }
         Label { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.textSecondary, 0.8) }
     }

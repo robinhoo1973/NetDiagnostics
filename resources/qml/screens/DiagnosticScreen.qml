@@ -158,7 +158,7 @@ Item {
             border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "diagnostics"; size: 20; color: ThemeEngine.cyan }
+                AppIcon { name: "diagnostics"; size: 20; color: ThemeEngine.colors.textPrimary }
                 Item { width: 10 }
                 Label { text: "NetDiagnostics"; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
             }
@@ -279,7 +279,7 @@ Item {
             color: ThemeEngine.colors.navBar
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "diagnostics"; size: 18; color: ThemeEngine.cyan }
+                AppIcon { name: "diagnostics"; size: 18; color: ThemeEngine.colors.textPrimary }
                 Item { width: 8 }
                 Label {
                     text: appState.runStatus === 1 ? Tr.runningDots :
@@ -384,8 +384,8 @@ Item {
             width: Math.min(700, parent.width - 20)
             height: Math.min(parent.height - 40, 620)
             radius: 14
-            color: "#252538"
-            border { width: 1.5; color: "#4A4A6A" }
+            color: ThemeEngine.colors.card
+            border { width: 1.5; color: ThemeEngine.colors.borderFocused }
 
             // Close button — larger, top-right corner
             Rectangle {
@@ -406,19 +406,19 @@ Item {
                     id: detailCol; spacing: 8
                     // Allow Column to grow wider than viewport for horizontal scrolling
                     width: Math.max(parent.width, implicitWidth)
-                    Label { id: dtTitle; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"#FFFFFF"; elide:Text.ElideRight }
-                    Label { id: dtStatus; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"#A0A0B8" }
-                    Label { id: dtSummary; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"#E0E0E0"; wrapMode:Text.WordWrap }
+                    Label { id: dtTitle; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
+                    Label { id: dtStatus; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
+                    Label { id: dtSummary; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
                     Repeater {
                         model: currentDetail.properties || []
                         delegate: Row {
                             spacing: 4
-                            Label { text: (modelData["label"]||"?")+":"; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:"#A0A0B8"; width:120 }
-                            Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:"#E0E0E0"; wrapMode:Text.WordWrap }
+                            Label { text: (modelData["label"]||"?")+":"; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:ThemeEngine.colors.textSecondary; width:120 }
+                            Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:"#A0A0B8"; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

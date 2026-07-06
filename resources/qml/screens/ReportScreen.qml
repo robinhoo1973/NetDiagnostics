@@ -76,7 +76,7 @@ Item {
         border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
+            AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.textPrimary }
             Item { width: 10 }
             Label { text: Tr.reportPreview; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
         }
@@ -114,9 +114,9 @@ Item {
             Rectangle {
                 Layout.preferredWidth: page.isMobile ? 72 : 100; Layout.preferredHeight: page.isMobile ? 72 : 100
                 Layout.alignment: Qt.AlignHCenter
-                radius: 24; color: Qt.alpha(ThemeEngine.cyan, 0.08)
+                radius: 24; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.06)
                 border { width: 1.5; color: Qt.alpha(ThemeEngine.cyan, 0.2) }
-                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.cyan, 0.6) }
+                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.12) }
             }
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
@@ -210,12 +210,12 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: headerRow.implicitHeight + 16
-                    color: Qt.alpha(ThemeEngine.cyan, 0.08)
+                    color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.06)
                     radius: 8
                     RowLayout {
                         id: headerRow
                         anchors { fill: parent; margins: 8 }
-                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: ThemeEngine.cyan }
+                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: ThemeEngine.colors.textPrimary }
                         Item { width: 8 }
                         Label {
                             Layout.fillWidth: true
