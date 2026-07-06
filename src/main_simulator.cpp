@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     app.setApplicationDisplayName("NetDiagnostics Simulator");
-    app.setApplicationVersion("0.0.1");
+    app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
 

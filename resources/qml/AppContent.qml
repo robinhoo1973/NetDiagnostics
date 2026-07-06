@@ -51,7 +51,7 @@ Item {
         // ── Bottom dock navigation bar ───────────────────────────────
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: compact ? 32 : 48
+            implicitHeight: compact ? 44 : 48
             color: ThemeEngine.colors.navBar
             // Drag handle for frameless window (Qt.FramelessWindowHint)
             MouseArea {
@@ -84,17 +84,25 @@ Item {
                                 Tr.lang // force re-evaluation on language change
                                 return content.tabLabels[index] || modelData.screen
                             }
-                            implicitWidth: compact ? 44 : 110; implicitHeight: compact ? 32 : 40
+                            // Adaptive width: icon(18) + spacing(6) + text + padding(28)
+                            implicitWidth: compact ? 48
+                                : Math.max(80, labelMetrics.width + 18 + 6 + 28)
+                            implicitHeight: compact ? 44 : 40
+                            TextMetrics {
+                                id: labelMetrics
+                                font.family: ThemeEngine.fontMono; font.pixelSize: 12
+                                text: navBtn.labelText
+                            }
                             background: Rectangle {
                                 color: navBtn.active ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
                                 radius: ThemeEngine.radius.md
                             }
                             contentItem: Item {
-                                // Compact (mobile): icon only
+                                // Compact (mobile): icon only, 44pt touch target
                                 AppIcon {
                                     visible: content.compact
                                     anchors.centerIn: parent
-                                    name: modelData.icon; size: 18
+                                    name: modelData.icon; size: 22
                                     color: navBtn.active ? ThemeEngine.colors.primary
                                                           : ThemeEngine.colors.textSecondary
                                 }
