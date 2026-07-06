@@ -92,5 +92,3 @@ inline SpeedTest::Server SpeedTest::selectBest(QVector<Server>& c, int maxMs, in
     for (auto& s : c) { int ms = tcpPingMs(s.host, s.port); if (ms >= 0 && ms < maxMs) return s; }
     return c.first();
 }
-
-} // namespace G1G2G3Native
