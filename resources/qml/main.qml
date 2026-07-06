@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Controls
+import "theme"
 
 ApplicationWindow {
     id: root
     title: "NetDiagnostics"
     visible: true
     flags: Qt.FramelessWindowHint
-    color: Theme.bgDark
+    color: ThemeEngine.bgDark
 
     // Window maximization is handled by C++ showMaximized() in main.cpp —
     // it maps the window in maximized state from the first frame, avoiding

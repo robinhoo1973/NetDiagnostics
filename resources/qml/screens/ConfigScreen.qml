@@ -30,9 +30,9 @@ Item {
             RowLayout {
                 Layout.fillWidth: true; Layout.preferredHeight: 44
                 anchors { leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "config"; size: 20; color: Theme.cyan }
+                AppIcon { name: "config"; size: 20; color: ThemeEngine.cyan }
                 Item { width: 10 }
-                Label { text: Tr.diagConfig; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+                Label { text: Tr.diagConfig; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
             }
             // TabBar — Flutter: G1..G5 tabs
             Rectangle {
@@ -48,15 +48,15 @@ Item {
                                 color: "transparent"
                                 Rectangle {
                                     anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                    height: 2; color: index === currentGroup ? Theme.cyan : "transparent"
+                                    height: 2; color: index === currentGroup ? ThemeEngine.cyan : "transparent"
                                 }
                             }
                             contentItem: Label {
                                 anchors.centerIn: parent
                                 text: "G" + (index + 1)
-                                font.family: Theme.monoFont; font.pixelSize: 12
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                 font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
-                                color: index === currentGroup ? Theme.cyan : Theme.textSecondary
+                                color: index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textSecondary
                             }
                             onClicked: currentGroup = index
                         }
@@ -73,18 +73,18 @@ Item {
         // ── Action Bar — Flutter: Container(padding h16 v12, bgCard alpha 0.5) ─
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 60
-            color: Qt.alpha(Theme.bgCard, 0.5)
+            color: Qt.alpha(ThemeEngine.bgCard, 0.5)
             border { width: 1; color: "#2A2A4A" }
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 ColumnLayout { spacing: 2
                     Label {
                         text: Tr.groupName(currentGroup)
-                        font.family: Theme.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: Theme.textPrimary
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary
                     }
                     Label {
                         text: getDiagCountForGroup(currentGroup) + Tr.diagsSuffix
-                        font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textSecondary
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textSecondary
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -95,8 +95,8 @@ Item {
                     enabled: !appState.isGroupAllEnabled(currentGroup)
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
-                        AppIcon { name: "check"; size: 14; color: Theme.textPrimary }
-                        Label { text: Tr.selectAll; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary }
+                        AppIcon { name: "check"; size: 14; color: ThemeEngine.textPrimary }
+                        Label { text: Tr.selectAll; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -112,8 +112,8 @@ Item {
                     enabled: appState.isGroupAnyEnabled(currentGroup)
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
-                        AppIcon { name: "close"; size: 14; color: Theme.textPrimary }
-                        Label { text: Tr.deselectAll; font.family: Theme.monoFont; font.pixelSize: 11; color: Theme.textPrimary }
+                        AppIcon { name: "close"; size: 14; color: ThemeEngine.textPrimary }
+                        Label { text: Tr.deselectAll; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -157,14 +157,14 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             text: getDisplayName(modelData)
-                            font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: Theme.textPrimary
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: ThemeEngine.textPrimary
                             elide: Text.ElideRight
                         }
                         Label {
                             Layout.fillWidth: true
                             text: getDiagDescription(modelData)
-                            font.family: Theme.monoFont; font.pixelSize: 11
-                            color: Qt.alpha(Theme.textSecondary, 0.6)
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                            color: Qt.alpha(ThemeEngine.textSecondary, 0.6)
                             elide: Text.ElideRight; maximumLineCount: 2
                             visible: text !== ""
                         }
