@@ -148,7 +148,7 @@ Item {
                     AppIcon {
                         name: appState.isDiagEnabled(modelData) ? "badge-check" : "badge-circle"
                         size: 14
-                        color: "white"
+                        color: appState.isDiagEnabled(modelData) ? ThemeEngine.passGreen : ThemeEngine.textMuted
                     }
 
                     // Title + subtitle

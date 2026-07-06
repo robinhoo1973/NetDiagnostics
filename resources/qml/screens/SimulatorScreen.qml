@@ -106,19 +106,19 @@ ApplicationWindow {
             Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar; z: 10
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 12 }
-                Label { text:"NetDiagnostics Simulator"; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"white" }
+                Label { text:"NetDiagnostics Simulator"; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
                 Item { Layout.fillWidth:true }
-                Rectangle { implicitWidth:180; implicitHeight:34; radius:4; color:Qt.alpha("white",0.08); border{width:1;color:Qt.alpha("white",0.15)}
+                Rectangle { implicitWidth:180; implicitHeight:34; radius:4; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.08); border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.15)}
                     RowLayout { anchors.fill:parent; anchors.margins:8
                         AppIcon { name:osIcon(cur().os); size:14; color:osColor(cur().os) }
-                        Label { Layout.fillWidth:true; text:cur().name; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"white" }
-                        Label { text:"▾"; font.pixelSize:14; color:Qt.alpha("white",0.6) }
+                        Label { Layout.fillWidth:true; text:cur().name; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary }
+                        Label { text:"▾"; font.pixelSize:14; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.6) }
                     }
                     MouseArea { anchors.fill:parent; onClicked:devicePopup.open() }
                 }
                 Item { width:8 }
-                Rectangle { implicitWidth:34; implicitHeight:34; radius:4; color:"transparent"; border{width:1;color:Qt.alpha("white",0.2)}
-                    AppIcon { anchors.centerIn:parent; name:"refresh"; size:16; color:Qt.alpha("white",0.7) }
+                Rectangle { implicitWidth:34; implicitHeight:34; radius:4; color:"transparent"; border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.2)}
+                    AppIcon { anchors.centerIn:parent; name:"refresh"; size:16; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.7) }
                     MouseArea { anchors.fill:parent; onClicked:portrait=!portrait }
                 }
             }
