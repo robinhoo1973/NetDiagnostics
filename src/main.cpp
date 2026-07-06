@@ -88,8 +88,13 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     STARTUP_SEPARATOR();
-    STARTUP_LOG("NetDiagnostics starting, Qt %s, build %s-%s",
+#ifdef ND_BUILD_NUMBER
+    STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s, build=%s",
                 qVersion(), APP_EDITION, ND_BUILD_NUMBER);
+#else
+    STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s",
+                qVersion(), APP_EDITION);
+#endif
     MAIN_LOG(" NetDiagnostics starting, Qt %s\n", qVersion());
 
     // ── Theme injected directly from C++ (avoids QML component creation failure) ──
