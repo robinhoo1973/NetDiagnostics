@@ -16,15 +16,21 @@ Item {
     signal closeRequested()
 
     function switchToTab(idx) {
-        if (idx < 0 || idx > 4) return
-        currentTab = idx
         var screens = ["dashboard","diagnostic","config","report","settings"]
         var comps = [dashboardComp, diagnosticComp, configComp, reportComp, settingsComp]
+        if (idx < 0 || idx >= screens.length) return
         for (var i = 0; i < stackView.depth; i++) {
             var item = stackView.get(i)
-            if (item && item.objectName === screens[idx]) { stackView.pop(item); return }
+            if (item && item.objectName === screens[idx]) {
+                currentTab = idx
+                stackView.pop(item)
+                return
+            }
         }
-        if (comps[idx]) stackView.push(comps[idx].createObject(stackView))
+        if (comps[idx]) {
+            currentTab = idx
+            stackView.push(comps[idx].createObject(stackView))
+        }
     }
 
     Component { id: diagnosticComp; DiagnosticScreen { objectName: "diagnostic" } }
@@ -40,19 +46,19 @@ Item {
         StackView {
             id: stackView
             Layout.fillWidth: true; Layout.fillHeight: true
+            clip: true
             initialItem: diagnosticComp
         }
 
         // ── Bottom dock navigation bar ───────────────────────────────
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: compact ? 32 : 36
+            Layout.fillWidth: true; Layout.fillHeight: false
+            implicitHeight: compact ? 32 : 36
             color: "#1A1A2E"
             // Drag handle for frameless window (Qt.FramelessWindowHint)
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton
-                property point _dragStart: Qt.point(0, 0)
-                onPressed: function(mouse) { _dragStart = Qt.point(mouse.x, mouse.y) }
                 onPositionChanged: function(mouse) {
                     if (mouse.buttons & Qt.LeftButton) {
                         var win = content.Window.window
@@ -77,7 +83,7 @@ Item {
                             id: navBtn
                             property bool active: stackView.currentItem && stackView.currentItem.objectName === modelData.screen
                             property string labelText: {
-                                var _force = Tr.lang
+                                Tr.lang // force re-evaluation on language change
                                 var names = [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.report, Tr.settings]
                                 return names[index] || modelData.screen
                             }
@@ -110,19 +116,7 @@ Item {
                                     }
                                 }
                             }
-                            onClicked: {
-                                for (var i = 0; i < stackView.depth; i++) {
-                                    var item = stackView.get(i);
-                                    if (item && item.objectName === modelData.screen) {
-                                        stackView.pop(item); return;
-                                    }
-                                }
-                                var comp = modelData.screen === "dashboard"  ? dashboardComp :
-                                           modelData.screen === "diagnostic" ? diagnosticComp :
-                                           modelData.screen === "config"     ? configComp :
-                                           modelData.screen === "report"     ? reportComp : settingsComp;
-                                if (comp) stackView.push(comp.createObject(stackView))
-                            }
+                            onClicked: switchToTab(index)
                         }
                     }
                 }
