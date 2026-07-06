@@ -25,7 +25,9 @@ struct ReportData {
     QStringList groupLabels;                         // 5 translated group names
     QMap<DiagId, DiagnosticResult> results;          // all completed results
     QMap<int, QVariantMap> groupStats;               // group index → {pass,warn,fail,skip,info,total}
-    std::function<QString(DiagId)> diagDisplayName;  // DiagId → human-readable name
+    // Defaults to "Unknown" to prevent std::bad_function_call if unset.
+    // Callers should override with a real display-name function (e.g. AppState::staticDiagDisplayName).
+    std::function<QString(DiagId)> diagDisplayName = [](DiagId) { return QStringLiteral("Unknown"); };
     QMap<DiagGroup, QList<DiagId>> diagIdsInGroup;   // group → ordered diag IDs
 };
 
