@@ -76,9 +76,9 @@ Item {
         border { width: 1; color: "#3A3A5A" }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "report"; size: 20; color: Theme.cyan }
+            AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
             Item { width: 10 }
-            Label { text: Tr.reportPreview; font.family: Theme.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: Theme.textPrimary }
+            Label { text: Tr.reportPreview; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
         }
     }
 
@@ -114,9 +114,9 @@ Item {
             Rectangle {
                 Layout.preferredWidth: page.isMobile ? 72 : 100; Layout.preferredHeight: page.isMobile ? 72 : 100
                 Layout.alignment: Qt.AlignHCenter
-                radius: 24; color: Qt.alpha(Theme.cyan, 0.08)
-                border { width: 1.5; color: Qt.alpha(Theme.cyan, 0.2) }
-                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(Theme.cyan, 0.6) }
+                radius: 24; color: Qt.alpha(ThemeEngine.cyan, 0.08)
+                border { width: 1.5; color: Qt.alpha(ThemeEngine.cyan, 0.2) }
+                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.cyan, 0.6) }
             }
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
@@ -125,7 +125,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 text: Tr.reportPreview
-                font.family: Theme.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: Theme.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
@@ -136,7 +136,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: page.isRunning ? Tr.runningDots
                       : (page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst)
-                font.family: Theme.monoFont; font.pixelSize: 14; color: Qt.alpha(Theme.textSecondary, 0.6)
+                font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: Qt.alpha(ThemeEngine.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
                 wrapMode: Text.WordWrap
             }
@@ -144,15 +144,15 @@ Item {
 
             // Preview buttons (open the built-in preview window)
             ColumnLayout { spacing: 10; Layout.fillWidth: true
-                ExportButton { iconName: "report"; label: Tr.reportPreviewPdfBtn; accent: Theme.cyan; onClicked: page.openPreview("pdf") }
-                ExportButton { iconName: "globe"; label: Tr.reportPreviewHtmlBtn; accent: Theme.accentBlue; onClicked: page.openPreview("html") }
+                ExportButton { iconName: "report"; label: Tr.reportPreviewPdfBtn; accent: ThemeEngine.cyan; onClicked: page.openPreview("pdf") }
+                ExportButton { iconName: "globe"; label: Tr.reportPreviewHtmlBtn; accent: ThemeEngine.accentBlue; onClicked: page.openPreview("html") }
                 Label {
                     visible: page.toast !== "" || page.lastPath !== "" || page.lastFailed
                     Layout.fillWidth: true; Layout.topMargin: 4
                     text: page.toast !== "" ? page.toast
                           : (page.lastFailed ? Tr.reportExportFailed : (Tr.reportSavedTo + " " + page.lastPath))
-                    color: page.lastFailed ? Theme.failRed : (page.toast !== "" ? Theme.cyan : Theme.passGreen)
-                    font.family: Theme.monoFont; font.pixelSize: 11
+                    color: page.lastFailed ? ThemeEngine.failRed : (page.toast !== "" ? ThemeEngine.cyan : ThemeEngine.passGreen)
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere; horizontalAlignment: Text.AlignHCenter
                 }
             }
@@ -162,10 +162,10 @@ Item {
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: statusRow.implicitWidth + 32; implicitHeight: 40; radius: 8
-                color: page.isRunning ? Qt.alpha(Theme.cyan, 0.1)
-                       : (hasResults ? Qt.alpha(Theme.passGreen, 0.1) : Qt.alpha(Theme.warnYellow, 0.1))
-                border { width: 1; color: page.isRunning ? Qt.alpha(Theme.cyan, 0.3)
-                       : (hasResults ? Qt.alpha(Theme.passGreen, 0.3) : Qt.alpha(Theme.warnYellow, 0.3)) }
+                color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.1)
+                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.1) : Qt.alpha(ThemeEngine.warnYellow, 0.1))
+                border { width: 1; color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.3)
+                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.3) : Qt.alpha(ThemeEngine.warnYellow, 0.3)) }
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
@@ -175,8 +175,8 @@ Item {
                         Layout.fillWidth: true
                         text: page.isRunning ? Tr.runningStatus
                               : (hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults)
-                        font.family: Theme.monoFont; font.pixelSize: 12
-                        color: page.isRunning ? Theme.cyan : (hasResults ? Theme.passGreen : Theme.warnYellow)
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                        color: page.isRunning ? ThemeEngine.cyan : (hasResults ? ThemeEngine.passGreen : ThemeEngine.warnYellow)
                         elide: Text.ElideRight
                     }
                 }
@@ -210,17 +210,17 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: headerRow.implicitHeight + 16
-                    color: Qt.alpha(Theme.cyan, 0.08)
+                    color: Qt.alpha(ThemeEngine.cyan, 0.08)
                     radius: 8
                     RowLayout {
                         id: headerRow
                         anchors { fill: parent; margins: 8 }
-                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: Theme.cyan }
+                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: ThemeEngine.cyan }
                         Item { width: 8 }
                         Label {
                             Layout.fillWidth: true
                             text: page.previewFormat === "pdf" ? Tr.previewPdfTitle : Tr.previewHtmlTitle
-                            font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: Theme.textPrimary
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary
                             elide: Text.ElideRight
                         }
                         Rectangle {
@@ -262,7 +262,7 @@ Item {
                     PreviewBtn {
                         Layout.fillWidth: true
                         label: page.isMobile ? Tr.shareBtn : Tr.emailBtn
-                        accent: Theme.cyan
+                        accent: ThemeEngine.cyan
                         locked: !appState.isPremium
                         onClicked: page.doShare(page.previewFormat)
                     }
@@ -300,13 +300,13 @@ Item {
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     width: 60; height: 60; radius: 30
-                    color: Qt.alpha(page.shareStage === 1 ? Theme.warnYellow : Theme.cyan, 0.12)
-                    border { width: 1.5; color: Qt.alpha(page.shareStage === 1 ? Theme.warnYellow : Theme.cyan, 0.35) }
+                    color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.12)
+                    border { width: 1.5; color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.35) }
                     AppIcon {
                         anchors.centerIn: parent
                         name: page.shareStage === 1 ? "badge-info" : "report"
                         size: 28
-                        color: page.shareStage === 1 ? Theme.warnYellow : Theme.cyan
+                        color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
                     }
                 }
                 // Title
@@ -314,8 +314,8 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle
-                    font.family: Theme.monoFont
-                    font.pixelSize: 17; font.weight: Font.Bold; color: Theme.textPrimary
+                    font.family: ThemeEngine.monoFont
+                    font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary
                     wrapMode: Text.WordWrap
                 }
                 // Body
@@ -323,8 +323,8 @@ Item {
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody
-                    font.family: Theme.monoFont
-                    font.pixelSize: 13; color: Theme.textSecondary
+                    font.family: ThemeEngine.monoFont
+                    font.pixelSize: 13; color: ThemeEngine.textSecondary
                     wrapMode: Text.WordWrap; lineHeight: 1.25
                 }
                 // PRO badge (subscribe stage only)
@@ -332,13 +332,13 @@ Item {
                     visible: page.shareStage === 1
                     Layout.alignment: Qt.AlignHCenter
                     implicitWidth: proRow.implicitWidth + 20; implicitHeight: 26; radius: 13
-                    color: Qt.alpha(Theme.warnYellow, 0.15)
+                    color: Qt.alpha(ThemeEngine.warnYellow, 0.15)
                     RowLayout {
                         id: proRow
                         anchors.centerIn: parent; spacing: 5
-                        AppIcon { name: "badge-check"; size: 12; color: Theme.warnYellow }
-                        Label { text: Tr.premiumBadge; color: Theme.warnYellow
-                            font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
+                        AppIcon { name: "badge-check"; size: 12; color: ThemeEngine.warnYellow }
+                        Label { text: Tr.premiumBadge; color: ThemeEngine.warnYellow
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
                     }
                 }
                 // Action buttons
@@ -347,14 +347,14 @@ Item {
                     DialogBtn {
                         Layout.fillWidth: true
                         label: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel
-                        accent: Theme.textSecondary; filled: false
+                        accent: ThemeEngine.textSecondary; filled: false
                         onClicked: page.shareStage = 0
                     }
                     DialogBtn {
                         Layout.fillWidth: true
                         label: page.shareStage === 1 ? Tr.subscribeBtn
                                                      : (page.isMobile ? Tr.shareBtn : Tr.emailBtn)
-                        accent: page.shareStage === 1 ? Theme.warnYellow : Theme.cyan
+                        accent: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
                         filled: true
                         onClicked: {
                             if (page.shareStage === 1) appState.requestSubscription()
@@ -369,7 +369,7 @@ Item {
     component DialogBtn: Rectangle {
         id: dbtn
         property string label: ""
-        property color accent: Theme.cyan
+        property color accent: ThemeEngine.cyan
         property bool filled: false
         signal clicked()
         implicitHeight: 42; radius: 8
@@ -379,7 +379,7 @@ Item {
             anchors.centerIn: parent
             text: dbtn.label
             color: dbtn.filled ? "#101018" : dbtn.accent
-            font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
     }
@@ -387,7 +387,7 @@ Item {
     component PreviewBtn: Rectangle {
         id: pbtn
         property string label: ""
-        property color accent: Theme.cyan
+        property color accent: ThemeEngine.cyan
         property bool locked: false
         signal clicked()
         // Let the parent Layout manage width via Layout.fillWidth; only set a
@@ -404,8 +404,8 @@ Item {
             Label {
                 text: pbtn.label + (pbtn.locked ? "  " + Tr.premiumBadge : "")
                 elide: Text.ElideRight; maximumLineCount: 1
-                color: Theme.textPrimary
-                font.family: Theme.monoFont; font.pixelSize: 12; font.weight: Font.Medium
+                color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
             }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pbtn.clicked() }
@@ -415,7 +415,7 @@ Item {
         id: btn
         property string iconName: ""
         property string label: ""
-        property color accent: Theme.cyan
+        property color accent: ThemeEngine.cyan
         signal clicked()
         Layout.fillWidth: true
         implicitHeight: 48; radius: 10
@@ -427,9 +427,9 @@ Item {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: btn.iconName; size: 18; color: btn.accent }
             Item { width: 12 }
-            Label { Layout.fillWidth: true; text: btn.label; color: Theme.textPrimary
+            Label { Layout.fillWidth: true; text: btn.label; color: ThemeEngine.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
-                font.family: Theme.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
+                font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
         }
         MouseArea { anchors.fill: parent; enabled: page.canReport
             cursorShape: Qt.PointingHandCursor; onClicked: btn.clicked() }

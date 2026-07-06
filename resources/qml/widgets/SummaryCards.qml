@@ -12,16 +12,16 @@ ColumnLayout {
 
     // Header: "Summary" + "Total: N"
     RowLayout {
-        Label { Layout.fillWidth: true; text: Tr.summary; font.family: Theme.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: Theme.textSecondary }
-        Label { text: Tr.totalDiagsLabel + (pass+warn+fail+skip+info); font.family: Theme.monoFont; font.pixelSize: 10; color: Theme.textSecondary }
+        Label { Layout.fillWidth: true; text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
+        Label { text: Tr.totalDiagsLabel + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
-    SummaryCard { Layout.fillWidth: true; accent: Theme.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: Theme.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;  rightAlign: summaryRoot.compact }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;  rightAlign: summaryRoot.compact }
 
     Connections {
         target: appState
@@ -39,7 +39,7 @@ ColumnLayout {
     }
 
     component SummaryCard: Rectangle {
-        property color accent: Theme.passGreen
+        property color accent: ThemeEngine.passGreen
         property string label: ""
         property string iconName: "badge-info"
         property int count: 0
@@ -56,13 +56,13 @@ ColumnLayout {
             }
             Item { Layout.fillWidth: true }
             Label {
-                text: label; font.family: Theme.monoFont; font.pixelSize: 10; font.weight: Font.Medium
-                color: Qt.alpha(Theme.textSecondary, 0.8)
+                text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Medium
+                color: Qt.alpha(ThemeEngine.textSecondary, 0.8)
             }
             Item { width: 8 }
             Label {
                 text: ("   " + count).slice(-3)
-                font.family: Theme.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: accent
+                font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: accent
                 horizontalAlignment: Text.AlignRight
             }
         }
