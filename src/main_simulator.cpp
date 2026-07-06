@@ -41,32 +41,9 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-    // ── Theme injected directly from C++ ──────────────────────────────
-    QVariantMap theme;
-    theme["bgDark"]       = QStringLiteral("#1E1E2E");
-    theme["bgSidebar"]    = QStringLiteral("#252538");
-    theme["bgCard"]       = QStringLiteral("#16213E");
-    theme["bgInput"]      = QStringLiteral("#2A2A4A");
-    theme["textPrimary"]  = QStringLiteral("#E0E0E0");
-    theme["textSecondary"]= QStringLiteral("#A0A0B8");
-    theme["textMuted"]    = QStringLiteral("#606080");
-    theme["accent"]       = QStringLiteral("#E94560");
-    theme["accentBlue"]   = QStringLiteral("#0078D4");
-    theme["cyan"]         = QStringLiteral("#00BCD4");
-    theme["passGreen"]    = QStringLiteral("#4ADE80");
-    theme["warnYellow"]   = QStringLiteral("#FACC15");
-    theme["failRed"]      = QStringLiteral("#EF4444");
-    theme["skipGray"]     = QStringLiteral("#888888");
-    theme["infoBlue"]     = QStringLiteral("#0078D4");
-    theme["borderCard"]   = QStringLiteral("#3A3A5A");
-    theme["borderSubtle"] = QStringLiteral("#2A2A4A");
-    theme["borderFocused"]= QStringLiteral("#0078D4");
-    theme["radiusCard"]   = 12.0;
-    theme["radiusButton"] = 8.0;
-    theme["radiusSmall"]  = 6.0;
-    theme["sidebarWidth"] = 260.0;
-    theme["monoFont"]     = QStringLiteral("JetBrains Mono");
-    engine.rootContext()->setContextProperty("Theme", theme);
+    // ── ThemeEngine (QML singleton) replaces old C++ Theme QVariantMap ──
+    // Theme switching (System/Light/Dark) is handled by
+    // resources/qml/theme/ThemeEngine.qml — see main.cpp for details.
 
     engine.rootContext()->setContextProperty("appState", &appState);
 
