@@ -7,6 +7,9 @@
 // - Native caching, cookie handling, redirect following
 // - Available since iOS 7.0
 // =============================================================================
+
+#ifdef PLATFORM_IOS
+
 #include "engine/task/DiagnosticTask.h"
 #include "models/DiagId.h"
 #include <QUrl>
@@ -391,3 +394,5 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target) {
         }
     }
 }
+
+#endif // PLATFORM_IOS

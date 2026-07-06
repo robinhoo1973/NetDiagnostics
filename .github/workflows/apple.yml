@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install cmake ninja qt
+        run: brew install cmake ninja qt@6
 
       - name: Generate macOS app icon (.icns)
         run: |
@@ -74,7 +74,7 @@ jobs:
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build -S .
 
       - name: Build (production)
@@ -83,7 +83,7 @@ jobs:
       - name: Bundle Qt frameworks (macdeployqt)
         run: |
           if [ -d build/net_diagnostics.app ]; then
-            QT_PREFIX="$(brew --prefix qt)"
+            QT_PREFIX="$(brew --prefix qt@6)"
             echo "Qt prefix: ${QT_PREFIX}"
             # -qmldir is required so macdeployqt scans QML source files and
             # deploys all imported QML modules (QtQuick, QtQuick.Controls,
@@ -101,8 +101,17 @@ jobs:
       - name: Ad-hoc code sign (DMG artifact)
         run: |
           if [ -d build/net_diagnostics.app ]; then
-            codesign --force --deep --sign - build/net_diagnostics.app
-            echo "[OK] .app ad-hoc signed"
+            # Inside-out signing: sign frameworks → inner binary → .app bundle
+            # (--deep is deprecated — Apple: "doesn't correctly sign nested code")
+            if [ -d build/net_diagnostics.app/Contents/Frameworks ]; then
+              find build/net_diagnostics.app/Contents/Frameworks -name "*.framework" -type d | while read fw; do
+                codesign --force --sign - "$fw"
+              done
+            fi
+            BIN=build/net_diagnostics.app/Contents/MacOS/net_diagnostics
+            [ -f "$BIN" ] && codesign --force --sign - "$BIN"
+            codesign --force --sign - build/net_diagnostics.app
+            echo "[OK] .app ad-hoc signed (inside-out)"
           fi
 
       - name: Configure (simulator)
@@ -535,6 +544,10 @@ jobs:
           ls -lh NetDiagnostics-iOS.ipa
 
       # ── Upload + immediate cleanup ────────────────────────────────────
+      # NOTE: xcrun altool is deprecated since Xcode 14 (2023).
+      # Apple may remove it in a future Xcode release.
+      # Migrate to: xcrun xcodebuild -exportArchive + App Store Connect API
+      # See: https://developer.apple.com/documentation/xcode/uploading-apps-to-app-store-connect
       - name: Upload iOS to TestFlight
         run: |
           xcrun altool --upload-app \

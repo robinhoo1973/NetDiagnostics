@@ -12,7 +12,6 @@ ApplicationWindow {
     title: "NetDiagnostics Simulator"
     visible: true
     color: Theme.bgDark
-    property int currentTab: 1
 
     // Maximize to fill the current screen's available area.
     // onWidthChanged/onHeightChanged handlers will trigger recalcScale()
@@ -149,7 +148,6 @@ ApplicationWindow {
                             anchors.fill: parent
                             onCloseRequested: close()
                             compact: isMobile()
-                            onCurrentTabChanged: page.currentTab = appContent.currentTab
                         }
                     }
                 }

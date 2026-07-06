@@ -2,6 +2,8 @@ name: Build & Release
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
@@ -10,6 +12,17 @@ concurrency:
 env:
   BUILD_TYPE: Release
   QT_VERSION: 6.8.3
+  # ── Qt version rationale ────────────────────────────────────────────
+  # 6.8.3 : Linux / macOS / iOS via brew, apt, or aqtinstall.
+  #         Latest stable LTS with full QML QuickControls2 support.
+  # 6.5.3 : Android cross-compile only.  Required because Qt 6.6+
+  #         bumped the Android Gradle plugin version which conflicts
+  #         with compileSdk 33 / aapt2.  Target: converge to 6.8.x
+  #         once Android SDK 34+ aapt2 compatibility is verified.
+  # 6.11.1: Windows static source build.  Built from source because
+  #         no pre-built static Qt6 packages exist for MSYS2 UCRT64.
+  #         Pinned to latest release for best static linking support.
+  # ═════════════════════════════════════════════════════════════════════
   QT_VERSION_ANDROID: 6.5.3
   QT_VERSION_WINDOWS_SRC: 6.11.1
   ANDROID_API_LEVEL: "26"
@@ -69,6 +82,15 @@ jobs:
 
       - name: Build (production)
         run: ninja -C build net_diagnostics
+
+      - name: Configure & run tests
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_TESTS=ON \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -B build-test -S .
+          ninja -C build-test test_engine_quick
+          cd build-test && ctest --output-on-failure -R engine_smoke
 
       - name: Configure (simulator)
         run: |
@@ -464,6 +486,15 @@ jobs:
           fi
           echo ""
           echo "  === All executables are fully static (zero non-OS DLL) ==="
+          echo ""
+          echo "  ╔══════════════════════════════════════════════════════════╗"
+          echo "  ║  NOTE: G5 (Website / URL) diagnostics are DISABLED in  ║"
+          echo "  ║  the static build.  NO_CURL=ON means 13 of 38 network  ║"
+          echo "  ║  diagnostic tests are skipped (HTTP, HTTPS, speed test, ║"
+          echo "  ║  service banner).  The dynamic Windows build and all    ║"
+          echo "  ║  other platforms include full G5 diagnostics.          ║"
+          echo "  ╚══════════════════════════════════════════════════════════╝"
+          echo ""
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
