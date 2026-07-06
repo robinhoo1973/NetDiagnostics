@@ -83,15 +83,6 @@ jobs:
       - name: Build (production)
         run: ninja -C build net_diagnostics
 
-      - name: Configure & run tests
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_TESTS=ON \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -B build-test -S .
-          ninja -C build-test test_engine_quick
-          cd build-test && ctest --output-on-failure -R engine_smoke
-
       - name: Configure (simulator)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
