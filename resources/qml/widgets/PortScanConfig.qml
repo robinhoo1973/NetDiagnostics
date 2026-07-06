@@ -46,7 +46,7 @@ Rectangle {
                 placeholderText: "From"
                 placeholderTextColor: ThemeEngine.textSecondary
                 enabled: appState.runStatus !== 1
-                background: Rectangle { radius: 4; color: "transparent"; border { width: 1; color: fromField.focus ? ThemeEngine.cyan : "#3A3A5A" } }
+                background: Rectangle { radius: 4; color: "transparent"; border { width: 1; color: fromField.focus ? ThemeEngine.cyan : ThemeEngine.colors.borderCard } }
                 onTextChanged: { var v = parseInt(text)||0; v = Math.max(0, Math.min(65535, v)); appState.portScanFrom = v }
             }
             Item { width: 8 }
@@ -59,7 +59,7 @@ Rectangle {
                 placeholderText: "To"
                 placeholderTextColor: ThemeEngine.textSecondary
                 enabled: appState.runStatus !== 1
-                background: Rectangle { radius: 4; color: "transparent"; border { width: 1; color: toField.focus ? ThemeEngine.cyan : "#3A3A5A" } }
+                background: Rectangle { radius: 4; color: "transparent"; border { width: 1; color: toField.focus ? ThemeEngine.cyan : ThemeEngine.colors.borderCard } }
                 onTextChanged: { var v = parseInt(text)||0; v = Math.max(0, Math.min(65535, v)); appState.portScanTo = v }
             }
         }

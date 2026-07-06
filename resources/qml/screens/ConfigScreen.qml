@@ -23,8 +23,8 @@ Item {
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 84; color: "#1A1A2E"
-        border { width: 1; color: "#3A3A5A" }
+        implicitHeight: 84; color: ThemeEngine.colors.navBar
+        border { width: 1; color: ThemeEngine.colors.borderCard }
         ColumnLayout {
             anchors.fill: parent; spacing: 0
             RowLayout {
@@ -91,7 +91,7 @@ Item {
                 // Select All
                 Rectangle {
                     implicitWidth: 110; implicitHeight: 32; radius: 6; color: "transparent"
-                    border { width: 1; color: "#3A3A5A" }
+                    border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: !appState.isGroupAllEnabled(currentGroup)
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
@@ -108,7 +108,7 @@ Item {
                 // Deselect All
                 Rectangle {
                     implicitWidth: 110; implicitHeight: 32; radius: 6; color: "transparent"
-                    border { width: 1; color: "#3A3A5A" }
+                    border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: appState.isGroupAnyEnabled(currentGroup)
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4

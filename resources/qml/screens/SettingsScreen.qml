@@ -319,7 +319,7 @@ Item {
         property string label: ""; property bool selected: false; property string code: ""
         implicitHeight: 52; radius: 8
         color: selected ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
-        border { width: selected ? 1.5 : 1; color: selected ? ThemeEngine.accentBlue : "#3A3A5A" }
+        border { width: selected ? 1.5 : 1; color: selected ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
         ColumnLayout {
             anchors.centerIn: parent; spacing: 2
             Label { anchors.horizontalCenter: parent.horizontalCenter; text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: selected ? Font.DemiBold : Font.Medium; color: selected ? ThemeEngine.accentBlue : ThemeEngine.textPrimary }

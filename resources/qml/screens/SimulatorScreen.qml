@@ -103,7 +103,7 @@ ApplicationWindow {
 
         // Top bar — device selector
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 48; color: "#1A1A2E"; z: 10
+            Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar; z: 10
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 12 }
                 Label { text:"NetDiagnostics Simulator"; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"white" }
@@ -161,7 +161,7 @@ ApplicationWindow {
         y: 90; x: Math.max(page.width-310,0)
         closePolicy: Popup.CloseOnEscape|Popup.CloseOnPressOutside
         width: 290; height: Math.min(450, devices.length*54+16); padding: 8
-        background: Rectangle { radius:10; color:ThemeEngine.bgDark; border{width:1;color:"#3A3A5A"} }
+        background: Rectangle { radius:10; color:ThemeEngine.bgDark; border{width:1;color:ThemeEngine.colors.borderCard} }
         ListView {
             anchors.fill:parent; clip:true; model:devices
             delegate: ItemDelegate {
