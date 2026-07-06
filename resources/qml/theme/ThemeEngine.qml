@@ -78,30 +78,27 @@ QtObject {
     property bool _ready: false
     Component.onCompleted: _ready = true
 
+    // Theme color keys — single source for both palette objects and assignment loop
+    readonly property var _colorKeys: [
+        ["bgDark",          "surface"],          ["bgSidebar",       "sidebar"],
+        ["bgCard",          "card"],             ["bgInput",         "input"],
+        ["navBar",          "navBar"],           ["textPrimary",     "textPrimary"],
+        ["textSecondary",   "textSecondary"],    ["textMuted",       "textMuted"],
+        ["accent",          "accent"],           ["accentBlue",      "secondary"],
+        ["cyan",            "cyan"],             ["passGreen",       "passGreen"],
+        ["warnYellow",      "warnYellow"],       ["failRed",         "failRed"],
+        ["skipGray",        "skipGray"],         ["infoBlue",        "infoBlue"],
+        ["borderCard",      "borderCard"],       ["borderSubtle",    "borderSubtle"],
+        ["borderFocused",   "borderFocused"],    ["primary",         "primary"],
+        ["primaryContainer", "primaryContainer"],["secondary",       "secondary"]
+    ]
+
     function applyTheme() {
         var p = (mode === litMode) ? lightPalette : darkPalette
-        bgDark          = p.surface
-        bgSidebar       = p.sidebar
-        bgCard          = p.card
-        bgInput         = p.input
-        navBar          = p.navBar
-        textPrimary     = p.textPrimary
-        textSecondary   = p.textSecondary
-        textMuted       = p.textMuted
-        accent          = p.accent
-        accentBlue      = p.secondary
-        cyan            = p.cyan
-        passGreen       = p.passGreen
-        warnYellow      = p.warnYellow
-        failRed         = p.failRed
-        skipGray        = p.skipGray
-        infoBlue        = p.infoBlue
-        borderCard      = p.borderCard
-        borderSubtle    = p.borderSubtle
-        borderFocused   = p.borderFocused
-        primary         = p.primary
-        primaryContainer= p.primaryContainer
-        secondary       = p.secondary
+        for (var i = 0; i < _colorKeys.length; i++) {
+            var key = _colorKeys[i]
+            this[key[0]] = p[key[1]]
+        }
     }
     onModeChanged: { if (_ready) applyTheme() }
 

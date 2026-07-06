@@ -26,7 +26,7 @@ Item {
         }
         Label {
             visible: itemData.isRunning; text: Tr.diagRunning
-            font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:"#00BCD4"
+            font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.colors.primary
         }
     }
 
