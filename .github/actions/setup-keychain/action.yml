@@ -50,25 +50,29 @@ runs:
         security default-keychain -s "$KEYCHAIN_PATH"
         security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
         security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+        security list-keychain -d user -s "$KEYCHAIN_PATH"
 
-        # Decode and import the certificate
-        echo -n "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
         TOOL_ARGS=""
         for tool in $ALLOWED_TOOLS; do
           TOOL_ARGS="$TOOL_ARGS -T $tool"
         done
+
+        # ── Import primary cert ──
+        printf '%s' "$PRIMARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert.p12"
         security import "$RUNNER_TEMP/signing-cert.p12" \
           -k "$KEYCHAIN_PATH" \
           -P "$PRIMARY_CERT_PASSWORD" \
+          -t cert -f pkcs12 \
           -A $TOOL_ARGS
         rm -f "$RUNNER_TEMP/signing-cert.p12"
 
-        # Optionally import a secondary certificate (e.g. Mac App Distribution for .app signing)
+        # ── Import secondary cert (optional) ──
         if [ -n "${SECONDARY_CERT_BASE64:-}" ]; then
-          echo -n "$SECONDARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert-secondary.p12"
+          printf '%s' "$SECONDARY_CERT_BASE64" | base64 -d > "$RUNNER_TEMP/signing-cert-secondary.p12"
           security import "$RUNNER_TEMP/signing-cert-secondary.p12" \
             -k "$KEYCHAIN_PATH" \
             -P "${SECONDARY_CERT_PASSWORD:-}" \
+            -t cert -f pkcs12 \
             -A $TOOL_ARGS
           rm -f "$RUNNER_TEMP/signing-cert-secondary.p12"
         fi
@@ -83,11 +87,11 @@ runs:
         # grep finds no match, before the fallback below can run.
         CODE_IDENTITY=""
         { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep -iE "Apple (Development|Distribution)|Mac Developer|iPhone (Developer|Distribution)" \
+          | grep -iE "Apple (Development|Distribution)|Developer ID|Mac Developer|iPhone (Developer|Distribution)" \
           | grep -vi "Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
         INSTALLER_IDENTITY=""
         { INSTALLER_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
-          | grep -iE "Developer Installer|Mac Installer Distribution" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
+          | grep -iE "Developer ID Installer|Mac Installer Distribution|Mac Developer Installer" | head -1 | sed 's/.*"\(.*\)".*/\1/'); } || true
         # Fallback: pick any valid non-revoked non-expired non-Installer identity
         if [ -z "$CODE_IDENTITY" ] || [ "$CODE_IDENTITY" = "null" ]; then
           { CODE_IDENTITY=$(security find-identity -v "$KEYCHAIN_PATH" \
