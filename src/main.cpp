@@ -21,6 +21,7 @@
 #endif
 #include "app/AppState.h"
 #include "util/DebugSwitch.h"
+#include "util/StartupLog.h"
 #ifdef PLATFORM_IOS
 #include "engine/IosWiFiHelper.h"
 #endif
@@ -86,6 +87,9 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
+    STARTUP_SEPARATOR();
+    STARTUP_LOG("NetDiagnostics starting, Qt %s, build %s-%s",
+                qVersion(), APP_EDITION, ND_BUILD_NUMBER);
     MAIN_LOG(" NetDiagnostics starting, Qt %s\n", qVersion());
 
     // ── Theme injected directly from C++ (avoids QML component creation failure) ──
@@ -116,6 +120,15 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("Theme", theme);
 
     engine.rootContext()->setContextProperty("appState", &appState);
+    STARTUP_LOG("Context properties set. Loading QML: %s", "qrc:/qml/main.qml");
+
+    // Capture QML warnings/errors to the startup log
+    QObject::connect(&engine, &QQmlApplicationEngine::warnings,
+        &engine, [](const QList<QQmlError>& warnings) {
+            for (const auto& w : warnings)
+                STARTUP_LOG("QML WARNING: %s", w.toString().toUtf8().constData());
+        });
+
     const QUrl url("qrc:/qml/main.qml");
 
     // Headless auto-run: if ND_AUTORUN=1, auto-set target and run all tests
@@ -127,15 +140,22 @@ int main(int argc, char *argv[])
     }
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, [url](const QUrl &objUrl) {
+            STARTUP_LOG("QML FATAL: object creation failed for %s", objUrl.toString().toUtf8().constData());
             if (url == objUrl)
                 QCoreApplication::exit(-1);
         },
         Qt::QueuedConnection);
+
+    STARTUP_LOG("Calling engine.load()...");
     engine.load(url);
+    STARTUP_LOG("engine.load() returned. rootObjects=%d", engine.rootObjects().size());
+
     if (engine.rootObjects().isEmpty()) {
+        STARTUP_LOG("FATAL: QML engine failed to load %s — no root objects", "qrc:/qml/main.qml");
         qCritical() << "QML engine failed to load" << url;
         return -1;
     }
+    STARTUP_LOG("QML loaded successfully. Showing window.");
 
     // ── Maximize the window atomically via C++ ───────────────────────────
     // QML's visibility: Window.Maximized sets the flag after the window is
