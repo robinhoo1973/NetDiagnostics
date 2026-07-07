@@ -105,69 +105,66 @@ ColumnLayout {
                     height: {
                         var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
                         var cur  = root.schemeModel.get(model.index)
-                        if (!prev || prev.schemeGroup !== cur.schemeGroup) return 46
-                        return 36
+                        if (!prev || prev.schemeGroup !== cur.schemeGroup) return 48
+                        return 32
                     }
-                    padding: 8; leftPadding: 10
+                    padding: 6; leftPadding: 12
 
-                    // ── Group header + icon ──────────────────────────────
                     readonly property bool isFirst: {
                         var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
                         var cur  = root.schemeModel.get(model.index)
                         return !prev || prev.schemeGroup !== cur.schemeGroup
                     }
 
-                    // ── Scheme icon lookup ──────────────────────────────
-                    readonly property var schemeIcons: ({
-                        http:"globe",https:"globe",ftp:"config",ftps:"config",
-                        ssh:"portscan",sftp:"portscan",scp:"portscan",
-                        smtp:"mail",smtps:"mail",imap:"mail",imaps:"mail",
-                        pop3:"mail",pop3s:"mail",
-                        mysql:"config",postgresql:"config",redis:"config",
-                        mongodb:"config",mssql:"config",
-                        telnet:"wifi",rdp:"wifi",
-                        ldap:"target",ldaps:"target",
-                        mqtt:"wifi",mqtts:"wifi"
-                    })
-                    readonly property string gName: ({
-                        0:"Web",1:"File Transfer",2:"Email",3:"Database",
-                        4:"Remote Access",5:"Directory",6:"Messaging"
+                    // Group icon — only for headers (not per-scheme)
+                    readonly property string groupIcon: ({
+                        0:"globe",1:"portscan",2:"mail",3:"config",
+                        4:"wifi",5:"target",6:"timer"
+                    }[schemeGroup] || "circle")
+
+                    // Group label — i18n via schemeGroup name lookup
+                    readonly property string groupLabel: ({
+                        0:Tr.schemeGroupWeb, 1:Tr.schemeGroupFile,
+                        2:Tr.schemeGroupEmail, 3:Tr.schemeGroupDb,
+                        4:Tr.schemeGroupRemote, 5:Tr.schemeGroupDir,
+                        6:Tr.schemeGroupMsg
                     }[schemeGroup] || "")
 
                     contentItem: ColumnLayout {
                         spacing: 0
-                        // Group separator + label
+                        // ── Group header (icon + label + separator) ─────
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: isFirst ? 16 : 0
+                            implicitHeight: isFirst ? 18 : 0
                             color: "transparent"
                             visible: isFirst
                             Rectangle {
                                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
                                 height: 1; color: ThemeEngine.colors.borderCard
                             }
-                            Label {
+                            RowLayout {
                                 anchors.centerIn: parent
-                                text: gName
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 8
-                                font.weight: Font.Bold; color: ThemeEngine.textMuted
-                                background: Rectangle { color: ThemeEngine.bgCard; anchors.fill: parent }
+                                spacing: 4
+                                AppIcon {
+                                    name: groupIcon; size: 12
+                                    color: ThemeEngine.colors.primary
+                                    visible: isFirst
+                                }
+                                Label {
+                                    text: groupLabel
+                                    font.family: ThemeEngine.monoFont; font.pixelSize: 8
+                                    font.weight: Font.Bold; color: ThemeEngine.textMuted
+                                    background: Rectangle { color: ThemeEngine.bgCard; anchors.fill: parent }
+                                }
                             }
                         }
-                        // Scheme row
-                        RowLayout {
-                            Layout.fillWidth: true; spacing: 6
-                            AppIcon {
-                                name: schemeIcons[scheme] || "circle"
-                                size: 12; color: ThemeEngine.colors.primary
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                text: scheme + "://"
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                                color: ThemeEngine.textPrimary
-                                verticalAlignment: Text.AlignVCenter
-                            }
+                        // ── Scheme row (no icon — just text) ────────────
+                        Label {
+                            Layout.fillWidth: true; Layout.fillHeight: true
+                            text: scheme + "://"
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                            color: ThemeEngine.textPrimary
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
 

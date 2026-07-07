@@ -57,4 +57,20 @@ ApplicationWindow {
         compact: Qt.platform.os === "ios" || Qt.platform.os === "android"
         onCloseRequested: root.close()
     }
+
+    // ── Close button (top-right corner, theme-aware) ────────────────
+    Rectangle {
+        anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 12 }
+        width: 32; height: 32; radius: 6
+        color: "transparent"
+        AppIcon {
+            anchors.centerIn: parent
+            name: "close"; size: 16; color: ThemeEngine.colors.textSecondary
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.close()
+        }
+    }
 }
