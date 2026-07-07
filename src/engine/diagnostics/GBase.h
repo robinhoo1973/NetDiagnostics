@@ -28,3 +28,5 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
+#include "util/DnsResolver.h"
+#include "util/NetUtil.h"
