@@ -87,14 +87,14 @@ if(WIN32)
 endif()
 if(IOS)
     list(APPEND SOURCES
-        src/engine/diagnostics/G1/IosWiFiHelper.mm
-        src/engine/diagnostics/G3/IosDnsTask.mm src/engine/diagnostics/G5/IosHttpTask.mm src/engine/diagnostics/G1/IosNetworkInfo.mm
-        src/engine/PlatformShare_ios.mm src/engine/PlatformStore_ios.mm
+        src/engine/diagnostics/G1/G1Common.mm
+        src/engine/diagnostics/G3/G3Common.mm src/engine/diagnostics/G5/G5Common.mm
+        src/platform/PlatformShare.mm src/platform/PlatformStore.mm
     )
 endif()
 if(ANDROID)
     list(APPEND SOURCES
-        src/engine/diagnostics/G5/AndroidNetworkInfo.cpp src/engine/task/PlatformShare_android.cpp
+        src/engine/diagnostics/G5/G5Common.cpp src/platform/PlatformShare.cpp
     )
 endif()
 
