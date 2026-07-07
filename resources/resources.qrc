@@ -20,6 +20,7 @@
         <file>qml/widgets/PortScanConfig.qml</file>
         <file>qml/widgets/AppIcon.qml</file>
         <file>qml/widgets/SummaryCards.qml</file>
+        <file>qml/widgets/DiagnosticToolbar.qml</file>
         <file>qml/widgets/TargetAnalysisPanel.qml</file>
         <file>icons/check.svg</file>
         <file>icons/circle.svg</file>

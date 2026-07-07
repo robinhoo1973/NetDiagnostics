@@ -3,11 +3,11 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme"
 
-// ── Diagnostic Toolbar — scheme combo + host + Run/Stop + group pills + port scan toggle
 Rectangle {
     id: root
     color: ThemeEngine.bgSidebar
     property bool wide: true
+    property bool _portScanVisible: false
 
     implicitHeight: tbCol.implicitHeight + 8
     clip: true
@@ -17,17 +17,15 @@ Rectangle {
         anchors { fill: parent; leftMargin: 8; rightMargin: 8; topMargin: 4; bottomMargin: 4 }
         spacing: 4
 
-        // ── Main toolbar row ───────────────────────────────────────────
         RowLayout {
             id: toolbarRow
             Layout.fillWidth: true; spacing: root.wide ? 4 : 2
 
-            // Scheme combo (narrower than before)
+            // Scheme combo
             ComboBox {
                 id: schemeCombo
                 Layout.preferredWidth: root.wide ? 84 : 72
-                Layout.preferredHeight: 32
-                flat: true
+                Layout.preferredHeight: 32; flat: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11
                 enabled: appState.runStatus !== 1
                 displayText: currentText + "://"
@@ -55,8 +53,7 @@ Rectangle {
                 }
 
                 popup: Popup {
-                    y: schemeCombo.height
-                    width: 200; padding: 4
+                    y: schemeCombo.height; width: 200; padding: 4
                     background: Rectangle {
                         color: ThemeEngine.bgCard
                         border { width: 1; color: ThemeEngine.colors.borderCard }
@@ -120,9 +117,7 @@ Rectangle {
                         if (slash >= 0) {
                             appState.targetHost = t.substring(0, slash)
                             appState.targetPath = t.substring(slash)
-                        } else {
-                            appState.targetHost = t; appState.targetPath = ""
-                        }
+                        } else { appState.targetHost = t; appState.targetPath = "" }
                     }
                 }
             }
@@ -163,7 +158,7 @@ Rectangle {
                 }
             }
 
-            // Stop button — visible only during run
+            // Stop button
             Rectangle {
                 visible: appState.runStatus === 1
                 Layout.preferredWidth: root.wide ? 60 : 36; Layout.preferredHeight: 32; radius: 6
@@ -172,19 +167,17 @@ Rectangle {
                 Label {
                     anchors.centerIn: parent
                     text: root.wide ? Tr.stop : "■"
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                    color: ThemeEngine.failRed
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.failRed
                 }
                 MouseArea { anchors.fill: parent; onClicked: appState.cancel() }
             }
 
-            // ── Group filter pills (G1-G5) ─────────────────────────────
+            // Group filter pills G1-G5
             Repeater {
                 model: 5
                 delegate: Rectangle {
-                    Layout.preferredWidth: root.wide ? 44 : 32
-                    Layout.preferredHeight: 28; radius: 14
-                    property bool _chk: appState.isGroupAllEnabled(index)
+                    Layout.preferredWidth: root.wide ? 44 : 32; Layout.preferredHeight: 28; radius: 14
+                    readonly property bool _chk: appState.isGroupAllEnabled(index)
                     color: _chk ? ThemeEngine.colors.primaryContainer : "transparent"
                     border {
                         width: 1
@@ -217,14 +210,11 @@ Rectangle {
                 }
             }
         }
-    }
 
-        // ── Expandable port scan config (toggled by icon) ────────────────
+        // Expandable port scan config
         PortScanConfig {
             Layout.fillWidth: true
             visible: root._portScanVisible
         }
-    }
-    property bool _portScanVisible: false
     }
 }
