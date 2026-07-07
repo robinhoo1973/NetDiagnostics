@@ -142,3 +142,4 @@ DiagnosticResult traceroute(const QString& target) {
 
 // ── PathPing — Windows pathping.exe format with TCP-based traceroute ───────
 }
+} // namespace G4RemoteHost

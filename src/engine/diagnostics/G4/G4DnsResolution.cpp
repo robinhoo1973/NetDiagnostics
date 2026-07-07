@@ -197,3 +197,4 @@ DiagnosticResult dnsResolution(const QString& target) {
     r.properties.append(prop("Addresses", ipsAll.isEmpty() ? QStringLiteral("(none)") : ipsAll.join(QStringLiteral(", "))));
     return r;
 }
+} // namespace G4RemoteHost
