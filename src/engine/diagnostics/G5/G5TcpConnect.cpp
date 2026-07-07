@@ -20,4 +20,3 @@ DiagnosticResult tcpConnect(const QString& target) {
 // ── G5.3 Service Banner ──────────────────────────────────────────────────
 }
 } // namespace G5WebsiteUrl
-} // namespace G5WebsiteUrl
