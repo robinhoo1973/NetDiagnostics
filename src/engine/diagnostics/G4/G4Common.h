@@ -2,7 +2,7 @@
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #endif
-#include "engine/diagnostics/G4RemoteHost.h"
+#include "engine/diagnostics/G4/G4RemoteHost.h"
 #include "util/DebugSwitch.h"
 #include "util/PingParser.h"
 #include "util/Logger.h"

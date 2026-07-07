@@ -4,7 +4,7 @@
 // All diagnostics use QTcpSocket (available on ALL platforms including
 // iOS/Android).  No libcurl dependency.  Works in NO_CURL builds.
 // =============================================================================
-#include "engine/diagnostics/G5WebsiteUrl.h"   // validate, portForUrl + declarations
+#include "engine/diagnostics/G5/G5WebsiteUrl.h"   // validate, portForUrl + declarations
 #include "models/ResultProperty.h"
 #include <QTcpSocket>
 #include <QUrl>
