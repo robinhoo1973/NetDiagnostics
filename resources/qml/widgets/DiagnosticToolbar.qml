@@ -91,7 +91,8 @@ Rectangle {
                         y: schemeCombo.height; width: 210; padding: 4
                         background: Rectangle {
                             color: ThemeEngine.bgCard
-                            border { width: 1; color: ThemeEngine.colors.borderCard }; radius: 8
+                            border { width: 1; color: ThemeEngine.colors.borderCard }
+                        radius: 8
                         }
                         contentItem: ListView {
                             clip: true; implicitHeight: contentHeight
@@ -188,10 +189,9 @@ Rectangle {
                 }
             }
 
-            // ── Zone 2: Group pills ─────────────────────────────────
+            // ── Zone 2: Group pills + Run button ────────────────────
             RowLayout {
-                spacing: 3
-                Layout.alignment: Qt.AlignHCenter
+                spacing: 4
                 Repeater {
                     model: 5
                     delegate: Rectangle {
@@ -207,25 +207,33 @@ Rectangle {
                             onClicked: appState.setGroupEnabled(index, !appState.isGroupAllEnabled(index)) }
                     }
                 }
-            }
 
-            // ── Zone 3: Run/Stop toggle ─────────────────────────────
-            Rectangle {
-                Layout.alignment: Qt.AlignRight
-                width: 36; height: 30; radius: 6
-                color: appState.runStatus === 1 ? ThemeEngine.failRed
-                       : appState.canRun() ? ThemeEngine.accentBlue
-                       : Qt.alpha(ThemeEngine.accentBlue, 0.3)
-                Label { anchors.centerIn: parent
-                    text: appState.runStatus === 1 ? "■" : "▶"
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
-                MouseArea { anchors.fill: parent
-                    enabled: appState.runStatus === 1 || appState.canRun()
-                    onClicked: {
-                        if (appState.runStatus === 1) { appState.cancel() }
-                        else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
+                // Run/Stop inline with pills
+                Rectangle {
+                    width: 36; height: 28; radius: 14
+                    color: appState.runStatus === 1 ? ThemeEngine.failRed
+                           : appState.canRun() ? ThemeEngine.accentBlue
+                           : Qt.alpha(ThemeEngine.accentBlue, 0.3)
+                    Label { anchors.centerIn: parent
+                        text: appState.runStatus === 1 ? "■" : "▶"
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: "white" }
+                    MouseArea { anchors.fill: parent
+                        enabled: appState.runStatus === 1 || appState.canRun()
+                        onClicked: {
+                            if (appState.runStatus === 1) { appState.cancel() }
+                            else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
+                        }
                     }
                 }
+            }
+
+            // ── Zone 3: Close button ────────────────────────────────
+            Rectangle {
+                width: 30; height: 30; radius: 6; color: "transparent"
+                Label { anchors.centerIn: parent; text: "×"; font.family: ThemeEngine.monoFont
+                    font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textSecondary }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    onClicked: { /* handled by main.qml close button */ } }
             }
         }
 
