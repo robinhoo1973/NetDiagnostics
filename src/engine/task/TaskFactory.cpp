@@ -2,8 +2,8 @@
 // TaskFactory.cpp 鈥?Create DiagnosticTask objects for each DiagId
 // =============================================================================
 #include "engine/task/TaskFactory.h"
-#include "engine/diagnostic/G1G2G3Native.h"
-#include "engine/diagnostic/G4RemoteHost.h"
+#include "engine/diagnostics/G1G2G3Native.h"
+#include "engine/diagnostics/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
 #include <QElapsedTimer>
@@ -17,7 +17,7 @@
 #include "engine/task/AndroidNetworkInfo.h"
 #endif
 #if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
-#include "engine/diagnostic/G5WebsiteUrl.h"
+#include "engine/diagnostics/G5WebsiteUrl.h"
 #endif
 
 // Per-test timeout values (ms). Default is 60000; shorter for fast tests.
