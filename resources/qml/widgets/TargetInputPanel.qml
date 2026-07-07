@@ -6,6 +6,9 @@ import "../theme"
 ColumnLayout {
     id: root
     spacing: 0
+    // ── Advanced (Port / User / Pass) toggle ──────────────────────────────
+    property bool advancedExpanded: false
+
     RowLayout {
         AppIcon { name: "target"; size: 13; color: Qt.alpha(ThemeEngine.textPrimary, 0.7) }
         Item { width: 5 }
@@ -13,41 +16,263 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 6 }
 
+    // ═══════════════════ Scheme ComboBox + Host Field ═══════════════════
     Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
         color: Qt.alpha(ThemeEngine.bgDark, 0.6)
-        border { width: targetField.activeFocus ? 1.5 : 1; color: page._snapTargetError !== "" ? ThemeEngine.failRed : (targetField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard) }
+        border { width: hostField.activeFocus || schemeCombo.activeFocus ? 1.5 : 1
+                 color: page._snapTargetError !== "" ? ThemeEngine.failRed
+                        : (hostField.activeFocus || schemeCombo.activeFocus) ? ThemeEngine.accentBlue
+                        : ThemeEngine.colors.borderCard }
+
         RowLayout {
-            anchors { fill: parent; leftMargin: 10; rightMargin: 4 }
+            anchors { fill: parent; leftMargin: 6; rightMargin: 4 }
             AppIcon {
-                name: page._snapIconName
-                size: 12
-                color: page._snapIconColor
+                name: page._snapIconName; size: 12; color: page._snapIconColor
             }
-            Item { width: 8 }
+            Item { width: 2 }
+
+            // ── Scheme ComboBox (grouped, default https) ──────────────────
+            ComboBox {
+                id: schemeCombo
+                Layout.preferredWidth: 94
+                Layout.fillHeight: true
+                flat: true
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                enabled: appState.runStatus !== 1
+
+                displayText: currentText + "://"
+
+                // Palette to blend into dark bg
+                palette {
+                    base: Qt.alpha(ThemeEngine.bgDark, 0.3)
+                    text: ThemeEngine.textPrimary
+                    buttonText: ThemeEngine.textPrimary
+                    windowText: ThemeEngine.textPrimary
+                }
+
+                // ── Grouped model (scheme, group label) ────────────────
+                textRole: "scheme"
+                model: ListModel {
+                    id: schemeModel
+                    Component.onCompleted: {
+                        // Load schemes from C++ flat list, assign groups
+                        var schemes = appState.supportedSchemes
+                        var web   = ["https","http"]
+                        var ft    = ["ftp","ftps","ssh","sftp","scp"]
+                        var email = ["smtp","smtps","imap","imaps","pop3","pop3s"]
+                        var db    = ["mysql","postgresql","redis","mongodb","mssql"]
+                        var ra    = ["telnet","rdp"]
+                        var dir   = ["ldap","ldaps"]
+                        var mq    = ["mqtt","mqtts"]
+                        var groups = [
+                            {label:"\U0001F310 Web", schemes:web},
+                            {label:"\U0001F4C1 File Transfer", schemes:ft},
+                            {label:"\U0001F4E7 Email", schemes:email},
+                            {label:"\U0001F5C4 Database", schemes:db},
+                            {label:"\U0001F5A5 Remote Access", schemes:ra},
+                            {label:"\U0001F4C2 Directory", schemes:dir},
+                            {label:"\U0001F4E1 Messaging", schemes:mq}
+                        ]
+                        for (var gi = 0; gi < groups.length; gi++) {
+                            var g = groups[gi]
+                            for (var si = 0; si < g.schemes.length; si++) {
+                                var s = g.schemes[si]
+                                if (schemes.indexOf(s) >= 0) {
+                                    schemeModel.append({scheme: s, schemeGroup: gi})
+                                }
+                            }
+                        }
+                    }
+                }
+
+                delegate: ItemDelegate {
+                    width: schemeCombo.popup ? schemeCombo.popup.width : 200
+                    height: {
+                        var prev = model.index > 0 ? schemeModel.get(model.index - 1) : null
+                        var cur  = schemeModel.get(model.index)
+                        if (!prev || prev.schemeGroup !== cur.schemeGroup) return 44
+                        return 32
+                    }
+                    padding: 6
+                    leftPadding: 12
+
+                    contentItem: Item {
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 2
+                            // Group header separator
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 1
+                                color: Qt.alpha(ThemeEngine.textSecondary, 0.15)
+                                visible: {
+                                    var prev = model.index > 0 ? schemeModel.get(model.index - 1) : null
+                                    var cur = schemeModel.get(model.index)
+                                    return !prev || prev.schemeGroup !== cur.schemeGroup
+                                }
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                text: scheme + "://"
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                                color: ThemeEngine.textPrimary
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+
+                    highlighted: model.scheme === schemeCombo.currentText
+                    background: Rectangle {
+                        color: highlighted ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
+                        radius: 4
+                    }
+                }
+
+                // Set currentIndex to "https" on init
+                Component.onCompleted: {
+                    for (var i = 0; i < schemeModel.count; i++) {
+                        if (schemeModel.get(i).scheme === "https") {
+                        currentIndex = i; break
+                        }
+                    }
+                }
+
+                onCurrentTextChanged: {
+                    if (currentText && appState.targetScheme !== currentText) {
+                        appState.targetScheme = currentText
+                    }
+                }
+            }
+
+            // ── Host / Path field ────────────────────────────────────────
             TextField {
-                id: targetField
+                id: hostField
                 Layout.fillWidth: true; Layout.fillHeight: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary
-                placeholderText: Tr.enterTarget
+                placeholderText: "example.com/path"
                 placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
-                text: appState.target
+                text: {
+                    // Combine host + path for display
+                    var h = appState.targetHost
+                    var p = appState.targetPath
+                    if (!h && !p) return ""
+                    return h + p
+                }
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
                 background: Item {}
-                onTextChanged: appState.target = text.trim()
+
+                onTextChanged: {
+                    var t = text.trim()
+                    // Detect pasted URL (contains ://) → parse into fields
+                    if (t.indexOf("://") >= 0) {
+                        appState.parseUrlIntoFields(t)
+                        return
+                    }
+                    // Split host from path at first /
+                    var slash = t.indexOf("/")
+                    if (slash >= 0) {
+                        appState.targetHost = t.substring(0, slash)
+                        appState.targetPath = t.substring(slash)
+                    } else {
+                        appState.targetHost = t
+                        appState.targetPath = ""
+                    }
+                }
             }
+
+            // ── Clear button ────────────────────────────────────────────
             AppIcon {
                 name: "close"; size: 10; color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
-                visible: targetField.text !== "" && appState.runStatus !== 1
+                visible: hostField.text !== "" && appState.runStatus !== 1
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: { targetField.text = "" }
+                    onClicked: { hostField.text = ""; appState.targetHost = ""; appState.targetPath = "" }
+                }
+            }
+
+            // ── Advanced toggle (gear) ──────────────────────────────────
+            Item { width: 2; visible: appState.runStatus !== 1 }
+            AppIcon {
+                name: "tune"; size: 12
+                color: root.advancedExpanded ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                visible: appState.runStatus !== 1
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: root.advancedExpanded = !root.advancedExpanded
                 }
             }
         }
     }
-    // RFC validation error (shown when target is invalid — snapshot via parent)
+
+    // ═══════════════════ Advanced: Port / User / Pass ═══════════════════
+    Item { Layout.preferredHeight: 6; visible: root.advancedExpanded }
+    RowLayout {
+        visible: root.advancedExpanded
+        spacing: 6
+        // Port
+        Rectangle {
+            Layout.preferredWidth: 70; implicitHeight: 32; radius: 6
+            color: Qt.alpha(ThemeEngine.bgDark, 0.4)
+            border { width: 1; color: portField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            TextField {
+                id: portField
+                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : "Port"
+                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                text: appState.targetPort > 0 ? "" + appState.targetPort : ""
+                enabled: appState.runStatus !== 1
+                verticalAlignment: TextInput.AlignVCenter
+                background: Item {}
+                onTextChanged: {
+                    var v = parseInt(text)
+                    appState.targetPort = isNaN(v) ? -1 : v
+                }
+            }
+        }
+        // Username
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 32; radius: 6
+            color: Qt.alpha(ThemeEngine.bgDark, 0.4)
+            border { width: 1; color: userField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            TextField {
+                id: userField
+                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                placeholderText: Tr.usernameLabel
+                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                text: appState.targetUsername
+                enabled: appState.runStatus !== 1
+                verticalAlignment: TextInput.AlignVCenter
+                background: Item {}
+                onTextChanged: appState.targetUsername = text.trim()
+            }
+        }
+        // Password
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 32; radius: 6
+            color: Qt.alpha(ThemeEngine.bgDark, 0.4)
+            border { width: 1; color: passField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            TextField {
+                id: passField
+                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                placeholderText: Tr.passwordLabel
+                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                text: appState.targetPassword
+                echoMode: TextInput.Password
+                enabled: appState.runStatus !== 1
+                verticalAlignment: TextInput.AlignVCenter
+                background: Item {}
+                onTextChanged: appState.targetPassword = text.trim()
+            }
+        }
+    }
+
+    // ═══════════════════ Validation error ═══════════════════
     RowLayout {
         visible: page._snapTargetError !== ""
         spacing: 4
@@ -61,6 +286,7 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 8 }
 
+    // ═══════════════════ Run / Stop buttons ═══════════════════
     RowLayout {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 38; radius: 8
@@ -75,7 +301,6 @@ ColumnLayout {
                 anchors.fill: parent
                 enabled: appState.runStatus !== 1 && appState.canRun()
                 onClicked: {
-                    // Block Run: validation error, or no tests enabled
                     if (appState.targetValidationError() !== "") return
                     if (!appState.canRun()) return
                     appState.runDiagnostics()

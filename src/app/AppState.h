@@ -37,6 +37,15 @@ class AppState : public QObject {
     Q_PROPERTY(bool portScanCommon READ portScanCommon WRITE setPortScanCommon NOTIFY portScanConfigChanged)
     Q_PROPERTY(int portScanFrom READ portScanFrom WRITE setPortScanFrom NOTIFY portScanConfigChanged)
     Q_PROPERTY(int portScanTo READ portScanTo WRITE setPortScanTo NOTIFY portScanConfigChanged)
+    // ── Structured target fields (derived from / assembled into m_target) ──
+    Q_PROPERTY(QString targetScheme READ targetScheme WRITE setTargetScheme NOTIFY targetChanged)
+    Q_PROPERTY(QString targetHost READ targetHost WRITE setTargetHost NOTIFY targetChanged)
+    Q_PROPERTY(int targetPort READ targetPort WRITE setTargetPort NOTIFY targetChanged)
+    Q_PROPERTY(QString targetUsername READ targetUsername WRITE setTargetUsername NOTIFY targetChanged)
+    Q_PROPERTY(QString targetPassword READ targetPassword WRITE setTargetPassword NOTIFY targetChanged)
+    Q_PROPERTY(QString targetPath READ targetPath WRITE setTargetPath NOTIFY targetChanged)
+    Q_PROPERTY(QStringList supportedSchemes READ supportedSchemes CONSTANT)
+    Q_PROPERTY(int defaultPortForScheme READ defaultPortForScheme NOTIFY targetChanged)
     Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
@@ -58,6 +67,23 @@ public:
     // ── Target ─────────────────────────────────────────────────────────────
     QString target() const { return m_target; }
     void setTarget(const QString& t);
+
+    // ── Structured target accessors (derived from / assembled into m_target) ──
+    QString targetScheme() const;
+    void setTargetScheme(const QString& s);
+    QString targetHost() const;
+    void setTargetHost(const QString& h);
+    int targetPort() const;
+    void setTargetPort(int p);
+    QString targetUsername() const;
+    void setTargetUsername(const QString& u);
+    QString targetPassword() const;
+    void setTargetPassword(const QString& p);
+    QString targetPath() const;
+    void setTargetPath(const QString& p);
+    QStringList supportedSchemes() const;
+    int defaultPortForScheme() const;
+    Q_INVOKABLE void parseUrlIntoFields(const QString& urlString);
 
     // ── Run status ─────────────────────────────────────────────────────────
     int runStatusInt() const { return static_cast<int>(m_runStatus); }
@@ -184,8 +210,20 @@ private:
     void bumpVersion();
     void emailReportDesktop(const QString& path);
     ReportData buildReportData() const;  // snapshot for ReportEngine
+    void assembleTargetUrl();            // rebuild m_target from structured fields
+    void syncFieldsFromTarget();         // parse m_target → structured fields
 
+    // Canonical target string (existing)
     QString m_target;
+    // Structured target fields (derived)
+    QString m_targetScheme;
+    QString m_targetHost;
+    int m_targetPort = -1;              // -1 = use scheme default
+    QString m_targetUsername;
+    QString m_targetPassword;
+    QString m_targetPath;
+    bool m_assembling = false;          // guard against re-entrant setTarget
+
     RunStatus m_runStatus = RunStatus::Idle;
     QString m_currentGroup;
     QString m_currentDiagName;

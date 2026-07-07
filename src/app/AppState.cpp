@@ -2,12 +2,14 @@
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
+#include "engine/diagnostic/G5WebsiteUrl.h"
 #include "engine/task/TaskFactory.h"
 #include "util/DebugSwitch.h"
 #include "util/Logger.h"
 #include <cstdio>
 #include <chrono>
 #include <QTimer>
+#include <QUrl>
 #include <QCoreApplication>
 #include <QTextDocument>
 #include <QPdfWriter>
@@ -44,6 +46,7 @@
 #endif
 
 AppState::AppState(QObject* parent) : QObject(parent) {
+    m_targetScheme = QStringLiteral("https"); // default protocol
     // Forward service signals to QML
     connect(&m_config, &DiagnosticConfig::portScanConfigChanged,
             this, &AppState::portScanConfigChanged);
@@ -152,19 +155,175 @@ static bool looksLikeIPv6(const QString& host) {
 }
 
 // ── Supported URL schemes (must be lowercase) ────────────────────────────
+// Delegates to G5WebsiteUrl::knownSchemes() — single source of truth.
 static const QStringList& supportedSchemes() {
-    // Mirrors G5WebsiteUrl::s_defaultPorts — single source of truth for all
-    // TCP-based protocols with banner-grab or dedicated diagnostic coverage.
-    // NOTE: when adding a scheme here, also ensure it exists in
-    // G5WebsiteUrl::s_defaultPorts for port resolution.
-    static const QStringList s = {
-        "http", "https",
-        "ftp", "ftps", "ssh", "sftp", "scp",
-        "telnet", "rdp", "smtp", "smtps", "imap", "imaps",
-        "pop3", "pop3s", "mysql", "postgresql", "redis", "mongodb",
-        "mssql", "ldap", "ldaps", "mqtt", "mqtts"
-    };
+    static const QStringList s = G5WebsiteUrl::knownSchemes();
     return s;
+}
+
+QStringList AppState::supportedSchemes() const {
+    return ::supportedSchemes();
+}
+
+// ── Structured target field accessors ──────────────────────────────────────
+QString AppState::targetScheme() const { return m_targetScheme; }
+void AppState::setTargetScheme(const QString& s) {
+    if (m_targetScheme != s) {
+        m_targetScheme = s;
+        assembleTargetUrl();
+    }
+}
+
+QString AppState::targetHost() const { return m_targetHost; }
+void AppState::setTargetHost(const QString& h) {
+    if (m_targetHost != h) {
+        m_targetHost = h;
+        assembleTargetUrl();
+    }
+}
+
+int AppState::targetPort() const { return m_targetPort; }
+void AppState::setTargetPort(int p) {
+    if (m_targetPort != p) {
+        m_targetPort = p;
+        assembleTargetUrl();
+    }
+}
+
+QString AppState::targetUsername() const { return m_targetUsername; }
+void AppState::setTargetUsername(const QString& u) {
+    if (m_targetUsername != u) {
+        m_targetUsername = u;
+        assembleTargetUrl();
+    }
+}
+
+QString AppState::targetPassword() const { return m_targetPassword; }
+void AppState::setTargetPassword(const QString& p) {
+    if (m_targetPassword != p) {
+        m_targetPassword = p;
+        assembleTargetUrl();
+    }
+}
+
+QString AppState::targetPath() const { return m_targetPath; }
+void AppState::setTargetPath(const QString& p) {
+    if (m_targetPath != p) {
+        m_targetPath = p;
+        assembleTargetUrl();
+    }
+}
+
+int AppState::defaultPortForScheme() const {
+    return G5WebsiteUrl::defaultPortForScheme(m_targetScheme);
+}
+
+// ── Build m_target from structured fields ──────────────────────────────────
+void AppState::assembleTargetUrl() {
+    if (m_assembling) return;          // prevent re-entrant loops
+    if (m_targetHost.isEmpty()) return; // require at least a hostname
+
+    const QString scheme = m_targetScheme.isEmpty() ? QStringLiteral("https") : m_targetScheme;
+    const int defaultPort = G5WebsiteUrl::defaultPortForScheme(scheme);
+
+    // Build authority: [user[:pass]@]host[:port]
+    QString authority;
+    if (!m_targetUsername.isEmpty()) {
+        authority += QString::fromUtf8(QUrl::toPercentEncoding(m_targetUsername));
+        if (!m_targetPassword.isEmpty()) {
+            authority += QLatin1Char(':') + QString::fromUtf8(QUrl::toPercentEncoding(m_targetPassword));
+        }
+        authority += QLatin1Char('@');
+    }
+    authority += m_targetHost;
+    if (m_targetPort > 0 && m_targetPort != defaultPort) {
+        authority += QLatin1Char(':') + QString::number(m_targetPort);
+    }
+
+    const QString url = scheme + QStringLiteral("://") + authority + m_targetPath;
+
+    m_assembling = true;
+    setTarget(url);
+    m_assembling = false;
+}
+
+// ── Parse m_target → populate structured fields ────────────────────────────
+void AppState::syncFieldsFromTarget() {
+    if (m_assembling) return;
+
+    const QString trimmed = m_target.trimmed();
+    if (trimmed.isEmpty()) {
+        m_targetScheme.clear();
+        m_targetHost.clear();
+        m_targetPort = -1;
+        m_targetUsername.clear();
+        m_targetPassword.clear();
+        m_targetPath.clear();
+        return;
+    }
+
+    if (!trimmed.contains(QStringLiteral("://"))) {
+        // Bare hostname/IP — default to https
+        m_targetScheme = QStringLiteral("https");
+        m_targetHost = trimmed;
+        m_targetPort = -1;
+        m_targetUsername.clear();
+        m_targetPassword.clear();
+        m_targetPath.clear();
+        return;
+    }
+
+    QUrl u(trimmed, QUrl::TolerantMode);
+    if (u.isValid() && !u.scheme().isEmpty()) {
+        m_targetScheme = u.scheme().toLower();
+        m_targetHost = u.host();
+        m_targetPort = u.port() > 0 ? u.port() : -1;
+        m_targetUsername = u.userName();
+        m_targetPassword = u.password();
+        // Keep path + query + fragment
+        QString fullPath = u.path();
+        if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
+        if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
+        m_targetPath = fullPath;
+    } else {
+        // Fallback: keep existing fields, just store host
+        m_targetHost = trimmed;
+    }
+}
+
+// ── QML-invokable: parse pasted URL into fields ────────────────────────────
+void AppState::parseUrlIntoFields(const QString& urlString) {
+    if (urlString.trimmed().isEmpty()) return;
+
+    const QString trimmed = urlString.trimmed();
+    if (!trimmed.contains(QStringLiteral("://"))) {
+        // Bare hostname — treat as host, keep current scheme
+        m_targetHost = trimmed;
+        assembleTargetUrl();
+        emit targetChanged();
+        return;
+    }
+
+    QUrl u(trimmed, QUrl::TolerantMode);
+    if (u.isValid() && !u.scheme().isEmpty()) {
+        const QString scheme = u.scheme().toLower();
+        // Accept any scheme QUrl can parse; fall back to https if not in our list
+        m_targetScheme = ::supportedSchemes().contains(scheme) ? scheme : QStringLiteral("https");
+        m_targetHost = u.host();
+        m_targetPort = u.port() > 0 ? u.port() : -1;
+        m_targetUsername = u.userName();
+        m_targetPassword = u.password();
+        QString fullPath = u.path();
+        if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
+        if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
+        m_targetPath = fullPath;
+
+        // Push canonical string to m_target
+        m_assembling = true;
+        setTarget(trimmed);
+        m_assembling = false;
+        emit targetChanged();
+    }
 }
 
 static bool isValidHostname(const QString& host) {
@@ -249,6 +408,9 @@ void AppState::setTarget(const QString& t) {
         m_target = t;
         m_targetError.clear();
         TRACE(" setTarget('%s')\n", m_target.toUtf8().constData());
+
+        // Sync structured fields from canonical target (unless we're assembling)
+        syncFieldsFromTarget();
 
         const QString trimmed = m_target.trimmed();
         bool has = !trimmed.isEmpty();
