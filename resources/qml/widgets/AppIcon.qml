@@ -1,17 +1,17 @@
 import QtQuick
+import QtQuick.Controls
 
-Image {
+// IconImage.color applies multiplicative tint to SVG white strokes.
+// White (default) = identity — SVG native colors pass through unchanged.
+// Any other color tints white SVG areas to that color.
+IconImage {
     id: icon
     property string name: ""
-    property color color: "white"
     property int size: 20
 
     width: size; height: size
+    color: "white"   // IconImage built-in — actually tints
     source: name ? "qrc:/icons/" + name + ".svg" : ""
-    sourceSize.width: size * 2
-    sourceSize.height: size * 2
-    fillMode: Image.PreserveAspectFit
     smooth: true
     visible: name !== ""
-    mipmap: true
 }
