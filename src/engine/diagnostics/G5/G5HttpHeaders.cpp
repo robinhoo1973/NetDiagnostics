@@ -28,3 +28,4 @@ DiagnosticResult httpHeaders(const QString& target) {
 // ── G5.5 Curl Verbose (full GET, curl -v style complete output) ──────────
 }
 } // namespace G5WebsiteUrl
+} // namespace G5WebsiteUrl

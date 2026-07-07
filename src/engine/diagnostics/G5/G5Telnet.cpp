@@ -26,3 +26,4 @@ DiagnosticResult telnetDiagnostics(const QString& target) {
 // ── MySQL (port 3306) — read handshake packet for server version ──────
 }
 } // namespace G5WebsiteUrl
+} // namespace G5WebsiteUrl

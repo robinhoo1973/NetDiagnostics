@@ -65,3 +65,4 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
 // ── Redis (port 6379) — PING/PONG ─────────────────────────────────────
 }
 } // namespace G5WebsiteUrl
+} // namespace G5WebsiteUrl

@@ -42,3 +42,4 @@ DiagnosticResult serviceBanner(const QString& target) {
 
 } // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl
+} // namespace G5WebsiteUrl
