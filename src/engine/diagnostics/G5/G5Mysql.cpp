@@ -33,3 +33,4 @@ DiagnosticResult mysqlDiagnostics(const QString& target) {
 
 // ── PostgreSQL (port 5432) — read StartupMessage response ─────────────
 }
+} // namespace G5WebsiteUrl

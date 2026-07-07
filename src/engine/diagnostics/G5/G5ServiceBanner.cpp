@@ -40,6 +40,4 @@ DiagnosticResult serviceBanner(const QString& target) {
     return r;
 }
 
-// ── G5.4 HTTP Headers (HEAD request, curl-style) ────────────────────────
-#ifndef NO_CURL
-}
+} // namespace G5WebsiteUrl

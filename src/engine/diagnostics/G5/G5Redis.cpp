@@ -28,3 +28,4 @@ DiagnosticResult redisDiagnostics(const QString& target) {
 
 // ── MongoDB (port 27017) — isMaster handshake ─────────────────────────
 }
+} // namespace G5WebsiteUrl
