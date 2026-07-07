@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <circle cx="12" cy="12" r="11" fill="currentColor"/>
+  <circle cx="12" cy="12" r="11" fill="#0891B2"/>
   <polyline points="3 6 3 12 9 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <polyline points="21 18 21 12 15 12" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M19.5 10A8 8 0 0 0 5.3 5.3L3 7m18 10l-2.3 1.7A8 8 0 0 1 4.5 14" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/>
