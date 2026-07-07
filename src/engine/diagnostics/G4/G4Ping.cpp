@@ -370,3 +370,4 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 // ── Traceroute (TCP TTL probing, cross-platform) — Windows tracert format ───
 }
 } // namespace G4RemoteHost
+}

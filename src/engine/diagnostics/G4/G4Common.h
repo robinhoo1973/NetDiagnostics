@@ -385,12 +385,6 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
     char sendData[32] = "trace";
     char replyBuf[sizeof(ICMP_ECHO_REPLY) + sizeof(sendData) + 8];
-    memset(replyBuf, 0, sizeof(replyBuf));
-
-    QElapsedTimer t; t.start();
-    DWORD result = IcmpSendEcho(icmp, htonl(ip),
-                                 sendData, sizeof(sendData),
-#ifdef _WIN32
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
     quint32 ip = resolveIPv4(host);
     if (!ip) { rttMs = 0; hopIp.clear(); return -2; }
