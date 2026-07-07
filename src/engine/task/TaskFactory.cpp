@@ -320,12 +320,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SslCertificate:
         case DiagId::G5HttpRedirect:
         case DiagId::G5HttpTiming:
-            return T3([t = target](DiagId id, const QString&) { return androidHttpDiag(id, t); });
         case DiagId::G5SecurityHeaders:
         case DiagId::G5HttpCompression:
-            return T3([](DiagId id, const QString&) {
-                return DiagnosticResult::skipped(id, QStringLiteral("G5 test (Android native — not yet implemented)"));
-            });
+            return T3([t = target](DiagId id, const QString&) { return androidHttpDiag(id, t); });
         case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
         case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
         case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);

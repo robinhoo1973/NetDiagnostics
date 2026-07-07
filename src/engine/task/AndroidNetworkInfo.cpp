@@ -279,6 +279,65 @@ DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
 }
 
 // ── HTTP Diagnostics via HttpURLConnection ─────────────────────────────
+
+namespace {
+
+// Helper: read response headers from HttpURLConnection as a QString
+QString readHeaders(QJniObject& httpConn) {
+    QJniObject headerMap = httpConn.callObjectMethod("getHeaderFields",
+        "()Ljava/util/Map;");
+    if (!headerMap.isValid()) return {};
+    // Map.entrySet() → Iterable<Map.Entry>
+    QJniObject entries = headerMap.callObjectMethod("entrySet", "()Ljava/util/Set;");
+    if (!entries.isValid()) return {};
+    QJniObject iter = entries.callObjectMethod("iterator", "()Ljava/util/Iterator;");
+    QString result;
+    while (iter.callMethod<jboolean>("hasNext")) {
+        QJniObject entry = iter.callObjectMethod("next", "()Ljava/lang/Object;");
+        QJniObject key = entry.callObjectMethod("getKey", "()Ljava/lang/Object;");
+        QJniObject val = entry.callObjectMethod("getValue", "()Ljava/lang/Object;");
+        // val is a List<String> — get first element
+        QJniObject vals = val; // List
+        QJniObject first = vals.callObjectMethod("get", "(I)Ljava/lang/Object;", 0);
+        QString headerLine;
+        if (key.isValid() && first.isValid())
+            headerLine = QStringLiteral("%1: %2\n").arg(key.toString(), first.toString());
+        else if (first.isValid())
+            headerLine = first.toString() + "\n";
+        result += headerLine;
+    }
+    return result;
+}
+
+// Check 7 standard security headers and return audit string
+QString auditSecurityHeaders(QJniObject& httpConn) {
+    static const char* securityHeaders[] = {
+        "Strict-Transport-Security", "Content-Security-Policy",
+        "X-Frame-Options", "X-Content-Type-Options",
+        "Referrer-Policy", "Permissions-Policy",
+        "X-XSS-Protection"
+    };
+    QStringList present, missing;
+    for (const char* h : securityHeaders) {
+        QJniObject hdr = httpConn.callObjectMethod("getHeaderField",
+            "(Ljava/lang/String;)Ljava/lang/String;",
+            QJniObject::fromString(QString::fromLatin1(h)).object<jstring>());
+        if (hdr.isValid() && !hdr.toString().isEmpty())
+            present.append(QString::fromLatin1(h));
+        else
+            missing.append(QString::fromLatin1(h));
+    }
+    QString r;
+    r += QString::number(present.size()) + "/7 security headers present\n";
+    if (!present.isEmpty())
+        r += "  Present: " + present.join(", ") + "\n";
+    if (!missing.isEmpty())
+        r += "  Missing: " + missing.join(", ") + "\n";
+    return r;
+}
+
+} // anonymous namespace
+
 DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G5;
     r.timestamp = QDateTime::currentDateTime();
@@ -287,32 +346,150 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
     QJniObject urlStr = QJniObject::fromString(target);
     QJniObject url = QJniObject("java/net/URL", "(Ljava/lang/String;)V", urlStr.object<jstring>());
     if (!url.isValid()) {
-        r.status = DiagStatus::Fail; r.summary = QStringLiteral("Invalid URL"); return r;
+        r.status = DiagStatus::Fail; r.summary = QStringLiteral("Invalid URL"); r.durationMs = t.elapsed(); return r;
     }
 
     QJniObject conn = url.callObjectMethod("openConnection", "()Ljava/net/URLConnection;");
     if (!conn.isValid()) {
-        r.status = DiagStatus::Fail; r.summary = QStringLiteral("Connection failed"); return r;
+        r.status = DiagStatus::Fail; r.summary = QStringLiteral("Connection failed"); r.durationMs = t.elapsed(); return r;
     }
 
-    // Cast to HttpURLConnection
-    QJniObject httpConn = conn; // implicit — openConnection returns the right type
+    QJniObject httpConn = conn;
     httpConn.callMethod<void>("setConnectTimeout", "(I)V", 10000);
     httpConn.callMethod<void>("setReadTimeout", "(I)V", 15000);
+
+    // For redirect detection: don't follow automatically
+    if (id == DiagId::G5HttpRedirect)
+        httpConn.callMethod<void>("setInstanceFollowRedirects", "(Z)V", false);
+    else
+        httpConn.callMethod<void>("setInstanceFollowRedirects", "(Z)V", true);
+
     httpConn.callMethod<void>("setRequestMethod", "(Ljava/lang/String;)V",
         QJniObject::fromString("GET").object<jstring>());
 
-    int responseCode = httpConn.callMethod<jint>("getResponseCode");
-    r.durationMs = t.elapsed();
+    int responseCode = 0;
+    try {
+        responseCode = httpConn.callMethod<jint>("getResponseCode");
+    } catch (...) {
+        r.durationMs = t.elapsed();
+        r.status = DiagStatus::Fail; r.summary = QStringLiteral("HTTP request failed"); return r;
+    }
+    qint64 dur = t.elapsed();
 
-    QJniObject msg = httpConn.callObjectMethod("getResponseMessage", "()Ljava/lang/String;");
-    QString statusLine = QStringLiteral("HTTP/1.1 %1 %2").arg(responseCode)
-        .arg(msg.isValid() ? msg.toString() : QString());
+    QString headers = readHeaders(httpConn);
+    r.rawOutput = headers;
+    r.details = headers;
 
-    r.rawOutput = statusLine;
-    r.details = statusLine;
-    r.status = (responseCode >= 200 && responseCode < 400) ? DiagStatus::Pass : DiagStatus::Warning;
-    r.summary = QStringLiteral("HTTP %1 (%2ms)").arg(responseCode).arg(r.durationMs);
+    switch (id) {
+        case DiagId::G5CurlVerbose: {
+            // Read body via input stream
+            QJniObject inStream = httpConn.callObjectMethod("getInputStream", "()Ljava/io/InputStream;");
+            if (inStream.isValid()) {
+                QJniObject bufReader("java/io/BufferedReader",
+                    "(Ljava/io/Reader;)V",
+                    QJniObject("java/io/InputStreamReader",
+                        "(Ljava/io/InputStream;)V", inStream.object()).object());
+                // Read first 2KB
+                QString body;
+                QJniObject line;
+                while ((line = bufReader.callObjectMethod("readLine", "()Ljava/lang/String;")).isValid()
+                       && body.size() < 2048)
+                    body += line.toString() + "\n";
+                r.rawOutput = headers + "\n" + body;
+            }
+            r.summary = QStringLiteral("HTTP %1, %2 bytes").arg(responseCode).arg(r.rawOutput.size());
+            r.status = (responseCode >= 200 && responseCode < 400) ? DiagStatus::Pass : DiagStatus::Warning;
+            break;
+        }
+        case DiagId::G5HttpHeaders:
+            r.summary = QStringLiteral("HTTP %1, %2 headers").arg(responseCode)
+                .arg(headers.count('\n'));
+            r.status = DiagStatus::Pass;
+            break;
+        case DiagId::G5SecurityHeaders: {
+            QString audit = auditSecurityHeaders(httpConn);
+            r.rawOutput = headers + "\n" + audit;
+            r.summary = audit.section('\n', 0, 0);
+            int present = audit.count("Present:"); // rough: if "Missing:" is not alone
+            r.status = audit.contains("Missing:") ? DiagStatus::Warning : DiagStatus::Pass;
+            break;
+        }
+        case DiagId::G5SslCertificate: {
+            // Try to get cert via HttpsURLConnection
+            QJniObject httpsConn("javax/net/ssl/HttpsURLConnection");
+            QJniObject serverCerts;
+            if (httpConn.callMethod<jboolean>("isInstanceOf",
+                    "(Ljava/lang/Class;)Z",
+                    httpsConn.callObjectMethod("getClass", "()Ljava/lang/Class;").object())) {
+                serverCerts = httpConn.callObjectMethod("getServerCertificates",
+                    "()[Ljava/security/cert/Certificate;");
+            }
+            if (serverCerts.isValid()) {
+                QJniObject certArray = serverCerts; // Certificate[]
+                jint certCount = QJniEnvironment().callMethod<jint>(certArray.object(), "length", "()I");
+                QString certInfo = QStringLiteral("Server certificates: %1\n").arg(certCount);
+                for (jint i = 0; i < certCount && i < 3; i++) {
+                    QJniObject cert = QJniEnvironment().callObjectMethod(certArray.object(),
+                        "[Ljava/lang/Object;", "(I)Ljava/lang/Object;", i);
+                    if (cert.isValid()) {
+                        QJniObject type = cert.callObjectMethod("getType", "()Ljava/lang/String;");
+                        QJniObject subj = cert.callObjectMethod("getSubjectDN", "()Ljavax/security/auth/x500/X500Principal;");
+                        if (subj.isValid())
+                            certInfo += QStringLiteral("  %1: %2\n").arg(i+1)
+                                .arg(subj.callObjectMethod("getName", "()Ljava/lang/String;").toString());
+                    }
+                }
+                r.rawOutput = certInfo;
+                r.summary = QStringLiteral("TLS OK, %1 cert(s)").arg(certCount);
+                r.status = DiagStatus::Pass;
+            } else {
+                r.summary = QStringLiteral("TLS connected (no cert details)");
+                r.status = DiagStatus::Warning;
+            }
+            break;
+        }
+        case DiagId::G5HttpRedirect: {
+            if (responseCode >= 300 && responseCode < 400) {
+                QJniObject location = httpConn.callObjectMethod("getHeaderField",
+                    "(Ljava/lang/String;)Ljava/lang/String;",
+                    QJniObject::fromString("Location").object<jstring>());
+                r.summary = QStringLiteral("Redirect %1 → %2").arg(responseCode)
+                    .arg(location.isValid() ? location.toString() : QStringLiteral("unknown"));
+                r.status = DiagStatus::Info;
+            } else {
+                r.summary = QStringLiteral("No redirect (HTTP %1)").arg(responseCode);
+                r.status = DiagStatus::Pass;
+            }
+            break;
+        }
+        case DiagId::G5HttpCompression: {
+            QJniObject contentEnc = httpConn.callObjectMethod("getContentEncoding",
+                "()Ljava/lang/String;");
+            QJniObject acceptEnc = httpConn.callObjectMethod("getRequestProperty",
+                "(Ljava/lang/String;)Ljava/lang/String;",
+                QJniObject::fromString("Accept-Encoding").object<jstring>());
+            QString enc = contentEnc.isValid() ? contentEnc.toString() : QString();
+            if (enc.isEmpty()) {
+                // Manual check: did the server send Content-Encoding header?
+                QJniObject ce = httpConn.callObjectMethod("getHeaderField",
+                    "(Ljava/lang/String;)Ljava/lang/String;",
+                    QJniObject::fromString("Content-Encoding").object<jstring>());
+                enc = ce.isValid() ? ce.toString() : QString::fromLatin1("none");
+            }
+            r.summary = QStringLiteral("Content-Encoding: %1").arg(enc);
+            r.status = (enc == "none" || enc.isEmpty()) ? DiagStatus::Warning : DiagStatus::Pass;
+            break;
+        }
+        case DiagId::G5HttpTiming:
+            r.summary = QStringLiteral("HTTP %1 (%2ms)").arg(responseCode).arg(dur);
+            r.status = (responseCode >= 200 && responseCode < 400) ? DiagStatus::Pass : DiagStatus::Warning;
+            break;
+        default:
+            r.summary = QStringLiteral("HTTP %1 (%2ms)").arg(responseCode).arg(dur);
+            r.status = (responseCode >= 200 && responseCode < 400) ? DiagStatus::Pass : DiagStatus::Warning;
+            break;
+    }
+    r.durationMs = dur;
     return r;
 }
 
