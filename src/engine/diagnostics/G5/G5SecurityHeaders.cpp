@@ -1,4 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
+#ifndef NO_CURL
 namespace G5WebsiteUrl {
 DiagnosticResult securityHeaders(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SecurityHeaders, "No target", DiagStatus::Skipped);
@@ -32,4 +33,5 @@ DiagnosticResult securityHeaders(const QString& target) {
 #endif // NO_CURL
 
 // ── G5.7 SSL Certificate ─────────────────────────────────────────────────
+#endif // NO_CURL
 } // namespace G5WebsiteUrl
