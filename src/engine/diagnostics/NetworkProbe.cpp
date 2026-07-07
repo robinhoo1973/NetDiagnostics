@@ -1,7 +1,7 @@
 // =============================================================================
 // NetworkProbe.cpp — Raw socket wrappers for G4/G5 tests
 // =============================================================================
-#include "engine/runner/NetworkProbe.h"
+#include "engine/diagnostics/NetworkProbe.h"
 #include <QTcpSocket>
 #include <QSslSocket>
 #include <QHostInfo>
