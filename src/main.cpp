@@ -23,7 +23,7 @@
 #include "util/DebugSwitch.h"
 #include "util/StartupLog.h"
 #ifdef PLATFORM_IOS
-#include "engine/IosWiFiHelper.h"
+#include "engine/diagnostics/G1/IosWiFiHelper.h"
 #endif
 
 int main(int argc, char *argv[])

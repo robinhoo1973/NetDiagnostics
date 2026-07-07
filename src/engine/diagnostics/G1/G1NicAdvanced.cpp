@@ -1,4 +1,4 @@
-#include "engine/diagnostics/G1G2G3Native.h"
+#include "engine/diagnostics/GBase.h"
 #include "engine/diagnostics/GHelpers.h"
 namespace G1G2G3Native {
 DiagnosticResult nicAdvanced(DiagId id) {

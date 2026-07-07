@@ -87,8 +87,8 @@ if(WIN32)
 endif()
 if(IOS)
     list(APPEND SOURCES
-        src/engine/IosWiFiHelper.mm
-        src/engine/diagnostics/G3/IosDnsTask.mm src/engine/diagnostics/G5/IosHttpTask.mm src/engine/task/IosNetworkInfo.mm
+        src/engine/diagnostics/G1/IosWiFiHelper.mm
+        src/engine/diagnostics/G3/IosDnsTask.mm src/engine/diagnostics/G5/IosHttpTask.mm src/engine/diagnostics/G1/IosNetworkInfo.mm
         src/engine/PlatformShare_ios.mm src/engine/PlatformStore_ios.mm
     )
 endif()
