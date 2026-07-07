@@ -29,5 +29,4 @@ DiagnosticResult httpTiming(const QString& target) {
 }
 #endif // NO_CURL
 
-}
 } // namespace G5WebsiteUrl
