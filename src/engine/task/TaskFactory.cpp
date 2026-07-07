@@ -278,7 +278,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             }, 90000);
         }
 
-        // 鈹€鈹€ G5: Website / URL 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+        // ══ G5: Website / URL ═══════════════════════════════════════
 #ifdef PLATFORM_IOS
         // iOS: NSURLSession native HTTP (no libcurl needed)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
@@ -286,6 +286,13 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
         // Full X.509 certificate details via QSslSocket (SecureTransport backend on iOS)
         case DiagId::G5SslCertificate:   return T2(G5WebsiteUrl::sslCertificate);
+        case DiagId::G5Telnet:           return T2(::G5WebsiteUrl::telnetDiagnostics);
+        case DiagId::G5Mysql:            return T2(::G5WebsiteUrl::mysqlDiagnostics);
+        case DiagId::G5Postgres:         return T2(::G5WebsiteUrl::postgresDiagnostics);
+        case DiagId::G5Redis:            return T2(::G5WebsiteUrl::redisDiagnostics);
+        case DiagId::G5Mongodb:          return T2(::G5WebsiteUrl::mongodbDiagnostics);
+        case DiagId::G5Ldap:             return T2(::G5WebsiteUrl::ldapDiagnostics);
+        case DiagId::G5Mqtt:             return T2(::G5WebsiteUrl::mqttDiagnostics);
         case DiagId::G5CurlVerbose:
         case DiagId::G5HttpHeaders:
         case DiagId::G5HttpRedirect:
@@ -304,6 +311,13 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        case DiagId::G5Telnet:           return T2(::G5WebsiteUrl::telnetDiagnostics);
+        case DiagId::G5Mysql:            return T2(::G5WebsiteUrl::mysqlDiagnostics);
+        case DiagId::G5Postgres:         return T2(::G5WebsiteUrl::postgresDiagnostics);
+        case DiagId::G5Redis:            return T2(::G5WebsiteUrl::redisDiagnostics);
+        case DiagId::G5Mongodb:          return T2(::G5WebsiteUrl::mongodbDiagnostics);
+        case DiagId::G5Ldap:             return T2(::G5WebsiteUrl::ldapDiagnostics);
+        case DiagId::G5Mqtt:             return T2(::G5WebsiteUrl::mqttDiagnostics);
         case DiagId::G5CurlVerbose:
         case DiagId::G5HttpHeaders:
         case DiagId::G5SslCertificate:
@@ -332,7 +346,21 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
         case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
         case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
+        case DiagId::G5Telnet:           return T2(::G5WebsiteUrl::telnetDiagnostics);
+        case DiagId::G5Mysql:            return T2(::G5WebsiteUrl::mysqlDiagnostics);
+        case DiagId::G5Postgres:         return T2(::G5WebsiteUrl::postgresDiagnostics);
+        case DiagId::G5Redis:            return T2(::G5WebsiteUrl::redisDiagnostics);
+        case DiagId::G5Mongodb:          return T2(::G5WebsiteUrl::mongodbDiagnostics);
+        case DiagId::G5Ldap:             return T2(::G5WebsiteUrl::ldapDiagnostics);
+        case DiagId::G5Mqtt:             return T2(::G5WebsiteUrl::mqttDiagnostics);
 #else
+        // per-scheme QTcpSocket diagnostics are curl-free — they fall through
+        // to the catch-all below (T3 with skip message). Fix this by extracting
+        // a createNetworkTask() function outside the preprocessor chain.
+        case DiagId::G5Telnet: case DiagId::G5Mysql: case DiagId::G5Postgres:
+        case DiagId::G5Redis: case DiagId::G5Mongodb: case DiagId::G5Ldap:
+        case DiagId::G5Mqtt:
+        // remaining G5 tests need libcurl
         case DiagId::G5UrlParsing:       // fall through 鈥?NO_CURL: skip all G5
         case DiagId::G5TcpConnect:
         case DiagId::G5ServiceBanner:
