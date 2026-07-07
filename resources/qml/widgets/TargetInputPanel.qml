@@ -8,6 +8,40 @@ ColumnLayout {
     spacing: 0
     // ── Advanced (Port / User / Pass) toggle ──────────────────────────────
     property bool advancedExpanded: false
+    // ── Scheme model — populated once in Component.onCompleted ─────────────
+    property ListModel schemeModel: ListModel { id: _schemeModel }
+    // ── Guard flag — suppress onTextChanged during programmatic updates ───
+    property bool _syncing: false
+
+    Component.onCompleted: {
+        // ── Populate scheme model BEFORE ComboBox renders ──────────────
+        var schemes = appState.supportedSchemes
+        var groups = [
+            {schemes: ["https","http"]},
+            {schemes: ["ftp","ftps","ssh","sftp","scp"]},
+            {schemes: ["smtp","smtps","imap","imaps","pop3","pop3s"]},
+            {schemes: ["mysql","postgresql","redis","mongodb","mssql"]},
+            {schemes: ["telnet","rdp"]},
+            {schemes: ["ldap","ldaps"]},
+            {schemes: ["mqtt","mqtts"]}
+        ]
+        for (var gi = 0; gi < groups.length; gi++) {
+            var g = groups[gi]
+            for (var si = 0; si < g.schemes.length; si++) {
+                var s = g.schemes[si]
+                if (schemes.indexOf(s) >= 0) {
+                    _schemeModel.append({scheme: s, schemeGroup: gi})
+                }
+            }
+        }
+        // Select https by default in ComboBox
+        for (var i = 0; i < _schemeModel.count; i++) {
+            if (_schemeModel.get(i).scheme === "https") {
+                schemeCombo.currentIndex = i
+                break
+            }
+        }
+    }
 
     RowLayout {
         AppIcon { name: "target"; size: 13; color: Qt.alpha(ThemeEngine.textPrimary, 0.7) }
@@ -51,46 +85,15 @@ ColumnLayout {
                     windowText: ThemeEngine.textPrimary
                 }
 
-                // ── Grouped model (scheme, group label) ────────────────
+                // ── Grouped model — populated by root.Component.onCompleted ──
                 textRole: "scheme"
-                model: ListModel {
-                    id: schemeModel
-                    Component.onCompleted: {
-                        // Load schemes from C++ flat list, assign groups
-                        var schemes = appState.supportedSchemes
-                        var web   = ["https","http"]
-                        var ft    = ["ftp","ftps","ssh","sftp","scp"]
-                        var email = ["smtp","smtps","imap","imaps","pop3","pop3s"]
-                        var db    = ["mysql","postgresql","redis","mongodb","mssql"]
-                        var ra    = ["telnet","rdp"]
-                        var dir   = ["ldap","ldaps"]
-                        var mq    = ["mqtt","mqtts"]
-                        var groups = [
-                            {label:"\U0001F310 Web", schemes:web},
-                            {label:"\U0001F4C1 File Transfer", schemes:ft},
-                            {label:"\U0001F4E7 Email", schemes:email},
-                            {label:"\U0001F5C4 Database", schemes:db},
-                            {label:"\U0001F5A5 Remote Access", schemes:ra},
-                            {label:"\U0001F4C2 Directory", schemes:dir},
-                            {label:"\U0001F4E1 Messaging", schemes:mq}
-                        ]
-                        for (var gi = 0; gi < groups.length; gi++) {
-                            var g = groups[gi]
-                            for (var si = 0; si < g.schemes.length; si++) {
-                                var s = g.schemes[si]
-                                if (schemes.indexOf(s) >= 0) {
-                                    schemeModel.append({scheme: s, schemeGroup: gi})
-                                }
-                            }
-                        }
-                    }
-                }
+                model: root.schemeModel
 
                 delegate: ItemDelegate {
                     width: schemeCombo.popup ? schemeCombo.popup.width : 200
                     height: {
-                        var prev = model.index > 0 ? schemeModel.get(model.index - 1) : null
-                        var cur  = schemeModel.get(model.index)
+                        var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
+                        var cur  = root.schemeModel.get(model.index)
                         if (!prev || prev.schemeGroup !== cur.schemeGroup) return 44
                         return 32
                     }
@@ -101,14 +104,13 @@ ColumnLayout {
                         ColumnLayout {
                             anchors.fill: parent
                             spacing: 2
-                            // Group header separator
                             Rectangle {
                                 Layout.fillWidth: true
                                 implicitHeight: 1
                                 color: Qt.alpha(ThemeEngine.textSecondary, 0.15)
                                 visible: {
-                                    var prev = model.index > 0 ? schemeModel.get(model.index - 1) : null
-                                    var cur = schemeModel.get(model.index)
+                                    var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
+                                    var cur = root.schemeModel.get(model.index)
                                     return !prev || prev.schemeGroup !== cur.schemeGroup
                                 }
                             }
@@ -130,16 +132,9 @@ ColumnLayout {
                     }
                 }
 
-                // Set currentIndex to "https" on init
-                Component.onCompleted: {
-                    for (var i = 0; i < schemeModel.count; i++) {
-                        if (schemeModel.get(i).scheme === "https") {
-                        currentIndex = i; break
-                        }
-                    }
-                }
-
+                // ── Scheme change handler ─────────────────────────────────
                 onCurrentTextChanged: {
+                    if (root._syncing) return
                     if (currentText && appState.targetScheme !== currentText) {
                         appState.targetScheme = currentText
                     }

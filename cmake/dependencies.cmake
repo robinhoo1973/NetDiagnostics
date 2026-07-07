@@ -17,21 +17,26 @@ endif()
 find_package(Qt6LinguistTools QUIET)
 
 # ── curl (G5 HTTP diagnostics) ─────────────────────────────────────────
+# NO_CURL cmake option (default OFF): exclude libcurl — socket-only G5 tests
+# still work (tcpConnect, serviceBanner, ftp, ssh, email, telnet, …).
 # iOS/Android cross-compile: find_package(CURL) cannot auto-locate the SDK libcurl
-if(IOS)
+option(NO_CURL "Build without libcurl (skip HTTP-specific G5 tests)" OFF)
+
+if(NO_CURL)
+    message(WARNING "Building without curl (NO_CURL=ON) — HTTP-specific diagnostics skipped")
+    add_compile_definitions(NO_CURL)
+elseif(IOS)
     # iOS: NSURLSession replaces libcurl for HTTP diagnostics (see IosHttpTask.mm)
-    # No curl dependency needed — set NO_CURL to exclude libcurl linking
     set(NO_CURL TRUE)
+    add_compile_definitions(NO_CURL)
 elseif(ANDROID)
     # Android: vcpkg curl cross-compile is slow/unreliable; skip HTTP diagnostics
     message(WARNING "Android: building without curl (HTTP diagnostics disabled)")
     set(NO_CURL TRUE)
+    add_compile_definitions(NO_CURL)
 else()
-    if(NO_CURL)
-        message(WARNING "Building without curl (NO_CURL=ON)")
-    else()
-        find_package(CURL REQUIRED)
-    endif()
+    # Desktop: curl is required for full G5 diagnostics
+    find_package(CURL REQUIRED)
 endif()
 
 # ── iOS SDK detection ───────────────────────────────────────────────────

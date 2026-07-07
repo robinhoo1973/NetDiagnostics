@@ -296,7 +296,7 @@ build_target() {
         -DCMAKE_CXX_STANDARD_LIBRARIES="`${STANDARD_LIBS}" \
         -DCMAKE_PREFIX_PATH="`${CMAKE_PREFIX_PATH}" \
         -DBUILD_SIMULATOR="`${sim_flag}" \
-        -DNO_CURL=ON \
+        \
         -DBUILD_TESTS=OFF \
         -DND_DEBUG=${nd_debug_val} \
         "`${PROJ}" 2>&1 | tee "`${DIST_DIR}/`${log_base}.cmake"
@@ -452,11 +452,11 @@ echo "  ==============================================================="
 echo "    All executables are fully static (zero non-OS DLL)"
 echo "  ==============================================================="
 echo ""
-echo "  NOTE: G5 (Website / URL) diagnostics are DISABLED in the"
-echo "  static build. NO_CURL=ON means 13 of 38 network diagnostic"
-echo "  tests are skipped (HTTP, HTTPS, speed test, service banner)."
-echo "  The dynamic Windows build includes full G5 diagnostics."
-echo ""
+	echo ""
+	echo "  All 20 G5 diagnostic tests (HTTP, HTTPS, FTP, SSH, Email,"
+	echo "  Telnet, MySQL, Redis, etc.) are fully available. Static curl"
+	echo "  is linked — full website/URL diagnostics in one portable EXE."
+	echo ""
 
 exit 0
 "@
@@ -540,7 +540,7 @@ function Show-Report {
     Write-Host "    .\dist\$($script:SIM_NAME)" -ForegroundColor White
     Write-Host ""
 
-    Write-Host "  NOTE: G5 (Website/URL) diagnostics are disabled (NO_CURL=ON)." -ForegroundColor DarkYellow
+    Write-Host "  NOTE: Full G5 diagnostics enabled (static curl linked)." -ForegroundColor Green
     Write-Host "  Use the MSYS2 dynamic build for full 38-test diagnostics." -ForegroundColor DarkYellow
     Write-Host ""
 }

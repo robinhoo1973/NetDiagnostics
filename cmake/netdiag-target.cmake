@@ -72,18 +72,13 @@ function(configure_netdiag_target TARGET)
     endif()
 
     # ── curl compile definitions ─────────────────────────────────────
-    if(NO_CURL)
-        target_compile_definitions(${TARGET} PRIVATE NO_CURL)
-    elseif(NOT (IOS OR ANDROID))
-        # CURL_STATICLIB should only be defined when linking statically.
-        # find_package(CURL) may return shared libs on developer machines
-        # or CI runners.  Check the actual library type first.
-        if(TARGET CURL::libcurl)
-            get_target_property(_curl_type CURL::libcurl TYPE)
-            if(_curl_type STREQUAL "STATIC_LIBRARY")
-                target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
-            endif()
-        endif()
+    # NO_CURL handled globally in dependencies.cmake via add_compile_definitions
+    # CURL_STATICLIB: only when curl is linked statically (not via DLL import lib)
+    if(NOT NO_CURL AND NOT (IOS OR ANDROID))
+        # Desktop always links curl statically — __imp_ symbols
+        # indicate DLL import lib linkage. CURL_STATICLIB tells the
+        # curl headers to use static symbol linkage.
+        target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
     endif()
 
     # ── Include paths ────────────────────────────────────────────────
