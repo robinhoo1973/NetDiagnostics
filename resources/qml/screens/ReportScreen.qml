@@ -72,11 +72,11 @@ Item {
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 52; color: ThemeEngine.colors.navBar
-        border { width: 1; color: ThemeEngine.colors.borderCard }
+        implicitHeight: 52; color: "#1A1A2E"
+        border { width: 1; color: "#3A3A5A" }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.textPrimary }
+            AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
             Item { width: 10 }
             Label { text: Tr.reportPreview; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
         }
@@ -114,9 +114,9 @@ Item {
             Rectangle {
                 Layout.preferredWidth: page.isMobile ? 72 : 100; Layout.preferredHeight: page.isMobile ? 72 : 100
                 Layout.alignment: Qt.AlignHCenter
-                radius: 24; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.06)
+                radius: 24; color: Qt.alpha(ThemeEngine.cyan, 0.08)
                 border { width: 1.5; color: Qt.alpha(ThemeEngine.cyan, 0.2) }
-                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.12) }
+                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.cyan, 0.6) }
             }
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
@@ -163,13 +163,13 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: statusRow.implicitWidth + 32; implicitHeight: 40; radius: 8
                 color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.1)
-                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.1) : Qt.alpha(ThemeEngine.infoBlue, 0.1))
+                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.1) : Qt.alpha(ThemeEngine.warnYellow, 0.1))
                 border { width: 1; color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.3)
-                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.3) : Qt.alpha(ThemeEngine.infoBlue, 0.3)) }
+                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.3) : Qt.alpha(ThemeEngine.warnYellow, 0.3)) }
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: page.isRunning ? ThemeEngine.colors.primary : "transparent" }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: "white" }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
@@ -202,7 +202,7 @@ Item {
             height: Math.max(parent.height * 0.20, parent.height * 0.92)
             radius: 12; color: "#1F1F32"
             clip: true
-            border { width: 2; color: ThemeEngine.colors.borderCard }
+            border { width: 2; color: "#5A5A7A" }
 
             ColumnLayout {
                 anchors { fill: parent; margins: 12 }
@@ -210,12 +210,12 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: headerRow.implicitHeight + 16
-                    color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.06)
+                    color: Qt.alpha(ThemeEngine.cyan, 0.08)
                     radius: 8
                     RowLayout {
                         id: headerRow
                         anchors { fill: parent; margins: 8 }
-                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: ThemeEngine.colors.textPrimary }
+                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: ThemeEngine.cyan }
                         Item { width: 8 }
                         Label {
                             Layout.fillWidth: true
@@ -249,7 +249,7 @@ Item {
                             width: parent.width
                             text: page.previewHtml
                             textFormat: Text.RichText
-                            color: ThemeEngine.colors.navBar
+                            color: "#1A1A2E"
                             wrapMode: Text.WordWrap
                             font.pixelSize: 13
                             font.family: "Helvetica"
