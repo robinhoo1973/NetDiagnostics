@@ -1,4 +1,4 @@
-#include "engine/diagnostics/G5/g5common.h"
+#include "engine/diagnostics/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult securityHeaders(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SecurityHeaders, "No target", DiagStatus::Skipped);

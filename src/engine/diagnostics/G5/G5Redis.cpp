@@ -1,4 +1,4 @@
-#include "engine/diagnostics/G5/g5proto.h"
+#include "engine/diagnostics/G5/G5Proto.h"
 namespace G5WebsiteUrl {
 DiagnosticResult redisDiagnostics(const QString& target) {
     if (target.isEmpty())

@@ -1,4 +1,4 @@
-#include "engine/diagnostics/G5/g5common.h"
+#include "engine/diagnostics/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult httpTiming(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpTiming, "No target", DiagStatus::Skipped);
