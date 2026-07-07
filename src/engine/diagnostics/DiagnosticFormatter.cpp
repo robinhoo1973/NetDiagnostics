@@ -1,7 +1,7 @@
 // =============================================================================
 // DiagnosticFormatter.cpp — Shared output formatting (extracted from G1G2G3Native)
 // =============================================================================
-#include "util/DiagnosticFormatter.h"
+#include "engine/diagnostics/DiagnosticFormatter.h"
 #include <QDateTime>
 
 static const QString kTblGap = QStringLiteral("  ");

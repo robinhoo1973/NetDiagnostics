@@ -9,7 +9,7 @@
 
 #include "engine/task/DiagnosticTask.h"
 #include "engine/diagnostics/G4/G4RemoteHost.h"
-#include "util/DiagnosticFormatter.h"
+#include "engine/diagnostics/DiagnosticFormatter.h"
 #include <QElapsedTimer>
 #include <atomic>
 #include <memory>
