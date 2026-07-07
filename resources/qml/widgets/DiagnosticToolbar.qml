@@ -10,6 +10,20 @@ Rectangle {
     property bool _portScanVisible: false
     property bool _advancedVisible: false
 
+    // Does the current scheme support user/pass fields?
+    readonly property bool _schemeHasUser: {
+        var s = appState.targetScheme
+        return s === "ftp" || s === "ftps" || s === "ssh" || s === "sftp" || s === "scp"
+            || s === "mysql" || s === "postgresql" || s === "redis" || s === "mongodb" || s === "mssql"
+    }
+    readonly property bool _schemeHasPass: {
+        var s = appState.targetScheme
+        return s === "smtp" || s === "smtps" || s === "imap" || s === "imaps"
+            || s === "pop3" || s === "pop3s"
+            || s === "mysql" || s === "postgresql" || s === "redis" || s === "mongodb" || s === "mssql"
+            || s === "ftp" || s === "ftps"
+    }
+
     implicitHeight: tbCol.implicitHeight + 8
     clip: true
 
@@ -18,11 +32,11 @@ Rectangle {
         anchors { fill: parent; leftMargin: 4; rightMargin: 4; topMargin: 4; bottomMargin: 4 }
         spacing: 2
 
-        // ═══════════════ ROW 1: Scheme + Host + Run/Stop ══════════════
+        // ═══════════ ROW 1: Scheme + Host + Run/Stop ═══════════
         RowLayout {
             Layout.fillWidth: true; spacing: 4
 
-            // Scheme combo — with themed grouped popup
+            // Schema combo with themed popup
             ComboBox {
                 id: schemeCombo
                 Layout.preferredWidth: root.wide ? 88 : 72
@@ -33,8 +47,7 @@ Rectangle {
 
                 contentItem: Label {
                     text: schemeCombo.displayText; font: schemeCombo.font
-                    color: ThemeEngine.colors.textPrimary
-                    verticalAlignment: Text.AlignVCenter
+                    color: ThemeEngine.colors.textPrimary; verticalAlignment: Text.AlignVCenter
                 }
                 textRole: "scheme"
                 model: ListModel {
@@ -51,11 +64,9 @@ Rectangle {
                             {schemes:["mqtt","mqtts"]}
                         ]
                         for (var gi = 0; gi < groups.length; gi++) {
-                            var g = groups[gi]
-                            for (var si = 0; si < g.schemes.length; si++) {
-                                var s = g.schemes[si]
-                                if (schemes.indexOf(s) >= 0)
-                                    _sm.append({scheme: s, schemeGroup: gi})
+                            for (var si = 0; si < groups[gi].schemes.length; si++) {
+                                var s = groups[gi].schemes[si]
+                                if (schemes.indexOf(s) >= 0) _sm.append({scheme:s, schemeGroup:gi})
                             }
                         }
                         for (var i = 0; i < _sm.count; i++) {
@@ -97,11 +108,18 @@ Rectangle {
                         6:Tr.schemeGroupMsg
                     }[schemeGroup] || "")
 
+                    background: Rectangle {
+                        color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
+                        radius: 4
+                    }
+                    highlighted: scheme === schemeCombo.currentText
+
                     contentItem: ColumnLayout {
                         spacing: 0
+                        // Group header row
                         Rectangle {
-                            Layout.fillWidth: true; implicitHeight: isFirst ? 18 : 0; color: "transparent"
-                            visible: isFirst
+                            Layout.fillWidth: true; implicitHeight: isFirst ? 18 : 0
+                            color: "transparent"; visible: isFirst
                             Rectangle {
                                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
                                 height: 1; color: ThemeEngine.colors.borderCard
@@ -117,17 +135,14 @@ Rectangle {
                                 }
                             }
                         }
+                        // Scheme name row
                         Label {
                             Layout.fillWidth: true; Layout.fillHeight: true
-                            text: scheme + "://"; font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                            text: scheme + "://"
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 12
                             color: ThemeEngine.colors.textPrimary; verticalAlignment: Text.AlignVCenter
                             leftPadding: 2
                         }
-                    }
-                    highlighted: scheme === schemeCombo.currentText
-                    background: Rectangle {
-                        color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
-                        radius: 4
                     }
                 }
 
@@ -137,7 +152,7 @@ Rectangle {
                 }
             }
 
-            // Host field
+            // Host field with built-in clear button
             Rectangle {
                 Layout.fillWidth: true; Layout.preferredHeight: 32; radius: 6
                 color: ThemeEngine.bgInput
@@ -148,40 +163,36 @@ Rectangle {
                 }
                 TextField {
                     id: hostField
-                    anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
+                    anchors { fill: parent; leftMargin: 8; rightMargin: 26 }
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     color: ThemeEngine.colors.textPrimary
                     placeholderText: "example.com/path"
                     placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
-                    text: {
-                        var h = appState.targetHost; var p = appState.targetPath
-                        return (!h && !p) ? "" : h + p
-                    }
+                    text: { var h = appState.targetHost; var p = appState.targetPath; return (!h && !p) ? "" : h + p }
                     enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: {
                         var t = text.trim()
                         if (t.indexOf("://") >= 0) { appState.parseUrlIntoFields(t); return }
                         var slash = t.indexOf("/")
-                        if (slash >= 0) {
-                            appState.targetHost = t.substring(0, slash)
-                            appState.targetPath = t.substring(slash)
-                        } else { appState.targetHost = t; appState.targetPath = "" }
+                        if (slash >= 0) { appState.targetHost = t.substring(0,slash); appState.targetPath = t.substring(slash) }
+                        else { appState.targetHost = t; appState.targetPath = "" }
+                    }
+                }
+                // Clear X — anchored inside the host field
+                AppIcon {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 6 }
+                    name: "close"; size: 10
+                    color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                    visible: hostField.text !== "" && appState.runStatus !== 1
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: { hostField.text = ""; appState.targetHost = ""; appState.targetPath = "" }
                     }
                 }
             }
 
-            // Clear button
-            AppIcon {
-                name: "close"; size: 10
-                color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
-                visible: hostField.text !== "" && appState.runStatus !== 1
-                MouseArea { anchors.fill: parent
-                    onClicked: { hostField.text = ""; appState.targetHost = ""; appState.targetPath = "" }
-                }
-            }
-
-            // Run/Stop toggle button (icon only — ▶ / ■)
+            // Run/Stop toggle
             Rectangle {
                 Layout.preferredWidth: 36; Layout.preferredHeight: 32; radius: 6
                 color: appState.runStatus === 1 ? ThemeEngine.failRed
@@ -190,30 +201,24 @@ Rectangle {
                 Label {
                     anchors.centerIn: parent
                     text: appState.runStatus === 1 ? "■" : "▶"
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 14
-                    color: "white"
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white"
                 }
                 MouseArea {
                     anchors.fill: parent
                     enabled: appState.runStatus === 1 || appState.canRun()
                     onClicked: {
                         if (appState.runStatus === 1) { appState.cancel() }
-                        else {
-                            if (appState.targetValidationError() !== "") return
-                            if (!appState.canRun()) return
-                            appState.runDiagnostics()
-                        }
+                        else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
                     }
                 }
             }
         }
 
-        // ═══════════════ ROW 2: Group pills + toggles ═══════════════
+        // ═══════════ ROW 2: Pills ═══════════════════════════
         Flow {
             Layout.fillWidth: true; spacing: 4
-            Layout.preferredHeight: 32
+            Layout.preferredHeight: childrenRect.height > 0 ? 30 : 0
 
-            // G1-G5 pills
             Repeater {
                 model: 5
                 delegate: Rectangle {
@@ -222,62 +227,58 @@ Rectangle {
                     color: _chk ? ThemeEngine.colors.primaryContainer : "transparent"
                     border { width: 1; color: _chk ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard }
                     Label {
-                        anchors.centerIn: parent
-                        text: "G" + (index + 1)
+                        anchors.centerIn: parent; text: "G" + (index + 1)
                         font.family: ThemeEngine.monoFont; font.pixelSize: 10
                         font.weight: _chk ? Font.DemiBold : Font.Normal
                         color: _chk ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
                     }
                     MouseArea {
-                        anchors.fill: parent
-                        enabled: appState.runStatus !== 1
+                        anchors.fill: parent; enabled: appState.runStatus !== 1
                         onClicked: appState.setGroupEnabled(index, !appState.isGroupAllEnabled(index))
                     }
                 }
             }
 
-            // Port scan toggle pill
+            // Port scan toggle pill — always visible
             Rectangle {
-                width: root.wide ? 72 : 56; height: 28; radius: 14
-                visible: appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
+                width: 72; height: 28; radius: 14
                 color: root._portScanVisible ? ThemeEngine.colors.primaryContainer : "transparent"
                 border { width: 1; color: root._portScanVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard }
-                RowLayout {
-                    anchors.centerIn: parent; spacing: 4
-                    AppIcon { name: "portscan"; size: 12; color: root._portScanVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
-                    Label { text: Tr.portScanLabel || "Port"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: root._portScanVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
+                RowLayout { anchors.centerIn: parent; spacing: 4
+                    AppIcon { name: "portscan"; size: 12
+                        color: root._portScanVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
+                    Label { text: "Port"; font.family: ThemeEngine.monoFont; font.pixelSize: 10
+                        color: root._portScanVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
                 }
                 MouseArea { anchors.fill: parent; onClicked: root._portScanVisible = !root._portScanVisible }
             }
 
-            // Advanced toggle pill
+            // Advanced fields toggle pill
             Rectangle {
-                width: root.wide ? 72 : 56; height: 28; radius: 14
+                width: 28; height: 28; radius: 14
                 color: root._advancedVisible ? ThemeEngine.colors.primaryContainer : "transparent"
                 border { width: 1; color: root._advancedVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard }
-                Label {
-                    anchors.centerIn: parent
-                    text: "⚙"; font.pixelSize: 16; color: root._advancedVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
-                }
+                Label { anchors.centerIn: parent; text: "⚙"; font.pixelSize: 14
+                    color: root._advancedVisible ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
                 MouseArea { anchors.fill: parent; onClicked: root._advancedVisible = !root._advancedVisible }
             }
         }
 
-        // ═══════════════ ROW 3: Port scan range (collapsible) ═══════
+        // ═══════════ ROW 3: Port scan config ═══════════════════
         PortScanConfig {
             Layout.fillWidth: true
             visible: root._portScanVisible
         }
 
-        // ═══════════════ ROW 4: Advanced fields (collapsible) ═══════
+        // ═══════════ ROW 4: Advanced fields ═══════════════
         GridLayout {
             visible: root._advancedVisible
             columns: root.wide ? 3 : 2; Layout.fillWidth: true
             columnSpacing: 6; rowSpacing: 4
 
-            // Port
+            // Port field — always show when advanced is open
             Rectangle {
-                Layout.preferredWidth: 80; implicitHeight: 32; radius: 6
+                Layout.preferredWidth: root.wide ? 80 : 70; implicitHeight: 32; radius: 6
                 color: ThemeEngine.bgInput
                 border { width: 1; color: portField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
                 TextField {
@@ -287,14 +288,14 @@ Rectangle {
                     placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : "Port"
                     placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
                     text: appState.targetPort > 0 ? "" + appState.targetPort : ""
-                    enabled: appState.runStatus !== 1
-                    verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: { var v = parseInt(text); appState.targetPort = isNaN(v) ? -1 : v }
                 }
             }
 
-            // Username
+            // Username — schema-aware visibility
             Rectangle {
+                visible: root._schemeHasUser
                 Layout.fillWidth: true; implicitHeight: 32; radius: 6
                 color: ThemeEngine.bgInput
                 border { width: 1; color: userField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
@@ -304,15 +305,15 @@ Rectangle {
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: Tr.usernameLabel
                     placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
-                    text: appState.targetUsername
-                    enabled: appState.runStatus !== 1
+                    text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: appState.targetUsername = text.trim()
                 }
             }
 
-            // Password
+            // Password — schema-aware visibility
             Rectangle {
+                visible: root._schemeHasPass
                 Layout.fillWidth: true; implicitHeight: 32; radius: 6
                 color: ThemeEngine.bgInput
                 border { width: 1; color: passField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
@@ -322,9 +323,7 @@ Rectangle {
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: Tr.passwordLabel
                     placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
-                    text: appState.targetPassword
-                    echoMode: TextInput.Password
-                    enabled: appState.runStatus !== 1
+                    text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: appState.targetPassword = text.trim()
                 }
