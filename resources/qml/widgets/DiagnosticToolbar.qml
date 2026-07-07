@@ -7,26 +7,25 @@ import "../theme"
 Rectangle {
     id: root
     color: ThemeEngine.bgSidebar
+    property bool wide: true
 
-    // ── Expanded port scan config ──────────────────────────────────────
-    property alias portScanExpanded: portScanPopup.visible
-
-    implicitHeight: portScanPopup.visible ? toolbarRow.implicitHeight + portScanPopup.implicitHeight + 8 : 44
+    implicitHeight: tbCol.implicitHeight + 8
     clip: true
 
     ColumnLayout {
+        id: tbCol
         anchors { fill: parent; leftMargin: 8; rightMargin: 8; topMargin: 4; bottomMargin: 4 }
         spacing: 4
 
         // ── Main toolbar row ───────────────────────────────────────────
         RowLayout {
             id: toolbarRow
-            Layout.fillWidth: true; spacing: page.wide ? 4 : 2
+            Layout.fillWidth: true; spacing: root.wide ? 4 : 2
 
             // Scheme combo (narrower than before)
             ComboBox {
                 id: schemeCombo
-                Layout.preferredWidth: page.wide ? 84 : 72
+                Layout.preferredWidth: root.wide ? 84 : 72
                 Layout.preferredHeight: 32
                 flat: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11
@@ -96,7 +95,7 @@ Rectangle {
                 color: ThemeEngine.bgInput
                 border {
                     width: hostField.activeFocus ? 1.5 : 1
-                    color: page._snapTargetError !== "" ? ThemeEngine.failRed
+                    color: appState.targetValidationError() !== "" ? ThemeEngine.failRed
                            : hostField.activeFocus ? ThemeEngine.accentBlue
                            : ThemeEngine.colors.borderCard
                 }
@@ -141,14 +140,14 @@ Rectangle {
 
             // Run button
             Rectangle {
-                Layout.preferredWidth: page.wide ? 70 : 40; Layout.preferredHeight: 32; radius: 6
+                Layout.preferredWidth: root.wide ? 70 : 40; Layout.preferredHeight: 32; radius: 6
                 color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.accentBlue, 0.4)
                        : appState.canRun() ? ThemeEngine.accentBlue
                        : Qt.alpha(ThemeEngine.accentBlue, 0.3)
                 Label {
                     anchors.centerIn: parent
-                    text: appState.runStatus === 1 ? (page.wide ? Tr.runningDots : "▶") : Tr.runDiag
-                    font.family: ThemeEngine.monoFont; font.pixelSize: page.wide ? 11 : 10
+                    text: appState.runStatus === 1 ? (root.wide ? Tr.runningDots : "▶") : Tr.runDiag
+                    font.family: ThemeEngine.monoFont; font.pixelSize: root.wide ? 11 : 10
                     font.weight: Font.DemiBold
                     color: appState.canRun() || appState.runStatus === 1 ? ThemeEngine.colors.textPrimary
                                                                           : Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
@@ -167,12 +166,12 @@ Rectangle {
             // Stop button — visible only during run
             Rectangle {
                 visible: appState.runStatus === 1
-                Layout.preferredWidth: page.wide ? 60 : 36; Layout.preferredHeight: 32; radius: 6
+                Layout.preferredWidth: root.wide ? 60 : 36; Layout.preferredHeight: 32; radius: 6
                 color: "transparent"
                 border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.5) }
                 Label {
                     anchors.centerIn: parent
-                    text: page.wide ? Tr.stop : "■"
+                    text: root.wide ? Tr.stop : "■"
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     color: ThemeEngine.failRed
                 }
@@ -183,9 +182,9 @@ Rectangle {
             Repeater {
                 model: 5
                 delegate: Rectangle {
-                    Layout.preferredWidth: page.wide ? 44 : 32
+                    Layout.preferredWidth: root.wide ? 44 : 32
                     Layout.preferredHeight: 28; radius: 14
-                    property bool _chk: [page._snapG0chk, page._snapG1chk, page._snapG2chk, page._snapG3chk, page._snapG4chk][index]
+                    property bool _chk: appState.isGroupAllEnabled(index)
                     color: _chk ? ThemeEngine.colors.primaryContainer : "transparent"
                     border {
                         width: 1
@@ -200,39 +199,32 @@ Rectangle {
                     }
                     MouseArea {
                         anchors.fill: parent
-                        enabled: !page._runActive
+                        enabled: appState.runStatus !== 1
                         onClicked: appState.setGroupEnabled(index, !appState.isGroupAllEnabled(index))
                     }
                 }
             }
 
-            // Port scan toggle (collapsible gear)
+            // Port scan toggle
             AppIcon {
                 name: "portscan"; size: 14
-                color: portScanPopup.visible ? ThemeEngine.accentBlue
+                color: root._portScanVisible ? ThemeEngine.accentBlue
                                               : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
-                visible: page._snapG3chk
+                visible: appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
                 MouseArea {
                     anchors.fill: parent
-                    onClicked: portScanPopup.visible = !portScanPopup.visible
+                    onClicked: root._portScanVisible = !root._portScanVisible
                 }
             }
         }
+    }
 
-        // ── Expanded port scan config ───────────────────────────────────
-        Popup {
-            id: portScanPopup
-            visible: false; closePolicy: Popup.NoAutoClose
-            y: toolbarRow.height + 4; x: 0
-            width: parent.width; padding: 8
-            background: Rectangle {
-                color: ThemeEngine.bgCard
-                border { width: 1; color: ThemeEngine.colors.borderCard }
-                radius: 8
-            }
-            contentItem: PortScanConfig {
-                anchors.fill: parent
-            }
+        // ── Expandable port scan config (toggled by icon) ────────────────
+        PortScanConfig {
+            Layout.fillWidth: true
+            visible: root._portScanVisible
         }
+    }
+    property bool _portScanVisible: false
     }
 }
