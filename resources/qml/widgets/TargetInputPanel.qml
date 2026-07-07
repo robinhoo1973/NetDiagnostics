@@ -53,7 +53,7 @@ ColumnLayout {
     // ═══════════════════ Scheme ComboBox + Host Field ═══════════════════
     Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
-        color: Qt.alpha(ThemeEngine.bgDark, 0.6)
+        color: ThemeEngine.bgInput
         border { width: hostField.activeFocus || schemeCombo.activeFocus ? 1.5 : 1
                  color: page._snapTargetError !== "" ? ThemeEngine.failRed
                         : (hostField.activeFocus || schemeCombo.activeFocus) ? ThemeEngine.accentBlue
@@ -66,7 +66,7 @@ ColumnLayout {
             }
             Item { width: 2 }
 
-            // ── Scheme ComboBox (grouped, default https) ──────────────────
+            // ── Scheme ComboBox (grouped, with icons) ─────────────────────
             ComboBox {
                 id: schemeCombo
                 Layout.preferredWidth: 94
@@ -77,46 +77,92 @@ ColumnLayout {
 
                 displayText: currentText + "://"
 
-                // Palette to blend into dark bg
-                palette {
-                    base: Qt.alpha(ThemeEngine.bgDark, 0.3)
-                    text: ThemeEngine.textPrimary
-                    buttonText: ThemeEngine.textPrimary
-                    windowText: ThemeEngine.textPrimary
-                }
-
-                // ── Grouped model — populated by root.Component.onCompleted ──
                 textRole: "scheme"
                 model: root.schemeModel
 
+                // ── Themed popup ──────────────────────────────────────────
+                popup: Popup {
+                    y: schemeCombo.height
+                    width: 210
+                    implicitHeight: contentItem.implicitHeight
+                    padding: 4
+                    background: Rectangle {
+                        color: ThemeEngine.bgCard
+                        border { width: 1; color: ThemeEngine.colors.borderCard }
+                        radius: 8
+                    }
+
+                    contentItem: ListView {
+                        clip: true
+                        implicitHeight: contentHeight
+                        model: schemeCombo.popup.visible ? schemeCombo.delegateModel : null
+                        ScrollIndicator.vertical: ScrollIndicator {}
+                    }
+                }
+
                 delegate: ItemDelegate {
-                    width: schemeCombo.popup ? schemeCombo.popup.width : 200
+                    width: 210
                     height: {
                         var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
                         var cur  = root.schemeModel.get(model.index)
-                        if (!prev || prev.schemeGroup !== cur.schemeGroup) return 44
-                        return 32
+                        if (!prev || prev.schemeGroup !== cur.schemeGroup) return 46
+                        return 36
                     }
-                    padding: 6
-                    leftPadding: 12
+                    padding: 8; leftPadding: 10
 
-                    contentItem: Item {
-                        ColumnLayout {
-                            anchors.fill: parent
-                            spacing: 2
+                    // ── Group header + icon ──────────────────────────────
+                    readonly property bool isFirst: {
+                        var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
+                        var cur  = root.schemeModel.get(model.index)
+                        return !prev || prev.schemeGroup !== cur.schemeGroup
+                    }
+
+                    // ── Scheme icon lookup ──────────────────────────────
+                    readonly property var schemeIcons: ({
+                        http:"globe",https:"globe",ftp:"config",ftps:"config",
+                        ssh:"portscan",sftp:"portscan",scp:"portscan",
+                        smtp:"mail",smtps:"mail",imap:"mail",imaps:"mail",
+                        pop3:"mail",pop3s:"mail",
+                        mysql:"config",postgresql:"config",redis:"config",
+                        mongodb:"config",mssql:"config",
+                        telnet:"wifi",rdp:"wifi",
+                        ldap:"target",ldaps:"target",
+                        mqtt:"wifi",mqtts:"wifi"
+                    })
+                    readonly property string gName: ({
+                        0:"Web",1:"File Transfer",2:"Email",3:"Database",
+                        4:"Remote Access",5:"Directory",6:"Messaging"
+                    }[schemeGroup] || "")
+
+                    contentItem: ColumnLayout {
+                        spacing: 0
+                        // Group separator + label
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: isFirst ? 16 : 0
+                            color: "transparent"
+                            visible: isFirst
                             Rectangle {
-                                Layout.fillWidth: true
-                                implicitHeight: 1
-                                color: Qt.alpha(ThemeEngine.textSecondary, 0.15)
-                                visible: {
-                                    var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
-                                    var cur = root.schemeModel.get(model.index)
-                                    return !prev || prev.schemeGroup !== cur.schemeGroup
-                                }
+                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                                height: 1; color: ThemeEngine.colors.borderCard
+                            }
+                            Label {
+                                anchors.centerIn: parent
+                                text: gName
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 8
+                                font.weight: Font.Bold; color: ThemeEngine.textMuted
+                                background: Rectangle { color: ThemeEngine.bgCard; anchors.fill: parent }
+                            }
+                        }
+                        // Scheme row
+                        RowLayout {
+                            Layout.fillWidth: true; spacing: 6
+                            AppIcon {
+                                name: schemeIcons[scheme] || "circle"
+                                size: 12; color: ThemeEngine.colors.primary
                             }
                             Label {
                                 Layout.fillWidth: true
-                                Layout.fillHeight: true
                                 text: scheme + "://"
                                 font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                 color: ThemeEngine.textPrimary
@@ -127,7 +173,7 @@ ColumnLayout {
 
                     highlighted: model.scheme === schemeCombo.currentText
                     background: Rectangle {
-                        color: highlighted ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
+                        color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
                         radius: 4
                     }
                 }
