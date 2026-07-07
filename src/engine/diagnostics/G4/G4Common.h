@@ -269,6 +269,7 @@ struct TracerouteResult {
     bool reachedTarget = false;
 };
 
+class PingParser {
 public:
     /// Parse ping output. Handles Windows (ping -n) and Unix (ping -c) formats,
     /// English, Chinese, German, and other locales.
