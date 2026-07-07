@@ -71,3 +71,4 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
 // ── LDAP (port 389) / LDAPS (port 636) — bind request ─────────────────
 }
 } // namespace G5WebsiteUrl
+} // namespace G5WebsiteUrl

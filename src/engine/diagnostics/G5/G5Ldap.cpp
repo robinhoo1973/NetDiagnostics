@@ -52,3 +52,4 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
 // ── MQTT (port 1883) / MQTTS (port 8883) — CONNECT/CONNACK ───────────
 }
 } // namespace G5WebsiteUrl
+} // namespace G5WebsiteUrl
