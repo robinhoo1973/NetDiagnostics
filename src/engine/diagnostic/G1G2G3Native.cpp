@@ -18,6 +18,7 @@ typedef SSIZE_T ssize_t;
 #include <QDir>
 #include <QTextStream>
 #include <QRegularExpression>
+#include <QProcess>
 #include <QVariantMap>
 #include <cstring>
 #include <cstdio>
@@ -426,6 +427,7 @@ DiagnosticResult activeConnections(DiagId id) {
     GetExtendedTcpTable(nullptr, &bufLen, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
     QByteArray tcpBuf(bufLen, '\0');
     auto* tcpTable = (MIB_TCPTABLE_OWNER_PID*)tcpBuf.data();
+    // ── IPv4 TCP table ────────────────────────────────────────────────
     if (GetExtendedTcpTable(tcpTable, &bufLen, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) == NO_ERROR) {
         for (DWORD i = 0; i < tcpTable->dwNumEntries; i++) {
             auto& row = tcpTable->table[i];
@@ -433,6 +435,23 @@ DiagnosticResult activeConnections(DiagId id) {
             la.S_un.S_addr = row.dwLocalAddr; ra.S_un.S_addr = row.dwRemoteAddr;
             rawConns.append({QStringLiteral("TCP"),
                 ip4ToStr(la), ip4ToStr(ra),
+                QString::fromLatin1(tcpStateName(row.dwState)),
+                (int)ntohs((u_short)row.dwLocalPort), (int)ntohs((u_short)row.dwRemotePort)});
+        }
+    }
+    // ── IPv6 TCP table ────────────────────────────────────────────────
+    bufLen = 0;
+    GetExtendedTcpTable(nullptr, &bufLen, FALSE, AF_INET6, TCP_TABLE_OWNER_PID_ALL, 0);
+    QByteArray tcp6Buf(bufLen, '\0');
+    auto* tcp6Table = (MIB_TCP6TABLE_OWNER_PID*)tcp6Buf.data();
+    if (GetExtendedTcpTable(tcp6Table, &bufLen, FALSE, AF_INET6, TCP_TABLE_OWNER_PID_ALL, 0) == NO_ERROR) {
+        for (DWORD i = 0; i < tcp6Table->dwNumEntries; i++) {
+            auto& row = tcp6Table->table[i];
+            char laBuf[INET6_ADDRSTRLEN] = {}, raBuf[INET6_ADDRSTRLEN] = {};
+            inet_ntop(AF_INET6, &row.ucLocalAddr, laBuf, sizeof(laBuf));
+            inet_ntop(AF_INET6, &row.ucRemoteAddr, raBuf, sizeof(raBuf));
+            rawConns.append({QStringLiteral("TCP6"),
+                QString::fromLatin1(laBuf), QString::fromLatin1(raBuf),
                 QString::fromLatin1(tcpStateName(row.dwState)),
                 (int)ntohs((u_short)row.dwLocalPort), (int)ntohs((u_short)row.dwRemotePort)});
         }
@@ -662,10 +681,32 @@ DiagnosticResult ipConfiguration(DiagId id) {
     out.append(QStringLiteral("Windows IP Configuration"));
     out.append(QString());
     out.append(QStringLiteral("   Host Name . . . . . . . . . . . . : %1").arg(QString::fromLatin1(hostname)));
-    out.append(QStringLiteral("   Primary Dns Suffix  . . . . . . . :"));
-    out.append(QStringLiteral("   Node Type . . . . . . . . . . . . : Hybrid"));
-    out.append(QStringLiteral("   IP Routing Enabled. . . . . . . . : No"));
-    out.append(QStringLiteral("   WINS Proxy Enabled. . . . . . . . : No"));
+
+    // Real values from GetNetworkParams (FIXED_INFO)
+    {
+        ULONG infoLen = 0;
+        GetNetworkParams(nullptr, &infoLen);  // get required size
+        QByteArray infoBuf(infoLen, '\0');
+        PFIXED_INFO pInfo = (PFIXED_INFO)infoBuf.data();
+        if (GetNetworkParams(pInfo, &infoLen) == ERROR_SUCCESS) {
+            QString dnsSuffix = QString::fromLocal8Bit(pInfo->DnsDomainName);
+            out.append(QStringLiteral("   Primary Dns Suffix  . . . . . . . : %1")
+                .arg(dnsSuffix.isEmpty() ? QString() : dnsSuffix));
+            const char* nodeTypes[] = {"Broadcast","Peer-to-Peer","Mixed","Hybrid","Unknown"};
+            int nt = (pInfo->NodeType >= 1 && pInfo->NodeType <= 4) ? pInfo->NodeType - 1 : 4;
+            out.append(QStringLiteral("   Node Type . . . . . . . . . . . . : %1").arg(QString::fromLatin1(nodeTypes[nt])));
+            out.append(QStringLiteral("   IP Routing Enabled. . . . . . . . : %1")
+                .arg(pInfo->EnableRouting ? QStringLiteral("Yes") : QStringLiteral("No")));
+            out.append(QStringLiteral("   WINS Proxy Enabled. . . . . . . . : %1")
+                .arg(pInfo->EnableProxy ? QStringLiteral("Yes") : QStringLiteral("No")));
+        } else {
+            // Fallback if GetNetworkParams fails
+            out.append(QStringLiteral("   Primary Dns Suffix  . . . . . . . :"));
+            out.append(QStringLiteral("   Node Type . . . . . . . . . . . . : (unavailable)"));
+            out.append(QStringLiteral("   IP Routing Enabled. . . . . . . . : (unavailable)"));
+            out.append(QStringLiteral("   WINS Proxy Enabled. . . . . . . . : (unavailable)"));
+        }
+    }
     out.append(QString());
 
     // Per-adapter details via GetAdaptersAddresses
@@ -1154,9 +1195,76 @@ DiagnosticResult nicAdvanced(DiagId id) {
 
     out.append(QString());
 #ifdef _WIN32
-    out.append(QStringLiteral("NIC Advanced Properties:"));
-    // ... Windows-specific registry queries would go here
-    out.append(QStringLiteral("  (use wmic nic / Device Manager for full details)"));
+    out.append(QStringLiteral("NIC Advanced Properties (table mode):"));
+    out.append(QString());
+    static const QVector<DiagnosticFormatter::ColSpec> kNicCols = {
+        {"Interface",   12, false},
+        {"Speed",        7, true},
+        {"Duplex",       6, false},
+        {"MTU",          4, true},
+        {"State",       12, false},
+    };
+    QList<QStringList> nicRows;
+
+    // Use GetIfTable2 for link-speed, MTU, oper-status (all adapters)
+    PMIB_IF_TABLE2 ifTable = nullptr;
+    if (GetIfTable2(&ifTable) == NO_ERROR && ifTable) {
+        for (ULONG i = 0; i < ifTable->NumEntries; i++) {
+            auto& row = ifTable->Table[i];
+            // Skip loopback and tunnel
+            if (row.Type == IF_TYPE_SOFTWARE_LOOPBACK || row.Type == IF_TYPE_TUNNEL) continue;
+            if (row.OperStatus == IfOperStatusNotPresent) continue;
+
+            QString ifName = QString::fromWCharArray(row.Alias);
+            QString speedStr = (row.InLinkSpeed > 0)
+                ? (row.InLinkSpeed >= 1000000000
+                    ? QStringLiteral("%1 Gbps").arg(row.InLinkSpeed / 1000000000.0, 0, 'f', 1)
+                    : QStringLiteral("%1 Mbps").arg(row.InLinkSpeed / 1000000.0, 0, 'f', 0))
+                : QStringLiteral("N/A");
+            QString duplexStr = QStringLiteral("N/A");
+            // Duplex: check registry for this adapter
+            {
+                // Extract adapter GUID from description for registry lookup
+                // Fallback: use WMI-style registry path for the adapter class
+                wchar_t keyPath[256] = {};
+                HKEY hKey = nullptr;
+                _snwprintf(keyPath, 256,
+                    L"SYSTEM\\CurrentControlSet\\Control\\Class\\{4D36E972-E325-11CE-BFC1-08002BE10318}\\%04lu",
+                    i);
+                if (RegOpenKeyExW(HKEY_LOCAL_MACHINE, keyPath, 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+                    wchar_t duplexVal[32] = {}; DWORD sz = sizeof(duplexVal);
+                    if (RegQueryValueExW(hKey, L"*Duplex", nullptr, nullptr, (LPBYTE)duplexVal, &sz) == ERROR_SUCCESS) {
+                        QString d = QString::fromWCharArray(duplexVal);
+                        if (d == QStringLiteral("0")) duplexStr = QStringLiteral("Half");
+                        else if (d == QStringLiteral("1")) duplexStr = QStringLiteral("Full");
+                        else if (d == QStringLiteral("10")) duplexStr = QStringLiteral("Auto");
+                        else duplexStr = d;
+                    }
+                    RegCloseKey(hKey);
+                }
+            }
+            QString mtuStr = QString::number(row.Mtu);
+            QString stateStr;
+            switch (row.OperStatus) {
+                case IfOperStatusUp:             stateStr = QStringLiteral("Up"); break;
+                case IfOperStatusDown:           stateStr = QStringLiteral("Down"); break;
+                case IfOperStatusTesting:        stateStr = QStringLiteral("Testing"); break;
+                case IfOperStatusDormant:        stateStr = QStringLiteral("Dormant"); break;
+                case IfOperStatusLowerLayerDown: stateStr = QStringLiteral("LowerDown"); break;
+                default:                         stateStr = QStringLiteral("Unknown"); break;
+            }
+            nicRows.append({ifName.left(12), speedStr, duplexStr, mtuStr, stateStr});
+        }
+        FreeMibTable(ifTable);
+    }
+
+    r.status = DiagStatus::Pass;
+    r.summary = nicRows.isEmpty()
+        ? QStringLiteral("No NIC properties available")
+        : QStringLiteral("NIC properties collected via Win32 API");
+    r.details = DiagnosticFormatter::formatTable(kNicCols, nicRows);
+    r.durationMs = t.elapsed();
+    return r;
 #else
     out.append(QStringLiteral("NIC Advanced Properties (table mode):"));
     out.append(QString());
@@ -1239,10 +1347,72 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
 
 #ifdef _WIN32
     out.append(QString());
-    out.append(QStringLiteral("(use wmic nic get on Windows)"));
-    r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-    r.status = DiagStatus::Info; r.summary = QStringLiteral("Windows wired diagnostics delegate to wmic");
-    r.durationMs = t.elapsed(); return r;
+    out.append(QStringLiteral("Wired Information (table mode):"));
+    out.append(QString());
+    static const QVector<DiagnosticFormatter::ColSpec> kWiredCols = {
+        {"Interface",   12, false},
+        {"Speed",        7, true},
+        {"Duplex",       6, false},
+        {"MTU",          4, true},
+        {"Link",         4, false},
+        {"State",       10, false},
+        {"MAC Address", 17, false},
+    };
+    QList<QStringList> wiredRows;
+
+    PMIB_IF_TABLE2 ifTable = nullptr;
+    if (GetIfTable2(&ifTable) == NO_ERROR && ifTable) {
+        for (ULONG i = 0; i < ifTable->NumEntries; i++) {
+            auto& row = ifTable->Table[i];
+            // Ethernet-only: IF_TYPE_ETHERNET_CSMACD (6)
+            if (row.Type != IF_TYPE_ETHERNET_CSMACD) continue;
+            if (row.OperStatus == IfOperStatusNotPresent) continue;
+
+            QString ifName = QString::fromWCharArray(row.Alias);
+            QString speedStr = (row.InLinkSpeed > 0
+                ? (row.InLinkSpeed >= 1000000000
+                    ? QStringLiteral("%1 Gbps").arg(row.InLinkSpeed / 1000000000.0, 0, 'f', 1)
+                    : QStringLiteral("%1 Mbps").arg(row.InLinkSpeed / 1000000.0, 0, 'f', 0))
+                : QStringLiteral("N/A"));
+            QString duplexStr = QStringLiteral("N/A");
+            QString linkStr   = (row.OperStatus == IfOperStatusUp)
+                ? QStringLiteral("Up") : QStringLiteral("Down");
+            QString mtuStr    = QString::number(row.Mtu);
+            QString stateStr;
+            switch (row.OperStatus) {
+                case IfOperStatusUp:             stateStr = QStringLiteral("Up"); break;
+                case IfOperStatusDown:           stateStr = QStringLiteral("Down"); break;
+                case IfOperStatusTesting:        stateStr = QStringLiteral("Testing"); break;
+                case IfOperStatusDormant:        stateStr = QStringLiteral("Dormant"); break;
+                case IfOperStatusLowerLayerDown: stateStr = QStringLiteral("LowerDown"); break;
+                default:                         stateStr = QStringLiteral("Unknown"); break;
+            }
+            QString macStr;
+            if (row.PhysicalAddressLength >= 6)
+                macStr = QStringLiteral("%1:%2:%3:%4:%5:%6")
+                    .arg(row.PhysicalAddress[0], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[1], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[2], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[3], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[4], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[5], 2, 16, QLatin1Char('0'));
+            else
+                macStr = QStringLiteral("N/A");
+
+            wiredRows.append({ifName.left(12), speedStr, duplexStr, mtuStr, linkStr, stateStr, macStr});
+        }
+        FreeMibTable(ifTable);
+    }
+    r.status = DiagStatus::Pass;
+    r.summary = wiredRows.isEmpty()
+        ? QStringLiteral("No wired Ethernet adapters found")
+        : QStringLiteral("Wired NIC properties collected via Win32 API");
+    r.details = DiagnosticFormatter::formatTable(kWiredCols, wiredRows);
+    r.rawOutput = out.join('\n') + '\n' + r.details;
+    r.durationMs = t.elapsed();
+    return r;
+#endif
+
 #else
 
     out.append(QString());
@@ -2222,7 +2392,40 @@ DiagnosticResult dnsCache(DiagId id) {
     out.append(QStringLiteral("DNS Client Cache (ipconfig /displaydns format)"));
     out.append(QStringLiteral("=============================================="));
     out.append(QString());
-    out.append(QStringLiteral("(Use 'ipconfig /displaydns' for full cache contents)"));
+
+    // Windows: no public Win32 API for DNS cache — use ipconfig /displaydns
+    QProcess dnsProc;
+    dnsProc.start(QStringLiteral("ipconfig"), QStringList() << QStringLiteral("/displaydns"));
+    if (dnsProc.waitForFinished(10000)) {
+        QString dnsOut = QString::fromLocal8Bit(dnsProc.readAllStandardOutput());
+        if (!dnsOut.trimmed().isEmpty()) {
+            // Parse structured output: records separated by blank lines
+            int recordCount = 0;
+            for (auto& line : dnsOut.split('\n')) {
+                QString t = line.trimmed();
+                if (t.isEmpty()) continue;
+                if (t.startsWith(QStringLiteral("Windows IP")) || t.startsWith(QStringLiteral("--"))) {
+                    // Skip header lines — ipconfig adds its own header
+                    continue;
+                }
+                if (t.endsWith(QStringLiteral(":")) && !t.contains(QStringLiteral("."))) {
+                    // Section header — skip
+                    continue;
+                }
+                out.append(t);
+                if (t.contains(QStringLiteral("Record Name"))) recordCount++;
+            }
+            if (recordCount == 0) {
+                out.append(QString());
+                out.append(QStringLiteral("  (DNS cache is empty)"));
+            }
+        } else {
+            out.append(QStringLiteral("  (Unable to retrieve DNS cache — ipconfig /displaydns failed)"));
+        }
+    } else {
+        out.append(QStringLiteral("  (ipconfig /displaydns timed out)"));
+    }
+    out.append(QString());
     out.append(QStringLiteral("To flush: ipconfig /flushdns"));
 #else
     out.append(QStringLiteral("DNS Cache Information"));
