@@ -33,3 +33,4 @@ DiagnosticResult securityHeaders(const QString& target) {
 
 // ── G5.7 SSL Certificate ─────────────────────────────────────────────────
 }
+} // namespace G5WebsiteUrl

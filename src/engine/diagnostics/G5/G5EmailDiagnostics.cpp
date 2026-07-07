@@ -22,3 +22,4 @@ DiagnosticResult emailDiagnostics(const QString& target) {
 }
 
 }
+} // namespace G5WebsiteUrl

@@ -18,3 +18,4 @@ DiagnosticResult httpRedirect(const QString& target) {
 }
 
 }
+} // namespace G5WebsiteUrl

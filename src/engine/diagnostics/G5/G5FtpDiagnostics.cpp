@@ -20,3 +20,4 @@ DiagnosticResult ftpDiagnostics(const QString& target) {
 }
 
 }
+} // namespace G5WebsiteUrl

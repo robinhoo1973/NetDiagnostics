@@ -13,3 +13,4 @@ DiagnosticResult urlParsing(const QString& target) {
 
 // ── G5.2 TCP Connect ─────────────────────────────────────────────────────
 }
+} // namespace G5WebsiteUrl
