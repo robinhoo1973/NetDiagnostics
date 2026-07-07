@@ -77,7 +77,7 @@ struct ProcNetConn {
 };
 #endif
 
-// Forward declarations
-static int tcpPingMs(const QString& host, int port);
+// Forward declarations (defined in GCommon.cpp, non-static — shared across TUs)
+int tcpPingMs(const QString& host, int port);
 
 } // namespace G1G2G3Native

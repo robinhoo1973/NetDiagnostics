@@ -33,7 +33,7 @@ set(SOURCES
     src/app/DiagnosticConfig.cpp
     src/app/ReportEngine.cpp
     src/app/PremiumStore.cpp
-    src/engine/diagnostic/G1G2G3Native.cpp
+    src/engine/diagnostic/GCommon.cpp
     src/engine/diagnostic/G1/G1NetworkAdapters.cpp
     src/engine/diagnostic/G1/G1ActiveConnections.cpp
     src/engine/diagnostic/G1/G1CellularInfo.cpp
