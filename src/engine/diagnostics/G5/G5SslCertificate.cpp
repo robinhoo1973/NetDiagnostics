@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-#ifndef NO_CURL
 namespace G5WebsiteUrl {
 DiagnosticResult sslCertificate(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SslCertificate, "No target", DiagStatus::Skipped);
@@ -53,5 +52,4 @@ DiagnosticResult sslCertificate(const QString& target) {
 
 // ── G5.8 HTTP Redirect ───────────────────────────────────────────────────
 #ifndef NO_CURL
-
-
+}
