@@ -65,7 +65,7 @@ $TEMP_DIR    = Join-Path $env:TEMP "netdiag-static-build"
 # These are all OS-provided DLLs (not third-party) — the resulting exe remains
 # portable across Windows 10+ installations.
 $WIN_SYS_LIBS = @(
-    "-lcrypt32", "-lws2_32", "-liphlpapi", "-lwinhttp",
+    "-lidn2", "-lcrypt32", "-lws2_32", "-liphlpapi", "-lwinhttp",
     "-lnetapi32", "-ld3d11", "-ldxgi", "-ldwrite",
     "-luuid", "-loleaut32", "-lole32", "-lversion",
     "-lwinmm", "-lncrypt", "-luserenv", "-lsetupapi"
