@@ -56,7 +56,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
 }
 
 // 闁冲厜鍋撻柍鍏夊亾 HTTP download with throughput measurement 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
-struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
+// SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false};
     // Parse URL 闁?host, port, path
