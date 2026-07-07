@@ -36,6 +36,7 @@ set(SOURCES
     src/engine/diagnostic/G1G2G3Native.cpp
     src/engine/diagnostic/G4RemoteHost.cpp
     src/engine/diagnostic/G5WebsiteUrl.cpp
+    src/engine/diagnostic/G5ProtocolDiagnostics.cpp
 )
 
 # ── Platform-specific sources ──────────────────────────────────────────

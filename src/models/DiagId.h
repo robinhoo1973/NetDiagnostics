@@ -91,6 +91,15 @@ enum class DiagId {
     G5FtpDiagnostics,
     G5SshDiagnostics,
     G5EmailDiagnostics,
+
+    // G5 — per-scheme protocol diagnostics (7 new)
+    G5Telnet,
+    G5Mysql,
+    G5Postgres,
+    G5Redis,
+    G5Mongodb,
+    G5Ldap,
+    G5Mqtt,
 };
 
 // ── DiagId metadata ─────────────────────────────────────────────────────────
@@ -138,6 +147,13 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G5FtpDiagnostics:
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:
+        case DiagId::G5Telnet:
+        case DiagId::G5Mysql:
+        case DiagId::G5Postgres:
+        case DiagId::G5Redis:
+        case DiagId::G5Mongodb:
+        case DiagId::G5Ldap:
+        case DiagId::G5Mqtt:
             return DiagGroup::G5;
     }
     return DiagGroup::G1;
@@ -183,6 +199,13 @@ inline QString diagIdLabelKey(DiagId id) {
         case DiagId::G5FtpDiagnostics:      return QStringLiteral("test_g5_ftp");
         case DiagId::G5SshDiagnostics:      return QStringLiteral("test_g5_ssh");
         case DiagId::G5EmailDiagnostics:    return QStringLiteral("test_g5_email");
+        case DiagId::G5Telnet:             return QStringLiteral("test_g5_telnet");
+        case DiagId::G5Mysql:              return QStringLiteral("test_g5_mysql");
+        case DiagId::G5Postgres:           return QStringLiteral("test_g5_postgres");
+        case DiagId::G5Redis:              return QStringLiteral("test_g5_redis");
+        case DiagId::G5Mongodb:            return QStringLiteral("test_g5_mongodb");
+        case DiagId::G5Ldap:               return QStringLiteral("test_g5_ldap");
+        case DiagId::G5Mqtt:               return QStringLiteral("test_g5_mqtt");
     }
     return {};
 }
@@ -204,6 +227,8 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G5SslCertificate, DiagId::G5HttpRedirect, DiagId::G5HttpCompression,
         DiagId::G5HttpTiming, DiagId::G5FtpDiagnostics, DiagId::G5SshDiagnostics,
         DiagId::G5EmailDiagnostics,
+        DiagId::G5Telnet, DiagId::G5Mysql, DiagId::G5Postgres,
+        DiagId::G5Redis, DiagId::G5Mongodb, DiagId::G5Ldap, DiagId::G5Mqtt,
     };
     return ids;
 }

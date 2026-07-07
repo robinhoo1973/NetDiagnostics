@@ -48,7 +48,7 @@ QStringList knownSchemes() {
     return s_defaultPorts.keys();
 }
 
-static QUrl validate(const QString& target) {
+QUrl validate(const QString& target) {
     QUrl u(target, QUrl::StrictMode);
     if (u.isValid() && !u.scheme().isEmpty()) return u;
     if (target.contains(':') && !target.contains("://")) {
@@ -60,7 +60,7 @@ static QUrl validate(const QString& target) {
     return u.isValid() ? u : QUrl();
 }
 
-static int portForUrl(const QUrl& u) {
+int portForUrl(const QUrl& u) {
     return u.port() > 0 ? u.port() : s_defaultPorts.value(u.scheme(), 80);
 }
 

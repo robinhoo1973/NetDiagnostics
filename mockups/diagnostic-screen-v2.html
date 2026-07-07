@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetDiagnostics — Diagnostic Screen v2 (2026-07-07)</title>
+<style>
+/* ═══════════════════════ ThemeEngine Colors ═══════════════════════ */
+:root {
+  --bg-base:       #121220;
+  --bg-sidebar:    #18182C;
+  --bg-dark:       #0E0E1A;
+  --bg-card:       #1E1E3A;
+  --border-card:   #2E2E52;
+  --nav-bar:       #1A1A30;
+  --text-primary:  #EAEAEE;
+  --text-secondary:#9595B8;
+  --accent-blue:   #40A0F0;
+  --cyan:          #50D0E0;
+  --pass-green:    #50D878;
+  --fail-red:      #E94560;
+  --warn-yellow:   #F0A840;
+  --mono-font:     'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: var(--mono-font);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+/* ═══════════════════════ App Frame ═══════════════════════ */
+.app-frame {
+  width: 1100px; height: 720px;
+  background: var(--bg-base);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  box-shadow: 0 0 60px rgba(0,0,0,0.5), 0 0 0 1px var(--border-card);
+}
+
+/* ── Content Row (Sidebar + Main) ── */
+.content-row { display: flex; flex: 1; overflow: hidden; }
+
+/* ═══════════════════════ SIDEBAR ═══════════════════════ */
+.sidebar {
+  width: 260px; min-width: 260px;
+  background: var(--bg-sidebar);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-card);
+}
+
+/* ── Sticky Target Input Area ── */
+.sidebar-sticky {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg-sidebar);
+  padding: 8px 12px 12px;
+}
+
+.section-title {
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 5px;
+}
+.section-title .icon { font-size: 13px; }
+
+/* ── Target Input Row (ComboBox + Host) ── */
+.target-row {
+  display: flex; gap: 0;
+  background: rgba(14,14,26,0.6);
+  border: 1px solid var(--border-card);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.target-row:focus-within { border-color: var(--accent-blue); border-width: 1.5px; }
+
+.scheme-combo {
+  display: flex; align-items: center; gap: 2px;
+  padding: 0 8px; min-width: 90px;
+  background: rgba(14,14,26,0.3);
+  border-right: 1px solid var(--border-card);
+  cursor: pointer; user-select: none;
+  font-size: 11px; color: var(--text-primary);
+  position: relative;
+}
+.scheme-combo .val { font-weight: 600; }
+.scheme-combo .arrow { font-size: 8px; color: var(--text-secondary); margin-left: 2px; }
+
+.host-field {
+  flex: 1; padding: 10px 10px; font-size: 12px;
+  font-family: var(--mono-font); color: var(--text-primary);
+  background: transparent; border: none; outline: none;
+  min-width: 0;
+}
+.host-field::placeholder { color: rgba(149,149,184,0.4); }
+
+/* ── Advance Toggle Row ── */
+.advance-toggle {
+  display: flex; align-items: center; justify-content: flex-end;
+  margin-top: 4px; gap: 6px;
+}
+.advance-toggle .gear {
+  font-size: 12px; color: var(--text-secondary); cursor: pointer;
+  opacity: 0.5; transition: opacity 0.15s;
+}
+.advance-toggle .gear:hover, .advance-toggle .gear.active { opacity: 1; color: var(--accent-blue); }
+
+/* ── Advanced Fields ── */
+.advanced-fields {
+  display: none; gap: 6px; margin-top: 6px;
+}
+.advanced-fields.open { display: flex; }
+.advanced-fields input {
+  font-family: var(--mono-font); font-size: 11px;
+  background: rgba(14,14,26,0.4); color: var(--text-primary);
+  border: 1px solid var(--border-card); border-radius: 6px;
+  padding: 7px 8px; outline: none; min-width: 0;
+}
+.advanced-fields input:focus { border-color: var(--accent-blue); }
+.advanced-fields .port { width: 62px; }
+.advanced-fields .user { flex: 1; }
+.advanced-fields .pass { flex: 1; }
+
+/* ── Error Row ── */
+.error-row {
+  display: none; align-items: center; gap: 4px;
+  margin-top: 4px; font-size: 10px; color: var(--fail-red);
+}
+.error-row.show { display: flex; }
+
+/* ── Run Button ── */
+.run-btn {
+  width: 100%; padding: 10px; margin-top: 8px;
+  border: none; border-radius: 8px;
+  background: var(--accent-blue);
+  color: #fff; font-family: var(--mono-font);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  text-align: center;
+  transition: opacity 0.15s;
+}
+.run-btn:hover { opacity: 0.9; }
+.run-btn.running { background: rgba(64,160,240,0.4); pointer-events: none; }
+.stop-btn {
+  width: 100%; padding: 10px; margin-top: 6px;
+  border: 1px solid rgba(233,69,96,0.5); border-radius: 8px;
+  background: transparent; color: var(--fail-red);
+  font-family: var(--mono-font); font-size: 11px; cursor: pointer;
+  display: none; text-align: center;
+}
+.stop-btn.visible { display: block; }
+
+/* ── Sidebar Scroll Area ── */
+.sidebar-scroll { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+
+/* ── Section Card ── */
+.section-card {
+  background: rgba(30,30,58,0.5);
+  border: 1px solid rgba(46,46,82,0.5);
+  border-radius: 8px; padding: 10px 10px; margin-bottom: 8px;
+}
+
+/* ── Port Scan ── */
+.port-scan-row { display: flex; align-items: center; gap: 8px; }
+.port-scan-row label { font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
+.port-scan-row input {
+  width: 58px; font-family: var(--mono-font); font-size: 11px;
+  background: rgba(14,14,26,0.4); color: var(--text-primary);
+  border: 1px solid var(--border-card); border-radius: 4px;
+  padding: 5px 6px; outline: none; text-align: center;
+}
+.port-scan-row input:focus { border-color: var(--accent-blue); }
+.port-scan-row .common-chk {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10px; color: var(--text-secondary); cursor: pointer;
+}
+.port-scan-row .common-chk input { width: 13px; height: 13px; accent-color: var(--accent-blue); }
+
+/* ── Checkbox Group ── */
+.group-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px; margin-bottom: 2px;
+  cursor: pointer;
+  transition: background 0.12s;
+  font-size: 12px;
+}
+.group-check:hover { background: rgba(64,160,240,0.06); }
+.group-check.checked { background: rgba(64,160,240,0.12); }
+.group-check input { width: 14px; height: 14px; accent-color: var(--accent-blue); flex-shrink: 0; }
+.group-check.disabled { opacity: 0.45; pointer-events: none; }
+
+/* ── Divider ── */
+.divider {
+  height: 8px; display: flex; align-items: center;
+}
+.divider .line { flex: 1; height: 1px; background: var(--border-card); }
+
+/* ── Target Analysis ── */
+.analysis-table { font-size: 10px; }
+.analysis-row { display: flex; padding: 3px 0; }
+.analysis-row .key { width: 62px; color: var(--text-secondary); flex-shrink: 0; text-align: right; margin-right: 8px; }
+.analysis-row .val { color: var(--text-primary); word-break: break-all; }
+.analysis-row .val.good { color: var(--pass-green); }
+.analysis-row .val.warn { color: var(--warn-yellow); }
+
+/* ── Port Reference Grid ── */
+.port-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 10px; margin-top: 4px; }
+.port-item { display: flex; justify-content: space-between; font-size: 10px; padding: 1px 0; }
+.port-item .pn { color: var(--text-secondary); }
+.port-item .ps { color: var(--cyan); }
+
+/* ── Summary Cards ── */
+.summary-row { display: flex; gap: 4px; padding: 8px 0; }
+.summary-card {
+  flex: 1; text-align: center; padding: 6px 4px;
+  border-radius: 6px; font-size: 10px;
+}
+.summary-card .count { font-size: 16px; font-weight: 700; }
+.summary-card .label { font-size: 9px; opacity: 0.8; }
+.summary-card.pass { background: rgba(80,216,120,0.12); color: var(--pass-green); }
+.summary-card.warn { background: rgba(240,168,64,0.12); color: var(--warn-yellow); }
+.summary-card.fail { background: rgba(233,69,96,0.12); color: var(--fail-red); }
+.summary-card.skip { background: rgba(149,149,184,0.12); color: var(--text-secondary); }
+.summary-card.info { background: rgba(80,208,224,0.12); color: var(--cyan); }
+
+/* ═══════════════════════ MAIN CONTENT ═══════════════════════ */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ── Status Bar ── */
+.status-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 16px; height: 41px;
+  background: var(--nav-bar);
+  border-bottom: 1px solid var(--border-card);
+}
+.status-bar .icon { font-size: 18px; color: var(--cyan); }
+.status-bar .title { font-size: 15px; font-weight: 600; }
+.status-bar .progress { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--cyan); }
+
+/* ── Empty State ── */
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; color: var(--text-secondary);
+}
+.empty-state .wifi-icon { font-size: 72px; opacity: 0.13; }
+.empty-state .msg { font-size: 14px; font-weight: 500; opacity: 0.55; }
+
+/* ── Results Area ── */
+.results-area {
+  flex: 1; overflow-y: auto; padding: 8px 12px;
+  display: none;
+}
+.results-area.visible { display: block; }
+
+.result-group {
+  margin-bottom: 8px; border-radius: 8px; overflow: hidden;
+}
+.result-group-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; background: rgba(30,30,58,0.7);
+  border-bottom: 1px solid var(--border-card);
+  cursor: pointer; font-size: 12px; font-weight: 600;
+}
+.result-group-header .expand { font-size: 10px; transition: transform 0.15s; }
+.result-group-body { padding: 0; }
+.result-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; font-size: 11px;
+  border-bottom: 1px solid rgba(46,46,82,0.3);
+  cursor: pointer; transition: background 0.1s;
+}
+.result-item:hover { background: rgba(64,160,240,0.05); }
+.result-item .status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.pass { background: var(--pass-green); }
+.status-dot.warn { background: var(--warn-yellow); }
+.status-dot.fail { background: var(--fail-red); }
+.status-dot.skip { background: var(--text-secondary); }
+.result-item .name { flex: 1; }
+.result-item .dur { font-size: 10px; color: var(--text-secondary); }
+
+/* ═══════════════════════ BOTTOM TAB BAR ═══════════════════════ */
+.tab-bar {
+  display: flex; height: 48px;
+  background: var(--nav-bar);
+  border-top: 1px solid var(--border-card);
+}
+.tab {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  font-size: 9px; color: var(--text-secondary); cursor: pointer;
+  transition: color 0.15s;
+}
+.tab:hover { color: var(--text-primary); }
+.tab.active { color: var(--cyan); }
+.tab .tab-icon { font-size: 17px; }
+
+/* ═══════════════════════ ComboBox Dropdown ═══════════════════════ */
+/* Hidden by default; shown via JS on click */
+.combo-dropdown {
+  display: none; position: absolute; top: 100%; left: 0;
+  width: 220px; max-height: 340px; overflow-y: auto;
+  background: #1A1A35; border: 1px solid var(--border-card);
+  border-radius: 8px; z-index: 100; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.combo-dropdown.open { display: block; }
+.drop-group-header {
+  padding: 6px 12px 2px; font-size: 9px; font-weight: 700;
+  color: var(--text-secondary); text-transform: uppercase;
+  letter-spacing: 1px; border-top: 1px solid rgba(46,46,82,0.4);
+}
+.drop-group-header:first-child { border-top: none; }
+.drop-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; font-size: 12px;
+  color: var(--text-primary); cursor: pointer;
+  transition: background 0.1s;
+}
+.drop-item:hover { background: rgba(64,160,240,0.15); }
+.drop-item.selected { background: rgba(64,160,240,0.2); color: var(--accent-blue); }
+.drop-item .port-hint { font-size: 10px; color: var(--text-secondary); margin-left: auto; }
+</style>
+</head>
+<body>
+
+<div class="app-frame">
+
+  <!-- ═══════════ Content Row ═══════════ -->
+  <div class="content-row">
+
+    <!-- ═══════════ SIDEBAR ═══════════ -->
+    <div class="sidebar">
+
+      <!-- Sticky: Target Input + Run -->
+      <div class="sidebar-sticky">
+
+        <div class="section-title">
+          <span class="icon">🎯</span> Target
+        </div>
+
+        <div class="target-row">
+          <div class="scheme-combo" id="schemeCombo" onclick="toggleDropdown()">
+            <span class="val" id="schemeVal">https://</span>
+            <span class="arrow">▼</span>
+            <div class="combo-dropdown" id="comboDropdown">
+              <!-- Web -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">🌐 Web</div>
+              <div class="drop-item selected" onclick="selectScheme('https')">
+                <span>https://</span><span class="port-hint">443</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('http')">
+                <span>http://</span><span class="port-hint">80</span>
+              </div>
+              <!-- File Transfer -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">📁 File Transfer</div>
+              <div class="drop-item" onclick="selectScheme('ftp')">
+                <span>ftp://</span><span class="port-hint">21</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('ftps')">
+                <span>ftps://</span><span class="port-hint">990</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('ssh')">
+                <span>ssh://</span><span class="port-hint">22</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('sftp')">
+                <span>sftp://</span><span class="port-hint">22</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('scp')">
+                <span>scp://</span><span class="port-hint">22</span>
+              </div>
+              <!-- Email -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">📧 Email</div>
+              <div class="drop-item" onclick="selectScheme('smtp')">
+                <span>smtp://</span><span class="port-hint">25</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('smtps')">
+                <span>smtps://</span><span class="port-hint">465</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('imap')">
+                <span>imap://</span><span class="port-hint">143</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('imaps')">
+                <span>imaps://</span><span class="port-hint">993</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('pop3')">
+                <span>pop3://</span><span class="port-hint">110</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('pop3s')">
+                <span>pop3s://</span><span class="port-hint">995</span>
+              </div>
+              <!-- Database -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">🗄 Database</div>
+              <div class="drop-item" onclick="selectScheme('mysql')">
+                <span>mysql://</span><span class="port-hint">3306</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('postgresql')">
+                <span>postgresql://</span><span class="port-hint">5432</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('redis')">
+                <span>redis://</span><span class="port-hint">6379</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('mongodb')">
+                <span>mongodb://</span><span class="port-hint">27017</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('mssql')">
+                <span>mssql://</span><span class="port-hint">1433</span>
+              </div>
+              <!-- Remote Access -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">🖥 Remote Access</div>
+              <div class="drop-item" onclick="selectScheme('telnet')">
+                <span>telnet://</span><span class="port-hint">23</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('rdp')">
+                <span>rdp://</span><span class="port-hint">3389</span>
+              </div>
+              <!-- Directory -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">📂 Directory</div>
+              <div class="drop-item" onclick="selectScheme('ldap')">
+                <span>ldap://</span><span class="port-hint">389</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('ldaps')">
+                <span>ldaps://</span><span class="port-hint">636</span>
+              </div>
+              <!-- Messaging -->
+              <div class="drop-group-header" onclick="event.stopPropagation()">📡 Messaging</div>
+              <div class="drop-item" onclick="selectScheme('mqtt')">
+                <span>mqtt://</span><span class="port-hint">1883</span>
+              </div>
+              <div class="drop-item" onclick="selectScheme('mqtts')">
+                <span>mqtts://</span><span class="port-hint">8883</span>
+              </div>
+            </div>
+          </div>
+          <input class="host-field" placeholder="example.com/path" id="hostField">
+        </div>
+
+        <!-- Advanced toggle -->
+        <div class="advance-toggle">
+          <span class="gear" id="gearToggle" onclick="toggleAdvanced()" title="Port / Auth">⚙</span>
+        </div>
+
+        <!-- Advanced fields (hidden by default) -->
+        <div class="advanced-fields" id="advancedFields">
+          <input class="port" placeholder="443" title="Port">
+          <input class="user" placeholder="Username" title="Username">
+          <input class="pass" placeholder="Password" title="Password" type="password">
+        </div>
+
+        <!-- Validation error (hidden by default) -->
+        <div class="error-row" id="errorRow">
+          <span>⚠</span>
+          <span class="msg">Please enter a valid hostname or IP address</span>
+        </div>
+
+        <!-- Run Button -->
+        <button class="run-btn" id="runBtn" onclick="toggleRun()">
+          ▶ Run Diagnostics
+        </button>
+        <button class="stop-btn" id="stopBtn" onclick="toggleRun()">
+          ■ Stop
+        </button>
+
+      </div> <!-- end sidebar-sticky -->
+
+      <!-- Scrollable area below -->
+      <div class="sidebar-scroll">
+
+        <!-- Port Scan -->
+        <div class="section-title" style="margin-bottom:4px;">
+          <span class="icon">🔌</span> Port Scan
+        </div>
+        <div class="section-card">
+          <div class="port-scan-row">
+            <label>From</label>
+            <input value="" placeholder="1">
+            <label>To</label>
+            <input value="" placeholder="1023">
+            <label class="common-chk">
+              <input type="checkbox" checked> Common
+            </label>
+          </div>
+        </div>
+
+        <!-- Diagnostic Groups -->
+        <div class="section-title" style="margin-top:10px;margin-bottom:4px;">
+          <span class="icon">⊞</span> Diagnostic Groups
+        </div>
+        <div style="display:flex;flex-direction:column;gap:0;">
+          <label class="group-check checked">
+            <input type="checkbox" checked> System &amp; Adapters
+          </label>
+          <label class="group-check checked">
+            <input type="checkbox" checked> Connectivity &amp; Security
+          </label>
+          <label class="group-check checked">
+            <input type="checkbox" checked> Internet &amp; DNS
+          </label>
+          <label class="group-check disabled">
+            <input type="checkbox" disabled> Remote Host
+          </label>
+          <label class="group-check disabled">
+            <input type="checkbox" disabled> Website / URL
+          </label>
+        </div>
+
+        <!-- Divider -->
+        <div class="divider" style="margin: 6px 0;"><div class="line"></div></div>
+
+        <!-- Target Analysis -->
+        <div class="section-title" style="margin-bottom:4px;">
+          <span class="icon">📊</span> Target Analysis
+        </div>
+        <div class="section-card">
+          <div class="analysis-table">
+            <div class="analysis-row"><span class="key">Type</span><span class="val good">URL</span></div>
+            <div class="analysis-row"><span class="key">Scheme</span><span class="val">https (port 443)</span></div>
+            <div class="analysis-row"><span class="key">Host</span><span class="val">example.com</span></div>
+            <div class="analysis-row"><span class="key">IP</span><span class="val warn">not resolved yet</span></div>
+            <div class="analysis-row"><span class="key">Port</span><span class="val">443 (explicit)</span></div>
+            <div class="analysis-row"><span class="key">Path</span><span class="val">/path</span></div>
+          </div>
+          <div style="font-size:10px; font-weight:600; margin:6px 0 2px; color:var(--text-secondary);">Port Reference</div>
+          <div class="port-grid">
+            <div class="port-item"><span class="pn">21</span><span class="ps">FTP</span></div>
+            <div class="port-item"><span class="pn">22</span><span class="ps">SSH</span></div>
+            <div class="port-item"><span class="pn">23</span><span class="ps">Telnet</span></div>
+            <div class="port-item"><span class="pn">25</span><span class="ps">SMTP</span></div>
+            <div class="port-item"><span class="pn">53</span><span class="ps">DNS</span></div>
+            <div class="port-item"><span class="pn">80</span><span class="ps">HTTP</span></div>
+            <div class="port-item"><span class="pn">110</span><span class="ps">POP3</span></div>
+            <div class="port-item"><span class="pn">135</span><span class="ps">RPC</span></div>
+            <div class="port-item"><span class="pn">139</span><span class="ps">NetBIOS</span></div>
+            <div class="port-item"><span class="pn">143</span><span class="ps">IMAP</span></div>
+            <div class="port-item"><span class="pn">443</span><span class="ps">HTTPS</span></div>
+            <div class="port-item"><span class="pn">445</span><span class="ps">SMB</span></div>
+            <div class="port-item"><span class="pn">993</span><span class="ps">IMAPS</span></div>
+            <div class="port-item"><span class="pn">995</span><span class="ps">POP3S</span></div>
+            <div class="port-item"><span class="pn">1433</span><span class="ps">SQL Svr</span></div>
+            <div class="port-item"><span class="pn">1723</span><span class="ps">PPTP</span></div>
+            <div class="port-item"><span class="pn">3306</span><span class="ps">MySQL</span></div>
+            <div class="port-item"><span class="pn">3389</span><span class="ps">RDP</span></div>
+            <div class="port-item"><span class="pn">5432</span><span class="ps">PostgreSQL</span></div>
+            <div class="port-item"><span class="pn">5900</span><span class="ps">VNC</span></div>
+            <div class="port-item"><span class="pn">6379</span><span class="ps">Redis</span></div>
+            <div class="port-item"><span class="pn">8080</span><span class="ps">HTTP-Alt</span></div>
+            <div class="port-item"><span class="pn">8443</span><span class="ps">HTTPS-Alt</span></div>
+            <div class="port-item"><span class="pn">27017</span><span class="ps">MongoDB</span></div>
+          </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="section-title" style="margin-bottom:4px;">
+          <span class="icon">📋</span> Summary
+        </div>
+        <div class="summary-row">
+          <div class="summary-card pass"><div class="count">28</div><div class="label">Pass</div></div>
+          <div class="summary-card warn"><div class="count">5</div><div class="label">Warn</div></div>
+          <div class="summary-card fail"><div class="count">2</div><div class="label">Fail</div></div>
+          <div class="summary-card skip"><div class="count">3</div><div class="label">Skip</div></div>
+          <div class="summary-card info"><div class="count">0</div><div class="label">Info</div></div>
+        </div>
+
+      </div> <!-- end sidebar-scroll -->
+    </div> <!-- end sidebar -->
+
+    <!-- ═══════════ MAIN CONTENT ═══════════ -->
+    <div class="main">
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <span class="icon">⚡</span>
+        <span class="title">Results</span>
+        <span class="progress" id="progressCounter" style="display:none;">28 / 38</span>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState">
+        <span class="wifi-icon">📶</span>
+        <span class="msg">Enter a target above and click Run Diagnostics</span>
+      </div>
+
+      <!-- Results Area (hidden until run) -->
+      <div class="results-area" id="resultsArea">
+        <!-- G1 Group -->
+        <div class="result-group">
+          <div class="result-group-header" onclick="toggleGroup(this)">
+            <span class="expand">▾</span>
+            System &amp; Adapters
+          </div>
+          <div class="result-group-body">
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">Network Adapters</span><span class="dur">45ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">IP Configuration</span><span class="dur">12ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">DNS Servers</span><span class="dur">8ms</span></div>
+            <div class="result-item"><span class="status-dot warn"></span><span class="name">WiFi Signal</span><span class="dur">120ms</span></div>
+          </div>
+        </div>
+        <!-- G2 Group -->
+        <div class="result-group">
+          <div class="result-group-header" onclick="toggleGroup(this)">
+            <span class="expand">▾</span>
+            Connectivity &amp; Security
+          </div>
+          <div class="result-group-body">
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">Network Profile</span><span class="dur">35ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">Firewall Status</span><span class="dur">22ms</span></div>
+            <div class="result-item"><span class="status-dot fail"></span><span class="name">Proxy Settings</span><span class="dur">18ms</span></div>
+          </div>
+        </div>
+        <!-- G3 Group -->
+        <div class="result-group">
+          <div class="result-group-header" onclick="toggleGroup(this)">
+            <span class="expand">▾</span>
+            Internet &amp; DNS
+          </div>
+          <div class="result-group-body">
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">Internet Connectivity</span><span class="dur">210ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">DNS Resolution</span><span class="dur">45ms</span></div>
+            <div class="result-item"><span class="status-dot skip"></span><span class="name">Speed Test</span><span class="dur">--</span></div>
+          </div>
+        </div>
+        <!-- G4 Group -->
+        <div class="result-group">
+          <div class="result-group-header" onclick="toggleGroup(this)">
+            <span class="expand">▸</span>
+            Remote Host
+          </div>
+          <div class="result-group-body" style="display:none;">
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">DNS Resolution</span><span class="dur">32ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">Ping (4 probes)</span><span class="dur">8ms</span></div>
+            <div class="result-item"><span class="status-dot warn"></span><span class="name">Traceroute</span><span class="dur">890ms</span></div>
+            <div class="result-item"><span class="status-dot skip"></span><span class="name">Port Scan</span><span class="dur">--</span></div>
+          </div>
+        </div>
+        <!-- G5 Group -->
+        <div class="result-group">
+          <div class="result-group-header" onclick="toggleGroup(this)">
+            <span class="expand">▾</span>
+            Website / URL
+          </div>
+          <div class="result-group-body">
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">URL Parsing</span><span class="dur">2ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">TCP Connect</span><span class="dur">120ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">Service Banner</span><span class="dur">85ms</span></div>
+            <div class="result-item"><span class="status-dot pass"></span><span class="name">SSL Certificate</span><span class="dur">340ms</span></div>
+            <div class="result-item"><span class="status-dot warn"></span><span class="name">Security Headers</span><span class="dur">95ms</span></div>
+            <div class="result-item"><span class="status-dot fail"></span><span class="name">CURL Verbose</span><span class="dur">timeout</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div> <!-- end main -->
+  </div> <!-- end content-row -->
+
+  <!-- ═══════════ Bottom Tab Bar ═══════════ -->
+  <div class="tab-bar">
+    <div class="tab">
+      <span class="tab-icon">📊</span> Dashboard
+    </div>
+    <div class="tab active">
+      <span class="tab-icon">⚡</span> Diagnostics
+    </div>
+    <div class="tab">
+      <span class="tab-icon">⚙</span> Config
+    </div>
+    <div class="tab">
+      <span class="tab-icon">📝</span> Report
+    </div>
+    <div class="tab">
+      <span class="tab-icon">🔧</span> Settings
+    </div>
+  </div>
+
+</div> <!-- end app-frame -->
+
+<script>
+/* ── Scheme ComboBox Dropdown ── */
+function toggleDropdown() {
+  document.getElementById('comboDropdown').classList.toggle('open');
+}
+function selectScheme(scheme) {
+  document.getElementById('schemeVal').textContent = scheme + '://';
+  // Update selected state
+  document.querySelectorAll('.drop-item').forEach(el => el.classList.remove('selected'));
+  event.target.closest('.drop-item').classList.add('selected');
+  document.getElementById('comboDropdown').classList.remove('open');
+}
+// Close dropdown on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.scheme-combo')) {
+    document.getElementById('comboDropdown').classList.remove('open');
+  }
+});
+
+/* ── Advanced Fields Toggle ── */
+function toggleAdvanced() {
+  var f = document.getElementById('advancedFields');
+  var g = document.getElementById('gearToggle');
+  f.classList.toggle('open');
+  g.classList.toggle('active');
+}
+
+/* ── Run / Stop ── */
+function toggleRun() {
+  var run = document.getElementById('runBtn');
+  var stop = document.getElementById('stopBtn');
+  var empty = document.getElementById('emptyState');
+  var results = document.getElementById('resultsArea');
+  var progress = document.getElementById('progressCounter');
+
+  if (run.style.display !== 'none' || !run.classList.contains('running')) {
+    // Start running
+    run.classList.add('running');
+    run.textContent = '⟳ Running...';
+    stop.classList.add('visible');
+    empty.style.display = 'none';
+    results.classList.add('visible');
+    progress.style.display = 'inline';
+  } else {
+    // Stop
+    run.classList.remove('running');
+    run.textContent = '▶ Run Diagnostics';
+    stop.classList.remove('visible');
+    progress.style.display = 'none';
+  }
+}
+
+/* ── Result Group Collapse ── */
+function toggleGroup(header) {
+  var body = header.nextElementSibling;
+  var expand = header.querySelector('.expand');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    expand.textContent = '▾';
+  } else {
+    body.style.display = 'none';
+    expand.textContent = '▸';
+  }
+}
+
+/* ── Group Checkbox Toggle ── */
+document.querySelectorAll('.group-check').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    if (e.target.tagName === 'INPUT') return;
+    var cb = el.querySelector('input');
+    if (!cb.disabled) {
+      cb.checked = !cb.checked;
+      el.classList.toggle('checked', cb.checked);
+    }
+  });
+});
+</script>
+
+</body>
+</html>
