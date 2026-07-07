@@ -483,13 +483,33 @@ DiagnosticResult activeConnections(DiagId id) {
             if (cols.size() < 10) continue;
             QStringList local = cols[1].split(':');
             QStringList remote = cols[2].split(':');
-            auto hexToIp = [](const QString& hex) -> QString {
-                bool ok; uint32_t ip = hex.toUInt(&ok, 16);
-                return ipToStr(ip);
+            // Parse IPv4 (8 hex) or IPv6 (32 hex) address from /proc/net
+            auto hexToIp = [&](const QString& hex, bool isV6) -> QString {
+                if (!isV6) {
+                    bool ok; uint32_t ip = hex.toUInt(&ok, 16);
+                    return ipToStr(ip);
+                }
+                // /proc/net/tcp6 format: 4 groups of 8 hex chars (32 total),
+                // each group is a 32-bit word in host byte order
+                if (hex.length() < 32) return QStringLiteral("::");
+                unsigned char addr[16] = {};
+                for (int g = 0; g < 4; g++) {
+                    bool ok; uint32_t word = hex.mid(g * 8, 8).toUInt(&ok, 16);
+                    // /proc/net/tcp6 stores each 32-bit group in host byte order;
+                    // copy as little-endian for inet_ntop
+                    addr[g * 4 + 0] = (word >>  0) & 0xFF;
+                    addr[g * 4 + 1] = (word >>  8) & 0xFF;
+                    addr[g * 4 + 2] = (word >> 16) & 0xFF;
+                    addr[g * 4 + 3] = (word >> 24) & 0xFF;
+                }
+                char buf[INET6_ADDRSTRLEN] = {};
+                inet_ntop(AF_INET6, addr, buf, sizeof(buf));
+                return QString::fromLatin1(buf);
             };
+            bool isV6 = (proto == QStringLiteral("TCP6") || proto == QStringLiteral("UDP6"));
             int state = cols[3].toInt(nullptr, 16);
             rawConns.append({proto,
-                hexToIp(local[0]), remote.size()>0 ? hexToIp(remote[0]) : QStringLiteral("0.0.0.0"),
+                hexToIp(local[0], isV6), remote.size()>0 ? hexToIp(remote[0], isV6) : (isV6 ? QStringLiteral("::") : QStringLiteral("0.0.0.0")),
                 isUdp ? QStringLiteral("*:*") : QString::fromLatin1(tcpStateName(state)),
                 local[1].toInt(nullptr, 16),
                 remote.size()>1 ? remote[1].toInt(nullptr, 16) : 0});
@@ -2475,119 +2495,29 @@ DiagnosticResult dnsCache(DiagId id) {
 #else
     out.append(QStringLiteral("DNS Cache Information"));
     out.append(QString());
-    // 闁冲厜鍋撻柍鍏夊亾 Try systemd-resolved cache (most common on modern Linux) 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
-    QFile cache(QStringLiteral("/run/systemd/resolve/cache"));
-    if (cache.open(QIODevice::ReadOnly)) {
-        QByteArray data = cache.readAll();
-        hasCache = true;
-        out.append(QStringLiteral("systemd-resolved DNS Cache"));
-        out.append(QStringLiteral("=============================================="));
-        out.append(QString());
-        if (data.size() > 0) {
-            // Parse cache entries: each entry is separated by blank line
-            // Format: "example.com IN A 93.184.216.34" or similar
-            QString text = QString::fromLatin1(data);
-            QStringList entries = text.split('\n');
-            for (const auto& line : entries) {
-                QString trimmed = line.trimmed();
-                if (trimmed.isEmpty()) {
-                    out.append(QString());
-                    continue;
-                }
-                // Parse: "hostname IN TYPE value" or "hostname IN TYPE ttl value"
-                QStringList parts = trimmed.split(' ');
-                if (parts.size() >= 4 && parts[1] == "IN") {
-                    QString name = parts[0];
-                    QString type = parts[2];
-                    // Skip "IN" marker, extract TTL if present
-                    QString dataPart;
-                    int ttl = 0;
-                    bool ok = false;
-                    if (parts.size() >= 5) {
-                        int val = parts[3].toInt(&ok);
-                        if (ok && val > 0 && parts.size() >= 6) {
-                            ttl = val;
-                            dataPart = parts.mid(4).join(' ');
-                        } else {
-                            dataPart = parts.mid(3).join(' ');
-                        }
-                    }
-                    // Show in ipconfig /displaydns style
-                    cacheEntries++;
-                    out.append(QStringLiteral("    %1").arg(name));
-                    out.append(QStringLiteral("    ----------------------------------------"));
-                    out.append(QStringLiteral("    Record Name . . . . . : %1").arg(name));
-                    out.append(QStringLiteral("    Record Type . . . . . : %1").arg(type));
-                    if (ttl > 0)
-                        out.append(QStringLiteral("    Time To Live  . . . . : %1").arg(ttl));
-                    out.append(QStringLiteral("    Data . . . . . . . . : %1").arg(dataPart));
-                } else {
-                    // Unparsed line 闁?show as-is
-                    out.append(QStringLiteral("    %1").arg(trimmed));
-                }
-            }
-        } else {
-            out.append(QStringLiteral("    (cache is empty)"));
-        }
-    } else {
-        // 闁冲厜鍋撻柍鍏夊亾 No systemd-resolved 闁?check and show resolution setup 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
-        out.append(QStringLiteral("DNS Resolution Configuration"));
-        out.append(QStringLiteral("=============================================="));
-        out.append(QString());
+    // /run/systemd/resolve/cache is a BINARY dump (not text) — do NOT parse it.
+    // Instead, check which DNS caching services are active.
+    bool hasCache = false;
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+    if (QFile::exists(QStringLiteral("/run/systemd/resolve/cache")))
+        { hasCache = true; out.append(QStringLiteral("  systemd-resolved:     active (cache at /run/systemd/resolve/cache)")); }
+    else if (QFile::exists(QStringLiteral("/var/lib/systemd/resolve/cache")))
+        { hasCache = true; out.append(QStringLiteral("  systemd-resolved:     active (cache at /var/lib/systemd/resolve/cache)")); }
+    if (QFile::exists(QStringLiteral("/var/db/nscd/hosts")))
+        { hasCache = true; out.append(QStringLiteral("  nscd:                 active (hosts cache at /var/db/nscd/hosts)")); }
+    else if (QFile::exists(QStringLiteral("/var/cache/nscd/hosts")))
+        { hasCache = true; out.append(QStringLiteral("  nscd:                 active (hosts cache at /var/cache/nscd/hosts)")); }
+    if (QFile::exists(QStringLiteral("/var/lib/misc/dnsmasq.leases")))
+        { hasCache = true; out.append(QStringLiteral("  dnsmasq:              active (leases at /var/lib/misc/dnsmasq.leases)")); }
+    if (QFile::exists(QStringLiteral("/var/run/dnsmasq/resolv.conf")))
+        { hasCache = true; out.append(QStringLiteral("  dnsmasq:              active (resolver config found)")); }
+#endif
+    if (!hasCache)
+        out.append(QStringLiteral("  No DNS caching service detected"));
 
-        // Check for nscd
-        if (QFile::exists(QStringLiteral("/var/db/nscd/hosts")))
-            out.append(QStringLiteral("    nscd: active (hosts cache at /var/db/nscd/hosts)"));
-        else if (QFile::exists(QStringLiteral("/var/cache/nscd/hosts")))
-            out.append(QStringLiteral("    nscd: active (hosts cache at /var/cache/nscd/hosts)"));
-
-        // Check for dnsmasq
-        if (QFile::exists(QStringLiteral("/var/lib/misc/dnsmasq.leases")))
-            out.append(QStringLiteral("    dnsmasq: active (leases at /var/lib/misc/dnsmasq.leases)"));
-
-        // Show current DNS resolver info
-#ifdef _WIN32
-        // Windows: use GetAdaptersAddresses DNS server list
-        {
-            ULONG bufLen = 15000;
-            QByteArray buf(bufLen, '\0');
-            PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
-            if (GetAdaptersAddresses(AF_UNSPEC,
-                    GAA_FLAG_SKIP_UNICAST | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
-                    nullptr, adapters, &bufLen) == NO_ERROR) {
-                QSet<QString> seenDns;
-                for (auto* a = adapters; a; a = a->Next) {
-                    for (auto* dns = a->FirstDnsServerAddress; dns; dns = dns->Next) {
-                        char ipBuf[INET6_ADDRSTRLEN] = {};
-                        DWORD ipLen = sizeof(ipBuf);
-                        WSAAddressToStringA(dns->Address.lpSockaddr,
-                            dns->Address.iSockaddrLength, nullptr, ipBuf, &ipLen);
-                        QString ip = QString::fromLatin1(ipBuf);
-                        if (!seenDns.contains(ip)) {
-                            seenDns.insert(ip);
-                            out.append(QStringLiteral("    Nameserver . . . . . . . . : %1").arg(ip));
-                        }
-                    }
-                }
-            }
-        }
-#else
-        QFile resolv(QStringLiteral("/etc/resolv.conf"));
-        if (resolv.open(QIODevice::ReadOnly)) {
-            QTextStream ts(&resolv);
-            while (!ts.atEnd()) {
-                QString line = ts.readLine().trimmed();
-                if (line.isEmpty() || line.startsWith('#')) continue;
-                if (line.startsWith("nameserver "))
-                    out.append(QStringLiteral("    Nameserver . . . . . . . . : %1").arg(line.mid(11)));
-                else if (line.startsWith("search "))
-                    out.append(QStringLiteral("    DNS Suffix Search List. . : %1").arg(line.mid(7)));
-                else if (line.startsWith("domain "))
-                    out.append(QStringLiteral("    Connection-specific DNS . . : %1").arg(line.mid(7)));
-                else if (line.startsWith("options "))
-                    out.append(QStringLiteral("    Options . . . . . . . . . : %1").arg(line.mid(8)));
-            }
-        }
+    out.append(QString());
+    out.append(QStringLiteral("DNS Resolution Configuration:"));
+    out.append(QString());
 #endif
 
         // Show hosts file summary
