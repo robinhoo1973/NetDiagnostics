@@ -990,7 +990,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                         out.append(QStringLiteral("   BSSID . . . . . . . . . . . . : %1").arg(
                             macToStr((const unsigned char*)bssid)));
                         // Channel / Frequency
-                        ULONG channel = 0; // ulChCenterFrequency removed from MSYS2 MinGW-w64 WLAN_ASSOCIATION_ATTRIBUTES
+                        ULONG channel = 0; // ulChCenterFrequency removed from MSYS2 MinGW;
                         if (channel == 0) channel = 1;
                         out.append(QStringLiteral("   Channel. . . . . . . . . . . : %1").arg(channel));
                         // Security
