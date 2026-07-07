@@ -133,13 +133,6 @@ Item {
                 }
                 Item { Layout.fillWidth: true }
                 Item { width: compact ? 0 : 4; visible: !compact }
-                Rectangle {
-                    visible: !compact
-                    implicitWidth: 36; implicitHeight: 36; radius: ThemeEngine.radius.md
-                    color: "transparent"; border { width: 1; color: ThemeEngine.colors.borderCard }
-                    AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: ThemeEngine.colors.textSecondary }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: content.closeRequested() }
-                }
             }
         }
     }

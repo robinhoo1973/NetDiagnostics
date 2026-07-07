@@ -141,6 +141,15 @@ Item {
     readonly property string targetLabel: t("Target: ", "Cible : ", "Ziel: ", "Цель: ", "Obiettivo: ", "目标: ", "目標: ", "Objetivo: ", "Alvo: ")
     readonly property string naLabel: t("N/A", "N/D", "k.A.", "Н/Д", "N/D", "不适用", "不適用", "N/D", "N/D")
 
+    // ── Scheme group labels (TargetInput schema selector) ──────────────
+    readonly property string schemeGroupWeb:    t("Web", "Web", "Web", "Веб", "Web", "网页", "網頁", "Web", "Web")
+    readonly property string schemeGroupFile:   t("File Transfer", "Transfert de fichier", "Dateiübertragung", "Передача файлов", "Trasferimento file", "文件传输", "文件傳輸", "Transferencia de archivos", "Transferência de arquivos")
+    readonly property string schemeGroupEmail:  t("Email", "Email", "E-Mail", "Эл. почта", "Email", "电子邮件", "電子郵件", "Correo", "Email")
+    readonly property string schemeGroupDb:     t("Database", "Base de données", "Datenbank", "База данных", "Database", "数据库", "數據庫", "Base de datos", "Base de dados")
+    readonly property string schemeGroupRemote: t("Remote Access", "Accès distant", "Fernzugriff", "Удаленный доступ", "Accesso remoto", "远程访问", "遠程訪問", "Acceso remoto", "Acesso remoto")
+    readonly property string schemeGroupDir:    t("Directory", "Annuaire", "Verzeichnis", "Каталог", "Directory", "目录", "目錄", "Directorio", "Diretório")
+    readonly property string schemeGroupMsg:    t("Messaging", "Messagerie", "Nachrichten", "Сообщения", "Messaggistica", "消息", "消息", "Mensajería", "Mensagens")
+
     // ── Summary cards ──
     readonly property string summaryPass: t("Pass", "Réussi", "Bestanden", "Пройден", "Superato", "通过", "通過", "Correcto", "Aprovado")
     readonly property string summaryWarning: t("Warning", "Avertissement", "Warnung", "Предупреждение", "Avviso", "警告", "警告", "Advertencia", "Aviso")
