@@ -456,6 +456,20 @@ DiagnosticResult activeConnections(DiagId id) {
                 (int)ntohs((u_short)row.dwLocalPort), (int)ntohs((u_short)row.dwRemotePort)});
         }
     }
+    // ── UDP listener table ────────────────────────────────────────────
+    bufLen = 0;
+    GetExtendedUdpTable(nullptr, &bufLen, FALSE, AF_INET, UDP_TABLE_OWNER_PID, 0);
+    QByteArray udpBuf(bufLen, '\0');
+    auto* udpTable = (MIB_UDPTABLE_OWNER_PID*)udpBuf.data();
+    if (GetExtendedUdpTable(udpTable, &bufLen, FALSE, AF_INET, UDP_TABLE_OWNER_PID, 0) == NO_ERROR) {
+        for (DWORD i = 0; i < udpTable->dwNumEntries; i++) {
+            auto& row = udpTable->table[i];
+            struct in_addr la; la.S_un.S_addr = row.dwLocalAddr;
+            rawConns.append({QStringLiteral("UDP"),
+                QStringLiteral("%1:%2").arg(ip4ToStr(la)).arg(ntohs((u_short)row.dwLocalPort)),
+                QStringLiteral("*:*"), QStringLiteral("*:*"), 0, 0});
+        }
+    }
 #else
     auto parseProcNet = [&](const QString& path, const QString& proto, bool isUdp) {
         QFile f(path);
@@ -1798,6 +1812,22 @@ DiagnosticResult arpTable(DiagId id) {
         }
         FreeMibTable(table);
     }
+    // ── IPv6 neighbor table ──────────────────────────────────────────
+    {
+        PMIB_IPNET_TABLE2 table6 = nullptr;
+        if (GetIpNetTable2(AF_INET6, &table6) == NO_ERROR && table6) {
+            for (ULONG i = 0; i < table6->NumEntries; i++) {
+                auto& row = table6->Table[i];
+                char ipBuf[INET6_ADDRSTRLEN] = {};
+                inet_ntop(AF_INET6, &row.Address.Ipv6.sin6_addr, ipBuf, sizeof(ipBuf));
+                out.append(QStringLiteral("  %1  %2  %3")
+                    .arg(QString::fromLatin1(ipBuf), -24)
+                    .arg(macToStr((const unsigned char*)&row.PhysicalAddress), -23)
+                    .arg(row.State == NlnsReachable ? "dynamic" : "static"));
+            }
+            FreeMibTable(table6);
+        }
+    }
 #else
     // Common ARP table columns (shared by Linux and macOS)
     static const QVector<DiagnosticFormatter::ColSpec> kArpCols = {
@@ -2215,11 +2245,26 @@ DiagnosticResult proxySettings(DiagId id) {
     QList<QStringList> proxyRows;
 
 #ifdef _WIN32
+    // ── IE Proxy (WinINET, per-user) ───────────────────────────────────
     WINHTTP_CURRENT_USER_IE_PROXY_CONFIG cfg = {};
     if (WinHttpGetIEProxyConfigForCurrentUser(&cfg)) {
         if (cfg.lpszProxy) proxyRows.append({QStringLiteral("HTTP Proxy"), QString::fromWCharArray(cfg.lpszProxy)});
         if (cfg.lpszProxyBypass) proxyRows.append({QStringLiteral("Bypass"), QString::fromWCharArray(cfg.lpszProxyBypass)});
-        GlobalFree(cfg.lpszProxy); GlobalFree(cfg.lpszProxyBypass);
+        if (cfg.lpszAutoConfigUrl) proxyRows.append({QStringLiteral("AutoConfig URL"), QString::fromWCharArray(cfg.lpszAutoConfigUrl)});
+        proxyRows.append({QStringLiteral("AutoDetect"), cfg.fAutoDetect ? QStringLiteral("Enabled") : QStringLiteral("Disabled")});
+        GlobalFree(cfg.lpszProxy); GlobalFree(cfg.lpszProxyBypass); GlobalFree(cfg.lpszAutoConfigUrl);
+    }
+    // ── WinHTTP proxy (system-level, used by services) ─────────────────
+    {
+        QProcess ps;
+        ps.start(QStringLiteral("netsh"), QStringList() << QStringLiteral("winhttp") << QStringLiteral("show") << QStringLiteral("proxy"));
+        if (ps.waitForFinished(3000)) {
+            QString winHttpOut = QString::fromLocal8Bit(ps.readAllStandardOutput()).trimmed();
+            if (!winHttpOut.isEmpty()) {
+                proxyRows.append({QStringLiteral(""), QString()}); // separator
+                proxyRows.append({QStringLiteral("WinHTTP"), winHttpOut});
+            }
+        }
     }
 #else
     const char* vars[] = {"HTTP_PROXY","HTTPS_PROXY","FTP_PROXY","NO_PROXY","http_proxy","https_proxy","no_proxy"};
@@ -2500,7 +2545,33 @@ DiagnosticResult dnsCache(DiagId id) {
         if (QFile::exists(QStringLiteral("/var/lib/misc/dnsmasq.leases")))
             out.append(QStringLiteral("    dnsmasq: active (leases at /var/lib/misc/dnsmasq.leases)"));
 
-        // Show resolv.conf as the "current resolver" info
+        // Show current DNS resolver info
+#ifdef _WIN32
+        // Windows: use GetAdaptersAddresses DNS server list
+        {
+            ULONG bufLen = 15000;
+            QByteArray buf(bufLen, '\0');
+            PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
+            if (GetAdaptersAddresses(AF_UNSPEC,
+                    GAA_FLAG_SKIP_UNICAST | GAA_FLAG_SKIP_ANYCAST | GAA_FLAG_SKIP_MULTICAST,
+                    nullptr, adapters, &bufLen) == NO_ERROR) {
+                QSet<QString> seenDns;
+                for (auto* a = adapters; a; a = a->Next) {
+                    for (auto* dns = a->FirstDnsServerAddress; dns; dns = dns->Next) {
+                        char ipBuf[INET6_ADDRSTRLEN] = {};
+                        DWORD ipLen = sizeof(ipBuf);
+                        WSAAddressToStringA(dns->Address.lpSockaddr,
+                            dns->Address.iSockaddrLength, nullptr, ipBuf, &ipLen);
+                        QString ip = QString::fromLatin1(ipBuf);
+                        if (!seenDns.contains(ip)) {
+                            seenDns.insert(ip);
+                            out.append(QStringLiteral("    Nameserver . . . . . . . . : %1").arg(ip));
+                        }
+                    }
+                }
+            }
+        }
+#else
         QFile resolv(QStringLiteral("/etc/resolv.conf"));
         if (resolv.open(QIODevice::ReadOnly)) {
             QTextStream ts(&resolv);
@@ -2517,6 +2588,7 @@ DiagnosticResult dnsCache(DiagId id) {
                     out.append(QStringLiteral("    Options . . . . . . . . . : %1").arg(line.mid(8)));
             }
         }
+#endif
 
         // Show hosts file summary
         QFile hosts(QStringLiteral("/etc/hosts"));

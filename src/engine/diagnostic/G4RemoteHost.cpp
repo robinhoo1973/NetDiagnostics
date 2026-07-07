@@ -451,6 +451,32 @@ static DiagnosticResult noTargetResult(DiagId id, DiagGroup group) {
     return r;
 }
 
+#ifdef _WIN32
+// ── Windows ICMP Echo (IcmpSendEcho — no admin required) ──────────────────
+static int icmpEchoRttMsWindows(quint32 resolvedIp, int seq, int timeoutMs) {
+    HANDLE hIcmp = IcmpCreateFile();
+    if (hIcmp == INVALID_HANDLE_VALUE) return -1;
+
+    DWORD ipAddr = htonl(resolvedIp);
+    // IcmpSendEcho minimum buffer for reply data + IO_STATUS_BLOCK
+    const DWORD replySize = sizeof(ICMP_ECHO_REPLY) + 8 + 256;
+    QByteArray replyBuf(replySize, '\0');
+
+    // Send single ICMP echo
+    DWORD dwRet = IcmpSendEcho(hIcmp, ipAddr, nullptr, 0, nullptr,
+                               replyBuf.data(), replySize, timeoutMs);
+    int rtt = -1;
+    if (dwRet > 0) {
+        auto* pReply = (ICMP_ECHO_REPLY*)replyBuf.data();
+        if (pReply->Status == IP_SUCCESS)
+            rtt = (int)pReply->RoundTripTime;
+    }
+    IcmpCloseHandle(hIcmp);
+    (void)seq; // silently unused — IcmpSendEcho has no sequence param
+    return rtt;
+}
+#endif
+
 #if !defined(_WIN32) && !defined(__linux__)
 // ── ICMP Echo helpers (Apple/BSD) ──────────────────────────────────────────
 // SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root and WITHOUT
@@ -564,15 +590,18 @@ DiagnosticResult ping(const QString& target) {
 
     QElapsedTimer t; t.start();
     int sent=0, rcvd=0; double sumMs=0, minMs=1e9, maxMs=0;
-    // iOS/macOS: use real ICMP Echo via a datagram ICMP socket (no root needed).
-    // If ICMP is blocked/unavailable, fall back to a TCP connect probe. Windows
-    // and Linux keep the permission-safe TCP connect method (unchanged).
+    // ICMP Echo first (accurate), fall back to TCP connect if blocked.
+    // Windows: IcmpSendEcho (no admin required). Apple: datagram ICMP socket.
+    // Linux: TCP connect only (raw ICMP needs CAP_NET_RAW).
     for (int i=0; i<4; ++i) {
         ++sent;
         int ms = -1;
-#if !defined(_WIN32) && !defined(__linux__)
+#if defined(_WIN32)
         if (resolvedIp)
-            ms = icmpEchoRttMs(resolvedIp, i + 1, 2000); // ICMP Echo first (accurate)
+            ms = icmpEchoRttMsWindows(resolvedIp, i + 1, 2000);
+#elif !defined(__linux__)
+        if (resolvedIp)
+            ms = icmpEchoRttMs(resolvedIp, i + 1, 2000);
 #endif
         if (ms < 0) {
             int ports[] = {443, 80, 22, 8080, 8443};      // TCP fallback / default
