@@ -77,6 +77,15 @@ ColumnLayout {
 
                 displayText: currentText + "://"
 
+                // Theme-colored display text
+                contentItem: Label {
+                    text: schemeCombo.displayText
+                    font: schemeCombo.font
+                    color: ThemeEngine.colors.textPrimary
+                    verticalAlignment: Text.AlignVCenter
+                    leftPadding: 0
+                }
+
                 textRole: "scheme"
                 model: root.schemeModel
 
@@ -135,36 +144,43 @@ ColumnLayout {
                         // ── Group header (icon + label + separator) ─────
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: isFirst ? 18 : 0
+                            implicitHeight: isFirst ? 20 : 0
                             color: "transparent"
                             visible: isFirst
+                            // Separator line
                             Rectangle {
                                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
                                 height: 1; color: ThemeEngine.colors.borderCard
                             }
+                            // Label pill (left-aligned with icon)
                             RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 4
+                                anchors { left: parent.left; leftMargin: 0; verticalCenter: parent.verticalCenter }
+                                spacing: 6
                                 AppIcon {
                                     name: groupIcon; size: 12
                                     color: ThemeEngine.colors.primary
-                                    visible: isFirst
                                 }
                                 Label {
                                     text: groupLabel
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 8
                                     font.weight: Font.Bold; color: ThemeEngine.textMuted
-                                    background: Rectangle { color: ThemeEngine.bgCard; anchors.fill: parent }
+                                    background: Rectangle {
+                                        color: ThemeEngine.bgCard
+                                        anchors.fill: parent
+                                        anchors.leftMargin: -2
+                                        anchors.rightMargin: -4
+                                    }
                                 }
                             }
                         }
-                        // ── Scheme row (no icon — just text) ────────────
+                        // ── Scheme row (left-indented, no icon) ─────────
                         Label {
                             Layout.fillWidth: true; Layout.fillHeight: true
                             text: scheme + "://"
                             font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                            color: ThemeEngine.textPrimary
+                            color: ThemeEngine.colors.textPrimary
                             verticalAlignment: Text.AlignVCenter
+                            leftPadding: 2
                         }
                     }
 

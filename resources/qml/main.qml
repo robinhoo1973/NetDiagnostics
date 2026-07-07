@@ -64,9 +64,11 @@ ApplicationWindow {
         anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 12 }
         width: 32; height: 32; radius: 6
         color: "transparent"
-        AppIcon {
+        Label {
             anchors.centerIn: parent
-            name: "close"; size: 16; color: ThemeEngine.colors.textSecondary
+            text: "×"  // × multiplication sign (bold cross)
+            font.family: ThemeEngine.fontMono; font.pixelSize: 20
+            font.weight: Font.Bold; color: ThemeEngine.colors.textSecondary
         }
         MouseArea {
             anchors.fill: parent
