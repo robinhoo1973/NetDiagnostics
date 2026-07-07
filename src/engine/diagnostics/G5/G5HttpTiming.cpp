@@ -1,4 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
+#ifndef NO_CURL
 namespace G5WebsiteUrl {
 DiagnosticResult httpTiming(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpTiming, "No target", DiagStatus::Skipped);
@@ -29,4 +30,5 @@ DiagnosticResult httpTiming(const QString& target) {
 }
 #endif // NO_CURL
 
+#endif // NO_CURL
 } // namespace G5WebsiteUrl
