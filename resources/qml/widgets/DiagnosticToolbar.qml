@@ -227,14 +227,7 @@ Rectangle {
                 }
             }
 
-            // ── Zone 3: Close button ────────────────────────────────
-            Rectangle {
-                width: 30; height: 30; radius: 6; color: "transparent"
-                Label { anchors.centerIn: parent; text: "×"; font.family: ThemeEngine.monoFont
-                    font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textSecondary }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: { /* handled by main.qml close button */ } }
-            }
+            // Zone 3: Run/Stop toggle (close button is in main.qml top-right)
         }
 
         // ═══════════════ ROW 2: Advanced fields (collapsible) ═══════════
