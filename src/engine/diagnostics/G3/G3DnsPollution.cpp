@@ -1,7 +1,6 @@
 #include "engine/diagnostics/GHelpers.h"
 
 namespace G1G2G3Native {
-#include "engine/diagnostics/SpeedTest.h"
 DiagnosticResult dnsPollution(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();

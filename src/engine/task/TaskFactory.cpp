@@ -2,7 +2,9 @@
 // TaskFactory.cpp 鈥?Create DiagnosticTask objects for each DiagId
 // =============================================================================
 #include "engine/task/TaskFactory.h"
-#include "engine/diagnostics/G1G2G3Native.h"
+#include "engine/diagnostics/G1/G1SystemAdapters.h"
+#include "engine/diagnostics/G2/G2Connectivity.h"
+#include "engine/diagnostics/G3/G3InternetDns.h"
 #include "engine/diagnostics/G4/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
@@ -11,7 +13,7 @@
 #ifdef PLATFORM_IOS
 #include "engine/diagnostics/G5/IosHttpTask.h"
 #include "engine/diagnostics/G3/IosDnsTask.h"
-#include "engine/task/IosNetworkInfo.h"
+#include "engine/diagnostics/G1/IosNetworkInfo.h"
 #endif
 #ifdef PLATFORM_ANDROID
 #include "engine/diagnostics/G5/AndroidNetworkInfo.h"
