@@ -5,7 +5,7 @@
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #endif
-#include "engine/diagnostics/G5WebsiteUrl.h"
+#include "engine/diagnostics/G5/G5WebsiteUrl.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
 #include <QUrl>

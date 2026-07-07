@@ -8,7 +8,7 @@
 #ifdef PLATFORM_IOS
 
 #include "engine/task/DiagnosticTask.h"
-#include "engine/diagnostics/G4RemoteHost.h"
+#include "engine/diagnostics/G4/G4RemoteHost.h"
 #include "util/DiagnosticFormatter.h"
 #include <QElapsedTimer>
 #include <atomic>

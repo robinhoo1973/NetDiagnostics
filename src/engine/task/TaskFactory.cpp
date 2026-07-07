@@ -3,21 +3,21 @@
 // =============================================================================
 #include "engine/task/TaskFactory.h"
 #include "engine/diagnostics/G1G2G3Native.h"
-#include "engine/diagnostics/G4RemoteHost.h"
+#include "engine/diagnostics/G4/G4RemoteHost.h"
 #include "engine/runner/NetworkProbe.h"
 #include "util/Logger.h"
 #include <QElapsedTimer>
 #include <QDateTime>
 #ifdef PLATFORM_IOS
-#include "engine/task/IosHttpTask.h"
-#include "engine/task/IosDnsTask.h"
+#include "engine/diagnostics/G5/IosHttpTask.h"
+#include "engine/diagnostics/G3/IosDnsTask.h"
 #include "engine/task/IosNetworkInfo.h"
 #endif
 #ifdef PLATFORM_ANDROID
-#include "engine/task/AndroidNetworkInfo.h"
+#include "engine/diagnostics/G5/AndroidNetworkInfo.h"
 #endif
 #if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
-#include "engine/diagnostics/G5WebsiteUrl.h"
+#include "engine/diagnostics/G5/G5WebsiteUrl.h"
 #endif
 
 // Per-test timeout values (ms). Default is 60000; shorter for fast tests.
