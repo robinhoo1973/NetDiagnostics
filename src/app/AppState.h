@@ -144,7 +144,7 @@ public:
         const QString scheme = t.section("://", 0, 0).toLower();
         return (scheme == "http" || scheme == "https") && !isTargetEmpty();
     }
-    Q_INVOKABLE bool isTargetUrl() const { return isTargetHttpUrl(); }
+    Q_INVOKABLE bool isTargetUrl() const { return hasUrlScheme() && !isTargetEmpty(); }
     Q_INVOKABLE bool isTargetHost() const { return !isTargetEmpty() && !hasUrlScheme(); }
     Q_INVOKABLE bool canRun() const {
         if (m_runStatus == RunStatus::Running) return false;
