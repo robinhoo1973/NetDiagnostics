@@ -1,4 +1,4 @@
-#include "engine/diagnostics/G4/g4common.h"
+#include "engine/diagnostics/G4/G4Common.h"
 namespace G4RemoteHost {
 DiagnosticResult pathPing(const QString& target) {
     DiagnosticResult r;
