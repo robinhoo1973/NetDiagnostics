@@ -27,7 +27,7 @@ set(SOURCES
     src/engine/diagnostics/DiagnosticFormatter.cpp
     src/engine/task/DiagnosticTask.cpp
     src/engine/task/TaskFactory.cpp
-    src/engine/runner/NetworkProbe.cpp
+    src/engine/diagnostics/NetworkProbe.cpp
     src/app/AppState.cpp
     src/app/DiagnosticConfig.cpp
     src/app/ReportEngine.cpp
