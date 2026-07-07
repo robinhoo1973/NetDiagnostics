@@ -151,8 +151,6 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
         if (ns_parserr(&handle, section, i, &rr) < 0) continue;
         if (!header) { out.append(title); header = true; }
 
-        char owner[256];
-        ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), ns_rr_rdata(rr), owner, sizeof(owner));
         // Get owner name from the RR (rr.name points into the message buffer)
         char ownBuf[256] = {};
         if (rr.name)
@@ -192,8 +190,14 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
         } else if (rtype == ns_t_soa) {
             char mname[256], rname[256];
             const unsigned char* p = rd;
-            p += ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), p, mname, sizeof(mname));
-            p += ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), p, rname, sizeof(rname));
+            int len1 = ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), p, mname, sizeof(mname));
+            if (len1 < 0) continue; // malformed SOA mname — skip
+            p += len1;
+            int len2 = ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), p, rname, sizeof(rname));
+            if (len2 < 0) continue; // malformed SOA rname — skip
+            p += len2;
+            // Verify we have enough RDATA for the 5 fixed 32-bit fields (20 bytes)
+            if (p + 20 > ns_msg_end(handle)) continue;
             uint32_t serial = (p[0]<<24)|(p[1]<<16)|(p[2]<<8)|p[3];
             uint32_t refresh = (p[4]<<24)|(p[5]<<16)|(p[6]<<8)|p[7];
             uint32_t retry = (p[8]<<24)|(p[9]<<16)|(p[10]<<8)|p[11];
@@ -698,6 +702,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     // reached target. This is a kernel limitation, not a code bug.
     int icmpSock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (icmpSock < 0) s_rawIcmpAvailable = false;
+    if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { close(icmpSock); icmpSock = -1; s_rawIcmpAvailable = false; }
     if (icmpSock >= 0) {
         // ── Raw ICMP method (traceroute -I) ─────────────────────────────
         quint32 targetIp = resolveIPv4(host);
@@ -1339,19 +1344,48 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 #ifdef _WIN32
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
-#else
-        // Check local interface MTU from /sys/class/net
+#elif defined(__linux__)
+        // Linux: read MTU from sysfs, skipping loopback (lo has MTU 65536)
         QDir netDir(QStringLiteral("/sys/class/net"));
         for (const auto& fi : netDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-            QFile f(QStringLiteral("/sys/class/net/%1/mtu").arg(fi.fileName()));
+            QString ifName = fi.fileName();
+            if (ifName == QStringLiteral("lo")) continue; // skip loopback
+            QFile f(QStringLiteral("/sys/class/net/%1/mtu").arg(ifName));
             if (f.open(QIODevice::ReadOnly)) {
                 int v = QString::fromLatin1(f.readAll().trimmed()).toInt();
-                if (v > 0 && v > discoveredMtu) discoveredMtu = v;
+                if (v > 0 && v > discoveredMtu && v < 10000) discoveredMtu = v;
             }
         }
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
+#elif defined(__APPLE__)
+        // macOS: use getifaddrs + ioctl SIOCGIFMTU
+        struct ifaddrs* ifa = nullptr;
+        if (getifaddrs(&ifa) == 0) {
+            int sock = socket(AF_INET, SOCK_DGRAM, 0);
+            for (auto* p = ifa; p && sock >= 0; p = p->ifa_next) {
+                QString ifName = QString::fromLatin1(p->ifa_name);
+                if (ifName == QStringLiteral("lo0")) continue;
+                if (!(p->ifa_flags & IFF_UP)) continue;
+                struct ifreq ifr = {};
+                strncpy(ifr.ifr_name, p->ifa_name, IFNAMSIZ - 1);
+                if (ioctl(sock, SIOCGIFMTU, &ifr) == 0) {
+                    int v = ifr.ifr_mtu;
+                    if (v > 0 && v > discoveredMtu && v < 10000) discoveredMtu = v;
+                }
+            }
+            if (sock >= 0) close(sock);
+            freeifaddrs(ifa);
+        }
+        int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
+        out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
+#else
+        // Fallback for other platforms
+        int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
+        out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
 #endif
     }
 
