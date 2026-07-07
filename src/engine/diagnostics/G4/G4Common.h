@@ -8,6 +8,7 @@ typedef SSIZE_T ssize_t;
 #include "util/DnsResolver.h"
 #include "util/NetUtil.h"
 #include <QHostInfo>
+#include <QRegularExpression>
 #include <QElapsedTimer>
 #include <atomic>
 #include <QFile>
@@ -239,8 +240,6 @@ static DiagnosticResult noTargetResult(DiagId id, DiagGroup group);
 // =============================================================================
 #pragma once
 
-#include <QString>
-#include <QRegularExpression>
 #include <QVector>
 
 struct PingResult {
