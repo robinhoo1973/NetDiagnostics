@@ -144,12 +144,24 @@ static QString cellularSummary(const QVariantMap& cell) {
     return QStringLiteral("Cellular service detected");
 }
 
+#ifdef _WIN32
+// MIB_TCP_STATE numbering (Windows) — differs from Linux /proc/net/tcp
+static const char* tcpStateName(int st) {
+    switch(st){case 1:return"CLOSED";case 2:return"LISTEN";case 3:return"SYN_SENT";
+    case 4:return"SYN_RCVD";case 5:return"ESTABLISHED";case 6:return"FIN_WAIT1";
+    case 7:return"FIN_WAIT2";case 8:return"CLOSE_WAIT";case 9:return"CLOSING";
+    case 10:return"LAST_ACK";case 11:return"TIME_WAIT";case 12:return"DELETE_TCB";
+    default:return"UNKNOWN";}
+}
+#else
+// Linux /proc/net/tcp state numbering
 static const char* tcpStateName(int st) {
     switch(st){case 1:return"ESTABLISHED";case 2:return"SYN_SENT";case 3:return"SYN_RECV";
     case 4:return"FIN_WAIT1";case 5:return"FIN_WAIT2";case 6:return"TIME_WAIT";
     case 7:return"CLOSE";case 8:return"CLOSE_WAIT";case 9:return"LAST_ACK";
     case 10:return"LISTEN";case 11:return"CLOSING";default:return"UNKNOWN";}
 }
+#endif
 
 #ifndef _WIN32
 // Parse /proc/net/tcp (or tcp6/udp/udp6) 闁?hex format:
@@ -956,11 +968,55 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                 auto& wi = ifList->InterfaceInfo[i];
                 out.append(QStringLiteral("   Name . . . . . . . . . . . . : %1").arg(QString::fromWCharArray(wi.strInterfaceDescription)));
                 {
-    wchar_t guidStr[40] = {};
-    StringFromGUID2(wi.InterfaceGuid, guidStr, 40);
-    out.append(QStringLiteral("   GUID . . . . . . . . . . . . : %1").arg(QString::fromWCharArray(guidStr)));
-}
+                    wchar_t guidStr[40] = {};
+                    StringFromGUID2(wi.InterfaceGuid, guidStr, 40);
+                    out.append(QStringLiteral("   GUID . . . . . . . . . . . . : %1").arg(QString::fromWCharArray(guidStr)));
+                }
                 out.append(QStringLiteral("   State. . . . . . . . . . . . : %1").arg(wi.isState == wlan_interface_state_connected ? "connected" : "disconnected"));
+
+                // ── Query extended WiFi details for connected interfaces ──
+                if (wi.isState == wlan_interface_state_connected) {
+                    DWORD dataSize = 0;
+                    PWLAN_CONNECTION_ATTRIBUTES pConn = nullptr;
+                    if (WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_current_connection,
+                                          nullptr, &dataSize, (PVOID*)&pConn, nullptr) == ERROR_SUCCESS && pConn) {
+                        // SSID
+                        QString ssid = QString::fromUtf8((const char*)pConn->wlanAssociationAttributes.dot11Ssid.ucSSID,
+                                                         pConn->wlanAssociationAttributes.dot11Ssid.uSSIDLength);
+                        out.append(QStringLiteral("   SSID. . . . . . . . . . . . . : %1").arg(ssid));
+                        // BSSID (MAC)
+                        auto& bssid = pConn->wlanAssociationAttributes.dot11Bssid;
+                        out.append(QStringLiteral("   BSSID . . . . . . . . . . . . : %1").arg(
+                            macToStr((const unsigned char*)bssid)));
+                        // Channel / Frequency
+                        ULONG channel = pConn->wlanAssociationAttributes.ulChCenterFrequency / 1000;
+                        if (channel == 0) channel = 1;
+                        out.append(QStringLiteral("   Channel. . . . . . . . . . . : %1").arg(channel));
+                        // Security
+                        QString auth = QStringLiteral("Unknown");
+                        switch (pConn->wlanSecurityAttributes.dot11AuthAlgorithm) {
+                            case DOT11_AUTH_ALGO_80211_OPEN:    auth = QStringLiteral("Open"); break;
+                            case DOT11_AUTH_ALGO_80211_SHARED_KEY: auth = QStringLiteral("Shared"); break;
+                            case DOT11_AUTH_ALGO_WPA:           auth = QStringLiteral("WPA"); break;
+                            case DOT11_AUTH_ALGO_WPA_PSK:       auth = QStringLiteral("WPA-PSK"); break;
+                            case DOT11_AUTH_ALGO_WPA3:          auth = QStringLiteral("WPA3"); break;
+                            case DOT11_AUTH_ALGO_RSNA:          auth = QStringLiteral("WPA2"); break;
+                            case DOT11_AUTH_ALGO_RSNA_PSK:      auth = QStringLiteral("WPA2-PSK"); break;
+                        }
+                        out.append(QStringLiteral("   Authentication. . . . . . . : %1").arg(auth));
+                        WlanFreeMemory(pConn); pConn = nullptr;
+                    }
+
+                    // RSSI (signal strength)
+                    LONG rssi = 0;
+                    dataSize = sizeof(rssi);
+                    if (WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_rssi,
+                                          nullptr, &dataSize, (PVOID*)&rssi, nullptr) == ERROR_SUCCESS) {
+                        int signalPct = (rssi >= -50) ? 100 : (rssi <= -100) ? 0 : 2 * (rssi + 100);
+                        out.append(QStringLiteral("   Signal . . . . . . . . . . . : %1%  (%2 dBm)")
+                                       .arg(signalPct).arg(rssi));
+                    }
+                }
                 out.append(QString());
             }
             WlanFreeMemory(ifList);
@@ -1441,7 +1497,7 @@ DiagnosticResult routingTable(DiagId id) {
                 ip4ToStr(mask),
                 ip4ToStr(gw),
                 ifName.left(9),
-                QString::number(row.SitePrefixLength)});
+                QString::number(row.Metric)});
         }
         FreeMibTable(ft);
     }
@@ -1677,7 +1733,60 @@ DiagnosticResult networkProfile(DiagId id) {
     out.append(QString());
 
 #ifdef _WIN32
-    out.append(QStringLiteral("  (use netsh advfirewall / Get-NetConnectionProfile for details)"));
+    // ── Hostname ──────────────────────────────────────────────────────
+    char hostBuf[256] = {};
+    DWORD hostLen = sizeof(hostBuf);
+    GetComputerNameA(hostBuf, &hostLen);
+    out.append(QStringLiteral("  Hostname: %1").arg(QString::fromLatin1(hostBuf)));
+
+    // ── IP Forwarding from registry ───────────────────────────────────
+    {
+        HKEY hKey = nullptr;
+        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+                "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            DWORD val = 0, sz = sizeof(val);
+            if (RegQueryValueExA(hKey, "IPEnableRouter", nullptr, nullptr, (LPBYTE)&val, &sz) == ERROR_SUCCESS)
+                out.append(QStringLiteral("  IP Forwarding: %1").arg(val ? "Enabled" : "Disabled"));
+            RegCloseKey(hKey);
+        }
+    }
+    // ── Firewall status per profile via QProcess (PowerShell) ─────────
+    {
+        QProcess ps;
+        ps.start(QStringLiteral("powershell"), QStringList()
+            << QStringLiteral("-NoProfile") << QStringLiteral("-Command")
+            << QStringLiteral("Get-NetFirewallProfile | Select Name,Enabled | Format-List"));
+        if (ps.waitForFinished(5000)) {
+            QString fwOut = QString::fromUtf8(ps.readAllStandardOutput()).trimmed();
+            if (!fwOut.isEmpty()) {
+                out.append(QString());
+                out.append(QStringLiteral("  Firewall Profile Status:"));
+                for (auto& line : fwOut.split('\n')) {
+                    QString t = line.trimmed();
+                    if (!t.isEmpty()) out.append(QStringLiteral("    ") + t);
+                }
+            }
+        }
+    }
+    // ── Network category (Public/Private/Domain) ──────────────────────
+    {
+        QProcess ps;
+        ps.start(QStringLiteral("powershell"), QStringList()
+            << QStringLiteral("-NoProfile") << QStringLiteral("-Command")
+            << QStringLiteral("Get-NetConnectionProfile | Select Name,NetworkCategory | Format-List"));
+        if (ps.waitForFinished(5000)) {
+            QString catOut = QString::fromUtf8(ps.readAllStandardOutput()).trimmed();
+            if (!catOut.isEmpty()) {
+                out.append(QString());
+                out.append(QStringLiteral("  Connection Profile:"));
+                for (auto& line : catOut.split('\n')) {
+                    QString t = line.trimmed();
+                    if (!t.isEmpty()) out.append(QStringLiteral("    ") + t);
+                }
+            }
+        }
+    }
 #else
     char hostname[256] = {};
     gethostname(hostname, sizeof(hostname));
@@ -1717,7 +1826,38 @@ DiagnosticResult tcpSettings(DiagId id) {
     out.append(QString());
 
 #ifdef _WIN32
-    out.append(QStringLiteral("  (use netsh int tcp show global for details)"));
+    // Try PowerShell first (Get-NetTCPSetting), fall back to netsh
+    {
+        QProcess ps;
+        ps.start(QStringLiteral("powershell"), QStringList()
+            << QStringLiteral("-NoProfile") << QStringLiteral("-Command")
+            << QStringLiteral("Get-NetTCPSetting | Select SettingName,CongestionProvider,AutoTuningLevelLocal | Format-List"));
+        if (ps.waitForFinished(5000)) {
+            QString tcpOut = QString::fromUtf8(ps.readAllStandardOutput()).trimmed();
+            if (!tcpOut.isEmpty()) {
+                out.append(QStringLiteral("  (Get-NetTCPSetting)"));
+                for (auto& line : tcpOut.split('\n')) {
+                    QString t = line.trimmed();
+                    if (!t.isEmpty()) out.append(QStringLiteral("    ") + t);
+                }
+            } else {
+                out.append(QStringLiteral("  (use 'netsh int tcp show global' for details)"));
+            }
+        }
+        // Also add keepalive settings from registry
+        HKEY hKey = nullptr;
+        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE,
+                "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters",
+                0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+            DWORD val = 0, sz = sizeof(val);
+            if (RegQueryValueExA(hKey, "KeepAliveTime", nullptr, nullptr, (LPBYTE)&val, &sz) == ERROR_SUCCESS)
+                out.append(QStringLiteral("  KeepAliveTime: %1 ms").arg(val));
+            sz = sizeof(val);
+            if (RegQueryValueExA(hKey, "KeepAliveInterval", nullptr, nullptr, (LPBYTE)&val, &sz) == ERROR_SUCCESS)
+                out.append(QStringLiteral("  KeepAliveInterval: %1 ms").arg(val));
+            RegCloseKey(hKey);
+        }
+    }
 #else
     static const QVector<DiagnosticFormatter::ColSpec> kTcpCols = {
         {"Setting", 20, false},
