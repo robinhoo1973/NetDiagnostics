@@ -54,3 +54,4 @@ DiagnosticResult sslCertificate(const QString& target) {
 #ifndef NO_CURL
 }
 } // namespace G5WebsiteUrl
+#endif // NO_CURL
