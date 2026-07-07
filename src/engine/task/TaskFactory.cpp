@@ -6,7 +6,7 @@
 #include "engine/diagnostics/G2/G2Connectivity.h"
 #include "engine/diagnostics/G3/G3InternetDns.h"
 #include "engine/diagnostics/G4/G4RemoteHost.h"
-#include "engine/runner/NetworkProbe.h"
+#include "engine/diagnostics/NetworkProbe.h"
 #include "util/Logger.h"
 #include <QElapsedTimer>
 #include <QDateTime>
