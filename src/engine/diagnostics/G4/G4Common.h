@@ -234,5 +234,10 @@ static QString rcodeStr(int rcode) {
 }
 #endif
 
+// DNS resolution helper — wraps DnsResolver with 3s timeout
+static quint32 resolveIPv4(const QString& host) {
+    return DnsResolver::resolveIPv4(host, 3000);
+}
+
 static DiagnosticResult noTargetResult(DiagId id, DiagGroup group);
 
