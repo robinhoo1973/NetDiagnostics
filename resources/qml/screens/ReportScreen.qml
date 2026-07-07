@@ -169,7 +169,7 @@ Item {
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: page.isRunning ? ThemeEngine.colors.primary : (hasResults ? ThemeEngine.passGreen : ThemeEngine.infoBlue) }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: page.isRunning ? ThemeEngine.colors.primary : "transparent" }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
