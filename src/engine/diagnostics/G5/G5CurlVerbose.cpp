@@ -19,4 +19,3 @@ DiagnosticResult curlVerbose(const QString& target) {
 // ── G5.6 Security Headers (HEAD + check security header presence) ───────
 }
 } // namespace G5WebsiteUrl
-} // namespace G5WebsiteUrl
