@@ -4,32 +4,21 @@ import QtQuick.Layouts
 import "../widgets"
 import "../theme"
 
-// ── Flutter DiagnosticMainScreen 1:1 ───────────────────────────────────
+// ── Single-column layout — toolbar + results ──────────────────────────
 Item {
     id: page
     objectName: "diagnostic"
-    // Bundled monospace font loaded locally so `dejavuMono.name` resolves in THIS
-    // component (QML ids don't cross file scope). font.family takes a SINGLE family
-    // name (not a comma list), so binding the exact loaded family guarantees a real
-    // fixed-width font for the detail output (box-drawing + em-dash + arrows).
     FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
     readonly property bool wide: width >= 600
 
-    // ── Run-active flag: true during diagnostic execution ──
+    // ── Run state ─────────────────────────────────────────────────────
     property bool _runActive: false
     property int _cachedGen: -1
-
-    property string _snapIconName: "circle"
-    property color _snapIconColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
     property string _snapTargetError: ""
-
-    property bool _snapG0chk: true
-    property bool _snapG1chk: true
-    property bool _snapG2chk: true
-    property bool _snapG3chk: false
+    property bool _snapG0chk: true; property bool _snapG1chk: true
+    property bool _snapG2chk: true; property bool _snapG3chk: false
     property bool _snapG4chk: false
-    property bool _snapG3en: false
-    property bool _snapG4en: false
+    property bool _snapG3en: false; property bool _snapG4en: false
     property int _snapVersion: 0
 
     function takeSnapshot() {
@@ -38,41 +27,25 @@ Item {
         _snapG2chk = appState.isGroupAllEnabled(2) || appState.isGroupAnyEnabled(2)
         _snapG3chk = appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
         _snapG4chk = appState.isGroupAllEnabled(4) || appState.isGroupAnyEnabled(4)
-        _snapG3en  = !appState.isTargetEmpty()
-        _snapG4en  = appState.isTargetHttpUrl()
-
-        var err = appState.targetValidationError()
-        if (err !== "") {
-            _snapIconName = "error"; _snapIconColor = ThemeEngine.failRed
-        } else if (appState.isTargetEmpty()) {
-            _snapIconName = "circle"; _snapIconColor = Qt.alpha(ThemeEngine.textSecondary, 0.4)
-        } else if (appState.isTargetHttpUrl()) {
-            _snapIconName = "globe"; _snapIconColor = ThemeEngine.accentBlue
-        } else {
-            _snapIconName = "target"; _snapIconColor = ThemeEngine.passGreen
-        }
-        _snapTargetError = err
+        _snapG3en = !appState.isTargetEmpty()
+        _snapG4en = appState.isTargetHttpUrl()
+        _snapTargetError = appState.targetValidationError()
         _snapVersion++
     }
-
     function syncState() {
         var v = appState.stateVersion
-        if (v === _cachedGen) return
-        _cachedGen = v
+        if (v === _cachedGen) return; _cachedGen = v
         var ns = appState.runStatus
         if (ns === 1 && !_runActive) { takeSnapshot(); _runActive = true }
         else if (ns !== 1 && _runActive) { _runActive = false }
         if (!_runActive) takeSnapshot()
     }
-
-    // Signal-driven sync — no idle polling. stateVersion bumps on every
-    // relevant C++ state change (see AppState::bumpVersion).
     Connections { target: appState; function onStateVersionChanged() { syncState() } }
     Component.onCompleted: takeSnapshot()
 
     property var currentDetail: ({})
     property var visibleGroups: {
-        let _ = _snapVersion   // force re-evaluation on snapshot
+        let _ = _snapVersion
         var g = []
         for (var i = 0; i < 5; i++) {
             var s = appState.groupStats(i)
@@ -81,229 +54,119 @@ Item {
         return g
     }
 
-    // ── Wide: Row[ Sidebar(260) | Divider(1) | Content(flex) ] ─────
-    RowLayout {
-        anchors.fill: parent; spacing: 0
-        visible: page.wide
-
-        Rectangle {
-            Layout.preferredWidth: 260; Layout.fillHeight: true
-            color: ThemeEngine.bgSidebar; clip: true
-            Flickable {
-                anchors.fill: parent
-                contentWidth: width; contentHeight: sidebarColWide.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-                ColumnLayout { id: sidebarColWide; width: parent.width
-                    SidebarContent { width: parent.width; compact: false }
-                }
-            }
-        }
-        Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: ThemeEngine.colors.borderCard }
-        ContentArea { Layout.fillWidth: true; Layout.fillHeight: true }
-    }
-
-    // ── Narrow: Column[ Sidebar(flex) | Divider | Content(flex) ] ──
+    // ── Single-column layout ──────────────────────────────────────────
     ColumnLayout {
         anchors.fill: parent; spacing: 0
-        visible: !page.wide
 
-        Rectangle {
+        // ═══════════════ TOOLBAR ═══════════════════════════════════════
+        DiagnosticToolbar {
             Layout.fillWidth: true
-            Layout.preferredHeight: appState.totalCompleted > 0 ? 0.36 * page.height : 0.5 * page.height
-            color: ThemeEngine.bgSidebar; clip: true
-            Flickable {
-                anchors.fill: parent; contentHeight: sidebarCol.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-                ColumnLayout { id: sidebarCol; width: parent.width
-                    SidebarContent { width: parent.width; compact: appState.totalCompleted > 0 }
-                }
-            }
-        }
-        Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: ThemeEngine.colors.borderCard }
-        ContentArea { Layout.fillWidth: true; Layout.fillHeight: true }
-    }
-
-    // ═══════════════════ SIDEBAR ═══════════════════
-    component SidebarContent: ColumnLayout {
-        property bool compact: false
-        property int _cachedSnapVer: -1
-        spacing: 0
-
-        function syncCheckboxes() {} // no-op: Repeater delegates bind directly to _snapG<N>chk
-
-        Connections {
-            target: page
-            function on_SnapVersionChanged() {
-                _cachedSnapVer = page._snapVersion
-            }
+            wide: page.wide
         }
 
-        // Target input + Run — sticky above scroll area
-        Item { Layout.preferredHeight: 8 }
-        TargetInputPanel { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12 }
-
-        // ── Port Scan (grouped with target input) ────────────────────────
-        Item { Layout.preferredHeight: 8; visible: !compact }
-        PortScanConfig { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; visible: !compact }
-
-        // ── Diagnostic Groups (compact Repeater) ────────────────────────
-        Item { Layout.preferredHeight: 10; visible: !compact }
-        ColumnLayout {
-            visible: !compact; spacing: 2
-            Layout.leftMargin: 12; Layout.rightMargin: 12
-            Label { text: Tr.diagGroup; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
-            Item { Layout.preferredHeight: 4 }
-
-            Repeater {
-                model: 5
-                delegate: Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 30; radius: 6
-                    // _snapG0chk.._snapG4chk via array lookup
-                    readonly property var _chkSnaps: [page._snapG0chk, page._snapG1chk, page._snapG2chk, page._snapG3chk, page._snapG4chk]
-                    readonly property var _enSnaps: [true, true, true, page._snapG3en, page._snapG4en]
-                    color: _chkSnaps[index] ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
-                    RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                        CheckBox {
-                            Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                            checked: appState.isGroupAllEnabled(index)
-                            enabled: !page._runActive && _enSnaps[index]
-                            onClicked: appState.setGroupEnabled(index, checked)
-                        }
-                        Item { width: 8 }
-                        Label { Layout.fillWidth: true; text: Tr.groupName(index); font.family: ThemeEngine.monoFont; font.pixelSize: 12 }
-                    }
-                }
-            }
-        }
-
-        // Divider
+        // ═══════════════ RESULTS HEADER ════════════════════════════════
+        // Status bar — visible during/after run
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 8; color: "transparent"
-            visible: !compact
-            Rectangle { anchors.centerIn: parent; width: parent.width - 24; height: 1; color: ThemeEngine.colors.borderCard }
-        }
-
-        // Target Analysis
-        TargetAnalysisPanel {
-            Layout.fillWidth: true
-            Layout.leftMargin: 12; Layout.rightMargin: 12
-            visible: !compact && appState.target !== ""
-            target: appState.target
-        }
-
-        // Spacer
-        Item { Layout.fillHeight: true; visible: !compact }
-
-        // Summary cards
-        Rectangle {
-            Layout.fillWidth: true; implicitHeight: summaryCards.implicitHeight + 24
-            color: "transparent"
-            border { width: 1; color: ThemeEngine.colors.borderCard }
-            SummaryCards { id: summaryCards; anchors { fill: parent; margins: 12 } }
-        }
-    }
-
-    // ═══════════════════ CONTENT ═══════════════════
-    component ContentArea: ColumnLayout {
-        spacing: 0
-
-        // Header bar — status label, progress counter
-        Rectangle {
-            Layout.fillWidth: true; implicitHeight: 41
+            Layout.fillWidth: true; implicitHeight: 36
             color: ThemeEngine.colors.navBar
+            visible: appState.totalCompleted > 0 || appState.runStatus === 1
             RowLayout {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "diagnostics"; size: 18; color: ThemeEngine.cyan }
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                AppIcon {
+                    name: appState.runStatus === 1 ? "spinner" : "diagnostics"
+                    size: 16
+                    color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
+                }
                 Item { width: 8 }
                 Label {
                     text: appState.runStatus === 1 ? Tr.runningDots :
                           appState.runStatus === 2 ? Tr.complete :
-                          appState.runStatus === 3 ? Tr.cancelled :
-                          appState.runStatus === 4 ? Tr.errorCheck : Tr.results
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary
+                          appState.runStatus === 3 ? Tr.cancelled : Tr.results
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+                    color: ThemeEngine.colors.textPrimary
                 }
-                // Progress counter — visible during run
                 Label {
                     visible: appState.runStatus === 1 && appState.totalDiags > 0
                     text: appState.totalCompleted + " / " + appState.totalDiags
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                    font.weight: Font.DemiBold; color: ThemeEngine.cyan
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
+                    color: ThemeEngine.cyan
                 }
                 Item { Layout.fillWidth: true }
+                // Summary stats — compact badges
+                RowLayout {
+                    spacing: 4; visible: appState.totalCompleted > 0
+                    Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.passGreen, 0.15)
+                        Label { anchors.centerIn: parent; text: appState.groupStats(-1).pass||"0"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.passGreen; font.weight: Font.Bold } }
+                    Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.warnYellow, 0.15)
+                        Label { anchors.centerIn: parent; text: appState.groupStats(-1).warn||"0"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.warnYellow; font.weight: Font.Bold } }
+                    Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.failRed, 0.15)
+                        Label { anchors.centerIn: parent; text: appState.groupStats(-1).fail||"0"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.failRed; font.weight: Font.Bold } }
+                }
             }
         }
 
-        // Results body
+        // ═══════════════ RESULTS ═══════════════════════════════════════
         Item {
             Layout.fillWidth: true; Layout.fillHeight: true
+
+            // Empty state
             Column {
                 anchors.centerIn: parent; spacing: 16
                 visible: appState.runStatus === 0 && appState.totalCompleted === 0
-                AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "wifi"; size: 80; color: Qt.alpha(ThemeEngine.textPrimary, 0.15) }
-                Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium; color: Qt.alpha(ThemeEngine.textSecondary, 0.6) }
+                AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "diagnostics"; size: 80; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: Tr.runDiag
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
+                    color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                }
             }
-            // Flickable results list — scrolls when content exceeds viewport
+
+            // Results list
             Flickable {
                 id: resultsFlick
                 anchors { fill: parent; margins: 4 }
                 visible: appState.totalCompleted > 0 || appState.runStatus === 1
                 clip: true
-                contentWidth: width
-                contentHeight: treeColumn.implicitHeight
+                contentWidth: width; contentHeight: treeColumn.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 Column {
-                    id: treeColumn
-                    width: parent.width
-                    spacing: 4
+                    id: treeColumn; width: parent.width; spacing: 4
                     Repeater {
                         model: visibleGroups
                         delegate: DiagGroupPanel {
                             anchors { left: parent.left; right: parent.right }
                             groupIndex: modelData
-                        onDetailClicked: function(data) {
-                            var tid = data.diagId
-                            var d = appState.getDetailResult(tid)
-                            dtTitle.text = (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid)
-                            var statStr = "Unknown"
-                            if (d && d.status !== undefined) statStr = ["Pass","Warning","Fail","Skipped","Error","Info"][d.status] || "Unknown"
-                            var durStr = (d && d.durationMs) ? d.durationMs : (data.durationMs || 0)
-                            dtStatus.text = "Status: " + statStr + "    Duration: " + durStr + "ms"
-                            dtSummary.text = (d && d.summary) ? d.summary : (data.summary || "")
-                            dtOutput.text = (d && d.details) ? d.details : ""
-                            page.currentDetail = d || {}
-                            detailOverlay.visible = true
+                            onDetailClicked: function(data) {
+                                var tid = data.diagId
+                                var d = appState.getDetailResult(tid)
+                                dtTitle.text = (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid)
+                                var statStr = "Unknown"
+                                if (d && d.status !== undefined) statStr = ["Pass","Warning","Fail","Skipped","Error","Info"][d.status] || "Unknown"
+                                var durStr = (d && d.durationMs) ? d.durationMs : (data.durationMs || 0)
+                                dtStatus.text = "Status: " + statStr + "    Duration: " + durStr + "ms"
+                                dtSummary.text = (d && d.summary) ? d.summary : (data.summary || "")
+                                dtOutput.text = (d && d.details) ? d.details : ""
+                                page.currentDetail = d || {}
+                                detailOverlay.visible = true
+                            }
                         }
                     }
                 }
             }
-            }  // Flickable
         }
-
     }
 
-    // ── Detail popup — anchors to root window for full coverage ──────
+    // ═══════════════ DETAIL OVERLAY ═══════════════════════════════════
     Rectangle {
         id: detailOverlay
-        parent: page.parent ? page.parent : page  // mount on StackView if available
+        parent: page.parent ? page.parent : page
         anchors.fill: parent
-        color: "#88000000"
-        visible: false; z: 1000
-
+        color: "#88000000"; visible: false; z: 1000
         onVisibleChanged: {
-            if (!visible) {
-                // Clear stale state to prevent flash on next open
-                dtTitle.text = ""
-                dtStatus.text = ""
-                dtSummary.text = ""
-                dtOutput.text = ""
-                page.currentDetail = {}
-            }
+            if (!visible) { dtTitle.text=""; dtStatus.text=""; dtSummary.text=""; dtOutput.text=""; page.currentDetail = {} }
         }
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: detailOverlay.visible = false
-        }
+        MouseArea { anchors.fill: parent; onClicked: detailOverlay.visible = false }
 
         Rectangle {
             anchors.centerIn: parent
@@ -313,11 +176,14 @@ Item {
             color: ThemeEngine.colors.card
             border { width: 1.5; color: ThemeEngine.colors.borderFocused }
 
-            // Close button — larger, top-right corner
             Rectangle {
                 anchors { top: parent.top; right: parent.right; topMargin: 10; rightMargin: 10 }
                 width: 28; height: 28; radius: 14; color: ThemeEngine.failRed
-                AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: "white" }
+                Label {
+                    anchors.centerIn: parent
+                    text: "×"; font.family: ThemeEngine.monoFont; font.pixelSize: 16
+                    font.weight: Font.Bold; color: "white"
+                }
                 MouseArea { anchors.fill: parent; onClicked: detailOverlay.visible = false }
             }
 
@@ -326,25 +192,23 @@ Item {
                 clip: true
                 contentWidth: Math.max(width, detailCol.implicitWidth)
                 contentHeight: detailCol.implicitHeight
-                // Horizontal scrollbar for wide diagnostic table output
                 ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
                 Column {
                     id: detailCol; spacing: 8
-                    // Allow Column to grow wider than viewport for horizontal scrolling
                     width: Math.max(parent.width, implicitWidth)
-                    Label { id: dtTitle; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:"#FFFFFF"; elide:Text.ElideRight }
-                    Label { id: dtStatus; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
-                    Label { id: dtSummary; text: ""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
+                    Label { id: dtTitle; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
+                    Label { id: dtStatus; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
+                    Label { id: dtSummary; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
                     Repeater {
                         model: currentDetail.properties || []
                         delegate: Row {
                             spacing: 4
-                            Label { text: (modelData["label"]||"?")+":"; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:ThemeEngine.colors.textSecondary; width:120 }
-                            Label { text: modelData["value"]||""; textFormat:Text.PlainText; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
+                            Label { text: (modelData["label"]||"?")+":"; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:ThemeEngine.colors.textSecondary; width:120 }
+                            Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; text: ""; textFormat:Text.PlainText; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }
