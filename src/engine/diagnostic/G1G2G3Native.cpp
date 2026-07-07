@@ -1160,7 +1160,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
 
                 if (ioctl(sock, SIOCGIWFREQ, &wrq) == 0) {
                     double freq = wrq.u.freq.m / 1e9;
-                    channel = QStringLiteral("%1 (%2 GHz)").arg((int)((freq - 2.412) / 0.005 + 1)).arg(freq, 0, 'f', 3);
+                    channel = (freq >= 2.412 && freq <= 2.484) ? QStringLiteral("Ch %1 (%2 GHz)").arg((int)((freq - 2.412) / 0.005 + 1)).arg(freq, 0, 'f', 3) : (freq >= 5.170 && freq <= 5.835) ? QStringLiteral("Ch %1 (%2 GHz)").arg((int)((freq - 5.000) / 0.005)).arg(freq, 0, 'f', 3) : QStringLiteral("%1 GHz").arg(freq, 0, 'f', 3);
                 }
                 closeSocket(sock);
             }
@@ -1325,16 +1325,31 @@ DiagnosticResult nicAdvanced(DiagId id) {
 
             auto rd = [&](const QString& prop) {
 #ifdef PLATFORM_IOS
-                // iOS: only MTU is available via getifaddrs; other props are restricted
-                if (prop == "mtu") {
-                    // SIOCGIFMTU ioctl not available on iOS sandbox; use standard value
-                    return QStringLiteral("1500");
-                }
                 if (prop == "operstate") return QStringLiteral("up");
                 return QStringLiteral("-");
-#else
+#elif !defined(__APPLE__)
+                // Linux: read from sysfs
                 QFile f(QStringLiteral("/sys/class/net/%1/%2").arg(ifName, prop));
                 if (f.open(QIODevice::ReadOnly)) return QString::fromLatin1(f.readAll().trimmed());
+                return QStringLiteral("-");
+#else
+                // macOS: use ioctl for properties that sysfs would provide on Linux
+                int tmpSock = socket(AF_INET, SOCK_DGRAM, 0);
+                if (tmpSock >= 0) {
+                    struct ifreq ifr = {};
+                    strncpy(ifr.ifr_name, ifName.toLatin1().constData(), IFNAMSIZ - 1);
+                    if (prop == "mtu") {
+                        if (ioctl(tmpSock, SIOCGIFMTU, &ifr) == 0)
+                            return QString::number(ifr.ifr_mtu);
+                    }
+                    if (prop == "operstate" || prop == "carrier") {
+                        if (ioctl(tmpSock, SIOCGIFFLAGS, &ifr) == 0) {
+                            bool up = (ifr.ifr_flags & IFF_UP) && (ifr.ifr_flags & IFF_RUNNING);
+                            return QString::fromLatin1(up ? "up" : "down");
+                        }
+                    }
+                    closeSocket(tmpSock);
+                }
                 return QStringLiteral("-");
 #endif
             };
@@ -2335,8 +2350,29 @@ DiagnosticResult netskopeStatus(DiagId id) {
         }
         CloseHandle(hSnap);
     }
+#elif defined(__APPLE__)
+    // macOS: enumerate processes via sysctl KERN_PROC_ALL
+    {
+        int mib[] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
+        size_t needed = 0;
+        if (sysctl(mib, 4, nullptr, &needed, nullptr, 0) == 0 && needed > 0) {
+            QByteArray buf(needed, '\0');
+            if (sysctl(mib, 4, buf.data(), &needed, nullptr, 0) == 0) {
+                struct kinfo_proc* procs = (struct kinfo_proc*)buf.data();
+                int count = (int)(needed / sizeof(struct kinfo_proc));
+                for (int i = 0; i < count; i++) {
+                    QString name = QString::fromLatin1(procs[i].kp_proc.p_comm);
+                    if (name.contains("nsproxy", Qt::CaseInsensitive) || name.contains("zscaler", Qt::CaseInsensitive) ||
+                        name.contains("netskope", Qt::CaseInsensitive) || name.contains("zsproxy", Qt::CaseInsensitive)) {
+                        out.append(QStringLiteral("  Found: %1 (PID %2)").arg(name).arg(procs[i].kp_proc.p_pid));
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
 #else
-    // Check /proc for nsproxy/netskope/zscaler processes
+    // Linux: check /proc for nsproxy/netskope/zscaler processes
     QDir procDir(QStringLiteral("/proc"));
     for (const auto& fi : procDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         bool ok; fi.fileName().toInt(&ok);
