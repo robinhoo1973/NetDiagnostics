@@ -1,4 +1,4 @@
-// IosHttpTask.h — iOS NSURLSession HTTP diagnostics
+// G5CommonIos.h — iOS NSURLSession HTTP diagnostics
 #pragma once
 #include "models/DiagnosticResult.h"
 #include "models/DiagId.h"

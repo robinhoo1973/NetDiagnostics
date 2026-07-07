@@ -5,7 +5,7 @@
 #include <QSettings>
 
 #if defined(PLATFORM_IOS)
-#include "util/PlatformStore.h"
+#include "platform/PlatformStore.h"
 #endif
 
 PremiumStore::PremiumStore(QObject* parent) : QObject(parent) {

@@ -27,9 +27,9 @@
 #include <QProcess>
 #include <QDesktopServices>
 #include <QSettings>
-#include "util/PlatformShare.h"
+#include "platform/PlatformShare.h"
 #if defined(PLATFORM_IOS)
-#include "util/PlatformStore.h"
+#include "platform/PlatformStore.h"
 #endif
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
