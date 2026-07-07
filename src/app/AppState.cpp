@@ -153,7 +153,17 @@ static bool looksLikeIPv6(const QString& host) {
 
 // ── Supported URL schemes (must be lowercase) ────────────────────────────
 static const QStringList& supportedSchemes() {
-    static const QStringList s = {"http", "https", "ftp", "ftps", "ssh", "scp"};
+    // Mirrors G5WebsiteUrl::s_defaultPorts — single source of truth for all
+    // TCP-based protocols with banner-grab or dedicated diagnostic coverage.
+    // NOTE: when adding a scheme here, also ensure it exists in
+    // G5WebsiteUrl::s_defaultPorts for port resolution.
+    static const QStringList s = {
+        "http", "https",
+        "ftp", "ftps", "ssh", "sftp", "scp",
+        "telnet", "rdp", "smtp", "smtps", "imap", "imaps",
+        "pop3", "pop3s", "mysql", "postgresql", "redis", "mongodb",
+        "mssql", "ldap", "ldaps", "mqtt", "mqtts"
+    };
     return s;
 }
 
@@ -257,8 +267,9 @@ void AppState::setTarget(const QString& t) {
             }
         }
 
-        bool isUrl = has && trimmed.contains("://");       // any :// → URL type
-        bool isHttp = isUrl && isTargetHttpUrl();          // only http/https → G5
+        bool isUrlType = has && trimmed.contains("://");  // any :// → URL type
+        bool isHttp    = isUrlType && isTargetHttpUrl();  // only http/https → HTTP-specific routing
+        bool isAnyUrl  = isUrlType && isTargetUrl();      // any supported URL scheme
 
         // Deep diagnostic: why isTargetUrl() might return false
         QString scheme = trimmed.contains("://") ? trimmed.section("://", 0, 0).toLower() : QString();
@@ -267,13 +278,16 @@ void AppState::setTarget(const QString& t) {
                 isTargetUrl(), isTargetHttpUrl(), m_targetError.toUtf8().constData());
 
         // G4: always on when target non-empty (URL or host)
-        // G5: http/https only (supported via libcurl on Windows/Linux, NSURLSession on iOS, HttpURLConnection on Android)
+        // G5: any valid URL scheme (was http/https-only prior to fix)
+        // NOTE: socket-based G5 tests (tcpConnect, serviceBanner, ftp, ssh, email
+        // diagnostics) work without libcurl. The #if guard below is conservative —
+        // a future enhancement can relax it for platforms with NO_CURL defined.
         setGroupEnabled(3, has);          // G4 on if target non-empty
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || !defined(NO_CURL)
-        setGroupEnabled(4, has && isHttp); // G5 on only for http/https (if platform supports it)
+        setGroupEnabled(4, has && isAnyUrl); // G5 on for any valid URL scheme
 #endif
         TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
-                has, isUrl, isHttp, has, has && isHttp, m_targetError.toUtf8().constData());
+                has, isAnyUrl, isHttp, has, has && isAnyUrl, m_targetError.toUtf8().constData());
         emit targetChanged();
         bumpVersion();
     }
