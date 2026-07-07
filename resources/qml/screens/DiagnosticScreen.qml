@@ -109,7 +109,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: appState.totalCompleted > 0 ? 0.29 * page.height : 0.5 * page.height
+            Layout.preferredHeight: appState.totalCompleted > 0 ? 0.36 * page.height : 0.5 * page.height
             color: ThemeEngine.bgSidebar; clip: true
             Flickable {
                 anchors.fill: parent; contentHeight: sidebarCol.implicitHeight
@@ -129,122 +129,56 @@ Item {
         property int _cachedSnapVer: -1
         spacing: 0
 
-        function syncCheckboxes() {
-            if (!cb0 || !cb1 || !cb2 || !cb3 || !cb4) return
-            cb0.checked = page._snapG0chk
-            cb1.checked = page._snapG1chk
-            cb2.checked = page._snapG2chk
-            cb3.checked = page._snapG3chk
-            cb4.checked = page._snapG4chk
-            cb3.enabled = page._snapG3en && !page._runActive
-            cb4.enabled = page._snapG4en && !page._runActive
-        }
+        function syncCheckboxes() {} // no-op: Repeater delegates bind directly to _snapG<N>chk
 
         Connections {
             target: page
             function on_SnapVersionChanged() {
-                if (page._snapVersion !== _cachedSnapVer) {
-                    _cachedSnapVer = page._snapVersion
-                    syncCheckboxes()
-                }
-            }
-        }
-        Component.onCompleted: syncCheckboxes()
-
-        // Header — matches Flutter Container(padding h16 v14, border bottom #3A3A5A)
-        Rectangle {
-            Layout.fillWidth: true; implicitHeight: 48
-            color: "transparent"
-            border { width: 1; color: ThemeEngine.colors.borderCard }
-            RowLayout {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                AppIcon { name: "wifi"; size: 20; color: ThemeEngine.cyan }
-                Item { width: 10 }
-                Label { text: "NetDiagnostics"; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
+                _cachedSnapVer = page._snapVersion
             }
         }
 
-        // Target input + Run
-        Item { Layout.preferredHeight: 12 }
+        // Target input + Run — sticky above scroll area
+        Item { Layout.preferredHeight: 8 }
         TargetInputPanel { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12 }
 
-         // Layer checkboxes — bound to page-level snapshot (frozen during run)
+        // ── Port Scan (grouped with target input) ────────────────────────
         Item { Layout.preferredHeight: 8; visible: !compact }
+        PortScanConfig { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; visible: !compact }
+
+        // ── Diagnostic Groups (compact Repeater) ────────────────────────
+        Item { Layout.preferredHeight: 10; visible: !compact }
         ColumnLayout {
             visible: !compact; spacing: 2
             Layout.leftMargin: 12; Layout.rightMargin: 12
             Label { text: Tr.diagGroup; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
-            Item { Layout.preferredHeight: 6 }
+            Item { Layout.preferredHeight: 4 }
 
-            // G1
-            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                color: page._snapG0chk ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
-                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    CheckBox { id: cb0; Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                        checked: appState.isGroupAllEnabled(0)
-                        enabled: !page._runActive
-                        onClicked: appState.setGroupEnabled(0, cb0.checked) }
-                    Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(0); font.family:ThemeEngine.monoFont; font.pixelSize:12 }
-                }
-            }
-            // G2
-            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                color: page._snapG1chk ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
-                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    CheckBox { id: cb1; Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                        checked: appState.isGroupAllEnabled(1)
-                        enabled: !page._runActive
-                        onClicked: appState.setGroupEnabled(1, cb1.checked) }
-                    Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(1); font.family:ThemeEngine.monoFont; font.pixelSize:12 }
-                }
-            }
-            // G3
-            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                color: page._snapG2chk ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
-                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    CheckBox { id: cb2; Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                        checked: appState.isGroupAllEnabled(2)
-                        enabled: !page._runActive
-                        onClicked: appState.setGroupEnabled(2, cb2.checked) }
-                    Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(2); font.family:ThemeEngine.monoFont; font.pixelSize:12 }
-                }
-            }
-            // G4
-            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                color: page._snapG3chk ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
-                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    CheckBox { id: cb3; Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                        checked: appState.isGroupAllEnabled(3)
-                        enabled: !page._runActive && page._snapG3en
-                        onClicked: appState.setGroupEnabled(3, cb3.checked) }
-                    Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(3); font.family:ThemeEngine.monoFont; font.pixelSize:12 }
-                }
-            }
-            // G5
-            Rectangle { Layout.fillWidth: true; implicitHeight: 32; radius: 6
-                color: page._snapG4chk ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
-                RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    CheckBox { id: cb4; Layout.preferredWidth: 18; Layout.preferredHeight: 18
-                        checked: appState.isGroupAllEnabled(4)
-                        enabled: !page._runActive && page._snapG4en
-                        onClicked: appState.setGroupEnabled(4, cb4.checked) }
-                    Item { width: 8 }
-                    Label { Layout.fillWidth: true; text: Tr.groupName(4); font.family:ThemeEngine.monoFont; font.pixelSize:12 }
+            Repeater {
+                model: 5
+                delegate: Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 30; radius: 6
+                    // _snapG0chk.._snapG4chk via array lookup
+                    readonly property var _chkSnaps: [page._snapG0chk, page._snapG1chk, page._snapG2chk, page._snapG3chk, page._snapG4chk]
+                    readonly property var _enSnaps: [true, true, true, page._snapG3en, page._snapG4en]
+                    color: _chkSnaps[index] ? Qt.alpha(ThemeEngine.accentBlue, 0.12) : "transparent"
+                    RowLayout { anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                        CheckBox {
+                            Layout.preferredWidth: 18; Layout.preferredHeight: 18
+                            checked: appState.isGroupAllEnabled(index)
+                            enabled: !page._runActive && _enSnaps[index]
+                            onClicked: appState.setGroupEnabled(index, checked)
+                        }
+                        Item { width: 8 }
+                        Label { Layout.fillWidth: true; text: Tr.groupName(index); font.family: ThemeEngine.monoFont; font.pixelSize: 12 }
+                    }
                 }
             }
         }
 
-        // Port scan
-        Item { Layout.preferredHeight: 8; visible: !compact }
-        PortScanConfig { Layout.fillWidth: true; Layout.leftMargin: 12; Layout.rightMargin: 12; visible: !compact }
-
         // Divider
         Rectangle {
-            Layout.fillWidth: true; Layout.preferredHeight: 20; color: "transparent"
+            Layout.fillWidth: true; Layout.preferredHeight: 8; color: "transparent"
             visible: !compact
             Rectangle { anchors.centerIn: parent; width: parent.width - 24; height: 1; color: ThemeEngine.colors.borderCard }
         }
@@ -265,7 +199,7 @@ Item {
             Layout.fillWidth: true; implicitHeight: summaryCards.implicitHeight + 24
             color: "transparent"
             border { width: 1; color: ThemeEngine.colors.borderCard }
-            SummaryCards { id: summaryCards; anchors { fill: parent; margins: 12; topMargin: 8; bottomMargin: 16 } }
+            SummaryCards { id: summaryCards; anchors { fill: parent; margins: 12 } }
         }
     }
 
@@ -338,14 +272,6 @@ Item {
                             dtOutput.text = (d && d.details) ? d.details : ""
                             page.currentDetail = d || {}
                             detailOverlay.visible = true
-                            // DEBUG: verify monospace font actually applied
-                            Qt.callLater(function() {
-                                console.log("[FONT-DEBUG] requested family:", dtOutput.font.family)
-                                console.log("[FONT-DEBUG] resolved family:", dtOutput.fontInfo.family)
-                                console.log("[FONT-DEBUG] pixelSize:", dtOutput.fontInfo.pixelSize)
-                                console.log("[FONT-DEBUG] text length:", dtOutput.text.length)
-                                console.log("[FONT-DEBUG] text first 200 chars:", dtOutput.text.substring(0, 200))
-                            })
                         }
                     }
                 }
