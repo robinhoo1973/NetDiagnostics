@@ -40,6 +40,14 @@ static const QMap<QString, int> s_defaultPorts = {
     {"mongodb",27017},{"mssql",1433},{"ldap",389},{"ldaps",636},{"mqtt",1883},{"mqtts",8883}
 };
 
+int defaultPortForScheme(const QString& scheme) {
+    return s_defaultPorts.value(scheme.toLower(), 80);
+}
+
+QStringList knownSchemes() {
+    return s_defaultPorts.keys();
+}
+
 static QUrl validate(const QString& target) {
     QUrl u(target, QUrl::StrictMode);
     if (u.isValid() && !u.scheme().isEmpty()) return u;

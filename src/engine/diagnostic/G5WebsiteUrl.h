@@ -4,9 +4,14 @@
 #pragma once
 
 #include <QString>
+#include <QMap>
 #include "models/DiagnosticResult.h"
 
 namespace G5WebsiteUrl {
+
+// ── Protocol default port map (shared with AppState for UI) ────────────────
+int defaultPortForScheme(const QString& scheme);
+QStringList knownSchemes();
 
 DiagnosticResult urlParsing(const QString& target);
 DiagnosticResult tcpConnect(const QString& target);
