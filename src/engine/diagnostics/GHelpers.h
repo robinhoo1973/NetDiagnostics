@@ -1,7 +1,7 @@
 // GHelpers.h — shared helpers for G1/G2/G3 per-function .cpp files.
 #pragma once
 #include "engine/diagnostics/GBase.h"
-#include "util/DiagnosticFormatter.h"
+#include "engine/diagnostics/DiagnosticFormatter.h"
 #include "util/Logger.h"
 #include <cstring>
 

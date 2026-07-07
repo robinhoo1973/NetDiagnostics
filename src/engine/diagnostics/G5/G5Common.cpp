@@ -16,7 +16,7 @@
 #include <QUrl>
 #include "models/DiagnosticResult.h"
 #include "models/DiagId.h"
-#include "util/DiagnosticFormatter.h"
+#include "engine/diagnostics/DiagnosticFormatter.h"
 
 static bool clearJniException(QJniEnvironment& env) {
     if (!env->ExceptionCheck())

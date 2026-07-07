@@ -23,9 +23,8 @@ set(SOURCES
     src/main.cpp
     src/models/DiagnosticResult.cpp
     src/util/Logger.cpp
-    src/util/PingParser.cpp
     src/util/DnsResolver.cpp
-    src/util/DiagnosticFormatter.cpp
+    src/engine/diagnostics/DiagnosticFormatter.cpp
     src/engine/task/DiagnosticTask.cpp
     src/engine/task/TaskFactory.cpp
     src/engine/runner/NetworkProbe.cpp
