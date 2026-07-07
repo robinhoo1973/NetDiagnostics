@@ -390,6 +390,25 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     QElapsedTimer t; t.start();
     DWORD result = IcmpSendEcho(icmp, htonl(ip),
                                  sendData, sizeof(sendData),
+#ifdef _WIN32
+static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
+    quint32 ip = resolveIPv4(host);
+    if (!ip) { rttMs = 0; hopIp.clear(); return -2; }
+
+    HANDLE icmp = IcmpCreateFile();
+    if (icmp == INVALID_HANDLE_VALUE) { rttMs = 0; hopIp.clear(); return -2; }
+
+    IP_OPTION_INFORMATION opts;
+    memset(&opts, 0, sizeof(opts));
+    opts.Ttl = (UCHAR)ttl;
+
+    char sendData[32] = "trace";
+    char replyBuf[sizeof(ICMP_ECHO_REPLY) + sizeof(sendData) + 8];
+    memset(replyBuf, 0, sizeof(replyBuf));
+
+    QElapsedTimer t; t.start();
+    DWORD result = IcmpSendEcho(icmp, htonl(ip),
+                                 sendData, sizeof(sendData),
                                  &opts, replyBuf, sizeof(replyBuf), 2000);
     rttMs = (int)t.elapsed();
 
@@ -588,3 +607,71 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         }
         closeSocket(sock); rttMs=0; hopIp.clear(); return -1;
     }
+
+    // Per-hop outgoing TTL + a receive timeout guard on the ICMP socket.
+    setsockopt(icmpSock, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
+    struct timeval rcvTo = {2, 0};
+    setsockopt(icmpSock, SOL_SOCKET, SO_RCVTIMEO, &rcvTo, sizeof(rcvTo));
+
+    // Build an 8-byte ICMP Echo Request header (+ zero payload). With SOCK_DGRAM
+    // the kernel rewrites the identifier and recomputes the checksum, but we fill
+    // a valid checksum anyway so the same code is correct on plain BSD too.
+    unsigned char packet[16];
+    memset(packet, 0, sizeof(packet));
+    packet[0] = 8; // Type = Echo Request
+    packet[1] = 0; // Code = 0
+    uint16_t ident = static_cast<uint16_t>(getpid() & 0xFFFF);
+    uint16_t seq   = static_cast<uint16_t>(ttl);
+    packet[4] = static_cast<unsigned char>(ident >> 8); packet[5] = static_cast<unsigned char>(ident & 0xFF);
+    packet[6] = static_cast<unsigned char>(seq   >> 8); packet[7] = static_cast<unsigned char>(seq   & 0xFF);
+    uint16_t ck = icmpEchoChecksum(packet, sizeof(packet));
+    memcpy(&packet[2], &ck, sizeof(ck));
+
+    struct sockaddr_in dst; memset(&dst,0,sizeof(dst));
+    dst.sin_family=AF_INET;
+    dst.sin_addr.s_addr=htonl(targetIp);
+
+    QElapsedTimer tm; tm.start();
+    if (::sendto(icmpSock, packet, sizeof(packet), 0, (struct sockaddr*)&dst, sizeof(dst)) < 0) {
+        close(icmpSock); rttMs=0; hopIp.clear(); return -2;
+    }
+
+    // Listen for the matching ICMP response from either the target or a router.
+    while((int)tm.elapsed()<2000){
+        fd_set rfds; FD_ZERO(&rfds); FD_SET(icmpSock,&rfds);
+        struct timeval tv={2,0};
+        int sel=select(icmpSock+1,&rfds,nullptr,nullptr,&tv);
+        if(sel<0)break; if(sel==0)continue;
+        unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl=sizeof(from);
+        ssize_t n=recvfrom(icmpSock,buf,sizeof(buf),0,(struct sockaddr*)&from,&fl);
+        // Darwin delivers SOCK_DGRAM ICMP replies WITH the leading IPv4 header
+        // (Apple SimplePing: icmpHeaderOffsetInIPv4Packet). Skip it before reading
+        // the ICMP type. The router/target IP is the reply's IPv4 source address.
+        int off = icmpOffsetIn(buf, n);
+        if(n < off + 8) continue;
+        int type = buf[off];
+        QString srcIp;
+        if (off >= 20) { struct in_addr s; memcpy(&s.s_addr, buf + 12, 4); srcIp = ip4ToStr(s); }
+        else           srcIp = ip4ToStr(from.sin_addr);
+        // Did the TARGET itself send this reply, or a router along the way?
+        struct in_addr tgt; tgt.s_addr = htonl(targetIp);
+        const bool fromTarget = (srcIp == ip4ToStr(tgt));
+        if(type==0){ // Echo Reply — only the destination answers Echo → reached
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+        }
+        if(type==11){ // Time Exceeded — an intermediate router on the path
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
+        }
+        if(type==3){ // Destination Unreachable. Only the TARGET saying "unreachable"
+                     // (port/proto closed) counts as reached; a middle router/firewall
+                     // replying (e.g. admin-prohibited, code 13) is a FILTERING hop that
+                     // blocks the path. Treating every type-3 as "reached" stopped the
+                     // trace at the first filtering router and mislabelled it as the
+                     // destination (the "only first + last hop" symptom).
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock);
+            return fromTarget ? 0 : 2;
+        }
+    }
+    close(icmpSock); rttMs=0; hopIp.clear(); return -1;
+}
+#endif
