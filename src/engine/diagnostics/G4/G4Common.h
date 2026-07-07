@@ -241,9 +241,6 @@ static quint32 resolveIPv4(const QString& host) {
 
 static DiagnosticResult noTargetResult(DiagId id, DiagGroup group);
 
-static quint32 resolveIPv4(const QString& host) {
-    return DnsResolver::resolveIPv4(host, 3000);
-}
 
 // Single TCP connect — returns RTT in ms, or -1 on failure
 static int tcpRttMs(const QString& host, int port) {

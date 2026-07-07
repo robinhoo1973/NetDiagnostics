@@ -198,3 +198,4 @@ DiagnosticResult dnsResolution(const QString& target) {
     return r;
 }
 } // namespace G4RemoteHost
+}
