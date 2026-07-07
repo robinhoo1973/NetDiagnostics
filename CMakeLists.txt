@@ -56,6 +56,7 @@ set(SOURCES
     src/engine/diagnostics/G4/G4Ping.cpp
     src/engine/diagnostics/G4/G4Traceroute.cpp
     src/engine/diagnostics/G4/G4PathPing.cpp
+    src/engine/diagnostics/G4/G4PingParser.cpp
     src/engine/diagnostics/G4/G4MtuDiscovery.cpp
     src/engine/diagnostics/G5/G5UrlParsing.cpp
     src/engine/diagnostics/G5/G5TcpConnect.cpp
