@@ -30,5 +30,5 @@ DiagnosticResult httpTiming(const QString& target) {
 }
 #endif // NO_CURL
 
-
-
+}
+#endif // NO_CURL

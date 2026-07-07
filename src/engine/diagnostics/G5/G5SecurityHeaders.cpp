@@ -33,5 +33,5 @@ DiagnosticResult securityHeaders(const QString& target) {
 #endif // NO_CURL
 
 // ── G5.7 SSL Certificate ─────────────────────────────────────────────────
-
-
+}
+#endif // NO_CURL
