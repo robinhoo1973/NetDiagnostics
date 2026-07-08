@@ -221,7 +221,9 @@ DiagnosticResult networkAdapters(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("Network adapters enumerated");
+    r.summary = (netRows.size() > 0)
+        ? QStringLiteral("%1 network adapter%2 enumerated").arg(netRows.size()).arg(netRows.size() > 1 ? "s" : "")
+        : QStringLiteral("No network adapters found");
     r.durationMs = t.elapsed();
     return r;
 }

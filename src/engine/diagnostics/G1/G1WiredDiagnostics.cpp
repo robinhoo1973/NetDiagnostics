@@ -119,7 +119,9 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = out.size() > 3 ? DiagStatus::Pass : DiagStatus::Info;
-    r.summary = QStringLiteral("Wired diagnostics complete");
+    r.summary = wiredRows.isEmpty()
+        ? QStringLiteral("No wired Ethernet adapters found")
+        : QStringLiteral("%1 Ethernet adapter%2").arg(wiredRows.size()).arg(wiredRows.size() > 1 ? "s" : "");
     r.durationMs = t.elapsed();
     return r;
 #endif

@@ -63,7 +63,9 @@ DiagnosticResult nicAdvanced(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("NIC properties collected");
+    r.summary = (nicRows.size() > 0)
+        ? QStringLiteral("%1 NIC%2 analyzed (speed/duplex/MTU)").arg(nicRows.size()).arg(nicRows.size() > 1 ? "s" : "")
+        : QStringLiteral("No NIC properties available");
     r.durationMs = t.elapsed();
     return r;
 }

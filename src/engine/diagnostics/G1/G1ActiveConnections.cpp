@@ -162,7 +162,14 @@ DiagnosticResult activeConnections(DiagId id) {
         : QStringLiteral("Active connections enumerated via sysctl");
 #else
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("Active connections enumerated");
+    int tcpCount = 0, udpCount = 0;
+    for (const auto& c : rawConns) {
+        if (c.proto == QStringLiteral("UDP")) udpCount++;
+        else tcpCount++;
+    }
+    r.summary = rawConns.isEmpty()
+        ? QStringLiteral("No active connections")
+        : QStringLiteral("%1 TCP + %2 UDP connections").arg(tcpCount).arg(udpCount);
 #endif
     r.durationMs = t.elapsed();
     return r;
