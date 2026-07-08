@@ -49,6 +49,9 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <errno.h>
 #include <resolv.h>
 #include <arpa/nameser.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 // macOS Apple Clang compatibility: C_IN may not be exposed by default
 #ifndef C_IN
 #define C_IN ns_c_in
