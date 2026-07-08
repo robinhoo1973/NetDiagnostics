@@ -26,9 +26,6 @@
 #include "testing/TestHarness.h"
 #include "testing/TestScenarios.h"
 #endif
-#ifdef PLATFORM_IOS
-#include "engine/diagnostics/G1/IosWiFiHelper.h"
-#endif
 
 int main(int argc, char *argv[])
 {
@@ -81,11 +78,6 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/netanalysis.ico"));
-
-#ifdef PLATFORM_IOS
-    // Request WiFi SSID access (iOS 14+ needs location permission)
-    iosRequestWiFiAuthorization();
-#endif
 
     AppState appState;
 
