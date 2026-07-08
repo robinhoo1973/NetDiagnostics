@@ -81,8 +81,8 @@ static QVector<TestCase> chinaCoreTargets() {
         make("HTTPS Aliyun",         "https",    "www.aliyun.com",       443),
         make("HTTP Aliyun",          "http",     "www.aliyun.com",       80),
 
-        // Tencent (qq.com) — China's largest internet company
-        make("HTTPS Tencent",        "https",    "www.qq.com",           443),
+        // httpbin.org — Cloudflare CDN, reliable across regions
+        make("HTTPS httpbin",        "https",    "httpbin.org",           443),
 
         // SSH — GitHub (globally accessible even from China)
         make("SSH GitHub",           "ssh",      "github.com",            22),
