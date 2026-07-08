@@ -1,4 +1,5 @@
 #include "engine/diagnostics/GHelpers.h"
+#include <QProcess>
 
 namespace G1G2G3Native {
 DiagnosticResult dnsCache(DiagId id) {
@@ -17,7 +18,26 @@ DiagnosticResult dnsCache(DiagId id) {
     out.append(QStringLiteral("DNS Client Cache (ipconfig /displaydns format)"));
     out.append(QStringLiteral("=============================================="));
     out.append(QString());
-    out.append(QStringLiteral("(Use 'ipconfig /displaydns' for full cache contents)"));
+    {
+        QProcess dnsProc;
+        dnsProc.start(QStringLiteral("ipconfig"), QStringList() << QStringLiteral("/displaydns"));
+        if (dnsProc.waitForFinished(10000)) {
+            QString dnsOut = QString::fromLocal8Bit(dnsProc.readAllStandardOutput());
+            if (!dnsOut.trimmed().isEmpty()) {
+                hasCache = true;
+                for (auto& line : dnsOut.split('\n')) {
+                    QString t = line.trimmed();
+                    if (t.isEmpty() || t.startsWith("Windows IP")) continue;
+                    out.append(t);
+                }
+            } else {
+                out.append(QStringLiteral("  (DNS cache is empty)"));
+            }
+        } else {
+            out.append(QStringLiteral("  (Unable to retrieve DNS cache — timeout)"));
+        }
+    }
+    out.append(QString());
     out.append(QStringLiteral("To flush: ipconfig /flushdns"));
 #else
     out.append(QStringLiteral("DNS Cache Information"));
