@@ -98,8 +98,6 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
     return result;
 }
 
-namespace G5WebsiteUrl {
-
 // ── G5 HTTP Headers diagnostic ─────────────────────────────────────────
 static DiagnosticResult iosHttpHeaders(DiagId id, const QString& target) {
     QUrl u(target);
@@ -396,7 +394,5 @@ DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target) {
         }
     }
 }
-
-} // namespace G5WebsiteUrl
 
 #endif // PLATFORM_IOS

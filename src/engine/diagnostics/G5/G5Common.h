@@ -20,6 +20,8 @@ typedef SSIZE_T ssize_t;
 #include <cstdio>
 #include "util/NetUtil.h"  // cross-platform closeSocket, setSocketNonBlocking etc.
 
+DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target); // global scope (ObjC)
+
 namespace G5WebsiteUrl {
 
 
@@ -185,4 +187,3 @@ DiagnosticResult androidCellularDiag(DiagId id);
 DiagnosticResult androidDhcpDiag(DiagId id);
 DiagnosticResult androidGatewayDiag(DiagId id);
 DiagnosticResult androidHttpDiag(DiagId id, const QString& target);
-DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
