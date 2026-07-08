@@ -84,6 +84,7 @@ public:
     void simClickStop();
 
     // ── Test case execution ───────────────────────────────────────────
+    void setAppState(class AppState* as) { m_appState = as; }
     void runTestCase(const TestCase& tc);
     void runAllSchemas();
 
@@ -98,6 +99,7 @@ public:
 
 private:
     TestHarness() = default;
+    class AppState* m_appState = nullptr;
     void writeLog(const QString& level, const QString& msg);
     QString now() const;
     TestCase buildTestCase(const QString& scheme, const QString& host, int port = -1);

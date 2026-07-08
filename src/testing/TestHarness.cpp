@@ -6,7 +6,9 @@
 #include "testing/TestHarness.h"
 #include "testing/TestScenarios.h"
 #include "app/AppState.h"
+#include "app/DiagnosticConfig.h"
 #include "models/DiagId.h"
+#include <QVariantMap>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -96,7 +98,7 @@ void TestHarness::simSetUsername(const QString& user) {
 }
 
 void TestHarness::simSetPassword(const QString& pass) {
-    logStep("Enter password: " + (pass.isEmpty() ? "(empty)" : "***"), "", "");
+    logStep(QStringLiteral("Enter password: ") + (pass.isEmpty() ? QStringLiteral("(empty)") : QStringLiteral("***")), "", "");
 }
 
 void TestHarness::simClickRun() {
@@ -131,17 +133,15 @@ void TestHarness::runTestCase(const TestCase& tc) {
     logInfo("Target: " + target);
 
     // Headless: directly set AppState target and run diagnostics
-    AppState* appState = qobject_cast<AppState*>(
-        QCoreApplication::instance()->findChild<AppState*>());
-    if (!appState) {
-        logError("AppState not found — cannot run diagnostics headless");
+    if (!m_appState) {
+        logError("AppState not set — call setAppState() before runTestCase()");
         m_failCount++;
         return;
     }
 
     simClickRun();
-    appState->setTarget(target);
-    appState->runDiagnostics();
+    m_appState->setTarget(target);
+    m_appState->runDiagnostics();
 
     // Wait for diagnostics to complete (headless mode — no event loop needed)
     // The runDiagnostics call is synchronous for the launch; results come via signals.
@@ -150,17 +150,22 @@ void TestHarness::runTestCase(const TestCase& tc) {
     QTimer watchdog;
     watchdog.setSingleShot(true);
     QObject::connect(&watchdog, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QObject::connect(appState, &AppState::runStatusChanged, [&]() {
-        if (appState->runStatusInt() != 1) loop.quit(); // not Running → done
+    QObject::connect(m_appState, &AppState::runStatusChanged, [&]() {
+        if (m_appState->runStatusInt() != 1) loop.quit(); // not Running → done
     });
     watchdog.start(120000); // 2-minute max per test case
     loop.exec();
 
     // Collect results
     for (DiagId id : DiagnosticConfig::allDiagIds()) {
-        auto r = appState->getDetailResult(static_cast<int>(id));
-        if (r.has_value()) {
-            logDiagResult(id, r.value());
+        QVariantMap r = m_appState->getDetailResult(static_cast<int>(id));
+        if (!r.isEmpty()) {
+            DiagnosticResult dr;
+            dr.id = id;
+            dr.status = static_cast<DiagStatus>(r.value("status", 0).toInt());
+            dr.summary = r.value("summary", "").toString();
+            dr.durationMs = r.value("durationMs", 0).toLongLong();
+            logDiagResult(id, dr);
         }
     }
 
