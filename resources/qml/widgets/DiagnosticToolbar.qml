@@ -9,21 +9,31 @@ Rectangle {
     property bool wide: true
     property bool _advancedVisible: false
 
-    // Schema-aware field visibility
+    // ── Schema-aware field visibility ────────────────────────────────────
+    // Port: always shown in advanced (every protocol has a port)
+    // User: protocols that commonly use authentication
     readonly property bool _showUser: {
         var s = appState.targetScheme
         return s === "ftp" || s === "ftps" || s === "ssh" || s === "sftp" || s === "scp"
+            || s === "telnet" || s === "rdp"
             || s === "mysql" || s === "postgresql" || s === "redis" || s === "mongodb" || s === "mssql"
             || s === "smtp" || s === "smtps" || s === "imap" || s === "imaps"
             || s === "pop3" || s === "pop3s"
+            || s === "ldap" || s === "ldaps"
+            || s === "mqtt" || s === "mqtts"
     }
+    // Pass: subset that routinely uses password auth (not SSH key-based)
     readonly property bool _showPass: {
         var s = appState.targetScheme
-        return s === "smtp" || s === "smtps" || s === "imap" || s === "imaps"
-            || s === "pop3" || s === "pop3s"
+        return s === "ftp" || s === "ftps"
+            || s === "telnet" || s === "rdp"
             || s === "mysql" || s === "postgresql" || s === "redis" || s === "mongodb" || s === "mssql"
-            || s === "ftp" || s === "ftps"
+            || s === "smtp" || s === "smtps" || s === "imap" || s === "imaps"
+            || s === "pop3" || s === "pop3s"
+            || s === "ldap" || s === "ldaps"
+            || s === "mqtt" || s === "mqtts"
     }
+    // Port shown for all protocols — always visible in advanced
 
     implicitHeight: tbCol.implicitHeight + 8
     clip: true
