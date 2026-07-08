@@ -44,6 +44,7 @@ Item {
                         model: appState.groupLabels
                         delegate: ItemDelegate {
                             Layout.fillWidth: true; Layout.fillHeight: true
+                            property bool _active: appState.isGroupActive(index)
                             background: Rectangle {
                                 color: "transparent"
                                 Rectangle {
@@ -51,14 +52,25 @@ Item {
                                     height: 2; color: index === currentGroup ? ThemeEngine.cyan : "transparent"
                                 }
                             }
-                            contentItem: Label {
-                                anchors.centerIn: parent
-                                text: "G" + (index + 1)
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                                font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
-                                color: index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textSecondary
+                            contentItem: RowLayout {
+                                spacing: 3
+                                // Activation toggle indicator (click to toggle active/inactive)
+                                Rectangle {
+                                    Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 5
+                                    color: appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted
+                                    border { width: 1; color: appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
+                                }
+                                Label {
+                                    text: "G" + (index + 1)
+                                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                                    font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
+                                    color: appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textPrimary) : ThemeEngine.textMuted
+                                }
                             }
-                            onClicked: currentGroup = index
+                            onClicked: {
+                                appState.setGroupActive(index, !appState.isGroupActive(index))
+                                currentGroup = index
+                            }
                         }
                     }
                 }

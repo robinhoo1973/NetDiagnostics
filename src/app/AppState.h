@@ -116,6 +116,8 @@ public:
     Q_INVOKABLE void setGroupEnabled(int groupInt, bool enabled);
     Q_INVOKABLE bool isGroupAllEnabled(int groupInt) const;
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
+    Q_INVOKABLE void setGroupActive(int groupInt, bool active);
+    Q_INVOKABLE bool isGroupActive(int groupInt) const;
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
@@ -198,6 +200,7 @@ signals:
     void reportShared(bool ok);
     void purchaseInProgressChanged();
     void restoreCompleted(bool restoredAny, bool isError);
+    void groupActiveChanged();
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
@@ -252,6 +255,7 @@ private:
     int m_resultsVersion = 0;
     int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
     PremiumStore m_premium;
+    QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
 
     // Cached group stats — invalidated on progressChanged
     mutable QVariantList m_cachedGroupStats;
