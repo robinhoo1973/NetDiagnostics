@@ -130,7 +130,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
 #ifdef PLATFORM_ANDROID
         case DiagId::G1WifiDiagnostics:
-            return T3([](DiagId id, const QString&) { return androidWifiDiag(id); });
+            return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidWifiDiag(id); });
 #else
         case DiagId::G1WifiDiagnostics:    return T1(G1G2G3Native::wifiDiagnostics);
 #endif
@@ -140,7 +140,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
 #elif defined(PLATFORM_ANDROID)
         case DiagId::G1DhcpStatus:
-            return T3([](DiagId id, const QString&) { return androidDhcpDiag(id); });
+            return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidDhcpDiag(id); });
 #else
         case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
 #endif
@@ -148,7 +148,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
 #ifdef PLATFORM_ANDROID
         case DiagId::G1CellularInfo:
-            return T3([](DiagId id, const QString&) { return androidCellularDiag(id); });
+            return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidCellularDiag(id); });
 #else
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 #endif
@@ -161,7 +161,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             return T3([](DiagId id, const QString&) { return iosDefaultGatewayDiag(id); });
 #elif defined(PLATFORM_ANDROID)
         case DiagId::G2DefaultGateway:
-            return T3([](DiagId id, const QString&) { return androidGatewayDiag(id); });
+            return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidGatewayDiag(id); });
 #else
         case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
 #endif
@@ -187,7 +187,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
 #elif defined(PLATFORM_ANDROID)
         case DiagId::G4DnsResolution:
-            return T3([t = target](DiagId id, const QString&) { return androidDnsDiag(id, t); });
+            return T3([t = target](DiagId id, const QString&) { return G5WebsiteUrl::androidDnsDiag(id, t); });
 #else
         case DiagId::G4DnsResolution:      return T2(G4RemoteHost::dnsResolution);
 #endif

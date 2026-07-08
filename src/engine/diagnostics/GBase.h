@@ -33,6 +33,7 @@
 #ifdef PLATFORM_IOS
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
+#include <resolv.h>          // __res_state (DNS resolver state)
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
 #include <net/if_dl.h>       // sockaddr_dl, LLADDR
