@@ -186,6 +186,9 @@ function Test-Dependencies {
     }
     $pkgs_check += "exit `$missing"
     $check_script = "#!/usr/bin/env bash`nset -e`n" + ($pkgs_check -join "`n") + "`n"
+    if (-not (Test-Path $TEMP_DIR)) {
+        New-Item -ItemType Directory -Path $TEMP_DIR -Force | Out-Null
+    }
     $check_path = Join-Path $TEMP_DIR "check-pkgs.sh"
     $utf8 = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($check_path, $check_script, $utf8)
@@ -362,6 +365,9 @@ echo "=== All builds completed successfully ==="
 exit 0
 "@
 
+    if (-not (Test-Path $TEMP_DIR)) {
+        New-Item -ItemType Directory -Path $TEMP_DIR -Force | Out-Null
+    }
     $build_script_path = Join-Path $TEMP_DIR "build-app.sh"
     $utf8 = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($build_script_path, $build_script, $utf8)
@@ -464,6 +470,9 @@ echo ""
 exit 0
 "@
 
+    if (-not (Test-Path $TEMP_DIR)) {
+        New-Item -ItemType Directory -Path $TEMP_DIR -Force | Out-Null
+    }
     $verify_path = Join-Path $TEMP_DIR "verify-dll.sh"
     $utf8 = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($verify_path, $verify_script, $utf8)

@@ -11,8 +11,15 @@ DiagnosticResult httpRedirect(const QString& target) {
             ? QStringLiteral("Redirect %1 → %2").arg(cr.statusCode).arg(cr.redirectLocation)
             : QStringLiteral("No redirect (HTTP %1)").arg(cr.statusCode),
         cr.statusCode >= 200 && cr.statusCode < 300 ? DiagStatus::Pass : DiagStatus::Warning);
-    r.rawOutput = cr.lines.join('\n'); r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
+    // Show redirect chain info — not raw curl dump
+    QStringList redirectLines;
+    redirectLines.append(QStringLiteral("Redirect Check:"));
+    redirectLines.append(QStringLiteral("  HTTP Status:      %1").arg(cr.statusCode));
+    redirectLines.append(QStringLiteral("  Redirect Target:  %1").arg(cr.redirectLocation.isEmpty() ? QStringLiteral("(none)") : cr.redirectLocation));
+    redirectLines.append(QStringLiteral("  Response Time:    %1 ms").arg(cr.totalMs, 0, 'f', 1));
+    r.rawOutput = redirectLines.join('\n');
+    r.details = r.rawOutput;
     return r;
 
 }

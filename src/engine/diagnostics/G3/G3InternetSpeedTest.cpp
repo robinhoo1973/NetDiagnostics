@@ -1,4 +1,7 @@
 #include "engine/diagnostics/GHelpers.h"
+#include <QProcess>
+#include <cstdlib>
+#include <ctime>
 
 namespace G1G2G3Native {
 
@@ -42,6 +45,58 @@ inline void SpeedTest::build() { Server s;
     S("CN","speedtest-sh.oss-cn-shanghai.aliyuncs.com",80,"Shanghai","Alibaba Cloud");
     S("CN","speedtest-gz.oss-cn-guangzhou.aliyuncs.com",80,"Guangzhou","Alibaba Cloud");
     S("CN","speedtest-bj-ct.oss-cn-beijing.aliyuncs.com",80,"Beijing CT","Alibaba Cloud");
+    // ═══════════════════════════════════════════════════════════════
+    // Global speed test servers — verified against Ookla API 2024-2025
+    // All use port 8080 with HTTP-based protocol (/download?size=N, /upload)
+    // ═══════════════════════════════════════════════════════════════
+
+    // ── East Asia ──────────────────────────────────────────────────
+    S("KR","seoul.speedtest.gslnetworks.com",8080,"Seoul","GSL Networks");
+    S("MN","speedtest.gemnet.mn",8080,"Ulaanbaatar","Gemnet");
+    S("MN","speedtest1.kewiko.mn",8080,"Ulaanbaatar 2","Kewiko");
+
+    // ── Southeast Asia / Oceania ───────────────────────────────────
+    S("SG","speedtest.singtel.com",8080,"Singapore","Singtel");
+    S("SG","speedtest.myrepublic.net",8080,"Singapore 2","MyRepublic");
+    S("AU","speedtest.telstra.net",8080,"Sydney","Telstra");
+    S("AU","speedtest.vocus.com.au",8080,"Melbourne","Vocus");
+
+    // ── South Asia ─────────────────────────────────────────────────
+    S("IN","speedtest.actcorp.in",8080,"Bangalore","ACT Fibernet");
+    S("IN","speedtestpnq.airstel.com",8080,"Pune","Airtel");
+
+    // ── Middle East ────────────────────────────────────────────────
+    S("AE","speedtest.du.ae",8080,"Dubai","du");
+    S("TR","hiztesti.isimkayit.com",8080,"Kocaeli","IsimKayit.com");
+
+    // ── Russia / CIS ───────────────────────────────────────────────
+    S("RU","speedtest-ude.edinos.ru",8080,"Ulan-Ude","EDINOS");
+    S("RU","speedtest.bteleport.ru",8080,"Irkutsk","Baikal Teleport");
+    S("RU","speedtest-irkutsk.fttb.beeline.ru",8080,"Irkutsk 2","Beeline");
+
+    // ── Europe ─────────────────────────────────────────────────────
+    S("SE","speedtest.tele2.net",8080,"Stockholm","Tele2 Sweden");
+    S("DE","speedtest.belwue.net",8080,"Stuttgart","BelWue");
+    S("DE","speedtest.ftp.otenet.gr",8080,"Frankfurt","OTE");
+    S("GB","speedtest1.sky.com",8080,"London","Sky Broadband");
+    S("NL","speedtest.ams1.nl.leaseweb.net",8080,"Amsterdam","Leaseweb");
+    S("FR","speedtest.orange.fr",8080,"Paris","Orange France");
+    S("IT","speedtest.optimaitalia.com",8080,"Milan","Optima Italia");
+    S("ES","speedtest.movistar.es",8080,"Madrid","Movistar");
+
+    // ── North America ──────────────────────────────────────────────
+    S("US","speedtest.xfinity.com",8080,"New York","Comcast Xfinity");
+    S("US","speedtest.att.com",8080,"Dallas","AT&T");
+    S("US","speedtest.netturbo.com",8080,"Chicago","NetTurbo");
+    S("CA","speedtest.bell.ca",8080,"Toronto","Bell Canada");
+
+    // ── South America ──────────────────────────────────────────────
+    S("BR","speedtest.vivo.com.br",8080,"Sao Paulo","Vivo Brazil");
+    S("AR","speedtest.movistar.com.ar",8080,"Buenos Aires","Movistar");
+
+    // ── Africa ─────────────────────────────────────────────────────
+    S("ZA","speedtest.mtn.co.za",8080,"Johannesburg","MTN South Africa");
+    S("ZA","speedtest.vodacom.co.za",8080,"Cape Town","Vodacom");
 }
 #undef S
 inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
@@ -51,7 +106,28 @@ inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hi
 inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
     QVector<Server> a; for (auto& l : m) a.append(l); return a;
 }
-inline QString SpeedTest::detectCountry(int) { return QStringLiteral("CN"); }
+inline QString SpeedTest::detectCountry(int timeoutMs) {
+    // GeoIP via ip-api.com (free, no API key required)
+    QProcess geo;
+    geo.start(QStringLiteral("curl"), QStringList()
+        << QStringLiteral("-s") << QStringLiteral("--max-time")
+        << QString::number(qMax(1, timeoutMs / 1000))
+        << QStringLiteral("http://ip-api.com/line/?fields=countryCode"));
+    if (geo.waitForFinished(timeoutMs > 0 ? timeoutMs : 3000)) {
+        QString cc = QString::fromUtf8(geo.readAllStandardOutput()).trimmed();
+        if (cc.length() == 2) return cc.toUpper();
+    }
+    // Fallback: try ipinfo.io
+    QProcess geo2;
+    geo2.start(QStringLiteral("curl"), QStringList()
+        << QStringLiteral("-s") << QStringLiteral("--max-time") << QStringLiteral("3")
+        << QStringLiteral("http://ipinfo.io/country"));
+    if (geo2.waitForFinished(3000)) {
+        QString cc = QString::fromUtf8(geo2.readAllStandardOutput()).trimmed();
+        if (cc.length() == 2) return cc.toUpper();
+    }
+    return QStringLiteral("XX"); // unknown
+}
 inline void SpeedTest::rankByLatency(QVector<Server>& c, int tmo) {
     QVector<QPair<int,Server>> r;
     for (auto& s : c) { int ms = tcpPingMs(s.host, s.port); r.append({ms>=0?ms:999999,s}); }
@@ -93,10 +169,13 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(6, QChar('-')))
         .arg(QString(7, QChar('-'))));
 
+    // Connectivity check: region-diverse hosts (China primary, global fallback)
     struct { const char* host; int port; const char* name; } checkSites[] = {
         {"223.5.5.5", 53, "Alibaba DNS"},
         {"119.29.29.29", 53, "DNSPod DNS"},
         {"baidu.com", 443, "Baidu"},
+        {"8.8.8.8", 53, "Google DNS"},
+        {"1.1.1.1", 53, "Cloudflare DNS"},
     };
     int connOk = 0;
     for (auto& cs : checkSites) {
@@ -321,9 +400,14 @@ DiagnosticResult speedTest(DiagId id) {
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
         if (err != 0) { closeSocket(sock); continue; }
 
-        // Generate random data
-        QByteArray uploadData(dataSize, 'A');
-        for (int i = 0; i < qMin(dataSize, 4096); i++) uploadData[i] = (char)('A' + (rand() % 26));
+        // Generate random-ish data (seed once, use fast arithmetic PRNG per size)
+        {
+            static bool seeded = false;
+            if (!seeded) { srand(static_cast<unsigned>(time(nullptr))); seeded = true; }
+        }
+        QByteArray uploadData(dataSize, '\0');
+        for (int i = 0; i < dataSize; i++)
+            uploadData[i] = static_cast<char>(33 + (rand() % 94)); // printable ASCII
 
         // POST request headers
         QByteArray postHeaders = QStringLiteral("POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")

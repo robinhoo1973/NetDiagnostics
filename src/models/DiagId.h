@@ -20,7 +20,7 @@ inline QString diagGroupLabel(DiagGroup g) {
         case DiagGroup::G2: return QStringLiteral("Connectivity & Security");
         case DiagGroup::G3: return QStringLiteral("Internet & DNS");
         case DiagGroup::G4: return QStringLiteral("Remote Host");
-        case DiagGroup::G5: return QStringLiteral("Website / URL");
+        case DiagGroup::G5: return QStringLiteral("Protocol");
     }
     return {};
 }
@@ -144,6 +144,8 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G5HttpRedirect:
         case DiagId::G5HttpCompression:
         case DiagId::G5HttpTiming:
+            return DiagGroup::G5;
+        // G5 — Per-scheme protocol diagnostics (FTP, SSH, DB, etc.)
         case DiagId::G5FtpDiagnostics:
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:

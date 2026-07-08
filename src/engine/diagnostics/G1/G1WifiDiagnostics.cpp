@@ -83,9 +83,9 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
         {"Interface", 12, false},
         {"SSID",      20, false},
         {"BSSID",     17, false},
-        {"Channel",    8, false},
-        {"Signal",     7, false},
-        {"Bitrate",    0, false},
+        {"Channel",    8, true},   // numeric
+        {"Signal",     7, true},   // numeric (dBm / %)
+        {"Bitrate",    0, true},   // numeric (Mbps)
     };
     QList<QStringList> wifiRows;
     QSet<QString> seenWifi;

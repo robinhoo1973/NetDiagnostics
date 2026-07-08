@@ -16,7 +16,14 @@ DiagnosticResult httpCompression(const QString& target) {
     }
     auto r = g5Result(DiagId::G5HttpCompression,
         compressed ? QStringLiteral("Compressed: %1").arg(enc) : "Uncompressed", DiagStatus::Info);
-    r.rawOutput = cr.lines.join('\n'); r.details = r.rawOutput;
+    // Show compression analysis — not raw curl dump
+    QStringList compLines;
+    compLines.append(QStringLiteral("Content-Encoding Check:"));
+    compLines.append(QStringLiteral("  Encoding:   %1").arg(compressed ? enc : QStringLiteral("none (uncompressed)")));
+    compLines.append(QStringLiteral("  HTTP Status:%1").arg(cr.statusCode));
+    compLines.append(QStringLiteral("  Response:   %1 ms").arg(cr.totalMs, 0, 'f', 1));
+    r.rawOutput = compLines.join('\n');
+    r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
     return r;
 

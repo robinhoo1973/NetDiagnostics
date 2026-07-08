@@ -11,6 +11,8 @@ DiagnosticResult networkAdapters(DiagId id) {
     out.append(QStringLiteral("Network Adapters (ifconfig -s style)"));
     out.append(QString());
 
+    QList<QStringList> netRows;
+
 #ifdef _WIN32
     ULONG bufLen = 15000;
     QByteArray buf(bufLen, '\0');
@@ -30,6 +32,8 @@ DiagnosticResult networkAdapters(DiagId id) {
         QString ifType = (a->IfType == IF_TYPE_ETHERNET_CSMACD) ? QStringLiteral("Ethernet")
             : (a->IfType == IF_TYPE_IEEE80211) ? QStringLiteral("Wireless")
             : QStringLiteral("Other");
+        netRows.append({QString::fromWCharArray(a->FriendlyName), ifType,
+            QStringLiteral("UP"), QStringLiteral("-"), QStringLiteral("-")});
         out.append(QStringLiteral("%1 adapter %2:").arg(ifType, QString::fromWCharArray(a->FriendlyName)));
         out.append(QString());
         if (a->PhysicalAddressLength > 0)
@@ -86,8 +90,6 @@ DiagnosticResult networkAdapters(DiagId id) {
         {"IPv4 Address",18, false},
         {"SSID",        20, false},
     };
-    QList<QStringList> netRows;
-
     for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
         const IfInfo& info = it.value();
         bool isLoopback = (info.flags & IFF_LOOPBACK);
@@ -182,7 +184,6 @@ DiagnosticResult networkAdapters(DiagId id) {
         {"MAC Address", 20, false},
         {"IPv4 Address", 0, false},
     };
-    QList<QStringList> netRows;
 
     for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
         const IfInfo& info = it.value();

@@ -9,9 +9,7 @@ DiagnosticConfig::DiagnosticConfig(QObject* parent) : QObject(parent) {
 
 void DiagnosticConfig::enableDefaultGroups() {
     for (auto id : allDiagIds()) {
-        auto g = diagGroup(id);
-        if (g == DiagGroup::G1 || g == DiagGroup::G2 || g == DiagGroup::G3)
-            m_enabledDiags.insert(id);
+        m_enabledDiags.insert(id); // enable all groups by default
     }
 }
 

@@ -24,12 +24,18 @@ DiagnosticResult arpTable(DiagId id) {
         }
         FreeMibTable(table);
     }
+    r.rawOutput = out.join('\n');
+    r.details = r.rawOutput;
+    r.status   = out.size() > 3 ? DiagStatus::Pass : DiagStatus::Warning;
+    r.summary  = out.size() > 3
+        ? QStringLiteral("ARP table collected via GetIpNetTable2")
+        : QStringLiteral("No ARP entries found");
 #else
     // Common ARP table columns (shared by Linux and macOS)
     static const QVector<DiagnosticFormatter::ColSpec> kArpCols = {
-        {"Internet Address",  24, true},
-        {"Physical Address",  23, true},
-        {"Type",               0, false},
+        {"Internet Address",  24, false},  // IP identifier
+        {"Physical Address",  23, false},  // MAC identifier
+        {"Type",               0, false},  // text
     };
     QList<QStringList> arpRows;
     // Linux: parse /proc/net/arp
