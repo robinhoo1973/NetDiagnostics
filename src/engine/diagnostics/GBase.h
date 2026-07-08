@@ -27,6 +27,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <ifaddrs.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
 #endif
 #include "util/DnsResolver.h"
 #include "util/NetUtil.h"
