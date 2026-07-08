@@ -74,7 +74,7 @@ jobs:
         shell: pwsh
         run: |
           # Check 5WHY in recent commits
-          $commits = git log --oneline -10 --format="%s"
+          $commits = git log --oneline -10 --format="%B"
           $whyCount = ($commits | Select-String "Why #1" | Measure-Object).Count
           Write-Host "Commits with 5WHY analysis: $whyCount"
           if ($whyCount -eq 0) {
@@ -84,8 +84,8 @@ jobs:
           # Preprocessor balance
           $failed = 0
           Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object {
-            $ifs = (Select-String -Path $_.FullName -Pattern '^#if' | Measure-Object).Count
-            $ends = (Select-String -Path $_.FullName -Pattern '^#endif' | Measure-Object).Count
+            $ifs = (Select-String -Path $_.FullName -Pattern '\#if' | Measure-Object).Count
+            $ends = (Select-String -Path $_.FullName -Pattern '\#endif' | Measure-Object).Count
             if ($ifs -ne $ends) {
               Write-Host "::error::$($_.Name): #if=$ifs #endif=$ends"
               $failed++
