@@ -140,21 +140,31 @@ void TestHarness::runTestCase(const TestCase& tc) {
     }
 
     simClickRun();
+
+    // ── Cancel any previous run before starting new diagnostics ────
+    if (m_appState->runStatusInt() == 1) {
+        m_appState->cancel();
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 1000);
+    }
+
     m_appState->setTarget(target);
     m_appState->runDiagnostics();
 
-    // Wait for diagnostics to complete (headless mode — no event loop needed)
-    // The runDiagnostics call is synchronous for the launch; results come via signals.
-    // For CI, we process events until completion.
-    QEventLoop loop;
-    QTimer watchdog;
-    watchdog.setSingleShot(true);
-    QObject::connect(&watchdog, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QObject::connect(m_appState, &AppState::runStatusChanged, [&]() {
-        if (m_appState->runStatusInt() != 1) loop.quit(); // not Running → done
-    });
-    watchdog.start(120000); // 2-minute max per test case
-    loop.exec();
+    // Wait for diagnostics to complete — use processEvents loop,
+    // NOT nested QEventLoop::exec() which causes segfault on repeat runs.
+    QElapsedTimer waitTimer;
+    waitTimer.start();
+    while (m_appState->runStatusInt() == 1 && waitTimer.elapsed() < 120000) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 100);
+        if (waitTimer.elapsed() % 5000 < 100) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+        }
+    }
+    if (waitTimer.elapsed() >= 120000) {
+        logError("Diagnostics timed out after 120s — cancelling");
+        m_appState->cancel();
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 500);
+    }
 
     // Collect results
     for (DiagId id : DiagnosticConfig::allDiagIds()) {
