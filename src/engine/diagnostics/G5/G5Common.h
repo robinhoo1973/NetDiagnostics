@@ -18,21 +18,7 @@ typedef SSIZE_T ssize_t;
 #include <QTcpSocket>
 #include <cstring>
 #include <cstdio>
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-// Use an inline helper to avoid renaming Qt's QAbstractSocket::close() via macro
-static inline void closeSocket(int fd) { closesocket((SOCKET)(uintptr_t)fd); }
-#else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-static inline void closeSocket(int fd) { ::close(fd); }
-#endif
+#include "util/NetUtil.h"  // cross-platform closeSocket, setSocketNonBlocking etc.
 
 namespace G5WebsiteUrl {
 
