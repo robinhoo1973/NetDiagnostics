@@ -152,9 +152,9 @@ Rectangle {
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                     Label {
-                                        text: groupLabel
+                                        text: groupLabel.toUpperCase()
                                         font.family: ThemeEngine.monoFont; font.pixelSize: 8
-                                        font.weight: Font.Bold; font.capitalization: Font.AllUppercase; color: ThemeEngine.textMuted
+                                        font.weight: Font.Bold; color: ThemeEngine.textMuted
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                 }
