@@ -30,6 +30,9 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
+#ifdef PLATFORM_IOS
+#include "engine/diagnostics/G1/G1Common.h"
+#endif
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
 #include <net/if_dl.h>       // sockaddr_dl, LLADDR
