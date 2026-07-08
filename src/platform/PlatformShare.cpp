@@ -3,7 +3,7 @@
 // =============================================================================
 #ifdef PLATFORM_ANDROID
 
-#include "util/PlatformShare.h"
+#include "platform/PlatformShare.h"
 #include <QJniObject>
 #include <QJniEnvironment>
 #include <QCoreApplication>
