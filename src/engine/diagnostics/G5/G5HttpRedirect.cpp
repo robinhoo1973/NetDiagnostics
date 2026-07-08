@@ -1,4 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
+#ifndef NO_CURL
 DiagnosticResult httpRedirect(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpRedirect, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -21,6 +22,6 @@ DiagnosticResult httpRedirect(const QString& target) {
     r.rawOutput = redirectLines.join('\n');
     r.details = r.rawOutput;
     return r;
-
 }
+#endif // NO_CURL
 } // namespace G5WebsiteUrl

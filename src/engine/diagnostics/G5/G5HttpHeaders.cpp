@@ -1,4 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
+#ifndef NO_CURL
 DiagnosticResult httpHeaders(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpHeaders, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -34,7 +35,8 @@ DiagnosticResult httpHeaders(const QString& target) {
     r.details = r.rawOutput;
     r.properties.append({QStringLiteral("Response Headers"), QString::number(headerCount)});
     return r;
+}
+#endif // NO_CURL
 
 // ── G5.5 Curl Verbose (full GET, curl -v style complete output) ──────────
-}
 } // namespace G5WebsiteUrl

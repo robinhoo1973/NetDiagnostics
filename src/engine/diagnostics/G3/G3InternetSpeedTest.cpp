@@ -1,5 +1,4 @@
 #include "engine/diagnostics/GHelpers.h"
-#include <QProcess>
 #include <cstdlib>
 #include <ctime>
 
@@ -100,32 +99,29 @@ inline void SpeedTest::build() { Server s;
 }
 #undef S
 inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
-    if (m.contains(hint)) return m[hint]; QString p = hint.left(2).toUpper();
-    return m.contains(p) ? m[p] : allServers();
+    if (m.contains(hint)) return m.value(hint);
+    QString p = hint.left(2).toUpper();
+    return m.contains(p) ? m.value(p) : allServers();
 }
 inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
     QVector<Server> a; for (auto& l : m) a.append(l); return a;
 }
 inline QString SpeedTest::detectCountry(int timeoutMs) {
-    // GeoIP via ip-api.com (free, no API key required)
-    QProcess geo;
-    geo.start(QStringLiteral("curl"), QStringList()
-        << QStringLiteral("-s") << QStringLiteral("--max-time")
-        << QString::number(qMax(1, timeoutMs / 1000))
-        << QStringLiteral("http://ip-api.com/line/?fields=countryCode"));
-    if (geo.waitForFinished(timeoutMs > 0 ? timeoutMs : 3000)) {
-        QString cc = QString::fromUtf8(geo.readAllStandardOutput()).trimmed();
-        if (cc.length() == 2) return cc.toUpper();
-    }
-    // Fallback: try ipinfo.io
-    QProcess geo2;
-    geo2.start(QStringLiteral("curl"), QStringList()
-        << QStringLiteral("-s") << QStringLiteral("--max-time") << QStringLiteral("3")
-        << QStringLiteral("http://ipinfo.io/country"));
-    if (geo2.waitForFinished(3000)) {
-        QString cc = QString::fromUtf8(geo2.readAllStandardOutput()).trimmed();
-        if (cc.length() == 2) return cc.toUpper();
-    }
+    // GeoIP via raw-socket HTTP GET (no external curl dependency)
+    // ip-api.com — free, no API key, returns plain-text country code
+    QByteArray resp = G1G2G3Native::httpGet(
+        QStringLiteral("ip-api.com"), 80,
+        QStringLiteral("/line/?fields=countryCode"),
+        timeoutMs > 0 ? timeoutMs : 3000, 16);
+    QString cc = QString::fromUtf8(resp).trimmed();
+    if (cc.length() == 2) return cc.toUpper();
+    // Fallback: ipinfo.io
+    resp = G1G2G3Native::httpGet(
+        QStringLiteral("ipinfo.io"), 80,
+        QStringLiteral("/country"),
+        3000, 16);
+    cc = QString::fromUtf8(resp).trimmed();
+    if (cc.length() == 2) return cc.toUpper();
     return QStringLiteral("XX"); // unknown
 }
 inline void SpeedTest::rankByLatency(QVector<Server>& c, int tmo) {

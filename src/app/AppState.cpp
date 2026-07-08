@@ -446,14 +446,9 @@ void AppState::setTarget(const QString& t) {
                 isTargetUrl(), isTargetHttpUrl(), m_targetError.toUtf8().constData());
 
         // G4: always on when target non-empty (URL or host)
-        // G5: any valid URL scheme (was http/https-only prior to fix)
-        // NOTE: socket-based G5 tests (tcpConnect, serviceBanner, ftp, ssh, email
-        // diagnostics) work without libcurl. The #if guard below is conservative —
-        // a future enhancement can relax it for platforms with NO_CURL defined.
-        setGroupEnabled(3, has);          // G4 on if target non-empty
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || !defined(NO_CURL)
-        setGroupEnabled(4, has && isAnyUrl); // G5 on for any valid URL scheme
-#endif
+        // G5: any valid URL scheme (all protocol tests: HTTP, FTP, SSH, DB, etc.)
+        setGroupEnabled(3, has);               // G4 on if target non-empty
+        setGroupEnabled(4, has && isAnyUrl);   // G5 on for any valid URL scheme
         TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
                 has, isAnyUrl, isHttp, has, has && isAnyUrl, m_targetError.toUtf8().constData());
         emit targetChanged();
@@ -528,6 +523,35 @@ void AppState::runDiagnostics() {
             if (!m_config.enabledDiags().contains(id)) continue;
             if (gt.group == DiagGroup::G4 && !hasTarget) continue;
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
+            // G5: filter by scheme — only schedule tests matching the target's protocol
+            if (gt.group == DiagGroup::G5 && hasTarget) {
+                QString scheme = m_targetScheme.isEmpty()
+                    ? QStringLiteral("https") : m_targetScheme.toLower();
+                // URL parsing + TCP connect + service banner run for any scheme
+                bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
+                               || id == DiagId::G5ServiceBanner);
+                bool isHttp = (scheme == "http" || scheme == "https");
+                bool isFtp  = (scheme == "ftp" || scheme == "ftps");
+                bool isSsh  = (scheme == "ssh" || scheme == "sftp");
+                bool match = isGeneric
+                    || (isHttp && (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
+                        || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
+                        || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
+                        || id == DiagId::G5HttpTiming))
+                    || (isFtp && id == DiagId::G5FtpDiagnostics)
+                    || (isSsh && id == DiagId::G5SshDiagnostics)
+                    || (scheme == "mysql" && id == DiagId::G5Mysql)
+                    || (scheme == "postgresql" && id == DiagId::G5Postgres)
+                    || (scheme == "redis" && id == DiagId::G5Redis)
+                    || (scheme == "mongodb" && id == DiagId::G5Mongodb)
+                    || (scheme == "ldap" && id == DiagId::G5Ldap)
+                    || (scheme == "mqtt" && id == DiagId::G5Mqtt)
+                    || (scheme == "telnet" && id == DiagId::G5Telnet)
+                    || ((scheme == "smtp" || scheme == "smtps" || scheme == "imap"
+                         || scheme == "imaps" || scheme == "pop3" || scheme == "pop3s")
+                         && id == DiagId::G5EmailDiagnostics);
+                if (!match) continue;
+            }
             gt.diagIds.append(id);
             m_totalPerGroup[gt.group]++;
         }
@@ -787,7 +811,7 @@ QVariantMap AppState::groupStats(int groupInt) const {
     // total = tests actually scheduled for this group (m_totalPerGroup).
     // Before any run this is 0 — all counts show 0.
     int total = m_totalPerGroup.value(g, 0);
-    int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, completed = 0;
+    int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, completed = 0;
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         if (!m_results.contains(id)) continue;
         completed++;
@@ -797,12 +821,12 @@ QVariantMap AppState::groupStats(int groupInt) const {
             case DiagStatus::Fail:    fail++; break;
             case DiagStatus::Skipped: skip++; break;
             case DiagStatus::Info:    info++; break;
-            case DiagStatus::Error:   fail++; break; // timeout counts as failure
+            case DiagStatus::Error:   error++; break;
             default: break;
         }
     }
     stats["pass"] = pass; stats["warn"] = warn;
-    stats["fail"] = fail; stats["skip"] = skip; stats["info"] = info;
+    stats["fail"] = fail; stats["skip"] = skip; stats["info"] = info; stats["error"] = error;
     stats["completed"] = completed; stats["total"] = total;
     stats["enabled"] = total;
     return stats;

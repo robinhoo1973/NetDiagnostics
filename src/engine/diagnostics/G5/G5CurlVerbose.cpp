@@ -1,4 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
+#ifndef NO_CURL
 DiagnosticResult curlVerbose(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5CurlVerbose, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -13,7 +14,8 @@ DiagnosticResult curlVerbose(const QString& target) {
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
     return r;
+}
+#endif // NO_CURL
 
 // ── G5.6 Security Headers (HEAD + check security header presence) ───────
-}
 } // namespace G5WebsiteUrl

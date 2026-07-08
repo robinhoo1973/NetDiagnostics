@@ -58,7 +58,7 @@ QString reportStatusClass(DiagStatus s) {
         case DiagStatus::Pass:    return QStringLiteral("pass");
         case DiagStatus::Warning: return QStringLiteral("warn");
         case DiagStatus::Fail:    return QStringLiteral("fail");
-        case DiagStatus::Error:   return QStringLiteral("fail");
+        case DiagStatus::Error:   return QStringLiteral("error");
         case DiagStatus::Skipped: return QStringLiteral("skip");
         default:                  return QStringLiteral("info");
     }
@@ -74,6 +74,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
     const QString colorFail = QStringLiteral("#EF4444");
     const QString colorSkip = QStringLiteral("#9CA3AF");
     const QString colorInfo = QStringLiteral("#3B82F6");
+    const QString colorError = QStringLiteral("#DC2626");
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
@@ -110,10 +111,10 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
     };
     h += QStringLiteral("<table width=\"100%\" cellpadding=\"12\" cellspacing=\"6\"><tr>");
     h += card(QStringLiteral("#ECFDF5"), colorPass, tPass, QStringLiteral("Pass"));
+    h += card(QStringLiteral("#EFF6FF"), colorInfo, tInfo, QStringLiteral("Info"));
     h += card(QStringLiteral("#FFFBEB"), colorWarn, tWarn, QStringLiteral("Warning"));
     h += card(QStringLiteral("#FEF2F2"), colorFail, tFail, QStringLiteral("Fail"));
     h += card(QStringLiteral("#F1F5F9"), colorSkip, tSkip, QStringLiteral("Skipped"));
-    h += card(QStringLiteral("#EFF6FF"), colorInfo, tInfo, QStringLiteral("Info"));
     h += QStringLiteral("</tr></table>");
     h += QStringLiteral("<p align=\"center\"><font color=\"#64748B\" size=\"2\">%1 tests total</font></p><br/>")
         .arg(tTotal);
@@ -128,13 +129,15 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
             "<table width=\"100%\" cellpadding=\"9\" cellspacing=\"0\"><tr>"
             "<td bgcolor=\"#1E293B\">"
             "<font color=\"#FFFFFF\" size=\"3\"><b>G%1 &middot; %2</b></font>"
-            "&nbsp;&nbsp;<font color=\"%3\" size=\"2\">%4 Pass</font>"
-            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%5\" size=\"2\">%6 Warn</font>"
-            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%7\" size=\"2\">%8 Fail</font>"
-            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%9\" size=\"2\">%10 Skip</font>"
+            "&nbsp;&nbsp;<font color=\"%3\" size=\"2\">&#10003; %4</font>"
+            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%5\" size=\"2\">&#8505; %6</font>"
+            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%7\" size=\"2\">&#9888; %8</font>"
+            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%9\" size=\"2\">&#10007; %10</font>"
+            "<font color=\"#64748B\" size=\"2\"> &middot; </font><font color=\"%11\" size=\"2\">&#8862; %12</font>"
             "</td></tr></table>")
             .arg(g+1).arg(glabel)
             .arg(colorPass).arg(s.value(QStringLiteral("pass")).toInt())
+            .arg(colorInfo).arg(s.value(QStringLiteral("info")).toInt())
             .arg(colorWarn).arg(s.value(QStringLiteral("warn")).toInt())
             .arg(colorFail).arg(s.value(QStringLiteral("fail")).toInt())
             .arg(colorSkip).arg(s.value(QStringLiteral("skip")).toInt());
@@ -239,6 +242,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         "h3{font-size:15px;color:#7fb2e6;margin:20px 0 10px}"
         ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
         ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
+        ".card .icon{display:block;font-size:18px;margin-bottom:2px}"
         ".card .count{display:block;font-size:30px;font-weight:700}"
         ".card .label{font-size:11px;color:#a0a0b8;margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
         ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ade80}"
@@ -246,6 +250,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#ef4444}"
         ".card.skip{background:#1e1e2e;border:1px solid #333}.card.skip .count{color:#9aa0b5}"
         ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#3b82f6}"
+        ".card.error{background:#2b1111;border:1px solid #5a2020}.card.error .count{color:#ef4444}"
         "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
         "table.grid th{text-align:left;padding:11px 12px;background:#16213e;color:#a0a0b8;font-weight:600}"
         "table.grid td{padding:9px 12px;border-bottom:1px solid #2a2a4a;vertical-align:top}"
@@ -265,9 +270,10 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"
         ".footer{text-align:center;padding:20px;color:#5a5a72;font-size:11px;margin-top:28px;border-top:1px solid #23233a}";
 
-    auto card = [](const QString& cls, int n, const QString& lbl) {
-        return QStringLiteral("<div class=\"card %1\"><span class=\"count\">%2</span>"
-            "<span class=\"label\">%3</span></div>").arg(cls).arg(n).arg(lbl);
+    auto card = [](const QString& cls, const QString& icon, int n, const QString& lbl) {
+        return QStringLiteral("<div class=\"card %1\"><span class=\"icon\">%2</span>"
+            "<span class=\"count\">%3</span>"
+            "<span class=\"label\">%4</span></div>").arg(cls, icon).arg(n).arg(lbl);
     };
 
     QString h;
@@ -284,11 +290,11 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         .arg(data.timestamp, data.target, data.appVersion, data.buildNumber);
 
     h += QStringLiteral("<div class=\"cards\">");
-    h += card(QStringLiteral("pass"), tPass, QStringLiteral("Pass"));
-    h += card(QStringLiteral("warn"), tWarn, QStringLiteral("Warning"));
-    h += card(QStringLiteral("fail"), tFail, QStringLiteral("Fail"));
-    h += card(QStringLiteral("skip"), tSkip, QStringLiteral("Skipped"));
-    h += card(QStringLiteral("info"), tInfo, QStringLiteral("Info"));
+    h += card(QStringLiteral("pass"), QStringLiteral("&#10003;"), tPass, QStringLiteral("Pass"));
+    h += card(QStringLiteral("info"), QStringLiteral("&#8505;"), tInfo, QStringLiteral("Info"));
+    h += card(QStringLiteral("warn"), QStringLiteral("&#9888;"), tWarn, QStringLiteral("Warning"));
+    h += card(QStringLiteral("fail"), QStringLiteral("&#10007;"), tFail, QStringLiteral("Fail"));
+    h += card(QStringLiteral("skip"), QStringLiteral("&#8862;"), tSkip, QStringLiteral("Skipped"));
     h += QStringLiteral("</div>\n");
 
     // Summary table

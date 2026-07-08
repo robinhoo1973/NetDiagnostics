@@ -66,11 +66,14 @@ Rectangle {
             }
             Item { Layout.fillWidth:true }
             Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
-            Rectangle { visible:groupPass>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.passGreen,0.15); Label { anchors.centerIn:parent; text:groupPass; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.passGreen; font.weight:Font.Bold } }
-            Rectangle { visible:groupWarn>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.warnYellow,0.15); Label { anchors.centerIn:parent; text:groupWarn; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.warnYellow; font.weight:Font.Bold } }
-            Rectangle { visible:groupFail>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.failRed,0.15); Label { anchors.centerIn:parent; text:groupFail; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.failRed; font.weight:Font.Bold } }
-            Rectangle { visible:groupSkip>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.skipGray,0.15); Label { anchors.centerIn:parent; text:groupSkip; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.skipGray; font.weight:Font.Bold } }
-            Rectangle { visible:groupInfo>0; implicitWidth:26; implicitHeight:18; radius:4; color:Qt.alpha(ThemeEngine.infoBlue,0.15); Label { anchors.centerIn:parent; text:groupInfo; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.infoBlue; font.weight:Font.Bold } }
+            // 5 result-type badges with colored icon + 2-digit count
+            RowLayout { spacing: 4
+                StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
+                StatusBadge { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: groupInfo }
+                StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
+                StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
+                StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
+            }
             Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
         }
 
@@ -121,4 +124,17 @@ Rectangle {
     }
 
     signal detailClicked(var data)
+
+    // ── Status badge: colored icon + 2-digit count ────────────────────
+    component StatusBadge: RowLayout {
+        property color accent: ThemeEngine.passGreen
+        property string iconName: "badge-info"
+        property int count: 0
+        spacing: 2
+        AppIcon { name: iconName; size: 10; color: accent }
+        Label {
+            text: ("  " + count).slice(-2)
+            font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: accent
+        }
+    }
 }

@@ -17,11 +17,12 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 6 }
 
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;  rightAlign: summaryRoot.compact }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;  rightAlign: summaryRoot.compact }
+    // 5 result types — each with colored icon + badge count
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip }
 
     Connections {
         target: appState

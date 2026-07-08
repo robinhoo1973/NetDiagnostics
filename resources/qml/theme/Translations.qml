@@ -21,7 +21,7 @@ Item {
             t("Connectivity & Security", "Connectivité et sécurité", "Konnektivität & Sicherheit", "Подключение и безопасность", "Connettività e sicurezza", "连接与安全", "連線與安全", "Conectividad y seguridad", "Conectividade e segurança"),
             t("Internet & DNS", "Internet et DNS", "Internet & DNS", "Интернет и DNS", "Internet e DNS", "互联网与DNS", "網際網路與DNS", "Internet y DNS", "Internet e DNS"),
             t("Remote Host", "Hôte distant", "Remote Host", "Удаленный хост", "Host remoto", "远程主机", "遠端主機", "Host remoto", "Host remoto"),
-            t("Website / URL", "Site Web / URL", "Website / URL", "Веб-сайт / URL", "Sito Web / URL", "网站 / URL", "網站 / URL", "Sitio web / URL", "Site / URL"),
+            t("Protocol", "Protocole", "Protokoll", "Протокол", "Protocollo", "协议", "協定", "Protocolo", "Protocolo"),
         ]
         return (idx >= 0 && idx < names.length) ? names[idx] : ""
     }
@@ -156,6 +156,7 @@ Item {
     readonly property string summaryFail: t("Fail", "Échec", "Fehlgeschlagen", "Неудача", "Fallito", "失败", "失敗", "Fallido", "Falhou")
     readonly property string summarySkipped: t("Skipped", "Ignoré", "Übersprungen", "Пропущено", "Saltato", "已跳过", "已跳過", "Omitido", "Ignorado")
     readonly property string summaryInfo: t("Info", "Info", "Info", "Инфо", "Info", "信息", "資訊", "Info", "Info")
+    readonly property string summaryError: t("Error", "Erreur", "Fehler", "Ошибка", "Errore", "错误", "錯誤", "Error", "Erro")
 
     // ── TestResultItem ──
     readonly property string diagRunning: t("Running...", "En cours...", "Läuft...", "Выполняется...", "In corso...", "运行中...", "運行中...", "Ejecutando...", "Executando...")

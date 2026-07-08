@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     app.setApplicationDisplayName("NetDiagnostics");
     app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
     app.setOrganizationName("robinhoo1973");
-    app.setWindowIcon(QIcon(":/icons/app-icon.svg"));
+    app.setWindowIcon(QIcon(":/icons/netanalysis.ico"));
 
 #ifdef PLATFORM_IOS
     // Request WiFi SSID access (iOS 14+ needs location permission)
