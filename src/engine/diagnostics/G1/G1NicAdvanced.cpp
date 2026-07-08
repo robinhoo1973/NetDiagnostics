@@ -8,10 +8,57 @@ DiagnosticResult nicAdvanced(DiagId id) {
     QStringList out;
 
     out.append(QString());
+
+    QList<QStringList> nicRows;
+
 #ifdef _WIN32
-    out.append(QStringLiteral("NIC Advanced Properties:"));
-    // ... Windows-specific registry queries would go here
-    out.append(QStringLiteral("  (use wmic nic / Device Manager for full details)"));
+    out.append(QStringLiteral("NIC Advanced Properties (table mode):"));
+    out.append(QString());
+    static const QVector<DiagnosticFormatter::ColSpec> kNicCols = {
+        {"Interface",   12, false},
+        {"Speed",        7, true},
+        {"Duplex",       6, false},
+        {"MTU",          4, true},
+        {"Carrier",      7, false},
+        {"State",       10, false},
+        {"MAC Address", 17, false},
+    };
+    PMIB_IF_TABLE2 ifTable = nullptr;
+    if (GetIfTable2(&ifTable) == NO_ERROR && ifTable) {
+        for (ULONG i = 0; i < ifTable->NumEntries; i++) {
+            auto& row = ifTable->Table[i];
+            if (row.OperStatus == IfOperStatusNotPresent) continue;
+            // Skip loopback and tunnel adapters
+            if (row.Type == IF_TYPE_SOFTWARE_LOOPBACK) continue;
+            QString ifName   = QString::fromWCharArray(row.Alias);
+            QString speedStr = (row.TransmitLinkSpeed > 0)
+                ? (row.TransmitLinkSpeed >= 1000000000
+                    ? QStringLiteral("%1 Gbps").arg(row.TransmitLinkSpeed / 1.0e9, 0, 'f', 1)
+                    : QStringLiteral("%1 Mbps").arg(row.TransmitLinkSpeed / 1.0e6, 0, 'f', 0))
+                : QStringLiteral("N/A");
+            // Duplex: NDIS OID not easily accessible from user mode; estimate
+            // Full-duplex is standard for ≥1Gbps links; mark others as N/A
+            QString duplexStr = (row.TransmitLinkSpeed >= 1000000000)
+                ? QStringLiteral("Full") : QStringLiteral("N/A");
+            QString mtuStr   = QString::number(row.Mtu);
+            QString carryStr = (row.MediaConnectState == MediaConnectStateConnected)
+                ? QStringLiteral("On") : QStringLiteral("Off");
+            QString stateStr = (row.OperStatus == IfOperStatusUp)
+                ? QStringLiteral("Up") : QStringLiteral("Down");
+            QString macStr   = (row.PhysicalAddressLength >= 6)
+                ? QStringLiteral("%1:%2:%3:%4:%5:%6")
+                    .arg(row.PhysicalAddress[0], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[1], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[2], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[3], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[4], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[5], 2, 16, QLatin1Char('0'))
+                : QStringLiteral("N/A");
+            nicRows.append({ifName.left(12), speedStr, duplexStr, mtuStr, carryStr, stateStr, macStr});
+        }
+        FreeMibTable(ifTable);
+    }
+    out.append(DiagnosticFormatter::formatTable(kNicCols, nicRows));
 #else
     out.append(QStringLiteral("NIC Advanced Properties (table mode):"));
     out.append(QString());
@@ -24,7 +71,6 @@ DiagnosticResult nicAdvanced(DiagId id) {
         {"State",       10, false},
         {"MAC Address", 17, false},
     };
-    QList<QStringList> nicRows;
 
     QSet<QString> seenNic;
     struct ifaddrs* ifa = nullptr;

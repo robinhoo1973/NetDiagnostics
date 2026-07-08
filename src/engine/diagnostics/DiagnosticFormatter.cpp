@@ -1,41 +1,98 @@
 // =============================================================================
 // DiagnosticFormatter.cpp — Shared output formatting (extracted from G1G2G3Native)
 // =============================================================================
+// UX alignment principles:
+//   • Numeric data → RIGHT-aligned (easy visual magnitude comparison)
+//   • Text data   → LEFT-aligned  (natural reading flow)
+//   • Headers     → match the alignment of their column's data
+//   • Content longer than column width → truncated with "…" suffix
+//   • CJK / emoji characters counted as 2 display columns
+// =============================================================================
 #include "engine/diagnostics/DiagnosticFormatter.h"
 #include <QDateTime>
 
 static const QString kTblGap = QStringLiteral("  ");
 
-// ── Aligned-column table (extracted from G1G2G3Native::tblFmt) ──────
+// ── Display-width helper: CJK / fullwidth / emoji = 2, ASCII = 1 ──
+static int displayWidth(const QString& s) {
+    int w = 0;
+    for (const QChar& ch : s) {
+        ushort uc = ch.unicode();
+        // Hangul Jamo, CJK Radicals–Yi, Hangul Syllables, CJK Compat,
+        // Fullwidth Forms, Emoji, CJK Ext B–G
+        if ((uc >= 0x1100 && uc <= 0x115F)
+            || (uc >= 0x2329 && uc <= 0x232A)
+            || (uc >= 0x2E80 && uc <= 0xA4CF)
+            || (uc >= 0xAC00 && uc <= 0xD7A3)
+            || (uc >= 0xF900 && uc <= 0xFAFF)
+            || (uc >= 0xFE10 && uc <= 0xFE19)
+            || (uc >= 0xFE30 && uc <= 0xFE6F)
+            || (uc >= 0xFF00 && uc <= 0xFF60)
+            || (uc >= 0xFFE0 && uc <= 0xFFE6)
+            || (uc >= 0x1F300 && uc <= 0x1F64F)
+            || (uc >= 0x1F900 && uc <= 0x1F9FF)
+            || (uc >= 0x20000 && uc <= 0x2FFFD)
+            || (uc >= 0x30000 && uc <= 0x3FFFD))
+            w += 2;
+        else
+            w += 1;
+    }
+    return w;
+}
+
+// ── Trim a value to fit within display-width budget ──
+// Returns the original string if it fits; otherwise truncates and appends "…"
+static QString trimToWidth(const QString& val, int maxDisplayWidth) {
+    if (displayWidth(val) <= maxDisplayWidth)
+        return val;
+    // Walk until we exceed budget, then add ellipsis
+    int dw = 0;
+    for (int i = 0; i < val.length(); ++i) {
+        int cdw = displayWidth(val.mid(i, 1));
+        if (dw + cdw + 1 > maxDisplayWidth) // +1 for "…"
+            return val.left(i) + QStringLiteral("…"); // …
+        dw += cdw;
+    }
+    return val;
+}
+
+// ── Pad a string to target display width ──
+// leftPad=false → left-justify (append spaces); leftPad=true → right-justify (prepend spaces)
+static QString padToWidth(const QString& val, int targetDisplayWidth, bool rightAlign) {
+    int dw = displayWidth(val);
+    int padNeeded = qMax(0, targetDisplayWidth - dw);
+    if (rightAlign)
+        return QString(padNeeded, ' ') + val;
+    else
+        return val + QString(padNeeded, ' ');
+}
+
+// ── Aligned-column table ───────────────────────────────────────────
 QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
                                                const QList<QStringList>& rows) {
     QStringList out;
     QVector<int> w(cols.size());
     for (int i = 0; i < cols.size(); ++i) {
-        w[i] = qMax(cols[i].minWidth, (int)strlen(cols[i].header));
+        w[i] = qMax(cols[i].minWidth, displayWidth(QString::fromLatin1(cols[i].header)));
         for (const auto& row : rows)
-            if (i < row.size()) w[i] = qMax(w[i], row[i].length());
+            if (i < row.size()) w[i] = qMax(w[i], displayWidth(row[i]));
     }
-    // Header
+    // Header row: pad to display width, matching column alignment
     QStringList hdrParts;
     for (int i = 0; i < cols.size(); ++i)
-        hdrParts.append(cols[i].rightAlign
-            ? QString::fromLatin1(cols[i].header).rightJustified(w[i], ' ')
-            : QString::fromLatin1(cols[i].header).leftJustified(w[i], ' '));
+        hdrParts.append(padToWidth(QString::fromLatin1(cols[i].header), w[i], cols[i].rightAlign));
     out.append(hdrParts.join(kTblGap));
-    // Separator
+    // Separator (dashes matching display width)
     QStringList sepParts;
     for (int i = 0; i < cols.size(); ++i)
         sepParts.append(QString(w[i], '-'));
     out.append(sepParts.join(kTblGap));
-    // Data rows
+    // Data rows — trim to fit, pad to display width
     for (const auto& row : rows) {
         QStringList parts;
         for (int i = 0; i < cols.size(); ++i) {
-            QString val = (i < row.size()) ? row[i] : QString();
-            parts.append(cols[i].rightAlign
-                ? val.rightJustified(w[i], ' ')
-                : val.leftJustified(w[i], ' '));
+            QString val = (i < row.size()) ? trimToWidth(row[i], w[i]) : QString();
+            parts.append(padToWidth(val, w[i], cols[i].rightAlign));
         }
         out.append(parts.join(kTblGap));
     }

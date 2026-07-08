@@ -61,7 +61,7 @@ ColumnLayout {
             }
             Item { width: 8 }
             Label {
-                text: ("   " + count).slice(-3)
+                text: ("  " + count).slice(-2)
                 font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: accent
                 horizontalAlignment: Text.AlignRight
             }

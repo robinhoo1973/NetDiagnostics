@@ -29,11 +29,11 @@ DiagnosticResult routingTable(DiagId id) {
     out.append(QStringLiteral("==========================================================================="));
     out.append(QStringLiteral("Active Routes:"));
     static const QVector<DiagnosticFormatter::ColSpec> kRouteCols = {
-        {"Network Destination", 22, true},
-        {"Netmask",             16, true},
-        {"Gateway",             16, true},
-        {"Interface",           10, false},
-        {"Metric",               6, true},
+        {"Network Destination", 22, false},  // IP identifier
+        {"Netmask",             16, false},  // IP identifier
+        {"Gateway",             16, false},  // IP or "On-link"
+        {"Interface",           10, false},  // text
+        {"Metric",               6, true},   // numeric
     };
     QList<QStringList> routeRows;
 
@@ -73,11 +73,11 @@ DiagnosticResult routingTable(DiagId id) {
     out.append(QStringLiteral("==========================================================================="));
     out.append(QStringLiteral("Active Routes:"));
     static const QVector<DiagnosticFormatter::ColSpec> kRouteCols = {
-        {"Network Destination", 22, true},
-        {"Netmask",             16, true},
-        {"Gateway",             16, true},
-        {"Interface",           10, false},
-        {"Metric",               6, true},
+        {"Network Destination", 22, false},  // IP identifier
+        {"Netmask",             16, false},  // IP identifier
+        {"Gateway",             16, false},  // IP or "On-link"
+        {"Interface",           10, false},  // text
+        {"Metric",               6, true},   // numeric
     };
     QList<QStringList> routeRows;
 

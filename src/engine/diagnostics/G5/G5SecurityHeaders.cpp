@@ -24,7 +24,23 @@ DiagnosticResult securityHeaders(const QString& target) {
         missing.isEmpty() ? "All 7 present" : QStringLiteral("%1 missing").arg(missing.size()),
         missing.isEmpty() ? DiagStatus::Pass :
         missing.size() <= 4 ? DiagStatus::Warning : DiagStatus::Fail);
-    r.rawOutput = cr.lines.join('\n');
+    // Show security header analysis — structured table
+    QStringList secLines;
+    secLines.append(QStringLiteral("Security Header Analysis:"));
+    secLines.append(QString());
+    secLines.append(QStringLiteral("  %1  %2")
+        .arg(QStringLiteral("Header"), -30).arg(QStringLiteral("Status")));
+    secLines.append(QStringLiteral("  %1  %2")
+        .arg(QString(30, '-')).arg(QString(10, '-')));
+    for (const auto& h : required) {
+        bool present = found.contains(h);
+        secLines.append(QStringLiteral("  %1  %2")
+            .arg(h, -30)
+            .arg(present ? QStringLiteral("✓ Present") : QStringLiteral("✗ Missing")));
+    }
+    secLines.append(QString());
+    secLines.append(QStringLiteral("  Result: %1 of 7 security headers present").arg(7 - missing.size()));
+    r.rawOutput = secLines.join('\n');
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
     return r;
