@@ -22,6 +22,10 @@
 #include "app/AppState.h"
 #include "util/DebugSwitch.h"
 #include "util/StartupLog.h"
+#ifdef ND_TESTING
+#include "testing/TestHarness.h"
+#include "testing/TestScenarios.h"
+#endif
 #ifdef PLATFORM_IOS
 #include "engine/diagnostics/G1/IosWiFiHelper.h"
 #endif
@@ -143,6 +147,30 @@ int main(int argc, char *argv[])
             appState.runDiagnostics();
         });
     }
+
+#ifdef ND_TESTING
+    // ── Headless testing mode: --test runs scenarios, no GUI ──────────
+    if (argc >= 2 && strcmp(argv[1], "--test") == 0) {
+        QString logPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+                        + "/netdiag-test-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".log";
+        TestHarness::instance().setLogPath(logPath);
+        TestHarness::instance().logInfo("Headless test mode started");
+        TestHarness::instance().logInfo("Log: " + logPath);
+
+        auto scenarios = TestScenarios::ciScenarios();
+        TestHarness::instance().logInfo(QString("Running %1 test scenarios").arg(scenarios.size()));
+        for (const auto& tc : scenarios)
+            TestHarness::instance().runTestCase(tc);
+
+        TestHarness::instance().printSummary();
+        int exitCode = TestHarness::instance().allPassed() ? 0 : 1;
+        fprintf(stdout, "\nTest results: %d passed, %d failed → exit %d\n",
+                TestHarness::instance().passCount(), TestHarness::instance().failCount(), exitCode);
+        fflush(stdout);
+        return exitCode;
+    }
+#endif
+
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, [url](const QUrl &objUrl) {
             STARTUP_LOG("QML FATAL: object creation failed for %s", objUrl.toString().toUtf8().constData());

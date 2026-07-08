@@ -80,6 +80,14 @@ set(SOURCES
     src/engine/diagnostics/G5/G5Mqtt.cpp
 )
 
+# ── Automated testing harness (ND_TESTING) ──────────────────────────────
+if(ND_TESTING)
+    list(APPEND SOURCES
+        src/testing/TestHarness.cpp
+        src/testing/TestScenarios.cpp
+    )
+endif()
+
 # ── Platform-specific sources ──────────────────────────────────────────
 if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
@@ -107,6 +115,7 @@ setup_platform_bundle(net_diagnostics)
 
 # ── Simulator target ───────────────────────────────────────────────────
 option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
+option(ND_TESTING "Enable automated headless testing harness" OFF)
 option(BUILD_SIMULATOR "Build simulator variant" OFF)
 if(BUILD_SIMULATOR)
     set(SIM_SOURCES ${SOURCES})
