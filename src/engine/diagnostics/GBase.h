@@ -38,6 +38,7 @@
 #endif
 #else
 #include <netpacket/packet.h> // sockaddr_ll, AF_PACKET (Linux)
+#include <linux/wireless.h>   // iwreq, SIOCGIWESSID, IW_ESSID_MAX_SIZE (Linux)
 #endif
 #endif
 #include "util/DnsResolver.h"
