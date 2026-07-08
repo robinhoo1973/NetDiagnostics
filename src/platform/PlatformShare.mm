@@ -3,7 +3,7 @@
 // =============================================================================
 #ifdef PLATFORM_IOS
 
-#include "util/PlatformShare.h"
+#include "platform/PlatformShare.h"
 #include <QString>
 #import <UIKit/UIKit.h>
 

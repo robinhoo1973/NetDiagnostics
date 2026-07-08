@@ -15,7 +15,7 @@
 
 #ifdef PLATFORM_IOS
 
-#include "util/PlatformStore.h"
+#include "platform/PlatformStore.h"
 
 #import <StoreKit/StoreKit.h>
 #import <Foundation/Foundation.h>
