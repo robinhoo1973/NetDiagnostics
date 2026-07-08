@@ -58,3 +58,6 @@ review/
 *.exe
 *\\*
 *.
+**/.codewhale/*
+!**/.codewhale/constitution.json
+AGENTS.md
