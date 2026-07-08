@@ -158,7 +158,7 @@ DiagnosticResult routingTable(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("Routing table collected");
+    r.summary = QStringLiteral("%1 IPv4 route%2").arg(routeRows.size()).arg(routeRows.size() != 1 ? "s" : "");
     r.durationMs = t.elapsed();
     return r;
 }
