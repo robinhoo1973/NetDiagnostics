@@ -1,0 +1,101 @@
+name: CI Test & Code Review
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (ND_TESTING + Headless + Code Review)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-qt6-static
+            mingw-w64-ucrt-x86_64-openssl
+            mingw-w64-ucrt-x86_64-zlib
+            mingw-w64-ucrt-x86_64-brotli
+            mingw-w64-ucrt-x86_64-pcre2
+            mingw-w64-ucrt-x86_64-libpng
+            mingw-w64-ucrt-x86_64-libjpeg-turbo
+            mingw-w64-ucrt-x86_64-libtiff
+            mingw-w64-ucrt-x86_64-libwebp
+            mingw-w64-ucrt-x86_64-freetype
+            mingw-w64-ucrt-x86_64-harfbuzz
+
+      - name: Build (ND_TESTING=ON)
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          mkdir -p build && cd build
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="0.0.1" \
+            -DND_BUILD_NUMBER="${{ github.run_number }}" \
+            -DAPP_EDITION=static \
+            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
+            -DBUILD_SIMULATOR=OFF \
+            -DNO_CURL=ON \
+            -DBUILD_TESTS=OFF \
+            -DND_DEBUG=OFF \
+            -DND_TESTING=ON \
+            ..
+          ninja net_diagnostics
+
+      - name: Run headless tests
+        shell: msys2 {0}
+        run: |
+          ./build/net_diagnostics.exe --test 2>&1 | tee test-output.log
+          # Extract pass/fail from output
+          if grep -q "All passed: YES" test-output.log; then
+            echo "ALL TESTS PASSED"
+          else
+            echo "SOME TESTS FAILED — check test-output.log"
+            exit 1
+          fi
+
+      - name: Code review compliance
+        shell: pwsh
+        run: |
+          # Check 5WHY in recent commits
+          $commits = git log --oneline -10 --format="%s"
+          $whyCount = ($commits | Select-String "Why #1" | Measure-Object).Count
+          Write-Host "Commits with 5WHY analysis: $whyCount"
+          if ($whyCount -eq 0) {
+            Write-Host "::warning::No 5WHY analysis in last 10 commits"
+          }
+
+          # Preprocessor balance
+          $failed = 0
+          Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object {
+            $ifs = (Select-String -Path $_.FullName -Pattern '^#if' | Measure-Object).Count
+            $ends = (Select-String -Path $_.FullName -Pattern '^#endif' | Measure-Object).Count
+            if ($ifs -ne $ends) {
+              Write-Host "::error::$($_.Name): #if=$ifs #endif=$ends"
+              $failed++
+            }
+          }
+          if ($failed -gt 0) { exit 1 }
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log

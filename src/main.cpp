@@ -154,6 +154,7 @@ int main(int argc, char *argv[])
         QString logPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
                         + "/netdiag-test-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".log";
         TestHarness::instance().setLogPath(logPath);
+        TestHarness::instance().setAppState(&appState);
         TestHarness::instance().logInfo("Headless test mode started");
         TestHarness::instance().logInfo("Log: " + logPath);
 
