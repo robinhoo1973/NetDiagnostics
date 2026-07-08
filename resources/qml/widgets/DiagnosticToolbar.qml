@@ -101,8 +101,8 @@ Rectangle {
                         }
                     }
                     delegate: ItemDelegate {
-                        width: 210; padding: 6; leftPadding: 12
-                        height: isFirst ? 48 : 32
+                        width: 210; padding: 0; leftPadding: 0; rightPadding: 0
+                        height: isFirst ? 52 : 32
                         readonly property bool isFirst: {
                             var prev = model.index > 0 ? _sm.get(model.index - 1) : null
                             return !prev || prev.schemeGroup !== _sm.get(model.index).schemeGroup
@@ -117,31 +117,45 @@ Rectangle {
                             4:Tr.schemeGroupRemote,5:Tr.schemeGroupDir,
                             6:Tr.schemeGroupMsg
                         }[schemeGroup] || "")
-                        background: Rectangle {
-                            color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"; radius: 4
-                        }
                         highlighted: scheme === schemeCombo.currentText
+                        background: Rectangle {
+                            color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
+                            radius: 4
+                        }
                         contentItem: ColumnLayout {
                             spacing: 0
-                            Rectangle {
-                                Layout.fillWidth: true; implicitHeight: isFirst ? 18 : 0
-                                color: "transparent"; visible: isFirst
+                            // ── Group header: separator + left-aligned icon label ──
+                            Item {
+                                Layout.fillWidth: true
+                                implicitHeight: isFirst ? 20 : 0; visible: isFirst
+                                // Separator line
                                 Rectangle {
-                                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
+                                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 2 }
                                     height: 1; color: ThemeEngine.colors.borderCard
                                 }
-                                RowLayout {
-                                    anchors.centerIn: parent; spacing: 4
-                                    AppIcon { name: groupIcon; size: 12; color: ThemeEngine.colors.primary }
-                                    Label { text: groupLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 8
-                                        font.weight: Font.Bold; color: ThemeEngine.textMuted
-                                        background: Rectangle { color: ThemeEngine.bgCard; anchors.fill: parent } }
+                                // Icon + label — left-aligned at 14px, 8px gap
+                                Row {
+                                    anchors { left: parent.left; leftMargin: 14; bottom: parent.bottom; bottomMargin: 2 }
+                                    spacing: 8
+                                    AppIcon {
+                                        name: groupIcon; size: 10; color: ThemeEngine.colors.primary
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Label {
+                                        text: groupLabel
+                                        font.family: ThemeEngine.monoFont; font.pixelSize: 8
+                                        font.weight: Font.Bold; font.capitalization: Font.AllUppercase; color: ThemeEngine.textMuted
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
                                 }
                             }
+                            // ── Scheme item: left-indented 24px ──────────
                             Label {
                                 Layout.fillWidth: true; Layout.fillHeight: true
                                 text: scheme + "://"; font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                                color: ThemeEngine.colors.textPrimary; verticalAlignment: Text.AlignVCenter; leftPadding: 2
+                                color: highlighted ? ThemeEngine.colors.primary : ThemeEngine.colors.textPrimary
+                                verticalAlignment: Text.AlignVCenter
+                                leftPadding: 24
                             }
                         }
                     }
