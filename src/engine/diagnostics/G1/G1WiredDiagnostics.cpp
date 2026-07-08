@@ -23,10 +23,48 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
 #endif
 
 #ifdef _WIN32
+    // ── GetIfTable2 (replaces wmic placeholder) ──────────────────────
+    out.append(QStringLiteral("Wired Information (table mode):"));
     out.append(QString());
-    out.append(QStringLiteral("(use wmic nic get on Windows)"));
-    r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-    r.status = DiagStatus::Info; r.summary = QStringLiteral("Windows wired diagnostics delegate to wmic");
+    static const QVector<DiagnosticFormatter::ColSpec> kWiredCols = {
+        {"Interface",   12, false}, {"Speed",    7, true}, {"Duplex", 6, false},
+        {"MTU",         4, true},   {"Link",     4, false}, {"State", 10, false},
+        {"MAC Address", 17, false},
+    };
+    QList<QStringList> wiredRows;
+    PMIB_IF_TABLE2 ifTable = nullptr;
+    if (GetIfTable2(&ifTable) == NO_ERROR && ifTable) {
+        for (ULONG i = 0; i < ifTable->NumEntries; i++) {
+            auto& row = ifTable->Table[i];
+            if (row.Type != IF_TYPE_ETHERNET_CSMACD) continue;
+            if (row.OperStatus == IfOperStatusNotPresent) continue;
+            QString ifName   = QString::fromWCharArray(row.Alias);
+            QString speedStr = (row.InLinkSpeed > 0)
+                ? (row.InLinkSpeed >= 1000000000
+                    ? QStringLiteral("%1 Gbps").arg(row.InLinkSpeed / 1.0e9, 0, 'f', 1)
+                    : QStringLiteral("%1 Mbps").arg(row.InLinkSpeed / 1.0e6, 0, 'f', 0))
+                : QStringLiteral("N/A");
+            QString linkStr = (row.OperStatus == IfOperStatusUp) ? "Up" : "Down";
+            QString mtuStr  = QString::number(row.Mtu);
+            QString stateStr = (row.OperStatus == IfOperStatusUp) ? "Up" : "Down";
+            QString macStr  = (row.PhysicalAddressLength >= 6)
+                ? QStringLiteral("%1:%2:%3:%4:%5:%6")
+                    .arg(row.PhysicalAddress[0], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[1], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[2], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[3], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[4], 2, 16, QLatin1Char('0'))
+                    .arg(row.PhysicalAddress[5], 2, 16, QLatin1Char('0'))
+                : QStringLiteral("N/A");
+            wiredRows.append({ifName.left(12), speedStr, QStringLiteral("N/A"), mtuStr, linkStr, stateStr, macStr});
+        }
+        FreeMibTable(ifTable);
+    }
+    r.status  = wiredRows.isEmpty() ? DiagStatus::Info : DiagStatus::Pass;
+    r.summary = wiredRows.isEmpty() ? QStringLiteral("No wired Ethernet adapters found")
+                                    : QStringLiteral("Wired NIC properties collected via GetIfTable2");
+    r.details = DiagnosticFormatter::formatTable(kWiredCols, wiredRows);
+    r.rawOutput = out.join('\n') + '\n' + r.details;
     r.durationMs = t.elapsed(); return r;
 #else
 
