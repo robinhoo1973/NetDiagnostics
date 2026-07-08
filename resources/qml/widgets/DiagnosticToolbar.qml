@@ -162,7 +162,7 @@ Rectangle {
                     }
                     TextField {
                         id: hostField
-                        anchors { fill: parent; leftMargin: 8; rightMargin: 24 }
+                        anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: ThemeEngine.colors.textPrimary
                         placeholderText: "example.com/path"
@@ -178,14 +178,16 @@ Rectangle {
                             else { appState.targetHost = t; appState.targetPath = "" }
                         }
                     }
-                    AppIcon {
-                        anchors { right: parent.right; verticalCenter: parent.verticalCenter; rightMargin: 6 }
-                        name: "close"; size: 10
-                        color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
-                        visible: hostField.text !== "" && appState.runStatus !== 1
-                        MouseArea { anchors.fill: parent
-                            onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
-                    }
+                }
+
+                // ── Zone 3: Clear button ──────────────────────────
+                AppIcon {
+                    name: "close"; size: 14
+                    color: hostField.text !== "" && appState.runStatus !== 1
+                        ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
+                    visible: hostField.text !== "" && appState.runStatus !== 1
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
                 }
             }
 
@@ -227,7 +229,7 @@ Rectangle {
                 }
             }
 
-            // Zone 3: Run/Stop toggle (close button is in main.qml top-right)
+            // Zone 3: clear button — standalone, separated from input + run
         }
 
         // ═══════════════ ROW 2: Advanced fields (collapsible) ═══════════
