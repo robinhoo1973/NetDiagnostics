@@ -32,6 +32,9 @@
 #include <sys/ioctl.h>
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
+#include <net/route.h>       // rt_msghdr, RTM_VERSION, RTAX_*
+#else
+#include <netpacket/packet.h> // sockaddr_ll, AF_PACKET (Linux)
 #endif
 #endif
 #include "util/DnsResolver.h"
