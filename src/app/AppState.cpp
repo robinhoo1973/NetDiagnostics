@@ -171,6 +171,7 @@ void AppState::setTargetScheme(const QString& s) {
     if (m_targetScheme != s) {
         m_targetScheme = s;
         assembleTargetUrl();
+        emit targetChanged(); bumpVersion();
     }
 }
 
@@ -179,6 +180,7 @@ void AppState::setTargetHost(const QString& h) {
     if (m_targetHost != h) {
         m_targetHost = h;
         assembleTargetUrl();
+        emit targetChanged(); bumpVersion();
     }
 }
 
@@ -187,6 +189,7 @@ void AppState::setTargetPort(int p) {
     if (m_targetPort != p) {
         m_targetPort = p;
         assembleTargetUrl();
+        emit targetChanged(); bumpVersion();
     }
 }
 
@@ -195,6 +198,7 @@ void AppState::setTargetUsername(const QString& u) {
     if (m_targetUsername != u) {
         m_targetUsername = u;
         assembleTargetUrl();
+        emit targetChanged(); bumpVersion();
     }
 }
 
@@ -203,6 +207,7 @@ void AppState::setTargetPassword(const QString& p) {
     if (m_targetPassword != p) {
         m_targetPassword = p;
         assembleTargetUrl();
+        emit targetChanged(); bumpVersion();
     }
 }
 
@@ -211,6 +216,7 @@ void AppState::setTargetPath(const QString& p) {
     if (m_targetPath != p) {
         m_targetPath = p;
         assembleTargetUrl();
+        emit targetChanged(); bumpVersion();
     }
 }
 
