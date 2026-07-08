@@ -12,6 +12,7 @@
 #include <QDateTime>
 #ifdef PLATFORM_IOS
 #include "engine/diagnostics/G5/G5Common.h"
+} // namespace G5WebsiteUrl (opened by G5Common.h — closed here to avoid leaking into TaskFactory)
 #include "engine/diagnostics/G3/G3Common.h"
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
