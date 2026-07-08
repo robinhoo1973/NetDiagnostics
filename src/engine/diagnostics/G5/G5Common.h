@@ -185,3 +185,4 @@ DiagnosticResult androidCellularDiag(DiagId id);
 DiagnosticResult androidDhcpDiag(DiagId id);
 DiagnosticResult androidGatewayDiag(DiagId id);
 DiagnosticResult androidHttpDiag(DiagId id, const QString& target);
+DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
