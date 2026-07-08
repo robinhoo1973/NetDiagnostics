@@ -59,6 +59,7 @@
         <file>icons/linux.svg</file>
         <file>icons/windows.svg</file>
         <file>icons/app-icon.svg</file>
+        <file>icons/netanalysis.ico</file>
         <file>fonts/JetBrainsMono-Regular.ttf</file>
         <file>fonts/JetBrainsMono-Bold.ttf</file>
         <file>fonts/DejaVuSansMono.ttf</file>

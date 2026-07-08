@@ -77,7 +77,7 @@ enum class DiagId {
     G4MtuDiscovery,
     G4PortScan,
 
-    // G5 — Website / URL (13)
+    // G5 — Protocol (20)
     G5UrlParsing,
     G5TcpConnect,
     G5ServiceBanner,

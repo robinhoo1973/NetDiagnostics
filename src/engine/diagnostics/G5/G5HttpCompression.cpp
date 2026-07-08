@@ -1,4 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
+#ifndef NO_CURL
 DiagnosticResult httpCompression(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpCompression, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -26,6 +27,6 @@ DiagnosticResult httpCompression(const QString& target) {
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
     return r;
-
 }
+#endif // NO_CURL
 } // namespace G5WebsiteUrl

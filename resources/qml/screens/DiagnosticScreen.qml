@@ -28,7 +28,7 @@ Item {
         _snapG3chk = appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
         _snapG4chk = appState.isGroupAllEnabled(4) || appState.isGroupAnyEnabled(4)
         _snapG3en = !appState.isTargetEmpty()
-        _snapG4en = appState.isTargetHttpUrl()
+        _snapG4en = appState.hasUrlScheme()
         _snapTargetError = appState.targetValidationError()
         _snapVersion++
     }

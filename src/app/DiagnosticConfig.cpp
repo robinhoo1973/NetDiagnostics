@@ -8,8 +8,11 @@ DiagnosticConfig::DiagnosticConfig(QObject* parent) : QObject(parent) {
 }
 
 void DiagnosticConfig::enableDefaultGroups() {
+    // Default: G1–G3 always on (no target needed); G4/G5 auto-toggle via setTarget()
     for (auto id : allDiagIds()) {
-        m_enabledDiags.insert(id); // enable all groups by default
+        auto g = diagGroup(id);
+        if (g == DiagGroup::G1 || g == DiagGroup::G2 || g == DiagGroup::G3)
+            m_enabledDiags.insert(id);
     }
 }
 
@@ -89,7 +92,7 @@ bool DiagnosticConfig::isGroupAnyEnabled(int groupInt) const {
 QVariantMap DiagnosticConfig::groupStats(int groupInt,
         const QMap<DiagId, DiagnosticResult>& results) const {
     QVariantMap s;
-    int pass = 0, warn = 0, fail = 0, skip = 0, info = 0;
+    int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : diagIdsForGroup(g)) {
         if (!m_enabledDiags.contains(id)) continue;
@@ -100,7 +103,9 @@ QVariantMap DiagnosticConfig::groupStats(int groupInt,
         case DiagStatus::Warning: ++warn; break;
         case DiagStatus::Fail: ++fail; break;
         case DiagStatus::Skipped: ++skip; break;
-        default: ++info; break;
+        case DiagStatus::Info: ++info; break;
+        case DiagStatus::Error: ++error; break;
+        default: break;
         }
     }
     s[QStringLiteral("pass")] = pass;
@@ -108,7 +113,8 @@ QVariantMap DiagnosticConfig::groupStats(int groupInt,
     s[QStringLiteral("fail")] = fail;
     s[QStringLiteral("skip")] = skip;
     s[QStringLiteral("info")] = info;
-    s[QStringLiteral("total")] = pass + warn + fail + skip + info;
+    s[QStringLiteral("error")] = error;
+    s[QStringLiteral("total")] = pass + warn + fail + skip + info + error;
     return s;
 }
 

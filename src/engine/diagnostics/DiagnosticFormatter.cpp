@@ -30,9 +30,7 @@ static int displayWidth(const QString& s) {
             || (uc >= 0xFF00 && uc <= 0xFF60)
             || (uc >= 0xFFE0 && uc <= 0xFFE6)
             || (uc >= 0x1F300 && uc <= 0x1F64F)
-            || (uc >= 0x1F900 && uc <= 0x1F9FF)
-            || (uc >= 0x20000 && uc <= 0x2FFFD)
-            || (uc >= 0x30000 && uc <= 0x3FFFD))
+            || (uc >= 0x1F900 && uc <= 0x1F9FF))
             w += 2;
         else
             w += 1;
