@@ -179,6 +179,8 @@ void TestHarness::runTestCase(const TestCase& tc) {
         }
     }
 
+    takeScreenshot("tc-" + tc.name.section(' ', 0, 0)); // state capture after test
+
     qint64 elapsed = m_timer.elapsed();
     logInfo(QStringLiteral("  Test case completed in %1ms").arg(elapsed));
 
@@ -229,9 +231,31 @@ void TestHarness::printSummary() {
 }
 
 void TestHarness::takeScreenshot(const QString& label) {
-    if (m_screenshotDir.isEmpty()) return;
-    // Headless: skip actual screenshot capture; log the attempt
-    logInfo("Screenshot: " + label + " (headless — skipped)");
+    if (m_screenshotDir.isEmpty()) m_screenshotDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/netdiag-screenshots";
+    QDir().mkpath(m_screenshotDir);
+
+    QString filename = QStringLiteral("%1/%2-%3.txt")
+        .arg(m_screenshotDir, QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"), label);
+    QFile f(filename);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream ts(&f);
+        ts << "=== Screenshot (headless state dump): " << label << " ===\n";
+        ts << "Time: " << now() << "\n\n";
+        if (m_appState) {
+            ts << "--- AppState ---\n";
+            ts << "  target:       " << m_appState->target() << "\n";
+            ts << "  targetScheme: " << m_appState->targetScheme() << "\n";
+            ts << "  targetHost:   " << m_appState->targetHost() << "\n";
+            ts << "  targetPort:   " << m_appState->targetPort() << "\n";
+            ts << "  runStatus:    " << m_appState->runStatusInt() << "\n";
+            ts << "  totalDiags:   " << m_appState->totalDiags() << "\n";
+            ts << "  completed:    " << m_appState->totalCompleted() << "\n";
+            ts << "  isValidUrl:   " << m_appState->isTargetUrl() << "\n";
+            ts << "  isHttp:       " << m_appState->isTargetHttpUrl() << "\n";
+        }
+        ts.flush();
+    }
+    logInfo("State capture: " + label + " → " + filename);
 }
 
 #endif // ND_TESTING
