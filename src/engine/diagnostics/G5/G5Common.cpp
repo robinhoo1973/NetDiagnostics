@@ -494,3 +494,4 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
 }
 
 #endif // PLATFORM_ANDROID
+} // namespace G5WebsiteUrl

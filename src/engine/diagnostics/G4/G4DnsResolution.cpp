@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G4/G4Common.h"
-namespace G4RemoteHost {
 DiagnosticResult dnsResolution(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4DnsResolution; r.group = DiagGroup::G4;
@@ -198,4 +197,3 @@ DiagnosticResult dnsResolution(const QString& target) {
     return r;
 }
 } // namespace G4RemoteHost
-}

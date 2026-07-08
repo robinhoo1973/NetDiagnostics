@@ -80,7 +80,7 @@ static ResultProperty prop(const QString& label, const QString& value) {
 }
 
 // ── Extract hostname from target (URL or hostname) ─────────────────────
-QString extractHostname(const QString& target) {
+inline QString extractHostname(const QString& target) {
     QString t = target.trimmed();
     // If it's a URL (contains ://), parse out the hostname
     if (t.contains("://")) {

@@ -1,12 +1,11 @@
-#include "engine/diagnostics/G5/G5Proto.h"
-namespace G5WebsiteUrl {
+#include "engine/diagnostics/G5/G5Common.h"
 DiagnosticResult mongodbDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Mongodb, "No target");
-    QUrl u = G5WebsiteUrl::validate(target);
+    QUrl u = validate(target);
     if (u.scheme() != "mongodb")
         return skipped(DiagId::G5Mongodb, "Not MongoDB");
-    int port = G5WebsiteUrl::portForUrl(u);
+    int port = portForUrl(u);
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
@@ -66,9 +65,7 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
         version.isEmpty() ? "MongoDB (responded)" : QString("MongoDB %1").arg(version).left(200),
         DiagStatus::Pass,
         raw.left(500), t.elapsed());
-}
 
 // ── LDAP (port 389) / LDAPS (port 636) — bind request ─────────────────
-}
 } // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

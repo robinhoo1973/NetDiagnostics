@@ -1,12 +1,11 @@
-#include "engine/diagnostics/G5/G5Proto.h"
-namespace G5WebsiteUrl {
+#include "engine/diagnostics/G5/G5Common.h"
 DiagnosticResult telnetDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Telnet, "No target");
-    QUrl u = G5WebsiteUrl::validate(target);
+    QUrl u = validate(target);
     if (u.scheme() != "telnet")
         return skipped(DiagId::G5Telnet, "Not Telnet");
-    int port = G5WebsiteUrl::portForUrl(u);
+    int port = portForUrl(u);
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
@@ -23,7 +22,4 @@ DiagnosticResult telnetDiagnostics(const QString& target) {
         QString::fromUtf8(banner), t.elapsed());
 }
 
-// ── MySQL (port 3306) — read handshake packet for server version ──────
-}
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

@@ -1,12 +1,11 @@
-#include "engine/diagnostics/G5/G5Proto.h"
-namespace G5WebsiteUrl {
+#include "engine/diagnostics/G5/G5Common.h"
 DiagnosticResult mysqlDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Mysql, "No target");
-    QUrl u = G5WebsiteUrl::validate(target);
+    QUrl u = validate(target);
     if (u.scheme() != "mysql")
         return skipped(DiagId::G5Mysql, "Not MySQL");
-    int port = G5WebsiteUrl::portForUrl(u);
+    int port = portForUrl(u);
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
@@ -29,9 +28,7 @@ DiagnosticResult mysqlDiagnostics(const QString& target) {
         version.isEmpty() ? "MySQL (version unknown)" : QString("MySQL %1").arg(version),
         version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass,
         QString::fromUtf8(data.toHex(' ')), t.elapsed());
-}
 
 // ── PostgreSQL (port 5432) — read StartupMessage response ─────────────
-}
 } // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

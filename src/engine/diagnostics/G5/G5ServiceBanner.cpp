@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-namespace G5WebsiteUrl {
 DiagnosticResult serviceBanner(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5ServiceBanner, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -40,5 +39,4 @@ DiagnosticResult serviceBanner(const QString& target) {
     return r;
 }
 
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

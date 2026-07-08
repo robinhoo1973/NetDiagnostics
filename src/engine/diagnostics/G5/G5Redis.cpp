@@ -1,12 +1,11 @@
-#include "engine/diagnostics/G5/G5Proto.h"
-namespace G5WebsiteUrl {
+#include "engine/diagnostics/G5/G5Common.h"
 DiagnosticResult redisDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Redis, "No target");
-    QUrl u = G5WebsiteUrl::validate(target);
+    QUrl u = validate(target);
     if (u.scheme() != "redis")
         return skipped(DiagId::G5Redis, "Not Redis");
-    int port = G5WebsiteUrl::portForUrl(u);
+    int port = portForUrl(u);
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
@@ -24,9 +23,7 @@ DiagnosticResult redisDiagnostics(const QString& target) {
         pong ? "Redis: PONG" : (resp.isEmpty() ? "No response" : QString::fromUtf8(resp).trimmed().left(200)),
         pong ? DiagStatus::Pass : DiagStatus::Warning,
         resp.isEmpty() ? QString() : QString::fromUtf8(resp), t.elapsed());
-}
 
 // ── MongoDB (port 27017) — isMaster handshake ─────────────────────────
-}
 } // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

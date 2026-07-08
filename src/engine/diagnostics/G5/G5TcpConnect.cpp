@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-namespace G5WebsiteUrl {
 DiagnosticResult tcpConnect(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5TcpConnect, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -15,7 +14,6 @@ DiagnosticResult tcpConnect(const QString& target) {
     r.properties.append(ResultProperty("Port", QString::number(port)));
     r.durationMs = cr.latencyMs;
     return r;
-}
 
 // ── G5.3 Service Banner ──────────────────────────────────────────────────
 }
