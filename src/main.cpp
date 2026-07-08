@@ -195,6 +195,24 @@ int main(int argc, char *argv[])
         }
     }
 
+    // ── Windows taskbar icon for frameless windows ──────────────────────
+    // Qt.FramelessWindowHint strips native chrome, including the icon that
+    // Windows shows on the taskbar button.  Set the icon on the native
+    // HWND so the taskbar entry matches the application icon.
+#ifdef _WIN32
+    {
+        QQuickWindow *win = qobject_cast<QQuickWindow*>(engine.rootObjects().first());
+        if (win) {
+            HWND hwnd = reinterpret_cast<HWND>(win->winId());
+            HICON hIcon = LoadIcon(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1));
+            if (hIcon) {
+                SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
+                SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
+            }
+        }
+    }
+#endif
+
     int ret = app.exec();
     #ifndef NO_CURL
     curl_global_cleanup();

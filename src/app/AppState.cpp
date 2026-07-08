@@ -47,6 +47,8 @@
 
 AppState::AppState(QObject* parent) : QObject(parent) {
     m_targetScheme = QStringLiteral("https"); // default protocol
+    // G1-G3 active by default (G4/G5 auto-managed via setTarget)
+    m_activeGroups = {0, 1, 2};
     // Forward service signals to QML
     connect(&m_config, &DiagnosticConfig::portScanConfigChanged,
             this, &AppState::portScanConfigChanged);
@@ -286,6 +288,39 @@ void AppState::syncFieldsFromTarget() {
         m_targetPort = u.port() > 0 ? u.port() : -1;
         m_targetUsername = u.userName();
         m_targetPassword = u.password();
+
+        // Manual credential fallback: QUrl::TolerantMode often drops userinfo
+        // for non-HTTP schemes (mysql://, postgresql://, etc.)
+        if (m_targetUsername.isEmpty() && trimmed.contains('@')) {
+            QString userinfo = trimmed.section(QStringLiteral("://"), 1)
+                                     .section('@', 0, 0);
+            if (userinfo.contains(':')) {
+                m_targetUsername = userinfo.section(':', 0, 0);
+                m_targetPassword = userinfo.section(':', 1);
+            } else {
+                m_targetUsername = userinfo;
+            }
+        }
+        // Manual port fallback: QUrl::TolerantMode may return -1 for non-standard schemes
+        if (m_targetPort <= 0) {
+            // Parse port from raw authority: extract host[:port] after optional userinfo@
+            QString authority = trimmed.section(QStringLiteral("://"), 1);
+            if (authority.contains('@'))
+                authority = authority.section('@', 1);
+            // Strip path/query/fragment
+            for (auto ch : {'/', '?', '#'}) {
+                int pos = authority.indexOf(ch);
+                if (pos >= 0) authority = authority.left(pos);
+            }
+            if (authority.contains(':')) {
+                QString portPart = authority.section(':', -1);
+                bool ok = false;
+                int p = portPart.toInt(&ok);
+                if (ok && p > 0 && p <= 65535)
+                    m_targetPort = p;
+            }
+        }
+
         // Keep path + query + fragment
         QString fullPath = u.path();
         if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
@@ -324,10 +359,8 @@ void AppState::parseUrlIntoFields(const QString& urlString) {
         if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
         m_targetPath = fullPath;
 
-        // Push canonical string to m_target
-        m_assembling = true;
-        setTarget(trimmed);
-        m_assembling = false;
+        // Push canonical string to m_target (direct assign to avoid circular guard)
+        m_target = trimmed;
         emit targetChanged();
     }
 }
@@ -369,6 +402,13 @@ static QString validateUrl(const QString& trimmed) {
 
     QString authority = afterScheme.left(authorityEnd);
     if (authority.isEmpty()) return QStringLiteral("URL has no hostname");
+
+    // Strip userinfo (user:password@) before hostname validation
+    if (authority.contains('@')) {
+        auto atPos = authority.lastIndexOf('@');
+        authority = authority.mid(atPos + 1);  // keep only host[:port]
+        if (authority.isEmpty()) return QStringLiteral("URL has no hostname after userinfo");
+    }
 
     // 3. Separate host and port
     QString host, portStr;
@@ -449,6 +489,18 @@ void AppState::setTarget(const QString& t) {
         // G5: any valid URL scheme (all protocol tests: HTTP, FTP, SSH, DB, etc.)
         setGroupEnabled(3, has);               // G4 on if target non-empty
         setGroupEnabled(4, has && isAnyUrl);   // G5 on for any valid URL scheme
+
+        // Activate G4/G5 when target is entered, deactivate when cleared
+        if (has) {
+            m_activeGroups.insert(3);  // G4 active
+            if (isAnyUrl)
+                m_activeGroups.insert(4);  // G5 active
+        } else {
+            m_activeGroups.remove(3);
+            m_activeGroups.remove(4);
+        }
+        emit groupActiveChanged();
+
         TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
                 has, isAnyUrl, isHttp, has, has && isAnyUrl, m_targetError.toUtf8().constData());
         emit targetChanged();
@@ -470,6 +522,21 @@ void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_config.setDiagEna
 void AppState::setGroupEnabled(int groupInt, bool enabled) { m_config.setGroupEnabled(groupInt, enabled); bumpVersion(); }
 bool AppState::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }
 bool AppState::isGroupAnyEnabled(int groupInt) const { return m_config.isGroupAnyEnabled(groupInt); }
+
+// ── Group activation (separate from enable/disable) ─────────────────
+void AppState::setGroupActive(int groupInt, bool active) {
+    if (groupInt < 0 || groupInt >= 5) return;
+    if (active)
+        m_activeGroups.insert(groupInt);
+    else
+        m_activeGroups.remove(groupInt);
+    emit groupActiveChanged();
+    bumpVersion();
+}
+
+bool AppState::isGroupActive(int groupInt) const {
+    return m_activeGroups.contains(groupInt);
+}
 
 // ── Run diagnostics ────────────────────────────────────────────────────────
 void AppState::runDiagnostics() {
@@ -517,6 +584,8 @@ void AppState::runDiagnostics() {
         TRACE("   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
     }
     for (int g = 0; g < 5; ++g) {
+        // Skip inactive groups (user toggled them off via G1-G5 buttons)
+        if (!m_activeGroups.contains(g)) continue;
         GroupTask gt;
         gt.group = static_cast<DiagGroup>(g);
         for (auto id : DiagnosticConfig::diagIdsForGroup(gt.group)) {
@@ -735,6 +804,34 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
+        // G5: filter tests by target scheme so Config shows only relevant protocol tests
+        if (g == DiagGroup::G5 && !isTargetEmpty() && hasUrlScheme()) {
+            QString scheme = m_targetScheme.isEmpty()
+                ? QStringLiteral("https") : m_targetScheme.toLower();
+            bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
+                           || id == DiagId::G5ServiceBanner);
+            bool isHttp = (scheme == "http" || scheme == "https");
+            bool isFtp  = (scheme == "ftp" || scheme == "ftps");
+            bool isSsh  = (scheme == "ssh" || scheme == "sftp");
+            bool match = isGeneric
+                || (isHttp && (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
+                    || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
+                    || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
+                    || id == DiagId::G5HttpTiming))
+                || (isFtp && id == DiagId::G5FtpDiagnostics)
+                || (isSsh && id == DiagId::G5SshDiagnostics)
+                || (scheme == "mysql" && id == DiagId::G5Mysql)
+                || (scheme == "postgresql" && id == DiagId::G5Postgres)
+                || (scheme == "redis" && id == DiagId::G5Redis)
+                || (scheme == "mongodb" && id == DiagId::G5Mongodb)
+                || (scheme == "ldap" && id == DiagId::G5Ldap)
+                || (scheme == "mqtt" && id == DiagId::G5Mqtt)
+                || (scheme == "telnet" && id == DiagId::G5Telnet)
+                || ((scheme == "smtp" || scheme == "smtps" || scheme == "imap"
+                     || scheme == "imaps" || scheme == "pop3" || scheme == "pop3s")
+                     && id == DiagId::G5EmailDiagnostics);
+            if (!match) continue;
+        }
         list.append(static_cast<int>(id));
     }
     return list;

@@ -9,6 +9,7 @@ ApplicationWindow {
     visible: true
     flags: Qt.FramelessWindowHint
     color: ThemeEngine.bgDark
+    icon: "qrc:/icons/netanalysis.ico"
 
     // Window maximization is handled by C++ showMaximized() in main.cpp —
     // it maps the window in maximized state from the first frame, avoiding

@@ -1,6 +1,8 @@
 #include "engine/diagnostics/GHelpers.h"
 #include <cstdlib>
 #include <ctime>
+#include <algorithm>
+#include <random>
 
 namespace G1G2G3Native {
 
@@ -98,10 +100,44 @@ inline void SpeedTest::build() { Server s;
     S("ZA","speedtest.vodacom.co.za",8080,"Cape Town","Vodacom");
 }
 #undef S
+// Continent fallback: map country codes to nearby regions with server coverage
+static const QMap<QString, QStringList> continentFallback = {
+    {"AS", {"CN","KR","SG","IN","JP","AE"}},  // Asia
+    {"EU", {"DE","GB","FR","NL","IT","ES","SE","RU"}},  // Europe
+    {"NA", {"US","CA"}},                       // North America
+    {"SA", {"BR","AR"}},                       // South America
+    {"AF", {"ZA"}},                            // Africa
+    {"OC", {"AU","SG"}},                       // Oceania (SG as fallback)
+};
+static QString continentForCountry(const QString& cc) {
+    static const QMap<QString, QString> ccContinent = {
+        {"CN","AS"},{"KR","AS"},{"SG","AS"},{"IN","AS"},{"JP","AS"},{"MN","AS"},
+        {"AE","AS"},{"TR","AS"},{"HK","AS"},{"TW","AS"},{"TH","AS"},{"VN","AS"},
+        {"MY","AS"},{"ID","AS"},{"PH","AS"},{"PK","AS"},{"BD","AS"},{"LK","AS"},
+        {"RU","EU"},{"DE","EU"},{"GB","EU"},{"FR","EU"},{"NL","EU"},{"IT","EU"},
+        {"ES","EU"},{"SE","EU"},{"PL","EU"},{"UA","EU"},{"CH","EU"},{"AT","EU"},
+        {"BE","EU"},{"NO","EU"},{"FI","EU"},{"DK","EU"},{"IE","EU"},{"PT","EU"},
+        {"US","NA"},{"CA","NA"},{"MX","NA"},
+        {"BR","SA"},{"AR","SA"},{"CO","SA"},{"CL","SA"},{"PE","SA"},
+        {"ZA","AF"},{"NG","AF"},{"KE","AF"},{"EG","AF"},
+        {"AU","OC"},{"NZ","OC"},
+    };
+    return ccContinent.value(cc, "XX");
+}
 inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
     if (m.contains(hint)) return m.value(hint);
     QString p = hint.left(2).toUpper();
-    return m.contains(p) ? m.value(p) : allServers();
+    if (m.contains(p)) return m.value(p);
+    // Continent fallback: find servers from nearby countries in the same continent
+    QString continent = continentForCountry(p);
+    if (continent != "XX" && continentFallback.contains(continent)) {
+        QVector<Server> nearby;
+        for (const auto& cc : continentFallback[continent]) {
+            if (m.contains(cc)) nearby.append(m.value(cc));
+        }
+        if (!nearby.isEmpty()) return nearby;
+    }
+    return allServers();
 }
 inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
     QVector<Server> a; for (auto& l : m) a.append(l); return a;
@@ -234,7 +270,15 @@ DiagnosticResult speedTest(DiagId id) {
 
     struct RankedServer { SpeedTest::Server* srv; int latency; };
     QVector<RankedServer> ranked;
-    int maxServers = qMin(8, (int)servers.size()); // cap at 8 to avoid excessive time
+
+    // Shuffle servers so geographic diversity gets tested, not just the first N
+    {
+        std::random_device rd;
+        std::mt19937 g(rd());
+        std::shuffle(servers.begin(), servers.end(), g);
+    }
+
+    int maxServers = qMin(12, (int)servers.size()); // test up to 12 for better coverage
     for (auto& s : servers) {
         if (ranked.size() >= maxServers) break;
         if (totalTimer.elapsed() > 25000) break; // global timeout
