@@ -17,7 +17,9 @@
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
 #ifdef PLATFORM_ANDROID
-// Android helpers now declared in G5Common.h and G1Common.h
+#include "engine/diagnostics/G5/G5Common.h"
+} // namespace G5WebsiteUrl (opened by G5Common.h — closed here)
+#include "engine/diagnostics/G1/G1Common.h"
 #endif
 #if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
 #include "engine/diagnostics/G5/G5WebsiteUrl.h"
