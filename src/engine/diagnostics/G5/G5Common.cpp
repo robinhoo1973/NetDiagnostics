@@ -426,11 +426,11 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
             }
             if (serverCerts.isValid()) {
                 QJniObject certArray = serverCerts; // Certificate[]
-                jint certCount = QJniEnvironment().callMethod<jint>(certArray.object(), "length", "()I");
+                jint certCount = certArray.callMethod<jint>("length");
                 QString certInfo = QStringLiteral("Server certificates: %1\n").arg(certCount);
                 for (jint i = 0; i < certCount && i < 3; i++) {
-                    QJniObject cert = QJniEnvironment().callObjectMethod(certArray.object(),
-                        "[Ljava/lang/Object;", "(I)Ljava/lang/Object;", i);
+                    QJniObject cert = certArray.callObjectMethod("get",
+                        "(I)Ljava/lang/Object;", i);
                     if (cert.isValid()) {
                         QJniObject type = cert.callObjectMethod("getType", "()Ljava/lang/String;");
                         QJniObject subj = cert.callObjectMethod("getSubjectDN", "()Ljavax/security/auth/x500/X500Principal;");
