@@ -882,6 +882,13 @@ QString AppState::staticDiagDisplayName(DiagId id) {
         case DiagId::G5FtpDiagnostics: return QStringLiteral("FTP");
         case DiagId::G5SshDiagnostics: return QStringLiteral("SSH");
         case DiagId::G5EmailDiagnostics: return QStringLiteral("Email");
+        case DiagId::G5Telnet:   return QStringLiteral("Telnet");
+        case DiagId::G5Mysql:    return QStringLiteral("MySQL");
+        case DiagId::G5Postgres: return QStringLiteral("PostgreSQL");
+        case DiagId::G5Redis:    return QStringLiteral("Redis");
+        case DiagId::G5Mongodb:  return QStringLiteral("MongoDB");
+        case DiagId::G5Ldap:     return QStringLiteral("LDAP");
+        case DiagId::G5Mqtt:     return QStringLiteral("MQTT");
     }
     return QStringLiteral("Unknown");
 }
