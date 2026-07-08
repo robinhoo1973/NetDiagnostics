@@ -245,22 +245,29 @@ Rectangle {
                     }
                 }
             }  // end Zone 2
-        }  // end ROW 1
 
-        // ═══════════════ ROW 2: Close button (standalone) ═══════════
-        RowLayout {
-            Layout.fillWidth: true
-            visible: hostField.text !== "" && appState.runStatus !== 1
-
-            Item { Layout.fillWidth: true }  // spacer — pushes close to right
-            AppIcon {
-                name: "close"; size: 14
-                color: hostField.text !== "" && appState.runStatus !== 1
-                    ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
+            // Visual separator between Zone 2 (actions) and Zone 3 (clear)
+            Rectangle {
+                Layout.preferredWidth: 1; Layout.preferredHeight: 22
+                color: ThemeEngine.colors.borderCard
+                visible: hostField.text !== "" && appState.runStatus !== 1
             }
-        }  // end ROW 2
+            Item { width: 6; visible: hostField.text !== "" || appState.runStatus !== 1 }
+
+            // ── Zone 3: Clear button — fixed 30px zone, right-aligned ──
+            Item {
+                Layout.preferredWidth: 30; Layout.preferredHeight: 30
+                AppIcon {
+                    anchors.centerIn: parent
+                    name: "close"; size: 14
+                    color: hostField.text !== "" && appState.runStatus !== 1
+                        ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
+                    visible: hostField.text !== "" && appState.runStatus !== 1
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
+                }
+            }
+        }  // end ROW 1
 
         // ═══════════════ ROW 3: Advanced fields (collapsible) ═══════════
         RowLayout {
