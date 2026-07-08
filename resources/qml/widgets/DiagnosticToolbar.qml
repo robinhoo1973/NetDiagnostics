@@ -165,7 +165,7 @@ Rectangle {
                     }
                 }
 
-                // Host field with embedded clear
+                // Host field
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 30; radius: 6
                     color: ThemeEngine.bgInput
@@ -193,17 +193,7 @@ Rectangle {
                         }
                     }
                 }
-
-                // ── Zone 3: Clear button ──────────────────────────
-                AppIcon {
-                    name: "close"; size: 14
-                    color: hostField.text !== "" && appState.runStatus !== 1
-                        ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
-                    visible: hostField.text !== "" && appState.runStatus !== 1
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
-                }
-            }
+            }  // end Zone 1
 
             // ── Zone 2: Group pills + Run button ────────────────────
             RowLayout {
@@ -211,11 +201,11 @@ Rectangle {
                 Repeater {
                     model: 5
                     delegate: Rectangle {
-                        width: 36; height: 28; radius: 14
+                        width: root.wide ? 36 : 28; height: 28; radius: 14
                         readonly property bool _chk: appState.isGroupAllEnabled(index)
                         color: _chk ? ThemeEngine.colors.primaryContainer : "transparent"
                         border { width: 1; color: _chk ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard }
-                        Label { anchors.centerIn: parent; text: "G"+(index+1)
+                        Label { anchors.centerIn: parent; text: root.wide ? "G"+(index+1) : ""+(index+1)
                             font.family: ThemeEngine.monoFont; font.pixelSize: 10
                             font.weight: _chk ? Font.DemiBold : Font.Normal
                             color: _chk ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
@@ -241,10 +231,18 @@ Rectangle {
                         }
                     }
                 }
-            }
+            }  // end Zone 2
 
-            // Zone 3: clear button — standalone, separated from input + run
-        }
+            // ── Zone 3: Clear button — standalone, separated from input + run ──
+            AppIcon {
+                name: "close"; size: 14
+                color: hostField.text !== "" && appState.runStatus !== 1
+                    ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
+                visible: hostField.text !== "" && appState.runStatus !== 1
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
+            }
+        }  // end ROW 1
 
         // ═══════════════ ROW 2: Advanced fields (collapsible) ═══════════
         RowLayout {
