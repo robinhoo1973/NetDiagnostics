@@ -327,7 +327,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5HttpTiming:
         case DiagId::G5SecurityHeaders:
         case DiagId::G5HttpCompression:
-            return T3([t = target](DiagId id, const QString&) { return androidHttpDiag(id, t); });
+            return T3([t = target](DiagId id, const QString&) { return G5WebsiteUrl::androidHttpDiag(id, t); });
         case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
         case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
         case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
