@@ -238,6 +238,7 @@ ColumnLayout {
             }
 
             // ── Clear button ────────────────────────────────────────────
+            Item { width: 4; visible: hostField.text !== "" && appState.runStatus !== 1 }
             AppIcon {
                 name: "close"; size: 10; color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
                 visible: hostField.text !== "" && appState.runStatus !== 1
@@ -338,7 +339,7 @@ ColumnLayout {
             wrapMode: Text.WordWrap
         }
     }
-    Item { Layout.preferredHeight: 8 }
+    Item { Layout.preferredHeight: 10 }
 
     // ═══════════════════ Run / Stop buttons ═══════════════════
     RowLayout {
