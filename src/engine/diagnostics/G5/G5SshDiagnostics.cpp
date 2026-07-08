@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-namespace G5WebsiteUrl {
 DiagnosticResult sshDiagnostics(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SshDiagnostics, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -21,6 +20,4 @@ DiagnosticResult sshDiagnostics(const QString& target) {
         version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
 }
 
-}
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

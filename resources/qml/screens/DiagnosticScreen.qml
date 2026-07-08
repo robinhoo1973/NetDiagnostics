@@ -41,7 +41,7 @@ Item {
         if (!_runActive) takeSnapshot()
     }
     Connections { target: appState; function onStateVersionChanged() { syncState() } }
-    Component.onCompleted: takeSnapshot()
+    Component.onCompleted: { takeSnapshot(); console.warn("[DiagnosticScreen] loaded — DiagnosticToolbar should be visible") }
 
     property var currentDetail: ({})
     property var visibleGroups: {

@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-namespace G5WebsiteUrl {
 DiagnosticResult urlParsing(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5UrlParsing, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -9,7 +8,6 @@ DiagnosticResult urlParsing(const QString& target) {
         .arg(u.scheme(), u.host()).arg(portForUrl(u)).arg(u.path(), u.query());
     r.details = r.rawOutput;
     return r;
-}
 
 // ── G5.2 TCP Connect ─────────────────────────────────────────────────────
 }

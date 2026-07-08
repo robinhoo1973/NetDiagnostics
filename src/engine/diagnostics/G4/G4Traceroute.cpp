@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G4/G4Common.h"
-namespace G4RemoteHost {
 DiagnosticResult traceroute(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Traceroute; r.group = DiagGroup::G4;
@@ -142,4 +141,3 @@ DiagnosticResult traceroute(const QString& target) {
 
 // ── PathPing — Windows pathping.exe format with TCP-based traceroute ───────
 }
-} // namespace G4RemoteHost

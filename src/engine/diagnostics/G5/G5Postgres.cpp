@@ -1,12 +1,11 @@
-#include "engine/diagnostics/G5/G5Proto.h"
-namespace G5WebsiteUrl {
+#include "engine/diagnostics/G5/G5Common.h"
 DiagnosticResult postgresDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Postgres, "No target");
-    QUrl u = G5WebsiteUrl::validate(target);
+    QUrl u = validate(target);
     if (u.scheme() != "postgresql")
         return skipped(DiagId::G5Postgres, "Not PostgreSQL");
-    int port = G5WebsiteUrl::portForUrl(u);
+    int port = portForUrl(u);
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
@@ -60,9 +59,7 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
         QString("PostgreSQL: %1").arg(info),
         (type == 'R') ? DiagStatus::Pass : DiagStatus::Warning,
         QString::fromUtf8(resp.toHex(' ')), t.elapsed());
-}
 
 // ── Redis (port 6379) — PING/PONG ─────────────────────────────────────
-}
 } // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

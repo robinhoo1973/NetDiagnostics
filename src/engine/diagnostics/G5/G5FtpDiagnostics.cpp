@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-namespace G5WebsiteUrl {
 DiagnosticResult ftpDiagnostics(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5FtpDiagnostics, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -17,7 +16,6 @@ DiagnosticResult ftpDiagnostics(const QString& target) {
     return g5Result(DiagId::G5FtpDiagnostics,
         banner.isEmpty() ? "No banner" : QString::fromUtf8(banner).trimmed().left(200),
         banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
-}
 
 }
 } // namespace G5WebsiteUrl

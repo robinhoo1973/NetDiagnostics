@@ -38,6 +38,9 @@ Rectangle {
     implicitHeight: tbCol.implicitHeight + 8
     clip: true
 
+    Component.onCompleted: console.warn("[DiagnosticToolbar] loaded — schemes:", appState.supportedSchemes.length)
+    Component.onDestruction: console.warn("[DiagnosticToolbar] destroyed")
+
     ColumnLayout {
         id: tbCol
         anchors { fill: parent; leftMargin: 4; rightMargin: 4; topMargin: 4; bottomMargin: 4 }

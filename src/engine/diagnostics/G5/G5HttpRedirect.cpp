@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G5/G5Common.h"
-namespace G5WebsiteUrl {
 DiagnosticResult httpRedirect(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5HttpRedirect, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
@@ -15,7 +14,6 @@ DiagnosticResult httpRedirect(const QString& target) {
     r.rawOutput = cr.lines.join('\n'); r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
     return r;
-}
 
 }
 } // namespace G5WebsiteUrl

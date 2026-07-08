@@ -1,13 +1,12 @@
-#include "engine/diagnostics/G5/G5Proto.h"
-namespace G5WebsiteUrl {
+#include "engine/diagnostics/G5/G5Common.h"
 DiagnosticResult mqttDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Mqtt, "No target");
-    QUrl u = G5WebsiteUrl::validate(target);
+    QUrl u = validate(target);
     QString scheme = u.scheme().toLower();
     if (scheme != "mqtt" && scheme != "mqtts")
         return skipped(DiagId::G5Mqtt, "Not MQTT(S)");
-    int port = G5WebsiteUrl::portForUrl(u);
+    int port = portForUrl(u);
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
@@ -53,7 +52,4 @@ DiagnosticResult mqttDiagnostics(const QString& target) {
         QString::fromUtf8(resp.toHex(' ')), t.elapsed());
 }
 
-} // namespace G5WebsiteUrl
-}
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

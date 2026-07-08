@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G4/G4Common.h"
-namespace G4RemoteHost {
 DiagnosticResult pathPing(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4PathPing; r.group = DiagGroup::G4;
@@ -200,4 +199,3 @@ DiagnosticResult pathPing(const QString& target) {
 
 // ── MTU Discovery (custom ping, no system command) ────────────────────
 }
-} // namespace G4RemoteHost

@@ -1,5 +1,4 @@
 #include "engine/diagnostics/G4/G4Common.h"
-namespace G4RemoteHost {
 DiagnosticResult mtuDiscovery(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4MtuDiscovery; r.group = DiagGroup::G4;
@@ -129,4 +128,3 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 }
 
 } // namespace G4RemoteHost
-}

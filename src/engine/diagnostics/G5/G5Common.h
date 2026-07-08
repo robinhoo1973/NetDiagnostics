@@ -1,3 +1,4 @@
+#pragma once
 // =============================================================================
 // G5WebsiteUrl.cpp — curl-style raw-socket HTTP diagnostics
 // =============================================================================
@@ -13,6 +14,8 @@ typedef SSIZE_T ssize_t;
 #include <QSslSocket>
 #include <QSslCertificate>
 #include <QDateTime>
+#include <QElapsedTimer>
+#include <QTcpSocket>
 #include <cstring>
 #include <cstdio>
 #ifdef _WIN32
@@ -33,42 +36,26 @@ static inline void closeSocket(int fd) { ::close(fd); }
 
 namespace G5WebsiteUrl {
 
-static const QMap<QString, int> s_defaultPorts = {
-    {"http",80},{"https",443},{"ftp",21},{"ftps",990},{"sftp",22},{"ssh",22},
-    {"telnet",23},{"rdp",3389},{"smtp",25},{"smtps",465},{"imap",143},{"imaps",993},
-    {"pop3",110},{"pop3s",995},{"mysql",3306},{"postgresql",5432},{"redis",6379},
-    {"mongodb",27017},{"mssql",1433},{"ldap",389},{"ldaps",636},{"mqtt",1883},{"mqtts",8883}
-};
-
-int defaultPortForScheme(const QString& scheme) {
-    return s_defaultPorts.value(scheme.toLower(), 80);
-}
-
-QStringList knownSchemes() {
-    return s_defaultPorts.keys();
-}
-
-QUrl validate(const QString& target) {
-    QUrl u(target, QUrl::StrictMode);
-    if (u.isValid() && !u.scheme().isEmpty()) return u;
-    if (target.contains(':') && !target.contains("://")) {
-        QString bracketed = target.startsWith('[') ? target : QStringLiteral("[%1]").arg(target);
-        u = QUrl(QStringLiteral("http://") + bracketed, QUrl::StrictMode);
-        if (u.isValid()) return u;
-    }
-    u = QUrl(QStringLiteral("http://") + target);
-    return u.isValid() ? u : QUrl();
-}
-
-int portForUrl(const QUrl& u) {
-    return u.port() > 0 ? u.port() : s_defaultPorts.value(u.scheme(), 80);
-}
 
 static DiagnosticResult g5Result(DiagId id, const QString& summary,
                                   DiagStatus status = DiagStatus::Pass) {
     DiagnosticResult r;
     r.id = id; r.group = DiagGroup::G5; r.status = status;
     r.summary = summary; r.timestamp = QDateTime::currentDateTime();
+    return r;
+}
+
+// ── Convenience wrappers for per-protocol diagnostics ──────────────────
+static DiagnosticResult skipped(DiagId id, const QString& reason) {
+    return g5Result(id, reason, DiagStatus::Skipped);
+}
+static DiagnosticResult result(DiagId id, const QString& summary,
+                               DiagStatus status = DiagStatus::Pass,
+                               const QString& details = {},
+                               qint64 durationMs = 0) {
+    DiagnosticResult r = g5Result(id, summary, status);
+    if (!details.isEmpty()) { r.rawOutput = details; r.details = details; }
+    if (durationMs > 0) r.durationMs = durationMs;
     return r;
 }
 
