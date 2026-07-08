@@ -18,6 +18,8 @@
 #include "models/DiagId.h"
 #include "engine/diagnostics/DiagnosticFormatter.h"
 
+namespace G5WebsiteUrl {
+
 static bool clearJniException(QJniEnvironment& env) {
     if (!env->ExceptionCheck())
         return false;
@@ -493,5 +495,5 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
     return r;
 }
 
-#endif // PLATFORM_ANDROID
 } // namespace G5WebsiteUrl
+#endif // PLATFORM_ANDROID
