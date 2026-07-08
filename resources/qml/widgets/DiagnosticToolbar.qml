@@ -46,11 +46,11 @@ Rectangle {
         anchors { fill: parent; leftMargin: 4; rightMargin: 4; topMargin: 4; bottomMargin: 4 }
         spacing: 2
 
-        // ═══════════════ ROW 1: 3-zone layout ═══════════════════════
+        // ═══════════════ ROW 1: Target input + Actions ══════════════
         RowLayout {
             Layout.fillWidth: true; spacing: 6
 
-            // ── Zone 1: Advanced toggle + Scheme + Host ──────────────
+            // ── Zone 1: Advanced toggle + Scheme + Host (fills) ─────
             RowLayout {
                 Layout.fillWidth: true; spacing: 4
 
@@ -208,7 +208,7 @@ Rectangle {
                 }
             }  // end Zone 1
 
-            // ── Zone 2: Group pills + Run button ────────────────────
+            // ── Zone 2: Group pills + Run button ──────────────────
             RowLayout {
                 spacing: 4
                 Repeater {
@@ -245,19 +245,24 @@ Rectangle {
                     }
                 }
             }  // end Zone 2
+        }  // end ROW 1
 
-            // ── Zone 3: Clear button — standalone, separated from input + run ──
+        // ═══════════════ ROW 2: Close button (standalone) ═══════════
+        RowLayout {
+            Layout.fillWidth: true
+            visible: hostField.text !== "" && appState.runStatus !== 1
+
+            Item { Layout.fillWidth: true }  // spacer — pushes close to right
             AppIcon {
                 name: "close"; size: 14
                 color: hostField.text !== "" && appState.runStatus !== 1
                     ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
-                visible: hostField.text !== "" && appState.runStatus !== 1
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
             }
-        }  // end ROW 1
+        }  // end ROW 2
 
-        // ═══════════════ ROW 2: Advanced fields (collapsible) ═══════════
+        // ═══════════════ ROW 3: Advanced fields (collapsible) ═══════════
         RowLayout {
             visible: root._advancedVisible; spacing: 6
             Layout.fillWidth: true
@@ -314,7 +319,7 @@ Rectangle {
             }
         }
 
-        // ═══════════════ ROW 3: Port scan config ═══════════════════
+        // ═══════════════ ROW 4: Port scan config ═══════════════════
         PortScanConfig {
             Layout.fillWidth: true
             visible: appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
