@@ -51,7 +51,7 @@ if ($proc.ExitCode -eq 0) {
 Step "3. Code review compliance"
 
 # 3a. Recent commits have 5WHY analysis
-$recentCommits = git log --oneline -10 --format="%s"
+$recentCommits = git log --oneline -10 --format="%B"
 $whyCount = ($recentCommits | Select-String "Why #1" | Measure-Object).Count
 if ($whyCount -gt 0) {
     Pass "5WHY analysis found in $whyCount recent commit(s)"
@@ -62,8 +62,8 @@ if ($whyCount -gt 0) {
 # 3b. Preprocessor balance check
 $imbalance = @()
 Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object {
-    $ifCount = (Select-String -Path $_.FullName -Pattern '^#if|^#ifdef|^#ifndef' | Measure-Object).Count
-    $endCount = (Select-String -Path $_.FullName -Pattern '^#endif' | Measure-Object).Count
+    $ifCount = (Select-String -Path $_.FullName -Pattern '\#if|\#ifdef|\#ifndef' | Measure-Object).Count
+    $endCount = (Select-String -Path $_.FullName -Pattern '\#endif' | Measure-Object).Count
     if ($ifCount -ne $endCount) {
         $imbalance += "$($_.Name): #if=$ifCount #endif=$endCount"
     }
