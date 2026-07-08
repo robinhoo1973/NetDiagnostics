@@ -39,10 +39,10 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
             if (row.Type != IF_TYPE_ETHERNET_CSMACD) continue;
             if (row.OperStatus == IfOperStatusNotPresent) continue;
             QString ifName   = QString::fromWCharArray(row.Alias);
-            QString speedStr = (row.InLinkSpeed > 0)
-                ? (row.InLinkSpeed >= 1000000000
-                    ? QStringLiteral("%1 Gbps").arg(row.InLinkSpeed / 1.0e9, 0, 'f', 1)
-                    : QStringLiteral("%1 Mbps").arg(row.InLinkSpeed / 1.0e6, 0, 'f', 0))
+            QString speedStr = (row.TransmitLinkSpeed > 0)
+                ? (row.TransmitLinkSpeed >= 1000000000
+                    ? QStringLiteral("%1 Gbps").arg(row.TransmitLinkSpeed / 1.0e9, 0, 'f', 1)
+                    : QStringLiteral("%1 Mbps").arg(row.TransmitLinkSpeed / 1.0e6, 0, 'f', 0))
                 : QStringLiteral("N/A");
             QString linkStr = (row.OperStatus == IfOperStatusUp) ? "Up" : "Down";
             QString mtuStr  = QString::number(row.Mtu);
@@ -63,7 +63,8 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     r.status  = wiredRows.isEmpty() ? DiagStatus::Info : DiagStatus::Pass;
     r.summary = wiredRows.isEmpty() ? QStringLiteral("No wired Ethernet adapters found")
                                     : QStringLiteral("Wired NIC properties collected via GetIfTable2");
-    r.details = DiagnosticFormatter::formatTable(kWiredCols, wiredRows);
+    QStringList table = DiagnosticFormatter::formatTable(kWiredCols, wiredRows);
+    r.details = table.join('\n');
     r.rawOutput = out.join('\n') + '\n' + r.details;
     r.durationMs = t.elapsed(); return r;
 #else
