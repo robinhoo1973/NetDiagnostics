@@ -62,8 +62,8 @@ if ($whyCount -gt 0) {
 # 3b. Preprocessor balance check
 $imbalance = @()
 Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object {
-    $ifCount = (Select-String -Path $_.FullName -Pattern '\#if|\#ifdef|\#ifndef' | Measure-Object).Count
-    $endCount = (Select-String -Path $_.FullName -Pattern '\#endif' | Measure-Object).Count
+    $ifCount = (Select-String -Path $_.FullName -Pattern '^\s*\#if[^ ]|^\s*\#ifdef|^\s*\#ifndef|^\s*\#elif' | Measure-Object).Count
+    $endCount = (Select-String -Path $_.FullName -Pattern '^\s*\#endif' | Measure-Object).Count
     if ($ifCount -ne $endCount) {
         $imbalance += "$($_.Name): #if=$ifCount #endif=$endCount"
     }

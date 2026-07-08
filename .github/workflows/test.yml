@@ -84,8 +84,8 @@ jobs:
           # Preprocessor balance
           $failed = 0
           Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object {
-            $ifs = (Select-String -Path $_.FullName -Pattern '\#if' | Measure-Object).Count
-            $ends = (Select-String -Path $_.FullName -Pattern '\#endif' | Measure-Object).Count
+            $ifs = (Select-String -Path $_.FullName -Pattern '^\s*\#if[^ ]|^\s*\#ifdef|^\s*\#ifndef|^\s*\#elif' | Measure-Object).Count
+            $ends = (Select-String -Path $_.FullName -Pattern '^\s*\#endif' | Measure-Object).Count
             if ($ifs -ne $ends) {
               Write-Host "::error::$($_.Name): #if=$ifs #endif=$ends"
               $failed++
