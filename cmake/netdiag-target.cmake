@@ -41,21 +41,19 @@ function(configure_netdiag_target TARGET)
     # ── curl ─────────────────────────────────────────────────────────
     if(TARGET CURL::libcurl)
         target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
-        # 5WHY round 6: On MSYS2/MinGW, libcurl.a contains both static
-        # code and DLL import stubs. CURLConfig.cmake (when present)
-        # links the DLL variant. The -Bstatic wrapper forces GNU ld to
-        # resolve every curl symbol from the static archive, and the
-        # transitive deps prevent fallback to DLL stubs.
+        # 5WHY round 9: "LINKER:-Bstatic" syntax doesn't survive CMake
+        # generator transform in CI MinGW toolchain. Use raw -Wl, flags
+        # which pass directly to the linker without CMake interpretation.
         if(WIN32)
-            target_link_options(${TARGET} PRIVATE
-                "LINKER:-Bstatic"
+            target_link_libraries(${TARGET} PRIVATE
+                "-Wl,-Bstatic"
             )
             target_link_libraries(${TARGET} PRIVATE
                 ssh2 idn2 ssl crypto z brotlidec brotlicommon zstd
                 nghttp2 ngtcp2_crypto_ossl ngtcp2 nghttp3 psl
             )
-            target_link_options(${TARGET} PRIVATE
-                "LINKER:-Bdynamic"
+            target_link_libraries(${TARGET} PRIVATE
+                "-Wl,-Bdynamic"
             )
         endif()
     endif()
