@@ -31,8 +31,12 @@ Item {
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
-        // PDF = one-page summary; HTML = full detail. Both render as rich text.
-        previewHtml = appState.buildReportHtml(fmt === "html")
+        // PDF = one-page summary (light theme, print-optimised).
+        // PDF = one-page summary; HTML = full rich document (dark theme, shared-page parity).
+        if (fmt === "html")
+            previewHtml = appState.buildRichHtmlDocument()
+        else
+            previewHtml = appState.buildReportHtml(false)
         previewVisible = true
     }
     function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }
@@ -196,16 +200,16 @@ Item {
         MouseArea { anchors.fill: parent } // absorb background clicks
 
         Rectangle {
-            anchors.centerIn: parent
-            // Proportional margins (6% H / 8% V) instead of hardcoded px
-            width: parent.width * 0.94
-            height: Math.max(parent.height * 0.20, parent.height * 0.92)
-            radius: 12; color: ThemeEngine.colors.card
+            anchors {
+                fill: parent
+                margins: page.isMobile ? 0 : 8
+            }
+            radius: page.isMobile ? 0 : 12; color: ThemeEngine.colors.card
             clip: true
-            border { width: 2; color: ThemeEngine.colors.borderFocused }
+            border { width: page.isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
 
             ColumnLayout {
-                anchors { fill: parent; margins: 12 }
+                anchors { fill: parent; margins: page.isMobile ? 8 : 12 }
                 spacing: 10
                 Rectangle {
                     Layout.fillWidth: true
