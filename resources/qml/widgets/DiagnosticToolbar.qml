@@ -104,17 +104,17 @@ Rectangle {
                     }
 
                     popup: Popup {
-                        y: schemeCombo.height; width: 210; padding: 4
-                        // Clamp popup height at 280px so it never overflows the screen on
+                        y: schemeCombo.height; width: 222; padding: 6
+                        // Clamp popup height at 320px so it never overflows the screen on
                         // short / phone displays; taller content scrolls via the ListView.
                         // Uses a constant max-height instead of Window.height arithmetic to
                         // avoid depending on the Window attached property (which can be null
                         // during component initialization in some Qt configurations).
-                        height: Math.min(implicitHeight, 280)
+                        height: Math.min(implicitHeight, 320)
                         background: Rectangle {
                             color: ThemeEngine.bgCard
                             border { width: 1; color: ThemeEngine.colors.borderCard }
-                        radius: 8
+                            radius: 10
                         }
                         contentItem: ListView {
                             clip: true; implicitHeight: contentHeight
@@ -124,7 +124,8 @@ Rectangle {
                     }
                     delegate: ItemDelegate {
                         width: 210; padding: 0; leftPadding: 0; rightPadding: 0
-                        height: isFirst ? 52 : 32
+                        height: isFirst ? 64 : 36
+                        // ── Computed delegate properties ─────────────────
                         readonly property bool isFirst: {
                             var prev = model.index > 0 ? _sm.get(model.index - 1) : null
                             return !prev || prev.schemeGroup !== _sm.get(model.index).schemeGroup
@@ -141,43 +142,49 @@ Rectangle {
                         }[schemeGroup] || "")
                         highlighted: scheme === schemeCombo.currentText
                         background: Rectangle {
-                            color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
-                            radius: 4
+                            color: highlighted
+                                ? Qt.alpha(ThemeEngine.colors.primary, 0.12)
+                                : (hovered ? Qt.alpha(ThemeEngine.colors.primary, 0.05) : "transparent")
+                            radius: 6
                         }
                         contentItem: ColumnLayout {
                             spacing: 0
-                            // ── Group header: separator + left-aligned icon label ──
+                            // ── Group header: separator + icon + label ───
                             Item {
                                 Layout.fillWidth: true
-                                implicitHeight: isFirst ? 20 : 0; visible: isFirst
-                                // Separator line
+                                implicitHeight: isFirst ? 26 : 0; visible: isFirst
+                                // Separator — thin line with generous margins
                                 Rectangle {
-                                    anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 2 }
-                                    height: 1; color: ThemeEngine.colors.borderCard
+                                    anchors { left: parent.left; right: parent.right; top: parent.top
+                                              leftMargin: 10; rightMargin: 10; topMargin: 4 }
+                                    height: 1; color: Qt.alpha(ThemeEngine.colors.borderCard, 0.6)
                                 }
-                                // Icon + label — left-aligned at 14px, 8px gap
+                                // Icon (12px) + label (10px) — 10px gap
                                 Row {
-                                    anchors { left: parent.left; leftMargin: 14; bottom: parent.bottom; bottomMargin: 2 }
-                                    spacing: 8
+                                    anchors { left: parent.left; leftMargin: 16; bottom: parent.bottom; bottomMargin: 3 }
+                                    spacing: 10
                                     AppIcon {
-                                        name: groupIcon; size: 10; color: ThemeEngine.colors.primary
+                                        name: groupIcon; size: 12; color: ThemeEngine.colors.primary
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                     Label {
                                         text: groupLabel.toUpperCase()
-                                        font.family: ThemeEngine.monoFont; font.pixelSize: 8
-                                        font.weight: Font.Bold; color: ThemeEngine.textMuted
+                                        font.family: ThemeEngine.monoFont; font.pixelSize: 10
+                                        font.weight: Font.Bold
+                                        color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.65)
                                         anchors.verticalCenter: parent.verticalCenter
                                     }
                                 }
                             }
-                            // ── Scheme item: left-indented 24px ──────────
+                            // ── Scheme item row: padded, with :// suffix ──
                             Label {
                                 Layout.fillWidth: true; Layout.fillHeight: true
-                                text: scheme + "://"; font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                                text: scheme + "://"
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 13
+                                font.weight: highlighted ? Font.DemiBold : Font.Normal
                                 color: highlighted ? ThemeEngine.colors.primary : ThemeEngine.colors.textPrimary
                                 verticalAlignment: Text.AlignVCenter
-                                leftPadding: 24
+                                leftPadding: 28
                             }
                         }
                     }
