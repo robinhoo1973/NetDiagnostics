@@ -359,9 +359,9 @@ void AppState::parseUrlIntoFields(const QString& urlString) {
         if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
         m_targetPath = fullPath;
 
-        // Push canonical string to m_target (direct assign to avoid circular guard)
-        m_target = trimmed;
-        emit targetChanged();
+        // Push canonical string through setTarget so all side effects fire:
+        // URL validation, G4/G5 enable+activate, m_targetError clear, bumpVersion
+        setTarget(trimmed);
     }
 }
 
@@ -491,6 +491,8 @@ void AppState::setTarget(const QString& t) {
         setGroupEnabled(4, has && isAnyUrl);   // G5 on for any valid URL scheme
 
         // Activate G4/G5 when target is entered, deactivate when cleared
+        bool had3 = m_activeGroups.contains(3);
+        bool had4 = m_activeGroups.contains(4);
         if (has) {
             m_activeGroups.insert(3);  // G4 active
             if (isAnyUrl)
@@ -499,7 +501,8 @@ void AppState::setTarget(const QString& t) {
             m_activeGroups.remove(3);
             m_activeGroups.remove(4);
         }
-        emit groupActiveChanged();
+        if (had3 != m_activeGroups.contains(3) || had4 != m_activeGroups.contains(4))
+            emit groupActiveChanged();
 
         TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
                 has, isAnyUrl, isHttp, has, has && isAnyUrl, m_targetError.toUtf8().constData());
@@ -526,16 +529,57 @@ bool AppState::isGroupAnyEnabled(int groupInt) const { return m_config.isGroupAn
 // ── Group activation (separate from enable/disable) ─────────────────
 void AppState::setGroupActive(int groupInt, bool active) {
     if (groupInt < 0 || groupInt >= 5) return;
+    bool changed = active ? m_activeGroups.contains(groupInt) == false
+                          : m_activeGroups.contains(groupInt) == true;
     if (active)
         m_activeGroups.insert(groupInt);
     else
         m_activeGroups.remove(groupInt);
-    emit groupActiveChanged();
-    bumpVersion();
+    if (changed) {
+        emit groupActiveChanged();
+        bumpVersion();
+    }
 }
 
 bool AppState::isGroupActive(int groupInt) const {
     return m_activeGroups.contains(groupInt);
+}
+
+// ── G5 scheme-to-DiagId matching — single source of truth ─────────────────
+// Returns true if `id` is applicable for the given URL scheme.
+// Used by both runDiagnostics (scheduling) and allDiagIdsForGroup (Config display)
+// so the two views can never diverge.
+static bool g5DiagMatchesScheme(DiagId id, const QString& schemeLower) {
+    bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
+                   || id == DiagId::G5ServiceBanner);
+    if (isGeneric) return true;
+
+    bool isHttp = (schemeLower == "http" || schemeLower == "https");
+    bool isFtp  = (schemeLower == "ftp" || schemeLower == "ftps");
+    bool isSsh  = (schemeLower == "ssh" || schemeLower == "sftp");
+
+    if (isHttp) {
+        return (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
+             || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
+             || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
+             || id == DiagId::G5HttpTiming);
+    }
+    if (isFtp)  return id == DiagId::G5FtpDiagnostics;
+    if (isSsh)  return id == DiagId::G5SshDiagnostics;
+
+    if (schemeLower == "mysql")      return id == DiagId::G5Mysql;
+    if (schemeLower == "postgresql") return id == DiagId::G5Postgres;
+    if (schemeLower == "redis")      return id == DiagId::G5Redis;
+    if (schemeLower == "mongodb")    return id == DiagId::G5Mongodb;
+    if (schemeLower == "ldap")       return id == DiagId::G5Ldap;
+    if (schemeLower == "mqtt")       return id == DiagId::G5Mqtt;
+    if (schemeLower == "telnet")     return id == DiagId::G5Telnet;
+    if (schemeLower == "smtp" || schemeLower == "smtps"
+     || schemeLower == "imap" || schemeLower == "imaps"
+     || schemeLower == "pop3" || schemeLower == "pop3s")
+        return id == DiagId::G5EmailDiagnostics;
+
+    return false;
 }
 
 // ── Run diagnostics ────────────────────────────────────────────────────────
@@ -596,30 +640,7 @@ void AppState::runDiagnostics() {
             if (gt.group == DiagGroup::G5 && hasTarget) {
                 QString scheme = m_targetScheme.isEmpty()
                     ? QStringLiteral("https") : m_targetScheme.toLower();
-                // URL parsing + TCP connect + service banner run for any scheme
-                bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
-                               || id == DiagId::G5ServiceBanner);
-                bool isHttp = (scheme == "http" || scheme == "https");
-                bool isFtp  = (scheme == "ftp" || scheme == "ftps");
-                bool isSsh  = (scheme == "ssh" || scheme == "sftp");
-                bool match = isGeneric
-                    || (isHttp && (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
-                        || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
-                        || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
-                        || id == DiagId::G5HttpTiming))
-                    || (isFtp && id == DiagId::G5FtpDiagnostics)
-                    || (isSsh && id == DiagId::G5SshDiagnostics)
-                    || (scheme == "mysql" && id == DiagId::G5Mysql)
-                    || (scheme == "postgresql" && id == DiagId::G5Postgres)
-                    || (scheme == "redis" && id == DiagId::G5Redis)
-                    || (scheme == "mongodb" && id == DiagId::G5Mongodb)
-                    || (scheme == "ldap" && id == DiagId::G5Ldap)
-                    || (scheme == "mqtt" && id == DiagId::G5Mqtt)
-                    || (scheme == "telnet" && id == DiagId::G5Telnet)
-                    || ((scheme == "smtp" || scheme == "smtps" || scheme == "imap"
-                         || scheme == "imaps" || scheme == "pop3" || scheme == "pop3s")
-                         && id == DiagId::G5EmailDiagnostics);
-                if (!match) continue;
+                if (!g5DiagMatchesScheme(id, scheme)) continue;
             }
             gt.diagIds.append(id);
             m_totalPerGroup[gt.group]++;
@@ -808,29 +829,7 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
         if (g == DiagGroup::G5 && !isTargetEmpty() && hasUrlScheme()) {
             QString scheme = m_targetScheme.isEmpty()
                 ? QStringLiteral("https") : m_targetScheme.toLower();
-            bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
-                           || id == DiagId::G5ServiceBanner);
-            bool isHttp = (scheme == "http" || scheme == "https");
-            bool isFtp  = (scheme == "ftp" || scheme == "ftps");
-            bool isSsh  = (scheme == "ssh" || scheme == "sftp");
-            bool match = isGeneric
-                || (isHttp && (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
-                    || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
-                    || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
-                    || id == DiagId::G5HttpTiming))
-                || (isFtp && id == DiagId::G5FtpDiagnostics)
-                || (isSsh && id == DiagId::G5SshDiagnostics)
-                || (scheme == "mysql" && id == DiagId::G5Mysql)
-                || (scheme == "postgresql" && id == DiagId::G5Postgres)
-                || (scheme == "redis" && id == DiagId::G5Redis)
-                || (scheme == "mongodb" && id == DiagId::G5Mongodb)
-                || (scheme == "ldap" && id == DiagId::G5Ldap)
-                || (scheme == "mqtt" && id == DiagId::G5Mqtt)
-                || (scheme == "telnet" && id == DiagId::G5Telnet)
-                || ((scheme == "smtp" || scheme == "smtps" || scheme == "imap"
-                     || scheme == "imaps" || scheme == "pop3" || scheme == "pop3s")
-                     && id == DiagId::G5EmailDiagnostics);
-            if (!match) continue;
+            if (!g5DiagMatchesScheme(id, scheme)) continue;
         }
         list.append(static_cast<int>(id));
     }

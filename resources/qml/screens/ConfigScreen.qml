@@ -9,12 +9,10 @@ Item {
     id: page
     objectName: "config"
     property int currentGroup: 0
-    property int _cachedConfigGen: -1
     property int configPollVersion: 0
     Connections {
         target: appState
         function onStateVersionChanged() {
-            _cachedConfigGen = appState.stateVersion
             configPollVersion++
         }
     }
@@ -44,7 +42,6 @@ Item {
                         model: appState.groupLabels
                         delegate: ItemDelegate {
                             Layout.fillWidth: true; Layout.fillHeight: true
-                            property bool _active: appState.isGroupActive(index)
                             background: Rectangle {
                                 color: "transparent"
                                 Rectangle {
