@@ -240,7 +240,7 @@ Rectangle {
                 color: ThemeEngine.colors.borderCard
                 visible: hostField.text !== "" && appState.runStatus !== 1 && !(Qt.platform.os === "ios" || Qt.platform.os === "android")
             }
-            Item { width: 6; visible: hostField.text !== "" || appState.runStatus !== 1 }
+            Item { width: 6; visible: (hostField.text !== "" || appState.runStatus !== 1) && !(Qt.platform.os === "ios" || Qt.platform.os === "android") }
 
             // ── Zone 3: Clear button — fixed 30px zone, right-aligned ──
             // Desktop only.  On mobile the clear button wastes 30px of
