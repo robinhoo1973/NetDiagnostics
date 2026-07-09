@@ -887,6 +887,14 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
             m["isRunning"] = false;
             list.append(m);
         } else {
+            // G5: hide pending tests that don't match the current URL scheme.
+            // These would never be scheduled by runDiagnostics, so showing
+            // them as "pending" is misleading — they'll never run.
+            if (g == DiagGroup::G5 && !isTargetEmpty() && hasUrlScheme()) {
+                QString scheme = m_targetScheme.isEmpty()
+                    ? QStringLiteral("https") : m_targetScheme.toLower();
+                if (!g5DiagMatchesScheme(id, scheme)) continue;
+            }
             // Pending test — mark as running if its group is currently executing
             bool isRunning = (m_runStatus == RunStatus::Running)
                           && (m_currentGroupIdx < m_pendingGroups.size())
