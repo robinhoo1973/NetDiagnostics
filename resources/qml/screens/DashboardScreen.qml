@@ -104,7 +104,7 @@ Item {
                     var groups = []
                     for (var g = 0; g < appState.groupLabels.length; g++) {
                         var s = appState.groupStats(g)
-                        if ((s.enabled || 0) > 0 || (s.total || 0) > 0) groups.push(g)
+                        if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) groups.push(g)
                     }
                     return groups
                 }
@@ -132,9 +132,9 @@ Item {
                     Repeater {
                         model: {
                             var groups = []
-                            for (var g = 0; g < appState.groupLabels.length; g++) {
+                             for (var g = 0; g < appState.groupLabels.length; g++) {
                                 var s = appState.groupStats(g)
-                                if ((s.enabled || 0) > 0 || (s.total || 0) > 0) groups.push(g)
+                                if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) groups.push(g)
                             }
                             return groups
                         }
