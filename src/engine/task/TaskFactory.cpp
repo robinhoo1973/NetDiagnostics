@@ -1,5 +1,5 @@
-// =============================================================================
-// TaskFactory.cpp 鈥?Create DiagnosticTask objects for each DiagId
+﻿// =============================================================================
+// TaskFactory.cpp 閳?Create DiagnosticTask objects for each DiagId
 // =============================================================================
 #include "engine/task/TaskFactory.h"
 #include "engine/diagnostics/G1/G1SystemAdapters.h"
@@ -10,25 +10,25 @@
 #include "util/Logger.h"
 #include <QElapsedTimer>
 #include <QDateTime>
-// ═══════════════════════════════════════════════════════════════════════════
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 // 5WHY: G5Common.h opens namespace G5WebsiteUrl { without closing it (it
 // provides inline helper definitions used by multiple .cpp files). Each
 // includer MUST close the namespace immediately to prevent leakage into
-// subsequent code. The } below is NOT a stray brace — it balances the
+// subsequent code. The } below is NOT a stray brace 鈥?it balances the
 // namespace opened by G5Common.h.
-// ═══════════════════════════════════════════════════════════════════════════
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 #ifdef PLATFORM_IOS
 #include "engine/diagnostics/G5/G5Common.h"
-} // namespace G5WebsiteUrl ← closes G5Common.h's unclosed namespace
+} // namespace G5WebsiteUrl 鈫?closes G5Common.h's unclosed namespace
 #include "engine/diagnostics/G3/G3Common.h"
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
 #ifdef PLATFORM_ANDROID
 #include "engine/diagnostics/G5/G5Common.h"
-} // namespace G5WebsiteUrl ← closes G5Common.h's unclosed namespace
+} // namespace G5WebsiteUrl 鈫?closes G5Common.h's unclosed namespace
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
-// Always included — contains only declarations + inline helpers. The #if
+// Always included 鈥?contains only declarations + inline helpers. The #if
 // blocks below decide which functions are actually routed to by DiagId.
 #include "engine/diagnostics/G5/G5WebsiteUrl.h"
 
@@ -106,8 +106,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
     int tmo = timeoutFor(id);
 
     // Helpers: wrap function pointers that don't match GenericTask::Impl signature.
-    // T1 wraps G1/G2/G3 鈥?takes (DiagId) only, ignores target.
-    // T2 wraps G4/G5 鈥?takes (const QString&) only, ignores DiagId.
+    // T1 wraps G1/G2/G3 閳?takes (DiagId) only, ignores target.
+    // T2 wraps G4/G5 閳?takes (const QString&) only, ignores DiagId.
     auto T1 = [&](auto fn, int custTmo = -1) {
         return std::make_unique<GenericTask>(id, target,
             [id, fn](DiagId, const QString&) { return fn(id); },
@@ -134,7 +134,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #endif
 
     switch (id) {
-        // 鈹€鈹€ G1: System & Adapters 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+        // 閳光偓閳光偓 G1: System & Adapters 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G1NetworkAdapters:    return T1(G1G2G3Native::networkAdapters, 15000);
         case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
 #ifdef PLATFORM_ANDROID
@@ -162,7 +162,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 #endif
 
-        // 鈹€鈹€ G2: Connectivity & Security 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+        // 閳光偓閳光偓 G2: Connectivity & Security 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
         case DiagId::G2TcpSettings:        return T1(G1G2G3Native::tcpSettings);
 #ifdef PLATFORM_IOS
@@ -183,14 +183,14 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G2ArpTable:           return T1(G1G2G3Native::arpTable);
         case DiagId::G2ProxySettings:      return T1(G1G2G3Native::proxySettings);
 
-        // 鈹€鈹€ G3: Internet & DNS 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+        // 閳光偓閳光偓 G3: Internet & DNS 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G3NetskopeStatus:     return T1(G1G2G3Native::netskopeStatus);
         case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
         case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
         case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
 
-        // 鈹€鈹€ G4: Remote Host 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+        // 閳光偓閳光偓 G4: Remote Host 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 #ifdef PLATFORM_IOS
         case DiagId::G4DnsResolution:
             return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
@@ -204,93 +204,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G4Traceroute:         return T2(G4RemoteHost::traceroute);
         case DiagId::G4PathPing:           return T2(G4RemoteHost::pathPing);
         case DiagId::G4MtuDiscovery:       return T2(G4RemoteHost::mtuDiscovery);
-        case DiagId::G4PortScan: {
-            QString scanHost = G4RemoteHost::extractHostname(target);
-            return T3([scanHost, fromPort, toPort, useCommonPorts](DiagId id, const QString&) {
-                QVector<int> ports;
-                if (useCommonPorts)
-                    ports = NetworkProbe::commonDiagnosticPorts();
-                if (fromPort > 0 && toPort >= fromPort) {
-                    for (int p = qBound(1, fromPort, 65535); p <= qBound(fromPort, toPort, 65535); ++p)
-                        if (!ports.contains(p)) ports.append(p);
-                }
-                std::sort(ports.begin(), ports.end());
 
-                QElapsedTimer t; t.start();
-                auto results = NetworkProbe::portScan(scanHost, ports, 2000, 64);
+        // G4PortScan removed 鈥?port scan feature deprecated
 
-                // Transparent-proxy / captive-portal detection: probe two high ports
-                // that are virtually never open. If BOTH "connect", a middlebox is
-                // accepting every TCP connection, so every scanned port falsely shows
-                // OPEN (common behind Netskope/Zscaler or a captive portal).
-                bool proxyLikely = false;
-                {
-                    auto ctrl = NetworkProbe::portScan(scanHost, {52379, 61873}, 1200, 2);
-                    int ctrlOpen = 0;
-                    for (const auto& e : ctrl) if (e.open) ctrlOpen++;
-                    proxyLikely = (ctrlOpen == 2);
-                }
-
-                DiagnosticResult r;
-                r.id = id; r.group = DiagGroup::G4;
-                r.durationMs = t.elapsed(); r.timestamp = QDateTime::currentDateTime();
-
-                QList<QPair<QString,QString>> portRows;
-                QMap<int, QString> portSvcMap;
-                for (const auto& e : results)
-                    if (!e.serviceName.isEmpty()) portSvcMap[e.port] = e.serviceName;
-
-                int rangeStart = -1, rangeEnd = -1;
-                bool rangeOpen = false;
-                auto flushRange = [&]() {
-                    if (rangeStart < 0) return;
-                    QString status = rangeOpen ? QStringLiteral("OPEN") : QStringLiteral("CLOSED");
-                    QString portStr = (rangeStart == rangeEnd)
-                        ? QString::number(rangeStart)
-                        : QStringLiteral("%1-%2").arg(rangeStart).arg(rangeEnd);
-                    portRows.append({portStr, status});
-                    rangeStart = -1;
-                };
-                for (const auto& e : results) {
-                    if (rangeStart < 0) { rangeStart = rangeEnd = e.port; rangeOpen = e.open; }
-                    else if (e.port == rangeEnd + 1 && e.open == rangeOpen) { rangeEnd = e.port; }
-                    else { flushRange(); rangeStart = rangeEnd = e.port; rangeOpen = e.open; }
-                }
-                flushRange();
-
-                QStringList out;
-                out.append(QString());
-                out.append(QStringLiteral("Port Scan Results for %1").arg(scanHost));
-                int portW = (int)strlen("Port range"), statusW = (int)strlen("Status");
-                for (const auto& pr : portRows) {
-                    portW = qMax(portW, pr.first.length());
-                    statusW = qMax(statusW, pr.second.length());
-                }
-                out.append(QStringLiteral("  %1  %2").arg(QStringLiteral("Port range"), -portW).arg(QStringLiteral("Status"), -statusW));
-                out.append(QStringLiteral("  %1  %2").arg(QString(portW, '-')).arg(QString(statusW, '-')));
-                for (const auto& pr : portRows)
-                    out.append(QStringLiteral("  %1  %2").arg(pr.first, -portW).arg(pr.second, -statusW));
-                out.append(QString());
-                if (proxyLikely) {
-                    out.append(QStringLiteral("  WARNING: control ports (52379, 61873) also accepted the connection."));
-                    out.append(QStringLiteral("  A transparent proxy / firewall (e.g. Netskope, Zscaler) or a captive"));
-                    out.append(QStringLiteral("  portal is intercepting TCP connections, so every port appears OPEN."));
-                    out.append(QStringLiteral("  These results do NOT reflect the real host's listening ports."));
-                    out.append(QString());
-                }
-                r.rawOutput = out.join('\n'); r.details = out.join('\n');
-                int openCount = 0, closedCount = 0; QStringList namedOpen;
-                for (const auto& e : results) { if (e.open) openCount++; else closedCount++; }
-                r.summary = proxyLikely
-                    ? QStringLiteral("Unreliable \u2014 proxy/firewall intercepting all connections")
-                    : QStringLiteral("%1 ports closed, %2 ports opened").arg(closedCount).arg(openCount);
-                r.status = proxyLikely ? DiagStatus::Warning
-                                       : (openCount > 0 ? DiagStatus::Pass : DiagStatus::Info);
-                return r;
-            }, 90000);
-        }
-
-        // ══ G5: Website / URL ═══════════════════════════════════════
 #ifdef PLATFORM_IOS
         // iOS: NSURLSession native HTTP (no libcurl needed)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
@@ -360,7 +276,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5Ldap:             return T2(G5WebsiteUrl::ldapDiagnostics);
         case DiagId::G5Mqtt:             return T2(G5WebsiteUrl::mqttDiagnostics);
 #else
-        // ── NO_CURL build: socket-only tests (no libcurl needed) ──────────
+        // 鈹€鈹€ NO_CURL build: socket-only tests (no libcurl needed) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
@@ -375,7 +291,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5Mongodb:          return T2(G5WebsiteUrl::mongodbDiagnostics);
         case DiagId::G5Ldap:             return T2(G5WebsiteUrl::ldapDiagnostics);
         case DiagId::G5Mqtt:             return T2(G5WebsiteUrl::mqttDiagnostics);
-        // ── libcurl-only tests ────────────────────────────────────────────
+        // 鈹€鈹€ libcurl-only tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         case DiagId::G5CurlVerbose:      [[fallthrough]];
         case DiagId::G5HttpHeaders:      [[fallthrough]];
         case DiagId::G5SecurityHeaders:  [[fallthrough]];
@@ -386,7 +302,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
                 return DiagnosticResult::skipped(id, QStringLiteral("HTTP test unavailable (libcurl required)"));
             });
 #endif
-        default: break; // safety net: new DiagId not yet handled → log + nullptr
+        default: break; // safety net: new DiagId not yet handled 鈫?log + nullptr
     }
     Logger::instance().event(QStringLiteral("Unknown DiagId: %1").arg(static_cast<int>(id)));
     return nullptr;

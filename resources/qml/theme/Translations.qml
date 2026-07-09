@@ -46,10 +46,7 @@ Item {
     readonly property string stop: t("■ Stop", "■ Arrêter", "■ Stopp", "■ Стоп", "■ Ferma", "■ 停止", "■ 停止", "■ Detener", "■ Parar")
     readonly property string target: t("Target", "Cible", "Ziel", "Цель", "Obiettivo", "目标", "目標", "Objetivo", "Alvo")
     readonly property string enterTarget: t("Enter URL, IP address, or hostname...", "Entrez URL, IP ou nom d'hôte...", "URL, IP oder Hostname eingeben...", "Введите URL, IP или имя хоста...", "Inserisci URL, IP o hostname...", "输入URL、IP地址或主机名...", "輸入URL、IP位址或主機名...", "Ingrese URL, dirección IP o nombre de host...", "Insira URL, endereço IP ou nome de host...")
-    readonly property string portScan: t("Port Scan", "Scan de ports", "Port-Scan", "Сканирование портов", "Scansione porte", "端口扫描", "端口掃描", "Escaneo de puertos", "Verificação de portas")
-    readonly property string scanCommon: t("Scan Common Ports", "Scanner ports communs", "Gängige Ports scannen", "Сканировать порты", "Scansiona porte comuni", "扫描常用端口", "掃描常用端口", "Escanear puertos comunes", "Verificar portas comuns")
-    readonly property string range: t("Range:", "Plage:", "Bereich:", "Диапазон:", "Intervallo:", "范围:", "範圍:", "Rango:", "Intervalo:")
-    readonly property string fromMust: t("From Must Be ≤ To", "De doit être ≤ À", "Von muss ≤ Bis sein", "От должно быть ≤ До", "Da deve essere ≤ A", "起始必须 ≤ 结束", "起始必須 ≤ 結束", "Desde debe ser ≤ Hasta", "De deve ser ≤ Até")
+    // portScan / scanCommon / range / fromMust removed — port scan feature deprecated
 
     // ── ConfigScreen ──
     readonly property string diagConfig: t("Diagnostic Configuration", "Configuration diagnostic", "Diagnosekonfiguration", "Конфигурация диагностики", "Configurazione diagnostica", "诊断配置", "診斷配置", "Configuración de diagnóstico", "Configuração de diagnóstico")

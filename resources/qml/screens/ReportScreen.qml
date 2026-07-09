@@ -190,7 +190,7 @@ Item {
         id: previewOverlay
         parent: page.parent ? page.parent : page
         anchors.fill: parent
-        color: "#AA000000"
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.previewVisible
         z: 1000
         MouseArea { anchors.fill: parent } // absorb background clicks
@@ -200,9 +200,9 @@ Item {
             // Proportional margins (6% H / 8% V) instead of hardcoded px
             width: parent.width * 0.94
             height: Math.max(parent.height * 0.20, parent.height * 0.92)
-            radius: 12; color: "#1F1F32"
+            radius: 12; color: ThemeEngine.colors.card
             clip: true
-            border { width: 2; color: ThemeEngine.colors.borderCard }
+            border { width: 2; color: ThemeEngine.colors.borderFocused }
 
             ColumnLayout {
                 anchors { fill: parent; margins: 12 }
@@ -224,16 +224,17 @@ Item {
                             elide: Text.ElideRight
                         }
                         Rectangle {
-                            implicitWidth: 32; implicitHeight: 32; radius: 16; color: Qt.alpha("#FF5577", 0.2)
-                            AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: "#FF6688" }
+                            implicitWidth: 32; implicitHeight: 32; radius: 16
+                            color: Qt.alpha(ThemeEngine.failRed, 0.2)
+                            AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: ThemeEngine.failRed }
                             MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false; cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }
                 Rectangle {
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    color: "#F8F9FA"; radius: 8; clip: true
-                    border { width: 1; color: "#E5E7EB" }
+                    color: ThemeEngine.colors.surface; radius: 8; clip: true
+                    border { width: 1; color: ThemeEngine.colors.borderCard }
                     Flickable {
                         anchors { fill: parent; margins: 14 }
                         clip: true
@@ -242,14 +243,14 @@ Item {
                         ScrollBar.vertical: ScrollBar {
                             policy: ScrollBar.AsNeeded
                             width: 6
-                            contentItem: Rectangle { color: "#A0A0B8"; radius: 3 }
+                            contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
                         }
                         Text {
                             id: previewText
                             width: parent.width
                             text: page.previewHtml
                             textFormat: Text.RichText
-                            color: ThemeEngine.colors.navBar
+                            color: ThemeEngine.textPrimary
                             wrapMode: Text.WordWrap
                             font.pixelSize: 13
                             font.family: "Helvetica"
@@ -278,7 +279,7 @@ Item {
         id: shareDialog
         parent: page.parent ? page.parent : page
         anchors.fill: parent
-        color: "#AA000000"
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.shareStage !== 0
         z: 1100
         MouseArea { anchors.fill: parent } // absorb background clicks
@@ -288,8 +289,8 @@ Item {
             // Proportional width: 92 % of container on mobile, capped at 420 px
             width: Math.min(420, parent.width * 0.92)
             implicitHeight: dlgCol.implicitHeight + 40
-            radius: 14; color: "#1F1F32"
-            border { width: 1.5; color: "#4A4A6A" }
+            radius: 14; color: ThemeEngine.colors.card
+            border { width: 1.5; color: ThemeEngine.colors.borderFocused }
 
             ColumnLayout {
                 id: dlgCol
@@ -378,7 +379,7 @@ Item {
         Label {
             anchors.centerIn: parent
             text: dbtn.label
-            color: dbtn.filled ? "#101018" : dbtn.accent
+            color: dbtn.filled ? ThemeEngine.bgDark : dbtn.accent
             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
