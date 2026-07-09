@@ -123,7 +123,9 @@ Rectangle {
                         }
                     }
                     delegate: ItemDelegate {
-                        width: 210; padding: 0; leftPadding: 0; rightPadding: 0
+                        width: ListView.view ? ListView.view.width : 222
+                        hoverEnabled: true
+                        padding: 0; leftPadding: 0; rightPadding: 0
                         height: isFirst ? 64 : 36
                         // ── Computed delegate properties ─────────────────
                         readonly property bool isFirst: {
