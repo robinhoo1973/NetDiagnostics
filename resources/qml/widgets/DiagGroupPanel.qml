@@ -9,6 +9,9 @@ Rectangle {
     property int groupIndex: 0
     property bool expanded: false
     property bool _userToggled: false
+    // Phone portrait: badges move to a second line below the title bar
+    // so the 5 status icons + counts don't get clipped in the title row.
+    property bool compact: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
     height: cardColumn.implicitHeight + 16
     radius: 10
@@ -57,24 +60,44 @@ Rectangle {
         spacing: 0
 
         // ── Header ────────────────────────────────────────────────────
-        RowLayout {
-            spacing: 8
-            Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.cyan:ThemeEngine.infoBlue }
-            ColumnLayout { spacing:1
-                Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
-                Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.cyan; elide:Text.ElideRight }
+        // Desktop: single row with badges inline.
+        // Phone portrait: title + count on row 1, badges on row 2
+        // so the 5 status icons + counts don't get clipped on narrow screens.
+        ColumnLayout {
+            spacing: 2
+
+            // Row 1 — title + count + expand arrow
+            RowLayout {
+                spacing: 8
+                Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.cyan:ThemeEngine.infoBlue }
+                ColumnLayout { spacing:1
+                    Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
+                    Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.cyan; elide:Text.ElideRight }
+                }
+                Item { Layout.fillWidth:true }
+                Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
+                // Badges inline — desktop only (wide enough to fit)
+                RowLayout { spacing: 4; visible: !compact
+                    StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
+                    StatusBadge { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: groupInfo }
+                    StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
+                    StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
+                    StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
+                }
+                Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
             }
-            Item { Layout.fillWidth:true }
-            Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
-            // 5 result-type badges with colored icon + 2-digit count
-            RowLayout { spacing: 4
+
+            // Row 2 — result badges on their own line (phone portrait only)
+            RowLayout {
+                spacing: 4; visible: compact
+                // Indent to align with group name (accent bar 3px + spacing 8px = 11px)
+                Item { width: 11 }
                 StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
                 StatusBadge { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: groupInfo }
                 StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
                 StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
                 StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
             }
-            Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
         }
 
         // ── Progress bar ──────────────────────────────────────────────
