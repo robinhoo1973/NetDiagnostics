@@ -64,10 +64,11 @@ AppState::AppState(QObject* parent) : QObject(parent) {
 
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
     m_config.enableDefaultGroups();
-    // NOTE: iOS-unavailable tests (TCP settings, ARP table) are NOT hidden here.
-    // They stay enabled and report DiagStatus::Skipped so the UI shows a skip
-    // icon (like Active Connections). Default gateway / routing table / DHCP now
-    // have working iOS implementations and return real data.
+
+    // Restore persisted settings (language, active groups, enabled diags).
+    // Must be called AFTER enableDefaultGroups so we override defaults with
+    // saved values. A first-run user has no saved state and keeps defaults.
+    loadSettings();
 }
 
 AppState::~AppState() {
@@ -123,6 +124,7 @@ void AppState::setLanguage(int index) {
     if (index < 0 || index > 8) return;
     m_languageIndex = index;
     emit languageChanged();
+    saveSettings();
     bumpVersion();
     TRACE(" Language set to index %d\n", index);
 }
@@ -514,8 +516,8 @@ QStringList AppState::groupLabels() const { return DiagnosticConfig::groupLabels
 
 // ── Test enable/disable — delegated to DiagnosticConfig ──────────────
 bool AppState::isDiagEnabled(int diagIdInt) const { return m_config.isDiagEnabled(diagIdInt); }
-void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_config.setDiagEnabled(diagIdInt, enabled); bumpVersion(); }
-void AppState::setGroupEnabled(int groupInt, bool enabled) { m_config.setGroupEnabled(groupInt, enabled); bumpVersion(); }
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_config.setDiagEnabled(diagIdInt, enabled); saveSettings(); bumpVersion(); }
+void AppState::setGroupEnabled(int groupInt, bool enabled) { m_config.setGroupEnabled(groupInt, enabled); saveSettings(); bumpVersion(); }
 bool AppState::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }
 bool AppState::isGroupAnyEnabled(int groupInt) const { return m_config.isGroupAnyEnabled(groupInt); }
 
@@ -529,6 +531,7 @@ void AppState::setGroupActive(int groupInt, bool active) {
     else
         m_activeGroups.remove(groupInt);
     if (changed) {
+        saveSettings();
         emit groupActiveChanged();
         bumpVersion();
     }
@@ -1216,4 +1219,64 @@ QVariantMap AppState::getDetailResult(int diagIdInt) const {
     }
     m["properties"] = props;
     return m;
+}
+
+// =============================================================================
+// QSettings persistence — survives app restarts
+// =============================================================================
+
+static const char* kSettingsGroup = "settings";
+
+void AppState::loadSettings() {
+    QSettings s;
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
+
+    // Language index
+    int lang = s.value("language", 0).toInt();
+    if (lang >= 0 && lang <= 8) {
+        m_languageIndex = lang;
+        emit languageChanged();
+    }
+
+    // Active groups (G1-G5 shown/hidden)
+    QVariantList ag = s.value("activeGroups").toList();
+    if (!ag.isEmpty()) {
+        m_activeGroups.clear();
+        for (const auto& v : ag)
+            m_activeGroups.insert(v.toInt());
+    }
+
+    // Per-test enabled/disabled (Config page checkboxes)
+    QStringList enabledStrs = s.value("enabledDiags").toStringList();
+    if (!enabledStrs.isEmpty()) {
+        // Reset all to disabled, then re-enable saved ones
+        for (int i = 0; i < DiagnosticConfig::allDiagIds().size(); ++i)
+            m_config.setDiagEnabled(i, false);
+        for (const auto& str : enabledStrs) {
+            bool ok = false;
+            int id = str.toInt(&ok);
+            if (ok)
+                m_config.setDiagEnabled(id, true);
+        }
+    }
+
+    s.endGroup();
+}
+
+void AppState::saveSettings() {
+    QSettings s;
+    s.beginGroup(QString::fromLatin1(kSettingsGroup));
+
+    s.setValue("language", m_languageIndex);
+
+    QVariantList ag;
+    for (int g : m_activeGroups) ag.append(g);
+    s.setValue("activeGroups", ag);
+
+    QStringList enabledStrs;
+    for (auto id : m_config.enabledDiags())
+        enabledStrs.append(QString::number(static_cast<int>(id)));
+    s.setValue("enabledDiags", enabledStrs);
+
+    s.endGroup();
 }
