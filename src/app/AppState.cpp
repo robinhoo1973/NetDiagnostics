@@ -65,6 +65,11 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
     m_config.enableDefaultGroups();
 
+    // NOTE: iOS-unavailable tests (TCP settings, ARP table) are NOT hidden here.
+    // They stay enabled and report DiagStatus::Skipped so the UI shows a skip
+    // icon (like Active Connections). Default gateway / routing table / DHCP now
+    // have working iOS implementations and return real data.
+
     // Restore persisted settings (language, active groups, enabled diags).
     // Must be called AFTER enableDefaultGroups so we override defaults with
     // saved values. A first-run user has no saved state and keeps defaults.
