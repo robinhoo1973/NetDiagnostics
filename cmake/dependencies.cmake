@@ -35,11 +35,8 @@ elseif(ANDROID)
     set(NO_CURL TRUE)
     add_compile_definitions(NO_CURL)
 else()
-    # Desktop: curl is required for full G5 diagnostics.
-    # MODULE forces CMake's built-in FindCURL.cmake (which respects
-    # CURL_STATICLIB), bypassing any system CURLConfig.cmake that
-    # might link the DLL import library.
-    find_package(CURL REQUIRED MODULE)
+    # Desktop: curl is required for full G5 diagnostics
+    find_package(CURL REQUIRED)
 endif()
 
 # ── iOS SDK detection ───────────────────────────────────────────────────

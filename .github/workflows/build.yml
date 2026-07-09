@@ -423,8 +423,16 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
-            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a
           )
+
+          # ═══ 5WHY round 6: nuke CURLConfig.cmake ═══════════════════════
+          # The MSYS2 curl package installs CURLConfig.cmake which creates
+          # a CURL::libcurl target pointing to the DLL import library.
+          # find_package(CURL REQUIRED MODULE) is ignored because Qt6 cmake
+          # configs call find_package(CURL) first (Config mode, before our
+          # dependencies.cmake runs). Removing the cmake dir forces CMake
+          # to use FindCURL.cmake, which respects our static-link setup.
+          rm -rf /ucrt64/lib/cmake/CURL /ucrt64/share/cmake/CURL 2>/dev/null || true
 
           # Configure both in parallel (independent build trees)
           cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=OFF -B build -S . &

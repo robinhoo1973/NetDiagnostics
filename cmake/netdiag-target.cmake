@@ -40,22 +40,16 @@ function(configure_netdiag_target TARGET)
 
     # ── curl ─────────────────────────────────────────────────────────
     if(TARGET CURL::libcurl)
-        # 5WHY: MinGW libcurl.a contains BOTH static code and DLL import
-        # stubs.  -DCURL_STATICLIB=ON fixes headers (no __imp_ prefix),
-        # but the linker still defaults to DLL stubs.  -Wl,-Bstatic tells
-        # GNU ld to resolve every curl symbol from the static archive.
-        # -Wl,-Bdynamic restores normal linking for system libs that come
-        # after (bcrypt, crypt32, …).
+        target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
+        # 5WHY round 6: On MSYS2/MinGW, libcurl.a contains both static
+        # code and DLL import stubs. CURLConfig.cmake (when present)
+        # links the DLL variant. The -Bstatic wrapper forces GNU ld to
+        # resolve every curl symbol from the static archive, and the
+        # transitive deps prevent fallback to DLL stubs.
         if(WIN32)
             target_link_options(${TARGET} PRIVATE
                 "LINKER:-Bstatic"
             )
-        endif()
-        target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
-        # Transitive static dependencies declared by libcurl.pc (MSYS2 UCRT64).
-        # These MUST be listed so the linker can resolve every curl symbol
-        # from static archives without falling back to DLL import stubs.
-        if(WIN32)
             target_link_libraries(${TARGET} PRIVATE
                 ssh2 idn2 ssl crypto z brotlidec brotlicommon zstd
                 nghttp2 ngtcp2_crypto_ossl ngtcp2 nghttp3 psl
