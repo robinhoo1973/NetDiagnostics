@@ -353,6 +353,7 @@ jobs:
             mingw-w64-ucrt-x86_64-nghttp2
             mingw-w64-ucrt-x86_64-nghttp3
             mingw-w64-ucrt-x86_64-ngtcp2
+            mingw-w64-ucrt-x86_64-libunistring
             mingw-w64-ucrt-x86_64-curl
 
       # - Cache A: Qt source code (extracted tarball) -
