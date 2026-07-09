@@ -101,7 +101,7 @@ static QString platformSkipReason(DiagId id) {
 #endif
 
 std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
-    DiagId id, const QString& target, int fromPort, int toPort, bool useCommonPorts)
+    DiagId id, const QString& target)
 {
     int tmo = timeoutFor(id);
 
