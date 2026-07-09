@@ -43,6 +43,14 @@ Item {
     Connections { target: appState; function onStateVersionChanged() { syncState() } }
     Component.onCompleted: { takeSnapshot(); console.warn("[DiagnosticScreen] loaded — DiagnosticToolbar should be visible") }
 
+    // Aggregate badge counts — refreshed on each completed test.
+    // groupStats(-1) sums G0-G4 via the C++ aggregate branch.
+    property int __aggPass: { let _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0) }
+    property int __aggInfo: { let _ = appState.totalCompleted; return (appState.groupStats(-1).info||0) }
+    property int __aggWarn: { let _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
+    property int __aggFail: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
+    property int __aggSkip: { let _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
+
     property var currentDetail: ({})
     property var visibleGroups: {
         let _ = _snapVersion
@@ -80,13 +88,6 @@ Item {
             ColumnLayout {
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
                 spacing: 2
-                // Aggregate counts across all groups, refreshed on each progress event.
-                // groupStats(-1) sums G0-G4 via the C++ aggregate branch.
-                property int aggPass: { let _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0) }
-                property int aggInfo: { let _ = appState.totalCompleted; return (appState.groupStats(-1).info||0) }
-                property int aggWarn: { let _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
-                property int aggFail: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
-                property int aggSkip: { let _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
                 // Row 1 — status label + progress count (+ badges inline on desktop)
                 RowLayout {
                     spacing: 8
@@ -113,38 +114,27 @@ Item {
                     // 5 status badges inline — desktop only
                     RowLayout {
                         spacing: 4; visible: page.wide && appState.totalCompleted > 0
-                        headerBadge("badge-check",   ThemeEngine.passGreen,  aggPass)
-                        headerBadge("badge-info",    ThemeEngine.accentBlue, aggInfo)
-                        headerBadge("badge-warning", ThemeEngine.warnYellow, aggWarn)
-                        headerBadge("badge-close",   ThemeEngine.failRed,    aggFail)
-                        headerBadge("badge-skip",    ThemeEngine.skipGray,   aggSkip)
+                        // Inline StatusBadge (same shape as DiagGroupPanel.StatusBadge)
+                        RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen  } Label { text: ("  " + __aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 10; color: ThemeEngine.accentBlue } Label { text: ("  " + __aggInfo).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow } Label { text: ("  " + __aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed    } Label { text: ("  " + __aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 10; color: ThemeEngine.skipGray   } Label { text: ("  " + __aggSkip).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
                     }
                 }
                 // Row 2 — 5 status badges on their own line (phone portrait only)
                 RowLayout {
                     spacing: 4; visible: !page.wide && appState.totalCompleted > 0
                     Item { width: 20 }  // indent to align with status label
-                    headerBadge("badge-check",   ThemeEngine.passGreen,  aggPass)
-                    headerBadge("badge-info",    ThemeEngine.accentBlue, aggInfo)
-                    headerBadge("badge-warning", ThemeEngine.warnYellow, aggWarn)
-                    headerBadge("badge-close",   ThemeEngine.failRed,    aggFail)
-                    headerBadge("badge-skip",    ThemeEngine.skipGray,   aggSkip)
+                    RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen  } Label { text: ("  " + __aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 10; color: ThemeEngine.accentBlue } Label { text: ("  " + __aggInfo).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow } Label { text: ("  " + __aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed    } Label { text: ("  " + __aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 10; color: ThemeEngine.skipGray   } Label { text: ("  " + __aggSkip).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
                 }
             }
         }
 
-        // ── headerBadge: icon + 2-digit count — same shape as DiagGroupPanel.StatusBadge ──
-        component headerBadge: RowLayout {
-            property color accent: ThemeEngine.passGreen
-            property string iconName: "badge-info"
-            property int count: 0
-            spacing: 2
-            AppIcon { name: iconName; size: 10; color: accent }
-            Label {
-                text: ("  " + count).slice(-2)
-                font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: accent
-            }
-        }
 
         // ═══════════════ RESULTS ═══════════════════════════════════════
         Item {
