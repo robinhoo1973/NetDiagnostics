@@ -208,26 +208,13 @@ Rectangle {
                 }
             }  // end Zone 1
 
-            // ── Zone 2: Group pills + Run button ──────────────────
+            // ── Zone 2: Run button ──────────────────────────────────
+            // Group enable/disable is managed from the Config page only.
+            // The Diagnostic toolbar shows just the Run/Stop control.
             RowLayout {
                 spacing: 4
-                Repeater {
-                    model: 5
-                    delegate: Rectangle {
-                        width: root.wide ? 36 : 28; height: 28; radius: 14
-                        readonly property bool _chk: appState.isGroupAllEnabled(index)
-                        color: _chk ? ThemeEngine.colors.primaryContainer : "transparent"
-                        border { width: 1; color: _chk ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard }
-                        Label { anchors.centerIn: parent; text: root.wide ? "G"+(index+1) : ""+(index+1)
-                            font.family: ThemeEngine.monoFont; font.pixelSize: 10
-                            font.weight: _chk ? Font.DemiBold : Font.Normal
-                            color: _chk ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary }
-                        MouseArea { anchors.fill: parent; enabled: appState.runStatus !== 1
-                            onClicked: appState.setGroupEnabled(index, !appState.isGroupAllEnabled(index)) }
-                    }
-                }
 
-                // Run/Stop inline with pills
+                // Run/Stop button
                 Rectangle {
                     width: 36; height: 28; radius: 14
                     color: appState.runStatus === 1 ? ThemeEngine.failRed

@@ -802,6 +802,9 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         if (m_results.contains(id)) {
             const auto& r = m_results[id];
+            // G5: skip cancelled/irrelevant protocol tests (e.g. FTP in an HTTP run)
+            if (g == DiagGroup::G5 && r.status == DiagStatus::Skipped)
+                continue;
             QVariantMap m;
             m["id"] = static_cast<int>(r.id);
             m["diagId"] = static_cast<int>(r.id);
@@ -854,6 +857,11 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         if (!m_config.enabledDiags().contains(id)) continue;
         
+        // G5: skip cancelled/irrelevant protocol tests (e.g. FTP in an HTTP run)
+        if (g == DiagGroup::G5 && m_results.contains(id)
+            && m_results[id].status == DiagStatus::Skipped)
+            continue;
+
         if (m_results.contains(id)) {
             // Completed test
             const auto& r = m_results[id];

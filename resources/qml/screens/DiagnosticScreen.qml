@@ -52,7 +52,8 @@ Item {
             // Only show groups that have at least one enabled test.
             // Groups with zero checked boxes are hidden — users manage
             // enable/disable from the Config page.
-            if ((s.enabled || 0) > 0) g.push(i)
+            // Only show groups that are active AND have at least one enabled test.
+            if (appState.isGroupActive(i) && (s.enabled || 0) > 0) g.push(i)
         }
         return g
     }
