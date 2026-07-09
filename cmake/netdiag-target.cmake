@@ -49,7 +49,7 @@ function(configure_netdiag_target TARGET)
                 "-Wl,-Bstatic"
             )
             target_link_libraries(${TARGET} PRIVATE
-                ssh2 idn2 ssl crypto z brotlidec brotlicommon zstd
+                ssh2 idn2 unistring ssl crypto z brotlidec brotlicommon zstd
                 nghttp2 ngtcp2_crypto_ossl ngtcp2 nghttp3 psl
             )
             target_link_libraries(${TARGET} PRIVATE
