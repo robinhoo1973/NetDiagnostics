@@ -1255,7 +1255,8 @@ void AppState::loadSettings() {
     QStringList enabledStrs = s.value("enabledDiags").toStringList();
     if (!enabledStrs.isEmpty()) {
         // Reset all to disabled, then re-enable saved ones
-        for (int i = 0; i < DiagnosticConfig::allDiagIds().size(); ++i)
+        int diagCount = DiagnosticConfig::allDiagIds().size();
+        for (int i = 0; i < diagCount; ++i)
             m_config.setDiagEnabled(i, false);
         for (const auto& str : enabledStrs) {
             bool ok = false;
@@ -1266,6 +1267,7 @@ void AppState::loadSettings() {
     }
 
     s.endGroup();
+    s.sync();  // flush to disk immediately (critical on mobile)
 }
 
 void AppState::saveSettings() {
@@ -1284,4 +1286,5 @@ void AppState::saveSettings() {
     s.setValue("enabledDiags", enabledStrs);
 
     s.endGroup();
+    s.sync();  // flush to disk immediately (critical on mobile)
 }
