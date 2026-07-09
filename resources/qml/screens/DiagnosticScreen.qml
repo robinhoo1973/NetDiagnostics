@@ -92,9 +92,14 @@ Item {
                 RowLayout {
                     spacing: 8
                     AppIcon {
+                        id: statusSpinner
                         name: appState.runStatus === 1 ? "spinner" : "diagnostics"
                         size: 16
                         color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
+                        RotationAnimation on rotation {
+                            running: appState.runStatus === 1
+                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                        }
                     }
                     Item { width: 4 }
                     Label {
