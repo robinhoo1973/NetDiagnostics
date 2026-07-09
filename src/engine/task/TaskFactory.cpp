@@ -10,20 +10,27 @@
 #include "util/Logger.h"
 #include <QElapsedTimer>
 #include <QDateTime>
+// ═══════════════════════════════════════════════════════════════════════════
+// 5WHY: G5Common.h opens namespace G5WebsiteUrl { without closing it (it
+// provides inline helper definitions used by multiple .cpp files). Each
+// includer MUST close the namespace immediately to prevent leakage into
+// subsequent code. The } below is NOT a stray brace — it balances the
+// namespace opened by G5Common.h.
+// ═══════════════════════════════════════════════════════════════════════════
 #ifdef PLATFORM_IOS
 #include "engine/diagnostics/G5/G5Common.h"
-} // namespace G5WebsiteUrl (opened by G5Common.h — closed here to avoid leaking into TaskFactory)
+} // namespace G5WebsiteUrl ← closes G5Common.h's unclosed namespace
 #include "engine/diagnostics/G3/G3Common.h"
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
 #ifdef PLATFORM_ANDROID
 #include "engine/diagnostics/G5/G5Common.h"
-} // namespace G5WebsiteUrl (opened by G5Common.h — closed here)
+} // namespace G5WebsiteUrl ← closes G5Common.h's unclosed namespace
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
-#if !defined(NO_CURL) || defined(PLATFORM_ANDROID) || defined(PLATFORM_IOS)
+// Always included — contains only declarations + inline helpers. The #if
+// blocks below decide which functions are actually routed to by DiagId.
 #include "engine/diagnostics/G5/G5WebsiteUrl.h"
-#endif
 
 // Per-test timeout values (ms). Default is 60000; shorter for fast tests.
 static int timeoutFor(DiagId id) {
