@@ -66,12 +66,15 @@ Item {
                         spacing: 6
                         Repeater {
                             model: [
-                                { label: "System", mode: ThemeEngine.sysMode },
-                                { label: "Light",  mode: ThemeEngine.litMode },
-                                { label: "Dark",   mode: ThemeEngine.drkMode }
+                                { label: Tr.themeSystem, mode: ThemeEngine.sysMode },
+                                { label: Tr.themeLight,  mode: ThemeEngine.litMode },
+                                { label: Tr.themeDark,   mode: ThemeEngine.drkMode }
                             ]
                             delegate: Rectangle {
-                                implicitWidth: 90; implicitHeight: 36; radius: ThemeEngine.radius.md
+                                // Adaptive: fill available RowLayout space evenly (3 buttons × 6px gaps = 18px overhead)
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 80
+                                implicitHeight: 36; radius: ThemeEngine.radius.md
                                 color: ThemeEngine.mode === modelData.mode
                                        ? ThemeEngine.colors.primaryContainer : "transparent"
                                 border {
@@ -164,7 +167,7 @@ Item {
                         popup: Popup {
                             y: langCombo.height + 4
                             width: langCombo.width
-                            implicitHeight: contentItem.implicitHeight + 8
+                            height: Math.min(implicitHeight, 280)
                             padding: 4
                             background: Rectangle { radius: 8; color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard } }
                             contentItem: ListView {
