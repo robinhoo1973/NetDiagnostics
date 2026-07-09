@@ -224,10 +224,18 @@ Item {
                             elide: Text.ElideRight
                         }
                         Rectangle {
-                            implicitWidth: 32; implicitHeight: 32; radius: 16
-                            color: Qt.alpha(ThemeEngine.failRed, 0.2)
+                            id: closeBtn
+                            implicitWidth: 34; implicitHeight: 34; radius: 17
+                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.35)
+                                                            : Qt.alpha(ThemeEngine.failRed, 0.15)
                             AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: ThemeEngine.failRed }
-                            MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false; cursorShape: Qt.PointingHandCursor }
+                            MouseArea {
+                                id: closeMouse
+                                anchors.fill: parent
+                                onClicked: page.previewVisible = false
+                                cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                            }
                         }
                     }
                 }
@@ -253,8 +261,8 @@ Item {
                             color: ThemeEngine.textPrimary
                             wrapMode: Text.WordWrap
                             font.pixelSize: 13
-                            font.family: "Helvetica"
-                            lineHeight: 1.35
+                            font.family: ThemeEngine.monoFont
+                            lineHeight: 1.45
                         }
                     }
                 }
