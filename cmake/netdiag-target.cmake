@@ -99,6 +99,17 @@ function(configure_netdiag_target TARGET)
         target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
     endif()
 
+    # ── Force static GCC runtimes (last, so they override any Qt flags) ─
+    # CI custom-built Qt at /c/opt/qt6-install may inject -lstdc++ / -lwinpthread
+    # as dynamic libs via its .prl INTERFACE_LINK_LIBRARIES.  Repeating
+    # -static-libstdc++ -static-libgcc after ALL libraries ensures these
+    # runtime DLLs are absorbed into the static exe.
+    if(WIN32)
+        target_link_options(${TARGET} PRIVATE
+            -static-libstdc++ -static-libgcc
+        )
+    endif()
+
     # ── Include paths ────────────────────────────────────────────────
     target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 endfunction()
