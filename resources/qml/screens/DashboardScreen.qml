@@ -211,7 +211,7 @@ Item {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
-                    AppIcon { name: page.statusIcon(modelData.status); size: 10; color: "white" }
+                    AppIcon { name: page.statusIcon(modelData.status); size: 10; color: page.statusColor(modelData.status) }
                     Item { width: 6 }
                     Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textSecondary; elide:Text.ElideRight }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.textSecondary,0.6) }

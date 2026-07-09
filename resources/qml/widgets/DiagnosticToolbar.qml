@@ -54,12 +54,15 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true; spacing: 4
 
-                // Advanced toggle (gear)
+                // Advanced toggle (gear) — SVG icon, not emoji, for cross-platform consistency
                 Rectangle {
                     Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 6
                     color: root._advancedVisible ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
-                    Label { anchors.centerIn: parent; text: "⚙"; font.pixelSize: 16
-                        color: root._advancedVisible ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5) }
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: "tune"; size: 14
+                        color: root._advancedVisible ? ThemeEngine.accentBlue : ThemeEngine.textMuted
+                    }
                     MouseArea { anchors.fill: parent; onClicked: root._advancedVisible = !root._advancedVisible }
                 }
 
@@ -68,7 +71,7 @@ Rectangle {
                     id: schemeCombo
                     Layout.preferredWidth: root.wide ? 88 : 72
                     Layout.preferredHeight: 30; flat: true
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     enabled: appState.runStatus !== 1
                     displayText: currentText + "://"
 
@@ -259,11 +262,13 @@ Rectangle {
             Item {
                 visible: root.wide
                 Layout.preferredWidth: root.wide ? 30 : 0; Layout.preferredHeight: 30
+                // Clear button — neutral color (text-secondary) matching mobile
+                // TargetInputPanel. Not red — clearing text is not destructive.
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 14
                     color: hostField.text !== "" && appState.runStatus !== 1
-                        ? Qt.alpha(ThemeEngine.failRed, 0.7) : "transparent"
+                        ? ThemeEngine.textSecondary : "transparent"
                     visible: hostField.text !== "" && appState.runStatus !== 1
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
