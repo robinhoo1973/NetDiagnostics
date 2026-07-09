@@ -69,42 +69,72 @@ Item {
         }
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
-        // Status bar — visible during/after run
+        // Status bar — visible during/after run.
+        // Desktop: single row with badges inline.
+        // Phone portrait: title + count on row 1, colored-icon badges on row 2
+        // so the 3 status counts stay legible on narrow screens.
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 36
+            Layout.fillWidth: true; implicitHeight: page.wide ? 36 : 56
             color: ThemeEngine.colors.navBar
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
-            RowLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
-                AppIcon {
-                    name: appState.runStatus === 1 ? "spinner" : "diagnostics"
-                    size: 16
-                    color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
-                }
-                Item { width: 8 }
-                Label {
-                    text: appState.runStatus === 1 ? Tr.runningDots :
-                          appState.runStatus === 2 ? Tr.complete :
-                          appState.runStatus === 3 ? Tr.cancelled : Tr.results
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
-                    color: ThemeEngine.colors.textPrimary
-                }
-                Label {
-                    visible: appState.runStatus === 1 && appState.totalDiags > 0
-                    text: appState.totalCompleted + " / " + appState.totalDiags
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                    color: ThemeEngine.cyan
-                }
-                Item { Layout.fillWidth: true }
-                // Summary stats — compact badges
+            ColumnLayout {
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
+                spacing: 2
+                // Row 1 — status label + progress count
                 RowLayout {
-                    spacing: 4; visible: appState.totalCompleted > 0
-                    Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.passGreen, 0.15)
-                        Label { anchors.centerIn: parent; text: appState.groupStats(-1).pass||"0"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.passGreen; font.weight: Font.Bold } }
-                    Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.warnYellow, 0.15)
-                        Label { anchors.centerIn: parent; text: appState.groupStats(-1).warn||"0"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.warnYellow; font.weight: Font.Bold } }
-                    Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.failRed, 0.15)
-                        Label { anchors.centerIn: parent; text: appState.groupStats(-1).fail||"0"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.failRed; font.weight: Font.Bold } }
+                    spacing: 8
+                    AppIcon {
+                        name: appState.runStatus === 1 ? "spinner" : "diagnostics"
+                        size: 16
+                        color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
+                    }
+                    Item { width: 4 }
+                    Label {
+                        text: appState.runStatus === 1 ? Tr.runningDots :
+                              appState.runStatus === 2 ? Tr.complete :
+                              appState.runStatus === 3 ? Tr.cancelled : Tr.results
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+                        color: ThemeEngine.colors.textPrimary
+                    }
+                    Label {
+                        visible: appState.runStatus === 1 && appState.totalDiags > 0
+                        text: appState.totalCompleted + " / " + appState.totalDiags
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
+                        color: ThemeEngine.cyan
+                    }
+                    Item { Layout.fillWidth: true }
+                    // Badges inline — desktop only (wide enough to fit)
+                    RowLayout {
+                        spacing: 4; visible: page.wide && appState.totalCompleted > 0
+                        Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.passGreen, 0.15)
+                            Label { anchors.centerIn: parent
+                                text: { let _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0).toString() }
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.passGreen; font.weight: Font.Bold } }
+                        Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.warnYellow, 0.15)
+                            Label { anchors.centerIn: parent
+                                text: { let _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0).toString() }
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.warnYellow; font.weight: Font.Bold } }
+                        Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.failRed, 0.15)
+                            Label { anchors.centerIn: parent
+                                text: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0).toString() }
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.failRed; font.weight: Font.Bold } }
+                    }
+                }
+                // Row 2 — colored-icon result badges on their own line (phone portrait only)
+                RowLayout {
+                    spacing: 4; visible: !page.wide && appState.totalCompleted > 0
+                    // Aggregate pass/warn/fail counts across all groups, refreshed on each progress event
+                    property int aggPass:  { let _ = appState.totalCompleted; return appState.groupStats(-1).pass||0 }
+                    property int aggWarn:  { let _ = appState.totalCompleted; return appState.groupStats(-1).warn||0 }
+                    property int aggFail:  { let _ = appState.totalCompleted; return appState.groupStats(-1).fail||0 }
+                    // Indent to align with status label
+                    Item { width: 20 }
+                    AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen }
+                    Label { text: ("  " + aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen }
+                    AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow }
+                    Label { text: ("  " + aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow }
+                    AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed }
+                    Label { text: ("  " + aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed }
                 }
             }
         }

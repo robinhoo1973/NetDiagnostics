@@ -802,8 +802,8 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
         if (m_results.contains(id)) {
             const auto& r = m_results[id];
-            // G5: skip cancelled/irrelevant protocol tests (e.g. FTP in an HTTP run)
-            if (g == DiagGroup::G5 && r.status == DiagStatus::Skipped)
+            // Skip platform-unavailable / irrelevant protocol tests
+            if (r.status == DiagStatus::Skipped)
                 continue;
             QVariantMap m;
             m["id"] = static_cast<int>(r.id);
@@ -858,7 +858,8 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
         if (!m_config.enabledDiags().contains(id)) continue;
         
         // G5: skip cancelled/irrelevant protocol tests (e.g. FTP in an HTTP run)
-        if (g == DiagGroup::G5 && m_results.contains(id)
+        // Also skip platform-unavailable tests for G1-G4 (e.g. iOS-sandboxed tests)
+        if (m_results.contains(id)
             && m_results[id].status == DiagStatus::Skipped)
             continue;
 
@@ -919,6 +920,27 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
 
 QVariantMap AppState::groupStats(int groupInt) const {
     QVariantMap stats;
+    // ── Aggregate all groups when groupInt == -1 ──────────────────────
+    if (groupInt < 0) {
+        int total = 0, pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, completed = 0;
+        for (int g = 0; g < 5; ++g) {
+            QVariantMap gs = groupStats(g);
+            total     += gs["total"].toInt();
+            pass      += gs["pass"].toInt();
+            warn      += gs["warn"].toInt();
+            fail      += gs["fail"].toInt();
+            skip      += gs["skip"].toInt();
+            info      += gs["info"].toInt();
+            error     += gs["error"].toInt();
+            completed += gs["completed"].toInt();
+        }
+        stats["pass"] = pass; stats["warn"] = warn;
+        stats["fail"] = fail; stats["skip"] = skip;
+        stats["info"] = info; stats["error"] = error;
+        stats["completed"] = completed; stats["total"] = total;
+        stats["enabled"] = total;
+        return stats;
+    }
     auto g = static_cast<DiagGroup>(groupInt);
     // total = tests actually scheduled for this group (m_totalPerGroup).
     // Before any run this is 0 — all counts show 0.

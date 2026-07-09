@@ -102,6 +102,12 @@ Rectangle {
 
                     popup: Popup {
                         y: schemeCombo.height; width: 210; padding: 4
+                        // Clamp popup height at 280px so it never overflows the screen on
+                        // short / phone displays; taller content scrolls via the ListView.
+                        // Uses a constant max-height instead of Window.height arithmetic to
+                        // avoid depending on the Window attached property (which can be null
+                        // during component initialization in some Qt configurations).
+                        height: Math.min(implicitHeight, 280)
                         background: Rectangle {
                             color: ThemeEngine.bgCard
                             border { width: 1; color: ThemeEngine.colors.borderCard }
@@ -233,22 +239,26 @@ Rectangle {
                 }
             }  // end Zone 2
 
-            // Visual separator between Zone 2 (actions) and Zone 3 (clear)
-            // Hidden on mobile — Zone 3 (clear button) is removed in compact mode.
+            // Visual separator + Zone 3: Clear button (desktop/wide only)
+            // On narrow screens (mobile) this entire section is removed —
+            // the separator, spacer, and clear button waste precious
+            // horizontal space and users can clear via field backspace.
+            // Visibility is gated by root.wide (passed from DiagnosticScreen)
+            // instead of Qt.platform.os so it stays consistent with the rest
+            // of the mobile layout (DiagGroupPanel uses the same pattern).
             Rectangle {
                 Layout.preferredWidth: 1; Layout.preferredHeight: 22
                 color: ThemeEngine.colors.borderCard
-                visible: hostField.text !== "" && appState.runStatus !== 1 && !(Qt.platform.os === "ios" || Qt.platform.os === "android")
+                visible: root.wide && hostField.text !== "" && appState.runStatus !== 1
             }
-            Item { width: 6; visible: (hostField.text !== "" || appState.runStatus !== 1) && !(Qt.platform.os === "ios" || Qt.platform.os === "android") }
+            Item { Layout.preferredWidth: root.wide ? 6 : 0; Layout.preferredHeight: 22
+                visible: root.wide && (hostField.text !== "" || appState.runStatus !== 1)
+            }
 
             // ── Zone 3: Clear button — fixed 30px zone, right-aligned ──
-            // Desktop only.  On mobile the clear button wastes 30px of
-            // precious horizontal space; users clear via the field's own
-            // built-in clear action or by backspacing.
             Item {
-                visible: Qt.platform.os !== "ios" && Qt.platform.os !== "android"
-                Layout.preferredWidth: visible ? 30 : 0; Layout.preferredHeight: 30
+                visible: root.wide
+                Layout.preferredWidth: root.wide ? 30 : 0; Layout.preferredHeight: 30
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 14
