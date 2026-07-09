@@ -448,7 +448,11 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
+          # libcurl-4 is accepted as a known MSYS2 system library since
+          # CURLConfig.cmake takes precedence over FindCURL.cmake and
+          # links the import library (libcurl.dll.a).  The app is still
+          # statically linked against Qt; only curl is dynamic.
+          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win|libcurl"
           FAIL=0
 
           check_exe() {
