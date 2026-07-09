@@ -34,9 +34,6 @@ class AppState : public QObject {
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY runStatusChanged)
     Q_PROPERTY(QStringList groupLabels READ groupLabels CONSTANT)
     Q_PROPERTY(QVariantList allGroupStats READ allGroupStats NOTIFY progressChanged)
-    Q_PROPERTY(bool portScanCommon READ portScanCommon WRITE setPortScanCommon NOTIFY portScanConfigChanged)
-    Q_PROPERTY(int portScanFrom READ portScanFrom WRITE setPortScanFrom NOTIFY portScanConfigChanged)
-    Q_PROPERTY(int portScanTo READ portScanTo WRITE setPortScanTo NOTIFY portScanConfigChanged)
     // ── Structured target fields (derived from / assembled into m_target) ──
     Q_PROPERTY(QString targetScheme READ targetScheme WRITE setTargetScheme NOTIFY targetChanged)
     Q_PROPERTY(QString targetHost READ targetHost WRITE setTargetHost NOTIFY targetChanged)
@@ -98,14 +95,6 @@ public:
 
     // ── Group labels ───────────────────────────────────────────────────────
     QStringList groupLabels() const;
-
-    // ── Port scan config ───────────────────────────────────────────────────
-    bool portScanCommon() const { return m_config.portScanCommon(); }
-    void setPortScanCommon(bool v);
-    int portScanFrom() const { return m_config.portScanFrom(); }
-    void setPortScanFrom(int v);
-    int portScanTo() const { return m_config.portScanTo(); }
-    void setPortScanTo(int v);
 
     // ── Invokable methods (callable from QML) ──────────────────────────────
     Q_INVOKABLE void runDiagnostics();
@@ -189,7 +178,6 @@ signals:
     void progressChanged();
     void currentDiagChanged();
     void groupChanged();
-    void portScanConfigChanged();
     void diagCompleted(int diagIdInt);
     void resultsReset();
     void stateVersionChanged();

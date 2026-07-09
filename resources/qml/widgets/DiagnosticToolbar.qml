@@ -328,10 +328,5 @@ Rectangle {
             }
         }
 
-        // ═══════════════ ROW 4: Port scan config ═══════════════════
-        PortScanConfig {
-            Layout.fillWidth: true
-            visible: appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
-        }
     }
 }

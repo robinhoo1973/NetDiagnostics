@@ -50,8 +50,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // G1-G3 active by default (G4/G5 auto-managed via setTarget)
     m_activeGroups = {0, 1, 2};
     // Forward service signals to QML
-    connect(&m_config, &DiagnosticConfig::portScanConfigChanged,
-            this, &AppState::portScanConfigChanged);
     connect(&m_reportEngine, &ReportEngine::savePathPicked,
             this, &AppState::savePathPicked);
     // Forward PremiumStore signals to QML
@@ -511,11 +509,6 @@ void AppState::setTarget(const QString& t) {
     }
 }
 
-// ── Port scan config ───────────────────────────────────────────────────────
-void AppState::setPortScanCommon(bool v) { m_config.setPortScanCommon(v); bumpVersion(); }
-void AppState::setPortScanFrom(int v) { m_config.setPortScanFrom(v); bumpVersion(); }
-void AppState::setPortScanTo(int v) { m_config.setPortScanTo(v); bumpVersion(); }
-
 // ── Group labels ───────────────────────────────────────────────────────────
 QStringList AppState::groupLabels() const { return DiagnosticConfig::groupLabels(); }
 
@@ -720,7 +713,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
 
     // Create task via factory — each task handles its own timeout internally
     int runGen = m_runGeneration.load(std::memory_order_acquire);
-    auto task = TaskFactory::createTask(id, m_target, m_config.portScanFrom(), m_config.portScanTo(), m_config.portScanCommon());
+    auto task = TaskFactory::createTask(id, m_target);
     if (!task) {
         onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Unknown DiagId")));
         return;
@@ -1002,7 +995,6 @@ QString AppState::staticDiagDisplayName(DiagId id) {
         case DiagId::G4Traceroute: return QStringLiteral("Traceroute");
         case DiagId::G4PathPing: return QStringLiteral("PathPing");
         case DiagId::G4MtuDiscovery: return QStringLiteral("MTU Discovery");
-        case DiagId::G4PortScan: return QStringLiteral("Port Scan");
         case DiagId::G5UrlParsing: return QStringLiteral("URL Parsing");
         case DiagId::G5TcpConnect: return QStringLiteral("TCP Connect");
         case DiagId::G5ServiceBanner: return QStringLiteral("Service Banner");

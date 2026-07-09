@@ -70,9 +70,9 @@ Item {
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
         // Status bar — visible during/after run.
-        // Desktop: single row with badges inline.
-        // Phone portrait: title + count on row 1, colored-icon badges on row 2
-        // so the 3 status counts stay legible on narrow screens.
+        // Desktop: single row with 5 status badges inline (icon + count).
+        // Phone portrait: title on row 1, 5 colored-icon badges on row 2
+        // matching the DiagGroupPanel StatusBadge pattern.
         Rectangle {
             Layout.fillWidth: true; implicitHeight: page.wide ? 36 : 56
             color: ThemeEngine.colors.navBar
@@ -80,7 +80,14 @@ Item {
             ColumnLayout {
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
                 spacing: 2
-                // Row 1 — status label + progress count
+                // Aggregate counts across all groups, refreshed on each progress event.
+                // groupStats(-1) sums G0-G4 via the C++ aggregate branch.
+                property int aggPass: { let _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0) }
+                property int aggInfo: { let _ = appState.totalCompleted; return (appState.groupStats(-1).info||0) }
+                property int aggWarn: { let _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
+                property int aggFail: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
+                property int aggSkip: { let _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
+                // Row 1 — status label + progress count (+ badges inline on desktop)
                 RowLayout {
                     spacing: 8
                     AppIcon {
@@ -103,39 +110,39 @@ Item {
                         color: ThemeEngine.cyan
                     }
                     Item { Layout.fillWidth: true }
-                    // Badges inline — desktop only (wide enough to fit)
+                    // 5 status badges inline — desktop only
                     RowLayout {
                         spacing: 4; visible: page.wide && appState.totalCompleted > 0
-                        Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.passGreen, 0.15)
-                            Label { anchors.centerIn: parent
-                                text: { let _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0).toString() }
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.passGreen; font.weight: Font.Bold } }
-                        Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.warnYellow, 0.15)
-                            Label { anchors.centerIn: parent
-                                text: { let _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0).toString() }
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.warnYellow; font.weight: Font.Bold } }
-                        Rectangle { implicitWidth: 28; implicitHeight: 18; radius: 4; color: Qt.alpha(ThemeEngine.failRed, 0.15)
-                            Label { anchors.centerIn: parent
-                                text: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0).toString() }
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.failRed; font.weight: Font.Bold } }
+                        headerBadge("badge-check",   ThemeEngine.passGreen,  aggPass)
+                        headerBadge("badge-info",    ThemeEngine.accentBlue, aggInfo)
+                        headerBadge("badge-warning", ThemeEngine.warnYellow, aggWarn)
+                        headerBadge("badge-close",   ThemeEngine.failRed,    aggFail)
+                        headerBadge("badge-skip",    ThemeEngine.skipGray,   aggSkip)
                     }
                 }
-                // Row 2 — colored-icon result badges on their own line (phone portrait only)
+                // Row 2 — 5 status badges on their own line (phone portrait only)
                 RowLayout {
                     spacing: 4; visible: !page.wide && appState.totalCompleted > 0
-                    // Aggregate pass/warn/fail counts across all groups, refreshed on each progress event
-                    property int aggPass:  { let _ = appState.totalCompleted; return appState.groupStats(-1).pass||0 }
-                    property int aggWarn:  { let _ = appState.totalCompleted; return appState.groupStats(-1).warn||0 }
-                    property int aggFail:  { let _ = appState.totalCompleted; return appState.groupStats(-1).fail||0 }
-                    // Indent to align with status label
-                    Item { width: 20 }
-                    AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen }
-                    Label { text: ("  " + aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen }
-                    AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow }
-                    Label { text: ("  " + aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow }
-                    AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed }
-                    Label { text: ("  " + aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed }
+                    Item { width: 20 }  // indent to align with status label
+                    headerBadge("badge-check",   ThemeEngine.passGreen,  aggPass)
+                    headerBadge("badge-info",    ThemeEngine.accentBlue, aggInfo)
+                    headerBadge("badge-warning", ThemeEngine.warnYellow, aggWarn)
+                    headerBadge("badge-close",   ThemeEngine.failRed,    aggFail)
+                    headerBadge("badge-skip",    ThemeEngine.skipGray,   aggSkip)
                 }
+            }
+        }
+
+        // ── headerBadge: icon + 2-digit count — same shape as DiagGroupPanel.StatusBadge ──
+        component headerBadge: RowLayout {
+            property color accent: ThemeEngine.passGreen
+            property string iconName: "badge-info"
+            property int count: 0
+            spacing: 2
+            AppIcon { name: iconName; size: 10; color: accent }
+            Label {
+                text: ("  " + count).slice(-2)
+                font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: accent
             }
         }
 

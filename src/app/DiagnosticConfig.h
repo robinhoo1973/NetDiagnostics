@@ -1,10 +1,9 @@
 // =============================================================================
 // DiagnosticConfig.h — Configuration state for diagnostics: enable/disable
-// individual tests and groups, port-scan settings, and group queries.
+// individual tests and groups, and group queries.
 //
 // Extracted from AppState (~100 lines).  Owns the source of truth for which
-// tests are active and what port-scan parameters to use.  All methods are
-// const-correct and self-contained.
+// tests are active.  All methods are const-correct and self-contained.
 // =============================================================================
 #pragma once
 
@@ -20,20 +19,8 @@
 class DiagnosticConfig : public QObject {
     Q_OBJECT
 
-    Q_PROPERTY(bool portScanCommon READ portScanCommon WRITE setPortScanCommon NOTIFY portScanConfigChanged)
-    Q_PROPERTY(int portScanFrom READ portScanFrom WRITE setPortScanFrom NOTIFY portScanConfigChanged)
-    Q_PROPERTY(int portScanTo READ portScanTo WRITE setPortScanTo NOTIFY portScanConfigChanged)
-
 public:
     explicit DiagnosticConfig(QObject* parent = nullptr);
-
-    // ── Port scan ────────────────────────────────────────────────────
-    bool portScanCommon() const { return m_portScanCommon; }
-    void setPortScanCommon(bool v);
-    int portScanFrom() const { return m_portScanFrom; }
-    void setPortScanFrom(int v);
-    int portScanTo() const { return m_portScanTo; }
-    void setPortScanTo(int v);
 
     // ── Diag enable/disable ──────────────────────────────────────────
     bool isDiagEnabled(int diagIdInt) const;
@@ -58,19 +45,13 @@ public:
     // ── Auto-enable G1-G3 ───────────────────────────────────────────
     void enableDefaultGroups();
 
-    // ── Accessors for task factory ───────────────────────────────────
+    // ── Accessor for task factory ────────────────────────────────────
     const QSet<DiagId>& enabledDiags() const { return m_enabledDiags; }
 
-    // ── Validation helpers (used by AppState) ───────────────────────
+    // ── Validation helpers (used by AppState) ────────────────────────
     static bool isValidDiagId(int id) { return id >= 0 && id < static_cast<int>(allDiagIds().size()); }
     static bool isValidGroup(int g) { return g >= 0 && g < 5; }
 
-signals:
-    void portScanConfigChanged();
-
 private:
-    bool m_portScanCommon = true;
-    int m_portScanFrom = 0;
-    int m_portScanTo = 0;
     QSet<DiagId> m_enabledDiags;
 };

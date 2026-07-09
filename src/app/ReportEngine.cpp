@@ -33,12 +33,12 @@ QString normalizeReportPath(const QString& p) {
 
 QString reportStatusColor(DiagStatus s) {
     switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("#10B981");
-        case DiagStatus::Warning: return QStringLiteral("#F59E0B");
-        case DiagStatus::Fail:    return QStringLiteral("#EF4444");
-        case DiagStatus::Error:   return QStringLiteral("#EF4444");
+        case DiagStatus::Pass:    return QStringLiteral("#4ADE80");
+        case DiagStatus::Warning: return QStringLiteral("#FBBF24");
+        case DiagStatus::Fail:    return QStringLiteral("#F87171");
+        case DiagStatus::Error:   return QStringLiteral("#F87171");
         case DiagStatus::Skipped: return QStringLiteral("#9CA3AF");
-        default:                  return QStringLiteral("#3B82F6");
+        default:                  return QStringLiteral("#60A5FA");
     }
 }
 
@@ -69,12 +69,12 @@ QString reportStatusClass(DiagStatus s) {
 // ── Public: HTML generation ─────────────────────────────────────────────
 
 QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
-    const QString colorPass = QStringLiteral("#10B981");
-    const QString colorWarn = QStringLiteral("#F59E0B");
-    const QString colorFail = QStringLiteral("#EF4444");
+    const QString colorPass = QStringLiteral("#4ADE80");
+    const QString colorWarn = QStringLiteral("#FBBF24");
+    const QString colorFail = QStringLiteral("#F87171");
     const QString colorSkip = QStringLiteral("#9CA3AF");
-    const QString colorInfo = QStringLiteral("#3B82F6");
-    const QString colorError = QStringLiteral("#DC2626");
+    const QString colorInfo = QStringLiteral("#60A5FA");
+    const QString colorError = QStringLiteral("#F87171");
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
@@ -233,38 +233,38 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
 
     static const char* kCss =
         "*{margin:0;padding:0;box-sizing:border-box}"
-        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:#1a1a2e;color:#e0e0e0;padding:24px}"
+        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:#0F172A;color:#F1F5F9;padding:24px}"
         ".wrap{max-width:960px;margin:0 auto}"
-        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#16213e,#0f3460);border-radius:14px;margin-bottom:26px}"
-        ".header h1{font-size:26px;color:#00bcd4;margin-bottom:10px;letter-spacing:.5px}"
-        ".header p{font-size:13px;color:#a0a0b8;margin:3px 0}"
-        "h2{font-size:18px;color:#00bcd4;margin:26px 0 14px}"
-        "h3{font-size:15px;color:#7fb2e6;margin:20px 0 10px}"
+        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#1E293B,#0C4A6E);border-radius:14px;margin-bottom:26px}"
+        ".header h1{font-size:26px;color:#22D3EE;margin-bottom:10px;letter-spacing:.5px}"
+        ".header p{font-size:13px;color:#94A3B8;margin:3px 0}"
+        "h2{font-size:18px;color:#22D3EE;margin:26px 0 14px}"
+        "h3{font-size:15px;color:#60A5FA;margin:20px 0 10px}"
         ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
         ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
         ".card .icon{display:block;font-size:18px;margin-bottom:2px}"
         ".card .count{display:block;font-size:30px;font-weight:700}"
-        ".card .label{font-size:11px;color:#a0a0b8;margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
-        ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ade80}"
-        ".card.warn{background:#2b2810;border:1px solid #5a5020}.card.warn .count{color:#facc15}"
-        ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#ef4444}"
-        ".card.skip{background:#1e1e2e;border:1px solid #333}.card.skip .count{color:#9aa0b5}"
-        ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#3b82f6}"
-        ".card.error{background:#2b1111;border:1px solid #5a2020}.card.error .count{color:#ef4444}"
+        ".card .label{font-size:11px;color:#94A3B8;margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
+        ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ADE80}"
+        ".card.warn{background:#2b2810;border:1px solid #5a5020}.card.warn .count{color:#FBBF24}"
+        ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#F87171}"
+        ".card.skip{background:#1e1e2e;border:1px solid #333}.card.skip .count{color:#9CA3AF}"
+        ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#60A5FA}"
+        ".card.error{background:#2b1111;border:1px solid #5a2020}.card.error .count{color:#F87171}"
         "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
-        "table.grid th{text-align:left;padding:11px 12px;background:#16213e;color:#a0a0b8;font-weight:600}"
-        "table.grid td{padding:9px 12px;border-bottom:1px solid #2a2a4a;vertical-align:top}"
-        "tr.sec td{background:#1a2840;color:#7fb2e6;font-weight:700}"
+        "table.grid th{text-align:left;padding:11px 12px;background:#1E293B;color:#94A3B8;font-weight:600}"
+        "table.grid td{padding:9px 12px;border-bottom:1px solid #334155;vertical-align:top}"
+        "tr.sec td{background:#1a2840;color:#60A5FA;font-weight:700}"
         ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
-        ".badge.pass{background:#16281b;color:#4ade80}.badge.warn{background:#2b2810;color:#facc15}"
-        ".badge.fail{background:#2b1616;color:#ef4444}.badge.skip{background:#26262e;color:#9aa0b5}"
-        ".badge.info{background:#141f33;color:#3b82f6}"
-        "details.test{background:#16213e;border-radius:10px;margin-bottom:12px;overflow:hidden}"
+        ".badge.pass{background:#16281b;color:#4ADE80}.badge.warn{background:#2b2810;color:#FBBF24}"
+        ".badge.fail{background:#2b1616;color:#F87171}.badge.skip{background:#26262e;color:#9CA3AF}"
+        ".badge.info{background:#141f33;color:#60A5FA}"
+        "details.test{background:#1E293B;border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
-        "details.test.pass>summary{border-left:4px solid #4ade80}details.test.warn>summary{border-left:4px solid #facc15}"
-        "details.test.fail>summary{border-left:4px solid #ef4444}details.test.skip>summary{border-left:4px solid #666}"
-        "details.test.info>summary{border-left:4px solid #3b82f6}"
-        ".body{padding:14px 16px 18px;border-top:1px solid #2a2a4a}"
+        "details.test.pass>summary{border-left:4px solid #4ADE80}details.test.warn>summary{border-left:4px solid #FBBF24}"
+        "details.test.fail>summary{border-left:4px solid #F87171}details.test.skip>summary{border-left:4px solid #9CA3AF}"
+        "details.test.info>summary{border-left:4px solid #60A5FA}"
+        ".body{padding:14px 16px 18px;border-top:1px solid #334155}"
         ".analysis{background:#0f1629;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"

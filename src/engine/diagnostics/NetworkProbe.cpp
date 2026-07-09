@@ -1,5 +1,5 @@
-// =============================================================================
-// NetworkProbe.cpp — Raw socket wrappers for G4/G5 tests
+﻿// =============================================================================
+// NetworkProbe.cpp 鈥?Raw socket wrappers for G4/G5 tests
 // =============================================================================
 #include "engine/diagnostics/NetworkProbe.h"
 #include <QTcpSocket>
@@ -34,12 +34,12 @@
 #include "util/DnsResolver.h"
 
 
-// ── Helper: resolve hostname → IPv4 (host byte order) ────────────────────────
+// 鈹€鈹€ Helper: resolve hostname 鈫?IPv4 (host byte order) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 static quint32 resolveIPv4(const QString& host) {
     return DnsResolver::resolveIPv4(host, 3000);
 }
 
-// ── Helper: set socket non-blocking ──────────────────────────────────────────
+// 鈹€鈹€ Helper: set socket non-blocking 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 static bool setNonBlocking(int sock) {
 #ifdef _WIN32
     u_long mode = 1;
@@ -51,16 +51,16 @@ static bool setNonBlocking(int sock) {
 #endif
 }
 
-// ── Helper: check if non-blocking connect succeeded ──────────────────────────
+// 鈹€鈹€ Helper: check if non-blocking connect succeeded 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 static bool connectSuccess(int sock) {
     // Verify connection actually completed (not still EINPROGRESS)
     struct sockaddr_in peer;
     socklen_t peerLen = sizeof(peer);
     if (getpeername(sock, (struct sockaddr*)&peer, &peerLen) < 0) {
-        // Not connected yet — still in progress
+        // Not connected yet 鈥?still in progress
         return false;
     }
-    // Connection completed — check for errors
+    // Connection completed 鈥?check for errors
     int err = 0;
     socklen_t len = sizeof(err);
 #ifdef _WIN32
@@ -71,10 +71,8 @@ static bool connectSuccess(int sock) {
     return err == 0;
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// TCP Connect
-// ═════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// TCP Connect
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int timeoutMs) {
     TcpConnectResult result;
     QTcpSocket socket;
@@ -90,238 +88,9 @@ TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int tim
     socket.disconnectFromHost();
     return result;
 }
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Port Scan — raw non-blocking socket + select(), true concurrent
-// ═════════════════════════════════════════════════════════════════════════════
-
-QVector<PortScanEntry> NetworkProbe::portScan(const QString& host,
-                                                const QVector<int>& ports,
-                                                int timeoutMs,
-                                                int maxConcurrent) {
-    QVector<PortScanEntry> results;
-    if (ports.isEmpty()) return results;
-
-    quint32 targetIp = resolveIPv4(host);
-    if (!targetIp) {
-        for (int port : ports) {
-            PortScanEntry e; e.port = port; e.open = false;
-            e.error = QStringLiteral("DNS resolution failed");
-            e.serviceName = wellKnownPorts().value(port);
-            results.append(e);
-        }
-        return results;
-    }
-
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(targetIp);
-
-    const auto& wkPorts = wellKnownPorts();
-    auto total = ports.size();
-    int nextIdx = 0;
-
-    // Process ports in batches of maxConcurrent
-    while (nextIdx < total) {
-        auto batchSize = qMin(maxConcurrent, total - nextIdx);
-
-        // Create non-blocking sockets and initiate connects
-        QVector<int> sockets(batchSize, -1);
-        QVector<QElapsedTimer> timers(batchSize);
-        int maxFd = -1;
-
-        for (int i = 0; i < batchSize; ++i) {
-            int port = ports[nextIdx + i];
-            int sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock < 0) {
-                PortScanEntry e; e.port = port; e.open = false;
-                e.error = QStringLiteral("socket() failed");
-                e.serviceName = wkPorts.value(port);
-                results.append(e);
-                sockets[i] = -1;
-                continue;
-            }
-#ifndef _WIN32
-            // On POSIX, fd_set is a fixed bitmap of FD_SETSIZE bits. Calling
-            // FD_SET(fd, ...) with fd >= FD_SETSIZE writes out of bounds and
-            // corrupts the stack. If the descriptor is too large (many fds open),
-            // skip it safely rather than crash.
-            if (sock >= FD_SETSIZE) {
-                close(sock);
-                PortScanEntry e; e.port = port; e.open = false;
-                e.error = QStringLiteral("fd limit exceeded");
-                e.serviceName = wkPorts.value(port);
-                results.append(e);
-                sockets[i] = -1;
-                continue;
-            }
-#endif
-            sockets[i] = sock;
-            setNonBlocking(sock);
-
-            addr.sin_port = htons(port);
-            timers[i].start();
-            ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
-
-#ifdef _WIN32
-            if (sock > maxFd) maxFd = sock;
-#else
-            if (sock > maxFd) maxFd = sock;
-#endif
-        }
-
-        // Wait with select() for connection results
-        QElapsedTimer batchTimer; batchTimer.start();
-        auto remaining = batchSize;
-        int elapsedTotal = 0;
-
-        while (remaining > 0 && elapsedTotal < timeoutMs + 100) {
-            fd_set wfds, efds;
-            FD_ZERO(&wfds); FD_ZERO(&efds);
-            int fdCount = 0;
-
-            for (int i = 0; i < batchSize; ++i) {
-                int sock = sockets[i];
-                if (sock < 0) continue;
-                FD_SET(sock, &wfds);
-                FD_SET(sock, &efds);
-                fdCount++;
-            }
-            if (fdCount == 0) break;
-
-            // Calculate remaining time
-            int remainingMs = timeoutMs - elapsedTotal;
-            if (remainingMs < 5) remainingMs = 5;
-            struct timeval tv = {remainingMs / 1000, (remainingMs % 1000) * 1000};
-
-            int sel = select(maxFd + 1, nullptr, &wfds, &efds, &tv);
-            elapsedTotal = (int)batchTimer.elapsed();
-
-            if (sel <= 0) break; // timeout or error
-
-            // Process ready sockets
-            for (int i = 0; i < batchSize; ++i) {
-                int sock = sockets[i];
-                if (sock < 0) continue;
-
-                bool ready = FD_ISSET(sock, &wfds) || FD_ISSET(sock, &efds);
-                if (!ready) continue;
-
-                int port = ports[nextIdx + i];
-                int rtt = (int)timers[i].elapsed();
-                bool open = connectSuccess(sock);
-
-                PortScanEntry e;
-                e.port = port;
-                e.open = open;
-                e.serviceName = wkPorts.value(port);
-                if (!open) e.error = QStringLiteral("closed/timeout");
-                results.append(e);
-
-                close(sock);
-                sockets[i] = -1;
-                remaining--;
-            }
-
-            if (elapsedTotal >= timeoutMs) break;
-        }
-
-        // Close any remaining sockets (timeouts)
-        for (int i = 0; i < batchSize; ++i) {
-            int sock = sockets[i];
-            if (sock < 0) continue;
-            int port = ports[nextIdx + i];
-            PortScanEntry e;
-            e.port = port;
-            e.open = false;
-            e.error = QStringLiteral("timeout");
-            e.serviceName = wkPorts.value(port);
-            results.append(e);
-            close(sock);
-            sockets[i] = -1;
-        }
-
-        nextIdx += batchSize;
-    }
-
-    // Sort by port number
-    std::sort(results.begin(), results.end(),
-              [](const PortScanEntry& a, const PortScanEntry& b) { return a.port < b.port; });
-
-    return results;
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// SSL Certificate
-// ═════════════════════════════════════════════════════════════════════════════
-
-SslCertInfo NetworkProbe::sslCertInfo(const QString& host, int port, int timeoutMs) {
-    SslCertInfo info;
-    QSslSocket socket;
-    socket.connectToHostEncrypted(host, port);
-    if (!socket.waitForEncrypted(timeoutMs)) return info;
-    const auto certs = socket.peerCertificateChain();
-    if (certs.isEmpty()) { socket.disconnectFromHost(); return info; }
-    const auto& cert = certs.first();
-    info.subject = cert.subjectInfo(QSslCertificate::CommonName).join(", ");
-    info.issuer = cert.issuerInfo(QSslCertificate::CommonName).join(", ");
-    info.validFrom = cert.effectiveDate();
-    info.validTo = cert.expiryDate();
-    info.daysLeft = QDateTime::currentDateTime().daysTo(info.validTo);
-    info.thumbprint = QString::fromUtf8(cert.digest(QCryptographicHash::Sha256).toHex());
-    info.subjectAltNames = cert.subjectAlternativeNames().values();
-    info.valid = true;
-    socket.disconnectFromHost();
-    return info;
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// HTTP Timing
-// ═════════════════════════════════════════════════════════════════════════════
-
-HttpTimingResult NetworkProbe::httpTiming(const QUrl& url, int timeoutMs) {
-    HttpTimingResult result;
-    QElapsedTimer totalTimer; totalTimer.start();
-    QElapsedTimer t; t.start();
-    QHostInfo hi = QHostInfo::fromName(url.host());
-    result.dnsMs = t.elapsed();
-    QNetworkAccessManager mgr;
-    QNetworkRequest req(url);
-    req.setRawHeader("Accept-Encoding", "gzip, deflate");
-    QNetworkReply* reply = mgr.get(req);
-    QEventLoop loop;
-    QTimer timer; timer.setSingleShot(true);
-    QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    timer.start(timeoutMs);
-    loop.exec();
-    if (timer.isActive()) {
-        timer.stop();
-        result.totalMs = totalTimer.elapsed();
-        result.statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-        result.bodyBytes = reply->readAll().size();
-        result.firstByteMs = result.totalMs - result.dnsMs;
-    } else {
-        result.error = "Request timeout";
-        reply->abort();
-    }
-    return result;
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Common Diagnostic Ports
-// ═════════════════════════════════════════════════════════════════════════════
-
-QVector<int> NetworkProbe::commonDiagnosticPorts() {
-    return {21,22,23,25,53,80,110,135,139,143,443,445,993,995,
             1433,1521,1723,3306,3389,5432,5900,6379,8080,8443,27017};
-}
-
-// ═════════════════════════════════════════════════════════════════════════════
-// Well-known Port Names
-// ═════════════════════════════════════════════════════════════════════════════
-
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Well-known Port Names
+// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 const QMap<int, QString>& NetworkProbe::wellKnownPorts() {
     static const QMap<int, QString> map = {
         {21, "ftp"},       {22, "ssh"},        {23, "telnet"},

@@ -16,17 +16,6 @@ void DiagnosticConfig::enableDefaultGroups() {
     }
 }
 
-// ── Port scan config ──────────────────────────────────────────────────
-void DiagnosticConfig::setPortScanCommon(bool v) {
-    if (m_portScanCommon != v) { m_portScanCommon = v; emit portScanConfigChanged(); }
-}
-void DiagnosticConfig::setPortScanFrom(int v) {
-    if (m_portScanFrom != v) { m_portScanFrom = v; emit portScanConfigChanged(); }
-}
-void DiagnosticConfig::setPortScanTo(int v) {
-    if (m_portScanTo != v) { m_portScanTo = v; emit portScanConfigChanged(); }
-}
-
 // ── Group queries — delegate to canonical DiagId.h (single source of truth)
 QStringList DiagnosticConfig::groupLabels() {
     return { diagGroupLabel(DiagGroup::G1), diagGroupLabel(DiagGroup::G2),

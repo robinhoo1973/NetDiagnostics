@@ -69,13 +69,12 @@ enum class DiagId {
     G3DnsPollution,
     G3InternetSpeedTest,
 
-    // G4 — Remote Host (6)
+    // G4 — Remote Host (5)
     G4DnsResolution,
     G4Ping,
     G4Traceroute,
     G4PathPing,
     G4MtuDiscovery,
-    G4PortScan,
 
     // G5 — Protocol (20)
     G5UrlParsing,
@@ -132,7 +131,6 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G4Traceroute:
         case DiagId::G4PathPing:
         case DiagId::G4MtuDiscovery:
-        case DiagId::G4PortScan:
             return DiagGroup::G4;
         case DiagId::G5UrlParsing:
         case DiagId::G5TcpConnect:
@@ -187,7 +185,6 @@ inline QString diagIdLabelKey(DiagId id) {
         case DiagId::G4Traceroute:          return QStringLiteral("test_g4_traceroute");
         case DiagId::G4PathPing:            return QStringLiteral("test_g4_pathping");
         case DiagId::G4MtuDiscovery:        return QStringLiteral("test_g4_mtu");
-        case DiagId::G4PortScan:            return QStringLiteral("test_g4_portscan");
         case DiagId::G5UrlParsing:          return QStringLiteral("test_g5_url_parse");
         case DiagId::G5TcpConnect:          return QStringLiteral("test_g5_tcp_connect");
         case DiagId::G5ServiceBanner:       return QStringLiteral("test_g5_banner");
@@ -223,7 +220,7 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G3NetskopeStatus, DiagId::G3DnsServers, DiagId::G3DnsCache,
         DiagId::G3DnsPollution, DiagId::G3InternetSpeedTest, // G3InternetConnectivity merged into Speed Test
         DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
-        DiagId::G4PathPing, DiagId::G4MtuDiscovery, DiagId::G4PortScan,
+        DiagId::G4PathPing, DiagId::G4MtuDiscovery,
         DiagId::G5UrlParsing, DiagId::G5TcpConnect, DiagId::G5ServiceBanner,
         DiagId::G5CurlVerbose, DiagId::G5HttpHeaders, DiagId::G5SecurityHeaders,
         DiagId::G5SslCertificate, DiagId::G5HttpRedirect, DiagId::G5HttpCompression,

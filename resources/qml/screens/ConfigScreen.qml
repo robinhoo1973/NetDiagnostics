@@ -198,7 +198,7 @@ Item {
         "TCP Settings","Default Gateway","Routing Table","ARP Table","Proxy Settings",
         "Netskope Status","DNS Servers","DNS Cache","DNS Pollution",
         "Internet Connectivity && Speed","Internet Connectivity && Speed","DNS Resolution","Ping","Traceroute",
-        "PathPing","MTU Discovery","Port Scan","URL Parsing","TCP Connect",
+        "PathPing","MTU Discovery","URL Parsing","TCP Connect",
         "Service Banner","HTTP Request","HTTP Headers","Security Headers",
         "SSL Certificate","HTTP Redirect","HTTP Compression","HTTP Timing",
         "FTP Diagnostics","SSH Diagnostics","Email Diagnostics"]
@@ -226,7 +226,6 @@ Item {
         "Route path and per-hop latency to target",
         "Combined traceroute and ping with per-hop loss",
         "Path MTU discovery to target host",
-        "TCP port scan (common / custom range / both)",
         "Parse and validate the target URL components",
         "TCP connectivity check to the URL host on default port",
         "Service banner detection for text-based protocols",

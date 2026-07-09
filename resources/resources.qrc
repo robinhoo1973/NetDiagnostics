@@ -17,7 +17,6 @@
         <file>qml/widgets/DiagGroupPanel.qml</file>
         <file>qml/widgets/DiagResultItem.qml</file>
         <file>qml/widgets/LiveProgressPanel.qml</file>
-        <file>qml/widgets/PortScanConfig.qml</file>
         <file>qml/widgets/AppIcon.qml</file>
         <file>qml/widgets/SummaryCards.qml</file>
         <file>qml/widgets/DiagnosticToolbar.qml</file>
