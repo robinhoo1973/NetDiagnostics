@@ -74,7 +74,6 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
     const QString colorFail = QStringLiteral("#F87171");
     const QString colorSkip = QStringLiteral("#9CA3AF");
     const QString colorInfo = QStringLiteral("#60A5FA");
-    const QString colorError = QStringLiteral("#F87171");
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
