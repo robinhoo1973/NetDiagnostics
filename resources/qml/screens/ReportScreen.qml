@@ -31,8 +31,7 @@ Item {
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
-        // PDF = one-page summary (light theme, print-optimised).
-        // PDF = one-page summary; HTML = full rich document (dark theme, shared-page parity).
+        // PDF = one-page summary (light theme); HTML = full rich document (dark theme, shared-page parity).
         if (fmt === "html")
             previewHtml = appState.buildRichHtmlDocument()
         else
