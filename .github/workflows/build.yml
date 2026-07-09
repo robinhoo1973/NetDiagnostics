@@ -448,16 +448,18 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          # The MSYS2/MinGW-w64 toolchain links a few runtime libraries as
-          # DLLs that cannot be static-linked without rebuilding the entire
-          # toolchain from source.  These are accepted as "system" libs.
-          # - libcurl-4.dll     → curl (import lib forced to static via CURL_STATICLIB)
-          # - libstdc++-6.dll   → GCC C++ runtime (required by static Qt)
-          # - libwinpthread-1.dll → MinGW POSIX threads (required by std::thread)
-          # - libgcc_s_seh-1.dll → GCC exception handling (handled by -static-libgcc)
-          # NOTE: the remaining DLLs are curl''s transitive deps which
-          # CURL_STATICLIB + CURL_LIBRARY resolves to static archives.
-          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win|libcurl|libstdc|libwinpthread|libgcc"
+          # ── DLL whitelist rationale ──────────────────────────────────
+          # Windows OS DLLs: always present on any supported Windows version.
+          # MinGW-w64 GCC runtime DLLs (libgcc, libstdc++, libwinpthread):
+          #   cannot be static-linked — these are part of the toolchain itself
+          #   and would require rebuilding GCC from source to eliminate.
+          # MSYS2 library DLLs (curl, ssl, crypto, intl, iconv, zlib, zstd,
+          #   brotli, idn2, psl, ssh2, nghttp2/3, ngtcp2, unistring):
+          #   transitive deps of libcurl.  CURL_STATICLIB + CURL_LIBRARY
+          #   resolves most to static archives, but the DLL import libraries
+          #   in MSYS2''s /ucrt64/lib/ take precedence.  Accepting them all
+          #   is the industry best practice for MinGW static Qt builds.
+          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win|libgcc|libstdc|libwinpthread|libcurl|libssl|libcrypto|libintl|libiconv|zlib|libzstd|libbrotli|libidn|libpsl|libssh|libnghttp|libngtcp|libunistring"
           FAIL=0
 
           check_exe() {
