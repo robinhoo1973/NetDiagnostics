@@ -88,6 +88,30 @@ TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int tim
     socket.disconnectFromHost();
     return result;
 }
+
+// =============================================================================
+// SSL Certificate Info (used by G5SslCertificate)
+// =============================================================================
+
+SslCertInfo NetworkProbe::sslCertInfo(const QString& host, int port, int timeoutMs) {
+    SslCertInfo info;
+    QSslSocket socket;
+    socket.connectToHostEncrypted(host, port);
+    if (!socket.waitForEncrypted(timeoutMs)) return info;
+    const auto certs = socket.peerCertificateChain();
+    if (certs.isEmpty()) { socket.disconnectFromHost(); return info; }
+    const auto& cert = certs.first();
+    info.subject = cert.subjectInfo(QSslCertificate::CommonName).join(", ");
+    info.issuer = cert.issuerInfo(QSslCertificate::CommonName).join(", ");
+    info.validFrom = cert.effectiveDate();
+    info.validTo = cert.expiryDate();
+    info.daysLeft = QDateTime::currentDateTime().daysTo(info.validTo);
+    info.thumbprint = QString::fromUtf8(cert.digest(QCryptographicHash::Sha256).toHex());
+    info.subjectAltNames = cert.subjectAlternativeNames().values();
+    info.valid = true;
+    socket.disconnectFromHost();
+    return info;
+}
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Well-known Port Names
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 const QMap<int, QString>& NetworkProbe::wellKnownPorts() {
