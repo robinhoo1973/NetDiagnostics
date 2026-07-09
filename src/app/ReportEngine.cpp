@@ -69,11 +69,13 @@ QString reportStatusClass(DiagStatus s) {
 // ── Public: HTML generation ─────────────────────────────────────────────
 
 QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
+    // Status colours — match app ThemeEngine (dark theme palette)
     const QString colorPass = QStringLiteral("#4ADE80");
     const QString colorWarn = QStringLiteral("#FBBF24");
     const QString colorFail = QStringLiteral("#F87171");
     const QString colorSkip = QStringLiteral("#9CA3AF");
-    const QString colorInfo = QStringLiteral("#60A5FA");
+    const QString colorInfo = QStringLiteral("#38BDF8");  // app primary blue
+    const QString colorCyan = QStringLiteral("#22D3EE");  // app signature accent
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
@@ -95,12 +97,12 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"20\" cellspacing=\"0\" style=\"border-radius:8px\"><tr>"
         "<td bgcolor=\"#0F172A\">"
-        "<p style=\"margin:0 0 6px 0\"><span style=\"font-size:22px;color:#FFFFFF\"><b>Network Diagnostic Report</b></span></p>"
+        "<p style=\"margin:0 0 6px 0\"><span style=\"font-size:22px;color:%5\"><b>Network Diagnostic Report</b></span></p>"
         "<p style=\"margin:0 0 2px 0\"><span style=\"font-size:14px;color:#E2E8F0\">%1</span></p>"
         "<p style=\"margin:0\"><span style=\"font-size:11px;color:#94A3B8\">%2 &middot; v%3 (build %4)</span></p>"
         "</td></tr></table>"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td height=\"12\"></td></tr></table>")
-        .arg(data.target, data.timestamp, data.appVersion, data.buildNumber);
+        .arg(data.target, data.timestamp, data.appVersion, data.buildNumber, colorCyan);
 
     // ── Pass-rate progress bar ─────────────────────────────────────────
     int passPercent = tTotal > 0 ? (tPass * 100 / tTotal) : 0;
@@ -110,18 +112,18 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
         "<tr><td style=\"padding:4px 0\">"
-        "<span style=\"font-size:13px;color:#475569\"><b>Overall Pass Rate: %1%</b></span>"
+        "<span style=\"font-size:13px;color:%3\"><b>Overall Pass Rate: %1%</b></span>"
         "</td></tr>"
         "<tr><td>"
-        "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #E2E8F0;border-radius:4px\">"
-        "<tr><td bgcolor=\"#F1F5F9\">"
+        "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #334155;border-radius:4px\">"
+        "<tr><td bgcolor=\"#1E293B\">"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr>"
         "<td width=\"%1%\" bgcolor=\"%2\" style=\"padding:3px 0\"></td>"
         "<td></td></tr></table>"
         "</td></tr></table>"
         "</td></tr></table>"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td height=\"14\"></td></tr></table>")
-        .arg(passPercent).arg(barColor);
+        .arg(passPercent).arg(barColor).arg(colorCyan);
 
     // ── Summary cards — 5-column card row ──────────────────────────────
     auto card = [](const QString& bg, const QString& fg, int val, const QString& lbl) {
@@ -200,8 +202,8 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
 
     if (fullDetail) {
         h += QStringLiteral("<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"#0F172A\"><span style=\"font-size:18px;color:#FFFFFF\"><b>Detailed Output</b></span></td>"
-            "</tr></table><br/>");
+            "<td bgcolor=\"#0F172A\"><span style=\"font-size:18px;color:%1\"><b>Detailed Output</b></span></td>"
+            "</tr></table><br/>").arg(colorCyan);
         for (int g = 0; g < 5; ++g) {
             auto it = data.groupStats.find(g);
             if (it == data.groupStats.end() || it->value(QStringLiteral("total")).toInt() == 0) continue;
