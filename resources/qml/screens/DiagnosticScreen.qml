@@ -49,7 +49,10 @@ Item {
         var g = []
         for (var i = 0; i < 5; i++) {
             var s = appState.groupStats(i)
-            if ((s.enabled || 0) > 0 || (s.total || 0) > 0) g.push(i)
+            // Only show groups that have at least one enabled test.
+            // Groups with zero checked boxes are hidden — users manage
+            // enable/disable from the Config page.
+            if ((s.enabled || 0) > 0) g.push(i)
         }
         return g
     }

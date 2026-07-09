@@ -60,7 +60,9 @@ ApplicationWindow {
     }
 
     // ── Close button (top-right corner, theme-aware) ────────────────
+    // Desktop only — mobile platforms use native window chrome / gesture close.
     Rectangle {
+        visible: Qt.platform.os !== "ios" && Qt.platform.os !== "android"
         anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 12 }
         width: 32; height: 32; radius: 6
         color: "transparent"

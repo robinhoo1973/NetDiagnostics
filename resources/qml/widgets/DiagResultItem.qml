@@ -7,7 +7,10 @@ import QtQuick.Layouts
 Item {
     id: root
     property var itemData: ({})
-    implicitHeight: 28
+    // Hide skipped tests — they provide no actionable information.
+    // Pending items (status == -1) are always visible.
+    visible: itemData.isPending || (itemData.status !== 3)
+    implicitHeight: visible ? 28 : 0
     signal detailClicked(var data)
 
     // ── Pending item ──────────────────────────────────────────────────
