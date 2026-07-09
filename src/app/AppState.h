@@ -107,6 +107,11 @@ public:
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
     Q_INVOKABLE void setGroupActive(int groupInt, bool active);
     Q_INVOKABLE bool isGroupActive(int groupInt) const;
+
+    // QSettings persistence for language, active groups, and enabled diags
+    Q_INVOKABLE void saveSettings();
+    void loadSettings();
+
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
