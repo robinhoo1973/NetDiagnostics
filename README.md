@@ -4,7 +4,7 @@ Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML an
 
 ## Features
 
-### Diagnostic Engine (38 tests in 5 groups)
+### Diagnostic Engine (45 tests in 5 groups)
 
 | Group | Tests | Description |
 |-------|-------|-------------|
@@ -12,21 +12,23 @@ Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML an
 | **G2** — Connectivity & Security | 6 | Network Profile, TCP Settings, Default Gateway, Routing Table, ARP Table, Proxy Settings |
 | **G3** — Internet & DNS | 5 | Netskope Status, DNS Servers, DNS Cache, DNS Pollution, Internet Connectivity & Speed |
 | **G4** — Remote Host | 6 | DNS Resolution, Ping, Traceroute, PathPing, MTU Discovery, Port Scan |
-| **G5** — Website / URL | 13 | URL Parsing, TCP Connect, Service Banner, HTTP Request, HTTP Headers, Security Headers, SSL Certificate, HTTP Redirect, HTTP Compression, HTTP Timing, FTP Diagnostics, SSH Diagnostics, Email Diagnostics |
+| **G5** — Website / URL | 20 | URL Parsing, TCP Connect, Service Banner, cURL Verbose, HTTP Headers, Security Headers, SSL Certificate, HTTP Redirect, HTTP Compression, HTTP Timing, FTP, SSH, Email, Telnet, MySQL, PostgreSQL, Redis, MongoDB, LDAP, MQTT |
 
 ### Key Features
 
 - **Cross-platform** — single codebase for iOS, Android, Windows, macOS, Linux
 - **Pure C++ diagnostics** — zero shell commands, direct OS API calls
 - **Real-time engine** — results stream live as each test completes
-- **Report export** — PDF (one-page summary) and HTML (full detail) with embedded styling
+- **Report export** — PDF (dashboard-style summary) and HTML (dark theme full detail) with progress bars, status indicators, and theme-coordinated colours
+- **Settings persistence** — language, active groups, and per-test enable/disable survive app restarts via QSettings
 - **Premium IAP** — non-consumable unlock for report sharing via OS share sheet / email
 - **9-language UI** — English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, Español, Português
-- **Dark theme** — custom dark UI with cyan/purple accent palette
-- **Port scanner** — concurrent non-blocking socket scan with range merging (1–65535)
+- **Dark theme** — custom dark UI with cyan (`#22D3EE`) accent palette; report styling matches app theme
+- **G5 protocol diagnostics** — 20 per-scheme tests including MySQL, PostgreSQL, Redis, MongoDB, LDAP, MQTT via raw TCP sockets
 - **DNS diagnostics** — dig-style output with HEADER/QUESTION/ANSWER sections, DNSSEC validation, pollution detection
 - **Speed test** — Ookla-compatible download/upload bandwidth measurement
 - **Group-sequential execution** — `std::thread` concurrency with `std::atomic` group tracking
+- **Startup crash diagnostics** — `ND_DEBUG=ON` writes timestamped startup events to `%TEMP%\NetDiagnostics_startup.log`
 - **Single-instance lock** — prevents duplicate application instances
 - **Simulator mode** — device-frame UI for testing on desktop
 
@@ -57,22 +59,30 @@ Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML an
 │   ├── main.cpp                # Production entry point
 │   ├── main_simulator.cpp      # Simulator entry point
 │   ├── app/
-│   │   ├── AppState.h/.cpp     # Central state & diagnostic orchestration
+│   │   ├── AppState.h/.cpp       # Central state & diagnostic orchestration
+│   │   ├── DiagnosticConfig.h/.cpp # Per-test enable/disable configuration
+│   │   ├── ReportEngine.h/.cpp   # HTML/PDF report generation with dark theme
+│   │   ├── PremiumStore.h/.cpp   # In-app purchase management
 │   │   ├── NativeService.h/.cpp
 │   │   └── PremiumManager.h/.cpp
 │   ├── engine/
 │   │   ├── PlatformShare_ios.mm / PlatformShare_android.cpp
 │   │   ├── PlatformStore_ios.mm          # iOS StoreKit IAP
 │   │   ├── IosWiFiHelper.mm              # iOS WiFi SSID access
-│   │   ├── diagnostic/
+│   │   ├── diagnostics/
 │   │   │   ├── G1G2G3Native.h/.cpp       # G1/G2/G3 native diagnostics
 │   │   │   ├── G4RemoteHost.h/.cpp       # G4 remote host tests
-│   │   │   └── G5WebsiteUrl.h/.cpp       # G5 website/URL tests
-│   │   ├── runner/
-│   │   │   └── NetworkProbe.h/.cpp       # Network probing utilities
+│   │   │   ├── NetworkProbe.h/.cpp       # Raw socket / SSL probe utilities
+│   │   │   ├── G5/
+│   │   │   │   ├── G5WebsiteUrl.h        # G5 function declarations
+│   │   │   │   ├── G5Common.h/.cpp       # Shared G5 helpers (curl HTTP)
+│   │   │   │   ├── G5UrlParsing.cpp through G5EmailDiagnostics.cpp
+│   │   │   │   └── G5Telnet.cpp through G5Mqtt.cpp  # 7 protocol diagnostics
+│   │   │   └── G1/ G2/ G3/ G4/          # Group-specific diagnostic files
 │   │   └── task/
 │   │       ├── DiagnosticTask.h/.cpp     # Task abstraction
-│   │       ├── TaskFactory.h/.cpp        # Task creation
+│   │       ├── GenericTask.h/.cpp        # Generic async task wrapper
+│   │       ├── TaskFactory.h/.cpp        # DiagId → task mapping
 │   │       ├── IosHttpTask.mm            # iOS NSURLSession HTTP
 │   │       ├── IosDnsTask.mm             # iOS DNSService DNS
 │   │       ├── IosNetworkInfo.mm         # iOS network info
@@ -186,10 +196,29 @@ cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
 ninja -C build net_diagnostics_sim
 ```
 
+### Debug Build (startup crash diagnostics)
+
+```bash
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DND_DEBUG=ON -B build -S .
+ninja -C build net_diagnostics
+# Run app → check %TEMP%\NetDiagnostics_startup.log for timestamped startup events
+```
+
 ### Headless Test
 
 ```bash
 ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostics
+```
+
+### Windows Static Build (MSYS2 UCRT64)
+
+```bash
+# Requires MSYS2 with mingw-w64-ucrt-x86_64-qt6-static
+cmake -G Ninja -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
+      -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -B build -S .
+ninja -C build net_diagnostics
+# verify zero non-OS DLLs:
+objdump -p build/net_diagnostics.exe | grep "DLL Name"
 ```
 
 ## CI/CD
