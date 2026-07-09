@@ -234,16 +234,21 @@ Rectangle {
             }  // end Zone 2
 
             // Visual separator between Zone 2 (actions) and Zone 3 (clear)
+            // Hidden on mobile — Zone 3 (clear button) is removed in compact mode.
             Rectangle {
                 Layout.preferredWidth: 1; Layout.preferredHeight: 22
                 color: ThemeEngine.colors.borderCard
-                visible: hostField.text !== "" && appState.runStatus !== 1
+                visible: hostField.text !== "" && appState.runStatus !== 1 && !(Qt.platform.os === "ios" || Qt.platform.os === "android")
             }
             Item { width: 6; visible: hostField.text !== "" || appState.runStatus !== 1 }
 
             // ── Zone 3: Clear button — fixed 30px zone, right-aligned ──
+            // Desktop only.  On mobile the clear button wastes 30px of
+            // precious horizontal space; users clear via the field's own
+            // built-in clear action or by backspacing.
             Item {
-                Layout.preferredWidth: 30; Layout.preferredHeight: 30
+                visible: Qt.platform.os !== "ios" && Qt.platform.os !== "android"
+                Layout.preferredWidth: visible ? 30 : 0; Layout.preferredHeight: 30
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 14
