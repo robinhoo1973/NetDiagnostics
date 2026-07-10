@@ -44,7 +44,12 @@ bool PlatformPdfRenderer::load(const QString& filePath) {
     // android/graphics/pdf/PdfRenderer
     QJniObject renderer("android/graphics/pdf/PdfRenderer",
         "(Landroid/os/ParcelFileDescriptor;)V", fd.object<jobject>());
-    if (!renderer.isValid()) return false;
+    if (!renderer.isValid()) {
+        // 5WHY: PdfRenderer construction failed but ParcelFileDescriptor
+        // was already opened. Close it to prevent FD leak.
+        fd.callMethod<void>("close");
+        return false;
+    }
 
     d->renderer = env->NewGlobalRef(renderer.object<jobject>());
     d->pages = renderer.callMethod<jint>("getPageCount");
@@ -69,6 +74,8 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
     // Get page dimensions
     jint pw = pdfPage.callMethod<jint>("getWidth");
     jint ph = pdfPage.callMethod<jint>("getHeight");
+    // 5WHY: Corrupt PDF with zero-width page → division by zero.
+    if (pw <= 0) { pdfPage.callMethod<void>("close"); return {}; }
     float scale = (float)width / (float)pw;
     int height = (int)(ph * scale);
     if (height < 1) height = 1;

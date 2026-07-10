@@ -97,6 +97,8 @@ function(configure_netdiag_target TARGET)
         )
     elseif(ANDROID)
         target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID)
+        # jnigraphics: AndroidBitmap_* functions used by PlatformPdfRenderer_android.cpp
+        target_link_libraries(${TARGET} PRIVATE jnigraphics)
     endif()
 
     # ── curl compile definitions ─────────────────────────────────────

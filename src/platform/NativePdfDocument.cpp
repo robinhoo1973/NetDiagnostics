@@ -9,7 +9,10 @@ NativePdfDocument::NativePdfDocument(QObject* parent) : QObject(parent) {}
 NativePdfDocument::~NativePdfDocument() = default;
 
 void NativePdfDocument::setSource(const QUrl& url) {
-    if (m_source == url) return;
+    // 5WHY: if (m_source == url) return skipped reload when file content
+    // changed under the same path (e.g. theme toggle regenerates PDF).
+    // Always close + reload to ensure fresh content.
+    m_renderer.close();
     m_source = url;
     emit sourceChanged();
     m_loaded = false;
