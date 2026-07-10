@@ -3,7 +3,6 @@ import "../theme"
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
-import QtWebView
 
 // ── Flutter ReportPreviewScreen 1:1 — with AppBar ─────────────────────
 Item {
@@ -36,10 +35,8 @@ Item {
             // 5WHY: QML Text.RichText cannot render CSS. QtWebView wraps the
             // platform native web engine (Edge WebView2/WKWebView) which
             // renders the shared HTML page perfectly — identical to browser.
-            var richHtml = appState.buildRichHtmlDocument()
-            var tmpPath = appState.defaultReportPath("html")
-            appState.exportHtml(tmpPath)
-            previewHtmlUrl = "file:///" + tmpPath
+            // exportHtml() saves buildRichHtmlDocument() to disk.
+            previewHtmlPath = appState.exportHtml(appState.defaultReportPath("html"))
         } else {
             // PDF: render Qt Rich Text HTML to QImage for near-dashboard fidelity
             var html = appState.buildReportHtml(false, true)
@@ -263,11 +260,21 @@ Item {
                     // QtWebView wraps the platform's native web engine
                     // (Edge WebView2 / WKWebView / Android WebView) which
                     // renders the exact same HTML as the browser.
-                    WebView {
-                        id: htmlWebView
+                    // Loader prevents import crash on platforms without QtWebView.
+                    Loader {
+                        id: htmlLoader
                         anchors { fill: parent; margins: 4 }
                         visible: page.previewFormat === "html"
-                        url: previewHtmlUrl
+                        active: page.previewFormat === "html" && hasWebView
+                        sourceComponent: htmlComponent
+                    }
+                    // Fallback: QTextDocument→Image when WebView unavailable
+                    Image {
+                        anchors { fill: parent; margins: 4 }
+                        visible: page.previewFormat === "html" && !hasWebView
+                        fillMode: Image.PreserveAspectFit
+                        source: previewImagePath
+                        cache: false
                     }
 
                     // ── PDF Preview: QTextDocument→Image rendering ──────
@@ -294,8 +301,17 @@ Item {
                         }
                     }
                 }
+                // hasWebView comes from C++ context property (HAS_QTWEBVIEW define)
+                property bool hasWebView: (typeof hasWebView !== 'undefined') ? hasWebView : false
                 property string previewImagePath: ""
-                property string previewHtmlUrl: ""
+                property string previewHtmlPath: ""
+
+                // Separate component file isolates QtWebView import so the
+                // main ReportScreen.qml loads even when QtWebView is absent.
+                Component {
+                    id: htmlComponent
+                    HtmlPreviewWebView { htmlUrl: previewHtmlPath ? "file:///" + previewHtmlPath : "" }
+                }
                 RowLayout {
                     Layout.fillWidth: true; Layout.topMargin: 4
                     PreviewBtn {
