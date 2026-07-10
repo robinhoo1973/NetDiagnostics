@@ -49,7 +49,7 @@ Item {
             Item { Layout.preferredHeight: 24 }
 
             // ── Appearance Section ────────────────────────────────────
-            SectionHeader { iconName: "tune"; title: "Appearance" }
+            SectionHeader { iconName: "tune"; title: Tr.appearanceSection }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: themeCol.implicitHeight + 32; radius: 12
@@ -58,7 +58,7 @@ Item {
                     id: themeCol
                     anchors { fill: parent; margins: 16 } spacing: 0
                     Label {
-                        text: "Theme"
+                        text: Tr.themeLabel
                         font.family: ThemeEngine.fontMono; font.pixelSize: 13; color: ThemeEngine.colors.textPrimary
                         Layout.bottomMargin: 12
                     }
