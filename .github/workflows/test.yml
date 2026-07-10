@@ -61,13 +61,49 @@ jobs:
       - name: Run headless tests
         shell: msys2 {0}
         run: |
+          # Verify binary exists and doesn't crash on startup
+          if [ ! -f ./build/net_diagnostics.exe ]; then
+            echo "::error::Binary not found — build may have failed"
+            exit 1
+          fi
+          # Run tests with full output capture
+          set +e  # Don't exit on test failure — we want to capture output
           ./build/net_diagnostics.exe --test 2>&1 | tee test-output.log
+          TEST_EXIT=${PIPESTATUS[0]}
+          set -e
+          # 5WHY: Test process exit code was ignored — if the binary crashes
+          # before test harness runs, we get exit -1 or SIGSEGV with no log.
+          echo "Exit code: $TEST_EXIT"
+          if [ $TEST_EXIT -lt 0 ]; then
+            echo "::error::Binary crashed (signal $((TEST_EXIT * -1))) — check startup log"
+            exit 1
+          elif [ $TEST_EXIT -gt 0 ] && [ $TEST_EXIT -ne 1 ]; then
+            echo "::error::Unexpected exit code $TEST_EXIT"
+            exit 1
+          fi
           # Extract pass/fail from output
           if grep -q "All passed: YES" test-output.log; then
             echo "ALL TESTS PASSED"
-          else
+          elif grep -q "passed:" test-output.log; then
             echo "SOME TESTS FAILED — check test-output.log"
+            grep -E "passed:|failed:|PASS|FAIL" test-output.log || true
             exit 1
+          else
+            echo "::error::No test results found — test harness may have crashed"
+            cat test-output.log
+            exit 1
+          fi
+
+      - name: Verify no QML/startup failures
+        shell: msys2 {0}
+        run: |
+          # 5WHY: QML import failures cause silent crash before test harness.
+          # Check for crash markers in test output.
+          if grep -qiE "FATAL|QML.*fail|create.*fail|engine.*fail|crash" test-output.log 2>/dev/null; then
+            echo "::warning::Possible startup/QML failure detected in output"
+            grep -iE "FATAL|QML.*fail|create.*fail|engine.*fail" test-output.log || true
+          else
+            echo "No startup/QML failures detected"
           fi
 
       - name: Code review compliance
