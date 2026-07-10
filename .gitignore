@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build-check/
 build-mockups/
 build-sim-local/
 dist/
