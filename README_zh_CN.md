@@ -1,6 +1,22 @@
 # NetDiagnostics
 
-专业跨平台网络诊断工具。基于 Qt 6 / QML 和 libcurl 构建，支持 **iOS、Android、Windows、macOS 和 Linux**。
+<p align="center">
+  <b>专业跨平台网络诊断工具</b><br/>
+  基于 Qt 6 / QML 和 libcurl 构建<br/>
+  <sub>iOS &middot; Android &middot; Windows &middot; macOS &middot; Linux</sub>
+</p>
+
+[English](README.md) | [简体中文](README_zh_CN.md) | [繁體中文](README_zh_TW.md)
+
+## 屏幕截图
+
+<p align="center">
+  <img src="resources/doc/screenshot/ios/phone/6.5/dashboard.png" width="18%" alt="仪表盘" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/diagnostics.png" width="18%" alt="诊断" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/config.png" width="18%" alt="配置" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/report.png" width="18%" alt="报告" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/settings.png" width="18%" alt="设置" />
+</p>
 
 ## 功能特性
 
@@ -34,13 +50,13 @@
 
 ## 支持平台
 
-| 平台 | 架构 | 状态 |
-|----------|------|--------|
-| iOS | arm64 | ✅ 完整支持（StoreKit 内购、分享、WiFi SSID） |
-| Android | arm64 | ✅ 完整支持（通过 FileProvider 分享） |
-| Linux | arm64 / x86_64 | ✅ 完整支持 |
-| Windows | x86_64 / ARM64 | ✅ 完整支持 |
-| macOS | x86_64 / arm64 | ✅ 完整支持 |
+| 平台 | 架构 | 说明 |
+|----------|------|------|
+| iOS | arm64 | StoreKit 内购、系统分享、WiFi SSID、原生 HTTP/DNS |
+| Android | arm64 / x86_64 | 通过 FileProvider 分享、JNI 原生诊断 |
+| Windows | x86_64 | 静态（零 DLL）和动态构建，基于 MSYS2 UCRT64 |
+| macOS | arm64 | 通用二进制，原生 Homebrew Qt 6 |
+| Linux | x86_64 / arm64 | AppImage + deb + rpm 包 |
 
 ## 技术栈
 
@@ -146,7 +162,12 @@ objdump -p build/net_diagnostics.exe | grep "DLL Name"
 
 ## CI/CD
 
-每次推送通过 GitHub Actions（`build.yml` 和 `apple.yml`）自动进行多平台构建。覆盖 Linux (x86_64/arm64)、Windows (x86_64 静态 + 动态)、macOS (x86_64/arm64)、iOS (arm64) 和 Android (arm64/x86_64)。iOS TestFlight 部署通过 `apple.yml` 自动化完成。
+每次推送通过 GitHub Actions 自动构建。
+
+| 工作流 | 平台 |
+|----------|-----------|
+| **build.yml** | Linux (x86_64 + arm64)、Windows (x86_64 静态 + 动态)、macOS (arm64)、Android (arm64 + x86_64) |
+| **apple.yml** | macOS (arm64 应用包)、iOS (arm64 → TestFlight) |
 
 ## 应用内购买
 
