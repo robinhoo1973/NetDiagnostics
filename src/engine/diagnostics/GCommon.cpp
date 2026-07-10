@@ -142,12 +142,17 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     char buf[32768];
     QElapsedTimer recvGuard; recvGuard.start();
     while (body.size() < targetBytes + 65536) {
+        // 5WHY: wall-clock guard was placed after recv() but before data
+        // processing. If the guard fired after a successful recv(), the
+        // just-read chunk in buf was silently discarded — undercounting
+        // bytes or dropping the HTTP status line entirely. Move the guard
+        // BEFORE select() so previously-processed data is safe and only
+        // NEW reads are prevented.
+        if (recvGuard.elapsed() > 60000) break;
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        // Wall-clock guard: abort if total recv time exceeds 60 s
-        if (recvGuard.elapsed() > 60000) break;
         // 5WHY: treat EAGAIN as retry, not end-of-stream
         if (n > 0) {
             /* process below */
