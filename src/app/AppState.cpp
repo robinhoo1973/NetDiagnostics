@@ -1109,6 +1109,16 @@ QString AppState::buildReportHtml(bool fullDetail, bool darkBackground) const {
     return ReportEngine::buildHtml(buildReportData(), fullDetail, darkBackground);
 }
 
+QString AppState::renderPreviewImage(const QString& html, int width) const {
+    QImage img = ReportEngine::renderHtmlToImage(html, width);
+    if (img.isNull()) return {};
+    QString path = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+                 + QStringLiteral("/nd_preview_%1.png")
+                   .arg(QDateTime::currentDateTime().toMSecsSinceEpoch());
+    if (img.save(path)) return path;
+    return {};
+}
+
 // Full standalone HTML document with a modern dark theme (styled after the
 // PowerShell NetDiagnostic report). Rendered by a real browser / mail client —
 // NOT by the in-app QML preview, which uses the Qt-subset buildReportHtml().
