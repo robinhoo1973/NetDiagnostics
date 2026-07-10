@@ -1,6 +1,22 @@
 # NetDiagnostics
 
-專業跨平台網路診斷工具。基於 Qt 6 / QML 和 libcurl 構建，支援 **iOS、Android、Windows、macOS 和 Linux**。
+<p align="center">
+  <b>專業跨平台網路診斷工具</b><br/>
+  基於 Qt 6 / QML 和 libcurl 構建<br/>
+  <sub>iOS &middot; Android &middot; Windows &middot; macOS &middot; Linux</sub>
+</p>
+
+[English](README.md) | [简体中文](README_zh_CN.md) | [繁體中文](README_zh_TW.md)
+
+## 螢幕截圖
+
+<p align="center">
+  <img src="resources/doc/screenshot/ios/phone/6.5/dashboard.png" width="18%" alt="儀表板" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/diagnostics.png" width="18%" alt="診斷" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/config.png" width="18%" alt="配置" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/report.png" width="18%" alt="報告" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/settings.png" width="18%" alt="設定" />
+</p>
 
 ## 功能特性
 
@@ -34,13 +50,13 @@
 
 ## 支援平台
 
-| 平台 | 架構 | 狀態 |
-|----------|------|--------|
-| iOS | arm64 | ✅ 完整支援（StoreKit 內購、分享、WiFi SSID） |
-| Android | arm64 | ✅ 完整支援（透過 FileProvider 分享） |
-| Linux | arm64 / x86_64 | ✅ 完整支援 |
-| Windows | x86_64 / ARM64 | ✅ 完整支援 |
-| macOS | x86_64 / arm64 | ✅ 完整支援 |
+| 平台 | 架構 | 說明 |
+|----------|------|------|
+| iOS | arm64 | StoreKit 內購、系統分享、WiFi SSID、原生 HTTP/DNS |
+| Android | arm64 / x86_64 | 透過 FileProvider 分享、JNI 原生診斷 |
+| Windows | x86_64 | 靜態（零 DLL）和動態建置，基於 MSYS2 UCRT64 |
+| macOS | arm64 | 通用二進位檔，原生 Homebrew Qt 6 |
+| Linux | x86_64 / arm64 | AppImage + deb + rpm 套件 |
 
 ## 技術堆疊
 
@@ -146,7 +162,12 @@ objdump -p build/net_diagnostics.exe | grep "DLL Name"
 
 ## CI/CD
 
-每次推送透過 GitHub Actions（`build.yml` 和 `apple.yml`）自動進行多平台建置。涵蓋 Linux (x86_64/arm64)、Windows (x86_64 靜態 + 動態)、macOS (x86_64/arm64)、iOS (arm64) 和 Android (arm64/x86_64)。iOS TestFlight 部署透過 `apple.yml` 自動化完成。
+每次推送透過 GitHub Actions 自動建置。
+
+| 工作流程 | 平台 |
+|----------|-----------|
+| **build.yml** | Linux (x86_64 + arm64)、Windows (x86_64 靜態 + 動態)、macOS (arm64)、Android (arm64 + x86_64) |
+| **apple.yml** | macOS (arm64 應用程式套件)、iOS (arm64 → TestFlight) |
 
 ## 應用程式內購買
 
