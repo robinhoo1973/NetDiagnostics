@@ -8,9 +8,9 @@ ColumnLayout {
     spacing: 0
     // ── Advanced (Port / User / Pass) toggle ──────────────────────────────
     property bool advancedExpanded: false
-    // ── Scheme model �?populated once in Component.onCompleted ─────────────
+    // ── Scheme model �?populated once in Component.onCompleted ─────────────
     property ListModel schemeModel: ListModel { id: _schemeModel }
-    // ── Guard flag �?suppress onTextChanged during programmatic updates ───
+    // ── Guard flag �?suppress onTextChanged during programmatic updates ───
     property bool _syncing: false
 
     Component.onCompleted: {
@@ -50,7 +50,7 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 6 }
 
-    // ══════════════════�?Scheme ComboBox + Host Field ══════════════════�?    Rectangle {
+    // ══════════════════�?Scheme ComboBox + Host Field ══════════════════�?    Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
         color: ThemeEngine.bgInput
         border { width: hostField.activeFocus || schemeCombo.activeFocus ? 1.5 : 1
@@ -124,13 +124,13 @@ ColumnLayout {
                         return !prev || prev.schemeGroup !== cur.schemeGroup
                     }
 
-                    // Group icon �?only for headers (not per-scheme)
+                    // Group icon �?only for headers (not per-scheme)
                     readonly property string groupIcon: ({
                         0:"globe",1:"portscan",2:"mail",3:"config",
                         4:"wifi",5:"target",6:"timer"
                     }[schemeGroup] || "circle")
 
-                    // Group label �?i18n via schemeGroup name lookup
+                    // Group label �?i18n via schemeGroup name lookup
                     readonly property string groupLabel: ({
                         0:Tr.schemeGroupWeb, 1:Tr.schemeGroupFile,
                         2:Tr.schemeGroupEmail, 3:Tr.schemeGroupDb,
@@ -219,7 +219,7 @@ ColumnLayout {
 
                 onTextChanged: {
                     var t = text.trim()
-                    // Detect pasted URL (contains ://) �?parse into fields
+                    // Detect pasted URL (contains ://) �?parse into fields
                     if (t.indexOf("://") >= 0) {
                         appState.parseUrlIntoFields(t)
                         return
@@ -261,11 +261,12 @@ ColumnLayout {
         }
     }
 
-    // ══════════════════�?Advanced: Port / User / Pass ══════════════════�?    Item { Layout.preferredHeight: 6; visible: root.advancedExpanded }
+    // ── Advanced: Port / User / Pass
+    Item { Layout.preferredHeight: 6; visible: root.advancedExpanded }
     RowLayout {
         visible: root.advancedExpanded
         spacing: 6
-        // Port �?adaptive width, capped so it never dominates the row
+        // Port �?adaptive width, capped so it never dominates the row
         Rectangle {
             Layout.preferredWidth: Math.min(80, parent.width * 0.22)
             implicitHeight: 32; radius: 6
@@ -326,7 +327,7 @@ ColumnLayout {
         }
     }
 
-    // ══════════════════�?Validation error ══════════════════�?    RowLayout {
+    // ══════════════════�?Validation error ══════════════════�?    RowLayout {
         visible: page._snapTargetError !== ""
         spacing: 4
         AppIcon { name: "warning"; size: 12; color: ThemeEngine.failRed }
@@ -339,7 +340,7 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 10 }
 
-    // ══════════════════�?Run / Stop buttons ══════════════════�?    RowLayout {
+    // ══════════════════�?Run / Stop buttons ══════════════════�?    RowLayout {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 38; radius: 8
             color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.accentBlue, 0.4) : (appState.canRun() ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.accentBlue, 0.3))
