@@ -24,6 +24,7 @@
 #include <QUrl>
 #include <QUrlQuery>
 #include <QFileInfo>
+#include <QImage>
 #include <QProcess>
 #include <QDesktopServices>
 #include <QSettings>
