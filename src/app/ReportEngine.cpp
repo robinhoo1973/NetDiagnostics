@@ -318,8 +318,6 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     .arg(reportStatusColor(r.status), reportStatusText(r.status),
                          textSecondary,
                          r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
-                    .arg(borderColor, textSecondary)
-                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
                 alt = !alt;
             }
         }
