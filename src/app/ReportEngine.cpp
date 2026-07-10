@@ -51,7 +51,6 @@ QString reportStatusColor(DiagStatus s) {
 // data URIs without QtSvg (not linked). Instead, render the icons
 // programmatically with QPainter → PNG → base64 data URI. This works
 // in both QTextDocument (preview + PDF) and browser WebView (rich HTML).
-namespace {
 QImage renderStatusIcon(DiagStatus s, int size) {
     QImage img(size, size, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
@@ -62,7 +61,8 @@ QImage renderStatusIcon(DiagStatus s, int size) {
     switch (s) {
         case DiagStatus::Pass:    bg = QColor(0x16, 0xA3, 0x4A); break;
         case DiagStatus::Warning: bg = QColor(0xF5, 0x9E, 0x0B); break;
-        case DiagStatus::Fail:    bg = QColor(0xDC, 0x26, 0x26); break;
+        case DiagStatus::Fail:    // fallthrough — Error uses same red as Fail
+        case DiagStatus::Error:   bg = QColor(0xDC, 0x26, 0x26); break;
         case DiagStatus::Skipped: bg = QColor(0x6B, 0x72, 0x80); break;
         default:                  bg = QColor(0x25, 0x63, 0xEB); break; // Info
     }
@@ -83,6 +83,7 @@ QImage renderStatusIcon(DiagStatus s, int size) {
             p.drawEllipse(QPointF(cx, cy+r*0.55f), r*0.12f, r*0.12f);
             break;
         case DiagStatus::Fail:
+        case DiagStatus::Error:
             p.drawLine(QPointF(cx-r*0.5f, cy-r*0.5f), QPointF(cx+r*0.5f, cy+r*0.5f));
             p.drawLine(QPointF(cx+r*0.5f, cy-r*0.5f), QPointF(cx-r*0.5f, cy+r*0.5f));
             break;
@@ -99,7 +100,6 @@ QImage renderStatusIcon(DiagStatus s, int size) {
     p.end();
     return img;
 }
-} // namespace
 
 // 5WHY: SVG data URIs needed QtSvg (not linked) for QTextDocument rendering.
 // QPainter→PNG→base64 works universally: QTextDocument preview, PDF export,
@@ -109,7 +109,9 @@ QString reportStatusIconImg(DiagStatus s, int size) {
     QByteArray pngData;
     QBuffer buf(&pngData);
     buf.open(QIODevice::WriteOnly);
-    img.save(&buf, "PNG");
+    // 5WHY: img.save() return was unchecked — a null QImage (size ≤ 0)
+    // would silently produce an empty data URI, showing a broken image.
+    if (!img.save(&buf, "PNG")) return {};
     return QStringLiteral("<img src='data:image/png;base64,")
          + QString::fromLatin1(pngData.toBase64())
          + QStringLiteral("' width='%1' height='%1' "
@@ -230,8 +232,9 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     // Add base64 SVG icon above the count for color/icon recognition.
     auto card = [](const QString& bg, const QString& fg, int val, const QString& lbl,
                    const QString& iconImg) {
-        // Direct concatenation for icon — base64 data URIs contain % chars
-        // that .arg() would consume as placeholders.
+        // Direct concatenation for icon — .arg() would consume HTML
+        // attribute characters within the img tag (e.g. %20 in encoded
+        // attributes). Safer to concatenate than escape for .arg().
         QString td = QStringLiteral(
             "<td width=\"20%\" align=\"center\" bgcolor=\"%1\""
             " style=\"padding:12px 6px\">")
