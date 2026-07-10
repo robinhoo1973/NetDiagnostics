@@ -203,20 +203,28 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         .arg(borderColor).arg(barBg);
 
     // ── Summary cards — 5-column card row ──────────────────────────────
-    auto card = [](const QString& bg, const QString& fg, int val, const QString& lbl) {
-        return QStringLiteral(
+    // 5WHY: Summary cards showed only numbers — no visual status cues.
+    // Add base64 SVG icon above the count for color/icon recognition.
+    auto card = [](const QString& bg, const QString& fg, int val, const QString& lbl,
+                   const QString& iconImg) {
+        // Direct concatenation for icon — base64 data URIs contain % chars
+        // that .arg() would consume as placeholders.
+        QString td = QStringLiteral(
             "<td width=\"20%\" align=\"center\" bgcolor=\"%1\""
-            " style=\"padding:16px 6px\">"
-            "<span style=\"font-size:30px;color:%2\"><b>%3</b></span><br/>"
-            "<span style=\"font-size:12px;color:%2\">%4</span></td>")
-            .arg(bg, fg).arg(val).arg(lbl);
+            " style=\"padding:12px 6px\">")
+            .arg(bg);
+        td += iconImg;
+        td += QStringLiteral("<br/><span style=\"font-size:28px;color:%1\"><b>%2</b></span><br/>"
+            "<span style=\"font-size:11px;color:%1\">%3</span></td>")
+            .arg(fg).arg(val).arg(lbl);
+        return td;
     };
     h += QStringLiteral("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"4\"><tr>");
-    h += card(bgCardPass, colorPass, tPass, QStringLiteral("Pass"));
-    h += card(bgCardInfo, colorInfo, tInfo, QStringLiteral("Info"));
-    h += card(bgCardWarn, colorWarn, tWarn, QStringLiteral("Warning"));
-    h += card(bgCardFail, colorFail, tFail, QStringLiteral("Fail"));
-    h += card(bgCardSkip, colorSkip, tSkip, QStringLiteral("Skipped"));
+    h += card(bgCardPass, colorPass, tPass, QStringLiteral("Pass"), reportStatusIconImg(DiagStatus::Pass, 24));
+    h += card(bgCardInfo, colorInfo, tInfo, QStringLiteral("Info"), reportStatusIconImg(DiagStatus::Info, 24));
+    h += card(bgCardWarn, colorWarn, tWarn, QStringLiteral("Warning"), reportStatusIconImg(DiagStatus::Warning, 24));
+    h += card(bgCardFail, colorFail, tFail, QStringLiteral("Fail"), reportStatusIconImg(DiagStatus::Fail, 24));
+    h += card(bgCardSkip, colorSkip, tSkip, QStringLiteral("Skipped"), reportStatusIconImg(DiagStatus::Skipped, 24));
     h += QStringLiteral("</tr></table>");
     h += QStringLiteral("<p align=\"center\" style=\"margin:10px 0 18px 0\"><span style=\"font-size:12px;color:%1\">%2 tests total</span></p>")
         .arg(textMuted).arg(tTotal);
@@ -422,12 +430,14 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         "<p>NetDiagnostics v%3 (build %4)</p></div>\n")
         .arg(data.timestamp, data.target, data.appVersion, data.buildNumber);
 
+    // 5WHY: Unicode card icons (&#10003; etc.) render inconsistently across
+    // fonts. Base64-encoded SVG images match the app's QML icon set exactly.
     h += QStringLiteral("<div class=\"cards\">");
-    h += card(QStringLiteral("pass"), QStringLiteral("&#10003;"), tPass, QStringLiteral("Pass"));
-    h += card(QStringLiteral("info"), QStringLiteral("&#8505;"), tInfo, QStringLiteral("Info"));
-    h += card(QStringLiteral("warn"), QStringLiteral("&#9888;"), tWarn, QStringLiteral("Warning"));
-    h += card(QStringLiteral("fail"), QStringLiteral("&#10007;"), tFail, QStringLiteral("Fail"));
-    h += card(QStringLiteral("skip"), QStringLiteral("&#8862;"), tSkip, QStringLiteral("Skipped"));
+    h += card(QStringLiteral("pass"), reportStatusIconImg(DiagStatus::Pass, 32), tPass, QStringLiteral("Pass"));
+    h += card(QStringLiteral("info"), reportStatusIconImg(DiagStatus::Info, 32), tInfo, QStringLiteral("Info"));
+    h += card(QStringLiteral("warn"), reportStatusIconImg(DiagStatus::Warning, 32), tWarn, QStringLiteral("Warning"));
+    h += card(QStringLiteral("fail"), reportStatusIconImg(DiagStatus::Fail, 32), tFail, QStringLiteral("Fail"));
+    h += card(QStringLiteral("skip"), reportStatusIconImg(DiagStatus::Skipped, 32), tSkip, QStringLiteral("Skipped"));
     h += QStringLiteral("</div>\n");
 
     // Summary table
@@ -540,14 +550,25 @@ QString ReportEngine::exportHtml(const QString& filePath, const QString& html) {
 }
 
 QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
+    // 5WHY: QPdfWriter default resolution (1200 DPI) makes QTextDocument
+    // fonts appear tiny — CSS px sizes (e.g. font-size:13px) are laid out
+    // at screen DPI (96) but rendered at printer DPI, producing illegible
+    // micro-text. Fix: force PDF resolution to match screen DPI so font
+    // sizes are consistent with the in-app QTextDocument preview.
+    //   A4 = 210mm - 15mm*2 margins = 180mm usable ≈ 7.09 inches
+    //   At 96 DPI: 680px text width for proper page-fit layout.
     const QString path = normalizeReportPath(filePath);
     QPdfWriter writer(path);
+    writer.setResolution(96);  // match screen DPI for consistent font sizing
     writer.setPageSize(QPageSize(QPageSize::A4));
     writer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
     writer.setTitle(QStringLiteral("Network Diagnostic Report"));
 
     QTextDocument doc;
-    doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 10));
+    // 5WHY: 10pt default was too small for PDF reading. 12pt base font
+    // with 680px text width produces readable output on A4 pages.
+    doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 12));
+    doc.setTextWidth(680);  // fit A4 page width at 96 DPI
     doc.setHtml(html);
     doc.print(&writer);
     return QFile::exists(path) ? path : QString();
