@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <!-- NativePdfPageView.qml — mobile-only (iOS CGPDFDocument / Android PdfRenderer).
+             Isolated from main QRC to prevent qmlimportscanner from requiring the
+             NetDiagnostics QML type registration on desktop builds.
+             Pattern: same as resources_webview.qrc and resources_qtpdf.qrc. -->
+        <file>qml/widgets/NativePdfPageView.qml</file>
+    </qresource>
+</RCC>
