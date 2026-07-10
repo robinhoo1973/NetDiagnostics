@@ -6,12 +6,19 @@
 # ── Qt6 ─────────────────────────────────────────────────────────────────
 if(IOS OR ANDROID)
     find_package(Qt6 REQUIRED COMPONENTS
-        Core Concurrent Quick QuickControls2 Network
+        Core Concurrent Quick QuickControls2 Network WebView
     )
 else()
     find_package(Qt6 REQUIRED COMPONENTS
         Core Concurrent Quick QuickControls2 Widgets Network
     )
+    # QtWebView: in-app HTML report preview (optional — graceful fallback if missing)
+    find_package(Qt6 COMPONENTS WebView QUIET)
+    if(Qt6WebView_FOUND)
+        message(STATUS "QtWebView found — in-app HTML report preview enabled")
+    else()
+        message(STATUS "QtWebView not found — in-app HTML preview uses image fallback")
+    endif()
 endif()
 # LinguistTools: optional — only needed for .ts translation file compilation
 find_package(Qt6LinguistTools QUIET)

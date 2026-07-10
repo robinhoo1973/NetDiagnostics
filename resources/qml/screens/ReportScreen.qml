@@ -3,6 +3,7 @@ import "../theme"
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
+import QtWebView
 
 // ── Flutter ReportPreviewScreen 1:1 — with AppBar ─────────────────────
 Item {
@@ -31,13 +32,19 @@ Item {
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
-        // 5WHY: QML Text.RichText cannot render CSS/border-radius/inline-block
-        // styles, making the in-app HTML preview appear broken.  Instead:
-        // - Render the Qt Rich Text HTML to a QImage (C++ side via QTextDocument)
-        // - Display the image for pixel-perfect in-app preview
-        // - "Open in Browser" button for full CSS HTML (buildRichHtmlDocument)
-        var html = appState.buildReportHtml(fmt === "html", true)
-        previewImagePath = appState.renderPreviewImage(html, 760) || ""
+        if (fmt === "html") {
+            // 5WHY: QML Text.RichText cannot render CSS. QtWebView wraps the
+            // platform native web engine (Edge WebView2/WKWebView) which
+            // renders the shared HTML page perfectly — identical to browser.
+            var richHtml = appState.buildRichHtmlDocument()
+            var tmpPath = appState.defaultReportPath("html")
+            appState.exportHtml(tmpPath)
+            previewHtmlUrl = "file:///" + tmpPath
+        } else {
+            // PDF: render Qt Rich Text HTML to QImage for near-dashboard fidelity
+            var html = appState.buildReportHtml(false, true)
+            previewImagePath = appState.renderPreviewImage(html, 760) || ""
+        }
         previewVisible = true
     }
     function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }
@@ -248,24 +255,39 @@ Item {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     color: ThemeEngine.colors.surface; radius: 8; clip: true
                     border { width: 1; color: ThemeEngine.colors.borderCard }
+
+                    // ── HTML Preview: WebView renders full CSS perfectly ──
+                    // 5WHY: QML Text.RichText cannot render CSS, <style>
+                    // blocks, <details> elements, or border-radius. The
+                    // shared HTML page uses these features extensively.
+                    // QtWebView wraps the platform's native web engine
+                    // (Edge WebView2 / WKWebView / Android WebView) which
+                    // renders the exact same HTML as the browser.
+                    WebView {
+                        id: htmlWebView
+                        anchors { fill: parent; margins: 4 }
+                        visible: page.previewFormat === "html"
+                        url: previewHtmlUrl
+                    }
+
+                    // ── PDF Preview: QTextDocument→Image rendering ──────
+                    // 5WHY: QTextDocument supports the full Qt Rich Text
+                    // subset (tables, colors, borders) unlike QML Text,
+                    // giving near-dashboard fidelity.
                     Flickable {
-                        id: previewFlick
+                        id: pdfFlick
                         anchors { fill: parent; margins: 14 }
+                        visible: page.previewFormat !== "html"
                         clip: true
-                        contentWidth: previewImage.implicitWidth
-                        contentHeight: previewImage.implicitHeight
+                        contentWidth: pdfImage.implicitWidth
+                        contentHeight: pdfImage.implicitHeight
                         ScrollBar.vertical: ScrollBar {
-                            policy: ScrollBar.AsNeeded
-                            width: 6
+                            policy: ScrollBar.AsNeeded; width: 6
                             contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
                         }
-                        // 5WHY: QML Text.RichText cannot render CSS, border-radius,
-                        // or inline-block styles — the HTML preview appeared broken.
-                        // QTextDocument renders the full Qt Rich Text subset to a
-                        // QImage for pixel-perfect in-app preview.
                         Image {
-                            id: previewImage
-                            width: previewFlick.width
+                            id: pdfImage
+                            width: pdfFlick.width
                             fillMode: Image.PreserveAspectFit
                             source: previewImagePath
                             cache: false
@@ -273,22 +295,9 @@ Item {
                     }
                 }
                 property string previewImagePath: ""
+                property string previewHtmlUrl: ""
                 RowLayout {
                     Layout.fillWidth: true; Layout.topMargin: 4
-                    // Open HTML in external browser (full CSS support)
-                    PreviewBtn {
-                        visible: page.previewFormat === "html"
-                        Layout.fillWidth: true
-                        label: "Open in Browser"
-                        accent: ThemeEngine.accentBlue
-                        locked: false
-                        onClicked: {
-                            // Export to temp file and open in browser
-                            var tmpPath = appState.defaultReportPath("html")
-                            appState.exportHtml(tmpPath)
-                            Qt.openUrlExternally("file:///" + tmpPath)
-                        }
-                    }
                     PreviewBtn {
                         Layout.fillWidth: true
                         label: page.isMobile ? Tr.shareBtn : Tr.emailBtn
