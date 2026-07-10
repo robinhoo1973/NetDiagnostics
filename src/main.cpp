@@ -11,6 +11,7 @@
 #include <QIcon>
 #include <QTimer>
 #include <QStandardPaths>
+#include <QDir>
 #include <QLockFile>
 #include <csignal>
 #ifdef _WIN32
@@ -202,8 +203,25 @@ int main(int argc, char *argv[])
     STARTUP_LOG("engine.load() returned. rootObjects=%d", engine.rootObjects().size());
 
     if (engine.rootObjects().isEmpty()) {
+        // 5WHY: Silent crash on QML load failure — no diagnostic visible to
+        // the user on desktop. Previous crash fixes (d220a44, e44de87) added
+        // this pattern for QtWebView import failures in static builds.
+        // Capture the exact error and show a message box so the user can
+        // report the root cause instead of just seeing a flash-and-quit.
         STARTUP_LOG("FATAL: QML engine failed to load %s — no root objects", "qrc:/qml/main.qml");
         qCritical() << "QML engine failed to load" << url;
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+        QMessageBox::critical(nullptr, QStringLiteral("NetDiagnostics — Startup Error"),
+            QStringLiteral("Failed to load the QML UI.\n\n"
+            "This usually means a required Qt module is missing from your installation.\n"
+            "Check the startup log at: %1\n\n"
+            "Common causes:\n"
+            "• QtWebView or QtPdf module not installed\n"
+            "• Static build missing QML plugins\n"
+            "• Corrupted resources.qrc file")
+            .arg(QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+                 .filePath("NetDiagnostics_startup.log")));
+#endif
         return -1;
     }
     STARTUP_LOG("QML loaded successfully. Showing window.");
