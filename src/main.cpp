@@ -20,7 +20,9 @@
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 #include "platform/NativePdfDocument.h"
+#endif
 #include "util/DebugSwitch.h"
 #include "util/StartupLog.h"
 #ifdef ND_TESTING
