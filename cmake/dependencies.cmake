@@ -6,8 +6,9 @@
 # ── Qt6 ─────────────────────────────────────────────────────────────────
 if(IOS OR ANDROID)
     find_package(Qt6 REQUIRED COMPONENTS
-        Core Concurrent Quick QuickControls2 Network WebView
+        Core Concurrent Quick QuickControls2 Network
     )
+    find_package(Qt6 COMPONENTS WebView QUIET)
 else()
     find_package(Qt6 REQUIRED COMPONENTS
         Core Concurrent Quick QuickControls2 Widgets Network
