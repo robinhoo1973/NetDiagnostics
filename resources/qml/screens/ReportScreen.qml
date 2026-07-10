@@ -36,7 +36,11 @@ Item {
             // platform native web engine (Edge WebView2/WKWebView) which
             // renders the shared HTML page perfectly — identical to browser.
             // exportHtml() saves buildRichHtmlDocument() to disk.
-            previewHtmlPath = appState.exportHtml(appState.defaultReportPath("html"))
+            var path = appState.exportHtml(appState.defaultReportPath("html"))
+            previewHtmlPath = path
+            // Also generate image for fallback when WebView unavailable
+            var fbHtml = appState.buildReportHtml(true, true)
+            previewImagePath = appState.renderPreviewImage(fbHtml, 760) || ""
         } else {
             // PDF: render Qt Rich Text HTML to QImage for near-dashboard fidelity
             var html = appState.buildReportHtml(false, true)
@@ -260,13 +264,26 @@ Item {
                     // QtWebView wraps the platform's native web engine
                     // (Edge WebView2 / WKWebView / Android WebView) which
                     // renders the exact same HTML as the browser.
-                    // Loader prevents import crash on platforms without QtWebView.
+                    // 5WHY: inline Component { HtmlPreviewWebView {...} } does NOT
+                    // defer compilation — the QML engine resolves type names
+                    // and imports inside inline Components at parent-document
+                    // compile time, not at Loader activation time. This caused
+                    // startup crash (engine.rootObjects empty → return -1) on
+                    // platforms without QtWebView (e.g. MSYS2 static builds).
+                    // Fix: Loader with source URL defers BOTH compilation and
+                    // instantiation until active becomes true.
                     Loader {
                         id: htmlLoader
                         anchors { fill: parent; margins: 4 }
                         visible: page.previewFormat === "html"
                         active: page.previewFormat === "html" && hasWebView
-                        sourceComponent: htmlComponent
+                        source: "qrc:/qml/widgets/HtmlPreviewWebView.qml"
+                        onLoaded: {
+                            // Normalize path separators for file:// URL (Windows uses \)
+                            if (item) item.htmlUrl = previewHtmlPath
+                                ? "file:///" + previewHtmlPath.replace(/\\/g, "/")
+                                : ""
+                        }
                     }
                     // Fallback: QTextDocument→Image when WebView unavailable
                     Image {
@@ -301,17 +318,11 @@ Item {
                         }
                     }
                 }
-                // hasWebView comes from C++ context property (HAS_QTWEBVIEW define)
-                property bool hasWebView: (typeof hasWebView !== 'undefined') ? hasWebView : false
+                // hasWebView is a C++ context property (HAS_QTWEBVIEW define).
+                // Always set by main.cpp / main_simulator.cpp — no QML fallback needed.
                 property string previewImagePath: ""
                 property string previewHtmlPath: ""
 
-                // Separate component file isolates QtWebView import so the
-                // main ReportScreen.qml loads even when QtWebView is absent.
-                Component {
-                    id: htmlComponent
-                    HtmlPreviewWebView { htmlUrl: previewHtmlPath ? "file:///" + previewHtmlPath : "" }
-                }
                 RowLayout {
                     Layout.fillWidth: true; Layout.topMargin: 4
                     PreviewBtn {
