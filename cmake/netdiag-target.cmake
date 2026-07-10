@@ -118,11 +118,19 @@ function(configure_netdiag_target TARGET)
     # ── Static QML plugin import (required for static Qt builds) ──────
     # 5WHY: Without qt_import_qml_plugins(), static Qt builds cannot
     # resolve QML modules (QtQuick, QtQuick.Controls, etc.) at runtime.
-    # The app flashes and exits with "module not found" errors.
-    # qt6_finalize_executable() MUST be called first (Qt 6.2+ requirement)
-    # to finalize the target's QML source list before plugin scanning.
-    qt6_finalize_executable(${TARGET})
-    qt_import_qml_plugins(${TARGET})
+    # These functions only exist when Qt was built statically — on
+    # dynamic Qt (Homebrew, aqtinstall shared), they are not available
+    # and are not needed. Use if(COMMAND) guards for cross-platform safety.
+    if(COMMAND qt6_finalize_executable)
+        qt6_finalize_executable(${TARGET})
+    elseif(COMMAND qt_finalize_executable)
+        qt_finalize_executable(${TARGET})
+    endif()
+    if(COMMAND qt_import_qml_plugins)
+        qt_import_qml_plugins(${TARGET})
+    elseif(COMMAND qt6_import_qml_plugins)
+        qt6_import_qml_plugins(${TARGET})
+    endif()
 
     # ── Include paths ────────────────────────────────────────────────
     target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
