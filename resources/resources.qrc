@@ -66,5 +66,10 @@
         <file>fonts/JetBrainsMono-Bold.ttf</file>
         <file>fonts/DejaVuSansMono.ttf</file>
         <file>qtquickcontrols2.conf</file>
+        <file>config/windows.conf</file>
+        <file>config/linux.conf</file>
+        <file>config/macos.conf</file>
+        <file>config/ios.conf</file>
+        <file>config/android.conf</file>
     </qresource>
 </RCC>
