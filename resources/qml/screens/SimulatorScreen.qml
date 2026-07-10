@@ -24,6 +24,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
 import "../theme"
+import "../utils"
 import "../simulator"
 import "../"
 
