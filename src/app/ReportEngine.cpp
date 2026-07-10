@@ -403,7 +403,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     const QString kCss = cssThemeBlock
         + QStringLiteral(
         "*{margin:0;padding:0;box-sizing:border-box}"
-        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:24px}")
+        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:24px}"
         ".wrap{max-width:960px;margin:0 auto}"
         ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#1E293B,#0C4A6E);border-radius:14px;margin-bottom:26px}"
         ".header h1{font-size:26px;color:#22D3EE;margin-bottom:10px;letter-spacing:.5px}"
@@ -438,7 +438,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".analysis{background:#0f1629;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"
-        ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}";
+        ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}");
 
     // 5WHY: Unicode icons replaced with inline SVG <img> tags using base64
     // data URIs. The .card .icon CSS still applies font-size but we override
@@ -456,7 +456,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     h += QStringLiteral("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes\">\n"
         "<title>Network Diagnostic Report &mdash; %1</title>\n<style>").arg(data.timestamp);
-    h += QString::fromLatin1(kCss);
+    h += kCss;
     h += QStringLiteral("</style>\n</head>\n<body>\n<div class=\"wrap\">\n");
     h += QStringLiteral(
         "<div class=\"header\"><h1>Network Diagnostic Report</h1>"
