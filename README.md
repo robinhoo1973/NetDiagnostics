@@ -1,8 +1,22 @@
 # NetDiagnostics
 
-Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML and libcurl. Runs on **iOS, Android, Windows, macOS, and Linux**.
+<p align="center">
+  <b>Professional cross-platform network diagnostic toolkit</b><br/>
+  Built with Qt 6 / QML and libcurl<br/>
+  <sub>iOS &middot; Android &middot; Windows &middot; macOS &middot; Linux</sub>
+</p>
 
-[简体中文](README_zh_CN.md) | [繁體中文](README_zh_TW.md)
+[English](README.md) | [简体中文](README_zh_CN.md) | [繁體中文](README_zh_TW.md)
+
+## Screenshots
+
+<p align="center">
+  <img src="resources/doc/screenshot/ios/phone/6.5/dashboard.png" width="18%" alt="Dashboard" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/diagnostics.png" width="18%" alt="Diagnostics" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/config.png" width="18%" alt="Config" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/report.png" width="18%" alt="Report" />
+  <img src="resources/doc/screenshot/ios/phone/6.5/settings.png" width="18%" alt="Settings" />
+</p>
 
 ## Features
 
@@ -36,13 +50,13 @@ Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML an
 
 ## Supported Platforms
 
-| Platform | Arch | Status |
-|----------|------|--------|
-| iOS | arm64 | ✅ Full support (StoreKit IAP, share sheet, WiFi SSID) |
-| Android | arm64 | ✅ Full support (share sheet via FileProvider) |
-| Linux | arm64 / x86_64 | ✅ Full support |
-| Windows | x86_64 / ARM64 | ✅ Full support |
-| macOS | x86_64 / arm64 | ✅ Full support |
+| Platform | Arch | Notes |
+|----------|------|-------|
+| iOS | arm64 | StoreKit IAP, share sheet, WiFi SSID, native HTTP/DNS |
+| Android | arm64 / x86_64 | Share sheet via FileProvider, JNI native diagnostics |
+| Windows | x86_64 | Static (zero-DLL) and dynamic builds via MSYS2 UCRT64 |
+| macOS | arm64 | Universal binary, native Homebrew Qt 6 |
+| Linux | x86_64 / arm64 | AppImage + deb + rpm packages |
 
 ## Technology Stack
 
@@ -148,7 +162,12 @@ objdump -p build/net_diagnostics.exe | grep "DLL Name"
 
 ## CI/CD
 
-Automated multi-platform builds run on every push via GitHub Actions (`build.yml` and `apple.yml`). Covers Linux (x86_64/arm64), Windows (x86_64 static + dynamic), macOS (x86_64/arm64), iOS (arm64), and Android (arm64/x86_64). iOS TestFlight deployment is automated via `apple.yml`.
+Automated builds on every push via GitHub Actions.
+
+| Workflow | Platforms |
+|----------|-----------|
+| **build.yml** | Linux (x86_64 + arm64), Windows (x86_64 static + dynamic), macOS (arm64), Android (arm64 + x86_64) |
+| **apple.yml** | macOS (arm64 app bundle), iOS (arm64 → TestFlight) |
 
 ## In-App Purchase
 
