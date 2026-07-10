@@ -1,1 +1,21 @@
+# Build artifacts
+build/
 build-mockups/
+dist/
+*.log
+*.bak
+
+# IDE / tools
+.claude/
+.codewhale/
+.deepseek/
+.vscode/
+
+# Certificates & signing (sensitive)
+resources/cert/
+
+# Temp / review files
+review/
+crashes/
+commit_msg.txt
+AGENTS.md
