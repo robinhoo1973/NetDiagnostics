@@ -44,6 +44,20 @@ QString reportStatusColor(DiagStatus s) {
     }
 }
 
+// 5WHY: Reports used colored dots/circles instead of recognizable status
+// icons. Add color-matched Unicode icon glyphs that work in both Qt Rich
+// Text (buildHtml) and full-CSS (buildRichDocument) rendering.
+QString reportStatusIcon(DiagStatus s) {
+    switch (s) {
+        case DiagStatus::Pass:    return QStringLiteral("&#10003;");  // ✓ checkmark
+        case DiagStatus::Warning: return QStringLiteral("&#9888;");  // ⚠ warning
+        case DiagStatus::Fail:    return QStringLiteral("&#10007;");  // ✗ cross
+        case DiagStatus::Error:   return QStringLiteral("&#10007;");  // ✗ cross
+        case DiagStatus::Skipped: return QStringLiteral("&#8855;");  // ⊘ circle-slash
+        default:                  return QStringLiteral("&#8505;");   // ℹ info
+    }
+}
+
 QString reportStatusText(DiagStatus s) {
     switch (s) {
         case DiagStatus::Pass:    return QStringLiteral("Pass");
@@ -217,13 +231,21 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                 const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
                 const QString rowBg = alt ? bgRowAlt : bgRow;
+                // 5WHY: Reports showed only colored text, no status icons.
+                // Embed color-matched icon glyph next to status label.
+                const QString statusIcon = reportStatusIcon(r.status);
                 h += QStringLiteral(
                     "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid %6\">"
                     "<td style=\"padding:10px 9px\"><span style=\"font-size:13px;color:%2\"><b>%3</b></span></td>"
-                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%4\"><b>%5</b></span></td>"
+                    "<td style=\"padding:10px 9px\">"
+                    "<span style=\"font-size:14px;color:%4;margin-right:4px\">%9</span>"
+                    "<span style=\"font-size:12px;color:%4\"><b>%5</b></span></td>"
                     "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%7\">%8</span></td></tr>")
                     .arg(rowBg, textPrimary, name)
                     .arg(reportStatusColor(r.status), reportStatusText(r.status))
+                    .arg(borderColor, textSecondary)
+                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped(),
+                         statusIcon);
                     .arg(borderColor, textSecondary)
                     .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
                 alt = !alt;
@@ -380,11 +402,16 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
                 const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
                 ++idx;
+                // 5WHY: No status icons — only CSS badge with text. Add
+                // color-matched icon glyph for instant visual recognition.
+                const QString icon = reportStatusIcon(r.status);
                 h += QStringLiteral("<tr><td>%1</td><td>%2</td>"
-                    "<td><span class=\"badge %3\">%4</span></td><td>%5</td></tr>\n")
+                    "<td><span style=\"color:%6;margin-right:5px\">%7</span>"
+                    "<span class=\"badge %3\">%4</span></td><td>%5</td></tr>\n")
                     .arg(idx).arg(name)
                     .arg(reportStatusClass(r.status), reportStatusText(r.status))
-                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
+                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped(),
+                         reportStatusColor(r.status), icon);
             }
         }
     }

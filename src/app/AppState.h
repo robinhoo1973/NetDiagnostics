@@ -137,6 +137,9 @@ public:
     // Theme mode — 0=system, 1=light, 2=dark (matches ThemeEngine.sysMode/litMode/drkMode)
     int themeMode() const { return m_themeMode; }
     Q_INVOKABLE void setThemeMode(int mode);
+    // 5WHY: report share hardcoded light theme. Expose isDarkMode so all
+    // report generation paths use the same theme as the app UI.
+    Q_INVOKABLE bool isDarkMode() const { return m_themeMode != 1; }
 
     // ── Report export ────────────────────────────────────
     // buildReportHtml(false)=one-page summary; (true)=full detail per test.

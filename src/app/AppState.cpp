@@ -1140,7 +1140,10 @@ QString AppState::exportHtml(const QString& filePath) const {
 }
 
 QString AppState::exportPdf(const QString& filePath) const {
-    return ReportEngine::exportPdf(filePath, buildReportHtml(false));
+    // 5WHY: buildReportHtml(false) defaulted darkBackground=false (light)
+    // producing a PDF that looked completely different from the dark-themed
+    // in-app preview. Now uses isDarkMode() so shared PDF matches app theme.
+    return ReportEngine::exportPdf(filePath, buildReportHtml(true, isDarkMode()));
 }
 
 void AppState::requestSavePath(const QString& format) {
