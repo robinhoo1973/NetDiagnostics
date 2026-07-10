@@ -10,7 +10,6 @@
 struct PlatformPdfRenderer::Impl {
     CGPDFDocumentRef doc = nullptr;
     int pages = 0;
-    CFStringRef filePath = nullptr;
 };
 
 PlatformPdfRenderer::PlatformPdfRenderer() : d(new Impl) {}
