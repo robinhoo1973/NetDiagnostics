@@ -71,10 +71,12 @@ Item {
                                 { label: Tr.themeDark,   mode: ThemeEngine.drkMode }
                             ]
                             delegate: Rectangle {
-                                // Adaptive: fill available RowLayout space evenly (3 buttons × 6px gaps = 18px overhead)
+                                // Adaptive: fill available RowLayout space evenly
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 80
-                                implicitHeight: 36; radius: ThemeEngine.radius.md
+                                // 5WHY: Theme buttons were 36pt — below 44pt Apple HIG minimum.
+                                // Increased for accessible touch interaction.
+                                implicitHeight: 44; radius: ThemeEngine.radius.md
                                 color: ThemeEngine.mode === modelData.mode
                                        ? ThemeEngine.colors.primaryContainer : "transparent"
                                 border {
@@ -90,11 +92,20 @@ Item {
                                     color: ThemeEngine.mode === modelData.mode
                                            ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
                                 }
+                                // 5WHY: MouseArea-only controls lack keyboard accessibility
+                                // (WCAG 2.1 SC 2.1.1). Add Keys.onPressed for Enter/Space.
                                 MouseArea {
+                                    id: themeBtnArea
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        // Persist theme choice via AppState (survives restarts)
+                                        appState.themeMode = modelData.mode
+                                        ThemeEngine.mode = modelData.mode
+                                    }
+                                }
+                                activeFocusOnTab: true
+                                Keys.onPressed: function(event) {
+                                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
                                         appState.themeMode = modelData.mode
                                         ThemeEngine.mode = modelData.mode
                                     }
