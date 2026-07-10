@@ -19,6 +19,8 @@ Item {
 
     // Built-in preview overlay state
     property string previewFormat: ""     // "pdf" | "html"
+    property string previewImagePath: ""   // rendered fallback image path
+    property string previewHtmlPath: ""    // exported HTML file path
     property string previewHtml: ""
     property bool previewVisible: false
     property string toast: ""             // transient status message
@@ -330,8 +332,9 @@ Item {
                 }
                 // hasWebView is a C++ context property (HAS_QTWEBVIEW define).
                 // Always set by main.cpp / main_simulator.cpp — no QML fallback needed.
-                property string previewImagePath: ""
-                property string previewHtmlPath: ""
+                // previewImagePath / previewHtmlPath are declared at page scope
+                // (line 22-23) so openPreview() and the Loader/Image share the
+                // same property — no scope mismatch.
 
                 RowLayout {
                     Layout.fillWidth: true; Layout.topMargin: 4
