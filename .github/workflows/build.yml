@@ -431,22 +431,20 @@ jobs:
           CURL_STATIC_LIBS="$(pkg-config --static --libs libcurl 2>/dev/null || echo "")"
           echo ">>> curl static libs: ${CURL_STATIC_LIBS}"
 
-          # ── Fully static link strategy ───────────────────────────────
-          # g++ always adds runtime libs (-lstdc++ -lgcc_s -lwinpthread
-          # -lmingw32 -lmingwex -lmoldname) at the VERY end via internal
-          # specs, using -Bdynamic.  No combination of -static, -Wl,-Bstatic,
-          # or -l:NAME.a in CMAKE_EXE_LINKER_FLAGS can override them because
-          # g++''s spec-injected flags come AFTER everything we specify.
+          # ── Fully static link — aggressive -Bstatic sandwich ───────────
+          # Strategy: -Wl,-Bstatic at start absorbs our explicit third-party
+          # libs.  -Wl,-Bstatic at end ensures CMake-added libs (including
+          # find_package(CURL) -lcurl) are also static.  g++ runtime libs
+          # (libstdc++, libwinpthread) come after everything via g++ internal
+          # specs and cannot be overridden from CMAKE_EXE_LINKER_FLAGS alone.
+          # We add -L/ucrt64/lib first so -l:libstdc++.a / -l:libwinpthread.a
+          # resolve before g++'s trailing dynamic -lstdc++/-lwinpthread do.
           #
-          # Solution: -nodefaultlibs prevents g++ from injecting ANY implicit
-          # libraries.  We then manually add EVERY library in the correct
-          # order, wrapping third-party libs in -Wl,-Bstatic and Windows OS
-          # libs in -Wl,-Bdynamic.  This is the ONLY approach that gives us
-          # full control over the link line.
-          RUNTIME_STATIC="-Wl,-Bstatic -lstdc++ -lgcc -lgcc_eh -lwinpthread -lmingw32 -lmingwex -lmoldname -Wl,-Bdynamic"
-          SYSTEM_LIBS="-ladvapi32 -lshell32 -luser32 -lkernel32 -lgdi32 -lcomdlg32 -lole32 -loleaut32 -lws2_32 -luuid"
-          echo ">>> runtime static: ${RUNTIME_STATIC}"
-          echo ">>> system libs:   ${SYSTEM_LIBS}"
+          # 5WHY: g++ specs inject -lstdc++ -lwinpthread dynamically at end
+          # → these are TOOLCHAIN RUNTIME DLLs, unavoidable without rebuilding
+          # GCC from source.  All OTHER third-party DLLs (libcurl, libssl,
+          # libcrypto, libiconv, zlib, libzstd, libbrotli, libidn2, libpsl,
+          # libssh2, libnghttp2, libunistring) ARE absorbed by -Bstatic.
 
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -454,7 +452,7 @@ jobs:
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-nodefaultlibs -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpthread ${CURL_STATIC_LIBS} -liconv ${RUNTIME_STATIC} ${SYSTEM_LIBS} -Wl,--gc-sections"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L/ucrt64/lib -Wl,-Bstatic -l:libstdc++.a -l:libwinpthread.a -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections -Wl,-Bstatic"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
