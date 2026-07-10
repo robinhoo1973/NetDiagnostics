@@ -114,12 +114,10 @@ endif()
 	list(APPEND SOURCES src/platform/NativePdfDocument.cpp)
 	if(APPLE AND NOT IOS)
 		list(APPEND SOURCES src/platform/PlatformPdfRenderer_macos.mm)
-	elseif(WIN32)
-		list(APPEND SOURCES src/platform/PlatformPdfRenderer.cpp)
 	elseif(ANDROID)
-		# Already handled above
+		# Already handled in if(ANDROID) block above
 	else()
-		# Linux
+		# Windows / Linux -- stub renderer (QtPdf or image fallback)
 		list(APPEND SOURCES src/platform/PlatformPdfRenderer.cpp)
 	endif()
 
