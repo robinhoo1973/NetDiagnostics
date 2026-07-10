@@ -49,27 +49,31 @@ Item {
                             }
                             contentItem: RowLayout {
                                 spacing: 3
-                                // Activation toggle indicator (click to toggle active/inactive)
+                                // 5WHY: Clicking the tab BOTH toggled group activation AND
+                                // switched tabs — conflating navigation with configuration.
+                                // Now: green dot toggles activation; tab label navigates.
                                 Rectangle {
-                                    Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 5
-                                    // 5WHY: isGroupActive binding was stale in Repeater
-                                    // delegate — configPollVersion forces re-evaluation
-                                    // when group active state changes.
+                                    Layout.preferredWidth: 14; Layout.preferredHeight: 14; radius: 7
                                     color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
                                     border { width: 1; color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted } }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        anchors.margins: -4  // expand hit area for touch
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            let _ = configPollVersion
+                                            appState.setGroupActive(index, !appState.isGroupActive(index))
+                                        }
+                                    }
                                 }
                                 Label {
                                     text: "G" + (index + 1)
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                     font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
-                                    // 5WHY: isGroupActive binding was stale in Repeater
-                                    // delegate — configPollVersion forces re-evaluation
-                                    // when group active state changes.
                                     color: { let _ = configPollVersion; return appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textPrimary) : ThemeEngine.textMuted }
                                 }
                             }
                             onClicked: {
-                                appState.setGroupActive(index, !appState.isGroupActive(index))
                                 currentGroup = index
                             }
                         }

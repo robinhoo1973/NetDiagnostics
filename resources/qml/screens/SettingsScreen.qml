@@ -333,28 +333,13 @@ Item {
         Label { text: title; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
     }
 
-    component LangBtn: Rectangle {
-        property string label: ""; property bool selected: false; property string code: ""
-        implicitHeight: 52; radius: 8
-        color: selected ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
-        border { width: selected ? 1.5 : 1; color: selected ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
-        ColumnLayout {
-            anchors.centerIn: parent; spacing: 2
-            Label { anchors.horizontalCenter: parent.horizontalCenter; text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: selected ? Font.DemiBold : Font.Medium; color: selected ? ThemeEngine.accentBlue : ThemeEngine.textPrimary }
-            Label { anchors.horizontalCenter: parent.horizontalCenter; text: code; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: selected ? Qt.alpha(ThemeEngine.accentBlue, 0.6) : ThemeEngine.textSecondary }
-        }
-    }
+    // 5WHY: LangBtn and SmtpField were defined but never instantiated — dead code.
+    // LangBtn: reserved for future language selector grid (currently using ComboBox).
+    // SmtpField: reserved for future SMTP configuration section.
+    // Removed to reduce QML component registry overhead and maintenance burden.
 
-    component SmtpField: ColumnLayout {
-        property string label: ""; property string placeholder: ""
-        Label { text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Medium; color: ThemeEngine.textSecondary }
-        Item { Layout.preferredHeight: 4 }
-        Rectangle {
-            Layout.fillWidth: true; implicitHeight: 36; radius: 6
-            color: Qt.alpha(ThemeEngine.bgDark, 0.6); border { width: 1; color: ThemeEngine.colors.borderCard }
-            Label { anchors { fill: parent; leftMargin: 12; rightMargin: 12 } text: placeholder; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.textSecondary, 0.6); verticalAlignment: Text.AlignVCenter }
-        }
-    }
+    // component LangBtn: Rectangle { ... } — removed (unused)
+    // component SmtpField: ColumnLayout { ... } — removed (unused)
 
     component AboutRow: RowLayout {
         property string aboutIcon: ""; property string aboutText: ""

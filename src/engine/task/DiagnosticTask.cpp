@@ -86,6 +86,6 @@ void DiagnosticTask::onWatchdogTimeout() {
     // may still be executing run() using this object. Self-deletion is
     // deferred to onFutureFinished(), which fires once run() returns.
     if (!m_finishedEmitted.exchange(true)) {
-        emit finished(DiagnosticResult::timeout(m_id, group(), m_timeoutMs));
+        emit finished(DiagnosticResult::timeout(m_id, m_timeoutMs));
     }
 }
