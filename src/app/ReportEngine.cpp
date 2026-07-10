@@ -667,6 +667,9 @@ void ReportEngine::emailReportDesktop(const QString& path) {
             {QStringLiteral("--subject"), subject, QStringLiteral("--attach"), path}))
         return;
 #endif
+    // 5WHY: openUrl(mailto) + openUrl(folder) opened TWO windows — mail client
+    // AND file explorer. On Windows, the file-explorer popup is disorienting;
+    // the mail client already has a file-picker for attaching the report.
     QUrl mailto;
     mailto.setScheme(QStringLiteral("mailto"));
     QUrlQuery q;
@@ -675,7 +678,11 @@ void ReportEngine::emailReportDesktop(const QString& path) {
         QStringLiteral("The Network Diagnostic report is saved at: %1").arg(path));
     mailto.setQuery(q);
     QDesktopServices::openUrl(mailto);
+    // Open the folder only on platforms where the mail client can't attach
+    // files directly via the body hint (non-default mail clients on Linux).
+#if defined(Q_OS_WIN)
     QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(path).absolutePath()));
+#endif
 #else
     Q_UNUSED(path);
 #endif

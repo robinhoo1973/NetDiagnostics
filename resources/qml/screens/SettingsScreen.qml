@@ -112,7 +112,7 @@ Item {
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: langCol.implicitHeight + 32; radius: 12
-                color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: langCol
                     anchors { fill: parent; margins: 16 } spacing: 0
@@ -173,7 +173,7 @@ Item {
                             width: langCombo.width
                             height: Math.min(implicitHeight, 280)
                             padding: 4
-                            background: Rectangle { radius: 8; color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard } }
+                            background: Rectangle { radius: 8; color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard } }
                             contentItem: ListView {
                                 clip: true; implicitHeight: contentHeight
                                 model: langCombo.popup.visible ? langCombo.delegateModel : null
@@ -197,7 +197,7 @@ Item {
                 Item { Layout.preferredHeight: 12 }
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: restoreBtnCol.implicitHeight + 32; radius: 12
-                    color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                    color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                     ColumnLayout {
                         id: restoreBtnCol
                         anchors { fill: parent; margins: 16 } spacing: 0
@@ -248,7 +248,7 @@ Item {
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: aboutCol.implicitHeight + 32; radius: 12
-                color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: aboutCol
                     anchors { fill: parent; margins: 16 } spacing: 0

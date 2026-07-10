@@ -66,15 +66,18 @@ ApplicationWindow {
         anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 12 }
         width: 32; height: 32; radius: 6
         color: "transparent"
-        Label {
+        // 5WHY: Unicode "×" renders inconsistently across fonts/platforms
+        // (some show as tofu □). Use AppIcon "close" SVG for consistency.
+        AppIcon {
             anchors.centerIn: parent
-            text: "×"  // × multiplication sign (bold cross)
-            font.family: ThemeEngine.fontMono; font.pixelSize: 20
-            font.weight: Font.Bold; color: ThemeEngine.colors.textSecondary
+            name: "close"; size: 18
+            color: closeArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textSecondary
         }
         MouseArea {
+            id: closeArea
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
+            hoverEnabled: true
             onClicked: root.close()
         }
     }
