@@ -23,7 +23,10 @@
         <file>qml/widgets/AppIcon.qml</file>
         <file>qml/widgets/SummaryCards.qml</file>
         <file>qml/widgets/DiagnosticToolbar.qml</file>
-        <file>qml/widgets/HtmlPreviewWebView.qml</file>
+        <!-- HtmlPreviewWebView.qml EXCLUDED: imports QtWebView which is
+             unavailable in static Qt builds. qmlimportscanner would find
+             the import and require the plugin at runtime, causing a crash.
+             ReportScreen.qml falls back to Image when WebView is absent. -->
         <file>qml/widgets/TargetAnalysisPanel.qml</file>
         <file>icons/check.svg</file>
         <file>icons/circle.svg</file>
