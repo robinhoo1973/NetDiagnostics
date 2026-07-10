@@ -41,7 +41,9 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
     CGPDFPageRef page = CGPDFDocumentGetPage(d->doc, pageIndex + 1); // 1-indexed
     if (!page) return {};
     CGRect pageRect = CGPDFPageGetBoxRect(page, kCGPDFMediaBox);
-    float scale = (float)width / pageRect.size.width;
+    // 5WHY: Corrupt PDF with zero-width page → division by zero → inf/nan.
+    if (pageRect.size.width <= 0.0f) return {};
+    float scale = (float)width / (float)pageRect.size.width;
     int height = (int)(pageRect.size.height * scale);
     if (height < 1) height = 1;
 
