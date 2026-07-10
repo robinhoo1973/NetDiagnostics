@@ -359,6 +359,30 @@ jobs:
               "$dylib"
           done
           echo "[OK] standalone dylibs signed"
+          # 5WHY: QtWebEngine bundles a helper .app (QtWebEngineProcess.app)
+          # inside QtWebEngineCore.framework. Apple requires ALL executables,
+          # including nested .app bundles, to be signed with App Sandbox
+          # entitlements for TestFlight/App Store distribution.
+          # Fix: sign nested .app bundles with the same entitlements as the
+          # main app (inside-out: nested .apps → binary → main .app).
+          find "$APP/Contents" -name "*.app" -type d | while read nested; do
+            # The nested app's inner binary must be signed first
+            NESTED_BIN="$nested/Contents/MacOS"
+            if [ -d "$NESTED_BIN" ]; then
+              find "$NESTED_BIN" -type f -perm +111 | while read exe; do
+                codesign --force --options runtime --timestamp \
+                  --entitlements resources/macos.entitlements \
+                  --sign "$CODE_ID" --keychain "$KCHAIN" \
+                  "$exe"
+              done
+            fi
+            # Sign the nested .app bundle
+            codesign --force --options runtime --timestamp \
+              --entitlements resources/macos.entitlements \
+              --sign "$CODE_ID" --keychain "$KCHAIN" \
+              "$nested"
+          done
+          echo "[OK] nested .app bundles signed"
           # Sign inner binary first (required before signing the .app bundle)
           BIN="$APP/Contents/MacOS/net_diagnostics"
           if [ -f "$BIN" ]; then
