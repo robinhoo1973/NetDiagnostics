@@ -42,104 +42,27 @@ Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML an
 | Windows | x86_64 / ARM64 | ✅ Full support |
 | macOS | x86_64 / arm64 | ✅ Full support |
 
-## Project Structure
+## Technology Stack
 
-```
-├── CMakeLists.txt              # Build configuration
-├── README.md
-├── doc/
-│   ├── PROJECT_CHANGES.md      # File manifest & change log
-│   └── app-store-localization.txt  # App Store listing (9 languages)
-├── scripts/
-│   ├── build-all.sh            # Multi-platform build system
-│   ├── build-static.ps1        # Static build (Windows)
-│   ├── generate-icons.sh       # Icon generation
-│   └── toolchain/              # CMake toolchain files
-├── src/
-│   ├── main.cpp                # Production entry point
-│   ├── main_simulator.cpp      # Simulator entry point
-│   ├── app/
-│   │   ├── AppState.h/.cpp       # Central state & diagnostic orchestration
-│   │   ├── DiagnosticConfig.h/.cpp # Per-test enable/disable configuration
-│   │   ├── ReportEngine.h/.cpp   # HTML/PDF report generation with dark theme
-│   │   ├── PremiumStore.h/.cpp   # In-app purchase management
-│   │   ├── NativeService.h/.cpp
-│   │   └── PremiumManager.h/.cpp
-│   ├── engine/
-│   │   ├── PlatformShare_ios.mm / PlatformShare_android.cpp
-│   │   ├── PlatformStore_ios.mm          # iOS StoreKit IAP
-│   │   ├── IosWiFiHelper.mm              # iOS WiFi SSID access
-│   │   ├── diagnostics/
-│   │   │   ├── G1G2G3Native.h/.cpp       # G1/G2/G3 native diagnostics
-│   │   │   ├── G4RemoteHost.h/.cpp       # G4 remote host tests
-│   │   │   ├── NetworkProbe.h/.cpp       # Raw socket / SSL probe utilities
-│   │   │   ├── G5/
-│   │   │   │   ├── G5WebsiteUrl.h        # G5 function declarations
-│   │   │   │   ├── G5Common.h/.cpp       # Shared G5 helpers (curl HTTP)
-│   │   │   │   ├── G5UrlParsing.cpp through G5EmailDiagnostics.cpp
-│   │   │   │   └── G5Telnet.cpp through G5Mqtt.cpp  # 7 protocol diagnostics
-│   │   │   └── G1/ G2/ G3/ G4/          # Group-specific diagnostic files
-│   │   └── task/
-│   │       ├── DiagnosticTask.h/.cpp     # Task abstraction
-│   │       ├── GenericTask.h/.cpp        # Generic async task wrapper
-│   │       ├── TaskFactory.h/.cpp        # DiagId → task mapping
-│   │       ├── IosHttpTask.mm            # iOS NSURLSession HTTP
-│   │       ├── IosDnsTask.mm             # iOS DNSService DNS
-│   │       ├── IosNetworkInfo.mm         # iOS network info
-│   │       └── AndroidNetworkInfo.cpp    # Android JNI network info
-│   ├── models/
-│   │   ├── DiagnosticResult.h/.cpp  # Immutable result struct
-│   │   ├── DiagId.h                 # Test IDs, groups, statuses (38 tests)
-│   │   └── ResultProperty.h         # Key-value result properties
-│   └── util/
-│       ├── DebugSwitch.h            # Trace macros
-│       ├── Logger.h/.cpp            # File-based debug logger
-│       ├── PingParser.h/.cpp        # Ping output parser
-│       ├── DnsResolver.h/.cpp       # DNS resolution utility
-│       ├── DiagnosticFormatter.h/.cpp  # Dig-style output formatter
-│       ├── PlatformShare.h          # Cross-platform share abstraction
-│       └── PlatformStore.h          # Cross-platform IAP abstraction
-├── resources/
-│   ├── resources.qrc               # Qt resource file
-│   ├── Info.plist                   # iOS bundle metadata
-│   ├── NetDiagnostic.entitlements   # iOS code-signing entitlements
-│   ├── netanalysis.rc              # Windows resource (icon embed)
-│   ├── icons/                       # SVG/PNG/ICO app + status icons
-│   ├── fonts/                       # JetBrains Mono + DejaVu Sans Mono
-│   ├── qml/
-│   │   ├── main.qml                 # Main window
-│   │   ├── AppContent.qml           # Content layout
-│   │   ├── theme/
-│   │   │   ├── AppTheme.qml         # Theme constants (C++ injected)
-│   │   │   ├── Translations.qml     # 9-language translations
-│   │   │   └── qmldir
-│   │   ├── screens/
-│   │   │   ├── DashboardScreen.qml  # Overview dashboard
-│   │   │   ├── DiagnosticScreen.qml # Diagnostic tree view
-│   │   │   ├── ConfigScreen.qml     # Test selection
-│   │   │   ├── ReportScreen.qml     # Report preview + share/Premium flow
-│   │   │   ├── SettingsScreen.qml   # App settings + restore purchases
-│   │   │   └── SimulatorScreen.qml  # Device frame simulator
-│   │   └── widgets/
-│   │       ├── AppIcon.qml          # SVG icon component
-│   │       ├── DiagGroupPanel.qml   # Expandable group panel
-│   │       ├── DiagResultItem.qml   # Individual test result row
-│   │       ├── LiveProgressPanel.qml
-│   │       ├── PortScanConfig.qml
-│   │       ├── SummaryCards.qml
-│   │       ├── TargetAnalysisPanel.qml
-│   │       └── TargetInputPanel.qml
-│   ├── android/
-│   │   ├── AndroidManifest.xml
-│   │   └── res/xml/file_paths.xml   # FileProvider for share sheet
-│   └── Assets.xcassets/             # iOS app icon
-├── tests/
-│   ├── CMakeLists.txt
-│   └── test_engine_quick.cpp
-└── .github/workflows/
-    ├── build.yml                    # CI/CD builds
-    └── deploy-testflight.yml        # Automated TestFlight deployment
-```
+**Core Framework:** Qt 6 (C++17) — Core, Concurrent, Quick, QuickControls2, Widgets, Network
+
+**UI Layer:** QML with custom dark theme engine, 9-language i18n via Qt Linguist
+
+**Network Libraries:**
+- **libcurl** — HTTP/HTTPS diagnostics on desktop (transfer, headers, timing, compression)
+- **QSslSocket** — SSL/TLS certificate inspection with full X.509 chain extraction
+- **QTcpSocket** — Raw TCP connect, service banner, and 7 per-scheme protocol diagnostics
+- **Native socket APIs** — `winsock2` (Windows), POSIX sockets (Linux/macOS), Network framework (iOS)
+
+**Platform SDKs:**
+- **iOS** — NetworkExtension, CoreLocation, CoreTelephony, StoreKit, CFNetwork, NSURLSession
+- **Android** — JNI wrappers for ConnectivityManager, WifiManager, TelephonyManager, `HttpURLConnection`
+- **Windows** — WLAN API, IP Helper API, WinHTTP, WinSock2
+- **macOS** — SystemConfiguration, CoreWLAN, IOKit
+
+**Build System:** CMake 3.22+ with Ninja generator; CI/CD via GitHub Actions (build.yml + apple.yml)
+
+**Fonts:** JetBrains Mono (UI), DejaVu Sans Mono (box-drawing glyphs for tree-view diagnostics)
 
 ## Build
 
@@ -223,39 +146,11 @@ objdump -p build/net_diagnostics.exe | grep "DLL Name"
 
 ## CI/CD
 
-Automated builds via `.github/workflows/build.yml` for every push and PR:
-
-| Platform | Arch | Compiler | Simulator |
-|----------|------|----------|-----------|
-| Linux | x86_64 / arm64 | GCC | ✅ |
-| Windows | x86_64 / ARM64 | mingw-w64 / LLVM-MinGW | ✅ |
-| macOS | x86_64 / arm64 | Apple Clang | ✅ |
-
-## Deployment (iOS TestFlight)
-
-Automated via `.github/workflows/deploy-testflight.yml`.
-
-**Required GitHub Secrets:**
-
-| Secret | Source |
-|--------|--------|
-| `APPSTORE_CONNECT_ISSUER_ID` | App Store Connect → Users and Access → Integrations → Keys |
-| `APPSTORE_CONNECT_KEY_ID` | Same page |
-| `APPSTORE_CONNECT_API_KEY` | Downloaded `.p8` file |
-| `IOS_TEAM_ID` | developer.apple.com/account → Membership |
-| `IOS_DISTRIBUTION_CERT_BASE64` | `base64 -i dist.p12` |
-| `IOS_DISTRIBUTION_CERT_PASSWORD` | .p12 export password |
-
-See the workflow file for full details.
+Automated multi-platform builds run on every push via GitHub Actions (`build.yml` and `apple.yml`). Covers Linux (x86_64/arm64), Windows (x86_64 static + dynamic), macOS (x86_64/arm64), iOS (arm64), and Android (arm64/x86_64). iOS TestFlight deployment is automated via `apple.yml`.
 
 ## In-App Purchase
 
-The app includes a **non-consumable Premium** IAP (Product ID: `com.netdiagnostic.app.premium`) that unlocks report sharing. Implementation:
-
-- **iOS**: StoreKit via `SKProductsRequest` + `SKPaymentQueue` (`src/engine/PlatformStore_ios.mm`)
-- **Restore**: `restoreCompletedTransactions` with error/no-purchase distinction
-- **Persistence**: `QSettings` for offline unlock survival; manual Restore Purchases button in Settings
-- **Sandbox testing**: App Store Connect → Sandbox Testers → test account
+A **non-consumable Premium** IAP (Product ID: `com.netdiagnostic.app.premium`) unlocks report sharing via the OS share sheet or email. Built with StoreKit on iOS and persisted through `QSettings` for offline unlock survival. Sandbox-tested through App Store Connect Sandbox Testers.
 
 ## Dependencies
 
