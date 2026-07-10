@@ -2,6 +2,8 @@
 // 5WHY: "PDF Preview" was a QTextDocument→QImage PNG rendering, not a
 // real PDF. Users had no page breaks, text selection, or page navigation.
 // This uses PdfScrollablePageView from QtQuick.Pdf to display the actual
+// (not PdfMultiPageView — PdfScrollablePageView supports renderScale,
+// maximumScaleFactor, and single-page navigation natively)
 // generated PDF with native rendering, pinch-to-zoom, and page controls.
 import QtQuick
 import QtQuick.Controls

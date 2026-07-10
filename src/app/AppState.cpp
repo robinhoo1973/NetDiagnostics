@@ -1167,8 +1167,13 @@ void AppState::openHtmlExternally() const {
 }
 
 QString AppState::generatePreviewPdf() const {
+    // 5WHY: Fixed filename meant PdfDocument.source URL never changed
+    // across re-generations (e.g. theme toggle). PdfDocument only reloads
+    // when the source URL string changes, not the file content.
+    // Timestamped filename ensures each generation produces a unique URL.
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
     const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-        .filePath(QStringLiteral("NetDiagnostics_preview.pdf"));
+        .filePath(QStringLiteral("NetDiagnostics_preview_%1.pdf").arg(stamp));
     const QString saved = exportPdf(path);
     if (saved.isEmpty()) return {};
     return QUrl::fromLocalFile(saved).toString();

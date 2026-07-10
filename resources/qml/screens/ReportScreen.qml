@@ -61,13 +61,14 @@ Item {
             // then got a detailed PDF — preview didn't represent output.
             // Now both use fullDetail=true for content parity.
             var html = appState.buildReportHtml(true, darkBg)
-            previewImagePath = appState.renderPreviewImage(html, 760) || ""
-            // 5WHY: When QtPdf is available, also generate the real PDF
-            // for in-app viewing with PdfMultiPageView (page breaks,
-            // text selection, native zoom). This IS the file that gets
-            // shared — true WYSIWYG preview.
+            // 5WHY: When QtPdf is available, generate the real PDF for
+            // in-app viewing with PdfScrollablePageView. Skip the image
+            // render — it's wasted ~300ms when PdfPreviewView is visible.
+            // The PDF IS the preview; no fallback image needed.
             if (hasQtPdf) {
                 previewPdfPath = appState.generatePreviewPdf() || ""
+            } else {
+                previewImagePath = appState.renderPreviewImage(html, 760) || ""
             }
         }
         previewVisible = true
