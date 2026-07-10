@@ -30,6 +30,20 @@ DiagnosticResult traceroute(const QString& target) {
     QElapsedTimer t; t.start();
     int hopCount = 0, timeoutHops = 0; bool reached = false; bool blocked = false;
 
+    // RTT formatter — fixed 8-char width for consistent column alignment.
+    // "<1 ms" case uses 3 leading spaces (= 8 chars total) to match the
+    // "%1 ms".arg(ms, 5) format which produces "  NNN ms" (also 8 chars).
+    // This ensures timeout * * * placeholders (8-char) align with all RTT values.
+    auto fmtRtt = [](int ms) -> QString {
+        if (ms < 1) return QStringLiteral("   <1 ms");  // 3 spaces + "<1 ms" = 8 chars
+        return QStringLiteral("%1 ms").arg(ms, 5);      // 5-char right-padded number + " ms" = 8 chars
+    };
+    // Hop line builder — shared format eliminates duplicated format strings
+    auto fmtHop = [](int ttl, const QString& rtt, const QString& name, const QString& ip) -> QString {
+        return QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
+            .arg(ttl, 2).arg(rtt).arg(rtt).arg(rtt).arg(name).arg(ip);
+    };
+
     for (int ttl = 1; ttl <= 30 && !reached; ++ttl) {
         int rttMs = 0; QString hopIp;
         int res = tcpTraceHop(host, ttl, rttMs, hopIp);
@@ -38,19 +52,15 @@ DiagnosticResult traceroute(const QString& target) {
         if (res == 0) {
             // Reached target
             reached = true;
-            QString rttStr = (rttMs < 1) ? QStringLiteral("  <1 ms")
-                : QStringLiteral("%1 ms").arg(rttMs, 5);
-            lines.append(QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
-                .arg(ttl, 2).arg(rttStr).arg(rttStr).arg(rttStr)
-                .arg(host).arg(targetIpStr));
+            QString rttStr = fmtRtt(rttMs);
+            lines.append(fmtHop(ttl, rttStr, host, targetIpStr));
             TRACE(" traceroute TTL=%d: REACHED %s [%s] %dms\n",
                 ttl, host.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs);
         } else if (res == 1 || res == 2) {
             // res 1 = intermediate router (ICMP Time Exceeded).
             // res 2 = a non-target router replied Destination Unreachable and is
             //         filtering the path (e.g. corporate proxy / admin-prohibited).
-            QString rttStr = (rttMs < 1) ? QStringLiteral("  <1 ms")
-                : QStringLiteral("%1 ms").arg(rttMs, 5);
+            QString rttStr = fmtRtt(rttMs);
             // Resolve reverse DNS for the hop IP
             QString hopName = hopIp;
             struct sockaddr_in sa; memset(&sa, 0, sizeof(sa));
@@ -60,9 +70,7 @@ DiagnosticResult traceroute(const QString& target) {
             if (getnameinfo((struct sockaddr*)&sa, sizeof(sa), hbuf, sizeof(hbuf),
                             nullptr, 0, 0) == 0 && hbuf[0])
                 hopName = QString::fromLatin1(hbuf);
-            lines.append(QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
-                .arg(ttl, 2).arg(rttStr).arg(rttStr).arg(rttStr)
-                .arg(hopName).arg(hopIp));
+            lines.append(fmtHop(ttl, rttStr, hopName, hopIp));
             TRACE(" traceroute TTL=%d: hop %s [%s] %dms%s\n",
                 ttl, hopName.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs,
                 res == 2 ? " (filtered)" : "");
@@ -76,9 +84,12 @@ DiagnosticResult traceroute(const QString& target) {
                 break;
             }
         } else {
-            // Timeout
+            // Timeout — use fixed-width RTT columns (8 chars each + 2-space gap)
+            // to align * markers with RTT values in normal hop lines.
             ++timeoutHops;
-            lines.append(QStringLiteral(" %1     *        *        *     Request timed out.").arg(ttl, 2));
+            QString star = QStringLiteral("       *");  // 7 spaces + "*" = 8 chars
+            lines.append(QStringLiteral(" %1  %2  %3  %4     Request timed out.")
+                .arg(ttl, 2).arg(star).arg(star).arg(star));
             TRACE(" traceroute TTL=%d: timeout (total=%d)\n", ttl, timeoutHops);
             if (timeoutHops > 15) {
                 lines.append(QStringLiteral(" ... (firewall may be blocking probes after hop %1)").arg(ttl));

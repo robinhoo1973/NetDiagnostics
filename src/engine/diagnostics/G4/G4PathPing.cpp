@@ -21,38 +21,30 @@ DiagnosticResult pathPing(const QString& target) {
     // ...
     auto tr = traceroute(target);
 
-    // Parse hop IPs from traceroute rawOutput
-    // Lines look like: " %1  %2  %3  %4  %5 [%6]" (Windows tracert format)
-    // or: " %1     *        *        *     Request timed out."
-    struct HopEntry { int ttl; QString ip; QString name; int rttMs; bool reached; };
+    // Parse hop data from traceroute output.
+    // Our traceroute format: " %1  %2  %3  %4  %5 [%6]"
+    //   → "  N   RTT   RTT   RTT   hostname [IP]"
+    // We use a targeted regex to extract TTL (first number) and IP (in [brackets])
+    // rather than PingParser::parseTraceroute() which was designed for external
+    // Windows tracert.exe output that lacks per-hop hostname resolution.
+    struct HopEntry { int ttl; QString ip; QString name; bool reached; };
     QVector<HopEntry> hops;
-    // Hop 0 = local (not in traceroute output)
-    hops.append({0, QString(), QStringLiteral("localhost"), 0, false});
+    hops.append({0, QString(), QStringLiteral("localhost"), false});
 
+    static const QRegularExpression hopRe(
+        R"(^\s*(\d+)\s+.*\[([\d.]+)\])",
+        QRegularExpression::MultilineOption
+    );
     int hopCount = 0; bool reached = false;
-    for (const QString& line : tr.rawOutput.split('\n')) {
-        QString trimmed = line.trimmed();
-        if (trimmed.isEmpty() || trimmed.startsWith("Tracing") || trimmed.startsWith("over") ||
-            trimmed.startsWith("Trace") || trimmed.startsWith("...") || trimmed.startsWith("Target")) continue;
-        // Match "[IP]" at end of non-timeout lines
-        auto rb = line.indexOf('[');
-        if (rb > 0) {
-            auto re = line.indexOf(']', rb);
-            if (re > rb) {
-                QString hopIp = line.mid(rb + 1, re - rb - 1);
-                // TTL is the first number on the line
-                QString ttlStr = line.mid(1, 2).trimmed(); // " %1..." → chars 1-2
-                int ttlNum = ttlStr.toInt();
-                // RTT from first ms field
-                auto msPos = line.indexOf("ms");
-                auto msStart = msPos > 0 ? line.lastIndexOf(' ', msPos - 1) + 1 : 0;
-                int rttVal = msPos > 0 ? line.mid(msStart, msPos - msStart).trimmed().toInt() : 0;
-                bool isTarget = (hopIp == targetIpStr);
-                if (isTarget) reached = true;
-                hops.append({ttlNum, hopIp, QString(), rttVal, isTarget});
-                hopCount = ttlNum;
-            }
-        }
+    auto hopMatches = hopRe.globalMatch(tr.rawOutput);
+    while (hopMatches.hasNext()) {
+        auto m = hopMatches.next();
+        int ttlNum = m.captured(1).toInt();
+        QString hopIp = m.captured(2);
+        bool isTarget = (hopIp == targetIpStr);
+        if (isTarget) reached = true;
+        hops.append({ttlNum, hopIp, QString(), isTarget});
+        hopCount = ttlNum;
     }
 
     // ── Phase 2: Ping each hop for per-hop statistics ──────────────────
@@ -72,25 +64,14 @@ DiagnosticResult pathPing(const QString& target) {
         int lastIdx = hopStats.size() - 1;
         auto& hs = hopStats[lastIdx];
         auto pr = ping(hops.last().ip);
-        for (const QString& pline : pr.rawOutput.split('\n')) {
-            if (pline.contains(QStringLiteral("Packets:"))) {
-                auto si = pline.indexOf(QStringLiteral("Sent = "));
-                auto ri = pline.indexOf(QStringLiteral("Received = "));
-                auto pi = pline.indexOf('(');
-                if (si > 0 && ri > 0) {
-                    hs.sent = pline.mid(si + 7, pline.indexOf(',', si) - si - 7).trimmed().toInt();
-                    hs.rcvd = pline.mid(ri + 11, pline.indexOf(',', ri) - ri - 11).trimmed().toInt();
-                }
-                if (pi > 0) {
-                    auto pe = pline.indexOf('%', pi);
-                    if (pe > pi) hs.loss = pline.mid(pi + 1, pe - pi - 1).toDouble();
-                }
-            }
-            if (pline.contains(QStringLiteral("Average = "))) {
-                auto ai = pline.indexOf(QStringLiteral("Average = "));
-                auto ae = pline.indexOf(QStringLiteral("ms"), ai);
-                if (ai > 0 && ae > ai) hs.avgMs = pline.mid(ai + 10, ae - ai - 10).trimmed().toInt();
-            }
+        // Use PingParser for robust, locale-independent parsing instead of
+        // fragile indexOf()/mid() string scraping.
+        PingResult parsed = PingParser::parse(pr.rawOutput);
+        if (parsed.valid) {
+            hs.sent  = parsed.sent;
+            hs.rcvd  = parsed.received;
+            hs.loss  = parsed.lossPercent;
+            hs.avgMs = static_cast<int>(parsed.avgMs);
         }
     }
 
@@ -101,12 +82,12 @@ DiagnosticResult pathPing(const QString& target) {
     lines.append(QStringLiteral("over a maximum of 30 hops:"));
     lines.append(QString());
 
-    // Phase 1 output: route table
+    // Phase 1 output: route table — use resolved names from traceroute
     for (const auto& hop : hops) {
         if (hop.ttl == 0)
             lines.append(QStringLiteral("  %1  %2").arg(hop.ttl).arg(hop.name));
         else if (!hop.ip.isEmpty())
-            lines.append(QStringLiteral("  %1  %2 [%3]").arg(hop.ttl).arg(hop.ip).arg(hop.ip));
+            lines.append(QStringLiteral("  %1  %2").arg(hop.ttl).arg(hop.ip));
         else
             lines.append(QStringLiteral("  %1  (unreachable)").arg(hop.ttl));
     }
@@ -115,67 +96,97 @@ DiagnosticResult pathPing(const QString& target) {
     int statsSec = (int)totalTimer.elapsed() / 1000;
     if (statsSec < 1) statsSec = 1;
     lines.append(QStringLiteral("Computing statistics for %1 seconds...").arg(statsSec));
-    lines.append(QStringLiteral("  %1%2%3%4%5")
-        .arg(QString(4, ' '))  // indent + TTL
-        .arg(QString(8, ' '))  // RTT
-        .arg(QStringLiteral("Source to Here"), -16, ' ')
-        .arg(QStringLiteral("This Node/Link"), -16, ' ')
-        .arg(QStringLiteral("Address")));
-    lines.append(QStringLiteral("  %1  %2   %3   %4  %5")
-        .arg(QStringLiteral("Hop"), 2)
-        .arg(QStringLiteral("RTT"), 5)
-        .arg(QStringLiteral("Lost/Sent = Pct"), -16)
-        .arg(QStringLiteral("Lost/Sent = Pct"), -16)
-        .arg(QStringLiteral("Address")));
-    lines.append(QStringLiteral("  %1  %2   %3   %4  %5")
-        .arg(QString(2, '-'))
-        .arg(QString(5, '-'))
-        .arg(QString(16, '-'))
-        .arg(QString(16, '-'))
-        .arg(QString(7, '-')));
 
-    // Phase 2 output: per-hop statistics
+    // ── Build statistics table with interleaved link lines ────────────
+    // Columns: Hop | RTT | Source to Here | This Node/Link | Address
+    // Compute column widths from headers and all data rows.
+    QStringList headers = {
+        QStringLiteral("Hop"), QStringLiteral("RTT"),
+        QStringLiteral("Source to Here"), QStringLiteral("This Node/Link"),
+        QStringLiteral("Address")
+    };
+    QVector<int> colW = {3, 5, 16, 16, 7};  // min widths
+    for (int c = 0; c < 5; ++c)
+        colW[c] = qMax(colW[c], headers[c].length());
+
+    // Build data rows and track max column widths
+    struct TableRow { QStringList cells; int hopIdx; };
+    QVector<TableRow> rows;
     for (int i = 0; i < hops.size(); ++i) {
         const auto& hop = hops[i];
         QString addr = hop.ttl == 0
             ? hop.name
             : (hop.ip.isEmpty() ? QStringLiteral("(unreachable)") : hop.ip);
-
+        QStringList cells;
         if (i == 0) {
-            // Hop 0 — only address, stats are on inter-hop lines
-            lines.append(QStringLiteral("  %1                                         %2")
-                .arg(hop.ttl).arg(addr));
+            cells = {QString::number(hop.ttl), QString(), QString(), QString(), addr};
         } else {
             HopStats& hs = hopStats[i - 1];
-            QString rttField = hop.reached
-                ? QStringLiteral("%1ms").arg(hs.avgMs, 4)
-                : QStringLiteral("  N/A");
-            QString srcLoss = hop.reached
-                ? QStringLiteral("  %1/%2 = %3%").arg(hs.sent - hs.rcvd, 2).arg(hs.sent, 2).arg((int)hs.loss, 2)
-                : QStringLiteral("   N/A");
-            // This-node/link — for target hop, same as source-to-here; for intermediate, show as source loss
-            QString nodeLoss = hop.reached
-                ? QStringLiteral("  %1/%2 = %3%").arg(hs.sent - hs.rcvd, 2).arg(hs.sent, 2).arg((int)hs.loss, 2)
-                : QStringLiteral("   N/A");
-            lines.append(QStringLiteral("  %1  %2   %3   %4  %5")
-                .arg(hop.ttl, 2).arg(rttField).arg(srcLoss).arg(nodeLoss).arg(addr));
+            cells = {
+                QString::number(hop.ttl),
+                hop.reached ? QStringLiteral("%1ms").arg(hs.avgMs) : QStringLiteral("N/A"),
+                hop.reached ? QStringLiteral("%1/%2 = %3%").arg(hs.sent - hs.rcvd).arg(hs.sent).arg((int)hs.loss) : QStringLiteral("N/A"),
+                hop.reached ? QStringLiteral("%1/%2 = %3%").arg(hs.sent - hs.rcvd).arg(hs.sent).arg((int)hs.loss) : QStringLiteral("N/A"),
+                addr
+            };
         }
+        rows.append({cells, i});
+        for (int c = 0; c < 5; ++c)
+            colW[c] = qMax(colW[c], cells[c].length());
+    }
 
-        // Inter-hop link line (the "|" line in Windows pathping)
+    // Helper: format a cell with alignment
+    auto fmtCell = [&](const QString& val, int c) -> QString {
+        int pad = colW[c] - val.length();
+        bool right = (c == 0 || c == 1);  // Hop + RTT right-aligned
+        return right ? QString(pad, ' ') + val : val + QString(pad, ' ');
+    };
+
+    // Emit sub-header (Source to Here / This Node/Link)
+    lines.append(QStringLiteral("  %1%2%3%4  %5")
+        .arg(fmtCell(QString(), 0)).arg(fmtCell(QString(), 1))
+        .arg(fmtCell(QStringLiteral("Source to Here"), 2))
+        .arg(fmtCell(QStringLiteral("This Node/Link"), 3))
+        .arg(fmtCell(QString(), 4)));
+    // Emit main header
+    lines.append(QStringLiteral("  %1  %2  %3  %4  %5")
+        .arg(fmtCell(headers[0], 0)).arg(fmtCell(headers[1], 1))
+        .arg(fmtCell(headers[2], 2)).arg(fmtCell(headers[3], 3))
+        .arg(fmtCell(headers[4], 4)));
+    // Separator
+    lines.append(QStringLiteral("  %1  %2  %3  %4  %5")
+        .arg(fmtCell(QString(colW[0], '-'), 0))
+        .arg(fmtCell(QString(colW[1], '-'), 1))
+        .arg(fmtCell(QString(colW[2], '-'), 2))
+        .arg(fmtCell(QString(colW[3], '-'), 3))
+        .arg(fmtCell(QString(colW[4], '-'), 4)));
+
+    // Emit data rows with interleaved link lines (Windows pathping format)
+    for (int ri = 0; ri < rows.size(); ++ri) {
+        const auto& row = rows[ri];
+        lines.append(QStringLiteral("  %1  %2  %3  %4  %5")
+            .arg(fmtCell(row.cells[0], 0)).arg(fmtCell(row.cells[1], 1))
+            .arg(fmtCell(row.cells[2], 2)).arg(fmtCell(row.cells[3], 3))
+            .arg(fmtCell(row.cells[4], 4)));
+
+        // Inter-hop link line (between this hop and the next)
+        int i = row.hopIdx;
         if (i < hops.size() - 1) {
             const auto& nextHop = hops[i + 1];
-            int nextIdx = i; // index into hopStats for the next hop (hopStats[0] = hop 1)
+            int nextIdx = i;
             QString linkLoss;
-            // Only show real stats for the target hop; intermediate routers
-            // are not pinged (TCP doesn't reach them), so show N/A.
             if (nextIdx < hopStats.size() && !nextHop.ip.isEmpty() && nextHop.reached) {
                 auto& nhs = hopStats[nextIdx];
-                linkLoss = QStringLiteral("  %1/%2 = %3%")
-                    .arg(nhs.sent - nhs.rcvd, 2).arg(nhs.sent, 2).arg((int)nhs.loss, 2);
+                linkLoss = QStringLiteral("%1/%2 = %3%")
+                    .arg(nhs.sent - nhs.rcvd).arg(nhs.sent).arg((int)nhs.loss);
             } else {
-                linkLoss = QStringLiteral("   N/A");
+                linkLoss = QStringLiteral("N/A");
             }
-            lines.append(QStringLiteral("                               %1   |").arg(linkLoss));
+            // Position the | under the "This Node/Link" column
+            QString linkIndent = fmtCell(QString(), 0) + QStringLiteral("  ")
+                               + fmtCell(QString(), 1) + QStringLiteral("  ")
+                               + fmtCell(QString(), 2) + QStringLiteral("  ");
+            lines.append(QStringLiteral("  %1%2   |").arg(linkIndent).arg(linkLoss));
         }
     }
 

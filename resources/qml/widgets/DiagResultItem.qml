@@ -18,9 +18,14 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
         visible: itemData.isPending; spacing: 8
         AppIcon {
+            id: pendingSpinner
             name: itemData.isRunning ? "spinner" : "badge-skip"; size: 12
             color: itemData.isRunning ? ThemeEngine.colors.primary : ThemeEngine.textMuted
-            RotationAnimation on rotation { running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite }
+            RotationAnimation on rotation {
+                running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite
+                // 5WHY: Reset rotation when spinner stops so badge-skip icon isn't skewed.
+                onStopped: pendingSpinner.rotation = 0
+            }
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)

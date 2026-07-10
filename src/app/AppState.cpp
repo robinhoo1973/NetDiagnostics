@@ -134,6 +134,18 @@ void AppState::setLanguage(int index) {
     TRACE(" Language set to index %d\n", index);
 }
 
+// ── Theme mode persistence ─────────────────────────────────────────────
+// 0=system, 1=light, 2=dark (matches ThemeEngine.sysMode/litMode/drkMode)
+void AppState::setThemeMode(int mode) {
+    if (mode < 0 || mode > 2) return;
+    if (m_themeMode == mode) return;
+    m_themeMode = mode;
+    emit themeChanged();
+    saveSettings();
+    bumpVersion();
+    TRACE(" Theme mode set to %d\n", mode);
+}
+
 // ── RFC 952/1123 hostname label validation ────────────────────────────────
 static bool isValidHostLabel(const QString& label) {
     if (label.isEmpty() || label.size() > 63) return false;
@@ -1055,8 +1067,8 @@ ReportData AppState::buildReportData() const {
     return d;
 }
 
-QString AppState::buildReportHtml(bool fullDetail) const {
-    return ReportEngine::buildHtml(buildReportData(), fullDetail);
+QString AppState::buildReportHtml(bool fullDetail, bool darkBackground) const {
+    return ReportEngine::buildHtml(buildReportData(), fullDetail, darkBackground);
 }
 
 // Full standalone HTML document with a modern dark theme (styled after the
@@ -1243,6 +1255,13 @@ void AppState::loadSettings() {
         emit languageChanged();
     }
 
+    // Theme mode (0=system, 1=light, 2=dark)
+    int theme = s.value("themeMode", 2).toInt();
+    if (theme >= 0 && theme <= 2 && theme != m_themeMode) {
+        m_themeMode = theme;
+        emit themeChanged();
+    }
+
     // Active groups (G1-G5 shown/hidden)
     QVariantList ag = s.value("activeGroups").toList();
     if (!ag.isEmpty()) {
@@ -1275,6 +1294,7 @@ void AppState::saveSettings() {
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
 
     s.setValue("language", m_languageIndex);
+    s.setValue("themeMode", m_themeMode);
 
     QVariantList ag;
     for (int g : m_activeGroups) ag.append(g);

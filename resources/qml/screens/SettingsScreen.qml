@@ -93,7 +93,11 @@ Item {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: ThemeEngine.mode = modelData.mode
+                                    onClicked: {
+                                        // Persist theme choice via AppState (survives restarts)
+                                        appState.themeMode = modelData.mode
+                                        ThemeEngine.mode = modelData.mode
+                                    }
                                 }
                             }
                         }

@@ -46,6 +46,7 @@ class AppState : public QObject {
     Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
+    Q_PROPERTY(int themeMode READ themeMode WRITE setThemeMode NOTIFY themeChanged)
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString appEdition READ appEdition CONSTANT)
     Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
@@ -125,9 +126,15 @@ public:
     int languageIndex() const { return m_languageIndex; }
     Q_INVOKABLE void setLanguage(int index);
 
+    // Theme mode — 0=system, 1=light, 2=dark (matches ThemeEngine.sysMode/litMode/drkMode)
+    int themeMode() const { return m_themeMode; }
+    Q_INVOKABLE void setThemeMode(int mode);
+
     // ── Report export ────────────────────────────────────
     // buildReportHtml(false)=one-page summary; (true)=full detail per test.
-    Q_INVOKABLE QString buildReportHtml(bool fullDetail) const;
+    // darkBackground=true uses dark theme colours (QML preview);
+    // false = light (PDF printing). Defaults to false.
+    Q_INVOKABLE QString buildReportHtml(bool fullDetail, bool darkBackground = false) const;
     // Rich, browser-quality standalone HTML document (dark theme, collapsible
     // per-test details). Used by exportHtml; not for the in-app QML preview
     // (QTextDocument can't render its CSS).
@@ -187,6 +194,7 @@ signals:
     void resultsReset();
     void stateVersionChanged();
     void languageChanged();
+    void themeChanged();
     void savePathPicked(const QString& format, const QString& path);
     void premiumChanged();
     void premiumRequired();
@@ -247,6 +255,7 @@ private:
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
     int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
+    int m_themeMode = 2;     // 0=system, 1=light, 2=dark (default dark = drkMode)
     PremiumStore m_premium;
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
 

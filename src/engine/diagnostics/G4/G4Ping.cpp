@@ -45,7 +45,7 @@ DiagnosticResult ping(const QString& target) {
             if (ms<minMs) minMs=ms;
             if (ms>maxMs) maxMs=ms;
             lines.append(QStringLiteral("Reply from %1: bytes=32 time=%2ms TTL=128")
-                .arg(displayTarget).arg(ms));
+                .arg(displayTarget).arg(ms, 3));
         } else {
             lines.append(QStringLiteral("Request timed out."));
         }
@@ -53,7 +53,6 @@ DiagnosticResult ping(const QString& target) {
     r.durationMs = t.elapsed();
     double loss = sent>0 ? (sent-rcvd)*100.0/sent : 100.0;
     double avg = rcvd>0 ? sumMs/rcvd : 0;
-    if (rcvd==0) { minMs=0; maxMs=0; }
 
     // Blank line → "Ping statistics for <IP>:" (Windows always uses IP here)
     lines.append(QString());
@@ -63,11 +62,11 @@ DiagnosticResult ping(const QString& target) {
     if (rcvd > 0) {
         lines.append(QStringLiteral("Approximate round trip times in milli-seconds:"));
         lines.append(QStringLiteral("    Minimum = %1ms, Maximum = %2ms, Average = %3ms")
-            .arg(minMs,0,'f',1).arg(maxMs,0,'f',1).arg(avg,0,'f',1));
+            .arg(minMs,0,'f',0).arg(maxMs,0,'f',0).arg(avg,0,'f',0));
     }
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
-    if (loss>=100.0) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("100%% packet loss"); }
+    if (loss>=100.0) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("100% packet loss"); }
     else if (loss>=50.0) { r.status=DiagStatus::Fail; r.summary=QStringLiteral("%1%% loss").arg(loss,0,'f',1); }
     else if (loss>0) { r.status=DiagStatus::Warning; r.summary=QStringLiteral("%1%% loss, avg %2ms").arg(loss,0,'f',1).arg(avg,0,'f',1); }
     else { r.status=DiagStatus::Pass; r.summary=QStringLiteral("0%% loss, avg %1ms").arg(avg,0,'f',1); }

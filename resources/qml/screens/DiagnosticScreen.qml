@@ -99,6 +99,9 @@ Item {
                         RotationAnimation on rotation {
                             running: appState.runStatus === 1
                             from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                            // 5WHY: When the animation stops, rotation stays at the last angle
+                            // (e.g. 247°), leaving the diagnostic icon skewed. Reset to 0.
+                            onStopped: statusSpinner.rotation = 0
                         }
                     }
                     Item { width: 4 }
