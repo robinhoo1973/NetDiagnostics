@@ -10,7 +10,7 @@ DiagnosticResult netskopeStatus(DiagId id) {
     out.append(QString());
 
     bool found = false;
-#ifdef _WIN32
+#if defined(_WIN32)
     // Check for nsproxy.exe process
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnap != INVALID_HANDLE_VALUE) {

@@ -17,13 +17,13 @@
 // subsequent code. The } below is NOT a stray brace 鈥?it balances the
 // namespace opened by G5Common.h.
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 #include "engine/diagnostics/G5/G5Common.h"
 } // namespace G5WebsiteUrl 鈫?closes G5Common.h's unclosed namespace
 #include "engine/diagnostics/G3/G3Common.h"
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID)
 #include "engine/diagnostics/G5/G5Common.h"
 } // namespace G5WebsiteUrl 鈫?closes G5Common.h's unclosed namespace
 #include "engine/diagnostics/G1/G1Common.h"
@@ -137,14 +137,14 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         // 閳光偓閳光偓 G1: System & Adapters 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G1NetworkAdapters:    return T1(G1G2G3Native::networkAdapters, 15000);
         case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID)
         case DiagId::G1WifiDiagnostics:
             return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidWifiDiag(id); });
 #else
         case DiagId::G1WifiDiagnostics:    return T1(G1G2G3Native::wifiDiagnostics);
 #endif
         case DiagId::G1WiredDiagnostics:   return T1(G1G2G3Native::wiredDiagnostics);
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
 #elif defined(PLATFORM_ANDROID)
@@ -155,7 +155,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #endif
         case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
         case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID)
         case DiagId::G1CellularInfo:
             return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidCellularDiag(id); });
 #else
@@ -165,7 +165,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         // 閳光偓閳光偓 G2: Connectivity & Security 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
         case DiagId::G2TcpSettings:        return T1(G1G2G3Native::tcpSettings);
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
         case DiagId::G2DefaultGateway:
             return T3([](DiagId id, const QString&) { return iosDefaultGatewayDiag(id); });
 #elif defined(PLATFORM_ANDROID)
@@ -174,7 +174,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #else
         case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
 #endif
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
         case DiagId::G2RoutingTable:
             return T3([](DiagId id, const QString&) { return iosRoutingTableDiag(id); });
 #else
@@ -191,7 +191,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
 
         // 閳光偓閳光偓 G4: Remote Host 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
         case DiagId::G4DnsResolution:
             return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
 #elif defined(PLATFORM_ANDROID)
@@ -207,7 +207,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 
         // G4PortScan removed 鈥?port scan feature deprecated
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
         // iOS: NSURLSession native HTTP (no libcurl needed)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);

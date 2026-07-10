@@ -15,7 +15,7 @@ DiagnosticResult dnsServers(DiagId id) {
     };
     QList<QStringList> dnsRows;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     ULONG bufLen = 15000;
     QByteArray buf(bufLen, '\0');
     PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
@@ -32,7 +32,7 @@ DiagnosticResult dnsServers(DiagId id) {
         }
     }
 #else
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     // iOS: no /etc/resolv.conf 闁?use res_ninit
     struct __res_state res; memset(&res, 0, sizeof(res));
     if (res_ninit(&res) == 0) {

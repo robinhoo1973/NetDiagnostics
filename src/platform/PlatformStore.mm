@@ -13,7 +13,7 @@
 // C++ StoreCallback functors are invoked there as well.
 // =============================================================================
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 
 #include "platform/PlatformStore.h"
 

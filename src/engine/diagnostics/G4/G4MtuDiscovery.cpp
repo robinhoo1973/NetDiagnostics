@@ -40,7 +40,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
                 if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, (char*)&mss, &mssLen) == 0 && mss > 0) {
                     discoveredMtu = mss + 40; // MSS + IP(20) + TCP(20) headers
                 }
-#ifdef IP_MTU
+#if defined(IP_MTU)
                 // Also try IP_MTU directly
                 int ipMtu = 0; socklen_t ipMtuLen = sizeof(ipMtu);
                 if (getsockopt(sock, IPPROTO_IP, IP_MTU, (char*)&ipMtu, &ipMtuLen) == 0 && ipMtu > discoveredMtu)
@@ -62,7 +62,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         // Fallback: probe with interface MTU (Windows ping -f -l style)
         discoveredMtu = 1500;
         out.append(QStringLiteral("PMTU TCP probe failed — using interface MTU."));
-#ifdef _WIN32
+#if defined(_WIN32)
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
 #elif defined(__linux__)

@@ -4,7 +4,7 @@
 // Linux: uses IP_RECVERR + MSG_ERRQUEUE to capture ICMP Time Exceeded from
 // intermediate routers — same technique as tracepath / traceroute -T, no root.
 // Windows: uses IcmpSendEcho API (no admin required).
-#ifdef _WIN32
+#if defined(_WIN32)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
     quint32 ip = resolveIPv4(host);
     if (!ip) { rttMs = 0; hopIp.clear(); return -2; }

@@ -480,7 +480,7 @@ DiagnosticResult speedTest(DiagId id) {
         struct sockaddr_in addr;
         if (!hostToAddr(best->host, best->port, addr)) { closeSocket(sock); continue; }
 
-#ifdef _WIN32
+#if defined(_WIN32)
         u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
         int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
@@ -525,7 +525,7 @@ DiagnosticResult speedTest(DiagId id) {
             if (hdrSendGuard.elapsed() > 10000) break;
             auto n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
             if (n < 0) {
-#ifdef _WIN32
+#if defined(_WIN32)
                 if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval hdrTv={1,0}; select(sock+1,nullptr,&wf,nullptr,&hdrTv); continue; }
 #else
                 if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval hdrTv={1,0}; select(sock+1,nullptr,&wf,nullptr,&hdrTv); continue; }
@@ -549,7 +549,7 @@ DiagnosticResult speedTest(DiagId id) {
             int chunk = qMin(dataSize - sent, 32768);
             auto n = ::send(sock, dp + sent, chunk, 0);
             if (n < 0) {
-#ifdef _WIN32
+#if defined(_WIN32)
                 if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 10000) break; continue; }
 #else
                 if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 10000) break; continue; }

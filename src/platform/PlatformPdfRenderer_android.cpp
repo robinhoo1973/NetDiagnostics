@@ -6,7 +6,7 @@
 // PDF file — uses java.io.FileInputStream to obtain the FD.
 #include "platform/PlatformPdfRenderer.h"
 
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID)
 #include <QJniObject>
 #include <QJniEnvironment>
 #include <jni.h>

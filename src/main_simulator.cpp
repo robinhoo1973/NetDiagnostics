@@ -69,12 +69,16 @@ int main(int argc, char *argv[])
     QtConfigAdapter qtConfig;
 #if defined(_WIN32)
     qtConfig.load(QStringLiteral(":/config/windows.conf"));
-#elif defined(__linux__)
+#else
+#if defined(__linux__)
     qtConfig.load(QStringLiteral(":/config/linux.conf"));
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
     qtConfig.load(QStringLiteral(":/config/macos.conf"));
 #else
     qtConfig.load(QStringLiteral(":/config/linux.conf"));
+#endif
+#endif
 #endif
 
     ScreenshotService screenshotSvc;
@@ -105,12 +109,12 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("appState", &appState);
     // QtWebView availability — avoid QML import crash on platforms
     // without the WebView module (e.g., static MSYS2 builds).
-#ifdef HAS_QTWEBVIEW
+#if defined(HAS_QTWEBVIEW)
     engine.rootContext()->setContextProperty("hasWebView", true);
 #else
     engine.rootContext()->setContextProperty("hasWebView", false);
 #endif
-#ifdef HAS_QTPDF
+#if defined(HAS_QTPDF)
     engine.rootContext()->setContextProperty("hasQtPdf", true);
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);

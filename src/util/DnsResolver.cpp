@@ -3,7 +3,7 @@
 // =============================================================================
 #include "util/DnsResolver.h"
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
 #include <dispatch/dispatch.h>
 #endif
 
@@ -11,7 +11,7 @@
 #include <thread>
 #include <chrono>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #else
@@ -60,7 +60,7 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
 
     QByteArray hb = host.toUtf8();
 
-#ifdef __APPLE__
+#if defined(__APPLE__)
     // Apple: use GCD dispatch_semaphore for a true kernel-level timeout.
     // std::thread detach on iOS leaks threads; getaddrinfo can block 30-120s.
     //

@@ -8,7 +8,7 @@
 // - ARP table: Unavailable (link-layer, no public API)
 // =============================================================================
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <sys/socket.h>
@@ -65,7 +65,7 @@ struct rt_msghdr2 {
 #include "models/DiagnosticResult.h"
 
 // Round a sockaddr length up to the next 4-byte boundary (BSD routing alignment).
-#ifndef SA_SIZE
+#if !defined(SA_SIZE)
 #define SA_SIZE(sa) \
     ( ((sa) == nullptr || ((struct sockaddr*)(sa))->sa_len == 0) ? \
         sizeof(uint32_t) : \
@@ -393,7 +393,7 @@ DiagnosticResult iosRoutingTableDiag(DiagId id) {
 // Cellular: CTTelephonyNetworkInfo + CTCarrier
 // =============================================================================
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 
 #include <QString>
 #include <QVariantMap>

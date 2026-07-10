@@ -646,7 +646,7 @@ void ReportEngine::requestSavePath(const QString& format) {
 void ReportEngine::emailReportDesktop(const QString& path) {
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
     const QString subject = QStringLiteral("Network Diagnostic Report");
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX)
     if (QProcess::startDetached(QStringLiteral("xdg-email"),
             {QStringLiteral("--subject"), subject, QStringLiteral("--attach"), path}))
         return;

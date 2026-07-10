@@ -1,7 +1,7 @@
 // =============================================================================
 // PlatformShare_ios.mm — iOS share sheet (UIActivityViewController), MRC
 // =============================================================================
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 
 #include "platform/PlatformShare.h"
 #include <QString>

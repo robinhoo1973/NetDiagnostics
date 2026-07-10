@@ -15,7 +15,7 @@ DiagnosticResult serviceBanner(const QString& target) {
     if (getaddrinfo(hb.constData(), ps, &hints, &res) != 0) { closeSocket(sock); return g5Result(DiagId::G5ServiceBanner, "DNS failed", DiagStatus::Fail); }
     struct sockaddr_in addr; memcpy(&addr, res->ai_addr, sizeof(addr)); freeaddrinfo(res);
     // Non-blocking connect
-#ifdef _WIN32
+#if defined(_WIN32)
     u_long m=1; ioctlsocket(sock, FIONBIO, &m);
 #else
     int fl = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, fl | O_NONBLOCK);

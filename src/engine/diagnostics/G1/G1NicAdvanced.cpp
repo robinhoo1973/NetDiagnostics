@@ -11,7 +11,7 @@ DiagnosticResult nicAdvanced(DiagId id) {
 
     QList<QStringList> nicRows;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     out.append(QStringLiteral("NIC Advanced Properties (table mode):"));
     out.append(QString());
     static const QVector<DiagnosticFormatter::ColSpec> kNicCols = {
@@ -83,7 +83,7 @@ DiagnosticResult nicAdvanced(DiagId id) {
             seenNic.insert(ifName);
 
             auto rd = [&](const QString& prop) {
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
                 // iOS: only MTU is available via getifaddrs; other props are restricted
                 if (prop == "mtu") {
                     // SIOCGIFMTU ioctl not available on iOS sandbox; use standard value

@@ -5,7 +5,7 @@
 // control. Available since iOS 2.0. Replaces generic getaddrinfo+GCD.
 // =============================================================================
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 
 #include "engine/task/DiagnosticTask.h"
 #include "engine/diagnostics/G4/G4RemoteHost.h"

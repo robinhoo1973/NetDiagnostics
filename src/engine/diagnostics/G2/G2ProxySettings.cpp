@@ -14,7 +14,7 @@ DiagnosticResult proxySettings(DiagId id) {
     };
     QList<QStringList> proxyRows;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     WINHTTP_CURRENT_USER_IE_PROXY_CONFIG cfg = {};
     if (WinHttpGetIEProxyConfigForCurrentUser(&cfg)) {
         if (cfg.lpszProxy) proxyRows.append({QStringLiteral("HTTP Proxy"), QString::fromWCharArray(cfg.lpszProxy)});

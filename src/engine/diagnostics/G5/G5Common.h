@@ -2,7 +2,7 @@
 // =============================================================================
 // G5WebsiteUrl.cpp — curl-style raw-socket HTTP diagnostics
 // =============================================================================
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #endif
@@ -50,7 +50,7 @@ static DiagnosticResult result(DiagId id, const QString& summary,
 // ═════════════════════════════════════════════════════════════════════════════
 // libcurl-based HTTP engine — full curl functionality
 // ═════════════════════════════════════════════════════════════════════════════
-#ifndef NO_CURL
+#if !defined(NO_CURL)
 #include <curl/curl.h>
 
 struct CurlResult {

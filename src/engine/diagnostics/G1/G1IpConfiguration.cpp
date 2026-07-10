@@ -7,7 +7,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // 闁冲厜鍋撻柍鍏夊亾 Windows IP Configuration header 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
     char hostname[256]; DWORD hnLen = sizeof(hostname);
     GetComputerNameExA(ComputerNameDnsHostname, hostname, &hnLen);

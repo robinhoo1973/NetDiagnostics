@@ -1,7 +1,7 @@
 // =============================================================================
 // PlatformShare_android.cpp — Android share sheet (Intent.ACTION_SEND + FileProvider)
 // =============================================================================
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID)
 
 #include "platform/PlatformShare.h"
 #include <QJniObject>

@@ -14,7 +14,7 @@ DiagnosticResult dnsResolution(const QString& target) {
     out.append(QStringLiteral(";; global options: +cmd"));
     QByteArray hb = host.toUtf8();
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // ── Windows: DNSQuery for A, AAAA, MX, CNAME, SOA, NS ──────────────
     wchar_t whost[256]; MultiByteToWideChar(CP_UTF8, 0, hb.constData(), -1, whost, 256);
 

@@ -13,7 +13,7 @@ DiagnosticResult networkAdapters(DiagId id) {
 
     QList<QStringList> netRows;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     ULONG bufLen = 15000;
     QByteArray buf(bufLen, '\0');
     PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();

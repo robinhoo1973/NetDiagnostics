@@ -22,7 +22,7 @@
 #include <QDir>
 #include <cstdio>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <windows.h>
 #endif
 
@@ -50,7 +50,7 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     ts.flush();
     f.close();
 
-#ifdef _WIN32
+#if defined(_WIN32)
     OutputDebugStringA(buf);
     OutputDebugStringA("\n");
 #endif

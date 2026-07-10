@@ -8,7 +8,7 @@ DiagnosticResult networkProfile(DiagId id) {
     out.append(QStringLiteral("Network Profile Information:"));
     out.append(QString());
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // ── Hostname ──────────────────────────────────────────────────────
     char hostBuf[256] = {};
     DWORD hostLen = sizeof(hostBuf);
@@ -80,7 +80,7 @@ DiagnosticResult networkProfile(DiagId id) {
     else
         out.append(QStringLiteral("  IP Forwarding: Unknown"));
 #endif // !PLATFORM_IOS
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] IP forwarding: unavailable (restricted by Apple)"));
 #endif
 #endif // _WIN32

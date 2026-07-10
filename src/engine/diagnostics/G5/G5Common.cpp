@@ -4,7 +4,7 @@
 // Uses Qt's QJniObject to call Android Java APIs directly from C++.
 // No separate Java/Kotlin source files needed — all JNI is inline.
 // =============================================================================
-#ifdef PLATFORM_ANDROID
+#if defined(PLATFORM_ANDROID)
 
 #include <QJniObject>
 #include <QJniEnvironment>

@@ -8,7 +8,7 @@
 // - Available since iOS 7.0
 // =============================================================================
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 
 #include "engine/task/DiagnosticTask.h"
 #include "models/DiagId.h"

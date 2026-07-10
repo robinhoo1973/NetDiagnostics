@@ -8,7 +8,7 @@ DiagnosticResult arpTable(DiagId id) {
 
     out.append(QString());
 
-#ifdef _WIN32
+#if defined(_WIN32)
     PMIB_IPNET_TABLE2 table = nullptr;
     if (GetIpNetTable2(AF_INET, &table) == NO_ERROR && table) {
         out.append(QStringLiteral("Interface: (all)"));
@@ -105,7 +105,7 @@ DiagnosticResult arpTable(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (no public ARP API)");
 #elif defined(__APPLE__)

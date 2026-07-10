@@ -12,7 +12,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
     out.append(QStringLiteral("DHCP Client Status"));
     out.append(QString());
 
-#ifdef _WIN32
+#if defined(_WIN32)
     ULONG bufLen = 15000;
     QByteArray buf(bufLen, '\0');
     PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
@@ -35,7 +35,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
         }
     }
 #else
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] DHCP lease details: unavailable (restricted by Apple)"));
     out.append(QStringLiteral("  DHCP is system-managed on iOS; lease files are not accessible."));
 #else

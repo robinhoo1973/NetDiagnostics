@@ -52,7 +52,7 @@ static QString cellularSummary(const QVariantMap& cell) {
 }
 
 // ── TCP state names ─────────────────────────────────────────────────
-#ifdef _WIN32
+#if defined(_WIN32)
 static const char* tcpStateName(int st) {
     switch(st){case 1:return"CLOSED";case 2:return"LISTEN";case 3:return"SYN_SENT";
     case 4:return"SYN_RCVD";case 5:return"ESTABLISHED";case 6:return"FIN_WAIT1";
@@ -69,7 +69,7 @@ static const char* tcpStateName(int st) {
 }
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32)
 struct ProcNetConn {
     QString localIp; int localPort;
     QString remoteIp; int remotePort;
