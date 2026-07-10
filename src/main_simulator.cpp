@@ -103,6 +103,13 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("Theme", theme);
 
     engine.rootContext()->setContextProperty("appState", &appState);
+    // QtWebView availability — avoid QML import crash on platforms
+    // without the WebView module (e.g., static MSYS2 builds).
+#ifdef HAS_QTWEBVIEW
+    engine.rootContext()->setContextProperty("hasWebView", true);
+#else
+    engine.rootContext()->setContextProperty("hasWebView", false);
+#endif
     engine.rootContext()->setContextProperty("simConfig", &simConfig);
     engine.rootContext()->setContextProperty("qtConfig", &qtConfig);
     engine.rootContext()->setContextProperty("screenshotSvc", &screenshotSvc);

@@ -121,6 +121,13 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("Theme", theme);
 
     engine.rootContext()->setContextProperty("appState", &appState);
+    // QtWebView availability flag — QML uses this to avoid import crash
+    // on platforms without the WebView module (e.g., static MSYS2 builds).
+#ifdef HAS_QTWEBVIEW
+    engine.rootContext()->setContextProperty("hasWebView", true);
+#else
+    engine.rootContext()->setContextProperty("hasWebView", false);
+#endif
     STARTUP_LOG("Context properties set. Loading QML: %s", "qrc:/qml/main.qml");
 
     // Capture QML warnings/errors to the startup log
