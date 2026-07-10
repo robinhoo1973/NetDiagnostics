@@ -95,3 +95,5 @@ private:
     QString            m_configPath;
     QMap<QString, QString> m_values;
 };
+
+#include "moc_QtConfigAdapter.cpp"
