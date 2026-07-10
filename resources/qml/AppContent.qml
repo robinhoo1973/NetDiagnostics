@@ -68,6 +68,7 @@ Item {
             }
             RowLayout {
                 anchors { fill: parent; leftMargin: compact ? 0 : 16; rightMargin: compact ? 4 : 16 }
+                // Nav items centered via balanced left+right Layout.fillWidth spacers
                 Item { Layout.fillWidth: true }
                 // M3 spec: 8dp minimum gap between touch targets.  4dp for same-group icons.
                 Row { spacing: compact ? 0 : 4
