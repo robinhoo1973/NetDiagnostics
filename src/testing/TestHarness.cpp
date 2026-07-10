@@ -1,7 +1,7 @@
 // =============================================================================
 // TestHarness.cpp — Headless automated testing framework implementation
 // =============================================================================
-#ifdef ND_TESTING
+#if defined(ND_TESTING)
 
 #include "testing/TestHarness.h"
 #include "testing/TestScenarios.h"

@@ -11,7 +11,7 @@ DiagnosticResult defaultGateway(DiagId id) {
     out.append(QString());
 
     QString defaultGw = QStringLiteral("Not found");
-#ifdef _WIN32
+#if defined(_WIN32)
     PMIB_IPFORWARD_TABLE2 ft = nullptr;
     if (GetIpForwardTable2(AF_INET, &ft) == NO_ERROR) {
         for (ULONG i = 0; i < ft->NumEntries; i++) {

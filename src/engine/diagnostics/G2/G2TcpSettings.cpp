@@ -9,7 +9,7 @@ DiagnosticResult tcpSettings(DiagId id) {
     out.append(QStringLiteral("TCP/IP Settings (table mode):"));
     out.append(QString());
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // Try PowerShell first (Get-NetTCPSetting), fall back to netsh + registry
     {
         bool gotData = false;
@@ -132,7 +132,7 @@ DiagnosticResult tcpSettings(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (kernel sysctls restricted)");
 #elif defined(__APPLE__)

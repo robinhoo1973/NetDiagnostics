@@ -7,7 +7,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return {}; }
 
-#ifdef _WIN32
+#if defined(_WIN32)
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
     int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
@@ -27,7 +27,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     while (sent < req.size()) {
         auto n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
         if (n < 0) {
-#ifdef _WIN32
+#if defined(_WIN32)
             if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
 #else
             if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
@@ -68,7 +68,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
             break; // orderly shutdown
         } else {
             // n < 0: could be EAGAIN (retry) or a real error
-#ifdef _WIN32
+#if defined(_WIN32)
             if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
 #else
             if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
@@ -101,7 +101,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return r; }
 
-#ifdef _WIN32
+#if defined(_WIN32)
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
     int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
@@ -122,7 +122,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     while (reqSent < req.size()) {
         auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
         if (n < 0) {
-#ifdef _WIN32
+#if defined(_WIN32)
             if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
 #else
             if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
@@ -159,7 +159,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         } else if (n == 0) {
             break; // orderly shutdown
         } else {
-#ifdef _WIN32
+#if defined(_WIN32)
             if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
 #else
             if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
@@ -210,7 +210,7 @@ int tcpPingMs(const QString& host, int port) {
     if (sock < 0) return -1;
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
-#ifdef _WIN32
+#if defined(_WIN32)
     u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
     int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);

@@ -6,7 +6,7 @@
 // =============================================================================
 #pragma once
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 // Use an inline function instead of a macro to avoid renaming Qt's QAbstractSocket::close()
@@ -29,7 +29,7 @@ inline void closeSocket(int fd) { ::close(fd); }
 // ── Non-blocking socket setup ────────────────────────────────────────
 // Replaces the 3-line #ifdef block that appears 5+ times across files.
 inline bool setSocketNonBlocking(int sock) {
-#ifdef _WIN32
+#if defined(_WIN32)
     u_long mode = 1; return ioctlsocket(sock, FIONBIO, &mode) == 0;
 #else
     int flags = fcntl(sock, F_GETFL, 0);
@@ -41,7 +41,7 @@ inline bool setSocketNonBlocking(int sock) {
 // Returns true if the caller should select() for writability and retry.
 // Replaces the 4-line #ifdef block that appears 4 times.
 inline bool retrySendWouldBlock(int sock, int timeoutSec = 1) {
-#ifdef _WIN32
+#if defined(_WIN32)
     if (WSAGetLastError() != WSAEWOULDBLOCK) return false;
 #else
     if (errno != EAGAIN && errno != EWOULDBLOCK) return false;

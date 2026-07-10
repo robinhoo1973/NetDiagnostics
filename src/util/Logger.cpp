@@ -10,7 +10,7 @@
 
 Logger::Logger() {
     QString logDir;
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN)
     logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/NetDiagnostics";
 #else
     logDir = QStringLiteral("/tmp/NetDiagnostics");

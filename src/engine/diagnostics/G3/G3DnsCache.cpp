@@ -12,7 +12,7 @@ DiagnosticResult dnsCache(DiagId id) {
 
     out.append(QString());
 
-#ifdef _WIN32
+#if defined(_WIN32)
     out.append(QStringLiteral("Windows IP Configuration"));
     out.append(QString());
     out.append(QStringLiteral("DNS Client Cache (ipconfig /displaydns format)"));

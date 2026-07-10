@@ -15,7 +15,7 @@ DiagnosticResult activeConnections(DiagId id) {
     struct ConnEntry { QString proto, localIp, remoteIp, state; int localPort, remotePort; };
     QList<ConnEntry> rawConns;
 
-#ifdef _WIN32
+#if defined(_WIN32)
     ULONG bufLen = 0;
     GetExtendedTcpTable(nullptr, &bufLen, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
     QByteArray tcpBuf(bufLen, '\0');
@@ -143,7 +143,7 @@ DiagnosticResult activeConnections(DiagId id) {
     if (!connRows.isEmpty())
         out.append(DiagnosticFormatter::formatTable(kConnCols, connRows));
     else {
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
         out.append(QStringLiteral("  [iOS] Active connections: unavailable (restricted by Apple)"));
         out.append(QStringLiteral("  iOS sandbox prevents reading /proc/net/tcp — use Xcode network monitor"));
 #else
@@ -152,7 +152,7 @@ DiagnosticResult activeConnections(DiagId id) {
     }
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (sandbox restricts socket enumeration)");
 #elif defined(__APPLE__) && !defined(PLATFORM_IOS)

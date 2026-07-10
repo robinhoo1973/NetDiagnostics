@@ -7,7 +7,7 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     // iOS devices have no wired Ethernet NIC, and /sys/class/net is inaccessible,
     // so every field would be blank. Report as Skipped (consistent with ARP/TCP).
     out.append(QString());
@@ -22,7 +22,7 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     return r;
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // ── GetIfTable2 (replaces wmic placeholder) ──────────────────────
     out.append(QStringLiteral("Wired Information (table mode):"));
     out.append(QString());
@@ -92,7 +92,7 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
             if (!(p->ifa_flags & IFF_UP)) continue;
             if (seenWired.contains(ifName)) continue;
             // Skip wireless interfaces
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
             // iOS: classify by interface name prefix
             if (ifName.startsWith("en") || ifName.startsWith("pdp_ip")) continue;
 #else

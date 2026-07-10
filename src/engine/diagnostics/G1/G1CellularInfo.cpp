@@ -9,7 +9,7 @@ DiagnosticResult cellularInfo(DiagId id) {
     out.append(QStringLiteral("Cellular Information:"));
     out.append(QString());
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     QVariantMap cell = iosCellularInfo();
     const bool hasCellIdentity = hasCellularIdentity(cell);
     const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));

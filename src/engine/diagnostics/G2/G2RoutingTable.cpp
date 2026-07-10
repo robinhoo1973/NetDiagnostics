@@ -11,7 +11,7 @@ DiagnosticResult routingTable(DiagId id) {
     out.append(QStringLiteral("Interface List"));
     out.append(QStringLiteral("==========================================================================="));
 
-#ifdef _WIN32
+#if defined(_WIN32)
     // Get interface list
     ULONG bufLen = 15000;
     QByteArray buf(bufLen, '\0');
@@ -149,7 +149,7 @@ DiagnosticResult routingTable(DiagId id) {
             out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
     }
 #endif // !PLATFORM_IOS
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] Routing table: unavailable (restricted by Apple)"));
 #endif
 #endif

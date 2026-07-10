@@ -1,5 +1,5 @@
 #pragma once
-#ifdef _MSC_VER
+#if defined(_MSC_VER)
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
 #endif
@@ -15,7 +15,7 @@ typedef SSIZE_T ssize_t;
 #include <QFile>
 #include <QDir>
 #include <cstring>
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <io.h>
@@ -25,13 +25,13 @@ typedef SSIZE_T ssize_t;
 #include <windns.h>
 #define close closesocket
 #define getpid _getpid
-#ifndef ECONNREFUSED
+#if !defined(ECONNREFUSED)
 #define ECONNREFUSED WSAECONNREFUSED
 #endif
-#ifndef EHOSTUNREACH
+#if !defined(EHOSTUNREACH)
 #define EHOSTUNREACH WSAEHOSTUNREACH
 #endif
-#ifndef ENETUNREACH
+#if !defined(ENETUNREACH)
 #define ENETUNREACH WSAENETUNREACH
 #endif
 #define socklen_t int
@@ -54,7 +54,7 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #include <net/if.h>
 #include <sys/ioctl.h>
 // macOS Apple Clang compatibility: C_IN may not be exposed by default
-#ifndef C_IN
+#if !defined(C_IN)
 #define C_IN ns_c_in
 #endif
 inline int setNonblockWin(int sock) {
@@ -143,7 +143,7 @@ static int extractProbePort(const QString& target) {
 }
 
 // ── DNS Resolution — full dig-like output ─────────────────────────────
-#ifndef _WIN32
+#if !defined(_WIN32)
 // ── DNS wire query + full section dump helper ──────────────────────────────
 static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title,
                            const QString& host, QStringList& out, bool& gotCname, QString& cnameTarget) {
@@ -261,7 +261,7 @@ static DiagnosticResult noTargetResult(DiagId id, DiagGroup group) {
     return r;
 }
 
-#ifdef _WIN32
+#if defined(_WIN32)
 // ── Windows ICMP Echo (IcmpSendEcho — no admin required) ──────────────────
 static int icmpEchoRttMsWindows(quint32 resolvedIp, int seq, int timeoutMs) {
     HANDLE hIcmp = IcmpCreateFile();

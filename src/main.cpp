@@ -14,10 +14,10 @@
 #include <QDir>
 #include <QLockFile>
 #include <csignal>
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <windows.h>
 #endif
-#ifndef NO_CURL
+#if !defined(NO_CURL)
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
@@ -26,18 +26,18 @@
 #endif
 #include "util/DebugSwitch.h"
 #include "util/StartupLog.h"
-#ifdef ND_TESTING
+#if defined(ND_TESTING)
 #include "testing/TestHarness.h"
 #include "testing/TestScenarios.h"
 #endif
 
 int main(int argc, char *argv[])
 {
-#ifndef NO_CURL
+#if !defined(NO_CURL)
     curl_global_init(CURL_GLOBAL_ALL);
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32)
     signal(SIGPIPE, SIG_IGN);
 #endif
 
@@ -48,12 +48,12 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     // ── Single instance guard ──────────────────────────────────────────────
-#ifdef _WIN32
+#if defined(_WIN32)
     // Windows: named mutex — OS auto-releases on process death
     HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetDiagnostic_SingleInstance");
     if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         if (hMutex) CloseHandle(hMutex);
-#ifndef NO_CURL
+#if !defined(NO_CURL)
         curl_global_cleanup();
 #endif
         QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics"),
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
         QLockFile lockFile(lockPath);
         lockFile.setStaleLockTime(5000);
         if (!lockFile.tryLock(100)) {
-#ifndef NO_CURL
+#if !defined(NO_CURL)
                 curl_global_cleanup();
 #endif
                 QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics"),
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
     QQmlApplicationEngine engine;
 
     STARTUP_SEPARATOR();
-#ifdef ND_BUILD_NUMBER
+#if defined(ND_BUILD_NUMBER)
     STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s, build=%s",
                 qVersion(), APP_EDITION, ND_BUILD_NUMBER);
 #else
@@ -127,14 +127,14 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("appState", &appState);
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
-#ifdef HAS_QTWEBVIEW
+#if defined(HAS_QTWEBVIEW)
     engine.rootContext()->setContextProperty("hasWebView", true);
 #else
     engine.rootContext()->setContextProperty("hasWebView", false);
 #endif
     // QtPdf availability flag — QML uses this to show real PDF viewer
     // (PdfMultiPageView) vs. image-based fallback on platforms without QtPdf.
-#ifdef HAS_QTPDF
+#if defined(HAS_QTPDF)
     engine.rootContext()->setContextProperty("hasQtPdf", true);
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
         });
     }
 
-#ifdef ND_TESTING
+#if defined(ND_TESTING)
     // ── Headless testing mode: --test runs scenarios, no GUI ──────────
     if (argc >= 2 && strcmp(argv[1], "--test") == 0) {
         QString logPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
@@ -243,7 +243,7 @@ int main(int argc, char *argv[])
             // Moved inside the same scope as showMaximized() so winId() is
             // called on an already-realized native window, avoiding a nullptr
             // in Qt 6.8+'s Windows QPA for frameless windows.
-#ifdef _WIN32
+#if defined(_WIN32)
             WId wid = win->winId();
             if (wid) {
                 HWND hwnd = reinterpret_cast<HWND>(wid);
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
     }
 
     int ret = app.exec();
-    #ifndef NO_CURL
+    #if !defined(NO_CURL)
     curl_global_cleanup();
 #endif
     return ret;

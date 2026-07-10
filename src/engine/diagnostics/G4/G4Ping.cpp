@@ -79,7 +79,7 @@ DiagnosticResult ping(const QString& target) {
 // Linux: uses IP_RECVERR + MSG_ERRQUEUE to capture ICMP Time Exceeded from
 // intermediate routers — same technique as tracepath / traceroute -T, no root.
 // Windows: uses IcmpSendEcho API (no admin required).
-#ifdef _WIN32
+#if defined(_WIN32)
 #elif defined(__linux__)
 #else
 // macOS/iOS/BSD: ICMP Echo TTL probing via a datagram ICMP socket (no root).

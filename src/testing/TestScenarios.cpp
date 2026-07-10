@@ -9,7 +9,7 @@
 // 3. CI-safe: all core targets reachable from GitHub Actions runners
 // 4. Public services: nobody's private servers; no credentials exposed
 // =============================================================================
-#ifdef ND_TESTING
+#if defined(ND_TESTING)
 
 #include "testing/TestScenarios.h"
 #include "testing/TestHarness.h"

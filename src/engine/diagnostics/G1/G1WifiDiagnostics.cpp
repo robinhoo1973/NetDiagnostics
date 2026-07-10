@@ -11,7 +11,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     out.append(QStringLiteral("Wireless LAN information:"));
     out.append(QString());
 
-#ifdef _WIN32
+#if defined(_WIN32)
     HANDLE hClient = nullptr;
     DWORD negotiatedVer = 0;
     if (WlanOpenHandle(2, nullptr, &negotiatedVer, &hClient) == ERROR_SUCCESS) {
@@ -89,7 +89,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     };
     QList<QStringList> wifiRows;
     QSet<QString> seenWifi;
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     QString iosWifiSsidCaptured;
 #endif
 
@@ -97,7 +97,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
             QString ifName = QString::fromLatin1(p->ifa_name);
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
             // iOS: detect WiFi by interface name prefix (en0/en1 are WiFi)
             if (!ifName.startsWith("en"))
                 continue;
@@ -111,7 +111,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
 
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
             // iOS: retrieve WiFi SSID and BSSID via shared helper
             QVariantMap wifiData = iosWiFiInfo();
             ssid = wifiData.value("ssid", "").toString();
@@ -170,7 +170,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     }
     out.append(DiagnosticFormatter::formatTable(kWifiCols, wifiRows));
     if (wifiRows.isEmpty()) out.append(QStringLiteral("  (no wireless interfaces detected)"));
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
     {
         const QString wifiIp = iosInterfaceIPv4(QStringLiteral("en0"));
         const QString wifiGw = iosGatewayForInterface(QStringLiteral("en0"));

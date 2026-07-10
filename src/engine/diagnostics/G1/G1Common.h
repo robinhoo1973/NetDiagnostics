@@ -15,7 +15,7 @@ QString iosGatewayForInterface(const QString& iface);
 // =============================================================================
 // IosWiFiHelper.h — iOS WiFi auth + SSID + Cellular retrieval (declarations)
 // =============================================================================
-#ifndef IOS_WIFI_HELPER_H
+#if !defined(IOS_WIFI_HELPER_H)
 #define IOS_WIFI_HELPER_H
 
 #include <QString>

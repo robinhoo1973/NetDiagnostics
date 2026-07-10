@@ -7,7 +7,7 @@
 // =============================================================================
 #pragma once
 
-#ifdef ND_TESTING
+#if defined(ND_TESTING)
 
 #include <QObject>
 #include <QString>

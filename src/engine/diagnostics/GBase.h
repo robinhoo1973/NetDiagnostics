@@ -14,7 +14,7 @@
 #include <QRegularExpression>
 #include <QProcess>
 #include <cstring>
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -30,7 +30,7 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
-#ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
 #include "engine/diagnostics/G1/G1Common.h"
 #endif
 #include <resolv.h>          // __res_state (DNS resolver state)

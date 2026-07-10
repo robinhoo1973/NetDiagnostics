@@ -16,7 +16,7 @@
 #include <cstring>
 #include <algorithm>
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <io.h>
@@ -41,7 +41,7 @@ static quint32 resolveIPv4(const QString& host) {
 
 // 鈹€鈹€ Helper: set socket non-blocking 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 static bool setNonBlocking(int sock) {
-#ifdef _WIN32
+#if defined(_WIN32)
     u_long mode = 1;
     return ioctlsocket(sock, FIONBIO, &mode) == 0;
 #else
@@ -63,7 +63,7 @@ static bool connectSuccess(int sock) {
     // Connection completed 鈥?check for errors
     int err = 0;
     socklen_t len = sizeof(err);
-#ifdef _WIN32
+#if defined(_WIN32)
     getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
 #else
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);

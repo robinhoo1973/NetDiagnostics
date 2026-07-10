@@ -91,7 +91,7 @@ QString AppState::appVersion() const {
 }
 
 QString AppState::appEdition() const {
-#ifdef APP_EDITION
+#if defined(APP_EDITION)
     return QStringLiteral(APP_EDITION);
 #else
     return QString();
@@ -112,7 +112,7 @@ QString AppState::buildNumber() const {
         }
     }
 #endif
-#ifdef ND_BUILD_NUMBER
+#if defined(ND_BUILD_NUMBER)
     return QStringLiteral(ND_BUILD_NUMBER);
 #else
     return QString();

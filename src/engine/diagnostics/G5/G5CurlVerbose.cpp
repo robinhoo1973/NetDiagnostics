@@ -1,5 +1,5 @@
 #include "engine/diagnostics/G5/G5Common.h"
-#ifndef NO_CURL
+#if !defined(NO_CURL)
 DiagnosticResult curlVerbose(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5CurlVerbose, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);

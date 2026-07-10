@@ -3,7 +3,7 @@
 // =============================================================================
 #pragma once
 
-#ifdef ND_TESTING
+#if defined(ND_TESTING)
 
 #include <QVector>
 #include <QString>
