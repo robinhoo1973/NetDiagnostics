@@ -120,7 +120,10 @@ jobs:
           # Preprocessor balance
           $failed = 0
           Get-ChildItem -Path src -Recurse -Include *.cpp,*.h | ForEach-Object {
-            $ifs = (Select-String -Path $_.FullName -Pattern '^\s*\#if[^ ]|^\s*\#ifdef|^\s*\#ifndef|^\s*\#elif' | Measure-Object).Count
+            # 5WHY: Old regex '#if[^ ]' required non-space char after #if,
+            # missing '#if defined(X)' (space after #if). '#if\b' uses word
+            # boundary, matching all variants: #if defined, #ifdef, #ifndef, #if().
+            $ifs = (Select-String -Path $_.FullName -Pattern '^\s*\#(if|elif)\b' | Measure-Object).Count
             $ends = (Select-String -Path $_.FullName -Pattern '^\s*\#endif' | Measure-Object).Count
             if ($ifs -ne $ends) {
               Write-Host "::error::$($_.Name): #if=$ifs #endif=$ends"
