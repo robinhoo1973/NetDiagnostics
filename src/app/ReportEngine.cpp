@@ -394,10 +394,10 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     // dark regardless of app theme. Prepend a CSS custom-property theme block
     // so a single color swap at the :root level applies the entire theme.
     const QString cssThemeBlock = darkBackground
-        ? QStringLiteral(":root{--bg:#0F172A;--fg:#F1F5F9;--fg2:#94A3B8;--fg3:#64748B}"
+        ? QStringLiteral(":root{--bg:#0F172A;--fg:#F1F5F9;--fg2:#94A3B8;--fg3:#64748B;"
             "--card-bg:#1E293B;--header-bg1:#1E293B;--header-bg2:#0C4A6E;"
             "--border:#334155;--footer-fg:#5a5a72;--footer-border:#23233a}")
-        : QStringLiteral(":root{--bg:#F8FAFC;--fg:#0F172A;--fg2:#475569;--fg3:#94A3B8}"
+        : QStringLiteral(":root{--bg:#F8FAFC;--fg:#0F172A;--fg2:#475569;--fg3:#94A3B8;"
             "--card-bg:#FFFFFF;--header-bg1:#E0F2FE;--header-bg2:#BAE6FD;"
             "--border:#E2E8F0;--footer-fg:#94A3B8;--footer-border:#E2E8F0}");
     const QString kCss = cssThemeBlock

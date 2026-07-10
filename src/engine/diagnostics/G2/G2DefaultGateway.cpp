@@ -41,7 +41,8 @@ DiagnosticResult defaultGateway(DiagId id) {
             }
         }
     }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // ── macOS: get default gateway via PF_ROUTE routing socket ──
     int routeSock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (routeSock >= 0) {
@@ -94,6 +95,7 @@ DiagnosticResult defaultGateway(DiagId id) {
     r.summary = (defaultGw != QStringLiteral("Not found"))
         ? QStringLiteral("Default gateway: %1").arg(defaultGw)
         : QStringLiteral("No default gateway");
+#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;

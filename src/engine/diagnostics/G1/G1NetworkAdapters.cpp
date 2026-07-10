@@ -50,7 +50,8 @@ DiagnosticResult networkAdapters(DiagId id) {
         }
         out.append(QString());
     }
-#elif defined(PLATFORM_IOS)
+#else
+#if defined(PLATFORM_IOS)
     // 闁冲厜鍋撻柍鍏夊亾 iOS: use getifaddrs + SystemConfiguration framework 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
     // iOS restricts: MAC addresses, /sys/class/net, /proc, netlink, ARP, routing table
     struct ifaddrs* ifa = nullptr;
@@ -203,7 +204,8 @@ DiagnosticResult networkAdapters(DiagId id) {
                 state = (ifr.ifr_flags & IFF_UP) ? QStringLiteral("UP") : QStringLiteral("DOWN");
             close(tmpSock);
         }
-#elif !defined(PLATFORM_ANDROID)
+#else
+#if !defined(PLATFORM_ANDROID)
         QFile mtuFile(QStringLiteral("/sys/class/net/%1/mtu").arg(info.name));
         if (mtuFile.open(QIODevice::ReadOnly)) mtu = QString::fromLatin1(mtuFile.readAll().trimmed());
         QFile stateFile(QStringLiteral("/sys/class/net/%1/operstate").arg(info.name));
@@ -217,6 +219,8 @@ DiagnosticResult networkAdapters(DiagId id) {
         netRows.append({info.name, mtu, state, mac, ip4});
     }
     out.append(DiagnosticFormatter::formatTable(kNetCols, netRows));
+#endif  // close converted #elif
+#endif  // close converted #elif
 #endif
 
     r.rawOutput = out.join('\n');

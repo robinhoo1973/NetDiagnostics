@@ -42,7 +42,8 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     rttMs = 0;
     return -1;
 }
-#elif defined(__linux__)
+#else
+#if defined(__linux__)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
     // ── ICMP Echo traceroute (requires CAP_NET_RAW, like traceroute -I) ──
     // Uses raw ICMP socket to send Echo Request with TTL=N. Receives:
@@ -288,4 +289,5 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     }
     close(icmpSock); rttMs=0; hopIp.clear(); return -1;
 }
+#endif  // close converted #elif
 #endif

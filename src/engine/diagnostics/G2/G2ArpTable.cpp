@@ -61,7 +61,8 @@ DiagnosticResult arpTable(DiagId id) {
     } else {
         out.append(QStringLiteral("  (ARP table not available)"));
     }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // ── macOS: ARP cache via sysctl NET_RT_FLAGS RTF_LLINFO ──
     {
         int mib[] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO };
@@ -108,7 +109,8 @@ DiagnosticResult arpTable(DiagId id) {
 #if defined(PLATFORM_IOS)
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (no public ARP API)");
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
     r.status = arpRows.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
     r.summary = arpRows.isEmpty()
         ? QStringLiteral("No ARP entries found")
@@ -117,6 +119,8 @@ DiagnosticResult arpTable(DiagId id) {
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("ARP table collected");
 #endif
+#endif  // close converted #elif
+#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;

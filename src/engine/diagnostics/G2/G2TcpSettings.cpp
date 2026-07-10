@@ -92,7 +92,8 @@ DiagnosticResult tcpSettings(DiagId id) {
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_timestamps"), QStringLiteral("Timestamps"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_sack"), QStringLiteral("Selective ACK"));
     readSys(QStringLiteral("/proc/sys/net/ipv4/tcp_fastopen"), QStringLiteral("TCP Fast Open"));
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // ── macOS: read TCP settings via sysctl ──
     auto macOSSysctl = [&](const char* name, const QString& label, bool isBool = false) {
         int val = 0;
@@ -135,7 +136,8 @@ DiagnosticResult tcpSettings(DiagId id) {
 #if defined(PLATFORM_IOS)
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (kernel sysctls restricted)");
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
     r.status = tcpRows.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
     r.summary = tcpRows.isEmpty()
         ? QStringLiteral("TCP settings unavailable")
@@ -143,6 +145,8 @@ DiagnosticResult tcpSettings(DiagId id) {
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("TCP settings collected");
+#endif  // close converted #elif
+#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;
