@@ -263,6 +263,8 @@ Item {
     readonly property string diagsSuffix: t(" tests", " tests", " Tests", " тестов", " test", " 个测试", " 個測試", " pruebas", " testes")
 
     // ── Settings screen ──
+    readonly property string appearanceSection: t("Appearance", "Apparence", "Erscheinungsbild", "Внешний вид", "Aspetto", "外观", "外觀", "Apariencia", "Aparência")
+    readonly property string themeLabel: t("Theme", "Thème", "Design", "Тема", "Tema", "主题", "主題", "Tema", "Tema")
     readonly property string languageSection: t("Language", "Langue", "Sprache", "Язык", "Lingua", "语言", "語言", "Idioma", "Idioma")
     readonly property string emailConfigSection: t("Email (SMTP) Configuration", "Configuration email (SMTP)", "E-Mail (SMTP) Konfiguration", "Настройка email (SMTP)", "Configurazione email (SMTP)", "电子邮件(SMTP)配置", "電子郵件(SMTP)配置", "Configuración de correo (SMTP)", "Configuração de e-mail (SMTP)")
     readonly property string aboutSection: t("About", "À propos", "Über", "О программе", "Informazioni", "关于", "關於", "Acerca de", "Sobre")
@@ -272,4 +274,14 @@ Item {
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")
     readonly property string simulatorTitle: t("NetDiagnostics Simulator", "Simulateur NetDiagnostics", "NetDiagnostics Simulator", "Симулятор NetDiagnostics", "Simulatore NetDiagnostics", "NetDiagnostics 模拟器", "NetDiagnostics 模擬器", "Simulador NetDiagnostics", "Simulador NetDiagnostics")
+
+    // ── Simulator screen labels ──
+    readonly property string targetSection: t("TARGET", "CIBLE", "ZIEL", "ЦЕЛЬ", "OBIETTIVO", "目标", "目標", "OBJETIVO", "ALVO")
+    readonly property string testStatusSection: t("TEST STATUS", "ÉTAT DU TEST", "TESTSTATUS", "СТАТУС ТЕСТА", "STATO TEST", "测试状态", "測試狀態", "ESTADO DE PRUEBA", "STATUS DO TESTE")
+    readonly property string statusLabel: t("Status:", "Statut :", "Status:", "Статус:", "Stato:", "状态:", "狀態:", "Estado:", "Status:")
+    readonly property string progressLabel: t("Progress:", "Progrès :", "Fortschritt:", "Прогресс:", "Progresso:", "进度:", "進度:", "Progreso:", "Progresso:")
+    readonly property string logEvidenceSection: t("LOG / EVIDENCE", "JOURNAL / PREUVES", "PROTOKOLL / BEWEISE", "ЖУРНАЛ / ДОКАЗАТЕЛЬСТВА", "LOG / PROVE", "日志 / 证据", "日誌 / 證據", "REGISTRO / EVIDENCIA", "LOG / EVIDÊNCIAS")
+    readonly property string logEmptyHint: t("Set a target and click ▶ Run to begin.", "Définissez une cible et cliquez sur ▶ pour commencer.", "Ziel setzen und ▶ klicken.", "Установите цель и нажмите ▶.", "Imposta un target e clicca ▶ per iniziare.", "设置目标并点击 ▶ 运行开始。", "設定目標並點擊 ▶ 運行開始。", "Establezca un objetivo y haga clic en ▶ para comenzar.", "Defina um alvo e clique em ▶ para iniciar.")
+    readonly property string idleStatus: t("Idle", "Inactif", "Leerlauf", "Ожидание", "Inattivo", "空闲", "閒置", "Inactivo", "Ocioso")
+    readonly property string toastScreenshotSaved: t("Screenshot: ", "Capture : ", "Screenshot: ", "Снимок: ", "Screenshot: ", "截图: ", "截圖: ", "Captura: ", "Captura: ")
 }

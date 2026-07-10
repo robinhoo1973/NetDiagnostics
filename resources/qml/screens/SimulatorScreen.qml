@@ -207,7 +207,7 @@ ApplicationWindow {
                     MouseArea { anchors.fill:parent; onClicked: {
                         var path = screenshotSvc.makeFilename(curOS(), curDeviceId(), "manual")
                         screenshotSvc.capture(path)
-                        showToast("Screenshot: " + (screenshotSvc.lastCapturePath || "failed"))
+                        showToast(Tr.toastScreenshotSaved + (screenshotSvc.lastCapturePath || "failed"))
                     }}
                 }
             }
@@ -225,7 +225,7 @@ ApplicationWindow {
                 border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }; spacing: 8
-                    Label { text:"TARGET"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.colors.primary }
+                    Label { text:Tr.targetSection; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.colors.primary }
 
                     // Target URL / host
                     Rectangle { Layout.fillWidth:true; implicitHeight:34; radius:6; color:ThemeEngine.bgInput; border{width:1;color:ThemeEngine.colors.borderCard}
@@ -344,18 +344,18 @@ ApplicationWindow {
                 border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     anchors { fill: parent; margins: 12 }; spacing: 6
-                    Label { text:"TEST STATUS"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
+                    Label { text:Tr.testStatusSection; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
                     RowLayout {
-                        Label { text:"Status:"; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.textSecondary }
+                        Label { text:Tr.statusLabel; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.textSecondary }
                         Label {
-                            text: ({0:"Idle",1:"Running…",2:"Complete",3:"Cancelled",4:"Error"})[appState.runStatus]||"Idle"
+                            text: ({0:Tr.idleStatus,1:Tr.runningStatus,2:Tr.completeStatus,3:Tr.cancelledStatus,4:Tr.errorStatus})[appState.runStatus]||Tr.idleStatus
                             font.family:ThemeEngine.monoFont; font.pixelSize:12; font.weight:Font.DemiBold
                             color: appState.runStatus===1?ThemeEngine.cyan:(appState.runStatus===2?ThemeEngine.passGreen:(appState.runStatus===3||appState.runStatus===4?ThemeEngine.failRed:ThemeEngine.textSecondary))
                         }
                     }
                     Label { Layout.fillWidth:true
                         visible: appState.totalDiags > 0
-                        text:"Progress: " + appState.totalCompleted + " / " + appState.totalDiags
+                        text:Tr.progressLabel + " " + appState.totalCompleted + " / " + appState.totalDiags
                         font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textSecondary }
                     LiveProgressPanel { Layout.fillWidth: true }
                 }
@@ -370,7 +370,7 @@ ApplicationWindow {
             border { width: 1; color: ThemeEngine.colors.borderCard }
             ColumnLayout {
                 anchors { fill: parent; margins: 8 }; spacing: 4
-                Label { text:"LOG / EVIDENCE"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
+                Label { text:Tr.logEvidenceSection; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
                 ScrollView {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     ListView {
