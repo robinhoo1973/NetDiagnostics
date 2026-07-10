@@ -165,6 +165,9 @@ public:
     // native PDF viewer (Preview.app / Edge / Okular / etc.) for true WYSIWYG.
     Q_INVOKABLE void openPdfExternally() const;
     Q_INVOKABLE void openHtmlExternally() const;
+    // Generate a real PDF to a temp file and return the file:// path for
+    // in-app preview with PdfMultiPageView (QtPdf). Returns empty on failure.
+    Q_INVOKABLE QString generatePreviewPdf() const;
     // Desktop: opens a native NON-modal save dialog, then emits savePathPicked.
     // Mobile: emits savePathPicked immediately with a Documents path.
     Q_INVOKABLE void requestSavePath(const QString& format);

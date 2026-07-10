@@ -1166,6 +1166,14 @@ void AppState::openHtmlExternally() const {
     }
 }
 
+QString AppState::generatePreviewPdf() const {
+    const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        .filePath(QStringLiteral("NetDiagnostics_preview.pdf"));
+    const QString saved = exportPdf(path);
+    if (saved.isEmpty()) return {};
+    return QUrl::fromLocalFile(saved).toString();
+}
+
 void AppState::requestSavePath(const QString& format) {
     m_reportEngine.requestSavePath(format);
 }

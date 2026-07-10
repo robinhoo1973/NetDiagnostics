@@ -110,6 +110,11 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty("hasWebView", false);
 #endif
+#ifdef HAS_QTPDF
+    engine.rootContext()->setContextProperty("hasQtPdf", true);
+#else
+    engine.rootContext()->setContextProperty("hasQtPdf", false);
+#endif
     engine.rootContext()->setContextProperty("simConfig", &simConfig);
     engine.rootContext()->setContextProperty("qtConfig", &qtConfig);
     engine.rootContext()->setContextProperty("screenshotSvc", &screenshotSvc);
