@@ -217,7 +217,7 @@ Item {
 
             Rectangle {
                 anchors { top: parent.top; right: parent.right; topMargin: 10; rightMargin: 10 }
-                width: 28; height: 28; radius: 14; color: ThemeEngine.failRed
+                width: 28; height: 28; radius: 14; color: ThemeEngine.textMuted
                 Label {
                     anchors.centerIn: parent
                     text: "×"; font.family: ThemeEngine.monoFont; font.pixelSize: 16

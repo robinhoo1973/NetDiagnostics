@@ -38,8 +38,10 @@ Rectangle {
     implicitHeight: tbCol.implicitHeight + 8
     clip: true
 
-    Component.onCompleted: console.warn("[DiagnosticToolbar] loaded — schemes:", appState.supportedSchemes.length)
-    Component.onDestruction: console.warn("[DiagnosticToolbar] destroyed")
+    Component.onCompleted: {
+        // Debug logging disabled in production builds
+        // console.warn("[DiagnosticToolbar] loaded — schemes:", appState.supportedSchemes.length)
+    }
 
     ColumnLayout {
         id: tbCol

@@ -8,9 +8,12 @@ ColumnLayout {
     spacing: 0
     // ── Advanced (Port / User / Pass) toggle ──────────────────────────────
     property bool advancedExpanded: false
-    // ── Scheme model �?populated once in Component.onCompleted ─────────────
+    // ── Scheme model — populated once in Component.onCompleted ─────────────
     property ListModel schemeModel: ListModel { id: _schemeModel }
-    // ── Guard flag �?suppress onTextChanged during programmatic updates ───
+    // ── Guard flag — suppress onTextChanged during programmatic updates ───
+    // 5WHY: _syncing was declared but never set — dead code. QML's binding
+    // engine already prevents re-entrant property updates (value unchanged →
+    // no NOTIFY signal emitted). The guard is unnecessary.
     property bool _syncing: false
 
     Component.onCompleted: {
@@ -50,7 +53,8 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 6 }
 
-    // ══════════════════�?Scheme ComboBox + Host Field ══════════════════�?    Rectangle {
+    // ── Scheme ComboBox + Host Field ────────────────────────────────────
+    Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
         color: ThemeEngine.bgInput
         border { width: hostField.activeFocus || schemeCombo.activeFocus ? 1.5 : 1
@@ -124,13 +128,13 @@ ColumnLayout {
                         return !prev || prev.schemeGroup !== cur.schemeGroup
                     }
 
-                    // Group icon �?only for headers (not per-scheme)
+                    // Group icon — only for headers (not per-scheme)
                     readonly property string groupIcon: ({
                         0:"globe",1:"portscan",2:"mail",3:"config",
                         4:"wifi",5:"target",6:"timer"
                     }[schemeGroup] || "circle")
 
-                    // Group label �?i18n via schemeGroup name lookup
+                    // Group label — i18n via schemeGroup name lookup
                     readonly property string groupLabel: ({
                         0:Tr.schemeGroupWeb, 1:Tr.schemeGroupFile,
                         2:Tr.schemeGroupEmail, 3:Tr.schemeGroupDb,
@@ -219,7 +223,7 @@ ColumnLayout {
 
                 onTextChanged: {
                     var t = text.trim()
-                    // Detect pasted URL (contains ://) �?parse into fields
+                    // Detect pasted URL (contains ://) — parse into fields
                     if (t.indexOf("://") >= 0) {
                         appState.parseUrlIntoFields(t)
                         return
@@ -266,7 +270,7 @@ ColumnLayout {
     RowLayout {
         visible: root.advancedExpanded
         spacing: 6
-        // Port �?adaptive width, capped so it never dominates the row
+        // Port — adaptive width, capped so it never dominates the row
         Rectangle {
             Layout.preferredWidth: Math.min(80, parent.width * 0.22)
             implicitHeight: 32; radius: 6
@@ -310,24 +314,55 @@ ColumnLayout {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 32; radius: 6
             color: Qt.alpha(ThemeEngine.bgDark, 0.4)
-            border { width: 1; color: passField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
-            TextField {
-                id: passField
-                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
-                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
-                placeholderText: Tr.passwordLabel
-                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
-                text: appState.targetPassword
-                echoMode: TextInput.Password
-                enabled: appState.runStatus !== 1
-                verticalAlignment: TextInput.AlignVCenter
-                background: Item {}
-                onTextChanged: appState.targetPassword = text.trim()
+            border { width: 1; color: passField.activeFocus || passVisBtn.containsMouse ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            RowLayout {
+                anchors { fill: parent; leftMargin: 8; rightMargin: 2 }
+                spacing: 0
+                TextField {
+                    id: passField
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                    placeholderText: Tr.passwordLabel
+                    placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                    text: appState.targetPassword
+                    echoMode: passField._showPass ? TextInput.Normal : TextInput.Password
+                    enabled: appState.runStatus !== 1
+                    verticalAlignment: TextInput.AlignVCenter
+                    background: Item {}
+                    onTextChanged: appState.targetPassword = text.trim()
+                    // 5WHY: Password visibility toggle — users enter credentials for
+                    // MySQL, PostgreSQL, LDAP, etc. A typo in a hidden field produces
+                    // silent auth failures with no feedback. Show/hide toggle reduces
+                    // credential-entry errors per NIST SP 800-63B §5.1.1.2.
+                    property bool _showPass: false
+                }
+                // Visibility toggle icon (eye / eye-off)
+                Item {
+                    // 5WHY: Apple HIG minimum touch target is 44pt; Material Design
+                    // is 48dp. Use 44pt to ensure tappable area on all platforms.
+                    implicitWidth: 36; implicitHeight: 28
+                    visible: passField.text !== ""
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: passField._showPass ? "check" : "close"
+                        size: 14
+                        color: passField._showPass ? ThemeEngine.accentBlue
+                                                    : Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                    }
+                    MouseArea {
+                        id: passVisBtn
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: passField._showPass = !passField._showPass
+                        hoverEnabled: true
+                    }
+                }
             }
         }
     }
 
-    // ══════════════════�?Validation error ══════════════════�?    RowLayout {
+    // ── Validation error ────────────────────────────────────────────────
+    RowLayout {
         visible: page._snapTargetError !== ""
         spacing: 4
         AppIcon { name: "warning"; size: 12; color: ThemeEngine.failRed }
@@ -340,7 +375,8 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 10 }
 
-    // ══════════════════�?Run / Stop buttons ══════════════════�?    RowLayout {
+    // ── Run / Stop buttons ──────────────────────────────────────────────
+    RowLayout {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 38; radius: 8
             color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.accentBlue, 0.4) : (appState.canRun() ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.accentBlue, 0.3))

@@ -52,7 +52,7 @@ DiagnosticResult networkAdapters(DiagId id) {
     }
 #else
 #if defined(PLATFORM_IOS)
-    // 闁冲厜鍋撻柍鍏夊亾 iOS: use getifaddrs + SystemConfiguration framework 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
+    // iOS: use getifaddrs + SystemConfiguration framework
     // iOS restricts: MAC addresses, /sys/class/net, /proc, netlink, ARP, routing table
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) != 0) {
@@ -78,12 +78,12 @@ DiagnosticResult networkAdapters(DiagId id) {
         }
     }
 
-    // 闁冲厜鍋撻柍鍏夊亾 WiFi SSID (needs com.apple.developer.networking.wifi-info) 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
+    // WiFi SSID (needs com.apple.developer.networking.wifi-info entitlement)
     QString wifiSSID = iosCopyWiFiSSID();
 
     freeifaddrs(ifa);
 
-    // 闁冲厜鍋撻柍鍏夊亾 Build output table 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
+    // Build output table from ifMap
     static const QVector<DiagnosticFormatter::ColSpec> kNetCols = {
         {"Iface",       12, false},
         {"Type",        12, false},
@@ -111,7 +111,7 @@ DiagnosticResult networkAdapters(DiagId id) {
     }
     out.append(DiagnosticFormatter::formatTable(kNetCols, netRows));
 
-    // 闁冲厜鍋撻柍鍏夊亾 Cellular info 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
+    // Cellular info section
     QVariantMap cell = iosCellularInfo();
     const bool hasCellIdentity = hasCellularIdentity(cell);
     if (hasCellIdentity) {
@@ -177,7 +177,7 @@ DiagnosticResult networkAdapters(DiagId id) {
     }
     freeifaddrs(ifa);
 
-    // 闁冲厜鍋撻柍鍏夊亾 ifconfig -s style table with MAC/IPv4 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
+    // ifconfig -s style table with MAC/IPv4
     static const QVector<DiagnosticFormatter::ColSpec> kNetCols = {
         {"Iface",       12, false},
         {"MTU",          4, true},
@@ -217,9 +217,11 @@ DiagnosticResult networkAdapters(DiagId id) {
         QString ip4 = info.ips.isEmpty() ? (isLoopback ? QStringLiteral("127.0.0.1") : QStringLiteral("-")) : info.ips.join(',');
 
         netRows.append({info.name, mtu, state, mac, ip4});
+#endif // __APPLE__
     }
     out.append(DiagnosticFormatter::formatTable(kNetCols, netRows));
-#endif
+#endif // PLATFORM_IOS
+#endif // _WIN32
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
@@ -231,7 +233,7 @@ DiagnosticResult networkAdapters(DiagId id) {
     return r;
 }
 
-// 闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍?
-// G1 闁?Active Connections (netstat -an format)
-// 闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍?
+
+// G1  - Active Connections (netstat -an format)
+
 }

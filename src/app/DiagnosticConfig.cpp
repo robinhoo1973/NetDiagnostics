@@ -70,6 +70,7 @@ bool DiagnosticConfig::isGroupAllEnabled(int groupInt) const {
 }
 
 bool DiagnosticConfig::isGroupAnyEnabled(int groupInt) const {
+    if (!isValidGroup(groupInt)) return false;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : diagIdsForGroup(g)) {
         if (m_enabledDiags.contains(id)) return true;
