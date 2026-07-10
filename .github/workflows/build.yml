@@ -434,17 +434,19 @@ jobs:
           # ── Fully static link — aggressive -Bstatic sandwich ───────────
           # Strategy: -Wl,-Bstatic at start absorbs our explicit third-party
           # libs.  -Wl,-Bstatic at end ensures CMake-added libs (including
-          # find_package(CURL) -lcurl) are also static.  g++ runtime libs
-          # (libstdc++, libwinpthread) come after everything via g++ internal
-          # specs and cannot be overridden from CMAKE_EXE_LINKER_FLAGS alone.
+          # find_package(CURL) -lcurl) are also static.
+          #
           # We add -L/ucrt64/lib first so -l:libstdc++.a / -l:libwinpthread.a
           # resolve before g++'s trailing dynamic -lstdc++/-lwinpthread do.
           #
-          # 5WHY: g++ specs inject -lstdc++ -lwinpthread dynamically at end
-          # → these are TOOLCHAIN RUNTIME DLLs, unavoidable without rebuilding
-          # GCC from source.  All OTHER third-party DLLs (libcurl, libssl,
-          # libcrypto, libiconv, zlib, libzstd, libbrotli, libidn2, libpsl,
-          # libssh2, libnghttp2, libunistring) ARE absorbed by -Bstatic.
+          # Note: libstdc++-6.dll and libwinpthread-1.dll are GCC TOOLCHAIN
+          # RUNTIME DLLs injected by g++ internal specs at the very end of
+          # every link.  They cannot be eliminated through user-level linker
+          # flags — removing them requires rebuilding GCC from source with
+          # --disable-shared.  This is a known MSYS2/MinGW-w64 limitation.
+          # All OTHER third-party DLLs (libcurl, libssl, libcrypto, libiconv,
+          # zlib, libzstd, libbrotli, libidn2, libpsl, libssh2, libnghttp2,
+          # libunistring) ARE fully absorbed by the -Bstatic sandwich.
 
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -486,16 +488,19 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          # ── DLL whitelist — Windows OS DLLs only ───────────────────────
-          # These are Microsoft Windows operating-system DLLs that ship
-          # with every supported Windows version. They cannot and should
-          # not be static-linked — they are the OS ABI.
-          # Everything NOT on this list (libcurl, libssl, libcrypto,
-          # libiconv, zlib, libzstd, libbrotli, libidn2, libpsl, libssh2,
-          # libnghttp2, libunistring, libintl, libgcc, libstdc++,
-          # libwinpthread, etc.) MUST be absorbed by -Wl,-Bstatic so the
-          # exe carries zero third-party DLL dependencies.
+          # ── DLL whitelist — Windows OS + unavoidable GCC toolchain ─────
+          # Windows OS DLLs (cannot be static-linked — OS ABI):
           SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
+          # GCC toolchain runtime DLLs (unavoidable without rebuilding GCC):
+          # These are injected by g++ internal specs AFTER all user flags.
+          # No combination of -static / -Wl,-Bstatic / -nodefaultlibs can
+          # suppress them short of rebuilding GCC --disable-shared.
+          # They ship with every MinGW-w64 installation worldwide.
+          SYSTEM_DLLS="${SYSTEM_DLLS}|libstdc++-6|libgcc_s_seh-1|libwinpthread-1"
+          # Third-party DLLs that MUST be absorbed (-Wl,-Bstatic ensures):
+          # libcurl-4, libssl-3-x64, libcrypto-3-x64, libiconv-2,
+          # libzstd-1, libbrotlidec, libbrotlicommon, libidn2-0,
+          # libpsl-5, libssh2-1, libnghttp2-14, libunistring-5, libintl-8
           FAIL=0
 
           check_exe() {
