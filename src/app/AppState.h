@@ -160,6 +160,11 @@ public:
     // so shared HTML matches the app theme like exportPdf does.
     Q_INVOKABLE QString exportHtml(const QString& filePath, bool darkBackground = true) const;
     Q_INVOKABLE QString exportPdf(const QString& filePath) const;
+    // 5WHY: "PDF Preview" was a QTextDocument→QImage rendering, not an actual
+    // PDF. Generates a real PDF to a temp file and opens it in the system's
+    // native PDF viewer (Preview.app / Edge / Okular / etc.) for true WYSIWYG.
+    Q_INVOKABLE void openPdfExternally() const;
+    Q_INVOKABLE void openHtmlExternally() const;
     // Desktop: opens a native NON-modal save dialog, then emits savePathPicked.
     // Mobile: emits savePathPicked immediately with a Documents path.
     Q_INVOKABLE void requestSavePath(const QString& format);
