@@ -23,12 +23,10 @@
         <file>qml/widgets/AppIcon.qml</file>
         <file>qml/widgets/SummaryCards.qml</file>
         <file>qml/widgets/DiagnosticToolbar.qml</file>
-        <!-- 5WHY: HtmlPreviewWebView.qml MUST be in QRC for Loader
-             source: "qrc:/..." to resolve. The active: hasWebView guard
-             prevents loading on platforms without QtWebView at runtime.
-             For static MSYS2 builds where qt_import_qml_plugins scans
-             QRC at build time, a separate fix is needed (build.yml). -->
-        <file>qml/widgets/HtmlPreviewWebView.qml</file>
+        <!-- HtmlPreviewWebView.qml moved to resources_webview.qrc
+             which is conditionally included only when QtWebView is
+             found. This prevents qmlimportscanner from requiring the
+             QtWebView plugin in static MSYS2 builds. -->
         <file>qml/widgets/TargetAnalysisPanel.qml</file>
         <file>icons/check.svg</file>
         <file>icons/circle.svg</file>

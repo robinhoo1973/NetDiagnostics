@@ -108,6 +108,20 @@ endif()
 
 set(QML_RESOURCES resources/resources.qrc)
 
+# ── QtWebView QRC — only included when QtWebView module is available ──
+# 5WHY: HtmlPreviewWebView.qml contains import QtWebView. If this file
+# is in the main QRC, qt_import_qml_plugins() scans it at build time
+# and requires the QtWebView plugin — which is unavailable in static
+# MSYS2 builds, causing a startup crash. By isolating it in a separate
+# QRC that is only bundled when QtWebView exists, static builds skip
+# the import and rely on the Image fallback in ReportScreen.qml.
+if(TARGET Qt6::WebView)
+    list(APPEND QML_RESOURCES resources/resources_webview.qrc)
+    message(STATUS "WebView QRC included — in-app HTML preview enabled")
+else()
+    message(STATUS "WebView QRC excluded — in-app HTML preview uses image fallback")
+endif()
+
 # ── Production target ──────────────────────────────────────────────────
 qt_add_executable(net_diagnostics WIN32 ${SOURCES} ${QML_RESOURCES})
 configure_netdiag_target(net_diagnostics)
