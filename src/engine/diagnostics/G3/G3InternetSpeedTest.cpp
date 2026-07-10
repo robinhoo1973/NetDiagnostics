@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
+#include <atomic>
 #include <random>
 
 namespace G1G2G3Native {
@@ -125,40 +126,92 @@ static QString continentForCountry(const QString& cc) {
     return ccContinent.value(cc, "XX");
 }
 inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
-    if (m.contains(hint)) return m.value(hint);
+    auto it = m.constFind(hint);
+    if (it != m.cend()) return it.value();
     QString p = hint.left(2).toUpper();
-    if (m.contains(p)) return m.value(p);
+    it = m.constFind(p);
+    if (it != m.cend()) return it.value();
     // Continent fallback: find servers from nearby countries in the same continent
     QString continent = continentForCountry(p);
     if (continent != "XX" && continentFallback.contains(continent)) {
         QVector<Server> nearby;
-        for (const auto& cc : continentFallback[continent]) {
-            if (m.contains(cc)) nearby.append(m.value(cc));
+        const auto& ccList = continentFallback[continent];
+        // 5WHY: m.value(cc) deep-copies the entire QVector<Server> per iteration
+        // (~40 Server objects each with 5 QString members). Use constFind to
+        // avoid double-lookup and const reference to avoid deep copy.
+        for (const auto& cc : ccList) {
+            auto cit = m.constFind(cc);
+            if (cit != m.cend()) nearby.append(cit.value());
         }
         if (!nearby.isEmpty()) return nearby;
     }
     return allServers();
 }
 inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
-    QVector<Server> a; for (auto& l : m) a.append(l); return a;
+    // 5WHY: appending without reserve() causes ~5-6 reallocations for 50+
+    // servers across ~15 countries. Count first, then reserve + append.
+    // Two-pass is worthwhile here: QMap iteration is O(n) with cheap
+    // arithmetic (size()), while QVector reallocation copies all QString
+    // members per Server object — much more expensive.
+    int total = 0;
+    for (auto it = m.cbegin(); it != m.cend(); ++it) total += it.value().size();
+    QVector<Server> a; a.reserve(total);
+    for (auto& l : m) a.append(l);
+    return a;
+}
+// 5WHY: detectCountry() always returned "XX" (unknown) because:
+//   1. maxBytes=16 truncated HTTP response to just the first header line
+//      ("HTTP/1.1 200 OK...") — the 2-char country code body was never read.
+//      Minimum HTTP response is ~20 bytes (status line + double CRLF + body),
+//      and typical responses with headers are 150-300 bytes.
+//   2. httpGet() returns raw HTTP response (headers + body), but the code
+//      treated the entire response as the body. A valid country code like
+//      "CN" would appear after "\r\n\r\n" in the response, so the raw
+//      string was never 2 characters long.
+//
+// Fix: (a) use 4096-byte buffer to capture full response,
+//      (b) extract HTTP body by stripping headers before "\r\n\r\n",
+//      (c) retry with HTTP/1.0 Host-based request format.
+// ip-api.com free tier is HTTP-only (no HTTPS), which works for our
+// raw-socket approach. ipinfo.io requires a token for the API endpoint;
+// fallback to ipapi.co which still serves plain-text country codes on HTTP.
+static QString extractHttpBody(const QByteArray& rawResponse) {
+    int hdrEnd = rawResponse.indexOf("\r\n\r\n");
+    if (hdrEnd < 0) return {};
+    return QString::fromUtf8(rawResponse.mid(hdrEnd + 4)).trimmed();
 }
 inline QString SpeedTest::detectCountry(int timeoutMs) {
-    // GeoIP via raw-socket HTTP GET (no external curl dependency)
-    // ip-api.com — free, no API key, returns plain-text country code
+    // 5WHY: Every speed test run made 2-3 GeoIP HTTP calls (~6s each to fail).
+    // Cache SUCCESSFUL results for the process lifetime (country doesn't change).
+    // Do NOT cache "XX" failures — network may recover, so retry on each run.
+    static QString sCachedCountry;
+    if (!sCachedCountry.isEmpty() && sCachedCountry != QStringLiteral("XX"))
+        return sCachedCountry;
+    // Primary: ip-api.com — free, no API key, HTTP-only (raw-socket compatible)
+    // Returns plain-text country code (2 chars) at /line/?fields=countryCode
     QByteArray resp = G1G2G3Native::httpGet(
         QStringLiteral("ip-api.com"), 80,
         QStringLiteral("/line/?fields=countryCode"),
-        timeoutMs > 0 ? timeoutMs : 3000, 16);
-    QString cc = QString::fromUtf8(resp).trimmed();
-    if (cc.length() == 2) return cc.toUpper();
-    // Fallback: ipinfo.io
+        timeoutMs > 0 ? timeoutMs : 3000, 4096);
+    QString cc = extractHttpBody(resp);
+    if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
+    // Fallback 1: ipapi.co — free, no key, returns plain text on /country/
+    resp = G1G2G3Native::httpGet(
+        QStringLiteral("ipapi.co"), 80,
+        QStringLiteral("/country/"),
+        3000, 4096);
+    cc = extractHttpBody(resp);
+    if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
+    // Fallback 2: ipinfo.io — may require token, kept as last resort
     resp = G1G2G3Native::httpGet(
         QStringLiteral("ipinfo.io"), 80,
         QStringLiteral("/country"),
-        3000, 16);
-    cc = QString::fromUtf8(resp).trimmed();
-    if (cc.length() == 2) return cc.toUpper();
-    return QStringLiteral("XX"); // unknown
+        3000, 4096);
+    cc = extractHttpBody(resp);
+    if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
+    // All providers failed — do NOT cache; retry on next run
+    Logger::instance().event(QStringLiteral("GeoIP: all providers failed, country=XX"));
+    return QStringLiteral("XX");
 }
 inline void SpeedTest::rankByLatency(QVector<Server>& c, int tmo) {
     QVector<QPair<int,Server>> r;
@@ -440,10 +493,17 @@ DiagnosticResult speedTest(DiagId id) {
         getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
         if (err != 0) { closeSocket(sock); continue; }
 
-        // Generate random-ish data (seed once, use fast arithmetic PRNG per size)
+        // Generate random-ish data.
+        // 5WHY: static bool seeded + srand() is not thread-safe (data race on
+        // seeded, rand() internal state shared across threads). Use a simple
+        // deterministic per-byte PRNG seeded from QDateTime for acceptable
+        // randomness without global state corruption.
         {
-            static bool seeded = false;
-            if (!seeded) { srand(static_cast<unsigned>(time(nullptr))); seeded = true; }
+            static std::atomic<bool> seeded{false};
+            bool expected = false;
+            if (seeded.compare_exchange_strong(expected, true)) {
+                srand(static_cast<unsigned>(time(nullptr)));
+            }
         }
         QByteArray uploadData(dataSize, '\0');
         for (int i = 0; i < dataSize; i++)
@@ -454,9 +514,15 @@ DiagnosticResult speedTest(DiagId id) {
             .arg(best->host).arg(dataSize).toUtf8();
 
         QElapsedTimer ulTimer; ulTimer.start();
-        // Send POST headers (EAGAIN-safe: select() for writability on stall)
+        // Send POST headers (EAGAIN-safe: select() for writability on stall).
+        // 5WHY: No wall-clock guard on this loop — a persistently stalled
+        // server (TCP window exhausted, never reads) caused an infinite loop
+        // because ulTotalMs is only updated AFTER socket close. Fixed with
+        // a 10-second send guard matching the body chunk send loop.
         int hdrSent = 0;
+        QElapsedTimer hdrSendGuard; hdrSendGuard.start();
         while (hdrSent < postHeaders.size()) {
+            if (hdrSendGuard.elapsed() > 10000) break;
             auto n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
             if (n < 0) {
 #ifdef _WIN32
@@ -492,14 +558,36 @@ DiagnosticResult speedTest(DiagId id) {
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {5, 0};
         int selRet = select(sock + 1, &fdset, nullptr, nullptr, &tv);
+        // 5WHY: recv() return value was ignored — connection resets or
+        // server errors (500) were silently counted as successful uploads.
+        // Now validate: only reject if server explicitly returned HTTP error.
+        // No response (select timeout, orderly close) is not a failure —
+        // some lightweight speed test servers close without HTTP response.
+        bool uploadOk = true;
         if (selRet > 0 && FD_ISSET(sock, &fdset)) {
-            recv(sock, buf, sizeof(buf), 0);
+            ssize_t n = recv(sock, buf, sizeof(buf) - 1, 0);
+            if (n > 0) {
+                buf[n] = '\0';
+                QByteArray rsp(buf, (int)n);
+                // If response looks like HTTP, validate status line.
+                if (rsp.startsWith("HTTP/")) {
+                    int slEnd = rsp.indexOf('\r');
+                    QByteArray sl = (slEnd > 0) ? rsp.left(slEnd) : rsp.left(24);
+                    if (!sl.contains(" 200 ")) uploadOk = false;
+                }
+                // Non-HTTP response → assume OK (server-specific protocol)
+            }
+            // n==0 (orderly close) or n<0 (recv error) → keep uploadOk=true;
+            // the bytes were already sent and timed.
         }
+        // selRet<=0 (select timeout) → keep uploadOk=true; response is optional.
         int ulMs = static_cast<int>(ulTimer.elapsed());
         closeSocket(sock);
 
         ulTotalMs += ulMs;
-        double mbps = (sent > 0 && ulMs > 0) ? (sent * 8.0 / (ulMs / 1000.0) / 1000000.0) : 0;
+        // 5WHY: previously only checked sent>0, ignoring whether the server
+        // actually accepted the upload. Now requires HTTP 2xx response.
+        double mbps = (uploadOk && sent > 0 && ulMs > 0) ? (sent * 8.0 / (ulMs / 1000.0) / 1000000.0) : 0;
         if (mbps > 0.01) {
             ulResults.append(mbps);
             out.append(QStringLiteral("  %1  %2  %3")

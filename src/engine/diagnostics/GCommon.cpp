@@ -38,18 +38,43 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         sent += n;
     }
 
-    // Read response with wall-clock timeout
+    // Read response with wall-clock timeout.
+    // 5WHY: recv() returning EAGAIN on a non-blocking socket after select()
+    // reports readability is a known kernel race. The old code treated ANY
+    // n<=0 as end-of-stream, truncating HTTP responses mid-stream. Now we
+    // retry select+recv on EAGAIN instead of breaking.
     QByteArray response; char buf[8192];
     QElapsedTimer recvTimer; recvTimer.start();
     while (response.size() < maxBytes) {
+        // 5WHY: using the full timeoutMs for every select() iteration meant
+        // EAGAIN retries could each wait timeoutMs again, turning a 3s budget
+        // into 30s+. Compute remaining time so the total never exceeds the
+        // caller's timeoutMs (clamped to 100ms min to avoid tight spinning).
+        int remaining = timeoutMs - (int)recvTimer.elapsed();
+        if (remaining <= 0) break;
+        int selectMs = qMax(remaining, 100);
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
+        tv = {selectMs / 1000, (selectMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        if (n <= 0) break;
-        response.append(buf, (int)n);
-        // Wall-clock guard: abort if total recv time exceeds 30 s
+        // Wall-clock guard: abort if total recv time exceeds 30 s.
+        // MUST come before EAGAIN handling — a continue on EAGAIN would
+        // otherwise skip this guard, risking an infinite loop if select()
+        // keeps reporting readable but recv() keeps returning EAGAIN.
         if (recvTimer.elapsed() > 30000) break;
+        if (n > 0) {
+            response.append(buf, (int)n);
+        } else if (n == 0) {
+            break; // orderly shutdown
+        } else {
+            // n < 0: could be EAGAIN (retry) or a real error
+#ifdef _WIN32
+            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
+#else
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+#endif
+            break; // real error
+        }
     }
     closeSocket(sock);
     return response;
@@ -111,7 +136,9 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     // Read with timing 闁?measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
     QByteArray body;
+    QByteArray headerBuf;
     bool headersDone = false;
+    bool httpOk = false;
     char buf[32768];
     QElapsedTimer recvGuard; recvGuard.start();
     while (body.size() < targetBytes + 65536) {
@@ -119,14 +146,34 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        if (n <= 0) break;
         // Wall-clock guard: abort if total recv time exceeds 60 s
         if (recvGuard.elapsed() > 60000) break;
+        // 5WHY: treat EAGAIN as retry, not end-of-stream
+        if (n > 0) {
+            /* process below */
+        } else if (n == 0) {
+            break; // orderly shutdown
+        } else {
+#ifdef _WIN32
+            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
+#else
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+#endif
+            break; // real error
+        }
         if (!headersDone) {
-            body.append(buf, (int)n);
-            auto hdrEnd = body.indexOf("\r\n\r\n");
+            headerBuf.append(buf, (int)n);
+            auto hdrEnd = headerBuf.indexOf("\r\n\r\n");
             if (hdrEnd >= 0) {
-                body = body.mid(hdrEnd + 4);
+                // 5WHY: httpDownload accepted ANY HTTP response (200, 404, 500)
+                // as valid, measuring error page throughput as download speed.
+                // Validate HTTP 2xx by checking the status line only — avoids
+                // false match on "200 " appearing in header values.
+                QByteArray hdrs = headerBuf.left(hdrEnd);
+                int slEnd = hdrs.indexOf('\r');
+                QByteArray statusLine = (slEnd > 0) ? hdrs.left(slEnd) : hdrs;
+                httpOk = statusLine.contains(" 200 ");
+                body = headerBuf.mid(hdrEnd + 4);
                 headersDone = true;
                 startNs = t.nsecsElapsed(); // reset timer to body start
             }
@@ -140,7 +187,9 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     if (elapsedNs <= 0) elapsedNs = 1;
     r.bytes = static_cast<int>(body.size());
     r.durationMs = (int)(elapsedNs / 1000000);
-    if (r.bytes > 0 && r.durationMs > 0) {
+    // 5WHY: previously only checked bytes>0 && duration>0, which accepted
+    // HTTP error pages (404, 500) as valid downloads. Now requires HTTP 2xx.
+    if (httpOk && r.bytes > 0 && r.durationMs > 0) {
         double bits = r.bytes * 8.0;
         double secs = r.durationMs / 1000.0;
         r.mbps = bits / secs / 1000000.0;
@@ -188,12 +237,19 @@ int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     // Download latency.txt from server root 闁?speedtest-cli uses the root path
     // regardless of the download/upload URL structure
     QString latPath = QStringLiteral("/latency.txt");
-    QByteArray resp = httpGet(host, port, latPath, timeoutMs, 256);
+    QByteArray resp = httpGet(host, port, latPath, timeoutMs, 4096);
     if (resp.isEmpty()) return -1;
 
     // Parse HTTP response 闁?extract body after \r\n\r\n header terminator
     auto hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
+    // 5WHY: httpLatencyMs accepted ANY HTTP response (200, 404, 500) as valid,
+    // treating error pages as latency measurements. Validate HTTP 2xx by
+    // checking the status line only — avoids false match in header values.
+    QByteArray headers = resp.left(hdrEnd);
+    int slEnd = headers.indexOf('\r');
+    QByteArray statusLine = (slEnd > 0) ? headers.left(slEnd) : headers;
+    if (!statusLine.contains(" 200 ")) return -1;
     QByteArray body = resp.mid(hdrEnd + 4);
     // latency.txt should contain a small text like "test=...", we just need the time
     if (body.trimmed().isEmpty()) return -1;
