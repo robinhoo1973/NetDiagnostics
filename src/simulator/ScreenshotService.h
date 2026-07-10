@@ -207,3 +207,5 @@ private:
     QString     m_recordingDir;
     int         m_frameCount = 0;
 };
+
+#include "moc_ScreenshotService.cpp"
