@@ -1,9 +1,19 @@
+// =============================================================================
+// SimulatorScreen.qml — Refactored simulator main window (Phase 1).
+//
+// Architecture per build/simulator.md §三:
+//   MenuBar + ToolBar → DeviceViewport ← Profile Panel / Test Panel / Log Panel
+//
+// The DeviceViewport is the central rendering surface for simulated OS/device
+// UI.  ScreenshotService captures only this region.
+// =============================================================================
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
 import "../theme"
 import "../utils"
+import "../simulator"
 import "../"
 
 ApplicationWindow {
@@ -12,142 +22,303 @@ ApplicationWindow {
     title: "NetDiagnostics Simulator"
     visible: true
     color: ThemeEngine.bgDark
-
-    // Maximize to fill the current screen's available area.
-    // onWidthChanged/onHeightChanged handlers will trigger recalcScale()
-    // after the window manager assigns the final geometry.
     visibility: Window.Maximized
 
     AppFonts {}
 
-    property var devices: [
-        // ── Desktop ──────────────────────────────────────────────────
-        { id:"win-x64",   name:"Windows 11 (x64)",     os:"windows", w:1024,h:640, bezel:0, island:false, radius:8 },
-        { id:"win-arm64", name:"Windows 11 (ARM64)",   os:"windows", w:1024,h:640, bezel:0, island:false, radius:8 },
-        { id:"lx-x64",    name:"Ubuntu 24.04 (x64)",   os:"linux",   w:1024,h:640, bezel:0, island:false, radius:8 },
-        { id:"lx-arm64",  name:"Ubuntu 24.04 (ARM64)", os:"linux",   w:1024,h:640, bezel:0, island:false, radius:8 },
-        { id:"mac-x64",   name:"macOS 15 (x64)",       os:"macos",   w:1024,h:640, bezel:0, island:false, radius:8 },
-        { id:"mac-arm64", name:"macOS 15 (ARM64)",     os:"macos",   w:1024,h:640, bezel:0, island:false, radius:8 },
-        // ── iOS ─────────────────────────────────────────────────────
-        { id:"ios-iphone-se",    name:"iPhone SE (3rd gen)",   os:"ios", w:375, h:667,  bezel:8,  island:false, radius:20 },
-        { id:"ios-iphone15",     name:"iPhone 15 Pro",         os:"ios", w:393, h:852,  bezel:12, island:true,  radius:55 },
-        { id:"ios-iphone15pm",   name:"iPhone 15 Pro Max",     os:"ios", w:430, h:932,  bezel:12, island:true,  radius:55 },
-        { id:"ios-iphone16",     name:"iPhone 16",             os:"ios", w:402, h:874,  bezel:11, island:true,  radius:55 },
-        { id:"ios-iphone16pm",   name:"iPhone 16 Pro Max",     os:"ios", w:440, h:956,  bezel:11, island:true,  radius:55 },
-        { id:"ios-ipad-mini",    name:"iPad mini (6th gen)",   os:"ios", w:744, h:1133, bezel:14, island:false, radius:16 },
-        { id:"ios-ipadpro11",    name:"iPad Pro 11″ (M4)",     os:"ios", w:834, h:1210, bezel:14, island:false, radius:18 },
-        { id:"ios-ipadpro13",    name:"iPad Pro 12.9″ (M4)",   os:"ios", w:1024,h:1366, bezel:14, island:false, radius:18 },
-        // ── Android ─────────────────────────────────────────────────
-        { id:"android-pixel8",   name:"Pixel 8 (Android 14)",  os:"android", w:412, h:915,  bezel:8,  island:false, radius:20 },
-        { id:"android-pixel9",   name:"Pixel 9 Pro (Android 15)", os:"android", w:448, h:1008, bezel:7,  island:false, radius:20 },
-        { id:"android-s24",      name:"Galaxy S24 (Android)",  os:"android", w:360, h:780,  bezel:6,  island:false, radius:16 },
-        { id:"android-s24u",     name:"Galaxy S24 Ultra (Android)", os:"android", w:384, h:854, bezel:6, island:false, radius:16 },
-        { id:"android-oneplus",  name:"OnePlus 12 (Android)",  os:"android", w:412, h:917,  bezel:7,  island:false, radius:18 }
-    ]
-    property int currentDevice: 0
-    property bool portrait: true
-    onPortraitChanged: recalcScale()
-    onCurrentDeviceChanged: recalcScale()
-    onWidthChanged: recalcScale()
-    onHeightChanged: recalcScale()
-
-    // Polling fallback — ARM64 Qt signals may be dropped; gate to Linux only
-    readonly property bool needsScalePolling: Qt.platform.os === "linux"
-    Timer { interval: 200; running: needsScalePolling; repeat: true; onTriggered: recalcScale() }
-
-    function recalcScale() {
-        var w = page.width; var h = page.height - 48
-        var p = portrait; var d = cur()
-        if (w <= 0 || h <= 0 || !d) { return }
-        var desktop = isDesktop()
-        var dev_sw = p ? d.w : d.h
-        var dev_sh = p ? d.h : d.w
-        var dev_bh = desktop ? 0 : (d.bezel || 0)
-        var fw = dev_sw + dev_bh*2
-        var fh = dev_sh + dev_bh*2 + 36
-	var s = Math.max(0.1, Math.min((w-16)/fw, (h-16)/fh))
-        // All dimensions at natural size — Scale transform handles visual scaling
-        deviceFrame.width = fw; deviceFrame.height = fh
-        deviceFrame.radius = desktop ? d.radius+2 : d.radius+dev_bh
-        deviceFrame.color = desktop ? ThemeEngine.bgDark : "#0A0A0A"
-        deviceFrame.border.width = desktop ? 1 : 0
-        screenRect.x = dev_bh; screenRect.y = dev_bh
-        screenRect.width = dev_sw; screenRect.height = dev_sh + 36
-        screenRect.radius = d.radius
-        // Natural size — Scale transform handles visual
-        scaled.width = fw; scaled.height = fh
-        scaled.scale = s
-        scaled.x = (page.width - fw * s) / 2
-        scaled.y = 0
+    // ── Phase 2 startup: init skip policy for default device ──────────
+    Component.onCompleted: {
+        // Trigger onCurrentDeviceChanged to wire skip rules on first load
+        Qt.callLater(function() {
+            var os = curOS()
+            if (typeof simConfig !== 'undefined' && simConfig) {
+                simConfig.setActivePlatform(os)
+                if (typeof appState !== 'undefined' && appState)
+                    appState.setSkipRules(simConfig.policyRules || [])
+            }
+        })
     }
 
-    function cur() { return devices[currentDevice] }
-    function isMobile() { var d = cur(); return d ? (d.os === "ios" || d.os === "android") : false }
-    function isDesktop(){ return !isMobile() }
+    // ── Phase 3: Auto-capture on diagnostic lifecycle ─────────────────
+    Connections {
+        target: appState
+        function onDiagFailed(diagIdInt) {
+            if (typeof screenshotSvc === 'undefined' || !screenshotSvc) return
+            var testName = "diag_" + diagIdInt
+            screenshotSvc.captureOnFailure(diagIdInt, testName, curOS(), curDeviceId())
+        }
+        function onRunStatusChanged() {
+            if (typeof screenshotSvc === 'undefined' || !screenshotSvc) return
+            if (appState.runStatus === 2) {
+                screenshotSvc.captureForTest(-1, "run_complete", curOS(), curDeviceId(), "complete")
+            }
+        }
+    }
 
-    // OS metadata lookup — replaces osIcon/osColor/osLabel functions
+    // ── Menu bar (build/simulator.md §五.1) ─────────────────────────────
+    menuBar: SimulatorMenuBar {
+        onFileExit:              page.close()
+        onDeviceSelectRequested: devicePopup.open()
+        onDeviceOrientationToggle:page.portrait = !page.portrait
+        onDeviceFitToWindow:     viewport.recalcScale(body.width, body.height)
+        onCaptureScreenshot: {
+            var path = screenshotSvc.makeFilename(curOS(), curDeviceId(), "manual")
+            screenshotSvc.capture(path)
+            toast.show("Screenshot saved: " + (screenshotSvc.lastCapturePath || ""))
+        }
+        onCaptureStartRecording:  screenshotSvc.startRecording()
+        onCaptureStopRecording:   screenshotSvc.stopRecording()
+        onTestRunSelected:        appState.runDiagnostics()
+        onTestStop:              appState.cancel()
+        onTestClearResults:      appState.reset()
+        onViewToggleLog:         logPanel.visible = !logPanel.visible
+        onViewToggleParameters:  leftPanel.visible = !leftPanel.visible
+        onViewToggleResults:     rightPanel.visible = !rightPanel.visible
+        onViewFitDevice:         viewport.recalcScale(body.width, body.height)
+        onViewZoomIn:            viewport.scale = Math.min(viewport.scale * 1.1, 3.0)
+        onViewZoomOut:           viewport.scale = Math.max(viewport.scale * 0.9, 0.15)
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Device definitions (fallback — overridden by SimulatorConfig if loaded)
+    property var devices: (typeof simConfig !== 'undefined' && simConfig && simConfig.deviceCount > 0)
+        ? simConfig.devices
+        : [
+            { id:"win-x64",name:"Windows 11 (x64)",os:"windows",w:1024,h:640,bezel:0,island:false,radius:8 },
+            { id:"ios-iphone15pm",name:"iPhone 15 Pro Max",os:"ios",w:430,h:932,bezel:12,island:true,radius:55 },
+            { id:"android-pixel9",name:"Pixel 9 Pro",os:"android",w:448,h:1008,bezel:7,island:false,radius:20 }
+          ]
+    property int currentDevice: 0
+    property bool portrait: true
+
+    function curDeviceId() { var d = devices[currentDevice]; return d ? (d.id || "") : "" }
+    function curOS()        { var d = devices[currentDevice]; return d ? (d.os || "")  : "" }
+    function cur()          { return devices[currentDevice] || devices[0] }
+
+    // ── Phase 2: Dynamic skip-policy wiring ────────────────────────────
+    // When the simulated device/OS changes, update the active platform
+    // in SimulatorConfig and push the new skip rules to AppState so the
+    // policy engine enforces them during test execution.
+    onCurrentDeviceChanged: {
+        var os = curOS()
+        if (typeof simConfig !== 'undefined' && simConfig) {
+            simConfig.setActivePlatform(os)
+            if (typeof appState !== 'undefined' && appState)
+                appState.setSkipRules(simConfig.policyRules || [])
+        }
+    }
+
+    // ── OS metadata ────────────────────────────────────────────────────
     readonly property var osMeta: ({
-        linux:   { icon:"linux",   color:"#FCC624", label:"Linux"   },
-        windows: { icon:"windows", color:"#00A4EF", label:"Windows" },
-        macos:   { icon:"apple",   color:"#007AFF", label:"macOS"   },
-        ios:     { icon:"apple",   color:"#007AFF", label:"iOS"     },
-        android: { icon:"android", color:"#3DDC84", label:"Android" }
+        linux:{icon:"linux",color:"#FCC624",label:"Linux"}, windows:{icon:"windows",color:"#00A4EF",label:"Windows"},
+        macos:{icon:"apple",color:"#007AFF",label:"macOS"}, ios:{icon:"apple",color:"#007AFF",label:"iOS"},
+        android:{icon:"android",color:"#3DDC84",label:"Android"}
     })
-    function osIcon(os)  { var m=osMeta[os]; return m ? m.icon  : "circle" }
-    function osColor(os) { var m=osMeta[os]; return m ? m.color : "#888"   }
-    function osLabel(os) { var m=osMeta[os]; return m ? m.label : os       }
+    function osIcon(os)  { var m=osMeta[os]; return m?m.icon:"circle" }
+    function osColor(os) { var m=osMeta[os]; return m?m.color:"#888"  }
+    function osLabel(os) { var m=osMeta[os]; return m?m.label:os      }
 
-    // ── Outer layout ────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // Toast notification
+    property string toastMsg: ""
+    function showToast(msg) { toastMsg = msg; toastTimer.restart() }
+    Timer { id: toastTimer; interval: 3000; onTriggered: toastMsg = "" }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Main layout:  [Left Panel] | [DeviceViewport] | [Right Panel]
+    //               [          Log Panel (bottom)            ]
     ColumnLayout {
         anchors.fill: parent; spacing: 0
 
-        // Top bar — device selector
+        // ── Top tool bar ────────────────────────────────────────────────
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar; z: 10
+            Layout.fillWidth: true; implicitHeight: 48
+            color: ThemeEngine.colors.navBar; z: 10
+            border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 12 }
-                Label { text:"NetDiagnostics Simulator"; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
-                Item { Layout.fillWidth:true }
-                Rectangle { implicitWidth:180; implicitHeight:34; radius:4; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.08); border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.15)}
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
+                Label { text:"NetDiagnostics Simulator"; font.family:ThemeEngine.monoFont; font.pixelSize:15; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
+                Item { Layout.fillWidth: true }
+
+                // OS badge
+                Rectangle { implicitWidth:100; implicitHeight:30; radius:6; color:Qt.alpha(osColor(curOS()),0.12)
+                    RowLayout { anchors.centerIn:parent; spacing:6
+                        AppIcon { name:osIcon(curOS()); size:14; color:osColor(curOS()) }
+                        Label { text:osLabel(curOS()); font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:osColor(curOS()) }
+                    }
+                }
+                Item { width:8 }
+
+                // Device selector
+                Rectangle { implicitWidth:200; implicitHeight:34; radius:6; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.08); border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.15)}
                     RowLayout { anchors.fill:parent; anchors.margins:8
                         AppIcon { name:osIcon(cur().os); size:14; color:osColor(cur().os) }
-                        Label { Layout.fillWidth:true; text:cur().name; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary }
+                        Label { Layout.fillWidth:true; text:cur().name; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
                         Label { text:"▾"; font.pixelSize:14; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.6) }
                     }
                     MouseArea { anchors.fill:parent; onClicked:devicePopup.open() }
                 }
                 Item { width:8 }
-                Rectangle { implicitWidth:34; implicitHeight:34; radius:4; color:"transparent"; border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.2)}
+
+                // Rotate button
+                Rectangle { implicitWidth:34; implicitHeight:34; radius:6; color:"transparent"; border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.2)}
                     AppIcon { anchors.centerIn:parent; name:"refresh"; size:16; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.7) }
-                    MouseArea { anchors.fill:parent; onClicked:portrait=!portrait }
+                    MouseArea { anchors.fill:parent; onClicked: portrait = !portrait }
+                }
+                Item { width:6 }
+
+                // Zoom indicator
+                Label {
+                    text: Math.round(viewport.scale * 100) + "%"
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 10
+                    color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.5)
+                    Layout.preferredWidth: 40
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                // Screenshot button
+                Rectangle { implicitWidth:34; implicitHeight:34; radius:6; color:"transparent"; border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.2)}
+                    AppIcon { anchors.centerIn:parent; name:"config"; size:16; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.7) }
+                    MouseArea { anchors.fill:parent; onClicked: {
+                        var path = screenshotSvc.makeFilename(curOS(), curDeviceId(), "manual")
+                        screenshotSvc.capture(path)
+                        showToast("Screenshot: " + (screenshotSvc.lastCapturePath || "failed"))
+                    }}
                 }
             }
         }
 
-        // Body — Rectangle (not Item) ensures Layout assigns proper width/height
+        // ── Body: three-column layout ───────────────────────────────────
+        RowLayout {
+            Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
+
+            // ── Left: Profile Panel ─────────────────────────────────────
+            Rectangle {
+                id: leftPanel
+                Layout.preferredWidth: 220; Layout.fillHeight: true
+                visible: true; color: ThemeEngine.colors.sidebar
+                border { width: 1; color: ThemeEngine.colors.borderCard }
+                ColumnLayout {
+                    anchors { fill: parent; margins: 12 }; spacing: 8
+                    Label { text:"TARGET"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.colors.primary }
+
+                    // Target input
+                    Rectangle { Layout.fillWidth:true; implicitHeight:36; radius:6; color:ThemeEngine.bgInput; border{width:1;color:ThemeEngine.colors.borderCard}
+                        TextField {
+                            id: profileTarget
+                            anchors { fill:parent; leftMargin:8; rightMargin:8 }
+                            font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textPrimary
+                            placeholderText: "Target URL / host"
+                            placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary,0.4)
+                            verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                            onTextChanged: appState.target = text.trim()
+                        }
+                    }
+                    // Run button
+                    Rectangle { Layout.fillWidth:true; implicitHeight:36; radius:6; color:appState.runStatus===1?ThemeEngine.warnYellow:ThemeEngine.accentBlue
+                        Label { anchors.centerIn:parent; text:appState.runStatus===1?"■ Stop":"▶ Run Diagnostics"
+                            font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"white" }
+                        MouseArea { anchors.fill:parent; onClicked: { if(appState.runStatus===1)appState.cancel(); else{appState.target=profileTarget.text.trim();appState.runDiagnostics()} }}
+                    }
+                    Item { Layout.preferredHeight:8 }
+                    // Skip-rule list — dynamic, updates with simulated OS
+                    Label { text:"SKIP RULES · " + curOS().toUpperCase()
+                        font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
+                    ListView {
+                        Layout.fillWidth:true; Layout.fillHeight:true; clip:true
+                        model: (typeof simConfig !== 'undefined' && simConfig) ? simConfig.policyRules : []
+                        delegate: RowLayout {
+                            width: ListView.view.width; spacing: 4
+                            AppIcon { name:"badge-skip"; size:8; color:ThemeEngine.skipGray }
+                            Label { Layout.fillWidth:true; text:modelData.reason||""; font.family:ThemeEngine.monoFont; font.pixelSize:9; color:ThemeEngine.textSecondary; wrapMode:Text.WordWrap }
+                        }
+                    }
+                }
+            }
+
+            // ── Center: Device / OS Viewport ────────────────────────────
+            Rectangle {
+                id: body
+                Layout.fillWidth: true; Layout.fillHeight: true
+                color: ThemeEngine.colors.surface
+                clip: true
+
+                // Centered DeviceViewport with proportional scaling
+                DeviceViewport {
+                    id: viewport
+                    objectName: "deviceViewport"
+                    deviceProfile: cur()
+                    portrait: page.portrait
+
+                    Component.onCompleted: {
+                        // Bind viewport to ScreenshotService so captures
+                        // target ONLY this region (build/simulator.md §四.7)
+                        if (typeof screenshotSvc !== 'undefined' && screenshotSvc)
+                            screenshotSvc.setViewport(viewport)
+                    }
+
+                    // Center horizontally, offset vertically for top bar space
+                    x: Math.max(0, (body.width  - frameW * scale) / 2)
+                    y: Math.max(0, (body.height - frameH * scale) / 2)
+
+                    Connections {
+                        target: page
+                        function onWidthChanged()  { viewport.recalcScale(body.width, body.height) }
+                        function onHeightChanged() { viewport.recalcScale(body.width, body.height) }
+                        function onPortraitChanged(){ viewport.recalcScale(body.width, body.height) }
+                        function onCurrentDeviceChanged() { viewport.recalcScale(body.width, body.height) }
+                    }
+                }
+
+            }
+
+            // ── Right: Test Panel ───────────────────────────────────────
+            Rectangle {
+                id: rightPanel
+                Layout.preferredWidth: 240; Layout.fillHeight: true
+                visible: true; color: ThemeEngine.colors.sidebar
+                border { width: 1; color: ThemeEngine.colors.borderCard }
+                ColumnLayout {
+                    anchors { fill: parent; margins: 12 }; spacing: 6
+                    Label { text:"TEST STATUS"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
+                    RowLayout {
+                        Label { text:"Status:"; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.textSecondary }
+                        Label {
+                            text: ({0:"Idle",1:"Running…",2:"Complete",3:"Cancelled",4:"Error"})[appState.runStatus]||"Idle"
+                            font.family:ThemeEngine.monoFont; font.pixelSize:12; font.weight:Font.DemiBold
+                            color: appState.runStatus===1?ThemeEngine.cyan:(appState.runStatus===2?ThemeEngine.passGreen:(appState.runStatus===3||appState.runStatus===4?ThemeEngine.failRed:ThemeEngine.textSecondary))
+                        }
+                    }
+                    Label { Layout.fillWidth:true
+                        visible: appState.totalDiags > 0
+                        text:"Progress: " + appState.totalCompleted + " / " + appState.totalDiags
+                        font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textSecondary }
+                    LiveProgressPanel { Layout.fillWidth: true }
+                }
+            }
+        }
+
+        // ── Bottom: Log Panel ───────────────────────────────────────────
         Rectangle {
-            id: body; Layout.fillWidth: true; Layout.fillHeight: true; color: "transparent"
-            Item {
-                id: scaled
-                property real scale: 0.5
-                transform: Scale { xScale: scaled.scale; yScale: scaled.scale }
-
-                Rectangle {
-                    id: deviceFrame
-                    color: "#0A0A0A"
-                    border { width: 0; color: "#444" }
-
-                    // ── Screen ──────────────────────────────────────────
-                    Rectangle {
-                        id: screenRect
-                        color: ThemeEngine.bgDark; clip: true
-
-                        // ── Production GUI (shared with main.qml) ────────────────
-                        AppContent {
-                            id: appContent
-                            anchors.fill: parent
-                            onCloseRequested: close()
-                            compact: isMobile()
+            id: logPanel
+            Layout.fillWidth: true; implicitHeight: 120
+            visible: true; color: ThemeEngine.colors.navBar
+            border { width: 1; color: ThemeEngine.colors.borderCard }
+            ColumnLayout {
+                anchors { fill: parent; margins: 8 }; spacing: 4
+                Label { text:"LOG / EVIDENCE"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
+                ScrollView {
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    ListView {
+                        id: evidenceListView
+                        model: (typeof screenshotSvc !== 'undefined' && screenshotSvc)
+                               ? screenshotSvc.evidenceLog : []
+                        delegate: RowLayout {
+                            width: ListView.view.width; spacing: 6
+                            Label { text: modelData.time || ""; font.family:ThemeEngine.monoFont; font.pixelSize:9; color:ThemeEngine.textMuted; Layout.preferredWidth: 80 }
+                            Label { text: "[" + (modelData.trigger||"?") + "]"; font.family:ThemeEngine.monoFont; font.pixelSize:9; color:ThemeEngine.cyan; Layout.preferredWidth: 60 }
+                            Label { text: modelData.test || ""; font.family:ThemeEngine.monoFont; font.pixelSize:9; color:ThemeEngine.textSecondary; Layout.fillWidth: true; elide: Text.ElideRight }
+                            Label { text: modelData.path || ""; font.family:ThemeEngine.monoFont; font.pixelSize:8; color:ThemeEngine.textMuted; Layout.fillWidth: true; elide: Text.ElideLeft }
                         }
                     }
                 }
@@ -155,27 +326,42 @@ ApplicationWindow {
         }
     }
 
-    // ── Device popup ───────────────────────────────────────────────────
+    // ── Toast overlay (window-level — does not cover viewport content) ──
+    Label {
+        id: toastLabel
+        anchors { bottom: parent.bottom; bottomMargin: 16; horizontalCenter: parent.horizontalCenter }
+        text: toastMsg; visible: toastMsg !== ""
+        font.family: ThemeEngine.monoFont; font.pixelSize: 11
+        color: ThemeEngine.cyan
+        background: Rectangle { radius:6; color:Qt.alpha(ThemeEngine.bgDark,0.85)
+            border { width:1; color:Qt.alpha(ThemeEngine.cyan,0.3) } }
+        padding: 8
+        z: 1000
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // Device popup (same as before)
     Popup {
         id: devicePopup
-        y: 90; x: Math.max(page.width-310,0)
+        y: 90; x: Math.max(page.width-340,0)
         closePolicy: Popup.CloseOnEscape|Popup.CloseOnPressOutside
-        width: 290; height: Math.min(450, devices.length*54+16); padding: 8
+        width: 310; height: Math.min(500, devices.length*54+16); padding: 8
         background: Rectangle { radius:10; color:ThemeEngine.bgDark; border{width:1;color:ThemeEngine.colors.borderCard} }
         ListView {
-            anchors.fill:parent; clip:true; model:devices
+            anchors.fill:parent; clip:true
+            model: devices
+            // Group by OS
+            section.property: "os"
+            section.delegate: Rectangle { width:ListView.view.width; implicitHeight:22; color:Qt.alpha(osColor(section),0.08)
+                Label { anchors{left:parent.left;leftMargin:8;verticalCenter:parent.verticalCenter}; text:osLabel(section); font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:osColor(section) } }
             delegate: ItemDelegate {
-                width:ListView.view.width; implicitHeight:50
-                contentItem: RowLayout { spacing:10
-                    Rectangle { implicitWidth:32; implicitHeight:32; radius:8; color:Qt.alpha(osColor(modelData.os),0.15)
-                        AppIcon { anchors.centerIn:parent; name:osIcon(modelData.os); size:18; color:osColor(modelData.os) } }
-                    ColumnLayout { spacing:1
-                        Label { text:modelData.name; font.family:ThemeEngine.monoFont; font.pixelSize:13; color:"white" }
-                        RowLayout { spacing:6
-                            Rectangle { implicitWidth:44; implicitHeight:16; radius:3; color:Qt.alpha(osColor(modelData.os),0.2)
-                                Label { anchors.centerIn:parent; text:osLabel(modelData.os); font.family:ThemeEngine.monoFont; font.pixelSize:8; font.weight:Font.DemiBold; color:osColor(modelData.os) } }
-                            Label { text:(modelData.w)+"×"+(modelData.h); font.family:ThemeEngine.monoFont; font.pixelSize:9; color:Qt.alpha("white",0.4) }
-                        }
+                width:ListView.view.width; implicitHeight:46
+                contentItem: RowLayout { spacing:8
+                    Rectangle { implicitWidth:28; implicitHeight:28; radius:6; color:Qt.alpha(osColor(modelData.os),0.15)
+                        AppIcon { anchors.centerIn:parent; name:osIcon(modelData.os); size:16; color:osColor(modelData.os) } }
+                    ColumnLayout { spacing:0
+                        Label { text:modelData.name; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"white" }
+                        Label { text:(modelData.w)+"×"+(modelData.h)+" · "+osLabel(modelData.os); font.family:ThemeEngine.monoFont; font.pixelSize:9; color:Qt.alpha("white",0.4) }
                     }
                 }
                 background: Rectangle { color:index===currentDevice?Qt.alpha("#0078D4",0.2):"transparent"; radius:6 }
