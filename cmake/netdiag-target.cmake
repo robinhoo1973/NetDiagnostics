@@ -119,8 +119,9 @@ function(configure_netdiag_target TARGET)
     # 5WHY: Without qt_import_qml_plugins(), static Qt builds cannot
     # resolve QML modules (QtQuick, QtQuick.Controls, etc.) at runtime.
     # The app flashes and exits with "module not found" errors.
-    # This generates Q_IMPORT_PLUGIN macros that link QML plugins
-    # directly into the executable. No-op on dynamic builds.
+    # qt6_finalize_executable() MUST be called first (Qt 6.2+ requirement)
+    # to finalize the target's QML source list before plugin scanning.
+    qt6_finalize_executable(${TARGET})
     qt_import_qml_plugins(${TARGET})
 
     # ── Include paths ────────────────────────────────────────────────
