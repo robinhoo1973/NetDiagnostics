@@ -245,7 +245,11 @@ Item {
                             MouseArea {
                                 id: closeMouse
                                 anchors.fill: parent
-                                onClicked: page.previewVisible = false
+                                // 5WHY: Resetting previewFormat deactivates the Loader,
+                                // destroying the WebView (frees WebView2/WKWebView resources).
+                                // Without this, the Loader stays active and keeps the
+                                // WebView in memory until previewFormat changes.
+                                onClicked: { page.previewVisible = false; page.previewFormat = "" }
                                 cursorShape: Qt.PointingHandCursor
                                 hoverEnabled: true
                             }
@@ -278,11 +282,17 @@ Item {
                         visible: page.previewFormat === "html"
                         active: page.previewFormat === "html" && hasWebView
                         source: "qrc:/qml/widgets/HtmlPreviewWebView.qml"
+                        // 5WHY: onLoaded fires once per load cycle. If the Loader
+                        // stays active across re-opens (previewFormat unchanged),
+                        // onLoaded doesn't re-fire. Qt.binding() creates a
+                        // reactive property binding that tracks previewHtmlPath
+                        // changes, keeping the WebView URL in sync.
                         onLoaded: {
-                            // Normalize path separators for file:// URL (Windows uses \)
-                            if (item) item.htmlUrl = previewHtmlPath
-                                ? "file:///" + previewHtmlPath.replace(/\\/g, "/")
-                                : ""
+                            if (item) item.htmlUrl = Qt.binding(function() {
+                                return previewHtmlPath
+                                    ? "file:///" + previewHtmlPath.replace(/\\/g, "/")
+                                    : ""
+                            })
                         }
                     }
                     // Fallback: QTextDocument→Image when WebView unavailable
