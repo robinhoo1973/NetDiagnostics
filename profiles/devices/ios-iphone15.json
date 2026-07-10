@@ -1,0 +1,12 @@
+﻿{
+    "id":  "ios-iphone15",
+    "orientation":  "portrait",
+    "screenWidth":  393,
+    "bezel":  12,
+    "island":  true,
+    "os":  "ios",
+    "screenHeight":  852,
+    "name":  "iPhone 15 Pro",
+    "radius":  55,
+    "pixelRatio":  1
+}

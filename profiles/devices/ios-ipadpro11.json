@@ -1,0 +1,12 @@
+﻿{
+    "id":  "ios-ipadpro11",
+    "orientation":  "portrait",
+    "screenWidth":  834,
+    "bezel":  14,
+    "island":  false,
+    "os":  "ios",
+    "screenHeight":  1210,
+    "name":  "iPad Pro 11 (M4)",
+    "radius":  18,
+    "pixelRatio":  1
+}

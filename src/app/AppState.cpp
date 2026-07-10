@@ -731,6 +731,29 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
 
     TRACE(" runDiag id=%d name='%s' group=%d\n", (int)id, m_currentDiagName.toUtf8().constData(), groupIdx);
 
+    // ── Phase 2: Simulated platform skip-policy enforcement ───────────
+    // 5WHY: Without this check, tests that should be skipped on the simulated
+    // platform would still execute on the host, producing false Pass/Fail
+    // results that don't reflect the simulated platform's capabilities.
+    // Spec: "isSimulatedPlatformShouldSkip > host capability check".
+    if (m_skipReasonMap.contains(static_cast<int>(id))) {
+        QString reason = m_skipReasonMap[static_cast<int>(id)];
+        TRACE("   SKIPPED by policy: %s\n", reason.toUtf8().constData());
+        // Use factory to populate details/rawOutput (not just summary)
+        DiagnosticResult skipped = DiagnosticResult::skipped(
+            id, QStringLiteral("Simulated platform policy: %1").arg(reason));
+        onDiagFinished(id, skipped);
+        // 5WHY: Skipped tests bypass task creation, so the connect() lambda's
+        // m_activeGroupDone counter would never fire. Increment it here so
+        // group completion tracking stays correct.
+        int done = m_activeGroupDone.fetch_add(1) + 1;
+        if (done >= gt.diagIds.size()) {
+            m_currentGroupIdx++;
+            QTimer::singleShot(0, this, &AppState::startNextGroup);
+        }
+        return;
+    }
+
     // Create task via factory — each task handles its own timeout internally
     int runGen = m_runGeneration.load(std::memory_order_acquire);
     auto task = TaskFactory::createTask(id, m_target);
@@ -773,6 +796,9 @@ void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
 
     emit progressChanged();
     emit diagCompleted(static_cast<int>(id));
+    // Phase 3: separate signal for failure auto-capture
+    if (result.status == DiagStatus::Fail || result.status == DiagStatus::Error)
+        emit diagFailed(static_cast<int>(id));
     bumpVersion();
 }
 
@@ -1307,4 +1333,19 @@ void AppState::saveSettings() {
 
     s.endGroup();
     s.sync();  // flush to disk immediately (critical on mobile)
+}
+
+// ── Phase 2: Simulator skip-policy bridge ────────────────────────────────
+void AppState::setSkipRules(const QVariantList& rules) {
+    m_skipRules = rules;
+    m_skipReasonMap.clear();
+    for (const auto& v : rules) {
+        QVariantMap m = v.toMap();
+        int diagId = m.value("diagId").toInt(-1);
+        QString reason = m.value("reason").toString();
+        if (diagId >= 0 && !reason.isEmpty())
+            m_skipReasonMap[diagId] = reason;
+    }
+    emit skipRulesChanged();
+    TRACE(" Skip rules updated: %d rules active\n", m_skipReasonMap.size());
 }

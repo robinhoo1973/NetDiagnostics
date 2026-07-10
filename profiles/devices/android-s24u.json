@@ -1,0 +1,12 @@
+﻿{
+    "id":  "android-s24u",
+    "orientation":  "portrait",
+    "screenWidth":  384,
+    "bezel":  6,
+    "island":  false,
+    "os":  "android",
+    "screenHeight":  854,
+    "name":  "Galaxy S24 Ultra (Android)",
+    "radius":  16,
+    "pixelRatio":  1
+}

@@ -13,6 +13,9 @@
         <file>qml/screens/ReportScreen.qml</file>
         <file>qml/screens/SettingsScreen.qml</file>
         <file>qml/screens/SimulatorScreen.qml</file>
+        <file>qml/simulator/DeviceViewport.qml</file>
+        <file>qml/simulator/SimulatorMenuBar.qml</file>
+        <file>qml/simulator/qmldir</file>
         <file>qml/widgets/TargetInputPanel.qml</file>
         <file>qml/widgets/DiagGroupPanel.qml</file>
         <file>qml/widgets/DiagResultItem.qml</file>

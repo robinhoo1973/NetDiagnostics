@@ -1,0 +1,20 @@
+{
+  "suiteName": "Full Matrix Test",
+  "description": "Complete diagnostic suite across all 5 groups — G1 through G5.",
+  "tests": [
+    "G1NetworkAdapters", "G1NicAdvanced", "G1WifiDiagnostics", "G1WiredDiagnostics",
+    "G1DhcpStatus", "G1IpConfiguration", "G1ActiveConnections", "G1CellularInfo",
+    "G2NetworkProfile", "G2TcpSettings", "G2DefaultGateway", "G2RoutingTable",
+    "G2ArpTable", "G2ProxySettings",
+    "G3NetskopeStatus", "G3DnsServers", "G3DnsCache", "G3DnsPollution",
+    "G3InternetSpeedTest",
+    "G4DnsResolution", "G4Ping", "G4Traceroute", "G4PathPing", "G4MtuDiscovery",
+    "G5UrlParsing", "G5TcpConnect", "G5ServiceBanner", "G5CurlVerbose",
+    "G5HttpHeaders", "G5SecurityHeaders", "G5SslCertificate", "G5HttpRedirect",
+    "G5HttpCompression", "G5HttpTiming"
+  ],
+  "capturePolicy": {
+    "screenshotOnFailure": true,
+    "recordingMode": "perSuite"
+  }
+}

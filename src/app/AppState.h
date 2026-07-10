@@ -121,6 +121,14 @@ public:
     QVariantList allGroupStats() const;
     Q_INVOKABLE void showDetailDialog(int diagIdInt);
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const;
+
+    // ── Simulator skip-policy bridge (Phase 2) ───────────────────────────
+    // Accepts QVariantList of {diagId, testName, reason} maps from QML.
+    // Called when the simulated OS/device changes so the policy engine can
+    // enforce per-platform skip rules during diagnostic execution.
+    Q_INVOKABLE void setSkipRules(const QVariantList& rules);
+    Q_INVOKABLE QVariantList skipRules() const { return m_skipRules; }
+    Q_PROPERTY(QVariantList policyRules READ skipRules NOTIFY skipRulesChanged)
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
     int resultsVersion() const { return m_resultsVersion; }
     int languageIndex() const { return m_languageIndex; }
@@ -191,6 +199,7 @@ signals:
     void currentDiagChanged();
     void groupChanged();
     void diagCompleted(int diagIdInt);
+    void diagFailed(int diagIdInt);     // Phase 3: emitted when status is Fail or Error
     void resultsReset();
     void stateVersionChanged();
     void languageChanged();
@@ -202,6 +211,7 @@ signals:
     void purchaseInProgressChanged();
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
+    void skipRulesChanged();
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
@@ -258,6 +268,10 @@ private:
     int m_themeMode = 2;     // 0=system, 1=light, 2=dark (default dark = drkMode)
     PremiumStore m_premium;
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
+
+    // ── Simulator skip-policy state ──────────────────────────────────────
+    QVariantList       m_skipRules;       // exposed to QML via policyRules
+    QHash<int, QString> m_skipReasonMap;   // fast diagId → reason lookup
 
     // Cached group stats — invalidated on progressChanged
     mutable QVariantList m_cachedGroupStats;

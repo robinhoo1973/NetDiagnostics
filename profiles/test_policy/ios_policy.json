@@ -1,0 +1,8 @@
+{
+  "simulatedPlatform": "ios",
+  "skipRules": [
+    { "diagId": "G2TcpSettings",     "reason": "TCP settings not accessible on iOS (sandboxed)" },
+    { "diagId": "G2ArpTable",        "reason": "ARP table not accessible on iOS (sandboxed)" },
+    { "diagId": "G1ActiveConnections","reason": "Active connections list restricted on iOS" }
+  ]
+}

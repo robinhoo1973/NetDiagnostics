@@ -1,0 +1,7 @@
+{
+  "targetName": "Local Development",
+  "targetUrl": "https://localhost",
+  "port": 443,
+  "protocolSchema": "HTTPS",
+  "credentialRef": ""
+}

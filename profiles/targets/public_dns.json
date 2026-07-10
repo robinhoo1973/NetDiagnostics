@@ -1,0 +1,7 @@
+{
+  "targetName": "Public DNS",
+  "targetUrl": "https://dns.google",
+  "port": 443,
+  "protocolSchema": "HTTPS",
+  "credentialRef": ""
+}

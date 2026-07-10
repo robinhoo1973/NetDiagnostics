@@ -1,0 +1,10 @@
+{
+  "id": "macos",
+  "name": "macOS 15",
+  "platform": "macos",
+  "qtConfigRef": "resources/config/macos.conf",
+  "defaultDevice": "mac-arm64",
+  "policyRef": "profiles/test_policy/macos_policy.json",
+  "icon": "apple",
+  "color": "#007AFF"
+}

@@ -1,0 +1,12 @@
+﻿{
+    "id":  "android-s24",
+    "orientation":  "portrait",
+    "screenWidth":  360,
+    "bezel":  6,
+    "island":  false,
+    "os":  "android",
+    "screenHeight":  780,
+    "name":  "Galaxy S24 (Android 14)",
+    "radius":  16,
+    "pixelRatio":  1
+}

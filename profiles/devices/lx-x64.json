@@ -1,0 +1,12 @@
+﻿{
+    "id":  "lx-x64",
+    "orientation":  "landscape",
+    "screenWidth":  1024,
+    "bezel":  0,
+    "island":  false,
+    "os":  "linux",
+    "screenHeight":  640,
+    "name":  "Ubuntu 24.04 (x64)",
+    "radius":  8,
+    "pixelRatio":  1
+}

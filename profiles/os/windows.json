@@ -1,0 +1,10 @@
+{
+  "id": "windows",
+  "name": "Windows 11",
+  "platform": "windows",
+  "qtConfigRef": "resources/config/windows.conf",
+  "defaultDevice": "win-x64",
+  "policyRef": "profiles/test_policy/windows_policy.json",
+  "icon": "windows",
+  "color": "#00A4EF"
+}

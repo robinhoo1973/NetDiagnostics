@@ -1,0 +1,10 @@
+{
+  "id": "ios",
+  "name": "iOS 18",
+  "platform": "ios",
+  "qtConfigRef": "resources/config/ios.conf",
+  "defaultDevice": "ios-iphone15pm",
+  "policyRef": "profiles/test_policy/ios_policy.json",
+  "icon": "apple",
+  "color": "#007AFF"
+}
