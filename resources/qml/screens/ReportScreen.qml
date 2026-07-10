@@ -31,12 +31,13 @@ Item {
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
-        // Both previews use Qt Rich Text compatible HTML (QML Text.RichText cannot
-        // render CSS, <style> blocks, or <details>/<summary> elements).
-        // buildRichHtmlDocument() is reserved for export/share (browser-grade).
-        // darkBackground=true gives the preview dashboard-parity dark theme.
-        // fullDetail: true for HTML (full per-test output), false for PDF (summary).
-        previewHtml = appState.buildReportHtml(fmt === "html", true)
+        // 5WHY: QML Text.RichText cannot render CSS/border-radius/inline-block
+        // styles, making the in-app HTML preview appear broken.  Instead:
+        // - Render the Qt Rich Text HTML to a QImage (C++ side via QTextDocument)
+        // - Display the image for pixel-perfect in-app preview
+        // - "Open in Browser" button for full CSS HTML (buildRichHtmlDocument)
+        var html = appState.buildReportHtml(fmt === "html", true)
+        previewImagePath = appState.renderPreviewImage(html, 760) || ""
         previewVisible = true
     }
     function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }
@@ -248,30 +249,46 @@ Item {
                     color: ThemeEngine.colors.surface; radius: 8; clip: true
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     Flickable {
+                        id: previewFlick
                         anchors { fill: parent; margins: 14 }
                         clip: true
-                        contentWidth: width
-                        contentHeight: previewText.implicitHeight
+                        contentWidth: previewImage.implicitWidth
+                        contentHeight: previewImage.implicitHeight
                         ScrollBar.vertical: ScrollBar {
                             policy: ScrollBar.AsNeeded
                             width: 6
                             contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
                         }
-                        Text {
-                            id: previewText
-                            width: parent.width
-                            text: page.previewHtml
-                            textFormat: Text.RichText
-                            color: ThemeEngine.textPrimary
-                            wrapMode: Text.WordWrap
-                            font.pixelSize: 13
-                            font.family: ThemeEngine.monoFont
-                            lineHeight: 1.45
+                        // 5WHY: QML Text.RichText cannot render CSS, border-radius,
+                        // or inline-block styles — the HTML preview appeared broken.
+                        // QTextDocument renders the full Qt Rich Text subset to a
+                        // QImage for pixel-perfect in-app preview.
+                        Image {
+                            id: previewImage
+                            width: previewFlick.width
+                            fillMode: Image.PreserveAspectFit
+                            source: previewImagePath
+                            cache: false
                         }
                     }
                 }
+                property string previewImagePath: ""
                 RowLayout {
                     Layout.fillWidth: true; Layout.topMargin: 4
+                    // Open HTML in external browser (full CSS support)
+                    PreviewBtn {
+                        visible: page.previewFormat === "html"
+                        Layout.fillWidth: true
+                        label: "Open in Browser"
+                        accent: ThemeEngine.accentBlue
+                        locked: false
+                        onClicked: {
+                            // Export to temp file and open in browser
+                            var tmpPath = appState.defaultReportPath("html")
+                            appState.exportHtml(tmpPath)
+                            Qt.openUrlExternally("file:///" + tmpPath)
+                        }
+                    }
                     PreviewBtn {
                         Layout.fillWidth: true
                         label: page.isMobile ? Tr.shareBtn : Tr.emailBtn

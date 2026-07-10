@@ -143,6 +143,9 @@ public:
     // darkBackground=true uses dark theme colours (QML preview);
     // false = light (PDF printing). Defaults to false.
     Q_INVOKABLE QString buildReportHtml(bool fullDetail, bool darkBackground = false) const;
+    // Renders report HTML to a QImage (via QTextDocument) for pixel-perfect
+    // in-app preview. Returns the image file path or empty on failure.
+    Q_INVOKABLE QString renderPreviewImage(const QString& html, int width) const;
     // Rich, browser-quality standalone HTML document (dark theme, collapsible
     // per-test details). Used by exportHtml; not for the in-app QML preview
     // (QTextDocument can't render its CSS).

@@ -44,6 +44,13 @@ public:
     // Full standalone HTML document (dark theme, collapsible, browser-grade).
     static QString buildRichDocument(const ReportData& data);
 
+    // ── HTML-to-image rendering (for QML preview with full fidelity) ─
+    // 5WHY: QML Text.RichText cannot render CSS, border-radius, or
+    // inline-block styles. QTextDocument renders the full Qt Rich Text
+    // subset, including tables, colors, and basic CSS → QImage for
+    // pixel-perfect in-app preview.
+    static QImage renderHtmlToImage(const QString& html, int width = 800);
+
     // ── File I/O ──────────────────────────────────────────────────
     static QString exportHtml(const QString& filePath, const QString& html);
     static QString exportPdf(const QString& filePath, const QString& html);
