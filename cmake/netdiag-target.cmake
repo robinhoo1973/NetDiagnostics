@@ -115,6 +115,14 @@ function(configure_netdiag_target TARGET)
         )
     endif()
 
+    # ── Static QML plugin import (required for static Qt builds) ──────
+    # 5WHY: Without qt_import_qml_plugins(), static Qt builds cannot
+    # resolve QML modules (QtQuick, QtQuick.Controls, etc.) at runtime.
+    # The app flashes and exits with "module not found" errors.
+    # This generates Q_IMPORT_PLUGIN macros that link QML plugins
+    # directly into the executable. No-op on dynamic builds.
+    qt_import_qml_plugins(${TARGET})
+
     # ── Include paths ────────────────────────────────────────────────
     target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
 endfunction()
