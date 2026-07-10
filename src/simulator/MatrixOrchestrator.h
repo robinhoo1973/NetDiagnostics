@@ -15,6 +15,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QFile>
+#include <QFileInfo>
 #include <QDateTime>
 
 class MatrixOrchestrator : public QObject {
