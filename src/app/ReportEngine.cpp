@@ -393,13 +393,29 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     // 5WHY: Rich HTML CSS was hardcoded dark — HTML preview + export always
     // dark regardless of app theme. Prepend a CSS custom-property theme block
     // so a single color swap at the :root level applies the entire theme.
+    // 5WHY: Card/badge backgrounds were hardcoded dark — light mode showed
+    // dark cards on a light page. Add CSS variables for both themes.
     const QString cssThemeBlock = darkBackground
         ? QStringLiteral(":root{--bg:#0F172A;--fg:#F1F5F9;--fg2:#94A3B8;--fg3:#64748B;"
             "--card-bg:#1E293B;--header-bg1:#1E293B;--header-bg2:#0C4A6E;"
-            "--border:#334155;--footer-fg:#5a5a72;--footer-border:#23233a}")
+            "--border:#334155;--footer-fg:#5a5a72;--footer-border:#23233a;"
+            "--card-pass-bg:#16281b;--card-info-bg:#141f33;--card-warn-bg:#2b2810;"
+            "--card-fail-bg:#2b1616;--card-skip-bg:#1e1e2e;--card-error-bg:#2b1111;"
+            "--badge-pass-bg:#16281b;--badge-info-bg:#141f33;--badge-warn-bg:#2b2810;"
+            "--badge-fail-bg:#2b1616;--badge-skip-bg:#26262e;"
+            "--sec-row-bg:#1a2840;--border-card-pass:#2d5a2d;--border-card-info:#24406a;"
+            "--border-card-warn:#5a5020;--border-card-fail:#5a2d2d;--border-card-skip:#333;"
+            "--border-card-error:#5a2020}")
         : QStringLiteral(":root{--bg:#F8FAFC;--fg:#0F172A;--fg2:#475569;--fg3:#94A3B8;"
             "--card-bg:#FFFFFF;--header-bg1:#E0F2FE;--header-bg2:#BAE6FD;"
-            "--border:#E2E8F0;--footer-fg:#94A3B8;--footer-border:#E2E8F0}");
+            "--border:#E2E8F0;--footer-fg:#94A3B8;--footer-border:#E2E8F0;"
+            "--card-pass-bg:#ECFDF5;--card-info-bg:#EFF6FF;--card-warn-bg:#FFFBEB;"
+            "--card-fail-bg:#FEF2F2;--card-skip-bg:#F1F5F9;--card-error-bg:#FEF2F2;"
+            "--badge-pass-bg:#DCFCE7;--badge-info-bg:#DBEAFE;--badge-warn-bg:#FEF3C7;"
+            "--badge-fail-bg:#FEE2E2;--badge-skip-bg:#E2E8F0;"
+            "--sec-row-bg:#E0F2FE;--border-card-pass:#BBF7D0;--border-card-info:#BFDBFE;"
+            "--border-card-warn:#FDE68A;--border-card-fail:#FECACA;--border-card-skip:#CBD5E1;"
+            "--border-card-error:#FECACA}");
     const QString kCss = cssThemeBlock
         + QStringLiteral(
         "*{margin:0;padding:0;box-sizing:border-box}"
@@ -415,20 +431,20 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".card .icon{display:block;font-size:18px;margin-bottom:2px}"
         ".card .count{display:block;font-size:30px;font-weight:700}"
         ".card .label{font-size:11px;color:var(--fg2);margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
-        ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ADE80}"
-        ".card.warn{background:#2b2810;border:1px solid #5a5020}.card.warn .count{color:#FBBF24}"
-        ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#F87171}"
-        ".card.skip{background:#1e1e2e;border:1px solid #333}.card.skip .count{color:#9CA3AF}"
-        ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#60A5FA}"
-        ".card.error{background:#2b1111;border:1px solid #5a2020}.card.error .count{color:#F87171}"
+        ".card.pass{background:var(--card-pass-bg);border:1px solid var(--border-card-pass)}.card.pass .count{color:#4ADE80}"
+        ".card.warn{background:var(--card-warn-bg);border:1px solid var(--border-card-warn)}.card.warn .count{color:#FBBF24}"
+        ".card.fail{background:var(--card-fail-bg);border:1px solid var(--border-card-fail)}.card.fail .count{color:#F87171}"
+        ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:#9CA3AF}"
+        ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:#60A5FA}"
+        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:#F87171}"
         "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
         "table.grid th{text-align:left;padding:11px 12px;background:var(--card-bg);color:var(--fg2);font-weight:600}"
         "table.grid td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}"
-        "tr.sec td{background:#1a2840;color:#60A5FA;font-weight:700}"
+        "tr.sec td{background:var(--sec-row-bg);color:#60A5FA;font-weight:700}"
         ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
-        ".badge.pass{background:#16281b;color:#4ADE80}.badge.warn{background:#2b2810;color:#FBBF24}"
-        ".badge.fail{background:#2b1616;color:#F87171}.badge.skip{background:#26262e;color:#9CA3AF}"
-        ".badge.info{background:#141f33;color:#60A5FA}"
+        ".badge.pass{background:var(--badge-pass-bg);color:#4ADE80}.badge.warn{background:var(--badge-warn-bg);color:#FBBF24}"
+        ".badge.fail{background:var(--badge-fail-bg);color:#F87171}.badge.skip{background:var(--badge-skip-bg);color:#9CA3AF}"
+        ".badge.info{background:var(--badge-info-bg);color:#60A5FA}"
         "details.test{background:var(--card-bg);border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
         "details.test.pass>summary{border-left:4px solid #4ADE80}details.test.warn>summary{border-left:4px solid #FBBF24}"

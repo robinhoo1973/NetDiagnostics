@@ -9,13 +9,11 @@ Item {
     id: page
     objectName: "config"
     property int currentGroup: 0
-    property int configPollVersion: 0
-    Connections {
-        target: appState
-        function onStateVersionChanged() {
-            configPollVersion++
-        }
-    }
+    // 5WHY: Direct binding to appState.stateVersion (Q_PROPERTY int stateVersion
+    // NOTIFY stateVersionChanged) — QML tracks this natively. All JS block
+    // expressions that reference configPollVersion re-evaluate automatically
+    // when any appState mutation calls bumpVersion().
+    property int configPollVersion: appState.stateVersion
 
     // AppBar
     Rectangle {
@@ -64,7 +62,10 @@ Item {
                                     text: "G" + (index + 1)
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                     font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
-                                    color: appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textPrimary) : ThemeEngine.textMuted
+                                    // 5WHY: isGroupActive binding was stale in Repeater
+                                    // delegate — configPollVersion forces re-evaluation
+                                    // when group active state changes.
+                                    color: { let _ = configPollVersion; return appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textPrimary) : ThemeEngine.textMuted }
                                 }
                             }
                             onClicked: {
@@ -162,10 +163,13 @@ Item {
                     spacing: 12
 
                     // Leading icon
+                    // 5WHY: isDiagEnabled binding was stale — icon didn't
+                    // update when Switch was toggled. configPollVersion forces
+                    // re-evaluation with the same pattern as the Switch binding.
                     AppIcon {
-                        name: appState.isDiagEnabled(modelData) ? "badge-check" : "badge-circle"
+                        name: { let _ = configPollVersion; return appState.isDiagEnabled(modelData) ? "badge-check" : "badge-circle" }
                         size: 14
-                        color: appState.isDiagEnabled(modelData) ? ThemeEngine.passGreen : ThemeEngine.textMuted
+                        color: { let _ = configPollVersion; return appState.isDiagEnabled(modelData) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
                     }
 
                     // Title + subtitle
@@ -201,17 +205,9 @@ Item {
     }
 
     // ── Display names + descriptions — routed through Tr.diagName/diagDesc ──
-    property var _enNames: ["Network Adapters","NIC Advanced","WiFi Information","Wired Information",
-        "DHCP Status","IP Configuration","Active Connections","Network Profile",
-        "TCP Settings","Default Gateway","Routing Table","ARP Table","Proxy Settings",
-        "Netskope Status","DNS Servers","DNS Cache","DNS Pollution",
-        "Internet Connectivity && Speed","Internet Connectivity && Speed","DNS Resolution","Ping","Traceroute",
-        "PathPing","MTU Discovery","URL Parsing","TCP Connect",
-        "Service Banner","HTTP Request","HTTP Headers","Security Headers",
-        "SSL Certificate","HTTP Redirect","HTTP Compression","HTTP Timing",
-        "FTP Diagnostics","SSH Diagnostics","Email Diagnostics",
-        "Telnet Diagnostics","MySQL Diagnostics","PostgreSQL Diagnostics",
-        "Redis Diagnostics","MongoDB Diagnostics","LDAP Diagnostics","MQTT Diagnostics"]
+    // 5WHY: _enNames duplicated AppState::staticDiagDisplayName() (C++).
+    // Removed the parallel array; getDisplayName() now calls the Q_INVOKABLE
+    // appState.diagDisplayName(diagId) directly — single source of truth.
     property var _enDescs: ["List all network adapters and their operational state",
         "Driver version, hardware info, and negotiated link speed",
         "Signal strength, SSID, channel, and link quality",
@@ -257,10 +253,12 @@ Item {
         "LDAP server connectivity and schema",
         "MQTT broker connectivity and response"]
     function getDisplayName(diagId) {
-        // Use translated name when available (non-EN), fallback to English array
+        // Use translated name when available (non-EN), fallback to C++ static array
         var tr = Tr.diagName(diagId)
         if (tr !== "") return tr
-        return (diagId >= 0 && diagId < _enNames.length) ? _enNames[diagId] : "Diag " + diagId
+        // 5WHY: _enNames was a stale duplicate of staticDiagDisplayName().
+        // Call the Q_INVOKABLE directly for a single source of truth.
+        return appState.diagDisplayName(diagId)
     }
     function getDiagDescription(diagId) {
         var tr = Tr.diagDesc(diagId)
