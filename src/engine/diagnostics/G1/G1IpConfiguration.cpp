@@ -175,10 +175,10 @@ DiagnosticResult ipConfiguration(DiagId id) {
 #if defined(PLATFORM_IOS) || defined(__APPLE__)
             else if (ifName.startsWith("en"))
                 adapterLabel = QStringLiteral("Wireless LAN adapter %1:").arg(ifName);
-# ifdef PLATFORM_IOS
+#if defined(PLATFORM_IOS)
             else if (ifName.startsWith("pdp_ip"))
                 adapterLabel = QStringLiteral("Cellular adapter %1:").arg(ifName);
-# endif
+#endif
 #else
             else if (QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName)))
                 adapterLabel = QStringLiteral("Wireless LAN adapter %1:").arg(ifName);

@@ -1,4 +1,4 @@
-﻿#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
+#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
 #include <QGuiApplication>
 #else
 #include <QApplication>
