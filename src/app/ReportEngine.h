@@ -12,6 +12,7 @@
 #include <QStringList>
 #include <QVariantMap>
 #include <QMap>
+#include <QImage>
 #include <functional>
 #include "models/DiagId.h"
 #include "models/DiagnosticResult.h"
