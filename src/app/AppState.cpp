@@ -1170,12 +1170,24 @@ QString AppState::generatePreviewPdf() const {
     // 5WHY: Fixed filename meant PdfDocument.source URL never changed
     // across re-generations (e.g. theme toggle). PdfDocument only reloads
     // when the source URL string changes, not the file content.
-    // Timestamped filename ensures each generation produces a unique URL.
-    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
+    // msecsSinceEpoch guarantees unique filename (vs. zzz which may
+    // always be "000" on platforms without sub-second clock precision).
+    const qint64 ts = QDateTime::currentMSecsSinceEpoch();
     const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-        .filePath(QStringLiteral("NetDiagnostics_preview_%1.pdf").arg(stamp));
+        .filePath(QStringLiteral("NetDiagnostics_preview_%1.pdf").arg(ts));
     const QString saved = exportPdf(path);
     if (saved.isEmpty()) return {};
+    // 5WHY: Timestamped files accumulate in TempLocation on each preview
+    // open + theme toggle. Clean up old preview files (keep last 3) to
+    // prevent unbounded growth. TempLocation is cleaned by OS eventually,
+    // but proactive cleanup is kinder on storage-constrained devices.
+    QDir tmpDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation));
+    const auto entries = tmpDir.entryInfoList(
+        {QStringLiteral("NetDiagnostics_preview_*.pdf")},
+        QDir::Files, QDir::Time); // newest first
+    for (int i = 3; i < entries.size(); ++i) {
+        QFile::remove(entries[i].absoluteFilePath());
+    }
     return QUrl::fromLocalFile(saved).toString();
 }
 
