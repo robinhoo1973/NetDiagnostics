@@ -263,6 +263,42 @@ jobs:
           brew install cmake ninja python3
           pip3 install --break-system-packages aqtinstall
 
+      # ── Dedup: skip upload if this commit was already pushed to TestFlight ─
+      # 5WHY: Every CI run uploaded to TestFlight even when source code was
+      # unchanged, creating duplicate builds in App Store Connect and wasting
+      # ~5 min per upload. Best practice: cache last-uploaded commit SHA.
+      - name: Check if already uploaded
+        id: dedup
+        uses: actions/cache/restore@v4
+        with:
+          path: .testflight-sha
+          key: testflight-uploaded-${{ runner.os }}-v1
+      - name: Read last uploaded SHA
+        id: last-sha
+        run: |
+          if [ -f .testflight-sha/macos ]; then
+            echo "macos_last=$(cat .testflight-sha/macos)" >> "$GITHUB_OUTPUT"
+          else
+            echo "macos_last=none" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -f .testflight-sha/ios ]; then
+            echo "ios_last=$(cat .testflight-sha/ios)" >> "$GITHUB_OUTPUT"
+          else
+            echo "ios_last=none" >> "$GITHUB_OUTPUT"
+          fi
+          echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Report dedup status
+        run: |
+          echo "Current commit: ${{ github.sha }}"
+          echo "Last uploaded macOS: ${{ steps.last-sha.outputs.macos_last }}"
+          echo "Last uploaded iOS:   ${{ steps.last-sha.outputs.ios_last }}"
+          if [ "${{ steps.last-sha.outputs.macos_last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] macOS — same commit already uploaded, skipping"
+          fi
+          if [ "${{ steps.last-sha.outputs.ios_last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] iOS   — same commit already uploaded, skipping"
+          fi
+
       # ── macOS: download artifact → untar → inject plist → sign → .pkg ──
       - uses: actions/download-artifact@v4
         with:
@@ -596,6 +632,7 @@ jobs:
       # Migrate to: xcrun xcodebuild -exportArchive + App Store Connect API
       # See: https://developer.apple.com/documentation/xcode/uploading-apps-to-app-store-connect
       - name: Upload iOS to TestFlight
+        if: steps.last-sha.outputs.ios_last != github.sha
         run: |
           xcrun altool --upload-app \
             -f NetDiagnostics-iOS.ipa \
@@ -606,6 +643,7 @@ jobs:
           echo "[OK] iOS uploaded to TestFlight"
 
       - name: Upload macOS to TestFlight
+        if: steps.last-sha.outputs.macos_last != github.sha
         run: |
           xcrun altool --upload-app \
             -f NetDiagnostics-macOS.pkg \
@@ -614,6 +652,27 @@ jobs:
             --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
             --verbose
           echo "[OK] macOS uploaded to TestFlight"
+
+      # ── Persist uploaded SHA for dedup on next run ─────────────────────
+      - name: Save uploaded SHA
+        if: always()
+        run: |
+          mkdir -p .testflight-sha
+          if [ "${{ steps.last-sha.outputs.ios_last }}" != "${{ github.sha }}" ]; then
+            echo "${{ github.sha }}" > .testflight-sha/ios
+          else
+            echo "${{ steps.last-sha.outputs.ios_last }}" > .testflight-sha/ios
+          fi
+          if [ "${{ steps.last-sha.outputs.macos_last }}" != "${{ github.sha }}" ]; then
+            echo "${{ github.sha }}" > .testflight-sha/macos
+          else
+            echo "${{ steps.last-sha.outputs.macos_last }}" > .testflight-sha/macos
+          fi
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .testflight-sha
+          key: testflight-uploaded-${{ runner.os }}-v1
 
       - name: Clean up keys
         if: always()
