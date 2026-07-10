@@ -129,10 +129,14 @@ if(BUILD_SIMULATOR)
         endif()
     endif()
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    # Note: simulator modules are header-only (.h files) — AUTOMOC
-    # processes them via the #include in main_simulator.cpp.
-    # No separate .cpp files exist; adding them would cause CMake
-    # configure failure on static builds.
+    # Simulator modules — header-only (.h) with Q_OBJECT macros.
+    # MUST be listed in sources so CMake AUTOMOC generates moc_*.cpp.
+    list(APPEND SIM_SOURCES
+        "src/simulator/SimulatorConfig.h"
+        "src/simulator/QtConfigAdapter.h"
+        "src/simulator/ScreenshotService.h"
+        "src/simulator/MatrixOrchestrator.h"
+    )
     qt_add_executable(net_diagnostics_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
     configure_netdiag_target(net_diagnostics_sim)
 endif()

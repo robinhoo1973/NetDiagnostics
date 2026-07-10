@@ -37,6 +37,11 @@ function(configure_netdiag_target TARGET)
     if(NOT IOS AND NOT ANDROID)
         target_link_libraries(${TARGET} PRIVATE Qt6::Widgets)
     endif()
+    # ── QtWebView (in-app HTML report preview) ────────────────────────
+    if(TARGET Qt6::WebView)
+        target_link_libraries(${TARGET} PRIVATE Qt6::WebView)
+        target_compile_definitions(${TARGET} PRIVATE HAS_QTWEBVIEW)
+    endif()
 
     # ── curl ─────────────────────────────────────────────────────────
     if(TARGET CURL::libcurl)
