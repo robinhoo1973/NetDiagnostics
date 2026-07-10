@@ -377,7 +377,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     return h;
 }
 
-QString ReportEngine::buildRichDocument(const ReportData& data) {
+QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackground) {
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
         auto it = data.groupStats.find(g);
@@ -390,9 +390,20 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         tTotal += it->value(QStringLiteral("total")).toInt();
     }
 
-    static const char* kCss =
+    // 5WHY: Rich HTML CSS was hardcoded dark — HTML preview + export always
+    // dark regardless of app theme. Prepend a CSS custom-property theme block
+    // so a single color swap at the :root level applies the entire theme.
+    const QString cssThemeBlock = darkBackground
+        ? QStringLiteral(":root{--bg:#0F172A;--fg:#F1F5F9;--fg2:#94A3B8;--fg3:#64748B}"
+            "--card-bg:#1E293B;--header-bg1:#1E293B;--header-bg2:#0C4A6E;"
+            "--border:#334155;--footer-fg:#5a5a72;--footer-border:#23233a}")
+        : QStringLiteral(":root{--bg:#F8FAFC;--fg:#0F172A;--fg2:#475569;--fg3:#94A3B8}"
+            "--card-bg:#FFFFFF;--header-bg1:#E0F2FE;--header-bg2:#BAE6FD;"
+            "--border:#E2E8F0;--footer-fg:#94A3B8;--footer-border:#E2E8F0}");
+    const QString kCss = cssThemeBlock
+        + QStringLiteral(
         "*{margin:0;padding:0;box-sizing:border-box}"
-        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:#0F172A;color:#F1F5F9;padding:24px}"
+        "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:24px}")
         ".wrap{max-width:960px;margin:0 auto}"
         ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#1E293B,#0C4A6E);border-radius:14px;margin-bottom:26px}"
         ".header h1{font-size:26px;color:#22D3EE;margin-bottom:10px;letter-spacing:.5px}"
@@ -403,7 +414,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
         ".card .icon{display:block;font-size:18px;margin-bottom:2px}"
         ".card .count{display:block;font-size:30px;font-weight:700}"
-        ".card .label{font-size:11px;color:#94A3B8;margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
+        ".card .label{font-size:11px;color:var(--fg2);margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
         ".card.pass{background:#16281b;border:1px solid #2d5a2d}.card.pass .count{color:#4ADE80}"
         ".card.warn{background:#2b2810;border:1px solid #5a5020}.card.warn .count{color:#FBBF24}"
         ".card.fail{background:#2b1616;border:1px solid #5a2d2d}.card.fail .count{color:#F87171}"
@@ -411,14 +422,14 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         ".card.info{background:#141f33;border:1px solid #24406a}.card.info .count{color:#60A5FA}"
         ".card.error{background:#2b1111;border:1px solid #5a2020}.card.error .count{color:#F87171}"
         "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
-        "table.grid th{text-align:left;padding:11px 12px;background:#1E293B;color:#94A3B8;font-weight:600}"
-        "table.grid td{padding:9px 12px;border-bottom:1px solid #334155;vertical-align:top}"
+        "table.grid th{text-align:left;padding:11px 12px;background:var(--card-bg);color:var(--fg2);font-weight:600}"
+        "table.grid td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}"
         "tr.sec td{background:#1a2840;color:#60A5FA;font-weight:700}"
         ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
         ".badge.pass{background:#16281b;color:#4ADE80}.badge.warn{background:#2b2810;color:#FBBF24}"
         ".badge.fail{background:#2b1616;color:#F87171}.badge.skip{background:#26262e;color:#9CA3AF}"
         ".badge.info{background:#141f33;color:#60A5FA}"
-        "details.test{background:#1E293B;border-radius:10px;margin-bottom:12px;overflow:hidden}"
+        "details.test{background:var(--card-bg);border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
         "details.test.pass>summary{border-left:4px solid #4ADE80}details.test.warn>summary{border-left:4px solid #FBBF24}"
         "details.test.fail>summary{border-left:4px solid #F87171}details.test.skip>summary{border-left:4px solid #9CA3AF}"
@@ -427,7 +438,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         ".analysis{background:#0f1629;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"
-        ".footer{text-align:center;padding:20px;color:#5a5a72;font-size:11px;margin-top:28px;border-top:1px solid #23233a}";
+        ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}";
 
     // 5WHY: Unicode icons replaced with inline SVG <img> tags using base64
     // data URIs. The .card .icon CSS still applies font-size but we override

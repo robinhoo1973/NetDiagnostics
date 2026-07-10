@@ -35,19 +35,31 @@ Item {
         if (!canReport) return
         previewFormat = fmt
         var darkBg = ThemeEngine.isDark
+        // 5WHY: pdfScale persisted across open/close cycles — reopening
+        // showed the last pinch-zoom level instead of resetting to 1x.
+        pdfFlick.pdfScale = 1.0
         if (fmt === "html") {
             // 5WHY: QML Text.RichText cannot render CSS. QtWebView wraps the
             // platform native web engine (Edge WebView2/WKWebView) which
             // renders the shared HTML page perfectly — identical to browser.
             // exportHtml() saves buildRichHtmlDocument() to disk.
-            var path = appState.exportHtml(appState.defaultReportPath("html"))
+            // 5WHY: exportHtml now accepts darkBackground so the HTML
+            // preview matches the app theme (like exportPdf does).
+            var path = appState.exportHtml(appState.defaultReportPath("html"), darkBg)
             previewHtmlPath = path
-            // Also generate image for fallback when WebView unavailable
-            var fbHtml = appState.buildReportHtml(true, darkBg)
-            previewImagePath = appState.renderPreviewImage(fbHtml, 760) || ""
+            // 5WHY: Fallback image was generated even on platforms with
+            // WebView (hasWebView=true), wasting 200-500ms of synchronous
+            // QTextDocument→QImage rendering for an invisible Image node.
+            if (!hasWebView) {
+                var fbHtml = appState.buildReportHtml(true, darkBg)
+                previewImagePath = appState.renderPreviewImage(fbHtml, 760) || ""
+            }
         } else {
-            // PDF: render Qt Rich Text HTML to QImage for near-dashboard fidelity
-            var html = appState.buildReportHtml(false, darkBg)
+            // 5WHY: Preview used fullDetail=false (summary only) while
+            // exportPdf used fullDetail=true. User saw a concise preview
+            // then got a detailed PDF — preview didn't represent output.
+            // Now both use fullDetail=true for content parity.
+            var html = appState.buildReportHtml(true, darkBg)
             previewImagePath = appState.renderPreviewImage(html, 760) || ""
         }
         previewVisible = true
@@ -338,6 +350,13 @@ Item {
                         contentWidth: pdfImage.implicitWidth * pdfScale
                         contentHeight: pdfImage.implicitHeight * pdfScale
                         property real pdfScale: 1.0
+                        // 5WHY: Flickable's built-in touch handling fights
+                        // PinchHandler during two-finger pinch — contentY/X
+                        // drift erratically while the user is trying to zoom.
+                        // Disable Flickable interaction during pinch; restore
+                        // on release.
+                        property bool pinching: false
+                        interactive: !pinching
                         ScrollBar.vertical: ScrollBar {
                             policy: ScrollBar.AsNeeded; width: 6
                             contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
@@ -352,6 +371,7 @@ Item {
                         PinchHandler {
                             target: null  // manual scale tracking
                             onActiveChanged: {
+                                pdfFlick.pinching = active
                                 if (active) {
                                     pdfFlick.returnToBounds()
                                 }
