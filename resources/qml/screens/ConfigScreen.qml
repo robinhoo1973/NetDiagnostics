@@ -54,8 +54,11 @@ Item {
                                 // Activation toggle indicator (click to toggle active/inactive)
                                 Rectangle {
                                     Layout.preferredWidth: 10; Layout.preferredHeight: 10; radius: 5
-                                    color: appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted
-                                    border { width: 1; color: appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
+                                    // 5WHY: isGroupActive binding was stale in Repeater
+                                    // delegate — configPollVersion forces re-evaluation
+                                    // when group active state changes.
+                                    color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
+                                    border { width: 1; color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted } }
                                 }
                                 Label {
                                     text: "G" + (index + 1)
@@ -101,7 +104,10 @@ Item {
                 Rectangle {
                     implicitWidth: 110; implicitHeight: 32; radius: 6; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
-                    enabled: !appState.isGroupAllEnabled(currentGroup)
+                    // 5WHY: Binding was stale — only re-evaluated when currentGroup
+                    // changed, not when individual diag toggles changed group state.
+                    // configPollVersion forces re-evaluation on every state change.
+                    enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
                         AppIcon { name: "check"; size: 14; color: ThemeEngine.textPrimary }
@@ -118,7 +124,9 @@ Item {
                 Rectangle {
                     implicitWidth: 110; implicitHeight: 32; radius: 6; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
-                    enabled: appState.isGroupAnyEnabled(currentGroup)
+                    // 5WHY: Same stale-binding issue as Select All — needs
+                    // configPollVersion to re-evaluate on diag toggle changes.
+                    enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
                         AppIcon { name: "close"; size: 14; color: ThemeEngine.textPrimary }
@@ -201,7 +209,9 @@ Item {
         "PathPing","MTU Discovery","URL Parsing","TCP Connect",
         "Service Banner","HTTP Request","HTTP Headers","Security Headers",
         "SSL Certificate","HTTP Redirect","HTTP Compression","HTTP Timing",
-        "FTP Diagnostics","SSH Diagnostics","Email Diagnostics"]
+        "FTP Diagnostics","SSH Diagnostics","Email Diagnostics",
+        "Telnet Diagnostics","MySQL Diagnostics","PostgreSQL Diagnostics",
+        "Redis Diagnostics","MongoDB Diagnostics","LDAP Diagnostics","MQTT Diagnostics"]
     property var _enDescs: ["List all network adapters and their operational state",
         "Driver version, hardware info, and negotiated link speed",
         "Signal strength, SSID, channel, and link quality",
@@ -238,7 +248,14 @@ Item {
         "HTTP request timing breakdown (DNS, connect, SSL, etc.)",
         "FTP service reachability and banner detection",
         "SSH version and key exchange detection",
-        "SMTP/IMAP/POP3 service detection and banner"]
+        "SMTP/IMAP/POP3 service detection and banner",
+        "Telnet service connectivity and banner",
+        "MySQL server connectivity and version",
+        "PostgreSQL server connectivity and version",
+        "Redis server connectivity and response",
+        "MongoDB server connectivity and status",
+        "LDAP server connectivity and schema",
+        "MQTT broker connectivity and response"]
     function getDisplayName(diagId) {
         // Use translated name when available (non-EN), fallback to English array
         var tr = Tr.diagName(diagId)
