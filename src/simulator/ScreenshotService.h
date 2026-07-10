@@ -14,6 +14,7 @@
 #include <QQuickItem>
 #include <QQuickWindow>
 #include <QPointer>
+#include <QTimer>
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
@@ -52,7 +53,8 @@ public:
     // ── Manual screenshot (Phase 3: viewport-cropped) ────────────────────
     Q_INVOKABLE QString capture(const QString& filename = {},
                                  const QString& testName = {},
-                                 const QString& trigger = QStringLiteral("manual")) {
+                                 const QString& trigger = QStringLiteral("manual"),
+                                 bool logToEvidence = true) {
         QQuickWindow* win = m_viewport ? m_viewport->window() : nullptr;
         if (!win) {
             emit captureFailed(QStringLiteral("No viewport/window available"));
@@ -94,15 +96,17 @@ public:
         }
         m_lastCapturePath = outPath;
 
-        // Record in evidence log
-        QVariantMap entry;
-        entry["path"]    = outPath;
-        entry["time"]    = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
-        entry["test"]    = testName;
-        entry["trigger"] = trigger;
-        m_evidenceLog.prepend(entry);
-        if (m_evidenceLog.size() > 100) m_evidenceLog.removeLast(); // cap
-        emit evidenceChanged();
+        // Record in evidence log (skip for recording frames to avoid flood)
+        if (logToEvidence) {
+            QVariantMap entry;
+            entry["path"]    = outPath;
+            entry["time"]    = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+            entry["test"]    = testName;
+            entry["trigger"] = trigger;
+            m_evidenceLog.prepend(entry);
+            if (m_evidenceLog.size() > 100) m_evidenceLog.removeLast(); // cap
+            emit evidenceChanged();
+        }
         emit captureTaken(outPath);
         return outPath;
     }
@@ -132,10 +136,48 @@ public:
                  QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss"));
     }
 
-    // ── Recording stubs (backed by external encoder in future phases) ───
-    Q_INVOKABLE void startRecording()  { m_recording = true;  emit recordingChanged(); }
-    Q_INVOKABLE void stopRecording()   { m_recording = false; emit recordingChanged(); }
-    Q_INVOKABLE void pauseRecording()  { /* future */ }
+    // ── Recording (timer-based frame capture → future: video encoder) ──
+    Q_INVOKABLE void startRecording() {
+        if (m_recording) return;
+        m_recording = true;
+        m_recordingDir = ensureDir() + QStringLiteral("/rec_")
+                       + QDateTime::currentDateTime().toString("yyyyMMdd_HHmmss");
+        QDir().mkpath(m_recordingDir);
+        m_frameCount = 0;
+        // Capture frames at ~5 fps via a timer (backed by QQuickWindow::grabWindow)
+        m_recordTimer = new QTimer(this);
+        m_recordTimer->setInterval(200); // 5 fps
+        connect(m_recordTimer, &QTimer::timeout, this, [this]() {
+            if (!m_recording) return;
+            QString framePath = m_recordingDir + QStringLiteral("/frame_%1.png")
+                .arg(m_frameCount++, 6, 10, QChar('0'));
+            capture(framePath, QString(), QStringLiteral("recording"), false);
+        });
+        m_recordTimer->start();
+        emit recordingChanged();
+    }
+    Q_INVOKABLE void stopRecording() {
+        if (!m_recording) return;
+        m_recording = false;
+        if (m_recordTimer) { m_recordTimer->stop(); delete m_recordTimer; m_recordTimer = nullptr; }
+        // Log the recording session in evidence
+        QVariantMap entry;
+        entry["path"]    = m_recordingDir;
+        entry["time"]    = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss");
+        entry["test"]    = QStringLiteral("recording");
+        entry["trigger"] = QStringLiteral("recording_stop");
+        entry["frames"]  = m_frameCount;
+        m_evidenceLog.prepend(entry);
+        if (m_evidenceLog.size() > 100) m_evidenceLog.removeLast();
+        emit evidenceChanged();
+        emit recordingChanged();
+    }
+    Q_INVOKABLE void pauseRecording() {
+        if (m_recordTimer) {
+            if (m_recordTimer->isActive()) m_recordTimer->stop();
+            else m_recordTimer->start();
+        }
+    }
 
 signals:
     void captureTaken(const QString& path);
@@ -160,4 +202,8 @@ private:
     QVariantList m_evidenceLog;
     bool        m_recording = false;
     bool        m_autoCaptureOnFailure = true;
+    // Recording state
+    QTimer*     m_recordTimer = nullptr;
+    QString     m_recordingDir;
+    int         m_frameCount = 0;
 };

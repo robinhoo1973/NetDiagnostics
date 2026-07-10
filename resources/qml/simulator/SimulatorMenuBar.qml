@@ -67,6 +67,8 @@ MenuBar {
                  shortcut: "Ctrl+0" }
         Action { text: "&Actual Size";           onTriggered: root.deviceActualSize()
                  shortcut: "Ctrl+1" }
+        MenuSeparator {}
+        Action { text: "&Reset Device View";     onTriggered: root.deviceFitToWindow() }
     }
 
     Menu {
@@ -100,6 +102,8 @@ MenuBar {
                  shortcut: "Ctrl+Shift+F12" }
         MenuSeparator {}
         Action { text: "Open &Evidence Folder…"; onTriggered: root.captureOpenEvidence() }
+        MenuSeparator {}
+        Action { text: "Capture &Settings…";      onTriggered: { /* TODO: capture settings dialog */ } }
     }
 
     Menu {
