@@ -139,9 +139,13 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);
 #endif
-    // Native PDF rendering: iOS (CGPDFDocument) / Android (PdfRenderer).
-    // Available on all mobile platforms without extra Qt modules.
-#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
+    // Native PDF rendering — available on all platforms that have a
+    // built-in PDF renderer (no extra Qt module needed):
+    //   macOS: PDFKit (Quartz framework)
+    //   iOS:   CGPDFDocument (CoreGraphics)
+    //   Android: PdfRenderer via JNI (API 21+)
+    // Windows/Linux: prefer QtPdf (QPdfDocument); NativePdf stays false.
+#if defined(__APPLE__) || defined(PLATFORM_ANDROID)
     engine.rootContext()->setContextProperty("hasNativePdf", true);
     qmlRegisterType<NativePdfDocument>("NetDiagnostics", 1, 0, "NativePdfDocument");
 #else

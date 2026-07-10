@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);
 #endif
-#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
+#if defined(__APPLE__) || defined(PLATFORM_ANDROID)
     engine.rootContext()->setContextProperty("hasNativePdf", true);
 #else
     engine.rootContext()->setContextProperty("hasNativePdf", false);

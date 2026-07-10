@@ -93,20 +93,49 @@ if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
 endif()
-if(IOS)
-    list(APPEND SOURCES
-        src/engine/diagnostics/G1/G1Common.mm
-        src/engine/diagnostics/G3/G3Common.mm src/engine/diagnostics/G5/G5Common.mm
-        src/platform/PlatformShare.mm src/platform/PlatformStore.mm
-        src/platform/NativePdfDocument.cpp src/platform/PlatformPdfRenderer_ios.mm
-    )
-endif()
-if(ANDROID)
-    list(APPEND SOURCES
-        src/engine/diagnostics/G5/G5Common.cpp src/platform/PlatformShare.cpp
-        src/platform/NativePdfDocument.cpp src/platform/PlatformPdfRenderer_android.cpp
-    )
-endif()
+	if(IOS)
+		list(APPEND SOURCES
+			src/engine/diagnostics/G1/G1Common.mm
+			src/engine/diagnostics/G3/G3Common.mm src/engine/diagnostics/G5/G5Common.mm
+			src/platform/PlatformShare.mm src/platform/PlatformStore.mm
+			src/platform/PlatformPdfRenderer_ios.mm
+	)
+	endif()
+	if(ANDROID)
+		list(APPEND SOURCES
+			src/engine/diagnostics/G5/G5Common.cpp src/platform/PlatformShare.cpp
+			src/platform/PlatformPdfRenderer_android.cpp
+	)
+	endif()
+	# ---- Native PDF renderer --- available on all platforms --------------
+	# 5WHY: NativePdfDocument was mobile-only. Now all platforms get native PDF.
+	# macOS: PDFKit, iOS: CGPDFDocument, Android: PdfRenderer via JNI.
+	# Windows/Linux: QtPdf if available, else stubs (QML Image fallback).
+	list(APPEND SOURCES src/platform/NativePdfDocument.cpp)
+	if(APPLE AND NOT IOS)
+		list(APPEND SOURCES src/platform/PlatformPdfRenderer_macos.mm)
+	elseif(WIN32)
+		list(APPEND SOURCES src/platform/PlatformPdfRenderer.cpp)
+	elseif(ANDROID)
+		# Already handled above
+	else()
+		# Linux
+		list(APPEND SOURCES src/platform/PlatformPdfRenderer.cpp)
+	endif()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 set(QML_RESOURCES resources/resources.qrc)
 
@@ -135,16 +164,16 @@ else()
     message(STATUS "QtPdf QRC excluded — PDF preview uses image fallback")
 endif()
 
-# ── Native PDF QRC — only on iOS/Android (CGPDFDocument / PdfRenderer) ─
+# ── Native PDF QRC — macOS/iOS/Android have built-in PDF renderers ──────
 # 5WHY: NativePdfPageView.qml references NetDiagnostics 1.0 QML type
-# (NativePdfDocument) which is only registered on mobile via qmlRegisterType.
-# On desktop, the type doesn't exist → QML parse error → engine.load() fails
-# → startup crash. Same pattern as WebView and QtPdf QRC isolation.
-if(IOS OR ANDROID)
+# (NativePdfDocument). Previously mobile-only; now macOS also has a native
+# renderer (PDFKit). Windows/Linux use QtPdf or image fallback.
+# Platform renderers: macOS PDFKit, iOS CGPDFDocument, Android PdfRenderer.
+if(APPLE OR ANDROID)
     list(APPEND QML_RESOURCES resources/resources_nativepdf.qrc)
-    message(STATUS "Native PDF QRC included — mobile PDF preview enabled")
+    message(STATUS "Native PDF QRC included — platform PDF preview enabled")
 else()
-    message(STATUS "Native PDF QRC excluded — desktop uses QtPdf or image fallback")
+    message(STATUS "Native PDF QRC excluded — use QtPdf or image fallback")
 endif()
 
 # ── Production target ──────────────────────────────────────────────────
