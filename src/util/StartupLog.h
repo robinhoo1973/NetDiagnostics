@@ -10,7 +10,10 @@
 // =============================================================================
 #pragma once
 
-#ifdef ND_DEBUG
+// 5WHY: test.yml sets ND_TESTING=ON but ND_DEBUG=OFF, making STARTUP_LOG a
+// no-op. If the binary crashes before --test mode begins (QML load failure),
+// there is zero diagnostic output. Enable logging whenever ND_TESTING is on.
+#if defined(ND_DEBUG) || defined(ND_TESTING)
 
 #include <QFile>
 #include <QTextStream>
@@ -56,7 +59,7 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
 #define STARTUP_LOG(fmt, ...) startup_log(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define STARTUP_SEPARATOR()  startup_log(nullptr, 0, "══════════════════════════════════════════")
 
-#else  // !ND_DEBUG — compile to nothing
+#else  // neither ND_DEBUG nor ND_TESTING — compile to nothing
 
 #define STARTUP_LOG(fmt, ...) ((void)0)
 #define STARTUP_SEPARATOR()  ((void)0)
