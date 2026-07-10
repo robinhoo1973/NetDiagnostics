@@ -339,6 +339,26 @@ jobs:
             done
             echo "[OK] frameworks signed"
           fi
+          # 5WHY: Apple distribution requires ALL executable code to be
+          # signed, not just .framework bundles. macdeployqt copies
+          # Homebrew Qt's standalone .dylib dependencies (libpcre2, libb2,
+          # etc.) into Contents/Frameworks/ and Qt plugins (.dylib) into
+          # Contents/PlugIns/. These flat .dylib files were missed by the
+          # framework-only signing step, causing TestFlight upload failure
+          # with "Invalid signature" errors.
+          # Fix: sign all .dylib files outside .framework bundles first
+          # (inside-out order: dylibs → frameworks → binary → .app).
+          find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
+            # Skip dylibs inside .framework bundles — those are already
+            # signed with their parent framework above
+            case "$dylib" in
+              */Contents/Frameworks/*.framework/*) continue ;;
+            esac
+            codesign --force --options runtime --timestamp \
+              --sign "$CODE_ID" --keychain "$KCHAIN" \
+              "$dylib"
+          done
+          echo "[OK] standalone dylibs signed"
           # Sign inner binary first (required before signing the .app bundle)
           BIN="$APP/Contents/MacOS/net_diagnostics"
           if [ -f "$BIN" ]; then
