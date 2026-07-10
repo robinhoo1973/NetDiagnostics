@@ -23,6 +23,7 @@
         <file>qml/widgets/AppIcon.qml</file>
         <file>qml/widgets/SummaryCards.qml</file>
         <file>qml/widgets/DiagnosticToolbar.qml</file>
+        <file>qml/widgets/NativePdfPageView.qml</file>
         <!-- HtmlPreviewWebView.qml moved to resources_webview.qrc
              which is conditionally included only when QtWebView is
              found. This prevents qmlimportscanner from requiring the
