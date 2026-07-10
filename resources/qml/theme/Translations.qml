@@ -97,6 +97,8 @@ Item {
     readonly property string previewPdfTitle: t("PDF Report — Summary", "Rapport PDF — Résumé", "PDF-Bericht — Übersicht", "PDF-отчёт — сводка", "Rapporto PDF — Riepilogo", "PDF报告 — 汇总", "PDF報告 — 彙總", "Informe PDF — Resumen", "Relatório PDF — Resumo")
     readonly property string previewHtmlTitle: t("HTML Report — Full", "Rapport HTML — Complet", "HTML-Bericht — Vollständig", "HTML-отчёт — полный", "Rapporto HTML — Completo", "HTML报告 — 完整", "HTML報告 — 完整", "Informe HTML — Completo", "Relatório HTML — Completo")
     readonly property string reportSaveBtn: t("Save", "Enregistrer", "Speichern", "Сохранить", "Salva", "保存", "儲存", "Guardar", "Salvar")
+    readonly property string openAsPdf: t("Open as PDF", "Ouvrir en PDF", "Als PDF öffnen", "Открыть PDF", "Apri come PDF", "用原生应用打开PDF", "用原生應用打開PDF", "Abrir como PDF", "Abrir como PDF")
+    readonly property string openInBrowser: t("Open in Browser", "Ouvrir dans navigateur", "Im Browser öffnen", "Открыть в браузере", "Apri nel browser", "用浏览器打开", "用瀏覽器打開", "Abrir en navegador", "Abrir no navegador")
     readonly property string shareBtn: t("Share", "Partager", "Teilen", "Поделиться", "Condividi", "分享", "分享", "Compartir", "Compartilhar")
     readonly property string emailBtn: t("Email", "E-mail", "E-Mail", "По почте", "Email", "邮件", "郵件", "Correo", "E-mail")
     readonly property string premiumBadge: t("PRO", "PRO", "PRO", "PRO", "PRO", "PRO", "PRO", "PRO", "PRO")

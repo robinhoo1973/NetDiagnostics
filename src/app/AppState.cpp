@@ -1146,6 +1146,26 @@ QString AppState::exportPdf(const QString& filePath) const {
     return ReportEngine::exportPdf(filePath, buildReportHtml(true, isDarkMode()));
 }
 
+void AppState::openPdfExternally() const {
+    // 5WHY: "PDF Preview" showed a QTextDocument→QImage PNG, not a real PDF.
+    // Generate an actual PDF and open it in the system's native PDF viewer.
+    const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        .filePath(QStringLiteral("NetDiagnostics_preview.pdf"));
+    const QString saved = exportPdf(path);
+    if (!saved.isEmpty()) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(saved));
+    }
+}
+
+void AppState::openHtmlExternally() const {
+    const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        .filePath(QStringLiteral("NetDiagnostics_preview.html"));
+    const QString saved = exportHtml(path, isDarkMode());
+    if (!saved.isEmpty()) {
+        QDesktopServices::openUrl(QUrl::fromLocalFile(saved));
+    }
+}
+
 void AppState::requestSavePath(const QString& format) {
     m_reportEngine.requestSavePath(format);
 }
