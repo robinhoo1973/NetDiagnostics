@@ -129,6 +129,12 @@ if(BUILD_SIMULATOR)
         endif()
     endif()
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
+    list(APPEND SIM_SOURCES
+        "src/simulator/SimulatorConfig.cpp"
+        "src/simulator/QtConfigAdapter.cpp"
+        "src/simulator/ScreenshotService.cpp"
+        "src/simulator/MatrixOrchestrator.cpp"
+    )
     qt_add_executable(net_diagnostics_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
     configure_netdiag_target(net_diagnostics_sim)
 endif()

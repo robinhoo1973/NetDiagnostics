@@ -220,5 +220,3 @@ private:
     QString               m_activePlatform;
     QVariantList          m_policyRules;
 };
-
-#include "moc_SimulatorConfig.cpp"

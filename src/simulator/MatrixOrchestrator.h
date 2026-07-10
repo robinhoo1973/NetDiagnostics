@@ -130,5 +130,3 @@ private:
     QString      m_currentOS;
     QString      m_currentDevice;
 };
-
-#include "moc_MatrixOrchestrator.cpp"
