@@ -7,6 +7,7 @@
 #include <QVariantMap>
 #include <QTimer>
 #include <QQuickWindow>
+#include <QQuickItem>
 #include <QIcon>
 #include <QLockFile>
 #include <QDir>
