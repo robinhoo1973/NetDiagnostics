@@ -32,10 +32,12 @@ DiagnosticResult DiagnosticResult::error(DiagId id, const QString& msg) {
     return r;
 }
 
-DiagnosticResult DiagnosticResult::timeout(DiagId id, DiagGroup group, qint64 durationMs) {
+DiagnosticResult DiagnosticResult::timeout(DiagId id, qint64 durationMs) {
     DiagnosticResult r;
     r.id = id;
-    r.group = group;
+    // 5WHY: group was passed as a parameter (API inconsistency with skipped/error
+    // which derive group from id). Now derived from id — single source of truth.
+    r.group = diagGroup(id);
     r.status = DiagStatus::Error;
     r.summary = QStringLiteral("Timeout (%1s)").arg(durationMs / 1000);
     r.durationMs = durationMs;

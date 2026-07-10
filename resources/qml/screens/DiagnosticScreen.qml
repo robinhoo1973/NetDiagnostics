@@ -201,7 +201,10 @@ Item {
         id: detailOverlay
         parent: page.parent ? page.parent : page
         anchors.fill: parent
-        color: "#88000000"; visible: false; z: 1000
+        // 5WHY: Overlay was hardcoded semi-transparent black — doesn't adapt
+        // to light theme. Now uses ThemeEngine surface color with opacity for
+        // proper theme-aware dimming.
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85); visible: false; z: 1000
         onVisibleChanged: {
             if (!visible) { dtTitle.text=""; dtStatus.text=""; dtSummary.text=""; dtOutput.text=""; page.currentDetail = {} }
         }

@@ -400,16 +400,38 @@ ColumnLayout {
                 enabled: appState.runStatus !== 1 && appState.canRun()
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
-                    if (appState.targetValidationError() !== "") return
+                    if (appState.targetValidationError() !== "") {
+                        // 5WHY: Clicking Run with validation error silently did nothing.
+                        // User had no feedback — didn't know WHY the button was ignored.
+                        // Flash the validation error and briefly highlight the input border.
+                        validationFlash.start()
+                        return
+                    }
                     if (!appState.canRun()) return
                     appState.runDiagnostics()
+                }
+            }
+            // Validation error feedback animation — brief red flash on click
+            Rectangle {
+                anchors.fill: parent; radius: 8; color: "transparent"
+                border { width: 2; color: "transparent" }
+                SequentialAnimation on border.color {
+                    id: validationFlash
+                    running: false
+                    PropertyAction { value: ThemeEngine.failRed }
+                    PauseAnimation { duration: 300 }
+                    PropertyAction { value: "transparent" }
                 }
             }
             focus: true
             activeFocusOnTab: true
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
-                    if (appState.targetValidationError() === "" && appState.canRun())
+                    if (appState.targetValidationError() !== "") {
+                        validationFlash.start()
+                        return
+                    }
+                    if (appState.canRun())
                         appState.runDiagnostics()
                 }
             }
