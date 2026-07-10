@@ -68,11 +68,14 @@ Item {
             id: navRow
             anchors.centerIn: parent; spacing: 8
 
+            // 5WHY: 32px touch target is below both Apple HIG (44pt) and
+            // Material Design (48dp). NativePdfPageView is mobile-only,
+            // so use 44px minimum (meets both standards at typical mobile DPI).
             Rectangle {
-                width: 32; height: 32; radius: 6
+                width: 44; height: 44; radius: 8
                 color: navPrevMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.2)
                                               : Qt.alpha(ThemeEngine.cyan, 0.08)
-                AppIcon { anchors.centerIn: parent; name: "play"; size: 14
+                AppIcon { anchors.centerIn: parent; name: "play"; size: 18
                     color: ThemeEngine.cyan; rotation: 180 }
                 MouseArea {
                     id: navPrevMa
@@ -91,10 +94,10 @@ Item {
             }
 
             Rectangle {
-                width: 32; height: 32; radius: 6
+                width: 44; height: 44; radius: 8
                 color: navNextMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.2)
                                               : Qt.alpha(ThemeEngine.cyan, 0.08)
-                AppIcon { anchors.centerIn: parent; name: "play"; size: 14
+                AppIcon { anchors.centerIn: parent; name: "play"; size: 18
                     color: ThemeEngine.cyan }
                 MouseArea {
                     id: navNextMa
