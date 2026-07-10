@@ -70,8 +70,10 @@ Item {
                 anchors { fill: parent; leftMargin: compact ? 0 : 16; rightMargin: compact ? 4 : 16 }
                 // Nav items centered via balanced left+right Layout.fillWidth spacers
                 Item { Layout.fillWidth: true }
-                // M3 spec: 8dp minimum gap between touch targets.  4dp for same-group icons.
-                Row { spacing: compact ? 0 : 4
+                // M3 spec: 8dp minimum gap between touch targets. 4dp for same-group icons.
+                // 5WHY: compact spacing was 0 — adjacent 48dp touch targets with zero
+                // separation cause mis-taps on narrow mobile screens.
+                Row { spacing: compact ? 4 : 4
                     Repeater {
                         model: [
                             { screen: "dashboard",  icon: "dashboard" },

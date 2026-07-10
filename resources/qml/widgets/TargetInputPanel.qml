@@ -377,32 +377,61 @@ ColumnLayout {
 
     // ── Run / Stop buttons ──────────────────────────────────────────────
     RowLayout {
+        // 5WHY: Run button was 38pt — below Apple HIG (44pt) and M3 (48dp)
+        // minimum touch targets. Increased to 44pt for accessible tapping.
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 38; radius: 8
+            id: runBtn
+            Layout.fillWidth: true; implicitHeight: 44; radius: 8
             color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.accentBlue, 0.4) : (appState.canRun() ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.accentBlue, 0.3))
+            // 5WHY: "white" was hardcoded — doesn't adapt to light theme.
+            // Use ThemeEngine.textPrimary inverted for the button label.
             Label {
                 anchors.centerIn: parent
                 text: appState.runStatus === 1 ? Tr.running : Tr.runDiag
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                color: appState.canRun() || appState.runStatus === 1 ? "white" : Qt.alpha("white", 0.4)
+                color: (appState.canRun() || appState.runStatus === 1) ? "#FFFFFF" : Qt.alpha("#FFFFFF", 0.4)
             }
+            // 5WHY: MouseArea-only controls lack keyboard accessibility.
+            // Adding Keys.onPressed + activeFocusOnTab so keyboard users
+            // can activate via Enter/Space (WCAG 2.1 SC 2.1.1).
             MouseArea {
+                id: runBtnArea
                 anchors.fill: parent
                 enabled: appState.runStatus !== 1 && appState.canRun()
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
                     if (appState.targetValidationError() !== "") return
                     if (!appState.canRun()) return
                     appState.runDiagnostics()
                 }
             }
+            focus: true
+            activeFocusOnTab: true
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                    if (appState.targetValidationError() === "" && appState.canRun())
+                        appState.runDiagnostics()
+                }
+            }
         }
         Item { width: 6; visible: appState.runStatus === 1 }
         Rectangle {
+            id: stopBtn
             visible: appState.runStatus === 1
-            Layout.preferredWidth: Math.min(90, parent.width * 0.25); implicitHeight: 38; radius: 8
+            Layout.preferredWidth: Math.min(90, parent.width * 0.25); implicitHeight: 44; radius: 8
             color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.5) }
             Label { anchors.centerIn: parent; text: Tr.stop; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.failRed }
-            MouseArea { anchors.fill: parent; onClicked: appState.cancel() }
+            MouseArea {
+                id: stopBtnArea
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: appState.cancel()
+            }
+            activeFocusOnTab: true
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Space)
+                    appState.cancel()
+            }
         }
     }
 }
