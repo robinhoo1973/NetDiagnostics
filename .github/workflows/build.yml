@@ -422,9 +422,12 @@ jobs:
           set -euxo pipefail
           mkdir -p dist
           # Resolve curl static libs: pkg-config --static gives us the full
-          # transitive closure (.a archives).  We wrap everything in
-          # -Wl,-Bstatic … -Wl,-Bdynamic so third-party libs are absorbed
-          # into the exe and only Windows OS DLLs remain at runtime.
+          # transitive closure (.a archives).  We keep everything in
+          # -Wl,-Bstatic mode so third-party libs AND CMake-added libs
+          # (including find_package(CURL)'s -lcurl) are absorbed into the
+          # exe.  MinGW provides Windows system import libs (.a) that work
+          # correctly with -Bstatic — the exe will still depend on kernel32
+          # etc. at runtime, but those ARE on the OS DLL whitelist.
           CURL_STATIC_LIBS="$(pkg-config --static --libs libcurl 2>/dev/null || echo "")"
           echo ">>> curl static libs: ${CURL_STATIC_LIBS}"
 
@@ -434,7 +437,7 @@ jobs:
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,-Bdynamic -Wl,--gc-sections"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
