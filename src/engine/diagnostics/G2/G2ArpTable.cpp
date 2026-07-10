@@ -120,6 +120,8 @@ DiagnosticResult arpTable(DiagId id) {
     r.summary = QStringLiteral("ARP table collected");
 #endif
 #endif
+#endif  // close converted #elif
+#endif  // close converted #elif
     r.durationMs = t.elapsed();
     return r;
 }
