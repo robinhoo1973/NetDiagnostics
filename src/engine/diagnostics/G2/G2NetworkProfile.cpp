@@ -73,7 +73,8 @@ DiagnosticResult networkProfile(DiagId id) {
     QFile fwd(QStringLiteral("/proc/sys/net/ipv4/ip_forward"));
     if (fwd.open(QIODevice::ReadOnly))
         out.append(QStringLiteral("  IP Forwarding: %1").arg(QString::fromLatin1(fwd.readAll().trimmed()) == "1" ? "Enabled" : "Disabled"));
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     int fwd = 0; size_t fwdSz = sizeof(fwd);
     if (sysctlbyname("net.inet.ip.forwarding", &fwd, &fwdSz, nullptr, 0) == 0)
         out.append(QStringLiteral("  IP Forwarding: %1").arg(fwd ? QStringLiteral("Enabled") : QStringLiteral("Disabled")));
@@ -83,6 +84,7 @@ DiagnosticResult networkProfile(DiagId id) {
 #if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] IP forwarding: unavailable (restricted by Apple)"));
 #endif
+#endif  // close converted #elif
 #endif // _WIN32
 
     r.rawOutput = out.join('\n');

@@ -61,7 +61,8 @@ DiagnosticResult activeConnections(DiagId id) {
     parseProcNet(QStringLiteral("/proc/net/tcp6"), QStringLiteral("TCP6"), false);
     parseProcNet(QStringLiteral("/proc/net/udp"),  QStringLiteral("UDP"),  true);
     parseProcNet(QStringLiteral("/proc/net/udp6"), QStringLiteral("UDP6"), true);
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // ── macOS: enumerate TCP/UDP connections via sysctl pcblist ──────
     {
         auto macTcpState = [](int st) -> const char* {
@@ -155,7 +156,8 @@ DiagnosticResult activeConnections(DiagId id) {
 #if defined(PLATFORM_IOS)
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Unavailable on iOS (sandbox restricts socket enumeration)");
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     r.status = rawConns.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
     r.summary = rawConns.isEmpty()
         ? QStringLiteral("No active connections found")
@@ -170,6 +172,8 @@ DiagnosticResult activeConnections(DiagId id) {
     r.summary = rawConns.isEmpty()
         ? QStringLiteral("No active connections")
         : QStringLiteral("%1 TCP + %2 UDP connections").arg(tcpCount).arg(udpCount);
+#endif  // close converted #elif
+#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;

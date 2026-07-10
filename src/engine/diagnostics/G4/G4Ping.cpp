@@ -32,9 +32,11 @@ DiagnosticResult ping(const QString& target) {
 #if defined(_WIN32)
         if (resolvedIp)
             ms = icmpEchoRttMsWindows(resolvedIp, i + 1, 2000);
-#elif !defined(__linux__)
+#else
+#if !defined(__linux__)
         if (resolvedIp)
             ms = icmpEchoRttMs(resolvedIp, i + 1, 2000);
+#endif
 #endif
         if (ms < 0) {
             int ports[] = {443, 80, 22, 8080, 8443};      // TCP fallback / default
@@ -80,7 +82,8 @@ DiagnosticResult ping(const QString& target) {
 // intermediate routers — same technique as tracepath / traceroute -T, no root.
 // Windows: uses IcmpSendEcho API (no admin required).
 #if defined(_WIN32)
-#elif defined(__linux__)
+#else
+#if defined(__linux__)
 #else
 // macOS/iOS/BSD: ICMP Echo TTL probing via a datagram ICMP socket (no root).
 // SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root privileges
@@ -97,6 +100,7 @@ DiagnosticResult ping(const QString& target) {
 // traceroute produced an all-"*" result. Sending ICMP Echo on the ICMP socket
 // itself is the reliable, permission-safe approach on iOS/macOS.
 // (icmpEchoChecksum() is defined once, above, near ping().)
+#endif
 #endif
 
 // ── Traceroute (TCP TTL probing, cross-platform) — Windows tracert format ───

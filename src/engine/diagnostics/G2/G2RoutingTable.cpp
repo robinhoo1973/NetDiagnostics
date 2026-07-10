@@ -106,7 +106,8 @@ DiagnosticResult routingTable(DiagId id) {
     }
     if (!routeRows.isEmpty())
         out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // ── macOS: enumerate routing table via sysctl NET_RT_DUMP ──
     {
         int mib[] = { CTL_NET, PF_ROUTE, 0, 0, NET_RT_DUMP, 0 };
@@ -152,6 +153,7 @@ DiagnosticResult routingTable(DiagId id) {
 #if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] Routing table: unavailable (restricted by Apple)"));
 #endif
+#endif  // close converted #elif
 #endif
 
     out.append(QStringLiteral("==========================================================================="));

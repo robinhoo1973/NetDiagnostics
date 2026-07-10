@@ -65,7 +65,8 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 #if defined(_WIN32)
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
-#elif defined(__linux__)
+#else
+#if defined(__linux__)
         // Linux: read MTU from sysfs, skipping loopback (lo has MTU 65536)
         QDir netDir(QStringLiteral("/sys/class/net"));
         for (const auto& fi : netDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
@@ -80,7 +81,8 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
         // macOS: use getifaddrs + ioctl SIOCGIFMTU
         struct ifaddrs* ifa = nullptr;
         if (getifaddrs(&ifa) == 0) {
@@ -107,6 +109,8 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
+#endif  // close converted #elif
+#endif  // close converted #elif
 #endif
     }
 

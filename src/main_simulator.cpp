@@ -26,6 +26,7 @@
 #endif
 #include <QStandardPaths>
 #include "app/AppState.h"
+#include "util/StartupLog.h"
 #include "simulator/SimulatorConfig.h"
 #include "simulator/QtConfigAdapter.h"
 #include "simulator/ScreenshotService.h"
@@ -132,20 +133,51 @@ int main(int argc, char *argv[])
     // ══════════════════════════════════════════════════════════════════════
     const QUrl url("qrc:/qml/screens/SimulatorScreen.qml");
 
+    STARTUP_SEPARATOR();
+    STARTUP_LOG("NetDiagnostics Simulator starting, Qt %s, edition=%s",
+                qVersion(), APP_EDITION);
+
     if (qEnvironmentVariableIntValue("ND_AUTORUN")) {
         QTimer::singleShot(5000, &app, [&appState]() {
             appState.setTarget(QStringLiteral("localhost"));
             appState.runDiagnostics();
         });
     }
+    // Capture QML warnings/errors to the startup log
+    QObject::connect(&engine, &QQmlApplicationEngine::warnings,
+        &engine, [](const QList<QQmlError>& warnings) {
+            for (const auto& w : warnings)
+                STARTUP_LOG("Simulator QML WARNING: %s", w.toString().toUtf8().constData());
+        });
+
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, [url](const QUrl &objUrl) {
+            STARTUP_LOG("Simulator QML FATAL: object creation failed for %s", objUrl.toString().toUtf8().constData());
             if (url == objUrl) QCoreApplication::exit(-1);
         }, Qt::QueuedConnection);
 
+    STARTUP_LOG("Simulator calling engine.load()...");
     engine.load(url);
+    STARTUP_LOG("Simulator engine.load() returned. rootObjects=%d", engine.rootObjects().size());
+
     if (engine.rootObjects().isEmpty()) {
+        // 5WHY: Simulator crash was silent on desktop — no diagnostic visible
+        // to the user. Match the pattern from main.cpp to show a message box
+        // so the user can report the root cause instead of seeing flash-and-quit.
+        STARTUP_LOG("FATAL: Simulator QML engine failed to load %s — no root objects", "qrc:/qml/screens/SimulatorScreen.qml");
         qCritical("Failed to load SimulatorScreen");
+#if(!defined(PLATFORM_IOS)&&!defined(PLATFORM_ANDROID))
+        QMessageBox::critical(nullptr, QStringLiteral("NetDiagnostics Simulator — Startup Error"),
+            QStringLiteral("Failed to load the Simulator QML UI.\n\n"
+            "This usually means a required Qt module is missing from your installation.\n"
+            "Check the startup log at: %1\n\n"
+            "Common causes:\n"
+            "• Qt Quick module not installed\n"
+            "• Static build missing QML plugins\n"
+            "• Corrupted resources.qrc file")
+            .arg(QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+                 .filePath("NetDiagnostics_startup.log")));
+#endif
         return -1;
     }
 

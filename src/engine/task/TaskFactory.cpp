@@ -147,7 +147,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #if defined(PLATFORM_IOS)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidDhcpDiag(id); });
 #else
@@ -168,7 +169,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #if defined(PLATFORM_IOS)
         case DiagId::G2DefaultGateway:
             return T3([](DiagId id, const QString&) { return iosDefaultGatewayDiag(id); });
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
         case DiagId::G2DefaultGateway:
             return T3([](DiagId id, const QString&) { return G5WebsiteUrl::androidGatewayDiag(id); });
 #else
@@ -194,7 +196,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #if defined(PLATFORM_IOS)
         case DiagId::G4DnsResolution:
             return T3([t = target](DiagId id, const QString&) { return iosDnsResolve(id, t, 3000); });
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
         case DiagId::G4DnsResolution:
             return T3([t = target](DiagId id, const QString&) { return G5WebsiteUrl::androidDnsDiag(id, t); });
 #else
@@ -231,7 +234,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
         case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
         case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
         // Android: HttpURLConnection native HTTP (no libcurl needed)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
@@ -254,7 +258,8 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
         case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
         case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
-#elif !defined(NO_CURL)
+#else
+#if !defined(NO_CURL)
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
@@ -301,6 +306,11 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             return T3([](DiagId id, const QString&) {
                 return DiagnosticResult::skipped(id, QStringLiteral("HTTP test unavailable (libcurl required)"));
             });
+#endif  // close converted #elif
+#endif  // close converted #elif
+#endif  // close converted #elif
+#endif  // close converted #elif
+#endif  // close converted #elif
 #endif
         default: break; // safety net: new DiagId not yet handled 鈫?log + nullptr
     }
