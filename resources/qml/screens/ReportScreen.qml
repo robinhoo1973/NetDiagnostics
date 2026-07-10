@@ -21,7 +21,6 @@ Item {
     property string previewFormat: ""     // "pdf" | "html"
     property string previewImagePath: ""   // rendered fallback image path
     property string previewHtmlPath: ""    // exported HTML file path
-    property string previewHtml: ""
     property bool previewVisible: false
     property string toast: ""             // transient status message
 
@@ -62,6 +61,7 @@ Item {
         var fmt = pendingShareFormat
         shareStage = 0
         previewVisible = false
+        previewFormat = ""     // deactivate Loader, free WebView resources
         appState.shareReport(fmt)
     }
 
