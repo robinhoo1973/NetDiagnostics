@@ -31,11 +31,12 @@ Item {
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
-        // PDF = one-page summary (light theme); HTML = full rich document (dark theme, shared-page parity).
-        if (fmt === "html")
-            previewHtml = appState.buildRichHtmlDocument()
-        else
-            previewHtml = appState.buildReportHtml(false)
+        // Both previews use Qt Rich Text compatible HTML (QML Text.RichText cannot
+        // render CSS, <style> blocks, or <details>/<summary> elements).
+        // buildRichHtmlDocument() is reserved for export/share (browser-grade).
+        // darkBackground=true gives the preview dashboard-parity dark theme.
+        // fullDetail: true for HTML (full per-test output), false for PDF (summary).
+        previewHtml = appState.buildReportHtml(fmt === "html", true)
         previewVisible = true
     }
     function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }

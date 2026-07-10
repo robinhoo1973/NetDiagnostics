@@ -76,7 +76,15 @@ QtObject {
 
     // ── Theme switching (imperative JS — gated to skip init) ──────────
     property bool _ready: false
-    Component.onCompleted: { _ready = true; applyTheme() }
+    Component.onCompleted: {
+        // Restore persisted theme mode from AppState (survives app restarts).
+        // Default is drkMode (2); AppState::loadSettings() restores saved value.
+        if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
+            mode = appState.themeMode
+        }
+        _ready = true
+        applyTheme()
+    }
 
     // Theme color keys — single source for both palette objects and assignment loop
     readonly property var _colorKeys: [
@@ -125,8 +133,4 @@ QtObject {
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property string fontMono: "JetBrains Mono"
     readonly property string monoFont: fontMono
-    readonly property real radiusCard: 12
-    readonly property real radiusButton: 8
-    readonly property real radiusSmall: 6
-    readonly property real sidebarWidth: 260
 }

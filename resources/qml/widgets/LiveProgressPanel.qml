@@ -11,10 +11,15 @@ ColumnLayout {
     RowLayout {
         spacing: 8
         AppIcon {
+            id: liveSpinner
             name: status === 1 ? "spinner" : status === 2 ? "badge-check" : status === 3 ? "badge-close" : status === 4 ? "badge-error" : "badge-circle"
             size: 14
             color: status === 1 ? ThemeEngine.colors.primary : (status === 2 ? ThemeEngine.passGreen : (status === 3 || status === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary))
-            RotationAnimation on rotation { running: status === 1; from:0; to:360; duration:1000; loops:Animation.Infinite }
+            RotationAnimation on rotation {
+                running: status === 1; from:0; to:360; duration:1000; loops:Animation.Infinite
+                // 5WHY: Reset rotation so post-spinner icon (badge-check etc.) isn't skewed.
+                onStopped: liveSpinner.rotation = 0
+            }
         }
         Label {
             text: status === 1 ? Tr.runningStatus : status === 2 ? Tr.completeStatus : status === 3 ? Tr.cancelledStatus : status === 4 ? Tr.errorStatus : Tr.readyStatus

@@ -68,7 +68,7 @@ QString reportStatusClass(DiagStatus s) {
 
 // ── Public: HTML generation ─────────────────────────────────────────────
 
-QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
+QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool darkBackground) {
     // Status colours — match app ThemeEngine (dark theme palette)
     const QString colorPass = QStringLiteral("#4ADE80");
     const QString colorWarn = QStringLiteral("#FBBF24");
@@ -76,6 +76,25 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
     const QString colorSkip = QStringLiteral("#9CA3AF");
     const QString colorInfo = QStringLiteral("#38BDF8");  // app primary blue
     const QString colorCyan = QStringLiteral("#22D3EE");  // app signature accent
+
+    // Theme-aware colours — dark background for QML preview parity with dashboard
+    const QString textPrimary  = darkBackground ? QStringLiteral("#F1F5F9") : QStringLiteral("#1E293B");
+    const QString textSecondary= darkBackground ? QStringLiteral("#94A3B8") : QStringLiteral("#475569");
+    const QString textMuted    = darkBackground ? QStringLiteral("#64748B") : QStringLiteral("#94A3B8");
+    const QString bgHeader     = darkBackground ? QStringLiteral("#0C4A6E") : QStringLiteral("#0F172A");
+    const QString bgSection    = darkBackground ? QStringLiteral("#1E293B") : QStringLiteral("#0F172A");
+    const QString bgRowAlt     = darkBackground ? QStringLiteral("#1E293B") : QStringLiteral("#F8FAFC");
+    const QString bgRow        = darkBackground ? QStringLiteral("#0F172A") : QStringLiteral("#FFFFFF");
+    const QString bgCardPass   = darkBackground ? QStringLiteral("#16281b") : QStringLiteral("#ECFDF5");
+    const QString bgCardInfo   = darkBackground ? QStringLiteral("#141f33") : QStringLiteral("#EFF6FF");
+    const QString bgCardWarn   = darkBackground ? QStringLiteral("#2b2810") : QStringLiteral("#FFFBEB");
+    const QString bgCardFail   = darkBackground ? QStringLiteral("#2b1616") : QStringLiteral("#FEF2F2");
+    const QString bgCardSkip   = darkBackground ? QStringLiteral("#1e1e2e") : QStringLiteral("#F1F5F9");
+    const QString borderColor  = darkBackground ? QStringLiteral("#334155") : QStringLiteral("#E2E8F0");
+    const QString codeBlockBg  = darkBackground ? QStringLiteral("#0a0a14") : QStringLiteral("#0F172A");
+    const QString codeBlockFg  = darkBackground ? QStringLiteral("#c0c0d0") : QStringLiteral("#E2E8F0");
+    const QString detailBg     = darkBackground ? QStringLiteral("#0f1629") : QStringLiteral("#F8FAFC");
+    const QString footerColor  = darkBackground ? QStringLiteral("#5a5a72") : QStringLiteral("#94A3B8");
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
@@ -91,39 +110,45 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
 
     QString h;
     h += QStringLiteral("<div style=\"font-family:'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif;"
-        "color:#1E293B;max-width:800px;margin:0 auto\">");
+        "color:%1;max-width:800px;margin:0 auto\">").arg(textPrimary);
 
     // ── Header band with gradient-style dark background ─────────────────
+    // Header text colours — always light-on-dark for the header band
+    const QString headerTargetColor = QStringLiteral("#E2E8F0");
+    const QString headerMetaColor   = QStringLiteral("#94A3B8");
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"20\" cellspacing=\"0\" style=\"border-radius:8px\"><tr>"
-        "<td bgcolor=\"#0F172A\">"
+        "<td bgcolor=\"%1\">"
         "<p style=\"margin:0 0 6px 0\"><span style=\"font-size:22px;color:%5\"><b>Network Diagnostic Report</b></span></p>"
-        "<p style=\"margin:0 0 2px 0\"><span style=\"font-size:14px;color:#E2E8F0\">%1</span></p>"
-        "<p style=\"margin:0\"><span style=\"font-size:11px;color:#94A3B8\">%2 &middot; v%3 (build %4)</span></p>"
+        "<p style=\"margin:0 0 2px 0\"><span style=\"font-size:14px;color:%6\">%2</span></p>"
+        "<p style=\"margin:0\"><span style=\"font-size:11px;color:%7\">%3 &middot; v%4 (build %8)</span></p>"
         "</td></tr></table>"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td height=\"12\"></td></tr></table>")
-        .arg(data.target, data.timestamp, data.appVersion, data.buildNumber, colorCyan);
+        .arg(bgHeader, data.target, data.timestamp, data.appVersion, colorCyan,
+             headerTargetColor, headerMetaColor, data.buildNumber);
 
     // ── Pass-rate progress bar ─────────────────────────────────────────
     int passPercent = tTotal > 0 ? (tPass * 100 / tTotal) : 0;
     const QString barColor = passPercent >= 90 ? QStringLiteral("#4ADE80")
                            : passPercent >= 70 ? QStringLiteral("#FBBF24")
                            : QStringLiteral("#F87171");
+    const QString barBg = QStringLiteral("#1E293B");  // progress bar track — always dark
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
         "<tr><td style=\"padding:4px 0\">"
         "<span style=\"font-size:13px;color:%3\"><b>Overall Pass Rate: %1%</b></span>"
         "</td></tr>"
         "<tr><td>"
-        "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid #334155;border-radius:4px\">"
-        "<tr><td bgcolor=\"#1E293B\">"
+        "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"border:1px solid %4;border-radius:4px\">"
+        "<tr><td bgcolor=\"%5\">"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr>"
         "<td width=\"%1%\" bgcolor=\"%2\" style=\"padding:3px 0\"></td>"
         "<td></td></tr></table>"
         "</td></tr></table>"
         "</td></tr></table>"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td height=\"14\"></td></tr></table>")
-        .arg(passPercent).arg(barColor).arg(colorCyan);
+        .arg(passPercent).arg(barColor).arg(colorCyan)
+        .arg(borderColor).arg(barBg);
 
     // ── Summary cards — 5-column card row ──────────────────────────────
     auto card = [](const QString& bg, const QString& fg, int val, const QString& lbl) {
@@ -135,14 +160,14 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
             .arg(bg, fg).arg(val).arg(lbl);
     };
     h += QStringLiteral("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"4\"><tr>");
-    h += card(QStringLiteral("#ECFDF5"), colorPass, tPass, QStringLiteral("Pass"));
-    h += card(QStringLiteral("#EFF6FF"), colorInfo, tInfo, QStringLiteral("Info"));
-    h += card(QStringLiteral("#FFFBEB"), colorWarn, tWarn, QStringLiteral("Warning"));
-    h += card(QStringLiteral("#FEF2F2"), colorFail, tFail, QStringLiteral("Fail"));
-    h += card(QStringLiteral("#F1F5F9"), colorSkip, tSkip, QStringLiteral("Skipped"));
+    h += card(bgCardPass, colorPass, tPass, QStringLiteral("Pass"));
+    h += card(bgCardInfo, colorInfo, tInfo, QStringLiteral("Info"));
+    h += card(bgCardWarn, colorWarn, tWarn, QStringLiteral("Warning"));
+    h += card(bgCardFail, colorFail, tFail, QStringLiteral("Fail"));
+    h += card(bgCardSkip, colorSkip, tSkip, QStringLiteral("Skipped"));
     h += QStringLiteral("</tr></table>");
-    h += QStringLiteral("<p align=\"center\" style=\"margin:10px 0 18px 0\"><span style=\"font-size:12px;color:#64748B\">%1 tests total</span></p>")
-        .arg(tTotal);
+    h += QStringLiteral("<p align=\"center\" style=\"margin:10px 0 18px 0\"><span style=\"font-size:12px;color:%1\">%2 tests total</span></p>")
+        .arg(textMuted).arg(tTotal);
 
     // Per-group results
     for (int g = 0; g < 5; ++g) {
@@ -152,16 +177,19 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
         const QString glabel = g < data.groupLabels.size() ? data.groupLabels[g].toHtmlEscaped() : QString();
         h += QStringLiteral(
             "<table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"#1E293B\" style=\"padding:12px 14px\">"
-            "<span style=\"font-size:14px;color:#FFFFFF\"><b>G%1 &middot; %2</b></span>&nbsp;&nbsp;"
-            "<span style=\"font-size:12px;color:%3\"><b>P %4</b></span>"
-            "<span style=\"font-size:12px;color:#64748B\"> &middot; </span><span style=\"font-size:12px;color:%5\"><b>I %6</b></span>"
-            "<span style=\"font-size:12px;color:#64748B\"> &middot; </span><span style=\"font-size:12px;color:%7\"><b>W %8</b></span>"
-            "<span style=\"font-size:12px;color:#64748B\"> &middot; </span><span style=\"font-size:12px;color:%9\"><b>F %10</b></span>"
-            "<span style=\"font-size:12px;color:#64748B\"> &middot; </span><span style=\"font-size:12px;color:%11\"><b>S %12</b></span>"
+            "<td bgcolor=\"%1\" style=\"padding:12px 14px\">"
+            "<span style=\"font-size:14px;color:%2\"><b>G%3 &middot; %4</b></span>&nbsp;&nbsp;"
+            "<span style=\"font-size:12px;color:%5\"><b>P %6</b></span>"
+            "<span style=\"font-size:12px;color:%7\"> &middot; </span><span style=\"font-size:12px;color:%8\"><b>I %9</b></span>"
+            "<span style=\"font-size:12px;color:%7\"> &middot; </span><span style=\"font-size:12px;color:%10\"><b>W %11</b></span>"
+            "<span style=\"font-size:12px;color:%7\"> &middot; </span><span style=\"font-size:12px;color:%12\"><b>F %13</b></span>"
+            "<span style=\"font-size:12px;color:%7\"> &middot; </span><span style=\"font-size:12px;color:%14\"><b>S %15</b></span>"
             "</td></tr></table>")
+            .arg(bgSection)
+            .arg(textPrimary)
             .arg(g+1).arg(glabel)
             .arg(colorPass).arg(s.value(QStringLiteral("pass")).toInt())
+            .arg(textMuted)
             .arg(colorInfo).arg(s.value(QStringLiteral("info")).toInt())
             .arg(colorWarn).arg(s.value(QStringLiteral("warn")).toInt())
             .arg(colorFail).arg(s.value(QStringLiteral("fail")).toInt())
@@ -169,13 +197,14 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
         h += QStringLiteral(
             "<table width=\"100%\" cellpadding=\"9\" cellspacing=\"0\""
             " style=\"border-collapse:collapse\">"
-            "<tr bgcolor=\"#F1F5F9\">"
-            "<th align=\"left\" width=\"42%\" style=\"padding:10px 9px;border-bottom:2px solid #E2E8F0\">"
-            "<span style=\"font-size:11px;color:#64748B\">TEST</span></th>"
-            "<th align=\"left\" width=\"16%\" style=\"padding:10px 9px;border-bottom:2px solid #E2E8F0\">"
-            "<span style=\"font-size:11px;color:#64748B\">STATUS</span></th>"
-            "<th align=\"left\" style=\"padding:10px 9px;border-bottom:2px solid #E2E8F0\">"
-            "<span style=\"font-size:11px;color:#64748B\">SUMMARY</span></th></tr>");
+            "<tr bgcolor=\"%1\">"
+            "<th align=\"left\" width=\"42%\" style=\"padding:10px 9px;border-bottom:2px solid %2\">"
+            "<span style=\"font-size:11px;color:%3\">TEST</span></th>"
+            "<th align=\"left\" width=\"16%\" style=\"padding:10px 9px;border-bottom:2px solid %2\">"
+            "<span style=\"font-size:11px;color:%3\">STATUS</span></th>"
+            "<th align=\"left\" style=\"padding:10px 9px;border-bottom:2px solid %2\">"
+            "<span style=\"font-size:11px;color:%3\">SUMMARY</span></th></tr>")
+            .arg(bgRowAlt).arg(borderColor).arg(textMuted);
         bool alt = false;
         auto group = static_cast<DiagGroup>(g);
         auto dgIt = data.diagIdsInGroup.find(group);
@@ -185,14 +214,15 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
                 const auto& r = data.results[id];
                 const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
-                const QString rowBg = alt ? QStringLiteral("#F8FAFC") : QStringLiteral("#FFFFFF");
+                const QString rowBg = alt ? bgRowAlt : bgRow;
                 h += QStringLiteral(
-                    "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid #F1F5F9\">"
-                    "<td style=\"padding:10px 9px\"><span style=\"font-size:13px;color:#0F172A\"><b>%2</b></span></td>"
-                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%3\"><b>%4</b></span></td>"
-                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:#475569\">%5</span></td></tr>")
-                    .arg(rowBg, name)
+                    "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid %6\">"
+                    "<td style=\"padding:10px 9px\"><span style=\"font-size:13px;color:%2\"><b>%3</b></span></td>"
+                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%4\"><b>%5</b></span></td>"
+                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%7\">%8</span></td></tr>")
+                    .arg(rowBg, textPrimary, name)
                     .arg(reportStatusColor(r.status), reportStatusText(r.status))
+                    .arg(borderColor, textSecondary)
                     .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
                 alt = !alt;
             }
@@ -202,13 +232,13 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
 
     if (fullDetail) {
         h += QStringLiteral("<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"#0F172A\"><span style=\"font-size:18px;color:%1\"><b>Detailed Output</b></span></td>"
-            "</tr></table><br/>").arg(colorCyan);
+            "<td bgcolor=\"%1\"><span style=\"font-size:18px;color:%2\"><b>Detailed Output</b></span></td>"
+            "</tr></table><br/>").arg(bgSection).arg(colorCyan);
         for (int g = 0; g < 5; ++g) {
             auto it = data.groupStats.find(g);
             if (it == data.groupStats.end() || it->value(QStringLiteral("total")).toInt() == 0) continue;
-            h += QStringLiteral("<p><span style=\"font-size:14px;color:#1E293B\"><b>G%1 &middot; %2</b></span></p>")
-                .arg(g+1).arg(g < data.groupLabels.size() ? data.groupLabels[g].toHtmlEscaped() : QString());
+            h += QStringLiteral("<p><span style=\"font-size:14px;color:%1\"><b>G%2 &middot; %3</b></span></p>")
+                .arg(textPrimary).arg(g+1).arg(g < data.groupLabels.size() ? data.groupLabels[g].toHtmlEscaped() : QString());
             auto group = static_cast<DiagGroup>(g);
             auto dgIt = data.diagIdsInGroup.find(group);
             if (dgIt != data.diagIdsInGroup.end()) {
@@ -220,30 +250,32 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail) {
                     const QString sc = reportStatusColor(r.status);
                     h += QStringLiteral(
                         "<table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\"><tr>"
-                        "<td bgcolor=\"#F8FAFC\" style=\"padding:12px 14px\">"
-                        "<span style=\"display:inline-block;width:10px;height:10px;border-radius:5px;background:%1;margin-right:8px;vertical-align:middle\"></span>"
-                        "<span style=\"font-size:14px;color:#0F172A;margin-right:10px\"><b>%2</b></span>"
-                        "<span style=\"font-size:12px;color:%1;margin-right:12px\"><b>%3</b></span>"
-                        "<span style=\"font-size:11px;color:#94A3B8\">%4 ms</span>")
-                        .arg(sc, name, reportStatusText(r.status), QString::number(r.durationMs));
+                        "<td bgcolor=\"%1\" style=\"padding:12px 14px\">"
+                        "<span style=\"display:inline-block;width:10px;height:10px;border-radius:5px;background:%2;margin-right:8px;vertical-align:middle\"></span>"
+                        "<span style=\"font-size:14px;color:%3;margin-right:10px\"><b>%4</b></span>"
+                        "<span style=\"font-size:12px;color:%2;margin-right:12px\"><b>%5</b></span>"
+                        "<span style=\"font-size:11px;color:%6\">%7 ms</span>")
+                        .arg(detailBg, sc, textPrimary, name, reportStatusText(r.status), textMuted, QString::number(r.durationMs));
                     if (!r.summary.isEmpty())
-                        h += QStringLiteral("<br/><span style=\"font-size:12px;color:#475569\">%1</span>")
-                            .arg(r.summary.toHtmlEscaped());
+                        h += QStringLiteral("<br/><span style=\"font-size:12px;color:%1\">%2</span>")
+                            .arg(textSecondary, r.summary.toHtmlEscaped());
                     h += QStringLiteral("</td></tr></table>");
                     const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
                     if (!body.trimmed().isEmpty())
                         h += QStringLiteral(
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
-                            " style=\"border:1px solid #334155\">"
-                            "<tr><td bgcolor=\"#0F172A\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:#E2E8F0;line-height:1.5;margin:0\">%1</pre></td></tr></table><br/>")
-                            .arg(body.toHtmlEscaped());
+                            " style=\"border:1px solid %2\">"
+                            "<tr><td bgcolor=\"%3\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
+                            "font-size:11px;color:%4;line-height:1.5;margin:0\">%1</pre></td></tr></table><br/>")
+                            .arg(body.toHtmlEscaped(),
+                                 borderColor, codeBlockBg, codeBlockFg);
                 }
             }
         }
     }
-    h += QStringLiteral("<p align=\"center\"><span style=\"font-size:11px;color:#94A3B8\">"
-        "Generated by NetDiagnostics &middot; All times in milliseconds</span></p>");
+    h += QStringLiteral("<p align=\"center\"><span style=\"font-size:11px;color:%1\">"
+        "Generated by NetDiagnostics &middot; All times in milliseconds</span></p>")
+        .arg(footerColor);
     h += QStringLiteral("</div>");
     return h;
 }

@@ -38,7 +38,8 @@ public:
 
     // ── HTML generation ────────────────────────────────────────────
     // Qt Rich Text subset (for QML preview / QPdfWriter). fullDetail=false = summary.
-    static QString buildHtml(const ReportData& data, bool fullDetail);
+    // darkBackground=true uses dark theme colors (QML preview); false = light (PDF printing).
+    static QString buildHtml(const ReportData& data, bool fullDetail, bool darkBackground = false);
 
     // Full standalone HTML document (dark theme, collapsible, browser-grade).
     static QString buildRichDocument(const ReportData& data);

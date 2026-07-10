@@ -9,11 +9,22 @@
 #include <QQuickWindow>
 #include <QIcon>
 #include <QLockFile>
+#include <QDir>
+#include <QFile>
+#include <QImage>
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
 #include <QMessageBox>
 #endif
 #include <QStandardPaths>
 #include "app/AppState.h"
+
+// ── Mockup screenshot mode ──────────────────────────────────────────────
+// ND_MOCKUP=1  → enable headless screenshot capture
+// ND_MOCKUP_DEVICE=ios-iphone15pm  → device ID from SimulatorScreen.devices
+// ND_MOCKUP_OUTPUT=mockups/ios/iphone15pm/dashboard.png  → output path
+static bool s_mockupMode = false;
+static QString s_mockupDevice;
+static QString s_mockupOutput;
 
 int main(int argc, char *argv[])
 {
@@ -22,7 +33,7 @@ int main(int argc, char *argv[])
     app.setApplicationName("NetDiagnostics Simulator");
 
     // ── Single instance via lock file ────────────────────────────────────
-    QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netdiagnostic-sim.lock");
+    const QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netdiagnostic-sim.lock");
     QLockFile lockFile(lockPath);
     lockFile.setStaleLockTime(2000);
     if (!lockFile.tryLock(100)) {
@@ -86,6 +97,11 @@ int main(int argc, char *argv[])
         },
         Qt::QueuedConnection);
 
+    // ── Mockup screenshot mode ────────────────────────────────────────
+    s_mockupMode   = qEnvironmentVariableIntValue("ND_MOCKUP");
+    s_mockupDevice = qEnvironmentVariable("ND_MOCKUP_DEVICE");
+    s_mockupOutput = qEnvironmentVariable("ND_MOCKUP_OUTPUT");
+
     engine.load(url);
 
     if (engine.rootObjects().isEmpty()) {
@@ -93,12 +109,61 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    QQuickWindow* win = nullptr;
     for (auto* obj : engine.rootObjects()) {
-        auto* win = qobject_cast<QQuickWindow*>(obj);
-        if (win) {
-            win->show();
-            break;
+        win = qobject_cast<QQuickWindow*>(obj);
+        if (win) break;
+    }
+    if (!win) {
+        qCritical("No QQuickWindow in rootObjects");
+        return -1;
+    }
+
+    if (s_mockupMode) {
+        // ── Mockup screenshot mode ───────────────────────────────────
+        // 5WHY best practice: show window → render first frame →
+        // capture via frameSwapped signal → save → exit.
+        // This guarantees the frame buffer is populated before grabWindow().
+        // Switch to requested device, if available in the QML model
+        QObject* root = win->contentItem();
+        if (root) {
+            QVariant v = root->property("devices");
+            if (v.isValid() && v.canConvert<QVariantList>()) {
+                QVariantList devices = v.value<QVariantList>();
+                for (int i = 0; i < devices.size(); ++i) {
+                    if (devices[i].toMap().value("id").toString() == s_mockupDevice) {
+                        root->setProperty("currentDevice", i);
+                        break;
+                    }
+                }
+                QCoreApplication::processEvents();
+            }
         }
+
+        win->show();
+
+        // Wait for QML to render, then capture and exit.
+        // The window must be visible for the scene graph to render.
+        const QString outPath = s_mockupOutput;
+        QTimer::singleShot(3000, win, [win, outPath]() {
+            if (outPath.isEmpty()) {
+                qCritical("Mockup FAILED: empty output path");
+                QCoreApplication::exit(1);
+                return;
+            }
+            QImage img = win->grabWindow();
+            if (img.isNull()) {
+                qCritical("Mockup FAILED: grabWindow null");
+                QCoreApplication::exit(1);
+                return;
+            }
+            QDir().mkpath(QFileInfo(outPath).absolutePath());
+            img.save(outPath);
+            qInfo("Mockup: %s (%dx%d)", qPrintable(outPath), img.width(), img.height());
+            QCoreApplication::exit(0);
+        });
+    } else {
+        win->show();
     }
 
     return app.exec();
