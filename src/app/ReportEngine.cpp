@@ -13,6 +13,7 @@
 #include <QPdfWriter>
 #include <QPainter>
 #include <QImage>
+#include <QBuffer>
 #include <QPageSize>
 #include <QPageLayout>
 #include <QMarginsF>
@@ -46,52 +47,74 @@ QString reportStatusColor(DiagStatus s) {
 
 // 5WHY: Reports used colored dots or Unicode glyphs instead of proper
 // graphic icons. Unicode characters render inconsistently across fonts
-// and platforms (some show as tofu □). Embed the project's own SVG
-// badge icons as base64 data URIs — identical to the in-app QML icons,
-// works in browsers, mail clients, and QTextDocument (Qt 5.6+).
+// and platforms (some show as tofu □). QTextDocument CANNOT render SVG
+// data URIs without QtSvg (not linked). Instead, render the icons
+// programmatically with QPainter → PNG → base64 data URI. This works
+// in both QTextDocument (preview + PDF) and browser WebView (rich HTML).
 namespace {
-QString svgToBase64DataUri(const QString& svgContent) {
-    return QStringLiteral("data:image/svg+xml;base64,")
-         + QString::fromLatin1(svgContent.toUtf8().toBase64());
-}
-// ── Inline SVGs — identical to resources/icons/badge-*.svg ──
-const char* kPassSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
-    "<circle cx='12' cy='12' r='11' fill='#16A34A'/>"
-    "<polyline points='7 13 10.5 16.5 17 9' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>";
-const char* kInfoSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
-    "<circle cx='12' cy='12' r='11' fill='#2563EB'/>"
-    "<line x1='12' y1='11' x2='12' y2='17' stroke='white' stroke-width='2.5' stroke-linecap='round'/>"
-    "<circle cx='12' cy='7.5' r='1.2' fill='white'/></svg>";
-const char* kWarnSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
-    "<circle cx='12' cy='12' r='11' fill='#F59E0B'/>"
-    "<line x1='12' y1='7' x2='12' y2='13' stroke='white' stroke-width='2.5' stroke-linecap='round'/>"
-    "<circle cx='12' cy='17' r='1.2' fill='white'/></svg>";
-const char* kFailSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
-    "<circle cx='12' cy='12' r='11' fill='#DC2626'/>"
-    "<line x1='8' y1='8' x2='16' y2='16' stroke='white' stroke-width='2.5' stroke-linecap='round'/>"
-    "<line x1='16' y1='8' x2='8' y2='16' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>";
-const char* kSkipSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
-    "<circle cx='12' cy='12' r='11' fill='#6B7280'/>"
-    "<line x1='8' y1='12' x2='16' y2='12' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>";
-}
-
-// 5WHY: Unicode icons (✓⚠✗⊘ℹ) render as tofu (□) on many platforms.
-// Replace with base64-encoded SVG data URIs — the same vector icons
-// used in the QML app, embedded directly in HTML with no external deps.
-QString reportStatusIconImg(DiagStatus s, int size) {
-    QString svg;
+QImage renderStatusIcon(DiagStatus s, int size) {
+    QImage img(size, size, QImage::Format_ARGB32_Premultiplied);
+    img.fill(Qt::transparent);
+    QPainter p(&img);
+    p.setRenderHint(QPainter::Antialiasing);
+    // Colors match resources/icons/badge-*.svg
+    QColor bg;
     switch (s) {
-        case DiagStatus::Pass:    svg = QString::fromLatin1(kPassSvg); break;
-        case DiagStatus::Warning: svg = QString::fromLatin1(kWarnSvg); break;
-        case DiagStatus::Fail:    svg = QString::fromLatin1(kFailSvg); break;
-        case DiagStatus::Error:   svg = QString::fromLatin1(kFailSvg); break;
-        case DiagStatus::Skipped: svg = QString::fromLatin1(kSkipSvg); break;
-        default:                  svg = QString::fromLatin1(kInfoSvg); break;
+        case DiagStatus::Pass:    bg = QColor(0x16, 0xA3, 0x4A); break;
+        case DiagStatus::Warning: bg = QColor(0xF5, 0x9E, 0x0B); break;
+        case DiagStatus::Fail:    bg = QColor(0xDC, 0x26, 0x26); break;
+        case DiagStatus::Skipped: bg = QColor(0x6B, 0x72, 0x80); break;
+        default:                  bg = QColor(0x25, 0x63, 0xEB); break; // Info
     }
-    QString uri = svgToBase64DataUri(svg);
-    return QStringLiteral("<img src='%1' width='%2' height='%2' "
-        "style='vertical-align:middle;display:inline-block' alt=''/>")
-        .arg(uri).arg(size);
+    const float margin = size * 0.08f;
+    p.setBrush(bg);
+    p.setPen(Qt::NoPen);
+    p.drawEllipse(QRectF(margin, margin, size - 2*margin, size - 2*margin));
+    p.setPen(QPen(Qt::white, size * 0.10f, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    const float cx = size * 0.5f, cy = size * 0.5f, r = size * 0.28f;
+    switch (s) {
+        case DiagStatus::Pass:
+            p.drawLine(QPointF(cx-r*0.6f, cy), QPointF(cx-r*0.1f, cy+r*0.5f));
+            p.drawLine(QPointF(cx-r*0.1f, cy+r*0.5f), QPointF(cx+r*0.7f, cy-r*0.4f));
+            break;
+        case DiagStatus::Warning:
+            p.drawLine(QPointF(cx, cy-r*0.6f), QPointF(cx, cy+r*0.15f));
+            p.setPen(Qt::NoPen); p.setBrush(Qt::white);
+            p.drawEllipse(QPointF(cx, cy+r*0.55f), r*0.12f, r*0.12f);
+            break;
+        case DiagStatus::Fail:
+            p.drawLine(QPointF(cx-r*0.5f, cy-r*0.5f), QPointF(cx+r*0.5f, cy+r*0.5f));
+            p.drawLine(QPointF(cx+r*0.5f, cy-r*0.5f), QPointF(cx-r*0.5f, cy+r*0.5f));
+            break;
+        case DiagStatus::Skipped:
+            p.drawLine(QPointF(cx-r*0.6f, cy), QPointF(cx+r*0.6f, cy));
+            break;
+        default: // Info — "i"
+            p.setPen(Qt::NoPen); p.setBrush(Qt::white);
+            p.drawEllipse(QPointF(cx, cy-r*0.55f), r*0.12f, r*0.12f);
+            p.setPen(QPen(Qt::white, size * 0.10f, Qt::SolidLine, Qt::RoundCap));
+            p.drawLine(QPointF(cx, cy-r*0.2f), QPointF(cx, cy+r*0.5f));
+            break;
+    }
+    p.end();
+    return img;
+}
+} // namespace
+
+// 5WHY: SVG data URIs needed QtSvg (not linked) for QTextDocument rendering.
+// QPainter→PNG→base64 works universally: QTextDocument preview, PDF export,
+// and browser WebView all support PNG data URIs natively.
+QString reportStatusIconImg(DiagStatus s, int size) {
+    QImage img = renderStatusIcon(s, size);
+    QByteArray pngData;
+    QBuffer buf(&pngData);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "PNG");
+    return QStringLiteral("<img src='data:image/png;base64,")
+         + QString::fromLatin1(pngData.toBase64())
+         + QStringLiteral("' width='%1' height='%1' "
+           "style='vertical-align:middle;display:inline-block' alt=''/>")
+         .arg(size);
 }
 
 QString reportStatusText(DiagStatus s) {
