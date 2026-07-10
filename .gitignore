@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 build-mockups/
+build-sim-local/
 dist/
 *.log
 *.bak
