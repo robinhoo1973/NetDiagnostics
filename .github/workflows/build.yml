@@ -431,13 +431,25 @@ jobs:
           CURL_STATIC_LIBS="$(pkg-config --static --libs libcurl 2>/dev/null || echo "")"
           echo ">>> curl static libs: ${CURL_STATIC_LIBS}"
 
+          # g++ resolves its own runtime libs (libstdc++, libwinpthread) at
+          # the very end of the link line via internal specs.  -static-libstdc++
+          # only covers libstdc++; libwinpthread stays dynamic.  We force both
+          # into static mode by linking them by full .a path inside -Wl,-Bstatic.
+          # The trailing -Wl,-Bstatic ensures CMake-added libs stay static.
+          STDCXX_A="$(g++ -print-file-name=libstdc++.a 2>/dev/null || echo "")"
+          WINPTHREAD_A="$(g++ -print-file-name=libwinpthread.a 2>/dev/null || echo "")"
+          [ -z "${STDCXX_A}" ] && STDCXX_A="/ucrt64/lib/gcc/x86_64-w64-mingw32/16.1.0/libstdc++.a"
+          [ -z "${WINPTHREAD_A}" ] && WINPTHREAD_A="/ucrt64/lib/libwinpthread.a"
+          echo ">>> libstdc++.a: ${STDCXX_A}"
+          echo ">>> libwinpthread.a: ${WINPTHREAD_A}"
+
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}"
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections -Wl,-Bstatic"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,-Bstatic ${STDCXX_A} ${WINPTHREAD_A} -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections -Wl,-Bstatic"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
