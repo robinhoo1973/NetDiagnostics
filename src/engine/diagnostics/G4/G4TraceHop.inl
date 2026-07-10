@@ -289,5 +289,4 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     }
     close(icmpSock); rttMs=0; hopIp.clear(); return -1;
 }
-#endif  // close converted #elif
 #endif

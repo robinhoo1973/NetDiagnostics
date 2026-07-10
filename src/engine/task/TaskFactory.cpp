@@ -306,11 +306,6 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
             return T3([](DiagId id, const QString&) {
                 return DiagnosticResult::skipped(id, QStringLiteral("HTTP test unavailable (libcurl required)"));
             });
-#endif  // close converted #elif
-#endif  // close converted #elif
-#endif  // close converted #elif
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif
         default: break; // safety net: new DiagId not yet handled 鈫?log + nullptr
     }

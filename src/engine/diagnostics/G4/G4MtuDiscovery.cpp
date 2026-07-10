@@ -109,8 +109,6 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif
     }
 

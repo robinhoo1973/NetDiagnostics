@@ -145,8 +145,6 @@ DiagnosticResult tcpSettings(DiagId id) {
 #else
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("TCP settings collected");
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;
