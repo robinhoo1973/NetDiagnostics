@@ -9,9 +9,9 @@
 // (single static image, no pagination). macOS PDFKit gives desktop the
 // same native PDF experience as iOS (CGPDFDocument) and Android (PdfRenderer).
 #include "platform/PlatformPdfRenderer.h"
+#include "platform/PlatformPdfRenderer_cg.h"
 
 #import <PDFKit/PDFKit.h>
-#import <CoreGraphics/CoreGraphics.h>
 
 struct PlatformPdfRenderer::Impl {
     PDFDocument* doc = nil;
@@ -42,29 +42,12 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
     @autoreleasepool {
         PDFPage* page = [d->doc pageAtIndex:pageIndex];
         if (!page) return {};
-
-        CGRect pageRect = [page boundsForBox:kPDFDisplayBoxMediaBox];
-        if (pageRect.size.width <= 0.0f) return {}; // zero-width guard
-        float scale = (float)width / (float)pageRect.size.width;
-        int height = (int)(pageRect.size.height * scale);
-        if (height < 1) height = 1;
-
-        QImage img(width, height, QImage::Format_ARGB32_Premultiplied);
-        img.fill(Qt::white);
-        CGColorSpaceRef cs = CGColorSpaceCreateDeviceRGB();
-        CGContextRef ctx = CGBitmapContextCreate(
-            img.bits(), width, height, 8, img.bytesPerLine(),
-            cs, kCGImageAlphaPremultipliedFirst | kCGBitmapByteOrder32Host);
-        CGColorSpaceRelease(cs);
-        if (!ctx) return {};
-
-        // PDF page coordinate system: origin bottom-left, y-up.
-        // CGContext: origin top-left, y-down. Apply flip transform.
-        CGContextTranslateCTM(ctx, 0, height);
-        CGContextScaleCTM(ctx, scale, -scale);
-        [page drawWithBox:kPDFDisplayBoxMediaBox toContext:ctx];
-        CGContextRelease(ctx);
-        return img;
+        // PDFKit 10.14+ exposes the backing CGPDFPageRef, enabling shared
+        // CoreGraphics rendering with iOS — eliminates ~15 lines of dup code.
+        CGPDFPageRef pageRef = [page pageRef];
+        if (!pageRef) return {};
+        return renderPageViaCoreGraphics(pageRef, width,
+            [pageRef](CGContextRef ctx) { CGContextDrawPDFPage(ctx, pageRef); });
     }
 }
 
