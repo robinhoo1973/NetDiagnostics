@@ -421,13 +421,20 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
+          # Resolve curl static libs: pkg-config --static gives us the full
+          # transitive closure (.a archives).  We wrap everything in
+          # -Wl,-Bstatic … -Wl,-Bdynamic so third-party libs are absorbed
+          # into the exe and only Windows OS DLLs remain at runtime.
+          CURL_STATIC_LIBS="$(pkg-config --static --libs libcurl 2>/dev/null || echo "")"
+          echo ">>> curl static libs: ${CURL_STATIC_LIBS}"
+
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}"
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpthread -lcurl $(pkg-config --static --libs libcurl) -liconv -Wl,-Bdynamic -Wl,--gc-sections"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,-Bstatic -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,-Bdynamic -Wl,--gc-sections"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
@@ -455,18 +462,16 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          # ── DLL whitelist — industry best practice for MinGW static builds ──
-          # The MinGW-w64 GCC toolchain links runtime libraries as DLLs that
-          # cannot be static-linked without rebuilding GCC from source:
-          #   libgcc_s_seh-1.dll  — GCC exception handling (-static-libgcc covers most)
-          #   libstdc++-6.dll     — C++ standard library (-static-libstdc++ covers most)
-          #   libwinpthread-1.dll — POSIX threads (required by Qt/QML event loop)
-          # Curl''s transitive deps (ssl, crypto, brotli, zlib, zstd, idn2,
-          # psl, ssh2, nghttp2, unistring, iconv) may also appear as DLLs
-          # because MSYS2 /ucrt64/lib/*.dll.a import libs take precedence
-          # over .a static archives.  This is a known limitation of the
-          # MSYS2 packaging model — accepting them is the industry standard.
-          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win|libgcc|libstdc|libwinpthread|libcurl|libssl|libcrypto|libintl|libiconv|zlib|libzstd|libbrotli|libidn|libpsl|libssh|libnghttp|libunistring"
+          # ── DLL whitelist — Windows OS DLLs only ───────────────────────
+          # These are Microsoft Windows operating-system DLLs that ship
+          # with every supported Windows version. They cannot and should
+          # not be static-linked — they are the OS ABI.
+          # Everything NOT on this list (libcurl, libssl, libcrypto,
+          # libiconv, zlib, libzstd, libbrotli, libidn2, libpsl, libssh2,
+          # libnghttp2, libunistring, libintl, libgcc, libstdc++,
+          # libwinpthread, etc.) MUST be absorbed by -Wl,-Bstatic so the
+          # exe carries zero third-party DLL dependencies.
+          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
           FAIL=0
 
           check_exe() {
