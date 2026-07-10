@@ -25,7 +25,9 @@ DiagnosticResult DiagnosticResult::error(DiagId id, const QString& msg) {
     r.group = diagGroup(id);
     r.status = DiagStatus::Error;
     r.summary = msg;
-    r.errorOutput = msg;
+    r.details = msg;      // 5WHY: consumers read `details` for the detail overlay;
+    r.errorOutput = msg;  // `errorOutput` is a secondary field. Both must be set
+                          // so the detail overlay, report, and export all show the error.
     r.timestamp = QDateTime::currentDateTime();
     return r;
 }
@@ -37,6 +39,14 @@ DiagnosticResult DiagnosticResult::timeout(DiagId id, DiagGroup group, qint64 du
     r.status = DiagStatus::Error;
     r.summary = QStringLiteral("Timeout (%1s)").arg(durationMs / 1000);
     r.durationMs = durationMs;
+    // 5WHY: timeout() did not set `details` or `errorOutput` — the detail overlay,
+    // report HTML/PDF, and exports showed blank output for timed-out tests.
+    // Now populated so the user sees *why* the test failed.
+    r.details = QStringLiteral("The diagnostic timed out after %1 seconds.\n\n"
+        "This usually means the target is unreachable, a firewall is blocking "
+        "the connection, or the network is too slow to respond within the time limit.")
+        .arg(durationMs / 1000);
+    r.errorOutput = r.summary;
     r.timestamp = QDateTime::currentDateTime();
     return r;
 }

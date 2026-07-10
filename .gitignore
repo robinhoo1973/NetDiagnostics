@@ -19,3 +19,5 @@ review/
 crashes/
 commit_msg.txt
 AGENTS.md
+**/.codewhale/*
+!**/.codewhale/constitution.json
