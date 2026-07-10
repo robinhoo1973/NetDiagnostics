@@ -21,7 +21,7 @@
 #include <QFile>
 #include <QImage>
 #include <QFileInfo>
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if(!defined(PLATFORM_IOS)&&!defined(PLATFORM_ANDROID))
 #include <QMessageBox>
 #endif
 #include <QStandardPaths>
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     QLockFile lockFile(lockPath);
     lockFile.setStaleLockTime(2000);
     if (!lockFile.tryLock(100)) {
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if(!defined(PLATFORM_IOS)&&!defined(PLATFORM_ANDROID))
         QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics Simulator"),
             QStringLiteral("Simulator is already running."));
 #endif
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);
 #endif
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
     engine.rootContext()->setContextProperty("hasNativePdf", true);
 #else
     engine.rootContext()->setContextProperty("hasNativePdf", false);

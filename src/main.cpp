@@ -1,4 +1,4 @@
-﻿#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+﻿#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
 #include <QGuiApplication>
 #else
 #include <QApplication>
@@ -21,7 +21,7 @@
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
 #include "platform/NativePdfDocument.h"
 #endif
 #include "util/DebugSwitch.h"
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 #endif
 
     qputenv("QSG_RENDER_LOOP", "basic");
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
     QGuiApplication app(argc, argv);
 #else
     QApplication app(argc, argv);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
 #endif
     // Native PDF rendering: iOS (CGPDFDocument) / Android (PdfRenderer).
     // Available on all mobile platforms without extra Qt modules.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
     engine.rootContext()->setContextProperty("hasNativePdf", true);
     qmlRegisterType<NativePdfDocument>("NetDiagnostics", 1, 0, "NativePdfDocument");
 #else
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
         // report the root cause instead of just seeing a flash-and-quit.
         STARTUP_LOG("FATAL: QML engine failed to load %s — no root objects", "qrc:/qml/main.qml");
         qCritical() << "QML engine failed to load" << url;
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if(!defined(PLATFORM_IOS)&&!defined(PLATFORM_ANDROID))
         QMessageBox::critical(nullptr, QStringLiteral("NetDiagnostics — Startup Error"),
             QStringLiteral("Failed to load the QML UI.\n\n"
             "This usually means a required Qt module is missing from your installation.\n"
