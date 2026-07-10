@@ -116,7 +116,7 @@ setup_platform_bundle(net_diagnostics)
 # ── Simulator target ───────────────────────────────────────────────────
 option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
 option(ND_TESTING "Enable automated headless testing harness" OFF)
-option(BUILD_SIMULATOR "Build simulator variant" OFF)
+option(BUILD_SIMULATOR "Build simulator variant" ON)
 if(BUILD_SIMULATOR)
     set(SIM_SOURCES ${SOURCES})
     list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
@@ -129,12 +129,10 @@ if(BUILD_SIMULATOR)
         endif()
     endif()
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    list(APPEND SIM_SOURCES
-        "src/simulator/SimulatorConfig.cpp"
-        "src/simulator/QtConfigAdapter.cpp"
-        "src/simulator/ScreenshotService.cpp"
-        "src/simulator/MatrixOrchestrator.cpp"
-    )
+    # Note: simulator modules are header-only (.h files) — AUTOMOC
+    # processes them via the #include in main_simulator.cpp.
+    # No separate .cpp files exist; adding them would cause CMake
+    # configure failure on static builds.
     qt_add_executable(net_diagnostics_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
     configure_netdiag_target(net_diagnostics_sim)
 endif()
