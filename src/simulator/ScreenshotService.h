@@ -64,17 +64,20 @@ public:
             return {};
         }
         // Phase 3: crop to viewport bounds for device-only capture.
-        // 5WHY: mapToScene returns logical (device-independent) coords while
-        // grabWindow returns device pixels. On HiDPI/Retina displays, multiply
-        // by devicePixelRatio to align the two coordinate spaces.
+        // 5WHY: (1) mapToScene returns logical coords but grabWindow returns
+        // device pixels → multiply by devicePixelRatio. (2) The viewport's
+        // Scale transform must be accounted for — mapToScene on the far corner
+        // gives the visual extent, not the logical width.
         QImage img = full;
         if (m_viewport) {
             qreal dpr = win->devicePixelRatio();
             QPointF vpOrigin = m_viewport->mapToScene(QPointF(0, 0));
+            QPointF vpEnd    = m_viewport->mapToScene(
+                QPointF(m_viewport->width(), m_viewport->height()));
             int x = qMax(0, qRound(vpOrigin.x() * dpr));
             int y = qMax(0, qRound(vpOrigin.y() * dpr));
-            int w = qMin(qRound(m_viewport->width()  * dpr), full.width()  - x);
-            int h = qMin(qRound(m_viewport->height() * dpr), full.height() - y);
+            int w = qMin(qRound((vpEnd.x() - vpOrigin.x()) * dpr), full.width()  - x);
+            int h = qMin(qRound((vpEnd.y() - vpOrigin.y()) * dpr), full.height() - y);
             if (w > 0 && h > 0)
                 img = full.copy(x, y, w, h);
         }

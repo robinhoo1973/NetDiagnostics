@@ -759,6 +759,14 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     auto task = TaskFactory::createTask(id, m_target);
     if (!task) {
         onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Unknown DiagId")));
+        // 5WHY: Like the skip-policy path above, the null-task path also
+        // bypasses the connect() lambda's m_activeGroupDone counter. Increment
+        // it here to prevent group deadlock.
+        int done = m_activeGroupDone.fetch_add(1) + 1;
+        if (done >= gt.diagIds.size()) {
+            m_currentGroupIdx++;
+            QTimer::singleShot(0, this, &AppState::startNextGroup);
+        }
         return;
     }
 
@@ -819,6 +827,10 @@ void AppState::cancel() {
 
 void AppState::reset() {
     cancel();
+    // 5WHY: Clearing m_pendingGroups while in-flight tasks still hold
+    // lambdas referencing it by index causes out-of-bounds access. Bumping
+    // m_runGeneration invalidates all stale lambdas before they can execute.
+    m_runGeneration.fetch_add(1, std::memory_order_release);
     m_runStatus = RunStatus::Idle;
     m_totalCompleted = 0; m_totalDiags = 0;
     m_results.clear();

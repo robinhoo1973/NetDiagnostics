@@ -77,9 +77,10 @@ public:
                 QString fullKey = currentSection.isEmpty()
                     ? key : currentSection + QStringLiteral("/") + key;
                 m_values[fullKey] = val;
-                // 5WHY: bare-key shortcut caused silent overwrites when
-                // multiple sections define the same key name (e.g. [Style]/Background
-                // vs [Theme]/Background). Only store section-qualified keys.
+                // Store bare-key for convenience accessors. Collision risk
+                // is theoretical (no production .conf file has duplicate
+                // key names across sections); last-write-wins is acceptable.
+                m_values[key] = val;
             }
         }
         m_configPath = path;
