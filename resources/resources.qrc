@@ -23,7 +23,10 @@
         <file>qml/widgets/AppIcon.qml</file>
         <file>qml/widgets/SummaryCards.qml</file>
         <file>qml/widgets/DiagnosticToolbar.qml</file>
-        <file>qml/widgets/NativePdfPageView.qml</file>
+        <!-- NativePdfPageView.qml moved to resources_nativepdf.qrc
+             which is conditionally included only on iOS/Android.
+             This prevents qmlimportscanner from requiring the
+             NetDiagnostics QML type registration on desktop builds. -->
         <!-- HtmlPreviewWebView.qml moved to resources_webview.qrc
              which is conditionally included only when QtWebView is
              found. This prevents qmlimportscanner from requiring the

@@ -135,6 +135,18 @@ else()
     message(STATUS "QtPdf QRC excluded — PDF preview uses image fallback")
 endif()
 
+# ── Native PDF QRC — only on iOS/Android (CGPDFDocument / PdfRenderer) ─
+# 5WHY: NativePdfPageView.qml references NetDiagnostics 1.0 QML type
+# (NativePdfDocument) which is only registered on mobile via qmlRegisterType.
+# On desktop, the type doesn't exist → QML parse error → engine.load() fails
+# → startup crash. Same pattern as WebView and QtPdf QRC isolation.
+if(IOS OR ANDROID)
+    list(APPEND QML_RESOURCES resources/resources_nativepdf.qrc)
+    message(STATUS "Native PDF QRC included — mobile PDF preview enabled")
+else()
+    message(STATUS "Native PDF QRC excluded — desktop uses QtPdf or image fallback")
+endif()
+
 # ── Production target ──────────────────────────────────────────────────
 qt_add_executable(net_diagnostics WIN32 ${SOURCES} ${QML_RESOURCES})
 configure_netdiag_target(net_diagnostics)
