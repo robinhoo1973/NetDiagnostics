@@ -283,7 +283,7 @@ Item {
                             implicitWidth: btnSize; implicitHeight: btnSize; radius: btnSize / 2
                             color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.35)
                                                             : Qt.alpha(ThemeEngine.failRed, 0.15)
-                            AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: ThemeEngine.failRed }
+                            AppIcon { anchors.centerIn: parent; name: "close"; size: page.isMobile ? 22 : 16; color: ThemeEngine.failRed }
                             MouseArea {
                                 id: closeMouse
                                 anchors.fill: parent
