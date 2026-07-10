@@ -44,18 +44,54 @@ QString reportStatusColor(DiagStatus s) {
     }
 }
 
-// 5WHY: Reports used colored dots/circles instead of recognizable status
-// icons. Add color-matched Unicode icon glyphs that work in both Qt Rich
-// Text (buildHtml) and full-CSS (buildRichDocument) rendering.
-QString reportStatusIcon(DiagStatus s) {
+// 5WHY: Reports used colored dots or Unicode glyphs instead of proper
+// graphic icons. Unicode characters render inconsistently across fonts
+// and platforms (some show as tofu □). Embed the project's own SVG
+// badge icons as base64 data URIs — identical to the in-app QML icons,
+// works in browsers, mail clients, and QTextDocument (Qt 5.6+).
+namespace {
+QString svgToBase64DataUri(const QString& svgContent) {
+    return QStringLiteral("data:image/svg+xml;base64,")
+         + QString::fromLatin1(svgContent.toUtf8().toBase64());
+}
+// ── Inline SVGs — identical to resources/icons/badge-*.svg ──
+const char* kPassSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+    "<circle cx='12' cy='12' r='11' fill='#16A34A'/>"
+    "<polyline points='7 13 10.5 16.5 17 9' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/></svg>";
+const char* kInfoSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+    "<circle cx='12' cy='12' r='11' fill='#2563EB'/>"
+    "<line x1='12' y1='11' x2='12' y2='17' stroke='white' stroke-width='2.5' stroke-linecap='round'/>"
+    "<circle cx='12' cy='7.5' r='1.2' fill='white'/></svg>";
+const char* kWarnSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+    "<circle cx='12' cy='12' r='11' fill='#F59E0B'/>"
+    "<line x1='12' y1='7' x2='12' y2='13' stroke='white' stroke-width='2.5' stroke-linecap='round'/>"
+    "<circle cx='12' cy='17' r='1.2' fill='white'/></svg>";
+const char* kFailSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+    "<circle cx='12' cy='12' r='11' fill='#DC2626'/>"
+    "<line x1='8' y1='8' x2='16' y2='16' stroke='white' stroke-width='2.5' stroke-linecap='round'/>"
+    "<line x1='16' y1='8' x2='8' y2='16' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>";
+const char* kSkipSvg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>"
+    "<circle cx='12' cy='12' r='11' fill='#6B7280'/>"
+    "<line x1='8' y1='12' x2='16' y2='12' stroke='white' stroke-width='2.5' stroke-linecap='round'/></svg>";
+}
+
+// 5WHY: Unicode icons (✓⚠✗⊘ℹ) render as tofu (□) on many platforms.
+// Replace with base64-encoded SVG data URIs — the same vector icons
+// used in the QML app, embedded directly in HTML with no external deps.
+QString reportStatusIconImg(DiagStatus s, int size) {
+    QString svg;
     switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("&#10003;");  // ✓ checkmark
-        case DiagStatus::Warning: return QStringLiteral("&#9888;");  // ⚠ warning
-        case DiagStatus::Fail:    return QStringLiteral("&#10007;");  // ✗ cross
-        case DiagStatus::Error:   return QStringLiteral("&#10007;");  // ✗ cross
-        case DiagStatus::Skipped: return QStringLiteral("&#8855;");  // ⊘ circle-slash
-        default:                  return QStringLiteral("&#8505;");   // ℹ info
+        case DiagStatus::Pass:    svg = QString::fromLatin1(kPassSvg); break;
+        case DiagStatus::Warning: svg = QString::fromLatin1(kWarnSvg); break;
+        case DiagStatus::Fail:    svg = QString::fromLatin1(kFailSvg); break;
+        case DiagStatus::Error:   svg = QString::fromLatin1(kFailSvg); break;
+        case DiagStatus::Skipped: svg = QString::fromLatin1(kSkipSvg); break;
+        default:                  svg = QString::fromLatin1(kInfoSvg); break;
     }
+    QString uri = svgToBase64DataUri(svg);
+    return QStringLiteral("<img src='%1' width='%2' height='%2' "
+        "style='vertical-align:middle;display:inline-block' alt=''/>")
+        .arg(uri).arg(size);
 }
 
 QString reportStatusText(DiagStatus s) {
@@ -231,21 +267,26 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                 const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
                 const QString rowBg = alt ? bgRowAlt : bgRow;
-                // 5WHY: Reports showed only colored text, no status icons.
-                // Embed color-matched icon glyph next to status label.
-                const QString statusIcon = reportStatusIcon(r.status);
+                // 5WHY: Reports used Unicode glyphs that render as tofu (□)
+                // on many fonts/platforms. SVG icons via base64 data URI
+                // render identically across browsers, mail clients, and
+                // QTextDocument. Direct concatenation avoids .arg() eating
+                // base64 percent-encoded characters.
+                const QString iconImg = reportStatusIconImg(r.status, 18);
                 h += QStringLiteral(
                     "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid %6\">"
                     "<td style=\"padding:10px 9px\"><span style=\"font-size:13px;color:%2\"><b>%3</b></span></td>"
-                    "<td style=\"padding:10px 9px\">"
-                    "<span style=\"font-size:14px;color:%4;margin-right:4px\">%9</span>"
-                    "<span style=\"font-size:12px;color:%4\"><b>%5</b></span></td>"
-                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%7\">%8</span></td></tr>")
+                    "<td style=\"padding:10px 9px\">")
                     .arg(rowBg, textPrimary, name)
                     .arg(reportStatusColor(r.status), reportStatusText(r.status))
-                    .arg(borderColor, textSecondary)
-                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped(),
-                         statusIcon);
+                    .arg(borderColor);
+                h += iconImg;
+                h += QStringLiteral(
+                    "&nbsp;<span style=\"font-size:12px;color:%1\"><b>%2</b></span></td>"
+                    "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%3\">%4</span></td></tr>")
+                    .arg(reportStatusColor(r.status), reportStatusText(r.status),
+                         textSecondary,
+                         r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
                     .arg(borderColor, textSecondary)
                     .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
                 alt = !alt;
@@ -356,15 +397,21 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"
         ".footer{text-align:center;padding:20px;color:#5a5a72;font-size:11px;margin-top:28px;border-top:1px solid #23233a}";
 
-    auto card = [](const QString& cls, const QString& icon, int n, const QString& lbl) {
-        return QStringLiteral("<div class=\"card %1\"><span class=\"icon\">%2</span>"
+    // 5WHY: Unicode icons replaced with inline SVG <img> tags using base64
+    // data URIs. The .card .icon CSS still applies font-size but we override
+    // with explicit width/height on the img element.
+    auto card = [](const QString& cls, const QString& iconImg, int n, const QString& lbl) {
+        return QStringLiteral("<div class=\"card %1\">%2"
             "<span class=\"count\">%3</span>"
-            "<span class=\"label\">%4</span></div>").arg(cls, icon).arg(n).arg(lbl);
+            "<span class=\"label\">%4</span></div>").arg(cls, iconImg).arg(n).arg(lbl);
     };
 
     QString h;
+    // 5WHY: initial-scale=1 on mobile causes height-fit zoom (page height
+    // matched to screen height). Use viewport width-fit with user-scalable
+    // for correct width-matching and pinch-to-zoom support.
     h += QStringLiteral("<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes\">\n"
         "<title>Network Diagnostic Report &mdash; %1</title>\n<style>").arg(data.timestamp);
     h += QString::fromLatin1(kCss);
     h += QStringLiteral("</style>\n</head>\n<body>\n<div class=\"wrap\">\n");
@@ -402,16 +449,16 @@ QString ReportEngine::buildRichDocument(const ReportData& data) {
                 const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
                                                               : r.displayName).toHtmlEscaped();
                 ++idx;
-                // 5WHY: No status icons — only CSS badge with text. Add
-                // color-matched icon glyph for instant visual recognition.
-                const QString icon = reportStatusIcon(r.status);
-                h += QStringLiteral("<tr><td>%1</td><td>%2</td>"
-                    "<td><span style=\"color:%6;margin-right:5px\">%7</span>"
-                    "<span class=\"badge %3\">%4</span></td><td>%5</td></tr>\n")
-                    .arg(idx).arg(name)
+                // 5WHY: Unicode icons → SVG data URI for consistent rendering.
+                // Direct concatenation avoids .arg() consuming base64 % escapes.
+                const QString iconImg = reportStatusIconImg(r.status, 18);
+                h += QStringLiteral("<tr><td>%1</td><td>%2</td><td>")
+                    .arg(idx).arg(name);
+                h += iconImg;
+                h += QStringLiteral(
+                    "&nbsp;<span class=\"badge %1\">%2</span></td><td>%3</td></tr>\n")
                     .arg(reportStatusClass(r.status), reportStatusText(r.status))
-                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped(),
-                         reportStatusColor(r.status), icon);
+                    .arg(r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
             }
         }
     }
