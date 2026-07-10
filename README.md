@@ -2,6 +2,8 @@
 
 Professional cross-platform network diagnostic toolkit. Built with Qt 6 / QML and libcurl. Runs on **iOS, Android, Windows, macOS, and Linux**.
 
+[简体中文](README_zh_CN.md) | [繁體中文](README_zh_TW.md)
+
 ## Features
 
 ### Diagnostic Engine (45 tests in 5 groups)
