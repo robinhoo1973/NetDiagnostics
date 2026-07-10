@@ -306,6 +306,7 @@ ApplicationWindow {
                     Label { text:"LOG"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
                     // Filter row
                     RowLayout {
+                        id: logFilter
                         property string filter: "All"
                         Repeater {
                             model: ["All","Info","Warn","Error","Skip","Evidence"]
