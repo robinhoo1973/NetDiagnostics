@@ -21,6 +21,7 @@ Item {
     property string previewFormat: ""     // "pdf" | "html"
     property string previewImagePath: ""   // rendered fallback image path
     property string previewHtmlPath: ""    // exported HTML file path
+    property string previewPdfPath: ""     // generated PDF file path (real PDF for QtPdf)
     property bool previewVisible: false
     property string toast: ""             // transient status message
 
@@ -61,6 +62,13 @@ Item {
             // Now both use fullDetail=true for content parity.
             var html = appState.buildReportHtml(true, darkBg)
             previewImagePath = appState.renderPreviewImage(html, 760) || ""
+            // 5WHY: When QtPdf is available, also generate the real PDF
+            // for in-app viewing with PdfMultiPageView (page breaks,
+            // text selection, native zoom). This IS the file that gets
+            // shared — true WYSIWYG preview.
+            if (hasQtPdf) {
+                previewPdfPath = appState.generatePreviewPdf() || ""
+            }
         }
         previewVisible = true
     }
@@ -335,26 +343,33 @@ Item {
                         cache: false
                     }
 
-                    // ── PDF Preview: QTextDocument→Image rendering ──────
-                    // 5WHY: QTextDocument supports the full Qt Rich Text
-                    // subset (tables, colors, borders) unlike QML Text,
-                    // giving near-dashboard fidelity.
-                    // 5WHY: No pinch-to-zoom — touch devices could only
-                    // scroll vertically. PinchHandler + scale transform
-                    // enables zoom-in/out with two-finger pinch gesture.
+                    // ── PDF Preview ──────────────────────────────────
+                    // 5WHY: When QtPdf is available (Qt 6.4+, desktop),
+                    // use PdfMultiPageView to display the actual generated
+                    // PDF with true page breaks, text selection, and native
+                    // pinch-to-zoom. Falls back to QTextDocument→QImage
+                    // rendering on mobile or when QtPdf is not installed.
+                    Loader {
+                        id: pdfPreviewLoader
+                        anchors { fill: parent; margins: 4 }
+                        visible: page.previewFormat !== "html" && hasQtPdf
+                        active: page.previewFormat !== "html" && hasQtPdf
+                        source: "qrc:/qml/widgets/PdfPreviewView.qml"
+                        onLoaded: {
+                            if (item) item.pdfSource = Qt.binding(function() {
+                                return page.previewPdfPath || ""
+                            })
+                        }
+                    }
+                    // Image-based fallback (mobile / no QtPdf)
                     Flickable {
                         id: pdfFlick
                         anchors { fill: parent; margins: 14 }
-                        visible: page.previewFormat !== "html"
+                        visible: page.previewFormat !== "html" && !hasQtPdf
                         clip: true
                         contentWidth: pdfImage.implicitWidth * pdfScale
                         contentHeight: pdfImage.implicitHeight * pdfScale
                         property real pdfScale: 1.0
-                        // 5WHY: Flickable's built-in touch handling fights
-                        // PinchHandler during two-finger pinch — contentY/X
-                        // drift erratically while the user is trying to zoom.
-                        // Disable Flickable interaction during pinch; restore
-                        // on release.
                         property bool pinching: false
                         interactive: !pinching
                         ScrollBar.vertical: ScrollBar {
@@ -365,16 +380,11 @@ Item {
                             policy: ScrollBar.AsNeeded; height: 6
                             contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
                         }
-                        // 5WHY: PinchHandler enables two-finger pinch-to-zoom
-                        // on touch devices. The scale is clamped to prevent
-                        // excessive zoom-in/out.
                         PinchHandler {
-                            target: null  // manual scale tracking
+                            target: null
                             onActiveChanged: {
                                 pdfFlick.pinching = active
-                                if (active) {
-                                    pdfFlick.returnToBounds()
-                                }
+                                if (active) { pdfFlick.returnToBounds() }
                             }
                             onScaleChanged: {
                                 var s = pdfFlick.pdfScale * scale
@@ -385,9 +395,8 @@ Item {
                             id: pdfImage
                             width: pdfFlick.width
                             fillMode: Image.PreserveAspectFit
-                            source: previewImagePath  // data:image/png;base64 URI
+                            source: previewImagePath
                             cache: false
-                            // Apply pinch scale to the image transform
                             transform: ScaleTransform {
                                 origin.x: pdfImage.width / 2
                                 origin.y: pdfImage.height / 2

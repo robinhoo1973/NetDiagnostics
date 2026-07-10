@@ -42,6 +42,11 @@ function(configure_netdiag_target TARGET)
         target_link_libraries(${TARGET} PRIVATE Qt6::WebView)
         target_compile_definitions(${TARGET} PRIVATE HAS_QTWEBVIEW)
     endif()
+    # ── QtPdf (in-app real PDF preview with page navigation, Qt 6.4+) ─
+    if(TARGET Qt6::Pdf AND TARGET Qt6::PdfQuick)
+        target_link_libraries(${TARGET} PRIVATE Qt6::Pdf Qt6::PdfQuick)
+        target_compile_definitions(${TARGET} PRIVATE HAS_QTPDF)
+    endif()
 
     # ── curl ─────────────────────────────────────────────────────────
     if(TARGET CURL::libcurl)

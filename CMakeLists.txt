@@ -122,6 +122,17 @@ else()
     message(STATUS "WebView QRC excluded — in-app HTML preview uses image fallback")
 endif()
 
+# ── QtPdf QRC — only included when QtPdf module is available (Qt 6.4+) ─
+# 5WHY: PdfPreviewView.qml contains import QtQuick.Pdf. Same static-build
+# constraint as HtmlPreviewWebView.qml — isolate to prevent qmlimportscanner
+# from requiring the QtQuick.Pdf plugin in builds without the module.
+if(TARGET Qt6::Pdf AND TARGET Qt6::PdfQuick)
+    list(APPEND QML_RESOURCES resources/resources_qtpdf.qrc)
+    message(STATUS "QtPdf QRC included — in-app PDF preview enabled")
+else()
+    message(STATUS "QtPdf QRC excluded — PDF preview uses image fallback")
+endif()
+
 # ── Production target ──────────────────────────────────────────────────
 qt_add_executable(net_diagnostics WIN32 ${SOURCES} ${QML_RESOURCES})
 configure_netdiag_target(net_diagnostics)

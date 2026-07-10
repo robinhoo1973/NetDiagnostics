@@ -128,6 +128,13 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty("hasWebView", false);
 #endif
+    // QtPdf availability flag — QML uses this to show real PDF viewer
+    // (PdfMultiPageView) vs. image-based fallback on platforms without QtPdf.
+#ifdef HAS_QTPDF
+    engine.rootContext()->setContextProperty("hasQtPdf", true);
+#else
+    engine.rootContext()->setContextProperty("hasQtPdf", false);
+#endif
     STARTUP_LOG("Context properties set. Loading QML: %s", "qrc:/qml/main.qml");
 
     // Capture QML warnings/errors to the startup log
