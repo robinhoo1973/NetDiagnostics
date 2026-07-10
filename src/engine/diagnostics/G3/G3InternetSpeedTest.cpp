@@ -535,9 +535,15 @@ DiagnosticResult speedTest(DiagId id) {
             if (n == 0) break;
             hdrSent += n;
         }
+        // 5WHY: If header send timed out before completion, the server
+        // received a truncated HTTP request. Sending body data to a server
+        // that's waiting for the rest of the headers produces garbage.
+        // Skip the body send and mark the upload as failed.
+        bool headerComplete = (hdrSent == postHeaders.size());
         // Send body in chunks (EAGAIN-safe: select() for writability on stall)
         // Includes wall-clock guard so outer ulTotalMs check can fire
         int sent = 0; const char* dp = uploadData.constData();
+        if (headerComplete) {
         QElapsedTimer sendGuard; sendGuard.start();
         while (sent < dataSize) {
             int chunk = qMin(dataSize - sent, 32768);
@@ -553,17 +559,17 @@ DiagnosticResult speedTest(DiagId id) {
             if (n == 0) break;
             sent += n;
         }
-        // Read response with proper error checking
+        } // headerComplete
+        // Read response — only meaningful if headers were fully sent.
+        // 5WHY: If header send timed out (headerComplete=false), the server
+        // received a truncated HTTP request. Skip response read and mark
+        // the entire upload tier as failed.
+        bool uploadOk = headerComplete;
+        if (headerComplete) {
         char buf[4096];
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {5, 0};
         int selRet = select(sock + 1, &fdset, nullptr, nullptr, &tv);
-        // 5WHY: recv() return value was ignored — connection resets or
-        // server errors (500) were silently counted as successful uploads.
-        // Now validate: only reject if server explicitly returned HTTP error.
-        // No response (select timeout, orderly close) is not a failure —
-        // some lightweight speed test servers close without HTTP response.
-        bool uploadOk = true;
         if (selRet > 0 && FD_ISSET(sock, &fdset)) {
             ssize_t n = recv(sock, buf, sizeof(buf) - 1, 0);
             if (n > 0) {
@@ -581,6 +587,7 @@ DiagnosticResult speedTest(DiagId id) {
             // the bytes were already sent and timed.
         }
         // selRet<=0 (select timeout) → keep uploadOk=true; response is optional.
+        } // headerComplete — skip response read if headers weren't fully sent
         int ulMs = static_cast<int>(ulTimer.elapsed());
         closeSocket(sock);
 
