@@ -69,6 +69,21 @@ ApplicationWindow {
         onCaptureStartRecording:  screenshotSvc.startRecording()
         onCaptureStopRecording:   screenshotSvc.stopRecording()
         onTestRunSelected:        appState.runDiagnostics()
+        onTestRunSuite: {
+            if (typeof matrixOrch === 'undefined' || !matrixOrch) return
+            var osList = (typeof simConfig !== 'undefined' && simConfig) ? simConfig.osList : [{id:curOS()}]
+            var devList = devices
+            var tgtList = [{targetUrl: profileTarget.text || "localhost", port: appState.targetPort, protocolSchema: appState.targetScheme || "https"}]
+            var testList = ["G4Ping", "G4Traceroute", "G3DnsServers"]
+            matrixOrch.generate(osList, devList, tgtList, testList)
+            showToast("Matrix: " + matrixOrch.totalSteps + " combinations generated")
+        }
+        onTestRunFullMatrix: {
+            if (typeof matrixOrch === 'undefined' || !matrixOrch) return
+            var osList = (typeof simConfig !== 'undefined' && simConfig) ? simConfig.osList : [{id:curOS()}]
+            matrixOrch.generate(osList, devices, [{targetUrl: profileTarget.text || "localhost"}], [])
+            showToast("Full matrix: " + matrixOrch.totalSteps + " combinations")
+        }
         onTestStop:              appState.cancel()
         onTestClearResults:      appState.reset()
         onViewToggleLog:         logPanel.visible = !logPanel.visible
@@ -176,6 +191,16 @@ ApplicationWindow {
                     horizontalAlignment: Text.AlignHCenter
                 }
 
+                // Run/Stop button (§五.2: toolbar Run)
+                Rectangle { implicitWidth:36; implicitHeight:30; radius:6
+                    color: appState.runStatus===1 ? ThemeEngine.warnYellow : (appState.canRun() ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.accentBlue,0.3))
+                    Label { anchors.centerIn:parent; text: appState.runStatus===1 ? "■" : "▶"
+                        font.family:ThemeEngine.monoFont; font.pixelSize:12; color:"white" }
+                    MouseArea { anchors.fill:parent; enabled: appState.runStatus===1||appState.canRun()
+                        onClicked: { if(appState.runStatus===1)appState.cancel(); else{appState.target=profileTarget.text.trim();appState.runDiagnostics()} }}
+                }
+                Item { width:4 }
+
                 // Screenshot button
                 Rectangle { implicitWidth:34; implicitHeight:34; radius:6; color:"transparent"; border{width:1;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.2)}
                     AppIcon { anchors.centerIn:parent; name:"config"; size:16; color:Qt.alpha(ThemeEngine.colors.textPrimary,0.7) }
@@ -202,16 +227,55 @@ ApplicationWindow {
                     anchors { fill: parent; margins: 12 }; spacing: 8
                     Label { text:"TARGET"; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.colors.primary }
 
-                    // Target input
-                    Rectangle { Layout.fillWidth:true; implicitHeight:36; radius:6; color:ThemeEngine.bgInput; border{width:1;color:ThemeEngine.colors.borderCard}
+                    // Target URL / host
+                    Rectangle { Layout.fillWidth:true; implicitHeight:34; radius:6; color:ThemeEngine.bgInput; border{width:1;color:ThemeEngine.colors.borderCard}
                         TextField {
                             id: profileTarget
                             anchors { fill:parent; leftMargin:8; rightMargin:8 }
                             font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textPrimary
-                            placeholderText: "Target URL / host"
+                            placeholderText: "example.com or https://example.com"
                             placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary,0.4)
                             verticalAlignment: TextInput.AlignVCenter; background: Item {}
                             onTextChanged: appState.target = text.trim()
+                        }
+                    }
+                    // Structured fields (§四.6): protocol + port row
+                    RowLayout {
+                        spacing: 6
+                        // Protocol schema
+                        Rectangle { Layout.preferredWidth: 80; implicitHeight: 30; radius: 6
+                            color: ThemeEngine.bgInput; border{width:1;color:ThemeEngine.colors.borderCard}
+                            ComboBox {
+                                id: schemaCombo
+                                anchors.fill: parent; flat: true
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 10
+                                model: appState.supportedSchemes
+                                currentIndex: {
+                                    var s = appState.targetScheme || "https"
+                                    for (var i = 0; i < model.length; i++)
+                                        if (model[i] === s) return i
+                                    return 0
+                                }
+                                onCurrentTextChanged: appState.targetScheme = currentText
+                                background: Item {}
+                                contentItem: Label { text: schemaCombo.currentText + "://"
+                                    font: schemaCombo.font; color: ThemeEngine.textPrimary
+                                    verticalAlignment: Text.AlignVCenter }
+                            }
+                        }
+                        // Port
+                        Rectangle { Layout.preferredWidth: 56; implicitHeight: 30; radius: 6
+                            color: ThemeEngine.bgInput; border{width:1;color:ThemeEngine.colors.borderCard}
+                            TextField {
+                                id: portField
+                                anchors { fill:parent; leftMargin:6; rightMargin:4 }
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary
+                                placeholderText: appState.defaultPortForScheme > 0 ? ""+appState.defaultPortForScheme : "port"
+                                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary,0.4)
+                                text: appState.targetPort > 0 ? ""+appState.targetPort : ""
+                                verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                                onTextChanged: { var v = parseInt(text); appState.targetPort = isNaN(v) ? -1 : v }
+                            }
                         }
                     }
                     // Run button
