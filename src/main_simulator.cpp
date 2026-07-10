@@ -115,6 +115,11 @@ int main(int argc, char *argv[])
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);
 #endif
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    engine.rootContext()->setContextProperty("hasNativePdf", true);
+#else
+    engine.rootContext()->setContextProperty("hasNativePdf", false);
+#endif
     engine.rootContext()->setContextProperty("simConfig", &simConfig);
     engine.rootContext()->setContextProperty("qtConfig", &qtConfig);
     engine.rootContext()->setContextProperty("screenshotSvc", &screenshotSvc);

@@ -20,6 +20,7 @@
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
+#include "platform/NativePdfDocument.h"
 #include "util/DebugSwitch.h"
 #include "util/StartupLog.h"
 #ifdef ND_TESTING
@@ -134,6 +135,14 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("hasQtPdf", true);
 #else
     engine.rootContext()->setContextProperty("hasQtPdf", false);
+#endif
+    // Native PDF rendering: iOS (CGPDFDocument) / Android (PdfRenderer).
+    // Available on all mobile platforms without extra Qt modules.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    engine.rootContext()->setContextProperty("hasNativePdf", true);
+    qmlRegisterType<NativePdfDocument>("NetDiagnostics", 1, 0, "NativePdfDocument");
+#else
+    engine.rootContext()->setContextProperty("hasNativePdf", false);
 #endif
     STARTUP_LOG("Context properties set. Loading QML: %s", "qrc:/qml/main.qml");
 

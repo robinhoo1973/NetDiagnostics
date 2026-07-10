@@ -98,11 +98,13 @@ if(IOS)
         src/engine/diagnostics/G1/G1Common.mm
         src/engine/diagnostics/G3/G3Common.mm src/engine/diagnostics/G5/G5Common.mm
         src/platform/PlatformShare.mm src/platform/PlatformStore.mm
+        src/platform/NativePdfDocument.cpp src/platform/PlatformPdfRenderer_ios.mm
     )
 endif()
 if(ANDROID)
     list(APPEND SOURCES
         src/engine/diagnostics/G5/G5Common.cpp src/platform/PlatformShare.cpp
+        src/platform/NativePdfDocument.cpp src/platform/PlatformPdfRenderer_android.cpp
     )
 endif()
 

@@ -65,7 +65,7 @@ Item {
             // in-app viewing with PdfScrollablePageView. Skip the image
             // render — it's wasted ~300ms when PdfPreviewView is visible.
             // The PDF IS the preview; no fallback image needed.
-            if (hasQtPdf) {
+            if (hasQtPdf || hasNativePdf) {
                 previewPdfPath = appState.generatePreviewPdf() || ""
             } else {
                 previewImagePath = appState.renderPreviewImage(html, 760) || ""
@@ -344,12 +344,8 @@ Item {
                         cache: false
                     }
 
-                    // ── PDF Preview ──────────────────────────────────
-                    // 5WHY: When QtPdf is available (Qt 6.4+, desktop),
-                    // use PdfMultiPageView to display the actual generated
-                    // PDF with true page breaks, text selection, and native
-                    // pinch-to-zoom. Falls back to QTextDocument→QImage
-                    // rendering on mobile or when QtPdf is not installed.
+                    // ── PDF Preview (3-tier: QtPdf → Native → Image) ──
+                    // Desktop + QtPdf: PdfScrollablePageView (real PDF)
                     Loader {
                         id: pdfPreviewLoader
                         anchors { fill: parent; margins: 4 }
@@ -362,11 +358,27 @@ Item {
                             })
                         }
                     }
-                    // Image-based fallback (mobile / no QtPdf)
+                    // Mobile: NativePdfPageView (CGPDFDocument / PdfRenderer)
+                    Loader {
+                        id: nativePdfLoader
+                        anchors { fill: parent; margins: 4 }
+                        visible: page.previewFormat !== "html" && hasNativePdf
+                        active: page.previewFormat !== "html" && hasNativePdf
+                        source: "qrc:/qml/widgets/NativePdfPageView.qml"
+                        onLoaded: {
+                            if (item) {
+                                item.pdfSource = Qt.binding(function() {
+                                    return page.previewPdfPath || ""
+                                })
+                                item.currentPage = 0
+                            }
+                        }
+                    }
+                    // Image-based fallback (no QtPdf, no native PDF)
                     Flickable {
                         id: pdfFlick
                         anchors { fill: parent; margins: 14 }
-                        visible: page.previewFormat !== "html" && !hasQtPdf
+                        visible: page.previewFormat !== "html" && !hasQtPdf && !hasNativePdf
                         clip: true
                         contentWidth: pdfImage.implicitWidth * pdfScale
                         contentHeight: pdfImage.implicitHeight * pdfScale
