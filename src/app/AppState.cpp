@@ -24,6 +24,7 @@
 #include <QUrl>
 #include <QUrlQuery>
 #include <QFileInfo>
+#include <QBuffer>
 #include <QImage>
 #include <QProcess>
 #include <QDesktopServices>
@@ -1113,11 +1114,16 @@ QString AppState::buildReportHtml(bool fullDetail, bool darkBackground) const {
 QString AppState::renderPreviewImage(const QString& html, int width) const {
     QImage img = ReportEngine::renderHtmlToImage(html, width);
     if (img.isNull()) return {};
-    QString path = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
-                 + QStringLiteral("/nd_preview_%1.png")
-                   .arg(QDateTime::currentDateTime().toMSecsSinceEpoch());
-    if (img.save(path)) return path;
-    return {};
+    // 5WHY: Saving to a temp file and passing a file:// URL to QML Image
+    // fails on iOS (sandbox blocks bare paths) and requires path-separator
+    // normalization on Windows. Base64-encoded data URI is self-contained —
+    // no filesystem access, no platform-specific URL construction.
+    // QML Image natively supports data: URIs.
+    QByteArray pngData;
+    QBuffer buf(&pngData);
+    buf.open(QIODevice::WriteOnly);
+    if (!img.save(&buf, "PNG")) return {};
+    return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(pngData.toBase64());
 }
 
 // Full standalone HTML document with a modern dark theme (styled after the

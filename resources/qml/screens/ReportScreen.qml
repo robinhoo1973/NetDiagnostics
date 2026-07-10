@@ -297,17 +297,14 @@ Item {
                             })
                         }
                     }
-                    // Fallback: QTextDocument→Image when WebView unavailable
-                    // 5WHY: previewImagePath is a bare filesystem path.
-                    // iOS requires file:/// scheme for sandboxed file access;
-                    // bare paths may fail to resolve in QML Image on iOS.
+                    // Fallback: QTextDocument→Image when WebView unavailable.
+                    // previewImagePath is now a data:image/png;base64,... URI —
+                    // no filesystem access, works on all platforms including iOS.
                     Image {
                         anchors { fill: parent; margins: 4 }
                         visible: page.previewFormat === "html" && !hasWebView
                         fillMode: Image.PreserveAspectFit
                         source: previewImagePath
-                            ? "file:///" + previewImagePath.replace(/\\/g, "/")
-                            : ""
                         cache: false
                     }
 
@@ -330,9 +327,7 @@ Item {
                             id: pdfImage
                             width: pdfFlick.width
                             fillMode: Image.PreserveAspectFit
-                            source: previewImagePath
-                                ? "file:///" + previewImagePath.replace(/\\/g, "/")
-                                : ""
+                            source: previewImagePath  // data:image/png;base64 URI
                             cache: false
                         }
                     }
