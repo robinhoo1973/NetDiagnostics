@@ -42,8 +42,9 @@ public:
     // darkBackground=true uses dark theme colors (QML preview); false = light (PDF printing).
     static QString buildHtml(const ReportData& data, bool fullDetail, bool darkBackground = false);
 
-    // Full standalone HTML document (dark theme, collapsible, browser-grade).
-    static QString buildRichDocument(const ReportData& data);
+    // Full standalone HTML document (collapsible, browser-grade).
+    // darkBackground=true uses dark theme (default); false = light for app theme parity.
+    static QString buildRichDocument(const ReportData& data, bool darkBackground = true);
 
     // ── HTML-to-image rendering (for QML preview with full fidelity) ─
     // 5WHY: QML Text.RichText cannot render CSS, border-radius, or

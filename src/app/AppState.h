@@ -149,12 +149,16 @@ public:
     // Renders report HTML to a QImage (via QTextDocument) for pixel-perfect
     // in-app preview. Returns the image file path or empty on failure.
     Q_INVOKABLE QString renderPreviewImage(const QString& html, int width) const;
-    // Rich, browser-quality standalone HTML document (dark theme, collapsible
-    // per-test details). Used by exportHtml; not for the in-app QML preview
-    // (QTextDocument can't render its CSS).
-    QString buildRichHtmlDocument() const;
+    // Rich, browser-quality standalone HTML document (collapsible per-test
+    // details). Used by exportHtml; not for the in-app QML preview
+    // (QTextDocument can't render its CSS). darkBackground defaults true
+    // for backward compatibility with shared HTML emails.
+    QString buildRichHtmlDocument(bool darkBackground = true) const;
     Q_INVOKABLE QString defaultReportPath(const QString& ext) const;
-    Q_INVOKABLE QString exportHtml(const QString& filePath) const;
+    // 5WHY: exportHtml received pre-generated HTML, so theme was baked in
+    // by the caller. Now generates HTML internally with the current theme
+    // so shared HTML matches the app theme like exportPdf does.
+    Q_INVOKABLE QString exportHtml(const QString& filePath, bool darkBackground = true) const;
     Q_INVOKABLE QString exportPdf(const QString& filePath) const;
     // Desktop: opens a native NON-modal save dialog, then emits savePathPicked.
     // Mobile: emits savePathPicked immediately with a Documents path.

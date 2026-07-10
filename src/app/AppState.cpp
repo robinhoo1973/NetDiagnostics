@@ -1129,14 +1129,14 @@ QString AppState::renderPreviewImage(const QString& html, int width) const {
 // Full standalone HTML document with a modern dark theme (styled after the
 // PowerShell NetDiagnostic report). Rendered by a real browser / mail client —
 // NOT by the in-app QML preview, which uses the Qt-subset buildReportHtml().
-QString AppState::buildRichHtmlDocument() const {
-    return ReportEngine::buildRichDocument(buildReportData());
+QString AppState::buildRichHtmlDocument(bool darkBackground) const {
+    return ReportEngine::buildRichDocument(buildReportData(), darkBackground);
 }
 QString AppState::defaultReportPath(const QString& ext) const {
     return ReportEngine::defaultReportPath(ext);
 }
-QString AppState::exportHtml(const QString& filePath) const {
-    return ReportEngine::exportHtml(filePath, buildRichHtmlDocument());
+QString AppState::exportHtml(const QString& filePath, bool darkBackground) const {
+    return ReportEngine::exportHtml(filePath, buildRichHtmlDocument(darkBackground));
 }
 
 QString AppState::exportPdf(const QString& filePath) const {
@@ -1170,17 +1170,22 @@ void AppState::shareReport(const QString& format) {
     // Generate into a temp file, then present the OS share sheet.
     const QString tmp = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
         .filePath(QStringLiteral("NetDiagnostics_report.%1").arg(ext));
-    const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(tmp) : exportHtml(tmp);
+    const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(tmp)
+                                                         : exportHtml(tmp, isDarkMode());
     if (saved.isEmpty()) { emit reportShared(false); return; }
     platformShareFile(saved,
                       ext == QLatin1String("pdf") ? QStringLiteral("application/pdf")
                                                   : QStringLiteral("text/html"),
                       QStringLiteral("Network Diagnostic Report"));
+    // 5WHY: Temp files accumulated on each share with no cleanup.
+    // The OS share sheet copies the data; the original can be removed
+    // after a short delay to ensure the share sheet has finished reading.
+    QTimer::singleShot(60000, this, [saved]() { QFile::remove(saved); });
     emit reportShared(true);
 #else
     // Desktop: save to Documents and hand off to the default mail client.
     const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(defaultReportPath(ext))
-                                                        : exportHtml(defaultReportPath(ext));
+                                                        : exportHtml(defaultReportPath(ext), isDarkMode());
     if (saved.isEmpty()) { emit reportShared(false); return; }
     emailReportDesktop(saved);
     emit reportShared(true);
