@@ -224,7 +224,8 @@ ApplicationWindow {
                 visible: true; color: ThemeEngine.colors.sidebar
                 border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
-                    anchors { fill: parent; margins: 12 }; spacing: 8
+                    anchors { fill: parent; margins: 12 }
+                    spacing: 8
                     Label { text:Tr.targetSection; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.colors.primary }
 
                     // Target URL / host
@@ -343,7 +344,8 @@ ApplicationWindow {
                 visible: true; color: ThemeEngine.colors.sidebar
                 border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
-                    anchors { fill: parent; margins: 12 }; spacing: 6
+                    anchors { fill: parent; margins: 12 }
+                    spacing: 6
                     Label { text:Tr.testStatusSection; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
                     RowLayout {
                         Label { text:Tr.statusLabel; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.textSecondary }
@@ -369,7 +371,8 @@ ApplicationWindow {
             visible: true; color: ThemeEngine.colors.navBar
             border { width: 1; color: ThemeEngine.colors.borderCard }
             ColumnLayout {
-                anchors { fill: parent; margins: 8 }; spacing: 4
+                anchors { fill: parent; margins: 8 }
+                spacing: 4
                 Label { text:Tr.logEvidenceSection; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:ThemeEngine.textMuted }
                 ScrollView {
                     Layout.fillWidth: true; Layout.fillHeight: true
@@ -417,7 +420,7 @@ ApplicationWindow {
             // Group by OS
             section.property: "os"
             section.delegate: Rectangle { width:ListView.view.width; implicitHeight:22; color:Qt.alpha(osColor(section),0.08)
-                Label { anchors{left:parent.left;leftMargin:8;verticalCenter:parent.verticalCenter}; text:osLabel(section); font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:osColor(section) } }
+                Label { anchors{left:parent.left;leftMargin:8;verticalCenter:parent.verticalCenter} text:osLabel(section); font.family:ThemeEngine.monoFont; font.pixelSize:10; font.weight:Font.Bold; color:osColor(section) } }
             delegate: ItemDelegate {
                 width:ListView.view.width; implicitHeight:46
                 contentItem: RowLayout { spacing:8
