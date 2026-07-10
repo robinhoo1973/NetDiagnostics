@@ -172,8 +172,6 @@ DiagnosticResult activeConnections(DiagId id) {
     r.summary = rawConns.isEmpty()
         ? QStringLiteral("No active connections")
         : QStringLiteral("%1 TCP + %2 UDP connections").arg(tcpCount).arg(udpCount);
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;

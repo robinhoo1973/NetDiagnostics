@@ -153,7 +153,6 @@ DiagnosticResult routingTable(DiagId id) {
 #if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] Routing table: unavailable (restricted by Apple)"));
 #endif
-#endif  // close converted #elif
 #endif
 
     out.append(QStringLiteral("==========================================================================="));

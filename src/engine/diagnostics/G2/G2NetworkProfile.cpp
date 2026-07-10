@@ -84,7 +84,6 @@ DiagnosticResult networkProfile(DiagId id) {
 #if defined(PLATFORM_IOS)
     out.append(QStringLiteral("  [iOS] IP forwarding: unavailable (restricted by Apple)"));
 #endif
-#endif  // close converted #elif
 #endif // _WIN32
 
     r.rawOutput = out.join('\n');

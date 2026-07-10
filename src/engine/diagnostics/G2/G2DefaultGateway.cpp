@@ -95,7 +95,6 @@ DiagnosticResult defaultGateway(DiagId id) {
     r.summary = (defaultGw != QStringLiteral("Not found"))
         ? QStringLiteral("Default gateway: %1").arg(defaultGw)
         : QStringLiteral("No default gateway");
-#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;

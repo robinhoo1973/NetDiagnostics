@@ -119,8 +119,6 @@ DiagnosticResult arpTable(DiagId id) {
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("ARP table collected");
 #endif
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif
     r.durationMs = t.elapsed();
     return r;

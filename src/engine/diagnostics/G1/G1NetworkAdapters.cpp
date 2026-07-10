@@ -219,8 +219,6 @@ DiagnosticResult networkAdapters(DiagId id) {
         netRows.append({info.name, mtu, state, mac, ip4});
     }
     out.append(DiagnosticFormatter::formatTable(kNetCols, netRows));
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif
 
     r.rawOutput = out.join('\n');
