@@ -1353,7 +1353,7 @@ void AppState::setSkipRules(const QVariantList& rules) {
     m_skipReasonMap.clear();
     for (const auto& v : rules) {
         QVariantMap m = v.toMap();
-        int diagId = m.value("diagId").toInt(-1);
+        int diagId = m.value("diagId", -1).toInt();
         QString reason = m.value("reason").toString();
         if (diagId >= 0 && !reason.isEmpty())
             m_skipReasonMap[diagId] = reason;
