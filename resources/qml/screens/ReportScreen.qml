@@ -276,7 +276,11 @@ Item {
                         }
                         Rectangle {
                             id: closeBtn
-                            implicitWidth: 34; implicitHeight: 34; radius: 17
+                            // 5WHY: 34pt is below Apple HIG (44pt) and Material Design
+                            // (48dp) minimum touch targets. On mobile, users cannot
+                            // reliably tap the close button. Use 48pt on mobile.
+                            readonly property int btnSize: page.isMobile ? 48 : 34
+                            implicitWidth: btnSize; implicitHeight: btnSize; radius: btnSize / 2
                             color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.35)
                                                             : Qt.alpha(ThemeEngine.failRed, 0.15)
                             AppIcon { anchors.centerIn: parent; name: "close"; size: 16; color: ThemeEngine.failRed }
