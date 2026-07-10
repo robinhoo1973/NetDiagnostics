@@ -16,6 +16,9 @@ QtObject {
     readonly property int litMode: 1
     readonly property int drkMode: 2
     property int mode: drkMode
+    // 5WHY: report preview hardcoded dark theme. Expose reactive boolean
+    // so QML can pass ThemeEngine.isDark to C++ report generation calls.
+    readonly property bool isDark: mode !== litMode
 
     // ── Palettes as JS objects (2 properties — NOT 46 QML properties) ──
     readonly property var lightPalette: ({

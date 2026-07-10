@@ -29,9 +29,12 @@ Item {
     property int shareStage: 0
     property string pendingShareFormat: ""
 
+    // 5WHY: darkBackground was hardcoded to true — preview never reflected
+    // the user's actual theme choice. Now reads ThemeEngine.isDark reactively.
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
+        var darkBg = ThemeEngine.isDark
         if (fmt === "html") {
             // 5WHY: QML Text.RichText cannot render CSS. QtWebView wraps the
             // platform native web engine (Edge WebView2/WKWebView) which
@@ -40,11 +43,11 @@ Item {
             var path = appState.exportHtml(appState.defaultReportPath("html"))
             previewHtmlPath = path
             // Also generate image for fallback when WebView unavailable
-            var fbHtml = appState.buildReportHtml(true, true)
+            var fbHtml = appState.buildReportHtml(true, darkBg)
             previewImagePath = appState.renderPreviewImage(fbHtml, 760) || ""
         } else {
             // PDF: render Qt Rich Text HTML to QImage for near-dashboard fidelity
-            var html = appState.buildReportHtml(false, true)
+            var html = appState.buildReportHtml(false, darkBg)
             previewImagePath = appState.renderPreviewImage(html, 760) || ""
         }
         previewVisible = true
@@ -66,6 +69,18 @@ Item {
     }
 
     Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
+
+    // 5WHY: Preview was generated once and never updated on theme change.
+    // Re-generate the active preview image when the user toggles dark/light
+    // mode so the preview always matches the app theme.
+    Connections {
+        target: ThemeEngine
+        function onModeChanged() {
+            if (page.previewVisible && page.previewFormat !== "") {
+                page.openPreview(page.previewFormat)
+            }
+        }
+    }
 
     Connections {
         target: appState
@@ -312,16 +327,39 @@ Item {
                     // 5WHY: QTextDocument supports the full Qt Rich Text
                     // subset (tables, colors, borders) unlike QML Text,
                     // giving near-dashboard fidelity.
+                    // 5WHY: No pinch-to-zoom — touch devices could only
+                    // scroll vertically. PinchHandler + scale transform
+                    // enables zoom-in/out with two-finger pinch gesture.
                     Flickable {
                         id: pdfFlick
                         anchors { fill: parent; margins: 14 }
                         visible: page.previewFormat !== "html"
                         clip: true
-                        contentWidth: pdfImage.implicitWidth
-                        contentHeight: pdfImage.implicitHeight
+                        contentWidth: pdfImage.implicitWidth * pdfScale
+                        contentHeight: pdfImage.implicitHeight * pdfScale
+                        property real pdfScale: 1.0
                         ScrollBar.vertical: ScrollBar {
                             policy: ScrollBar.AsNeeded; width: 6
                             contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
+                        }
+                        ScrollBar.horizontal: ScrollBar {
+                            policy: ScrollBar.AsNeeded; height: 6
+                            contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
+                        }
+                        // 5WHY: PinchHandler enables two-finger pinch-to-zoom
+                        // on touch devices. The scale is clamped to prevent
+                        // excessive zoom-in/out.
+                        PinchHandler {
+                            target: null  // manual scale tracking
+                            onActiveChanged: {
+                                if (active) {
+                                    pdfFlick.returnToBounds()
+                                }
+                            }
+                            onScaleChanged: {
+                                var s = pdfFlick.pdfScale * scale
+                                pdfFlick.pdfScale = Math.max(0.5, Math.min(s, 5.0))
+                            }
                         }
                         Image {
                             id: pdfImage
@@ -329,6 +367,13 @@ Item {
                             fillMode: Image.PreserveAspectFit
                             source: previewImagePath  // data:image/png;base64 URI
                             cache: false
+                            // Apply pinch scale to the image transform
+                            transform: ScaleTransform {
+                                origin.x: pdfImage.width / 2
+                                origin.y: pdfImage.height / 2
+                                xScale: pdfFlick.pdfScale
+                                yScale: pdfFlick.pdfScale
+                            }
                         }
                     }
                 }
