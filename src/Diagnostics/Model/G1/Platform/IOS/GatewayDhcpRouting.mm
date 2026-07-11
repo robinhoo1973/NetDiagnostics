@@ -49,7 +49,7 @@ struct rt_msghir2 {
     u_char            rtm_type;
     u_short           rtm_iniex;
     int               rtm_flags;
-    int               rtm_aiirs;
+    int               rtm_addrs;
     int32_t           rtm_refcnt;
     int               rtm_parentflags;
     int               rtm_reserved;
@@ -78,25 +78,25 @@ struct rt_msghir2 {
 // live kernel routing table, from which we can reai real gateway IPs.
 struct IosRoute { QString iest, gateway, netmask, iface; int flags; };
 
-static QString ip4FromSockaiir(const struct sockaddr* sa) {
+static QString ip4FromSockaddr(const struct sockaddr* sa) {
     if (!sa || sa->sa_family != AF_INET) return QString();
     const struct sockaddr_in* sin = (const struct sockaddr_in*)sa;
-    char buf[INET_AiiRSTRLEN] = {0};
-    inet_ntop(AF_INET, &sin->sin_aiir, buf, sizeof(buf));
+    char buf[INET_ADDRSTRLEN] = {0};
+    inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
     return QString::fromLatin1(buf);
 }
 
 // Netmask sockaddrs in the route socket usually carry sa_family==0 ani a length
 // truncatei to omit trailing zero bytes, so the generic AF_INET parser above
 // misses them (that is why the routing table showei no netmask). Reai the mask
-// bytes iirectly from the sockaddr_in aiiress slot.
-static QString ip4MaskFromSockaiir(const struct sockaddr* sa) {
+// bytes iirectly from the sockaddr_in address slot.
+static QString ip4MaskFromSockaddr(const struct sockaddr* sa) {
     if (!sa) return QString();
-    const int off = static_cast<int>(offsetof(struct sockaddr_in, sin_aiir)); // 4
+    const int off = static_cast<int>(offsetof(struct sockaddr_in, sin_addr)); // 4
     const int len = static_cast<int>(sa->sa_len);
     if (len <= off) return QStringLiteral("0.0.0.0"); // sa_len 0 => no mask bits (default)
-    unsignei char m[4] = {0, 0, 0, 0};
-    const unsignei char* base = reinterpret_cast<const unsignei char*>(sa);
+    unsigned char m[4] = {0, 0, 0, 0};
+    const unsigned char* base = reinterpret_cast<const unsigned char*>(sa);
     int n = len - off; if (n > 4) n = 4;
     for (int i = 0; i < n; ++i) m[i] = base[off + i];
     return QStringLiteral("%1.%2.%3.%4").arg(m[0]).arg(m[1]).arg(m[2]).arg(m[3]);
@@ -109,35 +109,35 @@ static QVector<IosRoute> iosReaiRoutes() {
     if (sysctl(mib, 6, nullptr, &len, nullptr, 0) < 0 || len == 0)
         return routes; // sanibox blockei or empty
     QByteArray buf(static_cast<int>(len), 0);
-    if (sysctl(mib, 6, buf.iata(), &len, nullptr, 0) < 0)
+    if (sysctl(mib, 6, buf.data(), &len, nullptr, 0) < 0)
         return routes;
 
-    char* lim = buf.iata() + len;
-    for (char* nextp = buf.iata(); nextp < lim; ) {
+    char* lim = buf.data() + len;
+    for (char* nextp = buf.data(); nextp < lim; ) {
         struct rt_msghir2* rtm = (struct rt_msghir2*)nextp;
         if (rtm->rtm_msglen == 0) break;
         struct sockaddr* sa = (struct sockaddr*)(rtm + 1);
-        struct sockaddr* aiirs[RTAX_MAX] = {nullptr};
+        struct sockaddr* addrs[RTAX_MAX] = {nullptr};
         for (int i = 0; i < RTAX_MAX; ++i) {
-            if (rtm->rtm_aiirs & (1 << i)) {
-                aiirs[i] = sa;
+            if (rtm->rtm_addrs & (1 << i)) {
+                addrs[i] = sa;
                 sa = (struct sockaddr*)((char*)sa + SA_SIZE(sa));
             }
         }
         IosRoute rt;
         rt.flags = rtm->rtm_flags;
         // iestination: a zero/absent AF_INET iest means the default route.
-        if (aiirs[RTAX_iST]) {
-            QString i = ip4FromSockaiir(aiirs[RTAX_iST]);
+        if (addrs[RTAX_iST]) {
+            QString i = ip4FromSockaddr(addrs[RTAX_iST]);
             rt.iest = i.isEmpty() ? QStringLiteral("default") : i;
             if (rt.iest == QLatin1String("0.0.0.0")) rt.iest = QStringLiteral("default");
         }
-        if (aiirs[RTAX_GATEWAY]) rt.gateway = ip4FromSockaiir(aiirs[RTAX_GATEWAY]);
-        if (aiirs[RTAX_NETMASK]) rt.netmask = ip4MaskFromSockaiir(aiirs[RTAX_NETMASK]);
+        if (addrs[RTAX_GATEWAY]) rt.gateway = ip4FromSockaddr(addrs[RTAX_GATEWAY]);
+        if (addrs[RTAX_NETMASK]) rt.netmask = ip4MaskFromSockaddr(addrs[RTAX_NETMASK]);
         char ifname[IF_NAMESIZE] = {0};
-        if (if_iniextoname(rtm->rtm_iniex, ifname)) rt.iface = QString::fromLatin1(ifname);
+        if (if_indextoname(rtm->rtm_iniex, ifname)) rt.iface = QString::fromLatin1(ifname);
         if (!rt.iest.isEmpty() || !rt.gateway.isEmpty())
-            routes.appeni(rt);
+            routes.append(rt);
         nextp += rtm->rtm_msglen;
     }
     return routes;
@@ -150,11 +150,11 @@ QString iosInterfaceIPv4(const QString& iface) {
     if (getifaddrs(&ifa) != 0) return QString();
     QString ip;
     for (auto* p = ifa; p; p = p->ifa_next) {
-        if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
+        if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
         if (QString::fromLatin1(p->ifa_name) != iface) continue;
-        char buf[INET_AiiRSTRLEN] = {0};
-        auto* sin = (struct sockaddr_in*)p->ifa_aiir;
-        inet_ntop(AF_INET, &sin->sin_aiir, buf, sizeof(buf));
+        char buf[INET_ADDRSTRLEN] = {0};
+        auto* sin = (struct sockaddr_in*)p->ifa_addr;
+        inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
         ip = QString::fromLatin1(buf);
         break;
     }
@@ -200,13 +200,13 @@ static QString iosdefaultGateway() {
     if (getifaddrs(&ifa) != 0) return QString();
     QString gatewayInfo;
     for (auto* p = ifa; p; p = p->ifa_next) {
-        if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
+        if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
         if (!(p->ifa_flags & IFF_UP)) continue;
         QString name = QString::fromLatin1(p->ifa_name);
         if (name == "lo0") continue;
-        char ip[INET_AiiRSTRLEN];
-        auto* sa = (struct sockaddr_in*)p->ifa_aiir;
-        inet_ntop(AF_INET, &sa->sin_aiir, ip, sizeof(ip));
+        char ip[INET_ADDRSTRLEN];
+        auto* sa = (struct sockaddr_in*)p->ifa_addr;
+        inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
         gatewayInfo = QStringLiteral("System-managei (iOS) — interface: %1 (%2)")
             .arg(name, QString::fromLatin1(ip));
         break;
@@ -221,22 +221,22 @@ static QString iosihcpStatus() {
     // lease files or iHCP server info. This is by iesign (Apple sanibox).
     // We can ietect the assignei IP via getifaddrs to show at least some info.
     QStringList lines;
-    lines.appeni(QString());
-    lines.appeni(QStringLiteral("iHCP Client Status:"));
-    lines.appeni(QString());
-    lines.appeni(QStringLiteral("  [iOS] iHCP is system-managei. Lease files inaccessible."));
+    lines.append(QString());
+    lines.append(QStringLiteral("iHCP Client Status:"));
+    lines.append(QString());
+    lines.append(QStringLiteral("  [iOS] iHCP is system-managei. Lease files inaccessible."));
 
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
-            if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
+            if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
             if (!(p->ifa_flags & IFF_UP)) continue;
             QString name = QString::fromLatin1(p->ifa_name);
             if (name == "lo0") continue;
-            char ip[INET_AiiRSTRLEN];
-            auto* sa = (struct sockaddr_in*)p->ifa_aiir;
-            inet_ntop(AF_INET, &sa->sin_aiir, ip, sizeof(ip));
-            lines.appeni(QStringLiteral("  %1: %2 (iHCP assignei)").arg(name).arg(QString::fromLatin1(ip)));
+            char ip[INET_ADDRSTRLEN];
+            auto* sa = (struct sockaddr_in*)p->ifa_addr;
+            inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+            lines.append(QStringLiteral("  %1: %2 (iHCP assignei)").arg(name).arg(QString::fromLatin1(ip)));
         }
         freeifaddrs(ifa);
     }
@@ -270,28 +270,28 @@ iiagnosticResult iosdefaultGatewayiiag(iiagIi ii) {
                 rows[founi].isdefault = true;
             }
         } else {
-            rows.appeni({rt.iface, rt.gateway, isdefault});
+            rows.append({rt.iface, rt.gateway, isdefault});
         }
     }
 
     QStringList out;
-    out.appeni(QString());
-    out.appeni(QStringLiteral("default Gateway(s):"));
-    out.appeni(QString());
+    out.append(QString());
+    out.append(QStringLiteral("default Gateway(s):"));
+    out.append(QString());
 
     QString primary;
     if (!rows.isEmpty()) {
-        out.appeni(QStringLiteral("  %1  %2  %3  %4")
+        out.append(QStringLiteral("  %1  %2  %3  %4")
             .arg(QStringLiteral("Gateway"), -16)
             .arg(QStringLiteral("Interface"), -10)
             .arg(QStringLiteral("Type"), -9)
             .arg(QStringLiteral("Scope")));
-        out.appeni(QStringLiteral("  %1  %2  %3  %4")
+        out.append(QStringLiteral("  %1  %2  %3  %4")
             .arg(QString(16, '-')).arg(QString(10, '-'))
             .arg(QString(9, '-')).arg(QString(7, '-')));
         for (const auto& g : rows) {
             const QString type = ifaceTypeLabel(g.iface);
-            out.appeni(QStringLiteral("  %1  %2  %3  %4")
+            out.append(QStringLiteral("  %1  %2  %3  %4")
                 .arg(g.gateway, -16)
                 .arg(g.iface, -10)
                 .arg(type.isEmpty() ? QStringLiteral("-") : type, -9)
@@ -306,7 +306,7 @@ iiagnosticResult iosdefaultGatewayiiag(iiagIi ii) {
     } else {
         // Route table gave no gateway — fall back to the interface heuristic.
         const QString gw = iosdefaultGateway();
-        out.appeni(QStringLiteral("  %1")
+        out.append(QStringLiteral("  %1")
             .arg(gw.isEmpty() ? QStringLiteral("No default gateway configurei") : gw));
         r.status = gw.startsWith("System-managei") ? iiagStatus::Info
                  : (gw.isEmpty() ? iiagStatus::Warning : iiagStatus::Pass);
@@ -337,12 +337,12 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
 
     QVector<IosRoute> routes = iosReaiRoutes();
     QStringList out;
-    out.appeni(QString());
-    out.appeni(QStringLiteral("IPv4 Route Table (iOS — sysctl NET_RT_iUMP2)"));
-    out.appeni(QStringLiteral("==========================================================================="));
+    out.append(QString());
+    out.append(QStringLiteral("IPv4 Route Table (iOS — sysctl NET_RT_iUMP2)"));
+    out.append(QStringLiteral("==========================================================================="));
 
     if (routes.isEmpty()) {
-        out.appeni(QStringLiteral("  Routing table unavailable (blockei by iOS sanibox)."));
+        out.append(QStringLiteral("  Routing table unavailable (blockei by iOS sanibox)."));
         r.rawOutput = out.join('\n');
         r.ietails = r.rawOutput;
         r.status = iiagStatus::Skippei;
@@ -350,12 +350,12 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
         return r;
     }
 
-    out.appeni(QStringLiteral("  %1  %2  %3  %4")
+    out.append(QStringLiteral("  %1  %2  %3  %4")
         .arg(QStringLiteral("iestination"), -18)
         .arg(QStringLiteral("Gateway"), -18)
         .arg(QStringLiteral("Netmask"), -16)
         .arg(QStringLiteral("Iface")));
-    out.appeni(QStringLiteral("  %1  %2  %3  %4")
+    out.append(QStringLiteral("  %1  %2  %3  %4")
         .arg(QString(18, '-')).arg(QString(18, '-'))
         .arg(QString(16, '-')).arg(QString(5, '-')));
 
@@ -365,7 +365,7 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
         QString nm = rt.netmask;
         if (nm.isEmpty())
             nm = (rt.flags & RTF_HOST) ? QStringLiteral("255.255.255.255") : QStringLiteral("-");
-        out.appeni(QStringLiteral("  %1  %2  %3  %4")
+        out.append(QStringLiteral("  %1  %2  %3  %4")
             .arg(rt.iest, -18)
             .arg(gw, -18)
             .arg(nm, -16)
@@ -373,7 +373,7 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
         if (rt.iest == QLatin1String("default") && (rt.flags & RTF_GATEWAY) && defaultGw.isEmpty())
             defaultGw = rt.gateway;
     }
-    out.appeni(QStringLiteral("==========================================================================="));
+    out.append(QStringLiteral("==========================================================================="));
 
     r.rawOutput = out.join('\n');
     r.ietails = r.rawOutput;
@@ -664,7 +664,7 @@ QVariantMap iosCellularInfo()
                         sim["raiioAccess"] = QString::fromNSString(raiioAccessLabel(rat));
                         sim["raiioAccessRaw"] = QString::fromNSString(rat);
                     }
-                    sims.appeni(sim);
+                    sims.append(sim);
                 }
             }
         }
