@@ -370,6 +370,56 @@ jobs:
             mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-curl
 
+      # - Cache C: curl true-static build (libcurl.a without DLL dependency) -
+      # 5WHY: MSYS2's mingw-w64-ucrt-x86_64-curl package ships libcurl.a as
+      # a DLL import library (equivalent to libcurl.dll.a).  Even with
+      # -Wl,-Bstatic active, the linker uses the import lib which still
+      # references libcurl-4.dll at runtime.  Building curl from source with
+      # --disable-shared produces a true static libcurl.a that can be fully
+      # absorbed into the exe, same pattern as the Qt source build below.
+      - name: Cache curl static build
+        id: cache-curl-static
+        uses: actions/cache@v4
+        with:
+          path: C:\opt\curl-static
+          key: curl-static-ucrt-8.9.1-v1
+
+      - name: Build curl from source (true static)
+        if: steps.cache-curl-static.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          CURL_VER="8.9.1"
+          echo ">>> Downloading curl ${CURL_VER} source..."
+          curl -fsSL "https://curl.se/download/curl-${CURL_VER}.tar.xz" -o /tmp/curl-src.tar.xz
+          echo ">>> Extracting..."
+          mkdir -p /tmp/curl-build
+          tar -xJf /tmp/curl-src.tar.xz -C /tmp/curl-build --strip-components=1
+          rm /tmp/curl-src.tar.xz
+          cd /tmp/curl-build
+          echo ">>> Configuring curl (static only, no shared)..."
+          # --disable-shared --enable-static: produce true libcurl.a, no DLL
+          # --with-openssl: use MSYS2 ucrt64 OpenSSL (static libs)
+          # --without-zstd: avoid pulling in libzstd DLL from MSYS2 package
+          ./configure \
+            --host=x86_64-w64-mingw32 \
+            --disable-shared \
+            --enable-static \
+            --with-openssl \
+            --without-zstd \
+            --without-brotli \
+            --disable-ldap \
+            --disable-ldaps \
+            --prefix=/c/opt/curl-static
+          echo ">>> Building curl..."
+          make -j$(nproc)
+          echo ">>> Installing curl to /c/opt/curl-static..."
+          make install
+          echo ">>> Verifying static libcurl.a..."
+          ls -lh /c/opt/curl-static/lib/libcurl.a
+          file /c/opt/curl-static/lib/libcurl.a || true
+          echo ">>> curl static build complete."
+
       # - Cache A: Qt source code (extracted tarball) -
       - name: Cache Qt source tarball
         id: cache-qt-src
@@ -443,8 +493,14 @@ jobs:
           # exe.  MinGW provides Windows system import libs (.a) that work
           # correctly with -Bstatic — the exe will still depend on kernel32
           # etc. at runtime, but those ARE on the OS DLL whitelist.
+          # 5WHY: MSYS2 libcurl.a is a DLL import lib — even with -Wl,-Bstatic,
+          # it references libcurl-4.dll.  We built a TRUE static libcurl.a
+          # from source at /c/opt/curl-static.  Point pkg-config and CMake
+          # at the true static build so -lcurl resolves to a .a that has no
+          # DLL dependency and can be fully absorbed into the exe.
+          export PKG_CONFIG_PATH="/c/opt/curl-static/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
           CURL_STATIC_LIBS="$(pkg-config --static --libs libcurl 2>/dev/null || echo "")"
-          echo ">>> curl static libs: ${CURL_STATIC_LIBS}"
+          echo ">>> curl static libs (from custom build): ${CURL_STATIC_LIBS}"
 
           # ── Fully static link — aggressive -Bstatic sandwich ───────────
           # Strategy: -Wl,-Bstatic at start absorbs our explicit third-party
@@ -459,9 +515,10 @@ jobs:
           # every link.  They cannot be eliminated through user-level linker
           # flags — removing them requires rebuilding GCC from source with
           # --disable-shared.  This is a known MSYS2/MinGW-w64 limitation.
-          # All OTHER third-party DLLs (libcurl, libssl, libcrypto, libiconv,
-          # zlib, libzstd, libbrotli, libidn2, libpsl, libssh2, libnghttp2,
-          # libunistring) ARE fully absorbed by the -Bstatic sandwich.
+          # libcurl is NOW fully absorbed via the true-static source build
+          # at /c/opt/curl-static.  All other third-party DLLs (libssl,
+          # libcrypto, libiconv, zlib, libzstd, libbrotli, libidn2, libpsl,
+          # libssh2, libnghttp2, libunistring) are absorbed by -Bstatic.
 
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -469,11 +526,12 @@ jobs:
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L/ucrt64/lib -Wl,-Bstatic -l:libstdc++.a -l:libwinpthread.a -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections -Wl,-Bstatic"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L/ucrt64/lib -L/c/opt/curl-static/lib -Wl,-Bstatic -l:libstdc++.a -l:libwinpthread.a -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections -Wl,-Bstatic"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
-            -DCURL_LIBRARY=/ucrt64/lib/libcurl.a
+            -DCURL_LIBRARY=/c/opt/curl-static/lib/libcurl.a
+            -DCURL_INCLUDE_DIR=/c/opt/curl-static/include
           )
 
           # Configure both in parallel (independent build trees)
