@@ -382,7 +382,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\opt\curl-static
-          key: curl-static-ucrt-8.9.1-v1
+          key: curl-static-ucrt-8.9.1-v2
 
       - name: Build curl from source (true static)
         if: steps.cache-curl-static.outputs.cache-hit != 'true'
@@ -405,6 +405,7 @@ jobs:
             --host=x86_64-w64-mingw32 \
             --disable-shared \
             --enable-static \
+            --disable-dependency-tracking \
             --with-openssl \
             --without-zstd \
             --without-brotli \
