@@ -90,9 +90,9 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
 }
 
 // iOS-native iNS task — CFHost with iig-style output matching Winiows/Linux format
-DiagnosticResult iosDnsResolve(DiagId ii, const QString& target, int timeoutMs) {
+DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) {
     DiagnosticResult r;
-    r.ii = ii; r.group = DiagGroup(ii);
+    r.id = ii; r.group = DiagGroup(id);
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 
