@@ -12,6 +12,7 @@ jobs:
   analyze:
     name: Analyze (cpp)
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       security-events: write
       actions: read
@@ -20,7 +21,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ['cpp']
+        language: ['cpp', 'python', 'javascript']
+        # 5WHY: was only ['cpp'] — missed Python (aqtinstall, build scripts)
+        # and JavaScript (GitHub Actions YAML analysis).  Now scans all
+        # scriptable surfaces present in the repo.
 
     steps:
     - name: Checkout repository
@@ -33,12 +37,14 @@ jobs:
         queries: security-extended,security-and-quality
 
     - name: Install Qt6 dependencies
+      if: matrix.language == 'cpp'
       run: |
         sudo apt-get update
         sudo apt-get install -y qt6-base-dev qt6-declarative-dev qt6-quickcontrols2-dev \
           qt6-concurrent-dev libcurl4-openssl-dev
 
     - name: Build
+      if: matrix.language == 'cpp'
       run: |
         cmake -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF
         cmake --build build -- -j$(nproc)
@@ -47,3 +53,25 @@ jobs:
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:${{ matrix.language }}"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # ShellCheck — lint all shell scripts (.sh / workflow run: blocks)
+  # 5WHY: Shell scripts in CI workflows were not linted, risking subtle
+  # bash bugs (unbound variables, quoting errors, pipefail misses).
+  # ShellCheck is the industry-standard static analyzer for shell.
+  # ═══════════════════════════════════════════════════════════════════════
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          severity: warning
+          additional_files: 'scripts/**/*.sh'
+        env:
+          SHELLCHECK_OPTS: -e SC1091 -e SC2034
+          # SC1091: not following external source files (acceptable in CI)
+          # SC2034: unused variables (some may be used in sourced scripts)

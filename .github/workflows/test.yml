@@ -13,28 +13,18 @@ concurrency:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
-  # Version — detect from git tags (shared with build/test steps)
+  # Version — detect from git tags (reusable workflow)
+  # 5WHY: was copy-pasted across build.yml/apple.yml/test.yml; now DRY.
   # ═══════════════════════════════════════════════════════════════════════
   version:
     name: Detect Version
-    runs-on: ubuntu-latest
-    outputs:
-      pkg_version: ${{ steps.v.outputs.pkg_version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-      - id: v
-        run: |
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
-          VER="${LATEST#v}"
-          echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
+    uses: ./.github/workflows/version.yml
 
-  test:
-    name: Test (ND_TESTING + Headless + Code Review)
+  test-windows:
+    name: Test Windows (ND_TESTING + Headless + Code Review)
     needs: [version]
     runs-on: windows-2022
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
@@ -164,5 +154,81 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-output
+          name: test-output-windows
+          path: test-output.log
+
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Linux test — cross-platform verification
+  # 5WHY: Tests only ran on Windows, missing Linux-specific regressions
+  # (file paths, network stack differences, QPA backend variants).
+  # Uses QT_QPA_PLATFORM=offscreen for headless QML rendering.
+  # ═══════════════════════════════════════════════════════════════════════
+  test-linux:
+    name: Test Linux (Headless)
+    needs: [version]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-declarative-dev \
+            libqt6quickcontrols2-6 qt6-tools-dev qt6-tools-dev-tools \
+            libcurl4-openssl-dev
+
+      - name: Build (ND_TESTING=ON)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER="${{ github.run_number }}" \
+            -DAPP_EDITION=linux-x86_64 \
+            -DBUILD_SIMULATOR=OFF \
+            -DBUILD_TESTS=OFF \
+            -DND_DEBUG=OFF \
+            -DND_TESTING=ON \
+            -B build -S .
+          ninja -C build net_diagnostics
+
+      - name: Run headless tests
+        run: |
+          export QT_QPA_PLATFORM=offscreen
+          export QT_QUICK_BACKEND=software
+          if [ ! -f ./build/net_diagnostics ]; then
+            echo "::error::Binary not found — build may have failed"
+            exit 1
+          fi
+          set +e
+          ./build/net_diagnostics --test 2>&1 | tee test-output.log
+          TEST_EXIT=${PIPESTATUS[0]}
+          set -e
+          echo "Exit code: $TEST_EXIT"
+          if [ $TEST_EXIT -lt 0 ]; then
+            echo "::error::Binary crashed (signal $((TEST_EXIT * -1))) — check startup log"
+            exit 1
+          elif [ $TEST_EXIT -gt 0 ] && [ $TEST_EXIT -ne 1 ]; then
+            echo "::error::Unexpected exit code $TEST_EXIT"
+            exit 1
+          fi
+          if grep -q "All passed: YES" test-output.log; then
+            echo "ALL TESTS PASSED"
+          elif grep -q "passed:" test-output.log; then
+            echo "SOME TESTS FAILED — check test-output.log"
+            grep -E "passed:|failed:|PASS|FAIL" test-output.log || true
+            exit 1
+          else
+            echo "::error::No test results found — test harness may have crashed"
+            cat test-output.log
+            exit 1
+          fi
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-linux
           path: test-output.log

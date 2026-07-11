@@ -1,0 +1,43 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Reusable Version Detection Workflow
+# ═══════════════════════════════════════════════════════════════════════════
+# 5WHY: Version detection was copy-pasted across build.yml, apple.yml, and
+# test.yml (3 identical copies).  Centralizing it here ensures consistent
+# semver tag → CMake version mapping across all pipelines, and a fix here
+# propagates everywhere.  Callers reference this via:
+#   jobs:
+#     version:
+#       uses: ./.github/workflows/version.yml
+#     build:
+#       needs: [version]
+#       env:
+#         PKG_VERSION: ${{ needs.version.outputs.pkg_version }}
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: Version
+
+on:
+  workflow_call:
+    outputs:
+      pkg_version:
+        description: Semver version parsed from latest git tag (e.g. 1.2.3)
+        value: ${{ jobs.version.outputs.pkg_version }}
+
+jobs:
+  version:
+    name: Detect Version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pkg_version: ${{ steps.v.outputs.pkg_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - id: v
+        run: |
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
+          VER="${LATEST#v}"
+          echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VER:-0.0.1}"

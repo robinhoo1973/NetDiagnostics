@@ -17,6 +17,12 @@ inputs:
     description: Prefix for the cache key
     required: false
     default: qt6-aqt
+  host:
+    description: Host OS for aqt (linux, mac, windows)
+    required: false
+    default: mac
+    # 5WHY: was hardcoded to 'mac', breaking reuse on Linux/Windows runners.
+    # Fix: parameterized so callers specify the correct host OS.
 runs:
   using: composite
   steps:
@@ -30,4 +36,4 @@ runs:
     - name: Install Qt6 ${{ inputs.target }} ${{ inputs.arch }}
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: aqt install-qt mac ${{ inputs.target }} ${{ inputs.qt_version }} ${{ inputs.arch }} -O ${{ inputs.install_dir }}
+      run: aqt install-qt ${{ inputs.host }} ${{ inputs.target }} ${{ inputs.qt_version }} ${{ inputs.arch }} -O ${{ inputs.install_dir }}

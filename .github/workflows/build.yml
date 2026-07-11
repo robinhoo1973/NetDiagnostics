@@ -29,24 +29,12 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
-  # Version — compute once, shared by all build jobs
+  # Version — compute once, shared by all build jobs (reusable workflow)
+  # 5WHY: was copy-pasted across build.yml/apple.yml/test.yml; now DRY.
   # ═══════════════════════════════════════════════════════════════════════
   version:
     name: Detect Version
-    runs-on: ubuntu-latest
-    outputs:
-      pkg_version: ${{ steps.v.outputs.pkg_version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          fetch-tags: true
-      - id: v
-        run: |
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
-          VER="${LATEST#v}"
-          echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
-          echo "Version: ${VER:-0.0.1}"
+    uses: ./.github/workflows/version.yml
 
   # ===================================================================
   # Linux x86_64 - native GCC build + simulator
@@ -55,6 +43,7 @@ jobs:
     name: Linux x86_64
     needs: [version]
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -188,6 +177,7 @@ jobs:
     name: Linux arm64
     needs: [version]
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -327,6 +317,7 @@ jobs:
     name: Windows x86_64 Static
     needs: [version]
     runs-on: windows-2022
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -557,6 +548,7 @@ jobs:
     name: Windows x86_64 Dynamic
     needs: [version]
     runs-on: windows-2022
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -650,6 +642,7 @@ jobs:
     name: macOS arm64
     needs: [version]
     runs-on: macos-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -732,6 +725,7 @@ jobs:
     name: Android x86_64
     needs: [version]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -850,6 +844,7 @@ jobs:
     name: Android arm64
     needs: [version]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -980,6 +975,7 @@ jobs:
       - android-arm64
     if: (!failure()) && (!cancelled())
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: write
     steps:
