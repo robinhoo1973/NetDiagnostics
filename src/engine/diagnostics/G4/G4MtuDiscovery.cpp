@@ -11,13 +11,13 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     if (resolvedIp) { struct in_addr a; a.s_addr = htonl(resolvedIp); ipStr = ip4ToStr(a); }
     QStringList out;
 
-    // ── Windows ping -f -l style MTU discovery ─────────────────────────
+    // 鈹€鈹€ Windows ping -f -l style MTU discovery 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     out.append(QString());
     out.append(QStringLiteral("Path MTU Discovery for %1 [%2] (probe TCP port %3)")
         .arg(host, ipStr.isEmpty() ? host : ipStr).arg(probePort));
     out.append(QString());
 
-    // Try TCP connect and get MSS → derive path MTU
+    // Try TCP connect and get MSS 鈫?derive path MTU
     int discoveredMtu = 0, mss = 0;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     // fd_set overflow guard: FD_SET with fd >= FD_SETSIZE corrupts the stack.
@@ -28,22 +28,22 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         addr.sin_addr.s_addr = htonl(resolvedIp);
         setNonblockWin(sock);
         QElapsedTimer t; t.start();
-        ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+        ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
         struct timeval tv = {3, 0};
         int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
         if (sel > 0) {
             int err = 0; socklen_t elen = sizeof(err);
-            getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &elen);
+            getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &elen);
             if (err == 0 || err == ECONNREFUSED) {
                 socklen_t mssLen = sizeof(mss);
-                if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, (char*)&mss, &mssLen) == 0 && mss > 0) {
+                if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, reinterpret_cast<char*>(&mss), &mssLen) == 0 && mss > 0) {
                     discoveredMtu = mss + 40; // MSS + IP(20) + TCP(20) headers
                 }
 #if defined(IP_MTU)
                 // Also try IP_MTU directly
                 int ipMtu = 0; socklen_t ipMtuLen = sizeof(ipMtu);
-                if (getsockopt(sock, IPPROTO_IP, IP_MTU, (char*)&ipMtu, &ipMtuLen) == 0 && ipMtu > discoveredMtu)
+                if (getsockopt(sock, IPPROTO_IP, IP_MTU, reinterpret_cast<char*>(&ipMtu), &ipMtuLen) == 0 && ipMtu > discoveredMtu)
                     discoveredMtu = ipMtu;
 #endif
             }
@@ -61,7 +61,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     if (discoveredMtu == 0) {
         // Fallback: probe with interface MTU (Windows ping -f -l style)
         discoveredMtu = 1500;
-        out.append(QStringLiteral("PMTU TCP probe failed — using interface MTU."));
+        out.append(QStringLiteral("PMTU TCP probe failed 鈥?using interface MTU."));
 #if defined(_WIN32)
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));

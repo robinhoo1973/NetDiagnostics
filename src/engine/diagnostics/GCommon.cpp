@@ -58,7 +58,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
         // Wall-clock guard: abort if total recv time exceeds 30 s.
-        // MUST come before EAGAIN handling — a continue on EAGAIN would
+        // MUST come before EAGAIN handling 鈥?a continue on EAGAIN would
         // otherwise skip this guard, risking an infinite loop if select()
         // keeps reporting readable but recv() keeps returning EAGAIN.
         if (recvTimer.elapsed() > 30000) break;
@@ -80,11 +80,11 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     return response;
 }
 
-// 闁冲厜鍋撻柍鍏夊亾 HTTP download with throughput measurement 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
+// 闂佸啿鍘滈崑鎾绘煃閸忓浜?HTTP download with throughput measurement 闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸?
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false};
-    // Parse URL 闁?host, port, path
+    // Parse URL 闂?host, port, path
     QString u = urlStr;
     if (!u.startsWith("http://")) return r;
     u = u.mid(7); // strip "http://"
@@ -133,7 +133,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         reqSent += n;
     }
 
-    // Read with timing 闁?measure throughput (wall-clock guarded)
+    // Read with timing 闂?measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
     QByteArray body;
     QByteArray headerBuf;
@@ -144,7 +144,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     while (body.size() < targetBytes + 65536) {
         // 5WHY: wall-clock guard was placed after recv() but before data
         // processing. If the guard fired after a successful recv(), the
-        // just-read chunk in buf was silently discarded — undercounting
+        // just-read chunk in buf was silently discarded 鈥?undercounting
         // bytes or dropping the HTTP status line entirely. Move the guard
         // BEFORE select() so previously-processed data is safe and only
         // NEW reads are prevented.
@@ -172,7 +172,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
             if (hdrEnd >= 0) {
                 // 5WHY: httpDownload accepted ANY HTTP response (200, 404, 500)
                 // as valid, measuring error page throughput as download speed.
-                // Validate HTTP 2xx by checking the status line only — avoids
+                // Validate HTTP 2xx by checking the status line only 鈥?avoids
                 // false match on "200 " appearing in header values.
                 QByteArray hdrs = headerBuf.left(hdrEnd);
                 int slEnd = hdrs.indexOf('\r');
@@ -203,7 +203,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     return r;
 }
 
-// 闁冲厜鍋撻柍鍏夊亾 TCP ping (simple connect RTT) 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋?
+// 闂佸啿鍘滈崑鎾绘煃閸忓浜?TCP ping (simple connect RTT) 闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸?
 int tcpPingMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -220,13 +220,12 @@ int tcpPingMs(const QString& host, int port) {
     struct timeval tv = {2, 0};
     int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
     int ms = static_cast<int>(t.elapsed());
-    if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len); if (err != 0) ms = -1; } else ms = -1;
+    if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len); if (err != 0) ms = -1; } else ms = -1;
     closeSocket(sock);
     return ms;
 }
 
-// 闁冲厜鍋撻柍鍏夊亾 HTTP latency via tiny file download (speedtest-cli style latency.txt) 闁冲厜鍋撻柍鍏夊亾
-// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
+// 闂佸啿鍘滈崑鎾绘煃閸忓浜?HTTP latency via tiny file download (speedtest-cli style latency.txt) 闂佸啿鍘滈崑鎾绘煃閸忓浜?// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
 // Much better predictor of download throughput than raw TCP ping.
 int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     QElapsedTimer t; t.start();
@@ -239,18 +238,18 @@ int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     auto colon = hostPort.lastIndexOf(':');
     if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
 
-    // Download latency.txt from server root 闁?speedtest-cli uses the root path
+    // Download latency.txt from server root 闂?speedtest-cli uses the root path
     // regardless of the download/upload URL structure
     QString latPath = QStringLiteral("/latency.txt");
     QByteArray resp = httpGet(host, port, latPath, timeoutMs, 4096);
     if (resp.isEmpty()) return -1;
 
-    // Parse HTTP response 闁?extract body after \r\n\r\n header terminator
+    // Parse HTTP response 闂?extract body after \r\n\r\n header terminator
     auto hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
     // 5WHY: httpLatencyMs accepted ANY HTTP response (200, 404, 500) as valid,
     // treating error pages as latency measurements. Validate HTTP 2xx by
-    // checking the status line only — avoids false match in header values.
+    // checking the status line only 鈥?avoids false match in header values.
     QByteArray headers = resp.left(hdrEnd);
     int slEnd = headers.indexOf('\r');
     QByteArray statusLine = (slEnd > 0) ? headers.left(slEnd) : headers;
