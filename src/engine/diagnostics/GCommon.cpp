@@ -12,12 +12,12 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
 #else
     int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 #endif
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
     if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return {}; }
     int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
     if (err != 0) { closeSocket(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
@@ -107,12 +107,12 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 #endif
     QElapsedTimer t; t.start();
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {3, 0};
     if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return r; }
     int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
     if (err != 0) { closeSocket(sock); return r; }
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
@@ -215,7 +215,7 @@ int tcpPingMs(const QString& host, int port) {
 #else
     int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 #endif
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {2, 0};
     int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);

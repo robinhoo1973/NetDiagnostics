@@ -57,12 +57,12 @@ DiagnosticResult ipConfiguration(DiagId id) {
                 WSAAddressToStringA(a->Dhcpv4Server.lpSockaddr, a->Dhcpv4Server.iSockaddrLength, nullptr, ip, &ipLen);
                 out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(QString::fromLatin1(ip)));
             }
-            bool dnsFirst = true;
+            // 5WHY: dnsFirst flag had no header guard (header was removed);
+            // the flag set was dead code. cppcheck: duplicateConditionalAssign.
             for (auto* dns = a->FirstDnsServerAddress; dns; dns = dns->Next) {
                 char ip[64]; DWORD ipLen = sizeof(ip);
                 WSAAddressToStringA(dns->Address.lpSockaddr, dns->Address.iSockaddrLength, nullptr, ip, &ipLen);
                 out.append(QStringLiteral("   DNS Servers . . . . . . . . . . . : %1").arg(QString::fromLatin1(ip)));
-                if (dnsFirst) dnsFirst = false;
             }
             out.append(QStringLiteral("   NetBIOS over Tcpip. . . . . . . . : Enabled"));
             out.append(QString());
@@ -138,31 +138,9 @@ DiagnosticResult ipConfiguration(DiagId id) {
         }
         freeifaddrs(ifa);
 
-        // Build gateway map: ifName 闁?{dest, gw, mask}
-        struct RouteEntry { QString ifName; uint32_t dest; uint32_t gw; uint32_t mask; };
-        QVector<RouteEntry> routes;
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
-        QFile routeFile(QStringLiteral("/proc/net/route"));
-        if (routeFile.open(QIODevice::ReadOnly)) {
-            QTextStream ts(&routeFile);
-            ts.readLine(); // header
-            while (!ts.atEnd()) {
-                QString line = ts.readLine().trimmed();
-                if (line.isEmpty()) continue;
-                QStringList cols = line.split('\t');
-                if (cols.size() >= 11) {
-                    RouteEntry re;
-                    re.ifName = cols[0];
-                    bool ok1, ok2, ok3;
-                    re.dest = cols[1].toUInt(&ok1, 16);
-                    re.gw   = cols[2].toUInt(&ok2, 16);
-                    re.mask = cols[7].toUInt(&ok3, 16);
-                    if (ok1 && ok2 && ok3) routes.append(re);
-                }
-            }
-        }
-#endif // !PLATFORM_IOS
-
+        // 5WHY: /proc/net/route parsing populated a RouteEntry vector that was
+        // never consumed — dead code (cppcheck: unusedStructMember).
+        // Routing table display is handled by G2RoutingTable separately.
         for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
             const auto& info = it.value();
             bool isLoopback = (info.flags & IFF_LOOPBACK);
@@ -265,10 +243,9 @@ DiagnosticResult ipConfiguration(DiagId id) {
 
             // DNS Servers
             if (!dnsServers.isEmpty()) {
-                bool first = true;
+                // 5WHY: same dead flag pattern as Windows DNS block above.
                 for (const auto& dns : dnsServers) {
                     out.append(QStringLiteral("   DNS Servers . . . . . . . . . . . : %1").arg(dns));
-                    if (first) first = false;
                 }
             }
 

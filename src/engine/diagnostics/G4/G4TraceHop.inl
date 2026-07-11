@@ -1,8 +1,8 @@
-// ── TCP Traceroute Hop Probe ──────────────────────────────────────────────
+// 鈹€鈹€ TCP Traceroute Hop Probe 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 // Returns:  0 = reached target,  1 = intermediate hop,  -1 = timeout,  -2 = error
 //
 // Linux: uses IP_RECVERR + MSG_ERRQUEUE to capture ICMP Time Exceeded from
-// intermediate routers — same technique as tracepath / traceroute -T, no root.
+// intermediate routers 鈥?same technique as tracepath / traceroute -T, no root.
 // Windows: uses IcmpSendEcho API (no admin required).
 #if defined(_WIN32)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
@@ -45,20 +45,20 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 #else
 #if defined(__linux__)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
-    // ── ICMP Echo traceroute (requires CAP_NET_RAW, like traceroute -I) ──
+    // 鈹€鈹€ ICMP Echo traceroute (requires CAP_NET_RAW, like traceroute -I) 鈹€鈹€
     // Uses raw ICMP socket to send Echo Request with TTL=N. Receives:
-    //  - ICMP Echo Reply → reached target
-    //  - ICMP Time Exceeded → intermediate router (extract IP)
-    //  - Timeout → no response
+    //  - ICMP Echo Reply 鈫?reached target
+    //  - ICMP Time Exceeded 鈫?intermediate router (extract IP)
+    //  - Timeout 鈫?no response
     //
     // Fallback: if raw socket fails (no CAP_NET_RAW), use TCP connect with TTL.
-    // TCP TTL is not honored by some kernels — in that case all hops show as
+    // TCP TTL is not honored by some kernels 鈥?in that case all hops show as
     // reached target. This is a kernel limitation, not a code bug.
     int icmpSock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (icmpSock < 0) s_rawIcmpAvailable = false;
     if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { close(icmpSock); icmpSock = -1; s_rawIcmpAvailable = false; }
     if (icmpSock >= 0) {
-        // ── Raw ICMP method (traceroute -I) ─────────────────────────────
+        // 鈹€鈹€ Raw ICMP method (traceroute -I) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         quint32 targetIp = resolveIPv4(host);
         if (!targetIp) { close(icmpSock); rttMs = 0; hopIp.clear(); return -2; }
 
@@ -83,10 +83,10 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         { uint16_t v = htons(~sum); memcpy(packet+2, &v, 2); }
 
         // Set TTL on the raw socket
-        setsockopt(icmpSock, IPPROTO_IP, IP_TTL, (const char*)&ttl, sizeof(ttl));
+        setsockopt(icmpSock, IPPROTO_IP, IP_TTL, reinterpret_cast<const char*>(&ttl), sizeof(ttl));
 
         QElapsedTimer tm; tm.start();
-        ssize_t nsent = ::sendto(icmpSock, packet, sizeof(packet), 0, (struct sockaddr*)&addr, sizeof(addr));
+        ssize_t nsent = ::sendto(icmpSock, packet, sizeof(packet), 0, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         if (nsent < 0) { close(icmpSock); rttMs=0; hopIp.clear(); return -2; }
 
         // Wait for reply (up to 2 s)
@@ -99,7 +99,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
             if (sel == 0) continue;
 
             struct sockaddr_in from; socklen_t fromLen = sizeof(from);
-            ssize_t n = recvfrom(icmpSock, recvBuf, sizeof(recvBuf), 0, (struct sockaddr*)&from, &fromLen);
+            ssize_t n = recvfrom(icmpSock, recvBuf, sizeof(recvBuf), 0, reinterpret_cast<struct sockaddr*>(&from), &fromLen);
             if (n < 0) continue;
 
             // Parse IP header (20 bytes) + ICMP header
@@ -111,13 +111,13 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
             int icmpCode = icmp[1];
 
             if (icmpType == 0) {
-                // Echo Reply — reached target
+                // Echo Reply 鈥?reached target
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
                 close(icmpSock);
                 return 0;
             } else if (icmpType == 11 && icmpCode == 0) {
-                // Time Exceeded — intermediate router
+                // Time Exceeded 鈥?intermediate router
                 // The ICMP payload contains the original IP header + 8 bytes,
                 // from which we extract the router's IP from the `from` address.
                 hopIp = ip4ToStr(from.sin_addr);
@@ -125,7 +125,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
                 close(icmpSock);
                 return 1;
             } else if (icmpType == 3) {
-                // Destination Unreachable — terminal, no further hops
+                // Destination Unreachable 鈥?terminal, no further hops
                 // Code 3 = Port Unreachable (reached target)
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
@@ -139,11 +139,11 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         return -1; // Timeout
     }
 
-    // ── Fallback: TCP connect with TTL (no raw socket) ─────────────────
+    // 鈹€鈹€ Fallback: TCP connect with TTL (no raw socket) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) { rttMs = 0; hopIp.clear(); return -2; }
 
-    setsockopt(sock, IPPROTO_IP, IP_TTL, (const char*)&ttl, sizeof(ttl));
+    setsockopt(sock, IPPROTO_IP, IP_TTL, reinterpret_cast<const char*>(&ttl), sizeof(ttl));
 
     quint32 targetIp = resolveIPv4(host);
     if (!targetIp) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -2; }
@@ -156,7 +156,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
     setNonblockWin(sock);
     QElapsedTimer tm; tm.start();
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
 
     fd_set wfds; FD_ZERO(&wfds); FD_SET(sock, &wfds);
     struct timeval tv = {2, 0};
@@ -165,7 +165,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
     if (sel > 0 && FD_ISSET(sock, &wfds)) {
         int err = 0; socklen_t len = sizeof(err);
-        getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+        getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
         if (err == 0 || err == ECONNREFUSED) {
             hopIp = ip4ToStr(addr.sin_addr);
             closeSocket(sock);
@@ -179,7 +179,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 #else
 // macOS/iOS/BSD: ICMP Echo TTL probing via a datagram ICMP socket (no root).
 // SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root privileges
-// and WITHOUT any special entitlement — it is the same mechanism Apple's
+// and WITHOUT any special entitlement 鈥?it is the same mechanism Apple's
 // SimplePing sample code uses. We send ICMP Echo Requests with an increasing
 // IP_TTL on THIS socket and read the resulting ICMP Time Exceeded (type 11),
 // Echo Reply (type 0) or Destination Unreachable (type 3) on the SAME socket.
@@ -196,7 +196,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     quint32 targetIp = resolveIPv4(host);
     if(!targetIp){rttMs=0;hopIp.clear();return -2;}
 
-    // Datagram ICMP socket — allowed on iOS/macOS without root (SimplePing pattern)
+    // Datagram ICMP socket 鈥?allowed on iOS/macOS without root (SimplePing pattern)
     int icmpSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { closeSocket(icmpSock); rttMs=0; hopIp.clear(); return -1; }
     if (icmpSock < 0) {
@@ -211,12 +211,12 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         addr.sin_addr.s_addr=htonl(targetIp);
         setNonblockWin(sock);
         QElapsedTimer tm; tm.start();
-        ::connect(sock,(struct sockaddr*)&addr,sizeof(addr));
+        ::connect(sock,reinterpret_cast<struct sockaddr*>(&addr),sizeof(addr));
         fd_set wfds; FD_ZERO(&wfds); FD_SET(sock,&wfds);
         struct timeval tv={2,0};
         if(select(sock+1,nullptr,&wfds,nullptr,&tv)>0){
             int err=0; socklen_t len=sizeof(err);
-            getsockopt(sock,SOL_SOCKET,SO_ERROR,(char*)&err,&len);
+            getsockopt(sock,SOL_SOCKET,SO_ERROR,reinterpret_cast<char*>(&err),&len);
             rttMs=(int)tm.elapsed();
             if(err==0||err==ECONNREFUSED){hopIp=ip4ToStr(*(struct in_addr*)&addr.sin_addr);closeSocket(sock);return 0;}
         }
@@ -247,7 +247,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     dst.sin_addr.s_addr=htonl(targetIp);
 
     QElapsedTimer tm; tm.start();
-    if (::sendto(icmpSock, packet, sizeof(packet), 0, (struct sockaddr*)&dst, sizeof(dst)) < 0) {
+    if (::sendto(icmpSock, packet, sizeof(packet), 0, reinterpret_cast<struct sockaddr*>(&dst), sizeof(dst)) < 0) {
         close(icmpSock); rttMs=0; hopIp.clear(); return -2;
     }
 
@@ -258,7 +258,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         int sel=select(icmpSock+1,&rfds,nullptr,nullptr,&tv);
         if(sel<0)break; if(sel==0)continue;
         unsigned char buf[1024]; struct sockaddr_in from; socklen_t fl=sizeof(from);
-        ssize_t n=recvfrom(icmpSock,buf,sizeof(buf),0,(struct sockaddr*)&from,&fl);
+        ssize_t n=recvfrom(icmpSock,buf,sizeof(buf),0,reinterpret_cast<struct sockaddr*>(&from),&fl);
         // Darwin delivers SOCK_DGRAM ICMP replies WITH the leading IPv4 header
         // (Apple SimplePing: icmpHeaderOffsetInIPv4Packet). Skip it before reading
         // the ICMP type. The router/target IP is the reply's IPv4 source address.
@@ -271,10 +271,10 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         // Did the TARGET itself send this reply, or a router along the way?
         struct in_addr tgt; tgt.s_addr = htonl(targetIp);
         const bool fromTarget = (srcIp == ip4ToStr(tgt));
-        if(type==0){ // Echo Reply — only the destination answers Echo → reached
+        if(type==0){ // Echo Reply 鈥?only the destination answers Echo 鈫?reached
             hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
         }
-        if(type==11){ // Time Exceeded — an intermediate router on the path
+        if(type==11){ // Time Exceeded 鈥?an intermediate router on the path
             hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
         }
         if(type==3){ // Destination Unreachable. Only the TARGET saying "unreachable"
