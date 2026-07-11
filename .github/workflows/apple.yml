@@ -119,12 +119,14 @@ jobs:
 
       - name: Configure (simulator)
         run: |
+          # 5WHY: was $(brew --prefix qt) — missing @6, resolving to wrong Qt version.
+          # Copy-paste error from the production configure step which correctly uses qt@6.
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DBUILD_SIMULATOR=ON \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build-sim -S .
 
       - name: Build (simulator)
@@ -178,7 +180,10 @@ jobs:
       - name: Install dependencies
         run: |
           brew install cmake ninja python3
-          pip3 install --break-system-packages aqtinstall
+          # 5WHY: --break-system-packages bypasses PEP 668 protection, risking
+          # corruption of system Python packages. Use a venv for isolation.
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
 
       - uses: ./.github/actions/install-qt-aqt
         with:
@@ -261,7 +266,10 @@ jobs:
       - name: Install dependencies
         run: |
           brew install cmake ninja python3
-          pip3 install --break-system-packages aqtinstall
+          # 5WHY: --break-system-packages bypasses PEP 668 protection, risking
+          # corruption of system Python packages. Use a venv for isolation.
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
 
       # ── Dedup: skip upload if this commit was already pushed to TestFlight ─
       # 5WHY: Every CI run uploaded to TestFlight even when source code was

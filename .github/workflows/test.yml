@@ -12,8 +12,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Version — detect from git tags (shared with build/test steps)
+  # ═══════════════════════════════════════════════════════════════════════
+  version:
+    name: Detect Version
+    runs-on: ubuntu-latest
+    outputs:
+      pkg_version: ${{ steps.v.outputs.pkg_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - id: v
+        run: |
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
+          VER="${LATEST#v}"
+          echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
+
   test:
     name: Test (ND_TESTING + Headless + Code Review)
+    needs: [version]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -45,8 +65,10 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p build && cd build
+          # 5WHY: PROJECT_VERSION was hardcoded to "0.0.1" — didn't match
+          # release builds. Now uses git tag detection for version consistency.
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DPROJECT_VERSION="0.0.1" \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER="${{ github.run_number }}" \
             -DAPP_EDITION=static \
             -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
@@ -109,12 +131,18 @@ jobs:
       - name: Code review compliance
         shell: pwsh
         run: |
-          # Check 5WHY in recent commits
+          # Check 5WHY in recent commits — matches both "5WHY:" inline comments
+          # and "Why #N" numbered patterns for backward compatibility.
+          # 5WHY: The regex was checking for "Why #1" but the adopted format is
+          # "5WHY:" inline in code and commit messages. Fixed to match both.
           $commits = git log --oneline -10 --format="%B"
-          $whyCount = ($commits | Select-String "Why #1" | Measure-Object).Count
-          Write-Host "Commits with 5WHY analysis: $whyCount"
-          if ($whyCount -eq 0) {
-            Write-Host "::warning::No 5WHY analysis in last 10 commits"
+          $inline5Why = ($commits | Select-String "5WHY:" | Measure-Object).Count
+          $numberedWhy = ($commits | Select-String "Why #[1-5]" | Measure-Object).Count
+          Write-Host "Commits with 5WHY: inline=$inline5Why, numbered=$numberedWhy"
+          if ($inline5Why -eq 0 -and $numberedWhy -eq 0) {
+            Write-Host "::warning::No 5WHY analysis found in last 10 commits"
+          } else {
+            Write-Host "5WHY analysis detected in recent commits"
           }
 
           # Preprocessor balance
