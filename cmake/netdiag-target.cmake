@@ -101,6 +101,16 @@ function(configure_netdiag_target TARGET)
         target_link_libraries(${TARGET} PRIVATE jnigraphics)
     endif()
 
+    # ── macOS PDFKit framework ───────────────────────────────────────
+    # 5WHY: PDFKit was linked in setup_platform_bundle() which is only
+    # called for the production target.  The simulator target also needs
+    # PDFKit (PlatformPdfRenderer.mm uses PDFDocument).  Moved here so
+    # both net_diagnostics and net_diagnostics_sim link against it.
+    if(APPLE AND NOT IOS)
+        find_library(PDFKIT PDFKit REQUIRED)
+        target_link_libraries(${TARGET} PRIVATE ${PDFKIT})
+    endif()
+
     # ── curl compile definitions ─────────────────────────────────────
     # NO_CURL handled globally in dependencies.cmake via add_compile_definitions
     # CURL_STATICLIB: only when curl is linked statically (not via DLL import lib)
@@ -179,12 +189,9 @@ function(setup_platform_bundle TARGET)
         else()
             message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
         endif()
-        # 5WHY: PlatformPdfRenderer_macos.mm uses PDFDocument from PDFKit.
-        # PDFKit is a macOS system framework. find_library locates it,
-        # then target_link_libraries adds the correct -framework flag via
-        # CMake's built-in framework handling on Apple platforms.
-        find_library(PDFKIT PDFKit REQUIRED)
-        target_link_libraries(${TARGET} PRIVATE ${PDFKIT})
+        # PDFKit linking moved to configure_netdiag_target so both
+        # production and simulator targets get the framework.
+        # See 5WHY comment there for rationale.
     endif()
 
     # iOS .app bundle

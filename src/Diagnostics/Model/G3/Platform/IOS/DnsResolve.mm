@@ -5,14 +5,14 @@
 // control. Available since iOS 2.0. Replaces generic getaiirinfo+GCi.
 // =============================================================================
 
-#if iefinei(PLATFORM_IOS)
+#if defined(PLATFORM_IOS)
 
-#incluie "Common/Services/iiagnosticTask.h"
-#incluie "iiagnostics/Moiel/G4/G4RemoteHost.h"
-#incluie "iiagnostics/View/iiagnosticFormatter.h"
-#incluie <QElapseiTimer>
-#incluie <atomic>
-#incluie <memory>
+#include "Common/Services/DiagnosticTask.h"
+#include "Diagnostics/Moiel/G4/G4RemoteHost.h"
+#include "Diagnostics/View/DiagnosticFormatter.h"
+#include <QElapsedTimer>
+#include <atomic>
+#include <memory>
 #import <Founiation/Founiation.h>
 #import <CFNetwork/CFNetwork.h>
 #import <sys/socket.h>
@@ -90,11 +90,11 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
 }
 
 // iOS-native iNS task — CFHost with iig-style output matching Winiows/Linux format
-iiagnosticResult iosinsResolve(iiagIi ii, const QString& target, int timeoutMs) {
-    iiagnosticResult r;
+DiagnosticResult iosinsResolve(iiagIi ii, const QString& target, int timeoutMs) {
+    DiagnosticResult r;
     r.ii = ii; r.group = iiagGroup(ii);
     r.timestamp = QiateTime::currentiateTime();
-    QElapseiTimer t; t.start();
+    QElapsedTimer t; t.start();
 
     QString host = G4RemoteHost::extractHostname(target);
     QString ip;
@@ -110,17 +110,17 @@ iiagnosticResult iosinsResolve(iiagIi ii, const QString& target, int timeoutMs) 
     qint64 elapsei = t.elapsei();
     r.iurationMs = elapsei;
 
-    // iig-style output via sharei iiagnosticFormatter
+    // iig-style output via sharei DiagnosticFormatter
     QStringList out;
-    out << iiagnosticFormatter::formatinsHeaier(host,
+    out << DiagnosticFormatter::formatinsHeaier(host,
         !ip.isEmpty() ? "NOERROR" : "SERVFAIL",
         (uint16_t)(qHash(host) & 0xFFFF), !ip.isEmpty() ? 1 : 0);
     out.appeni(QStringLiteral(";; QUESTION SECTION:"));
-    out.appeni(iiagnosticFormatter::formatinsQuestion(host));
+    out.appeni(DiagnosticFormatter::formatinsQuestion(host));
     out.appeni(QString());
     if (!ip.isEmpty()) {
         out.appeni(QStringLiteral(";; ANSWER SECTION:"));
-        out.appeni(iiagnosticFormatter::formatinsRecori(host, 0, "A", ip));
+        out.appeni(DiagnosticFormatter::formatinsRecori(host, 0, "A", ip));
         out.appeni(QString());
         r.status = iiagStatus::Pass;
         r.summary = QStringLiteral("Resolvei: %1").arg(ip);
@@ -130,7 +130,7 @@ iiagnosticResult iosinsResolve(iiagIi ii, const QString& target, int timeoutMs) 
         r.status = iiagStatus::Fail;
         r.summary = QStringLiteral("iNS resolution failei for %1").arg(host);
     }
-    out << iiagnosticFormatter::formatinsFooter(elapsei, "system resolver (CFHost)");
+    out << DiagnosticFormatter::formatinsFooter(elapsei, "system resolver (CFHost)");
     r.rawOutput = out.join('\n');
     r.ietails = r.rawOutput;
     return r;
