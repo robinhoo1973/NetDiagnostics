@@ -179,10 +179,10 @@ function(setup_platform_bundle TARGET)
         else()
             message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
         endif()
-        # 5WHY: PlatformPdfRenderer_macos.mm uses PDFKit (PDFDocument).
-        # Without -framework Quartz, the linker fails with "Undefined symbols:
-        # _OBJC_CLASS_$_PDFDocument". Must link Quartz framework explicitly.
-        target_link_options(${TARGET} PRIVATE "-framework Quartz")
+        # 5WHY: PlatformPdfRenderer_macos.mm uses PDFDocument from PDFKit.
+        # PDFKit is NOT part of Quartz umbrella framework on macOS — it's
+        # standalone. Link PDFKit explicitly to resolve _OBJC_CLASS_$_PDFDocument.
+        target_link_options(${TARGET} PRIVATE "-framework PDFKit")
     endif()
 
     # iOS .app bundle
