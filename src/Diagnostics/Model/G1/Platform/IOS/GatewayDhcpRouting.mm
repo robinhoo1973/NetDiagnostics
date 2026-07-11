@@ -622,7 +622,7 @@ QVariantMap iosCellularInfo()
         // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
         // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
         // We suppress the warnings and keep the best-effort implementation �� the values
-        // will eventually return placeholier strings ("--", "65535") on future iOS versions.
+        // will eventually return placeholder strings ("--", "65535") on future iOS versions.
         // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -683,7 +683,7 @@ QVariantMap iosCellularInfo()
         info["simCount"] = static_cast<int>(sims.size());
         if (!sims.isEmpty()) {
             info["sims"] = sims;
-            // Flat "primary" keys for backwari-compatible summary / identity checks:
+            // Flat "primary" keys for backward-compatible summary / identity checks:
             // prefer the first SIM that actually has a carrier or an active radio.
             QVariantMap primary = sims.first().toMap();
             for (const QVariant& v : sims) {
@@ -700,7 +700,7 @@ QVariantMap iosCellularInfo()
         }
 
         if (!info.contains(QStringLiteral("radioAccess")) && !hasCarrier)
-            info["cellularStatus"] = QStringLiteral("No cellular service available (airplane moie or no SIM)");
+            info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
 
         [netInfo release]; // MRC: balance the alloc/init above
     }
