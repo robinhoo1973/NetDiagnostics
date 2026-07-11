@@ -140,6 +140,14 @@ function(configure_netdiag_target TARGET)
         )
     endif()
 
+    # ── Include paths ────────────────────────────────────────────────
+    # 5WHY: Include paths must be set BEFORE qt_import_qml_plugins /
+    # qt_finalize_executable.  The generated qml_plugin_import.cpp is
+    # compiled with the target's include directories; if they're set
+    # after finalization, the generated file may not find headers from
+    # ${CMAKE_SOURCE_DIR}/src and ${CMAKE_SOURCE_DIR}/src/Common.
+    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/Common)
+
     # ── Static QML plugin import (required for static Qt builds) ──────
     # 5WHY: Without qt_import_qml_plugins(), static Qt builds cannot
     # resolve QML modules (QtQuick, QtQuick.Controls, etc.) at runtime.
@@ -165,9 +173,6 @@ function(configure_netdiag_target TARGET)
     elseif(COMMAND qt_finalize_executable)
         qt_finalize_executable(${TARGET})
     endif()
-
-    # ── Include paths ────────────────────────────────────────────────
-    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/Common)
 endfunction()
 
 # ── Platform bundle setup ─────────────────────────────────────────────
