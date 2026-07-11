@@ -15,6 +15,14 @@ public:
     PlatformPdfRenderer();
     ~PlatformPdfRenderer();
 
+    // 5WHY: cppcheck flagged missing copy constructor/operator= for PIMPL class
+    // managing Impl* via raw pointer. Copying would double-free the Impl.
+    // Delete copy + move operations to enforce single-owner semantics.
+    PlatformPdfRenderer(const PlatformPdfRenderer&) = delete;
+    PlatformPdfRenderer& operator=(const PlatformPdfRenderer&) = delete;
+    PlatformPdfRenderer(PlatformPdfRenderer&&) = delete;
+    PlatformPdfRenderer& operator=(PlatformPdfRenderer&&) = delete;
+
     // Load a PDF from file path. Returns false on failure.
     bool load(const QString& filePath);
 

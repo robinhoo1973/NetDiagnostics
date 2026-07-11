@@ -31,7 +31,11 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
 
     QFile f(path);
-    f.open(QIODevice::Append | QIODevice::WriteOnly | QIODevice::Text);
+    // 5WHY: QFile::open() is [[nodiscard]] in Qt 6 — ignoring the return
+    // value generates a compiler warning. Check and silently skip logging
+    // if the temp directory is unwritable (better than crashing).
+    if (!f.open(QIODevice::Append | QIODevice::WriteOnly | QIODevice::Text))
+        return;
     QTextStream ts(&f);
 
     QString tsStr = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz");

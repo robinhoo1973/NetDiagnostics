@@ -141,37 +141,82 @@ QString reportStatusClass(DiagStatus s) {
     }
 }
 
+// 5WHY: buildHtml() and buildRichDocument() each defined their own set of
+// ~20 theme-aware color constants — duplicated ~15 tokens between the two.
+// Extracted to a shared struct so both methods use the same palette and
+// theme changes only need one update point.
+struct ReportColors {
+    // Status colors (theme-independent)
+    QString pass    = QStringLiteral("#4ADE80");
+    QString warn    = QStringLiteral("#FBBF24");
+    QString fail    = QStringLiteral("#F87171");
+    QString skip    = QStringLiteral("#9CA3AF");
+    QString info    = QStringLiteral("#38BDF8");
+    QString cyan    = QStringLiteral("#22D3EE");
+    // Theme-aware colors
+    QString textPrimary, textSecondary, textMuted;
+    QString bgHeader, bgSection, bgRowAlt, bgRow;
+    QString bgCardPass, bgCardInfo, bgCardWarn, bgCardFail, bgCardSkip;
+    QString borderColor, codeBlockBg, codeBlockFg, detailBg, footerColor;
+
+    explicit ReportColors(bool dark) {
+        if (dark) {
+            textPrimary  = QStringLiteral("#F1F5F9");
+            textSecondary= QStringLiteral("#94A3B8");
+            textMuted    = QStringLiteral("#64748B");
+            bgHeader     = QStringLiteral("#0C4A6E");
+            bgSection    = QStringLiteral("#1E293B");
+            bgRowAlt     = QStringLiteral("#1E293B");
+            bgRow        = QStringLiteral("#0F172A");
+            bgCardPass   = QStringLiteral("#16281b");
+            bgCardInfo   = QStringLiteral("#141f33");
+            bgCardWarn   = QStringLiteral("#2b2810");
+            bgCardFail   = QStringLiteral("#2b1616");
+            bgCardSkip   = QStringLiteral("#1e1e2e");
+            borderColor  = QStringLiteral("#334155");
+            codeBlockBg  = QStringLiteral("#0a0a14");
+            codeBlockFg  = QStringLiteral("#c0c0d0");
+            detailBg     = QStringLiteral("#0f1629");
+            footerColor  = QStringLiteral("#5a5a72");
+        } else {
+            textPrimary  = QStringLiteral("#1E293B");
+            textSecondary= QStringLiteral("#475569");
+            textMuted    = QStringLiteral("#94A3B8");
+            bgHeader     = QStringLiteral("#0F172A");
+            bgSection    = QStringLiteral("#0F172A");
+            bgRowAlt     = QStringLiteral("#F8FAFC");
+            bgRow        = QStringLiteral("#FFFFFF");
+            bgCardPass   = QStringLiteral("#ECFDF5");
+            bgCardInfo   = QStringLiteral("#EFF6FF");
+            bgCardWarn   = QStringLiteral("#FFFBEB");
+            bgCardFail   = QStringLiteral("#FEF2F2");
+            bgCardSkip   = QStringLiteral("#F1F5F9");
+            borderColor  = QStringLiteral("#E2E8F0");
+            codeBlockBg  = QStringLiteral("#0F172A");
+            codeBlockFg  = QStringLiteral("#E2E8F0");
+            detailBg     = QStringLiteral("#F8FAFC");
+            footerColor  = QStringLiteral("#94A3B8");
+        }
+    }
+};
+
 } // namespace
 
 // ── Public: HTML generation ─────────────────────────────────────────────
 
 QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool darkBackground) {
-    // Status colours — match app ThemeEngine (dark theme palette)
-    const QString colorPass = QStringLiteral("#4ADE80");
-    const QString colorWarn = QStringLiteral("#FBBF24");
-    const QString colorFail = QStringLiteral("#F87171");
-    const QString colorSkip = QStringLiteral("#9CA3AF");
-    const QString colorInfo = QStringLiteral("#38BDF8");  // app primary blue
-    const QString colorCyan = QStringLiteral("#22D3EE");  // app signature accent
-
-    // Theme-aware colours — dark background for QML preview parity with dashboard
-    const QString textPrimary  = darkBackground ? QStringLiteral("#F1F5F9") : QStringLiteral("#1E293B");
-    const QString textSecondary= darkBackground ? QStringLiteral("#94A3B8") : QStringLiteral("#475569");
-    const QString textMuted    = darkBackground ? QStringLiteral("#64748B") : QStringLiteral("#94A3B8");
-    const QString bgHeader     = darkBackground ? QStringLiteral("#0C4A6E") : QStringLiteral("#0F172A");
-    const QString bgSection    = darkBackground ? QStringLiteral("#1E293B") : QStringLiteral("#0F172A");
-    const QString bgRowAlt     = darkBackground ? QStringLiteral("#1E293B") : QStringLiteral("#F8FAFC");
-    const QString bgRow        = darkBackground ? QStringLiteral("#0F172A") : QStringLiteral("#FFFFFF");
-    const QString bgCardPass   = darkBackground ? QStringLiteral("#16281b") : QStringLiteral("#ECFDF5");
-    const QString bgCardInfo   = darkBackground ? QStringLiteral("#141f33") : QStringLiteral("#EFF6FF");
-    const QString bgCardWarn   = darkBackground ? QStringLiteral("#2b2810") : QStringLiteral("#FFFBEB");
-    const QString bgCardFail   = darkBackground ? QStringLiteral("#2b1616") : QStringLiteral("#FEF2F2");
-    const QString bgCardSkip   = darkBackground ? QStringLiteral("#1e1e2e") : QStringLiteral("#F1F5F9");
-    const QString borderColor  = darkBackground ? QStringLiteral("#334155") : QStringLiteral("#E2E8F0");
-    const QString codeBlockBg  = darkBackground ? QStringLiteral("#0a0a14") : QStringLiteral("#0F172A");
-    const QString codeBlockFg  = darkBackground ? QStringLiteral("#c0c0d0") : QStringLiteral("#E2E8F0");
-    const QString detailBg     = darkBackground ? QStringLiteral("#0f1629") : QStringLiteral("#F8FAFC");
-    const QString footerColor  = darkBackground ? QStringLiteral("#5a5a72") : QStringLiteral("#94A3B8");
+    const ReportColors c(darkBackground);
+    // Aliases for concise reference in the large HTML string below
+    const QString& colorPass = c.pass, &colorWarn = c.warn, &colorFail = c.fail;
+    const QString& colorSkip = c.skip, &colorInfo = c.info, &colorCyan = c.cyan;
+    const QString& textPrimary = c.textPrimary, &textSecondary = c.textSecondary;
+    const QString& textMuted = c.textMuted, &bgHeader = c.bgHeader;
+    const QString& bgSection = c.bgSection, &bgRowAlt = c.bgRowAlt, &bgRow = c.bgRow;
+    const QString& bgCardPass = c.bgCardPass, &bgCardInfo = c.bgCardInfo;
+    const QString& bgCardWarn = c.bgCardWarn, &bgCardFail = c.bgCardFail;
+    const QString& bgCardSkip = c.bgCardSkip, &borderColor = c.borderColor;
+    const QString& codeBlockBg = c.codeBlockBg, &codeBlockFg = c.codeBlockFg;
+    const QString& detailBg = c.detailBg, &footerColor = c.footerColor;
 
     int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {

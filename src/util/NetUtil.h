@@ -66,12 +66,12 @@ inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
     setSocketNonBlocking(sock);
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
     if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return -1; }
     int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
     if (err != 0) { closeSocket(sock); return -1; }
     return sock;
 }
