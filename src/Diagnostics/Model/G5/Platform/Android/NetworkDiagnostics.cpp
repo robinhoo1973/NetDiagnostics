@@ -18,7 +18,9 @@
 #include "Common/Model/DiagId.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
 
-namespace G5WebsiteUrl {
+// 5WHY: Functions were wrapped in namespace G5WebsiteUrl but header
+// NetworkDiagnostics.h declares them at global scope.  Removed namespace
+// so definitions match declarations — fixes "undefined symbol" linker error.
 
 static bool clearJniException(QJniEnvironment& env) {
     if (!env->ExceptionCheck())
@@ -495,5 +497,5 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
     return r;
 }
 
-} // namespace G5WebsiteUrl
+// namespace G5WebsiteUrl removed — see 5WHY above
 #endif // PLATFORM_ANDROID
