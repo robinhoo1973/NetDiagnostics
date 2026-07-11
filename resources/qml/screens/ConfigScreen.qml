@@ -105,13 +105,11 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                // Select All
+                // Select All — 5WHY: 32pt below Apple HIG 44pt; no keyboard access
                 Rectangle {
-                    implicitWidth: 110; implicitHeight: 32; radius: 6; color: "transparent"
+                    id: selectAllBtn
+                    implicitWidth: 110; implicitHeight: 44; radius: 6; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
-                    // 5WHY: Binding was stale — only re-evaluated when currentGroup
-                    // changed, not when individual diag toggles changed group state.
-                    // configPollVersion forces re-evaluation on every state change.
                     enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
@@ -121,16 +119,21 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: appState.setGroupEnabled(currentGroup, true)
+                    }
+                    activeFocusOnTab: true
+                    Keys.onPressed: function(event) {
+                        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && selectAllBtn.enabled)
+                            appState.setGroupEnabled(currentGroup, true)
                     }
                 }
                 Item { width: 8 }
-                // Deselect All
+                // Deselect All — 5WHY: same touch target + a11y gap as Select All
                 Rectangle {
-                    implicitWidth: 110; implicitHeight: 32; radius: 6; color: "transparent"
+                    id: deselectAllBtn
+                    implicitWidth: 110; implicitHeight: 44; radius: 6; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
-                    // 5WHY: Same stale-binding issue as Select All — needs
-                    // configPollVersion to re-evaluate on diag toggle changes.
                     enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
                     RowLayout { anchors.centerIn: parent; spacing: 4
@@ -140,7 +143,13 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: appState.setGroupEnabled(currentGroup, false)
+                    }
+                    activeFocusOnTab: true
+                    Keys.onPressed: function(event) {
+                        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && deselectAllBtn.enabled)
+                            appState.setGroupEnabled(currentGroup, false)
                     }
                 }
             }

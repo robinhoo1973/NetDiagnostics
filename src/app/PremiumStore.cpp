@@ -35,10 +35,17 @@ void PremiumStore::requestSubscription() {
         if (success) setPremium(true);
     });
 #else
-    // Android / Desktop: store SDK not wired yet — grant Premium directly
-    // so the share flow remains usable. Replace with platformStartPurchase
-    // once Google Play Billing is integrated.
+    // 5WHY: Premium was granted directly on non-iOS — any Android/desktop
+    // user got Premium free. Now gated: debug grants freely, release builds
+    // show a Premium-required toast instead of silently granting.
+#if defined(ND_DEBUG) || !defined(NDEBUG)
+    // Debug/development: grant Premium directly so share flow is testable
     setPremium(true);
+#else
+    // Release: Premium is a paid feature. Emit required signal so the UI
+    // shows the subscription prompt instead of silently granting access.
+    emit premiumRequired();
+#endif
 #endif
 }
 
