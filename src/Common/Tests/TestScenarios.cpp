@@ -11,8 +11,12 @@
 // =============================================================================
 #if defined(ND_TESTING)
 
-#include "testing/TestScenarios.h"
-#include "testing/TestHarness.h"
+// 5WHY: Include path used "testing/" (lowercase) but the directory on disk
+// is "Tests/" (capital T).  On case-sensitive Linux filesystems, the include
+// failed with "No such file or directory".  Both headers are in the same
+// directory as this .cpp file, so no path prefix is needed.
+#include "TestScenarios.h"
+#include "TestHarness.h"
 
 #include <QProcessEnvironment>
 #include <QTcpSocket>
