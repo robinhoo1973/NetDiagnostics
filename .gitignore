@@ -4,6 +4,7 @@ build-*/
 dist/
 *.log
 *.bak
+legacy_backup/
 
 # IDE / tools
 .claude/
@@ -21,3 +22,8 @@ commit_msg.txt
 AGENTS.md
 **/.codewhale/*
 !**/.codewhale/constitution.json
+
+# UI mockups (planned features, not for public)
+mockups/
+# Internal test profiles and policies  
+profiles/

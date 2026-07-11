@@ -2,10 +2,15 @@
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
-#include "engine/diagnostics/G5/G5WebsiteUrl.h"
-#include "engine/task/TaskFactory.h"
-#include "util/DebugSwitch.h"
-#include "util/Logger.h"
+#include "Diagnostics/Model/G5/G5WebsiteUrl.h"
+#include "Diagnostics/Controller/TaskFactory.h"
+#include "Common/Utils/DebugSwitch.h"
+#include "Common/Utils/Logger.h"
+#include "Dashboard/Controller/DashboardController.h"
+#include "Diagnostics/Controller/DiagnosticsController.h"
+#include "Configuration/Controller/ConfigurationController.h"
+#include "Report/Controller/ReportController.h"
+#include "Settings/Controller/SettingsController.h"
 #include <cstdio>
 #include <chrono>
 #include <QTimer>
@@ -29,9 +34,9 @@
 #include <QProcess>
 #include <QDesktopServices>
 #include <QSettings>
-#include "platform/PlatformShare.h"
+#include "Common/Platform/PlatformShare.h"
 #if defined(PLATFORM_IOS)
-#include "platform/PlatformStore.h"
+#include "Common/Platform/PlatformStore.h"
 #endif
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
@@ -51,30 +56,38 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_targetScheme = QStringLiteral("https"); // default protocol
     // G1-G3 active by default (G4/G5 auto-managed via setTarget)
     m_activeGroups = {0, 1, 2};
-    // Forward service signals to QML
-    connect(&m_reportEngine, &ReportEngine::savePathPicked,
+
+    // ── Create MVC Controllers ────────────────────────────────────────────
+    m_dashCtrl   = new DashboardController(this, this);
+    m_diagCtrl   = new DiagnosticsController(this, this);
+    m_configCtrl = new ConfigurationController(this, this);
+    m_reportCtrl = new ReportController(this, this);
+    m_settingsCtrl = new SettingsController(this, this);
+
+    // Forward ReportController signals
+    connect(m_reportCtrl, &ReportController::savePathPicked,
             this, &AppState::savePathPicked);
-    // Forward PremiumStore signals to QML
-    connect(&m_premium, &PremiumStore::premiumChanged,
+
+    // Forward SettingsController signals
+    connect(m_settingsCtrl, &SettingsController::premiumChanged,
             this, &AppState::premiumChanged);
-    connect(&m_premium, &PremiumStore::purchaseInProgressChanged,
+    connect(m_settingsCtrl, &SettingsController::purchaseInProgressChanged,
             this, &AppState::purchaseInProgressChanged);
-    connect(&m_premium, &PremiumStore::premiumRequired,
+    connect(m_settingsCtrl, &SettingsController::premiumRequired,
             this, &AppState::premiumRequired);
-    connect(&m_premium, &PremiumStore::restoreCompleted,
+    connect(m_settingsCtrl, &SettingsController::restoreCompleted,
             this, &AppState::restoreCompleted);
+    connect(m_settingsCtrl, &SettingsController::languageChanged,
+            this, &AppState::languageChanged);
+    connect(m_settingsCtrl, &SettingsController::themeChanged,
+            this, &AppState::themeChanged);
 
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
-    m_config.enableDefaultGroups();
+    if (m_configCtrl) m_configCtrl->config().enableDefaultGroups();
 
-    // NOTE: iOS-unavailable tests (TCP settings, ARP table) are NOT hidden here.
-    // They stay enabled and report DiagStatus::Skipped so the UI shows a skip
-    // icon (like Active Connections). Default gateway / routing table / DHCP now
-    // have working iOS implementations and return real data.
-
-    // Restore persisted settings (language, active groups, enabled diags).
-    // Must be called AFTER enableDefaultGroups so we override defaults with
-    // saved values. A first-run user has no saved state and keeps defaults.
+    // Restore persisted settings (language/theme/diags handled by Controllers)
+    if (m_settingsCtrl) m_settingsCtrl->loadSettings();
+    if (m_configCtrl) m_configCtrl->loadSettings();
     loadSettings();
 }
 
@@ -126,26 +139,21 @@ void AppState::bumpVersion() {
 }
 
 // ── Language switching ──────────────────────────────────────────────────
+int AppState::languageIndex() const { return m_settingsCtrl ? m_settingsCtrl->languageIndex() : 0; }
+int AppState::themeMode() const { return m_settingsCtrl ? m_settingsCtrl->themeMode() : 2; }
+bool AppState::isPremium() const { return m_settingsCtrl ? m_settingsCtrl->isPremium() : false; }
+bool AppState::purchaseInProgress() const { return m_settingsCtrl ? m_settingsCtrl->purchaseInProgress() : false; }
+
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {
-    if (index < 0 || index > 8) return;
-    m_languageIndex = index;
-    emit languageChanged();
-    saveSettings();
+    if (m_settingsCtrl) m_settingsCtrl->setLanguageIndex(index);
     bumpVersion();
-    TRACE(" Language set to index %d\n", index);
 }
 
 // ── Theme mode persistence ─────────────────────────────────────────────
-// 0=system, 1=light, 2=dark (matches ThemeEngine.sysMode/litMode/drkMode)
 void AppState::setThemeMode(int mode) {
-    if (mode < 0 || mode > 2) return;
-    if (m_themeMode == mode) return;
-    m_themeMode = mode;
-    emit themeChanged();
-    saveSettings();
+    if (m_settingsCtrl) m_settingsCtrl->setThemeMode(mode);
     bumpVersion();
-    TRACE(" Theme mode set to %d\n", mode);
 }
 
 // ── RFC 952/1123 hostname label validation ────────────────────────────────
@@ -534,11 +542,11 @@ void AppState::setTarget(const QString& t) {
 QStringList AppState::groupLabels() const { return DiagnosticConfig::groupLabels(); }
 
 // ── Test enable/disable — delegated to DiagnosticConfig ──────────────
-bool AppState::isDiagEnabled(int diagIdInt) const { return m_config.isDiagEnabled(diagIdInt); }
-void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_config.setDiagEnabled(diagIdInt, enabled); saveSettings(); bumpVersion(); }
-void AppState::setGroupEnabled(int groupInt, bool enabled) { m_config.setGroupEnabled(groupInt, enabled); saveSettings(); bumpVersion(); }
-bool AppState::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }
-bool AppState::isGroupAnyEnabled(int groupInt) const { return m_config.isGroupAnyEnabled(groupInt); }
+bool AppState::isDiagEnabled(int diagIdInt) const { return m_configCtrl->config().isDiagEnabled(diagIdInt); }
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_configCtrl->config().setDiagEnabled(diagIdInt, enabled); saveSettings(); bumpVersion(); }
+void AppState::setGroupEnabled(int groupInt, bool enabled) { m_configCtrl->config().setGroupEnabled(groupInt, enabled); saveSettings(); bumpVersion(); }
+bool AppState::isGroupAllEnabled(int groupInt) const { return m_configCtrl->config().isGroupAllEnabled(groupInt); }
+bool AppState::isGroupAnyEnabled(int groupInt) const { return m_configCtrl->config().isGroupAnyEnabled(groupInt); }
 
 // ── Group activation (separate from enable/disable) ─────────────────
 void AppState::setGroupActive(int groupInt, bool active) {
@@ -630,7 +638,7 @@ void AppState::runDiagnostics() {
     // Build groups: group tests by DiagGroup (G1→G5 order)
     m_pendingGroups.clear();
     TRACE(" runDiagnostics: enabledTests=%d hasTarget=%d\n",
-            (int)m_config.enabledDiags().size(), hasTarget);
+            (int)m_configCtrl->config().enabledDiags().size(), hasTarget);
     // Per-group enabled counts (verify checkbox state)
     for (int g = 0; g < 5; ++g) {
         int enabledInGroup = 0;
@@ -638,7 +646,7 @@ void AppState::runDiagnostics() {
         auto group = static_cast<DiagGroup>(g);
         for (auto id : DiagnosticConfig::diagIdsForGroup(group)) {
             totalInGroup++;
-            if (m_config.enabledDiags().contains(id)) enabledInGroup++;
+            if (m_configCtrl->config().enabledDiags().contains(id)) enabledInGroup++;
         }
         TRACE("   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
     }
@@ -648,7 +656,7 @@ void AppState::runDiagnostics() {
         GroupTask gt;
         gt.group = static_cast<DiagGroup>(g);
         for (auto id : DiagnosticConfig::diagIdsForGroup(gt.group)) {
-            if (!m_config.enabledDiags().contains(id)) continue;
+            if (!m_configCtrl->config().enabledDiags().contains(id)) continue;
             if (gt.group == DiagGroup::G4 && !hasTarget) continue;
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
             // G5: filter by scheme — only schedule tests matching the target's protocol
@@ -908,7 +916,7 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
     auto g = static_cast<DiagGroup>(groupInt);
     
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        if (!m_config.enabledDiags().contains(id)) continue;
+        if (!m_configCtrl->config().enabledDiags().contains(id)) continue;
         
         // G5: skip cancelled/irrelevant protocol tests (e.g. FTP in an HTTP run)
         // Also skip platform-unavailable tests for G1-G4 (e.g. iOS-sandboxed tests)
@@ -1192,49 +1200,23 @@ QString AppState::generatePreviewPdf() const {
 }
 
 void AppState::requestSavePath(const QString& format) {
-    m_reportEngine.requestSavePath(format);
+    if (m_reportCtrl) m_reportCtrl->requestSavePath(format);
 }
 
 void AppState::setPremium(bool v) {
-    m_premium.setPremium(v);
+    if (m_settingsCtrl) m_settingsCtrl->setPremium(v);
 }
 
 void AppState::requestSubscription() {
-    m_premium.requestSubscription();
+    if (m_settingsCtrl) m_settingsCtrl->requestSubscription();
 }
 
 void AppState::restorePurchases() {
-    m_premium.restorePurchases();
+    if (m_settingsCtrl) m_settingsCtrl->restorePurchases();
 }
 
 void AppState::shareReport(const QString& format) {
-    if (!m_premium.isPremium()) { emit premiumRequired(); return; }
-    const QString ext = (format == QLatin1String("pdf")) ? QStringLiteral("pdf")
-                                                         : QStringLiteral("html");
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
-    // Generate into a temp file, then present the OS share sheet.
-    const QString tmp = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-        .filePath(QStringLiteral("NetDiagnostics_report.%1").arg(ext));
-    const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(tmp)
-                                                         : exportHtml(tmp, isDarkMode());
-    if (saved.isEmpty()) { emit reportShared(false); return; }
-    platformShareFile(saved,
-                      ext == QLatin1String("pdf") ? QStringLiteral("application/pdf")
-                                                  : QStringLiteral("text/html"),
-                      QStringLiteral("Network Diagnostic Report"));
-    // 5WHY: Temp files accumulated on each share with no cleanup.
-    // The OS share sheet copies the data; the original can be removed
-    // after a short delay to ensure the share sheet has finished reading.
-    QTimer::singleShot(60000, this, [saved]() { QFile::remove(saved); });
-    emit reportShared(true);
-#else
-    // Desktop: save to Documents and hand off to the default mail client.
-    const QString saved = (ext == QLatin1String("pdf")) ? exportPdf(defaultReportPath(ext))
-                                                        : exportHtml(defaultReportPath(ext), isDarkMode());
-    if (saved.isEmpty()) { emit reportShared(false); return; }
-    emailReportDesktop(saved);
-    emit reportShared(true);
-#endif
+    if (m_settingsCtrl) m_settingsCtrl->shareReport(format);
 }
 
 void AppState::emailReportDesktop(const QString& path) {
@@ -1356,20 +1338,6 @@ void AppState::loadSettings() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
 
-    // Language index
-    int lang = s.value("language", 0).toInt();
-    if (lang >= 0 && lang <= 8) {
-        m_languageIndex = lang;
-        emit languageChanged();
-    }
-
-    // Theme mode (0=system, 1=light, 2=dark)
-    int theme = s.value("themeMode", 2).toInt();
-    if (theme >= 0 && theme <= 2 && theme != m_themeMode) {
-        m_themeMode = theme;
-        emit themeChanged();
-    }
-
     // Active groups (G1-G5 shown/hidden)
     QVariantList ag = s.value("activeGroups").toList();
     if (!ag.isEmpty()) {
@@ -1378,43 +1346,20 @@ void AppState::loadSettings() {
             m_activeGroups.insert(v.toInt());
     }
 
-    // Per-test enabled/disabled (Config page checkboxes)
-    QStringList enabledStrs = s.value("enabledDiags").toStringList();
-    if (!enabledStrs.isEmpty()) {
-        // Reset all to disabled, then re-enable saved ones
-        int diagCount = DiagnosticConfig::allDiagIds().size();
-        for (int i = 0; i < diagCount; ++i)
-            m_config.setDiagEnabled(i, false);
-        for (const auto& str : enabledStrs) {
-            bool ok = false;
-            int id = str.toInt(&ok);
-            if (ok)
-                m_config.setDiagEnabled(id, true);
-        }
-    }
-
     s.endGroup();
-    s.sync();  // flush to disk immediately (critical on mobile)
+    s.sync();
 }
 
 void AppState::saveSettings() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
 
-    s.setValue("language", m_languageIndex);
-    s.setValue("themeMode", m_themeMode);
-
     QVariantList ag;
     for (int g : m_activeGroups) ag.append(g);
     s.setValue("activeGroups", ag);
 
-    QStringList enabledStrs;
-    for (auto id : m_config.enabledDiags())
-        enabledStrs.append(QString::number(static_cast<int>(id)));
-    s.setValue("enabledDiags", enabledStrs);
-
     s.endGroup();
-    s.sync();  // flush to disk immediately (critical on mobile)
+    s.sync();
 }
 
 // ── Phase 2: Simulator skip-policy bridge ────────────────────────────────

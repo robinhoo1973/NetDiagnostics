@@ -1,37 +1,42 @@
-<RCC>
+﻿<RCC>
     <qresource prefix="/">
-        <file>qml/AppContent.qml</file>
-        <file>qml/main.qml</file>
-        <file>qml/utils/AppFonts.qml</file>
-        <file>qml/theme/AppTheme.qml</file>
-        <file>qml/theme/ThemeEngine.qml</file>
-        <file>qml/theme/Translations.qml</file>
-        <file>qml/theme/qmldir</file>
-        <file>qml/screens/DiagnosticScreen.qml</file>
-        <file>qml/screens/DashboardScreen.qml</file>
-        <file>qml/screens/ConfigScreen.qml</file>
-        <file>qml/screens/ReportScreen.qml</file>
-        <file>qml/screens/SettingsScreen.qml</file>
-        <file>qml/screens/SimulatorScreen.qml</file>
-        <file>qml/simulator/DeviceViewport.qml</file>
-        <file>qml/simulator/SimulatorMenuBar.qml</file>
-        <file>qml/simulator/qmldir</file>
-        <file>qml/widgets/TargetInputPanel.qml</file>
-        <file>qml/widgets/DiagGroupPanel.qml</file>
-        <file>qml/widgets/DiagResultItem.qml</file>
-        <file>qml/widgets/LiveProgressPanel.qml</file>
-        <file>qml/widgets/AppIcon.qml</file>
-        <file>qml/widgets/SummaryCards.qml</file>
-        <file>qml/widgets/DiagnosticToolbar.qml</file>
-        <!-- NativePdfPageView.qml moved to resources_nativepdf.qrc
-             which is conditionally included only on iOS/Android.
-             This prevents qmlimportscanner from requiring the
-             NetDiagnostics QML type registration on desktop builds. -->
-        <!-- HtmlPreviewWebView.qml moved to resources_webview.qrc
-             which is conditionally included only when QtWebView is
-             found. This prevents qmlimportscanner from requiring the
-             QtWebView plugin in static MSYS2 builds. -->
-        <file>qml/widgets/TargetAnalysisPanel.qml</file>
+        <!-- Root views -->
+        <file alias="qml/main.qml">../src/Common/View/main.qml</file>
+        <file alias="qml/AppContent.qml">../src/Common/View/AppContent.qml</file>
+
+        <!-- Utils -->
+        <file alias="qml/utils/AppFonts.qml">../src/Common/View/utils/AppFonts.qml</file>
+
+        <!-- Theme -->
+        <file alias="qml/theme/ThemeEngine.qml">../src/Common/View/theme/ThemeEngine.qml</file>
+        <file alias="qml/theme/Translations.qml">../src/Common/View/theme/Translations.qml</file>
+        <file alias="qml/theme/qmldir">../src/Common/View/theme/qmldir</file>
+
+        <!-- Screens (page-specific) -->
+        <file alias="qml/screens/DashboardScreen.qml">../src/Dashboard/View/DashboardScreen.qml</file>
+        <file alias="qml/screens/DiagnosticScreen.qml">../src/Diagnostics/View/DiagnosticScreen.qml</file>
+        <file alias="qml/screens/ConfigScreen.qml">../src/Configuration/View/ConfigScreen.qml</file>
+        <file alias="qml/screens/ReportScreen.qml">../src/Report/View/ReportScreen.qml</file>
+        <file alias="qml/screens/SettingsScreen.qml">../src/Settings/View/SettingsScreen.qml</file>
+        <file alias="qml/screens/SimulatorScreen.qml">../src/Common/View/simulator/SimulatorScreen.qml</file>
+
+        <!-- Simulator views -->
+        <file alias="qml/simulator/DeviceViewport.qml">../src/Common/View/simulator/DeviceViewport.qml</file>
+        <file alias="qml/simulator/qmldir">../src/Common/View/simulator/qmldir</file>
+
+        <!-- Shared widgets -->
+        <file alias="qml/widgets/TargetInputPanel.qml">../src/Common/View/widgets/TargetInputPanel.qml</file>
+        <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
+        <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
+        <file alias="qml/widgets/LiveProgressPanel.qml">../src/Common/View/widgets/LiveProgressPanel.qml</file>
+        <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
+        <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
+        <file alias="qml/widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>
+        <file alias="qml/widgets/TargetAnalysisPanel.qml">../src/Common/View/widgets/TargetAnalysisPanel.qml</file>
+        <!-- HtmlPreviewWebView → resources_webview.qrc (conditional) -->
+        <!-- NativePdfPageView   → resources_nativepdf.qrc (conditional) -->
+
+        <!-- Icons (stay in resources/) -->
         <file>icons/check.svg</file>
         <file>icons/circle.svg</file>
         <file>icons/close.svg</file>
@@ -70,9 +75,13 @@
         <file>icons/windows.svg</file>
         <file>icons/app-icon.svg</file>
         <file>icons/netanalysis.ico</file>
+
+        <!-- Fonts (stay in resources/) -->
         <file>fonts/JetBrainsMono-Regular.ttf</file>
         <file>fonts/JetBrainsMono-Bold.ttf</file>
         <file>fonts/DejaVuSansMono.ttf</file>
+
+        <!-- Config (stay in resources/) -->
         <file>qtquickcontrols2.conf</file>
         <file>config/windows.conf</file>
         <file>config/linux.conf</file>
