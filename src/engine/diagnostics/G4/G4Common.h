@@ -158,8 +158,10 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
         // Get owner name from the RR (rr.name points into the message buffer)
         char ownBuf[256] = {};
         if (rr.name)
-            ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), (const unsigned char*)rr.name, ownBuf, sizeof(ownBuf));
-        if (ownBuf[0] == '\0') strcpy(ownBuf, host.toUtf8().constData());
+            ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), reinterpret_cast<const unsigned char*>(rr.name), ownBuf, sizeof(ownBuf));
+        // 5WHY: strcpy with unbounded source could overflow ownBuf[256] (SAST).
+        // Use strncpy + explicit null termination.
+        if (ownBuf[0] == '\0') { strncpy(ownBuf, host.toUtf8().constData(), sizeof(ownBuf)-1); ownBuf[sizeof(ownBuf)-1] = '\0'; }
 
         uint32_t ttl = ns_rr_ttl(rr);
         int rtype = ns_rr_type(rr);
