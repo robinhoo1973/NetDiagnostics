@@ -748,7 +748,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build
-          pip install aqtinstall
+          # 5WHY: pip install without --break-system-packages fails on
+          # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
+          # Use a venv for isolation, same pattern as apple.yml.
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -830,7 +834,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build
-          pip install aqtinstall
+          # 5WHY: pip install without --break-system-packages fails on
+          # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
+          # Use a venv for isolation, same pattern as apple.yml.
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
