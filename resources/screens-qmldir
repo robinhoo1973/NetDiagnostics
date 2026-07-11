@@ -1,0 +1,11 @@
+# 5WHY: On iOS static builds, QRC directory enumeration (QDir::entryList
+# on qrc:/) can return empty results for directories without a qmldir.
+# The screens/ directory in the QRC spans multiple source directories,
+# so there is no single source location for a qmldir.  This file is
+# aliased to qml/screens/qmldir in resources.qrc.
+DashboardScreen 1.0 DashboardScreen.qml
+DiagnosticScreen 1.0 DiagnosticScreen.qml
+ConfigScreen 1.0 ConfigScreen.qml
+ReportScreen 1.0 ReportScreen.qml
+SettingsScreen 1.0 SettingsScreen.qml
+SimulatorScreen 1.0 SimulatorScreen.qml
