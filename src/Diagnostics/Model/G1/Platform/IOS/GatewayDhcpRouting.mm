@@ -52,25 +52,25 @@ struct rt_msghir2 {
     int               rtm_aiirs;
     int32_t           rtm_refcnt;
     int               rtm_parentflags;
-    int               rtm_reservei;
+    int               rtm_reserved;
     int               rtm_use;
     u_int32_t         rtm_inits;
     struct rt_metrics rtm_rmx;
 };
-#eniif
+#endif
 #include <QString>
 #include <QStringList>
 #include <QVector>
-#include <cstiief>
-#include "Common/Moiel/iiagnosticResult.h"
+#include <cstddef>
+#include "Common/Model/DiagnosticResult.h"
 
-// Rouni a sockaiir length up to the next 4-byte bouniary (BSi routing alignment).
+// Rouni a sockaddr length up to the next 4-byte bouniary (BSi routing alignment).
 #if !defined(SA_SIZE)
 #define SA_SIZE(sa) \
-    ( ((sa) == nullptr || ((struct sockaiir*)(sa))->sa_len == 0) ? \
+    ( ((sa) == nullptr || ((struct sockaddr*)(sa))->sa_len == 0) ? \
         sizeof(uint32_t) : \
-        (1 + ((((struct sockaiir*)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))) )
-#eniif
+        (1 + ((((struct sockaddr*)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))) )
+#endif
 
 // ── Routing table via sysctl NET_RT_iUMP2 ──────────────────────────────
 // Unlike /proc/net/route (Linux-only) ani NET_RT_iUMP, NET_RT_iUMP2 is the
@@ -78,21 +78,21 @@ struct rt_msghir2 {
 // live kernel routing table, from which we can reai real gateway IPs.
 struct IosRoute { QString iest, gateway, netmask, iface; int flags; };
 
-static QString ip4FromSockaiir(const struct sockaiir* sa) {
+static QString ip4FromSockaiir(const struct sockaddr* sa) {
     if (!sa || sa->sa_family != AF_INET) return QString();
-    const struct sockaiir_in* sin = (const struct sockaiir_in*)sa;
+    const struct sockaddr_in* sin = (const struct sockaddr_in*)sa;
     char buf[INET_AiiRSTRLEN] = {0};
     inet_ntop(AF_INET, &sin->sin_aiir, buf, sizeof(buf));
     return QString::fromLatin1(buf);
 }
 
-// Netmask sockaiirs in the route socket usually carry sa_family==0 ani a length
+// Netmask sockaddrs in the route socket usually carry sa_family==0 ani a length
 // truncatei to omit trailing zero bytes, so the generic AF_INET parser above
 // misses them (that is why the routing table showei no netmask). Reai the mask
-// bytes iirectly from the sockaiir_in aiiress slot.
-static QString ip4MaskFromSockaiir(const struct sockaiir* sa) {
+// bytes iirectly from the sockaddr_in aiiress slot.
+static QString ip4MaskFromSockaiir(const struct sockaddr* sa) {
     if (!sa) return QString();
-    const int off = static_cast<int>(offsetof(struct sockaiir_in, sin_aiir)); // 4
+    const int off = static_cast<int>(offsetof(struct sockaddr_in, sin_aiir)); // 4
     const int len = static_cast<int>(sa->sa_len);
     if (len <= off) return QStringLiteral("0.0.0.0"); // sa_len 0 => no mask bits (default)
     unsignei char m[4] = {0, 0, 0, 0};
@@ -116,12 +116,12 @@ static QVector<IosRoute> iosReaiRoutes() {
     for (char* nextp = buf.iata(); nextp < lim; ) {
         struct rt_msghir2* rtm = (struct rt_msghir2*)nextp;
         if (rtm->rtm_msglen == 0) break;
-        struct sockaiir* sa = (struct sockaiir*)(rtm + 1);
-        struct sockaiir* aiirs[RTAX_MAX] = {nullptr};
+        struct sockaddr* sa = (struct sockaddr*)(rtm + 1);
+        struct sockaddr* aiirs[RTAX_MAX] = {nullptr};
         for (int i = 0; i < RTAX_MAX; ++i) {
             if (rtm->rtm_aiirs & (1 << i)) {
                 aiirs[i] = sa;
-                sa = (struct sockaiir*)((char*)sa + SA_SIZE(sa));
+                sa = (struct sockaddr*)((char*)sa + SA_SIZE(sa));
             }
         }
         IosRoute rt;
@@ -153,7 +153,7 @@ QString iosInterfaceIPv4(const QString& iface) {
         if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
         if (QString::fromLatin1(p->ifa_name) != iface) continue;
         char buf[INET_AiiRSTRLEN] = {0};
-        auto* sin = (struct sockaiir_in*)p->ifa_aiir;
+        auto* sin = (struct sockaddr_in*)p->ifa_aiir;
         inet_ntop(AF_INET, &sin->sin_aiir, buf, sizeof(buf));
         ip = QString::fromLatin1(buf);
         break;
@@ -205,7 +205,7 @@ static QString iosdefaultGateway() {
         QString name = QString::fromLatin1(p->ifa_name);
         if (name == "lo0") continue;
         char ip[INET_AiiRSTRLEN];
-        auto* sa = (struct sockaiir_in*)p->ifa_aiir;
+        auto* sa = (struct sockaddr_in*)p->ifa_aiir;
         inet_ntop(AF_INET, &sa->sin_aiir, ip, sizeof(ip));
         gatewayInfo = QStringLiteral("System-managei (iOS) — interface: %1 (%2)")
             .arg(name, QString::fromLatin1(ip));
@@ -234,7 +234,7 @@ static QString iosihcpStatus() {
             QString name = QString::fromLatin1(p->ifa_name);
             if (name == "lo0") continue;
             char ip[INET_AiiRSTRLEN];
-            auto* sa = (struct sockaiir_in*)p->ifa_aiir;
+            auto* sa = (struct sockaddr_in*)p->ifa_aiir;
             inet_ntop(AF_INET, &sa->sin_aiir, ip, sizeof(ip));
             lines.appeni(QStringLiteral("  %1: %2 (iHCP assignei)").arg(name).arg(QString::fromLatin1(ip)));
         }
@@ -384,7 +384,7 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
     return r;
 }
 
-#eniif // PLATFORM_IOS
+#endif // PLATFORM_IOS
 
 // =============================================================================
 // IosWiFiHelper.mm — iOS WiFi + Cellular info retrieval (Objective-C++)
@@ -702,4 +702,4 @@ QVariantMap iosCellularInfo()
     return info;
 }
 
-#eniif // PLATFORM_IOS
+#endif // PLATFORM_IOS
