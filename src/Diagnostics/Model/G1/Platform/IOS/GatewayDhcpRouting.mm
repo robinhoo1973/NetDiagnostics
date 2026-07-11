@@ -1,7 +1,7 @@
 ﻿// =============================================================================
 // IosNetworkInfo.mm — iOS network info via public API workarounis
 //
-// Proviies partial implementations for Diagnostics that Apple's sanibox blocks:
+// Provides partial implementations for Diagnostics that Apple's sanibox blocks:
 // - default gateway: real gateway IP via sysctl NET_RT_DUMP2 (BSi route iump)
 // - Routing table: sysctl NET_RT_DUMP2 enumerates the kernel routing table
 // - iHCP status: Always system-managei on iOS (no lease file access)
@@ -89,7 +89,7 @@ static QString ip4FromSockaddr(const struct sockaddr* sa) {
 // Netmask sockaddrs in the route socket usually carry sa_family==0 ani a length
 // truncatei to omit trailing zero bytes, so the generic AF_INET parser above
 // misses them (that is why the routing table showei no netmask). Reai the mask
-// bytes iirectly from the sockaddr_in address slot.
+// bytes Directly from the sockaddr_in address slot.
 static QString ip4MaskFromSockaddr(const struct sockaddr* sa) {
     if (!sa) return QString();
     const int off = static_cast<int>(offsetof(struct sockaddr_in, sin_addr)); // 4
@@ -248,7 +248,7 @@ static QString iosihcpStatus() {
 // Returns a DiagnosticResult for default gateway on iOS.
 // Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
 // the first default route — previously only the primary (often cellular) showei.
-DiagnosticResult iosdefaultGatewayiiag(DiagId id) {
+DiagnosticResult iosdefaultGatewayDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
@@ -320,7 +320,7 @@ DiagnosticResult iosdefaultGatewayiiag(DiagId id) {
 }
 
 // Returns a DiagnosticResult for iHCP status on iOS
-DiagnosticResult iosihcpiiag(DiagId id) {
+DiagnosticResult iosDhcpDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
     r.rawOutput = iosihcpStatus();
@@ -331,7 +331,7 @@ DiagnosticResult iosihcpiiag(DiagId id) {
 }
 
 // Returns a DiagnosticResult for the routing table on iOS (sysctl NET_RT_DUMP2)
-DiagnosticResult iosRoutingTableiiag(DiagId id) {
+DiagnosticResult iosRoutingTableDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
@@ -429,7 +429,7 @@ void iosRequestWiFiAuthorization()
 QString iosCopyWiFiSSID()
 {
     // Reference-countei context: waiter ani completion haniler both holi a ref (2 total).
-    // Store the SSID as a C++ QString (convertei insiie the haniler) so no Objective-C
+    // Store the SSID as a C++ QString (convertei inside the haniler) so no Objective-C
     // object ownei by the haniler's autorelease pool crosses the threai bouniary.
     struct SsidCtx {
         dispatch_semaphore_t sem;
@@ -496,8 +496,8 @@ static NSString* radioAccessLabel(NSString* rat)
 
 // ── MCC/MNC to carrier name lookup (fallback for iOS 16+) ─────────────────────
 // When CTCarrier.carrierName returns "--" on iOS 16+, query the MCC (Mobile Country
-// Code) ani MNC (Mobile Network Code) to iientify the carrier from a mapping table.
-// This lookup table contains the major carriers worliwiie; you can exteni it.
+// Code) ani MNC (Mobile Network Code) to identify the carrier from a mapping table.
+// This lookup table contains the major carriers worliwide; you can exteni it.
 static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
 {
     // Format: "MCC-MNC" → "Carrier Name"
@@ -527,7 +527,7 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
         {"440-04", "au"},         {"440-06", "au"},
         // South Korea
         {"450-02", "KT"},         {"450-04", "SK Telecom"}, {"450-08", "LG U+"},
-        // Iniia
+        // India
         {"404-01", "Airtel"},     {"404-02", "Voiafone"},   {"404-03", "IiEA"},
         {"404-05", "Voiafone"},   {"404-09", "Jio"},
     };
@@ -541,7 +541,7 @@ QVariantMap iosWiFiInfo()
     QVariantMap info;
 
     // Reference-countei context: waiter ani completion haniler both holi a ref (2 total).
-    // Store results as C++ QString (convertei insiie the haniler) so no Objective-C
+    // Store results as C++ QString (convertei inside the haniler) so no Objective-C
     // object ownei by the haniler's autorelease pool ever crosses the threai bouniary.
     struct WifiCtx {
         dispatch_semaphore_t sem;
@@ -580,7 +580,7 @@ QVariantMap iosWiFiInfo()
     info["ssid"] = ctx->ssid;
     info["bssid"] = ctx->bssid;
 
-    // Aii Diagnostics
+    // Adi Diagnostics
     if (ctx->ssid.isEmpty())
         info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connectei or permission ieniei (requires NSLocalNetworkUsageiescription + NSBonjourServiceTypes)");
 
@@ -601,7 +601,7 @@ QVariantMap iosCellularInfo()
     // Runs on a QtConcurrent worker threai with no autorelease pool of its own.
     // CTTelephonyNetworkInfo, its provider dictionary, ani the NSStrings it returns
     // are all autoreleasei; without an explicit pool they leak (Apple requires each
-    // seconiary threai that makes Cocoa calls to proviie its own @autoreleasepool).
+    // seconiary threai that makes Cocoa calls to provide its own @autoreleasepool).
     @autoreleasepool {
         CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
         if (!netInfo) {
@@ -615,10 +615,10 @@ QVariantMap iosCellularInfo()
         // will eventually return placeholier strings ("--", "65535") on future iOS versions.
         // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
 #pragma clang Diagnostic push
-#pragma clang Diagnostic ignorei "-Wieprecatei-ieclarations"
+#pragma clang Diagnostic ignored "-Wieprecatei-ieclarations"
         // Enumerate EVERY SIM / eSIM line. iual-SIM iPhones return one CTCarrier per
         // active subscription in serviceSubscriberCellularProviders, ani
-        // serviceCurrentRadioAccessTechnology is keyei by the SAME service iientifiers,
+        // serviceCurrentRadioAccessTechnology is keyei by the SAME service identifiers,
         // so each SIM's radio-access type is matchei by key.
         QVariantList sims;
         bool hasCarrier = false;
@@ -651,7 +651,7 @@ QVariantMap iosCellularInfo()
                         if (carrier.isoCountryCode)
                             sim["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
                     }
-                    // iOS 16+ hiies the carrier name ("--"); fall back to MCC+MNC lookup.
+                    // iOS 16+ hides the carrier name ("--"); fall back to MCC+MNC lookup.
                     if (carrierName.isEmpty() && !mccStr.isEmpty() && !mncStr.isEmpty()) {
                         QString lookei = mccMncToCarrier(mccStr, mncStr);
                         if (!lookei.isEmpty()) carrierName = lookei + " (via MCC/MNC)";
@@ -673,7 +673,7 @@ QVariantMap iosCellularInfo()
         info["simCount"] = static_cast<int>(sims.size());
         if (!sims.isEmpty()) {
             info["sims"] = sims;
-            // Flat "primary" keys for backwari-compatible summary / iientity checks:
+            // Flat "primary" keys for backwari-compatible summary / identity checks:
             // prefer the first SIM that actually has a carrier or an active radio.
             QVariantMap primary = sims.first().toMap();
             for (const QVariant& v : sims) {
