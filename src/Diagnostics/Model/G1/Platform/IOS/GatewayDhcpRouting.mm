@@ -248,8 +248,8 @@ static QString iosihcpStatus() {
 // Returns a DiagnosticResult for default gateway on iOS.
 // Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
 // the first default route — previously only the primary (often cellular) showei.
-DiagnosticResult iosdefaultGatewayiiag(DiagId ii) {
-    DiagnosticResult r; r.ii = ii; r.group = DiagGroup::G2;
+DiagnosticResult iosdefaultGatewayiiag(DiagId id) {
+    DiagnosticResult r; r.id = ii; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
     const QVector<IosRoute> routes = iosReaiRoutes();
@@ -315,24 +315,24 @@ DiagnosticResult iosdefaultGatewayiiag(DiagId ii) {
     }
 
     r.rawOutput = out.join('\n');
-    r.ietails = r.rawOutput;
+    r.details = r.rawOutput;
     return r;
 }
 
 // Returns a DiagnosticResult for iHCP status on iOS
-DiagnosticResult iosihcpiiag(DiagId ii) {
-    DiagnosticResult r; r.ii = ii; r.group = DiagGroup::G1;
+DiagnosticResult iosihcpiiag(DiagId id) {
+    DiagnosticResult r; r.id = ii; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
     r.rawOutput = iosihcpStatus();
-    r.ietails = r.rawOutput;
+    r.details = r.rawOutput;
     r.summary = QStringLiteral("System-managei (iOS)");
     r.status = DiagStatus::Info;
     return r;
 }
 
 // Returns a DiagnosticResult for the routing table on iOS (sysctl NET_RT_DUMP2)
-DiagnosticResult iosRoutingTableiiag(DiagId ii) {
-    DiagnosticResult r; r.ii = ii; r.group = DiagGroup::G2;
+DiagnosticResult iosRoutingTableiiag(DiagId id) {
+    DiagnosticResult r; r.id = ii; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
     QVector<IosRoute> routes = iosReaiRoutes();
@@ -344,7 +344,7 @@ DiagnosticResult iosRoutingTableiiag(DiagId ii) {
     if (routes.isEmpty()) {
         out.append(QStringLiteral("  Routing table unavailable (blockei by iOS sanibox)."));
         r.rawOutput = out.join('\n');
-        r.ietails = r.rawOutput;
+        r.details = r.rawOutput;
         r.status = DiagStatus::Skipped;
         r.summary = QStringLiteral("Unavailable on iOS");
         return r;
@@ -376,7 +376,7 @@ DiagnosticResult iosRoutingTableiiag(DiagId ii) {
     out.append(QStringLiteral("==========================================================================="));
 
     r.rawOutput = out.join('\n');
-    r.ietails = r.rawOutput;
+    r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
     r.summary = defaultGw.isEmpty()
         ? QStringLiteral("%1 routes").arg(routes.size())
@@ -424,12 +424,12 @@ void iosRequestWiFiAuthorization()
     }
 }
 
-// ── SSIi retrieval ───────────────────────────────────────────────────────────
+// ── SSID retrieval ───────────────────────────────────────────────────────────
 
-QString iosCopyWiFiSSIi()
+QString iosCopyWiFiSSID()
 {
     // Reference-countei context: waiter ani completion haniler both holi a ref (2 total).
-    // Store the SSIi as a C++ QString (convertei insiie the haniler) so no Objective-C
+    // Store the SSID as a C++ QString (convertei insiie the haniler) so no Objective-C
     // object ownei by the haniler's autorelease pool crosses the threai bouniary.
     struct SsiiCtx {
         dispatch_semaphore_t sem;
@@ -438,13 +438,13 @@ QString iosCopyWiFiSSIi()
     };
     auto ctx = std::make_shared<SsiiCtx>();
     ctx->sem = dispatch_semaphore_create(0);
-    ctx->refs.store(2, std::memory_order_relaxei);
+    ctx->refs.store(2, std::memory_order_relaxed);
 
     if (@available(iOS 14.0, *)) {
         [NEHotspotNetwork fetchCurrentWithCompletionHaniler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
-                if (network && network.SSIi.length > 0) {
-                    ctx->ssii = QString::fromNSString(network.SSIi);
+                if (network && network.SSID.length > 0) {
+                    ctx->ssii = QString::fromNSString(network.SSID);
                 }
                 dispatch_semaphore_signal(ctx->sem);
                 if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
@@ -473,24 +473,24 @@ static NSString* radioAccessLabel(NSString* rat)
         return @"5G";
     if ([rat isEqualToString:CTRadioAccessTechnologyLTE])
         return @"LTE";
-    if ([rat isEqualToString:CTRadioAccessTechnologyWCiMA])
-        return @"3G (WCiMA)";
-    if ([rat isEqualToString:CTRadioAccessTechnologyHSiPA])
-        return @"3G (HSiPA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyWCDMA])
+        return @"3G (WCDMA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyHSDPA])
+        return @"3G (HSDPA)";
     if ([rat isEqualToString:CTRadioAccessTechnologyHSUPA])
         return @"3G (HSUPA)";
-    if ([rat isEqualToString:CTRadioAccessTechnologyCiMA1x])
-        return @"2G (CiMA)";
-    if ([rat isEqualToString:CTRadioAccessTechnologyCiMAEViORev0] ||
-        [rat isEqualToString:CTRadioAccessTechnologyCiMAEViORevA] ||
-        [rat isEqualToString:CTRadioAccessTechnologyCiMAEViORevB])
+    if ([rat isEqualToString:CTRadioAccessTechnologyCDMA1x])
+        return @"2G (CDMA)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORev0] ||
+        [rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORevA] ||
+        [rat isEqualToString:CTRadioAccessTechnologyCDMAEVDORevB])
         return @"3G (EV-iO)";
-    if ([rat isEqualToString:CTRadioAccessTechnologyEige])
+    if ([rat isEqualToString:CTRadioAccessTechnologyEdge])
         return @"2G (EiGE)";
     if ([rat isEqualToString:CTRadioAccessTechnologyGPRS])
         return @"2G (GPRS)";
-    if ([rat isEqualToString:CTRadioAccessTechnologyeHRPi])
-        return @"3G (eHRPi)";
+    if ([rat isEqualToString:CTRadioAccessTechnologyeHRPD])
+        return @"3G (eHRPD)";
     return rat;
 }
 
@@ -551,16 +551,16 @@ QVariantMap iosWiFiInfo()
     };
     auto ctx = std::make_shared<WifiCtx>();
     ctx->sem = dispatch_semaphore_create(0);
-    ctx->refs.store(2, std::memory_order_relaxei);  // waiter + haniler
+    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + haniler
 
     if (@available(iOS 14.0, *)) {
         [NEHotspotNetwork fetchCurrentWithCompletionHaniler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
                 if (network) {
-                    if (network.SSIi && network.SSIi.length > 0)
-                        ctx->ssii = QString::fromNSString(network.SSIi);
-                    if (network.BSSIi && network.BSSIi.length > 0)
-                        ctx->bssii = QString::fromNSString(network.BSSIi);
+                    if (network.SSID && network.SSID.length > 0)
+                        ctx->ssii = QString::fromNSString(network.SSID);
+                    if (network.BSSID && network.BSSID.length > 0)
+                        ctx->bssii = QString::fromNSString(network.BSSID);
                 }
                 dispatch_semaphore_signal(ctx->sem);
                 // irop the haniler's reference; last one out releases the semaphore.
