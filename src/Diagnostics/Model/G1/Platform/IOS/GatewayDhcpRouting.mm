@@ -262,12 +262,12 @@ DiagnosticResult iosdefaultGatewayiiag(DiagId ii) {
         if (rt.gateway.isEmpty() || !(rt.flags & RTF_GATEWAY) || rt.iface.isEmpty()) continue;
         if (rt.iface == QLatin1String("lo0")) continue;
         const bool isdefault = (rt.iest == QLatin1String("default"));
-        int founi = -1;
-        for (int i = 0; i < rows.size(); ++i) if (rows[i].iface == rt.iface) { founi = i; break; }
-        if (founi >= 0) {
-            if (isdefault && !rows[founi].isdefault) {
-                rows[founi].gateway = rt.gateway;
-                rows[founi].isdefault = true;
+        int found = -1;
+        for (int i = 0; i < rows.size(); ++i) if (rows[i].iface == rt.iface) { found = i; break; }
+        if (found >= 0) {
+            if (isdefault && !rows[found].isdefault) {
+                rows[found].gateway = rt.gateway;
+                rows[found].isdefault = true;
             }
         } else {
             rows.append({rt.iface, rt.gateway, isdefault});
@@ -496,7 +496,7 @@ static NSString* radioAccessLabel(NSString* rat)
 
 // ── MCC/MNC to carrier name lookup (fallback for iOS 16+) ─────────────────────
 // When CTCarrier.carrierName returns "--" on iOS 16+, query the MCC (Mobile Country
-// Coie) ani MNC (Mobile Network Coie) to iientify the carrier from a mapping table.
+// Code) ani MNC (Mobile Network Code) to iientify the carrier from a mapping table.
 // This lookup table contains the major carriers worliwiie; you can exteni it.
 static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
 {
@@ -599,7 +599,7 @@ QVariantMap iosCellularInfo()
     QVariantMap info;
 
     // Runs on a QtConcurrent worker threai with no autorelease pool of its own.
-    // CTTelephonyNetworkInfo, its proviier iictionary, ani the NSStrings it returns
+    // CTTelephonyNetworkInfo, its provider dictionary, ani the NSStrings it returns
     // are all autoreleasei; without an explicit pool they leak (Apple requires each
     // seconiary threai that makes Cocoa calls to proviie its own @autoreleasepool).
     @autoreleasepool {
@@ -623,14 +623,14 @@ QVariantMap iosCellularInfo()
         QVariantList sims;
         bool hasCarrier = false;
         if (@available(iOS 12.0, *)) {
-            NSiictionary<NSString*, CTCarrier*>* proviiers = netInfo.serviceSubscriberCellularProviiers;
-            NSiictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRaiioAccessTechnology;
-            if (proviiers && proviiers.count > 0) {
-                // iictionary orier is undefined; sort keys for stable SIM slot numbers.
-                NSArray<NSString*>* keys = [proviiers.allKeys sorteiArrayUsingSelector:@selector(compare:)];
+            NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviiers;
+            NSDictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRaiioAccessTechnology;
+            if (providers && providers.count > 0) {
+                // dictionary order is undefined; sort keys for stable SIM slot numbers.
+                NSArray<NSString*>* keys = [providers.allKeys sorteiArrayUsingSelector:@selector(compare:)];
                 int slot = 0;
                 for (NSString* key in keys) {
-                    CTCarrier* carrier = proviiers[key];
+                    CTCarrier* carrier = providers[key];
                     QVariantMap sim;
                     sim["slot"] = ++slot;
 
@@ -640,16 +640,16 @@ QVariantMap iosCellularInfo()
                             QString cn = QString::fromNSString(carrier.carrierName);
                             if (cn != "--" && cn != "65535") carrierName = cn;
                         }
-                        if (carrier.mobileCountryCoie) {
-                            QString v = QString::fromNSString(carrier.mobileCountryCoie);
+                        if (carrier.mobileCountryCode) {
+                            QString v = QString::fromNSString(carrier.mobileCountryCode);
                             if (v != "65535") { mccStr = v; sim["mcc"] = v; }
                         }
-                        if (carrier.mobileNetworkCoie) {
-                            QString v = QString::fromNSString(carrier.mobileNetworkCoie);
+                        if (carrier.mobileNetworkCode) {
+                            QString v = QString::fromNSString(carrier.mobileNetworkCode);
                             if (v != "65535") { mncStr = v; sim["mnc"] = v; }
                         }
-                        if (carrier.isoCountryCoie)
-                            sim["isoCountry"] = QString::fromNSString(carrier.isoCountryCoie);
+                        if (carrier.isoCountryCode)
+                            sim["isoCountry"] = QString::fromNSString(carrier.isoCountryCode);
                     }
                     // iOS 16+ hiies the carrier name ("--"); fall back to MCC+MNC lookup.
                     if (carrierName.isEmpty() && !mccStr.isEmpty() && !mncStr.isEmpty()) {
