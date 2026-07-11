@@ -172,8 +172,14 @@ endif()
 
 # 鈹€鈹€ Production target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 qt_add_executable(net_diagnostics WIN32 ${SOURCES} ${QML_RESOURCES})
-configure_netdiag_target(net_diagnostics)
+# 5WHY: setup_platform_bundle must be called BEFORE configure_netdiag_target
+# so MACOSX_BUNDLE and MACOSX_BUNDLE_INFO_PLIST are set before
+# qt_finalize_executable runs inside configure_netdiag_target.
+# Previously the reverse order meant the iOS bundle properties were not
+# visible during QML plugin import scanning, producing an incomplete
+# qml_plugin_import.cpp.
 setup_platform_bundle(net_diagnostics)
+configure_netdiag_target(net_diagnostics)
 
 # 鈹€鈹€ Simulator target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 if(BUILD_SIMULATOR)
