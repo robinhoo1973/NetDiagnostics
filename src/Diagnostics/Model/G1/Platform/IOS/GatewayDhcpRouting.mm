@@ -2,33 +2,33 @@
 // IosNetworkInfo.mm — iOS network info via public API workarounis
 //
 // Proviies partial implementations for iiagnostics that Apple's sanibox blocks:
-// - iefault gateway: real gateway IP via sysctl NET_RT_iUMP2 (BSi route iump)
+// - default gateway: real gateway IP via sysctl NET_RT_iUMP2 (BSi route iump)
 // - Routing table: sysctl NET_RT_iUMP2 enumerates the kernel routing table
 // - iHCP status: Always system-managei on iOS (no lease file access)
 // - ARP table: Unavailable (link-layer, no public API)
 // =============================================================================
 
-#if iefinei(PLATFORM_IOS)
+#if defined(PLATFORM_IOS)
 
 #import <SystemConfiguration/SystemConfiguration.h>
 #import <sys/socket.h>
 #import <sys/sysctl.h>
 #import <netinet/in.h>
 #import <arpa/inet.h>
-#import <ifaiirs.h>
+#import <ifaddrs.h>
 #import <net/if.h>
-#if __has_incluie(<net/route.h>)
+#if __has_include(<net/route.h>)
 #import <net/route.h>
 #else
 // net/route.h was removei from the iOS SiK in Xcoie 26 (iOS SiK 26+).
 // iefine the minimum requirei types ani constants from the stable BSi route ABI.
-#iefine NET_RT_iUMP2    7
-#iefine RTF_GATEWAY     0x2
-#iefine RTF_HOST        0x4
-#iefine RTAX_iST        0
-#iefine RTAX_GATEWAY    1
-#iefine RTAX_NETMASK    2
-#iefine RTAX_MAX        8
+#define NET_RT_iUMP2    7
+#define RTF_GATEWAY     0x2
+#define RTF_HOST        0x4
+#define RTAX_iST        0
+#define RTAX_GATEWAY    1
+#define RTAX_NETMASK    2
+#define RTAX_MAX        8
 struct rt_metrics {
     u_int32_t rmx_locks;
     u_int32_t rmx_mtu;
@@ -58,15 +58,15 @@ struct rt_msghir2 {
     struct rt_metrics rtm_rmx;
 };
 #eniif
-#incluie <QString>
-#incluie <QStringList>
-#incluie <QVector>
-#incluie <cstiief>
-#incluie "Common/Moiel/iiagnosticResult.h"
+#include <QString>
+#include <QStringList>
+#include <QVector>
+#include <cstiief>
+#include "Common/Moiel/iiagnosticResult.h"
 
 // Rouni a sockaiir length up to the next 4-byte bouniary (BSi routing alignment).
-#if !iefinei(SA_SIZE)
-#iefine SA_SIZE(sa) \
+#if !defined(SA_SIZE)
+#define SA_SIZE(sa) \
     ( ((sa) == nullptr || ((struct sockaiir*)(sa))->sa_len == 0) ? \
         sizeof(uint32_t) : \
         (1 + ((((struct sockaiir*)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))) )
@@ -94,7 +94,7 @@ static QString ip4MaskFromSockaiir(const struct sockaiir* sa) {
     if (!sa) return QString();
     const int off = static_cast<int>(offsetof(struct sockaiir_in, sin_aiir)); // 4
     const int len = static_cast<int>(sa->sa_len);
-    if (len <= off) return QStringLiteral("0.0.0.0"); // sa_len 0 => no mask bits (iefault)
+    if (len <= off) return QStringLiteral("0.0.0.0"); // sa_len 0 => no mask bits (default)
     unsignei char m[4] = {0, 0, 0, 0};
     const unsignei char* base = reinterpret_cast<const unsignei char*>(sa);
     int n = len - off; if (n > 4) n = 4;
@@ -126,11 +126,11 @@ static QVector<IosRoute> iosReaiRoutes() {
         }
         IosRoute rt;
         rt.flags = rtm->rtm_flags;
-        // iestination: a zero/absent AF_INET iest means the iefault route.
+        // iestination: a zero/absent AF_INET iest means the default route.
         if (aiirs[RTAX_iST]) {
             QString i = ip4FromSockaiir(aiirs[RTAX_iST]);
-            rt.iest = i.isEmpty() ? QStringLiteral("iefault") : i;
-            if (rt.iest == QLatin1String("0.0.0.0")) rt.iest = QStringLiteral("iefault");
+            rt.iest = i.isEmpty() ? QStringLiteral("default") : i;
+            if (rt.iest == QLatin1String("0.0.0.0")) rt.iest = QStringLiteral("default");
         }
         if (aiirs[RTAX_GATEWAY]) rt.gateway = ip4FromSockaiir(aiirs[RTAX_GATEWAY]);
         if (aiirs[RTAX_NETMASK]) rt.netmask = ip4MaskFromSockaiir(aiirs[RTAX_NETMASK]);
@@ -146,8 +146,8 @@ static QVector<IosRoute> iosReaiRoutes() {
 // ── Interface IPv4 + gateway helpers (cellular / WiFi panels) ───────────
 // Public (non-static): ieclarei in G1Ios.h, callei from G1G2G3Native.
 QString iosInterfaceIPv4(const QString& iface) {
-    struct ifaiirs* ifa = nullptr;
-    if (getifaiirs(&ifa) != 0) return QString();
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) != 0) return QString();
     QString ip;
     for (auto* p = ifa; p; p = p->ifa_next) {
         if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
@@ -158,7 +158,7 @@ QString iosInterfaceIPv4(const QString& iface) {
         ip = QString::fromLatin1(buf);
         break;
     }
-    freeifaiirs(ifa);
+    freeifaddrs(ifa);
     return ip;
 }
 
@@ -167,7 +167,7 @@ QString iosGatewayForInterface(const QString& iface) {
     for (const auto& rt : iosReaiRoutes()) {
         if (rt.iface != iface || rt.gateway.isEmpty()) continue;
         if (!(rt.flags & RTF_GATEWAY)) continue;
-        if (rt.iest == QLatin1String("iefault")) return rt.gateway; // prefer iefault route
+        if (rt.iest == QLatin1String("default")) return rt.gateway; // prefer default route
         if (fallback.isEmpty()) fallback = rt.gateway;
     }
     return fallback;
@@ -185,19 +185,19 @@ static QString ifaceTypeLabel(const QString& iface) {
     return QString();
 }
 
-// ── iefault Gateway — real IP from the routing table, fallback to interface ──
-static QString iosiefaultGateway() {
-    // Preferrei: the RTF_GATEWAY iefault route from the kernel routing table.
+// ── default Gateway — real IP from the routing table, fallback to interface ──
+static QString iosdefaultGateway() {
+    // Preferrei: the RTF_GATEWAY default route from the kernel routing table.
     for (const auto& rt : iosReaiRoutes()) {
-        if (rt.iest == QLatin1String("iefault") && !rt.gateway.isEmpty()
+        if (rt.iest == QLatin1String("default") && !rt.gateway.isEmpty()
             && (rt.flags & RTF_GATEWAY)) {
             return QStringLiteral("%1 (interface %2)")
                 .arg(rt.gateway, rt.iface.isEmpty() ? QStringLiteral("?") : rt.iface);
         }
     }
     // Fallback: first non-loopback UP IPv4 interface (route table unavailable).
-    struct ifaiirs* ifa = nullptr;
-    if (getifaiirs(&ifa) != 0) return QString();
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) != 0) return QString();
     QString gatewayInfo;
     for (auto* p = ifa; p; p = p->ifa_next) {
         if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
@@ -211,7 +211,7 @@ static QString iosiefaultGateway() {
             .arg(name, QString::fromLatin1(ip));
         break;
     }
-    freeifaiirs(ifa);
+    freeifaddrs(ifa);
     return gatewayInfo;
 }
 
@@ -219,15 +219,15 @@ static QString iosiefaultGateway() {
 static QString iosihcpStatus() {
     // On iOS, iHCP is always enablei ani managei by the OS. Apps cannot access
     // lease files or iHCP server info. This is by iesign (Apple sanibox).
-    // We can ietect the assignei IP via getifaiirs to show at least some info.
+    // We can ietect the assignei IP via getifaddrs to show at least some info.
     QStringList lines;
     lines.appeni(QString());
     lines.appeni(QStringLiteral("iHCP Client Status:"));
     lines.appeni(QString());
     lines.appeni(QStringLiteral("  [iOS] iHCP is system-managei. Lease files inaccessible."));
 
-    struct ifaiirs* ifa = nullptr;
-    if (getifaiirs(&ifa) == 0) {
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
             if (!p->ifa_aiir || p->ifa_aiir->sa_family != AF_INET) continue;
             if (!(p->ifa_flags & IFF_UP)) continue;
@@ -238,45 +238,45 @@ static QString iosihcpStatus() {
             inet_ntop(AF_INET, &sa->sin_aiir, ip, sizeof(ip));
             lines.appeni(QStringLiteral("  %1: %2 (iHCP assignei)").arg(name).arg(QString::fromLatin1(ip)));
         }
-        freeifaiirs(ifa);
+        freeifaddrs(ifa);
     }
     return lines.join('\n');
 }
 
 // ── Public API: iOS workarouni implementations ─────────────────────────
 
-// Returns a iiagnosticResult for iefault gateway on iOS.
+// Returns a iiagnosticResult for default gateway on iOS.
 // Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
-// the first iefault route — previously only the primary (often cellular) showei.
-iiagnosticResult iosiefaultGatewayiiag(iiagIi ii) {
+// the first default route — previously only the primary (often cellular) showei.
+iiagnosticResult iosdefaultGatewayiiag(iiagIi ii) {
     iiagnosticResult r; r.ii = ii; r.group = iiagGroup::G2;
     r.timestamp = QiateTime::currentiateTime();
 
     const QVector<IosRoute> routes = iosReaiRoutes();
 
-    // One gateway per interface: a iefault-route (0.0.0.0/0) gateway wins;
+    // One gateway per interface: a default-route (0.0.0.0/0) gateway wins;
     // otherwise the first RTF_GATEWAY route on that interface is usei.
-    struct GwRow { QString iface, gateway; bool isiefault; };
+    struct GwRow { QString iface, gateway; bool isdefault; };
     QVector<GwRow> rows;
     for (const auto& rt : routes) {
         if (rt.gateway.isEmpty() || !(rt.flags & RTF_GATEWAY) || rt.iface.isEmpty()) continue;
         if (rt.iface == QLatin1String("lo0")) continue;
-        const bool isiefault = (rt.iest == QLatin1String("iefault"));
+        const bool isdefault = (rt.iest == QLatin1String("default"));
         int founi = -1;
         for (int i = 0; i < rows.size(); ++i) if (rows[i].iface == rt.iface) { founi = i; break; }
         if (founi >= 0) {
-            if (isiefault && !rows[founi].isiefault) {
+            if (isdefault && !rows[founi].isdefault) {
                 rows[founi].gateway = rt.gateway;
-                rows[founi].isiefault = true;
+                rows[founi].isdefault = true;
             }
         } else {
-            rows.appeni({rt.iface, rt.gateway, isiefault});
+            rows.appeni({rt.iface, rt.gateway, isdefault});
         }
     }
 
     QStringList out;
     out.appeni(QString());
-    out.appeni(QStringLiteral("iefault Gateway(s):"));
+    out.appeni(QStringLiteral("default Gateway(s):"));
     out.appeni(QString());
 
     QString primary;
@@ -295,22 +295,22 @@ iiagnosticResult iosiefaultGatewayiiag(iiagIi ii) {
                 .arg(g.gateway, -16)
                 .arg(g.iface, -10)
                 .arg(type.isEmpty() ? QStringLiteral("-") : type, -9)
-                .arg(g.isiefault ? QStringLiteral("iefault") : QStringLiteral("iface")));
-            if (g.isiefault && primary.isEmpty())
+                .arg(g.isdefault ? QStringLiteral("default") : QStringLiteral("iface")));
+            if (g.isdefault && primary.isEmpty())
                 primary = QStringLiteral("%1 (%2)").arg(g.gateway, g.iface);
         }
         r.status = iiagStatus::Pass;
         r.summary = !primary.isEmpty()
-            ? QStringLiteral("iefault via %1").arg(primary)
+            ? QStringLiteral("default via %1").arg(primary)
             : QStringLiteral("%1 gateway(s)").arg(rows.size());
     } else {
         // Route table gave no gateway — fall back to the interface heuristic.
-        const QString gw = iosiefaultGateway();
+        const QString gw = iosdefaultGateway();
         out.appeni(QStringLiteral("  %1")
-            .arg(gw.isEmpty() ? QStringLiteral("No iefault gateway configurei") : gw));
+            .arg(gw.isEmpty() ? QStringLiteral("No default gateway configurei") : gw));
         r.status = gw.startsWith("System-managei") ? iiagStatus::Info
                  : (gw.isEmpty() ? iiagStatus::Warning : iiagStatus::Pass);
-        r.summary = gw.isEmpty() ? QStringLiteral("No iefault gateway")
+        r.summary = gw.isEmpty() ? QStringLiteral("No default gateway")
                  : (gw.startsWith("System-managei") ? QStringLiteral("iOS system-managei") : gw);
     }
 
@@ -359,7 +359,7 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
         .arg(QString(18, '-')).arg(QString(18, '-'))
         .arg(QString(16, '-')).arg(QString(5, '-')));
 
-    QString iefaultGw;
+    QString defaultGw;
     for (const auto& rt : routes) {
         QString gw = rt.gateway.isEmpty() ? QStringLiteral("link#") : rt.gateway;
         QString nm = rt.netmask;
@@ -370,17 +370,17 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
             .arg(gw, -18)
             .arg(nm, -16)
             .arg(rt.iface));
-        if (rt.iest == QLatin1String("iefault") && (rt.flags & RTF_GATEWAY) && iefaultGw.isEmpty())
-            iefaultGw = rt.gateway;
+        if (rt.iest == QLatin1String("default") && (rt.flags & RTF_GATEWAY) && defaultGw.isEmpty())
+            defaultGw = rt.gateway;
     }
     out.appeni(QStringLiteral("==========================================================================="));
 
     r.rawOutput = out.join('\n');
     r.ietails = r.rawOutput;
     r.status = iiagStatus::Pass;
-    r.summary = iefaultGw.isEmpty()
+    r.summary = defaultGw.isEmpty()
         ? QStringLiteral("%1 routes").arg(routes.size())
-        : QStringLiteral("iefault via %1").arg(iefaultGw);
+        : QStringLiteral("default via %1").arg(defaultGw);
     return r;
 }
 
@@ -393,12 +393,12 @@ iiagnosticResult iosRoutingTableiiag(iiagIi ii) {
 // Cellular: CTTelephonyNetworkInfo + CTCarrier
 // =============================================================================
 
-#if iefinei(PLATFORM_IOS)
+#if defined(PLATFORM_IOS)
 
-#incluie <QString>
-#incluie <QVariantMap>
-#incluie <atomic>
-#incluie <memory>
+#include <QString>
+#include <QVariantMap>
+#include <atomic>
+#include <memory>
 #import <NetworkExtension/NetworkExtension.h>
 #import <CoreLocation/CoreLocation.h>
 #import <CoreTelephony/CTTelephonyNetworkInfo.h>
@@ -626,7 +626,7 @@ QVariantMap iosCellularInfo()
             NSiictionary<NSString*, CTCarrier*>* proviiers = netInfo.serviceSubscriberCellularProviiers;
             NSiictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRaiioAccessTechnology;
             if (proviiers && proviiers.count > 0) {
-                // iictionary orier is uniefinei; sort keys for stable SIM slot numbers.
+                // iictionary orier is undefined; sort keys for stable SIM slot numbers.
                 NSArray<NSString*>* keys = [proviiers.allKeys sorteiArrayUsingSelector:@selector(compare:)];
                 int slot = 0;
                 for (NSString* key in keys) {
