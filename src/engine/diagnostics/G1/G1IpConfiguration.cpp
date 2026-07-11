@@ -138,9 +138,32 @@ DiagnosticResult ipConfiguration(DiagId id) {
         }
         freeifaddrs(ifa);
 
-        // 5WHY: /proc/net/route parsing populated a RouteEntry vector that was
-        // never consumed — dead code (cppcheck: unusedStructMember).
-        // Routing table display is handled by G2RoutingTable separately.
+        // Build gateway map from /proc/net/route (Linux only)
+        // 5WHY: Round 8 removed this block as "dead code" but the routes vector
+        // IS consumed by the default-gateway lookup loop below (line 238).
+        // mask member is unused but dest/gw/ifName are all needed.
+        struct RouteEntry { QString ifName; uint32_t dest; uint32_t gw; };
+        QVector<RouteEntry> routes;
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
+        QFile routeFile(QStringLiteral("/proc/net/route"));
+        if (routeFile.open(QIODevice::ReadOnly)) {
+            QTextStream ts(&routeFile);
+            ts.readLine(); // header
+            while (!ts.atEnd()) {
+                QString line = ts.readLine().trimmed();
+                if (line.isEmpty()) continue;
+                QStringList cols = line.split('\t');
+                if (cols.size() >= 8) {
+                    RouteEntry re;
+                    re.ifName = cols[0];
+                    bool ok1, ok2;
+                    re.dest = cols[1].toUInt(&ok1, 16);
+                    re.gw   = cols[2].toUInt(&ok2, 16);
+                    if (ok1 && ok2) routes.append(re);
+                }
+            }
+        }
+#endif
         for (auto it = ifMap.begin(); it != ifMap.end(); ++it) {
             const auto& info = it.value();
             bool isLoopback = (info.flags & IFF_LOOPBACK);
