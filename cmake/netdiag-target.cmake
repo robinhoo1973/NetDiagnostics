@@ -146,15 +146,24 @@ function(configure_netdiag_target TARGET)
     # These functions only exist when Qt was built statically — on
     # dynamic Qt (Homebrew, aqtinstall shared), they are not available
     # and are not needed. Use if(COMMAND) guards for cross-platform safety.
-    if(COMMAND qt6_finalize_executable)
-        qt6_finalize_executable(${TARGET})
-    elseif(COMMAND qt_finalize_executable)
-        qt_finalize_executable(${TARGET})
-    endif()
+    #
+    # 5WHY (round 2): qt_import_qml_plugins must be called BEFORE
+    # qt_finalize_executable.  The original code had the reverse order,
+    # which meant qt_finalize_executable already processed QML imports
+    # internally before the explicit qt_import_qml_plugins call could
+    # register them.  On iOS static builds this caused the generated
+    # qml_plugin_import.cpp to miss QtQuick.Layouts and other modules,
+    # producing a silent QML load failure (rootObjects empty) at runtime.
+    # Qt's documented order is: import QML plugins FIRST, then finalize.
     if(COMMAND qt_import_qml_plugins)
         qt_import_qml_plugins(${TARGET})
     elseif(COMMAND qt6_import_qml_plugins)
         qt6_import_qml_plugins(${TARGET})
+    endif()
+    if(COMMAND qt6_finalize_executable)
+        qt6_finalize_executable(${TARGET})
+    elseif(COMMAND qt_finalize_executable)
+        qt_finalize_executable(${TARGET})
     endif()
 
     # ── Include paths ────────────────────────────────────────────────
