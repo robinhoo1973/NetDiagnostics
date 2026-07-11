@@ -46,17 +46,7 @@ jobs:
       - name: Install dependencies
         run: brew install cmake ninja qt@6
 
-      - name: Generate macOS app icon (.icns)
-        run: |
-          mkdir -p icon.iconset
-          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
-          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
-          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
-          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
-          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
-          sips -z 1024 1024 resources/icons/netanalysis.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
-          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
-        continue-on-error: true
+      - uses: ./.github/actions/macos-icon
 
       - name: Configure (production)
         run: |

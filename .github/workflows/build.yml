@@ -26,6 +26,12 @@ env:
   QT_VERSION_ANDROID: 6.5.3
   QT_VERSION_WINDOWS_SRC: 6.11.1
   ANDROID_API_LEVEL: "26"
+  # 5WHY: ANDROID_API_LEVEL=26 is the minimum SDK (android:minSdkVersion in
+  # AndroidManifest.xml / NDK target API).  The APK build step installs
+  # android-33 as the COMPILE SDK (compileSdkVersion) — these are different
+  # Android concepts.  minSdk=26 (Android 8+) ensures broad compatibility;
+  # compileSdk=33 is required by Qt 6.5.3's bundled AGP 7.4.1 aapt2.
+  MAINTAINER: "robinhoo1973"
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
@@ -105,16 +111,25 @@ jobs:
           Package: netdiagnostics
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
-          Maintainer: robinhoo1973
+          Maintainer: ${{ env.MAINTAINER }}
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostics-Linux-x86_64.deb
           ls -lh NetDiagnostics-Linux-x86_64.deb
 
+      - name: Cache fpm gem
+        id: cache-fpm
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/gems
+          key: fpm-gem-${{ runner.arch }}-v1
+
       - name: Package rpm
         run: |
-          sudo gem install fpm
+          sudo gem install fpm 2>/dev/null || true
+          # 5WHY: fpm gem was installed every run (~30s).  Caching /var/lib/gems
+          # avoids the network fetch; gem install is a no-op when already present.
           fpm -s dir -t rpm -n netdiagnostics -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostics=/usr/bin/net_diagnostics \
@@ -142,7 +157,7 @@ jobs:
           Package: netdiagnostics-sim
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: amd64
-          Maintainer: robinhoo1973
+          Maintainer: ${{ env.MAINTAINER }}
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: NetDiagnostic Simulator - Network diagnostics testing tool
           EOF
@@ -243,16 +258,25 @@ jobs:
           Package: netdiagnostics
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
-          Maintainer: robinhoo1973
+          Maintainer: ${{ env.MAINTAINER }}
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: Cross-platform network diagnostics tool - Qt6/QML
           EOF
           dpkg-deb --build pkg-deb NetDiagnostics-Linux-arm64.deb
           ls -lh NetDiagnostics-Linux-arm64.deb
 
+      - name: Cache fpm gem
+        id: cache-fpm
+        uses: actions/cache@v4
+        with:
+          path: /var/lib/gems
+          key: fpm-gem-${{ runner.arch }}-v1
+
       - name: Package rpm
         run: |
-          sudo gem install fpm
+          sudo gem install fpm 2>/dev/null || true
+          # 5WHY: fpm gem was installed every run (~30s).  Caching /var/lib/gems
+          # avoids the network fetch; gem install is a no-op when already present.
           fpm -s dir -t rpm -n netdiagnostics -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
             --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
             build/net_diagnostics=/usr/bin/net_diagnostics \
@@ -282,7 +306,7 @@ jobs:
           Package: netdiagnostics-sim
           Version: ${{ needs.version.outputs.pkg_version }}
           Architecture: arm64
-          Maintainer: robinhoo1973
+          Maintainer: ${{ env.MAINTAINER }}
           Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
           Description: NetDiagnostic Simulator - Network diagnostics testing tool
           EOF
@@ -649,17 +673,7 @@ jobs:
       - name: Install dependencies
         run: brew install cmake ninja qt@6
 
-      - name: Generate macOS app icon (.icns)
-        run: |
-          mkdir -p icon.iconset
-          sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
-          sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
-          sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
-          sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
-          sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
-          sips -z 1024 1024 resources/icons/netanalysis.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
-          iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
-        continue-on-error: true
+      - uses: ./.github/actions/macos-icon
 
       - name: Configure (production)
         run: |
