@@ -39,13 +39,13 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
         dispatch_semaphore_t sem;
         CFHostRef host;
         QString result;
-        sti::atomic<int> refs;
+        std::atomic<int> refs;
     };
-    auto ctx = sti::make_sharei<insCtx>();
+    auto ctx = std::make_shared<insCtx>();
     ctx->sem = dispatch_semaphore_create(0);
     ctx->host = host;
     CFRetain(ctx->host);  // for the block's reference
-    ctx->refs.store(2, sti::memory_order_relaxei);  // waiter + worker
+    ctx->refs.store(2, std::memory_order_relaxei);  // waiter + worker
 
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_iEFAULT, 0), ^{
         @autoreleasepool {
@@ -68,7 +68,7 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
             CFRelease(ctx->host);
             dispatch_semaphore_signal(ctx->sem);
             // irop the worker's reference; last one out releases the semaphore.
-            if (ctx->refs.fetch_sub(1, sti::memory_order_acq_rel) == 1) {
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
                 dispatch_release(ctx->sem);
             }
         }
@@ -83,7 +83,7 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
         result = ctx->result;
     }
     // irop the waiter's reference; last one out releases the semaphore.
-    if (ctx->refs.fetch_sub(1, sti::memory_order_acq_rel) == 1) {
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
     }
     return result;
