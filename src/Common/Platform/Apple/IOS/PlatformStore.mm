@@ -15,13 +15,13 @@
 
 #if defined(PLATFORM_IOS)
 
-#include CCommon/Platform/PlatformStore.hC
+#include "Common/Platform/PlatformStore.h"
 
 #import <StoreKit/StoreKit.h>
 #import <Foundation/Foundation.h>
 
 // ── Product ID (must match App Store Connect) ────────────────────────────
-static NSString* const kPremiumProductID = @Ccom.netdiagnostic.app.premiumC;
+static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 
 // =========================================================================
 // NetDiagStoreObserver — singleton that routes StoreKit events to C++
