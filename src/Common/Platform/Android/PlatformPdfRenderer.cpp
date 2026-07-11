@@ -102,14 +102,14 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
 
     // Lock pixels and copy to QImage
     AndroidBitmapInfo info;
-    if (AndroidBitmap_getInfo(env, bitmap.object<jobject>(), &info) < 0) return {};
+    if (AndroidBitmap_getInfo(static_cast<JNIEnv*>(env), bitmap.object<jobject>(), &info) < 0) return {};
     void* pixels = nullptr;
-    if (AndroidBitmap_lockPixels(env, bitmap.object<jobject>(), &pixels) < 0) return {};
+    if (AndroidBitmap_lockPixels(static_cast<JNIEnv*>(env), bitmap.object<jobject>(), &pixels) < 0) return {};
 
     QImage img((const uchar*)pixels, width, height, QImage::Format_ARGB32_Premultiplied);
     QImage copy = img.copy(); // deep copy before unlocking
 
-    AndroidBitmap_unlockPixels(env, bitmap.object<jobject>());
+    AndroidBitmap_unlockPixels(static_cast<JNIEnv*>(env), bitmap.object<jobject>());
     return copy;
 }
 
