@@ -105,8 +105,9 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
 
     // Lock pixels and copy to QImage
     // 5WHY: QJniEnvironment does not implicitly convert to JNIEnv* in
-    // Qt 6.5.3 for Android.  Use operator*() + & to obtain the raw pointer.
-    JNIEnv* jniEnv = &(*env);
+    // Qt 6.5.3 for Android.  Use operator->() to obtain the raw pointer
+    // and store it in a local variable for AndroidBitmap_* NDK functions.
+    JNIEnv* jniEnv = env.operator->();
     AndroidBitmapInfo info;
     if (AndroidBitmap_getInfo(jniEnv, bitmap.object<jobject>(), &info) < 0) return {};
     void* pixels = nullptr;
