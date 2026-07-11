@@ -89,11 +89,15 @@ jobs:
             # deploys all imported QML modules (QtQuick, QtQuick.Controls,
             # QtQuick.Layouts, etc.).  Binary-only auto-detection is unreliable
             # when QML files are embedded in .qrc resources.
+            # 5WHY: resources/qml/ was deleted in MVC refactoring (QML files
+            # moved to src/**/View/). macdeployqt needs a directory root that
+            # contains all QML imports. src/ is now the canonical root.  If
+            # this fails, fall through (|| true) so the build continues.
             # macdeployqt reports non-fatal rpath errors for optional Qt modules
             # (StateMachine/Pdf/3D) not installed by brew qt@6 and not used by
             # this app.  Tolerate these so the build continues.
             "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
-              -qmldir="${GITHUB_WORKSPACE}/resources/qml" \
+              -qmldir="${GITHUB_WORKSPACE}/src" \
               -verbose=1 || true
             echo "[OK] Qt frameworks bundled into .app"
             ls -la build/net_diagnostics.app/Contents/Frameworks/ 2>/dev/null || echo "  (no Frameworks dir)"
