@@ -20,7 +20,7 @@ void platformShareFile(const QString& filePath, const QString& mimeType, const Q
             UIActivityViewController* avc =
                 [[UIActivityViewController alloc] initWithActivityItems:@[url]
                                                  applicationActivities:nil];
-            [avc setValue:subj.toNSString() forKey:@CsubjectC];
+            [avc setValue:subj.toNSString() forKey:@"subject"];
 
             // Present from the top-most view controller.
             UIWindow* keyWin = nil;

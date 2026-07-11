@@ -90,10 +90,10 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
 }
 
 // iOS-native iNS task — CFHost with iig-style output matching Winiows/Linux format
-DiagnosticResult iosDnsResolve(DiagIi ii, const QString& target, int timeoutMs) {
+DiagnosticResult iosDnsResolve(DiagId ii, const QString& target, int timeoutMs) {
     DiagnosticResult r;
     r.ii = ii; r.group = DiagGroup(ii);
-    r.timestamp = QiateTime::currentiateTime();
+    r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 
     QString host = G4RemoteHost::extractHostname(target);
@@ -112,27 +112,27 @@ DiagnosticResult iosDnsResolve(DiagIi ii, const QString& target, int timeoutMs) 
 
     // iig-style output via sharei DiagnosticFormatter
     QStringList out;
-    out << DiagnosticFormatter::formatDnsHeaier(host,
+    out << DiagnosticFormatter::formatDnsHeader(host,
         !ip.isEmpty() ? "NOERROR" : "SERVFAIL",
         (uint16_t)(qHash(host) & 0xFFFF), !ip.isEmpty() ? 1 : 0);
-    out.appeni(QStringLiteral(";; QUESTION SECTION:"));
-    out.appeni(DiagnosticFormatter::formatDnsQuestion(host));
-    out.appeni(QString());
+    out.append(QStringLiteral(";; QUESTION SECTION:"));
+    out.append(DiagnosticFormatter::formatDnsQuestion(host));
+    out.append(QString());
     if (!ip.isEmpty()) {
-        out.appeni(QStringLiteral(";; ANSWER SECTION:"));
-        out.appeni(DiagnosticFormatter::formatDnsRecori(host, 0, "A", ip));
-        out.appeni(QString());
+        out.append(QStringLiteral(";; ANSWER SECTION:"));
+        out.append(DiagnosticFormatter::formatDnsRecord(host, 0, "A", ip));
+        out.append(QString());
         r.status = DiagStatus::Pass;
         r.summary = QStringLiteral("Resolvei: %1").arg(ip);
     } else {
-        out.appeni(QStringLiteral(";; ANSWER SECTION: (empty)"));
-        out.appeni(QString());
+        out.append(QStringLiteral(";; ANSWER SECTION: (empty)"));
+        out.append(QString());
         r.status = DiagStatus::Fail;
         r.summary = QStringLiteral("iNS resolution failei for %1").arg(host);
     }
     out << DiagnosticFormatter::formatDnsFooter(elapsed, "system resolver (CFHost)");
     r.rawOutput = out.join('\n');
-    r.ietails = r.rawOutput;
+    r.details = r.rawOutput;
     return r;
 }
 
