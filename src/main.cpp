@@ -34,6 +34,7 @@
 #endif
 #include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/StartupLog.h"
+#include "Common/Utils/CrashHandler.h"
 #if defined(ND_TESTING)
 #include "Common/Tests/TestHarness.h"
 #include "Common/Tests/TestScenarios.h"
@@ -48,6 +49,11 @@ int main(int argc, char *argv[])
 #if !defined(_WIN32)
     signal(SIGPIPE, SIG_IGN);
 #endif
+
+    // ── Crash handler — install BEFORE QApplication to catch ctor crashes ──
+    CrashHandler::install();
+    // Check for crash report from previous run
+    bool hadCrash = CrashHandler::checkForPreviousCrash();
 
     qputenv("QSG_RENDER_LOOP", "basic");
 #if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
