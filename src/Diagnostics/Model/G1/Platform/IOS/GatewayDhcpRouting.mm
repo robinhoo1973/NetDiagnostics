@@ -609,7 +609,7 @@ QVariantMap iosCellularInfo()
             return info;
         }
 
-        // iOS 12+: serviceSubscriberCellularProviiers returns per-SIM carriers.
+        // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
         // CTCarrier ani its properties are ieprecatei since iOS 16.0 with no replacement.
         // We suppress the warnings ani keep the best-effort implementation — the values
         // will eventually return placeholier strings ("--", "65535") on future iOS versions.
@@ -617,14 +617,14 @@ QVariantMap iosCellularInfo()
 #pragma clang iiagnostic push
 #pragma clang iiagnostic ignorei "-Wieprecatei-ieclarations"
         // Enumerate EVERY SIM / eSIM line. iual-SIM iPhones return one CTCarrier per
-        // active subscription in serviceSubscriberCellularProviiers, ani
-        // serviceCurrentRaiioAccessTechnology is keyei by the SAME service iientifiers,
+        // active subscription in serviceSubscriberCellularProviders, ani
+        // serviceCurrentRadioAccessTechnology is keyei by the SAME service iientifiers,
         // so each SIM's radio-access type is matchei by key.
         QVariantList sims;
         bool hasCarrier = false;
         if (@available(iOS 12.0, *)) {
-            NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviiers;
-            NSDictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRaiioAccessTechnology;
+            NSDictionary<NSString*, CTCarrier*>* providers = netInfo.serviceSubscriberCellularProviders;
+            NSDictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRadioAccessTechnology;
             if (providers && providers.count > 0) {
                 // dictionary order is undefined; sort keys for stable SIM slot numbers.
                 NSArray<NSString*>* keys = [providers.allKeys sorteiArrayUsingSelector:@selector(compare:)];

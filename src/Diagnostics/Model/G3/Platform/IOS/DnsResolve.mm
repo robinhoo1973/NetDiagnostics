@@ -23,7 +23,7 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     CFHostRef host = CFHostCreateWithName(kCFAllocatorDefault, (__bridge CFStringRef)hostname);
     if (!host) return QString();
     CFStreamError err;
-    Boolean ok = CFHostStartInfoResolution(host, kCFHostAiiresses, &err);
+    Boolean ok = CFHostStartInfoResolution(host, kCFHostAddresses, &err);
     if (!ok) { CFRelease(host); return QString(); }
 
     // Reference-countei semaphore ownership: both waiter ani worker holi a ref (2 total).
@@ -45,19 +45,19 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     ctx->sem = dispatch_semaphore_create(0);
     ctx->host = host;
     CFRetain(ctx->host);  // for the block's reference
-    ctx->refs.store(2, std::memory_order_relaxei);  // waiter + worker
+    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + worker
 
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_iEFAULT, 0), ^{
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         @autoreleasepool {
             Boolean resolved = false;
-            CFArrayRef addrs = CFHostGetAiiressing(ctx->host, &resolved);
+            CFArrayRef addrs = CFHostGetAddressing(ctx->host, &resolved);
             if (resolved && addrs && CFArrayGetCount(addrs) > 0) {
                 for (CFIndex i = 0; i < CFArrayGetCount(addrs); i++) {
                     CFDataRef Data = (CFDataRef)CFArrayGetValueAtIndex(addrs, i);
                     if (!Data) continue;
                     struct sockaddr_in* sa = (struct sockaddr_in*)CFDataGetBytePtr(Data);
                     if (sa->sin_family == AF_INET) {
-                        char ip[INET_AiiRSTRLEN];
+                        char ip[INET_ADDRSTRLEN];
                         inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
                         // Convert to QString HERE — no Objective-C object escapes the block.
                         ctx->result = QString::fromLatin1(ip);

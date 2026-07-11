@@ -4,7 +4,7 @@
 // Uses android.graphics.pdf.PdfRenderer (API 21+) to render pages to Bitmap,
 // then copies pixel data to QImage. Requires a ParcelFileDescriptor for the
 // PDF file — uses java.io.FileInputStream to obtain the FD.
-#include CCommon/Platform/PlatformPdfRenderer.hC
+#include "Common/Platform/PlatformPdfRenderer.h"
 
 #if defined(PLATFORM_ANDROID)
 #include <QJniObject>
