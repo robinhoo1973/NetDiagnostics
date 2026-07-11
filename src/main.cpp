@@ -29,6 +29,10 @@
 #if defined(__APPLE__) || defined(PLATFORM_ANDROID)
 #include "Common/Platform/NativePdfDocument.h"
 #endif
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
+#import <Foundation/Foundation.h>
+#endif
 #include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/StartupLog.h"
 #if defined(ND_TESTING)
@@ -89,6 +93,14 @@ int main(int argc, char *argv[])
     app.setWindowIcon(QIcon(":/icons/netanalysis.ico"));
 
     AppState appState;
+
+    // 5WHY: On iOS, WiFi authorization (CLLocationManager WhenInUse) must be
+    // requested early so NEHotspotNetwork can return SSID/BSSID.  Without this
+    // call the WiFi diagnostics panel shows blank data.  The authorization
+    // prompt is shown only once; subsequent calls are no-ops.
+#if defined(PLATFORM_IOS)
+    iosRequestWiFiAuthorization();
+#endif
 
     QQmlApplicationEngine engine;
 
@@ -199,7 +211,30 @@ int main(int argc, char *argv[])
         // report the root cause instead of just seeing a flash-and-quit.
         STARTUP_LOG("FATAL: QML engine failed to load %s — no root objects", "qrc:/qml/main.qml");
         qCritical() << "QML engine failed to load" << url;
-#if(!defined(PLATFORM_IOS)&&!defined(PLATFORM_ANDROID))
+#if defined(PLATFORM_IOS)
+        // 5WHY: On iOS there is no QMessageBox (QtWidgets is excluded on
+        // mobile).  A silent return -1 looks like a crash to the user with
+        // no diagnostic.  Log to NSLog (visible in Console.app / Xcode
+        // device logs) and call qFatal to produce a crash report with the
+        // error message so support can identify missing QML plugins/modules.
+        NSString *errMsg = [NSString stringWithFormat:
+            @"NetDiagnostics — Startup Error\n\n"
+            @"Failed to load QML UI from %@.\n\n"
+            @"Common causes:\n"
+            @"• QtQuick / QtQuickControls2 plugin missing\n"
+            @"• Static build missing QML plugins\n"
+            @"• Corrupted resources.qrc or missing fonts\n\n"
+            @"Full log: %@/NetDiagnostics_startup.log",
+            [NSString stringWithUTF8String:url.toString().toUtf8().constData()],
+            [NSString stringWithUTF8String:
+                QStandardPaths::writableLocation(QStandardPaths::TempLocation).toUtf8().constData()]];
+        NSLog(@"%@", errMsg);
+        qFatal("%s", [errMsg UTF8String]);
+#elif defined(PLATFORM_ANDROID)
+        // Android: log to logcat (qCritical already does this via Qt)
+        qFatal("QML engine failed to load %s — check Qt plugin deployment",
+               url.toString().toUtf8().constData());
+#else
         QMessageBox::critical(nullptr, QStringLiteral("NetDiagnostics — Startup Error"),
             QStringLiteral("Failed to load the QML UI.\n\n"
             "This usually means a required Qt module is missing from your installation.\n"
@@ -210,8 +245,8 @@ int main(int argc, char *argv[])
             "• Corrupted resources.qrc file")
             .arg(QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
                  .filePath("NetDiagnostics_startup.log")));
-#endif
         return -1;
+#endif
     }
     STARTUP_LOG("QML loaded successfully. Showing window.");
 

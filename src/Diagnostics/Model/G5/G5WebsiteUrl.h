@@ -11,17 +11,27 @@
 namespace G5WebsiteUrl {
 
 // ── Protocol default port map (shared with AppState for UI) ────────────────
-static const QMap<QString, int> s_defaultPorts = {
-    {"http",80},{"https",443},{"ftp",21},{"ftps",990},{"sftp",22},{"ssh",22},
-    {"telnet",23},{"rdp",3389},{"smtp",25},{"smtps",465},{"imap",143},{"imaps",993},
-    {"pop3",110},{"pop3s",995},{"mysql",3306},{"postgresql",5432},{"redis",6379},
-    {"mongodb",27017},{"mssql",1433},{"ldap",389},{"ldaps",636},{"mqtt",1883},{"mqtts",8883}
-};
+// 5WHY: s_defaultPorts was a namespace-scope static const QMap in a header.
+// Every TU that included this header constructed its own copy of the QMap
+// (with QString keys from const char*) during static initialization before
+// main().  On iOS, dyld's static-init ordering could run this before Qt's
+// internal allocator / QString tables were ready → SIGSEGV before main().
+// Meyer's Singleton (function-local static) defers construction to first
+// call, which is always after QCoreApplication has been constructed.
+inline const QMap<QString, int>& defaultPorts() {
+    static const QMap<QString, int> ports = {
+        {"http",80},{"https",443},{"ftp",21},{"ftps",990},{"sftp",22},{"ssh",22},
+        {"telnet",23},{"rdp",3389},{"smtp",25},{"smtps",465},{"imap",143},{"imaps",993},
+        {"pop3",110},{"pop3s",995},{"mysql",3306},{"postgresql",5432},{"redis",6379},
+        {"mongodb",27017},{"mssql",1433},{"ldap",389},{"ldaps",636},{"mqtt",1883},{"mqtts",8883}
+    };
+    return ports;
+}
 inline int defaultPortForScheme(const QString& scheme) {
-    return s_defaultPorts.value(scheme.toLower(), 80);
+    return defaultPorts().value(scheme.toLower(), 80);
 }
 inline QStringList knownSchemes() {
-    return s_defaultPorts.keys();
+    return defaultPorts().keys();
 }
 
 DiagnosticResult urlParsing(const QString& target);
@@ -61,7 +71,7 @@ inline QUrl validate(const QString& target) {
     return u.isValid() ? u : QUrl();
 }
 inline int portForUrl(const QUrl& u) {
-    return u.port() > 0 ? u.port() : s_defaultPorts.value(u.scheme(), 80);
+    return u.port() > 0 ? u.port() : defaultPorts().value(u.scheme(), 80);
 }
 
 } // namespace G5WebsiteUrl

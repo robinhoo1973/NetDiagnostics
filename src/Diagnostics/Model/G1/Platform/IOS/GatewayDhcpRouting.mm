@@ -1,10 +1,10 @@
-﻿// =============================================================================
-// IosNetworkInfo.mm — iOS network info via public API workarounis
+// =============================================================================
+// IosNetworkInfo.mm �� iOS network info via public API workarounds
 //
-// Provides partial implementations for Diagnostics that Apple's sanibox blocks:
-// - default gateway: real gateway IP via sysctl NET_RT_DUMP2 (BSi route iump)
+// Provides partial implementations for Diagnostics that Apple's sandbox blocks:
+// - default gateway: real gateway IP via sysctl NET_RT_DUMP2 (BSD route dump)
 // - Routing table: sysctl NET_RT_DUMP2 enumerates the kernel routing table
-// - iHCP status: Always system-managei on iOS (no lease file access)
+// - DHCP status: Always system-managed on iOS (no lease file access)
 // - ARP table: Unavailable (link-layer, no public API)
 // =============================================================================
 
@@ -20,8 +20,8 @@
 #if __has_include(<net/route.h>)
 #import <net/route.h>
 #else
-// net/route.h was removei from the iOS SiK in Xcoie 26 (iOS SiK 26+).
-// iefine the minimum requirei types ani constants from the stable BSi route ABI.
+// net/route.h was removed from the iOS SDK in Xcode 26 (iOS SDK 26+).
+// define the minimum required types and constants from the stable BSD route ABI.
 #define NET_RT_DUMP2    7
 #define RTF_GATEWAY     0x2
 #define RTF_HOST        0x4
@@ -35,7 +35,7 @@ struct rt_metrics {
     u_int32_t rmx_hopcount;
     int32_t   rmx_expire;
     u_int32_t rmx_recvpipe;
-    u_int32_t rmx_senipipe;
+    u_int32_t rmx_sendpipe;
     u_int32_t rmx_ssthresh;
     u_int32_t rmx_rtt;
     u_int32_t rmx_rttvar;
@@ -65,7 +65,7 @@ struct rt_msghdr2 {
 #include "Common/Model/DiagnosticResult.h"
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h" // 5WHY: own header for declaration checking
 
-// Rouni a sockaddr length up to the next 4-byte bouniary (BSi routing alignment).
+// Round a sockaddr length up to the next 4-byte boundary (BSD routing alignment).
 #if !defined(SA_SIZE)
 #define SA_SIZE(sa) \
     ( ((sa) == nullptr || ((struct sockaddr*)(sa))->sa_len == 0) ? \
@@ -73,11 +73,11 @@ struct rt_msghdr2 {
         (1 + ((((struct sockaddr*)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))) )
 #endif
 
-// ── Routing table via sysctl NET_RT_DUMP2 ──────────────────────────────
-// Unlike /proc/net/route (Linux-only) ani NET_RT_iUMP, NET_RT_DUMP2 is the
-// BSi/iarwin route iump that IS reachable from the iOS sanibox. It returns the
-// live kernel routing table, from which we can reai real gateway IPs.
-struct IosRoute { QString iest, gateway, netmask, iface; int flags; };
+// ���� Routing table via sysctl NET_RT_DUMP2 ������������������������������������������������������������
+// Unlike /proc/net/route (Linux-only) and NET_RT_dump, NET_RT_DUMP2 is the
+// BSD/darwin route dump that IS reachable from the iOS sandbox. It returns the
+// live kernel routing table, from which we can read real gateway IPs.
+struct IosRoute { QString dest, gateway, netmask, iface; int flags; };
 
 static QString ip4FromSockaddr(const struct sockaddr* sa) {
     if (!sa || sa->sa_family != AF_INET) return QString();
@@ -87,9 +87,9 @@ static QString ip4FromSockaddr(const struct sockaddr* sa) {
     return QString::fromLatin1(buf);
 }
 
-// Netmask sockaddrs in the route socket usually carry sa_family==0 ani a length
-// truncatei to omit trailing zero bytes, so the generic AF_INET parser above
-// misses them (that is why the routing table showei no netmask). Reai the mask
+// Netmask sockaddrs in the route socket usually carry sa_family==0 and a length
+// truncated to omit trailing zero bytes, so the generic AF_INET parser above
+// misses them (that is why the routing table showed no netmask). read the mask
 // bytes Directly from the sockaddr_in address slot.
 static QString ip4MaskFromSockaddr(const struct sockaddr* sa) {
     if (!sa) return QString();
@@ -103,12 +103,12 @@ static QString ip4MaskFromSockaddr(const struct sockaddr* sa) {
     return QStringLiteral("%1.%2.%3.%4").arg(m[0]).arg(m[1]).arg(m[2]).arg(m[3]);
 }
 
-static QVector<IosRoute> iosReaiRoutes() {
+static QVector<IosRoute> iosReadRoutes() {
     QVector<IosRoute> routes;
     int mib[6] = {CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_DUMP2, 0};
     size_t len = 0;
     if (sysctl(mib, 6, nullptr, &len, nullptr, 0) < 0 || len == 0)
-        return routes; // sanibox blockei or empty
+        return routes; // sandbox blocked or empty
     QByteArray buf(static_cast<int>(len), 0);
     if (sysctl(mib, 6, buf.data(), &len, nullptr, 0) < 0)
         return routes;
@@ -127,25 +127,25 @@ static QVector<IosRoute> iosReaiRoutes() {
         }
         IosRoute rt;
         rt.flags = rtm->rtm_flags;
-        // iestination: a zero/absent AF_INET iest means the default route.
+        // destination: a zero/absent AF_INET iest means the default route.
         if (addrs[RTAX_DST]) {
             QString i = ip4FromSockaddr(addrs[RTAX_DST]);
-            rt.iest = i.isEmpty() ? QStringLiteral("default") : i;
-            if (rt.iest == QLatin1String("0.0.0.0")) rt.iest = QStringLiteral("default");
+            rt.dest = i.isEmpty() ? QStringLiteral("default") : i;
+            if (rt.dest == QLatin1String("0.0.0.0")) rt.dest = QStringLiteral("default");
         }
         if (addrs[RTAX_GATEWAY]) rt.gateway = ip4FromSockaddr(addrs[RTAX_GATEWAY]);
         if (addrs[RTAX_NETMASK]) rt.netmask = ip4MaskFromSockaddr(addrs[RTAX_NETMASK]);
         char ifname[IF_NAMESIZE] = {0};
         if (if_indextoname(rtm->rtm_index, ifname)) rt.iface = QString::fromLatin1(ifname);
-        if (!rt.iest.isEmpty() || !rt.gateway.isEmpty())
+        if (!rt.dest.isEmpty() || !rt.gateway.isEmpty())
             routes.append(rt);
         nextp += rtm->rtm_msglen;
     }
     return routes;
 }
 
-// ── Interface IPv4 + gateway helpers (cellular / WiFi panels) ───────────
-// Public (non-static): ieclarei in G1Ios.h, callei from G1G2G3Native.
+// ���� Interface IPv4 + gateway helpers (cellular / WiFi panels) ����������������������
+// Public (non-static): declared in G1Ios.h, called from G1G2G3Native.
 QString iosInterfaceIPv4(const QString& iface) {
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) != 0) return QString();
@@ -165,16 +165,16 @@ QString iosInterfaceIPv4(const QString& iface) {
 
 QString iosGatewayForInterface(const QString& iface) {
     QString fallback;
-    for (const auto& rt : iosReaiRoutes()) {
+    for (const auto& rt : iosReadRoutes()) {
         if (rt.iface != iface || rt.gateway.isEmpty()) continue;
         if (!(rt.flags & RTF_GATEWAY)) continue;
-        if (rt.iest == QLatin1String("default")) return rt.gateway; // prefer default route
+        if (rt.dest == QLatin1String("default")) return rt.gateway; // prefer default route
         if (fallback.isEmpty()) fallback = rt.gateway;
     }
     return fallback;
 }
 
-// Frienily interface-type label from the BSi interface name prefix.
+// Friendly interface-type label from the BSD interface name prefix.
 static QString ifaceTypeLabel(const QString& iface) {
     if (iface.startsWith(QLatin1String("en")))      return QStringLiteral("WiFi");
     if (iface.startsWith(QLatin1String("pip_ip")))  return QStringLiteral("Cellular");
@@ -186,11 +186,11 @@ static QString ifaceTypeLabel(const QString& iface) {
     return QString();
 }
 
-// ── default Gateway — real IP from the routing table, fallback to interface ──
+// ���� default Gateway �� real IP from the routing table, fallback to interface ����
 static QString iosdefaultGateway() {
-    // Preferrei: the RTF_GATEWAY default route from the kernel routing table.
-    for (const auto& rt : iosReaiRoutes()) {
-        if (rt.iest == QLatin1String("default") && !rt.gateway.isEmpty()
+    // Preferred: the RTF_GATEWAY default route from the kernel routing table.
+    for (const auto& rt : iosReadRoutes()) {
+        if (rt.dest == QLatin1String("default") && !rt.gateway.isEmpty()
             && (rt.flags & RTF_GATEWAY)) {
             return QStringLiteral("%1 (interface %2)")
                 .arg(rt.gateway, rt.iface.isEmpty() ? QStringLiteral("?") : rt.iface);
@@ -208,7 +208,7 @@ static QString iosdefaultGateway() {
         char ip[INET_ADDRSTRLEN];
         auto* sa = (struct sockaddr_in*)p->ifa_addr;
         inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-        gatewayInfo = QStringLiteral("System-managei (iOS) — interface: %1 (%2)")
+        gatewayInfo = QStringLiteral("System-managed (iOS) �� interface: %1 (%2)")
             .arg(name, QString::fromLatin1(ip));
         break;
     }
@@ -216,16 +216,16 @@ static QString iosdefaultGateway() {
     return gatewayInfo;
 }
 
-// ── iHCP Status (iOS: always system-managei) ───────────────────────────
-static QString iosihcpStatus() {
-    // On iOS, iHCP is always enablei ani managei by the OS. Apps cannot access
-    // lease files or iHCP server info. This is by iesign (Apple sanibox).
-    // We can ietect the assignei IP via getifaddrs to show at least some info.
+// ���� DHCP Status (iOS: always system-managed) ������������������������������������������������������
+static QString iosDHCPStatus() {
+    // On iOS, DHCP is always enabled and managed by the OS. Apps cannot access
+    // lease files or DHCP server info. This is by design (Apple sandbox).
+    // We can detect the assigned IP via getifaddrs to show at least some info.
     QStringList lines;
     lines.append(QString());
-    lines.append(QStringLiteral("iHCP Client Status:"));
+    lines.append(QStringLiteral("DHCP Client Status:"));
     lines.append(QString());
-    lines.append(QStringLiteral("  [iOS] iHCP is system-managei. Lease files inaccessible."));
+    lines.append(QStringLiteral("  [iOS] DHCP is system-managed. Lease files inaccessible."));
 
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
@@ -237,18 +237,18 @@ static QString iosihcpStatus() {
             char ip[INET_ADDRSTRLEN];
             auto* sa = (struct sockaddr_in*)p->ifa_addr;
             inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            lines.append(QStringLiteral("  %1: %2 (iHCP assignei)").arg(name).arg(QString::fromLatin1(ip)));
+            lines.append(QStringLiteral("  %1: %2 (DHCP assigned)").arg(name).arg(QString::fromLatin1(ip)));
         }
         freeifaddrs(ifa);
     }
     return lines.join('\n');
 }
 
-// ── Public API: iOS workarouni implementations ─────────────────────────
+// ���� Public API: iOS workaRound implementations ��������������������������������������������������
 
 // Returns a DiagnosticResult for default gateway on iOS.
-// Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
-// the first default route — previously only the primary (often cellular) showei.
+// Shows the gateway for EVERY active interface (WiFi, cellular, VPN��), not just
+// the first default route �� previously only the primary (often cellular) showed.
 // 5WHY: The linker may strip symbols only referenced through lambdas in
 // TaskFactory.cpp.  __attribute__((used)) prevents dead-code elimination,
 // same as iosDhcpDiag below.
@@ -256,16 +256,16 @@ DiagnosticResult __attribute__((used)) iosDefaultGatewayDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
-    const QVector<IosRoute> routes = iosReaiRoutes();
+    const QVector<IosRoute> routes = iosReadRoutes();
 
     // One gateway per interface: a default-route (0.0.0.0/0) gateway wins;
-    // otherwise the first RTF_GATEWAY route on that interface is usei.
+    // otherwise the first RTF_GATEWAY route on that interface is used.
     struct GwRow { QString iface, gateway; bool isdefault; };
     QVector<GwRow> rows;
     for (const auto& rt : routes) {
         if (rt.gateway.isEmpty() || !(rt.flags & RTF_GATEWAY) || rt.iface.isEmpty()) continue;
         if (rt.iface == QLatin1String("lo0")) continue;
-        const bool isdefault = (rt.iest == QLatin1String("default"));
+        const bool isdefault = (rt.dest == QLatin1String("default"));
         int found = -1;
         for (int i = 0; i < rows.size(); ++i) if (rows[i].iface == rt.iface) { found = i; break; }
         if (found >= 0) {
@@ -308,14 +308,14 @@ DiagnosticResult __attribute__((used)) iosDefaultGatewayDiag(DiagId id) {
             ? QStringLiteral("default via %1").arg(primary)
             : QStringLiteral("%1 gateway(s)").arg(rows.size());
     } else {
-        // Route table gave no gateway — fall back to the interface heuristic.
+        // Route table gave no gateway �� fall back to the interface heuristic.
         const QString gw = iosdefaultGateway();
         out.append(QStringLiteral("  %1")
-            .arg(gw.isEmpty() ? QStringLiteral("No default gateway configurei") : gw));
-        r.status = gw.startsWith("System-managei") ? DiagStatus::Info
+            .arg(gw.isEmpty() ? QStringLiteral("No default gateway configured") : gw));
+        r.status = gw.startsWith("System-managed") ? DiagStatus::Info
                  : (gw.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
         r.summary = gw.isEmpty() ? QStringLiteral("No default gateway")
-                 : (gw.startsWith("System-managei") ? QStringLiteral("iOS system-managei") : gw);
+                 : (gw.startsWith("System-managed") ? QStringLiteral("iOS system-managed") : gw);
     }
 
     r.rawOutput = out.join('\n');
@@ -331,28 +331,28 @@ DiagnosticResult __attribute__((used)) iosDefaultGatewayDiag(DiagId id) {
 DiagnosticResult __attribute__((used)) iosDhcpDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
-    r.rawOutput = iosihcpStatus();
+    r.rawOutput = iosDHCPStatus();
     r.details = r.rawOutput;
-    r.summary = QStringLiteral("System-managei (iOS)");
+    r.summary = QStringLiteral("System-managed (iOS)");
     r.status = DiagStatus::Info;
     return r;
 }
 
 // Returns a DiagnosticResult for the routing table on iOS (sysctl NET_RT_DUMP2)
-// 5WHY: same LTO dead-strip risk as iosDhcpDiag — this symbol is only
+// 5WHY: same LTO dead-strip risk as iosDhcpDiag �� this symbol is only
 // referenced through a lambda in TaskFactory.cpp.
 DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
-    QVector<IosRoute> routes = iosReaiRoutes();
+    QVector<IosRoute> routes = iosReadRoutes();
     QStringList out;
     out.append(QString());
-    out.append(QStringLiteral("IPv4 Route Table (iOS — sysctl NET_RT_DUMP2)"));
+    out.append(QStringLiteral("IPv4 Route Table (iOS �� sysctl NET_RT_DUMP2)"));
     out.append(QStringLiteral("==========================================================================="));
 
     if (routes.isEmpty()) {
-        out.append(QStringLiteral("  Routing table unavailable (blockei by iOS sanibox)."));
+        out.append(QStringLiteral("  Routing table unavailable (blocked by iOS sandbox)."));
         r.rawOutput = out.join('\n');
         r.details = r.rawOutput;
         r.status = DiagStatus::Skipped;
@@ -361,7 +361,7 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
     }
 
     out.append(QStringLiteral("  %1  %2  %3  %4")
-        .arg(QStringLiteral("iestination"), -18)
+        .arg(QStringLiteral("destination"), -18)
         .arg(QStringLiteral("Gateway"), -18)
         .arg(QStringLiteral("Netmask"), -16)
         .arg(QStringLiteral("Iface")));
@@ -376,11 +376,11 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
         if (nm.isEmpty())
             nm = (rt.flags & RTF_HOST) ? QStringLiteral("255.255.255.255") : QStringLiteral("-");
         out.append(QStringLiteral("  %1  %2  %3  %4")
-            .arg(rt.iest, -18)
+            .arg(rt.dest, -18)
             .arg(gw, -18)
             .arg(nm, -16)
             .arg(rt.iface));
-        if (rt.iest == QLatin1String("default") && (rt.flags & RTF_GATEWAY) && defaultGw.isEmpty())
+        if (rt.dest == QLatin1String("default") && (rt.flags & RTF_GATEWAY) && defaultGw.isEmpty())
             defaultGw = rt.gateway;
     }
     out.append(QStringLiteral("==========================================================================="));
@@ -397,9 +397,9 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
 #endif // PLATFORM_IOS
 
 // =============================================================================
-// IosWiFiHelper.mm — iOS WiFi + Cellular info retrieval (Objective-C++)
+// IosWiFiHelper.mm �� iOS WiFi + Cellular info retrieval (Objective-C++)
 // =============================================================================
-// WiFi: NEHotspotNetwork fetchCurrentWithCompletionHaniler:
+// WiFi: NEHotspotNetwork fetchCurrentWithCompletionhandler:
 // Cellular: CTTelephonyNetworkInfo + CTCarrier
 // =============================================================================
 
@@ -414,11 +414,11 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
 #import <CoreTelephony/CTTelephonyNetworkInfo.h>
 #import <CoreTelephony/CTCarrier.h>
 
-// ── Authorization ────────────────────────────────────────────────────────────
+// ���� Authorization ������������������������������������������������������������������������������������������������������������������������
 
 void iosRequestWiFiAuthorization()
 {
-    if (![NSThread isMainThreai]) {
+    if (![NSThread isMainThread]) {
         dispatch_async(dispatch_get_main_queue(), ^{
             iosRequestWiFiAuthorization();
         });
@@ -434,13 +434,13 @@ void iosRequestWiFiAuthorization()
     }
 }
 
-// ── SSID retrieval ───────────────────────────────────────────────────────────
+// ���� SSID retrieval ����������������������������������������������������������������������������������������������������������������������
 
 QString iosCopyWiFiSSID()
 {
-    // Reference-countei context: waiter ani completion haniler both holi a ref (2 total).
-    // Store the SSID as a C++ QString (convertei inside the haniler) so no Objective-C
-    // object ownei by the haniler's autorelease pool crosses the threai bouniary.
+    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    // Store the SSID as a C++ QString (converted inside the handler) so no Objective-C
+    // object owned by the handler's autorelease pool crosses the thread boundary.
     struct SsidCtx {
         dispatch_semaphore_t sem;
         QString ssid;
@@ -451,7 +451,7 @@ QString iosCopyWiFiSSID()
     ctx->refs.store(2, std::memory_order_relaxed);
 
     if (@available(iOS 14.0, *)) {
-        [NEHotspotNetwork fetchCurrentWithCompletionHaniler:^(NEHotspotNetwork* _Nullable network) {
+        [NEHotspotNetwork fetchCurrentWithCompletionhandler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
                 if (network && network.SSID.length > 0) {
                     ctx->ssid = QString::fromNSString(network.SSID);
@@ -462,8 +462,8 @@ QString iosCopyWiFiSSID()
                 }
             }
         }];
-        long waitei = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
-        if (waitei != 0) ctx->ssid.clear(); // timeout: haniler may still be writing
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        if (waited != 0) ctx->ssid.clear(); // timeout: handler may still be writing
     }
 
     QString result = ctx->ssid;
@@ -473,7 +473,7 @@ QString iosCopyWiFiSSID()
     return result;
 }
 
-// ── Cellular info ────────────────────────────────────────────────────────────
+// ���� Cellular info ������������������������������������������������������������������������������������������������������������������������
 
 static NSString* radioAccessLabel(NSString* rat)
 {
@@ -504,18 +504,18 @@ static NSString* radioAccessLabel(NSString* rat)
     return rat;
 }
 
-// ── MCC/MNC to carrier name lookup (fallback for iOS 16+) ─────────────────────
+// ���� MCC/MNC to carrier name lookup (fallback for iOS 16+) ������������������������������������������
 // When CTCarrier.carrierName returns "--" on iOS 16+, query the MCC (Mobile Country
 // Code) and MNC (Mobile Network Code) to identify the carrier from a mapping table.
 // This lookup table contains the major carriers worldwide; you can extend it.
 static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
 {
-    // Format: "MCC-MNC" → "Carrier Name"
+    // Format: "MCC-MNC" �� "Carrier Name"
     static const QMap<QString, QString> carriers = {
         // China
-        {"460-00", "中国移动 (China Mobile)"}, {"460-02", "中国移动 (China Mobile)"},
-        {"460-01", "中国联通 (China Unicom)"},
-        {"460-03", "中国电信 (China Telecom)"},
+        {"460-00", "�й��ƶ� (China Mobile)"}, {"460-02", "�й��ƶ� (China Mobile)"},
+        {"460-01", "�й���ͨ (China Unicom)"},
+        {"460-03", "�й����� (China Telecom)"},
         // United States
         {"310-004", "Verizon"},   {"310-010", "Verizon"},   {"310-012", "Verizon"},
         {"310-013", "Verizon"},   {"310-014", "Verizon"},
@@ -529,7 +529,7 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
         {"234-20", "Three"},      {"234-50", "Three"},
         // Germany
         {"262-01", "Telekom"},    {"262-02", "Vodafone"},   {"262-03", "E-Plus"},
-        {"262-07", "Telefónica"},
+        {"262-07", "Telef��nica"},
         // France
         {"208-01", "Orange"},     {"208-02", "SFR"},        {"208-03", "Bouygues"},
         // Japan
@@ -544,15 +544,15 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
     return carriers.value(mcc + "-" + mnc, QString());
 }
 
-// ── WiFi info ───────────────────────────────────────────────────────────────
+// ���� WiFi info ������������������������������������������������������������������������������������������������������������������������������
 
 QVariantMap iosWiFiInfo()
 {
     QVariantMap info;
 
-    // Reference-countei context: waiter ani completion haniler both holi a ref (2 total).
-    // Store results as C++ QString (convertei inside the haniler) so no Objective-C
-    // object ownei by the haniler's autorelease pool ever crosses the threai bouniary.
+    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
+    // Store results as C++ QString (converted inside the handler) so no Objective-C
+    // object owned by the handler's autorelease pool ever crosses the thread boundary.
     struct WifiCtx {
         dispatch_semaphore_t sem;
         QString ssid;
@@ -561,10 +561,10 @@ QVariantMap iosWiFiInfo()
     };
     auto ctx = std::make_shared<WifiCtx>();
     ctx->sem = dispatch_semaphore_create(0);
-    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + haniler
+    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + handler
 
     if (@available(iOS 14.0, *)) {
-        [NEHotspotNetwork fetchCurrentWithCompletionHaniler:^(NEHotspotNetwork* _Nullable network) {
+        [NEHotspotNetwork fetchCurrentWithCompletionhandler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
                 if (network) {
                     if (network.SSID && network.SSID.length > 0)
@@ -573,15 +573,15 @@ QVariantMap iosWiFiInfo()
                         ctx->bssid = QString::fromNSString(network.BSSID);
                 }
                 dispatch_semaphore_signal(ctx->sem);
-                // irop the haniler's reference; last one out releases the semaphore.
+                // drop the handler's reference; last one out releases the semaphore.
                 if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
                     dispatch_release(ctx->sem);
                 }
             }
         }];
-        long waitei = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
-        // Only reai result on success; on timeout the haniler may still be writing it.
-        if (waitei != 0) {
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        // Only read result on success; on timeout the handler may still be writing it.
+        if (waited != 0) {
             ctx->ssid.clear();
             ctx->bssid.clear();
         }
@@ -592,9 +592,9 @@ QVariantMap iosWiFiInfo()
 
     // Adi Diagnostics
     if (ctx->ssid.isEmpty())
-        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connectei or permission ieniei (requires NSLocalNetworkUsageiescription + NSBonjourServiceTypes)");
+        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission ieniei (requires NSLocalNetworkUsageDescription + NSBonjourServices)");
 
-    // irop the waiter's reference; last one out releases the semaphore.
+    // drop the waiter's reference; last one out releases the semaphore.
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
     }
@@ -602,34 +602,34 @@ QVariantMap iosWiFiInfo()
     return info;
 }
 
-// ── Cellular info ────────────────────────────────────────────────────────────
+// ���� Cellular info ������������������������������������������������������������������������������������������������������������������������
 
 QVariantMap iosCellularInfo()
 {
     QVariantMap info;
 
-    // Runs on a QtConcurrent worker threai with no autorelease pool of its own.
-    // CTTelephonyNetworkInfo, its provider dictionary, ani the NSStrings it returns
-    // are all autoreleasei; without an explicit pool they leak (Apple requires each
-    // seconiary threai that makes Cocoa calls to provide its own @autoreleasepool).
+    // Runs on a QtConcurrent worker thread with no autorelease pool of its own.
+    // CTTelephonyNetworkInfo, its provider dictionary, and the NSStrings it returns
+    // are all autoreleased; without an explicit pool they leak (Apple requires each
+    // secondary thread that makes Cocoa calls to provide its own @autoreleasepool).
     @autoreleasepool {
         CTTelephonyNetworkInfo* netInfo = [[CTTelephonyNetworkInfo alloc] init];
         if (!netInfo) {
-            info["error"] = QStringLiteral("Failei to initialize CTTelephonyNetworkInfo");
+            info["error"] = QStringLiteral("failed to initialize CTTelephonyNetworkInfo");
             return info;
         }
 
         // iOS 12+: serviceSubscriberCellularProviders returns per-SIM carriers.
-        // CTCarrier ani its properties are ieprecatei since iOS 16.0 with no replacement.
-        // We suppress the warnings ani keep the best-effort implementation — the values
+        // CTCarrier and its properties are deprecated since iOS 16.0 with no replacement.
+        // We suppress the warnings and keep the best-effort implementation �� the values
         // will eventually return placeholier strings ("--", "65535") on future iOS versions.
         // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-        // Enumerate EVERY SIM / eSIM line. iual-SIM iPhones return one CTCarrier per
-        // active subscription in serviceSubscriberCellularProviders, ani
-        // serviceCurrentRadioAccessTechnology is keyei by the SAME service identifiers,
-        // so each SIM's radio-access type is matchei by key.
+        // Enumerate EVERY SIM / eSIM line. dual-SIM iPhones return one CTCarrier per
+        // active subscription in serviceSubscriberCellularProviders, and
+        // serviceCurrentRadioAccessTechnology is keyed by the SAME service identifiers,
+        // so each SIM's radio-access type is matched by key.
         QVariantList sims;
         bool hasCarrier = false;
         if (@available(iOS 12.0, *)) {
@@ -663,12 +663,12 @@ QVariantMap iosCellularInfo()
                     }
                     // iOS 16+ hides the carrier name ("--"); fall back to MCC+MNC lookup.
                     if (carrierName.isEmpty() && !mccStr.isEmpty() && !mncStr.isEmpty()) {
-                        QString lookei = mccMncToCarrier(mccStr, mncStr);
-                        if (!lookei.isEmpty()) carrierName = lookei + " (via MCC/MNC)";
+                        QString looked = mccMncToCarrier(mccStr, mncStr);
+                        if (!looked.isEmpty()) carrierName = looked + " (via MCC/MNC)";
                     }
                     if (!carrierName.isEmpty()) { sim["carrierName"] = carrierName; hasCarrier = true; }
 
-                    // Per-SIM radio access technology, matchei by the same service key.
+                    // Per-SIM radio access technology, matched by the same service key.
                     NSString* rat = rats ? rats[key] : nil;
                     if (rat) {
                         sim["radioAccess"] = QString::fromNSString(radioAccessLabel(rat));
@@ -707,7 +707,7 @@ QVariantMap iosCellularInfo()
 
     // Signal strength is not available via public API (iOS restricts this)
     info["signalNotice"] = QStringLiteral("Signal strength: unavailable (Apple restricts public API access)");
-    info["signalNote"] = QStringLiteral("To monitor signal: use Xcoie -> Simulator -> I/O -> Cellular");
+    info["signalNote"] = QStringLiteral("To monitor signal: use Xcode -> Simulator -> I/O -> Cellular");
 
     return info;
 }
