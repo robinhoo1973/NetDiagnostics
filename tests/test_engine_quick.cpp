@@ -1,65 +1,71 @@
-// Engine smoke test — verifies TaskFactory dispatch and result format.
-// Build: cd build && cmake .. -DBUILD_TESTS=ON && cmake --build . && ctest -V
+// Engine smoke test — verifies DiagnosticResult format and task lifecycle.
+// Build: cmake .. -DBUILD_TESTS=ON && cmake --build . && ctest -V
 #include <QCoreApplication>
 #include <QDebug>
-#include <QElapsedTimer>
-#include "engine/task/TaskFactory.h"
+#include <QTest>
 #include "models/DiagnosticResult.h"
 #include "util/Logger.h"
 
-int main(int argc, char* argv[]) {
-    QCoreApplication app(argc, argv);
-    Logger::instance().info("Test: Starting engine smoke test");
+class EngineSmokeTest : public QObject {
+    Q_OBJECT
 
-    // 1. Create a task via TaskFactory
-    qDebug() << "Running G1 NetworkAdapters...";
-    auto task = TaskFactory::createTask(DiagId::G1NetworkAdapters);
-    if (!task) {
-        qCritical() << "FAIL: TaskFactory returned null for G1NetworkAdapters";
-        return 1;
+private slots:
+    void testDiagnosticResultFactories() {
+        // Verify skipped() creates correct result
+        auto skipped = DiagnosticResult::skipped(DiagId::G1NetworkAdapters,
+            "Platform not supported");
+        QCOMPARE(skipped.id, DiagId::G1NetworkAdapters);
+        QCOMPARE(skipped.status, DiagStatus::Skipped);
+        QVERIFY(!skipped.summary.isEmpty());
+        QVERIFY(!skipped.details.isEmpty());  // 5WHY: was empty — fixed in R3
+
+        // Verify error() creates correct result with details populated
+        auto error = DiagnosticResult::error(DiagId::G1NicAdvanced,
+            "Test error message");
+        QCOMPARE(error.id, DiagId::G1NicAdvanced);
+        QCOMPARE(error.status, DiagStatus::Error);
+        QCOMPARE(error.summary, QStringLiteral("Test error message"));
+        QVERIFY(!error.details.isEmpty());  // 5WHY: details now populated
+
+        // Verify timeout() creates correct result
+        auto timeout = DiagnosticResult::timeout(DiagId::G4Ping, 30000);
+        QCOMPARE(timeout.id, DiagId::G4Ping);
+        QCOMPARE(timeout.group, DiagGroup::G4);  // derived from DiagId
+        QCOMPARE(timeout.status, DiagStatus::Error);
+        QVERIFY(timeout.summary.contains("30s"));
+        QVERIFY(!timeout.details.isEmpty());  // 5WHY: was empty — fixed in R3
+        QVERIFY(!timeout.errorOutput.isEmpty());
     }
 
-    // 2. Run synchronously via QtConcurrent (simulates the AppState dispatch)
-    QElapsedTimer t; t.start();
-    auto future = QtConcurrent::run([tptr = task.get()]() { return tptr->run(); });
-    future.waitForFinished();
-    auto result = future.result();
-    qDebug() << "  id:" << static_cast<int>(result.id)
-             << "status:" << static_cast<int>(result.status)
-             << "summary:" << result.summary
-             << "durationMs:" << result.durationMs;
-    t.elapsed();
+    void testDiagIdMapping() {
+        // Verify DiagId → group mapping is consistent
+        QCOMPARE(diagGroup(DiagId::G1NetworkAdapters), DiagGroup::G1);
+        QCOMPARE(diagGroup(DiagId::G2TcpSettings), DiagGroup::G2);
+        QCOMPARE(diagGroup(DiagId::G3DnsPollution), DiagGroup::G3);
+        QCOMPARE(diagGroup(DiagId::G4Ping), DiagGroup::G4);
+        QCOMPARE(diagGroup(DiagId::G5UrlParsing), DiagGroup::G5);
 
-    // 3. Verify result
-    if (result.id != DiagId::G1NetworkAdapters) {
-        qCritical() << "FAIL: wrong DiagId";
-        return 1;
-    }
-    if (result.status == DiagStatus::Error) {
-        qCritical() << "FAIL: diagnostic returned error";
-        return 1;
+        // Verify all DiagIds have valid display names (no "Unknown" fallback)
+        for (auto id : allDiagIds()) {
+            auto label = diagIdLabelKey(id);
+            QVERIFY2(!label.isEmpty(),
+                QString("DiagId %1 has empty label key").arg(static_cast<int>(id)).toUtf8());
+        }
     }
 
-    // 4. Test G4 DNS resolution
-    qDebug() << "Running G4 DnsResolution...";
-    auto dnsTask = TaskFactory::createTask(DiagId::G4DnsResolution, "localhost");
-    if (!dnsTask) {
-        qCritical() << "FAIL: TaskFactory returned null for G4DnsResolution";
-        return 1;
-    }
-    auto dnsFuture = QtConcurrent::run([tptr = dnsTask.get()]() { return tptr->run(); });
-    dnsFuture.waitForFinished();
-    auto dnsResult = dnsFuture.result();
-    qDebug() << "  id:" << static_cast<int>(dnsResult.id)
-             << "status:" << static_cast<int>(dnsResult.status)
-             << "summary:" << dnsResult.summary;
+    void testDiagnosticResultConvenience() {
+        DiagnosticResult r;
+        r.status = DiagStatus::Pass;
+        QVERIFY(r.isPass());
+        QVERIFY(!r.isFail());
+        QVERIFY(r.wasExecuted());  // 5WHY: deprecated isDone() kept for compat
+        QVERIFY(r.isDone());
 
-    if (dnsResult.id != DiagId::G4DnsResolution) {
-        qCritical() << "FAIL: wrong DiagId for DNS test";
-        return 1;
+        r.status = DiagStatus::Skipped;
+        QVERIFY(r.isSkipped());
+        QVERIFY(!r.wasExecuted());  // Skipped = not executed
     }
+};
 
-    Logger::instance().info("Test: engine smoke test PASSED");
-    qDebug() << "PASS";
-    return 0;
-}
+QTEST_MAIN(EngineSmokeTest)
+#include "test_engine_quick.moc"

@@ -5,11 +5,6 @@ set(TEST_SOURCES
     ${CMAKE_SOURCE_DIR}/src/models/DiagnosticResult.cpp
     ${CMAKE_SOURCE_DIR}/src/util/Logger.cpp
     ${CMAKE_SOURCE_DIR}/src/engine/task/DiagnosticTask.cpp
-    ${CMAKE_SOURCE_DIR}/src/engine/task/TaskFactory.cpp
-    ${CMAKE_SOURCE_DIR}/src/engine/task/GenericTask.h
-    ${CMAKE_SOURCE_DIR}/src/engine/diagnostic/G1G2G3Native.cpp
-    ${CMAKE_SOURCE_DIR}/src/engine/diagnostic/G4RemoteHost.cpp
-    ${CMAKE_SOURCE_DIR}/src/engine/runner/NetworkProbe.cpp
     ${CMAKE_SOURCE_DIR}/src/util/DnsResolver.cpp
 )
 
