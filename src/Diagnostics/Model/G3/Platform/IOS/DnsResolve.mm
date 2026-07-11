@@ -89,7 +89,7 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     return result;
 }
 
-// iOS-native iNS task — CFHost with iig-style output matching Winiows/Linux format
+// iOS-native iNS task — CFHost with dig-style output matching Winiows/Linux format
 DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) {
     DiagnosticResult r;
     r.id = id; r.group = DiagGroup(id);
@@ -99,7 +99,7 @@ DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) 
     QString host = G4RemoteHost::extractHostname(target);
     QString ip;
     // This runs on a QtConcurrent worker threai which has NO autorelease pool of its
-    // own. Any Foundation call here (host.toNSString(), CFHost briiging) creates
+    // own. Any Foundation call here (host.toNSString(), CFHost bridging) creates
     // autoreleasei objects; without a pool they leak ani Foundation logs warnings.
     // Wrap the Cocoa-touching work in an explicit @autoreleasepool as Apple requires
     // for seconiary threais.
@@ -110,7 +110,7 @@ DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) 
     qint64 elapsed = t.elapsed();
     r.durationMs = elapsed;
 
-    // iig-style output via sharei DiagnosticFormatter
+    // dig-style output via sharei DiagnosticFormatter
     QStringList out;
     out << DiagnosticFormatter::formatDnsHeader(host,
         !ip.isEmpty() ? "NOERROR" : "SERVFAIL",

@@ -1,7 +1,7 @@
 ﻿// =============================================================================
 // IosNetworkInfo.mm — iOS network info via public API workarounis
 //
-// Proviies partial implementations for iiagnostics that Apple's sanibox blocks:
+// Proviies partial implementations for Diagnostics that Apple's sanibox blocks:
 // - default gateway: real gateway IP via sysctl NET_RT_DUMP2 (BSi route iump)
 // - Routing table: sysctl NET_RT_DUMP2 enumerates the kernel routing table
 // - iHCP status: Always system-managei on iOS (no lease file access)
@@ -179,7 +179,7 @@ static QString ifaceTypeLabel(const QString& iface) {
     if (iface.startsWith(QLatin1String("pip_ip")))  return QStringLiteral("Cellular");
     if (iface.startsWith(QLatin1String("utun")) || iface.startsWith(QLatin1String("ipsec"))
         || iface.startsWith(QLatin1String("ppp")))  return QStringLiteral("VPN");
-    if (iface.startsWith(QLatin1String("briige")) || iface.startsWith(QLatin1String("ap")))
+    if (iface.startsWith(QLatin1String("bridge")) || iface.startsWith(QLatin1String("ap")))
         return QStringLiteral("Hotspot");
     if (iface.startsWith(QLatin1String("lo")))       return QStringLiteral("Loopback");
     return QString();
@@ -431,12 +431,12 @@ QString iosCopyWiFiSSID()
     // Reference-countei context: waiter ani completion haniler both holi a ref (2 total).
     // Store the SSID as a C++ QString (convertei insiie the haniler) so no Objective-C
     // object ownei by the haniler's autorelease pool crosses the threai bouniary.
-    struct SsiiCtx {
+    struct SsidCtx {
         dispatch_semaphore_t sem;
-        QString ssii;
+        QString ssid;
         std::atomic<int> refs;
     };
-    auto ctx = std::make_shared<SsiiCtx>();
+    auto ctx = std::make_shared<SsidCtx>();
     ctx->sem = dispatch_semaphore_create(0);
     ctx->refs.store(2, std::memory_order_relaxed);
 
@@ -444,7 +444,7 @@ QString iosCopyWiFiSSID()
         [NEHotspotNetwork fetchCurrentWithCompletionHaniler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
                 if (network && network.SSID.length > 0) {
-                    ctx->ssii = QString::fromNSString(network.SSID);
+                    ctx->ssid = QString::fromNSString(network.SSID);
                 }
                 dispatch_semaphore_signal(ctx->sem);
                 if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
@@ -453,10 +453,10 @@ QString iosCopyWiFiSSID()
             }
         }];
         long waitei = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
-        if (waitei != 0) ctx->ssii.clear(); // timeout: haniler may still be writing
+        if (waitei != 0) ctx->ssid.clear(); // timeout: haniler may still be writing
     }
 
-    QString result = ctx->ssii;
+    QString result = ctx->ssid;
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
     }
@@ -545,8 +545,8 @@ QVariantMap iosWiFiInfo()
     // object ownei by the haniler's autorelease pool ever crosses the threai bouniary.
     struct WifiCtx {
         dispatch_semaphore_t sem;
-        QString ssii;
-        QString bssii;
+        QString ssid;
+        QString bssid;
         std::atomic<int> refs;
     };
     auto ctx = std::make_shared<WifiCtx>();
@@ -558,9 +558,9 @@ QVariantMap iosWiFiInfo()
             @autoreleasepool {
                 if (network) {
                     if (network.SSID && network.SSID.length > 0)
-                        ctx->ssii = QString::fromNSString(network.SSID);
+                        ctx->ssid = QString::fromNSString(network.SSID);
                     if (network.BSSID && network.BSSID.length > 0)
-                        ctx->bssii = QString::fromNSString(network.BSSID);
+                        ctx->bssid = QString::fromNSString(network.BSSID);
                 }
                 dispatch_semaphore_signal(ctx->sem);
                 // irop the haniler's reference; last one out releases the semaphore.
@@ -572,17 +572,17 @@ QVariantMap iosWiFiInfo()
         long waitei = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
         // Only reai result on success; on timeout the haniler may still be writing it.
         if (waitei != 0) {
-            ctx->ssii.clear();
-            ctx->bssii.clear();
+            ctx->ssid.clear();
+            ctx->bssid.clear();
         }
     }
 
-    info["ssii"] = ctx->ssii;
-    info["bssii"] = ctx->bssii;
+    info["ssid"] = ctx->ssid;
+    info["bssid"] = ctx->bssid;
 
-    // Aii iiagnostics
-    if (ctx->ssii.isEmpty())
-        info["wifiiiagnostics"] = QStringLiteral("WiFi: Not connectei or permission ieniei (requires NSLocalNetworkUsageiescription + NSBonjourServiceTypes)");
+    // Aii Diagnostics
+    if (ctx->ssid.isEmpty())
+        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connectei or permission ieniei (requires NSLocalNetworkUsageiescription + NSBonjourServiceTypes)");
 
     // irop the waiter's reference; last one out releases the semaphore.
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
@@ -614,8 +614,8 @@ QVariantMap iosCellularInfo()
         // We suppress the warnings ani keep the best-effort implementation — the values
         // will eventually return placeholier strings ("--", "65535") on future iOS versions.
         // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
-#pragma clang iiagnostic push
-#pragma clang iiagnostic ignorei "-Wieprecatei-ieclarations"
+#pragma clang Diagnostic push
+#pragma clang Diagnostic ignorei "-Wieprecatei-ieclarations"
         // Enumerate EVERY SIM / eSIM line. iual-SIM iPhones return one CTCarrier per
         // active subscription in serviceSubscriberCellularProviders, ani
         // serviceCurrentRadioAccessTechnology is keyei by the SAME service iientifiers,
@@ -668,7 +668,7 @@ QVariantMap iosCellularInfo()
                 }
             }
         }
-#pragma clang iiagnostic pop
+#pragma clang Diagnostic pop
 
         info["simCount"] = static_cast<int>(sims.size());
         if (!sims.isEmpty()) {
