@@ -50,14 +50,22 @@ function(configure_netdiag_target TARGET)
 
     # ── curl ─────────────────────────────────────────────────────────
     if(TARGET CURL::libcurl)
-        target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
-        # 5WHY round 9: "LINKER:-Bstatic" syntax doesn't survive CMake
-        # generator transform in CI MinGW toolchain. Use raw -Wl, flags
-        # which pass directly to the linker without CMake interpretation.
+        # 5WHY: libcurl-4.dll was NOT absorbed by static link because
+        # -Wl,-Bstatic was placed AFTER CURL::libcurl in link order.
+        # The linker resolved -lcurl to the DLL import library before
+        # -Bstatic took effect.  Fix: wrap CURL::libcurl INSIDE the
+        # -Bstatic sandwich so -lcurl is resolved to a static archive.
+        # Also: MSYS2 curl package may ship libcurl.a as a DLL import
+        # lib (not a true static archive).  If libcurl-4.dll still
+        # appears after this fix, we must build curl from source with
+        # --disable-shared --enable-static, same pattern as Qt source build.
         if(WIN32)
             target_link_libraries(${TARGET} PRIVATE
                 "-Wl,-Bstatic"
             )
+        endif()
+        target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
+        if(WIN32)
             target_link_libraries(${TARGET} PRIVATE
                 ssh2 idn2 unistring ssl crypto z brotlidec brotlicommon zstd
                 nghttp2 ngtcp2_crypto_ossl ngtcp2 nghttp3 psl
