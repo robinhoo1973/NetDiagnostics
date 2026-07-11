@@ -51,7 +51,22 @@ elseif(ANDROID)
     add_compile_definitions(NO_CURL)
 else()
     # Desktop: curl is required for full G5 diagnostics
-    find_package(CURL REQUIRED)
+    # 5WHY: find_package(CURL) does try_compile which fails when using
+    # a custom-built true-static libcurl.a (at /c/opt/curl-static) because
+    # OpenSSL symbols are not linked in the try_compile test.  When
+    # CURL_LIBRARY is passed via -D, create imported target directly
+    # to skip the try_compile step entirely.
+    if(WIN32 AND DEFINED CURL_LIBRARY AND EXISTS "${CURL_LIBRARY}")
+        message(STATUS "Using custom static curl: ${CURL_LIBRARY}")
+        add_library(CURL::libcurl STATIC IMPORTED)
+        set_target_properties(CURL::libcurl PROPERTIES
+            IMPORTED_LOCATION "${CURL_LIBRARY}"
+            INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIR}"
+        )
+        set(CURL_FOUND TRUE)
+    else()
+        find_package(CURL REQUIRED)
+    endif()
 endif()
 
 # ── iOS SDK detection ───────────────────────────────────────────────────
