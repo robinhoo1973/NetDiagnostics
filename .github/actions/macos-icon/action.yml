@@ -1,0 +1,25 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# macOS .icns Icon Generator
+# ═══════════════════════════════════════════════════════════════════════════
+# 5WHY: Icon generation (sips x6 + iconutil) was copy-pasted 4× across
+# build.yml and apple.yml (macOS arm64 production/simulator variants).
+# Extracted here so icon format changes propagate everywhere.
+# Callers just need a PNG at resources/icons/netanalysis.png.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Generate macOS App Icon
+description: Generates .icns from resources/icons/netanalysis.png via sips + iconutil
+runs:
+  using: composite
+  steps:
+    - name: Generate macOS app icon (.icns)
+      shell: bash
+      run: |
+        mkdir -p icon.iconset
+        sips -z 16 16 resources/icons/netanalysis.png --out icon.iconset/icon_16x16.png 2>/dev/null
+        sips -z 32 32 resources/icons/netanalysis.png --out icon.iconset/icon_32x32.png 2>/dev/null
+        sips -z 128 128 resources/icons/netanalysis.png --out icon.iconset/icon_128x128.png 2>/dev/null
+        sips -z 256 256 resources/icons/netanalysis.png --out icon.iconset/icon_256x256.png 2>/dev/null
+        sips -z 512 512 resources/icons/netanalysis.png --out icon.iconset/icon_512x512.png 2>/dev/null
+        sips -z 1024 1024 resources/icons/netanalysis.png --out icon.iconset/icon_512x512@2x.png 2>/dev/null
+        iconutil -c icns icon.iconset -o resources/icons/netanalysis.icns 2>/dev/null && echo "icon generated" || echo "icon skipped (png not found)"
+      continue-on-error: true
