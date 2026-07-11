@@ -56,7 +56,7 @@ static bool connectSuccess(int sock) {
     // Verify connection actually completed (not still EINPROGRESS)
     struct sockaddr_in peer;
     socklen_t peerLen = sizeof(peer);
-    if (getpeername(sock, (struct sockaddr*)&peer, &peerLen) < 0) {
+    if (getpeername(sock, reinterpret_cast<struct sockaddr*>(&peer), &peerLen) < 0) {
         // Not connected yet 鈥?still in progress
         return false;
     }
@@ -64,7 +64,7 @@ static bool connectSuccess(int sock) {
     int err = 0;
     socklen_t len = sizeof(err);
 #if defined(_WIN32)
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&err, &len);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
 #else
     getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);
 #endif
