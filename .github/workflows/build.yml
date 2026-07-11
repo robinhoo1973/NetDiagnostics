@@ -801,47 +801,10 @@ jobs:
         run: |
           ninja -C build net_diagnostics
 
-      - name: Build APK
-        run: |
-          set -euxo pipefail
-
-          # The AndroidManifest.xml references @drawable/ic_launcher; provide it
-          # so aapt can resolve the resource (otherwise the APK build fails).
-          mkdir -p resources/android/res/drawable
-          cp resources/icons/netanalysis.png resources/android/res/drawable/ic_launcher.png
-
-          # GitHub runners only ship preview/extension SDK platforms
-          # (android-*-extNN) plus a stub android-37; aapt2/gradle cannot use
-          # them (android.jar fails to load / platform not fully installed).
-          # androiddeployqt defaults to the highest installed platform, so
-          # install a clean stable platform + matching build-tools and make it
-          # the ONLY platform available.
-          SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
-          # Qt 6.5.3 ships Android Gradle Plugin 7.4.1, whose bundled aapt2 only
-          # supports compileSdk up to 33 (android-34/35 android.jar fails to load).
-          # androiddeployqt uses the highest installed platform, so install a
-          # clean android-33 + matching build-tools and make it the ONLY platform.
-          yes 2>/dev/null | "$SDKMANAGER" "platforms;android-33" "build-tools;33.0.2" >/dev/null || true
-          test -d "$ANDROID_SDK_ROOT/platforms/android-33" || { echo "ERROR: android-33 platform not installed"; exit 1; }
-          shopt -s nullglob
-          for p in "$ANDROID_SDK_ROOT"/platforms/*; do
-            [ "$(basename "$p")" = "android-33" ] && continue
-            echo "Removing SDK platform: $(basename "$p")"
-            rm -rf "$p"
-          done
-          echo "Remaining platforms:"; ls "$ANDROID_SDK_ROOT/platforms"
-
-          # Qt auto-generates an 'apk' target that runs androiddeployqt with the
-          # generated deployment JSON, copies the app .so into the package, and
-          # builds a debug-signed, zipaligned, installable APK via Gradle.
-          cmake --build build --target apk
-
-          APK=$(find build -path '*outputs/apk/*' -name '*.apk' | head -1)
-          if [ -z "$APK" ]; then
-            echo "ERROR: no APK produced by the 'apk' target"; exit 1
-          fi
-          cp "$APK" NetDiagnostics-Android-x86_64.apk
-          ls -lh NetDiagnostics-Android-x86_64.apk
+      - uses: ./.github/actions/android-apk
+        with:
+          qt_version: ${{ env.QT_VERSION_ANDROID }}
+          output_name: NetDiagnostics-Android-x86_64.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -920,47 +883,10 @@ jobs:
         run: |
           ninja -C build net_diagnostics
 
-      - name: Build APK
-        run: |
-          set -euxo pipefail
-
-          # The AndroidManifest.xml references @drawable/ic_launcher; provide it
-          # so aapt can resolve the resource (otherwise the APK build fails).
-          mkdir -p resources/android/res/drawable
-          cp resources/icons/netanalysis.png resources/android/res/drawable/ic_launcher.png
-
-          # GitHub runners only ship preview/extension SDK platforms
-          # (android-*-extNN) plus a stub android-37; aapt2/gradle cannot use
-          # them (android.jar fails to load / platform not fully installed).
-          # androiddeployqt defaults to the highest installed platform, so
-          # install a clean stable platform + matching build-tools and make it
-          # the ONLY platform available.
-          SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
-          # Qt 6.5.3 ships Android Gradle Plugin 7.4.1, whose bundled aapt2 only
-          # supports compileSdk up to 33 (android-34/35 android.jar fails to load).
-          # androiddeployqt uses the highest installed platform, so install a
-          # clean android-33 + matching build-tools and make it the ONLY platform.
-          yes 2>/dev/null | "$SDKMANAGER" "platforms;android-33" "build-tools;33.0.2" >/dev/null || true
-          test -d "$ANDROID_SDK_ROOT/platforms/android-33" || { echo "ERROR: android-33 platform not installed"; exit 1; }
-          shopt -s nullglob
-          for p in "$ANDROID_SDK_ROOT"/platforms/*; do
-            [ "$(basename "$p")" = "android-33" ] && continue
-            echo "Removing SDK platform: $(basename "$p")"
-            rm -rf "$p"
-          done
-          echo "Remaining platforms:"; ls "$ANDROID_SDK_ROOT/platforms"
-
-          # Qt auto-generates an 'apk' target that runs androiddeployqt with the
-          # generated deployment JSON, copies the app .so into the package, and
-          # builds a debug-signed, zipaligned, installable APK via Gradle.
-          cmake --build build --target apk
-
-          APK=$(find build -path '*outputs/apk/*' -name '*.apk' | head -1)
-          if [ -z "$APK" ]; then
-            echo "ERROR: no APK produced by the 'apk' target"; exit 1
-          fi
-          cp "$APK" NetDiagnostics-Android-arm64.apk
-          ls -lh NetDiagnostics-Android-arm64.apk
+      - uses: ./.github/actions/android-apk
+        with:
+          qt_version: ${{ env.QT_VERSION_ANDROID }}
+          output_name: NetDiagnostics-Android-arm64.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
