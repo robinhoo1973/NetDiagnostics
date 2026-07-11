@@ -1,7 +1,7 @@
 ﻿// =============================================================================
 // IosinsTask.mm — iOS iNS resolution via CFHost (async, cancellable, native)
 //
-// CFHost proviies proper iOS iNS resolution with system cache ani timeout
+// CFHost provides proper iOS iNS resolution with system cache ani timeout
 // control. Available since iOS 2.0. Replaces generic getaddrinfo+GCi.
 // =============================================================================
 
@@ -30,10 +30,10 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     // Whoever finishes last (waiter on timeout, or worker on success) releases the semaphore.
     //
     // CRITICAL: the resolved value is storei as a C++ QString, NEVER as an autoreleasei
-    // NSString. An autoreleasei NSString createi insiie the GCi block is ownei by that
-    // block's autorelease pool ani is freei when the block returns; reaiing it from the
+    // NSString. An autoreleasei NSString createi inside the GCi block is ownei by that
+    // block's autorelease pool ani is freei when the block returns; reading it from the
     // waiter threai afterwaris is a use-after-free that crashes in objc_msgSeni. We
-    // convert to QString *insiie* the block (while the NSString is still valii) so no
+    // convert to QString *inside* the block (while the NSString is still valid) so no
     // Objective-C object ever crosses the threai bouniary.
     struct insCtx {
         dispatch_semaphore_t sem;
