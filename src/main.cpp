@@ -31,7 +31,6 @@
 #endif
 #if defined(PLATFORM_IOS)
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
-#import <Foundation/Foundation.h>
 #endif
 #include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/StartupLog.h"
@@ -214,22 +213,22 @@ int main(int argc, char *argv[])
 #if defined(PLATFORM_IOS)
         // 5WHY: On iOS there is no QMessageBox (QtWidgets is excluded on
         // mobile).  A silent return -1 looks like a crash to the user with
-        // no diagnostic.  Log to NSLog (visible in Console.app / Xcode
-        // device logs) and call qFatal to produce a crash report with the
-        // error message so support can identify missing QML plugins/modules.
-        NSString *errMsg = [NSString stringWithFormat:
-            @"NetDiagnostics — Startup Error\n\n"
-            @"Failed to load QML UI from %@.\n\n"
-            @"Common causes:\n"
-            @"• QtQuick / QtQuickControls2 plugin missing\n"
-            @"• Static build missing QML plugins\n"
-            @"• Corrupted resources.qrc or missing fonts\n\n"
-            @"Full log: %@/NetDiagnostics_startup.log",
-            [NSString stringWithUTF8String:url.toString().toUtf8().constData()],
-            [NSString stringWithUTF8String:
-                QStandardPaths::writableLocation(QStandardPaths::TempLocation).toUtf8().constData()]];
-        NSLog(@"%@", errMsg);
-        qFatal("%s", [errMsg UTF8String]);
+        // no diagnostic.  qFatal() on iOS writes to stderr which appears in
+        // Console.app / Xcode device logs, and also generates a crash report
+        // with the error message so support can identify the root cause.
+        // NOTE: main.cpp is compiled as C++, NOT Objective-C++.  Do NOT
+        // #import <Foundation/Foundation.h> here — the C++ compiler cannot
+        // parse ObjC syntax (@class, @protocol, @end, etc.).
+        qFatal(
+            "NetDiagnostics — Startup Error\n\n"
+            "Failed to load QML UI from %s.\n\n"
+            "Common causes:\n"
+            "- QtQuick / QtQuickControls2 plugin missing\n"
+            "- Static build missing QML plugins\n"
+            "- Corrupted resources.qrc or missing fonts\n\n"
+            "Full log: %s/NetDiagnostics_startup.log",
+            url.toString().toUtf8().constData(),
+            QStandardPaths::writableLocation(QStandardPaths::TempLocation).toUtf8().constData());
 #elif defined(PLATFORM_ANDROID)
         // Android: log to logcat (qCritical already does this via Qt)
         qFatal("QML engine failed to load %s — check Qt plugin deployment",
