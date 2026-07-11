@@ -373,8 +373,9 @@ static DiagnosticResult iosHttpTiming(DiagId id, const QString& target) {
 // ── Task creation helpers for TaskFactory ────────────────────────────────
 
 // Returns a DiagnosticResult for iOS-native G5 HTTP diagnostics.
-// Used by TaskFactory when PLATFORM_IOS is defined (no libcurl needed).
-DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target) {
+// 5WHY: same LTO dead-strip risk as iosDhcpDiag — this symbol is only
+// referenced through a lambda in TaskFactory.cpp (line 234).
+DiagnosticResult __attribute__((used)) iosHttpDiagnostic(DiagId id, const QString& target) {
     // Runs on a QtConcurrent worker thread with no autorelease pool of its own.
     // NSURL/NSURLSession/NSURLSessionConfiguration created below are autoreleased;
     // Apple requires each secondary thread that makes Cocoa calls to provide its own
