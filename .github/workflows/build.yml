@@ -496,7 +496,11 @@ jobs:
           # No combination of -static / -Wl,-Bstatic / -nodefaultlibs can
           # suppress them short of rebuilding GCC --disable-shared.
           # They ship with every MinGW-w64 installation worldwide.
-          SYSTEM_DLLS="${SYSTEM_DLLS}|libstdc++-6|libgcc_s_seh-1|libwinpthread-1"
+          # 5WHY: libstdc++-6 was not filtered by grep -E because '+' is a regex
+          # quantifier. In ERE, '++' is undefined/ambiguous — GNU grep treats the
+          # second '+' as literal but first as quantifier, so 'libstdc++-6' never
+          # matches the literal DLL name. Escape '+' as '\\+' for literal match.
+          SYSTEM_DLLS="${SYSTEM_DLLS}|libstdc\+\+-6|libgcc_s_seh-1|libwinpthread-1"
           # Third-party DLLs that MUST be absorbed (-Wl,-Bstatic ensures):
           # libcurl-4, libssl-3-x64, libcrypto-3-x64, libiconv-2,
           # libzstd-1, libbrotlidec, libbrotlicommon, libidn2-0,
