@@ -101,15 +101,18 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
     pdfPage.callMethod<void>("close");
 
     // Lock pixels and copy to QImage
+    // 5WHY: QJniEnvironment does not implicitly convert to JNIEnv* in
+    // Qt 6.5.3 for Android.  Use operator*() + & to obtain the raw pointer.
+    JNIEnv* jniEnv = &(*env);
     AndroidBitmapInfo info;
-    if (AndroidBitmap_getInfo(static_cast<JNIEnv*>(env), bitmap.object<jobject>(), &info) < 0) return {};
+    if (AndroidBitmap_getInfo(jniEnv, bitmap.object<jobject>(), &info) < 0) return {};
     void* pixels = nullptr;
-    if (AndroidBitmap_lockPixels(static_cast<JNIEnv*>(env), bitmap.object<jobject>(), &pixels) < 0) return {};
+    if (AndroidBitmap_lockPixels(jniEnv, bitmap.object<jobject>(), &pixels) < 0) return {};
 
     QImage img((const uchar*)pixels, width, height, QImage::Format_ARGB32_Premultiplied);
     QImage copy = img.copy(); // deep copy before unlocking
 
-    AndroidBitmap_unlockPixels(static_cast<JNIEnv*>(env), bitmap.object<jobject>());
+    AndroidBitmap_unlockPixels(jniEnv, bitmap.object<jobject>());
     return copy;
 }
 
