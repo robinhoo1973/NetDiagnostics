@@ -66,8 +66,12 @@ function(configure_netdiag_target TARGET)
         endif()
         target_link_libraries(${TARGET} PRIVATE CURL::libcurl)
         if(WIN32)
+            # 5WHY: Link order matters with -Wl,-Bstatic + ld.exe.
+            # libunistring references libiconv; libssh2 references libssl/libcrypto.
+            # Put dependents BEFORE their dependencies (left-to-right resolution).
             target_link_libraries(${TARGET} PRIVATE
-                ssh2 idn2 unistring ssl crypto z brotlidec brotlicommon zstd
+                ssh2 ssl crypto idn2 unistring iconv
+                z brotlidec brotlicommon zstd
                 nghttp2 ngtcp2_crypto_ossl ngtcp2 nghttp3 psl
             )
             target_link_libraries(${TARGET} PRIVATE
