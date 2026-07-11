@@ -590,9 +590,9 @@ QVariantMap iosWiFiInfo()
     info["ssid"] = ctx->ssid;
     info["bssid"] = ctx->bssid;
 
-    // Adi Diagnostics
+    // Add Diagnostics
     if (ctx->ssid.isEmpty())
-        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission ieniei (requires NSLocalNetworkUsageDescription + NSBonjourServices)");
+        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission denied (requires NSLocalNetworkUsageDescription + NSBonjourServices)");
 
     // drop the waiter's reference; last one out releases the semaphore.
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
