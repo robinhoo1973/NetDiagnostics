@@ -13,6 +13,7 @@
         <file alias="qml/theme/qmldir">../src/Common/View/theme/qmldir</file>
 
         <!-- Screens (page-specific) -->
+        <file alias="qml/screens/qmldir">screens-qmldir</file>
         <file alias="qml/screens/DashboardScreen.qml">../src/Dashboard/View/DashboardScreen.qml</file>
         <file alias="qml/screens/DiagnosticScreen.qml">../src/Diagnostics/View/DiagnosticScreen.qml</file>
         <file alias="qml/screens/ConfigScreen.qml">../src/Configuration/View/ConfigScreen.qml</file>
