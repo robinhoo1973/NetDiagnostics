@@ -319,8 +319,12 @@ DiagnosticResult iosdefaultGatewayDiag(DiagId id) {
     return r;
 }
 
-// Returns a DiagnosticResult for iHCP status on iOS
-DiagnosticResult iosDhcpDiag(DiagId id) {
+// Returns a DiagnosticResult for DHCP status on iOS
+// 5WHY: Previously returned linker error "undefined symbol iosDhcpDiag(DiagId)".
+// The function signature matched the header declaration and the definition was
+// inside #if defined(PLATFORM_IOS).  Adding explicit __attribute__((used)) to
+// prevent the linker from stripping this symbol during dead-code elimination.
+DiagnosticResult __attribute__((used)) iosDhcpDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
     r.rawOutput = iosihcpStatus();

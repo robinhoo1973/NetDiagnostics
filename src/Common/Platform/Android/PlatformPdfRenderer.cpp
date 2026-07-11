@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // PlatformPdfRenderer_android.cpp — Android PDF rendering via PdfRenderer JNI
 // =============================================================================
 // Uses android.graphics.pdf.PdfRenderer (API 21+) to render pages to Bitmap,
@@ -32,27 +32,27 @@ bool PlatformPdfRenderer::load(const QString& filePath) {
 
     // android/os/ParcelFileDescriptor
     QJniObject jPath = QJniObject::fromString(filePath);
-    QJniObject jFile(Cjava/io/FileC, C(Ljava/lang/String;)VC, jPath.object<jstring>());
+    QJniObject jFile("java/io/File", "(Ljava/lang/String;)V", jPath.object<jstring>());
     if (!jFile.isValid()) return false;
 
     QJniObject fd = QJniObject::callStaticObjectMethod(
-        Candroid/os/ParcelFileDescriptorC,
-        CopenC, C(Ljava/io/File;I)Landroid/os/ParcelFileDescriptor;C,
+        "android/os/ParcelFileDescriptor",
+        "open", "(Ljava/io/File;I)Landroid/os/ParcelFileDescriptor;",
         jFile.object<jobject>(), 0x10000000 /* MODE_READ_ONLY */);
     if (!fd.isValid()) return false;
 
     // android/graphics/pdf/PdfRenderer
-    QJniObject renderer(Candroid/graphics/pdf/PdfRendererC,
-        C(Landroid/os/ParcelFileDescriptor;)VC, fd.object<jobject>());
+    QJniObject renderer("android/graphics/pdf/PdfRenderer",
+        "(Landroid/os/ParcelFileDescriptor;)V", fd.object<jobject>());
     if (!renderer.isValid()) {
         // 5WHY: PdfRenderer construction failed but ParcelFileDescriptor
         // was already opened. Close it to prevent FD leak.
-        fd.callMethod<void>(CcloseC);
+        fd.callMethod<void>("close");
         return false;
     }
 
     d->renderer = env->NewGlobalRef(renderer.object<jobject>());
-    d->pages = renderer.callMethod<jint>(CgetPageCountC);
+    d->pages = renderer.callMethod<jint>("getPageCount");
     m_loaded = (d->pages > 0);
     return m_loaded;
 }
@@ -68,37 +68,37 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
     QJniObject renderer(d->renderer); // wrap the global ref
     // Open the page
     QJniObject pdfPage = renderer.callObjectMethod(
-        CopenPageC, C(I)Landroid/graphics/pdf/PdfRenderer$Page;C, pageIndex);
+        "openPage", "(I)Landroid/graphics/pdf/PdfRenderer$Page;", pageIndex);
     if (!pdfPage.isValid()) return {};
 
     // Get page dimensions
-    jint pw = pdfPage.callMethod<jint>(CgetWidthC);
-    jint ph = pdfPage.callMethod<jint>(CgetHeightC);
-    // 5WHY: Corrupt PDF with zero-width page → division by zero.
-    if (pw <= 0) { pdfPage.callMethod<void>(CcloseC); return {}; }
+    jint pw = pdfPage.callMethod<jint>("getWidth");
+    jint ph = pdfPage.callMethod<jint>("getHeight");
+    // 5WHY: Corrupt PDF with zero-width page -> division by zero.
+    if (pw <= 0) { pdfPage.callMethod<void>("close"); return {}; }
     float scale = (float)width / (float)pw;
     int height = (int)(ph * scale);
     if (height < 1) height = 1;
 
     // Create Android Bitmap
     QJniObject config = QJniObject::getStaticObjectField(
-        Candroid/graphics/Bitmap$ConfigC, CARGB_8888C,
-        CLandroid/graphics/Bitmap$Config;C);
+        "android/graphics/Bitmap$Config", "ARGB_8888",
+        "Landroid/graphics/Bitmap$Config;");
     QJniObject bitmap = QJniObject::callStaticObjectMethod(
-        Candroid/graphics/BitmapC, CcreateBitmapC,
-        C(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;C,
+        "android/graphics/Bitmap", "createBitmap",
+        "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;",
         width, height, config.object<jobject>());
     if (!bitmap.isValid()) return {};
 
     // Render page into bitmap
-    pdfPage.callMethod<void>(CrenderC,
-        C(Landroid/graphics/Bitmap;Landroid/graphics/Rect;C
-        CLandroid/graphics/Matrix;I)VC,
+    pdfPage.callMethod<void>("render",
+        "(Landroid/graphics/Bitmap;Landroid/graphics/Rect;"
+        "Landroid/graphics/Matrix;I)V",
         bitmap.object<jobject>(),
         nullptr, nullptr, 0 /* RENDER_MODE_FOR_DISPLAY */);
 
     // Close page
-    pdfPage.callMethod<void>(CcloseC);
+    pdfPage.callMethod<void>("close");
 
     // Lock pixels and copy to QImage
     AndroidBitmapInfo info;
@@ -116,7 +116,7 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
 void PlatformPdfRenderer::close() {
     if (d->renderer) {
         QJniObject renderer(d->renderer);
-        renderer.callMethod<void>(CcloseC);
+        renderer.callMethod<void>("close");
         QJniEnvironment env;
         env->DeleteGlobalRef(d->renderer);
         d->renderer = nullptr;
