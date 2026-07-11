@@ -43,7 +43,7 @@ DiagnosticResult defaultGateway(DiagId id) {
     }
 #else
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
-    // ── macOS: get default gateway via PF_ROUTE routing socket ──
+    // 鈹€鈹€ macOS: get default gateway via PF_ROUTE routing socket 鈹€鈹€
     int routeSock = socket(PF_ROUTE, SOCK_RAW, 0);
     if (routeSock >= 0) {
         struct { struct rt_msghdr h; struct sockaddr_in d; } msg;
@@ -60,7 +60,7 @@ DiagnosticResult defaultGateway(DiagId id) {
             ssize_t n = read(routeSock, resp, sizeof(resp));
             if (n > (ssize_t)sizeof(struct rt_msghdr)) {
                 auto* rh = (struct rt_msghdr*)resp;
-                auto* sa = (struct sockaddr*)(rh + 1);
+                auto* sa = reinterpret_cast<struct sockaddr*>(rh + 1);
                 for (int i = 0; i < RTAX_MAX; i++) {
                     if (rh->rtm_addrs & (1 << i)) {
                         if (i == RTAX_GATEWAY && sa->sa_family == AF_INET) {
@@ -69,7 +69,7 @@ DiagnosticResult defaultGateway(DiagId id) {
                             break;
                         }
                         if (sa->sa_len > 0)
-                            sa = (struct sockaddr*)((char*)sa + sa->sa_len);
+                            sa = reinterpret_cast<struct sockaddr*>((char*)sa + sa->sa_len);
                         else break;
                     }
                 }

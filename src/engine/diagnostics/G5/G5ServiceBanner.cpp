@@ -20,7 +20,7 @@ DiagnosticResult serviceBanner(const QString& target) {
 #else
     int fl = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, fl | O_NONBLOCK);
 #endif
-    ::connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {5, 0};
     if (select(sock+1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return g5Result(DiagId::G5ServiceBanner, "Connection timeout", DiagStatus::Fail); }

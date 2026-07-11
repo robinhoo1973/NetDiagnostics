@@ -11,7 +11,7 @@ DiagnosticResult traceroute(const QString& target) {
     struct in_addr ta; ta.s_addr = htonl(targetIp);
     QString targetIpStr = ip4ToStr(ta);
 
-    // Build output — strict Windows tracert.exe format
+    // Build output 鈥?strict Windows tracert.exe format
     // "Tracing route to example.com [93.184.216.34]"
     // "over a maximum of 30 hops:"
     // ""
@@ -23,14 +23,14 @@ DiagnosticResult traceroute(const QString& target) {
     lines.append(QStringLiteral("over a maximum of 30 hops:"));
     lines.append(QString());
 
-    // TCP TTL probing via tcpTraceHop() — uses IP_RECVERR on Linux to capture
+    // TCP TTL probing via tcpTraceHop() 鈥?uses IP_RECVERR on Linux to capture
     // ICMP Time Exceeded from intermediate routers without root privileges.
     TRACE(" traceroute: using tcpTraceHop\n");
 
     QElapsedTimer t; t.start();
     int hopCount = 0, timeoutHops = 0; bool reached = false; bool blocked = false;
 
-    // RTT formatter — fixed 8-char width for consistent column alignment.
+    // RTT formatter 鈥?fixed 8-char width for consistent column alignment.
     // "<1 ms" case uses 3 leading spaces (= 8 chars total) to match the
     // "%1 ms".arg(ms, 5) format which produces "  NNN ms" (also 8 chars).
     // This ensures timeout * * * placeholders (8-char) align with all RTT values.
@@ -38,7 +38,7 @@ DiagnosticResult traceroute(const QString& target) {
         if (ms < 1) return QStringLiteral("   <1 ms");  // 3 spaces + "<1 ms" = 8 chars
         return QStringLiteral("%1 ms").arg(ms, 5);      // 5-char right-padded number + " ms" = 8 chars
     };
-    // Hop line builder — shared format eliminates duplicated format strings
+    // Hop line builder 鈥?shared format eliminates duplicated format strings
     auto fmtHop = [](int ttl, const QString& rtt, const QString& name, const QString& ip) -> QString {
         return QStringLiteral(" %1  %2  %3  %4  %5 [%6]")
             .arg(ttl, 2).arg(rtt).arg(rtt).arg(rtt).arg(name).arg(ip);
@@ -67,7 +67,7 @@ DiagnosticResult traceroute(const QString& target) {
             sa.sin_family = AF_INET;
             sa.sin_addr.s_addr = inet_addr(hopIp.toUtf8().constData());
             char hbuf[NI_MAXHOST] = {};
-            if (getnameinfo((struct sockaddr*)&sa, sizeof(sa), hbuf, sizeof(hbuf),
+            if (getnameinfo(reinterpret_cast<struct sockaddr*>(&sa), sizeof(sa), hbuf, sizeof(hbuf),
                             nullptr, 0, 0) == 0 && hbuf[0])
                 hopName = QString::fromLatin1(hbuf);
             lines.append(fmtHop(ttl, rttStr, hopName, hopIp));
@@ -84,7 +84,7 @@ DiagnosticResult traceroute(const QString& target) {
                 break;
             }
         } else {
-            // Timeout — use fixed-width RTT columns (8 chars each + 2-space gap)
+            // Timeout 鈥?use fixed-width RTT columns (8 chars each + 2-space gap)
             // to align * markers with RTT values in normal hop lines.
             ++timeoutHops;
             QString star = QStringLiteral("       *");  // 7 spaces + "*" = 8 chars
@@ -102,7 +102,7 @@ DiagnosticResult traceroute(const QString& target) {
 
     // If all ICMP probes failed (no hop responded), try TCP to verify whether the
     // target is actually reachable. Networks and device sandboxes (e.g. iOS) often
-    // filter ICMP while allowing TCP — ping works via its TCP fallback, but ICMP
+    // filter ICMP while allowing TCP 鈥?ping works via its TCP fallback, but ICMP
     // traceroute shows all "* * * *". The TCP check surfaces this distinction.
     bool tcpReachable = false;
     if (!reached && !blocked) {
@@ -115,7 +115,7 @@ DiagnosticResult traceroute(const QString& target) {
                 lines.append(QStringLiteral("NOTE: All ICMP probes timed out."));
                 lines.append(QStringLiteral("  Target %1 [%2] is reachable via TCP port %3 (%4 ms).")
                     .arg(host, targetIpStr).arg(p).arg(rtt));
-                lines.append(QStringLiteral("  ICMP may be filtered by the network or device — route discovery unavailable."));
+                lines.append(QStringLiteral("  ICMP may be filtered by the network or device 鈥?route discovery unavailable."));
                 break;
             }
         }
@@ -127,9 +127,9 @@ DiagnosticResult traceroute(const QString& target) {
     } else if (blocked) {
         lines.append(QStringLiteral("Trace stopped - a router/firewall filtered the probes (path blocked)."));
     } else if (tcpReachable) {
-        lines.append(QStringLiteral("Trace incomplete — ICMP filtered."));
+        lines.append(QStringLiteral("Trace incomplete 鈥?ICMP filtered."));
     } else {
-        lines.append(QStringLiteral("Trace incomplete — target may be firewalled."));
+        lines.append(QStringLiteral("Trace incomplete 鈥?target may be firewalled."));
     }
     // Hint if raw ICMP sockets are unavailable (no CAP_NET_RAW)
     if (!s_rawIcmpAvailable) {
@@ -144,11 +144,11 @@ DiagnosticResult traceroute(const QString& target) {
     r.details   = lines.join('\n');
     if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("Target reached in %1 hops").arg(hopCount); }
     else if (blocked) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Path filtered by a router at hop %1").arg(hopCount); }
-    else if (tcpReachable) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("ICMP filtered — %1 reachable via TCP").arg(host); }
+    else if (tcpReachable) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("ICMP filtered 鈥?%1 reachable via TCP").arg(host); }
     else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial path (%1 hops)").arg(hopCount); }
     else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No hops discovered"); }
     return r;
 }
 
-// ── PathPing — Windows pathping.exe format with TCP-based traceroute ───────
+// 鈹€鈹€ PathPing 鈥?Windows pathping.exe format with TCP-based traceroute 鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 }

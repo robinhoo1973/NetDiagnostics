@@ -79,23 +79,28 @@ DiagnosticResult activeConnections(DiagId id) {
             if (sysctlbyname(sysctlName, nullptr, &len, nullptr, 0) != 0 || len < 32) return;
             QByteArray buf((int)len + 8192, '\0');
             if (sysctlbyname(sysctlName, buf.data(), &len, nullptr, 0) != 0) return;
-            char* ptr = buf.data(); char* end = ptr + len;
+            const char* ptr = buf.constData(); const char* end = ptr + len;
             while (ptr + 8 <= end) {
-                uint32_t elen = *(uint32_t*)ptr;          // xt_len
+                // 5WHY: C-style pointer casts on raw bytes violate strict
+                // aliasing (UB). Use memcpy into local variables instead.
+                uint32_t elen; memcpy(&elen, ptr, sizeof(elen));  // xt_len
                 if (elen < 40 || ptr + elen > end) break;
                 // Scan for AF_INET sockaddr_in pair within this entry
                 for (int off = 24; off + 32 <= (int)elen; off += 4) {
-                    char* sp = ptr + off;
-                    if (*(uint8_t*)sp == 16 && *(uint8_t*)(sp+1) == AF_INET) {
-                        uint16_t lp = ntohs(*(uint16_t*)(sp + 2));
-                        uint32_t la = ntohl(*(uint32_t*)(sp + 4));
-                        uint16_t rp = ntohs(*(uint16_t*)(sp + 16 + 2));
-                        uint32_t ra = ntohl(*(uint32_t*)(sp + 16 + 4));
-                        // Search for TCP state byte (0–10) in remaining entry
+                    const char* sp = ptr + off;
+                    uint8_t fam, fam1; memcpy(&fam, sp, 1); memcpy(&fam1, sp+1, 1);
+                    if (fam == 16 && fam1 == AF_INET) {
+                        uint16_t lp, rp; uint32_t la, ra;
+                        memcpy(&lp, sp + 2, sizeof(lp)); lp = ntohs(lp);
+                        memcpy(&la, sp + 4, sizeof(la)); la = ntohl(la);
+                        memcpy(&rp, sp + 16 + 2, sizeof(rp)); rp = ntohs(rp);
+                        memcpy(&ra, sp + 16 + 4, sizeof(ra)); ra = ntohl(ra);
+                        // Search for TCP state byte (0-10) in remaining entry
                         int state = 0;
                         for (int o2 = off + 32; o2 + 1 < (int)elen; o2++) {
-                            uint8_t v = *(uint8_t*)(ptr + o2);
-                            if (v <= 10 && v != *(uint8_t*)(ptr + o2 - 1)) {
+                            uint8_t v, vprev;
+                            memcpy(&v, ptr + o2, 1); memcpy(&vprev, ptr + o2 - 1, 1);
+                            if (v <= 10 && v != vprev) {
                                 state = (int)v; break;
                             }
                         }
