@@ -32,6 +32,7 @@
 #include "Report/Controller/ReportController.h"
 #include "Settings/Controller/SettingsController.h"
 #include "Common/Utils/StartupLog.h"
+#include "Common/Utils/CrashHandler.h"
 #include "Common/Services/Simulator/SimulatorConfig.h"
 #include "Common/Services/Simulator/QtConfigAdapter.h"
 #include "Common/Services/Simulator/ScreenshotService.h"
