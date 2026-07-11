@@ -190,13 +190,17 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    // 5WHY: Qt::QueuedConnection meant the handler might not fire before
+    // the rootObjects().isEmpty() check below, silently missing the real
+    // QML error.  Direct connection ensures the diagnostic is logged
+    // immediately when object creation fails during engine.load().
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, [url](const QUrl &objUrl) {
             STARTUP_LOG("QML FATAL: object creation failed for %s", objUrl.toString().toUtf8().constData());
             if (url == objUrl)
                 QCoreApplication::exit(-1);
         },
-        Qt::QueuedConnection);
+        Qt::DirectConnection);
 
     STARTUP_LOG("Calling engine.load()...");
     engine.load(url);

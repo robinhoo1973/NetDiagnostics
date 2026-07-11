@@ -25,6 +25,7 @@
         <file alias="qml/simulator/qmldir">../src/Common/View/simulator/qmldir</file>
 
         <!-- Shared widgets -->
+        <file alias="qml/widgets/qmldir">../src/Common/View/widgets/qmldir</file>
         <file alias="qml/widgets/TargetInputPanel.qml">../src/Common/View/widgets/TargetInputPanel.qml</file>
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>

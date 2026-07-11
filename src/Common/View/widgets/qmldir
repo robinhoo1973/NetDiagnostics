@@ -1,0 +1,12 @@
+# 5WHY: On iOS static builds, QRC directory enumeration (QDir::entryList
+# on qrc:/) can return empty results for directories without a qmldir.
+# Explicitly declaring every QML type here eliminates the dependency on
+# directory scanning and ensures all widget types resolve at QML load time.
+AppIcon 1.0 AppIcon.qml
+DiagnosticToolbar 1.0 DiagnosticToolbar.qml
+DiagGroupPanel 1.0 DiagGroupPanel.qml
+DiagResultItem 1.0 DiagResultItem.qml
+LiveProgressPanel 1.0 LiveProgressPanel.qml
+SummaryCards 1.0 SummaryCards.qml
+TargetAnalysisPanel 1.0 TargetAnalysisPanel.qml
+TargetInputPanel 1.0 TargetInputPanel.qml
