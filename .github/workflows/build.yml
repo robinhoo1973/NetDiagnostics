@@ -495,15 +495,6 @@ jobs:
           # exe.  MinGW provides Windows system import libs (.a) that work
           # correctly with -Bstatic — the exe will still depend on kernel32
           # etc. at runtime, but those ARE on the OS DLL whitelist.
-          # 5WHY: MSYS2 libcurl.a is a DLL import lib — even with -Wl,-Bstatic,
-          # it references libcurl-4.dll.  We built a TRUE static libcurl.a
-          # from source at /c/opt/curl-static.  Point pkg-config and CMake
-          # at the true static build so -lcurl resolves to a .a that has no
-          # DLL dependency and can be fully absorbed into the exe.
-          export PKG_CONFIG_PATH="/c/opt/curl-static/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
-          CURL_STATIC_LIBS="$(pkg-config --static --libs libcurl 2>/dev/null || echo "")"
-          echo ">>> curl static libs (from custom build): ${CURL_STATIC_LIBS}"
-
           # ── Fully static link — aggressive -Bstatic sandwich ───────────
           # Strategy: -Wl,-Bstatic at start absorbs our explicit third-party
           # libs.  -Wl,-Bstatic at end ensures CMake-added libs (including
@@ -528,7 +519,7 @@ jobs:
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L/ucrt64/lib -L/c/opt/curl-static/lib -Wl,-Bstatic -l:libstdc++.a -l:libwinpthread.a -lpthread ${CURL_STATIC_LIBS} -liconv -Wl,--gc-sections -Wl,-Bstatic"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L/ucrt64/lib -Wl,-Bstatic -l:libstdc++.a -l:libwinpthread.a -lpthread -liconv -Wl,--gc-sections -Wl,-Bstatic"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
