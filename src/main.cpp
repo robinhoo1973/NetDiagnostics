@@ -210,16 +210,17 @@ int main(int argc, char *argv[])
         // report the root cause instead of just seeing a flash-and-quit.
         STARTUP_LOG("FATAL: QML engine failed to load %s — no root objects", "qrc:/qml/main.qml");
         qCritical() << "QML engine failed to load" << url;
-#if defined(PLATFORM_IOS)
-        // 5WHY: On iOS there is no QMessageBox (QtWidgets is excluded on
-        // mobile).  A silent return -1 looks like a crash to the user with
-        // no diagnostic.  qFatal() on iOS writes to stderr which appears in
-        // Console.app / Xcode device logs, and also generates a crash report
-        // with the error message so support can identify the root cause.
-        // NOTE: main.cpp is compiled as C++, NOT Objective-C++.  Do NOT
-        // #import <Foundation/Foundation.h> here — the C++ compiler cannot
-        // parse ObjC syntax (@class, @protocol, @end, etc.).
-        qFatal(
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+        // 5WHY: On iOS/Android there is no QMessageBox (QtWidgets is
+        // excluded on mobile).  Do NOT use qFatal() here — it calls abort()
+        // which produces a SIGABRT crash report in TestFlight/Play Console,
+        // masking the real root cause (QML load failure) as "app crash".
+        // Instead, log the full diagnostic via qCritical (stderr → syslog
+        // on iOS, logcat on Android) and return -1 for a clean exit.
+        // The error is visible in Xcode Console.app / adb logcat and the
+        // StartupLog file, enabling support to diagnose missing QML plugins,
+        // corrupted QRC resources, or platform-specific module gaps.
+        qCritical(
             "NetDiagnostics — Startup Error\n\n"
             "Failed to load QML UI from %s.\n\n"
             "Common causes:\n"
@@ -227,12 +228,9 @@ int main(int argc, char *argv[])
             "- Static build missing QML plugins\n"
             "- Corrupted resources.qrc or missing fonts\n\n"
             "Full log: %s/NetDiagnostics_startup.log",
-            url.toString().toUtf8().constData(),
-            QStandardPaths::writableLocation(QStandardPaths::TempLocation).toUtf8().constData());
-#elif defined(PLATFORM_ANDROID)
-        // Android: log to logcat (qCritical already does this via Qt)
-        qFatal("QML engine failed to load %s — check Qt plugin deployment",
-               url.toString().toUtf8().constData());
+            qPrintable(url.toString()),
+            qPrintable(QStandardPaths::writableLocation(QStandardPaths::TempLocation)));
+        return -1;
 #else
         QMessageBox::critical(nullptr, QStringLiteral("NetDiagnostics — Startup Error"),
             QStringLiteral("Failed to load the QML UI.\n\n"
