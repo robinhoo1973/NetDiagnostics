@@ -397,25 +397,26 @@ jobs:
           tar -xJf /tmp/curl-src.tar.xz -C /tmp/curl-build --strip-components=1
           rm /tmp/curl-src.tar.xz
           cd /tmp/curl-build
-          echo ">>> Configuring curl (static only, no shared)..."
-          # --disable-shared --enable-static: produce true libcurl.a, no DLL
-          # --with-openssl: use MSYS2 ucrt64 OpenSSL (static libs)
-          # --without-zstd: avoid pulling in libzstd DLL from MSYS2 package
-          ./configure \
-            --host=x86_64-w64-mingw32 \
-            --disable-shared \
-            --enable-static \
-            --disable-dependency-tracking \
-            --with-openssl \
-            --without-zstd \
-            --without-brotli \
-            --disable-ldap \
-            --disable-ldaps \
-            --prefix=/c/opt/curl-static
+          echo ">>> Configuring curl with CMake (static only, no shared)..."
+          # 5WHY: autotools configure+make failed with exit 127 in MSYS2
+          # (make/nproc unavailable).  CMake is already installed for Qt
+          # and has reliable cross-compilation support.  CMake curl build
+          # produces a true static libcurl.a without DLL dependency.
+          cmake -B build -S . -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCURL_USE_OPENSSL=ON \
+            -DCURL_DISABLE_LDAP=ON \
+            -DCURL_DISABLE_LDAPS=ON \
+            -DCMAKE_INSTALL_PREFIX=/c/opt/curl-static \
+            -DBUILD_CURL_EXE=OFF \
+            -DBUILD_TESTING=OFF \
+            -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
+            -DCMAKE_PREFIX_PATH=/ucrt64
           echo ">>> Building curl..."
-          make -j$(nproc)
+          cmake --build build --parallel 4
           echo ">>> Installing curl to /c/opt/curl-static..."
-          make install
+          cmake --install build
           echo ">>> Verifying static libcurl.a..."
           ls -lh /c/opt/curl-static/lib/libcurl.a
           file /c/opt/curl-static/lib/libcurl.a || true
