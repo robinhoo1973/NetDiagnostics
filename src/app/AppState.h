@@ -13,11 +13,18 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
-#include "models/DiagId.h"
-#include "models/DiagnosticResult.h"
-#include "app/DiagnosticConfig.h"
-#include "app/ReportEngine.h"
-#include "app/PremiumStore.h"
+#include "Common/Model/DiagId.h"
+#include "Common/Model/DiagnosticResult.h"
+#include "Configuration/Model/DiagnosticConfig.h"
+#include "Report/Model/ReportEngine.h"
+// PremiumStore now owned by SettingsController
+
+// Forward declarations for MVC Controllers
+class DashboardController;
+class DiagnosticsController;
+class ConfigurationController;
+class ReportController;
+class SettingsController;
 
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
@@ -56,6 +63,13 @@ class AppState : public QObject {
 public:
     explicit AppState(QObject* parent = nullptr);
     ~AppState() override;
+
+    // ── MVC Controller accessors (for QML context injection) ────────────────
+    DashboardController* dashboardController() const { return m_dashCtrl; }
+    DiagnosticsController* diagnosticsController() const { return m_diagCtrl; }
+    ConfigurationController* configurationController() const { return m_configCtrl; }
+    ReportController* reportController() const { return m_reportCtrl; }
+    SettingsController* settingsController() const { return m_settingsCtrl; }
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
@@ -131,15 +145,13 @@ public:
     Q_PROPERTY(QVariantList policyRules READ skipRules NOTIFY skipRulesChanged)
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
     int resultsVersion() const { return m_resultsVersion; }
-    int languageIndex() const { return m_languageIndex; }
+    int languageIndex() const;
     Q_INVOKABLE void setLanguage(int index);
 
     // Theme mode — 0=system, 1=light, 2=dark (matches ThemeEngine.sysMode/litMode/drkMode)
-    int themeMode() const { return m_themeMode; }
+    int themeMode() const;
     Q_INVOKABLE void setThemeMode(int mode);
-    // 5WHY: report share hardcoded light theme. Expose isDarkMode so all
-    // report generation paths use the same theme as the app UI.
-    Q_INVOKABLE bool isDarkMode() const { return m_themeMode != 1; }
+    Q_INVOKABLE bool isDarkMode() const { return themeMode() != 1; }
 
     // ── Report export ────────────────────────────────────
     // buildReportHtml(false)=one-page summary; (true)=full detail per test.
@@ -173,18 +185,11 @@ public:
     Q_INVOKABLE void requestSavePath(const QString& format);
 
     // ── Premium / sharing ──────────────────────────────────────────────────
-    bool isPremium() const { return m_premium.isPremium(); }
+    bool isPremium() const;
     Q_INVOKABLE void setPremium(bool v);
-    // Cross-platform entry point for starting a Premium purchase.
-    // iOS: StoreKit via PlatformStore_ios.mm; Android: (future) Play Billing.
-    // Desktop: grants Premium directly. Emits purchaseInProgressChanged.
     Q_INVOKABLE void requestSubscription();
-    // Restore a previous non-consumable purchase / subscription.
-    // iOS: restoreCompletedTransactions; Android: (future) queryPurchasesAsync.
-    // Desktop: no-op. Emits purchaseInProgressChanged while active.
     Q_INVOKABLE void restorePurchases();
-    // True while a StoreKit / Play Billing purchase dialog is presented.
-    bool purchaseInProgress() const { return m_premium.purchaseInProgress(); }
+    bool purchaseInProgress() const;
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);
 
@@ -235,11 +240,19 @@ private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
 
 private:
+    friend class SettingsController;  // needs access to emailReportDesktop, buildReportData
+    friend class ConfigurationController;
+    friend class DashboardController;
+    friend class ReportController;
+    friend class DiagnosticsController;
+
     void startNextGroup();
     void runDiagInGroup(int groupIdx, int diagIdx);
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
     static QString staticDiagDisplayName(DiagId id);
     void bumpVersion();
+
+    // ── Internal helpers (used by Controllers) ──────────────────────────────
     void emailReportDesktop(const QString& path);
     ReportData buildReportData() const;  // snapshot for ReportEngine
     void assembleTargetUrl();            // rebuild m_target from structured fields
@@ -264,8 +277,14 @@ private:
     int m_totalCompleted = 0;
     int m_totalDiags = 0;
 
-    // DiagnosticConfig owns port-scan settings + diag enable/disable state
-    DiagnosticConfig m_config;
+    // MVC Controllers (own page-specific logic and sub-objects)
+    DashboardController* m_dashCtrl = nullptr;
+    DiagnosticsController* m_diagCtrl = nullptr;
+    ConfigurationController* m_configCtrl = nullptr;
+    ReportController* m_reportCtrl = nullptr;
+    SettingsController* m_settingsCtrl = nullptr;
+
+    // DiagnosticConfig now owned by ConfigurationController (m_configCtrl)
     // ReportEngine handles HTML/PDF generation + file dialogs
     ReportEngine m_reportEngine;
 
@@ -282,9 +301,7 @@ private:
     std::atomic<int> m_stateGeneration{0};
     std::atomic<int> m_runGeneration{0};
     int m_resultsVersion = 0;
-    int m_languageIndex = 0; // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
-    int m_themeMode = 2;     // 0=system, 1=light, 2=dark (default dark = drkMode)
-    PremiumStore m_premium;
+    // m_languageIndex, m_themeMode, m_premium → now owned by SettingsController
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
 
     // ── Simulator skip-policy state ──────────────────────────────────────

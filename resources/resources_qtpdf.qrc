@@ -1,8 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <!-- PdfPreviewView.qml imports QtQuick.Pdf — conditionally loaded
-             only when QtPdf is found to prevent qmlimportscanner from
-             requiring the QtQuick.Pdf plugin in builds without the module. -->
-        <file>qml/widgets/PdfPreviewView.qml</file>
+        <file alias="qml/widgets/PdfPreviewView.qml">../src/Common/View/widgets/PdfPreviewView.qml</file>
     </qresource>
 </RCC>

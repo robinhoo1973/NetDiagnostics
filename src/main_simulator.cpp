@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // main_simulator.cpp — Simulator entry point (Phase 1-4 modules).
 //
 // Architecture per build/simulator.md:
@@ -26,11 +26,18 @@
 #endif
 #include <QStandardPaths>
 #include "app/AppState.h"
-#include "util/StartupLog.h"
-#include "simulator/SimulatorConfig.h"
-#include "simulator/QtConfigAdapter.h"
-#include "simulator/ScreenshotService.h"
-#include "simulator/MatrixOrchestrator.h"
+#include "Dashboard/Controller/DashboardController.h"
+#include "Diagnostics/Controller/DiagnosticsController.h"
+#include "Configuration/Controller/ConfigurationController.h"
+#include "Report/Controller/ReportController.h"
+#include "Settings/Controller/SettingsController.h"
+#include "Common/Utils/StartupLog.h"
+#include "Common/Services/Simulator/SimulatorConfig.h"
+#include "Common/Services/Simulator/QtConfigAdapter.h"
+#include "Common/Services/Simulator/ScreenshotService.h"
+#include "Common/Services/Simulator/MatrixOrchestrator.h"
+#include "Common/Services/Simulator/PlatformSimulationPolicyEngine.h"
+#include "Common/Services/Simulator/ProtocolRegistry.h"
 
 int main(int argc, char *argv[])
 {
@@ -88,6 +95,7 @@ int main(int argc, char *argv[])
         + QStringLiteral("/NetDiagnostics_Evidence"));
 
     MatrixOrchestrator matrixOrch;
+    PlatformSimulationPolicyEngine policyEngine;
 
     // ══════════════════════════════════════════════════════════════════════
     // QML engine + context properties
@@ -108,6 +116,11 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("Theme", theme);
 
     engine.rootContext()->setContextProperty("appState", &appState);
+    engine.rootContext()->setContextProperty("dashboardCtrl", QVariant::fromValue(static_cast<QObject*>(appState.dashboardController())));
+    engine.rootContext()->setContextProperty("diagCtrl", QVariant::fromValue(static_cast<QObject*>(appState.diagnosticsController())));
+    engine.rootContext()->setContextProperty("configCtrl", QVariant::fromValue(static_cast<QObject*>(appState.configurationController())));
+    engine.rootContext()->setContextProperty("reportCtrl", QVariant::fromValue(static_cast<QObject*>(appState.reportController())));
+    engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     // QtWebView availability — avoid QML import crash on platforms
     // without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
@@ -129,6 +142,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("qtConfig", &qtConfig);
     engine.rootContext()->setContextProperty("screenshotSvc", &screenshotSvc);
     engine.rootContext()->setContextProperty("matrixOrch", &matrixOrch);
+    engine.rootContext()->setContextProperty("policyEngine", &policyEngine);
+    engine.rootContext()->setContextProperty("protoReg", &ProtocolRegistry::instance());
 
     // ══════════════════════════════════════════════════════════════════════
     const QUrl url("qrc:/qml/screens/SimulatorScreen.qml");

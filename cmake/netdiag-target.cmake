@@ -1,4 +1,4 @@
-# ── netdiag-target.cmake ────────────────────────────────────────────────
+﻿# ── netdiag-target.cmake ────────────────────────────────────────────────
 # Shared target configuration for net_diagnostics (production) and
 # net_diagnostics_sim (simulator).  Eliminates ~60 lines of duplication.
 #
@@ -140,7 +140,7 @@ function(configure_netdiag_target TARGET)
     endif()
 
     # ── Include paths ────────────────────────────────────────────────
-    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_include_directories(${TARGET} PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/src/Common)
 endfunction()
 
 # ── Platform bundle setup ─────────────────────────────────────────────

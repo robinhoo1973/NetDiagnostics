@@ -1,8 +1,12 @@
-cmake_minimum_required(VERSION 3.22)
+﻿cmake_minimum_required(VERSION 3.22)
 if(NOT DEFINED PROJECT_VERSION)
     set(PROJECT_VERSION "0.0.1")
 endif()
 project(NetDiagnostic VERSION ${PROJECT_VERSION} LANGUAGES CXX)
+
+option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
+option(ND_TESTING "Enable automated headless testing harness" OFF)
+option(BUILD_SIMULATOR "Build simulator variant" ON)
 
 if(NOT DEFINED APP_EDITION)
     set(APP_EDITION "")
@@ -21,70 +25,75 @@ include(netdiag-target)    # configure_netdiag_target() + platform bundles
 # 鈹€鈹€ Source files 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 set(SOURCES
     src/main.cpp
-    src/models/DiagnosticResult.cpp
-    src/util/Logger.cpp
-    src/util/DnsResolver.cpp
-    src/engine/diagnostics/DiagnosticFormatter.cpp
-    src/engine/task/DiagnosticTask.cpp
-    src/engine/task/TaskFactory.cpp
-    src/engine/diagnostics/NetworkProbe.cpp
+    src/Common/Model/DiagnosticResult.cpp
+    src/Common/Utils/Logger.cpp
+    src/Common/Services/DnsResolver.cpp
+    src/Diagnostics/View/DiagnosticFormatter.cpp
+    src/Common/Services/DiagnosticTask.cpp
+    src/Diagnostics/Controller/TaskFactory.cpp
+    src/Diagnostics/Model/NetworkProbe.cpp
     src/app/AppState.cpp
-    src/app/DiagnosticConfig.cpp
-    src/app/ReportEngine.cpp
-    src/app/PremiumStore.cpp
-    src/engine/diagnostics/GCommon.cpp
-    src/engine/diagnostics/G1/G1NetworkAdapters.cpp
-    src/engine/diagnostics/G1/G1ActiveConnections.cpp
-    src/engine/diagnostics/G1/G1CellularInfo.cpp
-    src/engine/diagnostics/G1/G1IpConfiguration.cpp
-    src/engine/diagnostics/G1/G1WifiDiagnostics.cpp
-    src/engine/diagnostics/G1/G1NicAdvanced.cpp
-    src/engine/diagnostics/G1/G1WiredDiagnostics.cpp
-    src/engine/diagnostics/G1/G1DhcpStatus.cpp
-    src/engine/diagnostics/G2/G2RoutingTable.cpp
-    src/engine/diagnostics/G2/G2ArpTable.cpp
-    src/engine/diagnostics/G2/G2NetworkProfile.cpp
-    src/engine/diagnostics/G2/G2TcpSettings.cpp
-    src/engine/diagnostics/G2/G2DefaultGateway.cpp
-    src/engine/diagnostics/G2/G2ProxySettings.cpp
-    src/engine/diagnostics/G3/G3NetskopeStatus.cpp
-    src/engine/diagnostics/G3/G3DnsServers.cpp
-    src/engine/diagnostics/G3/G3DnsCache.cpp
-    src/engine/diagnostics/G3/G3DnsPollution.cpp
-    src/engine/diagnostics/G3/G3InternetSpeedTest.cpp
-    src/engine/diagnostics/G4/G4DnsResolution.cpp
-    src/engine/diagnostics/G4/G4Ping.cpp
-    src/engine/diagnostics/G4/G4Traceroute.cpp
-    src/engine/diagnostics/G4/G4PathPing.cpp
-    src/engine/diagnostics/G4/G4PingParser.cpp
-    src/engine/diagnostics/G4/G4MtuDiscovery.cpp
-    src/engine/diagnostics/G5/G5UrlParsing.cpp
-    src/engine/diagnostics/G5/G5TcpConnect.cpp
-    src/engine/diagnostics/G5/G5ServiceBanner.cpp
-    src/engine/diagnostics/G5/G5HttpHeaders.cpp
-    src/engine/diagnostics/G5/G5CurlVerbose.cpp
-    src/engine/diagnostics/G5/G5SecurityHeaders.cpp
-    src/engine/diagnostics/G5/G5SslCertificate.cpp
-    src/engine/diagnostics/G5/G5HttpRedirect.cpp
-    src/engine/diagnostics/G5/G5HttpCompression.cpp
-    src/engine/diagnostics/G5/G5HttpTiming.cpp
-    src/engine/diagnostics/G5/G5FtpDiagnostics.cpp
-    src/engine/diagnostics/G5/G5SshDiagnostics.cpp
-    src/engine/diagnostics/G5/G5EmailDiagnostics.cpp
-    src/engine/diagnostics/G5/G5Telnet.cpp
-    src/engine/diagnostics/G5/G5Mysql.cpp
-    src/engine/diagnostics/G5/G5Postgres.cpp
-    src/engine/diagnostics/G5/G5Redis.cpp
-    src/engine/diagnostics/G5/G5Mongodb.cpp
-    src/engine/diagnostics/G5/G5Ldap.cpp
-    src/engine/diagnostics/G5/G5Mqtt.cpp
+    src/Dashboard/Controller/DashboardController.cpp
+    src/Diagnostics/Controller/DiagnosticsController.cpp
+    src/Configuration/Controller/ConfigurationController.cpp
+    src/Report/Controller/ReportController.cpp
+    src/Settings/Controller/SettingsController.cpp
+    src/Configuration/Model/DiagnosticConfig.cpp
+    src/Report/Model/ReportEngine.cpp
+    src/Settings/Model/PremiumStore.cpp
+    src/Diagnostics/Model/GCommon.cpp
+    src/Diagnostics/Model/G1/G1NetworkAdapters.cpp
+    src/Diagnostics/Model/G1/G1ActiveConnections.cpp
+    src/Diagnostics/Model/G1/G1CellularInfo.cpp
+    src/Diagnostics/Model/G1/G1IpConfiguration.cpp
+    src/Diagnostics/Model/G1/G1WifiDiagnostics.cpp
+    src/Diagnostics/Model/G1/G1NicAdvanced.cpp
+    src/Diagnostics/Model/G1/G1WiredDiagnostics.cpp
+    src/Diagnostics/Model/G1/G1DhcpStatus.cpp
+    src/Diagnostics/Model/G2/G2RoutingTable.cpp
+    src/Diagnostics/Model/G2/G2ArpTable.cpp
+    src/Diagnostics/Model/G2/G2NetworkProfile.cpp
+    src/Diagnostics/Model/G2/G2TcpSettings.cpp
+    src/Diagnostics/Model/G2/G2DefaultGateway.cpp
+    src/Diagnostics/Model/G2/G2ProxySettings.cpp
+    src/Diagnostics/Model/G3/G3NetskopeStatus.cpp
+    src/Diagnostics/Model/G3/G3DnsServers.cpp
+    src/Diagnostics/Model/G3/G3DnsCache.cpp
+    src/Diagnostics/Model/G3/G3DnsPollution.cpp
+    src/Diagnostics/Model/G3/G3InternetSpeedTest.cpp
+    src/Diagnostics/Model/G4/G4DnsResolution.cpp
+    src/Diagnostics/Model/G4/G4Ping.cpp
+    src/Diagnostics/Model/G4/G4Traceroute.cpp
+    src/Diagnostics/Model/G4/G4PathPing.cpp
+    src/Diagnostics/Model/G4/G4PingParser.cpp
+    src/Diagnostics/Model/G4/G4MtuDiscovery.cpp
+    src/Diagnostics/Model/G5/G5UrlParsing.cpp
+    src/Diagnostics/Model/G5/G5TcpConnect.cpp
+    src/Diagnostics/Model/G5/G5ServiceBanner.cpp
+    src/Diagnostics/Model/G5/G5HttpHeaders.cpp
+    src/Diagnostics/Model/G5/G5CurlVerbose.cpp
+    src/Diagnostics/Model/G5/G5SecurityHeaders.cpp
+    src/Diagnostics/Model/G5/G5SslCertificate.cpp
+    src/Diagnostics/Model/G5/G5HttpRedirect.cpp
+    src/Diagnostics/Model/G5/G5HttpCompression.cpp
+    src/Diagnostics/Model/G5/G5HttpTiming.cpp
+    src/Diagnostics/Model/G5/G5FtpDiagnostics.cpp
+    src/Diagnostics/Model/G5/G5SshDiagnostics.cpp
+    src/Diagnostics/Model/G5/G5EmailDiagnostics.cpp
+    src/Diagnostics/Model/G5/G5Telnet.cpp
+    src/Diagnostics/Model/G5/G5Mysql.cpp
+    src/Diagnostics/Model/G5/G5Postgres.cpp
+    src/Diagnostics/Model/G5/G5Redis.cpp
+    src/Diagnostics/Model/G5/G5Mongodb.cpp
+    src/Diagnostics/Model/G5/G5Ldap.cpp
+    src/Diagnostics/Model/G5/G5Mqtt.cpp
 )
 
 # 鈹€鈹€ Automated testing harness (ND_TESTING) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
 if(ND_TESTING)
     list(APPEND SOURCES
-        src/testing/TestHarness.cpp
-        src/testing/TestScenarios.cpp
+        src/Common/Tests/TestHarness.cpp
+        src/Common/Tests/TestScenarios.cpp
     )
 endif()
 
@@ -93,73 +102,72 @@ if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
 endif()
-	if(IOS)
-		list(APPEND SOURCES
-			src/engine/diagnostics/G1/G1Common.mm
-			src/engine/diagnostics/G3/G3Common.mm src/engine/diagnostics/G5/G5Common.mm
-			src/platform/PlatformShare.mm src/platform/PlatformStore.mm
-			src/platform/PlatformPdfRenderer_ios.mm
+if(IOS)
+    list(APPEND SOURCES
+        src/Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.mm
+        src/Diagnostics/Model/G3/Platform/IOS/DnsResolve.mm src/Diagnostics/Model/G5/Platform/IOS/HttpDiagnostics.mm
+        src/Common/Platform/Apple/IOS/PlatformShare.mm src/Common/Platform/Apple/IOS/PlatformStore.mm
+        src/Common/Platform/Apple/IOS/PlatformPdfRenderer.mm
 	)
-	endif()
-	if(ANDROID)
-		list(APPEND SOURCES
-			src/engine/diagnostics/G5/G5Common.cpp src/platform/PlatformShare.cpp
-			src/platform/PlatformPdfRenderer_android.cpp
+endif()
+if(ANDROID)
+    list(APPEND SOURCES
+        src/Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.cpp src/Common/Platform/Android/PlatformShare.cpp
+        src/Common/Platform/Android/PlatformPdfRenderer.cpp
 	)
-	endif()
+endif()
 	# ---- Native PDF renderer --- available on all platforms --------------
 	# 5WHY: NativePdfDocument was mobile-only. Now all platforms get native PDF.
 	# macOS: PDFKit, iOS: CGPDFDocument, Android: PdfRenderer via JNI.
 	# Windows/Linux: QtPdf if available, else stubs (QML Image fallback).
-	list(APPEND SOURCES src/platform/NativePdfDocument.cpp)
+	list(APPEND SOURCES src/Common/Platform/NativePdfDocument.cpp)
 	if(APPLE AND NOT IOS)
-		list(APPEND SOURCES src/platform/PlatformPdfRenderer_macos.mm)
+    list(APPEND SOURCES src/Common/Platform/Apple/macOS/PlatformPdfRenderer.mm)
 	elseif(IOS)
 		# PlatformPdfRenderer_ios.mm already in if(IOS) block above
 	elseif(ANDROID)
 		# PlatformPdfRenderer_android.cpp already handled above
 	else()
 		# Windows / Linux -- stub renderer (QtPdf or image fallback)
-		list(APPEND SOURCES src/platform/PlatformPdfRenderer.cpp)
-	endif()
+endif()
 
 set(QML_RESOURCES resources/resources.qrc)
 
-# 鈹€鈹€ QtWebView QRC �?only included when QtWebView module is available 鈹€鈹€
+# 鈹€鈹€ QtWebView QRC �?only included when QtWebView module is available 鈹€鈹€
 # 5WHY: HtmlPreviewWebView.qml contains import QtWebView. If this file
 # is in the main QRC, qt_import_qml_plugins() scans it at build time
-# and requires the QtWebView plugin �?which is unavailable in static
+# and requires the QtWebView plugin �?which is unavailable in static
 # MSYS2 builds, causing a startup crash. By isolating it in a separate
 # QRC that is only bundled when QtWebView exists, static builds skip
 # the import and rely on the Image fallback in ReportScreen.qml.
 if(TARGET Qt6::WebView)
     list(APPEND QML_RESOURCES resources/resources_webview.qrc)
-    message(STATUS "WebView QRC included �?in-app HTML preview enabled")
+    message(STATUS "WebView QRC included �?in-app HTML preview enabled")
 else()
-    message(STATUS "WebView QRC excluded �?in-app HTML preview uses image fallback")
+    message(STATUS "WebView QRC excluded �?in-app HTML preview uses image fallback")
 endif()
 
-# 鈹€鈹€ QtPdf QRC �?only included when QtPdf module is available (Qt 6.4+) 鈹€
+# 鈹€鈹€ QtPdf QRC �?only included when QtPdf module is available (Qt 6.4+) 鈹€
 # 5WHY: PdfPreviewView.qml contains import QtQuick.Pdf. Same static-build
-# constraint as HtmlPreviewWebView.qml �?isolate to prevent qmlimportscanner
+# constraint as HtmlPreviewWebView.qml �?isolate to prevent qmlimportscanner
 # from requiring the QtQuick.Pdf plugin in builds without the module.
 if(TARGET Qt6::Pdf AND TARGET Qt6::PdfQuick)
     list(APPEND QML_RESOURCES resources/resources_qtpdf.qrc)
-    message(STATUS "QtPdf QRC included �?in-app PDF preview enabled")
+    message(STATUS "QtPdf QRC included �?in-app PDF preview enabled")
 else()
-    message(STATUS "QtPdf QRC excluded �?PDF preview uses image fallback")
+    message(STATUS "QtPdf QRC excluded �?PDF preview uses image fallback")
 endif()
 
-# 鈹€鈹€ Native PDF QRC �?macOS/iOS/Android have built-in PDF renderers 鈹€鈹€鈹€鈹€鈹€鈹€
+# 鈹€鈹€ Native PDF QRC �?macOS/iOS/Android have built-in PDF renderers 鈹€鈹€鈹€鈹€鈹€鈹€
 # 5WHY: NativePdfPageView.qml references NetDiagnostics 1.0 QML type
 # (NativePdfDocument). Previously mobile-only; now macOS also has a native
 # renderer (PDFKit). Windows/Linux use QtPdf or image fallback.
 # Platform renderers: macOS PDFKit, iOS CGPDFDocument, Android PdfRenderer.
 if(APPLE OR ANDROID)
     list(APPEND QML_RESOURCES resources/resources_nativepdf.qrc)
-    message(STATUS "Native PDF QRC included �?platform PDF preview enabled")
+    message(STATUS "Native PDF QRC included �?platform PDF preview enabled")
 else()
-    message(STATUS "Native PDF QRC excluded �?use QtPdf or image fallback")
+    message(STATUS "Native PDF QRC excluded �?use QtPdf or image fallback")
 endif()
 
 # 鈹€鈹€ Production target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
@@ -168,9 +176,6 @@ configure_netdiag_target(net_diagnostics)
 setup_platform_bundle(net_diagnostics)
 
 # 鈹€鈹€ Simulator target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
-option(ND_TESTING "Enable automated headless testing harness" OFF)
-option(BUILD_SIMULATOR "Build simulator variant" ON)
 if(BUILD_SIMULATOR)
     set(SIM_SOURCES ${SOURCES})
     list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
@@ -179,18 +184,20 @@ if(BUILD_SIMULATOR)
     if(_main_cpp_idx GREATER -1)
         list(FIND SIM_SOURCES "src/main.cpp" _still_there)
         if(_still_there GREATER -1)
-            message(FATAL_ERROR "Failed to remove src/main.cpp from SIM_SOURCES �?path mismatch?")
+            message(FATAL_ERROR "Failed to remove src/main.cpp from SIM_SOURCES �?path mismatch?")
         endif()
     endif()
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    # Simulator modules �?header-only (.h) with Q_OBJECT macros.
+    # Simulator modules �?header-only (.h) with Q_OBJECT macros.
     # Listed as SOURCES so CMake AUTOMOC generates moc_*.cpp for them.
     # CMake does NOT compile .h files; it only passes them through moc.
     list(APPEND SIM_SOURCES
-        "src/simulator/SimulatorConfig.h"
-        "src/simulator/QtConfigAdapter.h"
-        "src/simulator/ScreenshotService.h"
-        "src/simulator/MatrixOrchestrator.h"
+        "src/Common/Services/Simulator/SimulatorConfig.h"
+        "src/Common/Services/Simulator/QtConfigAdapter.h"
+        "src/Common/Services/Simulator/ScreenshotService.h"
+        "src/Common/Services/Simulator/MatrixOrchestrator.h"
+        "src/Common/Services/Simulator/PlatformSimulationPolicyEngine.h"
+        "src/Common/Services/Simulator/ProtocolRegistry.h"
     )
     qt_add_executable(net_diagnostics_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
     configure_netdiag_target(net_diagnostics_sim)

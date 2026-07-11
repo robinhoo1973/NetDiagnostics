@@ -1,5 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>qml/widgets/HtmlPreviewWebView.qml</file>
+        <file alias="qml/widgets/HtmlPreviewWebView.qml">../src/Common/View/widgets/HtmlPreviewWebView.qml</file>
     </qresource>
 </RCC>

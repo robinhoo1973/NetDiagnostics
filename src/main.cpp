@@ -1,4 +1,4 @@
-#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
+﻿#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
 #include <QGuiApplication>
 #else
 #include <QApplication>
@@ -21,14 +21,19 @@
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
+#include "Dashboard/Controller/DashboardController.h"
+#include "Diagnostics/Controller/DiagnosticsController.h"
+#include "Configuration/Controller/ConfigurationController.h"
+#include "Report/Controller/ReportController.h"
+#include "Settings/Controller/SettingsController.h"
 #if defined(__APPLE__) || defined(PLATFORM_ANDROID)
-#include "platform/NativePdfDocument.h"
+#include "Common/Platform/NativePdfDocument.h"
 #endif
-#include "util/DebugSwitch.h"
-#include "util/StartupLog.h"
+#include "Common/Utils/DebugSwitch.h"
+#include "Common/Utils/StartupLog.h"
 #if defined(ND_TESTING)
-#include "testing/TestHarness.h"
-#include "testing/TestScenarios.h"
+#include "Common/Tests/TestHarness.h"
+#include "Common/Tests/TestScenarios.h"
 #endif
 
 int main(int argc, char *argv[])
@@ -97,34 +102,14 @@ int main(int argc, char *argv[])
 #endif
     MAIN_LOG(" NetDiagnostics starting, Qt %s\n", qVersion());
 
-    // ── Theme injected directly from C++ (avoids QML component creation failure) ──
-    QVariantMap theme;
-    theme["bgDark"]       = QStringLiteral("#1E1E2E");
-    theme["bgSidebar"]    = QStringLiteral("#252538");
-    theme["bgCard"]       = QStringLiteral("#16213E");
-    theme["bgInput"]      = QStringLiteral("#2A2A4A");
-    theme["textPrimary"]  = QStringLiteral("#E0E0E0");
-    theme["textSecondary"]= QStringLiteral("#A0A0B8");
-    theme["textMuted"]    = QStringLiteral("#606080");
-    theme["accent"]       = QStringLiteral("#E94560");
-    theme["accentBlue"]   = QStringLiteral("#0078D4");
-    theme["cyan"]         = QStringLiteral("#00BCD4");
-    theme["passGreen"]    = QStringLiteral("#4ADE80");
-    theme["warnYellow"]   = QStringLiteral("#FACC15");
-    theme["failRed"]      = QStringLiteral("#EF4444");
-    theme["skipGray"]     = QStringLiteral("#888888");
-    theme["infoBlue"]     = QStringLiteral("#0078D4");
-    theme["borderCard"]   = QStringLiteral("#3A3A5A");
-    theme["borderSubtle"] = QStringLiteral("#2A2A4A");
-    theme["borderFocused"]= QStringLiteral("#0078D4");
-    theme["radiusCard"]   = 12.0;
-    theme["radiusButton"] = 8.0;
-    theme["radiusSmall"]  = 6.0;
-    theme["sidebarWidth"] = 260.0;
-    theme["monoFont"]     = QStringLiteral("JetBrains Mono");
-    engine.rootContext()->setContextProperty("Theme", theme);
-
+    // Theme now handled by ThemeEngine.qml singleton — no C++ injection needed
     engine.rootContext()->setContextProperty("appState", &appState);
+    // MVC Controllers — injected for gradual QML migration to page-specific controllers
+    engine.rootContext()->setContextProperty("dashboardCtrl", QVariant::fromValue(static_cast<QObject*>(appState.dashboardController())));
+    engine.rootContext()->setContextProperty("diagCtrl", QVariant::fromValue(static_cast<QObject*>(appState.diagnosticsController())));
+    engine.rootContext()->setContextProperty("configCtrl", QVariant::fromValue(static_cast<QObject*>(appState.configurationController())));
+    engine.rootContext()->setContextProperty("reportCtrl", QVariant::fromValue(static_cast<QObject*>(appState.reportController())));
+    engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
