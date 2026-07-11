@@ -3,6 +3,8 @@
 namespace G1G2G3Native {
 DiagnosticResult activeConnections(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
+    r.status = DiagStatus::Info;  // 5WHY: cppcheck found uninitialized r.status —
+    // if no platform #if branch matches, returned result has undefined status
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;

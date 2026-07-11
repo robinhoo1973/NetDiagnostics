@@ -2,6 +2,7 @@
 namespace G1G2G3Native {
 DiagnosticResult arpTable(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
+    r.status = DiagStatus::Info;  // 5WHY: cppcheck found uninitialized r.status
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
