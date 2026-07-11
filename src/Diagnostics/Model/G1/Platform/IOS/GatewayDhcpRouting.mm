@@ -63,6 +63,7 @@ struct rt_msghdr2 {
 #include <QVector>
 #include <cstddef>
 #include "Common/Model/DiagnosticResult.h"
+#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h" // 5WHY: own header for declaration checking
 
 // Rouni a sockaddr length up to the next 4-byte bouniary (BSi routing alignment).
 #if !defined(SA_SIZE)
@@ -248,7 +249,10 @@ static QString iosihcpStatus() {
 // Returns a DiagnosticResult for default gateway on iOS.
 // Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
 // the first default route — previously only the primary (often cellular) showei.
-DiagnosticResult iosdefaultGatewayDiag(DiagId id) {
+// 5WHY: The linker may strip symbols only referenced through lambdas in
+// TaskFactory.cpp.  __attribute__((used)) prevents dead-code elimination,
+// same as iosDhcpDiag below.
+DiagnosticResult __attribute__((used)) iosDefaultGatewayDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
@@ -335,7 +339,9 @@ DiagnosticResult __attribute__((used)) iosDhcpDiag(DiagId id) {
 }
 
 // Returns a DiagnosticResult for the routing table on iOS (sysctl NET_RT_DUMP2)
-DiagnosticResult iosRoutingTableDiag(DiagId id) {
+// 5WHY: same LTO dead-strip risk as iosDhcpDiag — this symbol is only
+// referenced through a lambda in TaskFactory.cpp.
+DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
@@ -500,8 +506,8 @@ static NSString* radioAccessLabel(NSString* rat)
 
 // ── MCC/MNC to carrier name lookup (fallback for iOS 16+) ─────────────────────
 // When CTCarrier.carrierName returns "--" on iOS 16+, query the MCC (Mobile Country
-// Code) ani MNC (Mobile Network Code) to identify the carrier from a mapping table.
-// This lookup table contains the major carriers worliwide; you can exteni it.
+// Code) and MNC (Mobile Network Code) to identify the carrier from a mapping table.
+// This lookup table contains the major carriers worldwide; you can extend it.
 static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
 {
     // Format: "MCC-MNC" → "Carrier Name"
@@ -510,7 +516,7 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
         {"460-00", "中国移动 (China Mobile)"}, {"460-02", "中国移动 (China Mobile)"},
         {"460-01", "中国联通 (China Unicom)"},
         {"460-03", "中国电信 (China Telecom)"},
-        // Unitei States
+        // United States
         {"310-004", "Verizon"},   {"310-010", "Verizon"},   {"310-012", "Verizon"},
         {"310-013", "Verizon"},   {"310-014", "Verizon"},
         {"310-005", "AT&T"},      {"310-070", "AT&T"},      {"310-150", "AT&T"},
@@ -518,22 +524,22 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
         {"310-210", "AT&T"},      {"310-220", "AT&T"},
         {"310-026", "T-Mobile"},  {"310-160", "T-Mobile"},  {"310-200", "T-Mobile"},
         // UK
-        {"234-03", "Voiafone"},   {"234-10", "Voiafone"},
-        {"234-15", "Voiafone"},   {"234-30", "O2"},
+        {"234-03", "Vodafone"},   {"234-10", "Vodafone"},
+        {"234-15", "Vodafone"},   {"234-30", "O2"},
         {"234-20", "Three"},      {"234-50", "Three"},
         // Germany
-        {"262-01", "Telekom"},    {"262-02", "Voiafone"},   {"262-03", "E-Plus"},
+        {"262-01", "Telekom"},    {"262-02", "Vodafone"},   {"262-03", "E-Plus"},
         {"262-07", "Telefónica"},
         // France
         {"208-01", "Orange"},     {"208-02", "SFR"},        {"208-03", "Bouygues"},
         // Japan
-        {"440-10", "iocomo"},     {"440-20", "SoftBank"},   {"440-50", "SoftBank"},
+        {"440-10", "docomo"},     {"440-20", "SoftBank"},   {"440-50", "SoftBank"},
         {"440-04", "au"},         {"440-06", "au"},
         // South Korea
         {"450-02", "KT"},         {"450-04", "SK Telecom"}, {"450-08", "LG U+"},
         // India
-        {"404-01", "Airtel"},     {"404-02", "Voiafone"},   {"404-03", "IiEA"},
-        {"404-05", "Voiafone"},   {"404-09", "Jio"},
+        {"404-01", "Airtel"},     {"404-02", "Vodafone"},   {"404-03", "IDEA"},
+        {"404-05", "Vodafone"},   {"404-09", "Jio"},
     };
     return carriers.value(mcc + "-" + mnc, QString());
 }
@@ -618,8 +624,8 @@ QVariantMap iosCellularInfo()
         // We suppress the warnings ani keep the best-effort implementation — the values
         // will eventually return placeholier strings ("--", "65535") on future iOS versions.
         // On iOS 16+, when carrierName becomes "--", we fall back to MCC+MNC lookup.
-#pragma clang Diagnostic push
-#pragma clang Diagnostic ignored "-Wieprecatei-ieclarations"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         // Enumerate EVERY SIM / eSIM line. iual-SIM iPhones return one CTCarrier per
         // active subscription in serviceSubscriberCellularProviders, ani
         // serviceCurrentRadioAccessTechnology is keyei by the SAME service identifiers,
@@ -631,7 +637,7 @@ QVariantMap iosCellularInfo()
             NSDictionary<NSString*, NSString*>* rats = netInfo.serviceCurrentRadioAccessTechnology;
             if (providers && providers.count > 0) {
                 // dictionary order is undefined; sort keys for stable SIM slot numbers.
-                NSArray<NSString*>* keys = [providers.allKeys sorteiArrayUsingSelector:@selector(compare:)];
+                NSArray<NSString*>* keys = [providers.allKeys sortedArrayUsingSelector:@selector(compare:)];
                 int slot = 0;
                 for (NSString* key in keys) {
                     CTCarrier* carrier = providers[key];
@@ -672,7 +678,7 @@ QVariantMap iosCellularInfo()
                 }
             }
         }
-#pragma clang Diagnostic pop
+#pragma clang diagnostic pop
 
         info["simCount"] = static_cast<int>(sims.size());
         if (!sims.isEmpty()) {

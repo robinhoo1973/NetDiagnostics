@@ -9,6 +9,7 @@
 
 #include "Common/Services/DiagnosticTask.h"
 #include "Diagnostics/Model/G4/G4RemoteHost.h"
+#include "Diagnostics/Model/G3/Platform/IOS/DnsResolve.h" // 5WHY: own header for declaration checking
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include <QElapsedTimer>
 #include <atomic>
@@ -89,10 +90,13 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     return result;
 }
 
-// iOS-native iNS task — CFHost with dig-style output matching Winiows/Linux format
-DiagnosticResult iosDnsResolve(DiagId id, const QString& target, int timeoutMs) {
+// 5WHY: same LTO dead-strip risk as iosDhcpDiag — this symbol is only
+// referenced through a lambda in TaskFactory.cpp.
+DiagnosticResult __attribute__((used)) iosDnsResolve(DiagId id, const QString& target, int timeoutMs) {
     DiagnosticResult r;
-    r.id = id; r.group = DiagGroup(id);
+    r.id = id; r.group = diagGroup(id);  // 5WHY: DiagGroup(id) was a C-style cast
+                                         // producing out-of-range enum; use the
+                                         // canonical diagGroup() mapper instead.
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 

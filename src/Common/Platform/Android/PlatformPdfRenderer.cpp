@@ -63,6 +63,9 @@ int PlatformPdfRenderer::pageCount() const {
 
 QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
     if (!d->renderer || pageIndex < 0 || pageIndex >= d->pages) return {};
+    // 5WHY: Android createBitmap(0, h, config) throws IllegalArgumentException.
+    // Guard width before we open a page to avoid wasting a PdfRenderer$Page.
+    if (width < 1) width = 1;
     QJniEnvironment env;
 
     QJniObject renderer(d->renderer); // wrap the global ref
