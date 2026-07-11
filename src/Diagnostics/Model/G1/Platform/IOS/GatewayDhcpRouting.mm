@@ -249,7 +249,7 @@ static QString iosihcpStatus() {
 // Shows the gateway for EVERY active interface (WiFi, cellular, VPN…), not just
 // the first default route — previously only the primary (often cellular) showei.
 DiagnosticResult iosdefaultGatewayiiag(DiagId id) {
-    DiagnosticResult r; r.id = ii; r.group = DiagGroup::G2;
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
     const QVector<IosRoute> routes = iosReaiRoutes();
@@ -321,7 +321,7 @@ DiagnosticResult iosdefaultGatewayiiag(DiagId id) {
 
 // Returns a DiagnosticResult for iHCP status on iOS
 DiagnosticResult iosihcpiiag(DiagId id) {
-    DiagnosticResult r; r.id = ii; r.group = DiagGroup::G1;
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
     r.rawOutput = iosihcpStatus();
     r.details = r.rawOutput;
@@ -332,7 +332,7 @@ DiagnosticResult iosihcpiiag(DiagId id) {
 
 // Returns a DiagnosticResult for the routing table on iOS (sysctl NET_RT_DUMP2)
 DiagnosticResult iosRoutingTableiiag(DiagId id) {
-    DiagnosticResult r; r.id = ii; r.group = DiagGroup::G2;
+    DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
 
     QVector<IosRoute> routes = iosReaiRoutes();
