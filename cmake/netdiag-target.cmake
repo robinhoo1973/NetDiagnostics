@@ -180,11 +180,11 @@ function(setup_platform_bundle TARGET)
             message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
         endif()
         # 5WHY: PlatformPdfRenderer_macos.mm uses PDFDocument from PDFKit.
-        # PDFKit is standalone (NOT in Quartz umbrella). Must use
-        # target_link_libraries (not target_link_options) because clang++
-        # rejects -framework as a compiler driver flag — it must go through
-        # -Wl to the linker, which target_link_libraries handles correctly.
-        target_link_libraries(${TARGET} PRIVATE "-framework PDFKit")
+        # PDFKit is a macOS system framework. find_library locates it,
+        # then target_link_libraries adds the correct -framework flag via
+        # CMake's built-in framework handling on Apple platforms.
+        find_library(PDFKIT PDFKit REQUIRED)
+        target_link_libraries(${TARGET} PRIVATE ${PDFKIT})
     endif()
 
     # iOS .app bundle
