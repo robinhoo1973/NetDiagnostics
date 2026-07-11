@@ -279,7 +279,7 @@ Qt resource file registering all QML files, SVG icons, and fonts (61 entries).
 | File | Description |
 |------|-------------|
 | `doc/design-spec.html` | Design specification with visual guidelines |
-| `doc/design-tokens.json` | Design tokens (colors, spacing, typography, radio) |
+| `doc/design-tokens.json` | Design tokens (colors, spacing, typography, radii) |
 
 ---
 
