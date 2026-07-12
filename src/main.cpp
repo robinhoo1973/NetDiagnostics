@@ -186,27 +186,24 @@ int main(int argc, char *argv[])
         QTimer::singleShot(3000, &app, [&appState]() {
             QString target = qEnvironmentVariable("ND_AUTO_TEST_TARGET");
             if (target.isEmpty()) target = QStringLiteral("localhost");
-            appState.setTarget(target);
-            // Enable all groups (G1-G5)
-            for (int g = 0; g < 5; ++g)
-                appState.setGroupActive(g, true);
-            appState.runDiagnostics();
 
-            // Auto-export + exit after completion (unless keep-open)
-            if (!qEnvironmentVariableIntValue("ND_AUTO_TEST_KEEP_OPEN")) {
+            // 5WHY: Connect runStatusChanged BEFORE runDiagnostics().
+            // If diagnostics complete very quickly (<100ms, e.g. all
+            // localhost tests skipped), the signal could fire before
+            // the connect is established, missing the completion event.
+            bool keepOpen = qEnvironmentVariableIntValue("ND_AUTO_TEST_KEEP_OPEN");
+            if (!keepOpen) {
                 QObject::connect(&appState, &AppState::runStatusChanged,
                     &app, [&appState]() {
                     if (appState.runStatus() == RunStatus::Completed ||
                         appState.runStatus() == RunStatus::Error ||
                         appState.runStatus() == RunStatus::Cancelled) {
-                        // Export HTML report
                         QString reportPath = QStandardPaths::writableLocation(
                             QStandardPaths::TempLocation)
                             + "/NetDiagnostics_auto_test.html";
                         appState.exportHtml(reportPath, true);
                         STARTUP_LOG("Auto-test report: %s",
                                     reportPath.toUtf8().constData());
-                        // Exit with code based on failures
                         int exitCode = 0;
                         if (qEnvironmentVariableIntValue("ND_AUTO_TEST_EXIT_CODE")) {
                             auto stats = appState.groupStats(-1);
@@ -218,6 +215,11 @@ int main(int argc, char *argv[])
                     }
                 });
             }
+
+            appState.setTarget(target);
+            for (int g = 0; g < 5; ++g)
+                appState.setGroupActive(g, true);
+            appState.runDiagnostics();
         });
     }
 
