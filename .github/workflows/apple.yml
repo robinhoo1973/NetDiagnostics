@@ -282,7 +282,9 @@ jobs:
             -scheme net_diagnostics \
             -sdk iphonesimulator \
             -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -configuration Debug 2>&1 | tail -20
+            -configuration Debug \
+            -derivedDataPath build-xcode/DerivedData \
+            2>&1 | tail -20
 
       - name: Boot Simulator
         run: |
@@ -304,9 +306,9 @@ jobs:
 
       - name: Startup Crash Test (iOS Simulator, Debug)
         run: |
-          # 5WHY: Xcode derived data paths vary across Xcode versions.
-          # Use a broad find instead of hardcoding 'Debug-iphonesimulator'.
-          APP_PATH=$(find build-xcode -name "net_diagnostics.app" -type d 2>/dev/null | head -1)
+          # 5WHY: xcodebuild outputs to DerivedData, not the build dir.
+          # -derivedDataPath puts it under build-xcode/DerivedData.
+          APP_PATH=$(find build-xcode/DerivedData -name "net_diagnostics.app" -type d 2>/dev/null | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "[FAIL] Simulator .app not found"
             find build-xcode -name "*.app" -type d 2>/dev/null | head -5
