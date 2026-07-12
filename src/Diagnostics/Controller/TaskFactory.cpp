@@ -69,6 +69,14 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
         case DiagId::G3DnsCache:
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
+        // 5WHY: G1IpConfiguration and G1CellularInfo were compiled out of the
+        // main switch on iOS (#if defined(PLATFORM_IOS) at line 148 wraps only
+        // G1DhcpStatus).  They have no iOS native implementation and are not
+        // available in the iOS sandbox — must be explicitly skipped.
+        case DiagId::G1IpConfiguration:
+            return QStringLiteral("IP configuration reads /proc/net and system files which the iOS sandbox blocks.");
+        case DiagId::G1CellularInfo:
+            return QStringLiteral("Cellular modem diagnostics require CoreTelephony private APIs not available to sandboxed apps.");
         default:
             return QString();
     }
