@@ -139,14 +139,14 @@ Item {
     readonly property string readyStatus: t("Ready", "Prêt", "Bereit", "Готов", "Pronto", "就绪", "就緒", "Listo", "Pronto")
     // PM: Actionable error recovery hints shown when diagnostics fail
     readonly property string errorRecoveryHint: t("Check: 1) Network connection  2) Target URL format\n3) Firewall/proxy settings  4) Target server reachability",
-        "(EN) Check: 1) Network connection  2) Target URL format\n3) Firewall/proxy settings  4) Target server reachability",
-        "(DE) Prüfen: 1) Netzwerkverbindung  2) Ziel-URL-Format\n3) Firewall/Proxy  4) Zielserver-Erreichbarkeit",
-        "(RU) Проверьте: 1) Сетевое подключение  2) Формат URL\n3) Настройки брандмауэра/прокси  4) Доступность сервера",
-        "(IT) Verifica: 1) Connessione di rete  2) Formato URL\n3) Impostazioni firewall/proxy  4) Raggiungibilità server",
-        "(ZH) 检查：1) 网络连接  2) 目标URL格式\n3) 防火墙/代理设置  4) 目标服务器可访问性",
-        "(TW) 檢查：1) 網路連線  2) 目標URL格式\n3) 防火牆/代理設定  4) 目標伺服器可訪問性",
-        "(ES) Verifique: 1) Conexión de red  2) Formato de URL\n3) Configuración de firewall/proxy  4) Accesibilidad del servidor",
-        "(PT) Verifique: 1) Conexão de rede  2) Formato da URL\n3) Configurações de firewall/proxy  4) Acessibilidade do servidor")
+        "",  // FR: no translation yet — t() falls back to English
+        "Prüfen: 1) Netzwerkverbindung  2) Ziel-URL-Format\n3) Firewall/Proxy  4) Zielserver-Erreichbarkeit",
+        "Проверьте: 1) Сетевое подключение  2) Формат URL\n3) Настройки брандмауэра/прокси  4) Доступность сервера",
+        "Verifica: 1) Connessione di rete  2) Formato URL\n3) Impostazioni firewall/proxy  4) Raggiungibilità server",
+        "检查：1) 网络连接  2) 目标URL格式\n3) 防火墙/代理设置  4) 目标服务器可访问性",
+        "檢查：1) 網路連線  2) 目標URL格式\n3) 防火牆/代理設定  4) 目標伺服器可訪問性",
+        "Verifique: 1) Conexión de red  2) Formato de URL\n3) Configuración de firewall/proxy  4) Accesibilidad del servidor",
+        "Verifique: 1) Conexão de rede  2) Formato da URL\n3) Configurações de firewall/proxy  4) Acessibilidade do servidor")
 
     // ── Dashboard ──
     readonly property string diagRunComplete: t("Diagnostic Run Complete", "Diagnostic terminé", "Diagnoselauf abgeschlossen", "Диагностика завершена", "Corsa diagnostica completata", "诊断运行完成", "診斷運行完成", "Ejecución de diagnóstico completada", "Execução de diagnóstico concluída")

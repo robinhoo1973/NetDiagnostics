@@ -323,9 +323,11 @@ Rectangle {
                 }
                 activeFocusOnTab: true
                 Keys.onPressed: function(event) {
-                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && hostField.text !== "" && appState.runStatus !== 1) {
-                        clearBtn.doClear()
-                        event.accepted = true
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                        if (hostField.text !== "" && appState.runStatus !== 1) {
+                            clearBtn.doClear()
+                        }
+                        event.accepted = true  // always consume to prevent propagation
                     }
                 }
                 Accessible.name: "Clear target input"

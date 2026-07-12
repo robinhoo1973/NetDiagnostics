@@ -108,7 +108,7 @@ Item {
                     Label {
                         text: appState.runStatus === 1 ? Tr.runningDots :
                               appState.runStatus === 2 ? Tr.complete :
-                              appState.runStatus === 3 ? Tr.cancelled : Tr.results
+                              appState.runStatus === 4 ? Tr.cancelled : Tr.results
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
                         color: ThemeEngine.colors.textPrimary
                     }
@@ -157,18 +157,18 @@ Item {
                 anchors.centerIn: parent; spacing: 16
                 visible: appState.totalCompleted === 0 && appState.runStatus !== 1
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter
-                    name: appState.runStatus === 3 ? "badge-error" : "diagnostics"
-                    size: 80; color: appState.runStatus === 3 ? Qt.alpha(ThemeEngine.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
+                    name: appState.runStatus === 4 ? "badge-error" : "diagnostics"
+                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: appState.runStatus === 3 ? Tr.errorCheck : Tr.runDiag
+                    text: appState.runStatus === 4 ? Tr.errorCheck : Tr.runDiag
                     font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
-                    color: appState.runStatus === 3 ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                    color: appState.runStatus === 4 ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
                 // PM: Actionable error recovery guidance — uses Tr.* for i18n
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    visible: appState.runStatus === 3
+                    visible: appState.runStatus === 4
                     text: Tr.errorRecoveryHint
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
