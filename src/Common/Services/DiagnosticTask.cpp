@@ -41,11 +41,12 @@ void DiagnosticTask::start() {
         try {
             return run();
         } catch (const std::exception& e) {
+            // 5WHY: Include DiagId in error for faster debugging
             return DiagnosticResult::error(m_id,
-                QStringLiteral("Diagnostic crashed: %1").arg(QString::fromUtf8(e.what())));
+                QStringLiteral("DiagId %1 crashed: %2").arg(static_cast<int>(m_id)).arg(QString::fromUtf8(e.what())));
         } catch (...) {
             return DiagnosticResult::error(m_id,
-                QStringLiteral("Diagnostic crashed: unknown exception"));
+                QStringLiteral("DiagId %1 crashed: unknown exception (check static linking / DLL deps)").arg(static_cast<int>(m_id)));
         }
     }));
 }
@@ -70,10 +71,10 @@ void DiagnosticTask::onFutureFinished() {
             emit finished(m_watcher->result());
         } catch (const std::exception& e) {
             emit finished(DiagnosticResult::error(m_id,
-                QStringLiteral("Diagnostic crashed: %1").arg(QString::fromUtf8(e.what()))));
+                QStringLiteral("DiagId %1 crashed: %2").arg(static_cast<int>(m_id)).arg(QString::fromUtf8(e.what()))));
         } catch (...) {
             emit finished(DiagnosticResult::error(m_id,
-                QStringLiteral("Diagnostic crashed: unknown exception")));
+                QStringLiteral("DiagId %1 crashed: unknown exception (check static linking / DLL deps)").arg(static_cast<int>(m_id))));
         }
     }
     // run() has returned; the object is now safe to destroy.
