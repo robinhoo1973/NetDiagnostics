@@ -301,6 +301,7 @@ build_target() {
         -DPROJECT_VERSION="0.0.1" \
         -DND_BUILD_NUMBER="$build_number" \
         -DAPP_EDITION=static \
+            -DND_STATIC_QT=ON 
         -DCMAKE_CXX_FLAGS="`${STATIC_CXX_FLAGS}" \
         -DCMAKE_EXE_LINKER_FLAGS="`${STATIC_LINK_FLAGS}" \
         -DCMAKE_CXX_STANDARD_LIBRARIES="`${STANDARD_LIBS}" \

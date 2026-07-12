@@ -16,6 +16,13 @@
 #include <csignal>
 #if defined(_WIN32)
 #include <windows.h>
+// 5WHY: Static Qt on Windows needs explicit platform plugin import.
+// Without this, Qt reports "no Qt platform plugin could be initialized".
+// ND_STATIC_QT is defined in CMakeLists.txt for static MSYS2 builds.
+#if defined(ND_STATIC_QT) && defined(_WIN32)
+#include <QtPlugin>
+Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#endif
 #endif
 #if !defined(NO_CURL)
 #include <curl/curl.h>
