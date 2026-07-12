@@ -363,11 +363,15 @@ Item {
                         }
                     }
                     // Mobile: NativePdfPageView (CGPDFDocument / PdfRenderer)
+                    // 5WHY: hasNativePdf was not mutually exclusive with hasQtPdf —
+                    // on macOS both were true, activating two Loaders that competed
+                    // for the same screen area. QtPdf takes priority; NativePdf
+                    // is the fallback when QtPdf is unavailable.
                     Loader {
                         id: nativePdfLoader
                         anchors { fill: parent; margins: 4 }
-                        visible: page.previewFormat !== "html" && hasNativePdf
-                        active: page.previewFormat !== "html" && hasNativePdf
+                        visible: page.previewFormat !== "html" && hasNativePdf && !hasQtPdf
+                        active: page.previewFormat !== "html" && hasNativePdf && !hasQtPdf
                         source: "qrc:/qml/widgets/NativePdfPageView.qml"
                         onLoaded: {
                             if (item) {
@@ -384,9 +388,17 @@ Item {
                         anchors { fill: parent; margins: 14 }
                         visible: page.previewFormat !== "html" && !hasQtPdf && !hasNativePdf
                         clip: true
-                        contentWidth: pdfImage.implicitWidth * pdfScale
-                        contentHeight: pdfImage.implicitHeight * pdfScale
+                        // 5WHY: contentWidth/Height used pdfImage.implicitWidth (source
+                        // image pixel dims) instead of pdfImage.width/height (the
+                        // actual rendered size after PreserveAspectFit). For a
+                        // 1240px source in a 760px viewport, this overestimated
+                        // content area by ~63%, creating empty scrollable space
+                        // beyond the visual content. Use rendered dimensions so
+                        // ScrollBar.AsNeeded only shows when actually needed.
+                        contentWidth: pdfImage.width * pdfScale
+                        contentHeight: pdfImage.height * pdfScale
                         property real pdfScale: 1.0
+                        property real startScale: 1.0
                         property bool pinching: false
                         interactive: !pinching
                         ScrollBar.vertical: ScrollBar {
@@ -401,11 +413,13 @@ Item {
                             target: null
                             onActiveChanged: {
                                 pdfFlick.pinching = active
-                                if (active) { pdfFlick.returnToBounds() }
+                                if (active) {
+                                    pdfFlick.startScale = pdfFlick.pdfScale
+                                    pdfFlick.returnToBounds()
+                                }
                             }
                             onScaleChanged: {
-                                var s = pdfFlick.pdfScale * scale
-                                pdfFlick.pdfScale = Math.max(0.5, Math.min(s, 5.0))
+                                pdfFlick.pdfScale = Math.max(0.5, Math.min(pdfFlick.startScale * scale, 5.0))
                             }
                         }
                         Image {
@@ -414,7 +428,7 @@ Item {
                             fillMode: Image.PreserveAspectFit
                             source: previewImagePath
                             cache: false
-                            transform: ScaleTransform {
+                            transform: Scale {
                                 origin.x: pdfImage.width / 2
                                 origin.y: pdfImage.height / 2
                                 xScale: pdfFlick.pdfScale
