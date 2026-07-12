@@ -177,7 +177,10 @@ QString iosGatewayForInterface(const QString& iface) {
 // Friendly interface-type label from the BSD interface name prefix.
 static QString ifaceTypeLabel(const QString& iface) {
     if (iface.startsWith(QLatin1String("en")))      return QStringLiteral("WiFi");
-    if (iface.startsWith(QLatin1String("pip_ip")))  return QStringLiteral("Cellular");
+    // 5WHY: "pip_ip" was d->i corruption of "pdp_ip" (Packet Data Protocol).
+    // The actual iOS cellular interface prefix is pdp_ip (e.g. pdp_ip0, pdp_ip1).
+    // Fixed by comparing with legacy code at review/legacy_src/src/engine/diagnostics/G1/G1Common.mm.
+    if (iface.startsWith(QLatin1String("pdp_ip")))  return QStringLiteral("Cellular");
     if (iface.startsWith(QLatin1String("utun")) || iface.startsWith(QLatin1String("ipsec"))
         || iface.startsWith(QLatin1String("ppp")))  return QStringLiteral("VPN");
     if (iface.startsWith(QLatin1String("bridge")) || iface.startsWith(QLatin1String("ap")))
