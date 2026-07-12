@@ -1,14 +1,14 @@
 <#
 .SYNOPSIS
-    NetDiagnostic Static Build — Fully static linked compilation (zero non-OS DLL)
+    NetDiagnostic Static Build 鈥?Fully static linked compilation (zero non-OS DLL)
 .DESCRIPTION
     Builds production + simulator executables with truly static linking using
     the MSYS2 pre-built qt6-static package at /ucrt64/qt6-static.
 
     All non-Qt dependencies (zlib, brotli, pcre2, freetype, harfbuzz, libpng,
     libjpeg, libtiff, libwebp, OpenSSL, etc.) are linked statically from their
-    .a counterparts in /ucrt64/lib/.  Windows system DLLs (KERNEL32, USER32, …)
-    are the ONLY dynamic dependencies — the exe is fully portable with zero
+    .a counterparts in /ucrt64/lib/.  Windows system DLLs (KERNEL32, USER32, 鈥?
+    are the ONLY dynamic dependencies 鈥?the exe is fully portable with zero
     third-party DLL requirements.
 
     Mirrors the windows-x86_64-static job in .github/workflows/build.yml,
@@ -69,7 +69,7 @@ $TEMP_DIR    = Join-Path $env:TEMP "netdiag-static-build"
 
 # Windows system libraries required by static Qt6 and its dependencies.
 # Wrapped with --start-group/--end-group so the linker resolves circular refs.
-# These are all OS-provided DLLs (not third-party) — the resulting exe remains
+# These are all OS-provided DLLs (not third-party) 鈥?the resulting exe remains
 # portable across Windows 10+ installations.
 $WIN_SYS_LIBS = @(
     "-lidn2", "-lcrypt32", "-lws2_32", "-liphlpapi", "-lwinhttp",
@@ -301,7 +301,7 @@ build_target() {
         -DPROJECT_VERSION="0.0.1" \
         -DND_BUILD_NUMBER="$build_number" \
         -DAPP_EDITION=static \
-            -DND_STATIC_QT=ON 
+            -DND_STATIC_QT=ON \
         -DCMAKE_CXX_FLAGS="`${STATIC_CXX_FLAGS}" \
         -DCMAKE_EXE_LINKER_FLAGS="`${STATIC_LINK_FLAGS}" \
         -DCMAKE_CXX_STANDARD_LIBRARIES="`${STANDARD_LIBS}" \
@@ -431,7 +431,7 @@ FAIL=0
 check_exe() {
     local exe="`$1"
     local label="`$2"
-    [ -f "`$exe" ] || { echo "  SKIP: `$label — file not found"; return; }
+    [ -f "`$exe" ] || { echo "  SKIP: `$label 鈥?file not found"; return; }
 
     echo "  Checking: `$label"
     local sz=`$(du -h "`$exe" | cut -f1)
@@ -470,7 +470,7 @@ echo ""
 	echo ""
 	echo "  All 20 G5 diagnostic tests (HTTP, HTTPS, FTP, SSH, Email,"
 	echo "  Telnet, MySQL, Redis, etc.) are fully available. Static curl"
-	echo "  is linked — full website/URL diagnostics in one portable EXE."
+	echo "  is linked 鈥?full website/URL diagnostics in one portable EXE."
 	echo ""
 
 exit 0
@@ -489,7 +489,7 @@ exit 0
         -NoNewWindow -Wait -PassThru
 
     if ($proc.ExitCode -ne 0) {
-        Write-Err "DLL verification FAILED — build is NOT fully static"
+        Write-Err "DLL verification FAILED 鈥?build is NOT fully static"
         exit $proc.ExitCode
     }
 
