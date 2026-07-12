@@ -512,30 +512,31 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
-          # Resolve curl static libs: pkg-config --static gives us the full
-          # transitive closure (.a archives).  We keep everything in
-          # -Wl,-Bstatic mode so third-party libs AND CMake-added libs
-          # (including find_package(CURL)'s -lcurl) are absorbed into the
-          # exe.  MinGW provides Windows system import libs (.a) that work
-          # correctly with -Bstatic — the exe will still depend on kernel32
-          # etc. at runtime, but those ARE on the OS DLL whitelist.
-          # ── Fully static link — aggressive -Bstatic sandwich ───────────
-          # Strategy: -Wl,-Bstatic at start absorbs our explicit third-party
-          # libs.  -Wl,-Bstatic at end ensures CMake-added libs (including
-          # find_package(CURL) -lcurl) are also static.
-          #
-          # We add -L/ucrt64/lib first so -l:libstdc++.a / -l:libwinpthread.a
-          # resolve before g++'s trailing dynamic -lstdc++/-lwinpthread do.
-          #
-          # Note: libstdc++-6.dll and libwinpthread-1.dll are GCC TOOLCHAIN
-          # RUNTIME DLLs injected by g++ internal specs at the very end of
-          # every link.  They cannot be eliminated through user-level linker
-          # flags — removing them requires rebuilding GCC from source with
-          # --disable-shared.  This is a known MSYS2/MinGW-w64 limitation.
-          # libcurl is NOW fully absorbed via the true-static source build
-          # at /c/opt/curl-static.  All other third-party DLLs (libssl,
-          # libcrypto, libiconv, zlib, libzstd, libbrotli, libidn2, libpsl,
-          # libssh2, libnghttp2, libunistring) are absorbed by -Bstatic.
+          # 5WHY: /ucrt64/lib/libstdc++.a and libwinpthread.a are DLL import
+          # libraries in MSYS2.  Even with -Wl,-Bstatic, they produce DLL
+          # references in the PE header (MSYS2/MINGW-packages issue #6163).
+          # The TRUE static archives live in the GCC versioned directory at
+          # /ucrt64/lib/gcc/x86_64-w64-mingw32/<version>/.
+          # Use g++ -print-file-name to find them and link with ABSOLUTE PATHS.
+          # Absolute paths bypass library search entirely — the linker uses
+          # the exact file specified, no import lib / DLL resolution.
+          GCC_TRUE_LIBSTDCXX=$(g++ -print-file-name=libstdc++.a)
+          GCC_TRUE_LIBGCC=$(g++ -print-file-name=libgcc.a)
+          GCC_TRUE_LIBGCC_EH=$(g++ -print-file-name=libgcc_eh.a)
+          GCC_TRUE_LIBPTHREAD=$(g++ -print-file-name=libwinpthread.a)
+          echo "GCC true static libstdc++: ${GCC_TRUE_LIBSTDCXX}"
+          echo "GCC true static libgcc:    ${GCC_TRUE_LIBGCC}"
+          echo "GCC true static libgcc_eh: ${GCC_TRUE_LIBGCC_EH}"
+          echo "GCC true static pthread:  ${GCC_TRUE_LIBPTHREAD}"
+
+          # ── Fully static link — true static archives via absolute paths ──
+          # Strategy: absolute .a paths bypass all -L search order issues.
+          # libstdc++.a, libgcc.a, libgcc_eh.a, libwinpthread.a are the
+          # GCC-internal TRUE static archives, NOT the /ucrt64/lib/ import libs.
+          # libcurl is fully absorbed via the true-static source build at
+          # /c/opt/curl-static.  All other third-party DLLs (libssl, libcrypto,
+          # libiconv, zlib, libzstd, libbrotli, libidn2, libpsl, libssh2,
+          # libnghttp2, libunistring) are absorbed by -Wl,-Bstatic sandwich.
 
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -543,12 +544,16 @@ jobs:
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -L/ucrt64/lib -Wl,-Bstatic -l:libstdc++.a -l:libwinpthread.a -lpthread -liconv -Wl,--gc-sections -Wl,-Bstatic"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
             -DCURL_LIBRARY=/c/opt/curl-static/lib/libcurl.a
             -DCURL_INCLUDE_DIR=/c/opt/curl-static/include
+            "-DGCC_TRUE_LIBSTDCXX=${GCC_TRUE_LIBSTDCXX}"
+            "-DGCC_TRUE_LIBGCC=${GCC_TRUE_LIBGCC}"
+            "-DGCC_TRUE_LIBGCC_EH=${GCC_TRUE_LIBGCC_EH}"
+            "-DGCC_TRUE_LIBPTHREAD=${GCC_TRUE_LIBPTHREAD}"
           )
 
           # Configure both in parallel (independent build trees)
@@ -573,20 +578,6 @@ jobs:
             echo ">>> Simulator exe skipped (Qt 6.11 header incompatibility)"
           fi
 
-          # 5WHY: GCC 16.1.0 on MSYS2 injects -lstdc++ / -lwinpthread at
-          # the end of every link command via internal specs.  /ucrt64/lib/
-          # libstdc++.a is a DLL import lib (not true static), so even with
-          # -static-libstdc++ the DLL reference persists.  -static-libgcc
-          # successfully eliminates libgcc_s_seh-1.dll.  Bundle the two
-          # unavoidable GCC runtime DLLs alongside the .exe so the standalone
-          # package is truly self-contained (no external DLL dependencies
-          # except Windows built-in OS DLLs).
-          echo ">>> Bundling GCC runtime DLLs..."
-          cp /ucrt64/bin/libstdc++-6.dll dist/ 2>/dev/null || true
-          cp /ucrt64/bin/libwinpthread-1.dll dist/ 2>/dev/null || true
-          echo ">>> Standalone package contents:"
-          ls -lh dist/
-
       # - Enforce zero non-OS DLL dependencies -
       - name: Verify zero non-OS DLL dependencies
         shell: msys2 {0}
@@ -599,12 +590,9 @@ jobs:
           # quantifier. In ERE, '++' is undefined/ambiguous — GNU grep treats the
           # second '+' as literal but first as quantifier, so 'libstdc++-6' never
           # matches the literal DLL name. Escape '+' as '\\+' for literal match.
-          # GCC toolchain runtime DLLs: libstdc++-6.dll + libwinpthread-1.dll
-          # are UNAVOIDABLE on MSYS2 MinGW — /ucrt64/lib/libstdc++.a is itself
-          # a DLL import library, not a true static archive.  -static-libgcc
-          # eliminates libgcc_s_seh-1.dll.  The remaining two are bundled
-          # alongside the exe in the post-processing step below.
-          SYSTEM_DLLS="${SYSTEM_DLLS}|libstdc\+\+-6|libwinpthread-1"
+          # GCC runtime DLLs (libstdc++-6, libgcc_s_seh-1, libwinpthread-1) are
+          # NOW ELIMINATED via true-static .a archives from g++ -print-file-name.
+          # They are deliberately NOT whitelisted — if they appear, the build FAILS.
           # Third-party DLLs that MUST be absorbed (-Wl,-Bstatic ensures):
           # libcurl-4, libssl-3-x64, libcrypto-3-x64, libiconv-2,
           # libzstd-1, libbrotlidec, libbrotlicommon, libidn2-0,
