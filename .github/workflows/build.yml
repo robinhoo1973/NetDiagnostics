@@ -67,6 +67,23 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev \
             libxkbcommon-dev libxcb-cursor-dev
 
+      # ── Debug build + auto-test ─────────────────────────────────────
+      - name: Configure (debug)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=linux-x86_64 \
+            -B build-debug -S .
+      - name: Build (debug)
+        run: ninja -C build-debug net_diagnostics
+      - name: Startup Crash Test (debug)
+        run: |
+          echo "=== Linux Debug Startup Crash Test ==="
+          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=httpbin.org ND_AUTO_TEST_EXIT_CODE=1 ./build-debug/net_diagnostics 2>&1 | tail -30
+          if [ $? -ne 0 ]; then echo "[FAIL]"; exit 1; fi
+          echo "[PASS] Linux Debug OK"
+      # ── Release build + auto-test ───────────────────────────────────
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -77,6 +94,13 @@ jobs:
 
       - name: Build (production)
         run: ninja -C build net_diagnostics
+
+      - name: Startup Crash Test (production)
+        run: |
+          echo "=== Linux Release Startup Crash Test ==="
+          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=httpbin.org ND_AUTO_TEST_EXIT_CODE=1 ./build/net_diagnostics 2>&1 | tail -30
+          if [ $? -ne 0 ]; then echo "[FAIL]"; exit 1; fi
+          echo "[PASS] Linux Release OK"
 
       - name: Configure (simulator)
         run: |

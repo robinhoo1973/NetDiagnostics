@@ -48,6 +48,50 @@ jobs:
 
       - uses: ./.github/actions/macos-icon
 
+      # ═════════════════════════════════════════════════════════════════
+      # Phase 1: Debug build + startup crash test + full auto-test
+      # 5WHY: Release builds succeed but crash at startup on real
+      # devices (d->i corruptions, SIOF, missing QML plugins).
+      # Debug builds surface these issues with better diagnostics.
+      # ═════════════════════════════════════════════════════════════════
+      - name: Configure (debug)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=macos-arm64 \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-debug -S .
+
+      - name: Build (debug)
+        run: ninja -C build-debug net_diagnostics
+
+      - name: Startup Crash Test (debug)
+        run: |
+          echo "=== macOS Debug Startup Crash Test ==="
+          BIN="build-debug/net_diagnostics"
+          if [ ! -f "$BIN" ]; then
+            BIN="build-debug/net_diagnostics.app/Contents/MacOS/net_diagnostics"
+          fi
+          if [ ! -f "$BIN" ]; then
+            echo "[FAIL] Binary not found"; exit 1
+          fi
+          # Run full auto-test in offscreen mode
+          QT_QPA_PLATFORM=offscreen \
+            ND_AUTO_TEST=1 \
+            ND_AUTO_TEST_TARGET=httpbin.org \
+            ND_AUTO_TEST_EXIT_CODE=1 \
+            "$BIN" 2>&1 | tail -30
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "[FAIL] Debug auto-test exit code: $EXIT_CODE"
+            exit 1
+          fi
+          echo "[PASS] macOS Debug startup + auto-test OK"
+
+      # ═════════════════════════════════════════════════════════════════
+      # Phase 2: Release build (production) + full auto-test
+      # ═════════════════════════════════════════════════════════════════
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -59,6 +103,28 @@ jobs:
 
       - name: Build (production)
         run: ninja -C build net_diagnostics
+
+      - name: Startup Crash Test (production)
+        run: |
+          echo "=== macOS Release Startup Crash Test ==="
+          BIN="build/net_diagnostics"
+          if [ ! -f "$BIN" ]; then
+            BIN="build/net_diagnostics.app/Contents/MacOS/net_diagnostics"
+          fi
+          if [ ! -f "$BIN" ]; then
+            echo "[FAIL] Binary not found"; exit 1
+          fi
+          QT_QPA_PLATFORM=offscreen \
+            ND_AUTO_TEST=1 \
+            ND_AUTO_TEST_TARGET=httpbin.org \
+            ND_AUTO_TEST_EXIT_CODE=1 \
+            "$BIN" 2>&1 | tail -30
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "[FAIL] Release auto-test exit code: $EXIT_CODE"
+            exit 1
+          fi
+          echo "[PASS] macOS Release startup + auto-test OK"
 
       - name: Bundle Qt frameworks (macdeployqt)
         run: |
@@ -186,6 +252,85 @@ jobs:
           install_dir: ${{ env.QT_INSTALL_DIR }}
           cache_key_prefix: qt6-ios
 
+      # ═════════════════════════════════════════════════════════════════
+      # Phase 1: Debug Xcode build for simulator + startup crash test
+      # 5WHY: The device build cannot run on CI.  Building for the iOS
+      # simulator with Xcode generator and launching with ND_AUTO_TEST=1
+      # provides a real runtime startup crash test before we even
+      # attempt the device Release build.
+      # ═════════════════════════════════════════════════════════════════
+      - name: Configure (debug, Xcode, simulator)
+        run: |
+          SIM_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          echo "Sim SDK: ${SIM_SDK}"
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="${SIM_SDK}" \
+            -B build-xcode -S .
+
+      - name: Build (debug, Xcode, simulator)
+        run: |
+          xcodebuild build \
+            -project build-xcode/NetDiagnostic.xcodeproj \
+            -scheme net_diagnostics \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -configuration Debug 2>&1 | tail -20
+
+      - name: Boot Simulator
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c "import json,sys;d=json.load(sys.stdin)['runtimes'];ios=[r for r in d if'iOS'in r.get('name','')and r.get('isAvailable',False)];print(ios[-1]['identifier'])if ios else sys.exit(1)")
+          DT=$(xcrun simctl list devicetypes -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devicetypes'];print([x['identifier']for x in d if'iPhone' in x['name']][-1])")
+          SIM_UDID=$(xcrun simctl create "AutoTest-${GITHUB_RUN_ID}" "${DT}" "${RUNTIME}" 2>/dev/null || xcrun simctl list devices -j | python3 -c "import json,sys;d=json.load(sys.stdin);r='${RUNTIME}';devs=d['devices'].get(r,[]);b=[x for x in devs if'Booted'==x['state']];print(b[0]['udid'])if b else''")
+          xcrun simctl boot "${SIM_UDID}" 2>/dev/null || echo "already booted"
+          xcrun simctl bootstatus "${SIM_UDID}" -b 2>/dev/null || sleep 15
+          echo "SIM_UDID=${SIM_UDID}" >> "$GITHUB_ENV"
+
+      - name: Startup Crash Test (iOS Simulator, Debug)
+        run: |
+          APP_PATH=$(find build-xcode -name "net_diagnostics.app" -path "*/Debug-iphonesimulator/*" | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "[FAIL] Simulator .app not found"
+            find build-xcode -name "*.app" -type d
+            exit 1
+          fi
+          echo "Installing: ${APP_PATH}"
+          xcrun simctl install "${SIM_UDID}" "${APP_PATH}"
+          echo "Launching with ND_AUTO_TEST=1..."
+          xcrun simctl launch --console "${SIM_UDID}" com.netdiagnostic.app \
+            -ND_AUTO_TEST 1 -ND_AUTO_TEST_TARGET httpbin.org -ND_AUTO_TEST_EXIT_CODE 1 &
+          # Wait for app to complete auto-test (up to 90s)
+          for i in $(seq 1 18); do
+            sleep 5
+            RUNNING=$(xcrun simctl spawn "${SIM_UDID}" launchctl list 2>/dev/null | grep -c netdiagnostic || echo "0")
+            if [ "$RUNNING" -eq 0 ]; then break; fi
+          done
+          # Check simulator logs for crash
+          SIM_LOG="$HOME/Library/Logs/CoreSimulator/${SIM_UDID}/system.log"
+          if [ -f "$SIM_LOG" ]; then
+            CRASH=$(grep -c "crash\|Crash\|CRASH\|SIGABRT\|SIGSEGV\|EXC_BAD\|EXC_CRASH" "$SIM_LOG" 2>/dev/null || echo "0")
+            if [ "$CRASH" -gt 0 ]; then
+              echo "[FAIL] Crash detected in simulator log ($CRASH occurrences)"
+              grep -B2 "crash\|Crash\|SIGABRT\|SIGSEGV\|EXC_BAD\|EXC_CRASH" "$SIM_LOG" | tail -20
+              exit 1
+            fi
+          fi
+          echo "[PASS] iOS Simulator Debug startup + auto-test OK"
+
+      - name: Shutdown Simulator
+        if: always()
+        run: xcrun simctl shutdown "${SIM_UDID}" 2>/dev/null || true
+
+      # ═════════════════════════════════════════════════════════════════
+      # Phase 2: Release device build (production)
+      # ═════════════════════════════════════════════════════════════════
       - name: Configure
         run: |
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
