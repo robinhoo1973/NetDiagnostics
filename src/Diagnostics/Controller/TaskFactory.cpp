@@ -314,10 +314,13 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #endif  // close converted #elif
 #endif  // close converted #elif
         // 5WHY: default:break fell through to post-switch log+nullptr — misleading
-        // because break suggests "do nothing."  Now explicitly logs and returns
-        // nullptr inside the default case, making the intent unambiguous.
+        // because break suggests "do nothing."  Now explicitly logs inside default
+        // AND keeps the post-switch return as a safety net for case-fallthrough UB.
         default:
             Logger::instance().event(QStringLiteral("Unknown DiagId: %1").arg(static_cast<int>(id)));
             return nullptr;
     }
+    // Safety net: catch any case that falls through without returning (UB guard)
+    Logger::instance().event(QStringLiteral("Unreachable: fell through switch for DiagId %1").arg(static_cast<int>(id)));
+    return nullptr;
 }
