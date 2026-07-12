@@ -337,10 +337,10 @@ ColumnLayout {
                     property bool _showPass: false
                 }
                 // Visibility toggle icon (eye / eye-off)
+                // 5WHY: Touch target was 36×28 despite Apple HIG requiring 44pt
+                // minimum in the comment.  Now matches the documented minimum.
                 Item {
-                    // 5WHY: Apple HIG minimum touch target is 44pt; Material Design
-                    // is 48dp. Use 44pt to ensure tappable area on all platforms.
-                    implicitWidth: 36; implicitHeight: 28
+                    implicitWidth: 44; implicitHeight: 44
                     visible: passField.text !== ""
                     AppIcon {
                         anchors.centerIn: parent
