@@ -62,11 +62,23 @@ Item {
         }
     }
 
+    // 5WHY: had no keyboard access or screen-reader label — keyboard
+    // users could not view test result details (WCAG 2.1 SC 2.1.1).
     MouseArea {
         anchors.fill: parent
         enabled: !itemData.isPending
+        cursorShape: Qt.PointingHandCursor
         onClicked: root.detailClicked(itemData)
     }
+    activeFocusOnTab: true
+    Keys.onPressed: function(event) {
+        if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && !itemData.isPending) {
+            root.detailClicked(itemData)
+            event.accepted = true
+        }
+    }
+    Accessible.name: itemData.displayName || ("Test #" + itemData.diagId)
+    Accessible.role: Accessible.Button
 
     function _fmtDur(ms) {
         if (ms<1000) return ms+"ms"
