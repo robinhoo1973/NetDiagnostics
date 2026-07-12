@@ -171,7 +171,7 @@ else()
 endif()
 
 # 鈹€鈹€ Production target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-qt_add_executable(net_diagnostics WIN32 ${SOURCES} ${QML_RESOURCES})
+qt_add_executable(net_diagnostics WIN32 MANUAL_FINALIZATION ${SOURCES} ${QML_RESOURCES})
 # 5WHY: setup_platform_bundle must be called BEFORE configure_netdiag_target
 # so MACOSX_BUNDLE and MACOSX_BUNDLE_INFO_PLIST are set before
 # qt_finalize_executable runs inside configure_netdiag_target.
@@ -205,7 +205,7 @@ if(BUILD_SIMULATOR)
         "src/Common/Services/Simulator/PlatformSimulationPolicyEngine.h"
         "src/Common/Services/Simulator/ProtocolRegistry.h"
     )
-    qt_add_executable(net_diagnostics_sim WIN32 ${SIM_SOURCES} ${QML_RESOURCES})
+    qt_add_executable(net_diagnostics_sim WIN32 MANUAL_FINALIZATION ${SIM_SOURCES} ${QML_RESOURCES})
     configure_netdiag_target(net_diagnostics_sim)
 endif()
 

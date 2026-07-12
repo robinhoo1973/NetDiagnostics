@@ -1219,6 +1219,25 @@ void AppState::shareReport(const QString& format) {
     if (m_settingsCtrl) m_settingsCtrl->shareReport(format);
 }
 
+void AppState::setCrashReportPath(const QString& path) {
+    if (m_crashReportPath == path) return;
+    m_crashReportPath = path;
+    emit crashReportChanged();
+}
+
+void AppState::shareCrashReport() {
+    if (m_crashReportPath.isEmpty() || !QFile::exists(m_crashReportPath))
+        return;
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    // Mobile: OS share sheet so the user can email/upload the crash log.
+    platformShareFile(m_crashReportPath, QStringLiteral("text/plain"),
+                      QStringLiteral("NetDiagnostics Crash Report"));
+#else
+    // Desktop: reveal the crash log in the system file manager.
+    QDesktopServices::openUrl(QUrl::fromLocalFile(QFileInfo(m_crashReportPath).absolutePath()));
+#endif
+}
+
 void AppState::emailReportDesktop(const QString& path) {
     ReportEngine::emailReportDesktop(path);
 }

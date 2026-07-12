@@ -13,7 +13,13 @@
 // 5WHY: test.yml sets ND_TESTING=ON but ND_DEBUG=OFF, making STARTUP_LOG a
 // no-op. If the binary crashes before --test mode begins (QML load failure),
 // there is zero diagnostic output. Enable logging whenever ND_TESTING is on.
-#if defined(ND_DEBUG) || defined(ND_TESTING)
+//
+// 5WHY (iOS): TestFlight Release builds define neither ND_DEBUG nor
+// ND_TESTING, so on the exact platform where startup failures are hardest
+// to diagnose (no console access without a Mac), STARTUP_LOG compiled to
+// nothing.  Always enable it on iOS so the app writes a startup log the
+// user can retrieve via Files.app (see DocumentsLocation routing below).
+#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
 
 #include <QFile>
 #include <QTextStream>
@@ -27,7 +33,16 @@
 #endif
 
 static void startup_log(const char* file, int line, const char* fmt, ...) {
+    // 5WHY: On iOS the temp dir is inside the sandbox and not visible to the
+    // user.  Write to the app's Documents directory instead — with
+    // UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace in Info.plist,
+    // this file is directly accessible in Files.app / Finder, so users can
+    // retrieve the startup log without Xcode or a Mac.
+#if defined(PLATFORM_IOS)
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
     QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+#endif
     QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
 
     QFile f(path);
@@ -63,7 +78,7 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
 #define STARTUP_LOG(fmt, ...) startup_log(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define STARTUP_SEPARATOR()  startup_log(nullptr, 0, "══════════════════════════════════════════")
 
-#else  // neither ND_DEBUG nor ND_TESTING — compile to nothing
+#else  // neither ND_DEBUG nor ND_TESTING nor iOS — compile to nothing
 
 #define STARTUP_LOG(fmt, ...) ((void)0)
 #define STARTUP_SEPARATOR()  ((void)0)

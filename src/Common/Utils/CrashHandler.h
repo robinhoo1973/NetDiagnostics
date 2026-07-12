@@ -23,9 +23,12 @@
 #include <QDateTime>
 #include <QDir>
 #include <QStandardPaths>
+#include <QtGlobal>
 #include <cstdio>
 #include <cstdlib>
 #include <csignal>
+#include <exception>
+#include <typeinfo>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -45,10 +48,22 @@ namespace CrashHandler {
 
 static constexpr const char* kCrashFileName = "NetDiagnostics_crash.log";
 
+// 5WHY: Set once a qFatal/qCritical/terminate crash report has been written,
+// so the trailing abort()→SIGABRT does not overwrite the real root cause.
+static bool g_messageCrashWritten = false;
+
 // ── Helper: crash log path ─────────────────────────────────────────────
 static QString crashLogPath() {
+    // 5WHY: On iOS the temp dir is sandboxed and invisible to the user.
+    // Write the crash log to Documents so it is retrievable via Files.app
+    // (requires UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace).
+#if defined(PLATFORM_IOS)
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+        .filePath(QString::fromLatin1(kCrashFileName));
+#else
     return QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
         .filePath(QString::fromLatin1(kCrashFileName));
+#endif
 }
 
 // ── Helper: write backtrace to file ────────────────────────────────────
@@ -84,6 +99,21 @@ static void writeBacktrace(QTextStream& ts) {
 // ── Helper: write crash report ─────────────────────────────────────────
 static void writeCrashReport(const char* signalName, int signalNum) {
     QString path = crashLogPath();
+    // 5WHY: If a qFatal/qCritical/terminate report was already written for
+    // this crash, the ensuing abort() → SIGABRT must NOT overwrite it with a
+    // useless "abort → pthread_kill" backtrace.  Append the signal instead so
+    // the real root cause (the Qt message / exception) is preserved.
+    if (g_messageCrashWritten) {
+        QFile af(path);
+        if (af.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream ats(&af);
+            ats << "--- Subsequent signal: " << signalName
+                << " (" << signalNum << ") ---\n";
+            ats.flush();
+            af.close();
+        }
+        return;
+    }
     QFile f(path);
     // Remove previous crash log if exists, start fresh
     f.remove();
@@ -107,14 +137,15 @@ static void writeCrashReport(const char* signalName, int signalNum) {
 #endif
 
     // Platform info
+    // 5WHY: Use the project's own PLATFORM_IOS define rather than Apple's
+    // TARGET_OS_IOS, which requires <TargetConditionals.h> to be included;
+    // without it the macro is undefined and iOS would be mislabelled macOS.
 #if defined(_WIN32)
     ts << "Platform:  Windows\n";
-#elif defined(__APPLE__)
-    #if TARGET_OS_IOS
+#elif defined(PLATFORM_IOS)
     ts << "Platform:  iOS\n";
-    #else
+#elif defined(__APPLE__)
     ts << "Platform:  macOS\n";
-    #endif
 #elif defined(__ANDROID__)
     ts << "Platform:  Android\n";
 #elif defined(__linux__)
@@ -127,7 +158,129 @@ static void writeCrashReport(const char* signalName, int signalNum) {
     f.close();
 }
 
-// ── POSIX signal handler ───────────────────────────────────────────────
+// ── Append extra context to an existing crash report ───────────────────
+// 5WHY: qFatal() and uncaught C++ exceptions are the way Qt/QML startup
+// failures actually abort on iOS (e.g. engine.load() → qFatal → abort).
+// A pure signal handler only sees the resulting SIGABRT with a useless
+// backtrace (abort → pthread_kill).  Capturing the Qt message / exception
+// text BEFORE abort() runs preserves the real root cause for upload.
+static void writeMessageCrashReport(const char* kind, const QString& text) {
+    QString path = crashLogPath();
+    QFile f(path);
+    f.remove();
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text))
+        return;
+    QTextStream ts(&f);
+    ts << "=== NetDiagnostics Crash Report ===\n";
+    ts << "Timestamp: " << QDateTime::currentDateTime().toString(Qt::ISODateWithMs) << "\n";
+    ts << "Kind:      " << kind << "\n";
+#if defined(PROJECT_VERSION)
+    ts << "Version:   " << PROJECT_VERSION << "\n";
+#endif
+#if defined(ND_BUILD_NUMBER)
+    ts << "Build:     " << ND_BUILD_NUMBER << "\n";
+#endif
+#if defined(APP_EDITION)
+    ts << "Edition:   " << APP_EDITION << "\n";
+#endif
+#if defined(_WIN32)
+    ts << "Platform:  Windows\n";
+#elif defined(PLATFORM_IOS)
+    ts << "Platform:  iOS\n";
+#elif defined(__APPLE__)
+    ts << "Platform:  macOS\n";
+#elif defined(__ANDROID__)
+    ts << "Platform:  Android\n";
+#elif defined(__linux__)
+    ts << "Platform:  Linux\n";
+#endif
+    ts << "Message:\n" << text << "\n";
+    writeBacktrace(ts);
+    ts << "====================================\n";
+    ts.flush();
+    f.close();
+    g_messageCrashWritten = true;
+}
+
+// ── Qt message handler — captures qFatal into the crash report ─────────
+// 5WHY: The QML startup-failure path in main.cpp uses qCritical()/qFatal()
+// style diagnostics.  Without a message handler a genuine qFatal() aborts
+// with only a useless "abort" backtrace, and its text goes only to stderr
+// (iOS syslog), unreachable without a Mac.  This handler writes qFatal text
+// to the crash log in Documents so it can be retrieved via Files.app.
+//
+// 5WHY (review fix): Only QtFatalMsg is treated as a crash.  qCritical is
+// used throughout the app for RECOVERABLE errors (network failures, etc.);
+// treating it as a crash produced false "previous crash" banners on every
+// normal error.  Controlled QML-load failures are already captured by
+// STARTUP_LOG to Documents, so qCritical does not belong in the crash log.
+//
+// 5WHY (review fix 2): qInstallMessageHandler returns nullptr when Qt's
+// built-in default handler was active.  If we only forward when non-null,
+// all qDebug/qWarning/qCritical console output is silently suppressed.
+// When there is no previous handler we replicate the default by writing the
+// formatted message to stderr, preserving normal logging.
+static QtMessageHandler g_prevMsgHandler = nullptr;
+
+static void qtMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
+    if (type == QtFatalMsg) {
+        writeMessageCrashReport("qFatal", msg);
+    }
+    if (g_prevMsgHandler) {
+        g_prevMsgHandler(type, ctx, msg);
+    } else {
+        // No previous handler (Qt default was active): preserve output so we
+        // don't suppress logging by installing this handler.
+        const QByteArray line = qFormatLogMessage(type, ctx, msg).toLocal8Bit();
+        fprintf(stderr, "%s\n", line.constData());
+        fflush(stderr);
+    }
+}
+
+// ── std::terminate handler — captures uncaught C++ exceptions ──────────
+// 5WHY: An uncaught C++ exception (e.g. std::bad_alloc, or a Qt exception)
+// calls std::terminate() → abort() → SIGABRT.  By the time the signal
+// handler runs, the stack is unwound and the exception type is lost.  This
+// terminate handler runs while the exception is still active, so it records
+// the exception's demangled type name and what() text for the crash report.
+static std::terminate_handler g_prevTerminate = nullptr;
+
+static void terminateHandler() {
+    QString detail = QStringLiteral("Unhandled C++ exception (std::terminate)");
+    if (std::exception_ptr ep = std::current_exception()) {
+        try {
+            std::rethrow_exception(ep);
+        } catch (const std::exception& e) {
+            const char* tname = typeid(e).name();
+#if !defined(_WIN32)
+            int status = 0;
+            char* demangled = abi::__cxa_demangle(tname, nullptr, nullptr, &status);
+            const char* shown = (status == 0 && demangled) ? demangled : tname;
+            detail = QStringLiteral("Unhandled exception: %1\nwhat(): %2")
+                         .arg(QString::fromUtf8(shown), QString::fromUtf8(e.what()));
+            if (demangled) free(demangled);
+#else
+            detail = QStringLiteral("Unhandled exception: %1\nwhat(): %2")
+                         .arg(QString::fromUtf8(tname), QString::fromUtf8(e.what()));
+#endif
+        } catch (...) {
+            detail = QStringLiteral("Unhandled non-std C++ exception");
+        }
+    }
+    writeMessageCrashReport("std::terminate", detail);
+    if (g_prevTerminate)
+        g_prevTerminate();
+    else
+        std::abort();
+}
+
+// ── Install error-capture handlers (message + terminate) ───────────────
+// Called from both the Windows and POSIX install() paths.
+static void installErrorCapture() {
+    g_prevMsgHandler = qInstallMessageHandler(qtMessageHandler);
+    g_prevTerminate  = std::set_terminate(terminateHandler);
+}
+
 #if defined(_WIN32)
 
 static LONG WINAPI windowsExceptionHandler(EXCEPTION_POINTERS* exInfo) {
@@ -145,6 +298,7 @@ static LONG WINAPI windowsExceptionHandler(EXCEPTION_POINTERS* exInfo) {
 }
 
 static void install() {
+    installErrorCapture();
     SetUnhandledExceptionFilter(windowsExceptionHandler);
 }
 
@@ -167,6 +321,7 @@ static void posixSignalHandler(int sig) {
 }
 
 static void install() {
+    installErrorCapture();
     struct sigaction sa;
     sa.sa_handler = posixSignalHandler;
     sigemptyset(&sa.sa_mask);
@@ -196,7 +351,7 @@ static bool checkForPreviousCrash() {
     f.close();
 
     // Write to startup log (if enabled)
-#if defined(ND_DEBUG) || defined(ND_TESTING)
+#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
     extern void startup_log(const char*, int, const char*, ...);
     startup_log(nullptr, 0, "=== PREVIOUS CRASH DETECTED ===");
     startup_log(nullptr, 0, "%s", content.toUtf8().constData());

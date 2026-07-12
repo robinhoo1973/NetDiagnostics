@@ -97,19 +97,37 @@ int main(int argc, char *argv[])
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/netanalysis.ico"));
 
+    // 5WHY: These early markers bracket the pre-QML init steps (AppState
+    // construction, iOS WiFi auth, QML engine construction).  On iOS the log
+    // goes to Documents (Files.app), so if the app dies before engine.load()
+    // the last marker written pinpoints the failing step — distinguishing an
+    // AppState/controller crash from a QML load failure.
+    STARTUP_SEPARATOR();
+    STARTUP_LOG("main() reached — constructing AppState...");
+
     AppState appState;
+    STARTUP_LOG("AppState constructed OK");
+
+    // 5WHY: Surface a previous-run crash report to QML so the user can share
+    // or upload it.  hadCrash was previously detected but never exposed, so
+    // the crash log sat in Documents unused.  Wiring the path into AppState
+    // lets the UI show a "share crash report" banner (hasCrashReport).
+    if (hadCrash)
+        appState.setCrashReportPath(CrashHandler::crashReportPath());
 
     // 5WHY: On iOS, WiFi authorization (CLLocationManager WhenInUse) must be
     // requested early so NEHotspotNetwork can return SSID/BSSID.  Without this
     // call the WiFi diagnostics panel shows blank data.  The authorization
     // prompt is shown only once; subsequent calls are no-ops.
 #if defined(PLATFORM_IOS)
+    STARTUP_LOG("Requesting iOS WiFi authorization...");
     iosRequestWiFiAuthorization();
+    STARTUP_LOG("iOS WiFi authorization request returned");
 #endif
 
     QQmlApplicationEngine engine;
+    STARTUP_LOG("QQmlApplicationEngine constructed OK");
 
-    STARTUP_SEPARATOR();
 #if defined(ND_BUILD_NUMBER)
     STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s, build=%s",
                 qVersion(), APP_EDITION, ND_BUILD_NUMBER);
@@ -289,6 +307,13 @@ int main(int argc, char *argv[])
         // The error is visible in Xcode Console.app / adb logcat and the
         // StartupLog file, enabling support to diagnose missing QML plugins,
         // corrupted QRC resources, or platform-specific module gaps.
+        // 5WHY: On iOS the startup log is written to the Documents directory
+        // (retrievable via Files.app); on Android it stays in TempLocation.
+#if defined(PLATFORM_IOS)
+        const QString logDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
+        const QString logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+#endif
         qCritical(
             "NetDiagnostics — Startup Error\n\n"
             "Failed to load QML UI from %s.\n\n"
@@ -298,7 +323,7 @@ int main(int argc, char *argv[])
             "- Corrupted resources.qrc or missing fonts\n\n"
             "Full log: %s/NetDiagnostics_startup.log",
             qPrintable(url.toString()),
-            qPrintable(QStandardPaths::writableLocation(QStandardPaths::TempLocation)));
+            qPrintable(logDir));
         return -1;
 #else
         QMessageBox::critical(nullptr, QStringLiteral("NetDiagnostics — Startup Error"),

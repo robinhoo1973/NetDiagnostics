@@ -347,26 +347,45 @@ jobs:
 
       - name: Verify QML Plugin Import Generated
         run: |
-          QML_IMPORT_CPP="build/net_diagnostics_autogen/EWIEGA46WW/qml_plugin_import.cpp"
+          # 5WHY: build 0.0.2 (195) shipped to TestFlight and crashed at
+          # startup with SIGABRT because qt_import_qml_plugins() ran AFTER
+          # qt_finalize_executable(), so the generated qml_plugin_import.cpp
+          # missed QtQuick.Layouts etc.  This step previously only printed
+          # [MISS]/[WARN] and never failed, so the broken build passed CI
+          # and reached users.  It now hard-fails (exit 1) on any missing
+          # plugin or a missing qml_plugin_import.cpp so the regression
+          # cannot silently ship again.
           QML_IMPORT_CPP2=$(find build -name "qml_plugin_import.cpp" 2>/dev/null | head -1)
-          if [ -n "$QML_IMPORT_CPP2" ]; then
-            echo "[OK]   qml_plugin_import.cpp found: $QML_IMPORT_CPP2"
-            for mod in QtQuick QtQuickControls2 QtQuickLayouts; do
-              if grep -q "$mod" "$QML_IMPORT_CPP2"; then
-                echo "[OK]   $mod plugin registered"
-              else
-                echo "[MISS] $mod plugin NOT in qml_plugin_import.cpp"
-              fi
-            done
-          else
-            echo "[WARN] qml_plugin_import.cpp not found — QML plugins may not load on iOS"
-            echo "Check that qt_import_qml_plugins() ran before qt_finalize_executable()."
+          if [ -z "$QML_IMPORT_CPP2" ]; then
+            echo "[FAIL] qml_plugin_import.cpp not found — QML plugins will not load on iOS (static build)."
+            echo "Check that qt_import_qml_plugins() ran BEFORE qt_finalize_executable()."
+            exit 1
           fi
+          echo "[OK]   qml_plugin_import.cpp found: $QML_IMPORT_CPP2"
+          MISSING=""
+          for mod in QtQuick QtQuickControls2 QtQuickLayouts; do
+            if grep -q "$mod" "$QML_IMPORT_CPP2"; then
+              echo "[OK]   $mod plugin registered"
+            else
+              echo "[MISS] $mod plugin NOT in qml_plugin_import.cpp"
+              MISSING="$MISSING $mod"
+            fi
+          done
+          if [ -n "$MISSING" ]; then
+            echo "ERROR: Missing QML plugin imports:$MISSING"
+            echo "Static iOS build will fail to load QML (rootObjects empty) → startup crash."
+            exit 1
+          fi
+          echo "[PASS] All required QML plugins registered"
 
       - name: Verify QRC Resources Embedded
         run: |
+          # 5WHY: A missing critical QML/font resource produces an empty
+          # rootObjects() at runtime → startup failure.  This must fail the
+          # build, not warn, so a broken QRC never reaches TestFlight.
           BIN=build/net_diagnostics.app/net_diagnostics
           echo "=== Checking critical QRC resources ==="
+          MISSING=""
           for res in \
             "qml/main.qml" \
             "qml/theme/ThemeEngine.qml" \
@@ -377,9 +396,16 @@ jobs:
             if strings "$BIN" | grep -q "$res"; then
               echo "[OK]   $res"
             else
-              echo "[WARN] $res — not found in binary strings (may still be embedded)"
+              echo "[MISS] $res — not embedded in binary"
+              MISSING="$MISSING $res"
             fi
           done
+          if [ -n "$MISSING" ]; then
+            echo "ERROR: Missing critical QRC resources:$MISSING"
+            echo "QML engine will fail to load → startup crash."
+            exit 1
+          fi
+          echo "[PASS] All critical QRC resources embedded"
 
       - name: Verify Required iOS Frameworks Linked
         run: |
