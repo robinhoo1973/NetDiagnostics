@@ -42,6 +42,19 @@
 #endif
 
 // ═══════════════════════════════════════════════════════════════════════
+// ── Forward declarations (file scope) ──────────────────────────────────
+// 5WHY: The extern declaration inside CrashHandler::checkForPreviousCrash()
+// scopes startup_log to CrashHandler::startup_log, but the actual definition
+// (in StartupLog.h, included by main.cpp) is ::startup_log at global scope.
+// Adding a file-scope forward declaration makes ::startup_log visible to the
+// compiler's name lookup, so the linker resolves the correct global symbol.
+// Without this, iOS builds fail with: "Undefined symbols: CrashHandler::startup_log"
+// because the block-scope extern inside the namespace shadows the global one.
+#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
+void startup_log(const char* file, int line, const char* fmt, ...);
+#endif
+
+// ═══════════════════════════════════════════════════════════════════════
 // CrashHandler namespace
 // ═══════════════════════════════════════════════════════════════════════
 namespace CrashHandler {
@@ -353,10 +366,15 @@ static bool checkForPreviousCrash() {
     // Write to startup log (if enabled)
 #if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
     extern void startup_log(const char*, int, const char*, ...);
-    startup_log(nullptr, 0, "=== PREVIOUS CRASH DETECTED ===");
-    startup_log(nullptr, 0, "%s", content.toUtf8().constData());
-    startup_log(nullptr, 0, "=== END CRASH REPORT ===");
-    startup_log(nullptr, 0, "Crash log retained at: %s", path.toUtf8().constData());
+    // 5WHY: Use global-scope call. The extern declaration inside the
+    // CrashHandler namespace introduces CrashHandler::startup_log, but
+    // the actual function is ::startup_log (global scope, defined in
+    // StartupLog.h).  Explicit :: qualification avoids linker errors
+    // on iOS where the optimizer may inline the namespace-qualified call.
+    ::startup_log(nullptr, 0, "=== PREVIOUS CRASH DETECTED ===");
+    ::startup_log(nullptr, 0, "%s", content.toUtf8().constData());
+    ::startup_log(nullptr, 0, "=== END CRASH REPORT ===");
+    ::startup_log(nullptr, 0, "Crash log retained at: %s", path.toUtf8().constData());
 #endif
 
     // Also write to stderr so it appears in iOS syslog / Android logcat
