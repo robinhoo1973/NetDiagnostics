@@ -148,10 +148,12 @@ Item {
         Item {
             Layout.fillWidth: true; Layout.fillHeight: true
 
-            // Empty state
+            // 5WHY: Show empty state whenever totalCompleted===0 and not running.
+            // Previous condition (runStatus===0 && totalCompleted===0) left a gap:
+            // if status was 2/3 with 0 results, the user saw a blank area.
             Column {
                 anchors.centerIn: parent; spacing: 16
-                visible: appState.runStatus === 0 && appState.totalCompleted === 0
+                visible: appState.totalCompleted === 0 && appState.runStatus !== 1
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "diagnostics"; size: 80; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -205,8 +207,17 @@ Item {
         // to light theme. Now uses ThemeEngine surface color with opacity for
         // proper theme-aware dimming.
         color: Qt.alpha(ThemeEngine.colors.surface, 0.85); visible: false; z: 1000
+        focus: visible  // 5WHY: needs focus to receive Escape key for keyboard dismiss
         onVisibleChanged: {
-            if (!visible) { dtTitle.text=""; dtStatus.text=""; dtSummary.text=""; dtOutput.text=""; page.currentDetail = {} }
+            if (!visible) {
+                dtTitle.text=""; dtStatus.text=""; dtSummary.text=""; dtOutput.text=""; page.currentDetail = {}
+            }
+        }
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape) {
+                detailOverlay.visible = false
+                event.accepted = true
+            }
         }
         MouseArea { anchors.fill: parent; onClicked: detailOverlay.visible = false }
 
@@ -218,15 +229,25 @@ Item {
             color: ThemeEngine.colors.card
             border { width: 1.5; color: ThemeEngine.colors.borderFocused }
 
+            // 5WHY: Unicode "×" renders as tofu (□□) on some font/platform
+            // combinations.  Same 5WHY fix as main.qml — use AppIcon SVG.
             Rectangle {
-                anchors { top: parent.top; right: parent.right; topMargin: 10; rightMargin: 10 }
-                width: 28; height: 28; radius: 14; color: ThemeEngine.textMuted
-                Label {
+                anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 8 }
+                width: 44; height: 44; radius: 22; color: closeBtnArea.containsMouse ? ThemeEngine.colors.borderCard : "transparent"
+                AppIcon {
                     anchors.centerIn: parent
-                    text: "×"; font.family: ThemeEngine.monoFont; font.pixelSize: 16
-                    font.weight: Font.Bold; color: "white"
+                    name: "close"; size: 18
+                    color: closeBtnArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textMuted
                 }
-                MouseArea { anchors.fill: parent; onClicked: detailOverlay.visible = false }
+                MouseArea {
+                    id: closeBtnArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: detailOverlay.visible = false
+                }
+                Accessible.name: "Close details"
+                Accessible.role: Accessible.Button
             }
 
             Flickable {

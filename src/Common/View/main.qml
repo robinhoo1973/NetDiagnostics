@@ -61,16 +61,19 @@ ApplicationWindow {
 
     // ── Close button (top-right corner, theme-aware) ────────────────
     // Desktop only — mobile platforms use native window chrome / gesture close.
+    // 5WHY: The close button was completely invisible on the dark background
+    // (#0F172A). Users had to accidentally hover over the top-right corner to
+    // discover it — WCAG 2.1 SC 1.4.1 (Use of Color) failure.  Now shows a
+    // subtle border at rest and a visible 44x44px touch target (Apple HIG min).
     Rectangle {
         visible: Qt.platform.os !== "ios" && Qt.platform.os !== "android"
-        anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 12 }
-        width: 32; height: 32; radius: 6
-        color: "transparent"
-        // 5WHY: Unicode "×" renders inconsistently across fonts/platforms
-        // (some show as tofu □). Use AppIcon "close" SVG for consistency.
+        anchors { top: parent.top; right: parent.right; topMargin: 6; rightMargin: 10 }
+        width: 44; height: 44; radius: 8
+        color: closeArea.containsMouse ? Qt.alpha(ThemeEngine.colors.borderCard, 0.5) : "transparent"
+        border { width: 1; color: closeArea.containsMouse ? ThemeEngine.colors.borderCard : Qt.alpha(ThemeEngine.colors.borderCard, 0.25) }
         AppIcon {
             anchors.centerIn: parent
-            name: "close"; size: 18
+            name: "close"; size: 16
             color: closeArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textSecondary
         }
         MouseArea {
@@ -80,5 +83,7 @@ ApplicationWindow {
             hoverEnabled: true
             onClicked: root.close()
         }
+        Accessible.name: "Close window"
+        Accessible.role: Accessible.Button
     }
 }
