@@ -557,16 +557,14 @@ jobs:
           # ── DLL whitelist — Windows OS + unavoidable GCC toolchain ─────
           # Windows OS DLLs (cannot be static-linked — OS ABI):
           SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
-          # GCC toolchain runtime DLLs (unavoidable without rebuilding GCC):
-          # These are injected by g++ internal specs AFTER all user flags.
-          # No combination of -static / -Wl,-Bstatic / -nodefaultlibs can
-          # suppress them short of rebuilding GCC --disable-shared.
-          # They ship with every MinGW-w64 installation worldwide.
           # 5WHY: libstdc++-6 was not filtered by grep -E because '+' is a regex
           # quantifier. In ERE, '++' is undefined/ambiguous — GNU grep treats the
           # second '+' as literal but first as quantifier, so 'libstdc++-6' never
           # matches the literal DLL name. Escape '+' as '\\+' for literal match.
-          SYSTEM_DLLS="${SYSTEM_DLLS}|libstdc\+\+-6|libgcc_s_seh-1|libwinpthread-1"
+          # Note: GCC runtime DLLs (libstdc++-6, libgcc_s_seh-1, libwinpthread-1)
+          # are NOW eliminated via -static-libstdc++ -static-libgcc -static placed
+          # as the LAST link flags in netdiag-target.cmake (after qt_finalize_executable).
+          # They are deliberately NOT in the whitelist — if they appear, the build fails.
           # Third-party DLLs that MUST be absorbed (-Wl,-Bstatic ensures):
           # libcurl-4, libssl-3-x64, libcrypto-3-x64, libiconv-2,
           # libzstd-1, libbrotlidec, libbrotlicommon, libidn2-0,
