@@ -163,6 +163,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #else
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 #endif
+#endif  // 5WHY: closes #if defined(PLATFORM_IOS) at line 148 — missing #endif compiled out all G1-G5 tests on iOS
 
         // 閳光偓閳光偓 G2: Connectivity & Security 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
@@ -204,6 +205,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #else
         case DiagId::G4DnsResolution:      return T2(G4RemoteHost::dnsResolution);
 #endif
+#endif  // 5WHY: closes #if defined(PLATFORM_IOS) — missing #endif compiled out G4Ping-G5 on iOS
         case DiagId::G4Ping:               return T2(G4RemoteHost::ping, 30000);
         case DiagId::G4Traceroute:         return T2(G4RemoteHost::traceroute);
         case DiagId::G4PathPing:           return T2(G4RemoteHost::pathPing);
@@ -308,8 +310,6 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
                 return DiagnosticResult::skipped(id, QStringLiteral("HTTP test unavailable (libcurl required)"));
             });
 #endif
-#endif  // close converted #elif
-#endif  // close converted #elif
 #endif  // close converted #elif
 #endif  // close converted #elif
 #endif  // close converted #elif
