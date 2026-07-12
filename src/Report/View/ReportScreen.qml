@@ -443,33 +443,15 @@ Item {
                 // (line 22-23) so openPreview() and the Loader/Image share the
                 // same property — no scope mismatch.
 
-                // 5WHY: Preview was a QTextDocument→QImage rendering — NOT an
-                // actual PDF. Add a button to generate a real PDF/HTML and
-                // open it in the system's native viewer (Preview.app, Edge, etc.)
-                // for true WYSIWYG with proper page breaks and text selection.
-                RowLayout {
-                    Layout.fillWidth: true; Layout.topMargin: 4; spacing: 8
-                    PreviewBtn {
-                        Layout.fillWidth: true
-                        label: page.previewFormat === "html"
-                               ? (page.isMobile ? Tr.openInBrowser : Tr.openInBrowser)
-                               : (page.isMobile ? Tr.openAsPdf : Tr.openAsPdf)
-                        accent: ThemeEngine.accentBlue
-                        locked: false
-                        onClicked: {
-                            if (page.previewFormat === "html")
-                                appState.openHtmlExternally()
-                            else
-                                appState.openPdfExternally()
-                        }
-                    }
-                    PreviewBtn {
-                        Layout.fillWidth: true
-                        label: page.isMobile ? Tr.shareBtn : Tr.emailBtn
-                        accent: ThemeEngine.cyan
-                        locked: !appState.isPremium
-                        onClicked: page.doShare(page.previewFormat)
-                    }
+                // 5WHY: Removed "Open in Browser/PDF" button — only Share remains.
+                // External viewer button was confusing users; share flow covers
+                // opening in native apps via the OS share sheet.
+                PreviewBtn {
+                    Layout.fillWidth: true; Layout.topMargin: 4
+                    label: page.isMobile ? Tr.shareBtn : Tr.emailBtn
+                    accent: ThemeEngine.cyan
+                    locked: !appState.isPremium
+                    onClicked: page.doShare(page.previewFormat)
                 }
             }
         }
