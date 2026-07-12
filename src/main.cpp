@@ -193,12 +193,13 @@ int main(int argc, char *argv[])
             // the connect is established, missing the completion event.
             bool keepOpen = qEnvironmentVariableIntValue("ND_AUTO_TEST_KEEP_OPEN");
             if (!keepOpen) {
-                // 5WHY: Capture &app as context so the connection is
-                // auto-disconnected when app is destroyed.  On Linux/GCC
-                // the context overload may fail to compile; use explicit
-                // capture + disconnect on exit instead.
+                // 5WHY: The QTimer::singleShot(3000, &app, ...) lambda
+                // is owned by &app, so appState and app are guaranteed
+                // to outlive this connection.  Using connect() without
+                // context arg (which requires Qt 6.4+ overload that
+                // Ubuntu 24.04's GCC may not resolve correctly).
                 QObject::connect(&appState, &AppState::runStatusChanged,
-                    &app, [&appState, &app]() {
+                    [&appState]() {
                     if (appState.runStatus() == RunStatus::Completed ||
                         appState.runStatus() == RunStatus::Error ||
                         appState.runStatus() == RunStatus::Cancelled) {
