@@ -866,6 +866,36 @@ void AppState::reset() {
     bumpVersion();
 }
 
+// ── Shared helper: DiagnosticResult → QVariantMap ──────────────────────────
+// 5WHY: resultsForGroup() and allDiagsForGroup() both manually mapped the
+// same 10 DiagnosticResult fields to QVariantMap keys.  Adding a new field
+// required updating both — a DRY violation.  Now: single helper, both callers.
+static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties) {
+    QVariantMap m;
+    m["id"] = static_cast<int>(r.id);
+    m["diagId"] = static_cast<int>(r.id);
+    m["displayName"] = r.displayName.isEmpty() ? staticDiagDisplayName(r.id) : r.displayName;
+    m["status"] = static_cast<int>(r.status);
+    m["statusIcon"] = r.statusIcon();
+    m["summary"] = r.summary;
+    m["details"] = r.details;
+    m["durationMs"] = r.durationMs;
+    if (includeProperties) {
+        QVariantList props;
+        for (const auto& p : r.properties) {
+            QVariantMap pm;
+            pm["label"] = p.label;
+            pm["value"] = p.value;
+            props.append(pm);
+        }
+        m["properties"] = props;
+    }
+    m["isDone"] = true;
+    m["isPending"] = false;
+    m["isRunning"] = false;
+    return m;
+}
+
 // ── Results for QML ────────────────────────────────────────────────────────
 QVariantList AppState::resultsForGroup(int groupInt) const {
     QVariantList list;
@@ -876,15 +906,7 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
             // Skip platform-unavailable / irrelevant protocol tests
             if (r.status == DiagStatus::Skipped)
                 continue;
-            QVariantMap m;
-            m["id"] = static_cast<int>(r.id);
-            m["diagId"] = static_cast<int>(r.id);
-            m["displayName"] = r.displayName.isEmpty() ? staticDiagDisplayName(r.id) : r.displayName;
-            m["status"] = static_cast<int>(r.status);
-            m["statusIcon"] = r.statusIcon();
-            m["summary"] = r.summary;
-            m["details"] = r.details;
-            m["durationMs"] = r.durationMs;
+            QVariantMap m = resultToVariantMap(r, false);
             m["isDone"] = true;
             m["isPending"] = false;
             m["isRunning"] = false;
@@ -935,29 +957,9 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
             continue;
 
         if (m_results.contains(id)) {
-            // Completed test
+            // Completed test — use shared helper (5WHY: DRY)
             const auto& r = m_results[id];
-            QVariantMap m;
-            m["id"] = static_cast<int>(r.id);
-            m["diagId"] = static_cast<int>(r.id);  // alias for QML access
-            m["displayName"] = r.displayName.isEmpty() ? staticDiagDisplayName(r.id) : r.displayName;
-            m["status"] = static_cast<int>(r.status);
-            m["statusIcon"] = r.statusIcon();
-            m["summary"] = r.summary;
-            m["details"] = r.details;
-            m["durationMs"] = r.durationMs;
-            QVariantList props;
-            for (auto& p : r.properties) {
-                QVariantMap pm;
-                pm["label"] = p.label;
-                pm["value"] = p.value;
-                props.append(pm);
-            }
-            m["properties"] = props;
-            m["isDone"] = true;
-            m["isPending"] = false;
-            m["isRunning"] = false;
-            list.append(m);
+            list.append(resultToVariantMap(r, true));
         } else {
             // G5: hide pending tests that don't match the current URL scheme.
             // These would never be scheduled by runDiagnostics, so showing
