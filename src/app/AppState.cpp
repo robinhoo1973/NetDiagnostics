@@ -768,7 +768,11 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     int runGen = m_runGeneration.load(std::memory_order_acquire);
     auto task = TaskFactory::createTask(id, m_target);
     if (!task) {
-        onDiagFinished(id, DiagnosticResult::error(id, QStringLiteral("Unknown DiagId")));
+        // 5WHY: Generic "Unknown DiagId" gave no clue which test or how to fix.
+        // Now includes the DiagId value and target to help diagnose Config/enum mismatches.
+        onDiagFinished(id, DiagnosticResult::error(id,
+            QStringLiteral("Unknown DiagId %1 (target: %2) — check Config/diagIdsForGroup for unregistered tests")
+            .arg(static_cast<int>(id)).arg(m_target)));
         // 5WHY: Like the skip-policy path above, the null-task path also
         // bypasses the connect() lambda's m_activeGroupDone counter. Increment
         // it here to prevent group deadlock.
