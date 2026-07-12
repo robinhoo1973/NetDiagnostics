@@ -801,7 +801,11 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     task.release()->start(); // transfer ownership to Qt parent/event loop
 }
 
-void AppState::onDiagFinished(DiagId id, DiagnosticResult result) {
+// 5WHY: DiagnosticResult parameter was passed by value (copy into parameter +
+// copy into map = double copy).  const& avoids the parameter-copy overhead;
+// m_results[id]=result still does one copy into the QMap.  DiagnosticResult
+// contains QString/QDateTime/QVector — each copy is a heap allocation.
+void AppState::onDiagFinished(DiagId id, const DiagnosticResult& result) {
     TRACE(" onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
     // Suppress stale results after cancel/reset
     if (m_runStatus != RunStatus::Running) return;
