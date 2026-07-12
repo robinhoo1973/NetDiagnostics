@@ -253,7 +253,100 @@ jobs:
           cache_key_prefix: qt6-ios
 
       # ═════════════════════════════════════════════════════════════════
-      # Release device build (production)
+      # Phase 1: Debug Xcode build for simulator + startup crash test
+      # 5WHY: The device build cannot run on CI.  Building for the iOS
+      # simulator with Xcode generator and launching with ND_AUTO_TEST=1
+      # provides a real runtime startup crash test before we even
+      # attempt the device Release build.
+      # ═════════════════════════════════════════════════════════════════
+      - name: Configure (debug, Xcode, simulator)
+        run: |
+          SIM_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          echo "Sim SDK: ${SIM_SDK}"
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="${SIM_SDK}" \
+            -B build-xcode -S .
+
+      - name: Build (debug, Xcode, simulator)
+        run: |
+          xcodebuild build \
+            -project build-xcode/NetDiagnostic.xcodeproj \
+            -scheme net_diagnostics \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -configuration Debug 2>&1 | tail -20
+
+      - name: Boot Simulator
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes -j | python3 -c "import json,sys;d=json.load(sys.stdin)['runtimes'];ios=[r for r in d if'iOS'in r.get('name','')and r.get('isAvailable',False)];print(ios[-1]['identifier'])if ios else sys.exit(1)")
+          DT=$(xcrun simctl list devicetypes -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devicetypes'];print([x['identifier']for x in d if'iPhone' in x['name']][-1])")
+          SIM_UDID=$(xcrun simctl create "AutoTest-${GITHUB_RUN_ID}" "${DT}" "${RUNTIME}" 2>/dev/null || xcrun simctl list devices -j | python3 -c "import json,sys;d=json.load(sys.stdin);r='${RUNTIME}';devs=d['devices'].get(r,[]);b=[x for x in devs if'Booted'==x['state']];print(b[0]['udid'])if b else''")
+          xcrun simctl boot "${SIM_UDID}" 2>/dev/null || echo "already booted"
+          xcrun simctl bootstatus "${SIM_UDID}" -b 2>/dev/null || sleep 15
+          echo "SIM_UDID=${SIM_UDID}" >> "$GITHUB_ENV"
+
+      - name: Startup Crash Test (iOS Simulator, Debug)
+        run: |
+          APP_PATH=$(find build-xcode -name "net_diagnostics.app" -path "*/Debug-iphonesimulator/*" | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "[FAIL] Simulator .app not found"
+            find build-xcode -name "*.app" -type d
+            exit 1
+          fi
+          echo "Installing: ${APP_PATH}"
+          xcrun simctl install "${SIM_UDID}" "${APP_PATH}"
+          echo "Launching with ND_AUTO_TEST=1..."
+          xcrun simctl launch --console "${SIM_UDID}" com.netdiagnostic.app \
+            -ND_AUTO_TEST 1 -ND_AUTO_TEST_TARGET httpbin.org -ND_AUTO_TEST_EXIT_CODE 1 &
+          LAUNCH_PID=$!
+          # Wait for app to complete auto-test (up to 120s for full G1-G5)
+          START_TIME=$(date +%s)
+          APP_EXITED=0
+          while [ $(($(date +%s) - START_TIME)) -lt 120 ]; do
+            sleep 5
+            RUNNING=$(xcrun simctl spawn "${SIM_UDID}" launchctl list 2>/dev/null | grep -ci "net.diagnostic\|NetDiagnostic" || echo "0")
+            if [ "$RUNNING" -eq 0 ]; then APP_EXITED=1; break; fi
+          done
+          if [ "$APP_EXITED" -eq 0 ]; then
+            echo "[WARN] App still running after 120s — may have hung; checking logs"
+          fi
+          # Check simulator system log for crash indicators
+          SIM_LOG="$HOME/Library/Logs/CoreSimulator/${SIM_UDID}/system.log"
+          CRASH_FOUND=0
+          if [ -f "$SIM_LOG" ]; then
+            if grep -qE "SIGABRT|SIGSEGV|EXC_BAD_ACCESS|EXC_CRASH|fatal error|Terminating" "$SIM_LOG" 2>/dev/null; then
+              CRASH_FOUND=1
+              echo "[FAIL] Crash/termination in simulator system log:"
+              grep -E "SIGABRT|SIGSEGV|EXC_BAD_ACCESS|EXC_CRASH|fatal error|Terminating" "$SIM_LOG" | tail -10
+            fi
+          fi
+          # Check for .ips crash reports
+          CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+          if [ -d "$CRASH_DIR" ]; then
+            IPS_CRASHES=$(find "$CRASH_DIR" -name "net_diagnostic*.ips" -mmin -5 2>/dev/null)
+            if [ -n "$IPS_CRASHES" ]; then
+              CRASH_FOUND=1
+              echo "[FAIL] .ips crash reports found:"
+              for f in $IPS_CRASHES; do echo "=== $f ==="; head -30 "$f"; done
+            fi
+          fi
+          if [ "$CRASH_FOUND" -eq 1 ]; then exit 1; fi
+          echo "[PASS] iOS Simulator Debug startup + auto-test OK"
+
+      - name: Shutdown Simulator
+        if: always()
+        run: xcrun simctl shutdown "${SIM_UDID}" 2>/dev/null || true
+
+      # ═════════════════════════════════════════════════════════════════
+      # Phase 2: Release device build (production)
       # ═════════════════════════════════════════════════════════════════
       - name: Configure
         run: |

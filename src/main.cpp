@@ -265,10 +265,13 @@ int main(int argc, char *argv[])
         Qt::DirectConnection);
 
     STARTUP_LOG("Calling engine.load()...");
+    STARTUP_TRACE("calling engine.load(%s)...", qPrintable(url.toString()));
     engine.load(url);
     STARTUP_LOG("engine.load() returned. rootObjects=%d", engine.rootObjects().size());
+    STARTUP_TRACE("engine.load() returned, rootObjects=%d", engine.rootObjects().size());
 
     if (engine.rootObjects().isEmpty()) {
+        STARTUP_TRACE("FATAL: rootObjects is empty — QML failed to load");
         // 5WHY: Silent crash on QML load failure — no diagnostic visible to
         // the user on desktop. Previous crash fixes (d220a44, e44de87) added
         // this pattern for QtWebView import failures in static builds.
@@ -312,6 +315,7 @@ int main(int argc, char *argv[])
 #endif
     }
     STARTUP_LOG("QML loaded successfully. Showing window.");
+    STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
 
     // ── Maximize the window atomically via C++ ───────────────────────────
     // QML's visibility: Window.Maximized sets the flag after the window is
@@ -344,7 +348,9 @@ int main(int argc, char *argv[])
         }
     }
 
+    STARTUP_TRACE("entering event loop (app.exec)...");
     int ret = app.exec();
+    STARTUP_TRACE("event loop exited, ret=%d", ret);
     #if !defined(NO_CURL)
     curl_global_cleanup();
 #endif
