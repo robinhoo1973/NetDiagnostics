@@ -286,19 +286,30 @@ jobs:
 
       - name: Boot Simulator
         run: |
+          # 5WHY: xcrun simctl create with old device types fails on
+          # new iOS runtimes (iPhone 6s + iOS 26.5 = incompatible).
+          # Instead, look for the iPhone 16 simulator that xcodebuild
+          # already referenced in its -destination flag. If a booted
+          # device exists, reuse it. Otherwise create a new one using
+          # the same device name and runtime that xcodebuild used.
+          SIM_NAME="iPhone 16"
           RUNTIME=$(xcrun simctl list runtimes -j | python3 -c "import json,sys;d=json.load(sys.stdin)['runtimes'];ios=[r for r in d if'iOS'in r.get('name','')and r.get('isAvailable',False)];print(ios[-1]['identifier'])if ios else sys.exit(1)")
-          DT=$(xcrun simctl list devicetypes -j | python3 -c "import json,sys;d=json.load(sys.stdin)['devicetypes'];print([x['identifier']for x in d if'iPhone' in x['name']][-1])")
-          SIM_UDID=$(xcrun simctl create "AutoTest-${GITHUB_RUN_ID}" "${DT}" "${RUNTIME}" 2>/dev/null || xcrun simctl list devices -j | python3 -c "import json,sys;d=json.load(sys.stdin);r='${RUNTIME}';devs=d['devices'].get(r,[]);b=[x for x in devs if'Booted'==x['state']];print(b[0]['udid'])if b else''")
+          SIM_UDID=$(xcrun simctl list devices -j | python3 -c "import json,sys;d=json.load(sys.stdin);r='${RUNTIME}';devs=d['devices'].get(r,[]);b=[x for x in devs if x['state']=='Booted' and '${SIM_NAME}' in x['name']];a=[x for x in devs if '${SIM_NAME}' in x['name']];print(b[0]['udid'] if b else (a[0]['udid'] if a else 'CREATE'))")
+          if [ "$SIM_UDID" = "CREATE" ]; then
+            SIM_UDID=$(xcrun simctl create "AutoTest-${GITHUB_RUN_ID}" "iPhone 16" "${RUNTIME}")
+          fi
           xcrun simctl boot "${SIM_UDID}" 2>/dev/null || echo "already booted"
           xcrun simctl bootstatus "${SIM_UDID}" -b 2>/dev/null || sleep 15
           echo "SIM_UDID=${SIM_UDID}" >> "$GITHUB_ENV"
 
       - name: Startup Crash Test (iOS Simulator, Debug)
         run: |
-          APP_PATH=$(find build-xcode -name "net_diagnostics.app" -path "*/Debug-iphonesimulator/*" | head -1)
+          # 5WHY: Xcode derived data paths vary across Xcode versions.
+          # Use a broad find instead of hardcoding 'Debug-iphonesimulator'.
+          APP_PATH=$(find build-xcode -name "net_diagnostics.app" -type d 2>/dev/null | head -1)
           if [ -z "$APP_PATH" ]; then
             echo "[FAIL] Simulator .app not found"
-            find build-xcode -name "*.app" -type d
+            find build-xcode -name "*.app" -type d 2>/dev/null | head -5
             exit 1
           fi
           echo "Installing: ${APP_PATH}"
