@@ -1,0 +1,5 @@
+# 5WHY: On iOS static builds, QRC directory enumeration (QDir::entryList
+# on qrc:/) can return empty results for directories without a qmldir.
+# Without this file, AutoTestDialog type resolution fails on iOS/iPadOS,
+# cascading to SettingsScreen → AppContent → main.qml → app crash.
+AutoTestDialog 1.0 AutoTestDialog.qml

@@ -263,6 +263,10 @@ private:
     void runDiagInGroup(int groupIdx, int diagIdx);
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
     static QString staticDiagDisplayName(DiagId id);
+    // 5WHY: Extracted from resultsForGroup/allDiagsForGroup to prevent
+    // DRY violation.  Must stay as private static member (not file-scope)
+    // because staticDiagDisplayName() is also private.
+    static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties);
     void bumpVersion();
 
     // ── Internal helpers (used by Controllers) ──────────────────────────────

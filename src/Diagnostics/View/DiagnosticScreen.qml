@@ -106,9 +106,12 @@ Item {
                     }
                     Item { width: 4 }
                     Label {
+                        // 5WHY: Was mapping Error(4)→Tr.cancelled and Cancelled(3)→Tr.results.
+                        // Now correctly shows all 5 states: Running/Complete/Cancelled/Error/Idle.
                         text: appState.runStatus === 1 ? Tr.runningDots :
                               appState.runStatus === 2 ? Tr.complete :
-                              appState.runStatus === 4 ? Tr.cancelled : Tr.results
+                              appState.runStatus === 3 ? Tr.cancelled :
+                              appState.runStatus === 4 ? Tr.errorStatus : Tr.results
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
                         color: ThemeEngine.colors.textPrimary
                     }
