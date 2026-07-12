@@ -23,19 +23,17 @@ env:
   #         no pre-built static Qt6 packages exist for MSYS2 UCRT64.
   #         Pinned to latest release for best static linking support.
   # ═════════════════════════════════════════════════════════════════════
-  QT_VERSION_ANDROID: 6.5.6
+  QT_VERSION_ANDROID: 6.5.3
   QT_VERSION_WINDOWS_SRC: 6.11.1
   ANDROID_API_LEVEL: "26"
-  # ── Android Qt version rationale ────────────────────────────────────────
-  # 6.5.6 : Latest verified open-source 6.5.x LTS patch.  Qt 6.6+ bumped
-  #         the Android Gradle Plugin (AGP) version which conflicts with
-  #         compileSdk 33 / aapt2 on GitHub runners.  6.5.x keeps AGP 7.4.1
-  #         compatible with the android-33 platform.  Upgraded from 6.5.3
-  #         for security patches and bug fixes (450+ fixes cumulative).
+  # ── Qt version rationale — all at MAXIMUM open-source available ─────────
+  # 6.5.3 : Android cross-compile.  HIGHEST open-source 6.5.x via aqtinstall.
+  #         6.5.4+ are commercial-only.  Qt 6.6+ bumped AGP version which
+  #         conflicts with compileSdk 33 / aapt2.  6.5.x keeps AGP 7.4.1.
   #         Target: converge to 6.8.x once Android SDK 34+ aapt2 verified.
   # 6.8.3 : Linux / macOS / iOS via brew, apt, or aqtinstall.
-  #         Latest open-source LTS patch (March 2025).  6.8.4+ commercial-only.
-  # 6.11.1: Windows static source build.  Latest stable (May 2026).
+  #         HIGHEST open-source 6.8.x LTS.  6.8.4+ commercial-only.
+  # 6.11.1: Windows static source build.  HIGHEST stable 6.11.x.
   #         Qt 6.11.2 scheduled August 2026.
   MAINTAINER: "robinhoo1973"
 
