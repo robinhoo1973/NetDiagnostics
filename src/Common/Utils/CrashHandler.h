@@ -60,7 +60,10 @@ static void writeBacktrace(QTextStream& ts) {
     for (USHORT i = 0; i < frames; ++i) {
         ts << "    [" << i << "] " << reinterpret_cast<uintptr_t>(stack[i]) << "\n";
     }
-#elif defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__)
+#elif defined(__APPLE__) || defined(__linux__)
+    // 5WHY: Android Bionic libc does not provide backtrace() or
+    // backtrace_symbols() (they are glibc extensions).  Android
+    // uses its own crash reporting via logcat; skip backtrace.
     void* stack[64];
     int frames = backtrace(stack, 64);
     char** symbols = backtrace_symbols(stack, frames);
