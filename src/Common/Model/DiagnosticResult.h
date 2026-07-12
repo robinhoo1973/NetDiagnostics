@@ -33,7 +33,8 @@ struct DiagnosticResult {
     // (no further work will occur). The name was misleading. Replaced with
     // wasExecuted() which correctly expresses the semantic: "did this test
     // actually run?" vs "is this test finished?"
-    bool isDone()    const { return status != DiagStatus::Skipped; }  // @deprecated — use wasExecuted()
+    [[deprecated("Use wasExecuted() instead — isDone() returns false for Skipped which is misleading")]]
+    bool isDone()    const { return status != DiagStatus::Skipped; }
     bool wasExecuted() const { return status != DiagStatus::Skipped; }
     QString statusIcon() const { return diagStatusIcon(status); }
 

@@ -11,7 +11,10 @@ Item {
     // Direct bindings — no Timer polling needed
     property int _runStatus: appState.runStatus
     property int _totalCompleted: appState.totalCompleted
-    property bool hasData: _totalCompleted > 0 && _runStatus === 2
+    // 5WHY: hasData required _runStatus===2 (Completed), hiding results after
+    // status reset or when navigating back after a run.  Now shows data as long
+    // as results exist, with a "running" banner for in-progress status.
+    property bool hasData: _totalCompleted > 0
     readonly property var allStats: appState.allGroupStats || []
 
     function statusIcon(s) { switch(s) { case 0: return "badge-check"; case 1: return "badge-warning"; case 2: return "badge-close"; case 3: return "badge-skip"; default: return "badge-info" } }
