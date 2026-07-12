@@ -172,6 +172,55 @@ int main(int argc, char *argv[])
         });
     }
 
+    // ── CI Auto-Test mode: ND_AUTO_TEST=1 ──────────────────────────────
+    // 5WHY: iOS/Android cannot be tested headlessly in CI because the QML
+    // engine needs a screen.  ND_AUTO_TEST runs the full diagnostic suite
+    // in GUI mode and auto-exports a report.  With ND_AUTO_TEST_EXIT_CODE=1
+    // the process exit code reflects test status for CI integration.
+    //
+    //   ND_AUTO_TEST=1            → run G1-G4 on localhost
+    //   ND_AUTO_TEST_TARGET=<t>   → also run G5 on target <t>
+    //   ND_AUTO_TEST_KEEP_OPEN=1  → keep window after completion (manual)
+    //   ND_AUTO_TEST_EXIT_CODE=1  → exit(1) if any test fails
+    if (qEnvironmentVariableIntValue("ND_AUTO_TEST")) {
+        QTimer::singleShot(3000, &app, [&appState]() {
+            QString target = qEnvironmentVariable("ND_AUTO_TEST_TARGET");
+            if (target.isEmpty()) target = QStringLiteral("localhost");
+            appState.setTarget(target);
+            // Enable all groups (G1-G5)
+            for (int g = 0; g < 5; ++g)
+                appState.setGroupActive(g, true);
+            appState.runDiagnostics();
+
+            // Auto-export + exit after completion (unless keep-open)
+            if (!qEnvironmentVariableIntValue("ND_AUTO_TEST_KEEP_OPEN")) {
+                QObject::connect(&appState, &AppState::runStatusChanged,
+                    &app, [&appState]() {
+                    if (appState.runStatus() == RunStatus::Completed ||
+                        appState.runStatus() == RunStatus::Error ||
+                        appState.runStatus() == RunStatus::Cancelled) {
+                        // Export HTML report
+                        QString reportPath = QStandardPaths::writableLocation(
+                            QStandardPaths::TempLocation)
+                            + "/NetDiagnostics_auto_test.html";
+                        appState.exportHtml(reportPath, true);
+                        STARTUP_LOG("Auto-test report: %s",
+                                    reportPath.toUtf8().constData());
+                        // Exit with code based on failures
+                        int exitCode = 0;
+                        if (qEnvironmentVariableIntValue("ND_AUTO_TEST_EXIT_CODE")) {
+                            auto stats = appState.groupStats(-1);
+                            if (stats["fail"].toInt() > 0 ||
+                                stats["error"].toInt() > 0)
+                                exitCode = 1;
+                        }
+                        QCoreApplication::exit(exitCode);
+                    }
+                });
+            }
+        });
+    }
+
 #if defined(ND_TESTING)
     // ── Headless testing mode: --test runs scenarios, no GUI ──────────
     if (argc >= 2 && strcmp(argv[1], "--test") == 0) {

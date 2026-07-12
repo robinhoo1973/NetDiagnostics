@@ -279,21 +279,39 @@ Item {
                                       + (appState.buildNumber.length > 0 ? " Build " + appState.buildNumber : "")
                                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary
                                 wrapMode: Text.WordWrap
-                                // Hidden debug toggle: tap the version 7× to toggle premium
-                                // (useful for testing on desktop / simulator builds).
+                                // Easter eggs on version label:
+                                //   5 taps → Auto Test dialog
+                                //   7 taps → toggle premium
+                                //   long press (mobile) → Auto Test dialog
+                                // Tap counter resets after 3s of inactivity.
                                 MouseArea {
                                     anchors.fill: parent
                                     onClicked: {
                                         versionLabel.taps++
-                                        if (versionLabel.taps >= 7) {
+                                        tapResetTimer.restart()
+                                        if (versionLabel.taps === 5) {
+                                            versionLabel.taps = 0
+                                            autoTestDialog.open()
+                                        } else if (versionLabel.taps >= 7) {
                                             versionLabel.taps = 0
                                             appState.setPremium(!appState.isPremium)
                                             premiumToast.text = appState.isPremium ? Tr.premiumUnlocked : Tr.premiumLocked
                                             premiumToastTimer.restart()
                                         }
                                     }
+                                    onPressAndHold: {
+                                        versionLabel.taps = 0
+                                        autoTestDialog.open()
+                                    }
+                                }
+                                Timer {
+                                    id: tapResetTimer
+                                    interval: 3000
+                                    onTriggered: versionLabel.taps = 0
                                 }
                             }
+                            // ── Auto Test Dialog ──────────────────────────────────
+                            AutoTestDialog { id: autoTestDialog }
                             Label {
                                 id: premiumToast
                                 Layout.fillWidth: true
