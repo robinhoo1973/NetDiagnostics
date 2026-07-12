@@ -69,19 +69,11 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
         case DiagId::G3DnsCache:
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
-        // 5WHY: G1IpConfiguration was compiled out of the main switch on iOS.
-        // The native G1G2G3Native::ipConfiguration() reads /proc/net (Linux)
-        // or Win32 IP Helper API — neither available on iOS.  Skipped honestly.
-        case DiagId::G1IpConfiguration:
-            return QStringLiteral("IP configuration reads /proc/net and system files which the iOS sandbox blocks.");
-        // 5WHY: G3DnsServers/G3DnsPollution native functions return empty
-        // "No DNS servers found" on iOS (only handle Windows/Linux APIs).
-        // iOS does not expose system DNS config to apps.  Skipped honestly
-        // rather than returning misleading empty-PASS results.
-        case DiagId::G3DnsServers:
-            return QStringLiteral("iOS does not expose system DNS server configuration to third-party apps.");
-        case DiagId::G3DnsPollution:
-            return QStringLiteral("DNS pollution detection requires reading system DNS resolver state which is unavailable on iOS.");
+        // 5WHY: Removed G1IpConfiguration/G3DnsServers/G3DnsPollution from
+        // iOS skip list (commit 1b7e5d9 added them incorrectly).  Pre-MVC
+        // (commit bd73d78) these ran via native G1G2G3Native functions which
+        // return empty PASS on iOS — harmless, not crashes.  platformSkipReason()
+        // did not exist pre-MVC.  Only skip tests that would crash/error on iOS.
         // 5WHY: G1CellularInfo is NOW wired to iosCellularDiag() — no longer skipped.
         default:
             return QString();
@@ -178,9 +170,11 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 #endif
+#endif  // closes #if defined(PLATFORM_IOS)
+        // 5WHY: Moved OUT of #else so compiled on iOS.  Pre-MVC these ran
+        // via native functions returning empty PASS on iOS — harmless.
         case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
         case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
-#endif  // closes #if defined(PLATFORM_IOS)
 
         // 閳光偓閳光偓 G2: Connectivity & Security 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
