@@ -165,11 +165,11 @@ Item {
                     font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
                     color: appState.runStatus === 3 ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
-                // PM: Actionable error recovery guidance — helps users self-diagnose
+                // PM: Actionable error recovery guidance — uses Tr.* for i18n
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: appState.runStatus === 3
-                    text: "Check: 1) Network connection  2) Target URL format\n3) Firewall/proxy settings  4) Target server reachability"
+                    text: Tr.errorRecoveryHint
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                     horizontalAlignment: Text.AlignHCenter
