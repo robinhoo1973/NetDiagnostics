@@ -23,11 +23,11 @@ env:
   #         no pre-built static Qt6 packages exist for MSYS2 UCRT64.
   #         Pinned to latest release for best static linking support.
   # ═════════════════════════════════════════════════════════════════════
-  QT_VERSION_ANDROID: 6.5.9
+  QT_VERSION_ANDROID: 6.5.6
   QT_VERSION_WINDOWS_SRC: 6.11.1
   ANDROID_API_LEVEL: "26"
   # ── Android Qt version rationale ────────────────────────────────────────
-  # 6.5.9 : Latest open-source 6.5.x LTS patch (May 2026).  Qt 6.6+ bumped
+  # 6.5.6 : Latest verified open-source 6.5.x LTS patch.  Qt 6.6+ bumped
   #         the Android Gradle Plugin (AGP) version which conflicts with
   #         compileSdk 33 / aapt2 on GitHub runners.  6.5.x keeps AGP 7.4.1
   #         compatible with the android-33 platform.  Upgraded from 6.5.3
