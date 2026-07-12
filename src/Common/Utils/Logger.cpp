@@ -10,7 +10,12 @@
 
 Logger::Logger() {
     QString logDir;
-#if defined(Q_OS_WIN)
+#if defined(PLATFORM_IOS)
+    // 5WHY: /tmp on iOS is inside the sandbox and invisible to the user.
+    // Route the runtime log to Documents so it is retrievable via Files.app
+    // (requires UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace).
+    logDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/NetDiagnostics";
+#elif defined(Q_OS_WIN)
     logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/NetDiagnostics";
 #else
     logDir = QStringLiteral("/tmp/NetDiagnostics");

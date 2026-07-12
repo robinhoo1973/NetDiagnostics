@@ -59,6 +59,9 @@ class AppState : public QObject {
     Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
     Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
+    // Crash report from the previous run (detected at startup). QML can show a
+    // banner offering to share/upload the report when hasCrashReport is true.
+    Q_PROPERTY(bool hasCrashReport READ hasCrashReport NOTIFY crashReportChanged)
 
 public:
     explicit AppState(QObject* parent = nullptr);
@@ -193,6 +196,15 @@ public:
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);
 
+    // ── Crash report (from previous run) ───────────────────────────────────
+    // Populated at startup by main.cpp when a leftover crash log is found.
+    bool hasCrashReport() const { return !m_crashReportPath.isEmpty(); }
+    Q_INVOKABLE QString crashReportPath() const { return m_crashReportPath; }
+    void setCrashReportPath(const QString& path);
+    // Opens the OS share sheet (iOS/Android) so the user can upload/email the
+    // crash log; on desktop reveals the file in the system file manager.
+    Q_INVOKABLE void shareCrashReport();
+
     // ── Target type helpers ────────────────────────────────────────────────
     Q_INVOKABLE bool isTargetEmpty() const { return m_target.trimmed().isEmpty(); }
     Q_INVOKABLE bool hasUrlScheme() const {
@@ -235,6 +247,7 @@ signals:
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
     void skipRulesChanged();
+    void crashReportChanged();
 
 private slots:
     void onDiagFinished(DiagId id, DiagnosticResult result);
@@ -260,6 +273,8 @@ private:
 
     // Canonical target string (existing)
     QString m_target;
+    // Path to a crash log left by the previous run (empty if none)
+    QString m_crashReportPath;
     // Structured target fields (derived)
     QString m_targetScheme;
     QString m_targetHost;
