@@ -42,10 +42,12 @@ Item {
     RowLayout {
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
         visible: !itemData.isPending; spacing: 8
+        // 5WHY: Error(4) showed infoBlue (same as Info), not visually distinct.
+        // Now Error→failRed, Info(5)→infoBlue, Skipped(3)→skipGray.
         AppIcon {
             name: { var s=itemData.status; if(s===0)return"badge-check"; if(s===2)return"badge-close"; if(s===1)return"badge-warning"; if(s===4)return"badge-error"; if(s===5)return"badge-info"; return"badge-skip" }
             size: 12
-            color: { var s=itemData.status; return s===0?ThemeEngine.passGreen:(s===1?ThemeEngine.warnYellow:(s===2?ThemeEngine.failRed:(s===3?ThemeEngine.skipGray:ThemeEngine.infoBlue))) }
+            color: { var s=itemData.status; return s===0?ThemeEngine.passGreen:(s===1?ThemeEngine.warnYellow:(s===2?ThemeEngine.failRed:(s===4?ThemeEngine.failRed:(s===3?ThemeEngine.skipGray:ThemeEngine.infoBlue)))) }
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
