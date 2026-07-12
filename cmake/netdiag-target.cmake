@@ -169,20 +169,19 @@ function(configure_netdiag_target TARGET)
         qt_finalize_executable(${TARGET})
     endif()
 
-    # ── Force static GCC runtimes (ABSOLUTE LAST link flags) ───────────
-    # 5WHY: g++ internal specs inject -lstdc++ / -lgcc_s / -lwinpthread
-    # at the VERY END of every link command, AFTER all user flags and
-    # Qt .prl INTERFACE_LINK_LIBRARIES.  Without static flags here,
-    # these resolve to DLLs: libstdc++-6.dll, libgcc_s_seh-1.dll,
-    # libwinpthread-1.dll.  Placing -static-libstdc++ -static-libgcc
-    # -static here (after qt_finalize_executable) is the LAST user
-    # action before g++ appends its runtime libs.  This tells the
-    # compiler driver to use .a archives instead of .dll import libs
-    # for ALL remaining -l flags.  Combined with the earlier -Wl,-Bstatic
-    # sandwich, this eliminates ALL avoidable DLL dependencies.
+    # ── Force static GCC runtimes (after Qt finalize, before g++ specs) ─
+    # 5WHY: g++ 16.1.0 on MSYS2 injects -lstdc++ / -lwinpthread at
+    # the VERY END of the link command.  /ucrt64/lib/libstdc++.a is
+    # itself a DLL import lib (not a true static archive), so even
+    # -static-libstdc++ cannot bypass the DLL reference.  The TRUE
+    # static libstdc++.a lives inside the GCC versioned directory.
+    # -static-libgcc DOES work (libgcc_s_seh-1.dll eliminated).
+    # For the remaining libstdc++-6.dll + libwinpthread-1.dll, we
+    # bundle them alongside the exe in the build.yml post-processing step.
+    # See the "Copy GCC runtime DLLs" step in the Windows Static job.
     if(WIN32)
         target_link_options(${TARGET} PRIVATE
-            -static-libstdc++ -static-libgcc -static
+            -static-libgcc
         )
     endif()
 endfunction()

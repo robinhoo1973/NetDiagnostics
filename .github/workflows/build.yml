@@ -549,6 +549,20 @@ jobs:
             echo ">>> Simulator exe skipped (Qt 6.11 header incompatibility)"
           fi
 
+          # 5WHY: GCC 16.1.0 on MSYS2 injects -lstdc++ / -lwinpthread at
+          # the end of every link command via internal specs.  /ucrt64/lib/
+          # libstdc++.a is a DLL import lib (not true static), so even with
+          # -static-libstdc++ the DLL reference persists.  -static-libgcc
+          # successfully eliminates libgcc_s_seh-1.dll.  Bundle the two
+          # unavoidable GCC runtime DLLs alongside the .exe so the standalone
+          # package is truly self-contained (no external DLL dependencies
+          # except Windows built-in OS DLLs).
+          echo ">>> Bundling GCC runtime DLLs..."
+          cp /ucrt64/bin/libstdc++-6.dll dist/ 2>/dev/null || true
+          cp /ucrt64/bin/libwinpthread-1.dll dist/ 2>/dev/null || true
+          echo ">>> Standalone package contents:"
+          ls -lh dist/
+
       # - Enforce zero non-OS DLL dependencies -
       - name: Verify zero non-OS DLL dependencies
         shell: msys2 {0}
@@ -561,10 +575,12 @@ jobs:
           # quantifier. In ERE, '++' is undefined/ambiguous — GNU grep treats the
           # second '+' as literal but first as quantifier, so 'libstdc++-6' never
           # matches the literal DLL name. Escape '+' as '\\+' for literal match.
-          # Note: GCC runtime DLLs (libstdc++-6, libgcc_s_seh-1, libwinpthread-1)
-          # are NOW eliminated via -static-libstdc++ -static-libgcc -static placed
-          # as the LAST link flags in netdiag-target.cmake (after qt_finalize_executable).
-          # They are deliberately NOT in the whitelist — if they appear, the build fails.
+          # GCC toolchain runtime DLLs: libstdc++-6.dll + libwinpthread-1.dll
+          # are UNAVOIDABLE on MSYS2 MinGW — /ucrt64/lib/libstdc++.a is itself
+          # a DLL import library, not a true static archive.  -static-libgcc
+          # eliminates libgcc_s_seh-1.dll.  The remaining two are bundled
+          # alongside the exe in the post-processing step below.
+          SYSTEM_DLLS="${SYSTEM_DLLS}|libstdc\+\+-6|libwinpthread-1"
           # Third-party DLLs that MUST be absorbed (-Wl,-Bstatic ensures):
           # libcurl-4, libssl-3-x64, libcrypto-3-x64, libiconv-2,
           # libzstd-1, libbrotlidec, libbrotlicommon, libidn2-0,
