@@ -57,15 +57,21 @@ Rectangle {
                 Layout.fillWidth: true; spacing: 4
 
                 // Advanced toggle (gear) — SVG icon, not emoji, for cross-platform consistency
+                // 5WHY: 30×30 touch target below 44px minimum; no keyboard access or label.
                 Rectangle {
-                    Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 6
+                    id: gearBtn
+                    Layout.preferredWidth: 44; Layout.preferredHeight: 44; radius: 8
                     color: root._advancedVisible ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
                     AppIcon {
                         anchors.centerIn: parent
                         name: "tune"; size: 14
                         color: root._advancedVisible ? ThemeEngine.accentBlue : ThemeEngine.textMuted
                     }
-                    MouseArea { anchors.fill: parent; onClicked: root._advancedVisible = !root._advancedVisible }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root._advancedVisible = !root._advancedVisible }
+                    activeFocusOnTab: true
+                    Keys.onPressed: function(event) { if (event.key===Qt.Key_Return||event.key===Qt.Key_Space) { root._advancedVisible=!root._advancedVisible; event.accepted=true } }
+                    Accessible.name: root._advancedVisible ? "Hide advanced options" : "Show advanced options"
+                    Accessible.role: Accessible.Button
                 }
 
                 // Scheme combo
@@ -284,21 +290,31 @@ Rectangle {
                 visible: root.wide && (hostField.text !== "" || appState.runStatus !== 1)
             }
 
-            // ── Zone 3: Clear button — fixed 30px zone, right-aligned ──
+            // ── Zone 3: Clear button — 44px touch target, keyboard accessible ──
+            // 5WHY: 30×30px touch target below minimum; no keyboard or a11y label.
             Item {
+                id: clearBtn
                 visible: root.wide
-                Layout.preferredWidth: root.wide ? 30 : 0; Layout.preferredHeight: 30
-                // Clear button — neutral color (text-secondary) matching mobile
-                // TargetInputPanel. Not red — clearing text is not destructive.
+                Layout.preferredWidth: root.wide ? 44 : 0; Layout.preferredHeight: 44
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 14
                     color: hostField.text !== "" && appState.runStatus !== 1
                         ? ThemeEngine.textSecondary : "transparent"
                     visible: hostField.text !== "" && appState.runStatus !== 1
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" } }
                 }
+                MouseArea {
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    enabled: hostField.text !== "" && appState.runStatus !== 1
+                    onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" }
+                }
+                activeFocusOnTab: true
+                Keys.onPressed: function(event) {
+                    if ((event.key===Qt.Key_Return||event.key===Qt.Key_Space) && hostField.text!=="" && appState.runStatus!==1)
+                        { hostField.text=""; appState.targetHost=""; appState.targetPath=""; event.accepted=true }
+                }
+                Accessible.name: "Clear target input"
+                Accessible.role: Accessible.Button
             }
         }  // end ROW 1
 
