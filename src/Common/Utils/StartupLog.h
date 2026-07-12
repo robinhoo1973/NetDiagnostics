@@ -69,3 +69,15 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
 #define STARTUP_SEPARATOR()  ((void)0)
 
 #endif
+
+// ── Debug-mode console trace — always active in Debug builds ──────────
+// 5WHY: iOS startup crashes leave no diagnostic trail.  STARTUP_TRACE
+// outputs via qDebug() which on iOS appears in Console.app / Xcode
+// device logs.  Independent of ND_DEBUG — works in any Debug build
+// where NDEBUG is not defined (CMAKE_BUILD_TYPE=Debug).
+#if !defined(NDEBUG)
+#include <QDebug>
+#define STARTUP_TRACE(fmt, ...) qDebug("[STARTUP] " fmt, ##__VA_ARGS__)
+#else
+#define STARTUP_TRACE(fmt, ...) ((void)0)
+#endif
