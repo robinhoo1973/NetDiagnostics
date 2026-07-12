@@ -76,13 +76,23 @@ jobs:
           if [ ! -f "$BIN" ]; then
             echo "[FAIL] Binary not found"; exit 1
           fi
+          # 5WHY: httpbin.org was an uncontrolled external dependency.
+          # If it was down or rate-limited, CI would fail for reasons
+          # unrelated to the code under test.  Fix: start a local HTTP
+          # server with security headers so all G5 diagnostics (including
+          # G5SecurityHeaders which checks 7 headers) can run deterministically.
+          # This eliminates the external dependency and speeds up the test.
+          python3 scripts/ci-http-server.py 8888 &
+          HTTP_PID=$!
+          sleep 1  # Wait for server socket to bind
           # Run full auto-test in offscreen mode
           QT_QPA_PLATFORM=offscreen \
             ND_AUTO_TEST=1 \
-            ND_AUTO_TEST_TARGET=httpbin.org \
+            ND_AUTO_TEST_TARGET=localhost:8888 \
             ND_AUTO_TEST_EXIT_CODE=1 \
             "$BIN" 2>&1 | tail -30
           EXIT_CODE=$?
+          kill $HTTP_PID 2>/dev/null || true
           if [ $EXIT_CODE -ne 0 ]; then
             echo "[FAIL] Debug auto-test exit code: $EXIT_CODE"
             exit 1
@@ -114,12 +124,17 @@ jobs:
           if [ ! -f "$BIN" ]; then
             echo "[FAIL] Binary not found"; exit 1
           fi
+          # 5WHY: Same self-contained local server as Debug test above.
+          python3 scripts/ci-http-server.py 8888 &
+          HTTP_PID=$!
+          sleep 1
           QT_QPA_PLATFORM=offscreen \
             ND_AUTO_TEST=1 \
-            ND_AUTO_TEST_TARGET=httpbin.org \
+            ND_AUTO_TEST_TARGET=localhost:8888 \
             ND_AUTO_TEST_EXIT_CODE=1 \
             "$BIN" 2>&1 | tail -30
           EXIT_CODE=$?
+          kill $HTTP_PID 2>/dev/null || true
           if [ $EXIT_CODE -ne 0 ]; then
             echo "[FAIL] Release auto-test exit code: $EXIT_CODE"
             exit 1
@@ -137,16 +152,48 @@ jobs:
             # when QML files are embedded in .qrc resources.
             # 5WHY: resources/qml/ was deleted in MVC refactoring (QML files
             # moved to src/**/View/). macdeployqt needs a directory root that
-            # contains all QML imports. src/ is now the canonical root.  If
-            # this fails, fall through (|| true) so the build continues.
-            # macdeployqt reports non-fatal rpath errors for optional Qt modules
-            # (StateMachine/Pdf/3D) not installed by brew qt@6 and not used by
-            # this app.  Tolerate these so the build continues.
+            # contains all QML imports. src/ is now the canonical root.
+            # 5WHY (v2): The old || true blanket suppression masked FATAL
+            # macdeployqt errors (disk full, missing binary, corrupt framework
+            # lookup).  The .app would pass CI with missing Qt frameworks and
+            # crash at startup on user machines.  Fix: allow known non-fatal
+            # rpath warnings for optional Qt modules (StateMachine/Pdf/3D) not
+            # in brew qt@6, but FAIL on all other errors.  Then verify that
+            # frameworks were actually deployed (outcome-based check).
+            MACDEPLOY_LOG=$(mktemp)
+            set +e
             "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
               -qmldir="${GITHUB_WORKSPACE}/src" \
-              -verbose=1 || true
-            echo "[OK] Qt frameworks bundled into .app"
-            ls -la build/net_diagnostics.app/Contents/Frameworks/ 2>/dev/null || echo "  (no Frameworks dir)"
+              -verbose=1 >"$MACDEPLOY_LOG" 2>&1
+            MACDEPLOY_EXIT=$?
+            set -e
+            echo "=== macdeployqt output (last 40 lines) ==="
+            tail -40 "$MACDEPLOY_LOG"
+            echo "=== end macdeployqt output ==="
+            if [ $MACDEPLOY_EXIT -ne 0 ]; then
+              # Known non-fatal: rpath warnings for optional Qt modules
+              # (StateMachine/Pdf/3D) not installed by brew qt@6.
+              # Also: "no external Qt frameworks to deploy" when the binary is
+              # already self-contained or only uses system Qt.
+              if grep -qE "(ERROR.*rpath|ERROR: Could not find any external Qt|WARNING: Could not find any)" "$MACDEPLOY_LOG"; then
+                echo "[INFO] macdeployqt exited $MACDEPLOY_EXIT — known non-fatal (optional Qt modules or self-contained binary)"
+              else
+                echo "[FAIL] macdeployqt failed with exit code $MACDEPLOY_EXIT (unrecognized error)"
+                rm -f "$MACDEPLOY_LOG"
+                exit 1
+              fi
+            fi
+            rm -f "$MACDEPLOY_LOG"
+            # Outcome-based verification: frameworks must be present if the
+            # app links against Qt dynamically (brew qt@6 is dynamic).
+            if [ -d build/net_diagnostics.app/Contents/Frameworks ]; then
+              FW_COUNT=$(find build/net_diagnostics.app/Contents/Frameworks -maxdepth 1 -not -name Frameworks | wc -l | tr -d ' ')
+              echo "[OK] Qt frameworks bundled into .app (${FW_COUNT} entries in Frameworks/)"
+              ls -la build/net_diagnostics.app/Contents/Frameworks/
+            else
+              echo "[WARN] No Frameworks dir after macdeployqt — app may not bundle Qt runtime"
+              echo "  This is only safe for fully-static builds; dynamic Qt apps will crash."
+            fi
           else
             echo "[WARN] No .app bundle found; skipping macdeployqt"
           fi
@@ -191,7 +238,7 @@ jobs:
             mkdir -p dmg-staging
             cp -R build/net_diagnostics.app dmg-staging/
             ln -s /Applications dmg-staging/Applications
-            hdiutil create -volname "NetDiagnostic" \
+            hdiutil create -volname "NetDiagnostics" \
               -srcfolder dmg-staging \
               -ov -format UDZO \
               NetDiagnostics-macOS-arm64.dmg
@@ -200,7 +247,7 @@ jobs:
             echo "No .app bundle found; falling back to binary packaging"
             mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
             cp build/net_diagnostics pkg/NetDiagnostic.app/Contents/MacOS/
-            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
+            hdiutil create -volname "NetDiagnostics" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
           fi
 
       - name: Tar .app (preserve symlinks + permissions)
