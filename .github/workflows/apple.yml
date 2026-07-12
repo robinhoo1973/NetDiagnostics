@@ -306,22 +306,39 @@ jobs:
           echo "Launching with ND_AUTO_TEST=1..."
           xcrun simctl launch --console "${SIM_UDID}" com.netdiagnostic.app \
             -ND_AUTO_TEST 1 -ND_AUTO_TEST_TARGET httpbin.org -ND_AUTO_TEST_EXIT_CODE 1 &
-          # Wait for app to complete auto-test (up to 90s)
-          for i in $(seq 1 18); do
+          LAUNCH_PID=$!
+          # Wait for app to complete auto-test (up to 120s for full G1-G5)
+          START_TIME=$(date +%s)
+          APP_EXITED=0
+          while [ $(($(date +%s) - START_TIME)) -lt 120 ]; do
             sleep 5
-            RUNNING=$(xcrun simctl spawn "${SIM_UDID}" launchctl list 2>/dev/null | grep -c netdiagnostic || echo "0")
-            if [ "$RUNNING" -eq 0 ]; then break; fi
+            RUNNING=$(xcrun simctl spawn "${SIM_UDID}" launchctl list 2>/dev/null | grep -ci "net.diagnostic\|NetDiagnostic" || echo "0")
+            if [ "$RUNNING" -eq 0 ]; then APP_EXITED=1; break; fi
           done
-          # Check simulator logs for crash
+          if [ "$APP_EXITED" -eq 0 ]; then
+            echo "[WARN] App still running after 120s — may have hung; checking logs"
+          fi
+          # Check simulator system log for crash indicators
           SIM_LOG="$HOME/Library/Logs/CoreSimulator/${SIM_UDID}/system.log"
+          CRASH_FOUND=0
           if [ -f "$SIM_LOG" ]; then
-            CRASH=$(grep -c "crash\|Crash\|CRASH\|SIGABRT\|SIGSEGV\|EXC_BAD\|EXC_CRASH" "$SIM_LOG" 2>/dev/null || echo "0")
-            if [ "$CRASH" -gt 0 ]; then
-              echo "[FAIL] Crash detected in simulator log ($CRASH occurrences)"
-              grep -B2 "crash\|Crash\|SIGABRT\|SIGSEGV\|EXC_BAD\|EXC_CRASH" "$SIM_LOG" | tail -20
-              exit 1
+            if grep -qE "SIGABRT|SIGSEGV|EXC_BAD_ACCESS|EXC_CRASH|fatal error|Terminating" "$SIM_LOG" 2>/dev/null; then
+              CRASH_FOUND=1
+              echo "[FAIL] Crash/termination in simulator system log:"
+              grep -E "SIGABRT|SIGSEGV|EXC_BAD_ACCESS|EXC_CRASH|fatal error|Terminating" "$SIM_LOG" | tail -10
             fi
           fi
+          # Check for .ips crash reports
+          CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+          if [ -d "$CRASH_DIR" ]; then
+            IPS_CRASHES=$(find "$CRASH_DIR" -name "net_diagnostic*.ips" -mmin -5 2>/dev/null)
+            if [ -n "$IPS_CRASHES" ]; then
+              CRASH_FOUND=1
+              echo "[FAIL] .ips crash reports found:"
+              for f in $IPS_CRASHES; do echo "=== $f ==="; head -30 "$f"; done
+            fi
+          fi
+          if [ "$CRASH_FOUND" -eq 1 ]; then exit 1; fi
           echo "[PASS] iOS Simulator Debug startup + auto-test OK"
 
       - name: Shutdown Simulator
