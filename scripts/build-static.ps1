@@ -52,6 +52,11 @@ param(
 $ErrorActionPreference = "Stop"
 $nd_debug_val = if ($Debug) { "ON" } else { "OFF" }
 $nd_testing_val = if ($Testing) { "ON" } else { "OFF" }
+# 5WHY: -Debug only enabled ND_DEBUG (file logging), but STARTUP_TRACE
+# requires !defined(NDEBUG) which only CMAKE_BUILD_TYPE=Debug provides.
+# Debug builds also add -g -O0 for better crash diagnostics.
+$build_type = if ($Debug) { "Debug" } else { "Release" }
+Write-Host "Build type: $build_type (ND_DEBUG=$nd_debug_val, ND_TESTING=$nd_testing_val)" -ForegroundColor Cyan
 $Host.UI.RawUI.WindowTitle = "NetDiagnostic Static Build"
 
 # ============================================================================
@@ -292,7 +297,7 @@ build_target() {
     cd "`${build_dir}"
 
     cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=$build_type \
         -DPROJECT_VERSION="0.0.1" \
         -DND_BUILD_NUMBER="$build_number" \
         -DAPP_EDITION=static \
