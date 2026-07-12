@@ -151,15 +151,30 @@ Item {
             // 5WHY: Show empty state whenever totalCompleted===0 and not running.
             // Previous condition (runStatus===0 && totalCompleted===0) left a gap:
             // if status was 2/3 with 0 results, the user saw a blank area.
+            // PM review: error state now shows actionable recovery guidance instead
+            // of just "Run Diagnostics" — helps users self-diagnose common issues.
             Column {
                 anchors.centerIn: parent; spacing: 16
                 visible: appState.totalCompleted === 0 && appState.runStatus !== 1
-                AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "diagnostics"; size: 80; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
+                AppIcon { anchors.horizontalCenter: parent.horizontalCenter
+                    name: appState.runStatus === 3 ? "badge-error" : "diagnostics"
+                    size: 80; color: appState.runStatus === 3 ? Qt.alpha(ThemeEngine.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: Tr.runDiag
+                    text: appState.runStatus === 3 ? Tr.errorCheck : Tr.runDiag
                     font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
-                    color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                    color: appState.runStatus === 3 ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                }
+                // PM: Actionable error recovery guidance — helps users self-diagnose
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: appState.runStatus === 3
+                    text: "Check: 1) Network connection  2) Target URL format\n3) Firewall/proxy settings  4) Target server reachability"
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                    color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    width: Math.min(400, parent.width - 40)
                 }
             }
 
