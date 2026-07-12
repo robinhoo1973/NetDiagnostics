@@ -20,7 +20,12 @@ typedef SSIZE_T ssize_t;
 #include <cstdio>
 #include "Common/Utils/NetUtil.h"  // cross-platform closeSocket, setSocketNonBlocking etc.
 
+// 5WHY: iosHttpDiagnostic is ObjC and must be at global scope (not inside
+// C++ namespace).  Only needed on iOS; guard prevents accidental use on
+// desktop/Android where the definition does not exist.
+#if defined(PLATFORM_IOS)
 DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target); // global scope (ObjC)
+#endif
 
 namespace G5WebsiteUrl {
 
