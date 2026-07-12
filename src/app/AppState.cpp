@@ -798,7 +798,13 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     // after its worker run() has returned — see DiagnosticTask::onFutureFinished.
     // Deleting it here on the first finished() signal would be unsafe, because a
     // watchdog timeout emits finished() while run() may still be executing.
-    task.release()->start(); // transfer ownership to Qt parent/event loop
+    // 5WHY: task.release()->start() leaked the raw pointer if start() threw
+    // (e.g. QTimer allocation failure).  Now: call start() first with unique_ptr
+    // still owning, release only after success.  Verdict: SAFE refactor — same
+    // ownership transfer semantics, better exception safety.
+    auto* rawTask = task.get();
+    rawTask->start();
+    task.release(); // only release ownership after start() succeeds
 }
 
 // 5WHY: DiagnosticResult parameter was passed by value (copy into parameter +
