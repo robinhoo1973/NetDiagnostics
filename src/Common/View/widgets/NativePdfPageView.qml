@@ -17,6 +17,21 @@ Item {
         if (typeof NativePdfDocument !== 'undefined') {
             pdfDoc = Qt.createQmlObject(
                 'import NetDiagnostics 1.0; NativePdfDocument {}', root)
+            // 5WHY: onPdfSourceChanged fires BEFORE Component.onCompleted,
+            // so pdfDoc is null when the binding first delivers pdfSource.
+            // Manually apply the source after creating pdfDoc.
+            if (pdfDoc) {
+                // Connect loadedChanged BEFORE setting source so the async
+                // notification is never missed (no Timer race window).
+                pdfDoc.loadedChanged.connect(function() {
+                    if (pdfDoc.loaded) loadPage()
+                })
+                if (pdfSource) {
+                    pdfDoc.source = pdfSource
+                    // Handle synchronous load (tiny PDFs)
+                    if (pdfDoc.loaded) loadPage()
+                }
+            }
         }
     }
 
@@ -36,13 +51,11 @@ Item {
         source: ""
     }
 
-    // Update image when page changes or PDF loads
-    Connections {
-        target: pdfDoc
-        function onLoadedChanged() {
-            if (pdfDoc && pdfDoc.loaded) loadPage()
-        }
-    }
+    // 5WHY: Connections { target: pdfDoc } fails because pdfDoc is null
+    // at QML parse time. Instead connect loadedChanged imperatively inside
+    // Component.onCompleted right after creating pdfDoc — no Timer race.
+    // Signal connection is established before pdfDoc.source is set, so
+    // the async load notification is always captured, even for tiny PDFs.
 
     function loadPage() {
         if (!pdfDoc || !pdfDoc.loaded) return
