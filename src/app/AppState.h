@@ -250,7 +250,7 @@ signals:
     void crashReportChanged();
 
 private slots:
-    void onDiagFinished(DiagId id, DiagnosticResult result);
+    void onDiagFinished(DiagId id, const DiagnosticResult& result);
 
 private:
     friend class SettingsController;  // needs access to emailReportDesktop, buildReportData

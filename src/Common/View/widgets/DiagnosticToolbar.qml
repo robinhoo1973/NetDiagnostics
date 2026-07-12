@@ -234,22 +234,37 @@ Rectangle {
             RowLayout {
                 spacing: 4
 
-                // Run/Stop button
+                // 5WHY: Run/Stop button had no keyboard access (WCAG 2.1 SC 2.1.1
+                // failure).  Touch target was 36×28 — well below 44px minimum.
+                // Now: 44×44px touch target, tab-focusable, Enter/Space activate,
+                // Accessible properties for screen readers.
                 Rectangle {
-                    width: 36; height: 28; radius: 14
+                    id: runBtn
+                    width: 44; height: 44; radius: 22
                     color: appState.runStatus === 1 ? ThemeEngine.failRed
                            : appState.canRun() ? ThemeEngine.accentBlue
                            : Qt.alpha(ThemeEngine.accentBlue, 0.3)
                     Label { anchors.centerIn: parent
                         text: appState.runStatus === 1 ? "■" : "▶"
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: "white" }
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
                     MouseArea { anchors.fill: parent
                         enabled: appState.runStatus === 1 || appState.canRun()
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             if (appState.runStatus === 1) { appState.cancel() }
                             else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
                         }
                     }
+                    activeFocusOnTab: true
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            if (appState.runStatus === 1) { appState.cancel() }
+                            else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
+                            event.accepted = true
+                        }
+                    }
+                    Accessible.name: appState.runStatus === 1 ? "Stop diagnostics" : "Run diagnostics"
+                    Accessible.role: Accessible.Button
                 }
             }  // end Zone 2
 
