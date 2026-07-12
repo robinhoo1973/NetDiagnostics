@@ -69,7 +69,12 @@ Rectangle {
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root._advancedVisible = !root._advancedVisible }
                     activeFocusOnTab: true
-                    Keys.onPressed: function(event) { if (event.key===Qt.Key_Return||event.key===Qt.Key_Space) { root._advancedVisible=!root._advancedVisible; event.accepted=true } }
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root._advancedVisible = !root._advancedVisible
+                            event.accepted = true
+                        }
+                    }
                     Accessible.name: root._advancedVisible ? "Hide advanced options" : "Show advanced options"
                     Accessible.role: Accessible.Button
                 }
@@ -244,6 +249,8 @@ Rectangle {
                 // failure).  Touch target was 36×28 — well below 44px minimum.
                 // Now: 44×44px touch target, tab-focusable, Enter/Space activate,
                 // Accessible properties for screen readers.
+                // Code review: extracted shared runOrCancel() to deduplicate
+                // onClicked and Keys.onPressed logic.
                 Rectangle {
                     id: runBtn
                     width: 44; height: 44; radius: 22
@@ -253,19 +260,19 @@ Rectangle {
                     Label { anchors.centerIn: parent
                         text: appState.runStatus === 1 ? "■" : "▶"
                         font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
+                    function runOrCancel() {
+                        if (appState.runStatus === 1) { appState.cancel() }
+                        else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
+                    }
                     MouseArea { anchors.fill: parent
                         enabled: appState.runStatus === 1 || appState.canRun()
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (appState.runStatus === 1) { appState.cancel() }
-                            else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
-                        }
+                        onClicked: runBtn.runOrCancel()
                     }
                     activeFocusOnTab: true
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
-                            if (appState.runStatus === 1) { appState.cancel() }
-                            else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
+                            runBtn.runOrCancel()
                             event.accepted = true
                         }
                     }
@@ -292,6 +299,7 @@ Rectangle {
 
             // ── Zone 3: Clear button — 44px touch target, keyboard accessible ──
             // 5WHY: 30×30px touch target below minimum; no keyboard or a11y label.
+            // Code review: extracted shared doClear() function for DRY.
             Item {
                 id: clearBtn
                 visible: root.wide
@@ -303,15 +311,22 @@ Rectangle {
                         ? ThemeEngine.textSecondary : "transparent"
                     visible: hostField.text !== "" && appState.runStatus !== 1
                 }
+                function doClear() {
+                    hostField.text = ""
+                    appState.targetHost = ""
+                    appState.targetPath = ""
+                }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     enabled: hostField.text !== "" && appState.runStatus !== 1
-                    onClicked: { hostField.text=""; appState.targetHost=""; appState.targetPath="" }
+                    onClicked: clearBtn.doClear()
                 }
                 activeFocusOnTab: true
                 Keys.onPressed: function(event) {
-                    if ((event.key===Qt.Key_Return||event.key===Qt.Key_Space) && hostField.text!=="" && appState.runStatus!==1)
-                        { hostField.text=""; appState.targetHost=""; appState.targetPath=""; event.accepted=true }
+                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && hostField.text !== "" && appState.runStatus !== 1) {
+                        clearBtn.doClear()
+                        event.accepted = true
+                    }
                 }
                 Accessible.name: "Clear target input"
                 Accessible.role: Accessible.Button

@@ -907,9 +907,6 @@ QVariantList AppState::resultsForGroup(int groupInt) const {
             if (r.status == DiagStatus::Skipped)
                 continue;
             QVariantMap m = resultToVariantMap(r, false);
-            m["isDone"] = true;
-            m["isPending"] = false;
-            m["isRunning"] = false;
             list.append(m);
         }
     }
