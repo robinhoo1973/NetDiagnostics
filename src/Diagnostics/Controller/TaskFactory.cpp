@@ -69,11 +69,19 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
         case DiagId::G3DnsCache:
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
-        // 5WHY: G1IpConfiguration was compiled out of the main switch on iOS
-        // (#if defined(PLATFORM_IOS) wraps only G1DhcpStatus+G1CellularInfo).
-        // No iOS equivalent exists — IP config reads /proc/net which iOS sandbox blocks.
+        // 5WHY: G1IpConfiguration was compiled out of the main switch on iOS.
+        // The native G1G2G3Native::ipConfiguration() reads /proc/net (Linux)
+        // or Win32 IP Helper API — neither available on iOS.  Skipped honestly.
         case DiagId::G1IpConfiguration:
             return QStringLiteral("IP configuration reads /proc/net and system files which the iOS sandbox blocks.");
+        // 5WHY: G3DnsServers/G3DnsPollution native functions return empty
+        // "No DNS servers found" on iOS (only handle Windows/Linux APIs).
+        // iOS does not expose system DNS config to apps.  Skipped honestly
+        // rather than returning misleading empty-PASS results.
+        case DiagId::G3DnsServers:
+            return QStringLiteral("iOS does not expose system DNS server configuration to third-party apps.");
+        case DiagId::G3DnsPollution:
+            return QStringLiteral("DNS pollution detection requires reading system DNS resolver state which is unavailable on iOS.");
         // 5WHY: G1CellularInfo is NOW wired to iosCellularDiag() — no longer skipped.
         default:
             return QString();
@@ -100,6 +108,8 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Android resolves DNS via ConnectivityManager; /etc/resolv.conf is not populated or readable by apps.");
         case DiagId::G3DnsCache:
             return QStringLiteral("Android does not expose the system DNS resolver cache to apps.");
+        case DiagId::G3DnsPollution:
+            return QStringLiteral("DNS pollution detection requires reading system DNS resolver state, which is unavailable on Android.");
         default:
             return QString();
     }
