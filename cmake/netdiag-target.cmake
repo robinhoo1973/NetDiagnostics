@@ -135,17 +135,6 @@ function(configure_netdiag_target TARGET)
         target_compile_definitions(${TARGET} PRIVATE CURL_STATICLIB)
     endif()
 
-    # ── Force static GCC runtimes (last, so they override any Qt flags) ─
-    # CI custom-built Qt at /c/opt/qt6-install may inject -lstdc++ / -lwinpthread
-    # as dynamic libs via its .prl INTERFACE_LINK_LIBRARIES.  Repeating
-    # -static-libstdc++ -static-libgcc after ALL libraries ensures these
-    # runtime DLLs are absorbed into the static exe.
-    if(WIN32)
-        target_link_options(${TARGET} PRIVATE
-            -static-libstdc++ -static-libgcc
-        )
-    endif()
-
     # ── Include paths ────────────────────────────────────────────────
     # 5WHY: Include paths must be set BEFORE qt_import_qml_plugins /
     # qt_finalize_executable.  The generated qml_plugin_import.cpp is
@@ -178,6 +167,23 @@ function(configure_netdiag_target TARGET)
         qt6_finalize_executable(${TARGET})
     elseif(COMMAND qt_finalize_executable)
         qt_finalize_executable(${TARGET})
+    endif()
+
+    # ── Force static GCC runtimes (ABSOLUTE LAST link flags) ───────────
+    # 5WHY: g++ internal specs inject -lstdc++ / -lgcc_s / -lwinpthread
+    # at the VERY END of every link command, AFTER all user flags and
+    # Qt .prl INTERFACE_LINK_LIBRARIES.  Without static flags here,
+    # these resolve to DLLs: libstdc++-6.dll, libgcc_s_seh-1.dll,
+    # libwinpthread-1.dll.  Placing -static-libstdc++ -static-libgcc
+    # -static here (after qt_finalize_executable) is the LAST user
+    # action before g++ appends its runtime libs.  This tells the
+    # compiler driver to use .a archives instead of .dll import libs
+    # for ALL remaining -l flags.  Combined with the earlier -Wl,-Bstatic
+    # sandwich, this eliminates ALL avoidable DLL dependencies.
+    if(WIN32)
+        target_link_options(${TARGET} PRIVATE
+            -static-libstdc++ -static-libgcc -static
+        )
     endif()
 endfunction()
 
