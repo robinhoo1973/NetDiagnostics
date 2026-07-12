@@ -306,12 +306,24 @@ jobs:
 
       - name: Startup Crash Test (iOS Simulator, Debug)
         run: |
-          # 5WHY: xcodebuild outputs to DerivedData, not the build dir.
-          # -derivedDataPath puts it under build-xcode/DerivedData.
-          APP_PATH=$(find build-xcode/DerivedData -name "net_diagnostics.app" -type d 2>/dev/null | head -1)
+          # 5WHY: xcodebuild outputs depend on Xcode version and project
+          # settings.  Search in DerivedData, build dir, AND default Xcode
+          # location (~/Library/Developer/Xcode/DerivedData).
+          APP_PATH=""
+          for dir in \
+            build-xcode/DerivedData \
+            build-xcode \
+            "$HOME/Library/Developer/Xcode/DerivedData"; do
+            if [ -d "$dir" ]; then
+              found=$(find "$dir" -name "net_diagnostics.app" -type d 2>/dev/null | head -1)
+              if [ -n "$found" ]; then APP_PATH="$found"; break; fi
+            fi
+          done
           if [ -z "$APP_PATH" ]; then
-            echo "[FAIL] Simulator .app not found"
-            find build-xcode -name "*.app" -type d 2>/dev/null | head -5
+            echo "[FAIL] Simulator .app not found — searched: build-xcode, DerivedData"
+            # Last resort: list all .app files anywhere reachable
+            find /tmp /Users/runner -name "net_diagnostics.app" -type d 2>/dev/null | head -5
+            find /Users/runner -name "*.app" -type d 2>/dev/null | head -5
             exit 1
           fi
           echo "Installing: ${APP_PATH}"
