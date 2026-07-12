@@ -69,14 +69,12 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
         case DiagId::G3DnsCache:
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
-        // 5WHY: G1IpConfiguration and G1CellularInfo were compiled out of the
-        // main switch on iOS (#if defined(PLATFORM_IOS) at line 148 wraps only
-        // G1DhcpStatus).  They have no iOS native implementation and are not
-        // available in the iOS sandbox — must be explicitly skipped.
+        // 5WHY: G1IpConfiguration was compiled out of the main switch on iOS
+        // (#if defined(PLATFORM_IOS) wraps only G1DhcpStatus+G1CellularInfo).
+        // No iOS equivalent exists — IP config reads /proc/net which iOS sandbox blocks.
         case DiagId::G1IpConfiguration:
             return QStringLiteral("IP configuration reads /proc/net and system files which the iOS sandbox blocks.");
-        case DiagId::G1CellularInfo:
-            return QStringLiteral("Cellular modem diagnostics require CoreTelephony private APIs not available to sandboxed apps.");
+        // 5WHY: G1CellularInfo is NOW wired to iosCellularDiag() — no longer skipped.
         default:
             return QString();
     }
@@ -156,22 +154,23 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #if defined(PLATFORM_IOS)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
+        // 5WHY: Wired after MVC refactoring — iosCellularDiag() wraps
+        // the existing iosCellularInfo() which was previously inaccessible.
+        case DiagId::G1CellularInfo:
+            return T3([](DiagId id, const QString&) { return iosCellularDiag(id); });
 #else
 #if defined(PLATFORM_ANDROID)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return androidDhcpDiag(id); });
-#else
-        case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
-#endif
-        case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
-        case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
-#if defined(PLATFORM_ANDROID)
         case DiagId::G1CellularInfo:
             return T3([](DiagId id, const QString&) { return androidCellularDiag(id); });
 #else
+        case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
         case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
 #endif
-#endif  // 5WHY: closes #if defined(PLATFORM_IOS) at line 148 — missing #endif compiled out all G1-G5 tests on iOS
+        case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
+        case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
+#endif  // closes #if defined(PLATFORM_IOS)
 
         // 閳光偓閳光偓 G2: Connectivity & Security 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
         case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
