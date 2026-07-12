@@ -206,6 +206,7 @@ Dialog {
                                 root.allSelected = !anyUnchecked
                             }
                         }
+                        Label {
                             text: modelData.toUpperCase()
                             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Bold
                             color: ThemeEngine.textPrimary
@@ -261,3 +262,4 @@ Dialog {
             }
         }
     }
+}
