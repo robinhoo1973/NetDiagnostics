@@ -80,8 +80,16 @@ jobs:
       - name: Startup Crash Test (debug)
         run: |
           echo "=== Linux Debug Startup Crash Test ==="
-          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=httpbin.org ND_AUTO_TEST_EXIT_CODE=1 ./build-debug/net_diagnostics 2>&1 | tail -30
-          if [ $? -ne 0 ]; then echo "[FAIL]"; exit 1; fi
+          # 5WHY: httpbin.org was an uncontrolled external dependency.
+          # Start a local HTTP server with security headers so G5 (including
+          # G5SecurityHeaders) runs deterministically.
+          python3 scripts/ci-http-server.py 8888 &
+          HTTP_PID=$!
+          sleep 1
+          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=localhost:8888 ND_AUTO_TEST_EXIT_CODE=1 ./build-debug/net_diagnostics 2>&1 | tail -30
+          EXIT_CODE=$?
+          kill $HTTP_PID 2>/dev/null || true
+          if [ $EXIT_CODE -ne 0 ]; then echo "[FAIL]"; exit 1; fi
           echo "[PASS] Linux Debug OK"
       # ── Release build + auto-test ───────────────────────────────────
       - name: Configure (production)
@@ -98,8 +106,13 @@ jobs:
       - name: Startup Crash Test (production)
         run: |
           echo "=== Linux Release Startup Crash Test ==="
-          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=httpbin.org ND_AUTO_TEST_EXIT_CODE=1 ./build/net_diagnostics 2>&1 | tail -30
-          if [ $? -ne 0 ]; then echo "[FAIL]"; exit 1; fi
+          python3 scripts/ci-http-server.py 8888 &
+          HTTP_PID=$!
+          sleep 1
+          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=localhost:8888 ND_AUTO_TEST_EXIT_CODE=1 ./build/net_diagnostics 2>&1 | tail -30
+          EXIT_CODE=$?
+          kill $HTTP_PID 2>/dev/null || true
+          if [ $EXIT_CODE -ne 0 ]; then echo "[FAIL]"; exit 1; fi
           echo "[PASS] Linux Release OK"
 
       - name: Configure (simulator)
@@ -781,13 +794,13 @@ jobs:
         run: |
           if [ -d build/net_diagnostics.app ]; then
             echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostic" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
+            hdiutil create -volname "NetDiagnostics" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
             ls -lh NetDiagnostics-macOS-arm64.dmg
           else
             echo "No .app bundle found; falling back to binary packaging"
             mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
             cp build/net_diagnostics pkg/NetDiagnostic.app/Contents/MacOS/
-            hdiutil create -volname "NetDiagnostic" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
+            hdiutil create -volname "NetDiagnostics" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
           fi
         continue-on-error: true
 
@@ -796,7 +809,7 @@ jobs:
         run: |
           mkdir -p pkg-sim/NetDiagnostic.app/Contents/MacOS
           cp build-sim/net_diagnostics_sim pkg-sim/NetDiagnostic.app/Contents/MacOS/
-          hdiutil create -volname "NetDiagnostic Sim" -srcfolder pkg-sim/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64-sim.dmg || true
+          hdiutil create -volname "NetDiagnostics Sim" -srcfolder pkg-sim/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64-sim.dmg || true
           ls -lh NetDiagnostics-macOS-arm64-sim.dmg 2>/dev/null || echo "(sim DMG skipped)"
 
       - name: Upload artifacts

@@ -390,26 +390,34 @@ asc_cert_find_distribution() {
 
     local cid
     cid=$(echo "$resp" | python3 -c "
-import sys, json
+import sys, json, os
 raw = sys.stdin.read()
-# Check for API errors first
+verbose = os.environ.get('ASC_DEBUG', '0') == '1'
 try:
     resp_data = json.loads(raw)
 except:
-    print('DEBUG_PARSE_ERROR', file=sys.stderr)
+    if verbose:
+        print('DEBUG_PARSE_ERROR', file=sys.stderr)
     print('')
     sys.exit(0)
 if 'errors' in resp_data:
     for e in resp_data.get('errors', []):
-        print(f'DEBUG_API_ERROR: status={e.get(\"status\")} title={e.get(\"title\",\"\")} detail={e.get(\"detail\",\"\")}', file=sys.stderr)
+        # Always log API error summary (misconfiguration indicator), but
+        # gate detailed debug behind ASC_DEBUG=1 to avoid leaking internal
+        # API key / certificate metadata in public CI logs.
+        print(f'[ASC] API error: status={e.get(\"status\")} title={e.get(\"title\",\"\")}', file=sys.stderr)
+        if verbose:
+            print(f'[ASC] detail={e.get(\"detail\",\"\")}', file=sys.stderr)
     print('')
     sys.exit(0)
 data = resp_data.get('data', [])
-print(f'DEBUG_CERT_COUNT: {len(data)}', file=sys.stderr)
+if verbose:
+    print(f'DEBUG_CERT_COUNT: {len(data)}', file=sys.stderr)
 for cert in data:
     cert_type = cert.get('attributes', {}).get('certificateType', '???')
     cert_name = cert.get('attributes', {}).get('displayName', '???')
-    print(f'DEBUG_CERT: type={cert_type} name={cert_name}', file=sys.stderr)
+    if verbose:
+        print(f'DEBUG_CERT: type={cert_type} name={cert_name}', file=sys.stderr)
     if 'DISTRIBUTION' in cert_type.upper() or 'DEVELOPER_ID_APPLICATION' in cert_type.upper():
         print(cert['id'])
         break
