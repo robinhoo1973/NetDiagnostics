@@ -11,6 +11,21 @@ function(configure_netdiag_target TARGET)
         APP_EDITION="${APP_EDITION}"
         PROJECT_VERSION="${PROJECT_VERSION}"
     )
+    # 5WHY: Static Qt builds need Q_IMPORT_PLUGIN for the platform plugin
+    # (e.g. QWindowsIntegrationPlugin on Windows).  ND_STATIC_QT tells
+    # main.cpp to compile these imports.  Set via build-static.ps1 -Debug.
+    if(ND_STATIC_QT)
+        target_compile_definitions(${TARGET} PRIVATE ND_STATIC_QT)
+        if(WIN32)
+            # The static Windows platform plugin library is needed for
+            # QWindowsIntegrationPlugin to initialize.  Without this, Qt
+            # reports "no Qt platform plugin could be initialized".
+            find_library(QT_WINDOWS_PLUGIN Qt6::QWindowsIntegrationPlugin QUIET)
+            if(QT_WINDOWS_PLUGIN)
+                target_link_libraries(${TARGET} PRIVATE ${QT_WINDOWS_PLUGIN})
+            endif()
+        endif()
+    endif()
     if(ND_DEBUG)
         target_compile_definitions(${TARGET} PRIVATE ND_DEBUG)
     endif()
