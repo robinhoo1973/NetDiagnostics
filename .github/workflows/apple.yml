@@ -215,14 +215,17 @@ jobs:
         run: |
           BIN=build/net_diagnostics.app/net_diagnostics
           echo "=== Checking for iOS diagnostic function symbols ==="
+          # 5WHY: C++ name mangling means 'iosDhcpDiag' appears as
+          # '__Z13iosDhcpDiag5DiagId' in the symbol table.  Use
+          # c++filt to demangle and then grep for the function names.
           MISSING=""
           for sym in \
-            _iosDhcpDiag \
-            _iosDefaultGatewayDiag \
-            _iosRoutingTableDiag \
-            _iosDnsResolve \
-            _iosHttpDiagnostic; do
-            if nm -gU "$BIN" 2>/dev/null | grep -q "$sym"; then
+            iosDhcpDiag \
+            iosDefaultGatewayDiag \
+            iosRoutingTableDiag \
+            iosDnsResolve \
+            iosHttpDiagnostic; do
+            if nm -g "$BIN" 2>/dev/null | c++filt | grep -q "$sym"; then
               echo "[OK]   $sym"
             else
               echo "[MISS] $sym — stripped by LTO/dead-code elimination"
