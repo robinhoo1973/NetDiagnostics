@@ -130,10 +130,13 @@ Dialog {
     }
 
     // ── UI ────────────────────────────────────────────────────────────
+    // 5WHY: Hardcoded width:420 exceeded mobile screen width (375px iPhone),
+    // pushing the dialog off-centre and cutting off protocol checkboxes.
+    // Use the dialog's available width minus padding for responsive layout.
+    implicitWidth: Math.min(480, Math.max(300, root.availableWidth - 32))
     ColumnLayout {
         spacing: 8
-        Layout.preferredWidth: 420
-        width: 420
+        width: parent.width
 
         // Title
         Label {
