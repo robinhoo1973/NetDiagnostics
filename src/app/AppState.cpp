@@ -83,11 +83,12 @@ AppState::AppState(QObject* parent) : QObject(parent) {
             this, &AppState::themeChanged);
 
     // Enable G1-G3 by default; G4/G5 are auto-managed based on target
-    if (m_configCtrl) m_configCtrl->config().enableDefaultGroups();
+    m_configCtrl->config().enableDefaultGroups();
 
     // Restore persisted settings (language/theme/diags handled by Controllers)
-    if (m_settingsCtrl) m_settingsCtrl->loadSettings();
-    if (m_configCtrl) m_configCtrl->loadSettings();
+    // 5WHY: null check was dead code — m_settingsCtrl initialized in ctor, never cleared.
+    m_settingsCtrl->loadSettings();
+    m_configCtrl->loadSettings();
     loadSettings();
 }
 
@@ -146,13 +147,13 @@ bool AppState::purchaseInProgress() const { return m_settingsCtrl ? m_settingsCt
 
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {
-    if (m_settingsCtrl) m_settingsCtrl->setLanguageIndex(index);
+    m_settingsCtrl->setLanguageIndex(index);
     bumpVersion();
 }
 
 // ── Theme mode persistence ─────────────────────────────────────────────
 void AppState::setThemeMode(int mode) {
-    if (m_settingsCtrl) m_settingsCtrl->setThemeMode(mode);
+    m_settingsCtrl->setThemeMode(mode);
     bumpVersion();
 }
 
@@ -1215,23 +1216,23 @@ QString AppState::generatePreviewPdf() const {
 }
 
 void AppState::requestSavePath(const QString& format) {
-    if (m_reportCtrl) m_reportCtrl->requestSavePath(format);
+    m_reportCtrl->requestSavePath(format);
 }
 
 void AppState::setPremium(bool v) {
-    if (m_settingsCtrl) m_settingsCtrl->setPremium(v);
+    m_settingsCtrl->setPremium(v);
 }
 
 void AppState::requestSubscription() {
-    if (m_settingsCtrl) m_settingsCtrl->requestSubscription();
+    m_settingsCtrl->requestSubscription();
 }
 
 void AppState::restorePurchases() {
-    if (m_settingsCtrl) m_settingsCtrl->restorePurchases();
+    m_settingsCtrl->restorePurchases();
 }
 
 void AppState::shareReport(const QString& format) {
-    if (m_settingsCtrl) m_settingsCtrl->shareReport(format);
+    m_settingsCtrl->shareReport(format);
 }
 
 void AppState::setCrashReportPath(const QString& path) {
