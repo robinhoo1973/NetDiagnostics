@@ -286,6 +286,8 @@ Item {
                                 // Tap counter resets after 3s of inactivity.
                                 MouseArea {
                                     anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    hoverEnabled: true
                                     onClicked: {
                                         versionLabel.taps++
                                         tapResetTimer.restart()
