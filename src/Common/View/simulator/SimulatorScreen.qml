@@ -80,14 +80,17 @@ ApplicationWindow {
             ColumnLayout{anchors{fill:parent;margins:6};spacing:4
                 // Row 1: Connect + Device/OS + Target
                 RowLayout{spacing:6
-                    // Connect
-                    Rectangle{implicitWidth:70;implicitHeight:30;radius:6;color:ThemeEngine.passGreen
+                    // 5WHY: 30px touch targets + no keyboard/a11y on simulator toolbar
+                    Rectangle{id:connectBtn;implicitWidth:70;implicitHeight:44;radius:6;color:ThemeEngine.passGreen
                         Label{anchors.centerIn:parent;text:"Connect";font.family:ThemeEngine.monoFont;font.pixelSize:10;color:ThemeEngine.textPrimary}
-                        MouseArea{anchors.fill:parent;onClicked:showToast("Connected: "+cur().name)}}
-                    // Device
-                    Rectangle{implicitWidth:130;implicitHeight:30;radius:6;color:ThemeEngine.bgInput;border{width:1;color:ThemeEngine.colors.borderCard}
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:showToast("Connected: "+cur().name)}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){showToast("Connected: "+cur().name);e.accepted=true}}
+                        Accessible{name:"Connect to device";role:Accessible.Button}}
+                    Rectangle{id:deviceBtn;implicitWidth:130;implicitHeight:44;radius:6;color:ThemeEngine.bgInput;border{width:1;color:ThemeEngine.colors.borderCard}
                         Label{anchors{left:parent.left;leftMargin:8;verticalCenter:parent.verticalCenter}text:cur().name;font.family:ThemeEngine.monoFont;font.pixelSize:10;color:ThemeEngine.textPrimary}
-                        MouseArea{anchors.fill:parent;onClicked:devicePopup.open()}}
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:devicePopup.open()}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){devicePopup.open();e.accepted=true}}
+                        Accessible{name:"Select device: "+cur().name;role:Accessible.Button}}
                     // Target input
                     Rectangle{Layout.fillWidth:true;implicitHeight:30;radius:6;color:ThemeEngine.bgInput;border{width:1;color:ThemeEngine.colors.borderCard}
                         TextField{id:profileTarget;anchors{fill:parent;leftMargin:8;rightMargin:4}
@@ -113,28 +116,43 @@ ApplicationWindow {
                         }
                     }
                 }
-                // Row 3: Run Actions + Capture
+                // 5WHY: all action buttons were 30px (below 44px min), no keyboard/a11y
                 RowLayout{spacing:6
-                    Rectangle{implicitWidth:80;implicitHeight:30;radius:6
+                    // Run/Stop — primary action
+                    Rectangle{id:simRunBtn;implicitWidth:80;implicitHeight:44;radius:6
                         color:appState.runStatus===1?ThemeEngine.failRed:(appState.canRun()?ThemeEngine.accentBlue:Qt.alpha(ThemeEngine.accentBlue,0.3))
                         Label{anchors.centerIn:parent;text:appState.runStatus===1?"■ Stop":"▶ Run";font.family:ThemeEngine.monoFont;font.pixelSize:10;color:ThemeEngine.textPrimary}
-                        MouseArea{anchors.fill:parent;onClicked:{if(appState.runStatus===1)appState.cancel();else appState.runDiagnostics()}}}
-                    Rectangle{implicitWidth:80;implicitHeight:30;radius:6;color:"transparent";border{width:1;color:ThemeEngine.colors.borderCard}
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:{if(appState.runStatus===1)appState.cancel();else appState.runDiagnostics()}}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){if(appState.runStatus===1)appState.cancel();else appState.runDiagnostics();e.accepted=true}}
+                        Accessible{name:appState.runStatus===1?"Stop diagnostics":"Run diagnostics";role:Accessible.Button}}
+                    // Run All
+                    Rectangle{id:simRunAllBtn;implicitWidth:80;implicitHeight:44;radius:6;color:"transparent";border{width:1;color:ThemeEngine.colors.borderCard}
                         Label{anchors.centerIn:parent;text:"Run All";font.family:ThemeEngine.monoFont;font.pixelSize:9;color:ThemeEngine.textSecondary}
-                        MouseArea{anchors.fill:parent;onClicked:{appState.target=profileTarget.text;appState.runDiagnostics()}}}
-                    Rectangle{implicitWidth:80;implicitHeight:30;radius:6;color:Qt.alpha(ThemeEngine.passGreen,0.15);border{width:1;color:Qt.alpha(ThemeEngine.passGreen,0.3)}
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:{appState.target=profileTarget.text;appState.runDiagnostics()}}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){appState.target=profileTarget.text;appState.runDiagnostics();e.accepted=true}}
+                        Accessible{name:"Run all diagnostics";role:Accessible.Button}}
+                    // Validation
+                    Rectangle{id:simValidateBtn;implicitWidth:80;implicitHeight:44;radius:6;color:Qt.alpha(ThemeEngine.passGreen,0.15);border{width:1;color:Qt.alpha(ThemeEngine.passGreen,0.3)}
                         Label{anchors.centerIn:parent;text:"Validation";font.family:ThemeEngine.monoFont;font.pixelSize:9;color:ThemeEngine.passGreen}
-                        MouseArea{anchors.fill:parent;onClicked:{appState.target=profileTarget.text;appState.runDiagnostics();showToast("Full Validation started")}}}
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:{appState.target=profileTarget.text;appState.runDiagnostics();showToast("Full Validation started")}}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){appState.target=profileTarget.text;appState.runDiagnostics();showToast("Full Validation started");e.accepted=true}}
+                        Accessible{name:"Run full validation";role:Accessible.Button}}
                     Item{Layout.preferredWidth:16}
-                    Rectangle{implicitWidth:70;implicitHeight:30;radius:6;color:Qt.alpha(ThemeEngine.accentBlue,0.12);border{width:1;color:Qt.alpha(ThemeEngine.accentBlue,0.3)}
+                    // Screenshot
+                    Rectangle{id:simShotBtn;implicitWidth:70;implicitHeight:44;radius:6;color:Qt.alpha(ThemeEngine.accentBlue,0.12);border{width:1;color:Qt.alpha(ThemeEngine.accentBlue,0.3)}
                         Label{anchors.centerIn:parent;text:"Shot";font.family:ThemeEngine.monoFont;font.pixelSize:10;color:ThemeEngine.accentBlue}
-                        MouseArea{anchors.fill:parent;onClicked:{if(typeof screenshotSvc!=='undefined'&&screenshotSvc){var p=screenshotSvc.makeFilename(curOS(),curDevId(),"manual");screenshotSvc.capture(p)}}}}
-                    Rectangle{id:recBtn;implicitWidth:70;implicitHeight:30;radius:6
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:{if(typeof screenshotSvc!=='undefined'&&screenshotSvc){var p=screenshotSvc.makeFilename(curOS(),curDevId(),"manual");screenshotSvc.capture(p)}}}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){if(typeof screenshotSvc!=='undefined'&&screenshotSvc){var p=screenshotSvc.makeFilename(curOS(),curDevId(),"manual");screenshotSvc.capture(p)}e.accepted=true}}
+                        Accessible{name:"Take screenshot";role:Accessible.Button}}
+                    // Record toggle
+                    Rectangle{id:recBtn;implicitWidth:70;implicitHeight:44;radius:6
                         property bool isRec:typeof screenshotSvc!=='undefined'&&screenshotSvc&&screenshotSvc.recording
                         color:isRec?Qt.alpha(ThemeEngine.failRed,0.15):Qt.alpha(ThemeEngine.passGreen,0.1)
                         border{width:1;color:isRec?Qt.alpha(ThemeEngine.failRed,0.4):Qt.alpha(ThemeEngine.passGreen,0.3)}
                         Label{anchors.centerIn:parent;text:isRec?"■ Stop":"● Rec";font.family:ThemeEngine.monoFont;font.pixelSize:10;color:isRec?ThemeEngine.failRed:ThemeEngine.passGreen}
-                        MouseArea{anchors.fill:parent;onClicked:{if(typeof screenshotSvc==='undefined'||!screenshotSvc)return;screenshotSvc.recording?screenshotSvc.stopRecording():screenshotSvc.startRecording()}}}
+                        MouseArea{anchors.fill:parent;cursorShape:Qt.PointingHandCursor;onClicked:{if(typeof screenshotSvc==='undefined'||!screenshotSvc)return;screenshotSvc.recording?screenshotSvc.stopRecording():screenshotSvc.startRecording()}}
+                        activeFocusOnTab:true;Keys.onPressed:function(e){if(e.key===Qt.Key_Return||e.key===Qt.Key_Space){if(typeof screenshotSvc==='undefined'||!screenshotSvc)return;screenshotSvc.recording?screenshotSvc.stopRecording():screenshotSvc.startRecording();e.accepted=true}}
+                        Accessible{name:recBtn.isRec?"Stop recording":"Start recording";role:Accessible.Button}}
                     Item{Layout.fillWidth:true}
                     Label{text:Math.round(viewport.scale*100)+"%";font.family:ThemeEngine.monoFont;font.pixelSize:9;color:Qt.alpha(ThemeEngine.colors.textPrimary,0.4)}
                 }
