@@ -86,8 +86,20 @@ DiagnosticResult ipConfiguration(DiagId id) {
 #else
     out.append(QStringLiteral("   IP Routing Enabled. . . . . . . . : Unknown"));
 #endif
-    // DNS suffix search list from resolv.conf
+    // DNS suffix search list from resolv.conf (Linux/macOS) or res_ninit (iOS)
     QStringList dnsServers, searchDomains;
+#if defined(PLATFORM_IOS)
+    // iOS: no /etc/resolv.conf — use BSD resolver API (same pattern as G3DnsServers)
+    struct __res_state res; memset(&res, 0, sizeof(res));
+    if (res_ninit(&res) == 0) {
+        for (int i = 0; i < res.nscount; i++) {
+            char ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &res.nsaddr_list[i].sin_addr, ip, sizeof(ip));
+            dnsServers.append(QString::fromLatin1(ip));
+        }
+        res_nclose(&res);
+    }
+#else
     QFile resolv(QStringLiteral("/etc/resolv.conf"));
     if (resolv.open(QIODevice::ReadOnly)) {
         QTextStream ts(&resolv);
@@ -101,6 +113,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
             else if (line.startsWith("domain ")) searchDomains.append(line.mid(7));
         }
     }
+#endif
     if (!searchDomains.isEmpty())
         out.append(QStringLiteral("   DNS Suffix Search List. . . . . . : %1").arg(searchDomains.join(' ')));
     out.append(QString());
