@@ -270,10 +270,15 @@ Item {
     }
 
     // ── Dashboard summary + common labels ──
-    readonly property string totalDiagsLabel: t("Total Diagnostics", "Total diagnostics", "Diagnosen insgesamt", "Всего диагностик", "Diagnostiche totali", "总诊断数", "總診斷數", "Diagnósticos totales", "Diagnósticos totais")
-    readonly property string totalTimeLabel: t("Total Time", "Temps total", "Gesamtzeit", "Общее время", "Tempo totale", "总时间", "總時間", "Tiempo total", "Tempo total")
-    readonly property string completedLabel: t("Completed", "Terminé", "Abgeschlossen", "Завершено", "Completato", "已完成", "已完成", "Completado", "Concluído")
-    readonly property string resetLabel: t("Reset", "Réinitialiser", "Zurücksetzen", "Сброс", "Ripristina", "重置", "重置", "Restablecer", "Redefinir")
+    // 5WHY: totalDiags/totalTime/completed/reset were duplicated as
+    // totalDiagsLabel/totalTimeLabel/completedLabel/resetLabel with
+    // identical translation strings — a DRY violation that could
+    // cause desync if only one copy was updated.  Now aliased so
+    // both names work, single canonical definition per string.
+    readonly property string totalDiagsLabel: totalDiags
+    readonly property string totalTimeLabel: totalTime
+    readonly property string completedLabel: completed
+    readonly property string resetLabel: reset
     readonly property string diagsSuffix: t(" tests", " tests", " Tests", " тестов", " test", " 个测试", " 個測試", " pruebas", " testes")
 
     // ── Settings screen ──
