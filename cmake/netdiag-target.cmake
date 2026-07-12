@@ -169,19 +169,25 @@ function(configure_netdiag_target TARGET)
         qt_finalize_executable(${TARGET})
     endif()
 
-    # ── Force static GCC runtimes (after Qt finalize, before g++ specs) ─
-    # 5WHY: g++ 16.1.0 on MSYS2 injects -lstdc++ / -lwinpthread at
-    # the VERY END of the link command.  /ucrt64/lib/libstdc++.a is
-    # itself a DLL import lib (not a true static archive), so even
-    # -static-libstdc++ cannot bypass the DLL reference.  The TRUE
-    # static libstdc++.a lives inside the GCC versioned directory.
-    # -static-libgcc DOES work (libgcc_s_seh-1.dll eliminated).
-    # For the remaining libstdc++-6.dll + libwinpthread-1.dll, we
-    # bundle them alongside the exe in the build.yml post-processing step.
-    # See the "Copy GCC runtime DLLs" step in the Windows Static job.
-    if(WIN32)
-        target_link_options(${TARGET} PRIVATE
-            -static-libgcc
+    # ── True-static GCC runtimes via absolute paths (AFTER Qt finalize) ─
+    # 5WHY: /ucrt64/lib/libstdc++.a and libwinpthread.a are DLL import
+    # libraries in MSYS2 (MINGW-packages issue #6163).  Even with
+    # -static-libstdc++ and -Wl,-Bstatic, the import lib produces a
+    # DLL reference in the PE header.  The TRUE static archives are
+    # inside the GCC versioned directory (e.g. lib/gcc/x86_64-w64-
+    # mingw32/16.1.0/).  build.yml resolves these paths via
+    # g++ -print-file-name and passes them as CMake variables.
+    # Linking with ABSOLUTE PATHS bypasses all library search and
+    # import lib resolution — the linker uses the exact true-static
+    # .a file, eliminating libstdc++-6.dll and libwinpthread-1.dll.
+    if(WIN32 AND DEFINED GCC_TRUE_LIBSTDCXX)
+        target_link_libraries(${TARGET} PRIVATE
+            "-Wl,-Bstatic"
+            "${GCC_TRUE_LIBSTDCXX}"
+            "${GCC_TRUE_LIBGCC}"
+            "${GCC_TRUE_LIBGCC_EH}"
+            "${GCC_TRUE_LIBPTHREAD}"
+            "-Wl,-Bdynamic"
         )
     endif()
 endfunction()
