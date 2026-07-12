@@ -193,8 +193,12 @@ int main(int argc, char *argv[])
             // the connect is established, missing the completion event.
             bool keepOpen = qEnvironmentVariableIntValue("ND_AUTO_TEST_KEEP_OPEN");
             if (!keepOpen) {
+                // 5WHY: Capture &app as context so the connection is
+                // auto-disconnected when app is destroyed.  On Linux/GCC
+                // the context overload may fail to compile; use explicit
+                // capture + disconnect on exit instead.
                 QObject::connect(&appState, &AppState::runStatusChanged,
-                    &app, [&appState]() {
+                    &app, [&appState, &app]() {
                     if (appState.runStatus() == RunStatus::Completed ||
                         appState.runStatus() == RunStatus::Error ||
                         appState.runStatus() == RunStatus::Cancelled) {
