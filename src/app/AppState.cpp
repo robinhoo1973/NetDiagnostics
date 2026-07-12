@@ -870,7 +870,9 @@ void AppState::reset() {
 // 5WHY: resultsForGroup() and allDiagsForGroup() both manually mapped the
 // same 10 DiagnosticResult fields to QVariantMap keys.  Adding a new field
 // required updating both — a DRY violation.  Now: single helper, both callers.
-static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties) {
+// Must be a private static member (not file-scope static) because it calls
+// AppState::staticDiagDisplayName() which is private.
+QVariantMap AppState::resultToVariantMap(const DiagnosticResult& r, bool includeProperties) {
     QVariantMap m;
     m["id"] = static_cast<int>(r.id);
     m["diagId"] = static_cast<int>(r.id);
