@@ -102,7 +102,7 @@ Item {
         visible: pdfDoc.status === PdfDocument.Loading || pdfDoc.status === PdfDocument.Null
         Label {
             anchors.centerIn: parent
-            text: "Loading PDF..."
+            text: Tr.pdfLoading
             font.family: ThemeEngine.monoFont; font.pixelSize: 12
             color: ThemeEngine.textSecondary
         }
@@ -115,7 +115,7 @@ Item {
         visible: pdfDoc.status === PdfDocument.Error
         Label {
             anchors.centerIn: parent
-            text: "Failed to load PDF"
+            text: Tr.pdfLoadFailed
             font.family: ThemeEngine.monoFont; font.pixelSize: 12
             color: ThemeEngine.failRed
         }

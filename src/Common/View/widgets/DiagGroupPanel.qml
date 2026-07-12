@@ -139,12 +139,22 @@ Rectangle {
         }
     }
 
-    // Click header to toggle
+    // 5WHY: group header had no keyboard access or screen-reader label.
+    // Keyboard-only users could not expand/collapse diagnostic groups.
     MouseArea {
         anchors { top:parent.top; left:parent.left; right:parent.right }
         height: 40
+        cursorShape: Qt.PointingHandCursor
         onClicked: { _userToggled=true; expanded=!expanded }
     }
+    activeFocusOnTab: true
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+            _userToggled = true; expanded = !expanded; event.accepted = true
+        }
+    }
+    Accessible.name: groupLabel + (expanded ? " — expanded" : " — collapsed")
+    Accessible.role: Accessible.Button
 
     signal detailClicked(var data)
 
