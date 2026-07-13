@@ -222,15 +222,19 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G4PathPing:           return T2(G4RemoteHost::pathPing);
         case DiagId::G4MtuDiscovery:       return T2(G4RemoteHost::mtuDiscovery);
 
-        // G4PortScan removed 鈥?port scan feature deprecated
+        // G4PortScan removed — port scan feature deprecated
 
-#if defined(PLATFORM_IOS)
-        // iOS: NSURLSession native HTTP (no libcurl needed)
+        // ── G5 common socket-level tests (all platforms, no libcurl needed) ──
+        // 5WHY: These 13 cases were copy-pasted 4× across iOS/Android/Desktop
+        // blocks (~50 lines of duplication).  Extracted here so adding a new
+        // protocol or changing routing updates one place.  Only curl-dependent
+        // HTTP tests stay in the platform-specific blocks below.
         case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
         case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
         case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
-        // Full X.509 certificate details via QSslSocket (SecureTransport backend on iOS)
-        case DiagId::G5SslCertificate:   return T2(G5WebsiteUrl::sslCertificate);
+        case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
+        case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
+        case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
         case DiagId::G5Telnet:           return T2(G5WebsiteUrl::telnetDiagnostics);
         case DiagId::G5Mysql:            return T2(G5WebsiteUrl::mysqlDiagnostics);
         case DiagId::G5Postgres:         return T2(G5WebsiteUrl::postgresDiagnostics);
@@ -238,6 +242,11 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5Mongodb:          return T2(G5WebsiteUrl::mongodbDiagnostics);
         case DiagId::G5Ldap:             return T2(G5WebsiteUrl::ldapDiagnostics);
         case DiagId::G5Mqtt:             return T2(G5WebsiteUrl::mqttDiagnostics);
+
+#if defined(PLATFORM_IOS)
+        // iOS: curl-dependent HTTP via NSURLSession (iosHttpDiagnostic)
+        // G5SslCertificate via QSslSocket (SecureTransport backend on iOS)
+        case DiagId::G5SslCertificate:   return T2(G5WebsiteUrl::sslCertificate);
         case DiagId::G5CurlVerbose:
         case DiagId::G5HttpHeaders:
         case DiagId::G5HttpRedirect:
@@ -245,22 +254,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5HttpCompression:
         case DiagId::G5HttpTiming:
             return T3([t = target](DiagId id, const QString&) { return iosHttpDiagnostic(id, t); });
-        case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
-        case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
-        case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
 #else
 #if defined(PLATFORM_ANDROID)
-        // Android: HttpURLConnection native HTTP (no libcurl needed)
-        case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
-        case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
-        case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
-        case DiagId::G5Telnet:           return T2(G5WebsiteUrl::telnetDiagnostics);
-        case DiagId::G5Mysql:            return T2(G5WebsiteUrl::mysqlDiagnostics);
-        case DiagId::G5Postgres:         return T2(G5WebsiteUrl::postgresDiagnostics);
-        case DiagId::G5Redis:            return T2(G5WebsiteUrl::redisDiagnostics);
-        case DiagId::G5Mongodb:          return T2(G5WebsiteUrl::mongodbDiagnostics);
-        case DiagId::G5Ldap:             return T2(G5WebsiteUrl::ldapDiagnostics);
-        case DiagId::G5Mqtt:             return T2(G5WebsiteUrl::mqttDiagnostics);
+        // Android: curl-dependent HTTP via HttpURLConnection JNI
         case DiagId::G5CurlVerbose:
         case DiagId::G5HttpHeaders:
         case DiagId::G5SslCertificate:
@@ -269,14 +265,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5SecurityHeaders:
         case DiagId::G5HttpCompression:
             return T3([t = target](DiagId id, const QString&) { return androidHttpDiag(id, t); });
-        case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
-        case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
-        case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
 #else
 #if !defined(NO_CURL)
-        case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
-        case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
-        case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        // Desktop with libcurl: full HTTP diagnostics
         case DiagId::G5CurlVerbose:      return T2(G5WebsiteUrl::curlVerbose);
         case DiagId::G5HttpHeaders:      return T2(G5WebsiteUrl::httpHeaders);
         case DiagId::G5SecurityHeaders:  return T2(G5WebsiteUrl::securityHeaders);
@@ -284,33 +275,9 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G5HttpRedirect:     return T2(G5WebsiteUrl::httpRedirect);
         case DiagId::G5HttpCompression:  return T2(G5WebsiteUrl::httpCompression);
         case DiagId::G5HttpTiming:       return T2(G5WebsiteUrl::httpTiming);
-        case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
-        case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
-        case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
-        case DiagId::G5Telnet:           return T2(G5WebsiteUrl::telnetDiagnostics);
-        case DiagId::G5Mysql:            return T2(G5WebsiteUrl::mysqlDiagnostics);
-        case DiagId::G5Postgres:         return T2(G5WebsiteUrl::postgresDiagnostics);
-        case DiagId::G5Redis:            return T2(G5WebsiteUrl::redisDiagnostics);
-        case DiagId::G5Mongodb:          return T2(G5WebsiteUrl::mongodbDiagnostics);
-        case DiagId::G5Ldap:             return T2(G5WebsiteUrl::ldapDiagnostics);
-        case DiagId::G5Mqtt:             return T2(G5WebsiteUrl::mqttDiagnostics);
 #else
-        // 鈹€鈹€ NO_CURL build: socket-only tests (no libcurl needed) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-        case DiagId::G5UrlParsing:       return T2(G5WebsiteUrl::urlParsing);
-        case DiagId::G5TcpConnect:       return T2(G5WebsiteUrl::tcpConnect);
-        case DiagId::G5ServiceBanner:    return T2(G5WebsiteUrl::serviceBanner);
+        // NO_CURL build: curl-dependent tests return Skipped
         case DiagId::G5SslCertificate:   return T2(G5WebsiteUrl::sslCertificate);
-        case DiagId::G5FtpDiagnostics:   return T2(G5WebsiteUrl::ftpDiagnostics);
-        case DiagId::G5SshDiagnostics:   return T2(G5WebsiteUrl::sshDiagnostics);
-        case DiagId::G5EmailDiagnostics: return T2(G5WebsiteUrl::emailDiagnostics);
-        case DiagId::G5Telnet:           return T2(G5WebsiteUrl::telnetDiagnostics);
-        case DiagId::G5Mysql:            return T2(G5WebsiteUrl::mysqlDiagnostics);
-        case DiagId::G5Postgres:         return T2(G5WebsiteUrl::postgresDiagnostics);
-        case DiagId::G5Redis:            return T2(G5WebsiteUrl::redisDiagnostics);
-        case DiagId::G5Mongodb:          return T2(G5WebsiteUrl::mongodbDiagnostics);
-        case DiagId::G5Ldap:             return T2(G5WebsiteUrl::ldapDiagnostics);
-        case DiagId::G5Mqtt:             return T2(G5WebsiteUrl::mqttDiagnostics);
-        // 鈹€鈹€ libcurl-only tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         case DiagId::G5CurlVerbose:      [[fallthrough]];
         case DiagId::G5HttpHeaders:      [[fallthrough]];
         case DiagId::G5SecurityHeaders:  [[fallthrough]];
