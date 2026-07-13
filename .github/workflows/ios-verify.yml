@@ -122,43 +122,40 @@ jobs:
           file "$BIN"
           echo ""
 
-          # Count total symbols
-          TOTAL_SYMS=$(nm -a "$BIN" 2>/dev/null | wc -l | tr -d ' ')
-          echo "Total symbols (nm -a): $TOTAL_SYMS"
+          # 5WHY: nm on final iOS binary may not show C++ function names
+          # because dSYM separates debug info.  Check dSYM first.
+          DSYM=""
+          if [ -d build/net_diagnostics.app.dSYM ]; then
+            DSYM="build/net_diagnostics.app.dSYM/Contents/Resources/DWARF/net_diagnostics"
+            echo "dSYM found: $DSYM"
+          elif [ -d build/net_diagnostics.dSYM ]; then
+            DSYM="build/net_diagnostics.dSYM/Contents/Resources/DWARF/net_diagnostics"
+            echo "dSYM found: $DSYM"
+          fi
 
-          # Search for iOS diagnostic functions
+          # Search in dSYM if available, otherwise in binary
+          SEARCH_BIN="${DSYM:-$BIN}"
+          echo "Searching in: $SEARCH_BIN"
+
+          # Count total symbols
+          TOTAL_SYMS=$(nm -a "$SEARCH_BIN" 2>/dev/null | wc -l | tr -d ' ')
+          echo "Total symbols: $TOTAL_SYMS"
+
+          # Direct symbol search
           echo ""
-          echo "=== Searching for iOS diagnostic symbols ==="
-          for pattern in "iosDefaultGateway" "iosDhcp" "iosRouting" "iosCellular" \
-                         "iosDnsResolve" "iosHttpDiagnostic" "iosInterface" \
-                         "iosGatewayFor" "iosCopyWiFi" "iosWiFiInfo" "iosCellularInfo" \
-                         "iosRequestWiFi"; do
-            count=$(nm -a "$BIN" 2>/dev/null | grep -c "$pattern" || true)
-            if [ "$count" -gt 0 ]; then
-              echo "  [OK] $pattern ($count occurrences)"
+          echo "=== Verifying iOS diagnostic symbols ==="
+          FAIL=0
+          for sym in "iosDefaultGatewayDiag" "iosDhcpDiag" "iosRoutingTableDiag" \
+                     "iosCellularDiag" "iosDnsResolve" "iosHttpDiagnostic" \
+                     "iosInterfaceIPv4" "iosGatewayForInterface" "iosCopyWiFiSSID" \
+                     "iosWiFiInfo" "iosCellularInfo" "iosRequestWiFiAuthorization"; do
+            if nm -a "$SEARCH_BIN" 2>/dev/null | grep -q "$sym"; then
+              echo "  [OK] $sym"
             else
-              echo "  [FAIL] $pattern — NOT FOUND"
+              echo "  [FAIL] $sym — MISSING"
               FAIL=1
             fi
           done
-
-          # Also search for G5 diagnostic symbols
-          echo ""
-          echo "=== Searching for G5 diagnostic symbols ==="
-          for sym in "iosHttpDiagnostic"; do
-            count=$(nm -a "$BIN" 2>/dev/null | grep -c "$sym" || true)
-            echo "  $sym: $count"
-          done
-
-          # If any FAIL, dump ALL ios-related symbols for debugging
-          if [ "${FAIL:-0}" -ne 0 ]; then
-            echo ""
-            echo "=== DEBUG: all symbols matching 'ios' ==="
-            nm -a "$BIN" 2>/dev/null | grep -i "ios" | head -30 || echo "  (none found)"
-            echo ""
-            echo "=== DEBUG: all symbols matching 'Diag' ==="
-            nm -a "$BIN" 2>/dev/null | grep -i "Diag" | head -20 || echo "  (none found)"
-          fi
 
           # All expected iOS diagnostic functions (from GatewayDhcpRouting.mm + DnsResolve.mm + HttpDiagnostics.mm)
           check_sym "iosDefaultGatewayDiag"
