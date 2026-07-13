@@ -46,7 +46,10 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 .arg(ifName, -18).arg(dhcp ? "Yes" : "No", -6)
                 .arg(ipStr.isEmpty() ? "-" : ipStr, -18)
                 .arg(serverStr.isEmpty() ? "-" : serverStr));
-            props.append({ifName, dhcp ? "Yes" : "No", ipStr, serverStr});
+            ResultProperty prop(ifName, ipStr.isEmpty() ? "(no IP)" : ipStr);
+            prop.children.append({"DHCP", dhcp ? "Yes" : "No"});
+            if (!serverStr.isEmpty()) prop.children.append({"Server", serverStr});
+            props.append(prop);
         }
         out.append(QString());
     }
@@ -58,7 +61,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("  iOS manages DHCP at the system level —"));
     out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
-    props.append({"iOS DHCP", "Yes", "-", "-"});
+    props.append({"iOS DHCP", "system-managed"});
 #else
     bool anyDhcp = false;
     // 1. systemd-networkd lease files (most detailed)
