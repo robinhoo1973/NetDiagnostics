@@ -594,13 +594,13 @@ QVariantMap iosWiFiInfo()
                 }
             }
 
+        }];
         } @catch (NSException* e) {
             dispatch_semaphore_signal(ctx->sem);
             if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
                 dispatch_release(ctx->sem);
             }
         }
-        }];
         long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
         // Only read result on success; on timeout the handler may still be writing it.
         if (waited != 0) {
