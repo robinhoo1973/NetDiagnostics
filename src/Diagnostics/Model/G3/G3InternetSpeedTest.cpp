@@ -154,7 +154,7 @@ inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
     int total = 0;
     for (auto it = m.cbegin(); it != m.cend(); ++it) total += it.value().size();
     QVector<Server> a; a.reserve(total);
-    for (auto& l : m) a.append(l);
+    for (auto it = m.cbegin(); it != m.cend(); ++it) a.append(it.value());
     return a;
 }
 // 5WHY: detectCountry() always returned "XX" (unknown) because:

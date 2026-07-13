@@ -156,10 +156,12 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #if defined(PLATFORM_IOS)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
-        // 5WHY: Wired after MVC refactoring — iosCellularDiag() wraps
-        // the existing iosCellularInfo() which was previously inaccessible.
+        // 5WHY: iosCellularDiag() produces simplified output (carrier/MCC/MNC only).
+        // G1G2G3Native::cellularInfo() runs the FULL SIM iteration with IP/gateway
+        // per interface, signal strength, and multi-SIM detail.  Route to the
+        // native function so iOS users see the same rich output as desktop builds.
         case DiagId::G1CellularInfo:
-            return T3([](DiagId id, const QString&) { return iosCellularDiag(id); });
+            return T1(G1G2G3Native::cellularInfo);
 #else
 #if defined(PLATFORM_ANDROID)
         case DiagId::G1DhcpStatus:
