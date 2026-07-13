@@ -189,6 +189,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #else
         case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
 #endif
+#endif  // 5WHY: closes #if defined(PLATFORM_IOS) at L182 — fix runaway #else blocking G2Routing-G5 on iOS
 #if defined(PLATFORM_IOS)
         case DiagId::G2RoutingTable:
             return T3([](DiagId id, const QString&) { return iosRoutingTableDiag(id); });
@@ -288,7 +289,6 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
                 return DiagnosticResult::skipped(id, QStringLiteral("HTTP test unavailable (libcurl required)"));
             });
 #endif
-#endif  // close converted #elif
 #endif  // close converted #elif
 #endif  // close converted #elif
         // 5WHY: default:break fell through to post-switch log+nullptr — misleading
