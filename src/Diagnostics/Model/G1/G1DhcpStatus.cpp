@@ -1,4 +1,5 @@
 ﻿#include "Diagnostics/Model/GBase.h"
+#include "Common/Model/ResultProperty.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace G1G2G3Native {
 DiagnosticResult dhcpStatus(DiagId id) {
@@ -7,10 +8,19 @@ DiagnosticResult dhcpStatus(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     QStringList dhcpSummary; // "eth0=192.168.1.100"
+    QVector<ResultProperty> props;
 
     out.append(QString());
     out.append(QStringLiteral("DHCP Client Status"));
     out.append(QString());
+
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QStringLiteral("Interface"), -18)
+        .arg(QStringLiteral("DHCP"), -6)
+        .arg(QStringLiteral("IP Address"), -18)
+        .arg(QStringLiteral("Server")));
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QString(18, '-')).arg(QString(6, '-')).arg(QString(18, '-')).arg(QString(18, '-')));
 
 #if defined(_WIN32)
     ULONG bufLen = 15000;
@@ -18,26 +28,37 @@ DiagnosticResult dhcpStatus(DiagId id) {
     PIP_ADAPTER_ADDRESSES adapters = (PIP_ADAPTER_ADDRESSES)buf.data();
     if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS, nullptr, adapters, &bufLen) == NO_ERROR) {
         for (auto* a = adapters; a; a = a->Next) {
+            QString ifName = QString::fromWCharArray(a->FriendlyName);
             bool dhcp = (a->Flags & IP_ADAPTER_DHCP_ENABLED) != 0;
-            out.append(QStringLiteral("   Adapter: %1").arg(QString::fromWCharArray(a->FriendlyName)));
-            out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : %1").arg(dhcp ? "Yes" : "No"));
+            QString ipStr, serverStr;
             if (a->Dhcpv4Server.iSockaddrLength > 0) {
                 char ip[64]; DWORD ipLen = sizeof(ip);
                 WSAAddressToStringA(a->Dhcpv4Server.lpSockaddr, a->Dhcpv4Server.iSockaddrLength, nullptr, ip, &ipLen);
-                out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(QString::fromLatin1(ip)));
+                serverStr = QString::fromLatin1(ip);
             }
             if (dhcp && a->FirstUnicastAddress) {
                 char ip[64]; DWORD ipLen = sizeof(ip);
                 WSAAddressToStringA(a->FirstUnicastAddress->Address.lpSockaddr, a->FirstUnicastAddress->Address.iSockaddrLength, nullptr, ip, &ipLen);
-                dhcpSummary.append(QStringLiteral("%1=%2").arg(QString::fromWCharArray(a->FriendlyName), QString::fromLatin1(ip)));
+                ipStr = QString::fromLatin1(ip);
+                dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ipStr));
             }
-            out.append(QString());
+            out.append(QStringLiteral("  %1  %2  %3  %4")
+                .arg(ifName, -18).arg(dhcp ? "Yes" : "No", -6)
+                .arg(ipStr.isEmpty() ? "-" : ipStr, -18)
+                .arg(serverStr.isEmpty() ? "-" : serverStr));
+            props.append({ifName, dhcp ? "Yes" : "No", ipStr, serverStr});
         }
+        out.append(QString());
     }
 #else
 #if defined(PLATFORM_IOS)
-    out.append(QStringLiteral("  [iOS] DHCP lease details: unavailable (restricted by Apple)"));
-    out.append(QStringLiteral("  DHCP is system-managed on iOS; lease files are not accessible."));
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg("(system-managed)", -18).arg("Yes", -6)
+        .arg("(not exposed)", -18).arg("(not exposed)"));
+    out.append(QString());
+    out.append(QStringLiteral("  iOS manages DHCP at the system level —"));
+    out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
+    props.append({"iOS DHCP", "Yes", "-", "-"});
 #else
     bool anyDhcp = false;
     // 1. systemd-networkd lease files (most detailed)
@@ -125,6 +146,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
+    r.properties = props;
     r.status = DiagStatus::Pass;
     r.summary = dhcpSummary.isEmpty() ? QStringLiteral("No DHCP leases found (static IP?)")
                  : QStringLiteral("DHCP: %1").arg(dhcpSummary.join(QStringLiteral(", ")));
