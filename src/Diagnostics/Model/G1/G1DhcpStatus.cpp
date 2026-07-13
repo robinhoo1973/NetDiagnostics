@@ -61,7 +61,8 @@ DiagnosticResult dhcpStatus(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("  iOS manages DHCP at the system level —"));
     out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
-    props.append({"iOS DHCP", "system-managed"});
+    ResultProperty iosProp("iOS DHCP", "system-managed");
+    props.append(iosProp);
 #else
     bool anyDhcp = false;
     // 1. systemd-networkd lease files (most detailed)
