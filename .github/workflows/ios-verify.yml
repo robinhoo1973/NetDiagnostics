@@ -133,11 +133,13 @@ jobs:
 
           check_sym() {
             local sym="$1"
-            # Use nm -g for global symbols, fallback to all symbols
-            if nm -g "$BIN" 2>/dev/null | grep -q "$sym"; then
+            # iOS final executables have all symbols as local (t), not global (T).
+            # nm -g finds nothing.  Use nm without -g, add --no-demangle for safety.
+            # Also search with the mangled prefix _Z (Itanium C++ ABI).
+            if nm --no-demangle "$BIN" 2>/dev/null | grep -q "$sym"; then
               echo "  [OK] $sym"
             elif nm "$BIN" 2>/dev/null | grep -q "$sym"; then
-              echo "  [OK] $sym (found in all symbols, not global)"
+              echo "  [OK] $sym (demangled)"
             else
               echo "  [FAIL] $sym — MISSING from binary!"
               FAIL=1
