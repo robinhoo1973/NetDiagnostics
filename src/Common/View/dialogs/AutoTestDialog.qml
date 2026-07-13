@@ -14,6 +14,12 @@ Dialog {
     standardButtons: Dialog.NoButton
     closePolicy: Popup.CloseOnEscape
 
+    // 5WHY: Dialog defaults to parent window coordinates, pushing it off-screen
+    // on narrow mobile viewports.  Anchor to the overlay so centering works
+    // regardless of parent stacking.
+    parent: Overlay.overlay
+    anchors.centerIn: parent
+
     // Pre-set test targets (globally accessible neutral servers)
     readonly property var presetTargets: ({
         "https":    "httpbin.org",
@@ -134,6 +140,14 @@ Dialog {
     // pushing the dialog off-centre and cutting off protocol checkboxes.
     // Use the dialog's available width minus padding for responsive layout.
     implicitWidth: Math.min(480, Math.max(300, root.availableWidth - 32))
+    // 5WHY: Qt Quick Dialogs inherit the system palette, which on macOS/iOS
+    // can produce a light background even in dark mode.  Force the dialog
+    // surface to match the app's dark theme so it blends correctly.
+    background: Rectangle {
+        color: ThemeEngine.colors.surface
+        radius: 8
+        border { width: 1; color: ThemeEngine.borderSubtle }
+    }
     ColumnLayout {
         spacing: 8
         width: parent.width
