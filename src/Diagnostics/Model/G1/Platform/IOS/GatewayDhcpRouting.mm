@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // IosNetworkInfo.mm �� iOS network info via public API workarounds
 //
 // Provides partial implementations for Diagnostics that Apple's sandbox blocks:
@@ -454,17 +454,26 @@ QString iosCopyWiFiSSID()
     ctx->refs.store(2, std::memory_order_relaxed);
 
     if (@available(iOS 14.0, *)) {
+        @try {
         [NEHotspotNetwork fetchCurrentWithCompletionhandler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
+                @try {
                 if (network && network.SSID.length > 0) {
                     ctx->ssid = QString::fromNSString(network.SSID);
                 }
+                } @catch (NSException* e) { }
                 dispatch_semaphore_signal(ctx->sem);
                 if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
                     dispatch_release(ctx->sem);
                 }
             }
         }];
+        } @catch (NSException* e) {
+            dispatch_semaphore_signal(ctx->sem);
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(ctx->sem);
+            }
+        }
         long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
         if (waited != 0) ctx->ssid.clear(); // timeout: handler may still be writing
     }
@@ -567,20 +576,30 @@ QVariantMap iosWiFiInfo()
     ctx->refs.store(2, std::memory_order_relaxed);  // waiter + handler
 
     if (@available(iOS 14.0, *)) {
+        @try {
         [NEHotspotNetwork fetchCurrentWithCompletionhandler:^(NEHotspotNetwork* _Nullable network) {
             @autoreleasepool {
+                @try {
                 if (network) {
                     if (network.SSID && network.SSID.length > 0)
                         ctx->ssid = QString::fromNSString(network.SSID);
                     if (network.BSSID && network.BSSID.length > 0)
                         ctx->bssid = QString::fromNSString(network.BSSID);
                 }
+                } @catch (NSException* e) { }
                 dispatch_semaphore_signal(ctx->sem);
                 // drop the handler's reference; last one out releases the semaphore.
                 if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
                     dispatch_release(ctx->sem);
                 }
             }
+
+        } @catch (NSException* e) {
+            dispatch_semaphore_signal(ctx->sem);
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(ctx->sem);
+            }
+        }
         }];
         long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
         // Only read result on success; on timeout the handler may still be writing it.
