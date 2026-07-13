@@ -6,9 +6,6 @@
 DiagnosticResult iosDefaultGatewayDiag(DiagId id);
 DiagnosticResult iosDhcpDiag(DiagId id);
 DiagnosticResult iosRoutingTableDiag(DiagId id);
-// 5WHY: Wired after MVC refactoring — iosCellularInfo() existed but had
-// no DiagnosticResult wrapper.  Now properly available to TaskFactory.
-DiagnosticResult iosCellularDiag(DiagId id);
 
 // Interface helpers used by the cellular / WiFi panels.
 // iosInterfaceIPv4: IPv4 assigned to an interface (e.g. "pdp_ip0", "en0"), or empty.

@@ -736,45 +736,8 @@ QVariantMap iosCellularInfo()
 
 // 5WHY: iosCellularInfo() existed and worked but was never wired to
 // TaskFactory after MVC refactoring.  G1CellularInfo was incorrectly
-// marked as unsupported (skipped).  This wrapper converts QVariantMap
-// → DiagnosticResult so TaskFactory can route to it on iOS.
-DiagnosticResult __attribute__((used)) iosCellularDiag(DiagId id) {
-    DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
-    r.timestamp = QDateTime::currentDateTime();
-    QVariantMap info = iosCellularInfo();
-    if (info.contains("error")) {
-        r.status = DiagStatus::Error;
-        r.summary = info["error"].toString();
-        return r;
-    }
-    QStringList lines;
-    lines.append(QString());
-    lines.append(QStringLiteral("Cellular Information (iOS):"));
-    lines.append(QString());
-    if (info.contains("carrierName"))
-        lines.append(QStringLiteral("  Carrier:     %1").arg(info["carrierName"].toString()));
-    if (info.contains("mcc"))
-        lines.append(QStringLiteral("  MCC:         %1").arg(info["mcc"].toString()));
-    if (info.contains("mnc"))
-        lines.append(QStringLiteral("  MNC:         %1").arg(info["mnc"].toString()));
-    if (info.contains("radioAccess"))
-        lines.append(QStringLiteral("  Radio:       %1").arg(info["radioAccess"].toString()));
-    if (info.contains("simCount"))
-        lines.append(QStringLiteral("  SIMs:        %1").arg(info["simCount"].toInt()));
-    if (info.contains("cellularStatus"))
-        lines.append(QStringLiteral("  Status:      %1").arg(info["cellularStatus"].toString()));
-    lines.append(QString());
-    if (info.contains("signalNotice"))
-        lines.append(info["signalNotice"].toString());
-    if (!info.contains("carrierName") && !info.contains("radioAccess"))
-        r.status = DiagStatus::Info;
-    else
-        r.status = DiagStatus::Pass;
-    r.summary = info.contains("carrierName") ? info["carrierName"].toString()
-               : QStringLiteral("No cellular service");
-    r.rawOutput = lines.join('\n');
-    r.details = r.rawOutput;
-    return r;
-}
+// 5WHY: iosCellularDiag() REMOVED — G1G2G3Native::cellularInfo()
+// provides richer output with SIM iteration, IP/gateway per interface,
+// and signal strength.  TaskFactory now routes directly to it.
 
 #endif // PLATFORM_IOS
