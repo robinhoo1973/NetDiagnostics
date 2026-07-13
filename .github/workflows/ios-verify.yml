@@ -102,10 +102,24 @@ jobs:
         run: ninja -v -C build net_diagnostics
 
       # ── Verify iOS diagnostic symbols are present in the binary ──────
+      # 5WHY: iOS Ninja builds produce an .app bundle.  The binary is at
+      # build/net_diagnostics.app/net_diagnostics, not build/net_diagnostics.
       - name: Verify iOS diagnostic symbols
         run: |
           set -euo pipefail
-          BIN=build/net_diagnostics
+          # Find the actual binary (inside .app bundle or standalone)
+          if [ -f build/net_diagnostics.app/net_diagnostics ]; then
+            BIN=build/net_diagnostics.app/net_diagnostics
+          elif [ -f build/net_diagnostics ]; then
+            BIN=build/net_diagnostics
+          else
+            echo "ERROR: Cannot find iOS binary"
+            find build -name "net_diagnostics*" -type f 2>/dev/null || true
+            exit 1
+          fi
+          echo "Binary: $BIN"
+          echo "Binary size: $(ls -lh "$BIN" | awk '{print $5}')"
+          file "$BIN"
           FAIL=0
 
           echo "=== Verifying iOS diagnostic symbols ==="
@@ -149,7 +163,13 @@ jobs:
       - name: Verify G5 socket-test symbols
         run: |
           set -euo pipefail
-          BIN=build/net_diagnostics
+          if [ -f build/net_diagnostics.app/net_diagnostics ]; then
+            BIN=build/net_diagnostics.app/net_diagnostics
+          elif [ -f build/net_diagnostics ]; then
+            BIN=build/net_diagnostics
+          else
+            echo "ERROR: Cannot find iOS binary"; exit 1
+          fi
           FAIL=0
 
           echo "=== Verifying G5 socket-level diagnostic symbols ==="
