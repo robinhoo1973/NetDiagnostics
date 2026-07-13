@@ -1,6 +1,0 @@
-{
-  "simulatedPlatform": "macos",
-  "skipRules": [
-    { "diagId": "G1CellularInfo", "reason": "No cellular modem on macOS desktop" }
-  ]
-}

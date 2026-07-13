@@ -1,7 +1,0 @@
-{
-  "simulatedPlatform": "android",
-  "skipRules": [
-    { "diagId": "G2TcpSettings", "reason": "TCP settings require root on Android" },
-    { "diagId": "G2ArpTable",    "reason": "ARP table requires root on Android" }
-  ]
-}

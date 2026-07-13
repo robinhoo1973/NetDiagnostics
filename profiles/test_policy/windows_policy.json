@@ -1,7 +1,0 @@
-{
-  "simulatedPlatform": "windows",
-  "skipRules": [
-    { "diagId": "G1CellularInfo",    "reason": "No cellular modem on Windows desktop" },
-    { "diagId": "G1WifiDiagnostics", "reason": "WiFi diagnostics require WLAN API; not available in simulator" }
-  ]
-}
