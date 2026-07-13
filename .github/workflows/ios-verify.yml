@@ -194,8 +194,12 @@ jobs:
           echo "  G1-G5 case labels: $CASE_COUNT"
 
           # Count preprocessor balance
-          IF_COUNT=$(grep -c '^#if\|^#ifdef\|^#ifndef' src/Diagnostics/Controller/TaskFactory.cpp || true)
-          ENDIF_COUNT=$(grep -c '^#endif' src/Diagnostics/Controller/TaskFactory.cpp || true)
+          # 5WHY: BSD grep (macOS default) does not support \| alternation
+          # in BRE mode.  The original pattern '^#if\|^#ifdef\|^#ifndef'
+          # matched NOTHING on macOS runners (IF_COUNT=0, ENDIF_COUNT=17)
+          # → false "imbalance" failure.  Use grep -E (ERE) with | instead.
+          IF_COUNT=$(grep -Ec '^#[[:space:]]*(if|ifdef|ifndef)\b' src/Diagnostics/Controller/TaskFactory.cpp || echo 0)
+          ENDIF_COUNT=$(grep -Ec '^#[[:space:]]*endif' src/Diagnostics/Controller/TaskFactory.cpp || echo 0)
           echo "  Preprocessor: $IF_COUNT #if, $ENDIF_COUNT #endif"
 
           if [ "$IF_COUNT" != "$ENDIF_COUNT" ]; then
