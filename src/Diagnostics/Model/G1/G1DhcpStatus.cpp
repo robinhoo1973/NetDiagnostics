@@ -47,8 +47,14 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 .arg(ipStr.isEmpty() ? "-" : ipStr, -18)
                 .arg(serverStr.isEmpty() ? "-" : serverStr));
             ResultProperty prop(ifName, ipStr.isEmpty() ? "(no IP)" : ipStr);
-            prop.children.append({"DHCP", dhcp ? "Yes" : "No"});
-            if (!serverStr.isEmpty()) prop.children.append({"Server", serverStr});
+            {
+                ResultProperty dhcpChild("DHCP", dhcp ? "Yes" : "No");
+                prop.children.append(dhcpChild);
+            }
+            if (!serverStr.isEmpty()) {
+                ResultProperty srvChild("Server", serverStr);
+                prop.children.append(srvChild);
+            }
             props.append(prop);
         }
         out.append(QString());
