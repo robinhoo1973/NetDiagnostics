@@ -120,14 +120,24 @@ jobs:
           echo "Binary: $BIN"
           echo "Binary size: $(ls -lh "$BIN" | awk '{print $5}')"
           file "$BIN"
+          echo ""
+          echo "=== nm sample (first 20 symbols) ==="
+          nm "$BIN" 2>/dev/null | head -20 || echo "  (nm produced no output)"
+          echo ""
+          echo "=== nm -g sample (global symbols) ==="
+          nm -g "$BIN" 2>/dev/null | grep -i "ios\|diag\|dhcp\|gateway\|dns\|http\|cellular\|wifi" | head -20 || echo "  (no ios-related global symbols found)"
+          echo ""
           FAIL=0
 
           echo "=== Verifying iOS diagnostic symbols ==="
 
           check_sym() {
             local sym="$1"
-            if nm "$BIN" 2>/dev/null | grep -q "$sym"; then
+            # Use nm -g for global symbols, fallback to all symbols
+            if nm -g "$BIN" 2>/dev/null | grep -q "$sym"; then
               echo "  [OK] $sym"
+            elif nm "$BIN" 2>/dev/null | grep -q "$sym"; then
+              echo "  [OK] $sym (found in all symbols, not global)"
             else
               echo "  [FAIL] $sym — MISSING from binary!"
               FAIL=1
