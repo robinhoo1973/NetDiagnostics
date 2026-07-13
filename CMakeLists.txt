@@ -105,14 +105,17 @@ endif()
 if(IOS)
     list(APPEND SOURCES
         src/Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.mm
-        src/Diagnostics/Model/G3/Platform/IOS/DnsResolve.mm src/Diagnostics/Model/G5/Platform/IOS/HttpDiagnostics.mm
-        src/Common/Platform/Apple/IOS/PlatformShare.mm src/Common/Platform/Apple/IOS/PlatformStore.mm
+        src/Diagnostics/Model/G3/Platform/IOS/DnsResolve.mm
+        src/Diagnostics/Model/G5/Platform/IOS/HttpDiagnostics.mm
+        src/Common/Platform/Apple/IOS/PlatformShare.mm
+        src/Common/Platform/Apple/IOS/PlatformStore.mm
         src/Common/Platform/Apple/IOS/PlatformPdfRenderer.mm
 	)
 endif()
 if(ANDROID)
     list(APPEND SOURCES
-        src/Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.cpp src/Common/Platform/Android/PlatformShare.cpp
+        src/Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.cpp
+        src/Common/Platform/Android/PlatformShare.cpp
         src/Common/Platform/Android/PlatformPdfRenderer.cpp
 	)
 endif()
