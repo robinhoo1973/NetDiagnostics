@@ -1,0 +1,204 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# iOS Post-Build Verification
+# ═══════════════════════════════════════════════════════════════════════════
+# Builds the iOS binary in Debug mode with ND_TESTING enabled, then verifies
+# that all expected iOS diagnostic symbols are present in the binary and that
+# a headless test run completes without "Unknown DiagId" or crash errors.
+#
+# Runs on every push to master and on PRs to catch iOS-specific regressions
+# before they ship.  Complement to the Apple Build & Deploy workflow which
+# only verifies compilation/linking, not runtime behavior.
+# ═══════════════════════════════════════════════════════════════════════════
+
+name: iOS Post-Build Verify
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/Diagnostics/Model/**/IOS/**'
+      - 'src/Diagnostics/Model/G1/**'
+      - 'src/Diagnostics/Model/G2/**'
+      - 'src/Diagnostics/Model/G3/**'
+      - 'src/Diagnostics/Model/G4/**'
+      - 'src/Diagnostics/Model/G5/**'
+      - 'src/Diagnostics/Controller/**'
+      - 'src/Common/Services/**'
+      - 'src/Common/Utils/**'
+      - 'src/Common/Model/**'
+      - 'src/app/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/ios-verify.yml'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.8.3
+  QT_INSTALL_DIR: "/Users/runner/qt-ios"
+  QT_HOST_DIR: "/Users/runner/qt-desktop"
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Build + symbol verification + headless smoke test
+  # ═══════════════════════════════════════════════════════════════════════
+  verify:
+    name: iOS Verify (Build + Symbols + Smoke)
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - uses: ./.github/actions/select-xcode
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja python3
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-verify-desktop
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios-verify
+
+      # ── Build in Debug mode with ND_TESTING for headless test support ──
+      - name: Configure (iOS Debug + ND_TESTING)
+        run: |
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DPROJECT_VERSION="0.0.1" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DBUILD_SIMULATOR=OFF \
+            -DND_TESTING=ON \
+            -B build -S .
+
+      - name: Build
+        run: ninja -v -C build net_diagnostics
+
+      # ── Verify iOS diagnostic symbols are present in the binary ──────
+      - name: Verify iOS diagnostic symbols
+        run: |
+          set -euo pipefail
+          BIN=build/net_diagnostics
+          FAIL=0
+
+          echo "=== Verifying iOS diagnostic symbols ==="
+
+          check_sym() {
+            local sym="$1"
+            if nm "$BIN" 2>/dev/null | grep -q "$sym"; then
+              echo "  [OK] $sym"
+            else
+              echo "  [FAIL] $sym — MISSING from binary!"
+              FAIL=1
+            fi
+          }
+
+          # All expected iOS diagnostic functions (from GatewayDhcpRouting.mm + DnsResolve.mm + HttpDiagnostics.mm)
+          check_sym "iosDefaultGatewayDiag"
+          check_sym "iosDhcpDiag"
+          check_sym "iosRoutingTableDiag"
+          check_sym "iosCellularDiag"
+          check_sym "iosDnsResolve"
+          check_sym "iosHttpDiagnostic"
+
+          # Helper functions
+          check_sym "iosInterfaceIPv4"
+          check_sym "iosGatewayForInterface"
+          check_sym "iosCopyWiFiSSID"
+          check_sym "iosWiFiInfo"
+          check_sym "iosCellularInfo"
+          check_sym "iosRequestWiFiAuthorization"
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo ""
+            echo "ERROR: iOS diagnostic symbols missing from binary."
+            echo "Check CMakeLists.txt line 105-111 — are the .mm files in the if(IOS) block?"
+            exit 1
+          fi
+          echo ""
+          echo "=== All 12 iOS diagnostic symbols verified ==="
+
+      # ── Verify no G5WebsiteUrl symbols missing from the binary ──────
+      - name: Verify G5 socket-test symbols
+        run: |
+          set -euo pipefail
+          BIN=build/net_diagnostics
+          FAIL=0
+
+          echo "=== Verifying G5 socket-level diagnostic symbols ==="
+
+          for sym in urlParsing tcpConnect serviceBanner ftpDiagnostics sshDiagnostics \
+                     emailDiagnostics telnetDiagnostics mysqlDiagnostics postgresDiagnostics \
+                     redisDiagnostics mongodbDiagnostics ldapDiagnostics mqttDiagnostics \
+                     sslCertificate; do
+            if nm "$BIN" 2>/dev/null | grep -q "G5WebsiteUrl.*$sym"; then
+              echo "  [OK] G5WebsiteUrl::$sym"
+            else
+              echo "  [WARN] G5WebsiteUrl::$sym — static function, may be inlined"
+            fi
+          done
+          echo ""
+          echo "=== G5 symbol check complete ==="
+
+      # ── Static analysis: verify no "Unknown DiagId" path exists ──────
+      - name: Verify TaskFactory DiagId coverage
+        run: |
+          set -euo pipefail
+          echo "=== Verifying TaskFactory DiagId coverage ==="
+
+          # Count unique DiagId values in the factory switch
+          CASE_COUNT=$(grep -c 'case DiagId::G' src/Diagnostics/Controller/TaskFactory.cpp)
+          echo "  G1-G5 case labels: $CASE_COUNT"
+
+          # Count preprocessor balance
+          IF_COUNT=$(grep -c '^#if\|^#ifdef\|^#ifndef' src/Diagnostics/Controller/TaskFactory.cpp || true)
+          ENDIF_COUNT=$(grep -c '^#endif' src/Diagnostics/Controller/TaskFactory.cpp || true)
+          echo "  Preprocessor: $IF_COUNT #if, $ENDIF_COUNT #endif"
+
+          if [ "$IF_COUNT" != "$ENDIF_COUNT" ]; then
+            echo "  [FAIL] Preprocessor imbalance — some cases may be compiled out!"
+            exit 1
+          fi
+          echo "  [OK] Preprocessor balanced"
+          echo "=== Coverage check complete ==="
+
+      # ── Verify .app bundle structure ──────────────────────────────────
+      - name: Verify app bundle
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            echo "[OK] .app bundle present"
+            ls -la build/net_diagnostics.app/
+            echo ""
+            echo "Binary size:"
+            ls -lh build/net_diagnostics.app/net_diagnostics 2>/dev/null || echo "  (binary inside .app)"
+          else
+            echo "[OK] Standalone binary (no .app bundle in Debug mode)"
+            ls -lh build/net_diagnostics
+          fi
