@@ -82,7 +82,16 @@ DiagnosticResult networkProfile(DiagId id) {
         out.append(QStringLiteral("  IP Forwarding: Unknown"));
 #endif // !PLATFORM_IOS
 #if defined(PLATFORM_IOS)
-    out.append(QStringLiteral("  [iOS] IP forwarding: unavailable (restricted by Apple)"));
+    out.append(QStringLiteral("  IP Forwarding: managed by the system (not configurable)"));
+    out.append(QString());
+    // 5WHY: iOS NetworkProfile was nearly empty.  Enrich with WiFi
+    // and interface details already available via public iOS APIs.
+    QVariantMap wifi = iosWiFiInfo();
+    if (!wifi.isEmpty() && !wifi.value("ssid").toString().isEmpty())
+        out.append(QStringLiteral("  Active WiFi: %1 (BSSID: %2)")
+            .arg(wifi.value("ssid").toString(), wifi.value("bssid").toString()));
+    else
+        out.append(QStringLiteral("  Active WiFi: not connected"));
 #endif
 #endif // _WIN32
 #endif  // close converted #elif
