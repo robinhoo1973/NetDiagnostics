@@ -74,7 +74,7 @@ static QString platformSkipReason(DiagId id) {
         // (commit bd73d78) these ran via native G1G2G3Native functions which
         // return empty PASS on iOS — harmless, not crashes.  platformSkipReason()
         // did not exist pre-MVC.  Only skip tests that would crash/error on iOS.
-        // 5WHY: G1CellularInfo is NOW wired to iosCellularDiag() — no longer skipped.
+        // 5WHY: G1CellularInfo routed to G1G2G3Native::cellularInfo() — no longer skipped.
         default:
             return QString();
     }
