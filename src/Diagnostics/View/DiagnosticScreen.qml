@@ -247,15 +247,22 @@ Item {
             color: ThemeEngine.colors.card
             border { width: 1.5; color: ThemeEngine.colors.borderFocused }
 
-            // 5WHY: Unicode "×" renders as tofu (□□) on some font/platform
-            // combinations.  Same 5WHY fix as main.qml — use AppIcon SVG.
+            // 5WHY: Close button was invisible at rest — subtle borderCard background
+            // + textPrimary icon blended into the card surface, forcing users to
+            // hover to discover the dismiss affordance.  Modal overlays need an
+            // OBVIOUS, always-visible close button.
+            // Now: matches ReportScreen.qml's proven pattern — failRed icon at rest
+            // for high contrast against any theme (dark/light), with intensified
+            // red background on hover.  No hover required to see the button.
             Rectangle {
                 anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 8 }
-                width: 44; height: 44; radius: 22; color: closeBtnArea.containsMouse ? ThemeEngine.colors.borderCard : "transparent"
+                width: 44; height: 44; radius: 22
+                color: closeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.30) : Qt.alpha(ThemeEngine.failRed, 0.12)
+                border { width: 1; color: closeBtnArea.containsMouse ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.failRed, 0.35) }
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 18
-                    color: closeBtnArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textSecondary
+                    color: closeBtnArea.containsMouse ? Qt.lighter(ThemeEngine.failRed, 1.3) : ThemeEngine.failRed
                 }
                 MouseArea {
                     id: closeBtnArea
