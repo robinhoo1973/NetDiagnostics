@@ -491,7 +491,7 @@ QString iosCopyWiFiSSID()
                 dispatch_release(ctx->sem);
             }
         }
-        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));  // 2s→5s (same as iosWiFiInfo)
         if (waited != 0) ctx->ssid.clear(); // timeout: handler may still be writing
     }
 
@@ -618,8 +618,11 @@ QVariantMap iosWiFiInfo()
                 dispatch_release(ctx->sem);
             }
         }
-        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC));
-        // Only read result on success; on timeout the handler may still be writing it.
+        // 5WHY: 2s semaphore timeout was too short — on iOS 18+, the
+        // NEHotspotNetwork callback can take 2-4s due to system privacy
+        // checks.  Increased to 5s to avoid false timeouts that would
+        // clear valid SSID/BSSID results.
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
         if (waited != 0) {
             ctx->ssid.clear();
             ctx->bssid.clear();
