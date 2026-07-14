@@ -519,7 +519,7 @@ DiagnosticResult speedTest(DiagId id) {
 
         QElapsedTimer ulTimer; ulTimer.start();
         // Send POST headers (EAGAIN-safe: select() for writability on stall).
-        // 5WHY: No wall-clock guard on this loop 鈥?a persistently stalled
+        // 5WHY: No wall-clock guard on this loop -- a persistently stalled
         // server (TCP window exhausted, never reads) caused an infinite loop
         // because ulTotalMs is only updated AFTER socket close. Fixed with
         // a 10-second send guard matching the body chunk send loop.
@@ -564,7 +564,7 @@ DiagnosticResult speedTest(DiagId id) {
             sent += n;
         }
         } // headerComplete
-        // Read response 鈥?only meaningful if headers were fully sent.
+        // Read response -- only meaningful if headers were fully sent.
         // 5WHY: If header send timed out (headerComplete=false), the server
         // received a truncated HTTP request. Skip response read and mark
         // the entire upload tier as failed.
@@ -600,7 +600,7 @@ DiagnosticResult speedTest(DiagId id) {
             // the bytes were already sent and timed.
         }
         // selRet<=0 (select timeout) 鈫?keep uploadOk=true; response is optional.
-        } // headerComplete 鈥?skip response read if headers weren't fully sent
+        } // headerComplete -- skip response read if headers weren't fully sent
         int ulMs = static_cast<int>(ulTimer.elapsed());
         closeSocket(sock);
 
