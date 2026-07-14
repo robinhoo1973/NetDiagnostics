@@ -80,7 +80,7 @@ Item {
     function loadPage() {
         if (!pdfDoc || !pdfDoc.loaded) return
         // Render at higher resolution when zoomed in for sharpness
-        var renderWidth = Math.round(flick.width * Math.max(1.0, root.zoomLevel))
+        var baseW = Math.max(flick.width, 200); var renderWidth = Math.round(baseW * Math.max(1.0, root.zoomLevel))
         renderWidth = Math.min(renderWidth, 4000) // cap at 4000px to limit memory
         var uri = pdfDoc.renderPageDataUri(root.currentPage, renderWidth)
         if (uri) pageImage.source = uri
