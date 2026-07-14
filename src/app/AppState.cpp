@@ -1150,9 +1150,10 @@ QString AppState::renderPreviewImage(const QString& html, int width) const {
     return QStringLiteral("data:image/png;base64,") + QString::fromLatin1(pngData.toBase64());
 }
 
-// Full standalone HTML document with a modern dark theme (styled after the
-// PowerShell NetDiagnostic report). Rendered by a real browser / mail client —
-// NOT by the in-app QML preview, which uses the Qt-subset buildReportHtml().
+// Full standalone HTML document with modern dark-theme CSS. Used by:
+// - In-app QML preview (via exportHtml() → HtmlPreviewWebView)
+// - External browser / mail client (exportHtml → open/shared externally)
+// The Qt-subset buildReportHtml() is used only for PDF export + image fallback.
 QString AppState::buildRichHtmlDocument(bool darkBackground) const {
     return ReportEngine::buildRichDocument(buildReportData(), darkBackground);
 }

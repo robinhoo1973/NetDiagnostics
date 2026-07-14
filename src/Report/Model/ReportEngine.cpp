@@ -463,14 +463,16 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--border-card-error:#FECACA}");
     // 5WHY: html/body width constraints + overflow-wrap were only in
     // QML's injectViewportCss(). Moving them into the generated CSS
-    // eliminates ~15 lines of QML string-surgery and keeps all report
-    // styling in one authoritative location.
+    // keeps all report styling in one authoritative location.
+    // NOTE: table{display:block} was NOT ported — it breaks the table
+    // formatting model (border-collapse, th/td column alignment are
+    // undefined on block elements). Rely on .wrap {max-width:960px}
+    // to constrain table width instead.
     const QString kCss = cssThemeBlock
         + QStringLiteral(
         "*{margin:0;padding:0;box-sizing:border-box}"
         "html,body{max-width:100%;overflow-x:auto;overflow-wrap:break-word;word-wrap:break-word}"
-        "img,svg,table,pre,code{max-width:100%;height:auto}"
-        "table{display:block;overflow-x:auto}"
+        "img,svg,pre,code{max-width:100%;height:auto}"
         "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:24px}"
         ".wrap{max-width:960px;margin:0 auto}"
         ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#1E293B,#0C4A6E);border-radius:14px;margin-bottom:26px}"
