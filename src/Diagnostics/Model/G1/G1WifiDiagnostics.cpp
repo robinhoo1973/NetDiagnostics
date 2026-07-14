@@ -181,8 +181,16 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
         out.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
         if (iosWifiSsidCaptured.isEmpty()) {
             out.append(QString());
-            out.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
-            out.append(QStringLiteral("        Location permission, and an active WiFi connection."));
+            // 5WHY: Generic note listed 3 possible causes — user couldn't tell
+            // which one applied. Now shows the specific diagnostic from
+            // iosWiFiInfo() which checks [CLLocationManager authorizationStatus].
+            QString wifiDiag = wifiData.value("wifiDiagnostics", "").toString();
+            if (!wifiDiag.isEmpty()) {
+                out.append(QStringLiteral("  %1").arg(wifiDiag));
+            } else {
+                out.append(QStringLiteral("  Note: SSID/BSSID need the \"Access WiFi Information\" entitlement,"));
+                out.append(QStringLiteral("        Location permission, and an active WiFi connection."));
+            }
         }
     }
 #endif
