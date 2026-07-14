@@ -78,10 +78,26 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
 #define STARTUP_LOG(fmt, ...) startup_log(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define STARTUP_SEPARATOR()  startup_log(nullptr, 0, "══════════════════════════════════════════")
 
+// 5WHY: The startup log is only useful for diagnosing launch crashes.
+// Once the app starts successfully (QML loaded + window shown), the log
+// from the previous run is stale.  Delete it so stale crash-debug logs
+// don't accumulate across successful launches.
+static inline void startup_log_cleanup() {
+#if defined(PLATFORM_IOS)
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
+    QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+#endif
+    QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
+    QFile::remove(path);
+}
+#define STARTUP_CLEANUP() startup_log_cleanup()
+
 #else  // neither ND_DEBUG nor ND_TESTING nor iOS — compile to nothing
 
 #define STARTUP_LOG(fmt, ...) ((void)0)
 #define STARTUP_SEPARATOR()  ((void)0)
+#define STARTUP_CLEANUP()    ((void)0)
 
 #endif
 
