@@ -60,7 +60,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
             props.append(prop);
         }
         if (!dhcpRows.isEmpty())
-            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+            out << DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows);
         out.append(QString());
     }
 #elif defined(PLATFORM_IOS)
@@ -117,7 +117,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
             }
         }
         if (!dhcpRows.isEmpty())
-            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+            out << DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows);
         out.append(QString());
     }
     // 5WHY: systemd block appended to shared dhcpRows. Clear so the
@@ -160,7 +160,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
             }
         }
         if (!dhcpRows.isEmpty())
-            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+            out << DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows);
         out.append(QString());
     }
     // 5WHY: clear after dhclient block so /proc/net/route fallback (block 3)
@@ -181,7 +181,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
             }
         }
         if (!dhcpRows.isEmpty())
-            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+            out << DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows);
         out.append(QString());
     }
 

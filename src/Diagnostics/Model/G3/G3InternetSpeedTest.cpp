@@ -580,12 +580,21 @@ DiagnosticResult speedTest(DiagId id) {
                 buf[n] = '\0';
                 QByteArray rsp(buf, (int)n);
                 // If response looks like HTTP, validate status line.
+                // 5WHY: required exactly " 200 " — many speed-test servers
+                // return 201 Created or 204 No Content for POST /upload.
+                // Accept any 2xx status (success) instead of only 200.
                 if (rsp.startsWith("HTTP/")) {
                     int slEnd = rsp.indexOf('\r');
                     QByteArray sl = (slEnd > 0) ? rsp.left(slEnd) : rsp.left(24);
-                    if (!sl.contains(" 200 ")) uploadOk = false;
+                    int sp1 = sl.indexOf(' ');
+                    if (sp1 > 0) {
+                        int sp2 = sl.indexOf(' ', sp1 + 1);
+                        QByteArray code = (sp2 > 0) ? sl.mid(sp1 + 1, sp2 - sp1 - 1) : sl.mid(sp1 + 1);
+                        bool is2xx = code.startsWith("2");
+                        if (!is2xx) uploadOk = false;
+                    }
                 }
-                // Non-HTTP response 鈫?assume OK (server-specific protocol)
+                // Non-HTTP response -- assume OK (server-specific protocol)
             }
             // n==0 (orderly close) or n<0 (recv error) 鈫?keep uploadOk=true;
             // the bytes were already sent and timed.
