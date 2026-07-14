@@ -1,8 +1,5 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
-#include <cstdlib>
-#include <ctime>
 #include <algorithm>
-#include <atomic>
 #include <random>
 #include <QMutex>
 #include <QMutexLocker>
