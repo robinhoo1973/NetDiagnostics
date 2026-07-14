@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Common/Model/ResultProperty.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace G1G2G3Native {
@@ -78,27 +78,24 @@ DiagnosticResult dhcpStatus(DiagId id) {
             QFile f(fi.absoluteFilePath());
             if (f.open(QIODevice::ReadOnly)) {
                 QString ifName = fi.fileName();
-                out.append(QStringLiteral("   Interface: %1").arg(ifName));
-                out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : Yes"));
+                QString ipStr, serverStr;
                 anyDhcp = true;
                 QTextStream ts(&f);
                 while (!ts.atEnd()) {
                     QString line = ts.readLine().trimmed();
                     if (line.startsWith("ADDRESS="))
-                        { QString ip = line.mid(8); out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1 (Preferred)").arg(ip)); if (!dhcpSummary.contains(ifName + "=" + ip)) dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ip)); }
-                    else if (line.startsWith("NETMASK="))
-                        out.append(QStringLiteral("   Subnet Mask . . . . . . . . . . . : %1").arg(line.mid(8)));
-                    else if (line.startsWith("ROUTER="))
-                        out.append(QStringLiteral("   DHCP Server / Gateway . . . . . . : %1").arg(line.mid(7)));
+                        { ipStr = line.mid(8); dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ipStr)); }
                     else if (line.startsWith("SERVER_ADDRESS="))
-                        out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(line.mid(15)));
-                    else if (line.startsWith("DNS="))
-                        out.append(QStringLiteral("   DNS Servers . . . . . . . . . . . : %1").arg(line.mid(4)));
-                    else if (line.startsWith("LEASE_TIME=")) {
-                        int secs = line.mid(11).toInt();
-                        out.append(QStringLiteral("   Lease Duration . . . . . . . . . : %1").arg(secs >= 3600 ? QStringLiteral("%1 hours").arg(secs / 3600) : QStringLiteral("%1 seconds").arg(secs)));
-                    }
+                        serverStr = line.mid(15);
                 }
+                out.append(QStringLiteral("  %1  %2  %3  %4")
+                    .arg(ifName, -18).arg("Yes", -6)
+                    .arg(ipStr.isEmpty() ? "-" : ipStr, -18)
+                    .arg(serverStr.isEmpty() ? "-" : serverStr));
+                ResultProperty leaseProp(ifName, ipStr.isEmpty() ? "(no IP)" : ipStr);
+                leaseProp.children.append(ResultProperty("DHCP", "Yes"));
+                if (!serverStr.isEmpty()) leaseProp.children.append(ResultProperty("Server", serverStr));
+                props.append(leaseProp);
                 out.append(QString());
             }
         }
@@ -123,7 +120,9 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 }
                 if (!currentIface.isEmpty() && !currentIp.isEmpty()) {
                     anyDhcp = true;
-                    out.append(QStringLiteral("   IPv4 Address. . . . . . . . . . . : %1 (Preferred)").arg(currentIp));
+                    out.append(QStringLiteral("  %1  %2  %3  %4")
+                        .arg(currentIface, -18).arg("Yes", -6)
+                        .arg(currentIp, -18).arg("-"));
                     if (!dhcpSummary.contains(QStringLiteral("%1=%2").arg(currentIface, currentIp)))
                         dhcpSummary.append(QStringLiteral("%1=%2").arg(currentIface, currentIp));
                 }
@@ -140,9 +139,10 @@ DiagnosticResult dhcpStatus(DiagId id) {
             while (!ts.atEnd()) {
                 QStringList cols = ts.readLine().trimmed().split('\t');
                 if (cols.size() >= 11 && cols[2].toUInt(nullptr, 16) != 0) {
-                    out.append(QStringLiteral("   Interface: %1 (via DHCP — inferred from default route)").arg(cols[0]));
-                    out.append(QStringLiteral("   Default Gateway . . . . . . . . . : %1").arg(ipToStr(cols[2].toUInt(nullptr, 16))));
-                    out.append(QStringLiteral("   DHCP Enabled. . . . . . . . . . . : Likely Yes"));
+                    QString gw = ipToStr(cols[2].toUInt(nullptr, 16));
+                    out.append(QStringLiteral("  %1  %2  %3  %4")
+                        .arg(cols[0], -18).arg("Likely", -6)
+                        .arg("-", -18).arg(gw));
                     out.append(QString());
                 }
             }
