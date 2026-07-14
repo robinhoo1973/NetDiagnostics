@@ -485,6 +485,18 @@ DiagnosticResult speedTest(DiagId id) {
     // 5WHY: Timeouts were too aggressive for slow/congested networks.
     // Removed all upload timeouts — let the server respond at its own pace.
     // The outer diagnostic task has a 180s watchdog to prevent hanging.
+    out.append(QString());
+    out.append(QStringLiteral("--- Upload Test --------------------------------------------------"));
+    out.append(QString());
+    out.append(QStringLiteral("  %1  %2  %3")
+        .arg(QStringLiteral("Size").rightJustified(10, ' '))
+        .arg(QStringLiteral("Throughput").rightJustified(16, ' '))
+        .arg(QStringLiteral("Time").rightJustified(8, ' ')));
+    out.append(QStringLiteral("  %1  %2  %3")
+        .arg(QString(10, QChar('-')))
+        .arg(QString(16, QChar('-')))
+        .arg(QString(8, QChar('-'))));
+
     for (int sizeKb : ulSizes) {
         int dataSize = sizeKb * 1000;
 
@@ -528,10 +540,13 @@ DiagnosticResult speedTest(DiagId id) {
 
         QElapsedTimer ulTimer; ulTimer.start();
         // Send POST headers (EAGAIN-safe: select() for writability on stall).
-        // 5WHY: No wall-clock guard — removed per user request. The outer
-        // diagnostic task watchdog (180s) provides the safety net.
+        // 5WHY: The 180s diagnostic task watchdog fires AFTER the function
+        // returns, which doesn't help an infinite retry loop here.  30s is
+        // generous for a few KB of headers on any realistic connection.
         int hdrSent = 0;
+        QElapsedTimer hdrSendGuard; hdrSendGuard.start();
         while (hdrSent < postHeaders.size()) {
+            if (hdrSendGuard.elapsed() > 30000) break;
             auto n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
             if (n < 0) {
 #if defined(_WIN32)
