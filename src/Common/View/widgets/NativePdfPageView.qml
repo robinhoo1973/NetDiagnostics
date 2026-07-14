@@ -16,6 +16,7 @@ Item {
     property string pdfSource: ""      // file:// path to PDF
     property int currentPage: 0
     property real zoomLevel: 1.0
+    property string _loadError: ""     // non-empty when PDF failed to load
 
     // ── Native PDF document (C++ backend) ──────────────────────────────
     property var pdfDoc: null
@@ -26,7 +27,13 @@ Item {
                 'import NetDiagnostics 1.0; NativePdfDocument {}', root)
             if (pdfDoc) {
                 pdfDoc.loadedChanged.connect(function() {
-                    if (pdfDoc.loaded) loadPage()
+                    if (pdfDoc.loaded) { loadPage(); root._loadError = "" }
+                })
+                // 5WHY: NativePdfPageView never listened to errorOccurred —
+                // on load failure the user saw "Loading PDF..." forever
+                // with no indication of what went wrong.
+                pdfDoc.errorOccurred.connect(function(msg) {
+                    root._loadError = msg
                 })
                 if (pdfSource) {
                     pdfDoc.source = pdfSource
@@ -205,15 +212,36 @@ Item {
         }
     }
 
-    // Loading state
+    // Loading / error state
     Rectangle {
-        anchors.centerIn: parent; width: 120; height: 36; radius: 8
-        color: Qt.alpha(ThemeEngine.colors.card, 0.9)
-        visible: !pdfDoc || !pdfDoc.loaded
-        Label {
-            anchors.centerIn: parent; text: "Loading PDF..."
-            font.family: ThemeEngine.monoFont; font.pixelSize: 12
-            color: ThemeEngine.textSecondary
+        anchors.centerIn: parent
+        width: Math.min(320, parent.width - 20)
+        height: errorCol.implicitHeight + 20; radius: 8
+        color: root._loadError ? Qt.alpha(ThemeEngine.failRed, 0.12)
+                               : Qt.alpha(ThemeEngine.colors.card, 0.9)
+        border { width: root._loadError ? 1 : 0
+                 color: root._loadError ? Qt.alpha(ThemeEngine.failRed, 0.3) : "transparent" }
+        visible: !pdfDoc || !pdfDoc.loaded || root._loadError
+
+        Column {
+            id: errorCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+            spacing: 6
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: root._loadError ? "PDF Load Error" : "Loading PDF..."
+                font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Bold
+                color: root._loadError ? ThemeEngine.failRed : ThemeEngine.textSecondary
+            }
+            Label {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: root._loadError
+                text: root._loadError
+                font.family: ThemeEngine.monoFont; font.pixelSize: 10
+                color: ThemeEngine.textSecondary
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+            }
         }
     }
 }
