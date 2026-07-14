@@ -268,6 +268,34 @@ jobs:
       - name: Build
         run: ninja -v -C build net_diagnostics
 
+      # 5WHY: deploy-testflight rebuilds with Xcode (-G Xcode), which
+      # is a DIFFERENT build system from Ninja.  Generator-specific
+      # issues (Xcode project structure, scheme config, code signing
+      # setup) only surface at deploy time — too late.  Verify the
+      # Xcode build compiles successfully here, BEFORE deploy.
+      - name: Verify Xcode build (same generator as TestFlight deploy)
+        run: |
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -B build-xcode -S .
+          xcodebuild -project build-xcode/NetDiagnostic.xcodeproj \
+            -scheme net_diagnostics \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tail -30
+          echo "[PASS] Xcode build verified"
+
       # ═════════════════════════════════════════════════════════════════
       # iOS Startup Crash Prevention Checks (static analysis)
       # 5WHY: The device build succeeds but may crash at startup on real
