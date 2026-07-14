@@ -3,6 +3,10 @@ name: Apple Build & Deploy
 on:
   push:
     tags: ['v*']
+    branches: [master]
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
   workflow_dispatch:
 
 concurrency:
