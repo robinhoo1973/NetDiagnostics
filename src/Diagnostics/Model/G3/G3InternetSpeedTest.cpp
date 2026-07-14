@@ -47,34 +47,34 @@ inline void SpeedTest::build() { Server s;
     S("CN","speedtest-sh.oss-cn-shanghai.aliyuncs.com",80,"Shanghai","Alibaba Cloud");
     S("CN","speedtest-gz.oss-cn-guangzhou.aliyuncs.com",80,"Guangzhou","Alibaba Cloud");
     S("CN","speedtest-bj-ct.oss-cn-beijing.aliyuncs.com",80,"Beijing CT","Alibaba Cloud");
-    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?    // Global speed test servers 鈥?verified against Ookla API 2024-2025
+    // === Global speed test servers — verified against Ookla API 2024-2025 ===
     // All use port 8080 with HTTP-based protocol (/download?size=N, /upload)
-    // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-    // 鈹€鈹€ East Asia 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    //
+    // -- East Asia --
     S("KR","seoul.speedtest.gslnetworks.com",8080,"Seoul","GSL Networks");
     S("MN","speedtest.gemnet.mn",8080,"Ulaanbaatar","Gemnet");
     S("MN","speedtest1.kewiko.mn",8080,"Ulaanbaatar 2","Kewiko");
 
-    // 鈹€鈹€ Southeast Asia / Oceania 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- Southeast Asia / Oceania --
     S("SG","speedtest.singtel.com",8080,"Singapore","Singtel");
     S("SG","speedtest.myrepublic.net",8080,"Singapore 2","MyRepublic");
     S("AU","speedtest.telstra.net",8080,"Sydney","Telstra");
     S("AU","speedtest.vocus.com.au",8080,"Melbourne","Vocus");
 
-    // 鈹€鈹€ South Asia 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- South Asia --
     S("IN","speedtest.actcorp.in",8080,"Bangalore","ACT Fibernet");
     S("IN","speedtestpnq.airstel.com",8080,"Pune","Airtel");
 
-    // 鈹€鈹€ Middle East 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- Middle East --
     S("AE","speedtest.du.ae",8080,"Dubai","du");
     S("TR","hiztesti.isimkayit.com",8080,"Kocaeli","IsimKayit.com");
 
-    // 鈹€鈹€ Russia / CIS 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- Russia / CIS --
     S("RU","speedtest-ude.edinos.ru",8080,"Ulan-Ude","EDINOS");
     S("RU","speedtest.bteleport.ru",8080,"Irkutsk","Baikal Teleport");
     S("RU","speedtest-irkutsk.fttb.beeline.ru",8080,"Irkutsk 2","Beeline");
 
-    // 鈹€鈹€ Europe 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- Europe --
     S("SE","speedtest.tele2.net",8080,"Stockholm","Tele2 Sweden");
     S("DE","speedtest.belwue.net",8080,"Stuttgart","BelWue");
     S("DE","speedtest.ftp.otenet.gr",8080,"Frankfurt","OTE");
@@ -84,17 +84,17 @@ inline void SpeedTest::build() { Server s;
     S("IT","speedtest.optimaitalia.com",8080,"Milan","Optima Italia");
     S("ES","speedtest.movistar.es",8080,"Madrid","Movistar");
 
-    // 鈹€鈹€ North America 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- North America --
     S("US","speedtest.xfinity.com",8080,"New York","Comcast Xfinity");
     S("US","speedtest.att.com",8080,"Dallas","AT&T");
     S("US","speedtest.netturbo.com",8080,"Chicago","NetTurbo");
     S("CA","speedtest.bell.ca",8080,"Toronto","Bell Canada");
 
-    // 鈹€鈹€ South America 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- South America --
     S("BR","speedtest.vivo.com.br",8080,"Sao Paulo","Vivo Brazil");
     S("AR","speedtest.movistar.com.ar",8080,"Buenos Aires","Movistar");
 
-    // 鈹€鈹€ Africa 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // -- Africa --
     S("ZA","speedtest.mtn.co.za",8080,"Johannesburg","MTN South Africa");
     S("ZA","speedtest.vodacom.co.za",8080,"Cape Town","Vodacom");
 }
@@ -134,14 +134,40 @@ inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hi
     if (continent != "XX" && continentFallback.contains(continent)) {
         QVector<Server> nearby;
         const auto& ccList = continentFallback[continent];
-        // 5WHY: m.value(cc) deep-copies the entire QVector<Server> per iteration
-        // (~40 Server objects each with 5 QString members). Use constFind to
-        // avoid double-lookup and const reference to avoid deep copy.
         for (const auto& cc : ccList) {
             auto cit = m.constFind(cc);
             if (cit != m.cend()) nearby.append(cit.value());
         }
         if (!nearby.isEmpty()) return nearby;
+    }
+    // 5WHY: When country is unknown (XX), allServers() returned 48+ servers
+    // globally. Shuffling and latency-checking 12 of them at 5s each took up
+    // to 60s, and many region-specific servers (e.g. CN-only) were unreachable
+    // from other continents. Now returns a curated shortlist of well-known
+    // geographically-diverse public speed-test servers that are highly likely
+    // to be reachable from anywhere. Falls back to allServers() only if the
+    // curated set is empty (should never happen with the current server DB).
+    if (hint == QStringLiteral("XX") || p == QStringLiteral("XX")) {
+        QVector<Server> curated;
+        // Pick one reliable server per major region:
+        static const QStringList kGlobalFallbackHosts = {
+            "speedtest.tele2.net",      // Stockholm (EU) -- most reliable
+            "speedtest.belwue.net",     // Stuttgart (EU) -- very reliable
+            "speedtest1.sky.com",        // London (EU)
+            "speedtest.xfinity.com",     // New York (NA)
+            "speedtest.singtel.com",     // Singapore (AS)
+            "seoul.speedtest.gslnetworks.com", // Seoul (AS)
+            "speedtest.vivo.com.br",     // Sao Paulo (SA)
+            "speedtest.mtn.co.za",       // Johannesburg (AF)
+        };
+        for (auto it = m.cbegin(); it != m.cend(); ++it) {
+            for (const auto& s : it.value()) {
+                for (const auto& host : kGlobalFallbackHosts) {
+                    if (s.host == host) { curated.append(s); break; }
+                }
+            }
+        }
+        if (!curated.isEmpty()) return curated;
     }
     return allServers();
 }
@@ -150,7 +176,7 @@ inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
     // servers across ~15 countries. Count first, then reserve + append.
     // Two-pass is worthwhile here: QMap iteration is O(n) with cheap
     // arithmetic (size()), while QVector reallocation copies all QString
-    // members per Server object 鈥?much more expensive.
+    // members per Server object -- much more expensive.
     int total = 0;
     for (auto it = m.cbegin(); it != m.cend(); ++it) total += it.value().size();
     QVector<Server> a; a.reserve(total);
@@ -159,7 +185,7 @@ inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
 }
 // 5WHY: detectCountry() always returned "XX" (unknown) because:
 //   1. maxBytes=16 truncated HTTP response to just the first header line
-//      ("HTTP/1.1 200 OK...") 鈥?the 2-char country code body was never read.
+//      ("HTTP/1.1 200 OK...") -- the 2-char country code body was never read.
 //      Minimum HTTP response is ~20 bytes (status line + double CRLF + body),
 //      and typical responses with headers are 150-300 bytes.
 //   2. httpGet() returns raw HTTP response (headers + body), but the code
@@ -181,11 +207,11 @@ static QString extractHttpBody(const QByteArray& rawResponse) {
 inline QString SpeedTest::detectCountry(int timeoutMs) {
     // 5WHY: Every speed test run made 2-3 GeoIP HTTP calls (~6s each to fail).
     // Cache SUCCESSFUL results for the process lifetime (country doesn't change).
-    // Do NOT cache "XX" failures 鈥?network may recover, so retry on each run.
+    // Do NOT cache "XX" failures -- network may recover, so retry on each run.
     static QString sCachedCountry;
     if (!sCachedCountry.isEmpty() && sCachedCountry != QStringLiteral("XX"))
         return sCachedCountry;
-    // Primary: ip-api.com 鈥?free, no API key, HTTP-only (raw-socket compatible)
+    // Primary: ip-api.com -- free, no API key, HTTP-only (raw-socket compatible)
     // Returns plain-text country code (2 chars) at /line/?fields=countryCode
     QByteArray resp = G1G2G3Native::httpGet(
         QStringLiteral("ip-api.com"), 80,
@@ -193,21 +219,21 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
         timeoutMs > 0 ? timeoutMs : 3000, 4096);
     QString cc = extractHttpBody(resp);
     if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
-    // Fallback 1: ipapi.co 鈥?free, no key, returns plain text on /country/
+    // Fallback 1: ipapi.co -- free, no key, returns plain text on /country/
     resp = G1G2G3Native::httpGet(
         QStringLiteral("ipapi.co"), 80,
         QStringLiteral("/country/"),
         3000, 4096);
     cc = extractHttpBody(resp);
     if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
-    // Fallback 2: ipinfo.io 鈥?may require token, kept as last resort
+    // Fallback 2: ipinfo.io -- may require token, kept as last resort
     resp = G1G2G3Native::httpGet(
         QStringLiteral("ipinfo.io"), 80,
         QStringLiteral("/country"),
         3000, 4096);
     cc = extractHttpBody(resp);
     if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
-    // All providers failed 鈥?do NOT cache; retry on next run
+    // All providers failed -- do NOT cache; retry on next run
     Logger::instance().event(QStringLiteral("GeoIP: all providers failed, country=XX"));
     return QStringLiteral("XX");
 }
@@ -234,9 +260,7 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QStringLiteral("Protocol: Speedtest.net (Ookla-compatible)"));
     out.append(QString());
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Phase 0 闂?Quick connectivity check (TCP to well-known hosts)
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // === Phase 0: Quick connectivity check (TCP to well-known hosts) ===
     out.append(QStringLiteral("--- Connectivity Check -------------------------------------------------"));
     out.append(QString());
     out.append(QStringLiteral("  %1  %2  %3  %4  %5")
@@ -281,9 +305,7 @@ DiagnosticResult speedTest(DiagId id) {
         : QStringLiteral("DISCONNECTED")));
     out.append(QString());
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Phase 1 闂?Detect country + load regional servers
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // === Phase 1: Detect country + load regional servers ===
     SpeedTest st;
     QString country = SpeedTest::detectCountry(3000);
     out.append(QStringLiteral("Detected country: %1").arg(country == "XX" ? "Unknown" : country));
@@ -291,21 +313,17 @@ DiagnosticResult speedTest(DiagId id) {
     QVector<SpeedTest::Server> servers = st.serversForCountry(country);
     out.append(QStringLiteral("Loaded %1 servers for region").arg(servers.size()));
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Timeout guard 闂?if we've already spent >25s, skip speed measurement
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // Timeout guard: if we've already spent >25s, skip speed measurement
     if (totalTimer.elapsed() > 25000) {
         out.append(QString());
         out.append(QStringLiteral("  (Speed test skipped: connectivity check took too long)"));
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected 鈥?speed test timed out") : QStringLiteral("No internet");
+        r.summary = hasConnectivity ? QStringLiteral("Connected -- speed test timed out") : QStringLiteral("No internet");
         r.durationMs = totalTimer.elapsed(); return r;
     }
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Phase 2 闂?Select best server by HTTP latency (speedtest-cli style)
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // === Phase 2: Select best server by HTTP latency (speedtest-cli style) ===
     out.append(QStringLiteral("--- Server Selection (HTTP latency) -----------------------------"));
     out.append(QString());
     out.append(QStringLiteral("  %1  %2  %3  %4")
@@ -344,12 +362,12 @@ DiagnosticResult speedTest(DiagId id) {
         out.append(QString());
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected 鈥?no speed test servers reachable")
+        r.summary = hasConnectivity ? QStringLiteral("Connected -- no speed test servers reachable")
                                     : QStringLiteral("No internet connectivity");
         r.durationMs = totalTimer.elapsed(); return r;
     }
 
-    // Sort by HTTP latency ascending 闂?fastest first
+    // Sort by HTTP latency ascending -- fastest first
     std::sort(ranked.begin(), ranked.end(),
               [](const RankedServer& a, const RankedServer& b) { return a.latency < b.latency; });
 
@@ -367,13 +385,11 @@ DiagnosticResult speedTest(DiagId id) {
 
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
-    out.append(QStringLiteral("  Selected: %1 (%2) 鈥?%3 ms")
+    out.append(QStringLiteral("  Selected: %1 (%2) -- %3 ms")
         .arg(best->sponsor, best->name).arg(bestLatency));
     out.append(QString());
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Phase 3 闂?Download test (with server fallback)
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // === Phase 3: Download test (with server fallback) ===
     out.append(QString());
     out.append(QStringLiteral("--- Download Test ------------------------------------------------"));
     out.append(QString());
@@ -448,9 +464,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(dlSpeed, 0, 'f', 2)
         .arg(dlResults.size() >= 5 ? QStringLiteral("  (avg of top %1)").arg(qMin(5, (int)dlResults.size())) : QString()));
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Phase 4 闂?Upload test
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // === Phase 4: Upload test ===
     out.append(QString());
     out.append(QStringLiteral("--- Upload Test --------------------------------------------------"));
     out.append(QString());
@@ -615,9 +629,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(ulSpeed, 0, 'f', 2)
         .arg(ulResults.size() >= 5 ? QStringLiteral("  (avg of top %1)").arg(qMin(5, (int)ulResults.size())) : QString()));
 
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
-    // Results
-    // 闂佸磭鍎ら崝蹇涘疾閺屻儱鐓涢柟鑸妽濞呮粓鏌嶉悜妯哄闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃閻戞ê濮€闁哄懏鐓￠崺锟犲箛閵婏附鐝抽梺宕囧劋閸斿繘寮查弻銉ョ厸闁硅埇鍔嶅▍婊堟煃?
+    // === Results ===
     out.append(QString());
     out.append(QString());
     out.append(QStringLiteral("=================================================================="));
@@ -639,10 +651,10 @@ DiagnosticResult speedTest(DiagId id) {
         r.summary = QStringLiteral("No internet connectivity");
     } else if (dlSpeed > 0.1 || ulSpeed > 0.1) {
         r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("Connected 鈥?鈫?1 鈫?2 Mbit/s").arg(dlSpeed, 0, 'f', 1).arg(ulSpeed, 0, 'f', 1);
+        r.summary = QStringLiteral("Connected -- %1 / %2 Mbit/s").arg(dlSpeed, 0, 'f', 1).arg(ulSpeed, 0, 'f', 1);
     } else {
         r.status = DiagStatus::Warning;
-        r.summary = QStringLiteral("Connected 鈥?speed test incomplete");
+        r.summary = QStringLiteral("Connected -- speed test incomplete");
     }
     r.durationMs = totalTimer.elapsed();
     return r;

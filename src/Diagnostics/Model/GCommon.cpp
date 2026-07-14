@@ -49,16 +49,20 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         // 5WHY: using the full timeoutMs for every select() iteration meant
         // EAGAIN retries could each wait timeoutMs again, turning a 3s budget
         // into 30s+. Compute remaining time so the total never exceeds the
-        // caller's timeoutMs (clamped to 100ms min to avoid tight spinning).
+        // caller's timeoutMs. Use a 50ms floor to avoid tight spinning when
+        // remaining is tiny, but always use the full remaining budget — never
+        // cap the per-iteration timeout. Capping (e.g. at 500ms) causes
+        // premature break on slow connections where the server takes >500ms
+        // to respond, even though the caller's budget still has time.
         int remaining = timeoutMs - (int)recvTimer.elapsed();
         if (remaining <= 0) break;
-        int selectMs = qMax(remaining, 100);
+        int selectMs = qMax(remaining, 50);
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {selectMs / 1000, (selectMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
         // Wall-clock guard: abort if total recv time exceeds 30 s.
-        // MUST come before EAGAIN handling 鈥?a continue on EAGAIN would
+        // MUST come before EAGAIN handling -- a continue on EAGAIN would
         // otherwise skip this guard, risking an infinite loop if select()
         // keeps reporting readable but recv() keeps returning EAGAIN.
         if (recvTimer.elapsed() > 30000) break;
@@ -80,11 +84,11 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     return response;
 }
 
-// 闂佸啿鍘滈崑鎾绘煃閸忓浜?HTTP download with throughput measurement 闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸?
+// HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false};
-    // Parse URL 闂?host, port, path
+    // Parse URL -- host, port, path
     QString u = urlStr;
     if (!u.startsWith("http://")) return r;
     u = u.mid(7); // strip "http://"

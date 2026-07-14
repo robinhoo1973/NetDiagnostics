@@ -9,18 +9,21 @@ DiagnosticResult dhcpStatus(DiagId id) {
     QStringList out;
     QStringList dhcpSummary; // "eth0=192.168.1.100"
     QVector<ResultProperty> props;
+    QList<QStringList> dhcpRows;  // 5WHY: unified rows for formatTable
 
     out.append(QString());
     out.append(QStringLiteral("DHCP Client Status"));
     out.append(QString());
 
-    out.append(QStringLiteral("  %1  %2  %3  %4")
-        .arg(QStringLiteral("Interface"), -18)
-        .arg(QStringLiteral("DHCP"), -6)
-        .arg(QStringLiteral("IP Address"), -18)
-        .arg(QStringLiteral("Server")));
-    out.append(QStringLiteral("  %1  %2  %3  %4")
-        .arg(QString(18, '-')).arg(QString(6, '-')).arg(QString(18, '-')).arg(QString(18, '-')));
+    // 5WHY: Used manual QString::arg formatting instead of DiagnosticFormatter::formatTable.
+    // formatTable provides consistent column alignment, separators, and empty-state handling
+    // across all diagnostic output.  Other tests (G3DnsServers, G2RoutingTable) use this pattern.
+    static const QVector<DiagnosticFormatter::ColSpec> kDhcpCols = {
+        {"Interface", 18, false},
+        {"DHCP",       6, false},
+        {"IP Address", 18, false},
+        {"Server",     0, false},
+    };
 
 #if defined(_WIN32)
     ULONG bufLen = 15000;
@@ -42,10 +45,9 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 ipStr = QString::fromLatin1(ip);
                 dhcpSummary.append(QStringLiteral("%1=%2").arg(ifName, ipStr));
             }
-            out.append(QStringLiteral("  %1  %2  %3  %4")
-                .arg(ifName, -18).arg(dhcp ? "Yes" : "No", -6)
-                .arg(ipStr.isEmpty() ? "-" : ipStr, -18)
-                .arg(serverStr.isEmpty() ? "-" : serverStr));
+            dhcpRows.append({ifName, dhcp ? "Yes" : "No",
+                           ipStr.isEmpty() ? "-" : ipStr,
+                           serverStr.isEmpty() ? "-" : serverStr});
             ResultProperty prop(ifName, ipStr.isEmpty() ? "(no IP)" : ipStr);
             {
                 ResultProperty dhcpChild("DHCP", dhcp ? "Yes" : "No");
@@ -57,13 +59,15 @@ DiagnosticResult dhcpStatus(DiagId id) {
             }
             props.append(prop);
         }
+        if (!dhcpRows.isEmpty())
+            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
         out.append(QString());
     }
 #else
 #if defined(PLATFORM_IOS)
-    out.append(QStringLiteral("  %1  %2  %3  %4")
-        .arg("(system-managed)", -18).arg("Yes", -6)
-        .arg("(not exposed)", -18).arg("(not exposed)"));
+    QList<QStringList> iosRows;
+    iosRows.append({"(system-managed)", "Yes", "(not exposed)", "(not exposed)"});
+    out.append(DiagnosticFormatter::formatTable(kDhcpCols, iosRows));
     out.append(QString());
     out.append(QStringLiteral("  iOS manages DHCP at the system level —"));
     out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
@@ -88,18 +92,22 @@ DiagnosticResult dhcpStatus(DiagId id) {
                     else if (line.startsWith("SERVER_ADDRESS="))
                         serverStr = line.mid(15);
                 }
-                out.append(QStringLiteral("  %1  %2  %3  %4")
-                    .arg(ifName, -18).arg("Yes", -6)
-                    .arg(ipStr.isEmpty() ? "-" : ipStr, -18)
-                    .arg(serverStr.isEmpty() ? "-" : serverStr));
+                dhcpRows.append({ifName, "Yes",
+                                ipStr.isEmpty() ? "-" : ipStr,
+                                serverStr.isEmpty() ? "-" : serverStr});
                 ResultProperty leaseProp(ifName, ipStr.isEmpty() ? "(no IP)" : ipStr);
                 leaseProp.children.append(ResultProperty("DHCP", "Yes"));
                 if (!serverStr.isEmpty()) leaseProp.children.append(ResultProperty("Server", serverStr));
                 props.append(leaseProp);
-                out.append(QString());
             }
         }
+        if (!dhcpRows.isEmpty())
+            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+        out.append(QString());
     }
+    // 5WHY: systemd block appended to shared dhcpRows. Clear so the
+    // next fallback block does not duplicate rows already shown.
+    dhcpRows.clear();
 
     // 2. dhclient leases as fallback
     QDir dhclientDir(QStringLiteral("/var/lib/dhcp"));
@@ -109,27 +117,40 @@ DiagnosticResult dhcpStatus(DiagId id) {
             if (f.open(QIODevice::ReadOnly)) {
                 QTextStream ts(&f);
                 QString currentIface, currentIp;
+                // 5WHY: dhclient lease files contain richer data (server
+                // identifier, renew/expire times) that was lost during the
+                // formatTable migration. Collect them as supplementary output
+                // prefixed with the interface name for identification.
+                QStringList dhclientExtras;
                 while (!ts.atEnd()) {
                     QString line = ts.readLine().trimmed();
                     if (line.startsWith("interface ")) currentIface = line.mid(10).remove('"').remove(';');
                     if (line.startsWith("fixed-address ")) currentIp = line.mid(14).remove(' ').remove(';');
                     if (line.contains("dhcp-server-identifier"))
-                        out.append(QStringLiteral("   DHCP Server . . . . . . . . . . . : %1").arg(line.section(' ', -1).remove(';')));
-                    if (line.contains("renew ")) out.append(QStringLiteral("   Lease Renew . . . . . . . . . . . : %1").arg(line.section(' ', 2, 3).remove(';')));
-                    if (line.contains("expire ")) out.append(QStringLiteral("   Lease Expires . . . . . . . . . . : %1").arg(line.section(' ', 2, 3).remove(';')));
+                        dhclientExtras.append(QStringLiteral("   [%1] DHCP Server . . . . . . . . . . . : %2").arg(currentIface, line.section(' ', -1).remove(';')));
+                    if (line.contains("renew "))
+                        dhclientExtras.append(QStringLiteral("   [%1] Lease Renew . . . . . . . . . . . : %2").arg(currentIface, line.section(' ', 2, 3).remove(';')));
+                    if (line.contains("expire "))
+                        dhclientExtras.append(QStringLiteral("   [%1] Lease Expires . . . . . . . . . . : %2").arg(currentIface, line.section(' ', 2, 3).remove(';')));
                 }
                 if (!currentIface.isEmpty() && !currentIp.isEmpty()) {
                     anyDhcp = true;
-                    out.append(QStringLiteral("  %1  %2  %3  %4")
-                        .arg(currentIface, -18).arg("Yes", -6)
-                        .arg(currentIp, -18).arg("-"));
+                    dhcpRows.append({currentIface, "Yes", currentIp, "-"});
                     if (!dhcpSummary.contains(QStringLiteral("%1=%2").arg(currentIface, currentIp)))
                         dhcpSummary.append(QStringLiteral("%1=%2").arg(currentIface, currentIp));
                 }
-                out.append(QString());
+                // Output per-file supplementary details after collecting row data
+                for (const auto& extra : dhclientExtras)
+                    out.append(extra);
             }
         }
+        if (!dhcpRows.isEmpty())
+            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+        out.append(QString());
     }
+    // 5WHY: clear after dhclient block so /proc/net/route fallback (block 3)
+    // does not see stale rows from blocks 1-2 if anyDhcp is still false.
+    dhcpRows.clear();
 
     // 3. Check /proc/net/route for gateways (DHCP routers) on interfaces without lease files
     if (!anyDhcp) {
@@ -140,16 +161,20 @@ DiagnosticResult dhcpStatus(DiagId id) {
                 QStringList cols = ts.readLine().trimmed().split('\t');
                 if (cols.size() >= 11 && cols[2].toUInt(nullptr, 16) != 0) {
                     QString gw = ipToStr(cols[2].toUInt(nullptr, 16));
-                    out.append(QStringLiteral("  %1  %2  %3  %4")
-                        .arg(cols[0], -18).arg("Likely", -6)
-                        .arg("-", -18).arg(gw));
-                    out.append(QString());
+                    dhcpRows.append({cols[0], "Likely", "-", gw});
                 }
             }
         }
+        if (!dhcpRows.isEmpty())
+            out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
+        out.append(QString());
     }
 
-    if (!anyDhcp && out.size() <= 4)
+    // 5WHY: The old sentinel `out.size() <= 4` assumed only 3 header lines
+    // + 1 blank. Each processing block now unconditionally appends a blank
+    // line when its directory exists (even if empty), so out.size() can
+    // reach 5-6 before this check. Bumped to 8 to be safe.
+    if (!anyDhcp && out.size() <= 8)
         out.append(QStringLiteral("   No DHCP lease information found (static IP or managed externally)"));
 #endif // !PLATFORM_IOS
 #endif
@@ -164,7 +189,6 @@ DiagnosticResult dhcpStatus(DiagId id) {
     return r;
 }
 
-// 闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍?
-// G2 闁?Routing Table (route print format)
-// 闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍鐑樺姀閺呮煡鍩￠幇銊︽珳闁崇儤鍔忛弲鏌ュ煛閹般劍娅滈柍?
+// G2 — Routing Table (route print format)
+// Collects IPv4/v6 routing table entries with gateway, metric, and interface info.
 }

@@ -356,9 +356,14 @@ Item {
                         visible: page.previewFormat !== "html" && hasQtPdf
                         active: page.previewFormat !== "html" && hasQtPdf
                         source: "qrc:/qml/widgets/PdfPreviewView.qml"
+                        // 5WHY: PdfDocument.source expects a URL (file:/// or qrc:/).
+                        // previewPdfPath is a raw filesystem path (e.g. C:\...).
+                        // Convert to file:/// URL so the PDF loads correctly.
                         onLoaded: {
                             if (item) item.pdfSource = Qt.binding(function() {
-                                return page.previewPdfPath || ""
+                                return page.previewPdfPath
+                                    ? "file:///" + page.previewPdfPath.replace(/\\/g, "/")
+                                    : ""
                             })
                         }
                     }
@@ -376,7 +381,9 @@ Item {
                         onLoaded: {
                             if (item) {
                                 item.pdfSource = Qt.binding(function() {
-                                    return page.previewPdfPath || ""
+                                    return page.previewPdfPath
+                                        ? "file:///" + page.previewPdfPath.replace(/\\/g, "/")
+                                        : ""
                                 })
                                 item.currentPage = 0
                             }
