@@ -44,6 +44,11 @@ Item {
 
     function openPreview(fmt) {
         if (!canReport) return
+        // 5WHY: Clean up old preview files from the previous session
+        // BEFORE generating new ones. Safe because any previous share
+        // has completed by now (user had to close the overlay first).
+        if (page.previewPdfPath) { appState.deleteFile(page.previewPdfPath); page.previewPdfPath = "" }
+        if (page.previewHtmlPath) { appState.deleteFile(page.previewHtmlPath); page.previewHtmlPath = "" }
         previewFormat = fmt
         var darkBg = ThemeEngine.isDark
         if (fmt === "html") {
@@ -95,14 +100,15 @@ Item {
         }
     }
 
-    // Delete preview files when overlay is dismissed (close button,
-    // share complete, or user returns to app).
+    // 5WHY: onPreviewVisibleChanged deleted files immediately when the
+    // user dismissed the overlay — but the mobile share sheet
+    // (UIActivityViewController / Intent.ACTION_SEND) may still be
+    // accessing the file. Deleting mid-share causes silent share failure.
+    // Now: clean up OLD preview files at the START of the next
+    // openPreview() call — safe because any previous share has completed
+    // by then. Also deactivate the Loader to free WebView/PdfView resources.
     onPreviewVisibleChanged: {
         if (!previewVisible) {
-            if (page.previewPdfPath) appState.deleteFile(page.previewPdfPath)
-            if (page.previewHtmlPath) appState.deleteFile(page.previewHtmlPath)
-            page.previewPdfPath = ""
-            page.previewHtmlPath = ""
             page.previewFormat = ""  // deactivate Loader, free WebView
         }
     }
