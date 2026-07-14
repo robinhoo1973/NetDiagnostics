@@ -198,9 +198,16 @@ inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
 // ip-api.com free tier is HTTP-only (no HTTPS), which works for our
 // raw-socket approach. ipinfo.io requires a token for the API endpoint;
 // fallback to ipapi.co which still serves plain-text country codes on HTTP.
+// 5WHY: Only checked \r\n\r\n — some HTTP servers (especially
+// lightweight GeoIP services) use bare \n line endings. Now also
+// handles \n\n as a header/body separator.
 static QString extractHttpBody(const QByteArray& rawResponse) {
     int hdrEnd = rawResponse.indexOf("\r\n\r\n");
-    if (hdrEnd < 0) return {};
+    if (hdrEnd < 0) {
+        hdrEnd = rawResponse.indexOf("\n\n");
+        if (hdrEnd < 0) return {};
+        return QString::fromUtf8(rawResponse.mid(hdrEnd + 2)).trimmed();
+    }
     return QString::fromUtf8(rawResponse.mid(hdrEnd + 4)).trimmed();
 }
 inline QString SpeedTest::detectCountry(int timeoutMs) {
