@@ -1212,7 +1212,14 @@ QString AppState::generatePreviewPdf() const {
     for (int i = 3; i < entries.size(); ++i) {
         QFile::remove(entries[i].absoluteFilePath());
     }
-    return QUrl::fromLocalFile(saved).toString();
+    // 5WHY: Returned QUrl::fromLocalFile(saved).toString() which is a file://
+    // URL.  ReportScreen.qml's toFileUrl() then prepended ANOTHER file:///,
+    // creating an invalid double-prefix URL (file:///file:///...).  On iOS,
+    // NativePdfDocument.setSource() checks url.isLocalFile() → false for
+    // double-prefix → uses url.toString() which is invalid → PDF load fails.
+    // Fix: return native path (same as exportHtml/exportPdf), let toFileUrl()
+    // handle the file:/// conversion uniformly.
+    return saved;
 }
 
 void AppState::requestSavePath(const QString& format) {
