@@ -39,6 +39,7 @@
         <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
         <file alias="qml/widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>
         <file alias="qml/widgets/TargetAnalysisPanel.qml">../src/Common/View/widgets/TargetAnalysisPanel.qml</file>
+        <file alias="qml/widgets/ZoomBar.qml">../src/Common/View/widgets/ZoomBar.qml</file>
         <!-- HtmlPreviewWebView → resources_webview.qrc (conditional) -->
         <!-- NativePdfPageView   → resources_nativepdf.qrc (conditional) -->
 
