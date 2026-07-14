@@ -77,6 +77,13 @@ Item {
             // The PDF IS the preview; no fallback image needed.
             if (hasQtPdf || hasNativePdf) {
                 previewPdfPath = appState.generatePreviewPdf() || ""
+                // 5WHY: When generatePreviewPdf() fails (returns ""), the
+                // QtPdf/NativePdf Loader receives an empty source and shows
+                // nothing, with no fallback because the else branch only
+                // runs when both QtPdf and NativePdf are absent. Generate
+                // the image fallback too so the user sees something.
+                if (!previewPdfPath)
+                    previewImagePath = appState.renderPreviewImage(html, 760) || ""
             } else {
                 previewImagePath = appState.renderPreviewImage(html, 760) || ""
             }
@@ -390,11 +397,15 @@ Item {
                             }
                         }
                     }
-                    // Image-based fallback (no QtPdf, no native PDF)
+                    // 5WHY: Image fallback was gated on !hasQtPdf && !hasNativePdf,
+                    // so when generatePreviewPdf() failed (hasQtPdf=true but
+                    // previewPdfPath=""), the user saw a blank area with no
+                    // fallback. Now also shows when the PDF path is empty.
                     Flickable {
                         id: pdfFlick
                         anchors { fill: parent; margins: 14 }
-                        visible: page.previewFormat !== "html" && !hasQtPdf && !hasNativePdf
+                        visible: page.previewFormat !== "html" && !previewPdfPath
+                            && (!hasQtPdf || !hasNativePdf || previewImagePath)
                         clip: true
                         // 5WHY: contentWidth/Height used pdfImage.implicitWidth (source
                         // image pixel dims) instead of pdfImage.width/height (the

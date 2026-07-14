@@ -32,11 +32,24 @@ Item {
     anchors.fill: parent
 
     function injectViewportCss(html) {
+        // 5WHY: WebView2 (Windows) sometimes ignores <style> blocks in
+        // loadHtml()-loaded content, causing the viewport-constraining CSS
+        // to have no effect. Inject an inline style attribute on <body>
+        // as a belt-and-suspenders fix — inline styles always take effect
+        // regardless of engine quirks.
         var viewportCss = "<style>" +
             "html,body{max-width:100%!important;overflow-x:hidden!important;overflow-wrap:break-word!important;word-wrap:break-word!important}" +
             "img,svg,table,pre,code{max-width:100%!important;height:auto!important}" +
             "table{display:block!important;overflow-x:auto!important}" +
             "</style>"
+        // Add inline style to <body> for engines that ignore <style> blocks
+        var bodyStyle = ' style="max-width:100%;overflow-x:hidden;overflow-wrap:break-word;word-wrap:break-word"'
+        html = html.replace(/<body([^>]*)>/i, '<body$1' + bodyStyle + '>')
+        // Also add viewport meta if missing
+        if (!/<meta[^>]+viewport/i.test(html)) {
+            var metaVp = '<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">'
+            html = html.replace(/<head[^>]*>/i, '$&' + metaVp)
+        }
         var headIdx = html.search(/<\/head>/i)
         if (headIdx >= 0) {
             return html.substring(0, headIdx) + viewportCss + html.substring(headIdx)
