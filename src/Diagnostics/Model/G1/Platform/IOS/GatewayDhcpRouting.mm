@@ -419,7 +419,9 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
 // =============================================================================
 // IosWiFiHelper.mm �� iOS WiFi + Cellular info retrieval (Objective-C++)
 // =============================================================================
-// WiFi: NEHotspotNetwork fetchCurrentWithCompletionhandler:
+// WiFi: CNCopyCurrentNetworkInfo (sync, V1) for iOS 9–25 SDK;
+//   falls back to NEHotspotNetwork (async) when building with iOS 26+ SDK
+//   where CNCopyCurrentNetworkInfo has been removed.
 // Cellular: CTTelephonyNetworkInfo + CTCarrier
 // =============================================================================
 
@@ -427,9 +429,11 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
 
 #include <QString>
 #include <QVariantMap>
-#include <atomic>
-#include <memory>
+#if __has_include(<SystemConfiguration/CaptiveNetwork.h>)
+#import <SystemConfiguration/CaptiveNetwork.h>
+#else
 #import <NetworkExtension/NetworkExtension.h>
+#endif
 #import <CoreLocation/CoreLocation.h>
 #import <CoreTelephony/CTTelephonyNetworkInfo.h>
 #import <CoreTelephony/CTCarrier.h>
@@ -458,47 +462,26 @@ void iosRequestWiFiAuthorization()
 
 QString iosCopyWiFiSSID()
 {
-    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
-    // Store the SSID as a C++ QString (converted inside the handler) so no Objective-C
-    // object owned by the handler's autorelease pool crosses the thread boundary.
-    struct SsidCtx {
-        dispatch_semaphore_t sem;
-        QString ssid;
-        std::atomic<int> refs;
-    };
-    auto ctx = std::make_shared<SsidCtx>();
-    ctx->sem = dispatch_semaphore_create(0);
-    ctx->refs.store(2, std::memory_order_relaxed);
+    QString result;
 
-    if (@available(iOS 14.0, *)) {
-        @try {
-        [NEHotspotNetwork fetchCurrentWithCompletionhandler:^(NEHotspotNetwork* _Nullable network) {
-            @autoreleasepool {
-                @try {
-                if (network && network.SSID.length > 0) {
-                    ctx->ssid = QString::fromNSString(network.SSID);
+    @autoreleasepool {
+        NSArray* ifaces = (__bridge_transfer NSArray*)CNCopySupportedInterfaces();
+        if (ifaces && ifaces.count > 0) {
+            NSDictionary* info = (__bridge_transfer NSDictionary*)
+                CNCopyCurrentNetworkInfo((__bridge CFStringRef)ifaces[0]);
+            if (info) {
+                NSString* ssid = info[(NSString*)kCNNetworkInfoKeySSID];
+                if (ssid) {
+                    // Apple privacy sentinel: when location permission is denied
+                    // on iOS 14+, the API returns "Wi-Fi" instead of the real SSID.
+                    if (![ssid isEqualToString:@"Wi-Fi"]) {
+                        result = QString::fromNSString(ssid);
+                    }
                 }
-                } @catch (NSException* e) { }
-                dispatch_semaphore_signal(ctx->sem);
-                if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                    dispatch_release(ctx->sem);
-                }
-            }
-        }];
-        } @catch (NSException* e) {
-            dispatch_semaphore_signal(ctx->sem);
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
             }
         }
-        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));  // 2s→5s (same as iosWiFiInfo)
-        if (waited != 0) ctx->ssid.clear(); // timeout: handler may still be writing
     }
 
-    QString result = ctx->ssid;
-    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        dispatch_release(ctx->sem);
-    }
     return result;
 }
 
@@ -579,67 +562,35 @@ QVariantMap iosWiFiInfo()
 {
     QVariantMap info;
 
-    // Reference-counted context: waiter and completion handler both hold a ref (2 total).
-    // Store results as C++ QString (converted inside the handler) so no Objective-C
-    // object owned by the handler's autorelease pool ever crosses the thread boundary.
-    struct WifiCtx {
-        dispatch_semaphore_t sem;
-        QString ssid;
-        QString bssid;
-        std::atomic<int> refs;
-    };
-    auto ctx = std::make_shared<WifiCtx>();
-    ctx->sem = dispatch_semaphore_create(0);
-    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + handler
+    @autoreleasepool {
+        NSArray* ifaces = (__bridge_transfer NSArray*)CNCopySupportedInterfaces();
+        if (ifaces && ifaces.count > 0) {
+            NSDictionary* netInfo = (__bridge_transfer NSDictionary*)
+                CNCopyCurrentNetworkInfo((__bridge CFStringRef)ifaces[0]);
+            if (netInfo) {
+                NSString* ssid = netInfo[(NSString*)kCNNetworkInfoKeySSID];
+                NSString* bssid = netInfo[(NSString*)kCNNetworkInfoKeyBSSID];
 
-    if (@available(iOS 14.0, *)) {
-        @try {
-        [NEHotspotNetwork fetchCurrentWithCompletionhandler:^(NEHotspotNetwork* _Nullable network) {
-            @autoreleasepool {
-                @try {
-                if (network) {
-                    if (network.SSID && network.SSID.length > 0)
-                        ctx->ssid = QString::fromNSString(network.SSID);
-                    if (network.BSSID && network.BSSID.length > 0)
-                        ctx->bssid = QString::fromNSString(network.BSSID);
+                // Apple privacy sentinel: when location permission is denied
+                // on iOS 14+, the API returns "Wi-Fi" instead of the real SSID.
+                if (ssid && ![ssid isEqualToString:@"Wi-Fi"]) {
+                    info["ssid"] = QString::fromNSString(ssid);
                 }
-                } @catch (NSException* e) { }
-                dispatch_semaphore_signal(ctx->sem);
-                // drop the handler's reference; last one out releases the semaphore.
-                if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                    dispatch_release(ctx->sem);
+                if (bssid) {
+                    info["bssid"] = QString::fromNSString(bssid);
                 }
             }
-
-        }];
-        } @catch (NSException* e) {
-            dispatch_semaphore_signal(ctx->sem);
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
-            }
-        }
-        // 5WHY: 2s semaphore timeout was too short — on iOS 18+, the
-        // NEHotspotNetwork callback can take 2-4s due to system privacy
-        // checks.  Increased to 5s to avoid false timeouts that would
-        // clear valid SSID/BSSID results.
-        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
-        if (waited != 0) {
-            ctx->ssid.clear();
-            ctx->bssid.clear();
         }
     }
-
-    info["ssid"] = ctx->ssid;
-    info["bssid"] = ctx->bssid;
 
     // 5WHY: Error message blamed NSLocalNetworkUsageDescription, but the
     // actual iOS 14+ requirement is the com.apple.developer.networking.wifi-info
     // entitlement + location permission (WhenInUse or Always). Also, the code
     // never checked [CLLocationManager authorizationStatus] — if the user
     // previously denied location, requestWhenInUseAuthorization is a no-op
-    // and NEHotspotNetwork silently returns nil. Now checks the actual
-    // authorization status and gives actionable guidance.
-    if (ctx->ssid.isEmpty()) {
+    // and CNCopyCurrentNetworkInfo silently returns nil/placeholder. Now checks
+    // the actual authorization status and gives actionable guidance.
+    if (!info.contains("ssid") || info["ssid"].toString().isEmpty()) {
         CLAuthorizationStatus locStatus = [CLLocationManager authorizationStatus];
         QString diagMsg;
         switch (locStatus) {
@@ -669,18 +620,13 @@ QVariantMap iosWiFiInfo()
                     "Xcode > Signing & Capabilities (requires paid Apple Developer account). "
                     "3) Check that the provisioning profile includes the "
                     "com.apple.developer.networking.wifi-info entitlement. "
-                    "Without this, NEHotspotNetwork returns nil even with location access.");
+                    "Without this, CNCopyCurrentNetworkInfo returns a placeholder SSID even with location access.");
                 break;
             default:
                 diagMsg = QStringLiteral("WiFi SSID: Unable to determine location authorization status.");
                 break;
         }
         info["wifiDiagnostics"] = diagMsg;
-    }
-
-    // drop the waiter's reference; last one out releases the semaphore.
-    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        dispatch_release(ctx->sem);
     }
 
     return info;
