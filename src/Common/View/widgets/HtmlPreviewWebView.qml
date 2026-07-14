@@ -18,11 +18,24 @@ Item {
     property real zoomFactor: 1.0
     anchors.fill: parent
 
-    // CSS 'zoom' is non-standard but supported by all major engines
-    // (Blink/WebKit/Gecko) and assignment never throws.
+    // 5WHY: CSS 'zoom' is non-standard and unreliable on iOS WKWebView
+    // (scales the element but not the viewport coordinate system).
+    // Use viewport initial-scale manipulation as the PRIMARY method —
+    // this directly controls WKWebView's native UIScrollView zoom,
+    // working identically to Safari pinch-to-zoom on iOS.
+    // Falls back to CSS zoom for engines that don't support viewport
+    // meta manipulation (older WebView2).
     function applyZoom() {
+        var zf = root.zoomFactor
         webView.runJavaScript(
-            "var s=document.body;if(s)s.style.zoom='" + root.zoomFactor + "'")
+            "(function(z){" +
+            "var m=document.querySelector('meta[name=viewport]');" +
+            "if(m){" +
+            "m.content='width=device-width,initial-scale='+z+',maximum-scale=5.0,user-scalable=yes'" +
+            "}else{" +
+            "var s=document.body;if(s)s.style.zoom=z" +
+            "}" +
+            "})(" + zf + ")")
     }
 
     // Width-constraining CSS is included in the generated HTML
