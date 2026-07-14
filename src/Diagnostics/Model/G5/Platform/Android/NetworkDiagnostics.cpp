@@ -17,6 +17,7 @@
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
+#include "Diagnostics/View/DiagnosticFormatter.h"
 
 // 5WHY: Functions were wrapped in namespace G5WebsiteUrl but header
 // NetworkDiagnostics.h declares them at global scope.  Removed namespace
@@ -218,10 +219,34 @@ DiagnosticResult androidCellularDiag(DiagId id) {
     return r;
 }
 
+// 5WHY: Used hardcoded plain-text string — table view was desktop-only.
+// Now uses DiagnosticFormatter::formatTable for consistent display on all
+// platforms (matching iOS, macOS, desktop implementations).
 DiagnosticResult androidDhcpDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
-    r.rawOutput = QStringLiteral("\nDHCP Client Status:\n\n  [Android] DHCP is system-managed. Lease details unavailable.\n  Use adb shell dumpsys dhcpclient for lease info.\n");
+
+    static const QVector<DiagnosticFormatter::ColSpec> kDhcpCols = {
+        {"Interface", 18, false},
+        {"DHCP",       6, false},
+        {"IP Address", 18, false},
+        {"Server",     0, false},
+    };
+
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("DHCP Client Status"));
+    out.append(QString());
+
+    QList<QStringList> rows;
+    rows.append({"(system-managed)", "Yes", "(not exposed)", "(not exposed)"});
+    out << DiagnosticFormatter::formatTable(kDhcpCols, rows);
+    out.append(QString());
+    out.append(QStringLiteral("  Android manages DHCP at the system level —"));
+    out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
+    out.append(QStringLiteral("  Use `adb shell dumpsh dhcpclient` for lease info."));
+
+    r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.summary = QStringLiteral("System-managed (Android)");
     r.status = DiagStatus::Info;
