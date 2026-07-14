@@ -133,7 +133,13 @@ static int extractProbePort(const QString& target) {
     }
     auto slash = rest.indexOf('/');
     if (slash >= 0) rest = rest.left(slash);   // strip path
-    if (rest.startsWith('[')) {                 // [IPv6]:port
+    // 5WHY: userinfo (user:pass@host) was not stripped before port
+    // detection. For mysql://user:pass@host:3306, rest was
+    // "user:pass@host:3306" → count(':') = 2 ≠ 1 → port skipped.
+    // Now strip userinfo before any port parsing.
+    auto atSign = rest.lastIndexOf('@');
+    if (atSign >= 0) rest = rest.mid(atSign + 1);
+    if (rest.startsWith('[')) {                // [IPv6]:port
         auto closing = rest.indexOf(']');
         if (closing > 0 && closing + 1 < rest.size() && rest.at(closing + 1) == ':') {
             int p = rest.mid(closing + 2).toInt();
