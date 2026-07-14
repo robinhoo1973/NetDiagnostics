@@ -138,6 +138,10 @@ function(configure_netdiag_target TARGET)
     if(APPLE AND NOT IOS)
         find_library(PDFKIT PDFKit REQUIRED)
         target_link_libraries(${TARGET} PRIVATE ${PDFKIT})
+        # 5WHY: CoreWLAN used by WifiHelper.mm — must be linked for both
+        # the production target AND the simulator target (same as PDFKit).
+        find_library(COREWLAN CoreWLAN REQUIRED)
+        target_link_libraries(${TARGET} PRIVATE ${COREWLAN})
     endif()
 
     # ── curl compile definitions ─────────────────────────────────────
@@ -254,10 +258,8 @@ function(setup_platform_bundle TARGET)
         # PDFKit linking moved to configure_netdiag_target so both
         # production and simulator targets get the framework.
         # See 5WHY comment there for rationale.
-        # 5WHY: macOS WiFi now uses WifiHelper.mm (proper ObjC++ file)
-        # instead of inline objc_msgSend in G1WifiDiagnostics.cpp.
-        # CoreWLAN is accessed via native ObjC syntax — no -x flag needed.
-        target_link_libraries(${TARGET} PRIVATE "-framework CoreWLAN")
+        # 5WHY: CoreWLAN linking moved to configure_netdiag_target so both
+        # production and simulator targets get the framework.
     endif()
 
     # iOS .app bundle
