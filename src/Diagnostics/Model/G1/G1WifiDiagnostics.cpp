@@ -1,9 +1,7 @@
 ﻿#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
-#include <objc/objc.h>
-#include <objc/message.h>
-#include <objc/runtime.h>
+#include "Common/Platform/Apple/macOS/WifiHelper.h"
 #endif
 namespace G1G2G3Native {
 DiagnosticResult wifiDiagnostics(DiagId id) {
@@ -131,43 +129,17 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             bssid = wifiData.value("bssid", "").toString();
             if (bssid.isEmpty()) bssid = QStringLiteral("-");
 #elif defined(__APPLE__)
-            // 5WHY: macOS had NO CoreWLAN support — always showed "-" for
-            // SSID/BSSID. CoreWLAN (CWWiFiClient) is the macOS equivalent
-            // of iOS NEHotspotNetwork. No location permission required.
-            // Uses objc_msgSend since this is a .cpp file (no ObjC syntax).
+            // 5WHY: macOS CoreWLAN — SSID/BSSID via dedicated .mm helper.
+            // Extracted from inline objc_msgSend to avoid ObjC type issues
+            // with Xcode 26.5 SDK (Class/SEL not exposed in .cpp mode).
             {
-                Class cwClient = objc_getClass("CWWiFiClient");
-                if (cwClient) {
-                    // [CWWiFiClient sharedWiFiClient]
-                    id sharedClient = ((id (*)(Class, SEL))objc_msgSend)(
-                        cwClient, sel_registerName("sharedWiFiClient"));
-                    if (sharedClient) {
-                        // [sharedClient interface]
-                        id wifiIface = ((id (*)(id, SEL))objc_msgSend)(
-                            sharedClient, sel_registerName("interface"));
-                        if (wifiIface) {
-                            // [wifiIface ssid]
-                            id ssidObj = ((id (*)(id, SEL))objc_msgSend)(
-                                wifiIface, sel_registerName("ssid"));
-                            if (ssidObj) {
-                                const char* utf8 = ((const char* (*)(id, SEL))objc_msgSend)(
-                                    ssidObj, sel_registerName("UTF8String"));
-                                if (utf8) {
-                                    ssid = QString::fromUtf8(utf8);
-                                    iosWifiSsidCaptured = ssid;
-                                }
-                            }
-                            // [wifiIface bssid]
-                            id bssidObj = ((id (*)(id, SEL))objc_msgSend)(
-                                wifiIface, sel_registerName("bssid"));
-                            if (bssidObj) {
-                                const char* utf8 = ((const char* (*)(id, SEL))objc_msgSend)(
-                                    bssidObj, sel_registerName("UTF8String"));
-                                if (utf8) bssid = QString::fromUtf8(utf8);
-                            }
-                        }
-                    }
+                QString s = macosWifiSsid();
+                if (!s.isEmpty()) {
+                    ssid = s;
+                    iosWifiSsidCaptured = ssid;
                 }
+                QString b = macosWifiBssid();
+                if (!b.isEmpty()) bssid = b;
             }
 #endif
 

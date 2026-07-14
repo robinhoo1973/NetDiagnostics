@@ -1,4 +1,4 @@
-﻿cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.22)
 if(NOT DEFINED PROJECT_VERSION)
     set(PROJECT_VERSION "0.0.1")
 endif()
@@ -17,12 +17,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-# 鈹€鈹€ CMake modules 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── CMake modules ──────────────────────────────────────────────────────
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(dependencies)      # Qt6 + curl discovery, iOS SDK detection
 include(netdiag-target)    # configure_netdiag_target() + platform bundles
 
-# 鈹€鈹€ Source files 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Source files ───────────────────────────────────────────────────────
 set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
@@ -89,7 +89,7 @@ set(SOURCES
     src/Diagnostics/Model/G5/G5Mqtt.cpp
 )
 
-# 鈹€鈹€ Automated testing harness (ND_TESTING) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Automated testing harness (ND_TESTING) ──────────────────────────────
 if(ND_TESTING)
     list(APPEND SOURCES
         src/Common/Tests/TestHarness.cpp
@@ -97,7 +97,7 @@ if(ND_TESTING)
     )
 endif()
 
-# 鈹€鈹€ Platform-specific sources 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Platform-specific sources ──────────────────────────────────────────
 if(WIN32)
     list(APPEND SOURCES resources/netanalysis.rc)
     set(CMAKE_RC_FLAGS "${CMAKE_RC_FLAGS} -I\"${CMAKE_SOURCE_DIR}/resources\"")
@@ -126,6 +126,7 @@ endif()
 	list(APPEND SOURCES src/Common/Platform/NativePdfDocument.cpp)
 	if(APPLE AND NOT IOS)
     list(APPEND SOURCES src/Common/Platform/Apple/macOS/PlatformPdfRenderer.mm)
+    list(APPEND SOURCES src/Common/Platform/Apple/macOS/WifiHelper.mm)
 	elseif(IOS)
 		# PlatformPdfRenderer_ios.mm already in if(IOS) block above
 	elseif(ANDROID)
@@ -136,44 +137,44 @@ endif()
 
 set(QML_RESOURCES resources/resources.qrc)
 
-# 鈹€鈹€ QtWebView QRC �?only included when QtWebView module is available 鈹€鈹€
+# ── QtWebView QRC ??only included when QtWebView module is available ──
 # 5WHY: HtmlPreviewWebView.qml contains import QtWebView. If this file
 # is in the main QRC, qt_import_qml_plugins() scans it at build time
-# and requires the QtWebView plugin �?which is unavailable in static
+# and requires the QtWebView plugin ??which is unavailable in static
 # MSYS2 builds, causing a startup crash. By isolating it in a separate
 # QRC that is only bundled when QtWebView exists, static builds skip
 # the import and rely on the Image fallback in ReportScreen.qml.
 if(TARGET Qt6::WebView)
     list(APPEND QML_RESOURCES resources/resources_webview.qrc)
-    message(STATUS "WebView QRC included �?in-app HTML preview enabled")
+    message(STATUS "WebView QRC included ??in-app HTML preview enabled")
 else()
-    message(STATUS "WebView QRC excluded �?in-app HTML preview uses image fallback")
+    message(STATUS "WebView QRC excluded ??in-app HTML preview uses image fallback")
 endif()
 
-# 鈹€鈹€ QtPdf QRC �?only included when QtPdf module is available (Qt 6.4+) 鈹€
+# ── QtPdf QRC ??only included when QtPdf module is available (Qt 6.4+) ─
 # 5WHY: PdfPreviewView.qml contains import QtQuick.Pdf. Same static-build
-# constraint as HtmlPreviewWebView.qml �?isolate to prevent qmlimportscanner
+# constraint as HtmlPreviewWebView.qml ??isolate to prevent qmlimportscanner
 # from requiring the QtQuick.Pdf plugin in builds without the module.
 if(TARGET Qt6::Pdf AND TARGET Qt6::PdfQuick)
     list(APPEND QML_RESOURCES resources/resources_qtpdf.qrc)
-    message(STATUS "QtPdf QRC included �?in-app PDF preview enabled")
+    message(STATUS "QtPdf QRC included ??in-app PDF preview enabled")
 else()
-    message(STATUS "QtPdf QRC excluded �?PDF preview uses image fallback")
+    message(STATUS "QtPdf QRC excluded ??PDF preview uses image fallback")
 endif()
 
-# 鈹€鈹€ Native PDF QRC �?macOS/iOS/Android have built-in PDF renderers 鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Native PDF QRC ??macOS/iOS/Android have built-in PDF renderers ──────
 # 5WHY: NativePdfPageView.qml references NetDiagnostics 1.0 QML type
 # (NativePdfDocument). Previously mobile-only; now macOS also has a native
 # renderer (PDFKit). Windows/Linux use QtPdf or image fallback.
 # Platform renderers: macOS PDFKit, iOS CGPDFDocument, Android PdfRenderer.
 if(APPLE OR ANDROID)
     list(APPEND QML_RESOURCES resources/resources_nativepdf.qrc)
-    message(STATUS "Native PDF QRC included �?platform PDF preview enabled")
+    message(STATUS "Native PDF QRC included ??platform PDF preview enabled")
 else()
-    message(STATUS "Native PDF QRC excluded �?use QtPdf or image fallback")
+    message(STATUS "Native PDF QRC excluded ??use QtPdf or image fallback")
 endif()
 
-# 鈹€鈹€ Production target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Production target ──────────────────────────────────────────────────
 qt_add_executable(net_diagnostics WIN32 MANUAL_FINALIZATION ${SOURCES} ${QML_RESOURCES})
 # 5WHY: setup_platform_bundle must be called BEFORE configure_netdiag_target
 # so MACOSX_BUNDLE and MACOSX_BUNDLE_INFO_PLIST are set before
@@ -184,7 +185,7 @@ qt_add_executable(net_diagnostics WIN32 MANUAL_FINALIZATION ${SOURCES} ${QML_RES
 setup_platform_bundle(net_diagnostics)
 configure_netdiag_target(net_diagnostics)
 
-# 鈹€鈹€ Simulator target 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Simulator target ───────────────────────────────────────────────────
 if(BUILD_SIMULATOR)
     set(SIM_SOURCES ${SOURCES})
     list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
@@ -193,11 +194,11 @@ if(BUILD_SIMULATOR)
     if(_main_cpp_idx GREATER -1)
         list(FIND SIM_SOURCES "src/main.cpp" _still_there)
         if(_still_there GREATER -1)
-            message(FATAL_ERROR "Failed to remove src/main.cpp from SIM_SOURCES �?path mismatch?")
+            message(FATAL_ERROR "Failed to remove src/main.cpp from SIM_SOURCES ??path mismatch?")
         endif()
     endif()
     list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    # Simulator modules �?header-only (.h) with Q_OBJECT macros.
+    # Simulator modules ??header-only (.h) with Q_OBJECT macros.
     # Listed as SOURCES so CMake AUTOMOC generates moc_*.cpp for them.
     # CMake does NOT compile .h files; it only passes them through moc.
     list(APPEND SIM_SOURCES
@@ -212,7 +213,7 @@ if(BUILD_SIMULATOR)
     configure_netdiag_target(net_diagnostics_sim)
 endif()
 
-# 鈹€鈹€ Tests 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+# ── Tests ──────────────────────────────────────────────────────────────
 option(BUILD_TESTS "Build test suite" OFF)
 if(BUILD_TESTS)
     enable_testing()
