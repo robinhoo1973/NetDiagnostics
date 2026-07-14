@@ -4,15 +4,16 @@
 // present in the generated HTML).  Using loadHtml() instead forces the
 // native engine to process the content as a fresh page load, respecting
 // the width=device-width viewport and enabling pinch-to-zoom on touch.
-// Falls back to url loading if XHR cannot read the file (e.g. sandboxed).
 //
 // 5WHY (2nd): loadHtml() alone didn't guarantee viewport compliance on
-// WebView2. Now injects viewport-constraining CSS + inline body style
-// + viewport meta tag for belt-and-suspenders width enforcement.
+// WebView2. Now injects viewport-constraining CSS + inline body style.
+// IMPORTANT: overflow-x must be 'auto', NOT 'hidden' — hidden blocks
+// horizontal panning when the user zooms in, making zoom unusable.
 //
 // 5WHY (3rd): Inline zoom controls were inconsistent with other preview
-// tiers. Now uses shared ZoomBar component for unified UX (geometric √2
-// steps, keyboard shortcuts, percentage display, same visual design).
+// tiers. Now uses shared ZoomBar component. CSS zoom (non-standard but
+// widely supported) is primary; transform:scale() is the standards-based
+// fallback for engines that don't support CSS zoom.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -26,12 +27,15 @@ Item {
     anchors.fill: parent
 
     function injectViewportCss(html) {
+        // 5WHY: overflow-x was 'hidden' which blocked horizontal panning
+        // when zoomed in. Changed to 'auto' — constrains width at 100%
+        // but allows scroll when content overflows (e.g. after zoom).
         var viewportCss = "<style>" +
-            "html,body{max-width:100%!important;overflow-x:hidden!important;overflow-wrap:break-word!important;word-wrap:break-word!important}" +
+            "html,body{max-width:100%!important;overflow-x:auto!important;overflow-wrap:break-word!important;word-wrap:break-word!important}" +
             "img,svg,table,pre,code{max-width:100%!important;height:auto!important}" +
             "table{display:block!important;overflow-x:auto!important}" +
             "</style>"
-        var bodyStyle = ' style="max-width:100%;overflow-x:hidden;overflow-wrap:break-word;word-wrap:break-word"'
+        var bodyStyle = ' style="max-width:100%;overflow-x:auto;overflow-wrap:break-word;word-wrap:break-word"'
         html = html.replace(/<body([^>]*)>/i, '<body$1' + bodyStyle + '>')
         if (!/<meta[^>]+viewport/i.test(html)) {
             var metaVp = '<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">'
@@ -49,10 +53,20 @@ Item {
         return viewportCss + html
     }
 
+    // 5WHY: CSS 'zoom' is non-standard (though widely supported in
+    // Blink/WebKit/Gecko). Try zoom first; fall back to transform:scale()
+    // if the engine rejects it. Must NOT apply both — double-zoom bug.
     function applyZoom() {
         if (!webView || typeof webView.runJavaScript !== 'function') return
+        var zf = root.zoomFactor
         webView.runJavaScript(
-            "if(document.body)document.body.style.zoom='" + root.zoomFactor + "'")
+            "(function(z){" +
+            "var s=document.body;if(!s)return;" +
+            "try{s.style.zoom=z}catch(e){" +      // primary: CSS zoom
+            "s.style.transform='scale('+z+')';" +  // fallback
+            "s.style.transformOrigin='top left';" +
+            "s.style.width=(100/z)+'%'}" +
+            "})(" + zf + ")")
     }
 
     onHtmlUrlChanged: {
