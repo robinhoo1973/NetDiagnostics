@@ -92,8 +92,10 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     };
     QList<QStringList> wifiRows;
     QSet<QString> seenWifi;
+    // 5WHY: was #if PLATFORM_IOS only — macOS CoreWLAN also needs it
+    QString wifiSsidCaptured;
 #if defined(PLATFORM_IOS)
-    QString iosWifiSsidCaptured;
+    QString wifiDiagnosticMsg;  // captured inside loop, used after
 #endif
 
     struct ifaddrs* ifa = nullptr;
@@ -125,9 +127,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QVariantMap wifiData = iosWiFiInfo();
             ssid = wifiData.value("ssid", "").toString();
             if (ssid.isEmpty()) ssid = QStringLiteral("-");
-            else iosWifiSsidCaptured = ssid;
+            else wifiSsidCaptured = ssid;
             bssid = wifiData.value("bssid", "").toString();
             if (bssid.isEmpty()) bssid = QStringLiteral("-");
+            // 5WHY: wifiData goes out of scope after for loop — capture
+            // the diagnostic message for use in the iOS summary section.
+            wifiDiagnosticMsg = wifiData.value("wifiDiagnostics", "").toString();
 #elif defined(__APPLE__)
             // 5WHY: macOS CoreWLAN — SSID/BSSID via dedicated .mm helper.
             // Extracted from inline objc_msgSend to avoid ObjC type issues
@@ -136,7 +141,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                 QString s = macosWifiSsid();
                 if (!s.isEmpty()) {
                     ssid = s;
-                    iosWifiSsidCaptured = ssid;
+                    wifiSsidCaptured = ssid;
                 }
                 QString b = macosWifiBssid();
                 if (!b.isEmpty()) bssid = b;
@@ -201,12 +206,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
         if (!wifiGw.isEmpty())
             out.append(QStringLiteral("  Gateway: %1").arg(wifiGw));
         out.append(QStringLiteral("  Channel/Signal/Bitrate: unavailable on iOS (no public API)"));
-        if (iosWifiSsidCaptured.isEmpty()) {
+        if (wifiSsidCaptured.isEmpty()) {
             out.append(QString());
             // 5WHY: Generic note listed 3 possible causes — user couldn't tell
             // which one applied. Now shows the specific diagnostic from
             // iosWiFiInfo() which checks [CLLocationManager authorizationStatus].
-            QString wifiDiag = wifiData.value("wifiDiagnostics", "").toString();
+            QString wifiDiag = wifiDiagnosticMsg;
             if (!wifiDiag.isEmpty()) {
                 out.append(QStringLiteral("  %1").arg(wifiDiag));
             } else {
