@@ -38,6 +38,12 @@ Item {
         maximumScaleFactor: 5.0
         minimumScaleFactor: 0.25
 
+        // Sync user scroll/page-turn → page indicator
+        onCurrentPageChanged: {
+            if (root.currentPage !== pdfView.currentPage)
+                root.currentPage = pdfView.currentPage
+        }
+
         // Sync pinch-to-zoom → ZoomBar display
         onRenderScaleChanged: {
             if (!root._syncing) {
@@ -49,9 +55,16 @@ Item {
     }
 
     // ── Unified zoom controls ─────────────────────────────────────────
+    // 5WHY: ZoomBar and nav bar both anchored to parent.bottom at 8px
+    // — on narrow mobile screens (<400px) they overlap. Raise ZoomBar
+    // above the nav bar when both are visible.
     ZoomBar {
         id: zoomBar
-        anchors { bottom: parent.bottom; right: parent.right; margins: 8 }
+        anchors { right: parent.right; rightMargin: 8 }
+        // When nav bar visible: position above it; otherwise bottom
+        y: root.pageCount > 1
+            ? parent.height - 56 - 8  // nav bar (40px) + gap + ZoomBar
+            : parent.height - implicitHeight - 8
         zoomLevel: pdfView.renderScale
 
         onZoomLevelChanged: {
