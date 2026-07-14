@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // IosNetworkInfo.mm �� iOS network info via public API workarounds
 //
 // Provides partial implementations for Diagnostics that Apple's sandbox blocks:
@@ -491,7 +491,7 @@ QString iosCopyWiFiSSID()
                 dispatch_release(ctx->sem);
             }
         }
-        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));  // 2s→5s (same as iosWiFiInfo)
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));  // 2s→5s (same as iosWiFiInfo)
         if (waited != 0) ctx->ssid.clear(); // timeout: handler may still be writing
     }
 
@@ -622,7 +622,7 @@ QVariantMap iosWiFiInfo()
         // NEHotspotNetwork callback can take 2-4s due to system privacy
         // checks.  Increased to 5s to avoid false timeouts that would
         // clear valid SSID/BSSID results.
-        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+        long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, 15 * NSEC_PER_SEC));
         if (waited != 0) {
             ctx->ssid.clear();
             ctx->bssid.clear();
