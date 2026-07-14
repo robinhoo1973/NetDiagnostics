@@ -60,12 +60,12 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {selectMs / 1000, (selectMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
-        ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        // Wall-clock guard: abort if total recv time exceeds 30 s.
-        // MUST come before EAGAIN handling -- a continue on EAGAIN would
-        // otherwise skip this guard, risking an infinite loop if select()
-        // keeps reporting readable but recv() keeps returning EAGAIN.
+        // 5WHY: Wall-clock guard was AFTER recv(). If the guard fires when
+        // recv() just read a valid chunk, that chunk was silently discarded.
+        // Move the guard BEFORE recv() so it aborts the iteration without
+        // losing already-received data — same pattern as httpDownload.
         if (recvTimer.elapsed() > 30000) break;
+        ssize_t n = recv(sock, buf, sizeof(buf), 0);
         if (n > 0) {
             response.append(buf, (int)n);
         } else if (n == 0) {

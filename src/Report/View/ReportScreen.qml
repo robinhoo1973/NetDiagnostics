@@ -32,6 +32,16 @@ Item {
 
     // 5WHY: darkBackground was hardcoded to true — preview never reflected
     // the user's actual theme choice. Now reads ThemeEngine.isDark reactively.
+
+    // Convert a native filesystem path to a valid file:/// URL.
+    // Handles Windows backslashes and percent-encodes special characters
+    // (spaces, Unicode, etc.) via encodeURI so PdfDocument.source and
+    // WebView accept the URL on all platforms.
+    function toFileUrl(nativePath) {
+        if (!nativePath) return ""
+        return "file:///" + encodeURI(nativePath.replace(/\\/g, "/"))
+    }
+
     function openPreview(fmt) {
         if (!canReport) return
         previewFormat = fmt
@@ -331,9 +341,7 @@ Item {
                         // changes, keeping the WebView URL in sync.
                         onLoaded: {
                             if (item) item.htmlUrl = Qt.binding(function() {
-                                return previewHtmlPath
-                                    ? "file:///" + previewHtmlPath.replace(/\\/g, "/")
-                                    : ""
+                                return page.toFileUrl(previewHtmlPath)
                             })
                         }
                     }
@@ -356,14 +364,9 @@ Item {
                         visible: page.previewFormat !== "html" && hasQtPdf
                         active: page.previewFormat !== "html" && hasQtPdf
                         source: "qrc:/qml/widgets/PdfPreviewView.qml"
-                        // 5WHY: PdfDocument.source expects a URL (file:/// or qrc:/).
-                        // previewPdfPath is a raw filesystem path (e.g. C:\...).
-                        // Convert to file:/// URL so the PDF loads correctly.
                         onLoaded: {
                             if (item) item.pdfSource = Qt.binding(function() {
-                                return page.previewPdfPath
-                                    ? "file:///" + page.previewPdfPath.replace(/\\/g, "/")
-                                    : ""
+                                return page.toFileUrl(page.previewPdfPath)
                             })
                         }
                     }
@@ -381,9 +384,7 @@ Item {
                         onLoaded: {
                             if (item) {
                                 item.pdfSource = Qt.binding(function() {
-                                    return page.previewPdfPath
-                                        ? "file:///" + page.previewPdfPath.replace(/\\/g, "/")
-                                        : ""
+                                    return page.toFileUrl(page.previewPdfPath)
                                 })
                                 item.currentPage = 0
                             }

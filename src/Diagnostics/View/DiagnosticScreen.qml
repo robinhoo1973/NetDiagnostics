@@ -247,6 +247,12 @@ Item {
             color: ThemeEngine.colors.card
             border { width: 1.5; color: ThemeEngine.colors.borderFocused }
 
+            // 5WHY: Background MouseArea (line 240) closes the overlay on any
+            // click. Without this, clicking inside the card to select text or
+            // scroll also dismisses the overlay. This empty MouseArea absorbs
+            // clicks within the card so only clicks OUTSIDE the card dismiss.
+            MouseArea { anchors.fill: parent }
+
             // 5WHY: Close button was invisible at rest — subtle borderCard background
             // + textPrimary icon blended into the card surface, forcing users to
             // hover to discover the dismiss affordance.  Modal overlays need an
