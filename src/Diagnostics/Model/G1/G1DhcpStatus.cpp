@@ -83,7 +83,6 @@ DiagnosticResult dhcpStatus(DiagId id) {
             if (f.open(QIODevice::ReadOnly)) {
                 QString ifName = fi.fileName();
                 QString ipStr, serverStr;
-                anyDhcp = true;
                 QTextStream ts(&f);
                 while (!ts.atEnd()) {
                     QString line = ts.readLine().trimmed();
@@ -92,6 +91,10 @@ DiagnosticResult dhcpStatus(DiagId id) {
                     else if (line.startsWith("SERVER_ADDRESS="))
                         serverStr = line.mid(15);
                 }
+                // 5WHY: anyDhcp was set before parsing — an empty/corrupt
+                // lease file would set anyDhcp=true with no IP, suppressing
+                // the /proc/net/route fallback. Now only set when data found.
+                if (!ipStr.isEmpty()) anyDhcp = true;
                 dhcpRows.append({ifName, "Yes",
                                 ipStr.isEmpty() ? "-" : ipStr,
                                 serverStr.isEmpty() ? "-" : serverStr});
@@ -182,7 +185,11 @@ DiagnosticResult dhcpStatus(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.properties = props;
-    r.status = DiagStatus::Pass;
+    // 5WHY: status was unconditionally Pass — on macOS (no Linux paths,
+    // no Windows API) and on API failures, the result was Pass with empty
+    // data, misleading the user. Now: Info when no leases found (may be
+    // intentional static IP), Pass when DHCP data collected.
+    r.status = dhcpSummary.isEmpty() ? DiagStatus::Info : DiagStatus::Pass;
     r.summary = dhcpSummary.isEmpty() ? QStringLiteral("No DHCP leases found (static IP?)")
                  : QStringLiteral("DHCP: %1").arg(dhcpSummary.join(QStringLiteral(", ")));
     r.durationMs = t.elapsed();
