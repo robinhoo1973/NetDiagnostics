@@ -212,12 +212,16 @@ DiagnosticResult networkAdapters(DiagId id) {
         if (stateFile.open(QIODevice::ReadOnly)) state = QString::fromLatin1(stateFile.readAll().trimmed()).toUpper();
 #endif
         if (isLoopback) state = QStringLiteral("UP");
+#endif // __APPLE__
 
+        // 5WHY: netRows.append() was inside the #else block (Linux only).
+        // macOS correctly reads MTU/state via ioctl in the __APPLE__ block
+        // above, but the row was never appended — resulting in an empty
+        // "No network adapters found" table on macOS.
         QString mac = info.mac.isEmpty() ? QStringLiteral("-") : info.mac;
         QString ip4 = info.ips.isEmpty() ? (isLoopback ? QStringLiteral("127.0.0.1") : QStringLiteral("-")) : info.ips.join(',');
 
         netRows.append({info.name, mtu, state, mac, ip4});
-#endif // __APPLE__
     }
     out.append(DiagnosticFormatter::formatTable(kNetCols, netRows));
 #endif // PLATFORM_IOS
