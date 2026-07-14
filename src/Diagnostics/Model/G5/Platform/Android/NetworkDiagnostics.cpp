@@ -40,9 +40,49 @@ static QString signalGlyphs(int level) {
     }
 }
 
+// ── Runtime permission check ───────────────────────────────────────────
+// 5WHY: iOS checks [CLLocationManager authorizationStatus] before accessing
+// SSID/BSSID. Android code had no equivalent — just called the API and
+// returned generic errors. Now mirrors iOS's actionable guidance.
+static QString androidLocationPermissionStatus() {
+    QJniObject ctx = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity",
+        "()Landroid/app/Activity;");
+    if (!ctx.isValid()) return QString();
+
+    // ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+    QJniObject permStr = QJniObject::fromString("android.permission.ACCESS_FINE_LOCATION");
+    jint result = QJniObject::callStaticMethod<jint>(
+        "androidx/core/content/ContextCompat", "checkSelfPermission",
+        "(Landroid/content/Context;Ljava/lang/String;)I",
+        ctx.object(), permStr.object<jstring>());
+
+    const jint PERMISSION_GRANTED = 0;
+    const jint PERMISSION_DENIED = -1;
+    if (result == PERMISSION_GRANTED) return QString(); // OK
+
+    // Check if we should show rationale
+    QJniObject activityCompatResult = QJniObject::callStaticObjectMethod(
+        "androidx/core/app/ActivityCompat",
+        "shouldShowRequestPermissionRationale",
+        "(Landroid/app/Activity;Ljava/lang/String;)Z",
+        ctx.object(), permStr.object<jstring>());
+
+    if (result == PERMISSION_DENIED) {
+        return QStringLiteral("WiFi SSID/BSSID: Location permission was denied. "
+                              "Go to Settings > Apps > NetDiagnostics > Permissions "
+                              "and enable 'Location' (required for WiFi diagnostics).");
+    }
+    return QStringLiteral("WiFi SSID/BSSID: Location permission not granted. "
+                          "Grant 'Location' permission in Settings > Apps > NetDiagnostics.");
+}
+
 // ── WiFi SSID via WifiManager ──────────────────────────────────────────
 static QString androidWifiSsid() {
-    // Requires ACCESS_WIFI_STATE + ACCESS_FINE_LOCATION permissions
+    // Check permission first — same pattern as iOS authorizationStatus check
+    QString permError = androidLocationPermissionStatus();
+    if (!permError.isEmpty()) return permError;
+
     QJniObject ctx = QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative", "activity",
         "()Landroid/app/Activity;");
@@ -62,10 +102,32 @@ static QString androidWifiSsid() {
     if (!ssid.isValid()) return QStringLiteral("SSID unavailable");
 
     QString result = ssid.toString();
-    // Android returns SSID wrapped in quotes — strip them
     if (result.startsWith('"') && result.endsWith('"'))
         result = result.mid(1, result.length() - 2);
     return result;
+}
+
+// ── WiFi BSSID ─────────────────────────────────────────────────────────
+// 5WHY: BSSID was never retrieved despite WifiInfo.getBSSID() being
+// available with location permission. iOS retrieves BSSID via NEHotspotNetwork.
+static QString androidWifiBssid() {
+    QJniObject ctx = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity",
+        "()Landroid/app/Activity;");
+    if (!ctx.isValid()) return QString();
+
+    QJniObject wifiService = ctx.callObjectMethod(
+        "getSystemService",
+        "(Ljava/lang/String;)Ljava/lang/Object;",
+        QJniObject::fromString("wifi").object<jstring>());
+    if (!wifiService.isValid()) return QString();
+
+    QJniObject wifiInfo = wifiService.callObjectMethod(
+        "getConnectionInfo", "()Landroid/net/wifi/WifiInfo;");
+    if (!wifiInfo.isValid()) return QString();
+
+    QJniObject bssid = wifiInfo.callObjectMethod("getBSSID", "()Ljava/lang/String;");
+    return bssid.isValid() ? bssid.toString() : QString();
 }
 
 // ── Cellular Carrier via TelephonyManager ──────────────────────────────
@@ -163,22 +225,48 @@ QString androidNetworkTypeInfo() {
     return androidConnectivityInfo();
 }
 
+// 5WHY: Used hardcoded note about ACCESS_FINE_LOCATION — never checked
+// actual permission status, never retrieved BSSID (API available), never
+// showed actionable guidance. Now mirrors iOS pattern: check permission,
+// show specific error, retrieve SSID+BSSID when available.
 DiagnosticResult androidWifiDiag(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();
+
+    // Check permission first (mirrors iOS [CLLocationManager authorizationStatus])
+    QString permError = androidLocationPermissionStatus();
 
     QStringList out;
     out.append(QString());
     out.append(QStringLiteral("Wireless LAN information:"));
     out.append(QString());
+
     QString ssid = androidWifiSsid();
-    out.append(QStringLiteral("  SSID: %1").arg(ssid.isEmpty() ? QStringLiteral("(unavailable)") : ssid));
-    out.append(QStringLiteral("  [Android] Signal/BSSID/Channel: requires ACCESS_FINE_LOCATION + WifiManager.calculateSignalLevel"));
+    bool permDenied = !permError.isEmpty() && ssid.contains("permission");
+
+    if (permDenied) {
+        // Show actionable permission guidance
+        out.append(QStringLiteral("  %1").arg(permError));
+    } else if (ssid.isEmpty() || ssid == "(unavailable)") {
+        out.append(QStringLiteral("  SSID: (not connected or unavailable)"));
+    } else {
+        out.append(QStringLiteral("  SSID: %1").arg(ssid));
+        // 5WHY: BSSID was never retrieved despite getBSSID() being available
+        QString bssid = androidWifiBssid();
+        out.append(QStringLiteral("  BSSID: %1").arg(bssid.isEmpty() ? QStringLiteral("(unavailable)") : bssid));
+    }
+
+    if (!permDenied)
+        out.append(QStringLiteral("  Signal/Channel: Requires Android API level 29+ (WifiManager.calculateSignalLevel)"));
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.summary = ssid.isEmpty() ? QStringLiteral("No WiFi") : QStringLiteral("WiFi: %1").arg(ssid);
-    r.status = ssid.isEmpty() ? DiagStatus::Info : DiagStatus::Pass;
+    r.summary = permDenied ? QStringLiteral("WiFi: Location permission required")
+               : ssid.isEmpty() ? QStringLiteral("No WiFi")
+               : QStringLiteral("WiFi: %1").arg(ssid);
+    r.status = permDenied ? DiagStatus::Warning
+               : ssid.isEmpty() ? DiagStatus::Info
+               : DiagStatus::Pass;
     return r;
 }
 
