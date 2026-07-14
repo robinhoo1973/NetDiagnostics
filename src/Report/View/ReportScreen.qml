@@ -46,9 +46,6 @@ Item {
         if (!canReport) return
         previewFormat = fmt
         var darkBg = ThemeEngine.isDark
-        // 5WHY: pdfScale persisted across open/close cycles — reopening
-        // showed the last pinch-zoom level instead of resetting to 1x.
-        pdfFlick.pdfScale = 1.0
         if (fmt === "html") {
             // 5WHY: QML Text.RichText cannot render CSS. QtWebView wraps the
             // platform native web engine (Edge WebView2/WKWebView) which
@@ -70,23 +67,9 @@ Item {
             // exportPdf used fullDetail=true. User saw a concise preview
             // then got a detailed PDF — preview didn't represent output.
             // Now both use fullDetail=true for content parity.
-            var html = appState.buildReportHtml(true, darkBg)
-            // 5WHY: When QtPdf is available, generate the real PDF for
-            // in-app viewing with PdfScrollablePageView. Skip the image
-            // render — it's wasted ~300ms when PdfPreviewView is visible.
-            // The PDF IS the preview; no fallback image needed.
-            if (hasQtPdf || hasNativePdf) {
-                previewPdfPath = appState.generatePreviewPdf() || ""
-                // 5WHY: When generatePreviewPdf() fails (returns ""), the
-                // QtPdf/NativePdf Loader receives an empty source and shows
-                // nothing, with no fallback because the else branch only
-                // runs when both QtPdf and NativePdf are absent. Generate
-                // the image fallback too so the user sees something.
-                if (!previewPdfPath)
-                    previewImagePath = appState.renderPreviewImage(html, 760) || ""
-            } else {
-                previewImagePath = appState.renderPreviewImage(html, 760) || ""
-            }
+            // Desktop requires QtPdf; mobile requires NativePdf (always
+            // available). No degraded image fallback — removed per UX review.
+            previewPdfPath = appState.generatePreviewPdf() || ""
         }
         previewVisible = true
     }
@@ -397,70 +380,9 @@ Item {
                             }
                         }
                     }
-                    // 5WHY: Image fallback was gated on !hasQtPdf && !hasNativePdf,
-                    // so when generatePreviewPdf() failed (hasQtPdf=true but
-                    // previewPdfPath=""), the user saw a blank area with no
-                    // fallback. Now also shows when the PDF path is empty.
-                    Flickable {
-                        id: pdfFlick
-                        anchors { fill: parent; margins: 14 }
-                        visible: page.previewFormat !== "html" && !previewPdfPath
-                            && (!hasQtPdf || !hasNativePdf || previewImagePath)
-                        clip: true
-                        // 5WHY: contentWidth/Height used pdfImage.implicitWidth (source
-                        // image pixel dims) instead of pdfImage.width/height (the
-                        // actual rendered size after PreserveAspectFit). For a
-                        // 1240px source in a 760px viewport, this overestimated
-                        // content area by ~63%, creating empty scrollable space
-                        // beyond the visual content. Use rendered dimensions so
-                        // ScrollBar.AsNeeded only shows when actually needed.
-                        contentWidth: pdfImage.width * pdfScale
-                        contentHeight: pdfImage.height * pdfScale
-                        property real pdfScale: 1.0
-                        property real startScale: 1.0
-                        property bool pinching: false
-                        interactive: !pinching
-                        ScrollBar.vertical: ScrollBar {
-                            policy: ScrollBar.AsNeeded; width: 6
-                            contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
-                        }
-                        ScrollBar.horizontal: ScrollBar {
-                            policy: ScrollBar.AsNeeded; height: 6
-                            contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
-                        }
-                        PinchHandler {
-                            target: null
-                            onActiveChanged: {
-                                pdfFlick.pinching = active
-                                if (active) {
-                                    pdfFlick.startScale = pdfFlick.pdfScale
-                                    pdfFlick.returnToBounds()
-                                }
-                            }
-                            onScaleChanged: {
-                                pdfFlick.pdfScale = Math.max(0.5, Math.min(pdfFlick.startScale * scale, 5.0))
-                            }
-                        }
-                        Image {
-                            id: pdfImage
-                            width: pdfFlick.width
-                            fillMode: Image.PreserveAspectFit
-                            source: previewImagePath
-                            cache: false
-                            transform: Scale {
-                                origin.x: pdfImage.width / 2
-                                origin.y: pdfImage.height / 2
-                                xScale: pdfFlick.pdfScale
-                                yScale: pdfFlick.pdfScale
-                            }
-                        }
-                    }
                 }
                 // hasWebView is a C++ context property (HAS_QTWEBVIEW define).
                 // Always set by main.cpp / main_simulator.cpp — no QML fallback needed.
-                // previewImagePath / previewHtmlPath are declared at page scope
-                // (line 22-23) so openPreview() and the Loader/Image share the
-                // same property — no scope mismatch.
 
                 // 5WHY: Removed "Open in Browser/PDF" button — only Share remains.
                 // External viewer button was confusing users; share flow covers

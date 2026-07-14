@@ -2,9 +2,11 @@
 // 5WHY: "PDF Preview" was a QTextDocument→QImage PNG rendering, not a
 // real PDF. Users had no page breaks, text selection, or page navigation.
 // This uses PdfScrollablePageView from QtQuick.Pdf to display the actual
-// (not PdfMultiPageView — PdfScrollablePageView supports renderScale,
-// maximumScaleFactor, and single-page navigation natively)
 // generated PDF with native rendering, pinch-to-zoom, and page controls.
+//
+// 5WHY (2nd): No zoom UI controls existed — users on non-touch desktops
+// couldn't zoom. Added ZoomBar with geometric √2 steps, keyboard shortcuts
+// (Ctrl+=/-/0), and percentage display, two-way synced with renderScale.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Pdf
@@ -15,6 +17,10 @@ Item {
     property string pdfSource: ""       // file:// path to generated PDF
     property int currentPage: 0
     property int pageCount: 0
+
+    // 5WHY: Two-way sync guard — prevents feedback loop between
+    // renderScale changes (pinch) and zoomBar.zoomLevel changes (buttons).
+    property bool _syncing: false
 
     PdfDocument {
         id: pdfDoc
@@ -30,8 +36,31 @@ Item {
         currentPage: root.currentPage
         renderScale: 1.0
         maximumScaleFactor: 5.0
-        // Go to page when navigator changes
-        onCurrentPageChanged: root.currentPage = pdfView.currentPage
+        minimumScaleFactor: 0.25
+
+        // Sync pinch-to-zoom → ZoomBar display
+        onRenderScaleChanged: {
+            if (!root._syncing) {
+                root._syncing = true
+                zoomBar.zoomLevel = pdfView.renderScale
+                root._syncing = false
+            }
+        }
+    }
+
+    // ── Unified zoom controls ─────────────────────────────────────────
+    ZoomBar {
+        id: zoomBar
+        anchors { bottom: parent.bottom; right: parent.right; margins: 8 }
+        zoomLevel: pdfView.renderScale
+
+        onZoomLevelChanged: {
+            if (!root._syncing) {
+                root._syncing = true
+                pdfView.renderScale = zoomBar.zoomLevel
+                root._syncing = false
+            }
+        }
     }
 
     // ── Page navigation bar (bottom centre) ───────────────────────────
@@ -64,6 +93,8 @@ Item {
                         if (root.currentPage > 0) root.currentPage--
                     }
                 }
+                Accessible.name: "Previous page"
+                Accessible.role: Accessible.Button
             }
 
             Label {
@@ -90,6 +121,8 @@ Item {
                         if (root.currentPage < root.pageCount - 1) root.currentPage++
                     }
                 }
+                Accessible.name: "Next page"
+                Accessible.role: Accessible.Button
             }
         }
     }
