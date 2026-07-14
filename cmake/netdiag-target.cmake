@@ -254,6 +254,16 @@ function(setup_platform_bundle TARGET)
         # PDFKit linking moved to configure_netdiag_target so both
         # production and simulator targets get the framework.
         # See 5WHY comment there for rationale.
+        # 5WHY: G1WifiDiagnostics.cpp uses CoreWLAN via objc_msgSend on macOS.
+        # objc_msgSend requires Objective-C++ compilation mode (-x objective-c++),
+        # but the file extension is .cpp → Clang uses C++ mode → <objc/message.h>
+        # fails. Force ObjC++ for this file on macOS only (iOS has its own WiFi
+        # implementation via NEHotspotNetwork — the ObjC code is guarded by
+        # #if defined(__APPLE__) && !defined(PLATFORM_IOS)).
+        set_source_files_properties(
+            "${CMAKE_SOURCE_DIR}/src/Diagnostics/Model/G1/G1WifiDiagnostics.cpp"
+            PROPERTIES COMPILE_FLAGS "-x objective-c++"
+        )
     endif()
 
     # iOS .app bundle
