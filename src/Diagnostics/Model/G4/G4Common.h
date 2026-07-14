@@ -83,29 +83,37 @@ static ResultProperty prop(const QString& label, const QString& value) {
     return ResultProperty(label, value);
 }
 
-// 鈹€鈹€ Extract hostname from target (URL or hostname) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── Extract hostname from target (URL or hostname) ────────────────────
+// 5WHY: Stripped scheme, path, and port — but NOT the userinfo prefix
+// (user:password@). URLs like mysql://user:pass@host:3306/db resolved
+// to "user:pass@host" which is not a valid hostname. Now strips @-prefixed
+// userinfo before returning.
 inline QString extractHostname(const QString& target) {
     QString t = target.trimmed();
     // If it's a URL (contains ://), parse out the hostname
     if (t.contains("://")) {
-        QString afterScheme = t.section("://", 1);      // "example.com:8080/path"
+        QString afterScheme = t.section("://", 1);      // "user:pass@host:port/path"
         auto slash = afterScheme.indexOf('/');
-        if (slash >= 0) afterScheme = afterScheme.left(slash); // "example.com:8080"
+        if (slash >= 0) afterScheme = afterScheme.left(slash); // "user:pass@host:port"
         // Strip IPv6 bracket notation
         if (afterScheme.startsWith('[')) {
             auto closing = afterScheme.indexOf(']');
             if (closing > 0) afterScheme = afterScheme.mid(1, closing - 1); // "::1"
         } else {
+            // Strip userinfo (user:password@) before stripping port
+            auto at = afterScheme.lastIndexOf('@');
+            if (at >= 0) afterScheme = afterScheme.mid(at + 1); // "host:port"
             // Strip port
             auto colon = afterScheme.lastIndexOf(':');
-            if (colon > 0) afterScheme = afterScheme.left(colon); // "example.com"
+            if (colon > 0) afterScheme = afterScheme.left(colon); // "host"
         }
         return afterScheme;
     }
-    // Plain hostname 鈥?strip port if present
+    // Plain hostname — strip @-prefix and port if present
+    auto atIdx = t.lastIndexOf('@');
+    if (atIdx >= 0) t = t.mid(atIdx + 1);
     if (t.contains(':')) {
         auto colon = t.lastIndexOf(':');
-        // IPv6 has multiple colons, port uses single colon after hostname
         if (t.count(':') == 1) t = t.left(colon);
     }
     return t;
