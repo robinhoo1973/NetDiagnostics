@@ -654,9 +654,19 @@ QVariantMap iosWiFiInfo()
                 break;
             case kCLAuthorizationStatusAuthorizedWhenInUse:
             case kCLAuthorizationStatusAuthorizedAlways:
-                diagMsg = QStringLiteral("WiFi SSID: Not available. "
-                                         "Ensure WiFi is connected and the app has the "
-                                         "'Access WiFi Information' capability (Apple entitlement required).");
+                // 5WHY: Location IS authorized but SSID still empty. Two
+                // possible causes: (1) not connected to WiFi, or (2) the
+                // 'Access WiFi Information' entitlement is missing from
+                // the provisioning profile.  Provide actionable verification
+                // steps for both scenarios.
+                diagMsg = QStringLiteral(
+                    "WiFi SSID: Not available despite location permission being granted. "
+                    "1) Verify WiFi is connected in Settings > Wi-Fi. "
+                    "2) The 'Access WiFi Information' capability must be enabled in "
+                    "Xcode > Signing & Capabilities (requires paid Apple Developer account). "
+                    "3) Check that the provisioning profile includes the "
+                    "com.apple.developer.networking.wifi-info entitlement. "
+                    "Without this, NEHotspotNetwork returns nil even with location access.");
                 break;
             default:
                 diagMsg = QStringLiteral("WiFi SSID: Unable to determine location authorization status.");

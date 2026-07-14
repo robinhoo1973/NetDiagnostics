@@ -390,12 +390,12 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("  %1  %2  %3")
         .arg(QStringLiteral("Size").rightJustified(10, ' '))
-        .arg(QStringLiteral("Throughput").leftJustified(16, ' '))
-        .arg(QStringLiteral("Time").rightJustified(6, ' ')));
+        .arg(QStringLiteral("Throughput").rightJustified(16, ' '))
+        .arg(QStringLiteral("Time").rightJustified(8, ' ')));
     out.append(QStringLiteral("  %1  %2  %3")
         .arg(QString(10, QChar('-')))
         .arg(QString(16, QChar('-')))
-        .arg(QString(6, QChar('-'))));
+        .arg(QString(8, QChar('-'))));
 
     // Progressive download sizes (KB): start small, ramp up
     int dlSizes[] = {250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000};
@@ -426,8 +426,8 @@ DiagnosticResult speedTest(DiagId id) {
                 }
                 out.append(QStringLiteral("  %1  %2  %3")
                     .arg(QStringLiteral("%1 KB").arg(sizeKb).rightJustified(10, ' '))
-                    .arg(QStringLiteral("%1 Mbit/s").arg(res.mbps, 0, 'f', 2).leftJustified(16, ' '))
-                    .arg(QStringLiteral("%1 ms").arg(res.durationMs).rightJustified(6, ' ')));
+                    .arg(QStringLiteral("%1 Mbit/s").arg(res.mbps, 0, 'f', 2).rightJustified(16, ' '))
+                    .arg(QStringLiteral("%1 ms").arg(res.durationMs).rightJustified(8, ' ')));
                 ok = true;
                 break;
             }
@@ -435,8 +435,8 @@ DiagnosticResult speedTest(DiagId id) {
         if (!ok) {
             out.append(QStringLiteral("  %1  %2  %3")
                 .arg(QStringLiteral("%1 KB").arg(sizeKb).rightJustified(10, ' '))
-                .arg(QStringLiteral("(timeout)").leftJustified(16, ' '))
-                .arg(QStringLiteral("-").rightJustified(6, ' ')));
+                .arg(QStringLiteral("(timeout)").rightJustified(16, ' '))
+                .arg(QStringLiteral("-").rightJustified(8, ' ')));
             // Don't abort 闂?try next size tier even if this one failed
         }
     }
@@ -463,23 +463,22 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("  %1  %2  %3")
         .arg(QStringLiteral("Size").rightJustified(10, ' '))
-        .arg(QStringLiteral("Throughput").leftJustified(16, ' '))
-        .arg(QStringLiteral("Time").rightJustified(6, ' ')));
+        .arg(QStringLiteral("Throughput").rightJustified(16, ' '))
+        .arg(QStringLiteral("Time").rightJustified(8, ' ')));
     out.append(QStringLiteral("  %1  %2  %3")
         .arg(QString(10, QChar('-')))
         .arg(QString(16, QChar('-')))
-        .arg(QString(6, QChar('-'))));
+        .arg(QString(8, QChar('-'))));
 
     // Upload test: POST random data, increasing sizes
     int ulSizes[] = {100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000};
     QVector<double> ulResults;
     int ulTotalMs = 0;
 
-    // 5WHY: ulTotalMs 12s cap + connect 3s + send 10s + recv 5s were too
-    // aggressive for slow/congested networks. Many speed-test servers take
-    // 5-15s to respond to POST /upload. Increased all timeouts for reliability.
+    // 5WHY: Timeouts were too aggressive for slow/congested networks.
+    // Removed all upload timeouts — let the server respond at its own pace.
+    // The outer diagnostic task has a 180s watchdog to prevent hanging.
     for (int sizeKb : ulSizes) {
-        if (ulTotalMs > 30000) break;  // 12s→30s total upload budget
         int dataSize = sizeKb * 1000;
 
         // HTTP POST with measured upload
@@ -495,7 +494,7 @@ DiagnosticResult speedTest(DiagId id) {
 #endif
         ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        struct timeval tv = {8, 0};  // 3s→8s connect timeout
+        struct timeval tv = {30, 0};  // 30s connect timeout (generous)
         if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); continue; }
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
@@ -522,14 +521,10 @@ DiagnosticResult speedTest(DiagId id) {
 
         QElapsedTimer ulTimer; ulTimer.start();
         // Send POST headers (EAGAIN-safe: select() for writability on stall).
-        // 5WHY: No wall-clock guard on this loop -- a persistently stalled
-        // server (TCP window exhausted, never reads) caused an infinite loop
-        // because ulTotalMs is only updated AFTER socket close. Fixed with
-        // a 10-second send guard matching the body chunk send loop.
+        // 5WHY: No wall-clock guard — removed per user request. The outer
+        // diagnostic task watchdog (180s) provides the safety net.
         int hdrSent = 0;
-        QElapsedTimer hdrSendGuard; hdrSendGuard.start();
         while (hdrSent < postHeaders.size()) {
-            if (hdrSendGuard.elapsed() > 15000) break;  // 10s→15s
             auto n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
             if (n < 0) {
 #if defined(_WIN32)
@@ -551,15 +546,14 @@ DiagnosticResult speedTest(DiagId id) {
         // Includes wall-clock guard so outer ulTotalMs check can fire
         int sent = 0; const char* dp = uploadData.constData();
         if (headerComplete) {
-        QElapsedTimer sendGuard; sendGuard.start();
         while (sent < dataSize) {
             int chunk = qMin(dataSize - sent, 32768);
             auto n = ::send(sock, dp + sent, chunk, 0);
             if (n < 0) {
 #if defined(_WIN32)
-                if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 20000) break; continue; }  // 10s→20s
+                if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); continue; }
 #else
-                if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 20000) break; continue; }  // 10s→20s
+                if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); continue; }
 #endif
                 break;
             }
@@ -575,7 +569,7 @@ DiagnosticResult speedTest(DiagId id) {
         if (headerComplete) {
         char buf[4096];
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {10, 0};  // 5s→10s response read timeout
+        tv = {30, 0};  // generous 30s response read timeout
         int selRet = select(sock + 1, &fdset, nullptr, nullptr, &tv);
         if (selRet > 0 && FD_ISSET(sock, &fdset)) {
             ssize_t n = recv(sock, buf, sizeof(buf) - 1, 0);
@@ -615,13 +609,13 @@ DiagnosticResult speedTest(DiagId id) {
             ulResults.append(mbps);
             out.append(QStringLiteral("  %1  %2  %3")
                 .arg(QStringLiteral("%1 KB").arg(sizeKb).rightJustified(10, ' '))
-                .arg(QStringLiteral("%1 Mbit/s").arg(mbps, 0, 'f', 2).leftJustified(16, ' '))
-                .arg(QStringLiteral("%1 ms").arg(ulMs).rightJustified(6, ' ')));
+                .arg(QStringLiteral("%1 Mbit/s").arg(mbps, 0, 'f', 2).rightJustified(16, ' '))
+                .arg(QStringLiteral("%1 ms").arg(ulMs).rightJustified(8, ' ')));
         } else {
             out.append(QStringLiteral("  %1  %2  %3")
                 .arg(QStringLiteral("%1 KB").arg(sizeKb).rightJustified(10, ' '))
-                .arg(QStringLiteral("(timeout)").leftJustified(16, ' '))
-                .arg(QStringLiteral("-").rightJustified(6, ' ')));
+                .arg(QStringLiteral("(timeout)").rightJustified(16, ' '))
+                .arg(QStringLiteral("-").rightJustified(8, ' ')));
         }
     }
 
