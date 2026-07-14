@@ -61,13 +61,6 @@ static QString androidLocationPermissionStatus() {
     const jint PERMISSION_DENIED = -1;
     if (result == PERMISSION_GRANTED) return QString(); // OK
 
-    // Check if we should show rationale
-    QJniObject activityCompatResult = QJniObject::callStaticObjectMethod(
-        "androidx/core/app/ActivityCompat",
-        "shouldShowRequestPermissionRationale",
-        "(Landroid/app/Activity;Ljava/lang/String;)Z",
-        ctx.object(), permStr.object<jstring>());
-
     if (result == PERMISSION_DENIED) {
         return QStringLiteral("WiFi SSID/BSSID: Location permission was denied. "
                               "Go to Settings > Apps > NetDiagnostics > Permissions "
