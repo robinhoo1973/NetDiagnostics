@@ -348,6 +348,10 @@ int main(int argc, char *argv[])
     }
     STARTUP_LOG("QML loaded successfully. Showing window.");
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
+    // 5WHY: The startup log exists only to diagnose launch crashes.
+    // Once QML loads + window shows, the app started successfully —
+    // delete the log so stale crash-debug logs don't accumulate.
+    STARTUP_CLEANUP();
 
     // ── Maximize the window atomically via C++ ───────────────────────────
     // QML's visibility: Window.Maximized sets the flag after the window is
