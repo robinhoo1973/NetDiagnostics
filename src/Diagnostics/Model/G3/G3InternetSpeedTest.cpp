@@ -475,8 +475,11 @@ DiagnosticResult speedTest(DiagId id) {
     QVector<double> ulResults;
     int ulTotalMs = 0;
 
+    // 5WHY: ulTotalMs 12s cap + connect 3s + send 10s + recv 5s were too
+    // aggressive for slow/congested networks. Many speed-test servers take
+    // 5-15s to respond to POST /upload. Increased all timeouts for reliability.
     for (int sizeKb : ulSizes) {
-        if (ulTotalMs > 12000) break;
+        if (ulTotalMs > 30000) break;  // 12s→30s total upload budget
         int dataSize = sizeKb * 1000;
 
         // HTTP POST with measured upload
@@ -492,7 +495,7 @@ DiagnosticResult speedTest(DiagId id) {
 #endif
         ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        struct timeval tv = {3, 0};
+        struct timeval tv = {8, 0};  // 3s→8s connect timeout
         if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); continue; }
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
@@ -526,7 +529,7 @@ DiagnosticResult speedTest(DiagId id) {
         int hdrSent = 0;
         QElapsedTimer hdrSendGuard; hdrSendGuard.start();
         while (hdrSent < postHeaders.size()) {
-            if (hdrSendGuard.elapsed() > 10000) break;
+            if (hdrSendGuard.elapsed() > 15000) break;  // 10s→15s
             auto n = ::send(sock, postHeaders.constData() + hdrSent, postHeaders.size() - hdrSent, 0);
             if (n < 0) {
 #if defined(_WIN32)
@@ -554,9 +557,9 @@ DiagnosticResult speedTest(DiagId id) {
             auto n = ::send(sock, dp + sent, chunk, 0);
             if (n < 0) {
 #if defined(_WIN32)
-                if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 10000) break; continue; }
+                if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 20000) break; continue; }  // 10s→20s
 #else
-                if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 10000) break; continue; }
+                if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); timeval tv2={2,0}; select(sock+1,nullptr,&wf,nullptr,&tv2); if (sendGuard.elapsed() > 20000) break; continue; }  // 10s→20s
 #endif
                 break;
             }
@@ -572,7 +575,7 @@ DiagnosticResult speedTest(DiagId id) {
         if (headerComplete) {
         char buf[4096];
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {5, 0};
+        tv = {10, 0};  // 5s→10s response read timeout
         int selRet = select(sock + 1, &fdset, nullptr, nullptr, &tv);
         if (selRet > 0 && FD_ISSET(sock, &fdset)) {
             ssize_t n = recv(sock, buf, sizeof(buf) - 1, 0);

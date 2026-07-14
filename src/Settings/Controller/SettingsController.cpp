@@ -75,7 +75,19 @@ void SettingsController::shareReport(const QString& format) {
     QTimer::singleShot(5000, [saved]() { QFile::remove(saved); });
     emit m_appState->reportShared(true);
 #else
-    m_appState->emailReportDesktop(format);
+    // 5WHY: Desktop path passed format string ("pdf"/"html") directly
+    // to emailReportDesktop() which expects a file path. The file was
+    // never generated — the email body contained "pdf" as the path.
+    // Generate the report file first (same logic as mobile path), then
+    // pass the actual file path to the email composer.
+    const QString tmp = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        .filePath(QStringLiteral("NetDiagnostics_report.%1").arg(ext));
+    const QString reportPath = (ext == QLatin1String("pdf"))
+        ? m_appState->exportPdf(tmp)
+        : m_appState->exportHtml(tmp, isDarkMode());
+    if (reportPath.isEmpty()) { emit m_appState->reportShared(false); return; }
+    m_appState->emailReportDesktop(reportPath);
+    emit m_appState->reportShared(true);
 #endif
 }
 
