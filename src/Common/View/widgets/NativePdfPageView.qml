@@ -134,7 +134,10 @@ Item {
     // ── Unified zoom controls ─────────────────────────────────────────
     ZoomBar {
         id: zoomBar
-        anchors { bottom: parent.bottom; right: parent.right; margins: 8 }
+        anchors { right: parent.right; rightMargin: 8 }
+        y: (pdfDoc && pdfDoc.pageCount > 1)
+            ? parent.height - 60 - 8  // nav (44px) + gap + ZoomBar
+            : parent.height - implicitHeight - 8
         zoomLevel: root.zoomLevel
 
         onZoomLevelChanged: {
