@@ -63,8 +63,7 @@ DiagnosticResult dhcpStatus(DiagId id) {
             out.append(DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows));
         out.append(QString());
     }
-#else
-#if defined(PLATFORM_IOS)
+#elif defined(PLATFORM_IOS)
     QList<QStringList> iosRows;
     iosRows.append({"(system-managed)", "Yes", "(not exposed)", "(not exposed)"});
     out.append(DiagnosticFormatter::formatTable(kDhcpCols, iosRows));
@@ -73,6 +72,19 @@ DiagnosticResult dhcpStatus(DiagId id) {
     out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
     ResultProperty iosProp("iOS DHCP", "system-managed");
     props.append(iosProp);
+#elif defined(__APPLE__)  // macOS (not iOS)
+    // 5WHY: macOS fell through to the Linux #else branch which tries
+    // /run/systemd, /var/lib/dhcp, /proc/net/route — none exist on macOS.
+    // Add an explicit macOS stub that reports DHCP info is system-managed.
+    QList<QStringList> macRows;
+    macRows.append({"(system-managed)", "Yes", "(use ifconfig)", "(not exposed)"});
+    out.append(DiagnosticFormatter::formatTable(kDhcpCols, macRows));
+    out.append(QString());
+    out.append(QStringLiteral("  macOS manages DHCP via the SystemConfiguration framework —"));
+    out.append(QStringLiteral("  lease details are not directly accessible. Use `ipconfig getpacket <iface>`"));
+    out.append(QStringLiteral("  in Terminal for per-interface DHCP lease information."));
+    ResultProperty macProp("macOS DHCP", "system-managed");
+    props.append(macProp);
 #else
     bool anyDhcp = false;
     // 1. systemd-networkd lease files (most detailed)
@@ -179,7 +191,6 @@ DiagnosticResult dhcpStatus(DiagId id) {
     // reach 5-6 before this check. Bumped to 8 to be safe.
     if (!anyDhcp && out.size() <= 8)
         out.append(QStringLiteral("   No DHCP lease information found (static IP or managed externally)"));
-#endif // !PLATFORM_IOS
 #endif
 
     r.rawOutput = out.join('\n');

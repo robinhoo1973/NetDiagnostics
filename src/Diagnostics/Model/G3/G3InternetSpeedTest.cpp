@@ -4,6 +4,9 @@
 #include <algorithm>
 #include <atomic>
 #include <random>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QSet>
 
 namespace G1G2G3Native {
 
@@ -14,8 +17,6 @@ public:
     QVector<Server> serversForCountry(const QString& hint) const;
     QVector<Server> allServers() const;
     static QString detectCountry(int = 3000);
-    static void rankByLatency(QVector<Server>& c, int tmo = 3000);
-    static Server selectBest(QVector<Server>& c, int maxMs = 500, int tmo = 3000);
 private: void build(); QMap<QString, QVector<Server>> m;
 };
 inline SpeedTest::SpeedTest() { build(); }
@@ -148,9 +149,10 @@ inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hi
     // to be reachable from anywhere. Falls back to allServers() only if the
     // curated set is empty (should never happen with the current server DB).
     if (hint == QStringLiteral("XX") || p == QStringLiteral("XX")) {
-        QVector<Server> curated;
-        // Pick one reliable server per major region:
-        static const QStringList kGlobalFallbackHosts = {
+        // 5WHY: triple-nested loop (countries x servers x fallbackHosts) was
+        // O(n*m*k) ~600 comparisons. Build a QSet from the fallback hostnames
+        // for O(1) lookup: single pass over all servers, O(n*m) total.
+        static const QSet<QString> kGlobalFallbackSet = {
             "speedtest.tele2.net",      // Stockholm (EU) -- most reliable
             "speedtest.belwue.net",     // Stuttgart (EU) -- very reliable
             "speedtest1.sky.com",        // London (EU)
@@ -160,11 +162,11 @@ inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hi
             "speedtest.vivo.com.br",     // Sao Paulo (SA)
             "speedtest.mtn.co.za",       // Johannesburg (AF)
         };
+        QVector<Server> curated;
         for (auto it = m.cbegin(); it != m.cend(); ++it) {
             for (const auto& s : it.value()) {
-                for (const auto& host : kGlobalFallbackHosts) {
-                    if (s.host == host) { curated.append(s); break; }
-                }
+                if (kGlobalFallbackSet.contains(s.host))
+                    curated.append(s);
             }
         }
         if (!curated.isEmpty()) return curated;
@@ -208,9 +210,15 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
     // 5WHY: Every speed test run made 2-3 GeoIP HTTP calls (~6s each to fail).
     // Cache SUCCESSFUL results for the process lifetime (country doesn't change).
     // Do NOT cache "XX" failures -- network may recover, so retry on each run.
+    // 5WHY (2nd): static QString is not thread-safe — concurrent reads on the
+    // ref-counted d-pointer can tear. Guard with a mutex.
     static QString sCachedCountry;
-    if (!sCachedCountry.isEmpty() && sCachedCountry != QStringLiteral("XX"))
-        return sCachedCountry;
+    static QMutex sCountryMutex;
+    {
+        QMutexLocker lock(&sCountryMutex);
+        if (!sCachedCountry.isEmpty() && sCachedCountry != QStringLiteral("XX"))
+            return sCachedCountry;
+    }
     // Primary: ip-api.com -- free, no API key, HTTP-only (raw-socket compatible)
     // Returns plain-text country code (2 chars) at /line/?fields=countryCode
     QByteArray resp = G1G2G3Native::httpGet(
@@ -218,37 +226,25 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
         QStringLiteral("/line/?fields=countryCode"),
         timeoutMs > 0 ? timeoutMs : 3000, 4096);
     QString cc = extractHttpBody(resp);
-    if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
+    if (cc.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc.toUpper(); return sCachedCountry; }
     // Fallback 1: ipapi.co -- free, no key, returns plain text on /country/
     resp = G1G2G3Native::httpGet(
         QStringLiteral("ipapi.co"), 80,
         QStringLiteral("/country/"),
         3000, 4096);
     cc = extractHttpBody(resp);
-    if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
+    if (cc.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc.toUpper(); return sCachedCountry; }
     // Fallback 2: ipinfo.io -- may require token, kept as last resort
     resp = G1G2G3Native::httpGet(
         QStringLiteral("ipinfo.io"), 80,
         QStringLiteral("/country"),
         3000, 4096);
     cc = extractHttpBody(resp);
-    if (cc.length() == 2) { sCachedCountry = cc.toUpper(); return sCachedCountry; }
+    if (cc.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc.toUpper(); return sCachedCountry; }
     // All providers failed -- do NOT cache; retry on next run
     Logger::instance().event(QStringLiteral("GeoIP: all providers failed, country=XX"));
     return QStringLiteral("XX");
 }
-inline void SpeedTest::rankByLatency(QVector<Server>& c, int tmo) {
-    QVector<QPair<int,Server>> r;
-    for (auto& s : c) { int ms = tcpPingMs(s.host, s.port); r.append({ms>=0?ms:999999,s}); }
-    std::sort(r.begin(), r.end(), [](auto& a, auto& b){return a.first<b.first;});
-    c.clear(); for (auto& p : r) c.append(p.second);
-}
-inline SpeedTest::Server SpeedTest::selectBest(QVector<Server>& c, int maxMs, int tmo) {
-    (void)tmo; rankByLatency(c, tmo);
-    for (auto& s : c) { int ms = tcpPingMs(s.host, s.port); if (ms >= 0 && ms < maxMs) return s; }
-    return c.first();
-}
-
 DiagnosticResult speedTest(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
@@ -506,20 +502,19 @@ DiagnosticResult speedTest(DiagId id) {
         if (err != 0) { closeSocket(sock); continue; }
 
         // Generate random-ish data.
-        // 5WHY: static bool seeded + srand() is not thread-safe (data race on
-        // seeded, rand() internal state shared across threads). Use a simple
-        // deterministic per-byte PRNG seeded from QDateTime for acceptable
-        // randomness without global state corruption.
-        {
-            static std::atomic<bool> seeded{false};
-            bool expected = false;
-            if (seeded.compare_exchange_strong(expected, true)) {
-                srand(static_cast<unsigned>(time(nullptr)));
-            }
-        }
+        // 5WHY: rand() uses global state shared across all threads — concurrent
+        // calls from multiple speed-test invocations cause data races in glibc/
+        // msvcrt. Use a thread-local LCG seeded from clock+thread-id for
+        // reproducible per-thread pseudo-randomness without global state.
+        // Not cryptographically secure, but sufficient for upload payload.
+        thread_local uint64_t lcgState = static_cast<uint64_t>(
+            QDateTime::currentMSecsSinceEpoch()) ^
+            (reinterpret_cast<uintptr_t>(&lcgState) << 16);
         QByteArray uploadData(dataSize, '\0');
-        for (int i = 0; i < dataSize; i++)
-            uploadData[i] = static_cast<char>(33 + (rand() % 94)); // printable ASCII
+        for (int i = 0; i < dataSize; i++) {
+            lcgState = lcgState * 6364136223846793005ULL + 1442695040888963407ULL;
+            uploadData[i] = static_cast<char>(33 + static_cast<int>(lcgState % 94));
+        }
 
         // POST request headers
         QByteArray postHeaders = QStringLiteral("POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")
