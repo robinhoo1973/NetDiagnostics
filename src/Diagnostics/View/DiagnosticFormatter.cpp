@@ -14,19 +14,34 @@
 static const QString kTblGap = QStringLiteral("  ");
 
 // ── Display-width helper: CJK / fullwidth / emoji = 2, ASCII = 1 ──
+// 5WHY: This function iterates QChar (UTF-16 code units), NOT full
+// Unicode code points.  Supplementary-plane characters (code points
+// > 0xFFFF, including emoji like U+1F600 😀) are encoded as surrogate
+// pairs: a high surrogate (0xD800-0xDBFF) followed by a low surrogate
+// (0xDC00-0xDFFF).  Comparing a single ushort against values > 0xFFFF
+// is tautological — the lower bound is always false, the upper bound
+// always true.  Instead, detect high surrogates explicitly and count
+// the entire pair as width 2 (consuming the low surrogate via index
+// advancement).
+//
+// BMP codepoints (≤ 0xFFFF) that occupy 2 display columns are listed
+// in the CJK/fullwidth range checks below.
 static int displayWidth(const QString& s) {
     int w = 0;
-    for (const QChar& ch : s) {
-        ushort uc = ch.unicode();
-        // 5WHY: ushort is 16-bit (max 65535 = 0xFFFF).  Comparisons
-        // with values >0xFFFF (supplementary-plane emoji: 0x1F300+,
-        // 0x1F900+) are tautological — always false for the lower
-        // bound, always true for the upper bound.  These code points
-        // are encoded as UTF-16 surrogate pairs (2 QChars), never as
-        // single code units, so they belong in surrogate handling below.
-        // Removed the unreachable checks; surrogates handled at line ~40.
+    for (int i = 0; i < s.length(); ++i) {
+        ushort uc = s[i].unicode();
+        // High surrogate: supplementary-plane character (emoji, rare
+        // CJK, etc.) encoded as a UTF-16 surrogate pair.  Count as
+        // width 2 and skip the following low surrogate.
+        if (QChar::isHighSurrogate(uc)) {
+            w += 2;
+            if (i + 1 < s.length() && QChar::isLowSurrogate(s[i + 1].unicode()))
+                ++i; // consume the low surrogate
+            continue;
+        }
+        // BMP ranges that occupy 2 display columns:
         // Hangul Jamo, CJK Radicals–Yi, Hangul Syllables, CJK Compat,
-        // Fullwidth Forms, BMP Emoji
+        // Fullwidth Forms, BMP emoji/pictographs
         if ((uc >= 0x1100 && uc <= 0x115F)
             || (uc >= 0x2329 && uc <= 0x232A)
             || (uc >= 0x2E80 && uc <= 0xA4CF)
