@@ -1,9 +1,12 @@
 // ── HtmlPreviewWebView.qml — WebView-based HTML preview (requires QtWebView) ─
-// 5WHY: Setting url directly to a file:// path caused WKWebView/WebView2
-// to render the HTML height-fit. Using loadHtml() forces the native engine
-// to process content as a fresh page load, respecting viewport + enabling
-// pinch-to-zoom. Width-constraining CSS (overflow-x:auto, max-width:100%)
-// is now in ReportEngine.cpp's kCss — no QML injection needed.
+// 5WHY (v3): loadHtml() does NOT exist on QtWebView (only on QtWebEngine).
+// WKWebView on iOS / WebView2 on Windows use the minimal QtWebView API
+// which only exposes url/title/canGoBack/canGoForward/loading/loadProgress.
+// 
+// Fix: encode the fetched HTML as a data:text/html URI and assign to
+// webView.url.  WKWebView natively supports data: URIs and processes
+// viewport meta tags correctly via this path, enabling width=device-width
+// scaling and pinch-to-zoom on touch devices.
 //
 // Zoom uses shared ZoomBar component with CSS zoom via runJavaScript.
 import QtQuick
@@ -42,16 +45,21 @@ Item {
     // (ReportEngine.cpp kCss for buildRichDocument). loadHtml() is
     // used instead of url assignment so the native engine processes
     // content with correct viewport + pinch-to-zoom handling.
+    // 5WHY (v3): QtWebView.WebView has no loadHtml() — use data: URI
+    // which WKWebView/WebView2 both support natively with viewport.
     onHtmlUrlChanged: {
         if (!htmlUrl) return
         var xhr = new XMLHttpRequest()
         xhr.open("GET", htmlUrl)
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 0 || xhr.status === 200)
-                    webView.loadHtml(xhr.responseText, htmlUrl)
-                else
-                    webView.url = htmlUrl
+                if (xhr.status === 0 || xhr.status === 200) {
+                    // 5WHY (v3): Encode as data: URI — QtWebView
+                    // has no loadHtml(). WKWebView supports data:
+                    // natively with full viewport handling.
+                    var dataUri = "data:text/html;charset=utf-8," + encodeURIComponent(xhr.responseText)
+                    webView.url = dataUri
+                }
             }
         }
         xhr.onerror = function() { webView.url = htmlUrl }
