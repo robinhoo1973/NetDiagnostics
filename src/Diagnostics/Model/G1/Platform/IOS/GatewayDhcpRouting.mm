@@ -61,9 +61,11 @@ struct rt_msghdr2 {
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <QList>
 #include <cstddef>
 #include "Common/Model/DiagnosticResult.h"
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h" // 5WHY: own header for declaration checking
+#include "Diagnostics/View/DiagnosticFormatter.h"
 
 // Round a sockaddr length up to the next 4-byte boundary (BSD routing alignment).
 #if !defined(SA_SIZE)
@@ -219,17 +221,26 @@ static QString iosdefaultGateway() {
     return gatewayInfo;
 }
 
-// ���� DHCP Status (iOS: always system-managed) ������������������������������������������������������
+// DHCP Status (iOS: always system-managed)
+// 5WHY: Used plain text formatting — table view was desktop-only.
+// On iOS, TaskFactory routes to iosDhcpDiag() which calls this function,
+// NOT G1DhcpStatus.cpp. Now uses DiagnosticFormatter::formatTable for
+// consistent table display across ALL platforms.
 static QString iosDHCPStatus() {
-    // On iOS, DHCP is always enabled and managed by the OS. Apps cannot access
-    // lease files or DHCP server info. This is by design (Apple sandbox).
-    // We can detect the assigned IP via getifaddrs to show at least some info.
-    QStringList lines;
-    lines.append(QString());
-    lines.append(QStringLiteral("DHCP Client Status:"));
-    lines.append(QString());
-    lines.append(QStringLiteral("  [iOS] DHCP is system-managed. Lease files inaccessible."));
+    QStringList out;
+    out.append(QString());
+    out.append(QStringLiteral("DHCP Client Status"));
+    out.append(QString());
 
+    // Column spec matching G1DhcpStatus.cpp for cross-platform consistency
+    static const QVector<DiagnosticFormatter::ColSpec> kDhcpCols = {
+        {"Interface", 18, false},
+        {"DHCP",       6, false},
+        {"IP Address", 18, false},
+        {"Server",     0, false},
+    };
+
+    QList<QStringList> rows;
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
@@ -240,11 +251,17 @@ static QString iosDHCPStatus() {
             char ip[INET_ADDRSTRLEN];
             auto* sa = (struct sockaddr_in*)p->ifa_addr;
             inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-            lines.append(QStringLiteral("  %1: %2 (DHCP assigned)").arg(name).arg(QString::fromLatin1(ip)));
+            rows.append({name, "Yes", QString::fromLatin1(ip), "(system)"});
         }
         freeifaddrs(ifa);
     }
-    return lines.join('\n');
+
+    if (!rows.isEmpty())
+        out << DiagnosticFormatter::formatTable(kDhcpCols, rows);
+    out.append(QString());
+    out.append(QStringLiteral("  iOS manages DHCP at the system level —"));
+    out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
+    return out.join('\n');
 }
 
 // ���� Public API: iOS workaRound implementations ��������������������������������������������������
