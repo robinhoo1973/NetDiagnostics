@@ -153,7 +153,7 @@ Rectangle {
             _userToggled = true; expanded = !expanded; event.accepted = true
         }
     }
-    Accessible.name: groupLabel + (expanded ? " — expanded" : " — collapsed")
+    Accessible.name: Tr.groupName(groupIndex) + (expanded ? " — expanded" : " — collapsed")
     Accessible.role: Accessible.Button
 
     signal detailClicked(var data)
