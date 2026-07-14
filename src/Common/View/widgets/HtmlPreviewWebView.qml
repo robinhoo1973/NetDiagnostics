@@ -19,43 +19,29 @@ Item {
     anchors.fill: parent
 
     // CSS 'zoom' is non-standard but supported by all major engines
-    // (Blink/WebKit/Gecko). The assignment never throws — unsupported
-    // engines silently ignore it, so no try/catch or fallback is needed.
+    // (Blink/WebKit/Gecko) and assignment never throws.
     function applyZoom() {
-        if (!webView || typeof webView.runJavaScript !== 'function') return
         webView.runJavaScript(
-            "var s=document.body;if(s){" +
-            "s.style.zoom='" + root.zoomFactor + "'" +
-            "}")
+            "var s=document.body;if(s)s.style.zoom='" + root.zoomFactor + "'")
     }
 
-    // 5WHY: injectViewportCss() was removed — width-constraining CSS is
-    // now in ReportEngine.cpp's kCss (max-width, overflow-x:auto, etc.).
-    // loadHtml() is still used instead of setting url directly, so the
-    // native engine processes the content as a fresh page load with
-    // correct viewport handling (unlike file:// URL assignment).
+    // Width-constraining CSS is included in the generated HTML
+    // (ReportEngine.cpp kCss for buildRichDocument). loadHtml() is
+    // used instead of url assignment so the native engine processes
+    // content with correct viewport + pinch-to-zoom handling.
     onHtmlUrlChanged: {
         if (!htmlUrl) return
         var xhr = new XMLHttpRequest()
-        var handled = false
         xhr.open("GET", htmlUrl)
         xhr.onreadystatechange = function() {
-            if (handled) return
             if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 0 || xhr.status === 200) {
-                    handled = true
+                if (xhr.status === 0 || xhr.status === 200)
                     webView.loadHtml(xhr.responseText, htmlUrl)
-                } else {
-                    handled = true
+                else
                     webView.url = htmlUrl
-                }
             }
         }
-        xhr.onerror = function() {
-            if (handled) return
-            handled = true
-            webView.url = htmlUrl
-        }
+        xhr.onerror = function() { webView.url = htmlUrl }
         xhr.send()
     }
 
