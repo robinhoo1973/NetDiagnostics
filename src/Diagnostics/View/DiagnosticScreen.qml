@@ -255,7 +255,7 @@ Item {
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 18
-                    color: closeBtnArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textMuted
+                    color: closeBtnArea.containsMouse ? ThemeEngine.colors.textPrimary : ThemeEngine.colors.textSecondary
                 }
                 MouseArea {
                     id: closeBtnArea
