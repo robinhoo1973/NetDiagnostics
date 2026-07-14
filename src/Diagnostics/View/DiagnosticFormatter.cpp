@@ -18,8 +18,15 @@ static int displayWidth(const QString& s) {
     int w = 0;
     for (const QChar& ch : s) {
         ushort uc = ch.unicode();
+        // 5WHY: ushort is 16-bit (max 65535 = 0xFFFF).  Comparisons
+        // with values >0xFFFF (supplementary-plane emoji: 0x1F300+,
+        // 0x1F900+) are tautological — always false for the lower
+        // bound, always true for the upper bound.  These code points
+        // are encoded as UTF-16 surrogate pairs (2 QChars), never as
+        // single code units, so they belong in surrogate handling below.
+        // Removed the unreachable checks; surrogates handled at line ~40.
         // Hangul Jamo, CJK Radicals–Yi, Hangul Syllables, CJK Compat,
-        // Fullwidth Forms, Emoji, CJK Ext B–G
+        // Fullwidth Forms, BMP Emoji
         if ((uc >= 0x1100 && uc <= 0x115F)
             || (uc >= 0x2329 && uc <= 0x232A)
             || (uc >= 0x2E80 && uc <= 0xA4CF)
@@ -28,9 +35,7 @@ static int displayWidth(const QString& s) {
             || (uc >= 0xFE10 && uc <= 0xFE19)
             || (uc >= 0xFE30 && uc <= 0xFE6F)
             || (uc >= 0xFF00 && uc <= 0xFF60)
-            || (uc >= 0xFFE0 && uc <= 0xFFE6)
-            || (uc >= 0x1F300 && uc <= 0x1F64F)
-            || (uc >= 0x1F900 && uc <= 0x1F9FF))
+            || (uc >= 0xFFE0 && uc <= 0xFFE6))
             w += 2;
         else
             w += 1;
