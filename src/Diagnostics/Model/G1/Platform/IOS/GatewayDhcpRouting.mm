@@ -612,9 +612,41 @@ QVariantMap iosWiFiInfo()
     info["ssid"] = ctx->ssid;
     info["bssid"] = ctx->bssid;
 
-    // Add Diagnostics
-    if (ctx->ssid.isEmpty())
-        info["wifiDiagnostics"] = QStringLiteral("WiFi: Not connected or permission denied (requires NSLocalNetworkUsageDescription + NSBonjourServices)");
+    // 5WHY: Error message blamed NSLocalNetworkUsageDescription, but the
+    // actual iOS 14+ requirement is the com.apple.developer.networking.wifi-info
+    // entitlement + location permission (WhenInUse or Always). Also, the code
+    // never checked [CLLocationManager authorizationStatus] — if the user
+    // previously denied location, requestWhenInUseAuthorization is a no-op
+    // and NEHotspotNetwork silently returns nil. Now checks the actual
+    // authorization status and gives actionable guidance.
+    if (ctx->ssid.isEmpty()) {
+        CLAuthorizationStatus locStatus = [CLLocationManager authorizationStatus];
+        QString diagMsg;
+        switch (locStatus) {
+            case kCLAuthorizationStatusNotDetermined:
+                diagMsg = QStringLiteral("WiFi SSID: Location permission not yet requested. "
+                                         "Go to Settings > Privacy > Location Services and enable for NetDiagnostics.");
+                break;
+            case kCLAuthorizationStatusRestricted:
+                diagMsg = QStringLiteral("WiFi SSID: Location services are restricted "
+                                         "(parental controls or MDM profile). Contact your administrator.");
+                break;
+            case kCLAuthorizationStatusDenied:
+                diagMsg = QStringLiteral("WiFi SSID: Location permission was denied. "
+                                         "Go to Settings > Privacy > Location Services > NetDiagnostics and select 'While Using'.");
+                break;
+            case kCLAuthorizationStatusAuthorizedWhenInUse:
+            case kCLAuthorizationStatusAuthorizedAlways:
+                diagMsg = QStringLiteral("WiFi SSID: Not available. "
+                                         "Ensure WiFi is connected and the app has the "
+                                         "'Access WiFi Information' capability (Apple entitlement required).");
+                break;
+            default:
+                diagMsg = QStringLiteral("WiFi SSID: Unable to determine location authorization status.");
+                break;
+        }
+        info["wifiDiagnostics"] = diagMsg;
+    }
 
     // drop the waiter's reference; last one out releases the semaphore.
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
