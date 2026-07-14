@@ -195,6 +195,8 @@ public:
     bool purchaseInProgress() const;
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);
+    Q_INVOKABLE void shareExistingReport(const QString& filePath, const QString& format);
+    Q_INVOKABLE void deleteFile(const QString& filePath);  // cleanup preview files
 
     // ── Crash report (from previous run) ───────────────────────────────────
     // Populated at startup by main.cpp when a leftover crash log is found.

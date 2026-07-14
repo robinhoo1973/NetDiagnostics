@@ -97,6 +97,30 @@ void SettingsController::shareReport(const QString& format) {
 #endif
 }
 
+// 5WHY: shareReport() generated a second copy of the report file for sharing,
+// wasting time and storage.  The in-app preview already generates a file
+// (via generatePreviewPdf / exportHtml).  shareExistingReport() reuses that
+// existing file so the share is instant — no regeneration, no race condition,
+// no timer-based cleanup.  The caller (ReportScreen.qml) owns the file
+// lifecycle and deletes it when the preview is dismissed.
+void SettingsController::shareExistingReport(const QString& filePath, const QString& format) {
+    if (!m_premium.isPremium()) { emit premiumRequired(); return; }
+    if (!QFile::exists(filePath)) {
+        // Fall back to generating a fresh file if the preview file is missing
+        shareReport(format);
+        return;
+    }
+    const QString mimeType = (format == QLatin1String("pdf"))
+        ? QStringLiteral("application/pdf") : QStringLiteral("text/html");
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    platformShareFile(filePath, mimeType, QStringLiteral("Network Diagnostic Report"));
+    emit m_appState->reportShared(true);
+#else
+    m_appState->emailReportDesktop(filePath);
+    emit m_appState->reportShared(true);
+#endif
+}
+
 void SettingsController::loadSettings() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
