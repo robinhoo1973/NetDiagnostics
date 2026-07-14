@@ -1235,6 +1235,14 @@ void AppState::shareReport(const QString& format) {
     m_settingsCtrl->shareReport(format);
 }
 
+void AppState::shareExistingReport(const QString& filePath, const QString& format) {
+    m_settingsCtrl->shareExistingReport(filePath, format);
+}
+
+void AppState::deleteFile(const QString& filePath) {
+    if (!filePath.isEmpty()) QFile::remove(filePath);
+}
+
 void AppState::setCrashReportPath(const QString& path) {
     if (m_crashReportPath == path) return;
     m_crashReportPath = path;

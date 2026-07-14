@@ -38,6 +38,9 @@ public:
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
     Q_INVOKABLE void shareReport(const QString& format);
+    // Share an already-generated report file (no regeneration).
+    // Caller manages file lifecycle — SettingsController does NOT delete it.
+    Q_INVOKABLE void shareExistingReport(const QString& filePath, const QString& format);
 
     // Persistence
     void loadSettings();
