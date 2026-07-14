@@ -72,7 +72,13 @@ void SettingsController::shareReport(const QString& format) {
                       ext == QLatin1String("pdf") ? QStringLiteral("application/pdf")
                                                   : QStringLiteral("text/html"),
                       QStringLiteral("Network Diagnostic Report"));
-    QTimer::singleShot(5000, [saved]() { QFile::remove(saved); });
+    // 5WHY: QTimer::singleShot(5000) deleted the temp file after 5s, but
+    // UIActivityViewController (iOS) accesses the file at its original URL
+    // when the user selects a share target — NOT at presentation time.
+    // If the user takes >5s to choose, the file is gone and the share fails.
+    // Android FileProvider also needs the file to exist until the receiving
+    // app reads it. 120s gives ample time; TempLocation is OS-cleaned anyway.
+    QTimer::singleShot(120000, [saved]() { QFile::remove(saved); });
     emit m_appState->reportShared(true);
 #else
     // 5WHY: Desktop path passed format string ("pdf"/"html") directly
