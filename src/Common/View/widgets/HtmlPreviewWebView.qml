@@ -1,19 +1,11 @@
 // ── HtmlPreviewWebView.qml — WebView-based HTML preview (requires QtWebView) ─
 // 5WHY: Setting url directly to a file:// path caused WKWebView/WebView2
-// to render the HTML height-fit (ignoring the viewport meta tag already
-// present in the generated HTML).  Using loadHtml() instead forces the
-// native engine to process the content as a fresh page load, respecting
-// the width=device-width viewport and enabling pinch-to-zoom on touch.
+// to render the HTML height-fit. Using loadHtml() forces the native engine
+// to process content as a fresh page load, respecting viewport + enabling
+// pinch-to-zoom. Width-constraining CSS (overflow-x:auto, max-width:100%)
+// is now in ReportEngine.cpp's kCss — no QML injection needed.
 //
-// 5WHY (2nd): loadHtml() alone didn't guarantee viewport compliance on
-// WebView2. Now injects viewport-constraining CSS + inline body style.
-// IMPORTANT: overflow-x must be 'auto', NOT 'hidden' — hidden blocks
-// horizontal panning when the user zooms in, making zoom unusable.
-//
-// 5WHY (3rd): Inline zoom controls were inconsistent with other preview
-// tiers. Now uses shared ZoomBar component. CSS zoom (non-standard but
-// widely supported) is primary; transform:scale() is the standards-based
-// fallback for engines that don't support CSS zoom.
+// Zoom uses shared ZoomBar component with CSS zoom via runJavaScript.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -26,49 +18,22 @@ Item {
     property real zoomFactor: 1.0
     anchors.fill: parent
 
-    function injectViewportCss(html) {
-        // 5WHY: overflow-x was 'hidden' which blocked horizontal panning
-        // when zoomed in. Changed to 'auto' — constrains width at 100%
-        // but allows scroll when content overflows (e.g. after zoom).
-        var viewportCss = "<style>" +
-            "html,body{max-width:100%!important;overflow-x:auto!important;overflow-wrap:break-word!important;word-wrap:break-word!important}" +
-            "img,svg,table,pre,code{max-width:100%!important;height:auto!important}" +
-            "table{display:block!important;overflow-x:auto!important}" +
-            "</style>"
-        var bodyStyle = ' style="max-width:100%;overflow-x:auto;overflow-wrap:break-word;word-wrap:break-word"'
-        html = html.replace(/<body([^>]*)>/i, '<body$1' + bodyStyle + '>')
-        if (!/<meta[^>]+viewport/i.test(html)) {
-            var metaVp = '<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0,user-scalable=yes">'
-            html = html.replace(/<head[^>]*>/i, '$&' + metaVp)
-        }
-        var headIdx = html.search(/<\/head>/i)
-        if (headIdx >= 0) {
-            return html.substring(0, headIdx) + viewportCss + html.substring(headIdx)
-        }
-        var htmlTag = html.search(/<html[^>]*>/i)
-        if (htmlTag >= 0) {
-            var endTag = html.indexOf('>', htmlTag)
-            return html.substring(0, endTag + 1) + "<head>" + viewportCss + "</head>" + html.substring(endTag + 1)
-        }
-        return viewportCss + html
-    }
-
-    // 5WHY: CSS 'zoom' is non-standard (though widely supported in
-    // Blink/WebKit/Gecko). Try zoom first; fall back to transform:scale()
-    // if the engine rejects it. Must NOT apply both — double-zoom bug.
+    // CSS 'zoom' is non-standard but supported by all major engines
+    // (Blink/WebKit/Gecko). The assignment never throws — unsupported
+    // engines silently ignore it, so no try/catch or fallback is needed.
     function applyZoom() {
         if (!webView || typeof webView.runJavaScript !== 'function') return
-        var zf = root.zoomFactor
         webView.runJavaScript(
-            "(function(z){" +
-            "var s=document.body;if(!s)return;" +
-            "try{s.style.zoom=z}catch(e){" +      // primary: CSS zoom
-            "s.style.transform='scale('+z+')';" +  // fallback
-            "s.style.transformOrigin='top left';" +
-            "s.style.width=(100/z)+'%'}" +
-            "})(" + zf + ")")
+            "var s=document.body;if(s){" +
+            "s.style.zoom='" + root.zoomFactor + "'" +
+            "}")
     }
 
+    // 5WHY: injectViewportCss() was removed — width-constraining CSS is
+    // now in ReportEngine.cpp's kCss (max-width, overflow-x:auto, etc.).
+    // loadHtml() is still used instead of setting url directly, so the
+    // native engine processes the content as a fresh page load with
+    // correct viewport handling (unlike file:// URL assignment).
     onHtmlUrlChanged: {
         if (!htmlUrl) return
         var xhr = new XMLHttpRequest()
@@ -79,8 +44,7 @@ Item {
             if (xhr.readyState === XMLHttpRequest.DONE) {
                 if (xhr.status === 0 || xhr.status === 200) {
                     handled = true
-                    var html = root.injectViewportCss(xhr.responseText)
-                    webView.loadHtml(html, htmlUrl)
+                    webView.loadHtml(xhr.responseText, htmlUrl)
                 } else {
                     handled = true
                     webView.url = htmlUrl
