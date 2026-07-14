@@ -464,6 +464,9 @@ QString iosCopyWiFiSSID()
 {
     QString result;
 
+#if __has_include(<SystemConfiguration/CaptiveNetwork.h>)
+    // V1: synchronous CNCopyCurrentNetworkInfo — simple, crash-proof.
+    // Works with iOS 9–25 SDK (Xcode ≤ 25).
     @autoreleasepool {
         NSArray* ifaces = (__bridge_transfer NSArray*)CNCopySupportedInterfaces();
         if (ifaces && ifaces.count > 0) {
@@ -481,6 +484,33 @@ QString iosCopyWiFiSSID()
             }
         }
     }
+#else
+    // iOS 26+ SDK: CNCopyCurrentNetworkInfo removed from SystemConfiguration.
+    // Use NEHotspotNetwork with a semaphore bridge (async → sync).
+    {
+        __block NSString* ssid = nil;
+        dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+
+        @try {
+            [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
+                @autoreleasepool {
+                    if (network && network.SSID.length > 0) {
+                        ssid = [network.SSID copy];
+                    }
+                    dispatch_semaphore_signal(sem);
+                }
+            }];
+        } @catch (NSException* e) {
+            dispatch_semaphore_signal(sem);
+        }
+        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+        dispatch_release(sem);
+
+        if (ssid && ssid.length > 0) {
+            result = QString::fromNSString(ssid);
+        }
+    }
+#endif
 
     return result;
 }
@@ -562,6 +592,9 @@ QVariantMap iosWiFiInfo()
 {
     QVariantMap info;
 
+#if __has_include(<SystemConfiguration/CaptiveNetwork.h>)
+    // V1: synchronous CNCopyCurrentNetworkInfo — simple, crash-proof.
+    // Works with iOS 9–25 SDK (Xcode ≤ 25).
     @autoreleasepool {
         NSArray* ifaces = (__bridge_transfer NSArray*)CNCopySupportedInterfaces();
         if (ifaces && ifaces.count > 0) {
@@ -582,14 +615,46 @@ QVariantMap iosWiFiInfo()
             }
         }
     }
+#else
+    // iOS 26+ SDK: CNCopyCurrentNetworkInfo removed from SystemConfiguration.
+    // Use NEHotspotNetwork with a semaphore bridge (async → sync).
+    {
+        __block NSString* ssid = nil;
+        __block NSString* bssid = nil;
+        dispatch_semaphore_t sem = dispatch_semaphore_create(0);
+
+        @try {
+            [NEHotspotNetwork fetchCurrentWithCompletionHandler:^(NEHotspotNetwork* _Nullable network) {
+                @autoreleasepool {
+                    if (network) {
+                        if (network.SSID && network.SSID.length > 0)
+                            ssid = [network.SSID copy];
+                        if (network.BSSID && network.BSSID.length > 0)
+                            bssid = [network.BSSID copy];
+                    }
+                    dispatch_semaphore_signal(sem);
+                }
+            }];
+        } @catch (NSException* e) {
+            dispatch_semaphore_signal(sem);
+        }
+        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+        dispatch_release(sem);
+
+        if (ssid && ssid.length > 0)
+            info["ssid"] = QString::fromNSString(ssid);
+        if (bssid && bssid.length > 0)
+            info["bssid"] = QString::fromNSString(bssid);
+    }
+#endif
 
     // 5WHY: Error message blamed NSLocalNetworkUsageDescription, but the
     // actual iOS 14+ requirement is the com.apple.developer.networking.wifi-info
     // entitlement + location permission (WhenInUse or Always). Also, the code
     // never checked [CLLocationManager authorizationStatus] — if the user
     // previously denied location, requestWhenInUseAuthorization is a no-op
-    // and CNCopyCurrentNetworkInfo silently returns nil/placeholder. Now checks
-    // the actual authorization status and gives actionable guidance.
+    // and the API silently returns nil/placeholder. Now checks the actual
+    // authorization status and gives actionable guidance.
     if (!info.contains("ssid") || info["ssid"].toString().isEmpty()) {
         CLAuthorizationStatus locStatus = [CLLocationManager authorizationStatus];
         QString diagMsg;
@@ -620,7 +685,7 @@ QVariantMap iosWiFiInfo()
                     "Xcode > Signing & Capabilities (requires paid Apple Developer account). "
                     "3) Check that the provisioning profile includes the "
                     "com.apple.developer.networking.wifi-info entitlement. "
-                    "Without this, CNCopyCurrentNetworkInfo returns a placeholder SSID even with location access.");
+                    "Without this, the WiFi API returns nil even with location access.");
                 break;
             default:
                 diagMsg = QStringLiteral("WiFi SSID: Unable to determine location authorization status.");
