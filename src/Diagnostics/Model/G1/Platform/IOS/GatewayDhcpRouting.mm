@@ -607,10 +607,11 @@ QVariantMap iosWiFiInfo()
         info["bssid"] = QString::fromNSString(bssid);
 
     // 5WHY: Check authorization status and log detailed permission state.
-    // Log ALL permission details to debug.log so users can diagnose issues.
+    // Declare locStr here so it's visible in both the log block AND the
+    // diagnostic message block below (autorized-but-no-SSID case).
+    const char* locStr = "Unknown";
     {
         CLAuthorizationStatus locStatus = [CLLocationManager authorizationStatus];
-        const char* locStr = "Unknown";
         switch (locStatus) {
             case kCLAuthorizationStatusNotDetermined: locStr = "NotDetermined"; break;
             case kCLAuthorizationStatusRestricted:     locStr = "Restricted"; break;
@@ -767,7 +768,7 @@ QVariantMap iosCellularInfo()
         if (!info.contains(QStringLiteral("radioAccess")) && !hasCarrier)
             info["cellularStatus"] = QStringLiteral("No cellular service available (airplane mode or no SIM)");
 
-        [netInfo release]; // MRC: balance the alloc/init above
+        // ARC manages NSObject lifetime — no manual release needed.
     }
 
     // Signal strength is not available via public API (iOS restricts this)
