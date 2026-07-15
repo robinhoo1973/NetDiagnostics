@@ -105,17 +105,15 @@ Item {
                     }
                 }
                 Item { Layout.fillWidth: true }
-                // Select All — 5WHY: 32pt below Apple HIG 44pt; no keyboard access
+                // Select All — icon-only (badge-check = multi-select, Material Design 3)
+                // 40×40dp dense icon button, 20dp icon, tooltip via Accessible.name
                 Rectangle {
                     id: selectAllBtn
-                    implicitWidth: 110; implicitHeight: 40; radius: 6; color: "transparent"
+                    implicitWidth: 40; implicitHeight: 40; radius: 8; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
-                    RowLayout { anchors.centerIn: parent; spacing: 4
-                        AppIcon { name: "check"; size: 14; color: ThemeEngine.textPrimary }
-                        Label { text: Tr.selectAll; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary }
-                    }
+                    AppIcon { anchors.centerIn: parent; name: "badge-check"; size: 20; color: enabled ? ThemeEngine.passGreen : ThemeEngine.textMuted }
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
@@ -127,19 +125,17 @@ Item {
                         if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && selectAllBtn.enabled)
                             appState.setGroupEnabled(currentGroup, true)
                     }
+                    Accessible.name: Tr.selectAll
                 }
-                Item { width: 8 }
-                // Deselect All — 5WHY: same touch target + a11y gap as Select All
+                Item { width: 6 }
+                // Deselect All — icon-only (badge-close = multi-clear)
                 Rectangle {
                     id: deselectAllBtn
-                    implicitWidth: 110; implicitHeight: 40; radius: 6; color: "transparent"
+                    implicitWidth: 40; implicitHeight: 40; radius: 8; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
-                    RowLayout { anchors.centerIn: parent; spacing: 4
-                        AppIcon { name: "close"; size: 14; color: ThemeEngine.textPrimary }
-                        Label { text: Tr.deselectAll; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary }
-                    }
+                    AppIcon { anchors.centerIn: parent; name: "badge-close"; size: 20; color: enabled ? ThemeEngine.failRed : ThemeEngine.textMuted }
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
@@ -151,6 +147,7 @@ Item {
                         if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && deselectAllBtn.enabled)
                             appState.setGroupEnabled(currentGroup, false)
                     }
+                    Accessible.name: Tr.deselectAll
                 }
             }
         }
