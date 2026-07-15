@@ -77,12 +77,7 @@ private:
     void assembleTargetUrl();      // build m_target from structured fields
     void syncFieldsFromTarget();   // parse m_target → structured fields
 
-    // ── Static validation helpers ───────────────────────────────────────
-    static bool isValidHostLabel(const QString& label);
-    static bool isValidIPv4(const QString& host);
-    static bool looksLikeIPv6(const QString& host);
-    static bool isValidHostname(const QString& host);
-    static QString validateUrl(const QString& trimmed);
+    // Validation helpers are file-scope static functions in TargetModel.cpp
 
     QString m_target;
     QString m_scheme;
