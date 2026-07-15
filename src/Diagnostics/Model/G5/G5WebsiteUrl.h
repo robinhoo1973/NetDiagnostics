@@ -75,3 +75,38 @@ inline int portForUrl(const QUrl& u) {
 }
 
 } // namespace G5WebsiteUrl
+
+// ── G5 scheme-to-DiagId matching (single source of truth) ──────────────
+// Used by AppState::runDiagnostics (scheduling) and ResultsModel (display).
+inline bool g5DiagMatchesScheme(DiagId id, const QString& schemeLower) {
+    bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
+                   || id == DiagId::G5ServiceBanner);
+    if (isGeneric) return true;
+
+    bool isHttp = (schemeLower == "http" || schemeLower == "https");
+    bool isFtp  = (schemeLower == "ftp" || schemeLower == "ftps");
+    bool isSsh  = (schemeLower == "ssh" || schemeLower == "sftp");
+
+    if (isHttp) {
+        return (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
+             || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
+             || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
+             || id == DiagId::G5HttpTiming);
+    }
+    if (isFtp)  return id == DiagId::G5FtpDiagnostics;
+    if (isSsh)  return id == DiagId::G5SshDiagnostics;
+
+    if (schemeLower == "mysql")      return id == DiagId::G5Mysql;
+    if (schemeLower == "postgresql") return id == DiagId::G5Postgres;
+    if (schemeLower == "redis")      return id == DiagId::G5Redis;
+    if (schemeLower == "mongodb")    return id == DiagId::G5Mongodb;
+    if (schemeLower == "ldap")       return id == DiagId::G5Ldap;
+    if (schemeLower == "mqtt")       return id == DiagId::G5Mqtt;
+    if (schemeLower == "telnet")     return id == DiagId::G5Telnet;
+    if (schemeLower == "smtp" || schemeLower == "smtps"
+     || schemeLower == "imap" || schemeLower == "imaps"
+     || schemeLower == "pop3" || schemeLower == "pop3s")
+        return id == DiagId::G5EmailDiagnostics;
+
+    return false;
+}

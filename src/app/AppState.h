@@ -1,5 +1,11 @@
 // =============================================================================
 // AppState.h — Central state object bridging C++ engine ↔ QML UI
+//
+// Architecture (post-God-Object refactor):
+//   AppState is a FACADE — it owns no domain logic directly.  Target parsing
+//   lives in TargetModel; diagnostic execution lives in DiagnosticsController;
+//   settings/premium live in SettingsController; report generation lives in
+//   ReportEngine.  QML properties delegate to these sub-objects.
 // =============================================================================
 #pragma once
 
@@ -17,7 +23,8 @@
 #include "Common/Model/DiagnosticResult.h"
 #include "Configuration/Model/DiagnosticConfig.h"
 #include "Report/Model/ReportEngine.h"
-// PremiumStore now owned by SettingsController
+#include "app/TargetModel.h"
+#include "app/ResultsModel.h"
 
 // Forward declarations for MVC Controllers
 class DashboardController;
@@ -67,46 +74,46 @@ public:
     explicit AppState(QObject* parent = nullptr);
     ~AppState() override;
 
-    // ── MVC Controller accessors (for QML context injection) ────────────────
+    // ── MVC Controller & Model accessors (for QML context injection) ──────
     DashboardController* dashboardController() const { return m_dashCtrl; }
     DiagnosticsController* diagnosticsController() const { return m_diagCtrl; }
     ConfigurationController* configurationController() const { return m_configCtrl; }
     ReportController* reportController() const { return m_reportCtrl; }
     SettingsController* settingsController() const { return m_settingsCtrl; }
+    TargetModel* targetModel() const { return m_targetModel; }
+    ResultsModel* resultsModel() const { return m_resultsModel; }
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
     QString appEdition() const;
     QString buildNumber() const;
 
-    // ── Target ─────────────────────────────────────────────────────────────
-    QString target() const { return m_target; }
+    // ── Target (delegated to TargetModel) ────────────────────────────────
+    QString target() const { return m_targetModel->target(); }
     void setTarget(const QString& t);
-
-    // ── Structured target accessors (derived from / assembled into m_target) ──
-    QString targetScheme() const;
+    QString targetScheme() const { return m_targetModel->scheme(); }
     void setTargetScheme(const QString& s);
-    QString targetHost() const;
+    QString targetHost() const { return m_targetModel->host(); }
     void setTargetHost(const QString& h);
-    int targetPort() const;
+    int targetPort() const { return m_targetModel->port(); }
     void setTargetPort(int p);
-    QString targetUsername() const;
+    QString targetUsername() const { return m_targetModel->username(); }
     void setTargetUsername(const QString& u);
-    QString targetPassword() const;
+    QString targetPassword() const { return m_targetModel->password(); }
     void setTargetPassword(const QString& p);
-    QString targetPath() const;
+    QString targetPath() const { return m_targetModel->path(); }
     void setTargetPath(const QString& p);
-    QStringList supportedSchemes() const;
-    int defaultPortForScheme() const;
-    Q_INVOKABLE void parseUrlIntoFields(const QString& urlString);
+    QStringList supportedSchemes() const { return m_targetModel->supportedSchemes(); }
+    int defaultPortForScheme() const { return m_targetModel->defaultPort(); }
+    Q_INVOKABLE void parseUrlIntoFields(const QString& urlString) { m_targetModel->parseUrlIntoFields(urlString); }
 
     // ── Run status ─────────────────────────────────────────────────────────
     int runStatusInt() const { return static_cast<int>(m_runStatus); }
     RunStatus runStatus() const { return m_runStatus; }
 
     // ── Progress ───────────────────────────────────────────────────────────
-    int totalCompleted() const { return m_totalCompleted; }
-    int totalDiags() const { return m_totalDiags; }
+    int totalCompleted() const { return m_resultsModel->totalCompleted(); }
+    int totalDiags() const { return m_resultsModel->totalDiags(); }
     QString currentDiagLabel() const;
     QString currentGroup() const { return m_currentGroup; }
     QString errorMessage() const { return m_errorMessage; }
@@ -115,9 +122,10 @@ public:
     QStringList groupLabels() const;
 
     // ── Invokable methods (callable from QML) ──────────────────────────────
+    // NOTE: runDiagnostics/cancel → TODO: extract to DiagnosticsController
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();
-    Q_INVOKABLE void reset();
+    // NOTE: diag/group config → delegated to ConfigurationController::config()
     Q_INVOKABLE bool isDiagEnabled(int diagIdInt) const;
     Q_INVOKABLE void setDiagEnabled(int diagIdInt, bool enabled);
     Q_INVOKABLE void setGroupEnabled(int groupInt, bool enabled);
@@ -130,14 +138,15 @@ public:
     Q_INVOKABLE void saveSettings();
     void loadSettings();
 
-    Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
-    Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
-    Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const;
-    Q_INVOKABLE QVariantList visibleGroups() const;
-    Q_INVOKABLE QVariantMap groupStats(int groupInt) const;
-    QVariantList allGroupStats() const;
+    // NOTE: result access → delegated to ResultsModel
+    Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const { return m_resultsModel->resultsForGroup(groupInt); }
+    Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const { return m_resultsModel->allDiagsForGroup(groupInt); }
+    Q_INVOKABLE QVariantList allDiagIdsForGroup(int groupInt) const { return m_resultsModel->allDiagIdsForGroup(groupInt); }
+    Q_INVOKABLE QVariantList visibleGroups() const { return m_resultsModel->visibleGroups(); }
+    Q_INVOKABLE QVariantMap groupStats(int groupInt) const { return m_resultsModel->groupStats(groupInt); }
+    QVariantList allGroupStats() const { return m_resultsModel->allGroupStats(); }
     Q_INVOKABLE void showDetailDialog(int diagIdInt);
-    Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const;
+    Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const { return m_resultsModel->getDetailResult(diagIdInt); }
 
     // ── Simulator skip-policy bridge (Phase 2) ───────────────────────────
     // Accepts QVariantList of {diagId, testName, reason} maps from QML.
@@ -147,7 +156,7 @@ public:
     Q_INVOKABLE QVariantList skipRules() const { return m_skipRules; }
     Q_PROPERTY(QVariantList policyRules READ skipRules NOTIFY skipRulesChanged)
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
-    int resultsVersion() const { return m_resultsVersion; }
+    int resultsVersion() const { return m_resultsModel->resultsVersion(); }
     int languageIndex() const;
     Q_INVOKABLE void setLanguage(int index);
 
@@ -156,35 +165,18 @@ public:
     Q_INVOKABLE void setThemeMode(int mode);
     Q_INVOKABLE bool isDarkMode() const { return themeMode() != 1; }
 
-    // ── Report export ────────────────────────────────────
-    // buildReportHtml(false)=one-page summary; (true)=full detail per test.
-    // darkBackground=true uses dark theme colours (QML preview);
-    // false = light (PDF printing). Defaults to false.
+    // ── Report export (delegated to ReportEngine via ReportController) ──
+    // NOTE: buildReportHtml/exportHtml/exportPdf → mostly in ReportEngine already;
+    // remaining AppState methods are thin wrappers.  TODO: move to ReportController.
     Q_INVOKABLE QString buildReportHtml(bool fullDetail, bool darkBackground = false) const;
-    // Renders report HTML to a QImage (via QTextDocument) for pixel-perfect
-    // in-app preview. Returns the image file path or empty on failure.
     Q_INVOKABLE QString renderPreviewImage(const QString& html, int width) const;
-    // Rich, browser-quality standalone HTML document (collapsible per-test
-    // details). Used by exportHtml; not for the in-app QML preview
-    // (QTextDocument can't render its CSS). darkBackground defaults true
-    // for backward compatibility with shared HTML emails.
     QString buildRichHtmlDocument(bool darkBackground = true) const;
     Q_INVOKABLE QString defaultReportPath(const QString& ext) const;
-    // 5WHY: exportHtml received pre-generated HTML, so theme was baked in
-    // by the caller. Now generates HTML internally with the current theme
-    // so shared HTML matches the app theme like exportPdf does.
     Q_INVOKABLE QString exportHtml(const QString& filePath, bool darkBackground = true) const;
     Q_INVOKABLE QString exportPdf(const QString& filePath) const;
-    // 5WHY: "PDF Preview" was a QTextDocument→QImage rendering, not an actual
-    // PDF. Generates a real PDF to a temp file and opens it in the system's
-    // native PDF viewer (Preview.app / Edge / Okular / etc.) for true WYSIWYG.
     Q_INVOKABLE void openPdfExternally() const;
     Q_INVOKABLE void openHtmlExternally() const;
-    // Generate a real PDF to a temp file and return the file:// path for
-    // in-app preview with PdfMultiPageView (QtPdf). Returns empty on failure.
     Q_INVOKABLE QString generatePreviewPdf() const;
-    // Desktop: opens a native NON-modal save dialog, then emits savePathPicked.
-    // Mobile: emits savePathPicked immediately with a Documents path.
     Q_INVOKABLE void requestSavePath(const QString& format);
 
     // ── Premium / sharing ──────────────────────────────────────────────────
@@ -207,19 +199,13 @@ public:
     // crash log; on desktop reveals the file in the system file manager.
     Q_INVOKABLE void shareCrashReport();
 
-    // ── Target type helpers ────────────────────────────────────────────────
-    Q_INVOKABLE bool isTargetEmpty() const { return m_target.trimmed().isEmpty(); }
-    Q_INVOKABLE bool hasUrlScheme() const {
-        return m_target.contains("://") && !isTargetEmpty();
-    }
-    Q_INVOKABLE bool isTargetHttpUrl() const {
-        const QString t = m_target.trimmed();
-        if (!t.contains("://")) return false;
-        const QString scheme = t.section("://", 0, 0).toLower();
-        return (scheme == "http" || scheme == "https") && !isTargetEmpty();
-    }
-    Q_INVOKABLE bool isTargetUrl() const { return hasUrlScheme() && !isTargetEmpty(); }
-    Q_INVOKABLE bool isTargetHost() const { return !isTargetEmpty() && !hasUrlScheme(); }
+    // ── Target type helpers (delegated to TargetModel) ───────────────────
+    Q_INVOKABLE bool isTargetEmpty() const { return m_targetModel->isEmpty(); }
+    Q_INVOKABLE bool hasUrlScheme() const { return m_targetModel->hasUrlScheme(); }
+    Q_INVOKABLE bool isTargetHttpUrl() const { return m_targetModel->isHttpUrl(); }
+    Q_INVOKABLE bool isTargetUrl() const { return m_targetModel->isUrl(); }
+    Q_INVOKABLE bool isTargetHost() const { return m_targetModel->isHost(); }
+    Q_INVOKABLE QString targetValidationError() const { return m_targetModel->validationError(); }
     Q_INVOKABLE bool canRun() const {
         if (m_runStatus == RunStatus::Running) return false;
         for (int g = 0; g < 5; ++g) {
@@ -227,7 +213,6 @@ public:
         }
         return false;
     }
-    Q_INVOKABLE QString targetValidationError() const { return m_targetError; }
 
 signals:
     void targetChanged();
@@ -261,6 +246,7 @@ private:
     friend class ReportController;
     friend class DiagnosticsController;
 
+    void reset();                       // internal: clears state before each run
     void startNextGroup();
     void runDiagInGroup(int groupIdx, int diagIdx);
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
@@ -274,28 +260,19 @@ private:
     // ── Internal helpers (used by Controllers) ──────────────────────────────
     void emailReportDesktop(const QString& path);
     ReportData buildReportData() const;  // snapshot for ReportEngine
-    void assembleTargetUrl();            // rebuild m_target from structured fields
-    void syncFieldsFromTarget();         // parse m_target → structured fields
 
-    // Canonical target string (existing)
-    QString m_target;
+    // Target URL parsing → extracted to TargetModel
+    TargetModel* m_targetModel = nullptr;
+    // Result formatting → extracted to ResultsModel
+    ResultsModel* m_resultsModel = nullptr;
     // Path to a crash log left by the previous run (empty if none)
     QString m_crashReportPath;
-    // Structured target fields (derived)
-    QString m_targetScheme;
-    QString m_targetHost;
-    int m_targetPort = -1;              // -1 = use scheme default
-    QString m_targetUsername;
-    QString m_targetPassword;
-    QString m_targetPath;
-    bool m_assembling = false;          // guard against re-entrant setTarget
 
     RunStatus m_runStatus = RunStatus::Idle;
     QString m_currentGroup;
     QString m_currentDiagName;
     QString m_errorMessage;
     QString m_targetError;
-    int m_totalCompleted = 0;
     int m_totalDiags = 0;
 
     // MVC Controllers (own page-specific logic and sub-objects)
@@ -310,7 +287,6 @@ private:
     ReportEngine m_reportEngine;
 
     QMap<DiagId, DiagnosticResult> m_results;
-    QMap<DiagGroup, int> m_completedPerGroup;
     QMap<DiagGroup, int> m_totalPerGroup;
 
     // Group-sequential execution
@@ -321,15 +297,10 @@ private:
     std::atomic<int> m_activeGroupDone{0};
     std::atomic<int> m_stateGeneration{0};
     std::atomic<int> m_runGeneration{0};
-    int m_resultsVersion = 0;
     // m_languageIndex, m_themeMode, m_premium → now owned by SettingsController
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
 
     // ── Simulator skip-policy state ──────────────────────────────────────
     QVariantList       m_skipRules;       // exposed to QML via policyRules
     QHash<int, QString> m_skipReasonMap;   // fast diagId → reason lookup
-
-    // Cached group stats — invalidated on progressChanged
-    mutable QVariantList m_cachedGroupStats;
-    mutable int m_cachedStatsVersion = -1;
 };

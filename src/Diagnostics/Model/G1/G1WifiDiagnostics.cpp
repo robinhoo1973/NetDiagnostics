@@ -3,11 +3,6 @@
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
 #include "Common/Platform/Apple/macOS/WifiHelper.h"
 #endif
-#if defined(_WIN32)
-#ifndef wlan_intf_opcode_channel_number
-#define wlan_intf_opcode_channel_number 0x10010116  // fallback for older MinGW headers
-#endif
-#endif
 namespace G1G2G3Native {
 DiagnosticResult wifiDiagnostics(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
@@ -52,12 +47,13 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                         // Channel — query via WlanQueryInterface opcode
                         ULONG channel = 0;
                         DWORD chSize = sizeof(channel);
-                        WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_channel_number,
-                                          nullptr, &chSize, (PVOID*)&channel, nullptr);
-                        if (channel > 0)
+                        if (WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_channel_number,
+                                              nullptr, &chSize, (PVOID*)&channel, nullptr) == ERROR_SUCCESS
+                            && channel > 0) {
                             out.append(QStringLiteral("   Channel. . . . . . . . . . . : %1").arg(channel));
-                        else
+                        } else {
                             out.append(QStringLiteral("   Channel. . . . . . . . . . . : N/A"));
+                        }
                         // Security
                         QString auth = QStringLiteral("Unknown");
                         switch (pConn->wlanSecurityAttributes.dot11AuthAlgorithm) {
@@ -105,7 +101,19 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     // 5WHY: was #if PLATFORM_IOS only — macOS CoreWLAN also needs it
     QString wifiSsidCaptured;
 #if defined(PLATFORM_IOS)
-    QString wifiDiagnosticMsg;  // captured inside loop, used after
+    QString wifiDiagnosticMsg;  // captured for iOS summary section
+    // 5WHY: iosWiFiInfo() was called inside the getifaddrs loop — on
+    // iOS 26+ SDK, NEHotspotNetwork blocks up to 5s per en* interface.
+    // With Personal Hotspot active (en0=bridge, en1=WiFi, en2=USB),
+    // this wasted up to 15s.  Call once before the loop and reuse.
+    QString cachedIosSsid, cachedIosBssid;
+    {
+        QVariantMap wifiData = iosWiFiInfo();
+        cachedIosSsid = wifiData.value("ssid", "").toString();
+        cachedIosBssid = wifiData.value("bssid", "").toString();
+        wifiDiagnosticMsg = wifiData.value("wifiDiagnostics", "").toString();
+        if (!cachedIosSsid.isEmpty()) wifiSsidCaptured = cachedIosSsid;
+    }
 #endif
 
     struct ifaddrs* ifa = nullptr;
@@ -133,16 +141,9 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
 
 #if defined(PLATFORM_IOS)
-            // iOS: retrieve WiFi SSID and BSSID via shared helper
-            QVariantMap wifiData = iosWiFiInfo();
-            ssid = wifiData.value("ssid", "").toString();
-            if (ssid.isEmpty()) ssid = QStringLiteral("-");
-            else wifiSsidCaptured = ssid;
-            bssid = wifiData.value("bssid", "").toString();
-            if (bssid.isEmpty()) bssid = QStringLiteral("-");
-            // 5WHY: wifiData goes out of scope after for loop — capture
-            // the diagnostic message for use in the iOS summary section.
-            wifiDiagnosticMsg = wifiData.value("wifiDiagnostics", "").toString();
+            // iOS: use cached WiFi data (queried once before the loop)
+            ssid = cachedIosSsid.isEmpty() ? QStringLiteral("-") : cachedIosSsid;
+            bssid = cachedIosBssid.isEmpty() ? QStringLiteral("-") : cachedIosBssid;
 #elif defined(__APPLE__)
             // 5WHY: macOS CoreWLAN — SSID/BSSID via dedicated .mm helper.
             // Extracted from inline objc_msgSend to avoid ObjC type issues

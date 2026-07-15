@@ -20,7 +20,6 @@ public:
 
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();
-    Q_INVOKABLE void reset();
 
     QString currentDiagLabel() const;
     QString currentGroup() const;

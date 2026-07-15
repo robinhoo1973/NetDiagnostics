@@ -40,7 +40,6 @@ Item {
     readonly property string errorCheck: t("Error — Check Target", "Erreur — Vérifier la cible", "Fehler — Ziel prüfen", "Ошибка — Проверьте цель", "Errore — Controlla target", "错误 — 检查目标", "錯誤 — 檢查目標", "Error — Verifique el objetivo", "Erro — Verifique o alvo")
     readonly property string results: t("Results", "Résultats", "Ergebnisse", "Результаты", "Risultati", "结果", "結果", "Resultados", "Resultados")
     readonly property string diagGroup: t("Diagnosis Group", "Groupe de diagnostic", "Diagnosegruppe", "Группа диагностики", "Gruppo diagnostica", "诊断组", "診斷組", "Grupo de diagnóstico", "Grupo de diagnóstico")
-    readonly property string reset: t("Reset", "Réinitialiser", "Zurücksetzen", "Сброс", "Ripristina", "重置", "重置", "Restablecer", "Redefinir")
     readonly property string runDiag: t("▶ Run Diagnostics", "▶ Lancer diagnostic", "▶ Diagnose starten", "▶ Запустить", "▶ Avvia diagnostica", "▶ 运行诊断", "▶ 運行診斷", "▶ Ejecutar diagnósticos", "▶ Executar diagnósticos")
     readonly property string running: t("⏳ Running...", "⏳ En cours...", "⏳ Läuft...", "⏳ Выполняется...", "⏳ In corso...", "⏳ 运行中...", "⏳ 運行中...", "⏳ Ejecutando...", "⏳ Executando...")
     readonly property string stop: t("■ Stop", "■ Arrêter", "■ Stopp", "■ Стоп", "■ Ferma", "■ 停止", "■ 停止", "■ Detener", "■ Parar")
@@ -286,15 +285,14 @@ Item {
     }
 
     // ── Dashboard summary + common labels ──
-    // 5WHY: totalDiags/totalTime/completed/reset were duplicated as
-    // totalDiagsLabel/totalTimeLabel/completedLabel/resetLabel with
+    // 5WHY: totalDiags/totalTime/completed were duplicated as
+    // totalDiagsLabel/totalTimeLabel/completedLabel with
     // identical translation strings — a DRY violation that could
     // cause desync if only one copy was updated.  Now aliased so
     // both names work, single canonical definition per string.
     readonly property string totalDiagsLabel: totalDiags
     readonly property string totalTimeLabel: totalTime
     readonly property string completedLabel: completed
-    readonly property string resetLabel: reset
     readonly property string diagsSuffix: t(" tests", " tests", " Tests", " тестов", " test", " 个测试", " 個測試", " pruebas", " testes")
 
     // ── Settings screen ──

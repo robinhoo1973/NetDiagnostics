@@ -2,6 +2,7 @@
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
+#include "Common/Model/DiagNames.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
 #include "Diagnostics/Controller/TaskFactory.h"
 #include "Common/Utils/DebugSwitch.h"
@@ -53,16 +54,34 @@
 #endif
 
 AppState::AppState(QObject* parent) : QObject(parent) {
-    m_targetScheme = QStringLiteral("https"); // default protocol
     // G1-G3 active by default (G4/G5 auto-managed via setTarget)
     m_activeGroups = {0, 1, 2};
 
-    // ── Create MVC Controllers ────────────────────────────────────────────
+    // ── Create MVC Controllers & Models ──────────────────────────────────
+    m_targetModel  = new TargetModel(this);
+    m_resultsModel = new ResultsModel(this);
     m_dashCtrl   = new DashboardController(this, this);
     m_diagCtrl   = new DiagnosticsController(this, this);
     m_configCtrl = new ConfigurationController(this, this);
     m_reportCtrl = new ReportController(this, this);
     m_settingsCtrl = new SettingsController(this, this);
+
+    // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
+    // to TargetModel::targetChanged signal, separating concerns.
+    connect(m_targetModel, &TargetModel::targetChanged, this, [this]() {
+        bool has = !m_targetModel->isEmpty();
+        bool isUrl = m_targetModel->isUrl();
+        setGroupEnabled(3, has);
+        setGroupEnabled(4, has && isUrl);
+        bool had3 = m_activeGroups.contains(3);
+        bool had4 = m_activeGroups.contains(4);
+        if (has) { m_activeGroups.insert(3); if (isUrl) m_activeGroups.insert(4); }
+        else { m_activeGroups.remove(3); m_activeGroups.remove(4); }
+        if (had3 != m_activeGroups.contains(3) || had4 != m_activeGroups.contains(4))
+            emit groupActiveChanged();
+        // Keep ResultsModel's G5 scheme filter in sync with the target
+        m_resultsModel->setSchemeFilter(m_targetModel->scheme(), isUrl);
+    });
 
     // Forward ReportController signals
     connect(m_reportCtrl, &ReportController::savePathPicked,
@@ -157,386 +176,20 @@ void AppState::setThemeMode(int mode) {
     bumpVersion();
 }
 
-// ── RFC 952/1123 hostname label validation ────────────────────────────────
-static bool isValidHostLabel(const QString& label) {
-    if (label.isEmpty() || label.size() > 63) return false;
-    for (int i = 0; i < label.size(); ++i) {
-        QChar c = label[i];
-        if (!c.isLetterOrNumber() && c != '-') return false;
-    }
-    if (label.startsWith('-') || label.endsWith('-')) return false;
-    return true;
-}
+// ── Structured target field setters (delegated to TargetModel) ──────────
+void AppState::setTargetScheme(const QString& s) { m_targetModel->setScheme(s); }
+void AppState::setTargetHost(const QString& h)     { m_targetModel->setHost(h); }
+void AppState::setTargetPort(int p)                { m_targetModel->setPort(p); }
+void AppState::setTargetUsername(const QString& u)  { m_targetModel->setUsername(u); }
+void AppState::setTargetPassword(const QString& p)  { m_targetModel->setPassword(p); }
+void AppState::setTargetPath(const QString& p)      { m_targetModel->setPath(p); }
 
-static bool isValidIPv4(const QString& host) {
-    const auto parts = host.split('.');
-    if (parts.size() != 4) return false;
-    for (const auto& p : parts) {
-        bool ok = false;
-        int v = p.toInt(&ok);
-        if (!ok || v < 0 || v > 255) return false;
-        if (p.size() > 1 && p.startsWith('0')) return false;
-    }
-    return true;
-}
-
-static bool looksLikeIPv6(const QString& host) {
-    return host.contains(':');
-}
-
-// ── Supported URL schemes (must be lowercase) ────────────────────────────
-// Delegates to G5WebsiteUrl::knownSchemes() — single source of truth.
-static const QStringList& supportedSchemes() {
-    static const QStringList s = G5WebsiteUrl::knownSchemes();
-    return s;
-}
-
-QStringList AppState::supportedSchemes() const {
-    return ::supportedSchemes();
-}
-
-// ── Structured target field accessors ──────────────────────────────────────
-QString AppState::targetScheme() const { return m_targetScheme; }
-void AppState::setTargetScheme(const QString& s) {
-    if (m_targetScheme != s) {
-        m_targetScheme = s;
-        assembleTargetUrl();
-        emit targetChanged(); bumpVersion();
-    }
-}
-
-QString AppState::targetHost() const { return m_targetHost; }
-void AppState::setTargetHost(const QString& h) {
-    if (m_targetHost != h) {
-        m_targetHost = h;
-        assembleTargetUrl();
-        emit targetChanged(); bumpVersion();
-    }
-}
-
-int AppState::targetPort() const { return m_targetPort; }
-void AppState::setTargetPort(int p) {
-    if (m_targetPort != p) {
-        m_targetPort = p;
-        assembleTargetUrl();
-        emit targetChanged(); bumpVersion();
-    }
-}
-
-QString AppState::targetUsername() const { return m_targetUsername; }
-void AppState::setTargetUsername(const QString& u) {
-    if (m_targetUsername != u) {
-        m_targetUsername = u;
-        assembleTargetUrl();
-        emit targetChanged(); bumpVersion();
-    }
-}
-
-QString AppState::targetPassword() const { return m_targetPassword; }
-void AppState::setTargetPassword(const QString& p) {
-    if (m_targetPassword != p) {
-        m_targetPassword = p;
-        assembleTargetUrl();
-        emit targetChanged(); bumpVersion();
-    }
-}
-
-QString AppState::targetPath() const { return m_targetPath; }
-void AppState::setTargetPath(const QString& p) {
-    if (m_targetPath != p) {
-        m_targetPath = p;
-        assembleTargetUrl();
-        emit targetChanged(); bumpVersion();
-    }
-}
-
-int AppState::defaultPortForScheme() const {
-    return G5WebsiteUrl::defaultPortForScheme(m_targetScheme);
-}
-
-// ── Build m_target from structured fields ──────────────────────────────────
-void AppState::assembleTargetUrl() {
-    if (m_assembling) return;          // prevent re-entrant loops
-    if (m_targetHost.isEmpty()) return; // require at least a hostname
-
-    const QString scheme = m_targetScheme.isEmpty() ? QStringLiteral("https") : m_targetScheme;
-    const int defaultPort = G5WebsiteUrl::defaultPortForScheme(scheme);
-
-    // Build authority: [user[:pass]@]host[:port]
-    QString authority;
-    if (!m_targetUsername.isEmpty()) {
-        authority += QString::fromUtf8(QUrl::toPercentEncoding(m_targetUsername));
-        if (!m_targetPassword.isEmpty()) {
-            authority += QLatin1Char(':') + QString::fromUtf8(QUrl::toPercentEncoding(m_targetPassword));
-        }
-        authority += QLatin1Char('@');
-    }
-    authority += m_targetHost;
-    if (m_targetPort > 0 && m_targetPort != defaultPort) {
-        authority += QLatin1Char(':') + QString::number(m_targetPort);
-    }
-
-    const QString url = scheme + QStringLiteral("://") + authority + m_targetPath;
-
-    m_assembling = true;
-    setTarget(url);
-    m_assembling = false;
-}
-
-// ── Parse m_target → populate structured fields ────────────────────────────
-void AppState::syncFieldsFromTarget() {
-    if (m_assembling) return;
-
-    const QString trimmed = m_target.trimmed();
-    if (trimmed.isEmpty()) {
-        m_targetScheme.clear();
-        m_targetHost.clear();
-        m_targetPort = -1;
-        m_targetUsername.clear();
-        m_targetPassword.clear();
-        m_targetPath.clear();
-        return;
-    }
-
-    if (!trimmed.contains(QStringLiteral("://"))) {
-        // Bare hostname/IP — default to https
-        m_targetScheme = QStringLiteral("https");
-        m_targetHost = trimmed;
-        m_targetPort = -1;
-        m_targetUsername.clear();
-        m_targetPassword.clear();
-        m_targetPath.clear();
-        return;
-    }
-
-    QUrl u(trimmed, QUrl::TolerantMode);
-    if (u.isValid() && !u.scheme().isEmpty()) {
-        m_targetScheme = u.scheme().toLower();
-        m_targetHost = u.host();
-        m_targetPort = u.port() > 0 ? u.port() : -1;
-        m_targetUsername = u.userName();
-        m_targetPassword = u.password();
-
-        // Manual credential fallback: QUrl::TolerantMode often drops userinfo
-        // for non-HTTP schemes (mysql://, postgresql://, etc.)
-        if (m_targetUsername.isEmpty() && trimmed.contains('@')) {
-            QString userinfo = trimmed.section(QStringLiteral("://"), 1)
-                                     .section('@', 0, 0);
-            if (userinfo.contains(':')) {
-                m_targetUsername = userinfo.section(':', 0, 0);
-                m_targetPassword = userinfo.section(':', 1);
-            } else {
-                m_targetUsername = userinfo;
-            }
-        }
-        // Manual port fallback: QUrl::TolerantMode may return -1 for non-standard schemes
-        if (m_targetPort <= 0) {
-            // Parse port from raw authority: extract host[:port] after optional userinfo@
-            QString authority = trimmed.section(QStringLiteral("://"), 1);
-            if (authority.contains('@'))
-                authority = authority.section('@', 1);
-            // Strip path/query/fragment
-            for (auto ch : {'/', '?', '#'}) {
-                int pos = authority.indexOf(ch);
-                if (pos >= 0) authority = authority.left(pos);
-            }
-            if (authority.contains(':')) {
-                QString portPart = authority.section(':', -1);
-                bool ok = false;
-                int p = portPart.toInt(&ok);
-                if (ok && p > 0 && p <= 65535)
-                    m_targetPort = p;
-            }
-        }
-
-        // Keep path + query + fragment
-        QString fullPath = u.path();
-        if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
-        if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
-        m_targetPath = fullPath;
-    } else {
-        // Fallback: keep existing fields, just store host
-        m_targetHost = trimmed;
-    }
-}
-
-// ── QML-invokable: parse pasted URL into fields ────────────────────────────
-void AppState::parseUrlIntoFields(const QString& urlString) {
-    if (urlString.trimmed().isEmpty()) return;
-
-    const QString trimmed = urlString.trimmed();
-    if (!trimmed.contains(QStringLiteral("://"))) {
-        // Bare hostname — treat as host, keep current scheme
-        m_targetHost = trimmed;
-        assembleTargetUrl();
-        emit targetChanged();
-        return;
-    }
-
-    QUrl u(trimmed, QUrl::TolerantMode);
-    if (u.isValid() && !u.scheme().isEmpty()) {
-        const QString scheme = u.scheme().toLower();
-        // Accept any scheme QUrl can parse; fall back to https if not in our list
-        m_targetScheme = ::supportedSchemes().contains(scheme) ? scheme : QStringLiteral("https");
-        m_targetHost = u.host();
-        m_targetPort = u.port() > 0 ? u.port() : -1;
-        m_targetUsername = u.userName();
-        m_targetPassword = u.password();
-        QString fullPath = u.path();
-        if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
-        if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
-        m_targetPath = fullPath;
-
-        // Push canonical string through setTarget so all side effects fire:
-        // URL validation, G4/G5 enable+activate, m_targetError clear, bumpVersion
-        setTarget(trimmed);
-    }
-}
-
-static bool isValidHostname(const QString& host) {
-    if (host.isEmpty() || host.size() > 253) return false;
-    if (host.contains("..") || host == ".") return false;
-    if (looksLikeIPv6(host)) return true;  // accept all IPv6
-    if (isValidIPv4(host)) return true;
-    const auto labels = host.split('.');
-    for (const auto& label : labels) {
-        if (!isValidHostLabel(label)) return false;
-    }
-    return true;
-}
-
-// ── Full URL validation ──────────────────────────────────────────────────
-static QString validateUrl(const QString& trimmed) {
-    // 1. Parse scheme
-    auto schemeEnd = trimmed.indexOf("://");
-    if (schemeEnd < 0) return QString();  // no scheme → not a URL
-
-    QString scheme = trimmed.left(schemeEnd).toLower();
-    if (scheme.isEmpty()) return QStringLiteral("Empty URL scheme");
-    if (!supportedSchemes().contains(scheme))
-        return QStringLiteral("Unsupported protocol: %1:// — supported schemes: %2")
-            .arg(scheme, supportedSchemes().join(", "));
-
-    // 2. Parse authority (host[:port])
-    QString afterScheme = trimmed.mid(schemeEnd + 3);
-    auto pathStart = afterScheme.indexOf('/');
-    auto queryStart = afterScheme.indexOf('?');
-    auto fragStart = afterScheme.indexOf('#');
-
-    auto authorityEnd = afterScheme.size();
-    if (pathStart >= 0) authorityEnd = std::min(authorityEnd, pathStart);
-    if (queryStart >= 0) authorityEnd = std::min(authorityEnd, queryStart);
-    if (fragStart >= 0) authorityEnd = std::min(authorityEnd, fragStart);
-
-    QString authority = afterScheme.left(authorityEnd);
-    if (authority.isEmpty()) return QStringLiteral("URL has no hostname");
-
-    // Strip userinfo (user:password@) before hostname validation
-    if (authority.contains('@')) {
-        auto atPos = authority.lastIndexOf('@');
-        authority = authority.mid(atPos + 1);  // keep only host[:port]
-        if (authority.isEmpty()) return QStringLiteral("URL has no hostname after userinfo");
-    }
-
-    // 3. Separate host and port
-    QString host, portStr;
-    auto portColon = authority.lastIndexOf(':');
-    // Check for IPv6 bracket notation [::1]:port
-    if (authority.startsWith('[')) {
-        auto closing = authority.indexOf(']');
-        if (closing < 0) return QStringLiteral("Invalid IPv6 bracket notation");
-        host = authority.mid(1, closing - 1);
-        if (closing + 1 < authority.size()) {
-            if (authority[closing + 1] != ':') return QStringLiteral("Expected colon after IPv6 bracket");
-            portStr = authority.mid(closing + 2);
-        }
-    } else if (portColon > 0) {
-        host = authority.left(portColon);
-        portStr = authority.mid(portColon + 1);
-    } else {
-        host = authority;
-    }
-
-    // 4. Validate hostname
-    if (host.isEmpty()) return QStringLiteral("URL has no hostname");
-    if (!isValidHostname(host)) {
-        if (host.contains("..")) return QStringLiteral("Invalid hostname: consecutive dots");
-        return QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
-    }
-
-    // 5. Validate port
-    if (!portStr.isEmpty()) {
-        bool ok = false;
-        int port = portStr.toInt(&ok);
-        if (!ok) return QStringLiteral("Port must be a number");
-        if (port < 1 || port > 65535)
-            return QStringLiteral("Port must be between 1 and 65535 (got %1)").arg(port);
-    }
-
-    return QString();  // empty = success
-}
-
-// ── Target ─────────────────────────────────────────────────────────────────
+// ── Target (delegated to TargetModel — G4/G5 managed via signal connection) ─
 void AppState::setTarget(const QString& t) {
-    if (m_target != t) {
-        m_target = t;
-        m_targetError.clear();
-        TRACE(" setTarget('%s')\n", m_target.toUtf8().constData());
-
-        // Sync structured fields from canonical target (unless we're assembling)
-        syncFieldsFromTarget();
-
-        const QString trimmed = m_target.trimmed();
-        bool has = !trimmed.isEmpty();
-
-        // ── Unified validation ──────────────────────────────────────────
-        if (has) {
-            if (trimmed.contains("://")) {
-                // URL path: validate scheme, hostname, optional port
-                m_targetError = validateUrl(trimmed);
-            } else {
-                // Hostname/IP path
-                if (!isValidHostname(trimmed)) {
-                    if (trimmed.contains("..")) m_targetError = QStringLiteral("Invalid hostname: consecutive dots");
-                    else m_targetError = QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
-                }
-            }
-        }
-
-        bool isUrlType = has && trimmed.contains("://");  // any :// → URL type
-        bool isHttp    = isUrlType && isTargetHttpUrl();  // only http/https → HTTP-specific routing
-        bool isAnyUrl  = isUrlType && isTargetUrl();      // any supported URL scheme
-
-        // Deep diagnostic: why isTargetUrl() might return false
-        QString scheme = trimmed.contains("://") ? trimmed.section("://", 0, 0).toLower() : QString();
-        TRACE(" setTarget scheme='%s' empty=%d hasScheme=%d isTargetUrl=%d isTargetHttpUrl=%d validateErr='%s'\n",
-                scheme.toUtf8().constData(), isTargetEmpty(), trimmed.contains("://"),
-                isTargetUrl(), isTargetHttpUrl(), m_targetError.toUtf8().constData());
-
-        // G4: always on when target non-empty (URL or host)
-        // G5: any valid URL scheme (all protocol tests: HTTP, FTP, SSH, DB, etc.)
-        setGroupEnabled(3, has);               // G4 on if target non-empty
-        setGroupEnabled(4, has && isAnyUrl);   // G5 on for any valid URL scheme
-
-        // Activate G4/G5 when target is entered, deactivate when cleared
-        bool had3 = m_activeGroups.contains(3);
-        bool had4 = m_activeGroups.contains(4);
-        if (has) {
-            m_activeGroups.insert(3);  // G4 active
-            if (isAnyUrl)
-                m_activeGroups.insert(4);  // G5 active
-        } else {
-            m_activeGroups.remove(3);
-            m_activeGroups.remove(4);
-        }
-        if (had3 != m_activeGroups.contains(3) || had4 != m_activeGroups.contains(4))
-            emit groupActiveChanged();
-
-        TRACE(" setTarget result: has=%d isUrl=%d isHttp=%d G4=%d G5=%d err='%s'\n",
-                has, isAnyUrl, isHttp, has, has && isAnyUrl, m_targetError.toUtf8().constData());
-        emit targetChanged();
-        bumpVersion();
-    }
+    m_targetModel->setTarget(t);
+    // TargetModel emits targetChanged → AppState lambda handles G4/G5
+    emit targetChanged();
+    bumpVersion();
 }
 
 // ── Group labels ───────────────────────────────────────────────────────────
@@ -569,43 +222,6 @@ bool AppState::isGroupActive(int groupInt) const {
     return m_activeGroups.contains(groupInt);
 }
 
-// ── G5 scheme-to-DiagId matching — single source of truth ─────────────────
-// Returns true if `id` is applicable for the given URL scheme.
-// Used by both runDiagnostics (scheduling) and allDiagIdsForGroup (Config display)
-// so the two views can never diverge.
-static bool g5DiagMatchesScheme(DiagId id, const QString& schemeLower) {
-    bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
-                   || id == DiagId::G5ServiceBanner);
-    if (isGeneric) return true;
-
-    bool isHttp = (schemeLower == "http" || schemeLower == "https");
-    bool isFtp  = (schemeLower == "ftp" || schemeLower == "ftps");
-    bool isSsh  = (schemeLower == "ssh" || schemeLower == "sftp");
-
-    if (isHttp) {
-        return (id == DiagId::G5CurlVerbose || id == DiagId::G5HttpHeaders
-             || id == DiagId::G5SecurityHeaders || id == DiagId::G5SslCertificate
-             || id == DiagId::G5HttpRedirect || id == DiagId::G5HttpCompression
-             || id == DiagId::G5HttpTiming);
-    }
-    if (isFtp)  return id == DiagId::G5FtpDiagnostics;
-    if (isSsh)  return id == DiagId::G5SshDiagnostics;
-
-    if (schemeLower == "mysql")      return id == DiagId::G5Mysql;
-    if (schemeLower == "postgresql") return id == DiagId::G5Postgres;
-    if (schemeLower == "redis")      return id == DiagId::G5Redis;
-    if (schemeLower == "mongodb")    return id == DiagId::G5Mongodb;
-    if (schemeLower == "ldap")       return id == DiagId::G5Ldap;
-    if (schemeLower == "mqtt")       return id == DiagId::G5Mqtt;
-    if (schemeLower == "telnet")     return id == DiagId::G5Telnet;
-    if (schemeLower == "smtp" || schemeLower == "smtps"
-     || schemeLower == "imap" || schemeLower == "imaps"
-     || schemeLower == "pop3" || schemeLower == "pop3s")
-        return id == DiagId::G5EmailDiagnostics;
-
-    return false;
-}
-
 // ── Run diagnostics ────────────────────────────────────────────────────────
 void AppState::runDiagnostics() {
     // Force-reset if stuck from a previous run
@@ -615,7 +231,7 @@ void AppState::runDiagnostics() {
         m_runStatus = RunStatus::Idle;
         m_runGeneration.fetch_add(1, std::memory_order_release);
     }
-    TRACE(" runDiagnostics start target='%s'\n", m_target.toUtf8().constData());
+    TRACE(" runDiagnostics start target='%s'\n", m_targetModel->target().toUtf8().constData());
 
     // Reset state before each run (clears previous results, error messages, etc.)
     reset();
@@ -628,7 +244,6 @@ void AppState::runDiagnostics() {
     m_runStatus = RunStatus::Running;
     m_runGeneration.fetch_add(1, std::memory_order_release); // invalidate stale callbacks
     TRACE(" status=Running generation=%d, building pending tests\n", (int)m_runGeneration.load());
-    m_totalCompleted = 0;
     m_totalDiags = 0;
     m_results.clear();
     m_completedPerGroup.clear();
@@ -662,8 +277,8 @@ void AppState::runDiagnostics() {
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
             // G5: filter by scheme — only schedule tests matching the target's protocol
             if (gt.group == DiagGroup::G5 && hasTarget) {
-                QString scheme = m_targetScheme.isEmpty()
-                    ? QStringLiteral("https") : m_targetScheme.toLower();
+                QString scheme = m_targetModel->scheme().isEmpty()
+                    ? QStringLiteral("https") : m_targetModel->scheme().toLower();
                 if (!g5DiagMatchesScheme(id, scheme)) continue;
             }
             gt.diagIds.append(id);
@@ -680,6 +295,8 @@ void AppState::runDiagnostics() {
             m_totalDiags += gt.diagIds.size();
         }
     }
+    m_resultsModel->setTotalPerGroup(m_totalPerGroup);
+    m_resultsModel->setTotalDiags(m_totalDiags);
     TRACE(" %d groups, %d total tests\n", (int)m_pendingGroups.size(), m_totalDiags);
 
     if (m_pendingGroups.isEmpty()) {
@@ -735,7 +352,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     if (diagIdx >= gt.diagIds.size()) return;
 
     DiagId id = gt.diagIds[diagIdx];
-    m_currentDiagName = staticDiagDisplayName(id);
+    m_currentDiagName = ::diagDisplayName(id);
     emit currentDiagChanged();
     emit groupChanged();
     bumpVersion();
@@ -767,13 +384,13 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
 
     // Create task via factory — each task handles its own timeout internally
     int runGen = m_runGeneration.load(std::memory_order_acquire);
-    auto task = TaskFactory::createTask(id, m_target);
+    auto task = TaskFactory::createTask(id, m_targetModel->target());
     if (!task) {
         // 5WHY: Generic "Unknown DiagId" gave no clue which test or how to fix.
         // Now includes the DiagId value and target to help diagnose Config/enum mismatches.
         onDiagFinished(id, DiagnosticResult::error(id,
             QStringLiteral("Unknown DiagId %1 (target: %2) — check Config/diagIdsForGroup for unregistered tests")
-            .arg(static_cast<int>(id)).arg(m_target)));
+            .arg(static_cast<int>(id)).arg(m_targetModel->target())));
         // 5WHY: Like the skip-policy path above, the null-task path also
         // bypasses the connect() lambda's m_activeGroupDone counter. Increment
         // it here to prevent group deadlock.
@@ -818,18 +435,13 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
 // contains QString/QDateTime/QVector — each copy is a heap allocation.
 void AppState::onDiagFinished(DiagId id, const DiagnosticResult& result) {
     TRACE(" onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
-    // Suppress stale results after cancel/reset
     if (m_runStatus != RunStatus::Running) return;
-    if (m_results.contains(id)) return; // already handled by timeout/cancel
-    DiagGroup g = DiagnosticConfig::diagGroup(id);
+    if (m_results.contains(id)) return;
     m_results[id] = result;
-    m_totalCompleted++;
-    m_completedPerGroup[g]++;
-    m_resultsVersion++;
+    m_resultsModel->addResult(id, result);
 
     emit progressChanged();
     emit diagCompleted(static_cast<int>(id));
-    // Phase 3: separate signal for failure auto-capture
     if (result.status == DiagStatus::Fail || result.status == DiagStatus::Error)
         emit diagFailed(static_cast<int>(id));
     bumpVersion();
@@ -857,190 +469,18 @@ void AppState::reset() {
     // m_runGeneration invalidates all stale lambdas before they can execute.
     m_runGeneration.fetch_add(1, std::memory_order_release);
     m_runStatus = RunStatus::Idle;
-    m_totalCompleted = 0; m_totalDiags = 0;
+    m_totalDiags = 0;
     m_results.clear();
-    m_completedPerGroup.clear(); m_totalPerGroup.clear();
+    m_totalPerGroup.clear();
     m_errorMessage.clear();
     m_pendingGroups.clear();
     m_currentGroupIdx = 0;
     m_activeGroupDone.store(0);
-    m_resultsVersion = 0;
+    m_resultsModel->clear();
     emit runStatusChanged();
     emit progressChanged();
     emit resultsReset();
     bumpVersion();
-}
-
-// ── Shared helper: DiagnosticResult → QVariantMap ──────────────────────────
-// 5WHY: resultsForGroup() and allDiagsForGroup() both manually mapped the
-// same 10 DiagnosticResult fields to QVariantMap keys.  Adding a new field
-// required updating both — a DRY violation.  Now: single helper, both callers.
-// Must be a private static member (not file-scope static) because it calls
-// AppState::staticDiagDisplayName() which is private.
-QVariantMap AppState::resultToVariantMap(const DiagnosticResult& r, bool includeProperties) {
-    QVariantMap m;
-    m["id"] = static_cast<int>(r.id);
-    m["diagId"] = static_cast<int>(r.id);
-    m["displayName"] = r.displayName.isEmpty() ? staticDiagDisplayName(r.id) : r.displayName;
-    m["status"] = static_cast<int>(r.status);
-    m["statusIcon"] = r.statusIcon();
-    m["summary"] = r.summary;
-    m["details"] = r.details;
-    m["durationMs"] = r.durationMs;
-    if (includeProperties) {
-        QVariantList props;
-        for (const auto& p : r.properties) {
-            QVariantMap pm;
-            pm["label"] = p.label;
-            pm["value"] = p.value;
-            props.append(pm);
-        }
-        m["properties"] = props;
-    }
-    m["isDone"] = true;
-    m["isPending"] = false;
-    m["isRunning"] = false;
-    return m;
-}
-
-// ── Results for QML ────────────────────────────────────────────────────────
-QVariantList AppState::resultsForGroup(int groupInt) const {
-    QVariantList list;
-    auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        if (m_results.contains(id)) {
-            const auto& r = m_results[id];
-            // Skip platform-unavailable / irrelevant protocol tests
-            if (r.status == DiagStatus::Skipped)
-                continue;
-            QVariantMap m = resultToVariantMap(r, false);
-            list.append(m);
-        }
-    }
-    return list;
-}
-
-QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
-    QVariantList list;
-    if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
-    auto g = static_cast<DiagGroup>(groupInt);
-    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        // G5: filter tests by target scheme so Config shows only relevant protocol tests
-        if (g == DiagGroup::G5 && !isTargetEmpty() && hasUrlScheme()) {
-            QString scheme = m_targetScheme.isEmpty()
-                ? QStringLiteral("https") : m_targetScheme.toLower();
-            if (!g5DiagMatchesScheme(id, scheme)) continue;
-        }
-        list.append(static_cast<int>(id));
-    }
-    return list;
-}
-
-QVariantList AppState::visibleGroups() const {
-    QVariantList list;
-    for (int i = 0; i < 5; ++i) {
-        QVariantMap s = groupStats(i);
-        if (s["enabled"].toInt() > 0 || s["total"].toInt() > 0)
-            list.append(i);
-    }
-    return list;
-}
-
-QVariantList AppState::allDiagsForGroup(int groupInt) const {
-    QVariantList list;
-    if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
-    auto g = static_cast<DiagGroup>(groupInt);
-    
-    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        if (!m_configCtrl->config().enabledDiags().contains(id)) continue;
-        
-        // G5: skip cancelled/irrelevant protocol tests (e.g. FTP in an HTTP run)
-        // Also skip platform-unavailable tests for G1-G4 (e.g. iOS-sandboxed tests)
-        if (m_results.contains(id)
-            && m_results[id].status == DiagStatus::Skipped)
-            continue;
-
-        if (m_results.contains(id)) {
-            // Completed test — use shared helper (5WHY: DRY)
-            const auto& r = m_results[id];
-            list.append(resultToVariantMap(r, true));
-        } else {
-            // G5: hide pending tests that don't match the current URL scheme.
-            // These would never be scheduled by runDiagnostics, so showing
-            // them as "pending" is misleading — they'll never run.
-            if (g == DiagGroup::G5 && !isTargetEmpty() && hasUrlScheme()) {
-                QString scheme = m_targetScheme.isEmpty()
-                    ? QStringLiteral("https") : m_targetScheme.toLower();
-                if (!g5DiagMatchesScheme(id, scheme)) continue;
-            }
-            // Pending test — mark as running if its group is currently executing
-            bool isRunning = (m_runStatus == RunStatus::Running)
-                          && (m_currentGroupIdx < m_pendingGroups.size())
-                          && (m_pendingGroups[m_currentGroupIdx].group == g);
-            QVariantMap m;
-            m["id"] = static_cast<int>(id);
-            m["diagId"] = static_cast<int>(id);
-            m["displayName"] = staticDiagDisplayName(id);
-            m["status"] = -1;
-            m["statusIcon"] = QStringLiteral("badge-skip");
-            m["summary"] = QString(isRunning ? "Running..." : "");
-            m["details"] = QString();
-            m["durationMs"] = 0;
-            m["isDone"] = false;
-            m["isPending"] = true;
-            m["isRunning"] = isRunning;
-            list.append(m);
-        }
-    }
-    return list;
-}
-
-QVariantMap AppState::groupStats(int groupInt) const {
-    QVariantMap stats;
-    // ── Aggregate all groups when groupInt == -1 ──────────────────────
-    if (groupInt < 0) {
-        int total = 0, pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, completed = 0;
-        for (int g = 0; g < 5; ++g) {
-            QVariantMap gs = groupStats(g);
-            total     += gs["total"].toInt();
-            pass      += gs["pass"].toInt();
-            warn      += gs["warn"].toInt();
-            fail      += gs["fail"].toInt();
-            skip      += gs["skip"].toInt();
-            info      += gs["info"].toInt();
-            error     += gs["error"].toInt();
-            completed += gs["completed"].toInt();
-        }
-        stats["pass"] = pass; stats["warn"] = warn;
-        stats["fail"] = fail; stats["skip"] = skip;
-        stats["info"] = info; stats["error"] = error;
-        stats["completed"] = completed; stats["total"] = total;
-        stats["enabled"] = total;
-        return stats;
-    }
-    auto g = static_cast<DiagGroup>(groupInt);
-    // total = tests actually scheduled for this group (m_totalPerGroup).
-    // Before any run this is 0 — all counts show 0.
-    int total = m_totalPerGroup.value(g, 0);
-    int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, completed = 0;
-    for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        if (!m_results.contains(id)) continue;
-        completed++;
-        switch (m_results[id].status) {
-            case DiagStatus::Pass:    pass++; break;
-            case DiagStatus::Warning: warn++; break;
-            case DiagStatus::Fail:    fail++; break;
-            case DiagStatus::Skipped: skip++; break;
-            case DiagStatus::Info:    info++; break;
-            case DiagStatus::Error:   error++; break;
-            default: break;
-        }
-    }
-    stats["pass"] = pass; stats["warn"] = warn;
-    stats["fail"] = fail; stats["skip"] = skip; stats["info"] = info; stats["error"] = error;
-    stats["completed"] = completed; stats["total"] = total;
-    stats["enabled"] = total;
-    return stats;
 }
 
 QString AppState::currentDiagLabel() const {
@@ -1050,73 +490,17 @@ QString AppState::currentDiagLabel() const {
 }
 
 QString AppState::diagDisplayName(int diagIdInt) const {
-    return staticDiagDisplayName(static_cast<DiagId>(diagIdInt));
+    return ::diagDisplayName(static_cast<DiagId>(diagIdInt));
 }
 
+// staticDiagDisplayName — now delegates to shared DiagNames.h
 QString AppState::staticDiagDisplayName(DiagId id) {
-    switch (id) {
-        case DiagId::G1NetworkAdapters: return QStringLiteral("Network Adapters");
-        case DiagId::G1NicAdvanced: return QStringLiteral("NIC Advanced");
-        case DiagId::G1WifiDiagnostics: return QStringLiteral("WiFi Information");
-        case DiagId::G1WiredDiagnostics: return QStringLiteral("Wired Information");
-        case DiagId::G1DhcpStatus: return QStringLiteral("DHCP Status");
-        case DiagId::G1IpConfiguration: return QStringLiteral("IP Configuration");
-        case DiagId::G1ActiveConnections: return QStringLiteral("Active Connections");
-        case DiagId::G1CellularInfo: return QStringLiteral("Cellular Information");
-        case DiagId::G2NetworkProfile: return QStringLiteral("Network Profile");
-        case DiagId::G2TcpSettings: return QStringLiteral("TCP Settings");
-        case DiagId::G2DefaultGateway: return QStringLiteral("Default Gateway");
-        case DiagId::G2RoutingTable: return QStringLiteral("Routing Table");
-        case DiagId::G2ArpTable: return QStringLiteral("ARP Table");
-        case DiagId::G2ProxySettings: return QStringLiteral("Proxy Settings");
-        case DiagId::G3NetskopeStatus: return QStringLiteral("Netskope Status");
-        case DiagId::G3DnsServers: return QStringLiteral("DNS Servers");
-        case DiagId::G3DnsCache: return QStringLiteral("DNS Cache");
-        case DiagId::G3DnsPollution: return QStringLiteral("DNS Pollution");
-        case DiagId::G3InternetSpeedTest: return QStringLiteral("Internet Connectivity");
-        case DiagId::G4DnsResolution: return QStringLiteral("DNS Resolution");
-        case DiagId::G4Ping: return QStringLiteral("Ping");
-        case DiagId::G4Traceroute: return QStringLiteral("Traceroute");
-        case DiagId::G4PathPing: return QStringLiteral("PathPing");
-        case DiagId::G4MtuDiscovery: return QStringLiteral("MTU Discovery");
-        case DiagId::G5UrlParsing: return QStringLiteral("URL Parsing");
-        case DiagId::G5TcpConnect: return QStringLiteral("TCP Connect");
-        case DiagId::G5ServiceBanner: return QStringLiteral("Service Banner");
-        case DiagId::G5CurlVerbose: return QStringLiteral("HTTP Request");
-        case DiagId::G5HttpHeaders: return QStringLiteral("HTTP Headers");
-        case DiagId::G5SecurityHeaders: return QStringLiteral("Security Headers");
-        case DiagId::G5SslCertificate: return QStringLiteral("SSL Certificate");
-        case DiagId::G5HttpRedirect: return QStringLiteral("HTTP Redirect");
-        case DiagId::G5HttpCompression: return QStringLiteral("HTTP Compression");
-        case DiagId::G5HttpTiming: return QStringLiteral("HTTP Timing");
-        case DiagId::G5FtpDiagnostics: return QStringLiteral("FTP");
-        case DiagId::G5SshDiagnostics: return QStringLiteral("SSH");
-        case DiagId::G5EmailDiagnostics: return QStringLiteral("Email");
-        case DiagId::G5Telnet:   return QStringLiteral("Telnet");
-        case DiagId::G5Mysql:    return QStringLiteral("MySQL");
-        case DiagId::G5Postgres: return QStringLiteral("PostgreSQL");
-        case DiagId::G5Redis:    return QStringLiteral("Redis");
-        case DiagId::G5Mongodb:  return QStringLiteral("MongoDB");
-        case DiagId::G5Ldap:     return QStringLiteral("LDAP");
-        case DiagId::G5Mqtt:     return QStringLiteral("MQTT");
-    }
-    return QStringLiteral("Unknown");
+    return ::diagDisplayName(id);
 }
-
-QVariantList AppState::allGroupStats() const {
-    if (m_cachedStatsVersion == m_resultsVersion && !m_cachedGroupStats.isEmpty())
-        return m_cachedGroupStats;
-    m_cachedStatsVersion = m_resultsVersion;
-    m_cachedGroupStats.clear();
-    for (int g = 0; g < 5; ++g)
-        m_cachedGroupStats.append(groupStats(g));
-    return m_cachedGroupStats;
-}
-
 
 ReportData AppState::buildReportData() const {
     ReportData d;
-    d.target = m_target.isEmpty() ? QStringLiteral("(none)") : m_target.toHtmlEscaped();
+    d.target = m_targetModel->isEmpty() ? QStringLiteral("(none)") : m_targetModel->target().toHtmlEscaped();
     d.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     d.appVersion = appVersion();
     d.buildNumber = buildNumber();
