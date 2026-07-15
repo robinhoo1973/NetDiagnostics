@@ -30,9 +30,11 @@ DiagnosticResult defaultGateway(DiagId id) {
     // Use 223.5.5.5 (AliDNS / Alibaba Cloud) — globally accessible, not
     // blocked by GFW, and always routed via the default gateway.
     if (defaultGw == QStringLiteral("Not found")) {
-        DWORD bestGw = 0;
-        if (GetBestRoute(inet_addr("223.5.5.5"), 0, &bestGw) == NO_ERROR && bestGw != 0) {
-            struct in_addr gw; gw.S_un.S_addr = bestGw;
+        MIB_IPFORWARDROW bestRoute = {};
+        bestRoute.dwForwardDest = inet_addr("223.5.5.5");
+        bestRoute.dwForwardProto = MIB_IPPROTO_NETMGMT;
+        if (GetBestRoute(0, 0, &bestRoute) == NO_ERROR && bestRoute.dwForwardNextHop != 0) {
+            struct in_addr gw; gw.S_un.S_addr = bestRoute.dwForwardNextHop;
             defaultGw = ip4ToStr(gw);
             out.append(QStringLiteral("  Default Gateway (via GetBestRoute): %1").arg(defaultGw));
         }
