@@ -233,15 +233,46 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
         if (!sCachedCountry.isEmpty() && sCachedCountry != QStringLiteral("XX"))
             return sCachedCountry;
     }
-    // Primary: ip-api.com -- free, no API key, HTTP-only (raw-socket compatible)
+    // Triaged geo-IP: try 3 services with decreasing GFW risk.
+    // 1. ipip.net (China-accessible, Chinese IP database, most reliable inside GFW)
+    //    Returns JSON; we parse the first "country_code" field.
+    // 2. ip-api.com (global, free, returns plain-text "CN"/"US"/etc.)
+    // 3. ipapi.co (global fallback)
+    //
+    // 5WHY: Previously only tried ip-api.com and ipapi.co — both blocked by
+    // GFW. Adding ipip.net as primary gives GFW-internal users a working
+    // geo-IP path, while global users can still reach ip-api.com/ipapi.co.
+    QByteArray resp;
+    QString cc;
+
+    // Primary (GFW-safe): myip.ipip.net — responds with JSON on port 80
+    resp = G1G2G3Native::httpGet(
+        QStringLiteral("myip.ipip.net"), 80,
+        QStringLiteral("/"),
+        timeoutMs > 0 ? timeoutMs : 3000, 4096);
+    cc = extractHttpBody(resp);
+    if (!cc.isEmpty()) {
+        // Response is JSON: find "country_code":"XX"
+        int pos = cc.indexOf("\"country_code\":\"");
+        if (pos >= 0) {
+            pos += 17;
+            int end = cc.indexOf('\"', pos);
+            if (end > pos) {
+                QString cc2 = cc.mid(pos, end - pos).trimmed().toUpper();
+                if (cc2.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc2; return sCachedCountry; }
+            }
+        }
+    }
+
+    // Secondary: ip-api.com — free, no API key, HTTP-only (raw-socket compatible)
     // Returns plain-text country code (2 chars) at /line/?fields=countryCode
-    QByteArray resp = G1G2G3Native::httpGet(
+    resp = G1G2G3Native::httpGet(
         QStringLiteral("ip-api.com"), 80,
         QStringLiteral("/line/?fields=countryCode"),
         timeoutMs > 0 ? timeoutMs : 3000, 4096);
-    QString cc = extractHttpBody(resp);
+    cc = extractHttpBody(resp);
     if (cc.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc.toUpper(); return sCachedCountry; }
-    // Fallback 1: ipapi.co -- free, no key, returns plain text on /country/
+    // Tertiary: ipapi.co -- free, no key, returns plain text on /country/
     resp = G1G2G3Native::httpGet(
         QStringLiteral("ipapi.co"), 80,
         QStringLiteral("/country/"),
