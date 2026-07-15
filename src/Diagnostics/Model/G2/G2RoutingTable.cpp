@@ -108,7 +108,7 @@ DiagnosticResult routingTable(DiagId id) {
         out.append(DiagnosticFormatter::formatTable(kRouteCols, routeRows));
 #else
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
-    // 鈹€鈹€ macOS: enumerate routing table via sysctl NET_RT_DUMP 鈹€鈹€
+    // ---- macOS: enumerate routing table via sysctl NET_RT_DUMP ----
     {
         int mib[] = { CTL_NET, PF_ROUTE, 0, 0, NET_RT_DUMP, 0 };
         size_t needed = 0;

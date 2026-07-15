@@ -76,7 +76,7 @@ struct rt_msghdr2 {
         (1 + ((((struct sockaddr*)(sa))->sa_len - 1) | (sizeof(uint32_t) - 1))) )
 #endif
 
-// ���� Routing table via sysctl NET_RT_DUMP2 ������������������������������������������������������������
+// -- Routing table via sysctl NET_RT_DUMP2 --
 // Unlike /proc/net/route (Linux-only) and NET_RT_dump, NET_RT_DUMP2 is the
 // BSD/darwin route dump that IS reachable from the iOS sandbox. It returns the
 // live kernel routing table, from which we can read real gateway IPs.
@@ -192,7 +192,7 @@ static QString ifaceTypeLabel(const QString& iface) {
     return QString();
 }
 
-// ���� default Gateway �� real IP from the routing table, fallback to interface ����
+// -- default Gateway: real IP from the routing table, fallback to interface --
 static QString iosdefaultGateway() {
     // Preferred: the RTF_GATEWAY default route from the kernel routing table.
     for (const auto& rt : iosReadRoutes()) {
@@ -369,7 +369,7 @@ DiagnosticResult __attribute__((used)) iosRoutingTableDiag(DiagId id) {
     QVector<IosRoute> routes = iosReadRoutes();
     QStringList out;
     out.append(QString());
-    out.append(QStringLiteral("IPv4 Route Table (iOS �� sysctl NET_RT_DUMP2)"));
+    out.append(QStringLiteral("IPv4 Route Table (iOS -- sysctl NET_RT_DUMP2)"));
     out.append(QStringLiteral("==========================================================================="));
 
     if (routes.isEmpty()) {
@@ -533,9 +533,9 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
     // Format: "MCC-MNC" �� "Carrier Name"
     static const QMap<QString, QString> carriers = {
         // China
-        {"460-00", "�й��ƶ� (China Mobile)"}, {"460-02", "�й��ƶ� (China Mobile)"},
-        {"460-01", "�й���ͨ (China Unicom)"},
-        {"460-03", "�й����� (China Telecom)"},
+        {"460-00", "China Mobile"}, {"460-02", "China Mobile"},
+        {"460-01", "China Unicom"},
+        {"460-03", "China Telecom"},
         // United States
         {"310-004", "Verizon"},   {"310-010", "Verizon"},   {"310-012", "Verizon"},
         {"310-013", "Verizon"},   {"310-014", "Verizon"},
@@ -548,7 +548,7 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
         {"234-20", "Three"},      {"234-50", "Three"},
         // Germany
         {"262-01", "Telekom"},    {"262-02", "Vodafone"},   {"262-03", "E-Plus"},
-        {"262-07", "Telef��nica"},
+        {"262-07", "Telefonica"},
         // France
         {"208-01", "Orange"},     {"208-02", "SFR"},        {"208-03", "Bouygues"},
         // Japan

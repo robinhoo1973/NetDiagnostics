@@ -12,6 +12,7 @@ Item {
     id: content
     readonly property alias stackView: stackView
     property bool compact: false // mobile: icons only, right-aligned, no close
+    property bool navBlocked: (stackView.currentItem && stackView.currentItem.overlayVisible === true) || false
     signal closeRequested()
 
     // ── Single source of truth for tab definitions ───────────────────
@@ -84,6 +85,7 @@ Item {
                         ]
                         delegate: ItemDelegate {
                             id: navBtn
+                            enabled: !content.navBlocked
                             property bool active: stackView.currentItem && stackView.currentItem.objectName === modelData.screen
                             property string labelText: {
                                 Tr.lang // force re-evaluation on language change
@@ -130,7 +132,7 @@ Item {
                                     }
                                 }
                             }
-                            onClicked: switchToTab(index)
+                            onClicked: if (!navBlocked) switchToTab(index)
                         }
                     }
                 }

@@ -10,6 +10,7 @@ Item {
     objectName: "diagnostic"
     FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
     readonly property bool wide: width >= 600
+    readonly property alias overlayVisible: detailOverlay.visible
 
     // ── Run state ─────────────────────────────────────────────────────
     property bool _runActive: false
