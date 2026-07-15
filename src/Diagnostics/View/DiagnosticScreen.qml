@@ -177,7 +177,7 @@ Item {
                                 AppIcon { name: "file-html"; size: 12; color: ThemeEngine.accentBlue }
                                 Label { id: labelHtml; text: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
                             }
-                            MouseArea { anchors.fill: parent; enabled: appState.isPremium; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
                         }
                     }
                     // 5 status badges inline — desktop only
