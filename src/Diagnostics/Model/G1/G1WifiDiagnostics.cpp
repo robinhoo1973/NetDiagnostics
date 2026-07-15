@@ -3,6 +3,11 @@
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
 #include "Common/Platform/Apple/macOS/WifiHelper.h"
 #endif
+#if defined(_WIN32)
+#ifndef wlan_intf_opcode_channel_number
+#define wlan_intf_opcode_channel_number 0x10010116  // fallback for older MinGW headers
+#endif
+#endif
 namespace G1G2G3Native {
 DiagnosticResult wifiDiagnostics(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
@@ -44,10 +49,15 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                         auto& bssid = pConn->wlanAssociationAttributes.dot11Bssid;
                         out.append(QStringLiteral("   BSSID . . . . . . . . . . . . : %1").arg(
                             macToStr((const unsigned char*)bssid)));
-                        // Channel / Frequency
-                        ULONG channel = 0; // ulChCenterFrequency removed from MSYS2 MinGW;
-                        if (channel == 0) channel = 1;
-                        out.append(QStringLiteral("   Channel. . . . . . . . . . . : %1").arg(channel));
+                        // Channel — query via WlanQueryInterface opcode
+                        ULONG channel = 0;
+                        DWORD chSize = sizeof(channel);
+                        WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_channel_number,
+                                          nullptr, &chSize, (PVOID*)&channel, nullptr);
+                        if (channel > 0)
+                            out.append(QStringLiteral("   Channel. . . . . . . . . . . : %1").arg(channel));
+                        else
+                            out.append(QStringLiteral("   Channel. . . . . . . . . . . : N/A"));
                         // Security
                         QString auth = QStringLiteral("Unknown");
                         switch (pConn->wlanSecurityAttributes.dot11AuthAlgorithm) {
@@ -199,8 +209,17 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     if (wifiRows.isEmpty()) out.append(QStringLiteral("  (no wireless interfaces detected)"));
 #if defined(PLATFORM_IOS)
     {
-        const QString wifiIp = iosInterfaceIPv4(QStringLiteral("en0"));
-        const QString wifiGw = iosGatewayForInterface(QStringLiteral("en0"));
+        // 5WHY: Hardcoded "en0" — on iOS devices with Personal Hotspot
+        // active, en0 becomes the bridge and WiFi moves to en1.
+        // Use the first interface from the loop that had a valid SSID.
+        QString wifiIface = QStringLiteral("en0");
+        for (const auto& row : wifiRows) {
+            if (row.size() >= 2 && row[1] != QStringLiteral("-")) {
+                wifiIface = row[0]; break;
+            }
+        }
+        const QString wifiIp = iosInterfaceIPv4(wifiIface);
+        const QString wifiGw = iosGatewayForInterface(wifiIface);
         out.append(QString());
         out.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
         if (!wifiGw.isEmpty())

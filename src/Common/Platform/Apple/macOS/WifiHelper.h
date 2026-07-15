@@ -2,6 +2,7 @@
 // WifiHelper.h — macOS WiFi SSID/BSSID via CoreWLAN (declarations)
 // =============================================================================
 #pragma once
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
 #include <QString>
 
 // 5WHY: Functions declared as extern "C" to prevent C++ name mangling.
@@ -23,3 +24,4 @@ QString macosWifiBssid();
 #ifdef __cplusplus
 }
 #endif
+#endif // defined(__APPLE__) && !defined(PLATFORM_IOS)

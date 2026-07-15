@@ -336,12 +336,14 @@ ColumnLayout {
                     // credential-entry errors per NIST SP 800-63B §5.1.1.2.
                     property bool _showPass: false
                 }
-                // Visibility toggle icon (eye / eye-off)
+                // Visibility toggle — TODO: replace check/close with eye/eye-off
+                // SVG icons once added to resources/icons/.
                 // 5WHY: Touch target was 36×28 despite Apple HIG requiring 44pt
                 // minimum in the comment.  Now matches the documented minimum.
                 Item {
                     implicitWidth: 44; implicitHeight: 44
                     visible: passField.text !== ""
+                    Accessible.name: passField._showPass ? "Hide password" : "Show password"
                     AppIcon {
                         anchors.centerIn: parent
                         name: passField._showPass ? "check" : "close"

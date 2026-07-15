@@ -92,8 +92,9 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
             if (!(p->ifa_flags & IFF_UP)) continue;
             if (seenWired.contains(ifName)) continue;
             // Skip wireless interfaces
-#if defined(PLATFORM_IOS)
-            // iOS: classify by interface name prefix
+#if defined(PLATFORM_IOS) || defined(__APPLE__)
+            // iOS/macOS: classify by interface name prefix
+            // (macOS has no /sys/class/net — en* prefix covers Wi-Fi adapters)
             if (ifName.startsWith("en") || ifName.startsWith("pdp_ip")) continue;
 #else
             if (QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName))) continue;

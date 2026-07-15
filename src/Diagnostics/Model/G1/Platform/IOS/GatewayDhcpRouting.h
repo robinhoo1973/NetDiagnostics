@@ -1,5 +1,6 @@
 ﻿// IosNetworkInfo.h — iOS network info (gateway, DHCP)
 #pragma once
+#if defined(PLATFORM_IOS)
 #include <QString>
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"
@@ -40,3 +41,4 @@ QVariantMap iosWiFiInfo();
 QVariantMap iosCellularInfo();
 
 #endif // IOS_WIFI_HELPER_H
+#endif // PLATFORM_IOS

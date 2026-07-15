@@ -35,7 +35,7 @@ Item {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: "settings"; size: 20; color: ThemeEngine.colors.primary }
             Item { width: 10 }
-            Label { text: Tr.settings; font.family: ThemeEngine.fontMono; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+            Label { text: Tr.settings; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
         }
     }
 
@@ -60,7 +60,7 @@ Item {
                     anchors { fill: parent; margins: 16 } spacing: 0
                     Label {
                         text: Tr.themeLabel
-                        font.family: ThemeEngine.fontMono; font.pixelSize: 13; color: ThemeEngine.colors.textPrimary
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textPrimary
                         Layout.bottomMargin: 12
                     }
                     RowLayout {
@@ -88,7 +88,7 @@ Item {
                                 Label {
                                     anchors.centerIn: parent
                                     text: modelData.label
-                                    font.family: ThemeEngine.fontMono; font.pixelSize: 12
+                                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                     font.weight: ThemeEngine.mode === modelData.mode ? Font.DemiBold : Font.Normal
                                     color: ThemeEngine.mode === modelData.mode
                                            ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary

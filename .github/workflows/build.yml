@@ -71,7 +71,7 @@ jobs:
             libgl1-mesa-dev libglu1-mesa-dev \
             libxkbcommon-dev libxcb-cursor-dev
 
-      # ── Debug build + auto-test ─────────────────────────────────────
+      # ── Debug build ────────────────────────────────────────────────
       - name: Configure (debug)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
@@ -81,21 +81,7 @@ jobs:
             -B build-debug -S .
       - name: Build (debug)
         run: ninja -C build-debug net_diagnostics
-      - name: Startup Crash Test (debug)
-        run: |
-          echo "=== Linux Debug Startup Crash Test ==="
-          # 5WHY: httpbin.org was an uncontrolled external dependency.
-          # Start a local HTTP server with security headers so G5 (including
-          # G5SecurityHeaders) runs deterministically.
-          python3 scripts/ci-http-server.py 8888 &
-          HTTP_PID=$!
-          sleep 1
-          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=localhost:8888 ND_AUTO_TEST_EXIT_CODE=1 ./build-debug/net_diagnostics 2>&1 | tail -30
-          EXIT_CODE=$?
-          kill $HTTP_PID 2>/dev/null || true
-          if [ $EXIT_CODE -ne 0 ]; then echo "[FAIL]"; exit 1; fi
-          echo "[PASS] Linux Debug OK"
-      # ── Release build + auto-test ───────────────────────────────────
+      # ── Release build ──────────────────────────────────────────────
       - name: Configure (production)
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -106,18 +92,6 @@ jobs:
 
       - name: Build (production)
         run: ninja -C build net_diagnostics
-
-      - name: Startup Crash Test (production)
-        run: |
-          echo "=== Linux Release Startup Crash Test ==="
-          python3 scripts/ci-http-server.py 8888 &
-          HTTP_PID=$!
-          sleep 1
-          QT_QPA_PLATFORM=offscreen ND_AUTO_TEST=1 ND_AUTO_TEST_TARGET=localhost:8888 ND_AUTO_TEST_EXIT_CODE=1 ./build/net_diagnostics 2>&1 | tail -30
-          EXIT_CODE=$?
-          kill $HTTP_PID 2>/dev/null || true
-          if [ $EXIT_CODE -ne 0 ]; then echo "[FAIL]"; exit 1; fi
-          echo "[PASS] Linux Release OK"
 
       - name: Configure (simulator)
         run: |

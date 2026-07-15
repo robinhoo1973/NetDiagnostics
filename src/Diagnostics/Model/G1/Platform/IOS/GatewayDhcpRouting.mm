@@ -66,6 +66,7 @@ struct rt_msghdr2 {
 #include "Common/Model/DiagnosticResult.h"
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h" // 5WHY: own header for declaration checking
 #include "Diagnostics/View/DiagnosticFormatter.h"
+#include "Common/Utils/Logger.h"
 
 // Round a sockaddr length up to the next 4-byte boundary (BSD routing alignment).
 #if !defined(SA_SIZE)
@@ -463,6 +464,7 @@ void iosRequestWiFiAuthorization()
 QString iosCopyWiFiSSID()
 {
     QString result;
+    Logger::instance().event("iosCopyWiFiSSID() called");
 
 #if __has_include(<SystemConfiguration/CaptiveNetwork.h>)
     // V1: synchronous CNCopyCurrentNetworkInfo — simple, crash-proof.
@@ -504,7 +506,7 @@ QString iosCopyWiFiSSID()
             dispatch_semaphore_signal(sem);
         }
         dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
-        dispatch_release(sem);
+        // ARC manages dispatch objects — no manual dispatch_release needed.
 
         if (ssid && ssid.length > 0) {
             result = QString::fromNSString(ssid);
@@ -512,10 +514,14 @@ QString iosCopyWiFiSSID()
     }
 #endif
 
+    if (result.isEmpty())
+        Logger::instance().warn("iosCopyWiFiSSID: returned empty");
+    else
+        Logger::instance().event(QString("iosCopyWiFiSSID: returned '%1'").arg(result).toUtf8().constData());
     return result;
 }
 
-// ���� Cellular info ������������������������������������������������������������������������������������������������������������������������
+//���� Cellular info ������������������������������������������������������������������������������������������������������������������������
 
 static NSString* radioAccessLabel(NSString* rat)
 {
@@ -562,8 +568,7 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
         {"310-004", "Verizon"},   {"310-010", "Verizon"},   {"310-012", "Verizon"},
         {"310-013", "Verizon"},   {"310-014", "Verizon"},
         {"310-005", "AT&T"},      {"310-070", "AT&T"},      {"310-150", "AT&T"},
-        {"310-160", "AT&T"},      {"310-170", "AT&T"},      {"310-200", "AT&T"},
-        {"310-210", "AT&T"},      {"310-220", "AT&T"},
+        {"310-170", "AT&T"},      {"310-210", "AT&T"},      {"310-220", "AT&T"},
         {"310-026", "T-Mobile"},  {"310-160", "T-Mobile"},  {"310-200", "T-Mobile"},
         // UK
         {"234-03", "Vodafone"},   {"234-10", "Vodafone"},
@@ -591,26 +596,42 @@ static QString mccMncToCarrier(const QString& mcc, const QString& mnc)
 QVariantMap iosWiFiInfo()
 {
     QVariantMap info;
+    Logger::instance().event("iosWiFiInfo() called — starting WiFi retrieval");
 
 #if __has_include(<SystemConfiguration/CaptiveNetwork.h>)
     // V1: synchronous CNCopyCurrentNetworkInfo — simple, crash-proof.
     // Works with iOS 9–25 SDK (Xcode ≤ 25).
+    Logger::instance().event("iosWiFiInfo: using CNCopyCurrentNetworkInfo (V1 path)");
     @autoreleasepool {
         NSArray* ifaces = (__bridge_transfer NSArray*)CNCopySupportedInterfaces();
-        if (ifaces && ifaces.count > 0) {
+        if (!ifaces || ifaces.count == 0) {
+            Logger::instance().warn("iosWiFiInfo: CNCopySupportedInterfaces returned nil or empty — no WiFi interfaces detected");
+        } else {
+            Logger::instance().event(QString("iosWiFiInfo: found %1 WiFi interface(s)").arg((int)ifaces.count).toUtf8().constData());
             NSDictionary* netInfo = (__bridge_transfer NSDictionary*)
                 CNCopyCurrentNetworkInfo((__bridge CFStringRef)ifaces[0]);
-            if (netInfo) {
+            if (!netInfo) {
+                Logger::instance().warn("iosWiFiInfo: CNCopyCurrentNetworkInfo returned nil — likely location permission denied or VPN active");
+            } else {
                 NSString* ssid = netInfo[(NSString*)kCNNetworkInfoKeySSID];
                 NSString* bssid = netInfo[(NSString*)kCNNetworkInfoKeyBSSID];
+                Logger::instance().event(QString("iosWiFiInfo: raw SSID='%1' BSSID='%2'")
+                    .arg(ssid ? QString::fromNSString(ssid) : QStringLiteral("(null)"))
+                    .arg(bssid ? QString::fromNSString(bssid) : QStringLiteral("(null)"))
+                    .toUtf8().constData());
 
                 // Apple privacy sentinel: when location permission is denied
                 // on iOS 14+, the API returns "Wi-Fi" instead of the real SSID.
                 if (ssid && ![ssid isEqualToString:@"Wi-Fi"]) {
                     info["ssid"] = QString::fromNSString(ssid);
+                    Logger::instance().event("iosWiFiInfo: SSID accepted (not privacy placeholder)");
+                } else if (ssid) {
+                    Logger::instance().warn("iosWiFiInfo: SSID is Apple privacy placeholder 'Wi-Fi' — location permission or wifi-info entitlement may be missing");
                 }
                 if (bssid) {
                     info["bssid"] = QString::fromNSString(bssid);
+                } else {
+                    Logger::instance().warn("iosWiFiInfo: BSSID is nil");
                 }
             }
         }
@@ -618,6 +639,7 @@ QVariantMap iosWiFiInfo()
 #else
     // iOS 26+ SDK: CNCopyCurrentNetworkInfo removed from SystemConfiguration.
     // Use NEHotspotNetwork with a semaphore bridge (async → sync).
+    Logger::instance().event("iosWiFiInfo: using NEHotspotNetwork (iOS 26 SDK fallback path)");
     {
         __block NSString* ssid = nil;
         __block NSString* bssid = nil;
@@ -636,25 +658,43 @@ QVariantMap iosWiFiInfo()
                 }
             }];
         } @catch (NSException* e) {
+            Logger::instance().warn(QString("iosWiFiInfo: NEHotspotNetwork threw exception: %1")
+                .arg(QString::fromNSString(e.reason ?: @"(no reason)"))
+                .toUtf8().constData());
             dispatch_semaphore_signal(sem);
         }
-        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
-        dispatch_release(sem);
+        long waited = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC));
+        if (waited != 0) Logger::instance().warn("iosWiFiInfo: NEHotspotNetwork semaphore timeout (5s)");
+        // ARC manages dispatch objects — no manual dispatch_release needed.
 
-        if (ssid && ssid.length > 0)
+        if (ssid && ssid.length > 0) {
             info["ssid"] = QString::fromNSString(ssid);
-        if (bssid && bssid.length > 0)
+            Logger::instance().event("iosWiFiInfo: NEHotspotNetwork returned SSID");
+        } else {
+            Logger::instance().warn("iosWiFiInfo: NEHotspotNetwork returned nil SSID");
+        }
+        if (bssid && bssid.length > 0) {
             info["bssid"] = QString::fromNSString(bssid);
+        }
     }
 #endif
 
-    // 5WHY: Error message blamed NSLocalNetworkUsageDescription, but the
-    // actual iOS 14+ requirement is the com.apple.developer.networking.wifi-info
-    // entitlement + location permission (WhenInUse or Always). Also, the code
-    // never checked [CLLocationManager authorizationStatus] — if the user
-    // previously denied location, requestWhenInUseAuthorization is a no-op
-    // and the API silently returns nil/placeholder. Now checks the actual
-    // authorization status and gives actionable guidance.
+    // 5WHY: Check authorization status and log detailed permission state.
+    // Log ALL permission details to debug.log so users can diagnose issues.
+    {
+        CLAuthorizationStatus locStatus = [CLLocationManager authorizationStatus];
+        const char* locStr = "Unknown";
+        switch (locStatus) {
+            case kCLAuthorizationStatusNotDetermined: locStr = "NotDetermined"; break;
+            case kCLAuthorizationStatusRestricted:     locStr = "Restricted"; break;
+            case kCLAuthorizationStatusDenied:         locStr = "Denied"; break;
+            case kCLAuthorizationStatusAuthorizedWhenInUse: locStr = "AuthorizedWhenInUse"; break;
+            case kCLAuthorizationStatusAuthorizedAlways:    locStr = "AuthorizedAlways"; break;
+        }
+        Logger::instance().event(QString("iosWiFiInfo: CLLocationManager authorizationStatus = %1 (%2)")
+            .arg((int)locStatus).arg(locStr).toUtf8().constData());
+    }
+
     if (!info.contains("ssid") || info["ssid"].toString().isEmpty()) {
         CLAuthorizationStatus locStatus = [CLLocationManager authorizationStatus];
         QString diagMsg;
@@ -662,22 +702,20 @@ QVariantMap iosWiFiInfo()
             case kCLAuthorizationStatusNotDetermined:
                 diagMsg = QStringLiteral("WiFi SSID: Location permission not yet requested. "
                                          "Go to Settings > Privacy > Location Services and enable for NetDiagnostics.");
+                Logger::instance().warn("iosWiFiInfo: location authorization NotDetermined");
                 break;
             case kCLAuthorizationStatusRestricted:
                 diagMsg = QStringLiteral("WiFi SSID: Location services are restricted "
                                          "(parental controls or MDM profile). Contact your administrator.");
+                Logger::instance().warn("iosWiFiInfo: location authorization Restricted");
                 break;
             case kCLAuthorizationStatusDenied:
                 diagMsg = QStringLiteral("WiFi SSID: Location permission was denied. "
                                          "Go to Settings > Privacy > Location Services > NetDiagnostics and select 'While Using'.");
+                Logger::instance().warn("iosWiFiInfo: location authorization Denied");
                 break;
             case kCLAuthorizationStatusAuthorizedWhenInUse:
             case kCLAuthorizationStatusAuthorizedAlways:
-                // 5WHY: Location IS authorized but SSID still empty. Two
-                // possible causes: (1) not connected to WiFi, or (2) the
-                // 'Access WiFi Information' entitlement is missing from
-                // the provisioning profile.  Provide actionable verification
-                // steps for both scenarios.
                 diagMsg = QStringLiteral(
                     "WiFi SSID: Not available despite location permission being granted. "
                     "1) Verify WiFi is connected in Settings > Wi-Fi. "
@@ -686,12 +724,17 @@ QVariantMap iosWiFiInfo()
                     "3) Check that the provisioning profile includes the "
                     "com.apple.developer.networking.wifi-info entitlement. "
                     "Without this, the WiFi API returns nil even with location access.");
+                Logger::instance().warn(QString("iosWiFiInfo: location authorized (%1) but SSID empty — possible missing entitlement or WiFi not connected")
+                    .arg(locStr).toUtf8().constData());
                 break;
             default:
                 diagMsg = QStringLiteral("WiFi SSID: Unable to determine location authorization status.");
+                Logger::instance().warn(QString("iosWiFiInfo: unknown location authorization status %1").arg((int)locStatus).toUtf8().constData());
                 break;
         }
         info["wifiDiagnostics"] = diagMsg;
+    } else {
+        Logger::instance().event("iosWiFiInfo: SUCCESS — SSID retrieved");
     }
 
     return info;

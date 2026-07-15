@@ -27,7 +27,6 @@
 #include "Diagnostics/Model/G5/G5Common.h"
 } // namespace G5WebsiteUrl — closes G5Common.h's unclosed namespace
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
-#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
 #endif
 // Always included 鈥?contains only declarations + inline helpers. The #if
 // blocks below decide which functions are actually routed to by DiagId.
