@@ -70,7 +70,7 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
             dispatch_semaphore_signal(ctx->sem);
             // Drop the handler's reference; last one out releases the semaphore.
             if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
+                // ARC manages dispatch objects — no manual dispatch_release needed.
             }
         }];
 
@@ -93,7 +93,7 @@ static IosHttpResult httpGetSync(NSString* urlStr, int timeoutMs, bool followRed
     }
     // Drop the waiter's reference; last one out releases the semaphore.
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        dispatch_release(ctx->sem);
+        // ARC manages dispatch objects — no manual dispatch_release needed.
     }
     return result;
 }
@@ -167,7 +167,7 @@ static DiagnosticResult iosSslCert(DiagId id, const QString& target) {
             }
             dispatch_semaphore_signal(ctx->sem);
             if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
+                // ARC manages dispatch objects — no manual dispatch_release needed.
             }
         }];
     [task resume];
@@ -184,7 +184,7 @@ static DiagnosticResult iosSslCert(DiagId id, const QString& target) {
     }
     dr.details = dr.rawOutput;
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        dispatch_release(ctx->sem);
+        // ARC manages dispatch objects — no manual dispatch_release needed.
     }
     return dr;
 }
@@ -274,7 +274,7 @@ static DiagnosticResult iosHttpCompression(DiagId id, const QString& target) {
                 ctx->status = 1;
             }
             dispatch_semaphore_signal(ctx->sem);
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) dispatch_release(ctx->sem);
+            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) // ARC manages dispatch objects — no manual dispatch_release needed.
         }];
     [task resume];
     long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)15 * NSEC_PER_SEC));
@@ -294,7 +294,7 @@ static DiagnosticResult iosHttpCompression(DiagId id, const QString& target) {
         dr.status = DiagStatus::Fail; dr.summary = QStringLiteral("Request timed out");
     }
     dr.details = dr.rawOutput;
-    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) dispatch_release(ctx->sem);
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) // ARC manages dispatch objects — no manual dispatch_release needed.
     return dr;
 }
 
@@ -347,7 +347,7 @@ static DiagnosticResult iosHttpTiming(DiagId id, const QString& target) {
     // Metrics are delivered to the delegate as the task finishes; invalidating and
     // waiting flushes them before we read.
     [session finishTasksAndInvalidate];
-    dispatch_release(sem); // MRC: balance dispatch_semaphore_create
+    // ARC manages dispatch objects — no manual dispatch_release needed.
     qint64 wallMs = wall.elapsed();
 
     if (waited != 0) { dr.status = DiagStatus::Fail; dr.summary = QStringLiteral("Request timed out"); return dr; }

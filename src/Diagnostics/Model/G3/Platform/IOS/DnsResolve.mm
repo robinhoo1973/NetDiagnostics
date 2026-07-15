@@ -70,7 +70,7 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
             dispatch_semaphore_signal(ctx->sem);
             // drop the worker's reference; last one out releases the semaphore.
             if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                dispatch_release(ctx->sem);
+                // ARC manages dispatch objects — no manual dispatch_release needed.
             }
         }
     });
@@ -83,9 +83,9 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     if (waited == 0) {
         result = ctx->result;
     }
-    // drop the waiter's reference; last one out releases the semaphore.
+    // drop the waiter's reference
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        dispatch_release(ctx->sem);
+        // ARC manages dispatch objects — no manual dispatch_release needed.
     }
     return result;
 }
