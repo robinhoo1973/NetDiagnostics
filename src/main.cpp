@@ -311,18 +311,35 @@ int main(int argc, char *argv[])
         if (win) {
             win->showMaximized();
 
-            // ── Windows taskbar icon for frameless windows ──────────────
-            // Qt.FramelessWindowHint strips native chrome, including the icon that
-            // Windows shows on the taskbar button. Set the icon on the native
-            // HWND so the taskbar entry matches the application icon.
-            // Moved inside the same scope as showMaximized() so winId() is
-            // called on an already-realized native window, avoiding a nullptr
-            // in Qt 6.8+'s Windows QPA for frameless windows.
+            // ── Windows taskbar + Alt+Tab visibility for frameless windows ──
+            // 5WHY: Qt.FramelessWindowHint removes WS_CAPTION which causes
+            // Windows to treat this as a tool window — no taskbar button,
+            // no Alt+Tab entry.  The user loses the window on focus loss
+            // with no way to switch back.  Fix: add WS_EX_APPWINDOW extended
+            // style to make the window appear in the taskbar + Alt+Tab.
+            // Additionally, set the window icon on the native HWND so the
+            // taskbar button shows the app icon instead of a blank square.
 #if defined(_WIN32)
             WId wid = win->winId();
             if (wid) {
                 HWND hwnd = reinterpret_cast<HWND>(wid);
+
+                // Force taskbar + Alt+Tab visibility for frameless windows.
+                LONG_PTR exStyle = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                exStyle |= WS_EX_APPWINDOW;  // show in taskbar + Alt+Tab
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, exStyle);
+
+                // Load application icon from embedded resource (ID 1).
                 HICON hIcon = LoadIcon(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(1));
+                // 5WHY: LoadIcon returns NULL if the .rc resource wasn't linked
+                // (e.g. CMake forgot the .rc file, or static build skipped it).
+                // Fall back to loading the .ico file directly from disk.
+                if (!hIcon) {
+                    hIcon = (HICON)LoadImageW(nullptr,
+                        L"resources/icons/netanalysis.ico",
+                        IMAGE_ICON, 0, 0,
+                        LR_LOADFROMFILE | LR_DEFAULTSIZE);
+                }
                 if (hIcon) {
                     SendMessageW(hwnd, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hIcon));
                     SendMessageW(hwnd, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hIcon));
