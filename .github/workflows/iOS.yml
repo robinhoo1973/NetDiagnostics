@@ -1,0 +1,355 @@
+name: iOS Build & Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: 6.8.3
+  BUNDLE_ID: "com.netdiagnostic.app"
+  APP_NAME: "NetDiagnostics"
+  APP_SKU: "netdiag.ios.001"
+  APP_LOCALE: "en-US"
+  PROFILE_NAME: "NetDiagnostics AppStore"
+  QT_INSTALL_DIR: "/Users/runner/qt-ios"
+  QT_HOST_DIR: "/Users/runner/qt-desktop"
+
+jobs:
+  version:
+    name: Detect Version
+    uses: ./.github/workflows/version.yml
+
+  ios:
+    name: iOS Build
+    needs: [version]
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/select-xcode
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja python3
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-desktop
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios
+
+      - name: Configure (Ninja)
+        run: |
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -B build -S .
+
+      - name: Build (Ninja)
+        run: ninja -v -C build net_diagnostics
+
+      - name: Verify Xcode build
+        run: |
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -B build-xcode -S .
+          xcodebuild -project build-xcode/NetDiagnostic.xcodeproj \
+            -scheme net_diagnostics \
+            -sdk iphoneos \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tail -30
+          echo "[PASS] Xcode build verified"
+
+      - name: Verify iOS Diagnostic Symbols
+        run: |
+          BIN=build/net_diagnostics.app/net_diagnostics
+          MISSING=""
+          for sym in iosDhcpDiag iosDefaultGatewayDiag iosRoutingTableDiag iosDnsResolve iosHttpDiagnostic; do
+            if nm -g "$BIN" 2>/dev/null | c++filt | grep -q "$sym"; then
+              echo "[OK]   $sym"
+            else
+              echo "[MISS] $sym"; MISSING="$MISSING $sym"
+            fi
+          done
+          if [ -n "$MISSING" ]; then echo "ERROR:$MISSING"; exit 1; fi
+          echo "[PASS] All symbols present"
+
+      - name: Verify Info.plist Keys
+        run: |
+          PLIST="build/net_diagnostics.app/Info.plist"
+          if [ -f "$PLIST" ]; then
+            for key in NSLocationWhenInUseUsageDescription NSLocalNetworkUsageDescription CFBundleIdentifier CFBundleVersion; do
+              if /usr/libexec/PlistBuddy -c "Print :$key" "$PLIST" 2>/dev/null | grep -q .; then
+                echo "[OK]   $key"
+              else
+                echo "[MISS] $key"
+              fi
+            done
+          fi
+
+      - name: Verify bundle
+        run: |
+          if [ -d build/net_diagnostics.app ]; then echo "[OK] .app bundle generated"; ls -la build/net_diagnostics.app/
+          else echo "[X] No .app bundle"; exit 1; fi
+
+      - name: Package IPA
+        run: |
+          APP_PATH="build/net_diagnostics.app"
+          [ -d "$APP_PATH" ] || APP_PATH=$(find build -name "*.app" -type d | head -1)
+          [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r NetDiagnostics-iOS.ipa Payload
+          ls -lh NetDiagnostics-iOS.ipa
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostics-iOS
+          path: NetDiagnostics-iOS.ipa
+          if-no-files-found: error
+
+  deploy-testflight:
+    name: Deploy iOS to TestFlight
+    needs: [version, ios]
+    if: (!failure()) && (!cancelled())
+    runs-on: macos-latest
+    timeout-minutes: 30
+    environment: TestFlight
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja python3
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Check if already uploaded
+        id: dedup
+        uses: actions/cache/restore@v4
+        with:
+          path: .testflight-sha
+          key: testflight-ios-${{ runner.os }}-v1
+      - name: Read last uploaded SHA
+        id: last-sha
+        run: |
+          if [ -f .testflight-sha/ios ]; then echo "last=$(cat .testflight-sha/ios)" >> "$GITHUB_OUTPUT"
+          else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+          echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Report dedup status
+        run: |
+          if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] Same commit already uploaded"; fi
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-desktop
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios
+
+      - name: Write ASC key
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          echo -n "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
+          chmod 600 "$K"
+          echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
+
+      - name: Generate JWT
+        id: jwt
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT=$(asc_jwt "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" "$ASC_KEYFILE")
+          echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
+
+      - name: Register Bundle ID + WiFi capability
+        id: bundle
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
+          asc_bundle_capability_enable "$JWT" "$BID" ACCESS_WIFI_INFORMATION
+          echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure App Store Connect app
+        id: asc-app
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          APP_ID=$(asc_app_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID" "$APP_SKU" "$APP_LOCALE")
+          echo "app_id=${APP_ID}" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-keychain
+        id: ios-keychain
+        with:
+          primary_cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          allowed_tools: "/usr/bin/codesign /usr/bin/xcodebuild"
+
+      - name: Find distribution certificate
+        id: cert-id
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          CERT_ID=$(asc_cert_find_distribution "$JWT")
+          if [ -n "$CERT_ID" ]; then echo "cert_id=${CERT_ID}" >> "$GITHUB_OUTPUT"; echo "auto_signing=false" >> "$GITHUB_OUTPUT"
+          else echo "cert_id=" >> "$GITHUB_OUTPUT"; echo "auto_signing=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Ensure provisioning profile
+        id: profile
+        run: |
+          if [ -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
+            echo -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+            PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+            if [ -n "$PROFILE_UUID" ]; then
+              mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+              cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
+              echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+              echo "[OK] User-provided profile (UUID: ${PROFILE_UUID})"; exit 0
+            fi
+          fi
+          if [ "${{ steps.cert-id.outputs.auto_signing }}" != "true" ]; then
+            source scripts/ios/asc-app.sh
+            JWT="${{ steps.jwt.outputs.jwt }}"; BID="${{ steps.bundle.outputs.bundle_id }}"; CID="${{ steps.cert-id.outputs.cert_id }}"
+            PROFILE_ID=$(asc_profile_ensure "$JWT" "$PROFILE_NAME" "$BID" "$CID")
+            if [ -n "$PROFILE_ID" ]; then
+              PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
+              if [ -n "$PROFILE_B64" ]; then
+                echo -n "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+                PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+                if [ -n "$PROFILE_UUID" ]; then
+                  mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+                  cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
+                  echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+                  echo "[OK] Auto-created profile"; exit 0
+                fi
+              fi
+            fi
+          fi
+          echo "profile_uuid=" >> "$GITHUB_OUTPUT"; echo "[INFO] Falling back to Xcode automatic signing"
+
+      - name: Set build number
+        run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
+
+      - name: Configure CMake (Xcode)
+        run: |
+          export IOS_TEAM_ID="${{ secrets.IOS_TEAM_ID }}"
+          export ND_WIFI_ENTITLEMENT=1
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=ios -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" -B build-ios -S .
+
+      - name: Build and archive iOS
+        run: |
+          PROFILE_UUID="${{ steps.profile.outputs.profile_uuid }}"
+          if [ -n "$PROFILE_UUID" ]; then
+            xcodebuild archive -project build-ios/NetDiagnostic.xcodeproj -scheme net_diagnostics \
+              -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" CODE_SIGN_STYLE="Manual" \
+              PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CODE_SIGN_IDENTITY="iPhone Distribution" \
+              -verbose 2>&1 | tail -100
+          else
+            xcodebuild archive -project build-ios/NetDiagnostic.xcodeproj -scheme net_diagnostics \
+              -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" CODE_SIGN_STYLE="Automatic" \
+              -allowProvisioningUpdates \
+              -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+              -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+              -authenticationKeyPath "$ASC_KEYFILE" -verbose 2>&1 | tail -100
+          fi
+          [ -d build-ios/NetDiagnostic.xcarchive ] || { echo "[X] Archive failed"; exit 1; }
+          echo "[OK] iOS archive created"
+
+      - name: Package iOS IPA
+        run: |
+          APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostics.app"
+          [ -d "$APP_PATH" ] || APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
+          [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
+          mkdir -p Payload; cp -R "$APP_PATH" Payload/
+          zip -r NetDiagnostics-iOS.ipa Payload; ls -lh NetDiagnostics-iOS.ipa
+
+      - name: Upload iOS to TestFlight
+        if: steps.last-sha.outputs.last != github.sha
+        run: |
+          xcrun altool --upload-app -f NetDiagnostics-iOS.ipa -t ios \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" --verbose
+          echo "[OK] iOS uploaded to TestFlight"
+
+      - name: Save uploaded SHA
+        if: always()
+        run: |
+          mkdir -p .testflight-sha
+          if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
+            echo "${{ github.sha }}" > .testflight-sha/ios
+          else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/ios; fi
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .testflight-sha
+          key: testflight-ios-${{ runner.os }}-v1
+
+      - name: Clean up keys
+        if: always()
+        run: rm -f "$ASC_KEYFILE" 2>/dev/null || true
