@@ -56,7 +56,6 @@ signals:
 
 private:
     static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties);
-    static QString staticDiagDisplayName(DiagId id);
 
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_completedPerGroup;

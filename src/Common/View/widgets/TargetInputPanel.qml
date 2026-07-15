@@ -386,12 +386,12 @@ ColumnLayout {
             Layout.fillWidth: true; implicitHeight: 44; radius: 8
             color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.accentBlue, 0.4) : (appState.canRun() ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.accentBlue, 0.3))
             // 5WHY: "white" was hardcoded — doesn't adapt to light theme.
-            // Use ThemeEngine.textPrimary inverted for the button label.
+            // Use ThemeEngine.bgDark for enabled, textPrimary for disabled.
             Label {
                 anchors.centerIn: parent
                 text: appState.runStatus === 1 ? Tr.running : Tr.runDiag
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                color: (appState.canRun() || appState.runStatus === 1) ? "#FFFFFF" : Qt.alpha("#FFFFFF", 0.4)
+                color: (appState.canRun() || appState.runStatus === 1) ? ThemeEngine.bgDark : Qt.alpha(ThemeEngine.textPrimary, 0.4)
             }
             // 5WHY: MouseArea-only controls lack keyboard accessibility.
             // Adding Keys.onPressed + activeFocusOnTab so keyboard users

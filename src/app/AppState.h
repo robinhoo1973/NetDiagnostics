@@ -13,11 +13,8 @@
 #include <QString>
 #include <QMap>
 #include <QSet>
-#include <QThreadPool>
 #include <QTimer>
-#include <QElapsedTimer>
 #include <atomic>
-#include <cstdint>
 #include <memory>
 #include "Common/Model/DiagId.h"
 #include "Common/Model/DiagnosticResult.h"
