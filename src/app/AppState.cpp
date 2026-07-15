@@ -5,6 +5,7 @@
 #include "Common/Model/DiagNames.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
 #include "Diagnostics/Controller/TaskFactory.h"
+#include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/Logger.h"
 #include "Dashboard/Controller/DashboardController.h"
 #include "Diagnostics/Controller/DiagnosticsController.h"
