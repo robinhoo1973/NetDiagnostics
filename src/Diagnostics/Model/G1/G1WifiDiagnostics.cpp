@@ -224,15 +224,18 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                 if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
                 QString name = QString::fromLatin1(p->ifa_name);
                 if (!name.startsWith("en")) continue;
-                // Skip bridge/virtual interfaces when we already found the real one
+                // Skip bridge/virtual interfaces (en0 is a bridge in hotspot mode)
                 if (name.contains("bridge", Qt::CaseInsensitive)) continue;
                 wifiIface = name;
                 char buf[INET_ADDRSTRLEN] = {0};
                 auto* sin = (struct sockaddr_in*)p->ifa_addr;
                 inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
                 wifiIp = QString::fromLatin1(buf);
-                // Prefer en0 (primary WiFi), but accept en1 (hotspot mode)
-                if (name == QLatin1String("en0")) break;
+                // Found the first non-bridge en* interface — use it.
+                // Prefer en0 (primary WiFi); en1 is hotspot-mode WiFi.
+                // Break after first match to avoid overwriting with
+                // later en* interfaces (e.g. en2 USB tethering).
+                break;
             }
             freeifaddrs(ifa2);
         }
