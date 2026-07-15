@@ -346,7 +346,7 @@ Item {
                     // Share as PDF
                     PreviewBtn {
                         Layout.fillWidth: true
-                        iconName: "report"
+                        iconName: "file-pdf"
                         label: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
                         accent: ThemeEngine.failRed
                         locked: !appState.isPremium
@@ -355,7 +355,7 @@ Item {
                     // Share as HTML
                     PreviewBtn {
                         Layout.fillWidth: true
-                        iconName: "globe"
+                        iconName: "file-html"
                         label: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
                         accent: ThemeEngine.accentBlue
                         locked: !appState.isPremium
