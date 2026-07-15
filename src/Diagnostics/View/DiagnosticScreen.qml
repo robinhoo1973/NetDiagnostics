@@ -234,7 +234,7 @@ Item {
             // ── Share buttons (visible when run completes with results) ──
             RowLayout {
                 Layout.fillWidth: true; Layout.topMargin: 12; spacing: 10
-                visible: appState.runStatus === 2 && appState.totalCompleted > 0
+                visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
                 DiagShareBtn {
                     Layout.fillWidth: true
                     iconName: "file-pdf"; label: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn

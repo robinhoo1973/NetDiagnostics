@@ -21,6 +21,10 @@ void ResultsModel::setTotalDiags(int total) {
     m_totalDiags = total;
 }
 
+void ResultsModel::setCurrentGroup(int groupIdx) {
+    m_currentRunningGroup = groupIdx;
+}
+
 void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
     m_results[id] = result;
     DiagGroup g = DiagnosticConfig::diagGroup(id);
@@ -38,6 +42,7 @@ void ResultsModel::clear() {
     m_totalCompleted = 0;
     m_totalDiags = 0;
     m_resultsVersion = 0;
+    m_currentRunningGroup = -1;
     m_cachedStatsVersion = -1;
     m_cachedGroupStats.clear();
     emit progressChanged();
@@ -111,7 +116,8 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
             m["durationMs"] = 0;
             m["isDone"] = false;
             m["isPending"] = true;
-            m["isRunning"] = false;
+            // isRunning: this pending test's group matches the currently executing group
+            m["isRunning"] = (static_cast<int>(g) == m_currentRunningGroup);
             list.append(m);
         }
     }
