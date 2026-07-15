@@ -31,7 +31,7 @@ Item {
         return ("0"+now.getHours()).slice(-2) + ":" + ("0"+now.getMinutes()).slice(-2) + ":" + ("0"+now.getSeconds()).slice(-2);
     }
 
-    // AppBar (Flutter: Scaffold.appBar with title + reset button)
+    // AppBar (Flutter: Scaffold.appBar with title)
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -43,14 +43,6 @@ Item {
             Item { width: 10 }
             Label { text: Tr.dashboard; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
             Item { Layout.fillWidth: true }
-            // Reset button (Flutter: IconButton refresh)
-            Rectangle {
-                visible: hasData
-                implicitWidth: 60; implicitHeight: 32; radius: 6; color: "transparent"
-                border { width: 1; color: ThemeEngine.colors.borderCard }
-                MouseArea { anchors.fill: parent; onClicked: appState.reset() }
-                Label { anchors.centerIn: parent; text: Tr.resetLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary }
-            }
         }
     }
 

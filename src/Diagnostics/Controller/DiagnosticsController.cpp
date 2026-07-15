@@ -9,6 +9,5 @@ DiagnosticsController::DiagnosticsController(AppState* appState, QObject* parent
 
 void DiagnosticsController::runDiagnostics() { m_appState->runDiagnostics(); }
 void DiagnosticsController::cancel() { m_appState->cancel(); }
-void DiagnosticsController::reset() { m_appState->reset(); }
 QString DiagnosticsController::currentDiagLabel() const { return m_appState->currentDiagLabel(); }
 QString DiagnosticsController::currentGroup() const { return m_appState->currentGroup(); }

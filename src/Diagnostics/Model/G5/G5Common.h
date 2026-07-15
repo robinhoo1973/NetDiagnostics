@@ -1,6 +1,6 @@
 ﻿#pragma once
 // =============================================================================
-// G5WebsiteUrl.cpp — curl-style raw-socket HTTP diagnostics
+// G5Common.h — curl-style raw-socket HTTP diagnostics
 // =============================================================================
 #if defined(_MSC_VER)
 #include <BaseTsd.h>

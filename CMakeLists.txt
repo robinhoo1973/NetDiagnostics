@@ -32,6 +32,8 @@ set(SOURCES
     src/Common/Services/DiagnosticTask.cpp
     src/Diagnostics/Controller/TaskFactory.cpp
     src/Diagnostics/Model/NetworkProbe.cpp
+    src/app/TargetModel.cpp
+    src/app/ResultsModel.cpp
     src/app/AppState.cpp
     src/Dashboard/Controller/DashboardController.cpp
     src/Diagnostics/Controller/DiagnosticsController.cpp
