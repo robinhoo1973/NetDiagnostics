@@ -149,15 +149,25 @@ inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hi
         // 5WHY: triple-nested loop (countries x servers x fallbackHosts) was
         // O(n*m*k) ~600 comparisons. Build a QSet from the fallback hostnames
         // for O(1) lookup: single pass over all servers, O(n*m) total.
+        // 5WHY: When country is Unknown (XX), all 8 global fallback servers
+        // were outside China → GFW blocked them → all unreachable →
+        // "no reachable servers".  Now includes China Mobile servers which
+        // are always GFW-accessible, plus diverse global servers.
         static const QSet<QString> kGlobalFallbackSet = {
-            "speedtest.tele2.net",      // Stockholm (EU) -- most reliable
-            "speedtest.belwue.net",     // Stuttgart (EU) -- very reliable
-            "speedtest1.sky.com",        // London (EU)
+            // China (GFW-safe, always reachable)
+            "speedtest1.gd.chinamobile.com",
+            "speedtest.bj.chinamobile.com",
+            // Asia-Pacific
+            "speedtest.singtel.com",     // Singapore
+            "seoul.speedtest.gslnetworks.com", // Seoul
+            // Europe
+            "speedtest.tele2.net",      // Stockholm -- most reliable
+            "speedtest.belwue.net",     // Stuttgart -- very reliable
+            // Americas
             "speedtest.xfinity.com",     // New York (NA)
-            "speedtest.singtel.com",     // Singapore (AS)
-            "seoul.speedtest.gslnetworks.com", // Seoul (AS)
             "speedtest.vivo.com.br",     // Sao Paulo (SA)
-            "speedtest.mtn.co.za",       // Johannesburg (AF)
+            // Africa
+            "speedtest.mtn.co.za",       // Johannesburg
         };
         QVector<Server> curated;
         for (auto it = m.cbegin(); it != m.cend(); ++it) {

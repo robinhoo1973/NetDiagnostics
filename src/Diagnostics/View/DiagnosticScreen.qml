@@ -155,25 +155,26 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                     // Share buttons — icon-only, shown when run complete
+                    // Material Design 3: 22dp icon in 38dp container (dense)
                     RowLayout {
                         spacing: 6; visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                        // PDF Share — icon-only, color adapts to theme
+                        // PDF Share
                         Rectangle {
-                            implicitWidth: 34; implicitHeight: 34; radius: 6
+                            implicitWidth: 38; implicitHeight: 38; radius: 8
                             opacity: appState.isPremium ? 1.0 : 0.4
                             color: Qt.alpha(ThemeEngine.failRed, 0.12)
                             border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.35) }
-                            AppIcon { anchors.centerIn: parent; name: "file-pdf"; size: 18; color: ThemeEngine.failRed }
+                            AppIcon { anchors.centerIn: parent; name: "file-pdf"; size: 22; color: ThemeEngine.failRed }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
                             Accessible.name: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
                         }
-                        // HTML Share — icon-only, color adapts to theme
+                        // HTML Share
                         Rectangle {
-                            implicitWidth: 34; implicitHeight: 34; radius: 6
+                            implicitWidth: 38; implicitHeight: 38; radius: 8
                             opacity: appState.isPremium ? 1.0 : 0.4
                             color: Qt.alpha(ThemeEngine.accentBlue, 0.12)
                             border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.35) }
-                            AppIcon { anchors.centerIn: parent; name: "file-html"; size: 18; color: ThemeEngine.accentBlue }
+                            AppIcon { anchors.centerIn: parent; name: "file-html"; size: 22; color: ThemeEngine.accentBlue }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
                             Accessible.name: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
                         }
