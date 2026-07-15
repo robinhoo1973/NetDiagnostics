@@ -253,7 +253,7 @@ Item {
         return total > 0 ? fmtDur(total) : "—"
     }
 
-    // ── Preview overlay ─────────────────────────────────────────────────
+    // ── Preview overlay (zoomable + share buttons) ──────────────────────
     Rectangle {
         id: previewOverlay
         parent: page.parent ? page.parent : page
@@ -266,24 +266,75 @@ Item {
             radius: isMobile ? 0 : 12; color: ThemeEngine.colors.card; clip: true
             border { width: isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
             ColumnLayout {
-                anchors { fill: parent; margins: 16 } spacing: 8
-                RowLayout {
-                    Layout.fillWidth: true
-                    Label { text: Tr.reportPreview; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
-                    Item { Layout.fillWidth: true }
-                    Rectangle {
-                        implicitWidth: 36; implicitHeight: 36; radius: 18; color: "transparent"
-                        border { width: 1; color: ThemeEngine.colors.borderCard }
-                        AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.textSecondary }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.previewVisible = false }
+                anchors { fill: parent; margins: 12 } spacing: 10
+                // ── Header ────────────────────────────────────────────
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 8
+                    color: Qt.alpha(ThemeEngine.cyan, 0.08)
+                    RowLayout {
+                        anchors { fill: parent; margins: 8 }
+                        AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
+                        Item { width: 8 }
+                        Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
+                        Rectangle {
+                            implicitWidth: 36; implicitHeight: 36; radius: 18; color: "transparent"
+                            border { width: 1; color: ThemeEngine.colors.borderCard }
+                            AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.failRed }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.previewVisible = false }
+                        }
                     }
                 }
-                Flickable {
-                    Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                    contentWidth: previewImg.implicitWidth; contentHeight: previewImg.implicitHeight
-                    Image {
-                        id: previewImg; source: page.previewImagePath; fillMode: Image.PreserveAspectFit
-                        cache: false; smooth: true; mipmap: true
+                // ── Zoomable image area ────────────────────────────────
+                Rectangle {
+                    Layout.fillWidth: true; Layout.fillHeight: true; radius: 8; clip: true
+                    color: ThemeEngine.colors.surface
+                    border { width: 1; color: ThemeEngine.colors.borderCard }
+                    Flickable {
+                        id: previewFlick
+                        anchors { fill: parent; margins: 14 }
+                        clip: true
+                        contentWidth: previewImg.width * previewScale
+                        contentHeight: previewImg.height * previewScale
+                        property real previewScale: 1.0
+                        property real startScale: 1.0
+                        property bool pinching: false
+                        interactive: !pinching
+                        PinchHandler {
+                            target: null
+                            onActiveChanged: {
+                                previewFlick.pinching = active
+                                if (active) { previewFlick.startScale = previewFlick.previewScale; previewFlick.returnToBounds() }
+                            }
+                            onScaleChanged: { previewFlick.previewScale = Math.max(0.25, Math.min(previewFlick.startScale * scale, 5.0)) }
+                        }
+                        Image {
+                            id: previewImg
+                            width: previewFlick.width
+                            source: page.previewImagePath; fillMode: Image.PreserveAspectFit; cache: false; smooth: true; mipmap: true
+                            transform: Scale { origin.x: previewImg.width/2; origin.y: previewImg.height/2; xScale: previewFlick.previewScale; yScale: previewFlick.previewScale }
+                        }
+                    }
+                    ZoomBar {
+                        id: zoomBar
+                        anchors { bottom: parent.bottom; right: parent.right; margins: 8 }
+                        zoomLevel: previewFlick.previewScale
+                        onZoomLevelChanged: { previewFlick.previewScale = zoomBar.zoomLevel }
+                    }
+                }
+                // ── Share buttons (PDF + HTML) ─────────────────────────
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 10
+                    PreviewShareBtn {
+                        Layout.fillWidth: true
+                        iconName: "file-pdf"; label: isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
+                        accent: ThemeEngine.failRed; locked: !appState.isPremium
+                        onClicked: page.doShare("pdf")
+                    }
+                    PreviewShareBtn {
+                        Layout.fillWidth: true
+                        iconName: "file-html"; label: isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
+                        accent: ThemeEngine.accentBlue; locked: !appState.isPremium
+                        onClicked: page.doShare("html")
                     }
                 }
             }
