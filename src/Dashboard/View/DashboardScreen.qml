@@ -4,18 +4,58 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
 
-// ── Flutter DashboardScreen 1:1 — with AppBar + timestamp + real durations ──
+// ── DashboardScreen with built-in Report Preview ──
 Item {
     id: page
     objectName: "dashboard"
-    // Direct bindings — no Timer polling needed
     property int _runStatus: appState.runStatus
     property int _totalCompleted: appState.totalCompleted
-    // 5WHY: hasData required _runStatus===2 (Completed), hiding results after
-    // status reset or when navigating back after a run.  Now shows data as long
-    // as results exist, with a "running" banner for in-progress status.
     property bool hasData: _totalCompleted > 0
     readonly property var allStats: appState.allGroupStats || []
+    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+
+    // ── Preview overlay state ──────────────────────────────────────────
+    property string previewImagePath: ""
+    property bool previewVisible: false
+    property string toast: ""
+
+    // Share/subscription flow
+    property int shareStage: 0
+    property string pendingShareFormat: ""
+
+    function openPreview() {
+        var darkBg = ThemeEngine.isDark
+        var html = appState.buildReportHtml(true, darkBg)
+        var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
+        previewImagePath = imgPath || ""
+        previewVisible = true
+    }
+    function doShare(fmt) {
+        pendingShareFormat = fmt
+        shareStage = appState.isPremium ? 2 : 1
+    }
+    function confirmShare() {
+        var fmt = pendingShareFormat
+        shareStage = 0
+        appState.shareReport(fmt)
+    }
+
+    Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
+
+    Connections {
+        target: ThemeEngine
+        function onModeChanged() { if (page.previewVisible) page.openPreview() }
+    }
+    Connections {
+        target: appState
+        function onProgressChanged() {
+            if (page.previewVisible && appState.runStatus !== 1) page.openPreview()
+        }
+        function onSavePathPicked(format, path) { appState.exportPdf(path) }
+        function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
+        function onReportShared(ok) { page.toast = ok ? Tr.reportShareOk : Tr.reportShareFail; toastTimer.restart() }
+        function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
+    }
 
     function statusIcon(s) { switch(s) { case 0: return "badge-check"; case 1: return "badge-warning"; case 2: return "badge-close"; case 3: return "badge-skip"; default: return "badge-info" } }
     function statusColor(s) { switch(s) { case 0: return ThemeEngine.passGreen; case 1: return ThemeEngine.warnYellow; case 2: return ThemeEngine.failRed; case 3: return ThemeEngine.skipGray; default: return ThemeEngine.accentBlue } }
@@ -143,6 +183,47 @@ Item {
                     }
                 }
             }
+            // ── Review Report section (visible only when results exist) ──
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: repCol.implicitHeight + 32; radius: 12
+                Layout.topMargin: 16
+                color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                ColumnLayout {
+                    id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
+                    Label { text: Tr.report; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+                    Label { text: Tr.reportExportHint; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    // Review Report button
+                    Rectangle {
+                        id: reviewBtn
+                        Layout.fillWidth: true; implicitHeight: 48; radius: 10
+                        color: Qt.alpha(ThemeEngine.cyan, 0.10)
+                        border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.35) }
+                        RowLayout {
+                            anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                            AppIcon { name: "report"; size: 18; color: ThemeEngine.cyan }
+                            Item { width: 12 }
+                            Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; color: ThemeEngine.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
+                    }
+                    // Share buttons
+                    RowLayout {
+                        Layout.fillWidth: true; spacing: 10
+                        PreviewShareBtn {
+                            Layout.fillWidth: true
+                            iconName: "file-pdf"; label: isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
+                            accent: ThemeEngine.failRed; locked: !appState.isPremium
+                            onClicked: page.doShare("pdf")
+                        }
+                        PreviewShareBtn {
+                            Layout.fillWidth: true
+                            iconName: "file-html"; label: isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
+                            accent: ThemeEngine.accentBlue; locked: !appState.isPremium
+                            onClicked: page.doShare("html")
+                        }
+                    }
+                }
+            }
             Item { Layout.preferredHeight: 24 }
         }
     }
@@ -172,7 +253,107 @@ Item {
         return total > 0 ? fmtDur(total) : "—"
     }
 
+    // ── Preview overlay ─────────────────────────────────────────────────
+    Rectangle {
+        id: previewOverlay
+        parent: page.parent ? page.parent : page
+        anchors.fill: parent
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
+        visible: page.previewVisible; z: 1000
+        MouseArea { anchors.fill: parent }
+        Rectangle {
+            anchors { fill: parent; margins: isMobile ? 0 : 8 }
+            radius: isMobile ? 0 : 12; color: ThemeEngine.colors.card; clip: true
+            border { width: isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
+            ColumnLayout {
+                anchors { fill: parent; margins: 16 } spacing: 8
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label { text: Tr.reportPreview; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
+                    Item { Layout.fillWidth: true }
+                    Rectangle {
+                        implicitWidth: 36; implicitHeight: 36; radius: 18; color: "transparent"
+                        border { width: 1; color: ThemeEngine.colors.borderCard }
+                        AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.textSecondary }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.previewVisible = false }
+                    }
+                }
+                Flickable {
+                    Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                    contentWidth: previewImg.implicitWidth; contentHeight: previewImg.implicitHeight
+                    Image {
+                        id: previewImg; source: page.previewImagePath; fillMode: Image.PreserveAspectFit
+                        cache: false; smooth: true; mipmap: true
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Toast banner ────────────────────────────────────────────────────
+    Rectangle {
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
+        implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
+        color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
+        border { width: 1; color: ThemeEngine.colors.borderFocused }
+        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary }
+    }
+
+    // ── Share subscription dialog ───────────────────────────────────────
+    Rectangle {
+        id: shareDialog
+        parent: page.parent ? page.parent : page; anchors.fill: parent
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
+        visible: page.shareStage !== 0; z: 1100
+        MouseArea { anchors.fill: parent }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(420, parent.width * 0.92)
+            implicitHeight: dlgCol.implicitHeight + 40; radius: 14; color: ThemeEngine.colors.card
+            border { width: 1.5; color: ThemeEngine.colors.borderFocused }
+            ColumnLayout {
+                id: dlgCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 } spacing: 14
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    width: 60; height: 60; radius: 30
+                    color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.12)
+                    AppIcon { anchors.centerIn: parent; name: page.shareStage === 1 ? "badge-info" : "report"; size: 28; color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan }
+                }
+                Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle; font.family: ThemeEngine.monoFont; font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary; wrapMode: Text.WordWrap }
+                Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.25 }
+                RowLayout { Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
+                    Rectangle {
+                        Layout.fillWidth: true; implicitHeight: 42; radius: 8; color: "transparent"
+                        border { width: 1; color: Qt.alpha(ThemeEngine.textSecondary, 0.5) }
+                        Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.shareStage = 0 }
+                    }
+                    Rectangle {
+                        Layout.fillWidth: true; implicitHeight: 42; radius: 8
+                        color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
+                        Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeBtn : (page.isMobile ? Tr.shareBtn : Tr.emailBtn); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.bgDark }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (page.shareStage === 1) appState.requestSubscription(); else page.confirmShare() } }
+                    }
+                }
+            }
+        }
+    }
+
     // ── Inline components ───────────────────────────────────────────────
+    component PreviewShareBtn: Rectangle {
+        id: psb
+        property string iconName: ""; property string label: ""; property color accent: ThemeEngine.cyan; property bool locked: false
+        signal clicked()
+        implicitHeight: 42; radius: 8; opacity: locked ? 0.4 : 1.0
+        color: Qt.alpha(accent, 0.10); border { width: 1; color: Qt.alpha(accent, 0.35) }
+        RowLayout { anchors { fill: parent; leftMargin: 12; rightMargin: 12 } spacing: 8
+            AppIcon { name: psb.iconName; size: 16; color: psb.accent }
+            Label { Layout.fillWidth: true; text: psb.label; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary; elide: Text.ElideRight }
+            AppIcon { name: psb.locked ? "badge-check" : ""; size: 14; color: ThemeEngine.warnYellow; visible: psb.locked }
+        }
+        MouseArea { anchors.fill: parent; enabled: !locked; cursorShape: Qt.PointingHandCursor; onClicked: psb.clicked() }
+    }
     component DashboardGroupRow: Rectangle {
         property int groupIndex: 0
         // Compute the group stats once per row instead of 5x (one per badge).

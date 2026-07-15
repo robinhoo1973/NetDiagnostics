@@ -16,9 +16,9 @@ Item {
     signal closeRequested()
 
     // ── Single source of truth for tab definitions ───────────────────
-    readonly property var tabScreens: ["dashboard","diagnostic","config","report","settings"]
-    readonly property var tabComponents: [dashboardComp, diagnosticComp, configComp, reportComp, settingsComp]
-    readonly property var tabLabels: [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.report, Tr.settings]
+    readonly property var tabScreens: ["dashboard","diagnostic","config","settings"]
+    readonly property var tabComponents: [dashboardComp, diagnosticComp, configComp, settingsComp]
+    readonly property var tabLabels: [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.settings]
 
     function switchToTab(idx) {
         if (idx < 0 || idx >= tabScreens.length) return
@@ -35,7 +35,6 @@ Item {
     Component { id: diagnosticComp; DiagnosticScreen { objectName: "diagnostic" } }
     Component { id: dashboardComp;  DashboardScreen  { objectName: "dashboard"  } }
     Component { id: configComp;     ConfigScreen     { objectName: "config"     } }
-    Component { id: reportComp;     ReportScreen     { objectName: "report"     } }
     Component { id: settingsComp;   SettingsScreen   { objectName: "settings"   } }
 
     ColumnLayout {
@@ -80,7 +79,6 @@ Item {
                             { screen: "dashboard",  icon: "dashboard" },
                             { screen: "diagnostic", icon: "diagnostics" },
                             { screen: "config",     icon: "config" },
-                            { screen: "report",     icon: "report" },
                             { screen: "settings",   icon: "settings" }
                         ]
                         delegate: ItemDelegate {
