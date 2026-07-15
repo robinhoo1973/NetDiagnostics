@@ -272,56 +272,13 @@ Item {
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
                             Label { text: "NetDiagnostics" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
                             Label {
-                                id: versionLabel
-                                property int taps: 0
                                 Layout.fillWidth: true
                                 text: "Version " + appState.appVersion
                                       + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
                                       + (appState.buildNumber.length > 0 ? " Build " + appState.buildNumber : "")
                                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary
                                 wrapMode: Text.WordWrap
-                                // Easter eggs on version label:
-                                //   5 taps → Auto Test dialog
-                                //   7 taps → toggle premium
-                                //   long press (mobile) → Auto Test dialog
-                                // Tap counter resets after 3s of inactivity.
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        versionLabel.taps++
-                                        tapResetTimer.restart()
-                                        if (versionLabel.taps === 5) {
-                                            versionLabel.taps = 0
-                                            autoTestDialog.open()
-                                        } else if (versionLabel.taps >= 7) {
-                                            versionLabel.taps = 0
-                                            appState.setPremium(!appState.isPremium)
-                                            premiumToast.text = appState.isPremium ? Tr.premiumUnlocked : Tr.premiumLocked
-                                            premiumToastTimer.restart()
-                                        }
-                                    }
-                                    onPressAndHold: {
-                                        versionLabel.taps = 0
-                                        autoTestDialog.open()
-                                    }
-                                }
-                                Timer {
-                                    id: tapResetTimer
-                                    interval: 3000
-                                    onTriggered: versionLabel.taps = 0
-                                }
                             }
-                            // ── Auto Test Dialog ──────────────────────────────────
-                            AutoTestDialog { id: autoTestDialog }
-                            Label {
-                                id: premiumToast
-                                Layout.fillWidth: true
-                                visible: premiumToastTimer.running
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.cyan
-                            }
-                            Timer { id: premiumToastTimer; interval: 2500 }
                         }
                     }
                     Item { Layout.preferredHeight: 16 }
