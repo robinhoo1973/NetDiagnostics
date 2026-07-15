@@ -102,11 +102,11 @@ static QVector<TestCase> globalCoreTargets() {
         make("HTTPS httpbin",        "https",    "httpbin.org",           443),
         make("HTTP httpbin",         "http",     "httpbin.org",           80),
 
-        // Google (globally accessible outside China)
-        make("HTTPS Google",         "https",    "www.google.com",        443),
+        // Microsoft (globally accessible, GFW-safe)
+        make("HTTPS Microsoft",      "https",    "www.microsoft.com",     443),
 
-        // Cloudflare (1.1.1.1)
-        make("HTTPS Cloudflare",     "https",    "one.one.one.one",       443),
+        // GitHub (Microsoft-owned, globally accessible, GFW-safe)
+        make("HTTPS GitHub",         "https",    "github.com",            443),
 
         // SSH — GitHub (globally accessible)
         make("SSH GitHub",           "ssh",      "github.com",            22),
@@ -144,12 +144,11 @@ static QVector<TestCase> chinaExtendedTargets() {
 
 static QVector<TestCase> globalExtendedTargets() {
     return {
-        // SMTP — Google (globally accessible outside China, banner grab)
-        make("SMTP Google",          "smtp",     "gmail-smtp-in.l.google.com", 25),
+        // SMTP — Outlook (Microsoft, globally accessible, GFW-safe)
+        make("SMTP Outlook",         "smtp",     "smtp-mail.outlook.com",      25),
 
-        // IMAP — Google (globally accessible outside China)
-        // Note: Google requires OAuth2 for actual login; this tests reachability only
-        make("IMAP Gmail",           "imap",     "imap.gmail.com",        993),
+        // IMAP — Outlook (Microsoft, globally accessible, GFW-safe)
+        make("IMAP Outlook",         "imap",     "outlook.office365.com",     993),
 
         // FTP — public anonymous
         make("FTP Tele2 (anon)",     "ftp",      "speedtest.tele2.net",  21),
@@ -163,8 +162,8 @@ static QVector<TestCase> globalExtendedTargets() {
         // LDAP — public test server
         make("LDAP ForumSys",        "ldap",     "ldap.forumsys.com",     389),
 
-        // DNS test — Google DNS
-        make("HTTPS Google DNS",     "https",    "dns.google",            443),
+        // DNS — Alibaba Cloud (globally accessible, GFW-safe)
+        make("HTTPS Alibaba DNS",    "https",    "www.alibabacloud.com",  443),
     };
 }
 

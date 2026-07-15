@@ -98,8 +98,8 @@ private:
             g.testCases = {
                 {"web-http-get",   "HTTP GET",        "httpbin.org", 80,  "", "", "https://httpbin.org/get", "200 OK"},
                 {"web-http-hdr",   "HTTP Headers",    "httpbin.org", 80,  "", "", "https://httpbin.org/headers", "200 OK"},
-                {"web-https-cert", "HTTPS Certificate","google.com", 443, "", "", "https://google.com", "Valid Cert"},
-                {"web-https-tls",  "HTTPS TLS Check",  "cloudflare.com", 443, "", "", "https://cloudflare.com", "TLS 1.3"},
+                {"web-https-cert", "HTTPS Certificate","microsoft.com", 443, "", "", "https://microsoft.com", "Valid Cert"},
+                {"web-https-tls",  "HTTPS TLS Check",  "github.com", 443, "", "", "https://github.com", "TLS 1.3"},
             };
             m_groups.append(g);
         }
@@ -110,7 +110,7 @@ private:
             g.protocols = {"SSH","Email"};
             g.testCases = {
                 {"sec-ssh-port",   "SSH Port Check",   "github.com",  22,  "", "", "ssh://github.com:22", "Port Open"},
-                {"sec-smtp-port",  "SMTP Port Check",  "smtp.gmail.com", 587, "", "", "smtp://smtp.gmail.com:587", "Port Open"},
+                {"sec-smtp-port",  "SMTP Port Check",  "smtp-mail.outlook.com", 587, "", "", "smtp://smtp-mail.outlook.com:587", "Port Open"},
             };
             m_groups.append(g);
         }
