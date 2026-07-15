@@ -1,0 +1,277 @@
+name: macOS Build & Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: 6.8.3
+  BUNDLE_ID: "com.netdiagnostic.app"
+  APP_NAME: "NetDiagnostics"
+  APP_SKU: "netdiag.ios.001"
+  APP_LOCALE: "en-US"
+  PROFILE_NAME: "NetDiagnostics AppStore"
+  QT_INSTALL_DIR: "/Users/runner/qt-ios"
+  QT_HOST_DIR: "/Users/runner/qt-desktop"
+
+jobs:
+  version:
+    name: Detect Version
+    uses: ./.github/workflows/version.yml
+
+  macos-arm64:
+    name: macOS arm64
+    needs: [version]
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install cmake ninja qt@6
+
+      - uses: ./.github/actions/macos-icon
+
+      - name: Configure (production)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=macos-arm64 \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+
+      - name: Build (production)
+        run: ninja -C build net_diagnostics
+
+      - name: Bundle Qt frameworks (macdeployqt)
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            QT_PREFIX="$(brew --prefix qt@6)"
+            MACDEPLOY_LOG=$(mktemp)
+            set +e
+            "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
+              -qmldir="${GITHUB_WORKSPACE}/src" -verbose=1 >"$MACDEPLOY_LOG" 2>&1
+            MACDEPLOY_EXIT=$?
+            set -e
+            tail -40 "$MACDEPLOY_LOG"
+            if [ $MACDEPLOY_EXIT -ne 0 ]; then
+              if grep -qE "(ERROR.*rpath|ERROR: Could not find any external Qt|WARNING: Could not find any)" "$MACDEPLOY_LOG"; then
+                echo "[INFO] macdeployqt exited $MACDEPLOY_EXIT — known non-fatal"
+              else
+                echo "[FAIL] macdeployqt failed"; rm -f "$MACDEPLOY_LOG"; exit 1
+              fi
+            fi
+            rm -f "$MACDEPLOY_LOG"
+            if [ -d build/net_diagnostics.app/Contents/Frameworks ]; then
+              FW_COUNT=$(find build/net_diagnostics.app/Contents/Frameworks -maxdepth 1 -not -name Frameworks | wc -l | tr -d ' ')
+              echo "[OK] Qt frameworks bundled (${FW_COUNT} entries)"; ls -la build/net_diagnostics.app/Contents/Frameworks/
+            fi
+          else
+            echo "[WARN] No .app bundle found; skipping macdeployqt"
+          fi
+
+      - name: Ad-hoc code sign (DMG artifact)
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            if [ -d build/net_diagnostics.app/Contents/Frameworks ]; then
+              find build/net_diagnostics.app/Contents/Frameworks -name "*.framework" -type d | while read fw; do
+                codesign --force --sign - "$fw"
+              done
+            fi
+            BIN=build/net_diagnostics.app/Contents/MacOS/net_diagnostics
+            [ -f "$BIN" ] && codesign --force --sign - "$BIN"
+            codesign --force --sign - build/net_diagnostics.app
+            echo "[OK] .app ad-hoc signed"
+          fi
+
+      - name: Configure (simulator)
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DBUILD_SIMULATOR=ON \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DAPP_EDITION=macos-arm64 \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build-sim -S .
+
+      - name: Build (simulator)
+        run: ninja -C build-sim net_diagnostics_sim
+
+      - name: Package DMG
+        continue-on-error: true
+        run: |
+          if [ -d build/net_diagnostics.app ]; then
+            rm -rf dmg-staging; mkdir -p dmg-staging
+            cp -R build/net_diagnostics.app dmg-staging/
+            ln -s /Applications dmg-staging/Applications
+            hdiutil create -volname "NetDiagnostics" -srcfolder dmg-staging -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
+            ls -lh NetDiagnostics-macOS-arm64.dmg
+          fi
+
+      - name: Tar .app
+        run: tar -czf NetDiagnostics-macOS.tar.gz -C build net_diagnostics.app
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostics-macOS-arm64
+          path: |
+            NetDiagnostics-macOS.tar.gz
+            *.dmg
+          if-no-files-found: error
+
+  deploy-testflight:
+    name: Deploy macOS to TestFlight
+    needs: [version, macos-arm64]
+    if: (!failure()) && (!cancelled())
+    runs-on: macos-latest
+    timeout-minutes: 30
+    environment: TestFlight
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja python3
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Check if already uploaded
+        id: dedup
+        uses: actions/cache/restore@v4
+        with:
+          path: .testflight-sha
+          key: testflight-macos-${{ runner.os }}-v1
+      - name: Read last uploaded SHA
+        id: last-sha
+        run: |
+          if [ -f .testflight-sha/macos ]; then echo "last=$(cat .testflight-sha/macos)" >> "$GITHUB_OUTPUT"
+          else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+          echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Report dedup status
+        run: |
+          if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] Same commit already uploaded"; fi
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: NetDiagnostics-macOS-arm64
+          path: macos-artifact
+
+      - name: Extract macOS .app
+        run: |
+          tar -xzf macos-artifact/NetDiagnostics-macOS.tar.gz -C macos-artifact/
+          echo "Extraction OK"
+
+      - name: Inject Info.plist keys
+        run: |
+          APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          [ -z "$APP" ] && { echo "ERROR: No .app found"; exit 1; }
+          PLIST="$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 26.0" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 26.0" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.utilities" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType public.app-category.utilities" "$PLIST"
+
+      - name: Install provisioning profile
+        run: |
+          APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          if [ -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
+            echo -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
+            cp "$RUNNER_TEMP/mac-profile.provisionprofile" "$APP/Contents/embedded.provisionprofile"
+            echo "[OK] macOS provisioning profile embedded"
+          else
+            echo "[WARN] MACOS_PROVISIONING_PROFILE_BASE64 not set"
+          fi
+
+      - uses: ./.github/actions/setup-keychain
+        id: mac-keychain
+        with:
+          primary_cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          secondary_cert_base64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          secondary_cert_password: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
+          allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
+
+      - name: Sign .app and package as .pkg
+        run: |
+          APP=$(find macos-artifact -name "*.app" -type d | head -1)
+          KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
+          CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
+          PKG_ID="${{ steps.mac-keychain.outputs.installer_identity }}"
+          [ -z "$CODE_ID" ] && { echo "ERROR: No signing identity"; exit 1; }
+          # Sign dylibs
+          find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
+            case "$dylib" in */Contents/Frameworks/*.framework/*) continue ;; esac
+            codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib"
+          done
+          # Sign frameworks
+          if [ -d "$APP/Contents/Frameworks" ]; then
+            find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
+              codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$fw"
+            done
+          fi
+          # Sign nested .apps
+          find "$APP/Contents" -name "*.app" -type d | while read nested; do
+            NESTED_BIN="$nested/Contents/MacOS"
+            if [ -d "$NESTED_BIN" ]; then
+              find "$NESTED_BIN" -type f -perm +111 | while read exe; do
+                codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$exe"
+              done
+            fi
+            codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$nested"
+          done
+          # Sign binary
+          BIN="$APP/Contents/MacOS/net_diagnostics"
+          [ -f "$BIN" ] && codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$BIN"
+          # Sign .app
+          codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$APP"
+          # Package
+          productbuild --component "$APP" /Applications --sign "$PKG_ID" --keychain "$KCHAIN" NetDiagnostics-macOS.pkg
+          ls -lh NetDiagnostics-macOS.pkg
+
+      - name: Write ASC key
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          echo -n "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
+          chmod 600 "$K"
+
+      - name: Upload macOS to TestFlight
+        if: steps.last-sha.outputs.last != github.sha
+        run: |
+          xcrun altool --upload-app -f NetDiagnostics-macOS.pkg -t macos \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" --verbose
+          echo "[OK] macOS uploaded to TestFlight"
+
+      - name: Save uploaded SHA
+        if: always()
+        run: |
+          mkdir -p .testflight-sha
+          if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
+            echo "${{ github.sha }}" > .testflight-sha/macos
+          else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/macos; fi
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .testflight-sha
+          key: testflight-macos-${{ runner.os }}-v1
+
+      - name: Clean up keys
+        if: always()
+        run: rm -f "$ASC_KEYFILE" 2>/dev/null || true
