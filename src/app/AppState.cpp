@@ -326,6 +326,7 @@ void AppState::startNextGroup() {
         m_runStatus = RunStatus::Completed;
         m_currentDiagName.clear();
         m_currentGroup.clear();
+        m_resultsModel->setCurrentGroup(-1);  // no group running
         emit runStatusChanged();
         emit progressChanged();
         bumpVersion();
@@ -336,6 +337,7 @@ void AppState::startNextGroup() {
     auto& gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
     m_activeGroupDone.store(0);
+    m_resultsModel->setCurrentGroup(m_currentGroupIdx);  // spinner for this group
     bumpVersion();
     TRACE(" startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
 
@@ -476,6 +478,7 @@ void AppState::reset() {
     m_currentGroupIdx = 0;
     m_activeGroupDone.store(0);
     m_resultsModel->clear();
+    m_resultsModel->setCurrentGroup(-1);
     emit runStatusChanged();
     emit progressChanged();
     emit resultsReset();

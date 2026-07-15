@@ -36,6 +36,7 @@ public:
     void setSchemeFilter(const QString& scheme, bool hasUrl);
     // Called by AppState when a result completes
     void addResult(DiagId id, const DiagnosticResult& result);
+    void setCurrentGroup(int groupIdx);  // called when group starts executing
     void clear();  // reset to empty state
 
     int totalCompleted() const { return m_totalCompleted; }
@@ -63,6 +64,7 @@ private:
     int m_totalCompleted = 0;
     int m_totalDiags = 0;
     int m_resultsVersion = 0;
+    int m_currentRunningGroup = -1;  // -1 = no group running
     QString m_schemeFilter;
     bool m_hasUrlScheme = false;
 
