@@ -32,10 +32,11 @@ Item {
             uniform sampler2D source;
             uniform highp vec4 tint;
             void main() {
-                highp vec4 tex = texture2D(source, qt_TexCoord0);
-                // Preserve alpha from source; replace RGB with tint color modulated by source luminance.
-                float lum = dot(tex.rgb, vec3(0.299, 0.587, 0.114));
-                gl_FragColor = vec4(tint.rgb * lum * 2.0, tex.a * tint.a);
+                highp vec4 tex = texture(source, qt_TexCoord0);
+                // Colorize: opaque source pixels → tint color; transparent → pass through.
+                // Uses source alpha as mask — SVGs with currentColor render black
+                // (alpha=1), so this correctly replaces them with the tint.
+                gl_FragColor = tex.a * tint;
             }
         "
     }
