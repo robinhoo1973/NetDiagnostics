@@ -281,8 +281,8 @@ DiagnosticResult speedTest(DiagId id) {
         {"223.5.5.5", 53, "Alibaba DNS"},
         {"119.29.29.29", 53, "DNSPod DNS"},
         {"baidu.com", 443, "Baidu"},
-        {"8.8.8.8", 53, "Google DNS"},
-        {"1.1.1.1", 53, "Cloudflare DNS"},
+        {"208.67.222.222", 53, "OpenDNS"},
+        {"114.114.114.114", 53, "114DNS"},
     };
     int connOk = 0;
     for (auto& cs : checkSites) {
