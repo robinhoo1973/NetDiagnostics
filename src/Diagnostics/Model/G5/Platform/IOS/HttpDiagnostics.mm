@@ -274,7 +274,8 @@ static DiagnosticResult iosHttpCompression(DiagId id, const QString& target) {
                 ctx->status = 1;
             }
             dispatch_semaphore_signal(ctx->sem);
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) // ARC manages dispatch objects — no manual dispatch_release needed.
+            // ARC manages dispatch objects — no manual dispatch_release needed.
+            ctx->refs.fetch_sub(1, std::memory_order_acq_rel);
         }];
     [task resume];
     long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW, (int64_t)15 * NSEC_PER_SEC));
@@ -328,8 +329,8 @@ static DiagnosticResult iosHttpTiming(DiagId id, const QString& target) {
     dr.timestamp = QDateTime::currentDateTime();
 
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
-    // Session retains the delegate until invalidated; autorelease balances alloc (MRC).
-    NDMetricsDelegate* delegate = [[[NDMetricsDelegate alloc] init] autorelease];
+    // ARC manages object lifetime — no manual autorelease needed.
+    NDMetricsDelegate* delegate = [[NDMetricsDelegate alloc] init];
     NSURLSession* session = [NSURLSession sessionWithConfiguration:
         [NSURLSessionConfiguration ephemeralSessionConfiguration]
         delegate:delegate delegateQueue:nil];

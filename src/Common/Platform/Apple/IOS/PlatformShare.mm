@@ -40,7 +40,7 @@ void platformShareFile(const QString& filePath, const QString& mimeType, const Q
                 pop.permittedArrowDirections = 0;
             }
             [root presentViewController:avc animated:YES completion:nil];
-            [avc release]; // MRC: UIKit retains during presentation
+            // ARC manages UIViewController lifetime — no manual release needed.
         }
     });
 }
