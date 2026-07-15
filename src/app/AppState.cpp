@@ -246,7 +246,6 @@ void AppState::runDiagnostics() {
     TRACE(" status=Running generation=%d, building pending tests\n", (int)m_runGeneration.load());
     m_totalDiags = 0;
     m_results.clear();
-    m_completedPerGroup.clear();
     m_totalPerGroup.clear();
     m_currentDiagName.clear();
     m_currentGroup.clear();
@@ -737,30 +736,6 @@ void AppState::showDetailDialog(int diagIdInt) {
     
     dlg->show();
 #endif // !PLATFORM_IOS && !PLATFORM_ANDROID
-}
-
-QVariantMap AppState::getDetailResult(int diagIdInt) const {
-    QVariantMap m;
-    if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return m;
-    auto id = static_cast<DiagId>(diagIdInt);
-    if (!m_results.contains(id)) return m;
-    
-    const auto& r = m_results[id];
-    m["displayName"] = r.displayName;
-    m["status"] = static_cast<int>(r.status);
-    m["summary"] = r.summary;
-    m["details"] = r.details;
-    m["durationMs"] = r.durationMs;
-    
-    QVariantList props;
-    for (const auto& p : r.properties) {
-        QVariantMap pm;
-        pm["label"] = p.label;
-        pm["value"] = p.value;
-        props.append(pm);
-    }
-    m["properties"] = props;
-    return m;
 }
 
 // =============================================================================

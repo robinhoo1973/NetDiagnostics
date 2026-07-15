@@ -76,8 +76,8 @@ ApplicationWindow {
     // ══════════════════════════════════════════════════════════════════════
     ColumnLayout{anchors.fill:parent;spacing:0
         // ── Toolbar (唯一入口) ──────────────────────────────────────────
-        Rectangle{Layout.fillWidth:true;implicitHeight:88;color:ThemeEngine.colors.navBar
-            ColumnLayout{anchors{fill:parent;margins:6};spacing:4
+        Rectangle{Layout.fillWidth:true; implicitHeight:88; color:ThemeEngine.colors.navBar
+            ColumnLayout{anchors{fill:parent; margins:6}; spacing:4
                 // Row 1: Connect + Device/OS + Target
                 RowLayout{spacing:6
                     // 5WHY: 30px touch targets + no keyboard/a11y on simulator toolbar
