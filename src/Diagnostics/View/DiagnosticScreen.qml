@@ -112,9 +112,11 @@ Item {
         // Phone portrait: title on row 1, 5 colored-icon badges on row 2
         // matching the DiagGroupPanel StatusBadge pattern.
         Rectangle {
-            // Header grows taller when complete to fit share buttons inline
+            // Header grows taller when complete to fit share buttons inline.
+            // 5WHY: 48px was too short — 42dp share buttons + 4dp padding =
+            // 50dp minimum. 54px provides comfortable clearance.
             Layout.fillWidth: true
-            implicitHeight: page.wide ? (appState.runStatus === 2 ? 48 : 36) : 56
+            implicitHeight: page.wide ? (appState.runStatus === 2 ? 54 : 36) : 56
             color: ThemeEngine.colors.navBar
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
             ColumnLayout {
@@ -154,27 +156,26 @@ Item {
                         color: ThemeEngine.cyan
                     }
                     Item { Layout.fillWidth: true }
-                    // Share buttons — icon-only, shown when run complete
-                    // Material Design 3: 22dp icon in 38dp container (dense)
+                    // Share buttons — icon-only, matching Dashboard preview overlay size
                     RowLayout {
                         spacing: 6; visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                        // PDF Share
+                        // PDF Share — 42dp container, 24dp icon (matching PreviewShareBtn)
                         Rectangle {
-                            implicitWidth: 38; implicitHeight: 38; radius: 8
+                            implicitWidth: 42; implicitHeight: 42; radius: 8
                             opacity: appState.isPremium ? 1.0 : 0.4
                             color: Qt.alpha(ThemeEngine.failRed, 0.12)
                             border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.35) }
-                            AppIcon { anchors.centerIn: parent; name: "file-pdf"; size: 22; color: ThemeEngine.failRed }
+                            AppIcon { anchors.centerIn: parent; name: "file-pdf"; size: 24; color: ThemeEngine.failRed }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
                             Accessible.name: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
                         }
                         // HTML Share
                         Rectangle {
-                            implicitWidth: 38; implicitHeight: 38; radius: 8
+                            implicitWidth: 42; implicitHeight: 42; radius: 8
                             opacity: appState.isPremium ? 1.0 : 0.4
                             color: Qt.alpha(ThemeEngine.accentBlue, 0.12)
                             border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.35) }
-                            AppIcon { anchors.centerIn: parent; name: "file-html"; size: 22; color: ThemeEngine.accentBlue }
+                            AppIcon { anchors.centerIn: parent; name: "file-html"; size: 24; color: ThemeEngine.accentBlue }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
                             Accessible.name: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
                         }
