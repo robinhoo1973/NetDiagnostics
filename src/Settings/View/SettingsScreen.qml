@@ -77,7 +77,7 @@ Item {
                                 Layout.minimumWidth: 80
                                 // 5WHY: Theme buttons were 36pt — below 44pt Apple HIG minimum.
                                 // Increased for accessible touch interaction.
-                                implicitHeight: 44; radius: ThemeEngine.radius.md
+                                implicitHeight: 42; radius: ThemeEngine.radius.md
                                 color: ThemeEngine.mode === modelData.mode
                                        ? ThemeEngine.colors.primaryContainer : "transparent"
                                 border {
@@ -223,7 +223,7 @@ Item {
                         // Restore button — hidden when already premium
                         Rectangle {
                             visible: !appState.isPremium
-                            Layout.fillWidth: true; implicitHeight: 40; radius: 8
+                            Layout.fillWidth: true; implicitHeight: 42; radius: 8
                             color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.warnYellow, 0.08)
                                                                : Qt.alpha(ThemeEngine.warnYellow, 0.12)
                             border { width: 1; color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.warnYellow, 0.3)

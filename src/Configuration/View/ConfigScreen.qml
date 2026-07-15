@@ -108,7 +108,7 @@ Item {
                 // Select All — 5WHY: 32pt below Apple HIG 44pt; no keyboard access
                 Rectangle {
                     id: selectAllBtn
-                    implicitWidth: 110; implicitHeight: 44; radius: 6; color: "transparent"
+                    implicitWidth: 110; implicitHeight: 40; radius: 6; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
@@ -132,7 +132,7 @@ Item {
                 // Deselect All — 5WHY: same touch target + a11y gap as Select All
                 Rectangle {
                     id: deselectAllBtn
-                    implicitWidth: 110; implicitHeight: 44; radius: 6; color: "transparent"
+                    implicitWidth: 110; implicitHeight: 40; radius: 6; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
