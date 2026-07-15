@@ -206,22 +206,6 @@ Item {
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
                     }
-                    // Share buttons
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: 10
-                        PreviewShareBtn {
-                            Layout.fillWidth: true
-                            iconName: "file-pdf"; label: isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
-                            accent: ThemeEngine.failRed; locked: !appState.isPremium
-                            onClicked: page.doShare("pdf")
-                        }
-                        PreviewShareBtn {
-                            Layout.fillWidth: true
-                            iconName: "file-html"; label: isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
-                            accent: ThemeEngine.accentBlue; locked: !appState.isPremium
-                            onClicked: page.doShare("html")
-                        }
-                    }
                 }
             }
             Item { Layout.preferredHeight: 24 }
@@ -403,7 +387,10 @@ Item {
             Label { Layout.fillWidth: true; text: psb.label; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary; elide: Text.ElideRight }
             AppIcon { name: psb.locked ? "badge-check" : ""; size: 14; color: ThemeEngine.warnYellow; visible: psb.locked }
         }
-        MouseArea { anchors.fill: parent; enabled: !locked; cursorShape: Qt.PointingHandCursor; onClicked: psb.clicked() }
+        // 5WHY: locked buttons were disabled → user couldn't click to see
+        // the subscription prompt. Now always clickable — doShare() handles
+        // the premium check and shows the subscription dialog if needed.
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: psb.clicked() }
     }
     component DashboardGroupRow: Rectangle {
         property int groupIndex: 0
