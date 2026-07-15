@@ -27,7 +27,6 @@
 
         <!-- Dialogs -->
         <file alias="qml/dialogs/qmldir">../src/Common/View/dialogs/qmldir</file>
-        <file alias="qml/dialogs/AutoTestDialog.qml">../src/Common/View/dialogs/AutoTestDialog.qml</file>
 
         <!-- Shared widgets -->
         <file alias="qml/widgets/qmldir">../src/Common/View/widgets/qmldir</file>
