@@ -11,6 +11,22 @@ Item {
     FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
     readonly property bool wide: width >= 600
     readonly property alias overlayVisible: detailOverlay.visible
+    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+
+    // ── Share flow state ───────────────────────────────────────────────
+    property int shareStage: 0
+    property string pendingShareFormat: ""
+    property string toast: ""
+    Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
+    function doShare(fmt) { pendingShareFormat = fmt; shareStage = appState.isPremium ? 2 : 1 }
+    function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
+
+    Connections {
+        target: appState
+        function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
+        function onReportShared(ok) { page.toast = ok ? Tr.reportShareOk : Tr.reportShareFail; toastTimer.restart() }
+        function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
+    }
 
     // ── Run state ─────────────────────────────────────────────────────
     property bool _runActive: false
@@ -214,6 +230,69 @@ Item {
                     }
                 }
             }
+
+            // ── Share buttons (visible when run completes with results) ──
+            RowLayout {
+                Layout.fillWidth: true; Layout.topMargin: 12; spacing: 10
+                visible: appState.runStatus === 2 && appState.totalCompleted > 0
+                DiagShareBtn {
+                    Layout.fillWidth: true
+                    iconName: "file-pdf"; label: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
+                    accent: ThemeEngine.failRed; locked: !appState.isPremium
+                    onClicked: page.doShare("pdf")
+                }
+                DiagShareBtn {
+                    Layout.fillWidth: true
+                    iconName: "file-html"; label: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
+                    accent: ThemeEngine.accentBlue; locked: !appState.isPremium
+                    onClicked: page.doShare("html")
+                }
+            }
+        }
+    }
+
+    // ── Toast banner ──────────────────────────────────────────────────
+    Rectangle {
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
+        implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
+        color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
+        border { width: 1; color: ThemeEngine.colors.borderFocused }
+        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary }
+    }
+
+    // ── Share subscription dialog ─────────────────────────────────────
+    Rectangle {
+        id: shareDialog
+        parent: page.parent ? page.parent : page; anchors.fill: parent
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
+        visible: page.shareStage !== 0; z: 1100
+        MouseArea { anchors.fill: parent }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(420, parent.width * 0.92)
+            implicitHeight: dlgCol.implicitHeight + 40; radius: 14; color: ThemeEngine.colors.card
+            ColumnLayout {
+                id: dlgCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 } spacing: 14
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; radius: 30
+                    color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.12)
+                    AppIcon { anchors.centerIn: parent; name: page.shareStage === 1 ? "badge-info" : "report"; size: 28; color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan }
+                }
+                Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle; font.family: ThemeEngine.monoFont; font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary; wrapMode: Text.WordWrap }
+                Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap }
+                RowLayout { Layout.fillWidth: true; spacing: 10
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 42; radius: 8; color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.textSecondary, 0.5) }
+                        Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.shareStage = 0 }
+                    }
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 42; radius: 8
+                        color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
+                        Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeBtn : (page.isMobile ? Tr.shareBtn : Tr.emailBtn); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.bgDark }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (page.shareStage === 1) appState.requestSubscription(); else page.confirmShare() } }
+                    }
+                }
+            }
         }
     }
 
@@ -307,5 +386,20 @@ Item {
                 }
             }
         }
+    }
+
+    // ── Share button component (PDF/HTML) ───────────────────────────
+    component DiagShareBtn: Rectangle {
+        id: dsb
+        property string iconName: ""; property string label: ""; property color accent: ThemeEngine.cyan; property bool locked: false
+        signal clicked()
+        implicitHeight: 42; radius: 8; opacity: locked ? 0.4 : 1.0
+        color: Qt.alpha(accent, 0.10); border { width: 1; color: Qt.alpha(accent, 0.35) }
+        RowLayout { anchors { fill: parent; leftMargin: 12; rightMargin: 12 } spacing: 8
+            AppIcon { name: dsb.iconName; size: 16; color: dsb.accent }
+            Label { Layout.fillWidth: true; text: dsb.label; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary; elide: Text.ElideRight }
+            AppIcon { name: dsb.locked ? "badge-check" : ""; size: 14; color: ThemeEngine.warnYellow; visible: dsb.locked }
+        }
+        MouseArea { anchors.fill: parent; enabled: !locked; cursorShape: Qt.PointingHandCursor; onClicked: dsb.clicked() }
     }
 }
