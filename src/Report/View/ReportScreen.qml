@@ -178,7 +178,7 @@ Item {
 
             // Single "Review Report" button — opens unified image preview
             ColumnLayout { spacing: 10; Layout.fillWidth: true
-                ExportButton { iconName: "report"; label: Tr.reportReviewBtn; accent: ThemeEngine.cyan; onClicked: page.openPreview }
+                ExportButton { iconName: "report"; label: Tr.reportReviewBtn; accent: ThemeEngine.cyan; onClicked: page.openPreview() }
                 Label {
                     visible: page.toast !== "" || page.lastPath !== "" || page.lastFailed
                     Layout.fillWidth: true; Layout.topMargin: 4
