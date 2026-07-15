@@ -154,30 +154,28 @@ Item {
                         color: ThemeEngine.cyan
                     }
                     Item { Layout.fillWidth: true }
-                    // Share buttons — shown when run complete, on header right
+                    // Share buttons — icon-only, shown when run complete
                     RowLayout {
                         spacing: 6; visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                        // PDF Share
+                        // PDF Share — icon-only, color adapts to theme
                         Rectangle {
-                            implicitWidth: labelPdf.implicitWidth + 20; implicitHeight: 30; radius: 6
-                            color: Qt.alpha(ThemeEngine.failRed, 0.10); border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.35) }
+                            implicitWidth: 34; implicitHeight: 34; radius: 6
                             opacity: appState.isPremium ? 1.0 : 0.4
-                            RowLayout { anchors.centerIn: parent; spacing: 4
-                                AppIcon { name: "file-pdf"; size: 12; color: ThemeEngine.failRed }
-                                Label { id: labelPdf; text: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
-                            }
+                            color: Qt.alpha(ThemeEngine.failRed, 0.12)
+                            border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.35) }
+                            AppIcon { anchors.centerIn: parent; name: "file-pdf"; size: 18; color: ThemeEngine.failRed }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
+                            Accessible.name: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
                         }
-                        // HTML Share
+                        // HTML Share — icon-only, color adapts to theme
                         Rectangle {
-                            implicitWidth: labelHtml.implicitWidth + 20; implicitHeight: 30; radius: 6
-                            color: Qt.alpha(ThemeEngine.accentBlue, 0.10); border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.35) }
+                            implicitWidth: 34; implicitHeight: 34; radius: 6
                             opacity: appState.isPremium ? 1.0 : 0.4
-                            RowLayout { anchors.centerIn: parent; spacing: 4
-                                AppIcon { name: "file-html"; size: 12; color: ThemeEngine.accentBlue }
-                                Label { id: labelHtml; text: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
-                            }
+                            color: Qt.alpha(ThemeEngine.accentBlue, 0.12)
+                            border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.35) }
+                            AppIcon { anchors.centerIn: parent; name: "file-html"; size: 18; color: ThemeEngine.accentBlue }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
+                            Accessible.name: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
                         }
                     }
                     // 5 status badges inline — desktop only

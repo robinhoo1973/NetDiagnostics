@@ -13,6 +13,7 @@ Item {
     property bool hasData: _totalCompleted > 0
     readonly property var allStats: appState.allGroupStats || []
     readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property alias overlayVisible: previewOverlay.visible
 
     // ── Preview overlay state ──────────────────────────────────────────
     property string previewImagePath: ""
@@ -183,10 +184,13 @@ Item {
                     }
                 }
             }
-            // ── Review Report section (visible only when results exist) ──
+            // ── Review Report section (visible only when run complete + results exist) ──
+            // 5WHY: was visible as soon as hasData (totalCompleted>0) — user could
+            // click Review Report while diagnostics were still running, producing a
+            // partial report.  Now requires runStatus !== 1 (not running).
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: repCol.implicitHeight + 32; radius: 12
-                Layout.topMargin: 16
+                Layout.topMargin: 16; visible: hasData && appState.runStatus !== 1
                 color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
