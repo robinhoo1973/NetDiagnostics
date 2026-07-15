@@ -24,6 +24,19 @@ DiagnosticResult defaultGateway(DiagId id) {
         }
         FreeMibTable(ft);
     }
+    // 5WHY: GetIpForwardTable2 (Vista+) may fail on older Windows or with
+    // restricted privileges.  GetBestRoute is available on XP+ and uses a
+    // simpler API — it returns the best route to a given destination.
+    // Here we ask for the route to 8.8.8.8 (Google DNS) which will almost
+    // always return the default gateway via the default route.
+    if (defaultGw == QStringLiteral("Not found")) {
+        DWORD bestGw = 0;
+        if (GetBestRoute(inet_addr("8.8.8.8"), 0, &bestGw) == NO_ERROR && bestGw != 0) {
+            struct in_addr gw; gw.S_un.S_addr = bestGw;
+            defaultGw = ip4ToStr(gw);
+            out.append(QStringLiteral("  Default Gateway (via GetBestRoute): %1").arg(defaultGw));
+        }
+    }
 #else
 #if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID) && !defined(__APPLE__)
     QFile routeFile(QStringLiteral("/proc/net/route"));

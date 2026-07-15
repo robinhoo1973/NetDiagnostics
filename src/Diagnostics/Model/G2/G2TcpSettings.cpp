@@ -17,7 +17,10 @@ DiagnosticResult tcpSettings(DiagId id) {
         ps.start(QStringLiteral("powershell"), QStringList()
             << QStringLiteral("-NoProfile") << QStringLiteral("-Command")
             << QStringLiteral("Get-NetTCPSetting | Select SettingName,CongestionProvider,AutoTuningLevelLocal | Format-List"));
-        if (ps.waitForFinished(5000)) {
+        // 5WHY: PowerShell cold-start (first invocation after boot) can take
+        // 8-12s on some Windows systems.  5s timeout was too short, causing
+        // empty TCP settings output.  15s covers worst-case cold-start.
+        if (ps.waitForFinished(15000)) {
             QString tcpOut = QString::fromUtf8(ps.readAllStandardOutput()).trimmed();
             if (!tcpOut.isEmpty()) {
                 gotData = true;
