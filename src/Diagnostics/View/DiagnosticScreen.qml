@@ -112,7 +112,9 @@ Item {
         // Phone portrait: title on row 1, 5 colored-icon badges on row 2
         // matching the DiagGroupPanel StatusBadge pattern.
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: page.wide ? 36 : 56
+            // Header grows taller when complete to fit share buttons inline
+            Layout.fillWidth: true
+            implicitHeight: page.wide ? (appState.runStatus === 2 ? 48 : 36) : 56
             color: ThemeEngine.colors.navBar
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
             ColumnLayout {
@@ -152,6 +154,32 @@ Item {
                         color: ThemeEngine.cyan
                     }
                     Item { Layout.fillWidth: true }
+                    // Share buttons — shown when run complete, on header right
+                    RowLayout {
+                        spacing: 6; visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
+                        // PDF Share
+                        Rectangle {
+                            implicitWidth: labelPdf.implicitWidth + 20; implicitHeight: 30; radius: 6
+                            color: Qt.alpha(ThemeEngine.failRed, 0.10); border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.35) }
+                            opacity: appState.isPremium ? 1.0 : 0.4
+                            RowLayout { anchors.centerIn: parent; spacing: 4
+                                AppIcon { name: "file-pdf"; size: 12; color: ThemeEngine.failRed }
+                                Label { id: labelPdf; text: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
+                            }
+                            MouseArea { anchors.fill: parent; enabled: appState.isPremium; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
+                        }
+                        // HTML Share
+                        Rectangle {
+                            implicitWidth: labelHtml.implicitWidth + 20; implicitHeight: 30; radius: 6
+                            color: Qt.alpha(ThemeEngine.accentBlue, 0.10); border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.35) }
+                            opacity: appState.isPremium ? 1.0 : 0.4
+                            RowLayout { anchors.centerIn: parent; spacing: 4
+                                AppIcon { name: "file-html"; size: 12; color: ThemeEngine.accentBlue }
+                                Label { id: labelHtml; text: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
+                            }
+                            MouseArea { anchors.fill: parent; enabled: appState.isPremium; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
+                        }
+                    }
                     // 5 status badges inline — desktop only
                     RowLayout {
                         spacing: 4; visible: page.wide && appState.totalCompleted > 0
@@ -244,23 +272,6 @@ Item {
                 }
             }
 
-            // ── Share buttons (visible when run completes with results) ──
-            RowLayout {
-                Layout.fillWidth: true; Layout.topMargin: 12; spacing: 10
-                visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                DiagShareBtn {
-                    Layout.fillWidth: true
-                    iconName: "file-pdf"; label: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
-                    accent: ThemeEngine.failRed; locked: !appState.isPremium
-                    onClicked: page.doShare("pdf")
-                }
-                DiagShareBtn {
-                    Layout.fillWidth: true
-                    iconName: "file-html"; label: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
-                    accent: ThemeEngine.accentBlue; locked: !appState.isPremium
-                    onClicked: page.doShare("html")
-                }
-            }
         }
     }
 
@@ -401,18 +412,4 @@ Item {
         }
     }
 
-    // ── Share button component (PDF/HTML) ───────────────────────────
-    component DiagShareBtn: Rectangle {
-        id: dsb
-        property string iconName: ""; property string label: ""; property color accent: ThemeEngine.cyan; property bool locked: false
-        signal clicked()
-        implicitHeight: 42; radius: 8; opacity: locked ? 0.4 : 1.0
-        color: Qt.alpha(accent, 0.10); border { width: 1; color: Qt.alpha(accent, 0.35) }
-        RowLayout { anchors { fill: parent; leftMargin: 12; rightMargin: 12 } spacing: 8
-            AppIcon { name: dsb.iconName; size: 16; color: dsb.accent }
-            Label { Layout.fillWidth: true; text: dsb.label; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary; elide: Text.ElideRight }
-            AppIcon { name: dsb.locked ? "badge-check" : ""; size: 14; color: ThemeEngine.warnYellow; visible: dsb.locked }
-        }
-        MouseArea { anchors.fill: parent; enabled: !locked; cursorShape: Qt.PointingHandCursor; onClicked: dsb.clicked() }
-    }
 }
