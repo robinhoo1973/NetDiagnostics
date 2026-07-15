@@ -87,6 +87,19 @@ Item {
     ColumnLayout {
         anchors.fill: parent; spacing: 0
 
+        // AppBar (matches Dashboard/Settings/Config — 48px Material compact)
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar
+            border { width: 1; color: ThemeEngine.colors.borderCard }
+            RowLayout {
+                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                AppIcon { name: "diagnostics"; size: 20; color: ThemeEngine.cyan }
+                Item { width: 10 }
+                Label { text: Tr.diagnostics; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+                Item { Layout.fillWidth: true }
+            }
+        }
+
         // ═══════════════ TOOLBAR ═══════════════════════════════════════
         DiagnosticToolbar {
             Layout.fillWidth: true
