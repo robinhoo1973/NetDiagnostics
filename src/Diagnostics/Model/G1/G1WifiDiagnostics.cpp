@@ -210,17 +210,35 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     if (wifiRows.isEmpty()) out.append(QStringLiteral("  (no wireless interfaces detected)"));
 #if defined(PLATFORM_IOS)
     {
-        // 5WHY: Hardcoded "en0" — on iOS devices with Personal Hotspot
-        // active, en0 becomes the bridge and WiFi moves to en1.
-        // Use the first interface from the loop that had a valid SSID.
-        QString wifiIface = QStringLiteral("en0");
-        for (const auto& row : wifiRows) {
-            if (row.size() >= 2 && row[1] != QStringLiteral("-")) {
-                wifiIface = row[0]; break;
+        // 5WHY: iosInterfaceIPv4 matched by interface name, but the name
+        // depends on which AF_LINK entry appeared first in getifaddrs.
+        // On iOS 18+ with virtual interfaces, the WiFi IP may be on a
+        // different en* interface or the loop may miss it entirely.
+        // Fix: directly enumerate getifaddrs for the first en* interface
+        // with an AF_INET address — no dependency on interface name from
+        // the wifiRows loop above.
+        QString wifiIp, wifiGw, wifiIface;
+        struct ifaddrs* ifa2 = nullptr;
+        if (getifaddrs(&ifa2) == 0) {
+            for (auto* p = ifa2; p; p = p->ifa_next) {
+                if (!p->ifa_addr || p->ifa_addr->sa_family != AF_INET) continue;
+                QString name = QString::fromLatin1(p->ifa_name);
+                if (!name.startsWith("en")) continue;
+                // Skip bridge/virtual interfaces when we already found the real one
+                if (name.contains("bridge", Qt::CaseInsensitive)) continue;
+                wifiIface = name;
+                char buf[INET_ADDRSTRLEN] = {0};
+                auto* sin = (struct sockaddr_in*)p->ifa_addr;
+                inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+                wifiIp = QString::fromLatin1(buf);
+                // Prefer en0 (primary WiFi), but accept en1 (hotspot mode)
+                if (name == QLatin1String("en0")) break;
             }
+            freeifaddrs(ifa2);
         }
-        const QString wifiIp = iosInterfaceIPv4(wifiIface);
-        const QString wifiGw = iosGatewayForInterface(wifiIface);
+        // Gateway from routing table
+        if (!wifiIface.isEmpty())
+            wifiGw = iosGatewayForInterface(wifiIface);
         out.append(QString());
         out.append(QStringLiteral("  IP Address: %1").arg(wifiIp.isEmpty() ? QStringLiteral("(not connected)") : wifiIp));
         if (!wifiGw.isEmpty())
