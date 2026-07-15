@@ -85,8 +85,6 @@ Item {
                 page.openPreview()
         }
     }
-        }
-    }
 
     Connections {
         target: appState

@@ -113,7 +113,9 @@ function(configure_netdiag_target TARGET)
     # ── Platform compile definitions + frameworks ────────────────────
     if(IOS)
         target_compile_definitions(${TARGET} PRIVATE PLATFORM_IOS)
-        target_compile_options(${TARGET} PRIVATE -F "${IOS_FRAMEWORKS_DIR}")
+        target_compile_options(${TARGET} PRIVATE
+            -F "${IOS_FRAMEWORKS_DIR}"
+            -fobjc-arc)  # ensure ARC manages dispatch/NS objects in .mm files
         target_link_options(${TARGET} PRIVATE -F "${IOS_FRAMEWORKS_DIR}")
         target_link_libraries(${TARGET} PRIVATE
             "-framework NetworkExtension"

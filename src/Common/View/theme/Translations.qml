@@ -145,7 +145,7 @@ Item {
     readonly property string readyStatus: t("Ready", "Prêt", "Bereit", "Готов", "Pronto", "就绪", "就緒", "Listo", "Pronto")
     // PM: Actionable error recovery hints shown when diagnostics fail
     readonly property string errorRecoveryHint: t("Check: 1) Network connection  2) Target URL format\n3) Firewall/proxy settings  4) Target server reachability",
-        "",  // FR: no translation yet — t() falls back to English
+        "Vérifiez : 1) Connexion réseau  2) Format de l'URL cible\n3) Paramètres pare-feu/proxy  4) Accessibilité du serveur cible",
         "Prüfen: 1) Netzwerkverbindung  2) Ziel-URL-Format\n3) Firewall/Proxy  4) Zielserver-Erreichbarkeit",
         "Проверьте: 1) Сетевое подключение  2) Формат URL\n3) Настройки брандмауэра/прокси  4) Доступность сервера",
         "Verifica: 1) Connessione di rete  2) Formato URL\n3) Impostazioni firewall/proxy  4) Raggiungibilità server",
