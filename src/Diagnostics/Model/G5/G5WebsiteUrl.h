@@ -79,11 +79,17 @@ inline int portForUrl(const QUrl& u) {
 // ── G5 scheme-to-DiagId matching (single source of truth) ──────────────
 // Used by AppState::runDiagnostics (scheduling) and ResultsModel (display).
 inline bool g5DiagMatchesScheme(DiagId id, const QString& schemeLower) {
-    bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect
-                   || id == DiagId::G5ServiceBanner);
+    bool isGeneric = (id == DiagId::G5UrlParsing || id == DiagId::G5TcpConnect);
     if (isGeneric) return true;
 
     bool isHttp = (schemeLower == "http" || schemeLower == "https");
+
+    // G5ServiceBanner: raw TCP banner grab — useful for FTP/SSH/SMTP/etc.
+    // but NOT for HTTP/HTTPS (those have dedicated tests: CurlVerbose,
+    // HttpHeaders, SecurityHeaders, HttpRedirect, HttpCompression, HttpTiming).
+    // Running ServiceBanner against HTTP would just dump raw HTTP headers
+    // redundantly with the proper HTTP tests above.
+    if (id == DiagId::G5ServiceBanner) return !isHttp;
     bool isFtp  = (schemeLower == "ftp" || schemeLower == "ftps");
     bool isSsh  = (schemeLower == "ssh" || schemeLower == "sftp");
 
