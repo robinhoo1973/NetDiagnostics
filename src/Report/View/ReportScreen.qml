@@ -66,15 +66,25 @@ Item {
 
     Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
 
-    // 5WHY: Preview was generated once and never updated on theme change.
-    // Re-generate the active preview image when the user toggles dark/light
-    // mode so the preview always matches the app theme.
+    // 5WHY: Preview image was static once generated. Auto-refresh when:
+    // - Theme changes (dark/light toggle)
+    // - New diagnostic results complete (totalCompleted increments)
     Connections {
         target: ThemeEngine
         function onModeChanged() {
-            if (page.previewVisible) {
+            if (page.previewVisible) page.openPreview()
+        }
+    }
+    Connections {
+        target: appState
+        function onProgressChanged() {
+            // 5WHY: If preview is open after a run completes, regenerate
+            // so the user sees the latest results immediately.
+            // buildReportHtml() reads m_results fresh each call.
+            if (page.previewVisible && appState.runStatus !== 1)
                 page.openPreview()
-            }
+        }
+    }
         }
     }
 
