@@ -17,7 +17,6 @@
         <file alias="qml/screens/DashboardScreen.qml">../src/Dashboard/View/DashboardScreen.qml</file>
         <file alias="qml/screens/DiagnosticScreen.qml">../src/Diagnostics/View/DiagnosticScreen.qml</file>
         <file alias="qml/screens/ConfigScreen.qml">../src/Configuration/View/ConfigScreen.qml</file>
-        <file alias="qml/screens/ReportScreen.qml">../src/Report/View/ReportScreen.qml</file>
         <file alias="qml/screens/SettingsScreen.qml">../src/Settings/View/SettingsScreen.qml</file>
         <file alias="qml/screens/SimulatorScreen.qml">../src/Common/View/simulator/SimulatorScreen.qml</file>
 
@@ -33,7 +32,6 @@
         <file alias="qml/widgets/TargetInputPanel.qml">../src/Common/View/widgets/TargetInputPanel.qml</file>
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
-        <file alias="qml/widgets/LiveProgressPanel.qml">../src/Common/View/widgets/LiveProgressPanel.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
         <file alias="qml/widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>

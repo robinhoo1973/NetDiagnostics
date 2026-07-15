@@ -16,7 +16,7 @@ Rectangle {
     height: cardColumn.implicitHeight + 16
     radius: 10
     color: ThemeEngine.colors.card
-    border { width: 1; color: isRunning ? Qt.alpha("#00BCD4", 0.4) : ThemeEngine.colors.borderCard }
+    border { width: 1; color: isRunning ? Qt.alpha(ThemeEngine.cyan, 0.4) : ThemeEngine.colors.borderCard }
 
     // ── Computed state — all from C++ groupStats (single source of truth) ──
     property var allItems: { let _v = appState.resultsVersion; return appState.allDiagsForGroup(groupIndex) }
@@ -108,7 +108,7 @@ Rectangle {
             Rectangle {
                 height: 4; radius: 2
                 width: enabledCount>0 ? parent.width*(completedCount/enabledCount) : 0
-                color: isRunning ? "#00BCD4" : "#4ADE80"
+                color: isRunning ? ThemeEngine.cyan : ThemeEngine.passGreen
             }
         }
 
