@@ -18,7 +18,6 @@ Item {
     readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
     // Built-in preview overlay state
-    property string previewFormat: ""     // "pdf" | "html"
     property string previewImagePath: ""   // rendered preview image (data: URI)
     property bool previewVisible: false
     property string toast: ""             // transient status message
@@ -31,9 +30,8 @@ Item {
     // 5WHY: darkBackground was hardcoded to true — preview never reflected
     // the user's actual theme choice. Now reads ThemeEngine.isDark reactively.
 
-    function openPreview(fmt) {
+    function openPreview() {
         if (!canReport) return
-        previewFormat = fmt
         var darkBg = ThemeEngine.isDark
         // 5WHY: QtWebView has no loadHtml() on iOS/Android, QtPdf is
         // unreliable, NativePdf requires CGPDFDocument.  Use the ONE
@@ -62,7 +60,7 @@ Item {
 
     onPreviewVisibleChanged: {
         if (!previewVisible) {
-            page.previewFormat = ""
+            // Cleanup handled in openPreview() before generating new image
         }
     }
 
@@ -74,8 +72,8 @@ Item {
     Connections {
         target: ThemeEngine
         function onModeChanged() {
-            if (page.previewVisible && page.previewFormat !== "") {
-                page.openPreview(page.previewFormat)
+            if (page.previewVisible) {
+                page.openPreview()
             }
         }
     }
@@ -170,10 +168,9 @@ Item {
             }
             Item { Layout.preferredHeight: page.isMobile ? 16 : 24 }
 
-            // Preview buttons (open the built-in preview window)
+            // Single "Review Report" button — opens unified image preview
             ColumnLayout { spacing: 10; Layout.fillWidth: true
-                ExportButton { iconName: "report"; label: Tr.reportPreviewPdfBtn; accent: ThemeEngine.cyan; onClicked: page.openPreview("pdf") }
-                ExportButton { iconName: "globe"; label: Tr.reportPreviewHtmlBtn; accent: ThemeEngine.accentBlue; onClicked: page.openPreview("html") }
+                ExportButton { iconName: "report"; label: Tr.reportReviewBtn; accent: ThemeEngine.cyan; onClicked: page.openPreview }
                 Label {
                     visible: page.toast !== "" || page.lastPath !== "" || page.lastFailed
                     Layout.fillWidth: true; Layout.topMargin: 4
@@ -243,11 +240,11 @@ Item {
                     RowLayout {
                         id: headerRow
                         anchors { fill: parent; margins: 8 }
-                        AppIcon { name: page.previewFormat === "pdf" ? "report" : "globe"; size: 20; color: ThemeEngine.cyan }
+                        AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
                         Item { width: 8 }
                         Label {
                             Layout.fillWidth: true
-                            text: page.previewFormat === "pdf" ? Tr.previewPdfTitle : Tr.previewHtmlTitle
+                            text: Tr.reportReviewBtn
                             font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary
                             elide: Text.ElideRight
                         }
@@ -343,15 +340,27 @@ Item {
                         }
                     }
                 }
-                // 5WHY: Removed "Open in Browser/PDF" button — only Share remains.
-                // External viewer button was confusing users; share flow covers
-                // opening in native apps via the OS share sheet.
-                PreviewBtn {
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                    label: page.isMobile ? Tr.shareBtn : Tr.emailBtn
-                    accent: ThemeEngine.cyan
-                    locked: !appState.isPremium
-                    onClicked: page.doShare(page.previewFormat)
+                // ── Share buttons (PDF + HTML) ──────────────────────────
+                RowLayout {
+                    Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
+                    // Share as PDF
+                    PreviewBtn {
+                        Layout.fillWidth: true
+                        iconName: "report"
+                        label: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
+                        accent: ThemeEngine.failRed
+                        locked: !appState.isPremium
+                        onClicked: page.doShare("pdf")
+                    }
+                    // Share as HTML
+                    PreviewBtn {
+                        Layout.fillWidth: true
+                        iconName: "globe"
+                        label: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
+                        accent: ThemeEngine.accentBlue
+                        locked: !appState.isPremium
+                        onClicked: page.doShare("html")
+                    }
                 }
             }
         }
@@ -473,12 +482,10 @@ Item {
     component PreviewBtn: Rectangle {
         id: pbtn
         property string label: ""
+        property string iconName: ""
         property color accent: ThemeEngine.cyan
         property bool locked: false
         signal clicked()
-        // Let the parent Layout manage width via Layout.fillWidth; only set a
-        // sensible minimum height.  (The old implicitWidth based on content was
-        // a hardcoded calculation that could overflow narrow screens.)
         Layout.minimumWidth: 80
         implicitHeight: 40; radius: 8
         clip: true
@@ -487,9 +494,12 @@ Item {
         RowLayout {
             id: pbtnRow
             anchors.centerIn: parent; spacing: 6
+            AppIcon {
+                visible: pbtn.iconName !== ""
+                name: pbtn.iconName; size: 16; color: pbtn.accent
+            }
             Label {
                 text: pbtn.label + (pbtn.locked ? "  " + Tr.premiumBadge : "")
-                elide: Text.ElideRight; maximumLineCount: 1
                 color: ThemeEngine.textPrimary
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
             }
