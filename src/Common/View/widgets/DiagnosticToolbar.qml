@@ -64,7 +64,7 @@ Rectangle {
                     color: root._advancedVisible ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
                     AppIcon {
                         anchors.centerIn: parent
-                        name: "tune"; size: 14
+                        name: "tune"; size: 18
                         color: root._advancedVisible ? ThemeEngine.accentBlue : ThemeEngine.textMuted
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root._advancedVisible = !root._advancedVisible }

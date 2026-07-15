@@ -29,7 +29,7 @@ Item {
     Rectangle {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 52; color: ThemeEngine.colors.navBar
+        implicitHeight: 48; color: ThemeEngine.colors.navBar
         border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
