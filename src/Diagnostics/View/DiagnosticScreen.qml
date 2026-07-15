@@ -166,7 +166,7 @@ Item {
                                 AppIcon { name: "file-pdf"; size: 12; color: ThemeEngine.failRed }
                                 Label { id: labelPdf; text: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
                             }
-                            MouseArea { anchors.fill: parent; enabled: appState.isPremium; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
                         }
                         // HTML Share
                         Rectangle {
