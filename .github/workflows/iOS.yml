@@ -79,6 +79,12 @@ jobs:
 
       - name: Verify Xcode build
         run: |
+          set -euo pipefail
+          # 5WHY: xcodebuild failures were silently masked because
+          # "build 2>&1 | tail -30" exits with tail's code (always 0),
+          # not xcodebuild's.  Fix: redirect to a temp log file so the
+          # full exit code is captured; print the last 30 lines for the
+          # CI log; fail if xcodebuild exited non-zero.
           SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
           "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
             -G Xcode \
@@ -91,17 +97,33 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
             -B build-xcode -S .
+          XCODEBUILD_LOG=$(mktemp)
+          set +e
           xcodebuild -project build-xcode/NetDiagnostic.xcodeproj \
             -scheme net_diagnostics \
             -sdk iphoneos \
             -configuration Release \
             -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
-            build 2>&1 | tail -30
+            build >"$XCODEBUILD_LOG" 2>&1
+          XCODEBUILD_EXIT=$?
+          set -e
+          tail -30 "$XCODEBUILD_LOG"
+          if [ $XCODEBUILD_EXIT -ne 0 ]; then
+            echo "[FAIL] Xcode build failed (exit $XCODEBUILD_EXIT)"
+            rm -f "$XCODEBUILD_LOG"
+            exit 1
+          fi
+          rm -f "$XCODEBUILD_LOG"
           echo "[PASS] Xcode build verified"
 
       - name: Verify iOS Diagnostic Symbols
         run: |
+          set -euo pipefail
+          # 5WHY: added pipefail — "nm | c++filt | grep -q" is a 3-stage
+          # pipeline.  Without pipefail, if nm crashes (binary format
+          # change, stripped binary, etc.), grep might still match stale
+          # data in the pipe buffer, masking real symbol issues.
           BIN=build/net_diagnostics.app/net_diagnostics
           MISSING=""
           for sym in iosDhcpDiag iosDefaultGatewayDiag iosRoutingTableDiag iosDnsResolve iosHttpDiagnostic; do
@@ -116,16 +138,30 @@ jobs:
 
       - name: Verify Info.plist Keys
         run: |
+          set -euo pipefail
+          # 5WHY: missing plist keys were reported as [MISS] but the step
+          # never exited non-zero.  App Store submission requires these
+          # keys; a missing key would be rejected during review.  Track
+          # failures with an accumulator and exit 1 if any key is absent.
           PLIST="build/net_diagnostics.app/Info.plist"
+          FAILED=0
           if [ -f "$PLIST" ]; then
             for key in NSLocationWhenInUseUsageDescription NSLocalNetworkUsageDescription CFBundleIdentifier CFBundleVersion; do
               if /usr/libexec/PlistBuddy -c "Print :$key" "$PLIST" 2>/dev/null | grep -q .; then
                 echo "[OK]   $key"
               else
-                echo "[MISS] $key"
+                echo "[MISS] $key"; FAILED=1
               fi
             done
+          else
+            echo "[MISS] Info.plist not found at $PLIST"
+            exit 1
           fi
+          if [ "$FAILED" -ne 0 ]; then
+            echo "ERROR: Missing required Info.plist keys (see [MISS] above)"
+            exit 1
+          fi
+          echo "[PASS] All required Info.plist keys present"
 
       - name: Verify bundle
         run: |
@@ -134,6 +170,9 @@ jobs:
 
       - name: Package IPA
         run: |
+          set -euo pipefail
+          # 5WHY: added pipefail — "find ... | head -1" masks find
+          # errors.  With pipefail, if find crashes, the step fails.
           APP_PATH="build/net_diagnostics.app"
           [ -d "$APP_PATH" ] || APP_PATH=$(find build -name "*.app" -type d | head -1)
           [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
@@ -300,14 +339,21 @@ jobs:
 
       - name: Build and archive iOS
         run: |
+          set -euo pipefail
+          # 5WHY: same pipefail issue as Verify Xcode build — the
+          # "xcodebuild ... 2>&1 | tail -100" pattern masks non-zero
+          # exit codes from xcodebuild because tail always exits 0.
+          # Use a temp log so the full exit code is captured.
           PROFILE_UUID="${{ steps.profile.outputs.profile_uuid }}"
+          XCB_LOG=$(mktemp)
+          set +e
           if [ -n "$PROFILE_UUID" ]; then
             xcodebuild archive -project build-ios/NetDiagnostic.xcodeproj -scheme net_diagnostics \
               -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' \
               -archivePath build-ios/NetDiagnostic.xcarchive \
               DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" CODE_SIGN_STYLE="Manual" \
               PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CODE_SIGN_IDENTITY="iPhone Distribution" \
-              -verbose 2>&1 | tail -100
+              -verbose >"$XCB_LOG" 2>&1
           else
             xcodebuild archive -project build-ios/NetDiagnostic.xcodeproj -scheme net_diagnostics \
               -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' \
@@ -316,16 +362,42 @@ jobs:
               -allowProvisioningUpdates \
               -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
               -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
-              -authenticationKeyPath "$ASC_KEYFILE" -verbose 2>&1 | tail -100
+              -authenticationKeyPath "$ASC_KEYFILE" -verbose >"$XCB_LOG" 2>&1
           fi
-          [ -d build-ios/NetDiagnostic.xcarchive ] || { echo "[X] Archive failed"; exit 1; }
+          XCB_EXIT=$?
+          set -e
+          tail -100 "$XCB_LOG"
+          if [ $XCB_EXIT -ne 0 ]; then
+            echo "[X] Archive failed (exit $XCB_EXIT)"
+            rm -f "$XCB_LOG"
+            exit 1
+          fi
+          rm -f "$XCB_LOG"
+          [ -d build-ios/NetDiagnostic.xcarchive ] || { echo "[X] Archive failed: xcarchive not found"; exit 1; }
           echo "[OK] iOS archive created"
 
       - name: Package iOS IPA
         run: |
-          APP_PATH="build-ios/NetDiagnostic.xcarchive/Products/Applications/net_diagnostics.app"
-          [ -d "$APP_PATH" ] || APP_PATH=$(find build-ios/NetDiagnostic.xcarchive -name "*.app" -type d | head -1)
-          [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
+          set -euo pipefail
+          # 5WHY: the xcarchive Products directory uses the Xcode PRODUCT_NAME
+          # (set to "NetDiagnostics" via CMake XCODE_ATTRIBUTE_PRODUCT_NAME),
+          # NOT the scheme/target name ("net_diagnostics").  Using the
+          # Ninja-build name caused "[X] No .app found" after a successful
+          # archive.  Try the PRODUCT_NAME path first, fall back to scheme name.
+          XCARCHIVE="build-ios/NetDiagnostic.xcarchive"
+          # PRODUCT_NAME = NetDiagnostics (see netdiag-target.cmake line 278)
+          APP_PATH="${XCARCHIVE}/Products/Applications/NetDiagnostics.app"
+          if [ ! -d "$APP_PATH" ]; then
+            # Fallback: scheme name (older CMake configs without PRODUCT_NAME override)
+            APP_PATH="${XCARCHIVE}/Products/Applications/net_diagnostics.app"
+          fi
+          if [ ! -d "$APP_PATH" ]; then
+            # Last-resort: search (but log a warning)
+            echo "[WARN] Expected .app not found at standard paths; searching..."
+            APP_PATH=$(find "$XCARCHIVE" -name "*.app" -type d | head -1)
+          fi
+          [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ] || { echo "[X] No .app found in xcarchive"; exit 1; }
+          echo "[OK] Using: $APP_PATH"
           mkdir -p Payload; cp -R "$APP_PATH" Payload/
           zip -r NetDiagnostics-iOS.ipa Payload; ls -lh NetDiagnostics-iOS.ipa
 

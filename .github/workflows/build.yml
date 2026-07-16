@@ -69,7 +69,8 @@ jobs:
             qt6-tools-dev-tools \
             libcurl4-openssl-dev \
             libgl1-mesa-dev libglu1-mesa-dev \
-            libxkbcommon-dev libxcb-cursor-dev
+            libxkbcommon-dev libxcb-cursor-dev \
+            libfuse2
 
       # ── Debug build ────────────────────────────────────────────────
       - name: Configure (debug)
@@ -1002,7 +1003,10 @@ jobs:
       - macos-arm64
       - android-x86_64
       - android-arm64
-    if: (!failure()) && (!cancelled())
+    # 5WHY: on pull_request the release job would create/overwrite real GitHub
+    # Releases (e.g. v0.0.1 when no tags exist).  Gating on event_name ensures
+    # releases only fire on manual workflow_dispatch, never on PR validation.
+    if: (!failure()) && (!cancelled()) && (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
