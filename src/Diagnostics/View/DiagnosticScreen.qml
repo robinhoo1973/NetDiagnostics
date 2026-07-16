@@ -116,13 +116,16 @@ Item {
             // 5WHY: 48px was too short — 42dp share buttons + 4dp padding =
             // 50dp minimum. 54px provides comfortable clearance.
             Layout.fillWidth: true
-            implicitHeight: page.wide ? (appState.runStatus === 2 ? 54 : 36) : 56
+            // 5WHY: 54px was too short when share buttons are visible
+            // (42dp share icons + padding need ~64px). Bumped to 64px
+            // to prevent results from covering the header on narrow screens.
+            implicitHeight: page.wide ? (appState.runStatus === 2 ? 64 : 36) : 56
             color: ThemeEngine.colors.navBar
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
             ColumnLayout {
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
                 spacing: 2
-                // Row 1 — status label + progress count (+ badges inline on desktop)
+                // Row 1 — status label + count + badges + share buttons inline
                 RowLayout {
                     spacing: 8
                     AppIcon {
@@ -133,15 +136,11 @@ Item {
                         RotationAnimation on rotation {
                             running: appState.runStatus === 1
                             from: 0; to: 360; duration: 1000; loops: Animation.Infinite
-                            // 5WHY: When the animation stops, rotation stays at the last angle
-                            // (e.g. 247°), leaving the diagnostic icon skewed. Reset to 0.
                             onStopped: statusSpinner.rotation = 0
                         }
                     }
                     Item { width: 4 }
                     Label {
-                        // 5WHY: Was mapping Error(4)→Tr.cancelled and Cancelled(3)→Tr.results.
-                        // Now correctly shows all 5 states: Running/Complete/Cancelled/Error/Idle.
                         text: appState.runStatus === 1 ? Tr.runningDots :
                               appState.runStatus === 2 ? Tr.complete :
                               appState.runStatus === 3 ? Tr.cancelled :
@@ -155,11 +154,19 @@ Item {
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
                         color: ThemeEngine.cyan
                     }
+                    // 5 status badges inline — desktop only
+                    RowLayout {
+                        spacing: 4; visible: page.wide && appState.totalCompleted > 0
+                        RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen  } Label { text: ("  " + __aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 10; color: ThemeEngine.accentBlue } Label { text: ("  " + __aggInfo).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow } Label { text: ("  " + __aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed    } Label { text: ("  " + __aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 10; color: ThemeEngine.skipGray   } Label { text: ("  " + __aggSkip).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
+                    }
                     Item { Layout.fillWidth: true }
-                    // Share buttons — icon-only, matching Dashboard preview overlay size
+                    // Share buttons — far right, same size as report preview popup
                     RowLayout {
                         spacing: 6; visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                        // PDF Share — 42dp container, 24dp icon (matching PreviewShareBtn)
                         Rectangle {
                             implicitWidth: 42; implicitHeight: 42; radius: 8
                             opacity: appState.isPremium ? 1.0 : 0.4
@@ -169,7 +176,6 @@ Item {
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
                             Accessible.name: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
                         }
-                        // HTML Share
                         Rectangle {
                             implicitWidth: 42; implicitHeight: 42; radius: 8
                             opacity: appState.isPremium ? 1.0 : 0.4
@@ -179,16 +185,6 @@ Item {
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
                             Accessible.name: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
                         }
-                    }
-                    // 5 status badges inline — desktop only
-                    RowLayout {
-                        spacing: 4; visible: page.wide && appState.totalCompleted > 0
-                        // Inline StatusBadge (same shape as DiagGroupPanel.StatusBadge)
-                        RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen  } Label { text: ("  " + __aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 10; color: ThemeEngine.accentBlue } Label { text: ("  " + __aggInfo).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow } Label { text: ("  " + __aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed    } Label { text: ("  " + __aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 10; color: ThemeEngine.skipGray   } Label { text: ("  " + __aggSkip).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
                     }
                 }
                 // Row 2 — 5 status badges on their own line (phone portrait only)

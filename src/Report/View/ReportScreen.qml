@@ -504,7 +504,7 @@ Item {
             anchors.centerIn: parent; spacing: 6
             AppIcon {
                 visible: pbtn.iconName !== ""
-                name: pbtn.iconName; size: 16; color: pbtn.accent
+                name: pbtn.iconName; size: 20; color: pbtn.accent
             }
             Label {
                 text: pbtn.label + (pbtn.locked ? "  " + Tr.premiumBadge : "")
