@@ -53,7 +53,9 @@ QImage PlatformPdfRenderer::renderPage(int pageIndex, int width) const {
 
 void PlatformPdfRenderer::close() {
     @autoreleasepool {
-        if (d->doc) { [d->doc release]; d->doc = nil; }
+        // 5WHY: manual [d->doc release] is incompatible with ARC (modern
+        // Apple targets). Setting to nil releases under both ARC and non-ARC.
+        d->doc = nil;
         d->pages = 0;
         m_loaded = false;
     }

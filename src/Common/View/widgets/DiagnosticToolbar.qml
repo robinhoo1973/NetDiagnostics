@@ -262,7 +262,38 @@ Rectangle {
                         font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
                     function runOrCancel() {
                         if (appState.runStatus === 1) { appState.cancel() }
-                        else { if (appState.targetValidationError() !== "" || !appState.canRun()) return; appState.runDiagnostics() }
+                        else {
+                            // 5WHY: validation failure was silent — user clicks Run, nothing
+                            // happens, no feedback. Now checks error BEFORE calling canRun()
+                            // (which may have side effects) and shows a brief red flash on the
+                            // button border for error identification (WCAG 2.1 SC 3.3.1).
+                            var err = appState.targetValidationError()
+                            if (err !== "" || !appState.canRun()) {
+                                validationFlash.start()
+                                return
+                            }
+                            appState.runDiagnostics()
+                        }
+                    }
+                    Rectangle {
+                        id: flashOverlay
+                        anchors.fill: parent; radius: parent.radius
+                        color: "transparent"
+                        border { width: 3; color: "transparent" }
+                        opacity: 0
+                    }
+                    SequentialAnimation {
+                        id: validationFlash
+                        PropertyAction { target: flashOverlay; property: "border.color"; value: ThemeEngine.failRed }
+                        PropertyAction { target: flashOverlay; property: "opacity"; value: 0.8 }
+                        PauseAnimation { duration: 80 }
+                        PropertyAction { target: flashOverlay; property: "opacity"; value: 0 }
+                        PauseAnimation { duration: 80 }
+                        PropertyAction { target: flashOverlay; property: "border.color"; value: ThemeEngine.failRed }
+                        PropertyAction { target: flashOverlay; property: "opacity"; value: 0.8 }
+                        PauseAnimation { duration: 80 }
+                        PropertyAction { target: flashOverlay; property: "opacity"; value: 0 }
+                        PropertyAction { target: flashOverlay; property: "border.color"; value: "transparent" }
                     }
                     MouseArea { anchors.fill: parent
                         enabled: appState.runStatus === 1 || appState.canRun()

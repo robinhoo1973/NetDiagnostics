@@ -20,6 +20,11 @@ QtObject {
     // so QML can pass ThemeEngine.isDark to C++ report generation calls.
     readonly property bool isDark: mode !== litMode
 
+    // 5WHY: platform detection (Qt.platform.os === "ios" || Qt.platform.os === "android")
+    // was duplicated as local properties (isMobile/compact/_isMobile) in 9+ files.
+    // Centralize here so adding a new platform (wasm, tvOS) requires one edit.
+    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+
     // ── Palettes as JS objects (2 properties — NOT 46 QML properties) ──
     readonly property var lightPalette: ({
         surface:          "#F8FAFC", sidebar:    "#FFFFFF",
