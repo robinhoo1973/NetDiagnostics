@@ -529,24 +529,10 @@ DiagnosticResult speedTest(DiagId id) {
         : QStringLiteral("DISCONNECTED")));
     out.append(QString());
 
-    // === Phase 1: Detect country + load regional servers ===
+    // === Phase 1: Detect country ===
     SpeedTest st;
     QString country = SpeedTest::detectCountry(3000);
     out.append(QStringLiteral("Detected country: %1").arg(country == "XX" ? "Unknown" : country));
-
-    QVector<SpeedTest::Server> servers = st.serversForCountry(country);
-    out.append(QStringLiteral("Loaded %1 servers for region").arg(servers.size()));
-    // 5WHY: Country Unknown with China connectivity = likely GFW user.
-    // Log a hint so the user understands the server selection strategy.
-    // 5WHY: Log threshold (>= 3) is intentionally higher than the code
-    // threshold (>= 1 for chinaFirst).  connChina 1-2 could be a false
-    // positive for edge-of-network users (Tokyo/Seoul), so we still
-    // prioritize CN servers (unconditional prepend) but don't log a
-    // misleading "China sites reachable" message to avoid confusion.
-    if (country == QStringLiteral("XX") && connChina >= 3) {
-        out.append(QStringLiteral("  (GeoIP failed, but %1/%2 China sites reachable)").arg(connChina).arg(connChina + connGlobal));
-        out.append(QStringLiteral("  Using connectivity-guided server selection)"));
-    }
 
     // Timeout guard: if we've already spent >25s, skip speed measurement
     if (totalTimer.elapsed() > 25000) {
@@ -558,198 +544,139 @@ DiagnosticResult speedTest(DiagId id) {
         r.durationMs = totalTimer.elapsed(); return r;
     }
 
-    // === Phase 2: Select best server by HTTP latency (speedtest-cli style) ===
-    out.append(QStringLiteral("--- Server Selection (HTTP latency) -----------------------------"));
+    // === Phase 2: Build candidate pool (always includes ALL CN servers) ===
+    // 5WHY: TCP ping screening is useless — all CN servers show ~1-5ms
+    // TCP RTT with zero discrimination.  TCP connectivity != download
+    // capability (common on CN servers).  Now uses actual micro-downloads
+    // (100KB) as the sole screening signal.  Also: always merge ALL CN
+    // servers into the pool regardless of GeoIP — handles VPN users whose
+    // GeoIP says "US" but are physically in China.
+    // 5WHY: Country Unknown with China connectivity = likely GFW user.
+    if (country == QStringLiteral("XX") && connChina >= 3) {
+        out.append(QStringLiteral("  (GeoIP failed, but %1/%2 China sites reachable)").arg(connChina).arg(connChina + connGlobal));
+        out.append(QStringLiteral("  Using connectivity-guided server selection)"));
+    }
+
+    // Build candidate pool: CN always first, then region-specific, then global
+    QVector<SpeedTest::Server> candidates;
+    {
+        // Tier 1: ALL CN servers (26), always included — handles VPN misdetection
+        {
+            QVector<SpeedTest::Server> cnServers = st.serversForCountry(QStringLiteral("CN"));
+            candidates.append(cnServers);
+        }
+        // Tier 2: Region-specific servers from detected country (skip if CN, already added)
+        if (country != QStringLiteral("CN") && country != QStringLiteral("XX")) {
+            QVector<SpeedTest::Server> region = st.serversForCountry(country);
+            candidates.append(region);
+        }
+        // Tier 3: If Country Unknown, add curated global fallback
+        if (country == QStringLiteral("XX")) {
+            QVector<SpeedTest::Server> global = st.serversForCountry(QStringLiteral("XX"));
+            for (const auto& s : global) {
+                if (s.country != QStringLiteral("CN")) // avoid duplicate CN
+                    candidates.append(s);
+            }
+        }
+        // Shuffle within tiers for geographic diversity
+        {
+            std::random_device rd;
+            std::mt19937 g(rd());
+            std::shuffle(candidates.begin(), candidates.end(), g);
+        }
+        // Cap at 12 to keep screening under 30s (12 × 3s avg = 36s max)
+        if (candidates.size() > 12)
+            candidates.resize(12);
+    }
+    out.append(QStringLiteral("Candidate pool: %1 servers (%2 CN, country=%3)")
+        .arg(candidates.size())
+        .arg(candidates.isEmpty() ? 0 : std::count_if(candidates.begin(), candidates.end(), [](const SpeedTest::Server& s) { return s.country == QStringLiteral("CN"); }))
+        .arg(country));
+
+    // === Phase 3: Micro-download ranking (100KB, replaces TCP ping) ===
+    // 5WHY: 100KB micro-download simultaneously verifies reachability AND
+    // measures throughput — the only reliable screening signal.  TCP ping
+    // was removed: all servers showed ~1ms with no discrimination, and
+    // TCP connectivity had zero correlation with download capability.
+    out.append(QStringLiteral("--- Server Selection (100KB micro-download) --------------------------"));
     out.append(QString());
     out.append(QStringLiteral("  %1  %2  %3  %4")
         .arg(QStringLiteral("#").rightJustified(3, ' '))
         .arg(QStringLiteral("Sponsor").leftJustified(22, ' '))
         .arg(QStringLiteral("Server").leftJustified(17, ' '))
-        .arg(QStringLiteral("Latency").rightJustified(7, ' ')));
+        .arg(QStringLiteral("Throughput").rightJustified(10, ' ')));
     out.append(QStringLiteral("  %1  %2  %3  %4")
         .arg(QString(3, QChar('-')))
         .arg(QString(22, QChar('-')))
         .arg(QString(17, QChar('-')))
-        .arg(QString(7, QChar('-'))));
+        .arg(QString(10, QChar('-'))));
 
-    struct RankedServer { SpeedTest::Server* srv; int latency; };
-    QVector<RankedServer> ranked;
+    struct CandidateResult { SpeedTest::Server* srv; double mbps; int durationMs; };
+    QVector<CandidateResult> results;
 
-    // 5WHY: DRY — httpLatencyMs → tcpPingMs fallback.  Download capability
-    // is verified separately in the pre-validation phase (after ranking) to
-    // avoid adding 4s per server × 8 servers = 32s to the selection loop.
-    auto latencyProbe = [](SpeedTest::Server& s) -> int {
-        int lat = httpLatencyMs(s.url, 4000);
-        if (lat <= 0) lat = tcpPingMs(s.host, s.port);
-        return lat;
-    };
-
-    // Shuffle servers so geographic diversity gets tested, not just the first N
-    {
-        std::random_device rd;
-        std::mt19937 g(rd());
-        std::shuffle(servers.begin(), servers.end(), g);
-    }
-
-    int maxServers = qMin(8, (int)servers.size()); // 5WHY: was 12 — TCP
-    // fallback probes (2s DNS + 2s connect each) plus HTTP (4s) could total
-    // 100s+, triggering the 180s task watchdog. Reduced to 8 servers max.
-    for (auto& s : servers) {
-        if (ranked.size() >= maxServers) break;
-        if (totalTimer.elapsed() > 20000) break;
-        int lat = latencyProbe(s);
-        if (lat > 0) ranked.append({&s, lat});
-    }
-
-    // 5WHY: allServers must live as long as `ranked` because ranked stores
-    // pointers into its elements (RankedServer::srv).  If declared inside the
-    // `if (ranked.isEmpty())` scope, allServers is destroyed before std::sort
-    // and best-server dereferences at lines 491-520 — use-after-free.
-    QVector<SpeedTest::Server> allServers;
-
-    if (ranked.isEmpty()) {
-        // 5WHY: Curated fallback (8 servers) may all be unreachable from
-        // some regions. Try ALL servers as a last resort — 48+ servers
-        // gives much better odds of finding at least one reachable host.
-        allServers = st.allServers();
-        if (servers.size() < allServers.size()) {
-            out.append(QStringLiteral("  (curated servers unreachable, trying all %1 servers...)").arg(allServers.size()));
-            // 5WHY: Sequential iteration over allServers() biases toward
-            // the first country in the map (CN).  When Country=Unknown and the
-            // curated list failed, use geographic round-robin: take one server
-            // from each country, cycling through countries, so every region
-            // gets a fair chance before time runs out.
-            // Group servers by country for round-robin
-            QMap<QString, QVector<SpeedTest::Server*>> byCountry;
-            for (auto& s : allServers) byCountry[s.country].append(&s);
-            QStringList countries = byCountry.keys();
-            // 5WHY: When China is reachable but GeoIP failed, prioritize CN.
-            // Previously required connGlobal==0, but OpenDNS (port 53) often
-            // works through GFW while HTTP speed-test servers do not — a false
-            // negative that prevented CN prioritization.
-            // Threshold connChina >= 3: strong signal of being inside/near China
-            // (3+ of 4 Chinese test sites reachable).  Balanced against false
-            // positives for edge-of-network users (Tokyo, Seoul) where only
-            // 1-2 Chinese sites happen to be reachable.
-            // 5WHY: chinaFirst threshold was connChina >= 3 — too
-            // conservative. In Country Unknown (XX) scenarios, the download/
-            // upload phases can spend 480s timing out on unreachable GFW-
-            // blocked servers. connChina >= 1 is now sufficient: even 1
-            // reachable Chinese site (out of 4 tested) strongly suggests
-            // the user is inside/near China and should prefer CN servers.
-            // 5WHY: When Country is Unknown (XX), unconditionally prioritize
-            // CN servers in the allServers fallback so GFW users get at
-            // least one reachable server before the 20s guard expires.
-            // The chinaFirst flag controls the aggressive pre-seed loop
-            // (test 3 CN servers directly before round-robin); the
-            // unconditional prepend below handles the case where connChina
-            // == 0 (no Chinese site reachable but Country still Unknown —
-            // CN servers are still the best bet).
-            bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 1);
-            // Always prepend CN when Country is Unknown and CN servers exist.
-            // Log message varies: chinaFirst means connectivity confirmed;
-            // otherwise we're just hoping CN servers are reachable.
-            if (country == QStringLiteral("XX") && byCountry.contains(QStringLiteral("CN"))) {
-                countries.removeAll(QStringLiteral("CN"));
-                countries.prepend(QStringLiteral("CN"));
-                out.append(chinaFirst
-                    ? QStringLiteral("  (China connectivity detected, prioritizing CN servers)")
-                    : QStringLiteral("  (Country Unknown, prioritizing CN servers)"));
-            }
-            // 5WHY: round-robin across 15+ countries with maxAll=12 tested at
-            // most 1-2 CN servers (1 per cycle). When chinaFirst is true and
-            // the user is inside GFW, the single CN server picked in the first
-            // cycle might be down. Pre-seed: test up to 5 CN servers first,
-            // directly, before starting the geographic round-robin. This gives
-            // CN servers (26 available) a real chance before time runs out.
-            if (chinaFirst && byCountry.contains(QStringLiteral("CN"))) {
-                auto& cnServers = byCountry[QStringLiteral("CN")];
-                int cnToTest = qMin(3, (int)cnServers.size());
-                for (int i = 0; i < cnToTest && ranked.size() < 8; i++) {
-                    if (totalTimer.elapsed() > 20000) break;
-                    SpeedTest::Server* s = cnServers.takeFirst();
-                    int lat = latencyProbe(*s);
-                    if (lat > 0) ranked.append({s, lat});
-                }
-                if (cnServers.isEmpty())
-                    countries.removeAll(QStringLiteral("CN"));
-            }
-            int maxAll = qMin(8, (int)allServers.size());
-            int countryIdx = 0;
-            while (ranked.size() < maxAll && !countries.isEmpty()) {
-                if (totalTimer.elapsed() > 20000) break;
-                QString cc2 = countries[countryIdx % countries.size()];
-                auto& srvList = byCountry[cc2];
-                if (srvList.isEmpty()) {
-                    countries.removeAt(countryIdx % countries.size());
-                    continue;
-                }
-                SpeedTest::Server* s = srvList.takeFirst();
-                int lat = latencyProbe(*s);
-                if (lat > 0) ranked.append({s, lat});
-                countryIdx++;
-            }
+    for (auto& s : candidates) {
+        if (totalTimer.elapsed() > 55000) break; // 55s wall-clock guard
+        QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
+        auto res = httpDownload(probeUrl, 100000, 6000);
+        if (res.ok && res.mbps > 0.01) {
+            results.append({&s, res.mbps, res.durationMs});
+            out.append(QStringLiteral("  %1  %2  %3  %4")
+                .arg(results.size(), 3)
+                .arg(s.sponsor.leftJustified(22, ' '))
+                .arg(s.name.leftJustified(17, ' '))
+                .arg(QStringLiteral("%1 Mbit/s").arg(res.mbps, 0, 'f', 2).rightJustified(10, ' ')));
+            if (results.size() >= 8) break; // enough candidates
         }
     }
-    if (ranked.isEmpty()) {
-        out.append(QStringLiteral("  (no reachable servers)"));
+
+    if (results.isEmpty()) {
+        out.append(QStringLiteral("  (no servers passed micro-download screening)"));
         out.append(QString());
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected -- no speed test servers reachable")
+        r.summary = hasConnectivity ? QStringLiteral("Connected -- no servers passed 100KB download")
                                     : QStringLiteral("No internet connectivity");
         r.durationMs = totalTimer.elapsed(); return r;
     }
 
-    // Sort by HTTP/TCP latency ascending — fastest first
-    std::sort(ranked.begin(), ranked.end(),
-              [](const RankedServer& a, const RankedServer& b) { return a.latency < b.latency; });
+    // Rank by throughput (descending)
+    std::sort(results.begin(), results.end(),
+              [](const CandidateResult& a, const CandidateResult& b) { return a.mbps > b.mbps; });
 
-    // 5WHY: ranked servers passed latency probe but may still fail on actual
-    // downloads (TCP connectivity ≠ HTTP download capability).  Pre-validate
-    // the top-ranked server with a 250KB download.  If it fails, remove it
-    // and try the next.  Loop up to 3 failures to avoid burning the time
-    // budget on servers that can't serve content.
-    // 5WHY: sort MUST precede pre-validation — pre-val inspects ranked[0]
-    // which is only the true minimum-latency server AFTER sorting.
-    {
-        int removed = 0;
-        while (removed < 3 && !ranked.isEmpty()) {
-            auto& top = ranked[0];
-            QString valUrl = QStringLiteral("%1/download?size=%2").arg(top.srv->url).arg(250000);
-            auto valRes = httpDownload(valUrl, 250000, 6000);
-            if (valRes.ok && valRes.mbps >= 0.01) break; // top server works
-            out.append(QStringLiteral("  (server %1 failed download validation)").arg(top.srv->sponsor));
-            ranked.removeFirst();
-            removed++;
+    // === Phase 4: Pre-validation (250KB on top 2) ===
+    // 5WHY: 100KB proves basic reachability but some servers accept small
+    // downloads and fail on larger ones.  250KB pre-validation on the top-2
+    // candidates catches this.
+    SpeedTest::Server* best = nullptr;
+    double bestMbps = 0;
+    for (int i = 0; i < qMin(2, (int)results.size()); i++) {
+        auto& cr = results[i];
+        QString valUrl = QStringLiteral("%1/download?size=%2").arg(cr.srv->url).arg(250000);
+        auto valRes = httpDownload(valUrl, 250000, 8000);
+        if (valRes.ok && valRes.mbps > 0.01) {
+            best = cr.srv;
+            bestMbps = cr.mbps; // use the 100KB screening mbps as reference
+            break;
         }
-        if (ranked.isEmpty()) {
-            r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-            r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-            r.summary = QStringLiteral("Connected -- all servers failed download validation");
-            r.durationMs = totalTimer.elapsed(); return r;
-        }
+        out.append(QStringLiteral("  (server %1 failed 250KB validation)").arg(cr.srv->sponsor));
     }
 
-    for (int i = 0; i < ranked.size(); i++) {
-        auto& rs = ranked[i];
-        out.append(QStringLiteral("  %1  %2  %3  %4")
-            .arg(i + 1, 3)
-            .arg(rs.srv->sponsor.leftJustified(22, ' '))
-            .arg(rs.srv->name.leftJustified(17, ' '))
-            .arg(QStringLiteral("%1 ms").arg(rs.latency).rightJustified(7, ' ')));
+    if (!best) {
+        out.append(QString());
+        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
+        r.summary = QStringLiteral("Connected -- all top servers failed pre-validation");
+        r.durationMs = totalTimer.elapsed(); return r;
     }
-
-    SpeedTest::Server* best = ranked[0].srv;
-    int bestLatency = ranked[0].latency;
 
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
-    out.append(QStringLiteral("  Selected: %1 (%2) -- %3 ms")
-        .arg(best->sponsor, best->name).arg(bestLatency));
+    out.append(QStringLiteral("  Selected: %1 (%2, %3) -- %4 Mbit/s (100KB)")
+        .arg(best->sponsor, best->name, best->country)
+        .arg(bestMbps, 0, 'f', 2));
     out.append(QString());
 
-    // === Phase 3: Download test (with server fallback) ===
+    // === Phase 5: Download test (with server fallback) ===
     out.append(QString());
     out.append(QStringLiteral("--- Download Test ------------------------------------------------"));
     out.append(QString());
@@ -837,7 +764,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(dlSpeed, 0, 'f', 2)
         .arg(dlResults.size() >= 5 ? QStringLiteral("  (avg of top %1)").arg(qMin(5, (int)dlResults.size())) : QString()));
 
-    // === Phase 4: Upload test ===
+    // === Phase 6: Upload test ===
     out.append(QString());
     out.append(QStringLiteral("--- Upload Test --------------------------------------------------"));
     out.append(QString());
