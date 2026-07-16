@@ -575,22 +575,12 @@ DiagnosticResult speedTest(DiagId id) {
     struct RankedServer { SpeedTest::Server* srv; int latency; };
     QVector<RankedServer> ranked;
 
-    // 5WHY: DRY — httpLatencyMs → tcpPingMs → download cap check.
-    // httpLatencyMs probes /latency.txt (Ookla-specific, 404 on most CN
-    // servers). tcpPingMs is the TCP fallback. But TCP connectivity ≠
-    // download capability: many servers accept TCP on port 8080/80 but
-    // don't serve /download?size=N.  Now does a quick 100KB micro-download
-    // as the final gate: if the server can't serve downloads, skip it
-    // entirely rather than ranking it on false TCP latency.
+    // 5WHY: DRY — httpLatencyMs → tcpPingMs fallback.  Download capability
+    // is verified separately in the pre-validation phase (after ranking) to
+    // avoid adding 4s per server × 8 servers = 32s to the selection loop.
     auto latencyProbe = [](SpeedTest::Server& s) -> int {
         int lat = httpLatencyMs(s.url, 4000);
         if (lat <= 0) lat = tcpPingMs(s.host, s.port);
-        if (lat > 0) {
-            // Quick download capability check (100KB, 4s timeout)
-            QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
-            auto res = httpDownload(probeUrl, 100000, 4000);
-            if (!res.ok || res.mbps < 0.01) return -1; // can't serve downloads
-        }
         return lat;
     };
 
@@ -711,29 +701,35 @@ DiagnosticResult speedTest(DiagId id) {
         r.durationMs = totalTimer.elapsed(); return r;
     }
 
-    // 5WHY: ranked servers passed TCP ping + 100KB probe but may still
-    // fail on larger downloads.  Remove the top server if it fails the
-    // first download tier — gives the next-best server a chance.
-    // Pre-validate: quick 250KB download on the top-ranked server only.
-    {
-        auto& top = ranked[0];
-        QString valUrl = QStringLiteral("%1/download?size=%2").arg(top.srv->url).arg(250000);
-        auto valRes = httpDownload(valUrl, 250000, 6000);
-        if (!valRes.ok || valRes.mbps < 0.01) {
-            out.append(QStringLiteral("  (top server %1 failed pre-validation, removed)").arg(top.srv->sponsor));
-            ranked.removeFirst();
-            if (ranked.isEmpty()) {
-                r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-                r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-                r.summary = QStringLiteral("Connected -- all servers failed download validation");
-                r.durationMs = totalTimer.elapsed(); return r;
-            }
-        }
-    }
-
-    // Sort by HTTP latency ascending -- fastest first
+    // Sort by HTTP/TCP latency ascending — fastest first
     std::sort(ranked.begin(), ranked.end(),
               [](const RankedServer& a, const RankedServer& b) { return a.latency < b.latency; });
+
+    // 5WHY: ranked servers passed latency probe but may still fail on actual
+    // downloads (TCP connectivity ≠ HTTP download capability).  Pre-validate
+    // the top-ranked server with a 250KB download.  If it fails, remove it
+    // and try the next.  Loop up to 3 failures to avoid burning the time
+    // budget on servers that can't serve content.
+    // 5WHY: sort MUST precede pre-validation — pre-val inspects ranked[0]
+    // which is only the true minimum-latency server AFTER sorting.
+    {
+        int removed = 0;
+        while (removed < 3 && !ranked.isEmpty()) {
+            auto& top = ranked[0];
+            QString valUrl = QStringLiteral("%1/download?size=%2").arg(top.srv->url).arg(250000);
+            auto valRes = httpDownload(valUrl, 250000, 6000);
+            if (valRes.ok && valRes.mbps >= 0.01) break; // top server works
+            out.append(QStringLiteral("  (server %1 failed download validation)").arg(top.srv->sponsor));
+            ranked.removeFirst();
+            removed++;
+        }
+        if (ranked.isEmpty()) {
+            r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+            r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
+            r.summary = QStringLiteral("Connected -- all servers failed download validation");
+            r.durationMs = totalTimer.elapsed(); return r;
+        }
+    }
 
     for (int i = 0; i < ranked.size(); i++) {
         auto& rs = ranked[i];
