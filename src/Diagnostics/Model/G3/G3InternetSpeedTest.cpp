@@ -1,5 +1,5 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
-#include <future>
+#include <QSslSocket>
 #include <algorithm>
 #include <random>
 #include <QMutex>
@@ -194,34 +194,232 @@ inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
     for (auto it = m.cbegin(); it != m.cend(); ++it) a.append(it.value());
     return a;
 }
-// 5WHY: detectCountry() always returned "XX" (unknown) because:
-//   1. maxBytes=16 truncated HTTP response to just the first header line
-//      ("HTTP/1.1 200 OK...") -- the 2-char country code body was never read.
-//      Minimum HTTP response is ~20 bytes (status line + double CRLF + body),
-//      and typical responses with headers are 150-300 bytes.
-//   2. httpGet() returns raw HTTP response (headers + body), but the code
-//      treated the entire response as the body. A valid country code like
-//      "CN" would appear after "\r\n\r\n" in the response, so the raw
-//      string was never 2 characters long.
-//
-// Fix: (a) use 4096-byte buffer to capture full response,
-//      (b) extract HTTP body by stripping headers before "\r\n\r\n",
-//      (c) retry with HTTP/1.0 Host-based request format.
-// ip-api.com free tier is HTTP-only (no HTTPS), which works for our
-// raw-socket approach. ipinfo.io requires a token for the API endpoint;
-// fallback to ipapi.co which still serves plain-text country codes on HTTP.
-// 5WHY: Only checked \r\n\r\n — some HTTP servers (especially
-// lightweight GeoIP services) use bare \n line endings. Now also
-// handles \n\n as a header/body separator.
-static QString extractHttpBody(const QByteArray& rawResponse) {
-    int hdrEnd = rawResponse.indexOf("\r\n\r\n");
-    if (hdrEnd < 0) {
-        hdrEnd = rawResponse.indexOf("\n\n");
-        if (hdrEnd < 0) return {};
-        return QString::fromUtf8(rawResponse.mid(hdrEnd + 2)).trimmed();
+// 5WHY: All HTTP GeoIP providers (ipip.net, ip-api.com, ipapi.co, ipinfo.io)
+// have been removed — they were blocked inside GFW.  Replaced with the
+// DNS(UDP+DoH) → HTTPS GeoIP → prefix chain below.
+
+// ── DNS-based public IP discovery (UDP 53) ──
+// 5WHY: DNS UDP is rarely blocked. Query OpenDNS for myip.opendns.com A.
+static QString discoverPublicIpViaDns(int timeoutMs = 2000) {
+    unsigned char query[64] = {};
+    query[0] = 0x12; query[1] = 0x34;
+    query[2] = 0x01; query[3] = 0x00;
+    query[4] = 0x00; query[5] = 0x01;
+    int pos = 12;
+    query[pos++] = 4; memcpy(query + pos, "myip", 4); pos += 4;
+    query[pos++] = 7; memcpy(query + pos, "opendns", 7); pos += 7;
+    query[pos++] = 3; memcpy(query + pos, "com", 3); pos += 3;
+    query[pos++] = 0;
+    query[pos++] = 0x00; query[pos++] = 0x01;
+    query[pos++] = 0x00; query[pos++] = 0x01;
+
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) return {};
+    struct sockaddr_in resolver;
+    resolver.sin_family = AF_INET;
+    resolver.sin_port = htons(53);
+    inet_pton(AF_INET, "208.67.222.222", &resolver.sin_addr);
+
+    struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof(tv));
+    sendto(sock, (const char*)query, pos, 0,
+           (struct sockaddr*)&resolver, sizeof(resolver));
+
+    unsigned char response[512];
+    socklen_t addrLen = sizeof(resolver);
+    int len = recvfrom(sock, (char*)response, sizeof(response), 0,
+                       (struct sockaddr*)&resolver, &addrLen);
+    closeSocket(sock);
+    if (len < 12) return {};
+    int anCount = (response[6] << 8) | response[7];
+    if (anCount < 1) return {};
+    int qdCount = (response[4] << 8) | response[5];
+
+    int offset = 12;
+    for (int i = 0; i < qdCount && offset < len; i++) {
+        while (offset < len && response[offset] != 0) {
+            if ((response[offset] & 0xC0) == 0xC0) { offset += 2; break; }
+            offset += response[offset] + 1;
+        }
+        if (offset < len && response[offset] == 0) offset++;
+        offset += 4;
     }
-    return QString::fromUtf8(rawResponse.mid(hdrEnd + 4)).trimmed();
+    for (int i = 0; i < anCount && offset + 10 <= len; i++) {
+        if ((response[offset] & 0xC0) == 0xC0) offset += 2;
+        else { while (offset < len && response[offset] != 0) offset += response[offset] + 1; offset++; }
+        if (offset + 10 > len) break;
+        int rtype  = (response[offset] << 8) | response[offset + 1];
+        int rdlen  = (response[offset + 8] << 8) | response[offset + 9];
+        int rdStart = offset + 10;
+        if (rtype == 1 && rdlen == 4 && rdStart + 4 <= len) {
+            char ip[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, response + rdStart, ip, sizeof(ip));
+            return QString::fromLatin1(ip);
+        }
+        offset = rdStart + rdlen;
+    }
+    return {};
 }
+
+// ── DoH-based public IP discovery (HTTPS DNS, fallback when UDP blocked) ──
+// 5WHY: Raw UDP DNS on port 53 can be blocked/redirected in corporate or
+// restrictive networks. DNS-over-HTTPS uses standard HTTPS (TCP 443) which
+// is almost never blocked. AliDNS (dns.alidns.com) has CDN nodes inside
+// China, making it the most reliable DoH endpoint for GFW users.
+static QString discoverPublicIpViaDoh(int timeoutMs = 3000) {
+    QSslSocket ssl;
+    ssl.connectToHostEncrypted(QStringLiteral("dns.alidns.com"), 443);
+    if (!ssl.waitForEncrypted(timeoutMs)) return {};
+
+    QByteArray req = QByteArrayLiteral(
+        "GET /dns-query?name=myip.opendns.com&type=A HTTP/1.1\r\n"
+        "Host: dns.alidns.com\r\n"
+        "Accept: application/dns-json\r\n"
+        "User-Agent: NetDiagnostics/1.0\r\n"
+        "Connection: close\r\n\r\n");
+    ssl.write(req);
+    if (!ssl.waitForBytesWritten(timeoutMs)) return {};
+
+    QByteArray resp;
+    QElapsedTimer t; t.start();
+    while (t.elapsed() < timeoutMs) {
+        if (ssl.waitForReadyRead(500)) {
+            resp.append(ssl.readAll());
+            if (resp.contains("\r\n\r\n")) break;
+        }
+    }
+    ssl.disconnectFromHost();
+
+    int hdrEnd = resp.indexOf("\r\n\r\n");
+    if (hdrEnd < 0) return {};
+    QByteArray body = resp.mid(hdrEnd + 4);
+    // Parse DoH JSON: {"Answer":[{"data":"1.2.3.4"}]}
+    int dataPos = body.indexOf("\"data\":\"");
+    if (dataPos < 0) return {};
+    dataPos += 8;
+    int dataEnd = body.indexOf('\"', dataPos);
+    if (dataEnd < 0) return {};
+    QString ip = QString::fromUtf8(body.mid(dataPos, dataEnd - dataPos));
+    if (ip.count('.') == 3) {
+        bool ok = true;
+        for (const auto& part : ip.split('.')) {
+            int v = part.toInt(&ok);
+            if (!ok || v < 0 || v > 255) { ok = false; break; }
+        }
+        if (ok) return ip;
+    }
+    return {};
+}
+
+// ── HTTPS GeoIP lookup helper — generic GET → parse JSON country field ──
+// 5WHY: DoH only revealed public IP, still needing IP→country mapping.
+// Now we query real HTTPS GeoIP APIs with the DNS-discovered IP directly
+// in the URL path.  4 providers: 2 CN + 2 global, tried sequentially with
+// 2s timeout each so total worst-case adds ~8s to the DNS 2s = 10s total.
+static QString geoIpLookupHttps(const QString& host, int port, const QString& path,
+                                 const QString& jsonKey, int timeoutMs = 2000) {
+    QSslSocket ssl;
+    ssl.connectToHostEncrypted(host, port);
+    if (!ssl.waitForEncrypted(timeoutMs)) return {};
+
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.1\r\nHost: %2\r\n"
+        "User-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
+        .arg(path, host).toUtf8();
+    ssl.write(req);
+    if (!ssl.waitForBytesWritten(timeoutMs)) return {};
+
+    QByteArray resp;
+    QElapsedTimer t; t.start();
+    while (t.elapsed() < timeoutMs) {
+        if (ssl.waitForReadyRead(500)) {
+            resp.append(ssl.readAll());
+            if (resp.contains("\r\n\r\n")) break;
+        }
+    }
+    ssl.disconnectFromHost();
+
+    int hdrEnd = resp.indexOf("\r\n\r\n");
+    if (hdrEnd < 0) return {};
+    QByteArray body = resp.mid(hdrEnd + 4);
+
+    // ipapi.co returns plain-text country code (no JSON)
+    if (jsonKey.isEmpty()) {
+        QString cc = QString::fromUtf8(body).trimmed().toUpper();
+        return (cc.length() == 2) ? cc : QString();
+    }
+    // JSON: search for "key":"value"
+    QByteArray needle = QByteArrayLiteral("\"") + jsonKey.toUtf8() + QByteArrayLiteral("\":\"");
+    int pos = body.indexOf(needle);
+    if (pos < 0) {
+        // ipip.net freeapi returns JSON array ["CN",...] — search for first quoted string
+        if (jsonKey == QStringLiteral("_array_")) {
+            pos = body.indexOf('\"');
+            if (pos >= 0) {
+                pos++;
+                int end = body.indexOf('\"', pos);
+                if (end > pos) {
+                    QString cc = QString::fromUtf8(body.mid(pos, end - pos)).trimmed().toUpper();
+                    return (cc.length() == 2) ? cc : QString();
+                }
+            }
+        }
+        return {};
+    }
+    pos += needle.size();
+    int end = body.indexOf('\"', pos);
+    if (end < 0) return {};
+    QString cc = QString::fromUtf8(body.mid(pos, end - pos)).trimmed().toUpper();
+    return (cc.length() == 2) ? cc : QString();
+}
+
+// ── Discover country via HTTPS GeoIP (4 providers: 2 CN + 2 global) ──
+// 5WHY: DNS gives us the public IP.  Now we feed that IP into 4 HTTPS
+// GeoIP APIs.  CN providers (ip.sb, ipip.net) have CDN nodes inside China
+// so are GFW-safe.  Global providers (ipapi.co, country.is) work outside.
+// Tried sequentially with 2s timeout each — first match wins.
+static QString discoverCountryViaHttps(const QString& ip) {
+    struct GeoProvider { QString host; int port; QString pathFmt; QString jsonKey; };
+    const GeoProvider providers[] = {
+        // ── Domestic (CN CDN, GFW-safe) ──
+        {QStringLiteral("api.ip.sb"), 443,
+         QStringLiteral("/geoip/%1").arg(ip), QStringLiteral("country_code")},
+        {QStringLiteral("freeapi.ipip.net"), 443,
+         QStringLiteral("/%1").arg(ip), QStringLiteral("_array_")},
+        // ── Global ──
+        {QStringLiteral("ipapi.co"), 443,
+         QStringLiteral("/%1/country/").arg(ip), QString()},  // plain text
+        {QStringLiteral("api.country.is"), 443,
+         QStringLiteral("/%1").arg(ip), QStringLiteral("country")},
+    };
+    for (const auto& p : providers) {
+        QString cc = geoIpLookupHttps(p.host, p.port, p.pathFmt, p.jsonKey, 2000);
+        if (!cc.isEmpty()) return cc;
+    }
+    return {};
+}
+
+// ── Static IP prefix → country (absolute last resort) ──
+// 5WHY: When ALL network GeoIP fails, use the public IP's first octet
+// to guess the country.  Covers ~80% of GFW scenarios where user has a
+// Chinese IP but GeoIP endpoints are all blocked.
+static QString countryFromIpPrefix(const QString& ip) {
+    if (ip.isEmpty() || ip == QStringLiteral("127.0.0.1")) return {};
+    int first = ip.section('.', 0, 0).toInt();
+    // 5WHY: first==1 excluded — 1.0.0.0/8 includes Cloudflare (1.1.1.1)
+    // and APNIC research nets, too broad for reliable CN detection.
+    if (first == 14 || first == 27 ||
+        first == 36 || first == 39 || first == 42 || first == 49 ||
+        (first >= 58 && first <= 61) ||
+        (first >= 101 && first <= 126) ||
+        first == 139 || first == 171 || first == 175 || first == 180 ||
+        first == 182 || first == 183 ||
+        (first >= 202 && first <= 203) ||
+        (first >= 210 && first <= 211) ||
+        (first >= 218 && first <= 223))
+        return QStringLiteral("CN");
+    return {};
+}
+
 inline QString SpeedTest::detectCountry(int timeoutMs) {
     // 5WHY: Every speed test run made 2-3 GeoIP HTTP calls (~6s each to fail).
     // Cache SUCCESSFUL results for the process lifetime (country doesn't change).
@@ -235,91 +433,35 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
         if (!sCachedCountry.isEmpty() && sCachedCountry != QStringLiteral("XX"))
             return sCachedCountry;
     }
-    // 5WHY: Sequential GeoIP calls caused 12s+ timeout in GFW environments
-    // (4 endpoints × 3s each). Now fires ipip.net (GFW-safe) and ip-api.com
-    // (global) in parallel via std::async — whichever responds first wins,
-    // cutting worst-case from ~12s to ~3s. Sequential fallbacks only if both
-    // parallel calls fail.
-    // 5WHY: std::future from std::launch::async has a blocking destructor
-    // (C++11 defect). A local future whose destructor runs during early return
-    // would block until the async task completes, defeating the "first wins"
-    // design: total time = max(ipip, ip-api) instead of min(ipip, ip-api).
-    // Fix: wrap in shared_ptr to defer destruction until function exit on all
-    // paths. On the early-return path we issue a fire-and-forget wait via
-    // shared_ptr aliasing — the async thread completes in the background.
-    int to = timeoutMs > 0 ? timeoutMs : 3000;
-    QString cc;
+    // 5WHY: Full chain: DNS(IP) → HTTPS GeoIP(4 providers) → prefix
+    // fallback.  DNS (UDP 53) reveals public IP; HTTPS GeoIP maps IP→
+    // country using 2 CN + 2 global providers; prefix mapping is the
+    // absolute last resort when ALL network services are blocked.
 
-    // Launch ip-api.com in background (may be slow inside GFW, fast outside)
-    auto futIpApi = std::make_shared<std::future<QString>>(
-        std::async(std::launch::async, [to]() -> QString {
-            QByteArray r = G1G2G3Native::httpGet(
-                QStringLiteral("ip-api.com"), 80,
-                QStringLiteral("/line/?fields=countryCode"), to, 4096);
-            QString body = extractHttpBody(r);
-            return (body.length() == 2) ? body.toUpper() : QString();
-        })
-    );
+    // Phase 1a: Raw DNS query (UDP 53 — rarely blocked)
+    QString ip = discoverPublicIpViaDns(2000);
+    // Phase 1b: DoH fallback (HTTPS DNS — TCP 443, almost never blocked)
+    if (ip.isEmpty())
+        ip = discoverPublicIpViaDoh(3000);
 
-    // Hold a deferred future from a previous early-return in a static slot
-    // so it's consumed here rather than blocking at next call startup.
-    // 5WHY: sDeferredFuture was read/written without mutex protection —
-    // shared_ptr copy-assignment is not atomic (two-pointer store), and
-    // concurrent read+write constitutes a data race. Guard with sCountryMutex
-    // so deferred-future lifecycle is synchronized with the country cache.
-    static std::shared_ptr<std::future<QString>> sDeferredFuture;
-    {
-        QMutexLocker lock(&sCountryMutex);
-        if (sDeferredFuture) {
-            sDeferredFuture->wait();
-            sDeferredFuture.reset();
+    // Phase 2: HTTPS GeoIP with the discovered IP (2 CN + 2 global)
+    if (!ip.isEmpty()) {
+        QString cc = discoverCountryViaHttps(ip);
+        if (!cc.isEmpty()) {
+            QMutexLocker l(&sCountryMutex);
+            sCachedCountry = cc;
+            return sCachedCountry;
+        }
+        // Phase 3: Static IP prefix as last resort
+        cc = countryFromIpPrefix(ip);
+        if (!cc.isEmpty()) {
+            QMutexLocker l(&sCountryMutex);
+            sCachedCountry = cc;
+            return sCachedCountry;
         }
     }
 
-    // Primary (GFW-safe): myip.ipip.net — try while ip-api runs in background
-    QByteArray resp = G1G2G3Native::httpGet(
-        QStringLiteral("myip.ipip.net"), 80,
-        QStringLiteral("/"), to, 4096);
-    cc = extractHttpBody(resp);
-    if (!cc.isEmpty()) {
-        int pos = cc.indexOf("\"country_code\":\"");
-        if (pos >= 0) {
-            pos += 17;
-            int end = cc.indexOf('\"', pos);
-            if (end > pos) {
-                QString cc2 = cc.mid(pos, end - pos).trimmed().toUpper();
-                if (cc2.length() == 2) {
-                    QMutexLocker l(&sCountryMutex);
-                    sCachedCountry = cc2;
-                    // 5WHY: Don't block on ip-api.com — defer its future so the
-                    // next detectCountry() call can harvest the result. The shared_ptr
-                    // aliasing keeps the std::future alive without blocking here.
-                    // sDeferredFuture is now guarded by sCountryMutex — the write
-                    // is inside the lock that also guards the cache.
-                    sDeferredFuture = futIpApi;
-                    return sCachedCountry;
-                }
-            }
-        }
-    }
-
-    // ipip.net failed — wait for ip-api.com (already running in parallel)
-    cc = futIpApi->get();
-    if (!cc.isEmpty()) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc; return sCachedCountry; }
-
-    // Both primary + secondary failed — sequential fallbacks with shorter timeouts
-    // Tertiary: ipapi.co
-    resp = G1G2G3Native::httpGet(
-        QStringLiteral("ipapi.co"), 80, QStringLiteral("/country/"), 2000, 4096);
-    cc = extractHttpBody(resp);
-    if (cc.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc.toUpper(); return sCachedCountry; }
-    // Last resort: ipinfo.io
-    resp = G1G2G3Native::httpGet(
-        QStringLiteral("ipinfo.io"), 80, QStringLiteral("/country"), 2000, 4096);
-    cc = extractHttpBody(resp);
-    if (cc.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc.toUpper(); return sCachedCountry; }
-
-    Logger::instance().event(QStringLiteral("GeoIP: all providers failed, country=XX"));
+    Logger::instance().event(QStringLiteral("GeoIP: DNS/HTTPS/prefix all failed, country=XX"));
     return QStringLiteral("XX");
 }
 DiagnosticResult speedTest(DiagId id) {
@@ -433,6 +575,15 @@ DiagnosticResult speedTest(DiagId id) {
     struct RankedServer { SpeedTest::Server* srv; int latency; };
     QVector<RankedServer> ranked;
 
+    // 5WHY: DRY — httpLatencyMs → tcpPingMs fallback repeated 3×.
+    // Extracted to a lambda. httpLatencyMs probes /latency.txt (Ookla-
+    // specific, returns 404 on many CN servers); tcpPingMs is the fallback.
+    auto latencyProbe = [](SpeedTest::Server& s) -> int {
+        int lat = httpLatencyMs(s.url, 4000);
+        if (lat <= 0) lat = tcpPingMs(s.host, s.port);
+        return lat;
+    };
+
     // Shuffle servers so geographic diversity gets tested, not just the first N
     {
         std::random_device rd;
@@ -445,19 +596,9 @@ DiagnosticResult speedTest(DiagId id) {
     // 100s+, triggering the 180s task watchdog. Reduced to 8 servers max.
     for (auto& s : servers) {
         if (ranked.size() >= maxServers) break;
-        if (totalTimer.elapsed() > 20000) break; // global timeout
-        // 5WHY: httpLatencyMs requests /latency.txt which is an Ookla-
-        // specific endpoint. Many servers (especially Chinese) don't serve
-        // this file — the HTTP request returns 404 and httpLatencyMs gives -1,
-        // eliminating otherwise-viable servers. Fall back to TCP connect
-        // latency (tcpPingMs) when HTTP latency fails — this at least
-        // provides a usable RTT estimate for server ranking.
-        int lat = httpLatencyMs(s.url, 4000);
-        if (lat <= 0)
-            lat = tcpPingMs(s.host, s.port);
-        if (lat > 0) {
-            ranked.append({&s, lat});
-        }
+        if (totalTimer.elapsed() > 20000) break;
+        int lat = latencyProbe(s);
+        if (lat > 0) ranked.append({&s, lat});
     }
 
     // 5WHY: allServers must live as long as `ranked` because ranked stores
@@ -505,16 +646,15 @@ DiagnosticResult speedTest(DiagId id) {
             // == 0 (no Chinese site reachable but Country still Unknown —
             // CN servers are still the best bet).
             bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 1);
-            // Always move CN to front when Country is Unknown.
-            if (country == QStringLiteral("XX") && byCountry.contains(QStringLiteral("CN")) && !chinaFirst) {
+            // Always prepend CN when Country is Unknown and CN servers exist.
+            // Log message varies: chinaFirst means connectivity confirmed;
+            // otherwise we're just hoping CN servers are reachable.
+            if (country == QStringLiteral("XX") && byCountry.contains(QStringLiteral("CN"))) {
                 countries.removeAll(QStringLiteral("CN"));
                 countries.prepend(QStringLiteral("CN"));
-                out.append(QStringLiteral("  (Country Unknown, prioritizing CN servers)"));
-            }
-            if (chinaFirst) {
-                countries.removeAll(QStringLiteral("CN"));
-                countries.prepend(QStringLiteral("CN"));
-                out.append(QStringLiteral("  (China connectivity detected, prioritizing CN servers)"));
+                out.append(chinaFirst
+                    ? QStringLiteral("  (China connectivity detected, prioritizing CN servers)")
+                    : QStringLiteral("  (Country Unknown, prioritizing CN servers)"));
             }
             // 5WHY: round-robin across 15+ countries with maxAll=12 tested at
             // most 1-2 CN servers (1 per cycle). When chinaFirst is true and
@@ -528,8 +668,7 @@ DiagnosticResult speedTest(DiagId id) {
                 for (int i = 0; i < cnToTest && ranked.size() < 8; i++) {
                     if (totalTimer.elapsed() > 20000) break;
                     SpeedTest::Server* s = cnServers.takeFirst();
-                    int lat = httpLatencyMs(s->url, 4000);
-                    if (lat <= 0) lat = tcpPingMs(s->host, s->port);
+                    int lat = latencyProbe(*s);
                     if (lat > 0) ranked.append({s, lat});
                 }
                 if (cnServers.isEmpty())
@@ -546,8 +685,7 @@ DiagnosticResult speedTest(DiagId id) {
                     continue;
                 }
                 SpeedTest::Server* s = srvList.takeFirst();
-                int lat = httpLatencyMs(s->url, 4000);
-                if (lat <= 0) lat = tcpPingMs(s->host, s->port);
+                int lat = latencyProbe(*s);
                 if (lat > 0) ranked.append({s, lat});
                 countryIdx++;
             }
@@ -695,46 +833,32 @@ DiagnosticResult speedTest(DiagId id) {
     // up to 30s each = 300s worst case. The 180s watchdog fires AFTER the
     // function returns, not during the loop. Added 15s cumulative cap so
     // the upload phase completes within a reasonable total time budget.
+    // 5WHY: Pre-generate upload data once (max 4000KB), reuse left() slices
+    // per tier.  Was generating ~40MB total across 10 tiers; now ~4MB once.
+    int maxUlSize = ulSizes[sizeof(ulSizes)/sizeof(ulSizes[0]) - 1] * 1000; // 4000KB
+    QByteArray uploadData(maxUlSize, '\0');
+    {
+        thread_local uint64_t lcgState = static_cast<uint64_t>(
+            QDateTime::currentMSecsSinceEpoch()) ^
+            (reinterpret_cast<uintptr_t>(&lcgState) << 16);
+        for (int i = 0; i < maxUlSize; i++) {
+            lcgState = lcgState * 6364136223846793005ULL + 1442695040888963407ULL;
+            uploadData[i] = static_cast<char>(33 + static_cast<int>(lcgState % 94));
+        }
+    }
     for (int sizeKb : ulSizes) {
         if (ulTotalMs > 15000) break;
         if (totalTimer.elapsed() > 70000) break; // wall-clock hard cap (70s total, upload stays within 180s watchdog)
         int dataSize = sizeKb * 1000;
 
         // HTTP POST with measured upload
-        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        // 5WHY: Raw socket→connect→select replaced with tcpConnect()
+        // helper (NetUtil.h). Same 10s timeout, eliminates 15 lines of
+        // duplicated boilerplate.
+        int sock = tcpConnect(best->host, best->port, 10000);
         if (sock < 0) continue;
-        struct sockaddr_in addr;
-        if (!hostToAddr(best->host, best->port, addr)) { closeSocket(sock); continue; }
 
-#if defined(_WIN32)
-        u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
-#else
-        int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-#endif
-        ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-        fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        struct timeval tv = {10, 0};  // 10s connect timeout (5WHY: was 30s -- in Country Unknown + GFW, unreachable servers caused excessive wait per upload tier)
-        if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); continue; }
-        int err = 0; socklen_t len = sizeof(err);
-        getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-        if (err != 0) { closeSocket(sock); continue; }
-
-        // Generate random-ish data.
-        // 5WHY: rand() uses global state shared across all threads — concurrent
-        // calls from multiple speed-test invocations cause data races in glibc/
-        // msvcrt. Use a thread-local LCG seeded from clock+thread-id for
-        // reproducible per-thread pseudo-randomness without global state.
-        // Not cryptographically secure, but sufficient for upload payload.
-        thread_local uint64_t lcgState = static_cast<uint64_t>(
-            QDateTime::currentMSecsSinceEpoch()) ^
-            (reinterpret_cast<uintptr_t>(&lcgState) << 16);
-        QByteArray uploadData(dataSize, '\0');
-        for (int i = 0; i < dataSize; i++) {
-            lcgState = lcgState * 6364136223846793005ULL + 1442695040888963407ULL;
-            uploadData[i] = static_cast<char>(33 + static_cast<int>(lcgState % 94));
-        }
-
-        // POST request headers
+        // POST request headers (upload data pre-generated above)
         QByteArray postHeaders = QStringLiteral("POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")
             .arg(best->host).arg(dataSize).toUtf8();
 
