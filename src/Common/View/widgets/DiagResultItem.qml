@@ -13,6 +13,26 @@ Item {
     implicitHeight: visible ? 28 : 0
     signal detailClicked(var data)
 
+    // 5WHY: icon size 12 → 16 (M3 iconSm) for better status
+    // recognition at a glance.  Nested ternaries replaced with
+    // lookup table for readability and maintainability.
+    readonly property var _statusIcons: ({
+        0: ["badge-check",   ThemeEngine.passGreen],
+        1: ["badge-warning", ThemeEngine.warnYellow],
+        2: ["badge-close",   ThemeEngine.failRed],
+        3: ["badge-skip",    ThemeEngine.skipGray],
+        4: ["badge-error",   ThemeEngine.failRed],
+        5: ["badge-info",    ThemeEngine.infoBlue]
+    })
+    function _statusIcon(s) {
+        var entry = _statusIcons[s]
+        return entry ? entry[0] : "badge-skip"
+    }
+    function _statusColor(s) {
+        var entry = _statusIcons[s]
+        return entry ? entry[1] : ThemeEngine.skipGray
+    }
+
     // ── Pending item ──────────────────────────────────────────────────
     RowLayout {
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
@@ -44,10 +64,11 @@ Item {
         visible: !itemData.isPending; spacing: 8
         // 5WHY: Error(4) showed infoBlue (same as Info), not visually distinct.
         // Now Error→failRed, Info(5)→infoBlue, Skipped(3)→skipGray.
+        // Icon size 12 → 16 per M3 iconSm — doubles the visible area (64→256 px²)
+        // for significantly better status recognition at a glance.
         AppIcon {
-            name: { var s=itemData.status; if(s===0)return"badge-check"; if(s===2)return"badge-close"; if(s===1)return"badge-warning"; if(s===4)return"badge-error"; if(s===5)return"badge-info"; return"badge-skip" }
-            size: 12
-            color: { var s=itemData.status; return s===0?ThemeEngine.passGreen:(s===1?ThemeEngine.warnYellow:(s===2?ThemeEngine.failRed:(s===4?ThemeEngine.failRed:(s===3?ThemeEngine.skipGray:ThemeEngine.infoBlue)))) }
+            name: _statusIcon(itemData.status); size: 16
+            color: _statusColor(itemData.status)
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)

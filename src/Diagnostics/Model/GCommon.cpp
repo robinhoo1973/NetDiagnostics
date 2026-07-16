@@ -21,8 +21,12 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     if (err != 0) { closeSocket(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
+    // 5WHY: Host header omitted port number. Per RFC 7230 §5.4, the port
+    // SHOULD be included when non-default (i.e. ≠ 80).  Speed-test servers
+    // on port 8080 behind reverse proxies may route incorrectly without it.
+    QString hostHeader = (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
-        .arg(path, host).toUtf8();
+        .arg(path, hostHeader).toUtf8();
     int sent = 0;
     while (sent < req.size()) {
         auto n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
@@ -67,7 +71,11 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         if (recvTimer.elapsed() > 30000) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
         if (n > 0) {
-            response.append(buf, (int)n);
+            // 5WHY: recv() can return up to sizeof(buf) bytes, which may
+            // overshoot maxBytes by up to 8191 bytes. Truncate the append
+            // so the caller's maxBytes cap is actually respected.
+            int remain = maxBytes - response.size();
+            response.append(buf, qMin((int)n, remain));
         } else if (n == 0) {
             break; // orderly shutdown
         } else {
@@ -120,8 +128,12 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     if (err != 0) { closeSocket(sock); return r; }
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
+    // 5WHY: Host header omitted port — same bug that was fixed in httpGet()
+    // (see above). Speed-test servers on port 8080 behind reverse proxies
+    // may route incorrectly without the explicit port per RFC 7230 §5.4.
+    QString dlHostHeader = (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
-        .arg(path, host).toUtf8();
+        .arg(path, dlHostHeader).toUtf8();
     int reqSent = 0;
     while (reqSent < req.size()) {
         auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
