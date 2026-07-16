@@ -437,10 +437,12 @@ DiagnosticResult speedTest(DiagId id) {
         std::shuffle(servers.begin(), servers.end(), g);
     }
 
-    int maxServers = qMin(12, (int)servers.size()); // test up to 12 for better coverage
+    int maxServers = qMin(8, (int)servers.size()); // 5WHY: was 12 — TCP
+    // fallback probes (2s DNS + 2s connect each) plus HTTP (4s) could total
+    // 100s+, triggering the 180s task watchdog. Reduced to 8 servers max.
     for (auto& s : servers) {
         if (ranked.size() >= maxServers) break;
-        if (totalTimer.elapsed() > 25000) break; // global timeout
+        if (totalTimer.elapsed() > 20000) break; // global timeout
         // 5WHY: httpLatencyMs requests /latency.txt which is an Ookla-
         // specific endpoint. Many servers (especially Chinese) don't serve
         // this file — the HTTP request returns 404 and httpLatencyMs gives -1,
@@ -502,9 +504,9 @@ DiagnosticResult speedTest(DiagId id) {
             // CN servers (26 available) a real chance before time runs out.
             if (chinaFirst && byCountry.contains(QStringLiteral("CN"))) {
                 auto& cnServers = byCountry[QStringLiteral("CN")];
-                int cnToTest = qMin(5, (int)cnServers.size());
-                for (int i = 0; i < cnToTest && ranked.size() < 12; i++) {
-                    if (totalTimer.elapsed() > 25000) break;
+                int cnToTest = qMin(3, (int)cnServers.size());
+                for (int i = 0; i < cnToTest && ranked.size() < 8; i++) {
+                    if (totalTimer.elapsed() > 20000) break;
                     SpeedTest::Server* s = cnServers.takeFirst();
                     int lat = httpLatencyMs(s->url, 4000);
                     if (lat <= 0) lat = tcpPingMs(s->host, s->port);
@@ -513,10 +515,10 @@ DiagnosticResult speedTest(DiagId id) {
                 if (cnServers.isEmpty())
                     countries.removeAll(QStringLiteral("CN"));
             }
-            int maxAll = qMin(12, (int)allServers.size());
+            int maxAll = qMin(8, (int)allServers.size());
             int countryIdx = 0;
             while (ranked.size() < maxAll && !countries.isEmpty()) {
-                if (totalTimer.elapsed() > 25000) break;
+                if (totalTimer.elapsed() > 20000) break;
                 QString cc2 = countries[countryIdx % countries.size()];
                 auto& srvList = byCountry[cc2];
                 if (srvList.isEmpty()) {
