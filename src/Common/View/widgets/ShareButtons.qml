@@ -7,18 +7,17 @@ import "../theme"
 // ShareButtons — Reusable PDF/HTML share button pair
 //
 // Three visual modes:
-//   "compact"  — icon-only squares (48dp), 34dp icons, for Diagnostic header
+//   "compact"  — solid-color icon squares (48dp), 34dp white icons on accent bg
 //   "labeled"  — icon+text buttons (fillWidth), for Dashboard preview overlay
 //   "wide"     — icon+text buttons (fillWidth, 48dp height), for Report preview
 //
-// Color overrides let each page set accent colours appropriate to its theme:
+// Compact mode uses solid accent fill + white icon for high contrast
+// per WCAG 2.1 SC 1.4.11. Accent colors set by each page:
 //   - Diagnostic:  pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //   - Dashboard:   pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //   - Report:      pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //
-// Icons: uses file-pdf.svg / file-html.svg (not -sm variants).
-// At 34dp in a 48dp button (71% fill), the "PDF"/"HTML" text in the document
-// icon is legible without the simplified single-letter -sm variants.
+// Icons: uses file-pdf.svg / file-html.svg at 34dp (71% fill).
 // ══════════════════════════════════════════════════════════════════════════════
 
 RowLayout {
@@ -82,7 +81,11 @@ RowLayout {
         }
     }
 
-    // ── Compact: icon-only square (Diagnostic header) ───────────────────────
+    // ── Compact: icon-only solid button (Diagnostic header) ──────────
+    // 5WHY: subtle background (alpha 0.12) made icons look washed out
+    // and hard to distinguish.  Users could not tell PDF (cyan) from
+    // HTML (blue) at a glance.  Now uses solid accent fill with white
+    // icon — high contrast, instantly recognizable per WCAG 2.1 SC 1.4.11.
     Component {
         id: compactBtn
         Rectangle {
@@ -95,11 +98,11 @@ RowLayout {
             implicitWidth: shareRoot._btnHeight; implicitHeight: shareRoot._btnHeight
             radius: shareRoot._btnRadius
             opacity: locked ? 0.4 : 1.0
-            color: Qt.alpha(accent, 0.12)
-            border { width: 1; color: Qt.alpha(accent, 0.35) }
+            color: accent
             AppIcon {
                 anchors.centerIn: parent
-                name: parent.iconName; size: shareRoot._iconSize; color: parent.accent
+                name: parent.iconName; size: shareRoot._iconSize
+                color: "white"
             }
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor

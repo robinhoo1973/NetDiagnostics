@@ -441,7 +441,15 @@ DiagnosticResult speedTest(DiagId id) {
     for (auto& s : servers) {
         if (ranked.size() >= maxServers) break;
         if (totalTimer.elapsed() > 25000) break; // global timeout
-        int lat = httpLatencyMs(s.url, 5000);
+        // 5WHY: httpLatencyMs requests /latency.txt which is an Ookla-
+        // specific endpoint. Many servers (especially Chinese) don't serve
+        // this file — the HTTP request returns 404 and httpLatencyMs gives -1,
+        // eliminating otherwise-viable servers. Fall back to TCP connect
+        // latency (tcpPingMs) when HTTP latency fails — this at least
+        // provides a usable RTT estimate for server ranking.
+        int lat = httpLatencyMs(s.url, 4000);
+        if (lat <= 0)
+            lat = tcpPingMs(s.host, s.port);
         if (lat > 0) {
             ranked.append({&s, lat});
         }
@@ -498,7 +506,8 @@ DiagnosticResult speedTest(DiagId id) {
                 for (int i = 0; i < cnToTest && ranked.size() < 12; i++) {
                     if (totalTimer.elapsed() > 25000) break;
                     SpeedTest::Server* s = cnServers.takeFirst();
-                    int lat = httpLatencyMs(s->url, 5000);
+                    int lat = httpLatencyMs(s->url, 4000);
+                    if (lat <= 0) lat = tcpPingMs(s->host, s->port);
                     if (lat > 0) ranked.append({s, lat});
                 }
                 if (cnServers.isEmpty())
@@ -515,7 +524,8 @@ DiagnosticResult speedTest(DiagId id) {
                     continue;
                 }
                 SpeedTest::Server* s = srvList.takeFirst();
-                int lat = httpLatencyMs(s->url, 5000);
+                int lat = httpLatencyMs(s->url, 4000);
+                if (lat <= 0) lat = tcpPingMs(s->host, s->port);
                 if (lat > 0) ranked.append({s, lat});
                 countryIdx++;
             }
