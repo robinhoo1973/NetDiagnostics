@@ -118,11 +118,12 @@ Item {
         // grow to 70dp on all screen widths for proper content framing.
         Rectangle {
             Layout.fillWidth: true
-            // Share buttons visible → need 70dp (48dp buttons + 16dp margins + 6dp clearance)
-            // Running → compact 36dp (spinner + status, no badges/share)
-            // Other states (cancelled/error, no share) → 48dp narrow / 36dp wide
+            // Share visible + narrow → 78dp (2 rows: 48dp buttons + 24dp badges + margins)
+            // Share visible + wide   → 66dp (1 row: 48dp buttons + label inline)
+            // Running               → 36dp (spinner only)
+            // Other states           → 48dp narrow / 36dp wide
             readonly property bool _shareVisible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-            implicitHeight: _shareVisible ? 70
+            implicitHeight: _shareVisible ? (page.wide ? 66 : 78)
                           : (appState.runStatus === 1 ? 36
                           : (page.wide ? 36 : 48))
             Layout.minimumHeight: implicitHeight
@@ -133,9 +134,9 @@ Item {
             border { width: 1; color: ThemeEngine.colors.borderCard }
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
             ColumnLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 8; bottomMargin: 8 }
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
                 spacing: 2
-                // Row 1 — status label + count + badges + share buttons inline
+                // Row 1 — status label + count (all screens)
                 RowLayout {
                     spacing: 8
                     AppIcon {
@@ -164,13 +165,9 @@ Item {
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
                         color: ThemeEngine.cyan
                     }
-                    // 5 status badges inline — all screen sizes
+                    // Desktop: badges + share inline on Row 1
                     RowLayout {
-                        spacing: 4; visible: appState.totalCompleted > 0
-                        // 5WHY: (\"  \" + count).slice(-2) truncates counts >= 100 to
-                        // their last 2 digits (e.g. 150 → \"50\"). Use padStart for
-                        // zero-padding that preserves the full value.  Icon size 10 → 14
-                        // per M3 iconXs + bold-stroke SVG compensation; font 10 → 12.
+                        spacing: 4; visible: page.wide && appState.totalCompleted > 0
                         RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 14; color: ThemeEngine.passGreen  } Label { text: _pad2(__aggPass); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
                         RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 14; color: ThemeEngine.accentBlue } Label { text: _pad2(__aggInfo); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
                         RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 14; color: ThemeEngine.warnYellow } Label { text: _pad2(__aggWarn); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
@@ -178,10 +175,6 @@ Item {
                         RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 14; color: ThemeEngine.skipGray   } Label { text: _pad2(__aggSkip); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
                     }
                     Item { Layout.fillWidth: true }
-                    // Share buttons -- reusable ShareButtons component (5WHY fix #1, #3)
-                    // 5WHY: no pdfAccent/htmlAccent overrides — used defaults
-                    // (failRed + accentBlue) which clash with Diagnostic page's
-                    // cyan theme. Now uses page-appropriate accents.
                     ShareButtons {
                         id: headerShareBtns
                         mode: "compact"
@@ -191,7 +184,16 @@ Item {
                         onShareRequested: function(fmt) { page.doShare(fmt) }
                     }
                 }
-                // Badges now inline on Row 1 for all screen sizes — Row 2 removed
+                // Row 2 — badges + spacer (narrow/phone: below status line)
+                RowLayout {
+                    spacing: 4; visible: !page.wide && appState.totalCompleted > 0
+                    RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 14; color: ThemeEngine.passGreen  } Label { text: _pad2(__aggPass); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 14; color: ThemeEngine.accentBlue } Label { text: _pad2(__aggInfo); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 14; color: ThemeEngine.warnYellow } Label { text: _pad2(__aggWarn); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 14; color: ThemeEngine.failRed    } Label { text: _pad2(__aggFail); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
+                    RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 14; color: ThemeEngine.skipGray   } Label { text: _pad2(__aggSkip); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
+                    Item { Layout.fillWidth: true }
+                }
             }
         }
 
