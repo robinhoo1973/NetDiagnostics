@@ -129,17 +129,13 @@ Item {
         }
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
-        // 5WHY: Mirrors DiagGroupPanel header pattern exactly:
-        // Desktop: single row with badges inline (right side of title).
-        // Phone portrait: title + count on row 1, badges on row 2
-        // LEFT-aligned (matching DiagGroupPanel compact mode).
-        // Height is content-driven (no fixed implicitHeight) — matches
-        // DiagGroupPanel which uses height: cardColumn.implicitHeight + 16.
+        // 5WHY: Single Row 1 (status label + count), Row 2 (badges
+        // LEFT-aligned on all platforms). Desktop inline badges removed
+        // — two-row layout is consistent across desktop and mobile.
+        // Height is content-driven (no fixed implicitHeight).
         Rectangle {
             Layout.fillWidth: true
             readonly property bool _showBadges: appState.totalCompleted > 0
-            // 5WHY: Content-driven height matching DiagGroupPanel.
-            // statusCol is the inner ColumnLayout; padding 16 (desktop) / 12 (phone).
             implicitHeight: statusCol.implicitHeight + (isMobile ? 16 : 12)
             Layout.minimumHeight: appState.runStatus === 1 ? 36 : implicitHeight
             color: ThemeEngine.colors.navBar
@@ -149,7 +145,7 @@ Item {
                 id: statusCol
                 anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 8; bottomMargin: 8 }
                 spacing: 2
-                // Row 1 — status label + count + badges (desktop inline)
+                // Row 1 — status label + count
                 RowLayout {
                     spacing: 8
                     AppIcon {
@@ -179,21 +175,10 @@ Item {
                         color: ThemeEngine.cyan
                     }
                     Item { Layout.fillWidth: true }
-                    // Badges inline — desktop only (wide enough to fit)
-                    RowLayout {
-                        spacing: 4; visible: _showBadges && !isMobile
-                        BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __aggPass }
-                        BadgeLabel { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: __aggInfo }
-                        BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __aggWarn }
-                        BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __aggFail }
-                        BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __aggSkip }
-                    }
                 }
-                // Row 2 — status badges on their own line (phone portrait only)
-                // 5WHY: LEFT-aligned with 11px indent, matching DiagGroupPanel
-                // compact mode badge row exactly (accent bar 3px + spacing 8px).
+                // Row 2 — status badges, LEFT-aligned on all platforms
                 RowLayout {
-                    spacing: 4; visible: _showBadges && isMobile
+                    spacing: 4; visible: _showBadges
                     Item { width: 11 }
                     BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __aggPass }
                     BadgeLabel { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: __aggInfo }
