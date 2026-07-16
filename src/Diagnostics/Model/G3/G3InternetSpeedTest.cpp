@@ -396,8 +396,11 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QStringLiteral("Loaded %1 servers for region").arg(servers.size()));
     // 5WHY: Country Unknown with China connectivity = likely GFW user.
     // Log a hint so the user understands the server selection strategy.
-    // Threshold matches the chinaFirst decision below (connChina >= 3) so
-    // the log is always emitted when CN-priority is active.
+    // 5WHY: Log threshold (>= 3) is intentionally higher than the code
+    // threshold (>= 1 for chinaFirst).  connChina 1-2 could be a false
+    // positive for edge-of-network users (Tokyo/Seoul), so we still
+    // prioritize CN servers (unconditional prepend) but don't log a
+    // misleading "China sites reachable" message to avoid confusion.
     if (country == QStringLiteral("XX") && connChina >= 3) {
         out.append(QStringLiteral("  (GeoIP failed, but %1/%2 China sites reachable)").arg(connChina).arg(connChina + connGlobal));
         out.append(QStringLiteral("  Using connectivity-guided server selection)"));
@@ -487,10 +490,27 @@ DiagnosticResult speedTest(DiagId id) {
             // (3+ of 4 Chinese test sites reachable).  Balanced against false
             // positives for edge-of-network users (Tokyo, Seoul) where only
             // 1-2 Chinese sites happen to be reachable.
-            // 5WHY: threshold was connChina >= 2 (from first review) but that
-            // caused CN-priority for edge users. Now connChina >= 3 matches
-            // the diagnostic log threshold — consistent observability.
-            bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 3);
+            // 5WHY: chinaFirst threshold was connChina >= 3 — too
+            // conservative. In Country Unknown (XX) scenarios, the download/
+            // upload phases can spend 480s timing out on unreachable GFW-
+            // blocked servers. connChina >= 1 is now sufficient: even 1
+            // reachable Chinese site (out of 4 tested) strongly suggests
+            // the user is inside/near China and should prefer CN servers.
+            // 5WHY: When Country is Unknown (XX), unconditionally prioritize
+            // CN servers in the allServers fallback so GFW users get at
+            // least one reachable server before the 20s guard expires.
+            // The chinaFirst flag controls the aggressive pre-seed loop
+            // (test 3 CN servers directly before round-robin); the
+            // unconditional prepend below handles the case where connChina
+            // == 0 (no Chinese site reachable but Country still Unknown —
+            // CN servers are still the best bet).
+            bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 1);
+            // Always move CN to front when Country is Unknown.
+            if (country == QStringLiteral("XX") && byCountry.contains(QStringLiteral("CN")) && !chinaFirst) {
+                countries.removeAll(QStringLiteral("CN"));
+                countries.prepend(QStringLiteral("CN"));
+                out.append(QStringLiteral("  (Country Unknown, prioritizing CN servers)"));
+            }
             if (chinaFirst) {
                 countries.removeAll(QStringLiteral("CN"));
                 countries.prepend(QStringLiteral("CN"));
@@ -587,12 +607,25 @@ DiagnosticResult speedTest(DiagId id) {
     int dlServerIdx = 0; // current preferred server index into ranked[]
 
     for (int sizeKb : dlSizes) {
-        if (dlTotalMs > 12000) break; // cap at ~12 seconds
+        // 5WHY: dlTotalMs only accumulates successful download time — failed
+        // HTTP timeouts (4s × 8 servers × 15 tiers = 480s worst case) are NOT
+        // counted, so the dlTotalMs > 12000 guard was useless when all servers
+        // are unreachable (Country Unknown + GFW). Added totalTimer.elapsed()
+        // hard wall-clock guard (45s) so the download phase always completes
+        // within the 180s diagnostic watchdog budget.
+        if (dlTotalMs > 12000) break;        // cumulative download time cap
+        if (totalTimer.elapsed() > 45000) break; // wall-clock hard cap
 
         // Try preferred server first, fall back through ranked list independently
         // per size tier 闂?a server that handles 250KB may choke on 25MB.
         bool ok = false;
-        for (int si = 0; si < ranked.size(); si++) {
+        // 5WHY: cap fallback at 3 servers per tier — reduces worst-case
+        // timeout from 8 × 4s = 32s to 3 × 4s = 12s per tier when all
+        // servers are unreachable (Country Unknown + GFW).
+        int maxFallback = qMin(3, (int)ranked.size());
+        for (int si = 0; si < maxFallback; si++) {
+            // 5WHY: bail early if we have exceeded total time budget.
+            if (totalTimer.elapsed() > 45000) break;
             // Try each server once before marking failure
             int idx = (dlServerIdx + si) % ranked.size();
             SpeedTest::Server* srv = ranked[idx].srv;
@@ -664,6 +697,7 @@ DiagnosticResult speedTest(DiagId id) {
     // the upload phase completes within a reasonable total time budget.
     for (int sizeKb : ulSizes) {
         if (ulTotalMs > 15000) break;
+        if (totalTimer.elapsed() > 70000) break; // wall-clock hard cap (70s total, upload stays within 180s watchdog)
         int dataSize = sizeKb * 1000;
 
         // HTTP POST with measured upload
@@ -679,7 +713,7 @@ DiagnosticResult speedTest(DiagId id) {
 #endif
         ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        struct timeval tv = {30, 0};  // 30s connect timeout (generous)
+        struct timeval tv = {10, 0};  // 10s connect timeout (5WHY: was 30s -- in Country Unknown + GFW, unreachable servers caused excessive wait per upload tier)
         if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); continue; }
         int err = 0; socklen_t len = sizeof(err);
         getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
