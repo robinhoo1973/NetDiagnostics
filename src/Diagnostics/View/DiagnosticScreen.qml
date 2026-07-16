@@ -68,6 +68,10 @@ Item {
     property int __aggFail: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
     property int __aggSkip: { let _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
 
+    // 5WHY: padStart() is ES2017 — not available on Qt 6 embedded/Yocto
+    // builds which target ES7. Use an ES5-compatible zero-padding function.
+    function _pad2(n) { return (n < 10 ? "0" : "") + n }
+
     property var currentDetail: ({})
     property var visibleGroups: {
         let _ = _snapVersion
@@ -110,16 +114,15 @@ Item {
         // Status bar — visible during/after run.
         // Single row with status badges + share buttons inline — all screen sizes.
         // 5WHY: height was hardcoded per wide flag without checking share-btn visibility.
-        // When share buttons (42dp) appear after run completion, header must grow
-        // to 64dp on all screen widths, not just wide.  Added minimumHeight so the
-        // Layout never shrinks the header below its content.
+        // When share buttons (48dp, up from 42dp) appear after run completion, header must
+        // grow to 70dp on all screen widths for proper content framing.
         Rectangle {
             Layout.fillWidth: true
-            // Share buttons visible → need 64dp (42dp buttons + 8dp padding + spacing)
+            // Share buttons visible → need 70dp (48dp buttons + 16dp margins + 6dp clearance)
             // Running → compact 36dp (spinner + status, no badges/share)
             // Other states (cancelled/error, no share) → 48dp narrow / 36dp wide
             readonly property bool _shareVisible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-            implicitHeight: _shareVisible ? 64
+            implicitHeight: _shareVisible ? 70
                           : (appState.runStatus === 1 ? 36
                           : (page.wide ? 36 : 48))
             Layout.minimumHeight: implicitHeight
@@ -164,11 +167,15 @@ Item {
                     // 5 status badges inline — all screen sizes
                     RowLayout {
                         spacing: 4; visible: appState.totalCompleted > 0
-                        RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 10; color: ThemeEngine.passGreen  } Label { text: ("  " + __aggPass).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 10; color: ThemeEngine.accentBlue } Label { text: ("  " + __aggInfo).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 10; color: ThemeEngine.warnYellow } Label { text: ("  " + __aggWarn).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 10; color: ThemeEngine.failRed    } Label { text: ("  " + __aggFail).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
-                        RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 10; color: ThemeEngine.skipGray   } Label { text: ("  " + __aggSkip).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
+                        // 5WHY: (\"  \" + count).slice(-2) truncates counts >= 100 to
+                        // their last 2 digits (e.g. 150 → \"50\"). Use padStart for
+                        // zero-padding that preserves the full value.  Icon size 10 → 14
+                        // per M3 iconXs + bold-stroke SVG compensation; font 10 → 12.
+                        RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 14; color: ThemeEngine.passGreen  } Label { text: _pad2(__aggPass); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 14; color: ThemeEngine.accentBlue } Label { text: _pad2(__aggInfo); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 14; color: ThemeEngine.warnYellow } Label { text: _pad2(__aggWarn); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 14; color: ThemeEngine.failRed    } Label { text: _pad2(__aggFail); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
+                        RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 14; color: ThemeEngine.skipGray   } Label { text: _pad2(__aggSkip); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
                     }
                     Item { Layout.fillWidth: true }
                     // Share buttons -- reusable ShareButtons component (5WHY fix #1, #3)

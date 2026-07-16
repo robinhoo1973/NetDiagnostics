@@ -240,17 +240,41 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
     // (global) in parallel via std::async — whichever responds first wins,
     // cutting worst-case from ~12s to ~3s. Sequential fallbacks only if both
     // parallel calls fail.
+    // 5WHY: std::future from std::launch::async has a blocking destructor
+    // (C++11 defect). A local future whose destructor runs during early return
+    // would block until the async task completes, defeating the "first wins"
+    // design: total time = max(ipip, ip-api) instead of min(ipip, ip-api).
+    // Fix: wrap in shared_ptr to defer destruction until function exit on all
+    // paths. On the early-return path we issue a fire-and-forget wait via
+    // shared_ptr aliasing — the async thread completes in the background.
     int to = timeoutMs > 0 ? timeoutMs : 3000;
     QString cc;
 
     // Launch ip-api.com in background (may be slow inside GFW, fast outside)
-    auto futIpApi = std::async(std::launch::async, [to]() -> QString {
-        QByteArray r = G1G2G3Native::httpGet(
-            QStringLiteral("ip-api.com"), 80,
-            QStringLiteral("/line/?fields=countryCode"), to, 4096);
-        QString body = extractHttpBody(r);
-        return (body.length() == 2) ? body.toUpper() : QString();
-    });
+    auto futIpApi = std::make_shared<std::future<QString>>(
+        std::async(std::launch::async, [to]() -> QString {
+            QByteArray r = G1G2G3Native::httpGet(
+                QStringLiteral("ip-api.com"), 80,
+                QStringLiteral("/line/?fields=countryCode"), to, 4096);
+            QString body = extractHttpBody(r);
+            return (body.length() == 2) ? body.toUpper() : QString();
+        })
+    );
+
+    // Hold a deferred future from a previous early-return in a static slot
+    // so it's consumed here rather than blocking at next call startup.
+    // 5WHY: sDeferredFuture was read/written without mutex protection —
+    // shared_ptr copy-assignment is not atomic (two-pointer store), and
+    // concurrent read+write constitutes a data race. Guard with sCountryMutex
+    // so deferred-future lifecycle is synchronized with the country cache.
+    static std::shared_ptr<std::future<QString>> sDeferredFuture;
+    {
+        QMutexLocker lock(&sCountryMutex);
+        if (sDeferredFuture) {
+            sDeferredFuture->wait();
+            sDeferredFuture.reset();
+        }
+    }
 
     // Primary (GFW-safe): myip.ipip.net — try while ip-api runs in background
     QByteArray resp = G1G2G3Native::httpGet(
@@ -264,13 +288,23 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
             int end = cc.indexOf('\"', pos);
             if (end > pos) {
                 QString cc2 = cc.mid(pos, end - pos).trimmed().toUpper();
-                if (cc2.length() == 2) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc2; return sCachedCountry; }
+                if (cc2.length() == 2) {
+                    QMutexLocker l(&sCountryMutex);
+                    sCachedCountry = cc2;
+                    // 5WHY: Don't block on ip-api.com — defer its future so the
+                    // next detectCountry() call can harvest the result. The shared_ptr
+                    // aliasing keeps the std::future alive without blocking here.
+                    // sDeferredFuture is now guarded by sCountryMutex — the write
+                    // is inside the lock that also guards the cache.
+                    sDeferredFuture = futIpApi;
+                    return sCachedCountry;
+                }
             }
         }
     }
 
     // ipip.net failed — wait for ip-api.com (already running in parallel)
-    cc = futIpApi.get();
+    cc = futIpApi->get();
     if (!cc.isEmpty()) { QMutexLocker l(&sCountryMutex); sCachedCountry = cc; return sCachedCountry; }
 
     // Both primary + secondary failed — sequential fallbacks with shorter timeouts
@@ -362,6 +396,8 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QStringLiteral("Loaded %1 servers for region").arg(servers.size()));
     // 5WHY: Country Unknown with China connectivity = likely GFW user.
     // Log a hint so the user understands the server selection strategy.
+    // Threshold matches the chinaFirst decision below (connChina >= 3) so
+    // the log is always emitted when CN-priority is active.
     if (country == QStringLiteral("XX") && connChina >= 3) {
         out.append(QStringLiteral("  (GeoIP failed, but %1/%2 China sites reachable)").arg(connChina).arg(connChina + connGlobal));
         out.append(QStringLiteral("  Using connectivity-guided server selection)"));
@@ -411,11 +447,17 @@ DiagnosticResult speedTest(DiagId id) {
         }
     }
 
+    // 5WHY: allServers must live as long as `ranked` because ranked stores
+    // pointers into its elements (RankedServer::srv).  If declared inside the
+    // `if (ranked.isEmpty())` scope, allServers is destroyed before std::sort
+    // and best-server dereferences at lines 491-520 — use-after-free.
+    QVector<SpeedTest::Server> allServers;
+
     if (ranked.isEmpty()) {
         // 5WHY: Curated fallback (8 servers) may all be unreachable from
         // some regions. Try ALL servers as a last resort — 48+ servers
         // gives much better odds of finding at least one reachable host.
-        QVector<SpeedTest::Server> allServers = st.allServers();
+        allServers = st.allServers();
         if (servers.size() < allServers.size()) {
             out.append(QStringLiteral("  (curated servers unreachable, trying all %1 servers...)").arg(allServers.size()));
             // 5WHY: Sequential iteration over allServers() biases toward
@@ -427,8 +469,18 @@ DiagnosticResult speedTest(DiagId id) {
             QMap<QString, QVector<SpeedTest::Server*>> byCountry;
             for (auto& s : allServers) byCountry[s.country].append(&s);
             QStringList countries = byCountry.keys();
-            // 5WHY: When China is reachable but GeoIP failed, prioritize CN
-            bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 3 && connGlobal == 0);
+            // 5WHY: When China is reachable but GeoIP failed, prioritize CN.
+            // Previously required connGlobal==0, but OpenDNS (port 53) often
+            // works through GFW while HTTP speed-test servers do not — a false
+            // negative that prevented CN prioritization.
+            // Threshold connChina >= 3: strong signal of being inside/near China
+            // (3+ of 4 Chinese test sites reachable).  Balanced against false
+            // positives for edge-of-network users (Tokyo, Seoul) where only
+            // 1-2 Chinese sites happen to be reachable.
+            // 5WHY: threshold was connChina >= 2 (from first review) but that
+            // caused CN-priority for edge users. Now connChina >= 3 matches
+            // the diagnostic log threshold — consistent observability.
+            bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 3);
             if (chinaFirst) {
                 // Move CN to front of round-robin order
                 countries.removeAll(QStringLiteral("CN"));
@@ -580,18 +632,6 @@ DiagnosticResult speedTest(DiagId id) {
     // 5WHY: Timeouts were too aggressive for slow/congested networks.
     // Removed all upload timeouts — let the server respond at its own pace.
     // The outer diagnostic task has a 180s watchdog to prevent hanging.
-    out.append(QString());
-    out.append(QStringLiteral("--- Upload Test --------------------------------------------------"));
-    out.append(QString());
-    out.append(QStringLiteral("  %1  %2  %3")
-        .arg(QStringLiteral("Size").rightJustified(10, ' '))
-        .arg(QStringLiteral("Throughput").rightJustified(16, ' '))
-        .arg(QStringLiteral("Time").rightJustified(8, ' ')));
-    out.append(QStringLiteral("  %1  %2  %3")
-        .arg(QString(10, QChar('-')))
-        .arg(QString(16, QChar('-')))
-        .arg(QString(8, QChar('-'))));
-
     for (int sizeKb : ulSizes) {
         int dataSize = sizeKb * 1000;
 
@@ -660,10 +700,15 @@ DiagnosticResult speedTest(DiagId id) {
         // Skip the body send and mark the upload as failed.
         bool headerComplete = (hdrSent == postHeaders.size());
         // Send body in chunks (EAGAIN-safe: select() for writability on stall)
-        // Includes wall-clock guard so outer ulTotalMs check can fire
+        // 5WHY: body-send loop had NO wall-clock guard — a stalled server
+        // would cause an infinite while-loop. The 180s diagnostic task watchdog
+        // fires AFTER the function returns, so it cannot interrupt an in-progress
+        // infinite loop.  Added 30s body-send guard matching the header-send guard.
         int sent = 0; const char* dp = uploadData.constData();
+        QElapsedTimer bodySendGuard; bodySendGuard.start();
         if (headerComplete) {
         while (sent < dataSize) {
+            if (bodySendGuard.elapsed() > 30000) break;
             int chunk = qMin(dataSize - sent, 32768);
             auto n = ::send(sock, dp + sent, chunk, 0);
             if (n < 0) {

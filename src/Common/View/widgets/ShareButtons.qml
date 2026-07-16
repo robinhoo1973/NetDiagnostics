@@ -31,9 +31,13 @@ RowLayout {
     readonly property bool _isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
     // ── Sizes derived from mode ─────────────────────────────────────────────
-    readonly property int _iconSize:  mode === "compact" ? 28 :
+    // 5WHY: compact button was 42dp — below MD3 48dp minimum touch target
+    // (WCAG 2.1 SC 2.5.5 AAA). Icon was 28dp (67% fill) leaving too little
+    // padding. Now 48dp button with 26dp icon (54% fill) for comfortable
+    // framing and legible file-type labels at the larger render size.
+    readonly property int _iconSize:  mode === "compact" ? 26 :
                                       (mode === "wide" ? 20 : 16)
-    readonly property int _btnHeight: mode === "compact" ? 42 :
+    readonly property int _btnHeight: mode === "compact" ? 48 :
                                       (mode === "wide" ? 48 : 40)
     readonly property int _btnRadius: mode === "wide" ? 10 : 8
 
@@ -43,11 +47,14 @@ RowLayout {
         Layout.fillWidth: shareRoot.mode !== "compact"
         sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
         onLoaded: {
-            item.iconName = shareRoot.mode === "compact" ? "file-pdf-sm" : "file-pdf"
-            item.accent = shareRoot.pdfAccent
-            item.locked = shareRoot.locked
+            // 5WHY: one-shot assignment means locked/accent changes (e.g.
+            // premium purchase) are not reflected. Use Qt.binding() to keep
+            // inner properties reactive.
+            item.iconName = Qt.binding(function() { return shareRoot.mode === "compact" ? "file-pdf-sm" : "file-pdf" })
+            item.accent = Qt.binding(function() { return shareRoot.pdfAccent })
+            item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "pdf"
-            item.labelText = shareRoot._isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
+            item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn })
         }
     }
 
@@ -57,11 +64,11 @@ RowLayout {
         Layout.fillWidth: shareRoot.mode !== "compact"
         sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
         onLoaded: {
-            item.iconName = shareRoot.mode === "compact" ? "file-html-sm" : "file-html"
-            item.accent = shareRoot.htmlAccent
-            item.locked = shareRoot.locked
+            item.iconName = Qt.binding(function() { return shareRoot.mode === "compact" ? "file-html-sm" : "file-html" })
+            item.accent = Qt.binding(function() { return shareRoot.htmlAccent })
+            item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "html"
-            item.labelText = shareRoot._isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
+            item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn })
         }
     }
 
@@ -119,7 +126,7 @@ RowLayout {
                     text: parent.parent.labelText + (parent.parent.locked ? "  " + Tr.premiumBadge : "")
                     color: ThemeEngine.textPrimary
                     font.family: ThemeEngine.monoFont
-                    font.pixelSize: shareRoot.mode === "wide" ? 12 : 12
+                    font.pixelSize: 12
                     font.weight: Font.Medium
                 }
             }
