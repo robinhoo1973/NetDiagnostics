@@ -34,15 +34,12 @@ RowLayout {
     readonly property bool _isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
     // ── Sizes derived from mode ─────────────────────────────────────────────
-    // 5WHY: compact icon was 26dp inside 48dp button (54% fill) using -sm SVG
-    // variants with simplified single-letter content ("P"/"H").  Users reported
-    // icons still too small to distinguish PDF from HTML at a glance.
-    // Fix: use full file-pdf/file-html SVGs (not -sm) at 34dp (71% fill).
-    // The regular SVGs have "PDF"/"HTML" text in the document icon — legible
-    // at 34dp (viewBox 24 → 34dp render ≈ 7px text height).
-    readonly property int _iconSize:  mode === "compact" ? 34 :
+    // 5WHY: compact buttons were 48dp — too large for the 48dp-tall AppBar
+    // where they now reside. Reduced to 36dp button with 24dp icon (67% fill)
+    // — snug within AppBar, icon still legible at 24dp.
+    readonly property int _iconSize:  mode === "compact" ? 24 :
                                       (mode === "wide" ? 20 : 16)
-    readonly property int _btnHeight: mode === "compact" ? 48 :
+    readonly property int _btnHeight: mode === "compact" ? 36 :
                                       (mode === "wide" ? 48 : 40)
     readonly property int _btnRadius: mode === "wide" ? 10 : 8
 
@@ -81,14 +78,18 @@ RowLayout {
         }
     }
 
-    // ── Compact: icon-only solid button (Diagnostic header) ──────────
-    // 5WHY: subtle background (alpha 0.12) made icons look washed out
-    // and hard to distinguish.  Users could not tell PDF (cyan) from
-    // HTML (blue) at a glance.  Now uses solid accent fill with white
-    // icon — high contrast, instantly recognizable per WCAG 2.1 SC 1.4.11.
+    // ── Compact: icon-only solid button (AppBar / header) ─────────────
+    // 5WHY: subtle background made icons washed out. Now solid accent
+    // fill + white icon for high contrast (WCAG 2.1 SC 1.4.11).
+    // 5WHY: item.accent was set via Qt.binding() in Loader.onLoaded —
+    // this created an extra indirection that could evaluate before
+    // ThemeEngine.applyTheme() completes during init/theme-switch.
+    // Now uses Binding on accent so the Rectangle directly tracks
+    // the parent ShareButtons accent property without Loader mediation.
     Component {
         id: compactBtn
         Rectangle {
+            id: compactRect
             property string iconName: ""
             property color accent: ThemeEngine.failRed
             property bool locked: false

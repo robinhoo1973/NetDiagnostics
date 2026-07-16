@@ -129,50 +129,57 @@ Item {
         }
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
-        // 5WHY: Status badges + share buttons in one row overflowed on
-        // phones.  Now share buttons live in the AppBar (see above).  This
-        // frees the results header for badges only, right-aligned single row.
+        // 5WHY: Single RowLayout with badges + label overflowed on phones —
+        // RowLayout auto-wraps overflowing items to a virtual "next row"
+        // but aligns them left.  Using ColumnLayout with explicit Row 1
+        // (label+count) and Row 2 (badges, right-aligned) prevents wrapping
+        // and ensures consistent alignment on all screen sizes.
         Rectangle {
             Layout.fillWidth: true
-            readonly property bool _shareVisible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-            implicitHeight: appState.runStatus === 1 ? 36 : (_shareVisible ? 48 : 36)
+            readonly property bool _showBadges: appState.totalCompleted > 0
+            implicitHeight: appState.runStatus === 1 ? 36 : (_showBadges ? 56 : 36)
             Layout.minimumHeight: implicitHeight
             color: ThemeEngine.colors.navBar
             border { width: 1; color: ThemeEngine.colors.borderCard }
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
-            RowLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
-                spacing: 8
-                AppIcon {
-                    id: statusSpinner
-                    name: appState.runStatus === 1 ? "spinner" : "diagnostics"
-                    size: 16
-                    color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
-                    RotationAnimation on rotation {
-                        running: appState.runStatus === 1
-                        from: 0; to: 360; duration: 1000; loops: Animation.Infinite
-                        onStopped: statusSpinner.rotation = 0
-                    }
-                }
-                Item { width: 4 }
-                Label {
-                    text: appState.runStatus === 1 ? Tr.runningDots :
-                          appState.runStatus === 2 ? Tr.complete :
-                          appState.runStatus === 3 ? Tr.cancelled :
-                          appState.runStatus === 4 ? Tr.errorStatus : Tr.results
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
-                    color: ThemeEngine.colors.textPrimary
-                }
-                Label {
-                    visible: appState.runStatus === 1 && appState.totalDiags > 0
-                    text: appState.totalCompleted + " / " + appState.totalDiags
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                    color: ThemeEngine.cyan
-                }
-                Item { Layout.fillWidth: true }
-                // Status badges — right-aligned, all screen sizes
+            ColumnLayout {
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
+                spacing: 2
+                // Row 1 — status label + count
                 RowLayout {
-                    spacing: 4; visible: appState.totalCompleted > 0
+                    spacing: 8
+                    AppIcon {
+                        id: statusSpinner
+                        name: appState.runStatus === 1 ? "spinner" : "diagnostics"
+                        size: 16
+                        color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
+                        RotationAnimation on rotation {
+                            running: appState.runStatus === 1
+                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                            onStopped: statusSpinner.rotation = 0
+                        }
+                    }
+                    Item { width: 4 }
+                    Label {
+                        text: appState.runStatus === 1 ? Tr.runningDots :
+                              appState.runStatus === 2 ? Tr.complete :
+                              appState.runStatus === 3 ? Tr.cancelled :
+                              appState.runStatus === 4 ? Tr.errorStatus : Tr.results
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+                        color: ThemeEngine.colors.textPrimary
+                    }
+                    Label {
+                        visible: appState.runStatus === 1 && appState.totalDiags > 0
+                        text: appState.totalCompleted + " / " + appState.totalDiags
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
+                        color: ThemeEngine.cyan
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+                // Row 2 — status badges, right-aligned
+                RowLayout {
+                    spacing: 4; visible: _showBadges
+                    Item { Layout.fillWidth: true }
                     RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 14; color: ThemeEngine.passGreen  } Label { text: _pad2(__aggPass); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
                     RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 14; color: ThemeEngine.accentBlue } Label { text: _pad2(__aggInfo); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
                     RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 14; color: ThemeEngine.warnYellow } Label { text: _pad2(__aggWarn); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }

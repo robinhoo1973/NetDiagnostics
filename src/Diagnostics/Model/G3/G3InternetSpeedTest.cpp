@@ -658,10 +658,12 @@ DiagnosticResult speedTest(DiagId id) {
     QVector<double> ulResults;
     int ulTotalMs = 0;
 
-    // 5WHY: Timeouts were too aggressive for slow/congested networks.
-    // Removed all upload timeouts — let the server respond at its own pace.
-    // The outer diagnostic task has a 180s watchdog to prevent hanging.
+    // 5WHY: Upload test had NO cumulative time cap — 10 size tiers ×
+    // up to 30s each = 300s worst case. The 180s watchdog fires AFTER the
+    // function returns, not during the loop. Added 15s cumulative cap so
+    // the upload phase completes within a reasonable total time budget.
     for (int sizeKb : ulSizes) {
+        if (ulTotalMs > 15000) break;
         int dataSize = sizeKb * 1000;
 
         // HTTP POST with measured upload
