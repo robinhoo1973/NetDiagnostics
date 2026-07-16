@@ -14,9 +14,9 @@
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QUrl>
+#include <QtConcurrent/QtConcurrent>
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"
-#include "Diagnostics/View/DiagnosticFormatter.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
 
 // 5WHY: Functions were wrapped in namespace G5WebsiteUrl but header
@@ -349,7 +349,6 @@ DiagnosticResult androidGatewayDiag(DiagId id) {
 // synchronous blocking JNI call with no built-in timeout. On unreachable
 // DNS servers this blocks the calling thread indefinitely.  Wrap in
 // QtConcurrent so waitForFinished(timeoutMs) can enforce the timeout.
-#include <QtConcurrent/QtConcurrent>
 QString androidDnsResolve(const QString& host, int timeoutMs) {
     QFuture<QString> future = QtConcurrent::run([host]() -> QString {
         QJniObject hostStr = QJniObject::fromString(host);
