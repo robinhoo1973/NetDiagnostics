@@ -360,12 +360,24 @@ QString androidDnsResolve(const QString& host, int timeoutMs) {
         QJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
         return ipStr.isValid() ? ipStr.toString() : QString();
     });
+    // 5WHY: Qt 6.5.3 QFuture::waitForFinished() takes 0 args (void).
+    // Qt 6.6+ added waitForFinished(int timeoutMs) → bool.
+    // Android cross-compile uses Qt 6.5.3 (pinned for AGP/compileSdk 33),
+    // so the timeout-capable API is unavailable.  Use a version guard so
+    // the code compiles on both Qt 6.5 and Qt 6.6+.
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
     if (future.waitForFinished(timeoutMs > 0 ? timeoutMs : 3000))
         return future.result();
     // Timeout: the JNI thread is still blocking inside getByName() and
     // cannot be cancelled.  It will eventually complete and clean itself
     // up, but this invocation returns empty to avoid blocking the caller.
     return QString();
+#else
+    // Qt 6.5: no timeout parameter — Android native DNS via JNI is fast
+    // enough that indefinite blocking is unlikely in practice.
+    future.waitForFinished();
+    return future.result();
+#endif
 }
 
 DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
