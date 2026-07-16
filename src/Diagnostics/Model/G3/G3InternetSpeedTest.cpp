@@ -399,6 +399,22 @@ DiagnosticResult speedTest(DiagId id) {
     }
 
     if (ranked.isEmpty()) {
+        // 5WHY: Curated fallback (8 servers) may all be unreachable from
+        // some regions. Try ALL servers as a last resort — 48+ servers
+        // gives much better odds of finding at least one reachable host.
+        QVector<SpeedTest::Server> allServers = st.allServers();
+        if (servers.size() < allServers.size()) {
+            out.append(QStringLiteral("  (curated servers unreachable, trying all %1 servers...)").arg(allServers.size()));
+            int maxAll = qMin(12, (int)allServers.size());
+            for (auto& s : allServers) {
+                if (ranked.size() >= maxAll) break;
+                if (totalTimer.elapsed() > 25000) break;
+                int lat = httpLatencyMs(s.url, 5000);
+                if (lat > 0) ranked.append({&s, lat});
+            }
+        }
+    }
+    if (ranked.isEmpty()) {
         out.append(QStringLiteral("  (no reachable servers)"));
         out.append(QString());
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
