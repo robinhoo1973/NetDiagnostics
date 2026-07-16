@@ -3,6 +3,7 @@
 // =============================================================================
 #include "app/AppState.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Services/DnsResolver.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
 #include "Diagnostics/Controller/TaskFactory.h"
 #include "Common/Utils/DebugSwitch.h"
