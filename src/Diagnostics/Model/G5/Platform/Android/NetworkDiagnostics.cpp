@@ -345,15 +345,28 @@ DiagnosticResult androidGatewayDiag(DiagId id) {
 }
 
 // ── DNS Resolution via InetAddress ─────────────────────────────────────
+// 5WHY: timeoutMs parameter was completely ignored — getByName() is a
+// synchronous blocking JNI call with no built-in timeout. On unreachable
+// DNS servers this blocks the calling thread indefinitely.  Wrap in
+// QtConcurrent so waitForFinished(timeoutMs) can enforce the timeout.
+#include <QtConcurrent/QtConcurrent>
 QString androidDnsResolve(const QString& host, int timeoutMs) {
-    QJniObject hostStr = QJniObject::fromString(host);
-    QJniObject inetAddr = QJniObject::callStaticObjectMethod(
-        "java/net/InetAddress", "getByName",
-        "(Ljava/lang/String;)Ljava/net/InetAddress;",
-        hostStr.object<jstring>());
-    if (!inetAddr.isValid()) return QString();
-    QJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
-    return ipStr.isValid() ? ipStr.toString() : QString();
+    QFuture<QString> future = QtConcurrent::run([host]() -> QString {
+        QJniObject hostStr = QJniObject::fromString(host);
+        QJniObject inetAddr = QJniObject::callStaticObjectMethod(
+            "java/net/InetAddress", "getByName",
+            "(Ljava/lang/String;)Ljava/net/InetAddress;",
+            hostStr.object<jstring>());
+        if (!inetAddr.isValid()) return QString();
+        QJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
+        return ipStr.isValid() ? ipStr.toString() : QString();
+    });
+    if (future.waitForFinished(timeoutMs > 0 ? timeoutMs : 3000))
+        return future.result();
+    // Timeout: the JNI thread is still blocking inside getByName() and
+    // cannot be cancelled.  It will eventually complete and clean itself
+    // up, but this invocation returns empty to avoid blocking the caller.
+    return QString();
 }
 
 DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {

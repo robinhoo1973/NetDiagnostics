@@ -56,6 +56,12 @@ AppState::AppState(QObject* parent) : QObject(parent) {
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.
+    // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
+    // to TargetModel::targetChanged signal, separating concerns.
+    // 5WHY (2nd): the lambda handled G4/G5 auto-management but never
+    // emitted AppState::targetChanged().  QML bindings on target,
+    // defaultPortForScheme, and sub-fields were therefore stale after
+    // individual field edits (e.g. user typing in host TextField).
     connect(m_targetModel, &TargetModel::targetChanged, this, [this]() {
         bool has = !m_targetModel->isEmpty();
         bool isUrl = m_targetModel->isUrl();
@@ -69,6 +75,8 @@ AppState::AppState(QObject* parent) : QObject(parent) {
             emit groupActiveChanged();
         // Keep ResultsModel's G5 scheme filter in sync with the target
         m_resultsModel->setSchemeFilter(m_targetModel->scheme(), isUrl);
+        // Forward to QML so bindings on target/targetScheme/etc. re-evaluate
+        emit targetChanged();
     });
 
     // Forward ReportController signals
@@ -185,8 +193,13 @@ QStringList AppState::groupLabels() const { return DiagnosticConfig::groupLabels
 
 // ── Test enable/disable — delegated to DiagnosticConfig ──────────────
 bool AppState::isDiagEnabled(int diagIdInt) const { return m_configCtrl->config().isDiagEnabled(diagIdInt); }
-void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_configCtrl->config().setDiagEnabled(diagIdInt, enabled); saveSettings(); bumpVersion(); }
-void AppState::setGroupEnabled(int groupInt, bool enabled) { m_configCtrl->config().setGroupEnabled(groupInt, enabled); saveSettings(); bumpVersion(); }
+// 5WHY: was calling m_configCtrl->config().setDiagEnabled() directly,
+// which updates in-memory state but bypasses ConfigurationController's
+// saveSettings() — individual test enable/disable toggles were LOST
+// on app restart.  Now routes through the controller, which persists
+// enabledDiags to QSettings on every change.
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_configCtrl->setDiagEnabled(diagIdInt, enabled); saveSettings(); bumpVersion(); }
+void AppState::setGroupEnabled(int groupInt, bool enabled) { m_configCtrl->setGroupEnabled(groupInt, enabled); saveSettings(); bumpVersion(); }
 bool AppState::isGroupAllEnabled(int groupInt) const { return m_configCtrl->config().isGroupAllEnabled(groupInt); }
 bool AppState::isGroupAnyEnabled(int groupInt) const { return m_configCtrl->config().isGroupAnyEnabled(groupInt); }
 
@@ -467,6 +480,10 @@ void AppState::reset() {
     m_activeGroupDone.store(0);
     m_resultsModel->clear();
     m_resultsModel->setCurrentGroup(-1);
+    // 5WHY: DNS cache was never invalidated between runs. If the network
+    // changes (VPN, Wi-Fi handoff), subsequent runs would return stale
+    // cached IPs from the previous network. Clearing ensures fresh resolution.
+    DnsResolver::instance().clearCache();
     emit runStatusChanged();
     emit progressChanged();
     emit resultsReset();

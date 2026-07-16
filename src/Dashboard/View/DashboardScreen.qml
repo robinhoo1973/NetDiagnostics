@@ -265,7 +265,11 @@ Item {
                         Item { width: 8 }
                         Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
                         Rectangle {
-                            implicitWidth: 36; implicitHeight: 36; radius: 18; color: "transparent"
+                            // 5WHY: close button was 36dp — below MD3 48dp minimum
+                            // touch target. Now matches ReportScreen pattern: 48dp
+                            // mobile, 34dp desktop.
+                            readonly property int _btnSz: isMobile ? 48 : 34
+                            implicitWidth: _btnSz; implicitHeight: _btnSz; radius: _btnSz / 2; color: "transparent"
                             border { width: 1; color: ThemeEngine.colors.borderCard }
                             AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.failRed }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.previewVisible = false }
@@ -419,7 +423,7 @@ Item {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
-                    AppIcon { name: page.statusIcon(modelData.status); size: 10; color: page.statusColor(modelData.status) }
+                    AppIcon { name: page.statusIcon(modelData.status); size: 14; color: page.statusColor(modelData.status) }
                     Item { width: 6 }
                     Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textSecondary; elide:Text.ElideRight }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.textSecondary,0.6) }
