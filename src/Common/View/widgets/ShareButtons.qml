@@ -7,7 +7,7 @@ import "../theme"
 // ShareButtons — Reusable PDF/HTML share button pair
 //
 // Three visual modes:
-//   "compact"  — solid-color icon squares (48dp), 34dp white icons on accent bg
+//   "compact"  — solid-color icon squares (36dp), icon fills button (100%)
 //   "labeled"  — icon+text buttons (fillWidth), for Dashboard preview overlay
 //   "wide"     — icon+text buttons (fillWidth, 48dp height), for Report preview
 //
@@ -17,7 +17,7 @@ import "../theme"
 //   - Dashboard:   pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //   - Report:      pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //
-// Icons: uses file-pdf.svg / file-html.svg at 34dp (71% fill).
+// Icons: compact 100%, labeled 90%, wide 40dp (83% of 48dp).
 // ══════════════════════════════════════════════════════════════════════════════
 
 RowLayout {
@@ -37,8 +37,16 @@ RowLayout {
     // 5WHY: compact buttons were 48dp — too large for the 48dp-tall AppBar
     // where they now reside. Reduced to 36dp button with 24dp icon (67% fill)
     // — snug within AppBar, icon still legible at 24dp.
-    readonly property int _iconSize:  mode === "compact" ? 24 :
-                                      (mode === "wide" ? 20 : 16)
+    // 5WHY: User requested icon fills button completely (no margin).
+    // _iconSize now matches _btnHeight for compact mode (36dp) so the icon
+    // extends fully to the rounded-rect edges.  MultiEffect colorization
+    // ensures the SVG renders cleanly at the larger size.
+    // 5WHY: labeled/wide modes have text labels alongside the icon.
+    // labeled icon was 16dp (40% of _btnHeight 40dp) — too small for
+    // the Dashboard Report Review overlay where the share button is the
+    // primary CTA. Now 90% of button height per UX review.
+    readonly property int _iconSize:  mode === "compact" ? _btnHeight :
+                                      (mode === "wide" ? 40 : Math.round(_btnHeight * 0.9))
     readonly property int _btnHeight: mode === "compact" ? 36 :
                                       (mode === "wide" ? 48 : 40)
     readonly property int _btnRadius: mode === "wide" ? 10 : 8
@@ -49,13 +57,11 @@ RowLayout {
         Layout.fillWidth: shareRoot.mode !== "compact"
         sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
         onLoaded: {
-            // 5WHY: one-shot assignment means locked/accent changes (e.g.
-            // premium purchase) are not reflected. Use Qt.binding() to keep
-            // inner properties reactive.
-            // 5WHY: compact mode used file-pdf-sm (single "P" letter) — too
-            // small to distinguish. Now uses file-pdf ("PDF" text) at 34dp.
+            // 5WHY: accent is now handled declaratively by Binding objects
+            // inside compactBtn / labeledBtn — no Qt.binding() needed here.
+            // This eliminates the two-phase init timing issue during theme
+            // switches (Loader.onLoaded fires before QML binding propagation).
             item.iconName = "file-pdf"
-            item.accent = Qt.binding(function() { return shareRoot.pdfAccent })
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "pdf"
             item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn })
@@ -68,10 +74,8 @@ RowLayout {
         Layout.fillWidth: shareRoot.mode !== "compact"
         sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
         onLoaded: {
-            // 5WHY: compact mode used file-html-sm — too small. Now uses
-            // file-html ("HTML" text) at 34dp, matching the PDF button.
+            // 5WHY: accent handled declaratively (see pdfLoader comment).
             item.iconName = "file-html"
-            item.accent = Qt.binding(function() { return shareRoot.htmlAccent })
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "html"
             item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn })
@@ -81,17 +85,20 @@ RowLayout {
     // ── Compact: icon-only solid button (AppBar / header) ─────────────
     // 5WHY: subtle background made icons washed out. Now solid accent
     // fill + white icon for high contrast (WCAG 2.1 SC 1.4.11).
-    // 5WHY: item.accent was set via Qt.binding() in Loader.onLoaded —
-    // this created an extra indirection that could evaluate before
-    // ThemeEngine.applyTheme() completes during init/theme-switch.
-    // Now uses Binding on accent so the Rectangle directly tracks
-    // the parent ShareButtons accent property without Loader mediation.
+    // 5WHY: Binding { target; property; value: ternary } replaces the
+    // previous Binding on accent { when } pattern.  Two separate
+    // Binding-on-accent elements on the same property can conflict in
+    // Qt 6 when instantiated via Loader — the second Binding can
+    // silently fail to activate, leaving accent=transparent.
+    // Single explicit Binding with a ternary expression that tracks ALL
+    // dependencies (iconName + pdfAccent + htmlAccent) is battle-tested
+    // since Qt 5.0 and works reliably in Loader-created instances.
     Component {
         id: compactBtn
         Rectangle {
             id: compactRect
             property string iconName: ""
-            property color accent: ThemeEngine.failRed
+            property color accent: "transparent"
             property bool locked: false
             property string formatTag: ""
             property string labelText: ""
@@ -110,6 +117,14 @@ RowLayout {
                 onClicked: shareRoot.shareRequested(parent.formatTag)
             }
             Accessible.name: parent.labelText
+            // ── Single explicit Binding (Qt 5.0+ compatible, Loader-safe) ──
+            Binding {
+                target: compactRect
+                property: "accent"
+                value: compactRect.iconName === "file-pdf" ? shareRoot.pdfAccent :
+                       compactRect.iconName === "file-html" ? shareRoot.htmlAccent :
+                       "transparent"
+            }
         }
     }
 
@@ -117,8 +132,9 @@ RowLayout {
     Component {
         id: labeledBtn
         Rectangle {
+            id: labeledRect
             property string iconName: ""
-            property color accent: ThemeEngine.cyan
+            property color accent: "transparent"
             property bool locked: false
             property string formatTag: ""
             property string labelText: ""
@@ -147,6 +163,14 @@ RowLayout {
             MouseArea {
                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                 onClicked: shareRoot.shareRequested(parent.formatTag)
+            }
+            // ── Single explicit Binding (Qt 5.0+ compatible, Loader-safe) ──
+            Binding {
+                target: labeledRect
+                property: "accent"
+                value: labeledRect.iconName === "file-pdf" ? shareRoot.pdfAccent :
+                       labeledRect.iconName === "file-html" ? shareRoot.htmlAccent :
+                       "transparent"
             }
         }
     }

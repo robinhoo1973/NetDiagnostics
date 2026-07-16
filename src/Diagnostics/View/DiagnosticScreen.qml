@@ -1,4 +1,4 @@
-import QtQuick
+﻿import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
@@ -129,23 +129,27 @@ Item {
         }
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
-        // 5WHY: Single RowLayout with badges + label overflowed on phones —
-        // RowLayout auto-wraps overflowing items to a virtual "next row"
-        // but aligns them left.  Using ColumnLayout with explicit Row 1
-        // (label+count) and Row 2 (badges, right-aligned) prevents wrapping
-        // and ensures consistent alignment on all screen sizes.
+        // 5WHY: Mirrors DiagGroupPanel header pattern exactly:
+        // Desktop: single row with badges inline (right side of title).
+        // Phone portrait: title + count on row 1, badges on row 2
+        // LEFT-aligned (matching DiagGroupPanel compact mode).
+        // Height is content-driven (no fixed implicitHeight) — matches
+        // DiagGroupPanel which uses height: cardColumn.implicitHeight + 16.
         Rectangle {
             Layout.fillWidth: true
             readonly property bool _showBadges: appState.totalCompleted > 0
-            implicitHeight: appState.runStatus === 1 ? 36 : (_showBadges ? 56 : 36)
-            Layout.minimumHeight: implicitHeight
+            // 5WHY: Content-driven height matching DiagGroupPanel.
+            // statusCol is the inner ColumnLayout; padding 16 (desktop) / 12 (phone).
+            implicitHeight: statusCol.implicitHeight + (isMobile ? 16 : 12)
+            Layout.minimumHeight: appState.runStatus === 1 ? 36 : implicitHeight
             color: ThemeEngine.colors.navBar
             border { width: 1; color: ThemeEngine.colors.borderCard }
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
             ColumnLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
+                id: statusCol
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 8; bottomMargin: 8 }
                 spacing: 2
-                // Row 1 — status label + count
+                // Row 1 — status label + count + badges (desktop inline)
                 RowLayout {
                     spacing: 8
                     AppIcon {
@@ -175,16 +179,27 @@ Item {
                         color: ThemeEngine.cyan
                     }
                     Item { Layout.fillWidth: true }
+                    // Badges inline — desktop only (wide enough to fit)
+                    RowLayout {
+                        spacing: 4; visible: _showBadges && !isMobile
+                        BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __aggPass }
+                        BadgeLabel { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: __aggInfo }
+                        BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __aggWarn }
+                        BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __aggFail }
+                        BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __aggSkip }
+                    }
                 }
-                // Row 2 — status badges, right-aligned
+                // Row 2 — status badges on their own line (phone portrait only)
+                // 5WHY: LEFT-aligned with 11px indent, matching DiagGroupPanel
+                // compact mode badge row exactly (accent bar 3px + spacing 8px).
                 RowLayout {
-                    spacing: 4; visible: _showBadges
-                    Item { Layout.fillWidth: true }
-                    RowLayout { spacing: 2; AppIcon { name: "badge-check";   size: 14; color: ThemeEngine.passGreen  } Label { text: _pad2(__aggPass); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.passGreen  } }
-                    RowLayout { spacing: 2; AppIcon { name: "badge-info";    size: 14; color: ThemeEngine.accentBlue } Label { text: _pad2(__aggInfo); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.accentBlue } }
-                    RowLayout { spacing: 2; AppIcon { name: "badge-warning"; size: 14; color: ThemeEngine.warnYellow } Label { text: _pad2(__aggWarn); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.warnYellow } }
-                    RowLayout { spacing: 2; AppIcon { name: "badge-close";   size: 14; color: ThemeEngine.failRed    } Label { text: _pad2(__aggFail); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.failRed    } }
-                    RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 14; color: ThemeEngine.skipGray   } Label { text: _pad2(__aggSkip); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
+                    spacing: 4; visible: _showBadges && isMobile
+                    Item { width: 11 }
+                    BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __aggPass }
+                    BadgeLabel { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: __aggInfo }
+                    BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __aggWarn }
+                    BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __aggFail }
+                    BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __aggSkip }
                 }
             }
         }
@@ -397,4 +412,20 @@ Item {
         }
     }
 
+
+    // ── BadgeLabel: status icon + count (mirrors DiagGroupPanel.StatusBadge) ──
+    // 5WHY: DiagnosticScreen used manual RowLayout { AppIcon + Label } which
+    // diverged from DiagGroupPanel's StatusBadge format. Now extracted as a
+    // shared component so both headers are visually identical.
+    component BadgeLabel: RowLayout {
+        property color accent: ThemeEngine.passGreen
+        property string iconName: "badge-info"
+        property int count: 0
+        spacing: 2
+        AppIcon { name: iconName; size: 14; color: accent }
+        Label {
+            text: _pad2(count)
+            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: accent
+        }
+    }
 }
