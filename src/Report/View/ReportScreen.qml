@@ -348,29 +348,17 @@ Item {
                         }
                     }
                 }
-                // ── Share buttons (PDF + HTML) ──────────────────────────
-                RowLayout {
-                    Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
-                    // Share as PDF
-                    PreviewBtn {
-                        Layout.fillWidth: true
-                        iconName: "file-pdf"
-                        label: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
-                        accent: ThemeEngine.failRed
-                        locked: !appState.isPremium
-                        onClicked: page.doShare("pdf")
-                    }
-                    // Share as HTML
-                    PreviewBtn {
-                        Layout.fillWidth: true
-                        iconName: "file-html"
-                        label: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
-                        accent: ThemeEngine.accentBlue
-                        locked: !appState.isPremium
-                        onClicked: page.doShare("html")
-                    }
+                // ── Share buttons (PDF + HTML) ───────────────────────────
+                ShareButtons {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 10
+                    mode: "wide"
+                    pdfAccent: ThemeEngine.cyan
+                    htmlAccent: ThemeEngine.primary
+                    onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
-            }
+}
         }
     }
 

@@ -309,23 +309,13 @@ Item {
                         onZoomLevelChanged: { previewFlick.previewScale = zoomBar.zoomLevel }
                     }
                 }
-                // ── Share buttons (PDF + HTML) ─────────────────────────
-                RowLayout {
-                    Layout.fillWidth: true; spacing: 10
-                    PreviewShareBtn {
-                        Layout.fillWidth: true
-                        iconName: "file-pdf"; label: isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
-                        accent: ThemeEngine.failRed; locked: !appState.isPremium
-                        onClicked: page.doShare("pdf")
-                    }
-                    PreviewShareBtn {
-                        Layout.fillWidth: true
-                        iconName: "file-html"; label: isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
-                        accent: ThemeEngine.accentBlue; locked: !appState.isPremium
-                        onClicked: page.doShare("html")
-                    }
+                // ── Share buttons (PDF + HTML) ───────────────────────────
+                ShareButtons {
+                    Layout.fillWidth: true
+                    mode: "labeled"
+                    onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
-            }
+}
         }
     }
 
