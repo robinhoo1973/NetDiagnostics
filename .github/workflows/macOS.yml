@@ -55,6 +55,10 @@ jobs:
 
       - name: Bundle Qt frameworks (macdeployqt)
         run: |
+          set -euo pipefail
+          # 5WHY: added pipefail — POSIX pipelines only report the last
+          # command's exit code.  Without it, "cmd 2>&1 | tail" masks
+          # failures because tail always exits 0.
           if [ -d build/net_diagnostics.app ]; then
             QT_PREFIX="$(brew --prefix qt@6)"
             MACDEPLOY_LOG=$(mktemp)
@@ -82,10 +86,11 @@ jobs:
 
       - name: Ad-hoc code sign (DMG artifact)
         run: |
+          set -euo pipefail
           if [ -d build/net_diagnostics.app ]; then
             if [ -d build/net_diagnostics.app/Contents/Frameworks ]; then
               find build/net_diagnostics.app/Contents/Frameworks -name "*.framework" -type d | while read fw; do
-                codesign --force --sign - "$fw"
+                codesign --force --sign - "$fw" || { echo "[FAIL] codesign $fw"; exit 1; }
               done
             fi
             BIN=build/net_diagnostics.app/Contents/MacOS/net_diagnostics
@@ -209,6 +214,7 @@ jobs:
 
       - name: Sign .app and package as .pkg
         run: |
+          set -euo pipefail
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
           CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
@@ -217,12 +223,14 @@ jobs:
           # Sign dylibs
           find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
             case "$dylib" in */Contents/Frameworks/*.framework/*) continue ;; esac
-            codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib"
+            codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib" \
+              || { echo "[FAIL] codesign dylib $dylib"; exit 1; }
           done
           # Sign frameworks
           if [ -d "$APP/Contents/Frameworks" ]; then
             find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
-              codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$fw"
+              codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$fw" \
+                || { echo "[FAIL] codesign framework $fw"; exit 1; }
             done
           fi
           # Sign nested .apps
@@ -230,10 +238,12 @@ jobs:
             NESTED_BIN="$nested/Contents/MacOS"
             if [ -d "$NESTED_BIN" ]; then
               find "$NESTED_BIN" -type f -perm +111 | while read exe; do
-                codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$exe"
+                codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$exe" \
+                  || { echo "[FAIL] codesign nested exe $exe"; exit 1; }
               done
             fi
-            codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$nested"
+            codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$nested" \
+              || { echo "[FAIL] codesign nested app $nested"; exit 1; }
           done
           # Sign binary
           BIN="$APP/Contents/MacOS/net_diagnostics"
@@ -250,6 +260,10 @@ jobs:
           K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
           echo -n "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
           chmod 600 "$K"
+          # 5WHY: ASC_KEYFILE was never exported to GITHUB_ENV, so the
+          # "Clean up keys" step below tried to rm "$ASC_KEYFILE" which
+          # resolved to an empty string — the key file was never deleted.
+          echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
 
       - name: Upload macOS to TestFlight
         if: steps.last-sha.outputs.last != github.sha
