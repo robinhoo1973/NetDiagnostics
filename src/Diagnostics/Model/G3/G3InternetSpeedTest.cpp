@@ -611,7 +611,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(17, QChar('-')))
         .arg(QString(10, QChar('-'))));
 
-    struct CandidateResult { SpeedTest::Server* srv; double mbps; int durationMs; };
+    struct CandidateResult { SpeedTest::Server* srv; double mbps; };
     QVector<CandidateResult> results;
 
     for (auto& s : candidates) {
@@ -619,7 +619,7 @@ DiagnosticResult speedTest(DiagId id) {
         QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
         auto res = httpDownload(probeUrl, 100000, 6000);
         if (res.ok && res.mbps > 0.01) {
-            results.append({&s, res.mbps, res.durationMs});
+            results.append({&s, res.mbps});
             out.append(QStringLiteral("  %1  %2  %3  %4")
                 .arg(results.size(), 3)
                 .arg(s.sponsor.leftJustified(22, ' '))
@@ -672,7 +672,9 @@ DiagnosticResult speedTest(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
     out.append(QStringLiteral("  Selected: %1 (%2, %3) -- %4 Mbit/s (100KB)")
-        .arg(best->sponsor, best->name, best->country)
+        .arg(best->sponsor)
+        .arg(best->name)
+        .arg(best->country)
         .arg(bestMbps, 0, 'f', 2));
     out.append(QString());
 
