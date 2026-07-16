@@ -56,8 +56,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.
-    // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
-    // to TargetModel::targetChanged signal, separating concerns.
     // 5WHY (2nd): the lambda handled G4/G5 auto-management but never
     // emitted AppState::targetChanged().  QML bindings on target,
     // defaultPortForScheme, and sub-fields were therefore stale after
