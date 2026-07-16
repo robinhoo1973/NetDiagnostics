@@ -919,8 +919,8 @@ DiagnosticResult speedTest(DiagId id) {
         bool uploadOk = headerComplete;
         if (headerComplete) {
         char buf[4096];
-        FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {30, 0};  // generous 30s response read timeout
+        fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
+        struct timeval tv = {30, 0};  // generous 30s response read timeout
         int selRet = select(sock + 1, &fdset, nullptr, nullptr, &tv);
         if (selRet > 0 && FD_ISSET(sock, &fdset)) {
             ssize_t n = recv(sock, buf, sizeof(buf) - 1, 0);
