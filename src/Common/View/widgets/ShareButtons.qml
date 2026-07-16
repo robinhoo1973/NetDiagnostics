@@ -7,14 +7,18 @@ import "../theme"
 // ShareButtons — Reusable PDF/HTML share button pair
 //
 // Three visual modes:
-//   "compact"  — icon-only squares (42dp), for Diagnostic header
+//   "compact"  — icon-only squares (48dp), 34dp icons, for Diagnostic header
 //   "labeled"  — icon+text buttons (fillWidth), for Dashboard preview overlay
 //   "wide"     — icon+text buttons (fillWidth, 48dp height), for Report preview
 //
 // Color overrides let each page set accent colours appropriate to its theme:
-//   - Diagnostic:  pdfAccent=ThemeEngine.failRed,  htmlAccent=ThemeEngine.accentBlue
-//   - Dashboard:   pdfAccent=ThemeEngine.failRed,  htmlAccent=ThemeEngine.accentBlue
-//   - Report:      pdfAccent=ThemeEngine.cyan,     htmlAccent=ThemeEngine.primary
+//   - Diagnostic:  pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
+//   - Dashboard:   pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
+//   - Report:      pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
+//
+// Icons: uses file-pdf.svg / file-html.svg (not -sm variants).
+// At 34dp in a 48dp button (71% fill), the "PDF"/"HTML" text in the document
+// icon is legible without the simplified single-letter -sm variants.
 // ══════════════════════════════════════════════════════════════════════════════
 
 RowLayout {
@@ -31,11 +35,13 @@ RowLayout {
     readonly property bool _isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
     // ── Sizes derived from mode ─────────────────────────────────────────────
-    // 5WHY: compact button was 42dp — below MD3 48dp minimum touch target
-    // (WCAG 2.1 SC 2.5.5 AAA). Icon was 28dp (67% fill) leaving too little
-    // padding. Now 48dp button with 26dp icon (54% fill) for comfortable
-    // framing and legible file-type labels at the larger render size.
-    readonly property int _iconSize:  mode === "compact" ? 26 :
+    // 5WHY: compact icon was 26dp inside 48dp button (54% fill) using -sm SVG
+    // variants with simplified single-letter content ("P"/"H").  Users reported
+    // icons still too small to distinguish PDF from HTML at a glance.
+    // Fix: use full file-pdf/file-html SVGs (not -sm) at 34dp (71% fill).
+    // The regular SVGs have "PDF"/"HTML" text in the document icon — legible
+    // at 34dp (viewBox 24 → 34dp render ≈ 7px text height).
+    readonly property int _iconSize:  mode === "compact" ? 34 :
                                       (mode === "wide" ? 20 : 16)
     readonly property int _btnHeight: mode === "compact" ? 48 :
                                       (mode === "wide" ? 48 : 40)
@@ -50,7 +56,9 @@ RowLayout {
             // 5WHY: one-shot assignment means locked/accent changes (e.g.
             // premium purchase) are not reflected. Use Qt.binding() to keep
             // inner properties reactive.
-            item.iconName = Qt.binding(function() { return shareRoot.mode === "compact" ? "file-pdf-sm" : "file-pdf" })
+            // 5WHY: compact mode used file-pdf-sm (single "P" letter) — too
+            // small to distinguish. Now uses file-pdf ("PDF" text) at 34dp.
+            item.iconName = "file-pdf"
             item.accent = Qt.binding(function() { return shareRoot.pdfAccent })
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "pdf"
@@ -64,7 +72,9 @@ RowLayout {
         Layout.fillWidth: shareRoot.mode !== "compact"
         sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
         onLoaded: {
-            item.iconName = Qt.binding(function() { return shareRoot.mode === "compact" ? "file-html-sm" : "file-html" })
+            // 5WHY: compact mode used file-html-sm — too small. Now uses
+            // file-html ("HTML" text) at 34dp, matching the PDF button.
+            item.iconName = "file-html"
             item.accent = Qt.binding(function() { return shareRoot.htmlAccent })
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "html"

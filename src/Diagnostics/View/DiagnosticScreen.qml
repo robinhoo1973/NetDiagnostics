@@ -179,9 +179,14 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                     // Share buttons -- reusable ShareButtons component (5WHY fix #1, #3)
+                    // 5WHY: no pdfAccent/htmlAccent overrides — used defaults
+                    // (failRed + accentBlue) which clash with Diagnostic page's
+                    // cyan theme. Now uses page-appropriate accents.
                     ShareButtons {
                         id: headerShareBtns
                         mode: "compact"
+                        pdfAccent: ThemeEngine.cyan
+                        htmlAccent: ThemeEngine.primary
                         visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
                         onShareRequested: function(fmt) { page.doShare(fmt) }
                     }

@@ -482,10 +482,27 @@ DiagnosticResult speedTest(DiagId id) {
             // the diagnostic log threshold — consistent observability.
             bool chinaFirst = (country == QStringLiteral("XX") && connChina >= 3);
             if (chinaFirst) {
-                // Move CN to front of round-robin order
                 countries.removeAll(QStringLiteral("CN"));
                 countries.prepend(QStringLiteral("CN"));
                 out.append(QStringLiteral("  (China connectivity detected, prioritizing CN servers)"));
+            }
+            // 5WHY: round-robin across 15+ countries with maxAll=12 tested at
+            // most 1-2 CN servers (1 per cycle). When chinaFirst is true and
+            // the user is inside GFW, the single CN server picked in the first
+            // cycle might be down. Pre-seed: test up to 5 CN servers first,
+            // directly, before starting the geographic round-robin. This gives
+            // CN servers (26 available) a real chance before time runs out.
+            if (chinaFirst && byCountry.contains(QStringLiteral("CN"))) {
+                auto& cnServers = byCountry[QStringLiteral("CN")];
+                int cnToTest = qMin(5, (int)cnServers.size());
+                for (int i = 0; i < cnToTest && ranked.size() < 12; i++) {
+                    if (totalTimer.elapsed() > 25000) break;
+                    SpeedTest::Server* s = cnServers.takeFirst();
+                    int lat = httpLatencyMs(s->url, 5000);
+                    if (lat > 0) ranked.append({s, lat});
+                }
+                if (cnServers.isEmpty())
+                    countries.removeAll(QStringLiteral("CN"));
             }
             int maxAll = qMin(12, (int)allServers.size());
             int countryIdx = 0;
