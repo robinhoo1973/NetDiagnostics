@@ -33,6 +33,7 @@
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
+        <file alias="qml/widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
         <file alias="qml/widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>
         <file alias="qml/widgets/TargetAnalysisPanel.qml">../src/Common/View/widgets/TargetAnalysisPanel.qml</file>
@@ -49,7 +50,9 @@
         <file>icons/diagnostics.svg</file>
         <file>icons/error.svg</file>
         <file>icons/file-html.svg</file>
+        <file>icons/file-html-sm.svg</file>
         <file>icons/file-pdf.svg</file>
+        <file>icons/file-pdf-sm.svg</file>
         <file>icons/globe.svg</file>
         <file>icons/translate.svg</file>
         <file>icons/info.svg</file>

@@ -108,22 +108,29 @@ Item {
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
         // Status bar — visible during/after run.
-        // Desktop: single row with 5 status badges inline (icon + count).
-        // Phone portrait: title on row 1, 5 colored-icon badges on row 2
-        // matching the DiagGroupPanel StatusBadge pattern.
+        // Single row with status badges + share buttons inline — all screen sizes.
+        // 5WHY: height was hardcoded per wide flag without checking share-btn visibility.
+        // When share buttons (42dp) appear after run completion, header must grow
+        // to 64dp on all screen widths, not just wide.  Added minimumHeight so the
+        // Layout never shrinks the header below its content.
         Rectangle {
-            // Header grows taller when complete to fit share buttons inline.
-            // 5WHY: 48px was too short — 42dp share buttons + 4dp padding =
-            // 50dp minimum. 54px provides comfortable clearance.
             Layout.fillWidth: true
-            // 5WHY: 54px was too short when share buttons are visible
-            // (42dp share icons + padding need ~64px). Bumped to 64px
-            // to prevent results from covering the header on narrow screens.
-            implicitHeight: page.wide ? (appState.runStatus === 2 ? 64 : 36) : 56
+            // Share buttons visible → need 64dp (42dp buttons + 8dp padding + spacing)
+            // Running → compact 36dp (spinner + status, no badges/share)
+            // Other states (cancelled/error, no share) → 48dp narrow / 36dp wide
+            readonly property bool _shareVisible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
+            implicitHeight: _shareVisible ? 64
+                          : (appState.runStatus === 1 ? 36
+                          : (page.wide ? 36 : 48))
+            Layout.minimumHeight: implicitHeight
             color: ThemeEngine.colors.navBar
+            // 5WHY: No bottom border → header and results visually merged when
+            // implicitHeight was too short to contain content.  A subtle bottom
+            // border provides a clear visual separator.
+            border { width: 1; color: ThemeEngine.colors.borderCard }
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
             ColumnLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
+                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 8; bottomMargin: 8 }
                 spacing: 2
                 // Row 1 — status label + count + badges + share buttons inline
                 RowLayout {
@@ -164,27 +171,12 @@ Item {
                         RowLayout { spacing: 2; AppIcon { name: "badge-skip";    size: 10; color: ThemeEngine.skipGray   } Label { text: ("  " + __aggSkip).slice(-2); font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: ThemeEngine.skipGray   } }
                     }
                     Item { Layout.fillWidth: true }
-                    // Share buttons — far right, same size as report preview popup
-                    RowLayout {
-                        spacing: 6; visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                        Rectangle {
-                            implicitWidth: 42; implicitHeight: 42; radius: 8
-                            opacity: appState.isPremium ? 1.0 : 0.4
-                            color: Qt.alpha(ThemeEngine.failRed, 0.12)
-                            border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.35) }
-                            AppIcon { anchors.centerIn: parent; name: "file-pdf"; size: 24; color: ThemeEngine.failRed }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("pdf") }
-                            Accessible.name: page.isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn
-                        }
-                        Rectangle {
-                            implicitWidth: 42; implicitHeight: 42; radius: 8
-                            opacity: appState.isPremium ? 1.0 : 0.4
-                            color: Qt.alpha(ThemeEngine.accentBlue, 0.12)
-                            border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.35) }
-                            AppIcon { anchors.centerIn: parent; name: "file-html"; size: 24; color: ThemeEngine.accentBlue }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.doShare("html") }
-                            Accessible.name: page.isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn
-                        }
+                    // Share buttons -- reusable ShareButtons component (5WHY fix #1, #3)
+                    ShareButtons {
+                        id: headerShareBtns
+                        mode: "compact"
+                        visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
+                        onShareRequested: function(fmt) { page.doShare(fmt) }
                     }
                 }
                 // Badges now inline on Row 1 for all screen sizes — Row 2 removed
