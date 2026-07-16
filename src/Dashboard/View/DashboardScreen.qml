@@ -314,9 +314,13 @@ Item {
                     }
                 }
                 // ── Share buttons (PDF + HTML) ───────────────────────────
+                // 5WHY: no pdfAccent/htmlAccent overrides — used defaults
+                // (failRed + accentBlue). Now uses theme-appropriate accents.
                 ShareButtons {
                     Layout.fillWidth: true
                     mode: "labeled"
+                    pdfAccent: ThemeEngine.cyan
+                    htmlAccent: ThemeEngine.primary
                     onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
 }
