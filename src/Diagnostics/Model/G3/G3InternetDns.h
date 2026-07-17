@@ -5,5 +5,6 @@ DiagnosticResult netskopeStatus(DiagId id);
 DiagnosticResult dnsServers(DiagId id);
 DiagnosticResult dnsCache(DiagId id);
 DiagnosticResult dnsPollution(DiagId id);
+DiagnosticResult vpnStatus(DiagId id);
 DiagnosticResult speedTest(DiagId id);
 }
