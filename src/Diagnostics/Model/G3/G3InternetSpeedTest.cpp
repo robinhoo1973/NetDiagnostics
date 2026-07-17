@@ -730,7 +730,10 @@ DiagnosticResult speedTest(DiagId id) {
         int maxFallback = qMin(3, (int)results.size());
         for (int si = 0; si < maxFallback; si++) {
             // 5WHY: bail early if we have exceeded total time budget.
-            if (totalTimer.elapsed() > 45000) break;
+            // 5WHY: guard was 45000 — inherited from old code when download
+            // had no outer guard. Now matches outer 110000 so per-tier fallback
+            // gets a fair budget when Phase 0-5 consumed <110s.
+            if (totalTimer.elapsed() > 110000) break;
             // Try each server once before marking failure
             int idx = (dlServerIdx + si) % results.size();
             SpeedTest::Server* srv = results[idx].srv;
