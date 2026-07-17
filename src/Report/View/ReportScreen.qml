@@ -15,7 +15,7 @@ Item {
     readonly property bool canReport: hasResults && !isRunning
     property string lastPath: ""
     property bool lastFailed: false
-    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property bool isMobile: ThemeEngine.isMobile
 
     // Built-in preview overlay state
     property string previewImagePath: ""   // rendered preview image (data: URI)

@@ -203,7 +203,7 @@ Item {
             // ── Premium Section (mobile only) ────────────
             ColumnLayout {
                 id: restoreSection
-                visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
+                visible: ThemeEngine.isMobile
                 Layout.fillWidth: true; spacing: 0
                 SectionHeader { iconName: "badge-check"; title: Tr.subscribeTitle }
                 Item { Layout.preferredHeight: 12 }

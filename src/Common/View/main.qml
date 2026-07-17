@@ -55,7 +55,7 @@ ApplicationWindow {
 
     AppContent {
         anchors.fill: parent
-        compact: Qt.platform.os === "ios" || Qt.platform.os === "android"
+        compact: ThemeEngine.isMobile
         onCloseRequested: root.close()
     }
 
@@ -66,7 +66,7 @@ ApplicationWindow {
     // discover it — WCAG 2.1 SC 1.4.1 (Use of Color) failure.  Now shows a
     // subtle border at rest and a visible 44x44px touch target (Apple HIG min).
     Rectangle {
-        visible: Qt.platform.os !== "ios" && Qt.platform.os !== "android"
+        visible: !ThemeEngine.isMobile
         anchors { top: parent.top; right: parent.right; topMargin: 6; rightMargin: 10 }
         width: 44; height: 44; radius: 8
         color: closeArea.containsMouse ? Qt.alpha(ThemeEngine.colors.borderCard, 0.5) : "transparent"

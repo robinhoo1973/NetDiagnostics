@@ -12,7 +12,7 @@ Item {
     property int _totalCompleted: appState.totalCompleted
     property bool hasData: _totalCompleted > 0
     readonly property var allStats: appState.allGroupStats || []
-    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property bool isMobile: ThemeEngine.isMobile
     readonly property alias overlayVisible: previewOverlay.visible
 
     // ── Preview overlay state ──────────────────────────────────────────
