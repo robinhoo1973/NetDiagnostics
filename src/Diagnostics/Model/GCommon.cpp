@@ -115,7 +115,9 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
         .arg(path, dlHostHeader).toUtf8();
     int reqSent = 0;
+    QElapsedTimer sendGuard; sendGuard.start();
     while (reqSent < req.size()) {
+        if (sendGuard.elapsed() > 30000) break; // 30s hard guard (matching httpGet)
         auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
         if (n < 0) {
 #if defined(_WIN32)
@@ -148,9 +150,11 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         // Use the caller's timeout as the wall-clock guard — a 10s caller
         // should not block for 60s.  Keep a 60s ceiling for large downloads.
         // qMIN (not qMAX): respect caller's timeout, with 60s safety net.
-        if (recvGuard.elapsed() > qMin(timeoutMs, 60000)) break;
+        int remaining = qMin(timeoutMs, 60000) - (int)recvGuard.elapsed();
+        if (remaining <= 0) break;
+        int selectMs = qMax(remaining, 50); // matching httpGet pattern
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
+        tv = {selectMs / 1000, (selectMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
         // 5WHY: treat EAGAIN as retry, not end-of-stream

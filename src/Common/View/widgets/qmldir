@@ -10,4 +10,5 @@ LiveProgressPanel 1.0 LiveProgressPanel.qml
 SummaryCards 1.0 SummaryCards.qml
 TargetAnalysisPanel 1.0 TargetAnalysisPanel.qml
 ShareButtons 1.0 ShareButtons.qml
+StatusBadge 1.0 StatusBadge.qml
 TargetInputPanel 1.0 TargetInputPanel.qml
