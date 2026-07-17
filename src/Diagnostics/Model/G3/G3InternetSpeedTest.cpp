@@ -803,7 +803,9 @@ DiagnosticResult speedTest(DiagId id) {
         // hard wall-clock guard (45s) so the download phase always completes
         // within the 180s diagnostic watchdog budget.
         if (dlTotalMs > 12000) break;        // cumulative download time cap
-        if (totalTimer.elapsed() > 45000) break; // wall-clock hard cap
+        // 5WHY: guard was 45000 — LOWER than Phase 4's 55000. When Phase 0-4
+        // exceeds 45s, download is silently skipped → dlSpeed=0. Now 110000.
+        if (totalTimer.elapsed() > 110000) break; // wall-clock hard cap
 
         // Try preferred server first, fall back through ranked list independently
         // per size tier 闂?a server that handles 250KB may choke on 25MB.
@@ -899,7 +901,7 @@ DiagnosticResult speedTest(DiagId id) {
     }
     for (int sizeKb : ulSizes) {
         if (ulTotalMs > 15000) break;
-        if (totalTimer.elapsed() > 70000) break; // wall-clock hard cap (70s total, upload stays within 180s watchdog)
+        if (totalTimer.elapsed() > 150000) break; // wall-clock hard cap (150s, within 180s watchdog)
         int dataSize = sizeKb * 1000;
 
         // HTTP POST with measured upload
