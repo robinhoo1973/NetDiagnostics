@@ -166,7 +166,10 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         // bytes or dropping the HTTP status line entirely. Move the guard
         // BEFORE select() so previously-processed data is safe and only
         // NEW reads are prevented.
-        if (recvGuard.elapsed() > 60000) break;
+        // 5WHY: hardcoded 60000 inconsistent with httpGet timeoutMs fix.
+        // Use the caller's timeout as the wall-clock guard — a 10s caller
+        // should not block for 60s.  Keep a 60s ceiling for large downloads.
+        if (recvGuard.elapsed() > qMax(timeoutMs, 60000)) break;
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
