@@ -169,11 +169,11 @@ Item {
                 RowLayout {
                     spacing: 4; visible: _showBadges
                     Item { width: 11 }
-                    BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __agg.pass }
-                    BadgeLabel { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __agg.info }
-                    BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __agg.warn }
-                    BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __agg.fail }
-                    BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __agg.skip }
+                    StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __agg.pass }
+                    StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __agg.info }
+                    StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __agg.warn }
+                    StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __agg.fail }
+                    StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __agg.skip }
                 }
             }
         }
@@ -386,19 +386,5 @@ Item {
     }
 
 
-    // ── BadgeLabel: status icon + count (mirrors DiagGroupPanel.StatusBadge) ──
-    // 5WHY: DiagnosticScreen used manual RowLayout { AppIcon + Label } which
-    // diverged from DiagGroupPanel's StatusBadge format. Now extracted as a
-    // shared component so both headers are visually identical.
-    component BadgeLabel: RowLayout {
-        property color accent: ThemeEngine.passGreen
-        property string iconName: "badge-info"
-        property int count: 0
-        spacing: 2
-        AppIcon { name: iconName; size: 14; color: accent }
-        Label {
-            text: ThemeEngine.pad2(count)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: accent
-        }
-    }
+    // BadgeLabel → shared StatusBadge (src/Common/View/widgets/StatusBadge.qml)
 }
