@@ -124,20 +124,26 @@ QtObject {
         borderCard      = p.borderCard;    borderSubtle    = p.borderSubtle
         borderFocused   = p.borderFocused; primary         = p.primary
         primaryContainer= p.primaryContainer; secondary     = p.secondary
+        // Rebuild colors JS object so all 152 consumers get fresh theme
+        colors = ({
+            surface: bgDark, card: bgCard, input: bgInput, sidebar: bgSidebar,
+            navBar: navBar, primary: primary, primaryContainer: primaryContainer,
+            secondary: secondary, textPrimary: textPrimary,
+            textSecondary: textSecondary, textMuted: textMuted,
+            accent: accent, cyan: cyan, passGreen: passGreen,
+            warnYellow: warnYellow, failRed: failRed, skipGray: skipGray,
+            infoBlue: infoBlue, borderCard: borderCard,
+            borderSubtle: borderSubtle, borderFocused: borderFocused
+        })
     }
     onModeChanged: { if (_ready) applyTheme() }
 
-    // ── Convenience objects ────────────────────────────────────────────
-    readonly property var colors: ({
-        surface: bgDark, card: bgCard, input: bgInput, sidebar: bgSidebar,
-        navBar: navBar, primary: primary, primaryContainer: primaryContainer,
-        secondary: secondary, textPrimary: textPrimary,
-        textSecondary: textSecondary, textMuted: textMuted,
-        accent: accent, cyan: cyan, passGreen: passGreen,
-        warnYellow: warnYellow, failRed: failRed, skipGray: skipGray,
-        infoBlue: infoBlue, borderCard: borderCard,
-        borderSubtle: borderSubtle, borderFocused: borderFocused
-    })
+    // ── Convenience object (rebuilt on every theme switch) ────────────
+    // 5WHY: readonly property var was a one-time JS object snapshot —
+    // applyTheme() updated the direct properties but colors stayed stale.
+    // Now non-readonly, rebuilt inside applyTheme() so all 152 consumers
+    // get reactive theme updates.
+    property var colors: ({})
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property string fontMono: "JetBrains Mono"
     readonly property string monoFont: fontMono
