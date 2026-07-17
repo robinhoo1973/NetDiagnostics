@@ -150,11 +150,11 @@ DiagnosticResult vpnStatus(DiagId id) {
         out.append(QStringLiteral("  %1 == %2 → status: No VPN").arg(countryA).arg(countryB));
         scenario = QStringLiteral("No VPN (%1)").arg(countryA);
     } else if (significant) {
-        out.append(QStringLiteral("  %1 != %2 → status: VPN detected (p=%.3f)").arg(countryA).arg(countryB).arg(pValue, 3, 'f', 3));
+        out.append(QStringLiteral("  %1 != %2 → status: VPN detected (p=%3)").arg(countryA).arg(countryB).arg(pValue, 0, 'f', 3));
         scenario = QStringLiteral("VPN detected");
         status = DiagStatus::Warning;
     } else {
-        out.append(QStringLiteral("  %1 != %2 → status: No VPN (p=%.3f, not significant)").arg(countryA).arg(countryB).arg(pValue, 3, 'f', 3));
+        out.append(QStringLiteral("  %1 != %2 → status: No VPN (p=%3, not significant)").arg(countryA).arg(countryB).arg(pValue, 0, 'f', 3));
         scenario = QStringLiteral("No VPN (%1)").arg(countryA);
     }
 
