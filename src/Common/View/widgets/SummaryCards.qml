@@ -38,7 +38,7 @@ ColumnLayout {
         pass=0; warn=0; fail=0; skip=0; info=0
         for (var g=0; g<appState.groupLabels.length; g++) {
             var s = appState.groupStats(g)
-            pass += s.pass; warn += s.warn; fail += s.fail; skip += s.skip; info += (s.info||0)
+            pass += (s.pass||0); warn += (s.warn||0); fail += (s.fail||0); skip += (s.skip||0); info += (s.info||0)
         }
     }
 
