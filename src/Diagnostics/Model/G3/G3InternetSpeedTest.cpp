@@ -713,7 +713,8 @@ DiagnosticResult speedTest(DiagId id) {
         // within the 180s diagnostic watchdog budget.
         if (dlTotalMs > 12000) break;        // cumulative download time cap
         // 5WHY: guard was 45000 — LOWER than Phase 4's 55000. When Phase 0-4
-        // exceeds 45s, download is silently skipped → dlSpeed=0. Now 110000.
+        // exceeds 45s, download is silently skipped → dlSpeed=0. Now 110000
+        // (generous — diagnostic watchdog budget is 180s).
         if (totalTimer.elapsed() > 110000) break; // wall-clock hard cap
 
         // Try preferred server first, fall back through ranked list independently
@@ -769,6 +770,10 @@ DiagnosticResult speedTest(DiagId id) {
         return sum / count;
     };
     double dlSpeed = avgTopN(dlResults);
+    if (dlResults.isEmpty() && totalTimer.elapsed() > 100000) {
+        out.append(QStringLiteral("  (budget exhausted — earlier phases consumed %1s)")
+            .arg(totalTimer.elapsed() / 1000.0, 0, 'f', 1));
+    }
 
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
