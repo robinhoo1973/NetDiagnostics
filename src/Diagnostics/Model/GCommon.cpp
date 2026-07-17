@@ -8,6 +8,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     // duplicating tcpConnect() from NetUtil.h.  Now 1 call.
     int sock = tcpConnect(host, port, timeoutMs);
     if (sock < 0) return {};
+    fd_set fdset; struct timeval tv; // reused by send/recv loops below
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
     // 5WHY: Host header omitted port number. Per RFC 7230 §5.4, the port
@@ -104,6 +105,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
     if (sock < 0) return r;
+    fd_set fdset; struct timeval tv; // reused by send/recv loops below
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
     // 5WHY: Host header omitted port — same bug that was fixed in httpGet()
