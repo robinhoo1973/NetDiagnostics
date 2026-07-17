@@ -80,6 +80,24 @@ inline void SpeedTest::build() { Server s;
     S("IN","speedtest.jio.com",8080,"Mumbai","Jio");
     S("IN","speedtestdel.airtel.com",8080,"Delhi","Airtel 2");
 
+    // -- Southeast Asia (TH, MY, ID, PH) --
+    S("TH","speedtest.trueinternet.co.th",8080,"Bangkok","True Internet");
+    S("TH","speedtest.ais.co.th",8080,"Bangkok 2","AIS");
+    S("TH","speedtest.3bb.co.th",8080,"Chiang Mai","3BB");
+    S("TH","speedtest.cattelecom.co.th",8080,"Phuket","CAT Telecom");
+    S("MY","speedtest.tm.com.my",8080,"Kuala Lumpur","Telekom Malaysia");
+    S("MY","speedtest.maxis.com.my",8080,"Penang","Maxis");
+    S("MY","speedtest.digi.com.my",8080,"Johor Bahru","Digi");
+    S("MY","speedtest.celcom.com.my",8080,"Kota Kinabalu","Celcom");
+    S("ID","speedtest.telkom.co.id",8080,"Jakarta","Telkom Indonesia");
+    S("ID","speedtest.indosat.com",8080,"Surabaya","Indosat");
+    S("ID","speedtest.xl.co.id",8080,"Bandung","XL Axiata");
+    S("ID","speedtest.biznetnetworks.co.id",8080,"Medan","Biznet");
+    S("PH","speedtest.pldt.com.ph",8080,"Manila","PLDT");
+    S("PH","speedtest.globe.com.ph",8080,"Quezon City","Globe Telecom");
+    S("PH","speedtest.convergeict.ph",8080,"Cebu","Converge ICT");
+    S("PH","speedtest.skybroadband.com.ph",8080,"Davao","Sky Broadband");
+
     // -- Middle East --
     S("AE","speedtest.du.ae",8080,"Dubai","du");
     S("AE","speedtest.etisalat.ae",8080,"Abu Dhabi","Etisalat");
