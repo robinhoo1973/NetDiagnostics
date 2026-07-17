@@ -147,4 +147,9 @@ QtObject {
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property string fontMono: "JetBrains Mono"
     readonly property string monoFont: fontMono
+
+    // Shared space-pad for monospace badge alignment (ES5-compatible, no padStart).
+    // 5WHY: three files had identical copies (_pad2, _pad2Fixed, _pad2Badge).
+    // Centralized here as single source of truth.
+    function pad2(n) { return (n < 10 ? " " : "") + n }
 }

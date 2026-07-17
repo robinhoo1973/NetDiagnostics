@@ -271,7 +271,7 @@ int tcpPingMs(const QString& host, int port) {
 double tcpPingAvg(const QString& host, int port) {
     // 5WHY: Both vpnStatus and speedTest probe ALL servers independently,
     // causing 2× TCP pings (~100 servers × 2 = 200 probes, ~90s wasted).
-    // Shared in-memory cache with 60s TTL eliminates redundant probes.
+    // Shared in-memory cache with 120s TTL eliminates redundant probes.
     static QMap<QString, double> sCache;
     static qint64 sCacheTimestamp = 0;
     static QMutex sCacheMutex;

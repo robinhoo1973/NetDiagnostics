@@ -41,7 +41,6 @@ ColumnLayout {
     // 5WHY: zero-padding via .slice(-2) for alignment — removed
     // to prevent truncation at >=100 (same bug as DiagnosticScreen).
     // Right-alignment already handles single-digit display correctly.
-    function _pad2Fixed(n) { return (n < 10 ? " " : "") + n }
     Component.onCompleted: refresh()
     function refresh() {
         pass=0; warn=0; fail=0; skip=0; info=0
@@ -74,7 +73,7 @@ ColumnLayout {
             }
             Item { width: 8 }
             Label {
-                text: _pad2Fixed(count)
+                text: ThemeEngine.pad2(count)
                 font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: accent
                 horizontalAlignment: Text.AlignRight
             }

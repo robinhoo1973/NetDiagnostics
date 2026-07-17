@@ -37,21 +37,6 @@ inline bool setSocketNonBlocking(int sock) {
 #endif
 }
 
-// ── send() EAGAIN/WOULDBLOCK retry ──────────────────────────────────
-// Returns true if the caller should select() for writability and retry.
-// Replaces the 4-line #ifdef block that appears 4 times.
-inline bool retrySendWouldBlock(int sock, int timeoutSec = 1) {
-#if defined(_WIN32)
-    if (WSAGetLastError() != WSAEWOULDBLOCK) return false;
-#else
-    if (errno != EAGAIN && errno != EWOULDBLOCK) return false;
-#endif
-    fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf);
-    struct timeval tv = {timeoutSec, 0};
-    select(sock + 1, nullptr, &wf, nullptr, &tv);
-    return true;
-}
-
 // ── hostToAddr — forward declaration (defined below, used by tcpConnect) ──
 static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in& addr);
 
