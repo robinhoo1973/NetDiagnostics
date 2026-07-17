@@ -611,7 +611,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(17, QChar('-')))
         .arg(QString(10, QChar('-'))));
 
-    struct CandidateResult { SpeedTest::Server* srv; double mbps; };
+    struct CandidateResult { SpeedTest::Server* srv; double mbps; int latencyMs = 0; };
     QVector<CandidateResult> results;
 
     for (auto& s : candidates) {
@@ -619,7 +619,7 @@ DiagnosticResult speedTest(DiagId id) {
         QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
         auto res = httpDownload(probeUrl, 100000, 6000);
         if (res.ok && res.mbps > 0.01) {
-            results.append({&s, res.mbps});
+            results.append({&s, res.mbps, res.durationMs});
             out.append(QStringLiteral("  %1  %2  %3  %4")
                 .arg(results.size(), 3)
                 .arg(s.sponsor.leftJustified(22, ' '))
@@ -649,6 +649,7 @@ DiagnosticResult speedTest(DiagId id) {
     // candidates catches this.
     SpeedTest::Server* best = nullptr;
     double bestMbps = 0;
+    int bestLatency = 0;
     for (int i = 0; i < qMin(2, (int)results.size()); i++) {
         auto& cr = results[i];
         QString valUrl = QStringLiteral("%1/download?size=%2").arg(cr.srv->url).arg(250000);
@@ -715,13 +716,13 @@ DiagnosticResult speedTest(DiagId id) {
         // 5WHY: cap fallback at 3 servers per tier — reduces worst-case
         // timeout from 8 × 4s = 32s to 3 × 4s = 12s per tier when all
         // servers are unreachable (Country Unknown + GFW).
-        int maxFallback = qMin(3, (int)ranked.size());
+        int maxFallback = qMin(3, (int)results.size());
         for (int si = 0; si < maxFallback; si++) {
             // 5WHY: bail early if we have exceeded total time budget.
             if (totalTimer.elapsed() > 45000) break;
             // Try each server once before marking failure
-            int idx = (dlServerIdx + si) % ranked.size();
-            SpeedTest::Server* srv = ranked[idx].srv;
+            int idx = (dlServerIdx + si) % results.size();
+            SpeedTest::Server* srv = results[idx].srv;
             QString dlUrl = QStringLiteral("%1/download?size=%2").arg(srv->url).arg(sizeKb * 1000);
             auto res = httpDownload(dlUrl, sizeKb * 1000, 8000);
             if (res.ok && res.mbps > 0.01) {
@@ -730,7 +731,7 @@ DiagnosticResult speedTest(DiagId id) {
                 dlTotalMs += res.durationMs;
                 if (idx != dlServerIdx) {
                     out.append(QStringLiteral("  (switched to %1)").arg(srv->sponsor));
-                    best = srv; bestLatency = ranked[idx].latency;
+                    best = srv; bestLatency = results[idx].latencyMs;
                     dlServerIdx = idx; // make this the new preferred server
                 }
                 out.append(QStringLiteral("  %1  %2  %3")
