@@ -37,7 +37,7 @@ static QString continentForCountry(const QString& cc) {
     };
     return ccContinent.value(cc, "XX");
 }
-inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
+QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hint) const {
     auto it = m.constFind(hint);
     if (it != m.cend()) return it.value();
     QString p = hint.left(2).toUpper();
@@ -96,7 +96,7 @@ inline QVector<SpeedTest::Server> SpeedTest::serversForCountry(const QString& hi
     }
     return allServers();
 }
-inline QVector<SpeedTest::Server> SpeedTest::allServers() const {
+QVector<SpeedTest::Server> SpeedTest::allServers() const {
     // 5WHY: appending without reserve() causes ~5-6 reallocations for 50+
     // servers across ~15 countries. Count first, then reserve + append.
     // Two-pass is worthwhile here: QMap iteration is O(n) with cheap
@@ -334,7 +334,7 @@ static QString countryFromIpPrefix(const QString& ip) {
     return {};
 }
 
-inline QString SpeedTest::detectCountry(int timeoutMs) {
+QString SpeedTest::detectCountry(int timeoutMs) {
     // 5WHY: Every speed test run made 2-3 GeoIP HTTP calls (~6s each to fail).
     // Cache SUCCESSFUL results for the process lifetime (country doesn't change).
     // Do NOT cache "XX" failures -- network may recover, so retry on each run.
@@ -512,8 +512,7 @@ DiagnosticResult speedTest(DiagId id) {
             QVector<SpeedTest::Server> allSrv = st.allServers();
             for (const auto& s : allSrv) {
                 if (kGlobalBackup.contains(s.host)) {
-                    if (s.country != QStringLiteral("CN") ||
-                        !std::any_of(candidates.begin(), candidates.end(),
+                    if (!std::any_of(candidates.begin(), candidates.end(),
                             [&](const SpeedTest::Server& c) { return c.host == s.host; }))
                         candidates.append(s);
                 }

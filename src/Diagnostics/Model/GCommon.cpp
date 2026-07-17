@@ -30,7 +30,9 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
         .arg(path, hostHeader).toUtf8();
     int sent = 0;
+    QElapsedTimer sendGuard; sendGuard.start();
     while (sent < req.size()) {
+        if (sendGuard.elapsed() > 30000) break; // 30s hard guard against stalled send
         auto n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
         if (n < 0) {
 #if defined(_WIN32)
@@ -171,7 +173,8 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         // 5WHY: hardcoded 60000 inconsistent with httpGet timeoutMs fix.
         // Use the caller's timeout as the wall-clock guard — a 10s caller
         // should not block for 60s.  Keep a 60s ceiling for large downloads.
-        if (recvGuard.elapsed() > qMax(timeoutMs, 60000)) break;
+        // qMIN (not qMAX): respect caller's timeout, with 60s safety net.
+        if (recvGuard.elapsed() > qMin(timeoutMs, 60000)) break;
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;

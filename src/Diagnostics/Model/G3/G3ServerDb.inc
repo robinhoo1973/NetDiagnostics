@@ -101,7 +101,6 @@
     S("TR","speedtest.turkcell.com.tr",8080,"Antalya","Turkcell");
 
     // -- More Middle East (SA, QA, IL, EG) --
-    S("SA","speedtest.stc.com.sa",8080,"Riyadh","STC Saudi");
     S("SA","speedtest.mobily.com.sa",8080,"Jeddah","Mobily");
     S("SA","speedtest.zain.sa",8080,"Dammam","Zain Saudi");
     S("SA","speedtest.salam.sa",8080,"Medina","Salam");
@@ -136,7 +135,7 @@
     S("SE","speedtest.telia.com",8080,"Malmo","Telia");
     S("SE","speedtest.comhem.se",8080,"Uppsala","Com Hem");
     S("DE","speedtest.belwue.net",8080,"Stuttgart","BelWue");
-    S("DE","speedtest.ftp.otenet.gr",8080,"Frankfurt","OTE");
+    S("GR","speedtest.ftp.otenet.gr",8080,"Athens","OTE");
     S("DE","speedtest.telekom.de",8080,"Berlin","Telekom");
     S("DE","speedtest.vodafone.de",8080,"Munich","Vodafone DE");
     S("DE","speedtest.versatel.de",8080,"Hamburg","Versatel");

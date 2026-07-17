@@ -19,16 +19,15 @@ Rectangle {
     border { width: 1; color: isRunning ? Qt.alpha(ThemeEngine.cyan, 0.4) : ThemeEngine.colors.borderCard }
 
     // ── Computed state — all from C++ groupStats (single source of truth) ──
-    property var allItems: { let _v = appState.resultsVersion; return appState.allDiagsForGroup(groupIndex) }
     // ── Computed state — all from C++ groupStats (single source of truth) ──
-    property int enabledCount: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.total||0 }
-    property int completedCount: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.completed||0 }
+    property int enabledCount: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.total||0 }
+    property int completedCount: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.completed||0 }
     property bool isRunning: appState.runStatus===1 && completedCount<enabledCount && completedCount>0
-    property int groupPass: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.pass||0 }
-    property int groupWarn: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.warn||0 }
-    property int groupFail: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.fail||0 }
-    property int groupSkip: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.skip||0 }
-    property int groupInfo: { let _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.info||0 }
+    property int groupPass: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.pass||0 }
+    property int groupWarn: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.warn||0 }
+    property int groupFail: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.fail||0 }
+    property int groupSkip: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.skip||0 }
+    property int groupInfo: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.info||0 }
 
     onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
     onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
@@ -107,7 +106,7 @@ Rectangle {
             radius: 2; color: ThemeEngine.colors.borderCard
             Rectangle {
                 height: 4; radius: 2
-                width: enabledCount>0 ? parent.width*(completedCount/enabledCount) : 0
+                width: enabledCount>0 ? parent.width*(completedCount*1.0/enabledCount) : 0  // *1.0 forces float division (JS int math truncates)
                 color: isRunning ? ThemeEngine.cyan : ThemeEngine.passGreen
             }
         }
@@ -149,7 +148,7 @@ Rectangle {
     }
     activeFocusOnTab: true
     Keys.onPressed: function(event) {
-        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             _userToggled = true; expanded = !expanded; event.accepted = true
         }
     }

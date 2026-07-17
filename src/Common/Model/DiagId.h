@@ -244,5 +244,5 @@ inline const QVector<DiagId>& diagIdsForGroup(DiagGroup g) {
     }();
     static const QVector<DiagId> empty;
     auto it = cache.find(g);
-    return (it != cache.end()) ? *it : empty;
+    return (it != cache.end()) ? it.value() : empty;
 }

@@ -32,20 +32,9 @@ Item {
     property bool _runActive: false
     property int _cachedGen: -1
     property string _snapTargetError: ""
-    property bool _snapG0chk: true; property bool _snapG1chk: true
-    property bool _snapG2chk: true; property bool _snapG3chk: false
-    property bool _snapG4chk: false
-    property bool _snapG3en: false; property bool _snapG4en: false
     property int _snapVersion: 0
 
     function takeSnapshot() {
-        _snapG0chk = appState.isGroupAllEnabled(0) || appState.isGroupAnyEnabled(0)
-        _snapG1chk = appState.isGroupAllEnabled(1) || appState.isGroupAnyEnabled(1)
-        _snapG2chk = appState.isGroupAllEnabled(2) || appState.isGroupAnyEnabled(2)
-        _snapG3chk = appState.isGroupAllEnabled(3) || appState.isGroupAnyEnabled(3)
-        _snapG4chk = appState.isGroupAllEnabled(4) || appState.isGroupAnyEnabled(4)
-        _snapG3en = !appState.isTargetEmpty()
-        _snapG4en = appState.hasUrlScheme()
         _snapTargetError = appState.targetValidationError()
         _snapVersion++
     }
@@ -62,11 +51,11 @@ Item {
 
     // Aggregate badge counts — refreshed on each completed test.
     // groupStats(-1) sums G0-G4 via the C++ aggregate branch.
-    property int __aggPass: { let _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0) }
-    property int __aggInfo: { let _ = appState.totalCompleted; return (appState.groupStats(-1).info||0) }
-    property int __aggWarn: { let _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
-    property int __aggFail: { let _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
-    property int __aggSkip: { let _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
+    property int __aggPass: { var _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0) }
+    property int __aggInfo: { var _ = appState.totalCompleted; return (appState.groupStats(-1).info||0) }
+    property int __aggWarn: { var _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
+    property int __aggFail: { var _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
+    property int __aggSkip: { var _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
 
     // 5WHY: padStart() is ES2017 — not available on Qt 6 embedded/Yocto
     // builds which target ES7. Use an ES5-compatible zero-padding function.
@@ -74,7 +63,7 @@ Item {
 
     property var currentDetail: ({})
     property var visibleGroups: {
-        let _ = _snapVersion
+        var _ = _snapVersion
         var g = []
         for (var i = 0; i < 5; i++) {
             var s = appState.groupStats(i)
