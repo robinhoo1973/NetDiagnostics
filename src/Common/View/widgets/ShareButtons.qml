@@ -31,7 +31,7 @@ RowLayout {
     property color  htmlAccent: ThemeEngine.accentBlue
     signal shareRequested(string format)
 
-    readonly property bool _isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property bool _isMobile: ThemeEngine.isMobile
 
     // ── Sizes derived from mode ─────────────────────────────────────────────
     // 5WHY: compact buttons were 48dp — too large for the 48dp-tall AppBar
