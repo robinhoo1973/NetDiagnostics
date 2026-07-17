@@ -249,7 +249,11 @@ int tcpPingMs(const QString& host, int port) {
 // directly (already differentiated).  If ≤ 1ms, run 49 more (50 total).
 double tcpPingAvg(const QString& host, int port) {
     int first = tcpPingMs(host, port);
-    if (first <= 0) return -1.0;       // unreachable
+    // 5WHY: tcpPingMs returns elapsed ms truncated to int — a 950μs
+    // connect returns 0 (not -1).  first < 0 means true failure (timeout
+    // or SO_ERROR).  first == 0 means "success at <1ms" — those need the
+    // 50x averaging even more than first==1 servers.
+    if (first < 0) return -1.0;         // truly unreachable
     if (first > 1) return (double)first; // already differentiated
 
     // Sub-ms region: run 50 total connects, average the results
