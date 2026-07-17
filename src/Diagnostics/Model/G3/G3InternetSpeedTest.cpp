@@ -384,6 +384,17 @@ DiagnosticResult speedTest(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer totalTimer; totalTimer.start();
     QStringList out;
+    // 5WHY: 4 identical early-return blocks repeated the same 4 lines
+    // (rawOutput, details, status, durationMs).  Lambda eliminates the
+    // copy-paste and guarantees consistent status-assignment logic across
+    // all exit paths.
+    auto bail = [&](const QString& summary, DiagStatus altStatus = DiagStatus::Fail) -> DiagnosticResult {
+        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+        r.status = hasConnectivity ? DiagStatus::Warning : altStatus;
+        r.summary = hasConnectivity ? QStringLiteral("Connected -- ") + summary
+                                    : QStringLiteral("No internet connectivity");
+        r.durationMs = totalTimer.elapsed(); return r;
+    };
 
     out.append(QString());
     out.append(QStringLiteral("Internet Connectivity"));
@@ -453,10 +464,7 @@ DiagnosticResult speedTest(DiagId id) {
     if (totalTimer.elapsed() > 25000) {
         out.append(QString());
         out.append(QStringLiteral("  (Speed test skipped: connectivity check took too long)"));
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected -- speed test timed out") : QStringLiteral("No internet");
-        r.durationMs = totalTimer.elapsed(); return r;
+        return bail(QStringLiteral("speed test timed out"));
     }
 
     // === Phase 2: Build candidate pool (always includes ALL CN servers) ===
@@ -562,11 +570,7 @@ DiagnosticResult speedTest(DiagId id) {
     if (tcpRanked.isEmpty()) {
         out.append(QStringLiteral("  (no servers reachable via TCP)"));
         out.append(QString());
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected -- no servers reachable via TCP")
-                                    : QStringLiteral("No internet connectivity");
-        r.durationMs = totalTimer.elapsed(); return r;
+        return bail(QStringLiteral("no servers reachable via TCP"));
     }
 
     // Sort by TCP latency ascending
@@ -639,11 +643,7 @@ DiagnosticResult speedTest(DiagId id) {
     if (results.isEmpty()) {
         out.append(QStringLiteral("  (no servers passed micro-download screening)"));
         out.append(QString());
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = hasConnectivity ? QStringLiteral("Connected -- no servers passed 100KB download")
-                                    : QStringLiteral("No internet connectivity");
-        r.durationMs = totalTimer.elapsed(); return r;
+        return bail(QStringLiteral("no servers passed 100KB download"));
     }
 
     // Rank by throughput (descending)
@@ -672,10 +672,7 @@ DiagnosticResult speedTest(DiagId id) {
 
     if (!best) {
         out.append(QString());
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
-        r.summary = QStringLiteral("Connected -- all top servers failed pre-validation");
-        r.durationMs = totalTimer.elapsed(); return r;
+        return bail(QStringLiteral("all top servers failed pre-validation"), DiagStatus::Fail);
     }
 
     out.append(QString());
