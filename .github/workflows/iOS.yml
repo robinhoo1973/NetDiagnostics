@@ -120,14 +120,15 @@ jobs:
       - name: Verify iOS Diagnostic Symbols
         run: |
           set -euo pipefail
-          # 5WHY: added pipefail — "nm | c++filt | grep -q" is a 3-stage
-          # pipeline.  Without pipefail, if nm crashes (binary format
-          # change, stripped binary, etc.), grep might still match stale
-          # data in the pipe buffer, masking real symbol issues.
+          # 5WHY: "nm | c++filt | grep -q" pipeline fails with pipefail
+          # because grep -q exits immediately on first match, sending
+          # SIGPIPE to nm (llvm-nm prints "LLVM ERROR: IO failure" and
+          # exits non-zero).  Use process substitution instead:
+          # grep reads from a file descriptor, no pipe = no SIGPIPE.
           BIN=build/net_diagnostics.app/net_diagnostics
           MISSING=""
           for sym in iosDhcpDiag iosDefaultGatewayDiag iosRoutingTableDiag iosDnsResolve iosHttpDiagnostic; do
-            if nm -g "$BIN" 2>/dev/null | c++filt | grep -q "$sym"; then
+            if grep -q "$sym" < <(nm -g "$BIN" 2>/dev/null | c++filt 2>/dev/null); then
               echo "[OK]   $sym"
             else
               echo "[MISS] $sym"; MISSING="$MISSING $sym"
