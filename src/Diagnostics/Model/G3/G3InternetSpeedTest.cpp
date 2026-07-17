@@ -701,7 +701,18 @@ DiagnosticResult speedTest(DiagId id) {
                 .arg(s.sponsor.leftJustified(22, ' '))
                 .arg(s.name.leftJustified(17, ' '))
                 .arg(QStringLiteral("%1 Mbit/s").arg(res.mbps, 0, 'f', 2).rightJustified(10, ' ')));
-            if (results.size() >= 8) break; // enough candidates
+            if (results.size() >= 8) break;
+        } else {
+            // 5WHY: silent failure makes debugging impossible — log WHY
+            // each server failed the micro-download (unreachable / non-200 / empty body).
+            QString reason = res.bytes == 0 ? QStringLiteral("no data") :
+                             res.durationMs == 0 ? QStringLiteral("instant fail") :
+                             QStringLiteral("%1 B/%2 ms").arg(res.bytes).arg(res.durationMs);
+            out.append(QStringLiteral("  %1  %2  %3  (failed: %4)")
+                .arg(QStringLiteral("-").rightJustified(3, ' '))
+                .arg(s.sponsor.leftJustified(22, ' '))
+                .arg(s.name.leftJustified(17, ' '))
+                .arg(reason));
         }
     }
 
