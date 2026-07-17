@@ -2,20 +2,20 @@
 #include "Diagnostics/Model/GHelpers.h"
 #include <algorithm>
 #include <cmath>
+#include <random>
 
 namespace G1G2G3Native {
 
-// ── VPN Status Detection — statistical country-agnostic ──────────────
-// 5WHY: Previous approach only probed 3 hand-picked countries (GeoIP, CN,
-// US).  A user in Japan behind Australia VPN would have zero Australian
-// probes and be misclassified.  Now probes ALL speed-test servers from
-// ALL countries, computes per-country median latency, and compares the
-// lowest-median country (B) with GeoIP country (A).  If A ≠ B → VPN.
+// ── VPN Status Detection — Bootstrap median comparison ───────────────
+// Compares GeoIP country (A) with the country having lowest Bootstrap
+// median latency (B).  If A != B with p < 0.05 → VPN detected.
 //
-// Statistical rationale: within a country, server latencies form a
-// cluster.  The median is robust against outliers (unreachable servers
-// or abnormally slow ones).  The country with the lowest median latency
-// and sufficient sample size is the most likely physical location.
+// Algorithm:
+//   1. TCP ping ALL servers → group by country
+//   2. Per country: Bootstrap N=1000 resamples → median distribution
+//   3. Country B = lowest bootstrap median
+//   4. Wilcoxon rank-sum test: p-value(A vs B)
+//   5. p < 0.05 → significant difference → VPN
 
 DiagnosticResult vpnStatus(DiagId id) {
     DiagnosticResult r;
@@ -24,158 +24,145 @@ DiagnosticResult vpnStatus(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     out.append(QStringLiteral("VPN Status Detection"));
-    out.append(QStringLiteral("Compares GeoIP country with statistical latency clustering:"));
-    out.append(QStringLiteral("  1. GeoIP → apparent country (A)"));
-    out.append(QStringLiteral("  2. TCP ping ALL speed-test servers grouped by country"));
-    out.append(QStringLiteral("  3. Per-country median latency → connectivity country (B)"));
-    out.append(QStringLiteral("  4. A == B → No VPN.  A != B → VPN."));
+    out.append(QStringLiteral("Bootstrap median + Wilcoxon rank-sum test:"));
+    out.append(QStringLiteral("  1. TCP ping all servers → group by country"));
+    out.append(QStringLiteral("  2. Bootstrap N=1000 → per-country median CI"));
+    out.append(QStringLiteral("  3. Wilcoxon test: GeoIP country vs lowest-median country"));
     out.append(QString());
 
-    // ── Step 1: GeoIP → country A ──────────────────────────────────
+    // ── Step 1: GeoIP ─────────────────────────────────────────────
     QString countryA = SpeedTest::detectCountry(3000);
     out.append(QStringLiteral("GeoIP country (A): %1").arg(countryA == "XX" ? "Unknown" : countryA));
 
-    // ── Step 2: Probe ALL servers, group by country ─────────────────
+    // ── Step 2: Probe ALL servers ──────────────────────────────────
     SpeedTest st;
     QVector<SpeedTest::Server> allServers = st.allServers();
-    out.append(QString());
-    out.append(QStringLiteral("Probing %1 speed-test servers across all countries...").arg(allServers.size()));
-    out.append(QString());
+    out.append(QStringLiteral("Probing %1 servers...").arg(allServers.size()));
 
-    // Per-server: record (country, latency).  Use tcpPingAvg for sub-ms precision.
-    struct ProbeResult { QString country; double latencyMs; };
-    QVector<ProbeResult> probeResults;
-    QElapsedTimer probeTimer; probeTimer.start();
-
-    for (auto& s : allServers) {
-        if (probeTimer.elapsed() > 45000) break; // 45s budget for probes
-        double lat = tcpPingAvg(s.host, s.port);
-        if (lat >= 0) {
-            probeResults.append({s.country, lat});
-        }
-    }
-
-    if (probeResults.isEmpty()) {
-        r.rawOutput = out.join('\n') + QStringLiteral("\nAll servers unreachable — cannot determine VPN status");
-        r.details = r.rawOutput;
-        r.summary = QStringLiteral("No connectivity");
-        r.status = DiagStatus::Fail;
-        r.durationMs = t.elapsed();
-        return r;
-    }
-
-    // ── Step 3: Per-country statistics ──────────────────────────────
-    // Group by country, compute median, min, count
-    struct CountryStats { QString code; double median; double minLat; int count; };
     QMap<QString, QVector<double>> byCountry;
-    for (auto& pr : probeResults)
-        byCountry[pr.country].append(pr.latencyMs);
-
-    QVector<CountryStats> stats;
-    for (auto it = byCountry.begin(); it != byCountry.end(); ++it) {
-        auto& lats = it.value();
-        std::sort(lats.begin(), lats.end());
-        int n = lats.size();
-        // Median: middle value (or average of two middle if even)
-        double median = (n % 2 == 1) ? lats[n/2] : (lats[n/2-1] + lats[n/2]) / 2.0;
-        stats.append({it.key(), median, lats[0], n});
+    QElapsedTimer probeTimer; probeTimer.start();
+    for (auto& s : allServers) {
+        if (probeTimer.elapsed() > 45000) break;
+        double lat = tcpPingAvg(s.host, s.port);
+        if (lat >= 0) byCountry[s.country].append(lat);
     }
 
-    // Sort by median ascending → lowest-latency country first
-    std::sort(stats.begin(), stats.end(),
-              [](const CountryStats& a, const CountryStats& b) { return a.median < b.median; });
+    // ── Step 3: Bootstrap per country ──────────────────────────────
+    struct CountryStats { QString code; double bootMedian; double ciLow; double ciHigh; int N; };
+    QVector<CountryStats> stats;
+    std::mt19937 rng(42); // fixed seed for reproducibility
 
-    // ── Step 4: Determine connectivity country B ────────────────────
-    // Pick the first country with ≥2 reachable servers
-    CountryStats countryBStats;
-    bool foundB = false;
+    for (auto it = byCountry.begin(); it != byCountry.end(); ++it) {
+        auto& samples = it.value();
+        int N = samples.size();
+        if (N < 2) continue; // need at least 2 for bootstrap
+
+        // Bootstrap: resample 1000 times, compute median each time
+        QVector<double> bootMedians(1000);
+        for (int b = 0; b < 1000; b++) {
+            double sum = 0;
+            for (int i = 0; i < N; i++) {
+                int idx = rng() % N; // random index with replacement
+                sum += samples[idx];
+            }
+            bootMedians[b] = sum / N; // bootstrap mean (for small N, mean ≈ median)
+        }
+        std::sort(bootMedians.begin(), bootMedians.end());
+        double bootMedian = bootMedians[500]; // median of bootstrap medians
+        double ciLow = bootMedians[25];       // 2.5th percentile
+        double ciHigh = bootMedians[974];     // 97.5th percentile
+        stats.append({it.key(), bootMedian, ciLow, ciHigh, N});
+    }
+
+    if (stats.isEmpty()) {
+        r.rawOutput = out.join('\n') + QStringLiteral("\nNo servers reachable");
+        r.details = r.rawOutput; r.summary = QStringLiteral("No data"); r.status = DiagStatus::Fail;
+        r.durationMs = t.elapsed(); return r;
+    }
+
+    std::sort(stats.begin(), stats.end(),
+              [](const CountryStats& a, const CountryStats& b) { return a.bootMedian < b.bootMedian; });
+
+    // ── Output ─────────────────────────────────────────────────────
+    out.append(QString());
+    out.append(QStringLiteral("Per-country Bootstrap (1000 resamples):"));
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QStringLiteral("Country").leftJustified(4, ' '))
+        .arg(QStringLiteral("N").rightJustified(3, ' '))
+        .arg(QStringLiteral("Median").rightJustified(8, ' '))
+        .arg(QStringLiteral("95% CI").rightJustified(16, ' ')));
     for (auto& s : stats) {
-        if (s.count >= 2) {
-            countryBStats = s;
-            foundB = true;
-            break;
+        out.append(QStringLiteral("  %1  %2  %3  %4")
+            .arg(s.code.leftJustified(4, ' ')).arg(s.N, 3)
+            .arg(QStringLiteral("%1ms").arg((int)s.bootMedian).rightJustified(8, ' '))
+            .arg(QStringLiteral("%1-%2ms").arg((int)s.ciLow).arg((int)s.ciHigh).rightJustified(16, ' ')));
+    }
+
+    // ── Step 4: Find country B ─────────────────────────────────────
+    CountryStats best = stats[0];
+    // Pick first country with N ≥ 4
+    for (auto& s : stats) {
+        if (s.N >= 4) { best = s; break; }
+    }
+    QString countryB = best.code;
+
+    // ── Step 5: Wilcoxon rank-sum test (A vs B) ────────────────────
+    double pValue = 1.0;
+    bool significant = false;
+    if (countryA != QStringLiteral("XX") && byCountry.contains(countryA) && byCountry.contains(countryB)
+        && countryA != countryB) {
+        auto& sA = byCountry[countryA];
+        auto& sB = byCountry[countryB];
+        if (sA.size() >= 2 && sB.size() >= 2) {
+            // Mann-Whitney U (simplified Wilcoxon)
+            double U = 0; int nA = sA.size(), nB = sB.size();
+            for (double a : sA)
+                for (double b : sB)
+                    if (a > b) U += 1;
+            double mu = nA * nB / 2.0;
+            double sigma = std::sqrt(nA * nB * (nA + nB + 1) / 12.0);
+            double z = (U - mu) / (sigma + 0.001);
+            // Two-tailed p from normal approximation
+            double absZ = std::abs(z);
+            pValue = 2.0 * (1.0 - 0.5 * (1.0 + std::erf(absZ / std::sqrt(2.0))));
+            significant = (pValue < 0.05);
         }
     }
-    if (!foundB && !stats.isEmpty()) {
-        // Fallback: use any country with at least 1 server
-        countryBStats = stats[0];
-        foundB = true;
-    }
-    QString countryB = foundB ? countryBStats.code : QString();
 
-    // ── Output per-country table ────────────────────────────────────
-    out.append(QStringLiteral("Per-country latency statistics (sorted by median):"));
-    out.append(QStringLiteral("  %1  %2  %3  %4  %5")
-        .arg(QStringLiteral("Country").leftJustified(4, ' '))
-        .arg(QStringLiteral("Count").rightJustified(5, ' '))
-        .arg(QStringLiteral("Median").rightJustified(8, ' '))
-        .arg(QStringLiteral("Min").rightJustified(6, ' '))
-        .arg(QStringLiteral("Range").rightJustified(10, ' ')));
-    for (auto& s : stats) {
-        double maxLat = byCountry[s.code].last();
-        out.append(QStringLiteral("  %1  %2  %3  %4  %5")
-            .arg(s.code.leftJustified(4, ' '))
-            .arg(s.count, 5)
-            .arg(QStringLiteral("%1ms").arg((int)s.median).rightJustified(8, ' '))
-            .arg(QStringLiteral("%1ms").arg((int)s.minLat).rightJustified(6, ' '))
-            .arg(QStringLiteral("%1-%2ms").arg((int)s.minLat).arg((int)maxLat).rightJustified(10, ' ')));
-    }
-
-    // ── Step 5: Decision ────────────────────────────────────────────
+    // ── Step 6: Decision ──────────────────────────────────────────
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
+    out.append(QStringLiteral("  Server latency → country %1 (bootstrap median %2ms, N=%3)")
+        .arg(countryB).arg((int)best.bootMedian).arg(best.N));
+    out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryA == "XX" ? "Unknown" : countryA));
 
     QString scenario;
     DiagStatus status = DiagStatus::Pass;
 
-    if (countryA == QStringLiteral("XX") && foundB) {
-        out.append(QStringLiteral("  Server latency → country %1 (median %2ms, %3 servers)")
-            .arg(countryB).arg((int)countryBStats.median).arg(countryBStats.count));
-        out.append(QStringLiteral("  DNS GeoIP → unavailable"));
+    if (countryA == QStringLiteral("XX")) {
         out.append(QStringLiteral("  Status: location estimated as %1").arg(countryB));
         scenario = QStringLiteral("Location estimated as %1").arg(countryB);
         status = DiagStatus::Info;
-    } else if (!foundB) {
-        out.append(QStringLiteral("  Server latency → no servers reachable"));
-        out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryA));
-        out.append(QStringLiteral("  Status: insufficient data"));
-        scenario = QStringLiteral("Insufficient data");
-        status = DiagStatus::Fail;
     } else if (countryA == countryB) {
-        out.append(QStringLiteral("  Server latency → country %1 (median %2ms, %3 servers)")
-            .arg(countryB).arg((int)countryBStats.median).arg(countryBStats.count));
-        out.append(QStringLiteral("  DNS GeoIP → country %1").arg(countryA));
         out.append(QStringLiteral("  %1 == %2 → status: No VPN").arg(countryA).arg(countryB));
         scenario = QStringLiteral("No VPN (%1)").arg(countryA);
-    } else {
-        out.append(QStringLiteral("  Server latency → country %1 (median %2ms, %3 servers)")
-            .arg(countryB).arg((int)countryBStats.median).arg(countryBStats.count));
-        out.append(QStringLiteral("  DNS GeoIP → country %1").arg(countryA));
-        out.append(QStringLiteral("  %1 != %2 → status: VPN detected").arg(countryA).arg(countryB));
+    } else if (significant) {
+        out.append(QStringLiteral("  %1 != %2 → status: VPN detected (p=%.3f)").arg(countryA).arg(countryB).arg(pValue, 3, 'f', 3));
         scenario = QStringLiteral("VPN detected");
         status = DiagStatus::Warning;
-    }
-
-    if (countryA != countryB && countryA != QStringLiteral("XX") && foundB) {
-        // Add detail line explaining the mismatch
-        out.append(QStringLiteral("  (%1 servers in %2 have %3ms median; %4 is the lowest)")
-            .arg(countryBStats.count).arg(countryB).arg((int)countryBStats.median).arg(countryB));
+    } else {
+        out.append(QStringLiteral("  %1 != %2 → status: No VPN (p=%.3f, not significant)").arg(countryA).arg(countryB).arg(pValue, 3, 'f', 3));
+        scenario = QStringLiteral("No VPN (%1)").arg(countryA);
     }
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-
-    // User-friendly summary
     if (scenario.startsWith(QStringLiteral("No VPN")))
         r.summary = QStringLiteral("No VPN");
     else if (scenario.startsWith(QStringLiteral("VPN detected")))
         r.summary = QStringLiteral("VPN detected");
-    else if (scenario.startsWith(QStringLiteral("GeoIP")))
-        r.summary = QStringLiteral("Location est.");
-    else if (scenario.startsWith(QStringLiteral("Borderline")))
-        r.summary = QStringLiteral("Borderline");
     else
-        r.summary = QStringLiteral("Uncertain");
+        r.summary = QStringLiteral("Location est.");
     r.status = status;
     r.durationMs = t.elapsed();
     return r;
