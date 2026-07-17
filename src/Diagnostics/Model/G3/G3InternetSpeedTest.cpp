@@ -11,7 +11,6 @@
 namespace G1G2G3Native {
 
 // SpeedTest class defined in G3InternetDns.h (shared between vpnStatus and speedTest)
-using SpeedTest::Server;
 // Continent fallback: map country codes to nearby regions with server coverage
 static const QMap<QString, QStringList> continentFallback = {
     {"Asia",         {"CN","KR","SG","IN","JP","AE"}},
