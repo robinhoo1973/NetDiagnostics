@@ -436,15 +436,15 @@ DiagnosticResult speedTest(DiagId id) {
             .arg(latency.rightJustified(7, ' ')));
     }
     bool hasConnectivity = (connOk > 0);
-    // 5WHY: 4 identical early-return blocks repeated the same 4 lines
-    // (rawOutput, details, status, durationMs).  Lambda eliminates the
-    // copy-paste and guarantees consistent status-assignment logic across
-    // all exit paths.  Defined after hasConnectivity so [&] can capture it.
+    // 5WHY: 4 identical early-return blocks replaced by single lambda.
+    // Computes hasConn from connOk internally (declared earlier) so
+    // the lambda is safe to move — no order dependency on hasConnectivity.
     auto bail = [&](const QString& summary, DiagStatus altStatus = DiagStatus::Fail) -> DiagnosticResult {
+        bool hasConn = (connOk > 0);
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? DiagStatus::Warning : altStatus;
-        r.summary = hasConnectivity ? QStringLiteral("Connected -- ") + summary
-                                    : QStringLiteral("No internet connectivity");
+        r.status = hasConn ? DiagStatus::Warning : altStatus;
+        r.summary = hasConn ? QStringLiteral("Connected -- ") + summary
+                            : QStringLiteral("No internet connectivity");
         r.durationMs = totalTimer.elapsed(); return r;
     };
     out.append(QString());

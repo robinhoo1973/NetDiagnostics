@@ -240,7 +240,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     return r;
 }
 
-// TCP ping (simple connect RTT)闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸?
+// TCP ping (simple connect RTT) — measures raw TCP handshake latency
 int tcpPingMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = socket(AF_INET, SOCK_STREAM, 0);

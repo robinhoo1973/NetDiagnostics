@@ -158,19 +158,6 @@ Rectangle {
 
     signal detailClicked(var data)
 
-    // ── Status badge: colored icon + count ────────────────────
-    // 5WHY: icon size 10→14 (M3 iconXs + bold-stroke SVG compensation),
-    // font 10→12 (paired with icon), .slice(-2)→manual zero-pad (no truncation,
-    // ES5-compatible — padStart is ES2017, unavailable on embedded Qt builds)
-    component StatusBadge: RowLayout {
-        property color accent: ThemeEngine.passGreen
-        property string iconName: "badge-info"
-        property int count: 0
-        spacing: 2
-        AppIcon { name: iconName; size: 14; color: accent }
-        Label {
-            text: ThemeEngine.pad2(count)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: accent
-        }
-    }
+    // StatusBadge → shared component (src/Common/View/widgets/StatusBadge.qml)
+    // 5WHY: was inline — now imported from shared file, single source of truth.
 }
