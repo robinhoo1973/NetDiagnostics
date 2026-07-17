@@ -24,7 +24,8 @@ static const QMap<QString, QStringList> continentFallback = {
 static QString continentForCountry(const QString& cc) {
     static const QMap<QString, QString> ccContinent = {
         {"CN","AS"},{"KR","AS"},{"SG","AS"},{"IN","AS"},{"JP","AS"},{"MN","AS"},
-        {"AE","AS"},{"TR","AS"},{"HK","AS"},{"TW","AS"},{"TH","AS"},{"VN","AS"},
+        {"AE","AS"},{"TR","AS"},{"SA","AS"},{"QA","AS"},
+        {"HK","AS"},{"TW","AS"},{"TH","AS"},{"VN","AS"},
         {"MY","AS"},{"ID","AS"},{"PH","AS"},{"PK","AS"},{"BD","AS"},{"LK","AS"},
         {"RU","EU"},{"DE","EU"},{"GB","EU"},{"FR","EU"},{"NL","EU"},{"IT","EU"},
         {"ES","EU"},{"SE","EU"},{"PL","EU"},{"UA","EU"},{"CH","EU"},{"AT","EU"},

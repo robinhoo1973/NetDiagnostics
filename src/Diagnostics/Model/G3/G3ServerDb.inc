@@ -90,9 +90,10 @@
     // -- Middle East --
     S("AE","speedtest.du.ae",8080,"Dubai","du");
     S("AE","speedtest.etisalat.ae",8080,"Abu Dhabi","Etisalat");
-    S("AE","speedtest.stc.com.sa",8080,"Riyadh","STC");
-    S("AE","speedtest.zain.com",8080,"Kuwait City","Zain");
-    S("AE","speedtest.omantel.om",8080,"Muscat","Omantel");
+    S("SA","speedtest.stc.com.sa",8080,"Riyadh","STC Saudi");
+    S("AE","speedtest.emirates.net.ae",8080,"Sharjah","Emirates Internet");
+    S("AE","speedtest.etisalat.ae",8080,"Ajman","Etisalat 2");
+    S("AE","speedtest.du.ae",8080,"Ras Al Khaimah","du 2");
     S("TR","hiztesti.isimkayit.com",8080,"Kocaeli","IsimKayit.com");
     S("TR","speedtest.turktelekom.com.tr",8080,"Istanbul","Turk Telekom");
     S("TR","speedtest.superonline.net",8080,"Ankara","Superonline");
