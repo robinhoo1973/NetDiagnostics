@@ -1,5 +1,7 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
 #include "Common/Utils/NetUtil.h"
+#include <QMutex>
+#include <QMutexLocker>
 namespace G1G2G3Native {
 QByteArray httpGet(const QString& host, int port, const QString& path, int timeoutMs, int maxBytes) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -264,45 +266,63 @@ int tcpPingMs(const QString& host, int port) {
 // First call verifies reachability; if single latency > 1ms, return
 // directly (already differentiated).  If ≤ 1ms, run 49 more (50 total).
 double tcpPingAvg(const QString& host, int port) {
+    // 5WHY: Both vpnStatus and speedTest probe ALL servers independently,
+    // causing 2× TCP pings (~100 servers × 2 = 200 probes, ~90s wasted).
+    // Shared in-memory cache with 60s TTL eliminates redundant probes.
+    static QMap<QString, double> sCache;
+    static qint64 sCacheTimestamp = 0;
+    static QMutex sCacheMutex;
+    QString cacheKey = QStringLiteral("%1:%2").arg(host).arg(port);
+    {
+        QMutexLocker lock(&sCacheMutex);
+        qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - sCacheTimestamp > 120000) { sCache.clear(); sCacheTimestamp = now; }
+        if (sCache.contains(cacheKey)) return sCache[cacheKey];
+    }
+
+    double result = -1.0;
     int first = tcpPingMs(host, port);
     // 5WHY: tcpPingMs returns elapsed ms truncated to int — a 950μs
     // connect returns 0 (not -1).  first < 0 means true failure (timeout
     // or SO_ERROR).  first == 0 means "success at <1ms" — those need the
     // 50x averaging even more than first==1 servers.
-    if (first < 0) return -1.0;         // truly unreachable
-    if (first > 1) return (double)first; // already differentiated
-
-    // Sub-ms region: run 50 total connects, average the results
-    long long totalUs = 0;
-    int count = 0;
-    for (int i = 0; i < 50; i++) {
-        QElapsedTimer t; t.start();
-        int sock = socket(AF_INET, SOCK_STREAM, 0);
-        if (sock < 0) continue;
-        struct sockaddr_in addr;
-        if (!hostToAddr(host, port, addr)) { closeSocket(sock); continue; }
+    if (first < 0) { result = -1.0; }
+    else if (first > 1) { result = (double)first; }
+    else {
+        // Sub-ms region: run 50 total connects, average the results
+        long long totalUs = 0;
+        int count = 0;
+        for (int i = 0; i < 50; i++) {
+            QElapsedTimer t; t.start();
+            int sock = socket(AF_INET, SOCK_STREAM, 0);
+            if (sock < 0) continue;
+            struct sockaddr_in addr;
+            if (!hostToAddr(host, port, addr)) { closeSocket(sock); continue; }
 #if defined(_WIN32)
-        u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
+            u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
 #else
-        int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+            int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
 #endif
-        ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-        fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        struct timeval tv = {2, 0};
-        int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
-        if (sel > 0) {
-            int err = 0; socklen_t len = sizeof(err);
-            getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-            if (err == 0) {
-                totalUs += t.nsecsElapsed() / 1000; // ns → us
-                count++;
+            ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+            fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
+            struct timeval tv = {2, 0};
+            int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
+            if (sel > 0) {
+                int err = 0; socklen_t len = sizeof(err);
+                getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
+                if (err == 0) {
+                    totalUs += t.nsecsElapsed() / 1000; // ns → us
+                    count++;
+                }
             }
+            closeSocket(sock);
         }
-        closeSocket(sock);
+        if (count > 0) result = (totalUs / (double)count) / 1000.0;
     }
-    if (count == 0) return -1.0;
-    // Return average in ms (μs / 1000.0)
-    return (totalUs / (double)count) / 1000.0;
+
+    // Store in shared cache (both vpnStatus and speedTest benefit)
+    { QMutexLocker lock(&sCacheMutex); sCache[cacheKey] = result; }
+    return result;
 }
 
 // 闂佸啿鍘滈崑鎾绘煃閸忓浜?HTTP latency via tiny file download (speedtest-cli style latency.txt) 闂佸啿鍘滈崑鎾绘煃閸忓浜?// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
