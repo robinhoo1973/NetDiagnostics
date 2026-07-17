@@ -79,6 +79,7 @@ struct ProcNetConn {
 
 // Forward declarations (defined in GCommon.cpp, non-static — shared across TUs)
 int      tcpPingMs(const QString& host, int port);
+double   tcpPingAvg(const QString& host, int port); // 50x avg for sub-ms differentiation
 int      httpLatencyMs(const QString& urlStr, int timeoutMs);
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
