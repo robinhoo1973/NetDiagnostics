@@ -42,7 +42,7 @@ inline QString diagStatusIcon(DiagStatus s) {
     return {};
 }
 
-// ── Test ID (38 values) ─────────────────────────────────────────────────────
+// ── Test ID (45 values) ─────────────────────────────────────────────────────
 enum class DiagId {
     // G1 — System & Adapters (8)
     G1NetworkAdapters,

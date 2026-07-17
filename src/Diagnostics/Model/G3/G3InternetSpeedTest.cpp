@@ -1,4 +1,5 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/G3/G3InternetDns.h"
 #include <QSslSocket>
 #include <algorithm>
 #include <random>
@@ -9,21 +10,8 @@
 
 namespace G1G2G3Native {
 
-class SpeedTest {
-public:
-    struct Server { QString host; int port; QString name, sponsor, country, url; };
-    SpeedTest();
-    QVector<Server> serversForCountry(const QString& hint) const;
-    QVector<Server> allServers() const;
-    static QString detectCountry(int = 3000);
-private: void build(); QMap<QString, QVector<Server>> m;
-};
-inline SpeedTest::SpeedTest() { build(); }
-#define S(c, h, p, n, sp) s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
-inline void SpeedTest::build() { Server s;
-#include "G3ServerDb.inc"
-}
-#undef S
+// SpeedTest class defined in G3InternetDns.h (shared between vpnStatus and speedTest)
+using SpeedTest::Server;
 // Continent fallback: map country codes to nearby regions with server coverage
 static const QMap<QString, QStringList> continentFallback = {
     {"AS", {"CN","KR","SG","IN","JP","AE"}},  // Asia
