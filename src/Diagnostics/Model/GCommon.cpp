@@ -33,6 +33,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         if (n == 0) break;
         sent += n;
     }
+    if (sent < req.size()) { closeSocket(sock); return {}; } // incomplete send, don't wait for response
 
     // Read response with wall-clock timeout.
     // 5WHY: recv() returning EAGAIN on a non-blocking socket after select()
@@ -52,7 +53,7 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         // to respond, even though the caller's budget still has time.
         int remaining = timeoutMs - (int)recvTimer.elapsed();
         if (remaining <= 0) break;
-        int selectMs = qMax(remaining, 50);
+        int selectMs = qMax(remaining, 50); // floor at 50ms avoids tight spinning when budget nearly exhausted
         FD_ZERO(&fdset); FD_SET(sock, &fdset);
         tv = {selectMs / 1000, (selectMs % 1000) * 1000};
         if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
@@ -130,6 +131,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         if (n == 0) break;
         reqSent += n;
     }
+    if (reqSent < req.size()) { closeSocket(sock); return r; } // incomplete send
 
     // Read with timing — measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
