@@ -68,7 +68,9 @@ QByteArray httpGet(const QString& host, int port, const QString& path, int timeo
         // recv() just read a valid chunk, that chunk was silently discarded.
         // Move the guard BEFORE recv() so it aborts the iteration without
         // losing already-received data — same pattern as httpDownload.
-        if (recvTimer.elapsed() > 30000) break;
+        // 5WHY: hardcoded 30000 overrides caller's timeoutMs — a 10s
+        // caller could block for 30s.  Use the caller-specified timeout.
+        if (recvTimer.elapsed() > timeoutMs) break;
         ssize_t n = recv(sock, buf, sizeof(buf), 0);
         if (n > 0) {
             // 5WHY: recv() can return up to sizeof(buf) bytes, which may
@@ -319,7 +321,9 @@ int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     QByteArray headers = resp.left(hdrEnd);
     int slEnd = headers.indexOf('\r');
     QByteArray statusLine = (slEnd > 0) ? headers.left(slEnd) : headers;
-    if (!statusLine.contains(" 200 ")) return -1;
+    int codeStart = statusLine.indexOf(' ');
+    if (codeStart <= 0 || codeStart + 4 > statusLine.size()
+        || statusLine.mid(codeStart + 1, 3) != "200") return -1;
     QByteArray body = resp.mid(hdrEnd + 4);
     // latency.txt should contain a small text like "test=...", we just need the time
     if (body.trimmed().isEmpty()) return -1;

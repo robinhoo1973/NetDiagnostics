@@ -439,10 +439,11 @@ inline QString SpeedTest::detectCountry(int timeoutMs) {
     // absolute last resort when ALL network services are blocked.
 
     // Phase 1a: Raw DNS query (UDP 53 — rarely blocked)
-    QString ip = discoverPublicIpViaDns(2000);
+    int dnsTimeout = (timeoutMs > 0) ? qMin(timeoutMs, 2000) : 2000;
+    QString ip = discoverPublicIpViaDns(dnsTimeout);
     // Phase 1b: DoH fallback (HTTPS DNS — TCP 443, almost never blocked)
     if (ip.isEmpty())
-        ip = discoverPublicIpViaDoh(3000);
+        ip = discoverPublicIpViaDoh(timeoutMs > 0 ? timeoutMs : 3000);
 
     // Phase 2: HTTPS GeoIP with the discovered IP (2 CN + 2 global)
     if (!ip.isEmpty()) {
@@ -632,7 +633,9 @@ DiagnosticResult speedTest(DiagId id) {
 
     for (auto& s : candidates) {
         double lat = tcpPingAvg(s.host, s.port);
-        if (lat > 0)
+        // 5WHY: lat>0 filtered sub-ms connects returning 0 (truncation).
+        // tcpPingAvg already returns -1 for true failures; >= 0 is success.
+        if (lat >= 0.0)
             tcpRanked.append({&s, lat});
     }
 
@@ -889,8 +892,12 @@ DiagnosticResult speedTest(DiagId id) {
         if (sock < 0) continue;
 
         // POST request headers (upload data pre-generated above)
+        // 5WHY: Host header missing port — same bug fixed in httpGet/httpDownload.
+        // Speed-test servers on port 8080 behind reverse proxies may route
+        // incorrectly without explicit port per RFC 7230 §5.4.
+        QString uploadHost = (best->port != 80) ? QStringLiteral("%1:%2").arg(best->host).arg(best->port) : best->host;
         QByteArray postHeaders = QStringLiteral("POST /upload HTTP/1.0\r\nHost: %1\r\nContent-Type: application/octet-stream\r\nContent-Length: %2\r\nConnection: close\r\n\r\n")
-            .arg(best->host).arg(dataSize).toUtf8();
+            .arg(uploadHost).arg(dataSize).toUtf8();
 
         QElapsedTimer ulTimer; ulTimer.start();
         // Send POST headers (EAGAIN-safe: select() for writability on stall).
