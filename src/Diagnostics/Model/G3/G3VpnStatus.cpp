@@ -57,15 +57,18 @@ DiagnosticResult vpnStatus(DiagId id) {
         int N = samples.size();
         if (N < 2) continue; // need at least 2 for bootstrap
 
-        // Bootstrap: resample 1000 times, compute median each time
+        // Bootstrap: resample 1000 times, compute actual median each time
+        // 5WHY: Was computing bootstrap MEAN (sum/N), not median.
+        // Mean is sensitive to outliers; median is the whole point of
+        // using Bootstrap for non-parametric latency distributions.
         QVector<double> bootMedians(1000);
+        QVector<double> resampled(N);
         for (int b = 0; b < 1000; b++) {
-            double sum = 0;
-            for (int i = 0; i < N; i++) {
-                int idx = rng() % N; // random index with replacement
-                sum += samples[idx];
-            }
-            bootMedians[b] = sum / N; // bootstrap mean (for small N, mean ≈ median)
+            for (int i = 0; i < N; i++)
+                resampled[i] = samples[rng() % N];
+            std::sort(resampled.begin(), resampled.end());
+            bootMedians[b] = (N % 2 == 1) ? resampled[N/2]
+                           : (resampled[N/2-1] + resampled[N/2]) / 2.0;
         }
         std::sort(bootMedians.begin(), bootMedians.end());
         double bootMedian = bootMedians[500]; // median of bootstrap medians
