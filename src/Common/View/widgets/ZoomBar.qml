@@ -28,7 +28,7 @@ Item {
     readonly property string zoomPercent: Math.round(root.zoomLevel * 100) + "%"
 
     // Detect mobile for larger touch targets
-    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property bool isMobile: ThemeEngine.isMobile
     readonly property int btnSize: isMobile ? 44 : 28
 
     // ── Public functions ───────────────────────────────────────────────
