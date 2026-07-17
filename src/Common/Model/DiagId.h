@@ -161,57 +161,6 @@ inline DiagGroup diagGroup(DiagId id) {
     return DiagGroup::G1;
 }
 
-inline QString diagIdLabelKey(DiagId id) {
-    switch (id) {
-        case DiagId::G1NetworkAdapters:     return QStringLiteral("test_g1_adapters");
-        case DiagId::G1NicAdvanced:         return QStringLiteral("test_g1_nic_advanced");
-        case DiagId::G1WifiDiagnostics:     return QStringLiteral("test_g1_wifi");
-        case DiagId::G1WiredDiagnostics:    return QStringLiteral("test_g1_wired");
-        case DiagId::G1DhcpStatus:          return QStringLiteral("test_g1_dhcp");
-        case DiagId::G1IpConfiguration:     return QStringLiteral("test_g1_ipconfig");
-        case DiagId::G1ActiveConnections:   return QStringLiteral("test_g1_connections");
-        case DiagId::G1CellularInfo:        return QStringLiteral("test_g1_cellular");
-        case DiagId::G2NetworkProfile:      return QStringLiteral("test_g2_profile");
-        case DiagId::G2TcpSettings:         return QStringLiteral("test_g2_tcp");
-        case DiagId::G2DefaultGateway:      return QStringLiteral("test_g2_gateway");
-        case DiagId::G2RoutingTable:        return QStringLiteral("test_g2_routing");
-        case DiagId::G2ArpTable:            return QStringLiteral("test_g2_arp");
-        case DiagId::G2ProxySettings:       return QStringLiteral("test_g2_proxy");
-        case DiagId::G3NetskopeStatus:      return QStringLiteral("test_g3_netskope");
-        case DiagId::G3DnsServers:          return QStringLiteral("test_g3_dns_servers");
-        case DiagId::G3DnsCache:            return QStringLiteral("test_g3_dns_cache");
-        case DiagId::G3DnsPollution:        return QStringLiteral("test_g3_dns_pollution");
-        case DiagId::G3VpnStatus:           return QStringLiteral("test_g3_vpn_status");
-        case DiagId::G3InternetSpeedTest:   return QStringLiteral("test_g3_speed");
-        case DiagId::G4DnsResolution:       return QStringLiteral("test_g4_dns");
-        case DiagId::G4Ping:                return QStringLiteral("test_g4_ping");
-        case DiagId::G4Traceroute:          return QStringLiteral("test_g4_traceroute");
-        case DiagId::G4PathPing:            return QStringLiteral("test_g4_pathping");
-        case DiagId::G4MtuDiscovery:        return QStringLiteral("test_g4_mtu");
-        case DiagId::G5UrlParsing:          return QStringLiteral("test_g5_url_parse");
-        case DiagId::G5TcpConnect:          return QStringLiteral("test_g5_tcp_connect");
-        case DiagId::G5ServiceBanner:       return QStringLiteral("test_g5_banner");
-        case DiagId::G5CurlVerbose:         return QStringLiteral("test_g5_curl");
-        case DiagId::G5HttpHeaders:         return QStringLiteral("test_g5_headers");
-        case DiagId::G5SecurityHeaders:     return QStringLiteral("test_g5_security");
-        case DiagId::G5SslCertificate:      return QStringLiteral("test_g5_ssl");
-        case DiagId::G5HttpRedirect:        return QStringLiteral("test_g5_redirect");
-        case DiagId::G5HttpCompression:     return QStringLiteral("test_g5_compression");
-        case DiagId::G5HttpTiming:          return QStringLiteral("test_g5_timing");
-        case DiagId::G5FtpDiagnostics:      return QStringLiteral("test_g5_ftp");
-        case DiagId::G5SshDiagnostics:      return QStringLiteral("test_g5_ssh");
-        case DiagId::G5EmailDiagnostics:    return QStringLiteral("test_g5_email");
-        case DiagId::G5Telnet:             return QStringLiteral("test_g5_telnet");
-        case DiagId::G5Mysql:              return QStringLiteral("test_g5_mysql");
-        case DiagId::G5Postgres:           return QStringLiteral("test_g5_postgres");
-        case DiagId::G5Redis:              return QStringLiteral("test_g5_redis");
-        case DiagId::G5Mongodb:            return QStringLiteral("test_g5_mongodb");
-        case DiagId::G5Ldap:               return QStringLiteral("test_g5_ldap");
-        case DiagId::G5Mqtt:               return QStringLiteral("test_g5_mqtt");
-    }
-    return {};
-}
-
 // ── Utility: all test IDs ───────────────────────────────────────────────────
 inline const QVector<DiagId>& allDiagIds() {
     static const QVector<DiagId> ids = {

@@ -11,7 +11,7 @@ Item {
     FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
     readonly property bool wide: width >= 600
     readonly property alias overlayVisible: detailOverlay.visible
-    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property bool isMobile: ThemeEngine.isMobile
 
     // ── Share flow state ───────────────────────────────────────────────
     property int shareStage: 0
@@ -32,6 +32,8 @@ Item {
     property bool _runActive: false
     property int _cachedGen: -1
     property string _snapTargetError: ""
+    property string _snapIconName: _snapTargetError !== "" ? "badge-warning" : "badge-info"
+    property color _snapIconColor: _snapTargetError !== "" ? ThemeEngine.warnYellow : ThemeEngine.infoBlue
     property int _snapVersion: 0
 
     function takeSnapshot() {
@@ -56,10 +58,6 @@ Item {
     property int __aggWarn: { var _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
     property int __aggFail: { var _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
     property int __aggSkip: { var _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
-
-    // 5WHY: padStart() is ES2017 — not available on Qt 6 embedded/Yocto
-    // builds which target ES7. Use an ES5-compatible zero-padding function.
-    function _pad2(n) { return (n < 10 ? " " : "") + n }
 
     property var currentDetail: ({})
     property var visibleGroups: {
@@ -397,7 +395,7 @@ Item {
         spacing: 2
         AppIcon { name: iconName; size: 14; color: accent }
         Label {
-            text: _pad2(count)
+            text: ThemeEngine.pad2(count)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold; color: accent
         }
     }
