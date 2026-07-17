@@ -215,9 +215,18 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     if (elapsedNs <= 0) elapsedNs = 1;
     r.bytes = static_cast<int>(body.size());
     r.durationMs = (int)(elapsedNs / 1000000);
-    // 5WHY: previously only checked bytes>0 && duration>0, which accepted
-    // HTTP error pages (404, 500) as valid downloads. Now requires HTTP 2xx.
-    if (httpOk && r.bytes > 0 && r.durationMs > 0) {
+    // 5WHY: httpOk was too strict — CN speed-test servers on port 8080 may
+    // respond with non-standard HTTP (302, chunked), custom binary protocol,
+    // or just raw data without HTTP headers (\r\n\r\n never found).
+    // Also handle case where headersDone=false — data accumulated in headerBuf
+    // but never parsed as HTTP. Any response with meaningful data (>1KB) is
+    // usable for throughput measurement.
+    if (!headersDone && headerBuf.size() > 1000) {
+        body = headerBuf;  // raw binary response, no HTTP parsing
+        r.bytes = static_cast<int>(body.size());
+    }
+    bool usable = (httpOk || r.bytes > 1000) && r.bytes > 0 && r.durationMs > 0;
+    if (usable) {
         double bits = r.bytes * 8.0;
         double secs = r.durationMs / 1000.0;
         r.mbps = bits / secs / 1000000.0;
