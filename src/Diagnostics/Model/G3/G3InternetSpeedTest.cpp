@@ -632,14 +632,8 @@ DiagnosticResult speedTest(DiagId id) {
 
     for (auto& s : candidates) {
         double lat = tcpPingAvg(s.host, s.port);
-        if (lat > 0) {
+        if (lat > 0)
             tcpRanked.append({&s, lat});
-            out.append(QStringLiteral("  %1  %2  %3  %4")
-                .arg(tcpRanked.size(), 3)
-                .arg(s.sponsor.leftJustified(22, ' '))
-                .arg(s.name.leftJustified(17, ' '))
-                .arg(QStringLiteral("%1").arg(lat, 0, 'f', 2).rightJustified(8, ' ')));
-        }
     }
 
     if (tcpRanked.isEmpty()) {
@@ -655,6 +649,16 @@ DiagnosticResult speedTest(DiagId id) {
     // Sort by TCP latency ascending
     std::sort(tcpRanked.begin(), tcpRanked.end(),
               [](const TcpResult& a, const TcpResult& b) { return a.latencyMs < b.latencyMs; });
+
+    // Output sorted TCP results
+    for (int i = 0; i < tcpRanked.size(); i++) {
+        auto& tr = tcpRanked[i];
+        out.append(QStringLiteral("  %1  %2  %3  %4")
+            .arg(i + 1, 3)
+            .arg(tr.srv->sponsor.leftJustified(22, ' '))
+            .arg(tr.srv->name.leftJustified(17, ' '))
+            .arg(QStringLiteral("%1").arg(tr.latencyMs, 0, 'f', 2).rightJustified(8, ' ')));
+    }
 
     // Take top 8 for micro-download (expensive phase)
     int topN = qMin(8, (int)tcpRanked.size());
@@ -679,7 +683,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(17, QChar('-')))
         .arg(QString(10, QChar('-'))));
 
-    struct CandidateResult { SpeedTest::Server* srv; double mbps; double latencyMs = 0; };
+    struct CandidateResult { SpeedTest::Server* srv; double mbps; };
     QVector<CandidateResult> results;
 
     for (int i = 0; i < topN; i++) {
@@ -688,7 +692,7 @@ DiagnosticResult speedTest(DiagId id) {
         QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
         auto res = httpDownload(probeUrl, 100000, 6000);
         if (res.ok && res.mbps > 0.01) {
-            results.append({&s, res.mbps, tcpRanked[i].latencyMs});
+            results.append({&s, res.mbps});
             out.append(QStringLiteral("  %1  %2  %3  %4")
                 .arg(results.size(), 3)
                 .arg(s.sponsor.leftJustified(22, ' '))
