@@ -62,11 +62,12 @@ enum class DiagId {
     G2ArpTable,
     G2ProxySettings,
 
-    // G3 — Internet & DNS (5)
+    // G3 — Internet & DNS (6)
     G3NetskopeStatus,
     G3DnsServers,
     G3DnsCache,
     G3DnsPollution,
+    G3VpnStatus,
     G3InternetSpeedTest,
 
     // G4 — Remote Host (5)
@@ -124,6 +125,7 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G3DnsServers:
         case DiagId::G3DnsCache:
         case DiagId::G3DnsPollution:
+        case DiagId::G3VpnStatus:
         case DiagId::G3InternetSpeedTest:
             return DiagGroup::G3;
         case DiagId::G4DnsResolution:
@@ -179,6 +181,7 @@ inline QString diagIdLabelKey(DiagId id) {
         case DiagId::G3DnsServers:          return QStringLiteral("test_g3_dns_servers");
         case DiagId::G3DnsCache:            return QStringLiteral("test_g3_dns_cache");
         case DiagId::G3DnsPollution:        return QStringLiteral("test_g3_dns_pollution");
+        case DiagId::G3VpnStatus:           return QStringLiteral("test_g3_vpn_status");
         case DiagId::G3InternetSpeedTest:   return QStringLiteral("test_g3_speed");
         case DiagId::G4DnsResolution:       return QStringLiteral("test_g4_dns");
         case DiagId::G4Ping:                return QStringLiteral("test_g4_ping");

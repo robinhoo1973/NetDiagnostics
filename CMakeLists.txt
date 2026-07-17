@@ -62,6 +62,7 @@ set(SOURCES
     src/Diagnostics/Model/G3/G3DnsServers.cpp
     src/Diagnostics/Model/G3/G3DnsCache.cpp
     src/Diagnostics/Model/G3/G3DnsPollution.cpp
+    src/Diagnostics/Model/G3/G3VpnStatus.cpp
     src/Diagnostics/Model/G3/G3InternetSpeedTest.cpp
     src/Diagnostics/Model/G4/G4DnsResolution.cpp
     src/Diagnostics/Model/G4/G4Ping.cpp
