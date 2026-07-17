@@ -263,26 +263,10 @@ double tcpPingAvg(const QString& host, int port) {
         int count = 0;
         for (int i = 0; i < 50; i++) {
             QElapsedTimer t; t.start();
-            int sock = socket(AF_INET, SOCK_STREAM, 0);
-            if (sock < 0) continue;
-            struct sockaddr_in addr;
-            if (!hostToAddr(host, port, addr)) { closeSocket(sock); continue; }
-#if defined(_WIN32)
-            u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
-#else
-            int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-#endif
-            ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-            fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-            struct timeval tv = {2, 0};
-            int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
-            if (sel > 0) {
-                int err = 0; socklen_t len = sizeof(err);
-                getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-                if (err == 0) {
-                    totalUs += t.nsecsElapsed() / 1000; // ns → us
-                    count++;
-                }
+            int sock = tcpConnect(host, port, 2000);
+            if (sock >= 0) {
+                totalUs += t.nsecsElapsed() / 1000;
+                count++;
             }
             closeSocket(sock);
         }
