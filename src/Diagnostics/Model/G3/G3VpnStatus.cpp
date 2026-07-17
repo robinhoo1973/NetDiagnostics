@@ -141,7 +141,11 @@ DiagnosticResult vpnStatus(DiagId id) {
 
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
-    out.append(QStringLiteral("  Scenario: %1").arg(scenario));
+    // Strip internal "A —" / "B —" prefix from scenario for clean user output
+    QString userScenario = scenario;
+    if (userScenario.length() > 4 && userScenario[1] == ' ')
+        userScenario = userScenario.mid(4); // remove "X — " prefix
+    out.append(QStringLiteral("  Scenario: %1").arg(userScenario));
     out.append(QStringLiteral("  Details:  %1").arg(details));
     out.append(QStringLiteral("  Recommendation: %1")
         .arg(scenario.startsWith('A') || scenario.startsWith('B')
@@ -150,7 +154,20 @@ DiagnosticResult vpnStatus(DiagId id) {
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    r.summary = scenario.left(3); // "A —" / "B —" etc
+    // 5WHY: scenario.left(3) showed "A —" to users — internal code leaked to UI.
+    // Now uses a user-friendly label based on the scenario content.
+    QString summaryLabel;
+    if (scenario.startsWith(QStringLiteral("A ")))
+        summaryLabel = QStringLiteral("No VPN (CN)");
+    else if (scenario.startsWith(QStringLiteral("B ")))
+        summaryLabel = QStringLiteral("Behind VPN");
+    else if (scenario.startsWith(QStringLiteral("C ")))
+        summaryLabel = QStringLiteral("CN VPN (overseas)");
+    else if (scenario.startsWith(QStringLiteral("D ")))
+        summaryLabel = QStringLiteral("Overseas");
+    else
+        summaryLabel = QStringLiteral("Uncertain");
+    r.summary = summaryLabel;
     r.status = status;
     r.durationMs = t.elapsed();
     return r;
