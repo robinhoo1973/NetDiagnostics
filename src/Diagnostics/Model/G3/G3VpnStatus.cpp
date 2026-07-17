@@ -6,6 +6,19 @@
 
 namespace G1G2G3Native {
 
+// ISO 3166-1 alpha-2 → alpha-3 converter (for 3-letter country display)
+static QString alpha3(const QString& a2) {
+    static const QMap<QString, QString> map = {
+        {"AE","ARE"},{"AR","ARG"},{"AU","AUS"},{"BR","BRA"},{"CA","CAN"},
+        {"CN","CHN"},{"DE","DEU"},{"EG","EGY"},{"ES","ESP"},{"FR","FRA"},
+        {"GB","GBR"},{"ID","IDN"},{"IL","ISR"},{"IN","IND"},{"IT","ITA"},
+        {"JP","JPN"},{"KR","KOR"},{"MN","MNG"},{"MY","MYS"},{"NL","NLD"},
+        {"PH","PHL"},{"QA","QAT"},{"RU","RUS"},{"SA","SAU"},{"SE","SWE"},
+        {"SG","SGP"},{"TH","THA"},{"TR","TUR"},{"US","USA"},{"ZA","ZAF"},
+    };
+    return map.value(a2, a2);
+}
+
 // ── VPN Status Detection — Bootstrap median comparison ───────────────
 // Compares GeoIP country (A) with the country having lowest Bootstrap
 // median latency (B).  If A != B with p < 0.05 → VPN detected.
@@ -32,7 +45,7 @@ DiagnosticResult vpnStatus(DiagId id) {
 
     // ── Step 1: GeoIP ─────────────────────────────────────────────
     QString countryA = SpeedTest::detectCountry(3000);
-    out.append(QStringLiteral("GeoIP country (A): %1").arg(countryA == "XX" ? "Unknown" : countryA));
+    out.append(QStringLiteral("GeoIP country (A): %1").arg(countryA == "XX" ? QStringLiteral("Unknown") : alpha3(countryA)));
 
     // ── Step 2: Probe ALL servers ──────────────────────────────────
     SpeedTest st;
@@ -90,13 +103,13 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("Per-country Bootstrap (1000 resamples):"));
     out.append(QStringLiteral("  %1  %2  %3  %4")
-        .arg(QStringLiteral("Country").leftJustified(4, ' '))
+        .arg(QStringLiteral("Ctry").leftJustified(5, ' '))
         .arg(QStringLiteral("N").rightJustified(3, ' '))
         .arg(QStringLiteral("Median").rightJustified(8, ' '))
         .arg(QStringLiteral("95% CI").rightJustified(16, ' ')));
     for (auto& s : stats) {
         out.append(QStringLiteral("  %1  %2  %3  %4")
-            .arg(s.code.leftJustified(4, ' ')).arg(s.N, 3)
+            .arg(alpha3(s.code).leftJustified(5, ' ')).arg(s.N, 3)
             .arg(QStringLiteral("%1ms").arg((int)s.bootMedian).rightJustified(8, ' '))
             .arg(QStringLiteral("%1-%2ms").arg((int)s.ciLow).arg((int)s.ciHigh).rightJustified(16, ' ')));
     }
@@ -135,9 +148,9 @@ DiagnosticResult vpnStatus(DiagId id) {
     // ── Step 6: Decision ──────────────────────────────────────────
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
-    out.append(QStringLiteral("  Server latency → country %1 (bootstrap median %2ms, N=%3)")
-        .arg(countryB).arg((int)best.bootMedian).arg(best.N));
-    out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryA == "XX" ? "Unknown" : countryA));
+    out.append(QStringLiteral("  Server latency → %1 (bootstrap median %2ms, N=%3)")
+        .arg(alpha3(countryB)).arg((int)best.bootMedian).arg(best.N));
+    out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryA == "XX" ? QStringLiteral("Unknown") : alpha3(countryA)));
 
     QString scenario;
     DiagStatus status = DiagStatus::Pass;
