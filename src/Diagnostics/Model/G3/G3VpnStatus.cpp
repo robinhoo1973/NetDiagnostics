@@ -28,12 +28,14 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QString());
 
     // ── Step 1: Connectivity check ─────────────────────────────────
-    struct { const char* host; int port; const char* name; } sites[] = {
-        {"223.5.5.5", 53, "Alibaba DNS (CN)"},
-        {"baidu.com", 443, "Baidu (CN)"},
-        {"119.29.29.29", 53, "DNSPod DNS (CN)"},
-        {"8.8.8.8", 53, "Google DNS (Global)"},
-        {"1.1.1.1", 53, "Cloudflare DNS (Global)"},
+    // 5WHY: strstr(s.name, "(CN)") tied classification to a display label,
+    // making it fragile against name changes.  Now uses a struct bool.
+    struct { const char* host; int port; const char* name; bool isChina; } sites[] = {
+        {"223.5.5.5", 53, "Alibaba DNS", true},
+        {"baidu.com", 443, "Baidu", true},
+        {"119.29.29.29", 53, "DNSPod DNS", true},
+        {"8.8.8.8", 53, "Google DNS", false},
+        {"1.1.1.1", 53, "Cloudflare DNS", false},
     };
     int connChina = 0, connGlobal = 0;
     out.append(QStringLiteral("--- Connectivity Check -------------------------------------------------"));
@@ -41,8 +43,7 @@ DiagnosticResult vpnStatus(DiagId id) {
         int lat = tcpPingMs(s.host, s.port);
         bool ok = (lat >= 0);
         if (ok) {
-            bool isCN = (std::strstr(s.name, "(CN)") != nullptr);
-            if (isCN) connChina++; else connGlobal++;
+            if (s.isChina) connChina++; else connGlobal++;
         }
         out.append(QStringLiteral("  %1  %2:%3  %4  %5 ms")
             .arg(QString::fromUtf8(s.name).leftJustified(22, ' '))
@@ -80,10 +81,27 @@ DiagnosticResult vpnStatus(DiagId id) {
     QString details;
     DiagStatus status = DiagStatus::Pass;
 
-    // 5WHY: cnLatencyMs=-1 (all CN servers unreachable) with country=CN
-    // is a strong signal for scenario C (overseas behind CN VPN).  The old
-    // logic classified it as "A — partial connectivity" because -1 < 50.
-    if (country == QStringLiteral("CN")) {
+    // ── Step 4: Classify ──────────────────────────────────────────
+    // 5WHY: cnLatencyMs=-1 with country=CN → scenario C.
+    // 5WHY: country=XX (GeoIP failed) was treated as non-CN, causing B
+    // misclassification.  Use connChina≥3 as primary signal for CN presence.
+    if (country == QStringLiteral("XX")) {
+        if (connChina >= 3 && cnLatencyMs >= 0 && cnLatencyMs < 50) {
+            scenario = QStringLiteral("B — In China behind VPN abroad (GeoIP failed)");
+            details = QStringLiteral("GeoIP failed but %1/3 CN sites reachable, CN latency %2ms")
+                .arg(connChina).arg(cnLatencyMs);
+            status = DiagStatus::Warning;
+        } else if (connChina <= 1) {
+            scenario = QStringLiteral("D — No VPN, overseas (GeoIP failed)");
+            details = QStringLiteral("GeoIP failed, %1/3 CN sites reachable, %2/2 global reachable")
+                .arg(connChina).arg(connGlobal);
+        } else {
+            scenario = QStringLiteral("Uncertain — GeoIP failed, %1/3 CN sites reachable")
+                .arg(connChina);
+            details = QStringLiteral("Recommend manually checking VPN status");
+            status = DiagStatus::Info;
+        }
+    } else if (country == QStringLiteral("CN")) {
         if (connChina >= 2 && cnLatencyMs >= 0 && cnLatencyMs < 50) {
             scenario = QStringLiteral("A — No VPN, inside China");
             details = QStringLiteral("GeoIP=CN, %1/3 CN sites reachable, CN server latency %2ms")
