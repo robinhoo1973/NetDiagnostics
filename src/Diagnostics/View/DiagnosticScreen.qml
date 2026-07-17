@@ -52,12 +52,13 @@ Item {
     Component.onCompleted: { takeSnapshot(); console.warn("[DiagnosticScreen] loaded — DiagnosticToolbar should be visible") }
 
     // Aggregate badge counts — refreshed on each completed test.
-    // groupStats(-1) sums G0-G4 via the C++ aggregate branch.
-    property int __aggPass: { var _ = appState.totalCompleted; return (appState.groupStats(-1).pass||0) }
-    property int __aggInfo: { var _ = appState.totalCompleted; return (appState.groupStats(-1).info||0) }
-    property int __aggWarn: { var _ = appState.totalCompleted; return (appState.groupStats(-1).warn||0) }
-    property int __aggFail: { var _ = appState.totalCompleted; return (appState.groupStats(-1).fail||0) }
-    property int __aggSkip: { var _ = appState.totalCompleted; return (appState.groupStats(-1).skip||0) }
+    // 5WHY: was 5 independent properties each calling groupStats(-1)
+    // (5× loop over groups = 25 iterations per change).  Single object
+    // property calls groupStats(-1) once, saving 4 C++ calls per update.
+    property var __agg: {
+        var _ = appState.totalCompleted; var s = appState.groupStats(-1)
+        return { pass: s.pass||0, info: s.info||0, warn: s.warn||0, fail: s.fail||0, skip: s.skip||0 }
+    }
 
     property var currentDetail: ({})
     property var visibleGroups: {
@@ -153,7 +154,7 @@ Item {
                               appState.runStatus === 3 ? Tr.cancelled :
                               appState.runStatus === 4 ? Tr.errorStatus : Tr.results
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
-                        color: ThemeEngine.colors.textPrimary
+                        color: appState.runStatus === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary
                     }
                     Label {
                         visible: appState.runStatus === 1 && appState.totalDiags > 0
@@ -167,11 +168,11 @@ Item {
                 RowLayout {
                     spacing: 4; visible: _showBadges
                     Item { width: 11 }
-                    BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __aggPass }
-                    BadgeLabel { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __aggInfo }
-                    BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __aggWarn }
-                    BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __aggFail }
-                    BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __aggSkip }
+                    BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __agg.pass }
+                    BadgeLabel { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __agg.info }
+                    BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __agg.warn }
+                    BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __agg.fail }
+                    BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __agg.skip }
                 }
             }
         }
