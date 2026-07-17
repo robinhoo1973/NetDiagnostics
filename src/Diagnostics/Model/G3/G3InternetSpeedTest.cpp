@@ -557,36 +557,52 @@ DiagnosticResult speedTest(DiagId id) {
         out.append(QStringLiteral("  Using connectivity-guided server selection)"));
     }
 
-    // Build candidate pool: CN always first, then region-specific, then global
+    // Build candidate pool: always CN + region + global diversity backup.
+    // 5WHY: when country=CN, candidates were 100% CN → all unreachable if
+    // user is outside China (VPN CN IP but physically overseas).  Now always
+    // includes a small global diversity set as insurance, regardless of GeoIP.
     QVector<SpeedTest::Server> candidates;
     {
-        // Tier 1: ALL CN servers (26), always included — handles VPN misdetection
+        // Tier 1: ALL CN servers (26), always — handles VPN misdetection
         {
             QVector<SpeedTest::Server> cnServers = st.serversForCountry(QStringLiteral("CN"));
             candidates.append(cnServers);
         }
-        // Tier 2: Region-specific servers from detected country (skip if CN, already added)
-        if (country != QStringLiteral("CN") && country != QStringLiteral("XX")) {
+        // Tier 2: Region servers (skip CN duplicates, added for non-XX countries)
+        if (country != QStringLiteral("XX")) {
             QVector<SpeedTest::Server> region = st.serversForCountry(country);
-            candidates.append(region);
-        }
-        // Tier 3: If Country Unknown, add curated global fallback
-        if (country == QStringLiteral("XX")) {
-            QVector<SpeedTest::Server> global = st.serversForCountry(QStringLiteral("XX"));
-            for (const auto& s : global) {
-                if (s.country != QStringLiteral("CN")) // avoid duplicate CN
+            for (const auto& s : region) {
+                if (s.country != QStringLiteral("CN"))
                     candidates.append(s);
             }
         }
-        // Shuffle within tiers for geographic diversity
+        // Tier 3: Global diversity backup (4 servers, always included as insurance)
+        {
+            static const QStringList kGlobalBackup = {
+                QStringLiteral("speedtest.tele2.net"),       // Stockholm
+                QStringLiteral("speedtest.singtel.com"),     // Singapore
+                QStringLiteral("speedtest.belwue.net"),      // Stuttgart
+                QStringLiteral("seoul.speedtest.gslnetworks.com"), // Seoul
+            };
+            QVector<SpeedTest::Server> allSrv = st.allServers();
+            for (const auto& s : allSrv) {
+                if (kGlobalBackup.contains(s.host)) {
+                    if (s.country != QStringLiteral("CN") ||
+                        !std::any_of(candidates.begin(), candidates.end(),
+                            [&](const SpeedTest::Server& c) { return c.host == s.host; }))
+                        candidates.append(s);
+                }
+            }
+        }
+        // Shuffle for geographic diversity
         {
             std::random_device rd;
             std::mt19937 g(rd());
             std::shuffle(candidates.begin(), candidates.end(), g);
         }
-        // Cap at 12 to keep screening under 30s (12 × 3s avg = 36s max)
-        if (candidates.size() > 12)
-            candidates.resize(12);
+        // Cap at 15 (was 12 — need room for global backup diversity)
+        if (candidates.size() > 15)
+            candidates.resize(15);
     }
     out.append(QStringLiteral("Candidate pool: %1 servers (%2 CN, country=%3)")
         .arg(candidates.size())
