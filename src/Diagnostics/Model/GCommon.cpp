@@ -328,42 +328,4 @@ double tcpPingAvg(const QString& host, int port) {
     return result;
 }
 
-// HTTP latency via tiny file download (speedtest-cli style latency.txt)?// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
-// Much better predictor of download throughput than raw TCP ping.
-int httpLatencyMs(const QString& urlStr, int timeoutMs) {
-    QElapsedTimer t; t.start();
-    QString u = urlStr;
-    if (!u.startsWith("http://")) return -1;
-    u = u.mid(7);
-    auto slash = u.indexOf('/');
-    QString hostPort = (slash > 0) ? u.left(slash) : u;
-    QString host = hostPort; int port = 80;
-    auto colon = hostPort.lastIndexOf(':');
-    if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
-
-    // Download latency.txt from server root — speedtest-cli uses the root path
-    // regardless of the download/upload URL structure
-    QString latPath = QStringLiteral("/latency.txt");
-    QByteArray resp = httpGet(host, port, latPath, timeoutMs, 4096);
-    if (resp.isEmpty()) return -1;
-
-    // Parse HTTP response — extract body after \r\n\r\n header terminator
-    auto hdrEnd = resp.indexOf("\r\n\r\n");
-    if (hdrEnd < 0) return -1;
-    // 5WHY: httpLatencyMs accepted ANY HTTP response (200, 404, 500) as valid,
-    // treating error pages as latency measurements. Validate HTTP 2xx by
-    // checking the status line only 鈥?avoids false match in header values.
-    QByteArray headers = resp.left(hdrEnd);
-    int slEnd = headers.indexOf('\r');
-    QByteArray statusLine = (slEnd > 0) ? headers.left(slEnd) : headers;
-    int codeStart = statusLine.indexOf(' ');
-    if (codeStart <= 0 || codeStart + 4 > statusLine.size()
-        || statusLine.mid(codeStart + 1, 3) != "200") return -1;
-    QByteArray body = resp.mid(hdrEnd + 4);
-    // latency.txt should contain a small text like "test=...", we just need the time
-    if (body.trimmed().isEmpty()) return -1;
-
-    return static_cast<int>(t.elapsed());
-}
-
 }

@@ -18,7 +18,7 @@ static const QMap<QString, QStringList> continentFallback = {
     {"Europe",       {"DE","GB","FR","NL","IT","ES","SE","RU"}},
     {"NorthAmerica", {"US","CA"}},
     {"SouthAmerica", {"BR","AR"}},
-    {"Africa",       {"ZA"}},
+    {"Africa",       {"ZA","FR","GB"}},  // ZA for Southern, FR/GB for West (Lagos→Paris < Lagos→Johannesburg)
     {"Oceania",      {"AU","SG"}},
 };
 static QString continentForCountry(const QString& cc) {

@@ -170,7 +170,7 @@ Item {
                     spacing: 4; visible: _showBadges
                     Item { width: 11 }
                     BadgeLabel { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __aggPass }
-                    BadgeLabel { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: __aggInfo }
+                    BadgeLabel { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __aggInfo }
                     BadgeLabel { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __aggWarn }
                     BadgeLabel { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __aggFail }
                     BadgeLabel { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __aggSkip }
