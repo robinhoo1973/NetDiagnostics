@@ -4,23 +4,10 @@
 #include <QMutexLocker>
 namespace G1G2G3Native {
 QByteArray httpGet(const QString& host, int port, const QString& path, int timeoutMs, int maxBytes) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    // 5WHY: was 17 lines of socket+connect+select boilerplate,
+    // duplicating tcpConnect() from NetUtil.h.  Now 1 call.
+    int sock = tcpConnect(host, port, timeoutMs);
     if (sock < 0) return {};
-    struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return {}; }
-
-#if defined(_WIN32)
-    u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
-#else
-    int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-#endif
-    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-    struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return {}; }
-    int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-    if (err != 0) { closeSocket(sock); return {}; }
 
     // Send HTTP request (loop handles partial sends, EAGAIN-safe)
     // 5WHY: Host header omitted port number. Per RFC 7230 §5.4, the port
@@ -114,24 +101,9 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     auto colon = hostPort.lastIndexOf(':');
     if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
 
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) return r;
-    struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return r; }
-
-#if defined(_WIN32)
-    u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
-#else
-    int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-#endif
     QElapsedTimer t; t.start();
-    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-    struct timeval tv = {3, 0};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return r; }
-    int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-    if (err != 0) { closeSocket(sock); return r; }
+    int sock = tcpConnect(host, port, 3000);
+    if (sock < 0) return r;
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
     // 5WHY: Host header omitted port — same bug that was fixed in httpGet()
@@ -243,22 +215,10 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
 // TCP ping (simple connect RTT) — measures raw TCP handshake latency
 int tcpPingMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) return -1;
-    struct sockaddr_in addr;
-    if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
-#if defined(_WIN32)
-    u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
-#else
-    int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-#endif
-    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-    struct timeval tv = {2, 0};
-    int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
+    int sock = tcpConnect(host, port, 2000);
     int ms = static_cast<int>(t.elapsed());
-    if (sel > 0) { int err = 0; socklen_t len = sizeof(err); getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len); if (err != 0) ms = -1; } else ms = -1;
-    closeSocket(sock);
+    if (sock < 0) ms = -1;
+    else closeSocket(sock);
     return ms;
 }
 
