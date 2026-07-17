@@ -221,7 +221,7 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G2NetworkProfile, DiagId::G2TcpSettings, DiagId::G2DefaultGateway,
         DiagId::G2RoutingTable, DiagId::G2ArpTable, DiagId::G2ProxySettings,
         DiagId::G3NetskopeStatus, DiagId::G3DnsServers, DiagId::G3DnsCache,
-        DiagId::G3DnsPollution, DiagId::G3InternetSpeedTest, // G3InternetConnectivity merged into Speed Test
+        DiagId::G3DnsPollution, DiagId::G3VpnStatus, DiagId::G3InternetSpeedTest,
         DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
         DiagId::G4PathPing, DiagId::G4MtuDiscovery,
         DiagId::G5UrlParsing, DiagId::G5TcpConnect, DiagId::G5ServiceBanner,
