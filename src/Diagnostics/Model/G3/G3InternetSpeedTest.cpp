@@ -892,7 +892,7 @@ DiagnosticResult speedTest(DiagId id) {
         if (totalTimer.elapsed() > 110000) break; // wall-clock hard cap
 
         // Try preferred server first, fall back through ranked list independently
-        // per size tier 闂?a server that handles 250KB may choke on 25MB.
+        // per size tier — a server that handles 250KB may choke on 25MB.
         bool ok = false;
         // 5WHY: cap fallback at 3 servers per tier — reduces worst-case
         // timeout from 8 × 4s = 32s to 3 × 4s = 12s per tier when all
@@ -928,7 +928,7 @@ DiagnosticResult speedTest(DiagId id) {
                 .arg(QStringLiteral("%1 KB").arg(sizeKb).rightJustified(10, ' '))
                 .arg(QStringLiteral("(timeout)").rightJustified(16, ' '))
                 .arg(QStringLiteral("-").rightJustified(8, ' ')));
-            // Don't abort 闂?try next size tier even if this one failed
+            // Don't abort — try next size tier even if this one failed
         }
     }
 

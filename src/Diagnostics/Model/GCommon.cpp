@@ -153,7 +153,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         reqSent += n;
     }
 
-    // Read with timing 闂?measure throughput (wall-clock guarded)
+    // Read with timing — measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
     QByteArray body;
     QByteArray headerBuf;
@@ -237,7 +237,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     return r;
 }
 
-// 闂佸啿鍘滈崑鎾绘煃閸忓浜?TCP ping (simple connect RTT) 闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸?
+// TCP ping (simple connect RTT)闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸嬫捇鏌嶉崗澶婁壕闂佸啿鍘滈崑鎾绘煃閸忓浜鹃梺鍐插帨閸?
 int tcpPingMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -325,7 +325,7 @@ double tcpPingAvg(const QString& host, int port) {
     return result;
 }
 
-// 闂佸啿鍘滈崑鎾绘煃閸忓浜?HTTP latency via tiny file download (speedtest-cli style latency.txt) 闂佸啿鍘滈崑鎾绘煃閸忓浜?// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
+// HTTP latency via tiny file download (speedtest-cli style latency.txt)?// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
 // Much better predictor of download throughput than raw TCP ping.
 int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     QElapsedTimer t; t.start();
@@ -338,13 +338,13 @@ int httpLatencyMs(const QString& urlStr, int timeoutMs) {
     auto colon = hostPort.lastIndexOf(':');
     if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
 
-    // Download latency.txt from server root 闂?speedtest-cli uses the root path
+    // Download latency.txt from server root — speedtest-cli uses the root path
     // regardless of the download/upload URL structure
     QString latPath = QStringLiteral("/latency.txt");
     QByteArray resp = httpGet(host, port, latPath, timeoutMs, 4096);
     if (resp.isEmpty()) return -1;
 
-    // Parse HTTP response 闂?extract body after \r\n\r\n header terminator
+    // Parse HTTP response — extract body after \r\n\r\n header terminator
     auto hdrEnd = resp.indexOf("\r\n\r\n");
     if (hdrEnd < 0) return -1;
     // 5WHY: httpLatencyMs accepted ANY HTTP response (200, 404, 500) as valid,
