@@ -59,22 +59,36 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QStringLiteral("GeoIP country: %1").arg(geoCountry == "XX" ? "Unknown" : geoCountry));
 
     // ── Step 3: Probe speed-test servers from GeoIP country + reference regions ──
-    // Map country codes to probe servers.  Falls back to CN/US if unknown.
+    // Use the SpeedTest database for real servers from each country.
+    SpeedTest st;
     struct RegionProbe { const char* label; const char* host; int port; };
     QMap<QString, QVector<RegionProbe>> probes;
-    // Primary: GeoIP country's servers
-    probes[geoCountry].append({geoCountry.toUtf8().constData(),
-        "speedtest.tele2.net", 8080}); // generic fallback always included
-    // Reference: CN (always, largest pool)
-    probes[QStringLiteral("CN")] = {
-        {"China Mobile GD", "speedtest1.gd.chinamobile.com", 8080},
-        {"China Mobile BJ", "speedtest.bj.chinamobile.com", 8080},
-        {"China Telecom SH", "speedtest1.online.sh.cn", 8080},
-    };
+
+    // Primary: servers from the GeoIP-detected country
+    if (geoCountry != QStringLiteral("XX")) {
+        QVector<SpeedTest::Server> geoSrvs = st.serversForCountry(geoCountry);
+        for (const auto& s : geoSrvs) {
+            if (probes[geoCountry].size() >= 4) break; // cap at 4 probes
+            probes[geoCountry].append({s.sponsor.toUtf8().constData(),
+                s.host.toUtf8().constData(), s.port});
+        }
+    }
+    // Reference: CN (always, largest server pool)
+    {
+        QVector<SpeedTest::Server> cnSrvs = st.serversForCountry(QStringLiteral("CN"));
+        for (int i = 0; i < qMin(3, (int)cnSrvs.size()); i++) {
+            probes[QStringLiteral("CN")].append({cnSrvs[i].sponsor.toUtf8().constData(),
+                cnSrvs[i].host.toUtf8().constData(), cnSrvs[i].port});
+        }
+    }
     // Reference: US
-    probes[QStringLiteral("US")] = {
-        {"US Xfinity", "speedtest.xfinity.com", 8080},
-    };
+    {
+        QVector<SpeedTest::Server> usSrvs = st.serversForCountry(QStringLiteral("US"));
+        for (int i = 0; i < qMin(2, (int)usSrvs.size()); i++) {
+            probes[QStringLiteral("US")].append({usSrvs[i].sponsor.toUtf8().constData(),
+                usSrvs[i].host.toUtf8().constData(), usSrvs[i].port});
+        }
+    }
 
     struct RegionResult { QString code; double latencyMs; int reachable; };
     QVector<RegionResult> regionResults;
