@@ -80,17 +80,23 @@ DiagnosticResult vpnStatus(DiagId id) {
     QString details;
     DiagStatus status = DiagStatus::Pass;
 
+    // 5WHY: cnLatencyMs=-1 (all CN servers unreachable) with country=CN
+    // is a strong signal for scenario C (overseas behind CN VPN).  The old
+    // logic classified it as "A — partial connectivity" because -1 < 50.
     if (country == QStringLiteral("CN")) {
         if (connChina >= 2 && cnLatencyMs >= 0 && cnLatencyMs < 50) {
             scenario = QStringLiteral("A — No VPN, inside China");
             details = QStringLiteral("GeoIP=CN, %1/3 CN sites reachable, CN server latency %2ms")
                 .arg(connChina).arg(cnLatencyMs);
-        } else if (connChina <= 1 && cnLatencyMs > 100) {
+        } else if (cnLatencyMs > 100 || (cnLatencyMs < 0 && connChina <= 1)) {
             scenario = QStringLiteral("C — Overseas behind CN VPN");
-            details = QStringLiteral("GeoIP=CN but only %1/3 CN sites reachable, CN latency %2ms (high)")
-                .arg(connChina).arg(cnLatencyMs);
+            details = cnLatencyMs > 100
+                ? QStringLiteral("GeoIP=CN but only %1/3 CN sites reachable, CN latency %2ms (high)")
+                    .arg(connChina).arg(cnLatencyMs)
+                : QStringLiteral("GeoIP=CN but all CN servers unreachable, only %1/3 CN sites")
+                    .arg(connChina);
             status = DiagStatus::Warning;
-        } else if (connChina <= 1 && cnLatencyMs < 50) {
+        } else if (connChina <= 1 && cnLatencyMs >= 0 && cnLatencyMs < 50) {
             scenario = QStringLiteral("A — No VPN, inside China (partial connectivity)");
             details = QStringLiteral("GeoIP=CN, %1/3 CN sites reachable (degraded), CN latency %2ms")
                 .arg(connChina).arg(cnLatencyMs);
