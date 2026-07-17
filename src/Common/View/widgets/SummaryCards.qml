@@ -8,7 +8,6 @@ ColumnLayout {
     id: summaryRoot
     spacing: 0
     property int pass: 0; property int warn: 0; property int fail: 0; property int skip: 0; property int info: 0
-    property bool compact: false
 
     // Header: "Summary" + "Total: N"
     RowLayout {
