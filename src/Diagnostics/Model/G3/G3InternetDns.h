@@ -20,10 +20,10 @@ inline void SpeedTest::build() {
     // Static local builds once, subsequent calls do a cheap QMap shallow copy
     // (Qt ref-counted containers — O(1) copy, O(n) append avoided).
     static QMap<QString, QVector<Server>> sDb = []() {
-        QMap<QString, QVector<Server>> db;
+        QMap<QString, QVector<Server>> m;  // shadows class member, satisfies ADD_SERVER macro
         Server s;
         #include "G3ServerDb.inc"
-        return db;
+        return m;
     }();
     m = sDb;
 }
