@@ -34,7 +34,7 @@ public:
     // ── Group queries ────────────────────────────────────────────────
     static QStringList groupLabels();
     static QList<DiagId> allDiagIds();
-    static QList<DiagId> diagIdsForGroup(DiagGroup group);
+    static const QVector<DiagId>& diagIdsForGroup(DiagGroup group);
     static DiagGroup diagGroup(DiagId id);
 
     // ── Group stats (read from results) ──────────────────────────────

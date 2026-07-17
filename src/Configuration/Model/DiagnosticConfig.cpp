@@ -28,9 +28,10 @@ QList<DiagId> DiagnosticConfig::allDiagIds() {
     return QList<DiagId>(v.begin(), v.end());
 }
 
-QList<DiagId> DiagnosticConfig::diagIdsForGroup(DiagGroup group) {
-    const auto& v = ::diagIdsForGroup(group); // DiagId.h free function (static cache, O(1))
-    return QList<DiagId>(v.begin(), v.end());
+const QVector<DiagId>& DiagnosticConfig::diagIdsForGroup(DiagGroup group) {
+    // 5WHY: was copying QVector→QList on every call (heap alloc per invocation).
+    // Now delegates directly to DiagId.h free function (static cache, O(1) ref).
+    return ::diagIdsForGroup(group);
 }
 
 DiagGroup DiagnosticConfig::diagGroup(DiagId id) {

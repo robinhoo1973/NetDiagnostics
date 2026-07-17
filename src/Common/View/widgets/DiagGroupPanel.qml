@@ -11,7 +11,7 @@ Rectangle {
     property bool _userToggled: false
     // Phone portrait: badges move to a second line below the title bar
     // so the 5 status icons + counts don't get clipped in the title row.
-    property bool compact: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    property bool compact: ThemeEngine.isMobile
 
     height: cardColumn.implicitHeight + 16
     radius: 10
@@ -44,11 +44,10 @@ Rectangle {
     property int _modelVersion: 0
     property var itemsModel: []
     function reloadModel() {
-        // Force fresh reference: clear first, then assign
-        // On ARM64 Qt 6.8.2, QML does not detect internal array changes
-        var fresh = appState.allDiagsForGroup(groupIndex)
-        itemsModel = []
-        itemsModel = fresh
+        // 5WHY: itemsModel=[] then itemsModel=fresh caused Repeater delegate
+        // churn — all children destroyed then recreated (ARM64 flicker).
+        // Single assignment + version bump triggers one re-evaluation.
+        itemsModel = appState.allDiagsForGroup(groupIndex)
         _modelVersion++
     }
     Component.onCompleted: reloadModel()
