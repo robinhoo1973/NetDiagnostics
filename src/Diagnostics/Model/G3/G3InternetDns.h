@@ -5,7 +5,7 @@ namespace G1G2G3Native {
 // 5WHY: Was a thin forward-decl (only detectCountry).  vpnStatus also needs
 // Server struct, allServers(), serversForCountry(), and constructor — all
 // defined in the FULL class.  Now defined here so both .cpp files see it.
-#define S(c, h, p, n, sp) s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
+#define ADD_SERVER(c, h, p, n, sp) s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
 class SpeedTest {
 public:
     struct Server { QString host; int port; QString name, sponsor, country, url; };
@@ -27,7 +27,7 @@ inline void SpeedTest::build() {
     }();
     m = sDb;
 }
-#undef S
+#undef ADD_SERVER
 
 DiagnosticResult netskopeStatus(DiagId id);
 DiagnosticResult dnsServers(DiagId id);
