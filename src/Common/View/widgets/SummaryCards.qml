@@ -44,8 +44,9 @@ ColumnLayout {
     Component.onCompleted: refresh()
     function refresh() {
         pass=0; warn=0; fail=0; skip=0; info=0
-        for (var g=0; g<appState.groupLabels.length; g++) {
-            var s = appState.groupStats(g)
+        var all = appState.allGroupStats // single C++ call (QVariantList), not 5
+        for (var g=0; g<all.length; g++) {
+            var s = all[g]
             pass += (s.pass||0); warn += (s.warn||0); fail += (s.fail||0); skip += (s.skip||0); info += (s.info||0)
         }
     }

@@ -18,16 +18,18 @@ Rectangle {
     color: ThemeEngine.colors.card
     border { width: 1; color: isRunning ? Qt.alpha(ThemeEngine.cyan, 0.4) : ThemeEngine.colors.borderCard }
 
-    // ── Computed state — all from C++ groupStats (single source of truth) ──
-    // ── Computed state — all from C++ groupStats (single source of truth) ──
-    property int enabledCount: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.total||0 }
-    property int completedCount: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.completed||0 }
+    // ── Computed state — single C++ call, shared JS object (was 7 calls) ──
+    property var _gstat: { var _v=_modelVersion; var s=appState.groupStats(groupIndex)
+        return { total:s.total||0, completed:s.completed||0, pass:s.pass||0,
+                 warn:s.warn||0, fail:s.fail||0, skip:s.skip||0, info:s.info||0 } }
+    property int enabledCount: _gstat.total
+    property int completedCount: _gstat.completed
     property bool isRunning: appState.runStatus===1 && completedCount<enabledCount
-    property int groupPass: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.pass||0 }
-    property int groupWarn: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.warn||0 }
-    property int groupFail: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.fail||0 }
-    property int groupSkip: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.skip||0 }
-    property int groupInfo: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.info||0 }
+    property int groupPass: _gstat.pass
+    property int groupWarn: _gstat.warn
+    property int groupFail: _gstat.fail
+    property int groupSkip: _gstat.skip
+    property int groupInfo: _gstat.info
 
     onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
     onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true

@@ -94,20 +94,6 @@ QtObject {
         applyTheme()
     }
 
-    // Theme color keys — single source for both palette objects and assignment loop
-    readonly property var _colorKeys: [
-        ["bgDark",          "surface"],          ["bgSidebar",       "sidebar"],
-        ["bgCard",          "card"],             ["bgInput",         "input"],
-        ["navBar",          "navBar"],           ["textPrimary",     "textPrimary"],
-        ["textSecondary",   "textSecondary"],    ["textMuted",       "textMuted"],
-        ["accent",          "accent"],           ["accentBlue",      "secondary"],
-        ["cyan",            "cyan"],             ["passGreen",       "passGreen"],
-        ["warnYellow",      "warnYellow"],       ["failRed",         "failRed"],
-        ["skipGray",        "skipGray"],         ["infoBlue",        "infoBlue"],
-        ["borderCard",      "borderCard"],       ["borderSubtle",    "borderSubtle"],
-        ["borderFocused",   "borderFocused"],    ["primary",         "primary"],
-        ["primaryContainer", "primaryContainer"],["secondary",       "secondary"]
-    ]
 
     function applyTheme() {
         var p = (mode === litMode) ? lightPalette : darkPalette

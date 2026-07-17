@@ -23,9 +23,8 @@ QStringList DiagnosticConfig::groupLabels() {
              diagGroupLabel(DiagGroup::G5) };
 }
 
-QList<DiagId> DiagnosticConfig::allDiagIds() {
-    const auto& v = ::allDiagIds();          // DiagId.h free function (static cache, O(1))
-    return QList<DiagId>(v.begin(), v.end());
+const QVector<DiagId>& DiagnosticConfig::allDiagIds() {
+    return ::allDiagIds(); // DiagId.h free function (static cache, O(1))
 }
 
 const QVector<DiagId>& DiagnosticConfig::diagIdsForGroup(DiagGroup group) {

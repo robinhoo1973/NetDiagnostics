@@ -418,8 +418,8 @@ Item {
             Rectangle { Layout.fillWidth: true; implicitHeight: 4; radius: 2; color: ThemeEngine.colors.borderCard
                 Rectangle {
                     height:4; radius:2
-                    width: parent.width * (calcGroupStat(groupIndex).total > 0 ? (calcGroupStat(groupIndex).pass + calcGroupStat(groupIndex).warn + calcGroupStat(groupIndex).fail) / calcGroupStat(groupIndex).total : 0)
-                    color: calcGroupStat(groupIndex).fail > 0 ? ThemeEngine.warnYellow : ThemeEngine.passGreen
+                    width: parent.width * (_stat.total > 0 ? (_stat.pass + _stat.warn + _stat.fail) / _stat.total : 0)
+                    color: _stat.fail > 0 ? ThemeEngine.warnYellow : ThemeEngine.passGreen
                 }
             }
             Item { Layout.preferredHeight: 8 }
