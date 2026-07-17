@@ -17,6 +17,7 @@ resources/cert/
 
 # Temp / review files
 review/
+review/*
 crashes/
 commit_msg.txt
 AGENTS.md
