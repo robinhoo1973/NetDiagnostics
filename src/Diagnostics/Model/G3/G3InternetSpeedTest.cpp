@@ -683,7 +683,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(17, QChar('-')))
         .arg(QString(10, QChar('-'))));
 
-    struct CandidateResult { SpeedTest::Server* srv; double mbps; };
+    struct CandidateResult { SpeedTest::Server* srv; double mbps; double latencyMs; };
     QVector<CandidateResult> results;
 
     for (int i = 0; i < topN; i++) {
@@ -692,7 +692,7 @@ DiagnosticResult speedTest(DiagId id) {
         QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
         auto res = httpDownload(probeUrl, 100000, 6000);
         if (res.ok && res.mbps > 0.01) {
-            results.append({&s, res.mbps});
+            results.append({&s, res.mbps, tcpRanked[i].latencyMs});
             out.append(QStringLiteral("  %1  %2  %3  %4")
                 .arg(results.size(), 3)
                 .arg(s.sponsor.leftJustified(22, ' '))
@@ -729,7 +729,8 @@ DiagnosticResult speedTest(DiagId id) {
         auto valRes = httpDownload(valUrl, 250000, 8000);
         if (valRes.ok && valRes.mbps > 0.01) {
             best = cr.srv;
-            bestMbps = cr.mbps; // use the 100KB screening mbps as reference
+            bestMbps = cr.mbps;
+            bestLatency = cr.latencyMs;
             break;
         }
         out.append(QStringLiteral("  (server %1 failed 250KB validation)").arg(cr.srv->sponsor));
@@ -771,7 +772,7 @@ DiagnosticResult speedTest(DiagId id) {
     int dlSizes[] = {250, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 7500, 10000, 15000, 20000, 25000};
     QVector<double> dlResults;
     int dlTotalBytes = 0, dlTotalMs = 0;
-    int dlServerIdx = 0; // current preferred server index into ranked[]
+    int dlServerIdx = 0; // current preferred server index into results[]
 
     for (int sizeKb : dlSizes) {
         // 5WHY: dlTotalMs only accumulates successful download time — failed
