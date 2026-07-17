@@ -384,17 +384,6 @@ DiagnosticResult speedTest(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer totalTimer; totalTimer.start();
     QStringList out;
-    // 5WHY: 4 identical early-return blocks repeated the same 4 lines
-    // (rawOutput, details, status, durationMs).  Lambda eliminates the
-    // copy-paste and guarantees consistent status-assignment logic across
-    // all exit paths.
-    auto bail = [&](const QString& summary, DiagStatus altStatus = DiagStatus::Fail) -> DiagnosticResult {
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.status = hasConnectivity ? DiagStatus::Warning : altStatus;
-        r.summary = hasConnectivity ? QStringLiteral("Connected -- ") + summary
-                                    : QStringLiteral("No internet connectivity");
-        r.durationMs = totalTimer.elapsed(); return r;
-    };
 
     out.append(QString());
     out.append(QStringLiteral("Internet Connectivity"));
@@ -448,6 +437,17 @@ DiagnosticResult speedTest(DiagId id) {
             .arg(latency.rightJustified(7, ' ')));
     }
     bool hasConnectivity = (connOk > 0);
+    // 5WHY: 4 identical early-return blocks repeated the same 4 lines
+    // (rawOutput, details, status, durationMs).  Lambda eliminates the
+    // copy-paste and guarantees consistent status-assignment logic across
+    // all exit paths.  Defined after hasConnectivity so [&] can capture it.
+    auto bail = [&](const QString& summary, DiagStatus altStatus = DiagStatus::Fail) -> DiagnosticResult {
+        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+        r.status = hasConnectivity ? DiagStatus::Warning : altStatus;
+        r.summary = hasConnectivity ? QStringLiteral("Connected -- ") + summary
+                                    : QStringLiteral("No internet connectivity");
+        r.durationMs = totalTimer.elapsed(); return r;
+    };
     out.append(QString());
     out.append(QStringLiteral("------------------------------------------------------------------"));
     out.append(QStringLiteral("  Result: %1").arg(hasConnectivity
