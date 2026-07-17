@@ -241,6 +241,50 @@ int tcpPingMs(const QString& host, int port) {
     return ms;
 }
 
+// ── TCP ping with 50x averaging for sub-ms differentiation ──
+// 5WHY: single tcpPingMs() can't differentiate servers with ≤1ms RTT
+// (timer resolution limit).  Running 50 connects and averaging gives
+// ~0.02ms effective resolution — enough to rank nearby servers.
+// First call verifies reachability; if single latency > 1ms, return
+// directly (already differentiated).  If ≤ 1ms, run 49 more (50 total).
+double tcpPingAvg(const QString& host, int port) {
+    int first = tcpPingMs(host, port);
+    if (first <= 0) return -1.0;       // unreachable
+    if (first > 1) return (double)first; // already differentiated
+
+    // Sub-ms region: run 50 total connects, average the results
+    long long totalUs = 0;
+    int count = 0;
+    for (int i = 0; i < 50; i++) {
+        QElapsedTimer t; t.start();
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) continue;
+        struct sockaddr_in addr;
+        if (!hostToAddr(host, port, addr)) { closeSocket(sock); continue; }
+#if defined(_WIN32)
+        u_long mode = 1; ioctlsocket(sock, FIONBIO, &mode);
+#else
+        int flags = fcntl(sock, F_GETFL, 0); fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+#endif
+        ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+        fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
+        struct timeval tv = {2, 0};
+        int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
+        if (sel > 0) {
+            int err = 0; socklen_t len = sizeof(err);
+            getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
+            if (err == 0) {
+                totalUs += t.nsecsElapsed() / 1000; // ns → us
+                count++;
+            }
+        }
+        closeSocket(sock);
+    }
+    if (count == 0) return -1.0;
+    // Return average in ms (μs / 1000.0)
+    return (totalUs / (double)count) / 1000.0;
+}
+
 // 闂佸啿鍘滈崑鎾绘煃閸忓浜?HTTP latency via tiny file download (speedtest-cli style latency.txt) 闂佸啿鍘滈崑鎾绘煃閸忓浜?// Measures real application-layer RTT: DNS + TCP connect + HTTP request/response
 // Much better predictor of download throughput than raw TCP ping.
 int httpLatencyMs(const QString& urlStr, int timeoutMs) {

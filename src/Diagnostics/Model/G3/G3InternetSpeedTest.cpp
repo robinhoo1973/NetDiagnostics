@@ -609,7 +609,59 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(candidates.isEmpty() ? 0 : std::count_if(candidates.begin(), candidates.end(), [](const SpeedTest::Server& s) { return s.country == QStringLiteral("CN"); }))
         .arg(country));
 
-    // === Phase 3: Micro-download ranking (100KB, replaces TCP ping) ===
+    // === Phase 3: TCP fast screening (with 50x avg for sub-ms servers) ===
+    // 5WHY: TCP ping is cheap (~1ms each) but can't differentiate servers
+    // with ≤1ms RTT.  For those, run 50 connects and average to get
+    // ~0.02ms effective resolution.  Feeds top-8 into the expensive
+    // 100KB micro-download phase.
+    out.append(QStringLiteral("--- TCP Screening (50x avg for ≤1ms) ---------------------------------"));
+    out.append(QString());
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QStringLiteral("#").rightJustified(3, ' '))
+        .arg(QStringLiteral("Sponsor").leftJustified(22, ' '))
+        .arg(QStringLiteral("Server").leftJustified(17, ' '))
+        .arg(QStringLiteral("TCP(ms)").rightJustified(8, ' ')));
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QString(3, QChar('-')))
+        .arg(QString(22, QChar('-')))
+        .arg(QString(17, QChar('-')))
+        .arg(QString(8, QChar('-'))));
+
+    struct TcpResult { SpeedTest::Server* srv; double latencyMs; };
+    QVector<TcpResult> tcpRanked;
+
+    for (auto& s : candidates) {
+        double lat = tcpPingAvg(s.host, s.port);
+        if (lat > 0) {
+            tcpRanked.append({&s, lat});
+            out.append(QStringLiteral("  %1  %2  %3  %4")
+                .arg(tcpRanked.size(), 3)
+                .arg(s.sponsor.leftJustified(22, ' '))
+                .arg(s.name.leftJustified(17, ' '))
+                .arg(QStringLiteral("%1").arg(lat, 0, 'f', 2).rightJustified(8, ' ')));
+        }
+    }
+
+    if (tcpRanked.isEmpty()) {
+        out.append(QStringLiteral("  (no servers reachable via TCP)"));
+        out.append(QString());
+        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+        r.status = hasConnectivity ? DiagStatus::Warning : DiagStatus::Fail;
+        r.summary = hasConnectivity ? QStringLiteral("Connected -- no servers reachable via TCP")
+                                    : QStringLiteral("No internet connectivity");
+        r.durationMs = totalTimer.elapsed(); return r;
+    }
+
+    // Sort by TCP latency ascending
+    std::sort(tcpRanked.begin(), tcpRanked.end(),
+              [](const TcpResult& a, const TcpResult& b) { return a.latencyMs < b.latencyMs; });
+
+    // Take top 8 for micro-download (expensive phase)
+    int topN = qMin(8, (int)tcpRanked.size());
+    out.append(QString());
+    out.append(QStringLiteral("  Top %1 by TCP latency → micro-download screening").arg(topN));
+
+    // === Phase 4: Micro-download ranking (100KB on top 8 by TCP) ===
     // 5WHY: 100KB micro-download simultaneously verifies reachability AND
     // measures throughput — the only reliable screening signal.  TCP ping
     // was removed: all servers showed ~1ms with no discrimination, and
@@ -627,10 +679,11 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(QString(17, QChar('-')))
         .arg(QString(10, QChar('-'))));
 
-    struct CandidateResult { SpeedTest::Server* srv; double mbps; int latencyMs = 0; };
+    struct CandidateResult { SpeedTest::Server* srv; double mbps; };
     QVector<CandidateResult> results;
 
-    for (auto& s : candidates) {
+    for (int i = 0; i < topN; i++) {
+        auto& s = *tcpRanked[i].srv;
         if (totalTimer.elapsed() > 55000) break; // 55s wall-clock guard
         QString probeUrl = QStringLiteral("%1/download?size=%2").arg(s.url).arg(100000);
         auto res = httpDownload(probeUrl, 100000, 6000);
@@ -659,7 +712,7 @@ DiagnosticResult speedTest(DiagId id) {
     std::sort(results.begin(), results.end(),
               [](const CandidateResult& a, const CandidateResult& b) { return a.mbps > b.mbps; });
 
-    // === Phase 4: Pre-validation (250KB on top 2) ===
+    // === Phase 5: Pre-validation (250KB on top 2) ===
     // 5WHY: 100KB proves basic reachability but some servers accept small
     // downloads and fail on larger ones.  250KB pre-validation on the top-2
     // candidates catches this.
@@ -695,7 +748,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(bestMbps, 0, 'f', 2));
     out.append(QString());
 
-    // === Phase 5: Download test (with server fallback) ===
+    // === Phase 6: Download test (with server fallback) ===
     out.append(QString());
     out.append(QStringLiteral("--- Download Test ------------------------------------------------"));
     out.append(QString());
@@ -783,7 +836,7 @@ DiagnosticResult speedTest(DiagId id) {
         .arg(dlSpeed, 0, 'f', 2)
         .arg(dlResults.size() >= 5 ? QStringLiteral("  (avg of top %1)").arg(qMin(5, (int)dlResults.size())) : QString()));
 
-    // === Phase 6: Upload test ===
+    // === Phase 7: Upload test ===
     out.append(QString());
     out.append(QStringLiteral("--- Upload Test --------------------------------------------------"));
     out.append(QString());
