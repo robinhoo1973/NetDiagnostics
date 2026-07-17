@@ -1,19 +1,21 @@
 #include "Diagnostics/Model/G3/G3InternetDns.h"
 #include "Diagnostics/Model/GHelpers.h"
+#include <algorithm>
+#include <cmath>
 
 namespace G1G2G3Native {
 
-// ── VPN Status Detection — country-agnostic ──────────────────────────
-// 5WHY: VPN detection was CN-only (hardcoded CN site probes and CN server
-// latency checks).  A user in Japan behind a US VPN would be misclassified.
-// Now probes servers from the GeoIP country + 2 reference regions (CN, US)
-// and compares latencies: if GeoIP country servers have high latency but
-// another region has low latency → VPN detected.
+// ── VPN Status Detection — statistical country-agnostic ──────────────
+// 5WHY: Previous approach only probed 3 hand-picked countries (GeoIP, CN,
+// US).  A user in Japan behind Australia VPN would have zero Australian
+// probes and be misclassified.  Now probes ALL speed-test servers from
+// ALL countries, computes per-country median latency, and compares the
+// lowest-median country (B) with GeoIP country (A).  If A ≠ B → VPN.
 //
-// Classification:
-//   No VPN       — GeoIP country servers reachable with low latency
-//   VPN detected — GeoIP country servers high/unreachable, other region low
-//   Uncertain    — insufficient data to determine
+// Statistical rationale: within a country, server latencies form a
+// cluster.  The median is robust against outliers (unreachable servers
+// or abnormally slow ones).  The country with the lowest median latency
+// and sufficient sample size is the most likely physical location.
 
 DiagnosticResult vpnStatus(DiagId id) {
     DiagnosticResult r;
@@ -22,183 +24,168 @@ DiagnosticResult vpnStatus(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     out.append(QStringLiteral("VPN Status Detection"));
-    out.append(QStringLiteral("Cross-references GeoIP country with actual server reachability:"));
-    out.append(QStringLiteral("  - Multi-region connectivity check"));
-    out.append(QStringLiteral("  - GeoIP country detection"));
-    out.append(QStringLiteral("  - TCP latency probes from GeoIP country + reference regions"));
+    out.append(QStringLiteral("Compares GeoIP country with statistical latency clustering:"));
+    out.append(QStringLiteral("  1. GeoIP → apparent country (A)"));
+    out.append(QStringLiteral("  2. TCP ping ALL speed-test servers grouped by country"));
+    out.append(QStringLiteral("  3. Per-country median latency → connectivity country (B)"));
+    out.append(QStringLiteral("  4. A == B → No VPN.  A != B → VPN."));
     out.append(QString());
 
-    // ── Step 1: Multi-region connectivity check ───────────────────
-    struct { const char* host; int port; const char* name; const char* region; } sites[] = {
-        {"223.5.5.5", 53, "Alibaba DNS", "CN"},
-        {"baidu.com", 443, "Baidu", "CN"},
-        {"119.29.29.29", 53, "DNSPod DNS", "CN"},
-        {"8.8.8.8", 53, "Google DNS", "US"},
-        {"1.1.1.1", 53, "Cloudflare DNS", "US"},
-        {"dns.google", 53, "Google DNS2", "US"},
-        {"9.9.9.9", 53, "Quad9 DNS", "EU"},
-        {"208.67.222.222", 53, "OpenDNS", "US"},
-    };
-    QMap<QString,int> regionReachable;
-    out.append(QStringLiteral("--- Connectivity Check -------------------------------------------------"));
-    for (auto& s : sites) {
-        int lat = tcpPingMs(s.host, s.port);
-        bool ok = (lat >= 0);
-        if (ok) regionReachable[QString::fromUtf8(s.region)]++;
-        out.append(QStringLiteral("  %1  %2:%3  [%4]  %5  %6 ms")
-            .arg(QString::fromUtf8(s.name).leftJustified(14, ' '))
-            .arg(s.host).arg(s.port)
-            .arg(QString::fromUtf8(s.region).leftJustified(2, ' '))
-            .arg(ok ? QStringLiteral("OK") : QStringLiteral("--"))
-            .arg(ok ? QString::number(lat) : QStringLiteral("-")));
-    }
+    // ── Step 1: GeoIP → country A ──────────────────────────────────
+    QString countryA = SpeedTest::detectCountry(3000);
+    out.append(QStringLiteral("GeoIP country (A): %1").arg(countryA == "XX" ? "Unknown" : countryA));
 
-    // ── Step 2: GeoIP detection ──────────────────────────────────
-    QString geoCountry = SpeedTest::detectCountry(3000);
-    out.append(QString());
-    out.append(QStringLiteral("GeoIP country: %1").arg(geoCountry == "XX" ? "Unknown" : geoCountry));
-
-    // ── Step 3: Probe speed-test servers from GeoIP country + reference regions ──
-    // Use the SpeedTest database for real servers from each country.
+    // ── Step 2: Probe ALL servers, group by country ─────────────────
     SpeedTest st;
-    struct RegionProbe { const char* label; const char* host; int port; };
-    QMap<QString, QVector<RegionProbe>> probes;
-
-    // Primary: servers from the GeoIP-detected country
-    if (geoCountry != QStringLiteral("XX")) {
-        QVector<SpeedTest::Server> geoSrvs = st.serversForCountry(geoCountry);
-        for (const auto& s : geoSrvs) {
-            if (probes[geoCountry].size() >= 4) break; // cap at 4 probes
-            probes[geoCountry].append({s.sponsor.toUtf8().constData(),
-                s.host.toUtf8().constData(), s.port});
-        }
-    }
-    // Reference: CN (always, largest server pool)
-    {
-        QVector<SpeedTest::Server> cnSrvs = st.serversForCountry(QStringLiteral("CN"));
-        for (int i = 0; i < qMin(3, (int)cnSrvs.size()); i++) {
-            probes[QStringLiteral("CN")].append({cnSrvs[i].sponsor.toUtf8().constData(),
-                cnSrvs[i].host.toUtf8().constData(), cnSrvs[i].port});
-        }
-    }
-    // Reference: US
-    {
-        QVector<SpeedTest::Server> usSrvs = st.serversForCountry(QStringLiteral("US"));
-        for (int i = 0; i < qMin(2, (int)usSrvs.size()); i++) {
-            probes[QStringLiteral("US")].append({usSrvs[i].sponsor.toUtf8().constData(),
-                usSrvs[i].host.toUtf8().constData(), usSrvs[i].port});
-        }
-    }
-
-    struct RegionResult { QString code; double latencyMs; int reachable; };
-    QVector<RegionResult> regionResults;
+    QVector<SpeedTest::Server> allServers = st.allServers();
     out.append(QString());
-    out.append(QStringLiteral("--- Regional Latency Probes ---------------------------------------------"));
+    out.append(QStringLiteral("Probing %1 speed-test servers across all countries...").arg(allServers.size()));
+    out.append(QString());
 
-    for (auto it = probes.begin(); it != probes.end(); ++it) {
-        double bestLat = -1;
-        int reachable = 0;
-        for (auto& p : it.value()) {
-            int lat = tcpPingMs(p.host, p.port);
-            if (lat >= 0) {
-                reachable++;
-                if (bestLat < 0 || lat < bestLat) bestLat = lat;
-            }
-        }
-        if (reachable > 0) {
-            regionResults.append({it.key(), bestLat, reachable});
-            out.append(QStringLiteral("  [%1] %2/%3 reachable, best %4ms")
-                .arg(it.key(), 2)
-                .arg(reachable).arg(it.value().size())
-                .arg(QString::number((int)bestLat)));
+    // Per-server: record (country, latency).  Use tcpPingAvg for sub-ms precision.
+    struct ProbeResult { QString country; double latencyMs; };
+    QVector<ProbeResult> probeResults;
+    QElapsedTimer probeTimer; probeTimer.start();
+
+    for (auto& s : allServers) {
+        if (probeTimer.elapsed() > 45000) break; // 45s budget for probes
+        double lat = tcpPingAvg(s.host, s.port);
+        if (lat >= 0) {
+            probeResults.append({s.country, lat});
         }
     }
 
-    // ── Step 4: Classify (country-agnostic) ─────────────────────────
+    if (probeResults.isEmpty()) {
+        r.rawOutput = out.join('\n') + QStringLiteral("\nAll servers unreachable — cannot determine VPN status");
+        r.details = r.rawOutput;
+        r.summary = QStringLiteral("No connectivity");
+        r.status = DiagStatus::Fail;
+        r.durationMs = t.elapsed();
+        return r;
+    }
+
+    // ── Step 3: Per-country statistics ──────────────────────────────
+    // Group by country, compute median, min, count
+    struct CountryStats { QString code; double median; double minLat; int count; };
+    QMap<QString, QVector<double>> byCountry;
+    for (auto& pr : probeResults)
+        byCountry[pr.country].append(pr.latencyMs);
+
+    QVector<CountryStats> stats;
+    for (auto it = byCountry.begin(); it != byCountry.end(); ++it) {
+        auto& lats = it.value();
+        std::sort(lats.begin(), lats.end());
+        int n = lats.size();
+        // Median: middle value (or average of two middle if even)
+        double median = (n % 2 == 1) ? lats[n/2] : (lats[n/2-1] + lats[n/2]) / 2.0;
+        stats.append({it.key(), median, lats[0], n});
+    }
+
+    // Sort by median ascending → lowest-latency country first
+    std::sort(stats.begin(), stats.end(),
+              [](const CountryStats& a, const CountryStats& b) { return a.median < b.median; });
+
+    // ── Step 4: Determine connectivity country B ────────────────────
+    // Pick the first country with ≥2 reachable servers
+    CountryStats countryBStats;
+    bool foundB = false;
+    for (auto& s : stats) {
+        if (s.count >= 2) {
+            countryBStats = s;
+            foundB = true;
+            break;
+        }
+    }
+    if (!foundB && !stats.isEmpty()) {
+        // Fallback: use any country with at least 1 server
+        countryBStats = stats[0];
+        foundB = true;
+    }
+    QString countryB = foundB ? countryBStats.code : QString();
+
+    // ── Output per-country table ────────────────────────────────────
+    out.append(QStringLiteral("Per-country latency statistics (sorted by median):"));
+    out.append(QStringLiteral("  %1  %2  %3  %4  %5")
+        .arg(QStringLiteral("Country").leftJustified(4, ' '))
+        .arg(QStringLiteral("Count").rightJustified(5, ' '))
+        .arg(QStringLiteral("Median").rightJustified(8, ' '))
+        .arg(QStringLiteral("Min").rightJustified(6, ' '))
+        .arg(QStringLiteral("Range").rightJustified(10, ' ')));
+    for (auto& s : stats) {
+        double maxLat = byCountry[s.code].last();
+        out.append(QStringLiteral("  %1  %2  %3  %4  %5")
+            .arg(s.code.leftJustified(4, ' '))
+            .arg(s.count, 5)
+            .arg(QStringLiteral("%1ms").arg((int)s.median).rightJustified(8, ' '))
+            .arg(QStringLiteral("%1ms").arg((int)s.minLat).rightJustified(6, ' '))
+            .arg(QStringLiteral("%1-%2ms").arg((int)s.minLat).arg((int)maxLat).rightJustified(10, ' ')));
+    }
+
+    // ── Step 5: Decision ────────────────────────────────────────────
+    out.append(QString());
+    out.append(QStringLiteral("--- Decision ---------------------------------------------------------------"));
+
     QString scenario;
     QString details;
     DiagStatus status = DiagStatus::Pass;
 
-    // Sort by latency ascending
-    std::sort(regionResults.begin(), regionResults.end(),
-              [](const RegionResult& a, const RegionResult& b) { return a.latencyMs < b.latencyMs; });
-
-    if (regionResults.isEmpty()) {
-        scenario = QStringLiteral("No connectivity detected");
-        details = QStringLiteral("All probes failed — cannot determine VPN status");
+    if (countryA == QStringLiteral("XX")) {
+        scenario = QStringLiteral("GeoIP unavailable — location estimated as %1").arg(countryB);
+        details = QStringLiteral("All GeoIP providers failed. Connectivity suggests country %1 (%2 servers, median %3ms)")
+            .arg(countryB).arg(countryBStats.count).arg((int)countryBStats.median);
+        status = DiagStatus::Info;
+    } else if (!foundB) {
+        scenario = QStringLiteral("Insufficient data — no servers reachable");
+        details = QStringLiteral("All speed-test servers unreachable. Cannot verify VPN status.");
         status = DiagStatus::Fail;
+    } else if (countryA == countryB) {
+        scenario = QStringLiteral("No VPN — GeoIP and latency cluster agree (%1)").arg(countryA);
+        details = QStringLiteral("GeoIP=%1, connectivity country=%1 (%2 servers, median=%3ms). Match confirms no VPN.")
+            .arg(countryA).arg(countryBStats.count).arg((int)countryBStats.median);
     } else {
-        QString bestRegion = regionResults[0].code;
-        double bestLat = regionResults[0].latencyMs;
-
-        // Find GeoIP country's result
-        const RegionResult* geoResult = nullptr;
-        for (auto& rr : regionResults) {
-            if (rr.code == geoCountry) { geoResult = &rr; break; }
+        // Check if countryA is close to countryB in the stats (adjacent in ranking)
+        int rankA = -1, rankB = 0;
+        for (int i = 0; i < stats.size(); i++) {
+            if (stats[i].code == countryA) rankA = i;
+            if (stats[i].code == countryB) rankB = i;
         }
+        double latencyRatio = (rankA >= 0 && stats[rankA].count >= 1)
+            ? stats[rankA].median / countryBStats.median : 999;
 
-        bool geoIpEmpty = (geoCountry == QStringLiteral("XX"));
-        if (geoIpEmpty) {
-            // GeoIP failed — use connectivity alone
-            scenario = QStringLiteral("Approximate location: %1").arg(bestRegion);
-            details = QStringLiteral("GeoIP failed. Lowest latency region: %1 (%2ms, %3 servers)")
-                .arg(bestRegion).arg((int)bestLat).arg(regionResults[0].reachable);
+        if (rankA >= 0 && latencyRatio < 2.0) {
+            // Close enough — possibly adjacent countries with similar latency
+            scenario = QStringLiteral("Borderline — GeoIP=%1, connectivity=%2 (close)")
+                .arg(countryA).arg(countryB);
+            details = QStringLiteral("GeoIP=%1 (median=%3ms) vs %2 (median=%4ms). "
+                "Ratio %.1fx — adjacent countries may share network infrastructure.")
+                .arg(countryA).arg(countryB)
+                .arg((int)stats[rankA].median).arg((int)countryBStats.median)
+                .arg(latencyRatio, 1, 'f', 1);
             status = DiagStatus::Info;
-        } else if (geoResult) {
-            double geoLat = geoResult->latencyMs;
-            // If GeoIP country servers have low latency → no VPN
-            if (geoLat < 50 && geoLat <= bestLat * 1.5) {
-                scenario = QStringLiteral("No VPN detected (%1)").arg(geoCountry);
-                details = QStringLiteral("GeoIP=%1 matches server latency (%2ms). %3/%4 reachable.")
-                    .arg(geoCountry).arg((int)geoLat).arg(geoResult->reachable)
-                    .arg(probes[geoCountry].size());
-            }
-            // GeoIP country servers high latency, but other region low → VPN
-            else if (geoLat > 100 || (probes[geoCountry].size() > 0 && geoResult->reachable < probes[geoCountry].size())) {
-                QString likelyRegion = (regionResults.size() > 1 && regionResults[0].code != geoCountry)
-                    ? regionResults[0].code : QStringLiteral("unknown");
-                scenario = QStringLiteral("VPN detected (GeoIP=%1, likely in %2)").arg(geoCountry).arg(likelyRegion);
-                details = QStringLiteral("GeoIP=%1 (%2ms latency) but %3 servers have %4ms latency. "
-                    "Mismatch indicates VPN: user appears in %1 but connectivity suggests %3.")
-                    .arg(geoCountry).arg((int)geoLat).arg(likelyRegion).arg((int)bestLat);
-                status = DiagStatus::Warning;
-            } else {
-                scenario = QStringLiteral("Uncertain (%1)").arg(geoCountry);
-                details = QStringLiteral("GeoIP=%1, latency %2ms. Insufficient data to confirm/deny VPN.")
-                    .arg(geoCountry).arg((int)geoLat);
-                status = DiagStatus::Info;
-            }
         } else {
-            // GeoIP country has no probe data — use connectivity
-            int geoCon = regionReachable.value(geoCountry, 0);
-            if (geoCon > 0 && bestLat < 50) {
-                scenario = QStringLiteral("No VPN detected (%1)").arg(geoCountry);
-                details = QStringLiteral("GeoIP=%1, %2 sites reachable, best latency %3ms")
-                    .arg(geoCountry).arg(geoCon).arg((int)bestLat);
-            } else {
-                scenario = QStringLiteral("Uncertain — no probe data for %1").arg(geoCountry);
-                details = QStringLiteral("GeoIP=%1 but no speed-test servers available for this country.")
-                    .arg(geoCountry);
-                status = DiagStatus::Info;
-            }
+            scenario = QStringLiteral("VPN detected — GeoIP=%1, connectivity=%2").arg(countryA).arg(countryB);
+            details = QStringLiteral("GeoIP=%1 but lowest-latency country is %2 (%3 servers, median=%4ms). "
+                "Mismatch: user appears in %1 but physical connectivity suggests %2.")
+                .arg(countryA).arg(countryB).arg(countryBStats.count).arg((int)countryBStats.median);
+            status = DiagStatus::Warning;
         }
     }
 
-    out.append(QString());
-    out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
     out.append(QStringLiteral("  %1").arg(scenario));
     out.append(QStringLiteral("  %1").arg(details));
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
 
-    // User-friendly summary label
+    // User-friendly summary
     if (scenario.startsWith(QStringLiteral("No VPN")))
         r.summary = QStringLiteral("No VPN");
     else if (scenario.startsWith(QStringLiteral("VPN detected")))
         r.summary = QStringLiteral("VPN detected");
-    else if (scenario.startsWith(QStringLiteral("Approximate")))
+    else if (scenario.startsWith(QStringLiteral("GeoIP")))
         r.summary = QStringLiteral("Location est.");
+    else if (scenario.startsWith(QStringLiteral("Borderline")))
+        r.summary = QStringLiteral("Borderline");
     else
         r.summary = QStringLiteral("Uncertain");
     r.status = status;
