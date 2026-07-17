@@ -14,26 +14,26 @@ namespace G1G2G3Native {
 using SpeedTest::Server;
 // Continent fallback: map country codes to nearby regions with server coverage
 static const QMap<QString, QStringList> continentFallback = {
-    {"AS", {"CN","KR","SG","IN","JP","AE"}},  // Asia
-    {"EU", {"DE","GB","FR","NL","IT","ES","SE","RU"}},  // Europe
-    {"NA", {"US","CA"}},                       // North America
-    {"SA", {"BR","AR"}},                       // South America
-    {"AF", {"ZA"}},                            // Africa
-    {"OC", {"AU","SG"}},                       // Oceania (SG as fallback)
+    {"Asia",         {"CN","KR","SG","IN","JP","AE"}},
+    {"Europe",       {"DE","GB","FR","NL","IT","ES","SE","RU"}},
+    {"NorthAmerica", {"US","CA"}},
+    {"SouthAmerica", {"BR","AR"}},
+    {"Africa",       {"ZA"}},
+    {"Oceania",      {"AU","SG"}},
 };
 static QString continentForCountry(const QString& cc) {
     static const QMap<QString, QString> ccContinent = {
-        {"CN","AS"},{"KR","AS"},{"SG","AS"},{"IN","AS"},{"JP","AS"},{"MN","AS"},
-        {"AE","AS"},{"TR","AS"},{"SA","AS"},{"QA","AS"},
-        {"HK","AS"},{"TW","AS"},{"TH","AS"},{"VN","AS"},
-        {"MY","AS"},{"ID","AS"},{"PH","AS"},{"PK","AS"},{"BD","AS"},{"LK","AS"},
-        {"RU","EU"},{"DE","EU"},{"GB","EU"},{"FR","EU"},{"NL","EU"},{"IT","EU"},
-        {"ES","EU"},{"SE","EU"},{"PL","EU"},{"UA","EU"},{"CH","EU"},{"AT","EU"},
-        {"BE","EU"},{"NO","EU"},{"FI","EU"},{"DK","EU"},{"IE","EU"},{"PT","EU"},
-        {"US","NA"},{"CA","NA"},{"MX","NA"},
-        {"BR","SA"},{"AR","SA"},{"CO","SA"},{"CL","SA"},{"PE","SA"},
-        {"ZA","AF"},{"NG","AF"},{"KE","AF"},{"EG","AF"},
-        {"AU","OC"},{"NZ","OC"},
+        {"CN","Asia"},{"KR","Asia"},{"SG","Asia"},{"IN","Asia"},{"JP","Asia"},{"MN","Asia"},
+        {"AE","Asia"},{"TR","Asia"},{"SA","Asia"},{"QA","Asia"},
+        {"HK","Asia"},{"TW","Asia"},{"TH","Asia"},{"VN","Asia"},
+        {"MY","Asia"},{"ID","Asia"},{"PH","Asia"},{"PK","Asia"},{"BD","Asia"},{"LK","Asia"},
+        {"RU","Europe"},{"DE","Europe"},{"GB","Europe"},{"FR","Europe"},{"NL","Europe"},{"IT","Europe"},
+        {"ES","Europe"},{"SE","Europe"},{"PL","Europe"},{"UA","Europe"},{"CH","Europe"},{"AT","Europe"},
+        {"BE","Europe"},{"NO","Europe"},{"FI","Europe"},{"DK","Europe"},{"IE","Europe"},{"PT","Europe"},
+        {"US","NorthAmerica"},{"CA","NorthAmerica"},{"MX","NorthAmerica"},
+        {"BR","SouthAmerica"},{"AR","SouthAmerica"},{"CO","SouthAmerica"},{"CL","SouthAmerica"},{"PE","SouthAmerica"},
+        {"ZA","Africa"},{"NG","Africa"},{"KE","Africa"},{"EG","Africa"},
+        {"AU","Oceania"},{"NZ","Oceania"},
     };
     return ccContinent.value(cc, "XX");
 }
