@@ -186,14 +186,16 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
             headerBuf.append(buf, (int)n);
             auto hdrEnd = headerBuf.indexOf("\r\n\r\n");
             if (hdrEnd >= 0) {
-                // 5WHY: httpDownload accepted ANY HTTP response (200, 404, 500)
-                // as valid, measuring error page throughput as download speed.
-                // Validate HTTP 2xx by checking the status line only 鈥?avoids
-                // false match on "200 " appearing in header values.
+                // 5WHY: statusLine.contains(" 200 ") was too strict — fails
+                // on "HTTP/1.0 200" (no trailing OK) or "HTTP/1.1 200\r\n"
+                // (no trailing space).  Now extracts the 3-digit code after
+                // the first space and checks == "200".
                 QByteArray hdrs = headerBuf.left(hdrEnd);
                 int slEnd = hdrs.indexOf('\r');
                 QByteArray statusLine = (slEnd > 0) ? hdrs.left(slEnd) : hdrs;
-                httpOk = statusLine.contains(" 200 ");
+                int codeStart = statusLine.indexOf(' ');
+                httpOk = (codeStart > 0 && codeStart + 4 <= statusLine.size()
+                          && statusLine.mid(codeStart + 1, 3) == "200");
                 body = headerBuf.mid(hdrEnd + 4);
                 headersDone = true;
                 startNs = t.nsecsElapsed(); // reset timer to body start
