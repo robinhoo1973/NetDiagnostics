@@ -283,6 +283,8 @@ Item {
                     Rectangle { Layout.fillWidth: true; implicitHeight: 42; radius: 8; color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.textSecondary, 0.5) }
                         Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.shareStage = 0 }
+                        Accessible.name: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel
+                        Accessible.role: Accessible.Button
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 42; radius: 8
                         color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
@@ -310,7 +312,7 @@ Item {
             }
         }
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) {
+            if (event.key === Qt.Key_Escape || event.key === Qt.Key_Enter || event.key === Qt.Key_Return) {
                 detailOverlay.visible = false
                 event.accepted = true
             }
@@ -331,22 +333,19 @@ Item {
             // clicks within the card so only clicks OUTSIDE the card dismiss.
             MouseArea { anchors.fill: parent }
 
-            // 5WHY: Close button was invisible at rest — subtle borderCard background
-            // + textPrimary icon blended into the card surface, forcing users to
-            // hover to discover the dismiss affordance.  Modal overlays need an
-            // OBVIOUS, always-visible close button.
-            // Now: matches ReportScreen.qml's proven pattern — failRed icon at rest
-            // for high contrast against any theme (dark/light), with intensified
-            // red background on hover.  No hover required to see the button.
+            // 5WHY: Close button previously used failRed at rest — red signals
+            // danger/destructive action, causing hesitation ("will this delete
+            // my results?").  Now uses neutral textSecondary at rest, shifting
+            // to failRed only on hover.  Always visible, never alarming.
             Rectangle {
                 anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 8 }
                 width: 44; height: 44; radius: 22
-                color: closeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.30) : Qt.alpha(ThemeEngine.failRed, 0.12)
-                border { width: 1; color: closeBtnArea.containsMouse ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.failRed, 0.35) }
+                color: closeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.30) : Qt.alpha(ThemeEngine.textSecondary, 0.08)
+                border { width: 1; color: closeBtnArea.containsMouse ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.textSecondary, 0.25) }
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 18
-                    color: closeBtnArea.containsMouse ? Qt.lighter(ThemeEngine.failRed, 1.3) : ThemeEngine.failRed
+                    color: closeBtnArea.containsMouse ? Qt.lighter(ThemeEngine.failRed, 1.3) : ThemeEngine.textSecondary
                 }
                 MouseArea {
                     id: closeBtnArea

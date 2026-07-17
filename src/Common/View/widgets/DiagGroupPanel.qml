@@ -22,7 +22,7 @@ Rectangle {
     // ── Computed state — all from C++ groupStats (single source of truth) ──
     property int enabledCount: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.total||0 }
     property int completedCount: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.completed||0 }
-    property bool isRunning: appState.runStatus===1 && completedCount<enabledCount && completedCount>0
+    property bool isRunning: appState.runStatus===1 && completedCount<enabledCount
     property int groupPass: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.pass||0 }
     property int groupWarn: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.warn||0 }
     property int groupFail: { var _v = _modelVersion; var s=appState.groupStats(groupIndex); return s.fail||0 }
@@ -70,7 +70,7 @@ Rectangle {
                 spacing: 8
                 Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.cyan:ThemeEngine.infoBlue }
                 ColumnLayout { spacing:1
-                    Label { text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
+                    Label { Layout.fillWidth:true; text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
                     Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.cyan; elide:Text.ElideRight }
                 }
                 Item { Layout.fillWidth:true }

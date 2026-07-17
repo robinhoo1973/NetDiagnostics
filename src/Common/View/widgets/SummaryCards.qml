@@ -16,12 +16,21 @@ ColumnLayout {
     }
     Item { Layout.preferredHeight: 6 }
 
+    // 5WHY: showing five zero-count cards is noisy for first-time users.
+    // Empty state shows a single hint instead of a wall of "0" values.
+    Label {
+        Layout.fillWidth: true; Layout.topMargin: 4
+        visible: (pass+warn+fail+skip+info) === 0
+        text: Tr.runDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 11
+        color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
+        horizontalAlignment: Text.AlignHCenter
+    }
     // 5 result types — each with colored icon + badge count
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;   visible: (pass+warn+fail+skip+info) > 0 }
 
     Connections {
         target: appState
@@ -61,7 +70,7 @@ ColumnLayout {
             Item { Layout.fillWidth: true }
             Label {
                 text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Medium
-                color: Qt.alpha(ThemeEngine.textSecondary, 0.8)
+                color: ThemeEngine.textSecondary
             }
             Item { width: 8 }
             Label {

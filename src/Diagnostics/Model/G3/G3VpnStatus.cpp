@@ -131,10 +131,15 @@ DiagnosticResult vpnStatus(DiagId id) {
         auto& sB = byCountry[countryB];
         if (sA.size() >= 2 && sB.size() >= 2) {
             // Mann-Whitney U (simplified Wilcoxon)
+            // 5WHY: missing tie correction (a==b → U+=0.5). Without it,
+            // ties bias U toward mu, producing a conservative p-value.
+            // False negatives are slightly more likely than they should be.
             double U = 0; int nA = sA.size(), nB = sB.size();
             for (double a : sA)
-                for (double b : sB)
+                for (double b : sB) {
                     if (a > b) U += 1;
+                    else if (a == b) U += 0.5;
+                }
             double mu = nA * nB / 2.0;
             double sigma = std::sqrt(nA * nB * (nA + nB + 1) / 12.0);
             double z = (U - mu) / (sigma + 0.001);
