@@ -70,7 +70,7 @@ Item {
 
     // 5WHY: padStart() is ES2017 — not available on Qt 6 embedded/Yocto
     // builds which target ES7. Use an ES5-compatible zero-padding function.
-    function _pad2(n) { return (n < 10 ? "0" : "") + n }
+    function _pad2(n) { return (n < 10 ? " " : "") + n }
 
     property var currentDetail: ({})
     property var visibleGroups: {
