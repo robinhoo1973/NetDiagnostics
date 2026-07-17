@@ -78,7 +78,7 @@ Rectangle {
                 // Badges inline — desktop only (wide enough to fit)
                 RowLayout { spacing: 4; visible: !compact
                     StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
-                    StatusBadge { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: groupInfo }
+                    StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: groupInfo }
                     StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
                     StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
                     StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
@@ -92,7 +92,7 @@ Rectangle {
                 // Indent to align with group name (accent bar 3px + spacing 8px = 11px)
                 Item { width: 11 }
                 StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
-                StatusBadge { accent: ThemeEngine.accentBlue; iconName: "badge-info";    count: groupInfo }
+                StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: groupInfo }
                 StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
                 StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
                 StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }

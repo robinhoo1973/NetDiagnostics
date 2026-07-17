@@ -411,7 +411,7 @@ Item {
                 DashboardBadge { accent: ThemeEngine.warnYellow; v: _stat.warn }
                 DashboardBadge { accent: ThemeEngine.failRed;   v: _stat.fail }
                 DashboardBadge { accent: ThemeEngine.skipGray;  v: _stat.skip }
-                DashboardBadge { accent: ThemeEngine.accentBlue; v: _stat.info||0 }
+                DashboardBadge { accent: ThemeEngine.infoBlue; v: _stat.info||0 }
                 Item { width: 8 }
                 Label { text: getDurFromResults(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textSecondary }
             }

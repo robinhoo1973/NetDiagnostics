@@ -27,7 +27,7 @@ ColumnLayout {
     }
     // 5 result types — each with colored icon + badge count
     SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.accentBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.infoBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
     SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;   visible: (pass+warn+fail+skip+info) > 0 }
     SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;   visible: (pass+warn+fail+skip+info) > 0 }
     SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;   visible: (pass+warn+fail+skip+info) > 0 }
