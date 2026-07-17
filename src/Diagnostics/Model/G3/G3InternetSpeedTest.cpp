@@ -577,13 +577,23 @@ DiagnosticResult speedTest(DiagId id) {
                     candidates.append(s);
             }
         }
-        // Tier 3: Global diversity backup (4 servers, always included as insurance)
+        // Tier 3: Global diversity backup (8 servers, always included).
+        // 5WHY: when country=CN and CN servers are all unreachable (stale DB,
+        // GFW blocking), only 2 global servers survived TCP screening (4→~2
+        // after shuffle+cap). Now 8 global servers ensure at least 4-5 survive.
         {
             static const QStringList kGlobalBackup = {
-                QStringLiteral("speedtest.tele2.net"),       // Stockholm
-                QStringLiteral("speedtest.singtel.com"),     // Singapore
-                QStringLiteral("speedtest.belwue.net"),      // Stuttgart
+                // Europe (high reliability)
+                QStringLiteral("speedtest.tele2.net"),            // Stockholm
+                QStringLiteral("speedtest.belwue.net"),           // Stuttgart
+                QStringLiteral("speedtest.bt.com"),               // London
+                // Asia-Pacific (low latency for CN users)
+                QStringLiteral("speedtest.singtel.com"),          // Singapore
                 QStringLiteral("seoul.speedtest.gslnetworks.com"), // Seoul
+                QStringLiteral("speedtest.tokyo2.jp.leaseweb.net"), // Tokyo
+                // Americas
+                QStringLiteral("speedtest.xfinity.com"),          // New York
+                QStringLiteral("speedtest.vivo.com.br"),          // Sao Paulo
             };
             QVector<SpeedTest::Server> allSrv = st.allServers();
             for (const auto& s : allSrv) {
@@ -601,9 +611,9 @@ DiagnosticResult speedTest(DiagId id) {
             std::mt19937 g(rd());
             std::shuffle(candidates.begin(), candidates.end(), g);
         }
-        // Cap at 15 (was 12 — need room for global backup diversity)
-        if (candidates.size() > 15)
-            candidates.resize(15);
+        // Cap at 20 (was 15 — larger global backup needs more room)
+        if (candidates.size() > 20)
+            candidates.resize(20);
     }
     out.append(QStringLiteral("Candidate pool: %1 servers (%2 CN, country=%3)")
         .arg(candidates.size())
