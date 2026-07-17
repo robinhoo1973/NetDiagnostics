@@ -605,15 +605,12 @@ DiagnosticResult speedTest(DiagId id) {
                 }
             }
         }
-        // Shuffle for geographic diversity
-        {
-            std::random_device rd;
-            std::mt19937 g(rd());
-            std::shuffle(candidates.begin(), candidates.end(), g);
-        }
-        // Cap at 20 (was 15 — larger global backup needs more room)
-        if (candidates.size() > 20)
-            candidates.resize(20);
+        // 5WHY: shuffle + cap was replaced with "all candidates → TCP
+        // screen → sort by latency → top-N" pipeline.  Shuffle randomly
+        // excluded fast CN servers that fell after position 20, causing
+        // only 2 servers to survive TCP screening (vs expected 20+).
+        // Now TCP screens ALL candidates (up to 34: 26 CN + 8 global),
+        // sorts by latency ascending, and takes the top 15 by delay.
     }
     out.append(QStringLiteral("Candidate pool: %1 servers (%2 CN, country=%3)")
         .arg(candidates.size())
@@ -673,8 +670,8 @@ DiagnosticResult speedTest(DiagId id) {
             .arg(QStringLiteral("%1").arg(tr.latencyMs, 0, 'f', 2).rightJustified(8, ' ')));
     }
 
-    // Take top 8 for micro-download (expensive phase)
-    int topN = qMin(8, (int)tcpRanked.size());
+    // Take top 15 for micro-download (expensive phase)
+    int topN = qMin(15, (int)tcpRanked.size());
     out.append(QString());
     out.append(QStringLiteral("  Top %1 by TCP latency → micro-download screening").arg(topN));
 
