@@ -15,8 +15,17 @@ public:
     static QString detectCountry(int = 3000);
 private: void build(); QMap<QString, QVector<Server>> m;
 };
-inline void SpeedTest::build() { Server s;
-#include "G3ServerDb.inc"
+inline void SpeedTest::build() {
+    // 5WHY: Server DB rebuilt per SpeedTest instance (~210 entries × 2 TUs).
+    // Static local builds once, subsequent calls do a cheap QMap shallow copy
+    // (Qt ref-counted containers — O(1) copy, O(n) append avoided).
+    static QMap<QString, QVector<Server>> sDb = []() {
+        QMap<QString, QVector<Server>> db;
+        Server s;
+        #include "G3ServerDb.inc"
+        return db;
+    }();
+    m = sDb;
 }
 #undef S
 
