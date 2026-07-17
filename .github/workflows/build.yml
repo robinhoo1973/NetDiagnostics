@@ -370,7 +370,10 @@ jobs:
     name: Windows x86_64 Static
     needs: [version]
     runs-on: windows-2022
-    timeout-minutes: 90
+    # 5WHY: 90 min was insufficient — Qt 6.11.1 source build on a 2-core
+    # GitHub runner takes ~105 min for 7400 translation units.  150 min
+    # provides safe headroom for the full pipeline (curl → Qt → app).
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
 
