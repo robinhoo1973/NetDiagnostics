@@ -128,7 +128,7 @@ Item {
             }
             Item { Layout.preferredHeight: 24 }
 
-            SummaryCards { Layout.fillWidth: true; compact: true }
+            SummaryCards { Layout.fillWidth: true }
             Item { Layout.preferredHeight: 32 }
 
             // ── Per-Group Results header ────────────────────────────────
