@@ -93,7 +93,7 @@ static QString countryName(const QString& a2) {
 
 // ── Forward declarations ──────────────────────────────────────────
 static double hodgesLehmann(const QVector<double>& v);
-static double exactPermutationPValue(const QVector<double>& sA, const QVector<double>& sB);
+static double exactPermutationPValue(const QVector<double>& combined, int nA, int nB, double obsDev);
 static double cliffDelta(double U, int nA, int nB);
 
 // ── Hodges-Lehmann robust location estimator ───────────────────────
@@ -121,20 +121,12 @@ static double hodgesLehmann(const QVector<double>& v) {
 // 5WHY: Normal approximation of U is unreliable at N=3-5 per group.
 // With N≤20 total, we enumerate ALL C(N, nA) possible group splits
 // and compute the exact null distribution of U.  No approximation,
-// no tie correction needed.
-static double exactPermutationPValue(const QVector<double>& sA,
-                                      const QVector<double>& sB) {
-    int nA = sA.size(), nB = sB.size(), N = nA + nB;
-    QVector<double> combined; combined.reserve(N);
-    combined.append(sA); combined.append(sB);
-
-    double obsU = 0;
-    for (double a : sA) for (double b : sB) {
-        if (a > b) obsU += 1; else if (a == b) obsU += 0.5;
-    }
+// no tie correction needed.  Accepts precomputed combined vector
+// and |U - mu| to avoid redundant O(nA*nB) U recomputation.
+static double exactPermutationPValue(const QVector<double>& combined,
+                                      int nA, int nB, double obsDev) {
+    int N = nA + nB;
     double mu = nA * nB / 2.0;
-    double obsDev = std::abs(obsU - mu);
-
     int extremeCount = 0, totalPerms = 0;
     int maxMask = 1 << N;
     for (int mask = 0; mask < maxMask; mask++) {
@@ -424,17 +416,19 @@ DiagnosticResult vpnStatus(DiagId id) {
             }
             delta = cliffDelta(U, nA, nB);
 
-            // Exact permutation test — enumerates all C(N,nA) splits
-            // N≤20: exhaustive (~184756 max), else Monte Carlo fallback
-            if (nA + nB <= 20) {
-                pValue = exactPermutationPValue(sA, sB);
+            // Precompute combined + |U-μ| once, reuse in exact test
+            double mu = nA * nB / 2.0;
+            double obsDev = std::abs(U - mu);
+            int N = nA + nB;
+            QVector<double> combined; combined.reserve(N);
+            combined.append(sA); combined.append(sB);
+            std::sort(combined.begin(), combined.end());
+
+            // Exact permutation test
+            if (N <= 20) {
+                pValue = exactPermutationPValue(combined, nA, nB, obsDev);
             } else {
-                // Large N — keep normal approximation as fallback
-                double mu = nA * nB / 2.0;
-                int N = nA + nB;
-                QVector<double> combined; combined.reserve(N);
-                combined.append(sA); combined.append(sB);
-                std::sort(combined.begin(), combined.end());
+                // Large N — normal approximation fallback (reuses pre-sorted combined)
                 double tieCorr = 0.0; int tieRun = 1;
                 for (int i = 1; i <= N; i++) {
                     if (i < N && combined[i] == combined[i-1]) { tieRun++; }
