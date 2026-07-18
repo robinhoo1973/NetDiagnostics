@@ -54,20 +54,20 @@ enum class DiagId {
     G1ActiveConnections,
     G1CellularInfo,
 
-    // G2 — Connectivity & Security (6)
+    // G2 — Connectivity & Security (7)
     G2NetworkProfile,
     G2TcpSettings,
     G2DefaultGateway,
     G2RoutingTable,
     G2ArpTable,
     G2ProxySettings,
+    G2VpnStatus,
 
-    // G3 — Internet & DNS (6)
+    // G3 — Internet & DNS (5)
     G3NetskopeStatus,
     G3DnsServers,
     G3DnsCache,
     G3DnsPollution,
-    G3VpnStatus,
     G3InternetSpeedTest,
 
     // G4 — Remote Host (5)
@@ -120,12 +120,12 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G2RoutingTable:
         case DiagId::G2ArpTable:
         case DiagId::G2ProxySettings:
+        case DiagId::G2VpnStatus:
             return DiagGroup::G2;
         case DiagId::G3NetskopeStatus:
         case DiagId::G3DnsServers:
         case DiagId::G3DnsCache:
         case DiagId::G3DnsPollution:
-        case DiagId::G3VpnStatus:
         case DiagId::G3InternetSpeedTest:
             return DiagGroup::G3;
         case DiagId::G4DnsResolution:
@@ -169,8 +169,9 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G1ActiveConnections, DiagId::G1CellularInfo,
         DiagId::G2NetworkProfile, DiagId::G2TcpSettings, DiagId::G2DefaultGateway,
         DiagId::G2RoutingTable, DiagId::G2ArpTable, DiagId::G2ProxySettings,
+        DiagId::G2VpnStatus,
         DiagId::G3NetskopeStatus, DiagId::G3DnsServers, DiagId::G3DnsCache,
-        DiagId::G3DnsPollution, DiagId::G3VpnStatus, DiagId::G3InternetSpeedTest,
+        DiagId::G3DnsPollution, DiagId::G3InternetSpeedTest,
         DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
         DiagId::G4PathPing, DiagId::G4MtuDiscovery,
         DiagId::G5UrlParsing, DiagId::G5TcpConnect, DiagId::G5ServiceBanner,
