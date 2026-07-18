@@ -247,8 +247,14 @@ DiagnosticResult vpnStatus(DiagId id) {
         double lat = -1.0;
         if (candidates.contains(srv->country)) {
             // 2000 connects → HL robust estimate per server
+            // 5WHY: Outer 44s guard only checks BETWEEN servers, not during
+            // the inner loop.  A 200ms-away server would take 400s to finish
+            // 2000 connects, blowing the budget.  Inner guard caps each
+            // server at ~3s — enough for ~1500 local or ~15 remote connects.
             QVector<double> measurements; measurements.reserve(2000);
+            QElapsedTimer srvTimer; srvTimer.start();
             for (int i = 0; i < 2000; i++) {
+                if (srvTimer.elapsed() > 3000) break; // 3s per-server cap
                 QElapsedTimer ct; ct.start();
                 int sock = tcpConnect(srv->host, srv->port, 2000);
                 if (sock >= 0) {
