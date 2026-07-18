@@ -3,90 +3,6 @@
 #include <QMutex>
 #include <QMutexLocker>
 namespace G1G2G3Native {
-QByteArray httpGet(const QString& host, int port, const QString& path, int timeoutMs, int maxBytes) {
-    // 5WHY: was 17 lines of socket+connect+select boilerplate,
-    // duplicating tcpConnect() from NetUtil.h.  Now 1 call.
-    int sock = tcpConnect(host, port, timeoutMs);
-    if (sock < 0) return {};
-    fd_set fdset; struct timeval tv; // reused by send/recv loops below
-
-    // Send HTTP request (loop handles partial sends, EAGAIN-safe)
-    // 5WHY: Host header omitted port number. Per RFC 7230 §5.4, the port
-    // SHOULD be included when non-default (i.e. ≠ 80).  Speed-test servers
-    // on port 8080 behind reverse proxies may route incorrectly without it.
-    QString hostHeader = (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
-    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nAccept: */*\r\nConnection: close\r\n\r\n")
-        .arg(path, hostHeader).toUtf8();
-    int sent = 0;
-    QElapsedTimer sendGuard; sendGuard.start();
-    while (sent < req.size()) {
-        if (sendGuard.elapsed() > 30000) break; // 30s hard guard against stalled send
-        auto n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
-        if (n < 0) {
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
-#endif
-            break;
-        }
-        if (n == 0) break;
-        sent += n;
-    }
-    if (sent < req.size()) { closeSocket(sock); return {}; } // incomplete send, don't wait for response
-
-    // Read response with wall-clock timeout.
-    // 5WHY: recv() returning EAGAIN on a non-blocking socket after select()
-    // reports readability is a known kernel race. The old code treated ANY
-    // n<=0 as end-of-stream, truncating HTTP responses mid-stream. Now we
-    // retry select+recv on EAGAIN instead of breaking.
-    QByteArray response; char buf[8192];
-    QElapsedTimer recvTimer; recvTimer.start();
-    while (response.size() < maxBytes) {
-        // 5WHY: using the full timeoutMs for every select() iteration meant
-        // EAGAIN retries could each wait timeoutMs again, turning a 3s budget
-        // into 30s+. Compute remaining time so the total never exceeds the
-        // caller's timeoutMs. Use a 50ms floor to avoid tight spinning when
-        // remaining is tiny, but always use the full remaining budget — never
-        // cap the per-iteration timeout. Capping (e.g. at 500ms) causes
-        // premature break on slow connections where the server takes >500ms
-        // to respond, even though the caller's budget still has time.
-        int remaining = timeoutMs - (int)recvTimer.elapsed();
-        if (remaining <= 0) break;
-        int selectMs = qMax(remaining, 50); // floor at 50ms avoids tight spinning when budget nearly exhausted
-        FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {selectMs / 1000, (selectMs % 1000) * 1000};
-        if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
-        // 5WHY: Wall-clock guard was AFTER recv(). If the guard fires when
-        // recv() just read a valid chunk, that chunk was silently discarded.
-        // Move the guard BEFORE recv() so it aborts the iteration without
-        // losing already-received data — same pattern as httpDownload.
-        // 5WHY: hardcoded 30000 overrides caller's timeoutMs — a 10s
-        // caller could block for 30s.  Use the caller-specified timeout.
-        if (recvTimer.elapsed() > timeoutMs) break;
-        ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        if (n > 0) {
-            // 5WHY: recv() can return up to sizeof(buf) bytes, which may
-            // overshoot maxBytes by up to 8191 bytes. Truncate the append
-            // so the caller's maxBytes cap is actually respected.
-            int remain = maxBytes - response.size();
-            response.append(buf, qMin((int)n, remain));
-        } else if (n == 0) {
-            break; // orderly shutdown
-        } else {
-            // n < 0: could be EAGAIN (retry) or a real error
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
-#endif
-            break; // real error
-        }
-    }
-    closeSocket(sock);
-    return response;
-}
-
 // HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
@@ -230,30 +146,6 @@ int tcpPingMs(const QString& host, int port) {
     return ms;
 }
 
-// ── HTTP micro-download probe — total-latency wrapper ────────────
-// 5WHY: TCP ping only measures the 3-way handshake (3 packets, ~200
-// bytes).  VPN encryption overhead on these tiny packets is negligible,
-// so TCP RTT barely differs between local and VPN-routed connections.
-//
-// A 100KB HTTP download exercises the full path: TCP handshake, HTTP
-// request, and 100KB of body data (~70 TCP segments).  VPN overhead
-// (MTU fragmentation, encryption/decryption per packet, extra routing
-// hops) accumulates across all 70 segments, amplifying the latency
-// difference by 50-400x compared to TCP ping alone.
-//
-// Delegates to httpDownload for the actual transfer; adds total-time
-// measurement from connect start to download complete.
-HttpProbeResult httpProbe(const QString& urlStr, int targetBytes, int timeoutMs) {
-    HttpProbeResult r;
-    QElapsedTimer total; total.start();
-    SpeedResult sr = httpDownload(urlStr, targetBytes, timeoutMs);
-    r.totalMs = total.elapsed();
-    r.mbps = sr.mbps;
-    r.bytes = sr.bytes;
-    r.ok = sr.ok;
-    return r;
-}
-
 // ── TCP ping with 50x averaging for sub-ms differentiation ──
 // 5WHY: single tcpPingMs() can't differentiate servers with ≤1ms RTT
 // (timer resolution limit).  Running 50 connects and averaging gives
@@ -298,9 +190,10 @@ double tcpPingAvg(const QString& host, int port) {
         for (int i = 0; i < 50; i++) {
             QElapsedTimer t; t.start();
             int sock = tcpConnect(host, port, 2000);
-            if (sock >= 0)
+            if (sock >= 0) {
                 measurements.append(t.nsecsElapsed() / 1000); // microseconds
-            closeSocket(sock);
+                closeSocket(sock);
+            }
         }
         int M = measurements.size();
         if (M >= 10) {

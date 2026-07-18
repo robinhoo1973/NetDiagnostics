@@ -81,23 +81,7 @@ struct ProcNetConn {
 int      tcpPingMs(const QString& host, int port);
 double   tcpPingAvg(const QString& host, int port); // 50x avg for sub-ms differentiation
 
-// ── HTTP micro-download probe ──────────────────────────────────────
-// Wraps httpDownload with total elapsed-time measurement.  The total
-// latency includes DNS (cached), TCP connect, HTTP request, and 100KB
-// body download — exercising the full network path rather than just
-// the 3-way handshake.  VPN overhead amplifies the body-download phase
-// through MTU fragmentation + encryption, giving much better geographic
-// discrimination than TCP ping alone.
-struct HttpProbeResult {
-    double totalMs = -1.0;     // total time: connect → download complete
-    double mbps    = 0.0;      // throughput (from httpDownload)
-    int    bytes   = 0;        // bytes received
-    bool   ok      = false;    // true if download succeeded
-};
-HttpProbeResult httpProbe(const QString& urlStr, int targetBytes, int timeoutMs);
-
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
-QByteArray httpGet(const QString& host, int port, const QString& path, int timeoutMs, int maxBytes);
 
 } // namespace G1G2G3Native

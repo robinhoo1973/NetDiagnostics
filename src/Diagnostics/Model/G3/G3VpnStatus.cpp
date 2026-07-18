@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <atomic>
+#include <vector>
 
 namespace G1G2G3Native {
 
@@ -509,6 +510,18 @@ DiagnosticResult vpnStatus(DiagId id) {
             .arg(countryName(countryA), countryName(countryB));
         status = DiagStatus::Warning;
     }
+
+    // Structured properties for the detail overlay (UX)
+    r.properties.append(ResultProperty("GeoIP", countryName(countryA)));
+    r.properties.append(ResultProperty("Lowest Latency", countryName(countryB)));
+    r.properties.append(ResultProperty("Latency (HL)", QStringLiteral("%1 ms").arg(best.hl, 0, 'f', 1)));
+    r.properties.append(ResultProperty("Samples", QString::number(best.N)));
+    if (pValue < 1.0) {
+        r.properties.append(ResultProperty("p-value", QString::number(pValue, 'f', 4)));
+        r.properties.append(ResultProperty("Cliff's δ", QString::number(delta, 'f', 3)));
+    }
+    if (geoipUnreachable)
+        r.properties.append(ResultProperty("Note", QStringLiteral("GeoIP country servers unreachable")));
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
