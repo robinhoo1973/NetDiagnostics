@@ -60,6 +60,8 @@
     ADD_SERVER("NZ","speedtest.spark.co.nz",8080,"Auckland","Spark NZ");
     ADD_SERVER("NZ","speedtest.vodafone.co.nz",8080,"Wellington","Vodafone NZ");
     ADD_SERVER("NZ","speedtest.2degrees.nz",8080,"Christchurch","2degrees");
+    ADD_SERVER("NZ","speedtest.chorus.co.nz",8080,"Hamilton","Chorus");
+    ADD_SERVER("NZ","speedtest.trustpower.co.nz",8080,"Tauranga","Trustpower");
 
     // -- South Asia --
     ADD_SERVER("IN","speedtest.actcorp.in",8080,"Bangalore","ACT Fibernet");
@@ -95,6 +97,8 @@
     ADD_SERVER("AE","speedtest.etisalat.ae",8080,"Abu Dhabi","Etisalat");
     ADD_SERVER("SA","speedtest.stc.com.sa",8080,"Riyadh","STC Saudi");
     ADD_SERVER("AE","speedtest.emirates.net.ae",8080,"Sharjah","Emirates Internet");
+    ADD_SERVER("AE","speedtest.eitc.ae",8080,"Dubai 2","EITC");
+    ADD_SERVER("AE","speedtest.mor.ae",8080,"Abu Dhabi 2","MOR UAE");
     ADD_SERVER("TR","hiztesti.isimkayit.com",8080,"Kocaeli","IsimKayit.com");
     ADD_SERVER("TR","speedtest.turktelekom.com.tr",8080,"Istanbul","Turk Telekom");
     ADD_SERVER("TR","speedtest.superonline.net",8080,"Ankara","Superonline");
@@ -126,8 +130,13 @@
     ADD_SERVER("NG","speedtest.mtn.ng",8080,"Lagos","MTN Nigeria");
     ADD_SERVER("NG","speedtest.glo.ng",8080,"Abuja","Glo Nigeria");
     ADD_SERVER("NG","speedtest.airtel.ng",8080,"Port Harcourt","Airtel NG");
+    ADD_SERVER("NG","speedtest.9mobile.com.ng",8080,"Abuja 2","9mobile");
+    ADD_SERVER("NG","speedtest.spectranet.com.ng",8080,"Lagos 2","Spectranet");
     ADD_SERVER("KE","speedtest.safaricom.co.ke",8080,"Nairobi","Safaricom");
     ADD_SERVER("KE","speedtest.zuku.co.ke",8080,"Mombasa","Zuku Fiber");
+    ADD_SERVER("KE","speedtest.faiba.co.ke",8080,"Nairobi 2","Faiba");
+    ADD_SERVER("KE","speedtest.telkom.co.ke",8080,"Kisumu","Telkom Kenya");
+    ADD_SERVER("KE","speedtest.liquid.co.ke",8080,"Nakuru","Liquid Telecom");
 
     // -- Russia / CIS --
     ADD_SERVER("RU","speedtest-ude.edinos.ru",8080,"Ulan-Ude","EDINOS");
@@ -144,9 +153,14 @@
     ADD_SERVER("SE","speedtest.comhem.se",8080,"Uppsala","Com Hem");
     ADD_SERVER("DE","speedtest.belwue.net",8080,"Stuttgart","BelWue");
     ADD_SERVER("GR","speedtest.ftp.otenet.gr",8080,"Athens","OTE");
+    ADD_SERVER("GR","speedtest.vodafone.gr",8080,"Athens 2","Vodafone GR");
+    ADD_SERVER("GR","speedtest.nova.gr",8080,"Thessaloniki","Nova Greece");
+    ADD_SERVER("GR","speedtest.cosmote.gr",8080,"Patras","Cosmote");
+    ADD_SERVER("GR","speedtest.forthnet.gr",8080,"Heraklion","Forthnet");
     ADD_SERVER("DE","speedtest.telekom.de",8080,"Berlin","Telekom");
     ADD_SERVER("DE","speedtest.vodafone.de",8080,"Munich","Vodafone DE");
     ADD_SERVER("DE","speedtest.versatel.de",8080,"Hamburg","Versatel");
+    ADD_SERVER("DE","speedtest.o2online.de",8080,"Frankfurt","O2 Germany");
     ADD_SERVER("GB","speedtest1.sky.com",8080,"London","Sky Broadband");
     ADD_SERVER("GB","speedtest.bt.com",8080,"Manchester","BT");
     ADD_SERVER("GB","speedtest.vodafone.co.uk",8080,"Birmingham","Vodafone UK");
@@ -198,6 +212,8 @@
     ADD_SERVER("MX","speedtest.telmex.com",8080,"Mexico City","Telmex");
     ADD_SERVER("MX","speedtest.totalplay.com.mx",8080,"Guadalajara","Totalplay");
     ADD_SERVER("MX","speedtest.izzi.mx",8080,"Monterrey","Izzi");
+    ADD_SERVER("MX","speedtest.megacable.com.mx",8080,"Puebla","Megacable");
+    ADD_SERVER("MX","speedtest.axtel.mx",8080,"San Luis Potosi","Axtel");
 
     // -- South America --
     ADD_SERVER("BR","speedtest.vivo.com.br",8080,"Sao Paulo","Vivo Brazil");

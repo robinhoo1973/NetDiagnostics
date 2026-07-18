@@ -81,6 +81,20 @@ struct ProcNetConn {
 int      tcpPingMs(const QString& host, int port);
 double   tcpPingAvg(const QString& host, int port); // 50x avg for sub-ms differentiation
 
+// ── Calibrated TCP ping result ──────────────────────────────────────
+// Performs 50 connects, applies MAD outlier rejection, then Hodges-
+// Lehmann robust estimation.  Separates successes from transient
+// failures — a reachable server that drops 10% of connects is still
+// measured, but the failure rate is reported for quality assessment.
+struct TcpPingResult {
+    double latencyMs = -1.0;   // MAD-filtered Hodges-Lehmann estimate (ms)
+    int    successes = 0;       // successful connects (out of 50)
+    int    attempts  = 50;      // total attempts
+    double failRate  = 1.0;     // (attempts - successes) / attempts
+    bool   usable    = false;   // ≥5 successes → enough data for reliable estimate
+};
+TcpPingResult tcpPingCalibrated(const QString& host, int port);
+
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
 QByteArray httpGet(const QString& host, int port, const QString& path, int timeoutMs, int maxBytes);

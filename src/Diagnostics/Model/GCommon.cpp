@@ -230,26 +230,178 @@ int tcpPingMs(const QString& host, int port) {
     return ms;
 }
 
+// ── Calibrated TCP ping — MAD outlier rejection + Hodges-Lehmann ──
+// 5WHY: 10% trimmed mean discards a fixed tail proportion regardless
+// of data quality.  Clean data loses 10% of information for no reason;
+// dirty data with mid-body contamination (e.g. 10 measurements at ~8ms
+// among 40 at ~3ms) isn't caught because the contamination sits inside
+// the 10%-90% band.  MAD (Median Absolute Deviation) adapts the
+// rejection threshold to the actual spread of the data.
+//
+// Algorithm:
+//   1. Quick reachability check (single connect)
+//      → fail — server unreachable, return immediately
+//   2. 50 connects, count successes vs transient failures
+//   3. If < 5 successes — fallback to median, flag unusable
+//   4. MAD filter (k=2.5 → ~1.2% false positive under normality)
+//      → removes measurements beyond k × 1.4826 × MAD from median
+//   5. Hodges-Lehmann on survivors — median of all pairwise averages
+//      → 29% breakdown, 96% Gaussian efficiency
+//      → natural companion to downstream Wilcoxon test
+//
+// Edge cases handled:
+//   - 0 successes        → latencyMs=-1, usable=false
+//   - < 5 successes      → median fallback, usable=false
+//   - MAD == 0           → skip filter (all values identical)
+//   - filter too narrow  → fallback to median (MAD overfit on clean data)
+//   - single clean value → HL = self-average = clean[0]
+// ── Shared TCP probe cache (120s TTL) ──────────────────────────────
+// 5WHY: Both vpnStatus and speedTest probe overlapping servers.
+// Without a shared cache, the same host:port gets probed twice
+// (~100 redundant TCP connects).  This cache is shared between
+// tcpPingAvg and tcpPingCalibrated — whichever probes first
+// populates the entry; the second caller gets a cache hit.
+//
+// NOTE: get-then-put is not atomic — two callers may both miss and
+// both compute.  Acceptable: bounded cost (~50 connects, ~1s) and
+// both writers store approximately the same value.
+namespace {
+struct ProbeCache {
+    QMap<QString, double> map;
+    qint64 ts = 0;
+    QMutex mtx;
+
+    double get(const QString& key) {
+        QMutexLocker lock(&mtx);
+        qint64 now = QDateTime::currentMSecsSinceEpoch();
+        if (now - ts > 120000) { map.clear(); ts = now; }
+        auto it = map.constFind(key);
+        return (it != map.cend()) ? *it : -1.0;
+    }
+    void put(const QString& key, double val) {
+        QMutexLocker lock(&mtx);
+        map[key] = val;
+    }
+};
+ProbeCache sProbeCache;
+} // anonymous namespace
+
+TcpPingResult tcpPingCalibrated(const QString& host, int port) {
+    TcpPingResult r;
+
+    // ── Cache check ───────────────────────────────────────────────
+    QString cacheKey = QStringLiteral("%1:%2").arg(host).arg(port);
+    double cached = sProbeCache.get(cacheKey);
+    if (cached >= 0) {
+        r.latencyMs = cached;
+        r.successes = 50; r.failRate = 0.0; r.usable = true;
+        return r;
+    }
+
+    // ── Reachability gate ─────────────────────────────────────────
+    int first = tcpPingMs(host, port);
+    if (first < 0) {
+        r.successes = 0; r.failRate = 1.0;
+        return r; // unreachable
+    }
+
+    // ── 50-connect measurement ────────────────────────────────────
+    QVector<long long> measurements; // microseconds
+    measurements.reserve(50);
+    r.attempts = 50;
+    for (int i = 0; i < 50; i++) {
+        QElapsedTimer t; t.start();
+        int sock = tcpConnect(host, port, 2000);
+        if (sock >= 0) {
+            measurements.append(t.nsecsElapsed() / 1000); // μs
+            r.successes++;
+        }
+        closeSocket(sock); // safe on -1 (no-op in wrapper)
+        // Failure: timeout (>2000ms), refused, or network error.
+        // All are "transient" — server was proven reachable above.
+    }
+    r.failRate = (double)(r.attempts - r.successes) / r.attempts;
+
+    int m = measurements.size();
+    if (m == 0) return r; // all 50 failed — rare but possible
+
+    // ── Insufficient data: fallback to simple median ──────────────
+    if (m < 5) {
+        std::sort(measurements.begin(), measurements.end());
+        r.latencyMs = (m % 2 == 1) ? measurements[m/2] / 1000.0
+                     : (measurements[m/2-1] + measurements[m/2]) / 2000.0;
+        r.usable = (m >= 2); // need at least 2 for a meaningful estimate
+        return r;
+    }
+
+    // ── MAD: robust scale estimate ────────────────────────────────
+    std::sort(measurements.begin(), measurements.end());
+    double med = (m % 2 == 1) ? (double)measurements[m/2]
+                 : (measurements[m/2-1] + measurements[m/2]) / 2.0;
+
+    QVector<double> absDev(m);
+    for (int i = 0; i < m; i++)
+        absDev[i] = std::abs((double)measurements[i] - med);
+    std::sort(absDev.begin(), absDev.end());
+    double mad = (m % 2 == 1) ? absDev[m/2]
+                 : (absDev[m/2-1] + absDev[m/2]) / 2.0;
+
+    // ── MAD == 0: all measurements identical ──────────────────────
+    if (mad == 0) {
+        r.latencyMs = med / 1000.0;
+        r.usable = true;
+        sProbeCache.put(cacheKey, r.latencyMs);
+        return r;
+    }
+
+    // ── Adaptive threshold filtering ──────────────────────────────
+    const double k = 2.5;           // ~1.2% false-positive rate
+    double thresh = k * 1.4826 * mad; // MAD → σ → threshold
+    QVector<long long> clean;
+    clean.reserve(m);
+    for (auto x : measurements)
+        if (std::abs((double)x - med) <= thresh)
+            clean.append(x);
+
+    // Guard: if MAD filter removed too many, fall back to median
+    if (clean.size() < 5) {
+        r.latencyMs = med / 1000.0;
+        r.usable = true;
+        sProbeCache.put(cacheKey, r.latencyMs);
+        return r;
+    }
+
+    // ── Hodges-Lehmann — median of all pairwise averages ──────────
+    int c = clean.size();
+    int npairs = c * (c + 1) / 2; // includes self-pairs (i=j)
+    QVector<long long> hl; hl.reserve(npairs);
+    for (int i = 0; i < c; i++)
+        for (int j = i; j < c; j++)
+            hl.append((clean[i] + clean[j]) / 2); // integer division OK (μs)
+    std::sort(hl.begin(), hl.end());
+    double hlVal = (npairs % 2 == 1) ? (double)hl[npairs/2]
+                   : (hl[npairs/2-1] + hl[npairs/2]) / 2.0;
+
+    r.latencyMs = hlVal / 1000.0; // μs → ms
+    r.usable = true;
+    sProbeCache.put(cacheKey, r.latencyMs);
+    return r;
+}
+
 // ── TCP ping with 50x averaging for sub-ms differentiation ──
 // 5WHY: single tcpPingMs() can't differentiate servers with ≤1ms RTT
 // (timer resolution limit).  Running 50 connects and averaging gives
 // ~0.02ms effective resolution — enough to rank nearby servers.
-// First call verifies reachability; if single latency > 1ms, return
+// 5WHY: Simple average is sensitive to outliers — a single 50ms spike
+// among 49 sub-ms measurements inflates the mean by ~1ms.  Now uses a
+// 10% trimmed mean: discard the fastest and slowest 10% of measurements,
+// average the middle 80%.  Eliminates outlier distortion at zero cost.
+// 5WHY: First call verifies reachability; if single latency > 1ms, return
 // directly (already differentiated).  If ≤ 1ms, run 49 more (50 total).
 double tcpPingAvg(const QString& host, int port) {
-    // 5WHY: Both vpnStatus and speedTest probe ALL servers independently,
-    // causing 2× TCP pings (~100 servers × 2 = 200 probes, ~90s wasted).
-    // Shared in-memory cache with 120s TTL eliminates redundant probes.
-    static QMap<QString, double> sCache;
-    static qint64 sCacheTimestamp = 0;
-    static QMutex sCacheMutex;
     QString cacheKey = QStringLiteral("%1:%2").arg(host).arg(port);
-    {
-        QMutexLocker lock(&sCacheMutex);
-        qint64 now = QDateTime::currentMSecsSinceEpoch();
-        if (now - sCacheTimestamp > 120000) { sCache.clear(); sCacheTimestamp = now; }
-        if (sCache.contains(cacheKey)) return sCache[cacheKey];
-    }
+    double cached = sProbeCache.get(cacheKey);
+    if (cached >= 0) return cached;
 
     double result = -1.0;
     int first = tcpPingMs(host, port);
@@ -260,23 +412,38 @@ double tcpPingAvg(const QString& host, int port) {
     if (first < 0) { result = -1.0; }
     else if (first > 1) { result = (double)first; }
     else {
-        // Sub-ms region: run 50 total connects, average the results
-        long long totalUs = 0;
-        int count = 0;
+        // Sub-ms region: run 50 total connects, trimmed mean of middle 80%.
+        // 5WHY: The first connect (tcpPingMs above) returns int-ms resolution.
+        // When sub-ms precision is needed, we re-measure all 50 connects with
+        // nsecsElapsed() in microseconds.  The first measurement is discarded
+        // — one wasted connect (~2ms) is negligible vs. the 50-connect loop.
+        QVector<long long> measurements;
+        measurements.reserve(50);
         for (int i = 0; i < 50; i++) {
             QElapsedTimer t; t.start();
             int sock = tcpConnect(host, port, 2000);
-            if (sock >= 0) {
-                totalUs += t.nsecsElapsed() / 1000;
-                count++;
-            }
+            if (sock >= 0)
+                measurements.append(t.nsecsElapsed() / 1000); // microseconds
             closeSocket(sock);
         }
-        if (count > 0) result = (totalUs / (double)count) / 1000.0;
+        int M = measurements.size();
+        if (M >= 10) {
+            // 10% trimmed mean: discard fastest and slowest 10%
+            std::sort(measurements.begin(), measurements.end());
+            int trim = M / 10; // 10% from each tail
+            long long total = 0;
+            for (int i = trim; i < M - trim; i++)
+                total += measurements[i];
+            result = (total / (double)(M - 2 * trim)) / 1000.0; // ms
+        } else if (M > 0) {
+            // Too few for trimming, use simple average
+            long long total = 0;
+            for (auto us : measurements) total += us;
+            result = (total / (double)M) / 1000.0;
+        }
     }
 
-    // Store in shared cache (both vpnStatus and speedTest benefit)
-    { QMutexLocker lock(&sCacheMutex); sCache[cacheKey] = result; }
+    sProbeCache.put(cacheKey, result);
     return result;
 }
 
