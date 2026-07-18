@@ -375,8 +375,14 @@ DiagnosticResult vpnStatus(DiagId id) {
     // ── Step 5: Exact permutation test + Cliff's Delta ─────────────
     double pValue = 1.0, delta = 0.0;
     bool significant = false;
-    if (countryA != QStringLiteral("XX") && byCountry.contains(countryA) && byCountry.contains(countryB)
-        && countryA != countryB) {
+    bool geoipUnreachable = false; // GeoIP country servers unreachable
+    if (countryA != QStringLiteral("XX") && countryA != countryB) {
+        if (!byCountry.contains(countryA)) {
+            // 5WHY: GeoIP country's servers are all unreachable — this IS
+            // a VPN signal.  If you claim to be in Japan but no Japanese
+            // server responds, that's suspicious.  Flag it don't ignore it.
+            geoipUnreachable = true;
+        } else if (byCountry.contains(countryB)) {
         auto& sA = byCountry[countryA];
         auto& sB = byCountry[countryB];
         int nA = sA.size(), nB = sB.size();
@@ -410,6 +416,7 @@ DiagnosticResult vpnStatus(DiagId id) {
             }
             significant = (pValue < 0.05);
         }
+        } // else if (byCountry.contains(countryB))
     }
 
     // ── Step 6: Decision ──────────────────────────────────────────
@@ -431,6 +438,13 @@ DiagnosticResult vpnStatus(DiagId id) {
         out.append(QStringLiteral("  %1 == %2 → No VPN (GeoIP matches lowest-latency region)")
             .arg(countryName(countryA), countryName(countryB)));
         scenario = QStringLiteral("No VPN (%1)").arg(countryName(countryA));
+    } else if (geoipUnreachable) {
+        out.append(QStringLiteral("  %1 (GeoIP) servers unreachable → VPN likely (GeoIP country unreachable from your network)")
+            .arg(countryName(countryA)));
+        out.append(QStringLiteral("  If you are in %1, its servers should be reachable. They are not.")
+            .arg(countryName(countryA)));
+        scenario = QStringLiteral("VPN likely (%1 unreachable)").arg(countryName(countryA));
+        status = DiagStatus::Warning;
     } else if (significant && absDelta >= 0.33) {
         out.append(QStringLiteral("  %1 != %2 → VPN detected (p=%3, δ=%4, medium/large effect)")
             .arg(countryName(countryA), countryName(countryB))
