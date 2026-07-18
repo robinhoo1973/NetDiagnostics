@@ -229,6 +229,61 @@ DiagnosticResult vpnStatus(DiagId id) {
     }
 
     if (stats.isEmpty()) {
+        // 5WHY: stats.isEmpty() can mean two things: (a) genuinely zero
+        // reachable servers, or (b) servers are reachable but no country
+        // has ≥3 samples for bootstrap.  Case (b) is common on restricted
+        // networks (GFW, corporate firewall) where only 1-2 servers per
+        // country respond.  Fall back to a simple-median estimate of the
+        // single lowest-latency country with any data — less rigorous
+        // but more useful than "No data".
+        if (!byCountry.isEmpty()) {
+            // Find the country with the most samples and lowest median
+            QString fallbackCountry;
+            double fallbackMedian = 1e9; int fallbackN = 0;
+            for (auto it = byCountry.begin(); it != byCountry.end(); ++it) {
+                auto& samples = it.value();
+                int n = samples.size();
+                if (n < 1) continue;
+                std::sort(samples.begin(), samples.end());
+                double med = (n % 2 == 1) ? samples[n/2]
+                             : (samples[n/2-1] + samples[n/2]) / 2.0;
+                // Prefer more samples; tie-break on lower median
+                if (n > fallbackN || (n == fallbackN && med < fallbackMedian)) {
+                    fallbackCountry = it.key();
+                    fallbackMedian = med;
+                    fallbackN = n;
+                }
+            }
+            if (fallbackN > 0) {
+                QString countryB = fallbackCountry;
+                out.append(QString());
+                out.append(QStringLiteral("--- Result (low confidence — insufficient samples for bootstrap) ----------"));
+                out.append(QStringLiteral("  Server latency → %1 (simple median %2ms, N=%3)")
+                    .arg(countryName(countryB)).arg(fallbackMedian, 0, 'f', 1).arg(fallbackN));
+                out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryName(countryA)));
+                out.append(QStringLiteral("  Total reachable: %1 servers across %2 countries — need ≥3 per country for bootstrap")
+                    .arg(targets.size()).arg(byCountry.size()));
+
+                if (countryA == QStringLiteral("XX")) {
+                    out.append(QStringLiteral("  Status: location estimated as %1").arg(countryName(countryB)));
+                    r.summary = QStringLiteral("Location est.");
+                    r.status = DiagStatus::Info;
+                } else if (countryA == countryB) {
+                    out.append(QStringLiteral("  %1 == %2 → likely No VPN (low confidence)")
+                        .arg(countryName(countryA), countryName(countryB)));
+                    r.summary = QStringLiteral("No VPN");
+                } else {
+                    out.append(QStringLiteral("  %1 != %2 → possible VPN (low confidence — cannot test significance)")
+                        .arg(countryName(countryA), countryName(countryB)));
+                    r.summary = QStringLiteral("VPN possible");
+                    r.status = DiagStatus::Warning;
+                }
+                r.rawOutput = out.join('\n');
+                r.details = r.rawOutput;
+                r.durationMs = t.elapsed();
+                return r;
+            }
+        }
         r.rawOutput = out.join('\n') + QStringLiteral("\nNo servers reachable");
         r.details = r.rawOutput; r.summary = QStringLiteral("No data"); r.status = DiagStatus::Fail;
         r.durationMs = t.elapsed(); return r;
