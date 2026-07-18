@@ -250,8 +250,8 @@ DiagnosticResult vpnStatus(DiagId id) {
     for (auto& s : stats) {
         out.append(QStringLiteral("  %1  %2  %3  %4")
             .arg(alpha3(s.code).leftJustified(5, ' ')).arg(s.N, 3)
-            .arg(QStringLiteral("%1ms").arg((int)s.bootMedian).rightJustified(8, ' '))
-            .arg(QStringLiteral("%1-%2ms").arg((int)s.ciLow).arg((int)s.ciHigh).rightJustified(16, ' ')));
+            .arg(QStringLiteral("%1ms").arg(s.bootMedian, 0, 'f', 1).rightJustified(8, ' '))
+            .arg(QStringLiteral("%1-%2ms").arg(s.ciLow, 0, 'f', 1).arg(s.ciHigh, 0, 'f', 1).rightJustified(16, ' ')));
     }
 
     // ── Step 4: Find country B ─────────────────────────────────────
@@ -307,7 +307,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
     out.append(QStringLiteral("  Server latency → %1 (bootstrap median %2ms, N=%3)")
-        .arg(countryName(countryB)).arg((int)best.bootMedian).arg(best.N));
+        .arg(countryName(countryB)).arg(best.bootMedian, 0, 'f', 1).arg(best.N));
     out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryName(countryA)));
 
     QString scenario;
