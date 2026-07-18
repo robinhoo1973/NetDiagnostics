@@ -94,8 +94,8 @@ static QString countryName(const QString& a2) {
 //
 // Algorithm:
 //   1a. Quick single-connect scan of ALL servers → per-country reachability
-//   1b. MAD+HL calibrated probe on candidate countries (≥3 reachable)
-//   2. Per country: Bootstrap N=5000 resamples → median distribution
+//   1b. HTTP micro-download (100KB) on candidate countries (≥3 reachable)
+//   2. Per country: Bootstrap N=5000 on total download latency → median
 //   3. Country B = lowest bootstrap median (requires N ≥ 5)
 //   4. Wilcoxon rank-sum test: p-value(A vs B) with tie-corrected variance
 //   5. p < 0.05 → significant difference → VPN
@@ -107,12 +107,12 @@ DiagnosticResult vpnStatus(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     out.append(QStringLiteral("VPN Status Detection"));
-    out.append(QStringLiteral("Two-pass probe + Bootstrap + Wilcoxon:"));
-    out.append(QStringLiteral("  1. Quick single-connect scan of ALL servers"));
-    out.append(QStringLiteral("  2. MAD+HL calibrated probe on candidate countries (≥3 reachable)"));
-    out.append(QStringLiteral("  3. Bootstrap N=5000 → per-country median CI (N≥3 samples)"));
+    out.append(QStringLiteral("Two-pass probe (TCP scan + HTTP download) + Bootstrap + Wilcoxon:"));
+    out.append(QStringLiteral("  1. Quick TCP single-connect scan of ALL servers"));
+    out.append(QStringLiteral("  2. HTTP 100KB micro-download on candidate countries (≥3 reachable)"));
+    out.append(QStringLiteral("  3. Bootstrap N=5000 → per-country median total-latency CI (N≥3)"));
     out.append(QStringLiteral("  4. Country B = lowest bootstrap median (N≥5 required)"));
-    out.append(QStringLiteral("  5. Wilcoxon rank-sum test: GeoIP vs lowest-median (N≥3 each)"));
+    out.append(QStringLiteral("  5. Wilcoxon test: GeoIP vs lowest-latency country (N≥3 each)"));
     out.append(QStringLiteral("  6. Decision: p<0.05 → VPN; p≥0.05 → inconclusive"));
     out.append(QString());
 
@@ -161,40 +161,38 @@ DiagnosticResult vpnStatus(DiagId id) {
             return a->country < b->country;     // tie-break
         });
 
-    // ── Pass 2: Focused calibrated probe ──────────────────────────
-    // Candidate-country servers get 50-connect MAD+HL calibration.
-    // Non-candidate servers get quick-fallback single-connect.
+    // ── Pass 2: HTTP micro-download probe ─────────────────────────
+    // Candidate-country servers get 100KB HTTP download.
+    // Non-candidate servers get quick-fallback TCP single-connect.
     QMap<QString, QVector<double>> byCountry;
     QElapsedTimer probeTimer; probeTimer.start();
-    int calibrated = 0, calibSkipped = 0, calibFlaky = 0, quickFallback = 0;
-    double totalFailRate = 0.0; int failRateCount = 0;
+    int httpOk = 0, httpFail = 0, quickFallback = 0;
+    double totalMbps = 0.0; int mbpsCount = 0;
 
     for (auto* srv : targets) {
-        if (probeTimer.elapsed() > 44000) break; // 1s safety margin before 45s cap
+        if (probeTimer.elapsed() > 44000) break; // 1s margin before 45s cap
         double lat = -1.0;
         if (candidates.contains(srv->country)) {
-            // 50-connect MAD+HL calibration with transient-failure tracking
-            TcpPingResult cr = tcpPingCalibrated(srv->host, srv->port);
-            calibrated++;
-            totalFailRate += cr.failRate; failRateCount++;
-            if (cr.usable && cr.failRate <= 0.4) { // ≤40% transient-fail rate
-                lat = cr.latencyMs;
-            } else if (!cr.usable) {
-                calibSkipped++; // insufficient successes for reliable estimate
+            // 100KB HTTP download — total latency exercises full network path
+            QString probeUrl = srv->url + QStringLiteral("/download?size=100000");
+            HttpProbeResult pr = httpProbe(probeUrl, 100000, 8000);
+            if (pr.ok && pr.mbps > 0.01) {
+                lat = pr.totalMs;
+                httpOk++;
+                totalMbps += pr.mbps; mbpsCount++;
             } else {
-                calibFlaky++; // usable=true but failRate > 40%
+                httpFail++;
             }
         } else {
-            // Non-candidate: single-connect is sufficient (won't affect outcome)
+            // Non-candidate: single TCP connect is sufficient
             lat = (double)tcpPingMs(srv->host, srv->port);
             quickFallback++;
         }
         if (lat >= 0) byCountry[srv->country].append(lat);
     }
-    double avgFailRate = failRateCount > 0 ? totalFailRate / failRateCount : 0.0;
-    out.append(QStringLiteral("  Calibrated: %1 servers (MAD+HL, avg fail %2%), %3 skipped, %4 flaky, %5 quick-fb")
-        .arg(calibrated).arg(avgFailRate * 100.0, 0, 'f', 1)
-        .arg(calibSkipped).arg(calibFlaky).arg(quickFallback));
+    double avgMbps = mbpsCount > 0 ? totalMbps / mbpsCount : 0.0;
+    out.append(QStringLiteral("  HTTP probe: %1 ok (avg %2 Mbps), %3 failed, %4 quick-fb")
+        .arg(httpOk).arg(avgMbps, 0, 'f', 1).arg(httpFail).arg(quickFallback));
     out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
 
     // ── Step 3: Bootstrap per country ──────────────────────────────
