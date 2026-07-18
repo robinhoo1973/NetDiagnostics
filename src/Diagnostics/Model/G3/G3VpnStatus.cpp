@@ -160,9 +160,10 @@ static double cliffDelta(double U, int nA, int nB) {
     return 1.0 - 2.0 * U / (nA * nB);
 }
 
-// ── VPN Status Detection — Bootstrap median comparison ───────────────
-// Compares GeoIP country (A) with the country having lowest Bootstrap
-// median latency (B).  If A != B with p < 0.05 → VPN detected.
+// ── VPN Status Detection — HL + Exact Permutation + Cliff's Delta ────
+// Compares GeoIP country (A) with the country having lowest
+// Hodges-Lehmann latency (B).  If A != B with p < 0.05 + |δ| ≥ 0.33
+// → VPN detected.
 //
 // Algorithm:
 //   1a. TCP quick-scan ALL servers → per-country reachability
@@ -281,15 +282,12 @@ DiagnosticResult vpnStatus(DiagId id) {
     }
 
     if (stats.isEmpty()) {
-        // 5WHY: stats.isEmpty() can mean two things: (a) genuinely zero
-        // reachable servers, or (b) servers are reachable but no country
-        // has ≥3 samples for bootstrap.  Case (b) is common on restricted
-        // networks (GFW, corporate firewall) where only 1-2 servers per
-        // country respond.  Fall back to a simple-median estimate of the
-        // single lowest-latency country with any data — less rigorous
-        // but more useful than "No data".
+        // 5WHY: stats.isEmpty() means no country has ≥3 samples.
+        // Common on restricted networks where only 1-2 servers per
+        // country respond.  Fall back to Hodges-Lehmann estimate of
+        // the single best country with any data.
         if (!byCountry.isEmpty()) {
-            // Find the country with the most samples and lowest median
+            // Find the country with the most samples and lowest HL
             QString fallbackCountry;
             double fallbackMedian = 1e9; int fallbackN = 0;
             for (auto it = byCountry.begin(); it != byCountry.end(); ++it) {
