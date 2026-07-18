@@ -235,6 +235,67 @@ DiagnosticResult vpnStatus(DiagId id) {
             return a->country < b->country;     // tie-break
         });
 
+    // ── Pass 1.5: TCP 2000-connect observation (data only, not used for VPN) ──
+    // 5WHY: Single tcpPingMs tells us reachability but not latency stability.
+    // 2000 connects per server with HL estimation provides a high-resolution
+    // latency snapshot independent of HTTP download — useful for comparing
+    // TCP vs HTTP geographic signals before committing to one method.
+    out.append(QString());
+    out.append(QStringLiteral("--- TCP 2000-connect Observation (not used for VPN decision) -------------------"));
+    out.append(QStringLiteral("  %1  %2  %3  %4")
+        .arg(QStringLiteral("#").rightJustified(3, ' '))
+        .arg(QStringLiteral("Country").leftJustified(20, ' '))
+        .arg(QStringLiteral("Srv").rightJustified(4, ' '))
+        .arg(QStringLiteral("TCP HL(ms)").rightJustified(12, ' ')));
+
+    struct Tcp2000Country { QString code; double hl; int servers; };
+    QMap<QString, QVector<double>> tcpByCountry;
+    QElapsedTimer tcp2000Timer; tcp2000Timer.start();
+    int tcp2000Servers = 0;
+
+    for (auto* srv : targets) {
+        if (tcp2000Timer.elapsed() > 30000) break; // 30s budget for observation
+        // 2000 connects, HL on all successful measurements
+        QVector<double> measurements; measurements.reserve(2000);
+        for (int i = 0; i < 2000; i++) {
+            QElapsedTimer ct; ct.start();
+            int sock = tcpConnect(srv->host, srv->port, 2000);
+            if (sock >= 0) {
+                measurements.append(ct.nsecsElapsed() / 1e6); // ns → ms (double)
+                closeSocket(sock);
+            }
+        }
+        if (measurements.size() >= 10) {
+            double hl = hodgesLehmann(measurements);
+            tcpByCountry[srv->country].append(hl);
+            tcp2000Servers++;
+        }
+    }
+    // Per-country HL (of per-server HLs), sort, top 15
+    QVector<Tcp2000Country> tcpRanked;
+    for (auto it = tcpByCountry.begin(); it != tcpByCountry.end(); ++it) {
+        if (it.value().size() >= 2) {
+            double hl = hodgesLehmann(it.value());
+            tcpRanked.append({it.key(), hl, (int)it.value().size()});
+        }
+    }
+    std::sort(tcpRanked.begin(), tcpRanked.end(),
+              [](const Tcp2000Country& a, const Tcp2000Country& b) { return a.hl < b.hl; });
+
+    int shown = 0;
+    for (auto& tc : tcpRanked) {
+        if (shown >= 15) break;
+        out.append(QStringLiteral("  %1  %2  %3  %4")
+            .arg(shown + 1, 3)
+            .arg(QStringLiteral("%1 (%2)").arg(alpha3(tc.code), countryName(tc.code)).leftJustified(20, ' '))
+            .arg(tc.servers, 4)
+            .arg(QStringLiteral("%1").arg(tc.hl, 0, 'f', 2).rightJustified(12, ' ')));
+        shown++;
+    }
+    out.append(QStringLiteral("  (%1 servers across %2 countries in %3s)")
+        .arg(tcp2000Servers).arg(tcpRanked.size()).arg(tcp2000Timer.elapsed() / 1000.0, 0, 'f', 1));
+    out.append(QString());
+
     // ── Pass 2: HTTP micro-download probe ─────────────────────────
     // Candidate-country servers get 100KB HTTP download.
     // Non-candidate servers get quick-fallback TCP single-connect.
