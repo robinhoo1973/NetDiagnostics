@@ -176,7 +176,7 @@ static double cliffDelta(double U, int nA, int nB) {
 
 DiagnosticResult vpnStatus(DiagId id) {
     DiagnosticResult r;
-    r.id = id; r.group = DiagGroup::G3;
+    r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
