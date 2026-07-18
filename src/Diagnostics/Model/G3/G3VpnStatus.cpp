@@ -467,12 +467,18 @@ DiagnosticResult vpnStatus(DiagId id) {
         scenario = QStringLiteral("VPN suspected (%1 → %2, p≥0.05, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
     } else {
-        out.append(QStringLiteral("  %1 (GeoIP) ≠ %2 (lowest latency) → No VPN (p=%3, δ=%4)")
+        // 5WHY: GeoIP ≠ Country B is itself a signal — two independent
+        // methods (DNS GeoIP + TCP latency) disagree about your location.
+        // Even when n is too small for statistical significance, the
+        // contradiction should not be dismissed as "No VPN".
+        out.append(QStringLiteral("  %1 (GeoIP) ≠ %2 (lowest latency) → VPN possible (p=%3, δ=%4)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        out.append(QStringLiteral("  Neither significant nor large enough effect to indicate VPN."));
-        scenario = QStringLiteral("No VPN (%1 vs %2, p≥0.05, δ=%3)")
-            .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
+        out.append(QStringLiteral("  GeoIP and latency disagree — may indicate VPN. Statistics inconclusive"
+            " with current sample size.  More reachable servers would improve confidence."));
+        scenario = QStringLiteral("VPN possible (%1 → %2)")
+            .arg(countryName(countryA), countryName(countryB));
+        status = DiagStatus::Warning;
     }
 
     r.rawOutput = out.join('\n');
@@ -481,6 +487,10 @@ DiagnosticResult vpnStatus(DiagId id) {
         r.summary = QStringLiteral("No VPN");
     else if (scenario.startsWith(QStringLiteral("VPN detected")))
         r.summary = QStringLiteral("VPN detected");
+    else if (scenario.startsWith(QStringLiteral("VPN possible"))
+             || scenario.startsWith(QStringLiteral("VPN likely"))
+             || scenario.startsWith(QStringLiteral("VPN suspected")))
+        r.summary = QStringLiteral("VPN possible");
     else
         r.summary = QStringLiteral("Location est.");
     r.status = status;
