@@ -2,7 +2,6 @@
 #include "Diagnostics/Model/GHelpers.h"
 #include <algorithm>
 #include <cmath>
-#include <random>
 #include <QSet>
 
 namespace G1G2G3Native {
@@ -95,7 +94,7 @@ static QString countryName(const QString& a2) {
 // Algorithm:
 //   1a. Quick single-connect scan of ALL servers → per-country reachability
 //   1b. HTTP micro-download (100KB) on candidate countries (≥3 reachable)
-//   2. Per country: N≥5→bootstrap 1000x, N=3-4→simple median
+//   2. Per country: simple median + min/max range (no bootstrap — N too small)
 //   3. Country B = lowest median (requires N ≥ 5)
 //   4. Wilcoxon rank-sum test: p-value(A vs B) with tie-corrected variance
 //   5. p < 0.05 → significant difference → VPN
@@ -107,10 +106,10 @@ DiagnosticResult vpnStatus(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     out.append(QStringLiteral("VPN Status Detection"));
-    out.append(QStringLiteral("Two-pass probe (TCP scan + HTTP download) + Bootstrap + Wilcoxon:"));
+    out.append(QStringLiteral("Two-pass probe (TCP scan + HTTP download) + Wilcoxon:"));
     out.append(QStringLiteral("  1. Quick TCP single-connect scan of ALL servers"));
     out.append(QStringLiteral("  2. HTTP 100KB micro-download on candidate countries (≥3 reachable)"));
-    out.append(QStringLiteral("  3. Statistics: N≥5→bootstrap 1000x CI; N=3-4→simple median"));
+    out.append(QStringLiteral("  3. Per-country median + min/max range (no bootstrap — N too small)"));
     out.append(QStringLiteral("  4. Country B = lowest median latency (N≥5 required)"));
     out.append(QStringLiteral("  5. Wilcoxon test: GeoIP vs lowest-latency country (N≥3 each)"));
     out.append(QStringLiteral("  6. Decision: p<0.05 → VPN; p≥0.05 → inconclusive"));
@@ -195,50 +194,30 @@ DiagnosticResult vpnStatus(DiagId id) {
         .arg(httpOk).arg(avgMbps, 0, 'f', 1).arg(httpFail).arg(quickFallback));
     out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
 
-    // ── Step 3: Bootstrap per country ──────────────────────────────
-    // 5WHY: HTTP micro-download yields ONE measurement per server
-    // (100KB total download time), unlike TCP which had 50 connects per
-    // server.  With only 3-5 samples per country, 5000 resamples is
-    // massive overkill: N=3 has only 27 unique resamples, N=5 has 3125.
+    // ── Step 3: Per-country statistics ─────────────────────────────
+    // 5WHY: HTTP micro-download yields ONE measurement per server.
+    // With only 3-5 servers per country, bootstrap is pseudo-precision:
+    // N=5 odd → the bootstrap median can only ever be one of the 5
+    // original values.  1000 resamples just cycles through the same 5
+    // numbers.  Bootstrap adds zero new information at this sample size.
     //
-    // Adjusted approach:
-    //   N ≥ 5  → Bootstrap 1000 resamples (covers ~32% of 3125 unique
-    //            combinations for N=5; for larger N, 1000 gives stable CI)
-    //   N 3-4 → Simple median only, no CI (too few samples for meaningful
-    //            bootstrap — N=3 has only 27 unique resamples)
-    //   N < 3 → Skipped (not enough for any reliable statistic)
-    struct CountryStats { QString code; double bootMedian; double ciLow; double ciHigh; int N; };
+    // Honest approach: simple median, min, max.  Enough data points
+    // for the downstream Wilcoxon test to detect significant latency
+    // gaps — that test compares raw data, not summary statistics.
+    //
+    //   N ≥ 3 → simple median + min/max range
+    //   N < 3 → skipped
+    struct CountryStats { QString code; double median; double min; double max; int N; };
     QVector<CountryStats> stats;
-    std::mt19937 rng(42); // fixed seed for reproducibility
 
     for (auto it = byCountry.begin(); it != byCountry.end(); ++it) {
         auto& samples = it.value();
         int N = samples.size();
-        if (N < 3) continue; // need at least 3 for any statistic
-
-        if (N < 5) {
-            // N=3-4: too few for bootstrap — use simple median, flag CI as -1
-            std::sort(samples.begin(), samples.end());
-            double med = (N % 2 == 1) ? samples[N/2]
-                         : (samples[N/2-1] + samples[N/2]) / 2.0;
-            stats.append({it.key(), med, -1.0, -1.0, N});
-        } else {
-            // N ≥ 5: bootstrap 1000 resamples
-            QVector<double> bootMedians(1000);
-            QVector<double> resampled(N);
-            for (int b = 0; b < 1000; b++) {
-                for (int i = 0; i < N; i++)
-                    resampled[i] = samples[rng() % N];
-                std::sort(resampled.begin(), resampled.end());
-                bootMedians[b] = (N % 2 == 1) ? resampled[N/2]
-                               : (resampled[N/2-1] + resampled[N/2]) / 2.0;
-            }
-            std::sort(bootMedians.begin(), bootMedians.end());
-            double bootMedian = (bootMedians[499] + bootMedians[500]) / 2.0; // median of 1000 (even)
-            double ciLow  = bootMedians[25];   // 2.5th percentile (1000×0.025)
-            double ciHigh = bootMedians[974];  // 97.5th percentile (1000×0.975)
-            stats.append({it.key(), bootMedian, ciLow, ciHigh, N});
-        }
+        if (N < 3) continue;
+        std::sort(samples.begin(), samples.end());
+        double med = (N % 2 == 1) ? samples[N/2]
+                     : (samples[N/2-1] + samples[N/2]) / 2.0;
+        stats.append({it.key(), med, samples.first(), samples.last(), N});
     }
 
     if (stats.isEmpty()) {
@@ -303,23 +282,21 @@ DiagnosticResult vpnStatus(DiagId id) {
     }
 
     std::sort(stats.begin(), stats.end(),
-              [](const CountryStats& a, const CountryStats& b) { return a.bootMedian < b.bootMedian; });
+              [](const CountryStats& a, const CountryStats& b) { return a.median < b.median; });
 
     // ── Output ─────────────────────────────────────────────────────
     out.append(QString());
-    out.append(QStringLiteral("Per-country Statistics:"));
+    out.append(QStringLiteral("Per-country Statistics (simple median, N=%1 countries):").arg(stats.size()));
     out.append(QStringLiteral("  %1  %2  %3  %4")
         .arg(QStringLiteral("Ctry").leftJustified(5, ' '))
         .arg(QStringLiteral("N").rightJustified(3, ' '))
         .arg(QStringLiteral("Median").rightJustified(8, ' '))
-        .arg(QStringLiteral("95% CI").rightJustified(16, ' ')));
+        .arg(QStringLiteral("Range").rightJustified(16, ' ')));
     for (auto& s : stats) {
-        QString ciStr = (s.ciLow < 0) ? QStringLiteral("(N<5, no CI)").rightJustified(16, ' ')
-                       : QStringLiteral("%1-%2ms").arg(s.ciLow, 0, 'f', 1).arg(s.ciHigh, 0, 'f', 1).rightJustified(16, ' ');
         out.append(QStringLiteral("  %1  %2  %3  %4")
             .arg(alpha3(s.code).leftJustified(5, ' ')).arg(s.N, 3)
-            .arg(QStringLiteral("%1ms").arg(s.bootMedian, 0, 'f', 1).rightJustified(8, ' '))
-            .arg(ciStr));
+            .arg(QStringLiteral("%1ms").arg(s.median, 0, 'f', 1).rightJustified(8, ' '))
+            .arg(QStringLiteral("%1-%2ms").arg(s.min, 0, 'f', 1).arg(s.max, 0, 'f', 1).rightJustified(16, ' ')));
     }
 
     // ── Step 4: Find country B ─────────────────────────────────────
@@ -374,8 +351,9 @@ DiagnosticResult vpnStatus(DiagId id) {
     // ── Step 6: Decision ──────────────────────────────────────────
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
-    out.append(QStringLiteral("  Server latency → %1 (bootstrap median %2ms, N=%3)")
-        .arg(countryName(countryB)).arg(best.bootMedian, 0, 'f', 1).arg(best.N));
+    out.append(QStringLiteral("  Server latency → %1 (median %2ms, range %3-%4ms, N=%5)")
+        .arg(countryName(countryB)).arg(best.median, 0, 'f', 1)
+        .arg(best.min, 0, 'f', 1).arg(best.max, 0, 'f', 1).arg(best.N));
     out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryName(countryA)));
 
     QString scenario;
