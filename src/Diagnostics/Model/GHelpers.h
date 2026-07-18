@@ -81,19 +81,20 @@ struct ProcNetConn {
 int      tcpPingMs(const QString& host, int port);
 double   tcpPingAvg(const QString& host, int port); // 50x avg for sub-ms differentiation
 
-// ── Calibrated TCP ping result ──────────────────────────────────────
-// Performs 50 connects, applies MAD outlier rejection, then Hodges-
-// Lehmann robust estimation.  Separates successes from transient
-// failures — a reachable server that drops 10% of connects is still
-// measured, but the failure rate is reported for quality assessment.
-struct TcpPingResult {
-    double latencyMs = -1.0;   // MAD-filtered Hodges-Lehmann estimate (ms)
-    int    successes = 0;       // successful connects (out of 50)
-    int    attempts  = 50;      // total attempts
-    double failRate  = 1.0;     // (attempts - successes) / attempts
-    bool   usable    = false;   // ≥5 successes → enough data for reliable estimate
+// ── HTTP micro-download probe ──────────────────────────────────────
+// Wraps httpDownload with total elapsed-time measurement.  The total
+// latency includes DNS (cached), TCP connect, HTTP request, and 100KB
+// body download — exercising the full network path rather than just
+// the 3-way handshake.  VPN overhead amplifies the body-download phase
+// through MTU fragmentation + encryption, giving much better geographic
+// discrimination than TCP ping alone.
+struct HttpProbeResult {
+    double totalMs = -1.0;     // total time: connect → download complete
+    double mbps    = 0.0;      // throughput (from httpDownload)
+    int    bytes   = 0;        // bytes received
+    bool   ok      = false;    // true if download succeeded
 };
-TcpPingResult tcpPingCalibrated(const QString& host, int port);
+HttpProbeResult httpProbe(const QString& urlStr, int targetBytes, int timeoutMs);
 
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
