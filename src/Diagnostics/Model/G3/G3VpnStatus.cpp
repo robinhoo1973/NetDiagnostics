@@ -124,7 +124,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     // Pass 1 (Quick Scan): single tcpPingMs per server (~2ms each).
     //   Determines which countries have reachable servers so Pass 2
     //   can focus expensive multi-round probing on candidates only.
-    // Pass 2 (Focused Detail): 50-connect MAD+HL calibrated probe
+    // Pass 2 (Focused Detail): 100KB HTTP download on candidate-country
     //   on candidate-country servers.  44s wall-clock cap.
     SpeedTest st;
     QVector<SpeedTest::Server> allServers = st.allServers();
