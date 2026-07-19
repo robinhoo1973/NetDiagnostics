@@ -317,7 +317,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
                 if (countryA == QStringLiteral("XX")) {
                     out.append(QStringLiteral("  Status: location estimated as %1").arg(countryName(countryB)));
                     r.summary = QStringLiteral("Location est.");
-                    r.status = DiagStatus::Info;
+                    r.status = DiagStatus::Warning;
                 } else if (countryA == countryB) {
                     out.append(QStringLiteral("  %1 == %2 → likely No VPN (low confidence)")
                         .arg(countryName(countryA), countryName(countryB)));
@@ -326,7 +326,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
                     out.append(QStringLiteral("  %1 != %2 → possible VPN (low confidence — cannot test significance)")
                         .arg(countryName(countryA), countryName(countryB)));
                     r.summary = QStringLiteral("VPN possible");
-                    r.status = DiagStatus::Warning;
+                    r.status = DiagStatus::Info;
                 }
                 r.rawOutput = out.join('\n');
                 r.details = r.rawOutput;
@@ -426,44 +426,48 @@ DiagnosticResult geoIPLoc(DiagId id) {
         .arg(countryName(countryB)).arg(best.hl, 0, 'f', 1).arg(best.N));
     out.append(QString());
 
+    // ── Status mapping ──────────────────────────────────────────
+    // Pass:    both locations available + match → no VPN
+    // Warning: only ONE location identified (GeoIP OR physical)
+    // Info:    both available + VPN detected/possible/suspected
+    // Fail:    both unavailable or no servers reachable
     QString scenario;
     DiagStatus status = DiagStatus::Pass;
 
     if (countryA == QStringLiteral("XX")) {
-        out.append(QStringLiteral("  VPN Status: location estimated as %1 (GeoIP unavailable)").arg(countryName(countryB)));
+        out.append(QStringLiteral("  Location Status: GeoIP unavailable — estimated as %1")
+            .arg(countryName(countryB)));
         scenario = QStringLiteral("Location estimated as %1").arg(countryName(countryB));
-        status = DiagStatus::Info;
+        status = DiagStatus::Warning;
     } else if (countryA == countryB) {
         out.append(QStringLiteral("  VPN Status: No VPN — GeoIP matches physical location"));
         scenario = QStringLiteral("No VPN (%1)").arg(countryName(countryA));
     } else if (geoipUnreachable) {
-        out.append(QStringLiteral("  VPN Status: VPN likely — %1 (GeoIP) servers unreachable")
+        out.append(QStringLiteral("  Location Status: %1 (GeoIP) servers unreachable — physical location uncertain")
             .arg(countryName(countryA)));
-        out.append(QStringLiteral("    If you were in %1, its servers would be reachable.").arg(countryName(countryA)));
         scenario = QStringLiteral("VPN likely (%1 unreachable)").arg(countryName(countryA));
         status = DiagStatus::Warning;
     } else if (significant && absDelta >= 0.33) {
-        out.append(QStringLiteral("  VPN Status: ⚠ VPN detected — %1 → %2 (p=%3, δ=%4)")
+        out.append(QStringLiteral("  VPN Status: VPN detected — %1 → %2 (p=%3, δ=%4)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
         scenario = QStringLiteral("VPN detected (%1 → %2, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
-        status = DiagStatus::Warning;
+        status = DiagStatus::Info;
     } else if (significant && absDelta < 0.33) {
         out.append(QStringLiteral("  VPN Status: VPN likely — %1 → %2 (p=%3, δ=%4 small)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
         scenario = QStringLiteral("VPN possible (%1 → %2, p<0.05, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
-        status = DiagStatus::Warning;
+        status = DiagStatus::Info;
     } else if (!significant && absDelta >= 0.33) {
         out.append(QStringLiteral("  VPN Status: VPN suspected — %1 → %2 (p=%3 ≥ 0.05, δ=%4 medium)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        out.append(QStringLiteral("    Effect size suggests real difference — more samples needed."));
         scenario = QStringLiteral("VPN suspected (%1 → %2, p≥0.05, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
-        status = DiagStatus::Warning;
+        status = DiagStatus::Info;
     } else {
         out.append(QStringLiteral("  VPN Status: VPN possible — %1 (GeoIP) ≠ %2 (physical)")
             .arg(countryName(countryA), countryName(countryB)));
@@ -471,7 +475,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
         scenario = QStringLiteral("VPN possible (%1 → %2)")
             .arg(countryName(countryA), countryName(countryB));
-        status = DiagStatus::Warning;
+        status = DiagStatus::Info;
     }
 
     // Structured properties for the detail overlay (UX)
@@ -486,12 +490,12 @@ DiagnosticResult geoIPLoc(DiagId id) {
     if (geoipUnreachable)
         r.properties.append(ResultProperty("Note", QStringLiteral("GeoIP country servers unreachable")));
 
-    // Add visual callout for VPN detection in reports
-    if (status == DiagStatus::Warning || status == DiagStatus::Info) {
-        QString banner = (status == DiagStatus::Warning)
-            ? QStringLiteral("⚠️  VPN INTERFERENCE DETECTED  ⚠️")
-            : QStringLiteral("ℹ️  LOCATION ESTIMATED  ℹ️");
-        out.prepend(banner);
+    // Add visual callout for reports
+    if (status == DiagStatus::Info) {
+        out.prepend(QStringLiteral("VPN DETECTED — GeoIP ≠ Physical Location"));
+        out.prepend(QString());
+    } else if (status == DiagStatus::Warning) {
+        out.prepend(QStringLiteral("⚠️  LOCATION UNCERTAIN — only one source available  ⚠️"));
         out.prepend(QString());
     }
     r.rawOutput = out.join('\n');
