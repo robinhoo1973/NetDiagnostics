@@ -252,8 +252,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     QElapsedTimer pass2Timer; pass2Timer.start();
 
     const int kThreads = 10;
-    const int kPerServerBudget = 3000;  // ms per server
-    const int kMinConnectTimeout = 100; // minimum connect timeout
+    const int kPerServerBudget = 3000;  // 3s max per server
     std::vector<std::thread> threads;
     threads.reserve(kThreads);
 
@@ -269,45 +268,43 @@ DiagnosticResult vpnStatus(DiagId id) {
 
                 double lat = -1.0;
                 if (candidates.contains(srv->country)) {
+                    // 5WHY: 3s hard cap per server.  Connect as many times
+                    // as possible within the budget.  If < 5 succeed, the
+                    // server is effectively unreachable — mark failed.
                     QVector<double> measurements; measurements.reserve(2000);
                     QElapsedTimer srvTimer; srvTimer.start();
+
                     for (int i = 0; i < 2000; i++) {
-                        // 5WHY: srvTimer only checked AFTER tcpConnect returns.
-                        // With 2000ms timeout, elapsed can overshoot to ~4000ms.
-                        // Use remaining budget as connect timeout, and break
-                        // BEFORE calling tcpConnect if insufficient time remains.
                         int elapsed = (int)srvTimer.elapsed();
                         if (elapsed >= kPerServerBudget) break;
-
-                        int remaining = kPerServerBudget - elapsed;
-                        int connectTimeout = (remaining < kMinConnectTimeout)
-                            ? kMinConnectTimeout : qMin(remaining, 2000);
+                        // Use remaining budget as connect timeout, floor 200ms
+                        int timeout = qMin(kPerServerBudget - elapsed, 2000);
+                        if (timeout < 200) timeout = 200;
 
                         QElapsedTimer ct; ct.start();
-                        int sock = tcpConnect(srv->host, srv->port, connectTimeout);
+                        int sock = tcpConnect(srv->host, srv->port, timeout);
                         if (sock >= 0) {
                             measurements.append(ct.nsecsElapsed() / 1e6);
                             closeSocket(sock);
                         }
-                        // If connect timed out fully (sock < 0 and elapsed
-                        // jumped by ~connectTimeout), the next iteration will
-                        // check the remaining budget and likely break.
                     }
+
                     int m = measurements.size();
-                    if (m >= 50) {
-                        lat = hodgesLehmann(measurements);
-                    } else if (m >= 5) {
-                        double sum = 0; for (double v : measurements) sum += v;
-                        lat = sum / m;
+                    if (m >= 5) {
+                        // Enough data — use HL or mean
+                        lat = (m >= 50) ? hodgesLehmann(measurements)
+                             : [&](){ double s=0; for(double v:measurements)s+=v; return s/m; }();
+                        localOk++;
+                    } else {
+                        // <5 successes in 3s → effectively unreachable
+                        localFail++;
                     }
-                    if (lat >= 0) localOk++; else localFail++;
                 } else {
                     lat = (double)tcpPingMs(srv->host, srv->port);
                     localFb++;
                 }
                 if (lat >= 0) local[srv->country].append(lat);
 
-                // Global 45s cap — signal other threads to stop
                 if (pass2Timer.elapsed() > 45000)
                     pass2Expired.store(true, std::memory_order_relaxed);
             }
