@@ -155,13 +155,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     out.append(QStringLiteral("IP Geolocation & VPN Detection"));
-    out.append(QStringLiteral("Two-pass TCP probe + Hodges-Lehmann + Exact Permutation + Cliff's Delta:"));
-    out.append(QStringLiteral("  1. TCP quick-scan → filter reachable servers"));
-    out.append(QStringLiteral("  2. HTTP 100KB download on candidate countries (≥3 reachable)"));
-    out.append(QStringLiteral("  3. Hodges-Lehmann per-country robust location (96% efficiency)"));
-    out.append(QStringLiteral("  4. Country B = lowest HL estimate (N≥3)"));
-    out.append(QStringLiteral("  5. Exact permutation p-value + Cliff's δ effect size"));
-    out.append(QStringLiteral("  6. Decision: p<0.05 + |δ|≥0.33 → VPN detected"));
+    out.append(QStringLiteral("Method: HTTP probe + statistical comparison of %1 global servers").arg(SpeedTest().allServers().size()));
     out.append(QString());
 
     // ── Step 1: GeoIP ─────────────────────────────────────────────
