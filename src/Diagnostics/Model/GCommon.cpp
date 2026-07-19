@@ -157,19 +157,14 @@ int tcpPingMs(const QString& host, int port) {
 // 5WHY: First call verifies reachability; if single latency > 1ms, return
 // directly (already differentiated).  If ≤ 1ms, run 49 more (50 total).
 double tcpPingAvg(const QString& host, int port) {
-    // 5WHY: Both vpnStatus and speedTest call this for overlapping
-    // servers.  Shared cache with 120s TTL prevents double-probing.
+    // Local cache with 120s TTL — single caller (speedTest), single thread.
     static QMap<QString, double> sCache;
     static qint64 sCacheTs = 0;
-    static QMutex sCacheMtx;
     QString cacheKey = QStringLiteral("%1:%2").arg(host).arg(port);
-    {
-        QMutexLocker lock(&sCacheMtx);
-        qint64 now = QDateTime::currentMSecsSinceEpoch();
-        if (now - sCacheTs > 120000) { sCache.clear(); sCacheTs = now; }
-        auto it = sCache.constFind(cacheKey);
-        if (it != sCache.cend()) return *it;
-    }
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    if (now - sCacheTs > 120000) { sCache.clear(); sCacheTs = now; }
+    auto it = sCache.constFind(cacheKey);
+    if (it != sCache.cend()) return *it;
 
     double result = -1.0;
     int first = tcpPingMs(host, port);
@@ -212,7 +207,7 @@ double tcpPingAvg(const QString& host, int port) {
         }
     }
 
-    { QMutexLocker lock(&sCacheMtx); sCache[cacheKey] = result; }
+    sCache[cacheKey] = result;
     return result;
 }
 
