@@ -167,7 +167,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     // ── Step 1: GeoIP ─────────────────────────────────────────────
     out.append(QStringLiteral("[Phase 1/5] Detecting GeoIP country..."));
     QString countryA = SpeedTest::detectCountry(3000);
-    out.append(QStringLiteral("GeoIP country (A): %1").arg(countryName(countryA)));
+    out.append(QStringLiteral("GeoIP location: %1").arg(countryName(countryA)));
 
     // ── Step 2: Two-pass probe ──────────────────────────────────────
     // Pass 1 (Quick Scan): single tcpPingMs per server (~2ms each).
@@ -312,9 +312,9 @@ DiagnosticResult vpnStatus(DiagId id) {
                 QString countryB = fallbackCountry;
                 out.append(QString());
                 out.append(QStringLiteral("--- Result (low confidence — insufficient samples) -------------------------"));
-                out.append(QStringLiteral("  Server latency → %1 (HL %2ms, N=%3)")
+                out.append(QStringLiteral("  Physical location (lowest latency) → %1 (HL %2ms, N=%3)")
                     .arg(countryName(countryB)).arg(fallbackMedian, 0, 'f', 1).arg(fallbackN));
-                out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryName(countryA)));
+                out.append(QStringLiteral("  GeoIP location → %1").arg(countryName(countryA)));
                 out.append(QStringLiteral("  Total reachable: %1 servers across %2 countries — need ≥3 per country for bootstrap")
                     .arg(targets.size()).arg(byCountry.size()));
 
@@ -423,9 +423,9 @@ DiagnosticResult vpnStatus(DiagId id) {
     double absDelta = std::abs(delta);
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
-    out.append(QStringLiteral("  Server latency → %1 (HL %2ms, N=%3)")
+    out.append(QStringLiteral("  Physical location (lowest latency) → %1 (HL %2ms, N=%3)")
         .arg(countryName(countryB)).arg(best.hl, 0, 'f', 1).arg(best.N));
-    out.append(QStringLiteral("  DNS GeoIP → %1").arg(countryName(countryA)));
+    out.append(QStringLiteral("  GeoIP location → %1").arg(countryName(countryA)));
 
     QString scenario;
     DiagStatus status = DiagStatus::Pass;
@@ -482,8 +482,8 @@ DiagnosticResult vpnStatus(DiagId id) {
     }
 
     // Structured properties for the detail overlay (UX)
-    r.properties.append(ResultProperty("GeoIP", countryName(countryA)));
-    r.properties.append(ResultProperty("Lowest Latency", countryName(countryB)));
+    r.properties.append(ResultProperty("GeoIP location", countryName(countryA)));
+    r.properties.append(ResultProperty("Physical location", countryName(countryB)));
     r.properties.append(ResultProperty("Latency (HL)", QStringLiteral("%1 ms").arg(best.hl, 0, 'f', 1)));
     r.properties.append(ResultProperty("Samples", QString::number(best.N)));
     if (pValue < 1.0) {
