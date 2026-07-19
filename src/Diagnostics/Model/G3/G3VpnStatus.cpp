@@ -106,8 +106,8 @@ static double exactPermutationPValue(const QVector<double>& combined,
     int N = nA + nB;
     double mu = nA * nB / 2.0;
     int extremeCount = 0, totalPerms = 0;
-    int maxMask = 1 << N;
-    for (int mask = 0; mask < maxMask; mask++) {
+    unsigned maxMask = 1u << N;  // unsigned avoids signed-overflow UB for N>=31
+    for (unsigned mask = 0; mask < maxMask; mask++) {
         int bits = 0, m = mask;
         while (m) { bits++; m &= m - 1; }
         if (bits != nA) continue;

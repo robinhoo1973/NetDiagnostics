@@ -198,20 +198,24 @@ QVector<GeoProbe::ServerResult> GeoProbe::probeAllServers(
     }
 
     std::atomic<int> workIdx{0};
-    std::atomic<bool> expired{false};
-    QElapsedTimer globalTimer; globalTimer.start();
+    // Use atomic deadline instead of QElapsedTimer to avoid data race
+    // across 10 threads (ARM64 may tear QElapsedTimer's internal fields).
+    qint64 startMs = QDateTime::currentMSecsSinceEpoch();
+    std::atomic<qint64> deadline{startMs + maxTimeSec * 1000};
     const int kThreads = 10;
-    const int kMaxMs = maxTimeSec * 1000;
 
     std::vector<std::thread> threads;
     threads.reserve(kThreads);
     for (int t = 0; t < kThreads; t++) {
         threads.emplace_back([&]() {
-            while (!expired.load(std::memory_order_relaxed)) {
+            while (QDateTime::currentMSecsSinceEpoch() < deadline.load(std::memory_order_acquire)) {
                 int idx = workIdx.fetch_add(1);
                 if (idx >= targets.size()) break;
                 auto& srv = targets[idx];
                 auto& out = results[idx];
+
+                // Re-check deadline before starting expensive network I/O
+                if (QDateTime::currentMSecsSinceEpoch() >= deadline.load(std::memory_order_acquire)) break;
 
                 double ttfb = -1.0, tcpMs = -1.0;
                 ParsedUrl pu = parseHttpUrl(srv.url);
@@ -234,8 +238,6 @@ QVector<GeoProbe::ServerResult> GeoProbe::probeAllServers(
                 }
                 out.tcpMs = tcpMs; out.ttfbMs = ttfb;
 
-                if (globalTimer.elapsed() > kMaxMs)
-                    expired.store(true, std::memory_order_relaxed);
             }
         });
     }
