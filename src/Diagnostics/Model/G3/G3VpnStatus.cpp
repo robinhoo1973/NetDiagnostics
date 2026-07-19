@@ -423,59 +423,55 @@ DiagnosticResult vpnStatus(DiagId id) {
     double absDelta = std::abs(delta);
     out.append(QString());
     out.append(QStringLiteral("--- Result -----------------------------------------------------------------"));
-    out.append(QStringLiteral("  Physical location (lowest latency) → %1 (HL %2ms, N=%3)")
+    out.append(QString());
+    out.append(QStringLiteral("  Location Report:"));
+    out.append(QStringLiteral("    GeoIP location: %1").arg(countryName(countryA)));
+    out.append(QStringLiteral("    Physical location (lowest latency): %1 (HL %2ms, N=%3)")
         .arg(countryName(countryB)).arg(best.hl, 0, 'f', 1).arg(best.N));
-    out.append(QStringLiteral("  GeoIP location → %1").arg(countryName(countryA)));
+    out.append(QString());
 
     QString scenario;
     DiagStatus status = DiagStatus::Pass;
 
     if (countryA == QStringLiteral("XX")) {
-        out.append(QStringLiteral("  Status: location estimated as %1").arg(countryName(countryB)));
+        out.append(QStringLiteral("  VPN Status: location estimated as %1 (GeoIP unavailable)").arg(countryName(countryB)));
         scenario = QStringLiteral("Location estimated as %1").arg(countryName(countryB));
         status = DiagStatus::Info;
     } else if (countryA == countryB) {
-        out.append(QStringLiteral("  %1 == %2 → No VPN (GeoIP matches lowest-latency region)")
-            .arg(countryName(countryA), countryName(countryB)));
+        out.append(QStringLiteral("  VPN Status: No VPN — GeoIP matches physical location"));
         scenario = QStringLiteral("No VPN (%1)").arg(countryName(countryA));
     } else if (geoipUnreachable) {
-        out.append(QStringLiteral("  %1 (GeoIP) servers unreachable → VPN likely (GeoIP country unreachable from your network)")
+        out.append(QStringLiteral("  VPN Status: VPN likely — %1 (GeoIP) servers unreachable")
             .arg(countryName(countryA)));
-        out.append(QStringLiteral("  If you are in %1, its servers should be reachable. They are not.")
-            .arg(countryName(countryA)));
+        out.append(QStringLiteral("    If you were in %1, its servers would be reachable.").arg(countryName(countryA)));
         scenario = QStringLiteral("VPN likely (%1 unreachable)").arg(countryName(countryA));
         status = DiagStatus::Warning;
     } else if (significant && absDelta >= 0.33) {
-        out.append(QStringLiteral("  %1 != %2 → VPN detected (p=%3, δ=%4, medium/large effect)")
+        out.append(QStringLiteral("  VPN Status: ⚠ VPN detected — %1 → %2 (p=%3, δ=%4)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
         scenario = QStringLiteral("VPN detected (%1 → %2, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
         status = DiagStatus::Warning;
     } else if (significant && absDelta < 0.33) {
-        out.append(QStringLiteral("  %1 != %2 → VPN likely (p=%3 significant but δ=%4 small effect)")
+        out.append(QStringLiteral("  VPN Status: VPN likely — %1 → %2 (p=%3, δ=%4 small)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
         scenario = QStringLiteral("VPN possible (%1 → %2, p<0.05, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
         status = DiagStatus::Warning;
     } else if (!significant && absDelta >= 0.33) {
-        out.append(QStringLiteral("  %1 != %2 → VPN suspected (p=%3 ≥ 0.05 but δ=%4 medium effect)")
+        out.append(QStringLiteral("  VPN Status: VPN suspected — %1 → %2 (p=%3 ≥ 0.05, δ=%4 medium)")
             .arg(countryName(countryA), countryName(countryB))
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        out.append(QStringLiteral("  Effect size suggests real difference — more samples needed for significance."));
+        out.append(QStringLiteral("    Effect size suggests real difference — more samples needed."));
         scenario = QStringLiteral("VPN suspected (%1 → %2, p≥0.05, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
     } else {
-        // 5WHY: GeoIP ≠ Country B is itself a signal — two independent
-        // methods (DNS GeoIP + TCP latency) disagree about your location.
-        // Even when n is too small for statistical significance, the
-        // contradiction should not be dismissed as "No VPN".
-        out.append(QStringLiteral("  %1 (GeoIP) ≠ %2 (lowest latency) → VPN possible (p=%3, δ=%4)")
-            .arg(countryName(countryA), countryName(countryB))
+        out.append(QStringLiteral("  VPN Status: VPN possible — %1 (GeoIP) ≠ %2 (physical)")
+            .arg(countryName(countryA), countryName(countryB)));
+        out.append(QStringLiteral("    GeoIP and latency disagree but statistics inconclusive (p=%1, δ=%2).")
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        out.append(QStringLiteral("  GeoIP and latency disagree — may indicate VPN. Statistics inconclusive"
-            " with current sample size.  More reachable servers would improve confidence."));
         scenario = QStringLiteral("VPN possible (%1 → %2)")
             .arg(countryName(countryA), countryName(countryB));
         status = DiagStatus::Warning;
