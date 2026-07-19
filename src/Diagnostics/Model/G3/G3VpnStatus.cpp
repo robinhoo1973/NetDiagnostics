@@ -247,9 +247,13 @@ DiagnosticResult vpnStatus(DiagId id) {
     QMap<QString, QVector<double>> byCountry;
     std::atomic<int> tcpOk{0}, tcpFail{0}, quickFb{0};
     std::atomic<int> workIdx{0};
+    std::atomic<bool> pass2Expired{false}; // global 45s cap
     std::mutex resultMutex;
+    QElapsedTimer pass2Timer; pass2Timer.start();
 
     const int kThreads = 10;
+    const int kPerServerBudget = 3000;  // ms per server
+    const int kMinConnectTimeout = 100; // minimum connect timeout
     std::vector<std::thread> threads;
     threads.reserve(kThreads);
 
@@ -258,7 +262,7 @@ DiagnosticResult vpnStatus(DiagId id) {
             QMap<QString, QVector<double>> local;
             int localOk = 0, localFail = 0, localFb = 0;
 
-            while (true) {
+            while (!pass2Expired.load(std::memory_order_relaxed)) {
                 int idx = workIdx.fetch_add(1);
                 if (idx >= targets.size()) break;
                 auto* srv = targets[idx];
@@ -268,13 +272,26 @@ DiagnosticResult vpnStatus(DiagId id) {
                     QVector<double> measurements; measurements.reserve(2000);
                     QElapsedTimer srvTimer; srvTimer.start();
                     for (int i = 0; i < 2000; i++) {
-                        if (srvTimer.elapsed() > 3000) break;
+                        // 5WHY: srvTimer only checked AFTER tcpConnect returns.
+                        // With 2000ms timeout, elapsed can overshoot to ~4000ms.
+                        // Use remaining budget as connect timeout, and break
+                        // BEFORE calling tcpConnect if insufficient time remains.
+                        int elapsed = (int)srvTimer.elapsed();
+                        if (elapsed >= kPerServerBudget) break;
+
+                        int remaining = kPerServerBudget - elapsed;
+                        int connectTimeout = (remaining < kMinConnectTimeout)
+                            ? kMinConnectTimeout : qMin(remaining, 2000);
+
                         QElapsedTimer ct; ct.start();
-                        int sock = tcpConnect(srv->host, srv->port, 2000);
+                        int sock = tcpConnect(srv->host, srv->port, connectTimeout);
                         if (sock >= 0) {
                             measurements.append(ct.nsecsElapsed() / 1e6);
                             closeSocket(sock);
                         }
+                        // If connect timed out fully (sock < 0 and elapsed
+                        // jumped by ~connectTimeout), the next iteration will
+                        // check the remaining budget and likely break.
                     }
                     int m = measurements.size();
                     if (m >= 50) {
@@ -289,6 +306,10 @@ DiagnosticResult vpnStatus(DiagId id) {
                     localFb++;
                 }
                 if (lat >= 0) local[srv->country].append(lat);
+
+                // Global 45s cap — signal other threads to stop
+                if (pass2Timer.elapsed() > 45000)
+                    pass2Expired.store(true, std::memory_order_relaxed);
             }
 
             std::lock_guard<std::mutex> lock(resultMutex);
