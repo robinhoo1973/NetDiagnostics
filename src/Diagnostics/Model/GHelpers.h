@@ -69,14 +69,6 @@ static const char* tcpStateName(int st) {
 }
 #endif
 
-#if !defined(_WIN32)
-struct ProcNetConn {
-    QString localIp; int localPort;
-    QString remoteIp; int remotePort;
-    int state; uint32_t uid; bool isIPv6;
-};
-#endif
-
 // ── Shared URL parser — eliminates 5x duplicated parse logic ─────
 struct ParsedUrl { QString host; int port = 80; QString path; };
 inline ParsedUrl parseHttpUrl(const QString& urlStr) {
