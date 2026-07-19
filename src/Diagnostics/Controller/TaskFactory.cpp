@@ -8,8 +8,6 @@
 #include "Diagnostics/Model/G4/G4RemoteHost.h"
 #include "Diagnostics/Model/NetworkProbe.h"
 #include "Common/Utils/Logger.h"
-#include <QElapsedTimer>
-#include <QDateTime>
 // 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
 // 5WHY: G5Common.h opens namespace G5WebsiteUrl { without closing it (it
 // provides inline helper definitions used by multiple .cpp files). Each
@@ -206,7 +204,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
         case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
         case DiagId::G3GeoIPLoc:          return T1(G1G2G3Native::geoIPLoc);
-        case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
+        case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::internetConnectivity);
 
         // 閳光偓閳光偓 G4: Remote Host 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 #if defined(PLATFORM_IOS)

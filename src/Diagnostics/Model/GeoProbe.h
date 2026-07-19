@@ -1,5 +1,5 @@
 // =============================================================================
-// G2GeoProbe.h — Geographic Probe Engine
+// GeoProbe.h — Shared Geographic Probe Engine
 //
 // Multi-threaded TTFB-based geographic location detection.  Probes all
 // speed-test servers in the database, groups results by country and region,
@@ -106,8 +106,5 @@ private:
     BestServer selectBestServer(
         const QVector<ServerResult>& candidates, int rounds);
 };
-
-// ── Standalone diagnostics ────────────────────────────────────────
-DiagnosticResult internetConnectivity(DiagId id);
 
 } // namespace G1G2G3Native

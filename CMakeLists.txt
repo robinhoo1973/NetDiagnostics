@@ -59,12 +59,13 @@ set(SOURCES
     src/Diagnostics/Model/G2/G2TcpSettings.cpp
     src/Diagnostics/Model/G2/G2DefaultGateway.cpp
     src/Diagnostics/Model/G2/G2ProxySettings.cpp
-    src/Diagnostics/Model/G2/G2GeoProbe.cpp
+    src/Diagnostics/Model/GeoProbe.cpp
     src/Diagnostics/Model/G3/G3NetskopeStatus.cpp
     src/Diagnostics/Model/G3/G3DnsServers.cpp
     src/Diagnostics/Model/G3/G3DnsCache.cpp
     src/Diagnostics/Model/G3/G3DnsPollution.cpp
     src/Diagnostics/Model/G3/G3GeoIPLoc.cpp
+    src/Diagnostics/Model/G3/G3InternetConnectivity.cpp
     src/Diagnostics/Model/G3/G3InternetSpeedTest.cpp
     src/Diagnostics/Model/G4/G4DnsResolution.cpp
     src/Diagnostics/Model/G4/G4Ping.cpp

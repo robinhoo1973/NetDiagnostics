@@ -1,7 +1,7 @@
 // =============================================================================
-// G2GeoProbe.cpp — Geographic Probe Engine implementation
+// GeoProbe.cpp — Shared geographic probe engine (used by G3 diagnostics)
 // =============================================================================
-#include "Diagnostics/Model/G2/G2GeoProbe.h"
+#include "Diagnostics/Model/GeoProbe.h"
 #include "Common/Utils/NetUtil.h"
 #include <algorithm>
 #include <QSet>
@@ -105,13 +105,11 @@ GeoProbe::Result GeoProbe::probe(int maxTimeSec) {
     if (r.physicalCountry.isEmpty() && !r.countries.isEmpty())
         r.physicalCountry = r.countries[0].code;
 
-    // Round 2: top 5 globally by TTFB, 3-repeat CI selection
+    // Round 2: best server via multi-round CI selection
+    // selectBestServer internally sorts by TTFB, takes top 5, and runs CI probes
     QVector<ServerResult> allOk;
     for (auto& sr : results)
         if (sr.ok && sr.ttfbMs > 0) allOk.append(sr);
-    std::sort(allOk.begin(), allOk.end(),
-              [](const ServerResult& a, const ServerResult& b) { return a.ttfbMs < b.ttfbMs; });
-    if (allOk.size() > 5) allOk.resize(5);
     r.bestServer = selectBestServer(allOk, 3);
 
     r.durationSec = totalTimer.elapsed() / 1000.0;
@@ -130,23 +128,8 @@ GeoProbe::BestServer GeoProbe::pickBestInCountry(const QString& country, int rou
         sr.country = srv.country; sr.sponsor = srv.sponsor; sr.name = srv.name;
         sr.regions = regionTags(srv.country);
 
-        ParsedUrl pu = parseHttpUrl(srv.url);
-        QElapsedTimer t; t.start();
-        int sock = tcpConnect(pu.host, pu.port, 5000);
-        if (sock >= 0) {
-            sr.tcpMs = t.elapsed();
-            QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
-            QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                .arg(pu.path, dlHost).toUtf8();
-            ::send(sock, req.constData(), req.size(), 0);
-            fd_set fds; struct timeval tv = {5, 0};
-            FD_ZERO(&fds); FD_SET(sock, &fds);
-            if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
-                char b[1]; if (recv(sock, b, 1, 0) > 0) { sr.ttfbMs = t.elapsed(); sr.ok = true; }
-            }
-            closeSocket(sock);
-        }
-        candidates.append(sr);
+        double ttfb = httpTtfb(parseHttpUrl(srv.url));
+        if (ttfb >= 0) { sr.tcpMs = ttfb; sr.ttfbMs = ttfb; sr.ok = true; candidates.append(sr); }
     }
     return selectBestServer(candidates, rounds);
 }
@@ -163,23 +146,8 @@ GeoProbe::BestServer GeoProbe::pickBestInRegion(const QString& regionTag, int ro
         sr.country = srv.country; sr.sponsor = srv.sponsor; sr.name = srv.name;
         sr.regions = tags;
 
-        ParsedUrl pu = parseHttpUrl(srv.url);
-        QElapsedTimer t; t.start();
-        int sock = tcpConnect(pu.host, pu.port, 5000);
-        if (sock >= 0) {
-            sr.tcpMs = t.elapsed();
-            QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
-            QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                .arg(pu.path, dlHost).toUtf8();
-            ::send(sock, req.constData(), req.size(), 0);
-            fd_set fds; struct timeval tv = {5, 0};
-            FD_ZERO(&fds); FD_SET(sock, &fds);
-            if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
-                char b[1]; if (recv(sock, b, 1, 0) > 0) { sr.ttfbMs = t.elapsed(); sr.ok = true; }
-            }
-            closeSocket(sock);
-        }
-        candidates.append(sr);
+        double ttfb = httpTtfb(parseHttpUrl(srv.url));
+        if (ttfb >= 0) { sr.tcpMs = ttfb; sr.ttfbMs = ttfb; sr.ok = true; candidates.append(sr); }
     }
     return selectBestServer(candidates, rounds);
 }
@@ -218,26 +186,9 @@ QVector<GeoProbe::ServerResult> GeoProbe::probeAllServers(
                 // Re-check deadline before starting expensive network I/O
                 if (QDateTime::currentMSecsSinceEpoch() >= deadline.load(std::memory_order_acquire)) break;
 
-                double ttfb = -1.0, tcpMs = -1.0;
-                ParsedUrl pu = parseHttpUrl(srv.url);
-                QElapsedTimer pt; pt.start();
-                int sock = tcpConnect(pu.host, pu.port, 3000);
-                if (sock >= 0) {
-                    tcpMs = pt.elapsed();
-                    QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
-                    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                        .arg(pu.path, dlHost).toUtf8();
-                    ::send(sock, req.constData(), req.size(), 0);
-
-                    fd_set fds; struct timeval tv = {8, 0};
-                    FD_ZERO(&fds); FD_SET(sock, &fds);
-                    if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
-                        char b[1];
-                        if (recv(sock, b, 1, 0) > 0) { ttfb = pt.elapsed(); out.ok = true; }
-                    }
-                    closeSocket(sock);
-                }
-                out.tcpMs = tcpMs; out.ttfbMs = ttfb;
+                double ttfb = httpTtfb(parseHttpUrl(srv.url), 3000, 8);
+                if (ttfb >= 0) { out.tcpMs = ttfb; out.ttfbMs = ttfb; out.ok = true; }
+                else { out.tcpMs = -1.0; out.ttfbMs = -1.0; }
 
             }
         });
@@ -274,7 +225,6 @@ QVector<GeoProbe::RegionResult> GeoProbe::aggregateByRegion(
     const QVector<ServerResult>& results)
 {
     QMap<QString, QVector<double>> byRegion;
-    QSet<QString> countriesInRegion;
     // Use the first region tag (continent) for each server
     for (auto& sr : results) {
         if (!sr.ok || sr.ttfbMs <= 0) continue;
@@ -325,35 +275,27 @@ GeoProbe::BestServer GeoProbe::selectBestServer(
         measurements.reserve(rounds + 1);
         if (srv.ttfbMs > 0) measurements.append(srv.ttfbMs);
 
-        // Use host:port directly — already parsed from URL
+        // Repeated TTFB probes for CI estimation
         for (int r = 0; r < rounds; r++) {
-            QElapsedTimer t; t.start();
-            int sock = tcpConnect(srv.host, srv.port, 5000);
-            if (sock >= 0) {
-                QString dlHost = (srv.port != 80) ? QStringLiteral("%1:%2").arg(srv.host).arg(srv.port) : srv.host;
-                QByteArray req = QStringLiteral("GET / HTTP/1.0\r\nHost: %1\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                    .arg(dlHost).toUtf8();
-                ::send(sock, req.constData(), req.size(), 0);
-                fd_set fds; struct timeval tv = {5, 0};
-                FD_ZERO(&fds); FD_SET(sock, &fds);
-                if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
-                    char b[1];
-                    if (recv(sock, b, 1, 0) > 0) measurements.append(t.elapsed());
-                }
-                closeSocket(sock);
-            }
+            double ms = httpTtfb(srv.host, srv.port, QStringLiteral("/"), 5000, 5);
+            if (ms >= 0) measurements.append(ms);
         }
 
         if (measurements.size() >= 3) {
             double hl = hodgesLehmann(measurements);
-            double med = hl;
             QVector<double> absDev(measurements.size());
             for (int i = 0; i < measurements.size(); i++)
-                absDev[i] = std::abs(measurements[i] - med);
+                absDev[i] = std::abs(measurements[i] - hl);
             std::sort(absDev.begin(), absDev.end());
             double mad = (absDev.size() % 2 == 1) ? absDev[absDev.size()/2]
                          : (absDev[absDev.size()/2-1] + absDev[absDev.size()/2]) / 2.0;
-            double ci = 1.96 * 1.4826 * mad / std::sqrt((double)measurements.size());
+            // t-distribution 95% CI for small n (3-6 samples). z=1.96
+            // understates the CI width by 1.3-2.2x at these sample sizes.
+            // t_0.025,df for df=2..5; fallback z=1.96 for n>6.
+            static const double t95[] = {0, 0, 0, 4.30, 3.18, 2.78, 2.57};
+            int n = measurements.size();
+            double tval = (n <= 6) ? t95[n] : 1.96;
+            double ci = tval * 1.4826 * mad / std::sqrt((double)n);
             scored.append({srv, hl, ci});
         }
     }
@@ -377,81 +319,6 @@ GeoProbe::BestServer GeoProbe::selectBestServer(
     best.rounds = rounds + 1;
     best.valid = true;
     return best;
-}
-
-// ── internetConnectivity diagnostic ─────────────────────────────────
-DiagnosticResult internetConnectivity(DiagId id) {
-    DiagnosticResult r;
-    r.id = id; r.group = DiagGroup::G2;
-    r.timestamp = QDateTime::currentDateTime();
-    QElapsedTimer t; t.start();
-
-    GeoProbe probe;
-    GeoProbe::Result result = probe.probe(45);
-
-    QStringList out;
-    out.append(QStringLiteral("Internet Connectivity"));
-    out.append(QStringLiteral("Method: TTFB global probe → top 5 → 3-round CI → speed test"));
-    out.append(QString());
-
-    // ── Phase 1-2: Location ──
-    out.append(QStringLiteral("Physical location: %1").arg(result.physicalCountry));
-    out.append(QStringLiteral("Probed %1 servers, %2 reachable (%3s)")
-        .arg(result.totalServers).arg(result.totalOk).arg(result.durationSec, 0, 'f', 1));
-    out.append(QString());
-
-    // ── Phase 3: Top 5 servers ──
-    int shown = 0;
-    for (auto& cr : result.countries) {
-        for (auto& sr : cr.servers) {
-            if (shown >= 5) break;
-            out.append(QStringLiteral("  %1. %2 (%3) — %4ms")
-                .arg(shown + 1).arg(sr.sponsor).arg(cr.code).arg(sr.ttfbMs, 0, 'f', 1));
-            shown++;
-        }
-        if (shown >= 5) break;
-    }
-    out.append(QString());
-
-    // ── Phase 4: Best server with CI ──
-    if (result.bestServer.valid) {
-        out.append(QStringLiteral("Best server (%1): %2 — %3ms (95%CI ±%4ms, %5 rounds)")
-            .arg(result.physicalCountry).arg(result.bestServer.sponsor)
-            .arg(result.bestServer.ttfbMs, 0, 'f', 1)
-            .arg(result.bestServer.ttfbCI, 0, 'f', 1)
-            .arg(result.bestServer.rounds));
-    } else {
-        out.append(QStringLiteral("No reachable server in %1").arg(result.physicalCountry));
-        r.summary = QStringLiteral("Location: %1").arg(result.physicalCountry);
-        r.status = DiagStatus::Warning;
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.durationMs = t.elapsed(); return r;
-    }
-
-    // ── Phase 5: Speed test on best server ──
-    out.append(QString());
-    out.append(QStringLiteral("Running speed test on %1...").arg(result.bestServer.sponsor));
-    QString dlUrl = QStringLiteral("http://%1:%2/download?size=250000")
-        .arg(result.bestServer.host).arg(result.bestServer.port);
-    SpeedResult dl = httpDownload(dlUrl, 250000, 15000);
-    if (dl.ok && dl.mbps > 0.01) {
-        out.append(QStringLiteral("  Download: %1 Mbps (%2 bytes in %3ms)")
-            .arg(dl.mbps, 0, 'f', 1).arg(dl.bytes).arg(dl.durationMs));
-        r.summary = QStringLiteral("Connected — %1 (%2ms, %3 Mbps)")
-            .arg(result.physicalCountry).arg(result.bestServer.ttfbMs, 0, 'f', 0)
-            .arg(dl.mbps, 0, 'f', 1);
-        r.status = DiagStatus::Pass;
-    } else {
-        out.append(QStringLiteral("  Speed test failed — server unreachable for download"));
-        r.summary = QStringLiteral("Connected — %1 (%2ms, speed N/A)")
-            .arg(result.physicalCountry).arg(result.bestServer.ttfbMs, 0, 'f', 0);
-        r.status = DiagStatus::Warning;
-    }
-
-    r.rawOutput = out.join('\n');
-    r.details = r.rawOutput;
-    r.durationMs = t.elapsed();
-    return r;
 }
 
 } // namespace G1G2G3Native

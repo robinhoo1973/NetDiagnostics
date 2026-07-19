@@ -3,21 +3,20 @@
 #include <QMutex>
 #include <QMutexLocker>
 namespace G1G2G3Native {
+
+// ── Host header with RFC 7230 §5.4 port inclusion ──────────────────
+static QString hostHeader(const QString& host, int port) {
+    return (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
+}
+
 // HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
     SpeedResult r = {0, 0, 0, false};
-    // Parse URL -- host, port, path
-    QString u = urlStr;
-    if (!u.startsWith("http://")) return r;
-    u = u.mid(7); // strip "http://"
-    auto slash = u.indexOf('/');
-    QString hostPort = (slash > 0) ? u.left(slash) : u;
-    QString path = (slash > 0) ? u.mid(slash) : "/";
-
-    QString host = hostPort; int port = 80;
-    auto colon = hostPort.lastIndexOf(':');
-    if (colon > 0) { host = hostPort.left(colon); port = hostPort.mid(colon + 1).toInt(); }
+    ParsedUrl pu = parseHttpUrl(urlStr);
+    if (pu.host.isEmpty()) return r;
+    QString host = pu.host; int port = pu.port;
+    QString path = pu.path;
 
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
@@ -28,9 +27,8 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     // 5WHY: Host header omitted port — same bug that was fixed in httpGet()
     // (see above). Speed-test servers on port 8080 behind reverse proxies
     // may route incorrectly without the explicit port per RFC 7230 §5.4.
-    QString dlHostHeader = (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
-        .arg(path, dlHostHeader).toUtf8();
+        .arg(path, hostHeader(host, port)).toUtf8();
     int reqSent = 0;
     QElapsedTimer sendGuard; sendGuard.start();
     while (reqSent < req.size()) {
@@ -146,69 +144,53 @@ int tcpPingMs(const QString& host, int port) {
     return ms;
 }
 
-// ── TCP ping with 50x averaging for sub-ms differentiation ──
-// 5WHY: single tcpPingMs() can't differentiate servers with ≤1ms RTT
-// (timer resolution limit).  Running 50 connects and averaging gives
-// ~0.02ms effective resolution — enough to rank nearby servers.
-// 5WHY: Simple average is sensitive to outliers — a single 50ms spike
-// among 49 sub-ms measurements inflates the mean by ~1ms.  Now uses a
-// 10% trimmed mean: discard the fastest and slowest 10% of measurements,
-// average the middle 80%.  Eliminates outlier distortion at zero cost.
-// 5WHY: First call verifies reachability; if single latency > 1ms, return
-// directly (already differentiated).  If ≤ 1ms, run 49 more (50 total).
-double tcpPingAvg(const QString& host, int port) {
-    // Local cache with 120s TTL — single caller (speedTest), single thread.
-    static QMap<QString, double> sCache;
-    static qint64 sCacheTs = 0;
-    QString cacheKey = QStringLiteral("%1:%2").arg(host).arg(port);
-    qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (now - sCacheTs > 120000) { sCache.clear(); sCacheTs = now; }
-    auto it = sCache.constFind(cacheKey);
-    if (it != sCache.cend()) return *it;
-
-    double result = -1.0;
-    int first = tcpPingMs(host, port);
-    // 5WHY: tcpPingMs returns elapsed ms truncated to int — a 950μs
-    // connect returns 0 (not -1).  first < 0 means true failure (timeout
-    // or SO_ERROR).  first == 0 means "success at <1ms" — those need the
-    // 50x averaging even more than first==1 servers.
-    if (first < 0) { result = -1.0; }
-    else if (first > 1) { result = (double)first; }
-    else {
-        // Sub-ms region: run 50 total connects, trimmed mean of middle 80%.
-        // 5WHY: The first connect (tcpPingMs above) returns int-ms resolution.
-        // When sub-ms precision is needed, we re-measure all 50 connects with
-        // nsecsElapsed() in microseconds.  The first measurement is discarded
-        // — one wasted connect (~2ms) is negligible vs. the 50-connect loop.
-        QVector<long long> measurements;
-        measurements.reserve(50);
-        for (int i = 0; i < 50; i++) {
-            QElapsedTimer t; t.start();
-            int sock = tcpConnect(host, port, 2000);
-            if (sock >= 0) {
-                measurements.append(t.nsecsElapsed() / 1000); // microseconds
-                closeSocket(sock);
-            }
+// HTTP TTFB probe — TCP connect + HTTP GET → time to first byte.
+// Returns ms (including TCP handshake), or -1.0 on failure.
+// Shared by GeoProbe (probeAllServers, selectBestServer, pickBestInCountry,
+// pickBestInRegion) and geoIPLoc Pass 2.
+double httpTtfb(const QString& host, int port, const QString& path,
+                int connectTimeoutMs, int readTimeoutSec) {
+    if (host.isEmpty()) return -1.0;  // guard against malformed URLs
+    QElapsedTimer t; t.start();
+    int sock = tcpConnect(host, port, connectTimeoutMs);
+    if (sock < 0) return -1.0;
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
+        .arg(path, hostHeader(host, port)).toUtf8();
+    // EAGAIN-safe send loop — socket is non-blocking (set by tcpConnect)
+    // 5WHY: retried on ALL n<0 including ECONNRESET/EPIPE, causing 10s stalls.
+    // Now only retries on EAGAIN/EWOULDBLOCK (transient buffer-full), matching
+    // httpDownload's guard (lines 39-41).
+    int sent = 0; int sendAttempts = 0;
+    while (sent < req.size() && sendAttempts < 100) {
+        int n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
+        if (n > 0) { sent += n; sendAttempts = 0; }
+        else if (n < 0) {
+#if defined(_WIN32)
+            int e = WSAGetLastError();
+            if (e != WSAEWOULDBLOCK) break; // fatal error
+#else
+            if (errno != EAGAIN && errno != EWOULDBLOCK) break;
+#endif
+            fd_set wfds; struct timeval wtv = {0, 100000};
+            FD_ZERO(&wfds); FD_SET(sock, &wfds);
+            if (select(sock + 1, nullptr, &wfds, nullptr, &wtv) <= 0) break;
+            sendAttempts++;
         }
-        int M = measurements.size();
-        if (M >= 10) {
-            // 10% trimmed mean: discard fastest and slowest 10%
-            std::sort(measurements.begin(), measurements.end());
-            int trim = M / 10; // 10% from each tail
-            long long total = 0;
-            for (int i = trim; i < M - trim; i++)
-                total += measurements[i];
-            result = (total / (double)(M - 2 * trim)) / 1000.0; // ms
-        } else if (M > 0) {
-            // Too few for trimming, use simple average
-            long long total = 0;
-            for (auto us : measurements) total += us;
-            result = (total / (double)M) / 1000.0;
-        }
+        else break; // n == 0: connection closed
     }
+    // 5WHY: incomplete send fell through to read-select, wasting readTimeoutSec.
+    // Server never received full request → cannot respond → early return.
+    if (sent < req.size()) { closeSocket(sock); return -1.0; }
 
-    sCache[cacheKey] = result;
-    return result;
+    fd_set fds; struct timeval tv = {readTimeoutSec, 0};
+    FD_ZERO(&fds); FD_SET(sock, &fds);
+    double ttfb = -1.0;
+    if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
+        char b[1];
+        if (recv(sock, b, 1, 0) > 0) ttfb = t.elapsed();
+    }
+    closeSocket(sock);
+    return ttfb;
 }
 
-}
+} // namespace G1G2G3Native

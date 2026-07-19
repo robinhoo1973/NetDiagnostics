@@ -2,7 +2,6 @@
 #include "Diagnostics/Model/GHelpers.h"
 #include <algorithm>
 #include <cmath>
-#include <QSet>
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -131,22 +130,22 @@ static double exactPermutationPValue(const QVector<double>& combined,
 // δ = P(X>Y) − P(X<Y) = 1 − 2U/(nA·nB), range [-1, +1]
 // Benchmarks: |δ|<0.15 negligible, 0.15 small, 0.33 medium, 0.47 large
 static double cliffDelta(double U, int nA, int nB) {
-    return 1.0 - 2.0 * U / (nA * nB);
+    return 1.0 - 2.0 * U / (static_cast<double>(nA) * nB);
 }
 
-// ── VPN Status Detection — HL + Exact Permutation + Cliff's Delta ────
+// ── IP Geolocation & VPN Detection — HL + Exact Permutation + Cliff's Delta ────
 // Compares GeoIP country (A) with the country having lowest
 // Hodges-Lehmann latency (B).  If A != B with p < 0.05 + |δ| ≥ 0.33
 // → VPN detected.
 //
 // Algorithm:
-//   1a. TCP quick-scan ALL servers → per-country reachability
-//   1b. HTTP 100KB micro-download on candidate countries (≥3 reachable)
-//   2. Per country: Hodges-Lehmann robust estimator
-//   3. Country B = lowest HL estimate (N≥5 required)
-//   4. Exact permutation test (enum C(N,nA) splits) → exact p-value
-//   5. Cliff's Delta effect size: δ = 1−2U/(nA·nB)
-//   6. Decision: p<0.05 + |δ|≥0.33 → VPN; p<0.05 + |δ|<0.33 → possible; |δ|≥0.33 → suspected
+//   1. GeoIP detection via external service
+//   2. Uniform TTFB probe on ALL servers (10-thread parallel, no pre-scan)
+//   3. Per country: Hodges-Lehmann robust estimator (N≥3 required)
+//   4. Country B = lowest HL estimate among countries with N≥3
+//   5. Exact permutation test (enum C(N,nA) splits, N≤20) → exact p-value
+//   6. Cliff's Delta effect size: δ = 1−2U/(nA·nB)
+//   7. Decision: p<0.05 + |δ|≥0.33 → VPN; p<0.05 + |δ|<0.33 → possible; |δ|≥0.33 → suspected
 
 DiagnosticResult geoIPLoc(DiagId id) {
     DiagnosticResult r;
@@ -155,7 +154,11 @@ DiagnosticResult geoIPLoc(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
     out.append(QStringLiteral("IP Geolocation & VPN Detection"));
-    out.append(QStringLiteral("Method: HTTP probe + statistical comparison of %1 global servers").arg(SpeedTest().allServers().size()));
+
+    // ── Step 0: Load server database ─────────────────────────────
+    SpeedTest st;
+    QVector<SpeedTest::Server> allServers = st.allServers();
+    out.append(QStringLiteral("Method: HTTP probe + statistical comparison of %1 global servers").arg(allServers.size()));
     out.append(QString());
 
     // ── Step 1: GeoIP ─────────────────────────────────────────────
@@ -163,112 +166,56 @@ DiagnosticResult geoIPLoc(DiagId id) {
     QString countryA = SpeedTest::detectCountry(3000);
     out.append(QStringLiteral("GeoIP location: %1").arg(countryName(countryA)));
 
-    // ── Step 2: Two-pass probe ──────────────────────────────────────
-    // Pass 1 (Quick Scan): single tcpPingMs per server (~2ms each).
-    //   Determines which countries have reachable servers so Pass 2
-    //   can focus expensive multi-round probing on candidates only.
-    // Pass 2 (Focused Detail): 100KB HTTP download on candidate-country
-    //   on candidate-country servers.  44s wall-clock cap.
-    SpeedTest st;
-    QVector<SpeedTest::Server> allServers = st.allServers();
-    out.append(QStringLiteral("Probing %1 servers (two-pass: quick scan + focused multi-round)...")
+    // ── Step 2: Uniform TTFB probe — 10-thread parallel ────────────
+    // HTTP GET → time to first byte for ALL servers directly.
+    // No TCP pre-scan — matches GeoProbe::probeAllServers semantics.
+    out.append(QStringLiteral("Probing %1 servers (TTFB, 10-thread parallel)...")
         .arg(allServers.size()));
 
-    // ── Pass 1: Quick scan ──────────────────────────────────────
-    QMap<QString, int> reachableCount;
-    QVector<SpeedTest::Server*> targets;
-    targets.reserve(allServers.size());
-
-    for (auto& s : allServers) {
-        int ms = tcpPingMs(s.host, s.port);
-        if (ms >= 0) {
-            reachableCount[s.country]++;
-            targets.append(&s);
-        }
-    }
-    out.append(QStringLiteral("[Phase 2/5] Quick scan complete — %1 servers reachable").arg(targets.size()));
-
-    // Candidate countries: ≥3 reachable servers (enough for bootstrap + Wilcoxon)
-    QSet<QString> candidates;
-    for (auto it = reachableCount.begin(); it != reachableCount.end(); ++it)
-        if (it.value() >= 2) candidates.insert(it.key());
-
-    out.append(QStringLiteral("  Quick scan: %1/%2 reachable, %3 candidate countries (≥3 reachable)")
-        .arg(targets.size()).arg(allServers.size()).arg(candidates.size()));
-
-    // Sort: candidate-country servers first → probed before time cap
-    std::sort(targets.begin(), targets.end(),
-        [&](SpeedTest::Server* a, SpeedTest::Server* b) {
-            int ca = reachableCount.value(a->country, 0);
-            int cb = reachableCount.value(b->country, 0);
-            if (ca != cb) return ca > cb;       // more reachable first
-            return a->country < b->country;     // tie-break
-        });
-
-    // ── Pass 2: Lightweight TTFB probe — 10-thread parallel ────────
-    // TCP connect + HTTP GET → time to first byte.  No body download.
-    // Fast (~0.2-2s per server) while still traversing full network path.
     QMap<QString, QVector<double>> byCountry;
-    std::atomic<int> ttfOk{0}, ttfFail{0}, quickFb{0};
+    std::atomic<int> ttfOk{0}, ttfFail{0};
     std::atomic<int> workIdx{0};
-    std::atomic<bool> pass2Expired{false};
+    std::atomic<bool> probeExpired{false};
     std::mutex resultMutex;
-    QElapsedTimer pass2Timer; pass2Timer.start();
+    // Use atomic deadline instead of QElapsedTimer to avoid data race
+    // across 10 threads (ARM64 may tear QElapsedTimer's internal fields).
+    qint64 probeStartMs = QDateTime::currentMSecsSinceEpoch();
+    std::atomic<qint64> probeDeadline{probeStartMs + 45000};
 
     const int kThreads = 10;
     std::vector<std::thread> threads;
     threads.reserve(kThreads);
+    int totalServers = allServers.size();
 
     for (int t = 0; t < kThreads; t++) {
         threads.emplace_back([&]() {
             QMap<QString, QVector<double>> local;
-            int localOk = 0, localFail = 0, localFb = 0;
+            int localOk = 0, localFail = 0;
 
-            while (!pass2Expired.load(std::memory_order_relaxed)) {
+            while (!probeExpired.load(std::memory_order_relaxed)) {
                 int idx = workIdx.fetch_add(1);
-                if (idx >= targets.size()) break;
-                auto* srv = targets[idx];
+                if (idx >= totalServers) break;
+                auto& srv = allServers[idx];
 
-                double lat = -1.0;
-                if (candidates.contains(srv->country)) {
-                    ParsedUrl pu = parseHttpUrl(srv->url);
-                    QElapsedTimer pt; pt.start();
-                    int sock = tcpConnect(pu.host, pu.port, 5000);
-                    if (sock >= 0) {
-                        QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
-                        QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                            .arg(pu.path, dlHost).toUtf8();
-                        ::send(sock, req.constData(), req.size(), 0);
-                        fd_set fds; struct timeval tv = {5, 0};
-                        FD_ZERO(&fds); FD_SET(sock, &fds);
-                        if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
-                            char b[1];
-                            if (recv(sock, b, 1, 0) > 0) { lat = pt.elapsed(); localOk++; }
-                        }
-                        closeSocket(sock);
-                    }
-                    if (lat < 0) localFail++;
-                } else {
-                    lat = (double)tcpPingMs(srv->host, srv->port);
-                    localFb++;
-                }
-                if (lat >= 0) local[srv->country].append(lat);
+                double lat = httpTtfb(parseHttpUrl(srv.url));
+                if (lat >= 0) { localOk++; local[srv.country].append(lat); }
+                else { localFail++; }
 
-                if (pass2Timer.elapsed() > 45000)
-                    pass2Expired.store(true, std::memory_order_relaxed);
+                if (QDateTime::currentMSecsSinceEpoch() >= probeDeadline.load(std::memory_order_acquire))
+                    probeExpired.store(true, std::memory_order_relaxed);
             }
 
             std::lock_guard<std::mutex> lock(resultMutex);
             for (auto it = local.begin(); it != local.end(); ++it)
                 byCountry[it.key()] += it.value();
-            ttfOk += localOk; ttfFail += localFail; quickFb += localFb;
+            ttfOk += localOk; ttfFail += localFail;
         });
     }
     for (auto& t : threads) t.join();
 
-    out.append(QStringLiteral("  TTFB probe (10 threads): %1 ok, %2 failed, %3 quick-fb")
-        .arg(ttfOk.load()).arg(ttfFail.load()).arg(quickFb.load()));
-    out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
+    out.append(QStringLiteral("[Phase 2/5] TTFB probe complete — %1 ok, %2 failed")
+        .arg(ttfOk.load()).arg(ttfFail.load()));
+    out.append(QStringLiteral("  Countries with samples: %1").arg(byCountry.size()));
     out.append(QStringLiteral("[Phase 3/5] Computing per-country HL estimates..."));
 
     // ── Step 3: Per-country statistics ─────────────────────────────
@@ -311,8 +258,8 @@ DiagnosticResult geoIPLoc(DiagId id) {
                 out.append(QStringLiteral("  Physical location (lowest latency) → %1 (HL %2ms, N=%3)")
                     .arg(countryName(countryB)).arg(fallbackMedian, 0, 'f', 1).arg(fallbackN));
                 out.append(QStringLiteral("  GeoIP location → %1").arg(countryName(countryA)));
-                out.append(QStringLiteral("  Total reachable: %1 servers across %2 countries — need ≥3 per country for bootstrap")
-                    .arg(targets.size()).arg(byCountry.size()));
+                out.append(QStringLiteral("  Total probed: %1 servers, %2 with data across %3 countries — need ≥3 per country")
+                    .arg(allServers.size()).arg(ttfOk.load()).arg(byCountry.size()));
 
                 if (countryA == QStringLiteral("XX")) {
                     out.append(QStringLiteral("  Status: location estimated as %1").arg(countryName(countryB)));
@@ -322,6 +269,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
                     out.append(QStringLiteral("  %1 == %2 → likely No VPN (low confidence)")
                         .arg(countryName(countryA), countryName(countryB)));
                     r.summary = QStringLiteral("No VPN");
+                    r.status = DiagStatus::Pass;
                 } else {
                     out.append(QStringLiteral("  %1 != %2 → possible VPN (low confidence — cannot test significance)")
                         .arg(countryName(countryA), countryName(countryB)));
@@ -356,10 +304,8 @@ DiagnosticResult geoIPLoc(DiagId id) {
     }
 
     // ── Step 4: Find country B ─────────────────────────────────────
+    // stats already filtered to N≥3 (line 280) — first entry is best
     CountryStats best = stats[0];
-    for (auto& s : stats) {
-        if (s.N >= 3) { best = s; break; }
-    }
     QString countryB = best.code;
 
     out.append(QStringLiteral("[Phase 4/5] Running exact permutation test..."));
@@ -374,7 +320,9 @@ DiagnosticResult geoIPLoc(DiagId id) {
             // a VPN signal.  If you claim to be in Japan but no Japanese
             // server responds, that's suspicious.  Flag it don't ignore it.
             geoipUnreachable = true;
-        } else if (byCountry.contains(countryB)) {
+        } else {
+        // countryB is guaranteed in byCountry (derived from stats, which
+        // are built from byCountry entries; empty stats handled above)
         auto& sA = byCountry[countryA];
         auto& sB = byCountry[countryB];
         int nA = sA.size(), nB = sB.size();
@@ -387,7 +335,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
             delta = cliffDelta(U, nA, nB);
 
             // Precompute combined + |U-μ| once, reuse in exact test
-            double mu = nA * nB / 2.0;
+            double mu = static_cast<double>(nA) * nB / 2.0;
             double obsDev = std::abs(U - mu);
             int N = nA + nB;
             QVector<double> combined; combined.reserve(N);
@@ -404,13 +352,13 @@ DiagnosticResult geoIPLoc(DiagId id) {
                     if (i < N && combined[i] == combined[i-1]) { tieRun++; }
                     else { if (tieRun > 1) { double t = tieRun; tieCorr += t*t*t - t; } tieRun = 1; }
                 }
-                double sigma = std::sqrt((nA * nB / 12.0) * ((N + 1) - tieCorr / (N * (N - 1))));
+                double sigma = std::sqrt((static_cast<double>(nA) * nB / 12.0) * ((N + 1) - tieCorr / (N * (N - 1))));
                 double z = (U - mu) / (sigma + 0.001);
                 pValue = 2.0 * (1.0 - 0.5 * (1.0 + std::erf(std::abs(z) / std::sqrt(2.0))));
             }
             significant = (pValue < 0.05);
         }
-        } // else if (byCountry.contains(countryB))
+        } // else: countryA in byCountry
     }
 
     out.append(QStringLiteral("[Phase 5/5] Final decision..."));
@@ -428,59 +376,56 @@ DiagnosticResult geoIPLoc(DiagId id) {
 
     // ── Status mapping ──────────────────────────────────────────
     // Pass:    both locations available + match → no VPN
-    // Warning: only ONE location identified (GeoIP OR physical)
+    // Warning: GeoIP unavailable (location estimated) OR GeoIP-country
+    //          servers unreachable (suspicious — if you were there they'd respond)
     // Info:    both available + VPN detected/possible/suspected
     // Fail:    both unavailable or no servers reachable
-    QString scenario;
     DiagStatus status = DiagStatus::Pass;
+    bool vpnDetected = false;
+    // Cache country names — called 10+ times across branches
+    const QString nameA = countryName(countryA);
+    const QString nameB = countryName(countryB);
 
     if (countryA == QStringLiteral("XX")) {
-        out.append(QStringLiteral("  Location Status: GeoIP unavailable — estimated as %1")
-            .arg(countryName(countryB)));
-        scenario = QStringLiteral("Location estimated as %1").arg(countryName(countryB));
+        out.append(QStringLiteral("  Location Status: GeoIP unavailable — estimated as %1").arg(nameB));
+        r.summary = QStringLiteral("Location: %1").arg(nameB);
         status = DiagStatus::Warning;
     } else if (countryA == countryB) {
         out.append(QStringLiteral("  VPN Status: No VPN — GeoIP matches physical location"));
-        scenario = QStringLiteral("No VPN (%1)").arg(countryName(countryA));
+        r.summary = QStringLiteral("IP: %1").arg(nameA);
     } else if (geoipUnreachable) {
         out.append(QStringLiteral("  Location Status: %1 (GeoIP) servers unreachable — physical location uncertain")
-            .arg(countryName(countryA)));
-        scenario = QStringLiteral("VPN likely (%1 unreachable)").arg(countryName(countryA));
+            .arg(nameA));
+        r.summary = QStringLiteral("GeoIP %1 vs %2 (VPN possible)").arg(nameA, nameB);
         status = DiagStatus::Warning;
     } else if (significant && absDelta >= 0.33) {
         out.append(QStringLiteral("  VPN Status: VPN detected — %1 → %2 (p=%3, δ=%4)")
-            .arg(countryName(countryA), countryName(countryB))
-            .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        scenario = QStringLiteral("VPN detected (%1 → %2, δ=%3)")
-            .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
+            .arg(nameA, nameB).arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
+        r.summary = QStringLiteral("GeoIP %1 → Physical %2 (VPN)").arg(nameA, nameB);
         status = DiagStatus::Info;
+        vpnDetected = true;
     } else if (significant && absDelta < 0.33) {
         out.append(QStringLiteral("  VPN Status: VPN likely — %1 → %2 (p=%3, δ=%4 small)")
-            .arg(countryName(countryA), countryName(countryB))
-            .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        scenario = QStringLiteral("VPN possible (%1 → %2, p<0.05, δ=%3)")
-            .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
+            .arg(nameA, nameB).arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
+        r.summary = QStringLiteral("GeoIP %1 vs %2 (VPN possible)").arg(nameA, nameB);
         status = DiagStatus::Info;
     } else if (!significant && absDelta >= 0.33) {
         out.append(QStringLiteral("  VPN Status: VPN suspected — %1 → %2 (p=%3 ≥ 0.05, δ=%4 medium)")
-            .arg(countryName(countryA), countryName(countryB))
-            .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        scenario = QStringLiteral("VPN suspected (%1 → %2, p≥0.05, δ=%3)")
-            .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
+            .arg(nameA, nameB).arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
+        r.summary = QStringLiteral("GeoIP %1 vs %2 (VPN possible)").arg(nameA, nameB);
         status = DiagStatus::Info;
     } else {
         out.append(QStringLiteral("  VPN Status: VPN possible — %1 (GeoIP) ≠ %2 (physical)")
-            .arg(countryName(countryA), countryName(countryB)));
+            .arg(nameA, nameB));
         out.append(QStringLiteral("    GeoIP and latency disagree but statistics inconclusive (p=%1, δ=%2).")
             .arg(pValue, 0, 'f', 3).arg(delta, 0, 'f', 2));
-        scenario = QStringLiteral("VPN possible (%1 → %2)")
-            .arg(countryName(countryA), countryName(countryB));
+        r.summary = QStringLiteral("GeoIP %1 vs %2 (VPN possible)").arg(nameA, nameB);
         status = DiagStatus::Info;
     }
 
     // Structured properties for the detail overlay (UX)
-    r.properties.append(ResultProperty("GeoIP location", countryName(countryA)));
-    r.properties.append(ResultProperty("Physical location", countryName(countryB)));
+    r.properties.append(ResultProperty("GeoIP location", nameA));
+    r.properties.append(ResultProperty("Physical location", nameB));
     r.properties.append(ResultProperty("Latency (HL)", QStringLiteral("%1 ms").arg(best.hl, 0, 'f', 1)));
     r.properties.append(ResultProperty("Samples", QString::number(best.N)));
     if (pValue < 1.0) {
@@ -492,26 +437,18 @@ DiagnosticResult geoIPLoc(DiagId id) {
 
     // Add visual callout for reports
     if (status == DiagStatus::Info) {
-        out.prepend(QStringLiteral("VPN DETECTED — GeoIP ≠ Physical Location"));
-        out.prepend(QString());
+        if (vpnDetected)
+            out.prepend(QStringLiteral("⚠️  VPN DETECTED — GeoIP ≠ Physical Location  ⚠️"));
+        else
+            out.prepend(QStringLiteral("VPN INDICATED — GeoIP ≠ Physical Location (inconclusive)"));
     } else if (status == DiagStatus::Warning) {
         out.prepend(QStringLiteral("⚠️  LOCATION UNCERTAIN — only one source available  ⚠️"));
-        out.prepend(QString());
     }
+    if (status == DiagStatus::Info || status == DiagStatus::Warning)
+        out.prepend(QString());
+
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
-    if (scenario.startsWith(QStringLiteral("No VPN")))
-        r.summary = QStringLiteral("IP: %1").arg(countryName(countryA));
-    else if (scenario.startsWith(QStringLiteral("VPN detected")))
-        r.summary = QStringLiteral("GeoIP %1 → Physical %2 (VPN)")
-            .arg(countryName(countryA), countryName(countryB));
-    else if (scenario.startsWith(QStringLiteral("VPN possible"))
-             || scenario.startsWith(QStringLiteral("VPN likely"))
-             || scenario.startsWith(QStringLiteral("VPN suspected")))
-        r.summary = QStringLiteral("GeoIP %1 vs %2 (VPN possible)")
-            .arg(countryName(countryA), countryName(countryB));
-    else
-        r.summary = QStringLiteral("Location: %1").arg(countryName(countryB));
     r.status = status;
     r.durationMs = t.elapsed();
     return r;
