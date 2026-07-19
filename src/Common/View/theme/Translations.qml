@@ -180,13 +180,6 @@ Item {
             17: t("DNS Pollution", "Pollution DNS", "DNS-Verschmutzung", "Загрязнение DNS", "Inquinamento DNS", "DNS污染", "DNS污染", "Contaminación DNS", "Poluição DNS"),
             18: t("IP Geolocation", "Géolocalisation IP", "IP-Geolokalisierung", "IP Геолокация", "Geolocalizzazione IP", "IP地理定位", "IP地理定位", "Geolocalización IP", "Geolocalização IP"),
             19: t("Internet Connectivity & Speed", "Connectivité et débit", "Internet & Geschwindigkeit", "Интернет и скорость", "Connettività e velocità", "互联网连接与速度", "網際網路連線與速度", "Conectividad y velocidad de Internet", "Conectividade e velocidade da Internet"),
-
-            // ── VPN detection result strings ──
-            readonly property string vpnNo: t("No VPN", "Aucun VPN", "Kein VPN", "Нет VPN", "Nessun VPN", "无VPN", "無VPN", "Sin VPN", "Sem VPN"),
-            readonly property string vpnDetected: t("VPN detected", "VPN détecté", "VPN erkannt", "VPN обнаружен", "VPN rilevata", "检测到VPN", "檢測到VPN", "VPN detectada", "VPN detectada"),
-            readonly property string vpnPossible: t("VPN possible", "VPN possible", "VPN möglich", "VPN возможен", "VPN possibile", "可能VPN", "可能VPN", "VPN posible", "VPN possível"),
-            readonly property string vpnLocationEst: t("Location est.", "Position est.", "Standort gesch.", "Место опред.", "Posizione stim.", "估计位置", "估計位置", "Ubicación est.", "Localização est."),
-            readonly property string vpnNoData: t("No data", "Aucune donnée", "Keine Daten", "Нет данных", "Nessun dato", "无数据", "無數據", "Sin datos", "Sem dados"),
             20: t("DNS Resolution", "Résolution DNS", "DNS-Auflösung", "DNS разрешение", "Risoluzione DNS", "DNS解析", "DNS解析", "Resolución DNS", "Resolução DNS"),
             21: t("Ping", "Ping", "Ping", "Пинг", "Ping", "Ping", "Ping", "Ping", "Ping"),
             22: t("Traceroute", "Traceroute", "Traceroute", "Трассировка", "Traceroute", "路由追踪", "路由追蹤", "Traceroute", "Traceroute"),
@@ -268,6 +261,13 @@ Item {
         return typeof descs[id] === 'string' ? descs[id] : ""
     }
 
+
+    // ── VPN/IP Geolocation result strings ──
+    readonly property string vpnNo: t("No VPN", "Aucun VPN", "Kein VPN", "Нет VPN", "Nessun VPN", "无VPN", "無VPN", "Sin VPN", "Sem VPN")
+    readonly property string vpnDetected: t("VPN detected", "VPN détecté", "VPN erkannt", "VPN обнаружен", "VPN rilevata", "检测到VPN", "檢測到VPN", "VPN detectada", "VPN detectada")
+    readonly property string vpnPossible: t("VPN possible", "VPN possible", "VPN möglich", "VPN возможен", "VPN possibile", "可能VPN", "可能VPN", "VPN posible", "VPN possível")
+    readonly property string vpnLocationEst: t("Location est.", "Position est.", "Standort gesch.", "Место опред.", "Posizione stim.", "估计位置", "估計位置", "Ubicación est.", "Localização est.")
+    readonly property string vpnNoData: t("No data", "Aucune donnée", "Keine Daten", "Нет данных", "Nessun dato", "无数据", "無數據", "Sin datos", "Sem dados")
     // ── Dashboard summary + common labels ──
     // 5WHY: totalDiags/totalTime/completed were duplicated as
     // totalDiagsLabel/totalTimeLabel/completedLabel with
