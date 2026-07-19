@@ -231,28 +231,22 @@ DiagnosticResult vpnStatus(DiagId id) {
             return a->country < b->country;     // tie-break
         });
 
-    // ── Pass 2: TCP 2000-connect probe — 10-thread parallel ────────
-    // 5WHY: Serial probing spends 90% of time waiting for SYN-ACK.
-    // 10 threads probe different servers concurrently, compressing
-    // wall-clock time from ~90s to ~10s.  No shared mutable state
-    // between threads — each has its own socket fd and local result
-    // map.  Atomic work-queue index eliminates mutex contention.
-    //
-    // Stability: TCP connect uses independent kernel sockets per
-    // thread.  DNS cache (DnsResolver) is mutex-protected.  No
-    // shared file descriptors.  Concurrent connects may slightly
-    // inflate latency due to bandwidth competition — but this is
-    // actually desirable: it measures VPN tunnel behavior under
-    // realistic concurrent load.
+    // ── Pass 2: TCP multi-connect probe — 10-thread parallel ────────
+    // 5WHY: Fixed-count successful connects (not time-budget) ensures
+    // consistent statistical quality: every server contributes exactly
+    // kTargetSuccesses measurements (or times out trying).  Eliminates
+    // survivorship bias where distant servers contribute only a few
+    // fast outliers while local servers contribute hundreds.
     QMap<QString, QVector<double>> byCountry;
     std::atomic<int> tcpOk{0}, tcpFail{0}, quickFb{0};
     std::atomic<int> workIdx{0};
-    std::atomic<bool> pass2Expired{false}; // global 45s cap
+    std::atomic<bool> pass2Expired{false};
     std::mutex resultMutex;
     QElapsedTimer pass2Timer; pass2Timer.start();
 
     const int kThreads = 10;
-    const int kPerServerBudget = 3000;  // 3s max per server
+    const int kTargetSuccesses = 100;  // target successful connects per server
+    const int kMaxTimePerServer = 8000; // 8s hard cap per server
     std::vector<std::thread> threads;
     threads.reserve(kThreads);
 
@@ -268,35 +262,33 @@ DiagnosticResult vpnStatus(DiagId id) {
 
                 double lat = -1.0;
                 if (candidates.contains(srv->country)) {
-                    // 5WHY: 3s hard cap per server.  Connect as many times
-                    // as possible within the budget.  If < 5 succeed, the
-                    // server is effectively unreachable — mark failed.
-                    QVector<double> measurements; measurements.reserve(2000);
+                    QVector<double> measurements;
+                    measurements.reserve(kTargetSuccesses);
                     QElapsedTimer srvTimer; srvTimer.start();
+                    int attempts = 0, successes = 0;
 
-                    for (int i = 0; i < 2000; i++) {
+                    while (successes < kTargetSuccesses) {
                         int elapsed = (int)srvTimer.elapsed();
-                        if (elapsed >= kPerServerBudget) break;
-                        // Use remaining budget as connect timeout, floor 200ms
-                        int timeout = qMin(kPerServerBudget - elapsed, 2000);
-                        if (timeout < 200) timeout = 200;
+                        if (elapsed >= kMaxTimePerServer) break;
+                        // Adaptive timeout: min(remaining, 2000ms), floor 500ms
+                        int timeout = qMin(kMaxTimePerServer - elapsed, 2000);
+                        if (timeout < 500) timeout = 500;
+                        attempts++;
 
                         QElapsedTimer ct; ct.start();
                         int sock = tcpConnect(srv->host, srv->port, timeout);
                         if (sock >= 0) {
                             measurements.append(ct.nsecsElapsed() / 1e6);
                             closeSocket(sock);
+                            successes++;
                         }
                     }
 
-                    int m = measurements.size();
-                    if (m >= 5) {
-                        // Enough data — use HL or mean
-                        lat = (m >= 50) ? hodgesLehmann(measurements)
-                             : [&](){ double s=0; for(double v:measurements)s+=v; return s/m; }();
+                    if (successes >= 5) {
+                        lat = (successes >= 50) ? hodgesLehmann(measurements)
+                             : [&](){ double s=0; for(double v:measurements)s+=v; return s/successes; }();
                         localOk++;
                     } else {
-                        // <5 successes in 3s → effectively unreachable
                         localFail++;
                     }
                 } else {
@@ -317,8 +309,8 @@ DiagnosticResult vpnStatus(DiagId id) {
     }
     for (auto& t : threads) t.join();
 
-    out.append(QStringLiteral("  TCP 2000 probe (10 threads): %1 ok, %2 failed, %3 quick-fb")
-        .arg(tcpOk.load()).arg(tcpFail.load()).arg(quickFb.load()));
+    out.append(QStringLiteral("  TCP probe (10 threads, target %1 successes/server): %2 ok, %3 failed, %4 quick-fb")
+        .arg(kTargetSuccesses).arg(tcpOk.load()).arg(tcpFail.load()).arg(quickFb.load()));
     out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
 
     // ── Step 3: Per-country statistics ─────────────────────────────
