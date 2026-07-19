@@ -105,8 +105,6 @@ private:
 
     BestServer selectBestServer(
         const QVector<ServerResult>& candidates, int rounds);
-
-    static double hodgesLehmann(const QVector<double>& v);
 };
 
 // ── Standalone diagnostics ────────────────────────────────────────

@@ -10,7 +10,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 // Use an inline function instead of a macro to avoid renaming Qt's QAbstractSocket::close()
-inline void closeSocket(int fd) { closesocket((SOCKET)(uintptr_t)fd); }
+inline void closeSocket(int fd) { if (fd >= 0) closesocket((SOCKET)(uintptr_t)fd); }
 #else
 #include <sys/socket.h>
 #include <sys/select.h>
@@ -20,7 +20,7 @@ inline void closeSocket(int fd) { closesocket((SOCKET)(uintptr_t)fd); }
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
-inline void closeSocket(int fd) { ::close(fd); }
+inline void closeSocket(int fd) { if (fd >= 0) ::close(fd); }
 #endif
 
 #include <QString>
