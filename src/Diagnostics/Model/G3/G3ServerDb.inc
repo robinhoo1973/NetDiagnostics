@@ -1,9 +1,7 @@
-// Server database — DNS + HTTP-validated via community list
-// All entries confirmed DNS-resolvable + HTTP TTFB tested
+// Server DB v4 — TCP+TTFB validated
 
     // -- East Asia --
     ADD_SERVER("CN","beijing.unicomtest.com",8080,"Beijing","BJ Unicom");
-    ADD_SERVER("CN","cesu-hz.zjtelecom.com.cn",8080,"HangZhou","浙江电信");
     ADD_SERVER("CN","mobile.shunicomtest.com.prod.hosts.ooklaserver.net",8080,"Shanghai","China Unicom 5G");
     ADD_SERVER("CN","speedtest-bj-ct.oss-cn-beijing.aliyuncs.com",80,"Beijing CT","Alibaba Cloud");
     ADD_SERVER("CN","speedtest-bj.oss-cn-beijing.aliyuncs.com",80,"Beijing","Alibaba Cloud");
@@ -32,7 +30,6 @@
     ADD_SERVER("ID","speedtest2.tmg.net.id",8080,"Jabung","Tenggara Multimedia");
     ADD_SERVER("MY","speedtest.maxis.com.my",8080,"Penang","Maxis");
     ADD_SERVER("MY","speedtest.tm.com.my",8080,"Kuala Lumpur","Telekom Malaysia");
-    ADD_SERVER("NZ","akl.speedtest.gslnetworks.com.prod.hosts.ooklaserver.net",8080,"Auckland","GSL Networks");
     ADD_SERVER("NZ","chch.speedtest.gslnetworks.com.prod.hosts.ooklaserver.net",8080,"Christchurch","GSL Networks");
     ADD_SERVER("NZ","wlg.speedtest.gslnetworks.com.prod.hosts.ooklaserver.net",8080,"Wellington","GSL Networks");
     ADD_SERVER("PH","sjdm-speedtest.globe.com.ph.prod.hosts.ooklaserver.net",8080,"San Jose del Monte","Globe Telecom");
@@ -77,7 +74,6 @@
     ADD_SERVER("DE","speedtestnet.relaix.net.prod.hosts.ooklaserver.net",8080,"Aachen","RelAix Networks");
     ADD_SERVER("ES","speedtest.antisatelecom.es.prod.hosts.ooklaserver.net",8080,"Alange","Antisa Telecom");
     ADD_SERVER("ES","speedtest.differnet.es",8080,"Alcala del Rio","DifferNET");
-    ADD_SERVER("ES","speedtest.wifiguay.es",8080,"Alcala del Rio","Wifiguay");
     ADD_SERVER("ES","speedtest1.digimobil.es",8080,"Alcobendas","Digimobil");
     ADD_SERVER("ES","speedtestmadrid2.vodafone.es",8080,"Alcobendas","Vodafone ES");
     ADD_SERVER("FR","bass.fc-net.fr.prod.hosts.ooklaserver.net",8080,"Besancon","fcnet");
