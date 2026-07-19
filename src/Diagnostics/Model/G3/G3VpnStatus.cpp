@@ -179,7 +179,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QStringLiteral("VPN Status Detection"));
     out.append(QStringLiteral("Two-pass TCP probe + Hodges-Lehmann + Exact Permutation + Cliff's Delta:"));
     out.append(QStringLiteral("  1. TCP quick-scan → filter reachable servers"));
-    out.append(QStringLiteral("  2. TCP 2000-connect + HL on candidate countries (≥3 reachable)"));
+    out.append(QStringLiteral("  2. TCP 100-success + HL on candidate countries (≥3 reachable, 8s cap)"));
     out.append(QStringLiteral("  3. Hodges-Lehmann per-country robust location (96% efficiency)"));
     out.append(QStringLiteral("  4. Country B = lowest HL estimate (N≥5)"));
     out.append(QStringLiteral("  5. Exact permutation p-value + Cliff's δ effect size"));
@@ -265,15 +265,13 @@ DiagnosticResult vpnStatus(DiagId id) {
                     QVector<double> measurements;
                     measurements.reserve(kTargetSuccesses);
                     QElapsedTimer srvTimer; srvTimer.start();
-                    int attempts = 0, successes = 0;
+                    int successes = 0;
 
                     while (successes < kTargetSuccesses) {
                         int elapsed = (int)srvTimer.elapsed();
                         if (elapsed >= kMaxTimePerServer) break;
-                        // Adaptive timeout: min(remaining, 2000ms), floor 500ms
                         int timeout = qMin(kMaxTimePerServer - elapsed, 2000);
                         if (timeout < 500) timeout = 500;
-                        attempts++;
 
                         QElapsedTimer ct; ct.start();
                         int sock = tcpConnect(srv->host, srv->port, timeout);
