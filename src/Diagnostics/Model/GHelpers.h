@@ -103,9 +103,15 @@ inline double hodgesLehmann(const QVector<double>& v) {
 
 // Forward declarations (defined in GCommon.cpp, non-static — shared across TUs)
 int      tcpPingMs(const QString& host, int port);
-double   tcpPingAvg(const QString& host, int port); // 50x avg for sub-ms differentiation
-
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
+
+// HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
+// Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.
+double   httpTtfb(const QString& host, int port, const QString& path,
+                  int connectTimeoutMs = 5000, int readTimeoutSec = 5);
+inline double httpTtfb(const ParsedUrl& pu, int connectTimeoutMs = 5000, int readTimeoutSec = 5) {
+    return httpTtfb(pu.host, pu.port, pu.path, connectTimeoutMs, readTimeoutSec);
+}
 
 } // namespace G1G2G3Native
