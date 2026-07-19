@@ -165,6 +165,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QString());
 
     // ── Step 1: GeoIP ─────────────────────────────────────────────
+    out.append(QStringLiteral("[Phase 1/5] Detecting GeoIP country..."));
     QString countryA = SpeedTest::detectCountry(3000);
     out.append(QStringLiteral("GeoIP country (A): %1").arg(countryName(countryA)));
 
@@ -191,6 +192,7 @@ DiagnosticResult vpnStatus(DiagId id) {
             targets.append(&s);
         }
     }
+    out.append(QStringLiteral("[Phase 2/5] Quick scan complete — %1 servers reachable").arg(targets.size()));
 
     // Candidate countries: ≥3 reachable servers (enough for bootstrap + Wilcoxon)
     QSet<QString> candidates;
@@ -271,6 +273,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QStringLiteral("  HTTP 100KB probe (10 threads): %1 ok, %2 failed, %3 quick-fb")
         .arg(httpOk.load()).arg(httpFail.load()).arg(quickFb.load()));
     out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
+    out.append(QStringLiteral("[Phase 3/5] Computing per-country HL estimates..."));
 
     // ── Step 3: Per-country statistics ─────────────────────────────
     struct CountryStats { QString code; double hl; int N; };
@@ -363,6 +366,8 @@ DiagnosticResult vpnStatus(DiagId id) {
     }
     QString countryB = best.code;
 
+    out.append(QStringLiteral("[Phase 4/5] Running exact permutation test..."));
+
     // ── Step 5: Exact permutation test + Cliff's Delta ─────────────
     double pValue = 1.0, delta = 0.0;
     bool significant = false;
@@ -411,6 +416,8 @@ DiagnosticResult vpnStatus(DiagId id) {
         }
         } // else if (byCountry.contains(countryB))
     }
+
+    out.append(QStringLiteral("[Phase 5/5] Final decision..."));
 
     // ── Step 6: Decision ──────────────────────────────────────────
     double absDelta = std::abs(delta);
@@ -486,6 +493,14 @@ DiagnosticResult vpnStatus(DiagId id) {
     if (geoipUnreachable)
         r.properties.append(ResultProperty("Note", QStringLiteral("GeoIP country servers unreachable")));
 
+    // Add visual callout for VPN detection in reports
+    if (status == DiagStatus::Warning || status == DiagStatus::Info) {
+        QString banner = (status == DiagStatus::Warning)
+            ? QStringLiteral("⚠️  VPN INTERFERENCE DETECTED  ⚠️")
+            : QStringLiteral("ℹ️  LOCATION ESTIMATED  ℹ️");
+        out.prepend(banner);
+        out.prepend(QString());
+    }
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     if (scenario.startsWith(QStringLiteral("No VPN")))

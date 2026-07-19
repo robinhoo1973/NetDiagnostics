@@ -14,7 +14,7 @@
 #include <QRegularExpression>
 
 ServerDbUpdater::ServerDbUpdater(QObject* parent)
-    : QObject(parent)
+    : QObject(parent), m_nam(new QNetworkAccessManager(this))
 {
 }
 
@@ -54,13 +54,11 @@ void ServerDbUpdater::checkForUpdates(bool force, Callback callback) {
     }
 
     // Use a local event loop for synchronous-like async
-    QNetworkAccessManager* mgr = new QNetworkAccessManager(this);
-
     // Step 1: Fetch manifest
     QUrl manifestUrl(m_manifestUrl);
     QNetworkRequest manifestReq(manifestUrl);
     manifestReq.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NetDiagnostics/1.0"));
-    QNetworkReply* manifestReply = mgr->get(manifestReq, QByteArray());
+    QNetworkReply* manifestReply = m_nam->get(manifestReq, QByteArray());
 
     QEventLoop loop;
     QTimer timer;
@@ -120,7 +118,7 @@ void ServerDbUpdater::checkForUpdates(bool force, Callback callback) {
     QUrl dlUrl(downloadUrl);
     QNetworkRequest dlReq(dlUrl);
     dlReq.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NetDiagnostics/1.0"));
-    QNetworkReply* dlReply = mgr->get(dlReq, QByteArray());
+    QNetworkReply* dlReply = m_nam->get(dlReq, QByteArray());
 
     QEventLoop loop2;
     QTimer timer2;

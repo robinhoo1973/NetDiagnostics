@@ -51,6 +51,7 @@ private:
     QString m_manifestUrl;
     QString m_targetPath;
     QString m_hashPath;   // m_targetPath + ".hash"
+    QNetworkAccessManager* m_nam = nullptr;  // reused across calls
 
     QString computeHash(const QByteArray& data) const;
     bool writeFile(const QString& path, const QByteArray& data);
