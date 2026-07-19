@@ -2,10 +2,10 @@
 // G2GeoProbe.h — Geographic Probe Engine
 //
 // Multi-threaded TTFB-based geographic location detection.  Probes all
-// speed-test servers in the database, groups results by country, uses
-// Hodges-Lehmann robust estimation to find the lowest-latency country
-// (physical location), then selects the best server within that country
-// for upload/download speed testing via repeated measurement + CI.
+// speed-test servers in the database, groups results by country and region,
+// uses Hodges-Lehmann robust estimation to find the lowest-latency
+// country/region (physical location), then selects the best server for
+// upload/download speed testing via repeated measurement + CI.
 // =============================================================================
 #pragma once
 #include "Diagnostics/Model/G3/G3InternetDns.h"
@@ -14,6 +14,7 @@
 #include <QString>
 #include <QVector>
 #include <QMap>
+#include <QStringList>
 #include <QElapsedTimer>
 #include <thread>
 #include <mutex>
@@ -25,38 +26,55 @@ namespace G1G2G3Native {
 
 class GeoProbe {
 public:
+    // ── Region tags ────────────────────────────────────────────────
+    // Standardized geographic aggregation labels.
+    // Each server gets a chain: Continent → Sub-region → Economic zone
+    // e.g. "Asia", "Asia/East Asia", "Asia/East Asia/Greater China"
+    static QStringList regionTags(const QString& countryCode);
+
     // ── Per-server probe result ───────────────────────────────────
     struct ServerResult {
         QString host; int port; QString country;
         QString sponsor; QString name;
-        double tcpMs = -1.0;      // TCP connect RTT
-        double ttfbMs = -1.0;     // HTTP time-to-first-byte
-        bool   ok = false;        // true if TTFB succeeded
+        QStringList regions;       // auto-assigned region tags
+        double tcpMs = -1.0;
+        double ttfbMs = -1.0;
+        bool   ok = false;
     };
 
     // ── Per-country aggregate ─────────────────────────────────────
     struct CountryResult {
         QString code;
-        double hlMs = 0.0;        // Hodges-Lehmann estimate (ms)
-        int    serverCount = 0;   // number of successful servers
-        QVector<ServerResult> servers; // raw per-server results
+        double hlMs = 0.0;
+        int    serverCount = 0;
+        QVector<ServerResult> servers;
     };
 
-    // ── Best-server selection result ──────────────────────────────
+    // ── Per-region aggregate ──────────────────────────────────────
+    struct RegionResult {
+        QString tag;               // e.g. "Asia/East Asia"
+        double hlMs = 0.0;
+        int    serverCount = 0;
+        int    countryCount = 0;
+        QVector<ServerResult> servers;
+    };
+
+    // ── Best-server selection ─────────────────────────────────────
     struct BestServer {
         QString host; int port;
-        QString sponsor; QString country;
+        QString sponsor; QString country; QStringList regions;
         double ttfbMs = 0.0;      // median TTFB across rounds
-        double ttfbCI = 0.0;      // half-width of 95% CI (ms)
-        int    rounds = 0;        // successful test rounds
+        double ttfbCI = 0.0;      // 95% CI half-width (ms)
+        int    rounds = 0;
         bool   valid = false;
     };
 
     // ── Full probe result ────────────────────────────────────────
     struct Result {
-        QVector<CountryResult> countries;  // sorted by hlMs ascending
-        QString physicalCountry;           // lowest-TTFB country
-        BestServer bestServer;             // for speed test
+        QVector<CountryResult> countries;   // sorted by hlMs
+        QVector<RegionResult> regions;      // sorted by hlMs
+        QString physicalCountry;
+        BestServer bestServer;
         int totalServers; int totalOk;
         double durationSec;
     };
@@ -64,30 +82,34 @@ public:
     // ── Public API ────────────────────────────────────────────────
     GeoProbe();
 
-    // Run full probe: TTFB all servers → rank countries → pick best server
+    // Full probe: all servers → by country + by region → best server
     Result probe(int maxTimeSec = 45);
 
-    // Quick probe: TTFB only servers in a specific country, pick best
+    // Pick best server in a country, with repeated testing + CI
     BestServer pickBestInCountry(const QString& country, int rounds = 5);
+
+    // Pick best server in a region (e.g. "Asia" or "Asia/East Asia")
+    BestServer pickBestInRegion(const QString& regionTag, int rounds = 5);
 
 private:
     SpeedTest m_speedTest;
 
-    // ── Internal helpers ──────────────────────────────────────────
     QVector<ServerResult> probeAllServers(
         const QVector<SpeedTest::Server>& targets, int maxTimeSec);
 
     QVector<CountryResult> aggregateByCountry(
         const QVector<ServerResult>& results);
 
+    QVector<RegionResult> aggregateByRegion(
+        const QVector<ServerResult>& results);
+
     BestServer selectBestServer(
-        const QVector<ServerResult>& countryServers, int rounds);
+        const QVector<ServerResult>& candidates, int rounds);
 
     static double hodgesLehmann(const QVector<double>& v);
 };
 
-// ── Standalone diagnostics built on GeoProbe ─────────────────────
-// internetConnectivity: finds physical country + best speed test server
+// ── Standalone diagnostics ────────────────────────────────────────
 DiagnosticResult internetConnectivity(DiagId id);
 
 } // namespace G1G2G3Native
