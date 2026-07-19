@@ -390,44 +390,61 @@ DiagnosticResult internetConnectivity(DiagId id) {
     GeoProbe::Result result = probe.probe(45);
 
     QStringList out;
-    out.append(QStringLiteral("Internet Connectivity — TTFB Geographic Probe"));
+    out.append(QStringLiteral("Internet Connectivity"));
+    out.append(QStringLiteral("Method: TTFB probe → top 5 → multi-round CI → speed test"));
     out.append(QString());
-    out.append(QStringLiteral("Physical country: %1").arg(result.physicalCountry));
-    out.append(QStringLiteral("Servers probed: %1, TTFB OK: %2, Duration: %3s")
+
+    // ── Phase 1-2: Location ──
+    out.append(QStringLiteral("Physical location: %1").arg(result.physicalCountry));
+    out.append(QStringLiteral("Probed %1 servers, %2 reachable (%3s)")
         .arg(result.totalServers).arg(result.totalOk).arg(result.durationSec, 0, 'f', 1));
     out.append(QString());
 
-    // Country ranking
-    out.append(QStringLiteral("Country ranking (TTFB HL):"));
+    // ── Phase 3: Top 5 servers ──
+    int shown = 0;
     for (auto& cr : result.countries) {
-        out.append(QStringLiteral("  %1: %2ms (N=%3)")
-            .arg(cr.code).arg(cr.hlMs, 0, 'f', 1).arg(cr.serverCount));
+        for (auto& sr : cr.servers) {
+            if (shown >= 5) break;
+            out.append(QStringLiteral("  %1. %2 (%3) — %4ms")
+                .arg(shown + 1).arg(sr.sponsor).arg(cr.code).arg(sr.ttfbMs, 0, 'f', 1));
+            shown++;
+        }
+        if (shown >= 5) break;
     }
-
-    // Region ranking
     out.append(QString());
-    out.append(QStringLiteral("Region ranking (TTFB HL):"));
-    for (auto& rr : result.regions) {
-        out.append(QStringLiteral("  %1: %2ms (%3 servers, %4 countries)")
-            .arg(rr.tag).arg(rr.hlMs, 0, 'f', 1).arg(rr.serverCount).arg(rr.countryCount));
-    }
 
-    // Best server
-    out.append(QString());
-    out.append(QStringLiteral("--- Best Speed Test Server (%1) ---").arg(result.physicalCountry));
+    // ── Phase 4: Best server with CI ──
     if (result.bestServer.valid) {
-        out.append(QStringLiteral("  Host: %1:%2").arg(result.bestServer.host).arg(result.bestServer.port));
-        out.append(QStringLiteral("  Sponsor: %1").arg(result.bestServer.sponsor));
-        out.append(QStringLiteral("  TTFB: %1ms (95%CI: ±%2ms, %3 rounds)")
+        out.append(QStringLiteral("Best server (%1): %2 — %3ms (95%CI ±%4ms, %5 rounds)")
+            .arg(result.physicalCountry).arg(result.bestServer.sponsor)
             .arg(result.bestServer.ttfbMs, 0, 'f', 1)
             .arg(result.bestServer.ttfbCI, 0, 'f', 1)
             .arg(result.bestServer.rounds));
-        r.summary = QStringLiteral("Connected — %1 (%2ms)")
-            .arg(result.physicalCountry).arg(result.bestServer.ttfbMs, 0, 'f', 0);
+    } else {
+        out.append(QStringLiteral("No reachable server in %1").arg(result.physicalCountry));
+        r.summary = QStringLiteral("Location: %1").arg(result.physicalCountry);
+        r.status = DiagStatus::Warning;
+        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+        r.durationMs = t.elapsed(); return r;
+    }
+
+    // ── Phase 5: Speed test on best server ──
+    out.append(QString());
+    out.append(QStringLiteral("Running speed test on %1...").arg(result.bestServer.sponsor));
+    QString dlUrl = QStringLiteral("http://%1:%2/download?size=250000")
+        .arg(result.bestServer.host).arg(result.bestServer.port);
+    SpeedResult dl = httpDownload(dlUrl, 250000, 15000);
+    if (dl.ok && dl.mbps > 0.01) {
+        out.append(QStringLiteral("  Download: %1 Mbps (%2 bytes in %3ms)")
+            .arg(dl.mbps, 0, 'f', 1).arg(dl.bytes).arg(dl.durationMs));
+        r.summary = QStringLiteral("Connected — %1 (%2ms, %3 Mbps)")
+            .arg(result.physicalCountry).arg(result.bestServer.ttfbMs, 0, 'f', 0)
+            .arg(dl.mbps, 0, 'f', 1);
         r.status = DiagStatus::Pass;
     } else {
-        out.append(QStringLiteral("  No reachable server in %1").arg(result.physicalCountry));
-        r.summary = QStringLiteral("Location: %1").arg(result.physicalCountry);
+        out.append(QStringLiteral("  Speed test failed — server unreachable for download"));
+        r.summary = QStringLiteral("Connected — %1 (%2ms, speed N/A)")
+            .arg(result.physicalCountry).arg(result.bestServer.ttfbMs, 0, 'f', 0);
         r.status = DiagStatus::Warning;
     }
 
