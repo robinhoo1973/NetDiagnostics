@@ -205,17 +205,11 @@ DiagnosticResult vpnStatus(DiagId id) {
             return a->country < b->country;     // tie-break
         });
 
-    // ── Pass 2: HTTP 100KB micro-download probe — 10-thread parallel ─
-    // 5WHY: TCP RTT is fundamentally broken for geographic distance
-    // measurement on cloud-hosted machines.  CDN/WAN optimizers (G-Core,
-    // Akamai, Cloudflare) transparently intercept TCP SYNs and terminate
-    // connections at the nearest edge node — producing 1-2ms "RTT" to
-    // servers 10,000km away.  HTTP 100KB download cannot be faked: the
-    // data must traverse the full network path, and VPN overhead (MTU
-    // fragmentation, encryption per packet) accumulates across ~70 TCP
-    // segments, amplifying geographic differences 50-400x vs TCP RTT.
+    // ── Pass 2: Lightweight TTFB probe — 10-thread parallel ────────
+    // TCP connect + HTTP GET → time to first byte.  No body download.
+    // Fast (~0.2-2s per server) while still traversing full network path.
     QMap<QString, QVector<double>> byCountry;
-    std::atomic<int> httpOk{0}, httpFail{0}, quickFb{0};
+    std::atomic<int> ttfOk{0}, ttfFail{0}, quickFb{0};
     std::atomic<int> workIdx{0};
     std::atomic<bool> pass2Expired{false};
     std::mutex resultMutex;
@@ -237,15 +231,23 @@ DiagnosticResult vpnStatus(DiagId id) {
 
                 double lat = -1.0;
                 if (candidates.contains(srv->country)) {
-                    QString probeUrl = srv->url + QStringLiteral("/download?size=100000");
-                    QElapsedTimer total; total.start();
-                    SpeedResult sr = httpDownload(probeUrl, 100000, 8000);
-                    if (sr.ok && sr.mbps > 0.01) {
-                        lat = total.elapsed(); // total: connect + download
-                        localOk++;
-                    } else {
-                        localFail++;
+                    ParsedUrl pu = parseHttpUrl(srv->url);
+                    QElapsedTimer pt; pt.start();
+                    int sock = tcpConnect(pu.host, pu.port, 5000);
+                    if (sock >= 0) {
+                        QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
+                        QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
+                            .arg(pu.path, dlHost).toUtf8();
+                        ::send(sock, req.constData(), req.size(), 0);
+                        fd_set fds; struct timeval tv = {5, 0};
+                        FD_ZERO(&fds); FD_SET(sock, &fds);
+                        if (select(sock + 1, &fds, nullptr, nullptr, &tv) > 0) {
+                            char b[1];
+                            if (recv(sock, b, 1, 0) > 0) { lat = pt.elapsed(); localOk++; }
+                        }
+                        closeSocket(sock);
                     }
+                    if (lat < 0) localFail++;
                 } else {
                     lat = (double)tcpPingMs(srv->host, srv->port);
                     localFb++;
@@ -259,13 +261,13 @@ DiagnosticResult vpnStatus(DiagId id) {
             std::lock_guard<std::mutex> lock(resultMutex);
             for (auto it = local.begin(); it != local.end(); ++it)
                 byCountry[it.key()] += it.value();
-            httpOk += localOk; httpFail += localFail; quickFb += localFb;
+            ttfOk += localOk; ttfFail += localFail; quickFb += localFb;
         });
     }
     for (auto& t : threads) t.join();
 
-    out.append(QStringLiteral("  HTTP 100KB probe (10 threads): %1 ok, %2 failed, %3 quick-fb")
-        .arg(httpOk.load()).arg(httpFail.load()).arg(quickFb.load()));
+    out.append(QStringLiteral("  TTFB probe (10 threads): %1 ok, %2 failed, %3 quick-fb")
+        .arg(ttfOk.load()).arg(ttfFail.load()).arg(quickFb.load()));
     out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
     out.append(QStringLiteral("[Phase 3/5] Computing per-country HL estimates..."));
 
