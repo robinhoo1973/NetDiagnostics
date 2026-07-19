@@ -501,15 +501,17 @@ DiagnosticResult geoIPLoc(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     if (scenario.startsWith(QStringLiteral("No VPN")))
-        r.summary = QStringLiteral("No VPN");
+        r.summary = QStringLiteral("IP: %1").arg(countryName(countryA));
     else if (scenario.startsWith(QStringLiteral("VPN detected")))
-        r.summary = QStringLiteral("VPN detected");
+        r.summary = QStringLiteral("GeoIP %1 → Physical %2 (VPN)")
+            .arg(countryName(countryA), countryName(countryB));
     else if (scenario.startsWith(QStringLiteral("VPN possible"))
              || scenario.startsWith(QStringLiteral("VPN likely"))
              || scenario.startsWith(QStringLiteral("VPN suspected")))
-        r.summary = QStringLiteral("VPN possible");
+        r.summary = QStringLiteral("GeoIP %1 vs %2 (VPN possible)")
+            .arg(countryName(countryA), countryName(countryB));
     else
-        r.summary = QStringLiteral("Location est.");
+        r.summary = QStringLiteral("Location: %1").arg(countryName(countryB));
     r.status = status;
     r.durationMs = t.elapsed();
     return r;
