@@ -154,7 +154,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
-    out.append(QStringLiteral("VPN Status Detection"));
+    out.append(QStringLiteral("IP Geolocation & VPN Detection"));
     out.append(QStringLiteral("Two-pass TCP probe + Hodges-Lehmann + Exact Permutation + Cliff's Delta:"));
     out.append(QStringLiteral("  1. TCP quick-scan → filter reachable servers"));
     out.append(QStringLiteral("  2. HTTP 100KB download on candidate countries (≥3 reachable)"));
