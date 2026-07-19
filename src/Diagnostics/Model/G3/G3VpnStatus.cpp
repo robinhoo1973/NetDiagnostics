@@ -181,7 +181,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QStringLiteral("  1. TCP quick-scan → filter reachable servers"));
     out.append(QStringLiteral("  2. HTTP 100KB download on candidate countries (≥3 reachable)"));
     out.append(QStringLiteral("  3. Hodges-Lehmann per-country robust location (96% efficiency)"));
-    out.append(QStringLiteral("  4. Country B = lowest HL estimate (N≥5)"));
+    out.append(QStringLiteral("  4. Country B = lowest HL estimate (N≥3)"));
     out.append(QStringLiteral("  5. Exact permutation p-value + Cliff's δ effect size"));
     out.append(QStringLiteral("  6. Decision: p<0.05 + |δ|≥0.33 → VPN detected"));
     out.append(QString());
@@ -217,7 +217,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     // Candidate countries: ≥3 reachable servers (enough for bootstrap + Wilcoxon)
     QSet<QString> candidates;
     for (auto it = reachableCount.begin(); it != reachableCount.end(); ++it)
-        if (it.value() >= 3) candidates.insert(it.key());
+        if (it.value() >= 2) candidates.insert(it.key());
 
     out.append(QStringLiteral("  Quick scan: %1/%2 reachable, %3 candidate countries (≥3 reachable)")
         .arg(targets.size()).arg(allServers.size()).arg(candidates.size()));
@@ -381,7 +381,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     // ── Step 4: Find country B ─────────────────────────────────────
     CountryStats best = stats[0];
     for (auto& s : stats) {
-        if (s.N >= 5) { best = s; break; }
+        if (s.N >= 3) { best = s; break; }
     }
     QString countryB = best.code;
 
