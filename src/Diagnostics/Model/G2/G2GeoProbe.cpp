@@ -67,19 +67,6 @@ QStringList GeoProbe::regionTags(const QString& cc) {
     return map.value(cc, {cc}); // fallback: country code itself as tag
 }
 
-// ── Hodges-Lehmann robust estimator ──────────────────────────────────
-double GeoProbe::hodgesLehmann(const QVector<double>& v) {
-    int n = v.size();
-    if (n == 1) return v[0];
-    int npairs = n * (n + 1) / 2;
-    QVector<double> pairs; pairs.reserve(npairs);
-    for (int i = 0; i < n; i++)
-        for (int j = i; j < n; j++)
-            pairs.append((v[i] + v[j]) / 2.0);
-    std::sort(pairs.begin(), pairs.end());
-    return (npairs % 2 == 1) ? pairs[npairs / 2]
-           : (pairs[npairs / 2 - 1] + pairs[npairs / 2]) / 2.0;
-}
 
 GeoProbe::GeoProbe() : m_speedTest() {}
 
@@ -129,21 +116,14 @@ GeoProbe::BestServer GeoProbe::pickBestInCountry(const QString& country, int rou
         sr.country = srv.country; sr.sponsor = srv.sponsor; sr.name = srv.name;
         sr.regions = regionTags(srv.country);
 
-        QString u = srv.url.mid(7); // strip http://
-        auto slash = u.indexOf('/');
-        QString hp = (slash > 0) ? u.left(slash) : u;
-        QString pth = (slash > 0) ? u.mid(slash) : "/";
-        QString hst = hp; int prt = 80;
-        auto cln = hp.lastIndexOf(':');
-        if (cln > 0) { hst = hp.left(cln); prt = hp.mid(cln + 1).toInt(); }
-
+        ParsedUrl pu = parseHttpUrl(srv.url);
         QElapsedTimer t; t.start();
-        int sock = tcpConnect(hst, prt, 5000);
+        int sock = tcpConnect(pu.host, pu.port, 5000);
         if (sock >= 0) {
             sr.tcpMs = t.elapsed();
-            QString dlHost = (prt != 80) ? QStringLiteral("%1:%2").arg(hst).arg(prt) : hst;
+            QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
             QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                .arg(pth, dlHost).toUtf8();
+                .arg(pu.path, dlHost).toUtf8();
             ::send(sock, req.constData(), req.size(), 0);
             fd_set fds; struct timeval tv = {5, 0};
             FD_ZERO(&fds); FD_SET(sock, &fds);
@@ -169,21 +149,14 @@ GeoProbe::BestServer GeoProbe::pickBestInRegion(const QString& regionTag, int ro
         sr.country = srv.country; sr.sponsor = srv.sponsor; sr.name = srv.name;
         sr.regions = tags;
 
-        QString u = srv.url.mid(7);
-        auto slash = u.indexOf('/');
-        QString hp = (slash > 0) ? u.left(slash) : u;
-        QString pth = (slash > 0) ? u.mid(slash) : "/";
-        QString hst = hp; int prt = 80;
-        auto cln = hp.lastIndexOf(':');
-        if (cln > 0) { hst = hp.left(cln); prt = hp.mid(cln + 1).toInt(); }
-
+        ParsedUrl pu = parseHttpUrl(srv.url);
         QElapsedTimer t; t.start();
-        int sock = tcpConnect(hst, prt, 5000);
+        int sock = tcpConnect(pu.host, pu.port, 5000);
         if (sock >= 0) {
             sr.tcpMs = t.elapsed();
-            QString dlHost = (prt != 80) ? QStringLiteral("%1:%2").arg(hst).arg(prt) : hst;
+            QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
             QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                .arg(pth, dlHost).toUtf8();
+                .arg(pu.path, dlHost).toUtf8();
             ::send(sock, req.constData(), req.size(), 0);
             fd_set fds; struct timeval tv = {5, 0};
             FD_ZERO(&fds); FD_SET(sock, &fds);
@@ -228,21 +201,14 @@ QVector<GeoProbe::ServerResult> GeoProbe::probeAllServers(
                 auto& out = results[idx];
 
                 double ttfb = -1.0, tcpMs = -1.0;
-                QString u = srv.url.mid(7);
-                auto slash = u.indexOf('/');
-                QString hp = (slash > 0) ? u.left(slash) : u;
-                QString pth = (slash > 0) ? u.mid(slash) : "/";
-                QString hst = hp; int prt = 80;
-                auto cln = hp.lastIndexOf(':');
-                if (cln > 0) { hst = hp.left(cln); prt = hp.mid(cln + 1).toInt(); }
-
+                ParsedUrl pu = parseHttpUrl(srv.url);
                 QElapsedTimer pt; pt.start();
-                int sock = tcpConnect(hst, prt, 3000);
+                int sock = tcpConnect(pu.host, pu.port, 3000);
                 if (sock >= 0) {
                     tcpMs = pt.elapsed();
-                    QString dlHost = (prt != 80) ? QStringLiteral("%1:%2").arg(hst).arg(prt) : hst;
+                    QString dlHost = (pu.port != 80) ? QStringLiteral("%1:%2").arg(pu.host).arg(pu.port) : pu.host;
                     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                        .arg(pth, dlHost).toUtf8();
+                        .arg(pu.path, dlHost).toUtf8();
                     ::send(sock, req.constData(), req.size(), 0);
 
                     fd_set fds; struct timeval tv = {8, 0};
@@ -343,22 +309,15 @@ GeoProbe::BestServer GeoProbe::selectBestServer(
         measurements.reserve(rounds + 1);
         if (srv.ttfbMs > 0) measurements.append(srv.ttfbMs);
 
-        QString u = QStringLiteral("http://%1:%2/download?size=100000")
-            .arg(srv.host).arg(srv.port).mid(7);
-        auto slash = u.indexOf('/');
-        QString hp = (slash > 0) ? u.left(slash) : u;
-        QString pth = (slash > 0) ? u.mid(slash) : "/";
-        QString hst = hp; int prt = 80;
-        auto cln = hp.lastIndexOf(':');
-        if (cln > 0) { hst = hp.left(cln); prt = hp.mid(cln + 1).toInt(); }
-
+        // Use host:port directly — already parsed from URL
         for (int r = 0; r < rounds; r++) {
             QElapsedTimer t; t.start();
-            int sock = tcpConnect(hst, prt, 5000);
+            int sock = tcpConnect(srv.host, srv.port, 5000);
             if (sock >= 0) {
-                QString dlHost = (prt != 80) ? QStringLiteral("%1:%2").arg(hst).arg(prt) : hst;
+                QString path = QStringLiteral("/download?size=100000");
+                QString dlHost = (srv.port != 80) ? QStringLiteral("%1:%2").arg(srv.host).arg(srv.port) : srv.host;
                 QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                    .arg(pth, dlHost).toUtf8();
+                    .arg(path, dlHost).toUtf8();
                 ::send(sock, req.constData(), req.size(), 0);
                 fd_set fds; struct timeval tv = {5, 0};
                 FD_ZERO(&fds); FD_SET(sock, &fds);

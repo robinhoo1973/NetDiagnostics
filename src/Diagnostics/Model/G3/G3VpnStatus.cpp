@@ -92,30 +92,8 @@ static QString countryName(const QString& a2) {
 }
 
 // ── Forward declarations ──────────────────────────────────────────
-static double hodgesLehmann(const QVector<double>& v);
 static double exactPermutationPValue(const QVector<double>& combined, int nA, int nB, double obsDev);
 static double cliffDelta(double U, int nA, int nB);
-
-// ── Hodges-Lehmann robust location estimator ───────────────────────
-// 5WHY: Simple median discards all magnitude information except the
-// middle value(s).  With N=5, the median uses 1 of 5 data points.
-// HL = median of all pairwise averages — uses ALL N(N+1)/2 pairs,
-// giving 96% Gaussian efficiency (median: 64%) while retaining
-// 29% breakdown point.  Best balance for N=3-26.
-// N=4 is the only case where HL equals the mean — acceptable here
-// since all values are validated HTTP downloads (no outliers).
-static double hodgesLehmann(const QVector<double>& v) {
-    int n = v.size();
-    if (n == 1) return v[0];
-    int npairs = n * (n + 1) / 2;
-    QVector<double> pairs; pairs.reserve(npairs);
-    for (int i = 0; i < n; i++)
-        for (int j = i; j < n; j++)
-            pairs.append((v[i] + v[j]) / 2.0);
-    std::sort(pairs.begin(), pairs.end());
-    return (npairs % 2 == 1) ? pairs[npairs/2]
-           : (pairs[npairs/2-1] + pairs[npairs/2]) / 2.0;
-}
 
 // ── Exact permutation test (Mann-Whitney U) ───────────────────────
 // 5WHY: Normal approximation of U is unreliable at N=3-5 per group.

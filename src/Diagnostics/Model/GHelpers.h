@@ -77,6 +77,38 @@ struct ProcNetConn {
 };
 #endif
 
+// ── Shared URL parser — eliminates 5x duplicated parse logic ─────
+struct ParsedUrl { QString host; int port = 80; QString path; };
+inline ParsedUrl parseHttpUrl(const QString& urlStr) {
+    ParsedUrl p;
+    QString u = urlStr;
+    if (!u.startsWith(QStringLiteral("http://"))) return p;
+    u = u.mid(7);
+    auto slash = u.indexOf('/');
+    QString hp = (slash > 0) ? u.left(slash) : u;
+    p.path = (slash > 0) ? u.mid(slash) : QStringLiteral("/");
+    auto colon = hp.lastIndexOf(':');
+    if (colon > 0) { p.host = hp.left(colon); p.port = hp.mid(colon + 1).toInt(); }
+    else { p.host = hp; }
+    return p;
+}
+
+// ── Hodges-Lehmann robust location estimator ─────────────────────
+// Median of all N(N+1)/2 pairwise averages.  96% Gaussian efficiency,
+// 29% breakdown point.  Best all-around robust estimator for N=3-100.
+inline double hodgesLehmann(const QVector<double>& v) {
+    int n = v.size();
+    if (n == 1) return v[0];
+    int npairs = n * (n + 1) / 2;
+    QVector<double> pairs; pairs.reserve(npairs);
+    for (int i = 0; i < n; i++)
+        for (int j = i; j < n; j++)
+            pairs.append((v[i] + v[j]) / 2.0);
+    std::sort(pairs.begin(), pairs.end());
+    return (npairs % 2 == 1) ? pairs[npairs / 2]
+           : (pairs[npairs / 2 - 1] + pairs[npairs / 2]) / 2.0;
+}
+
 // Forward declarations (defined in GCommon.cpp, non-static — shared across TUs)
 int      tcpPingMs(const QString& host, int port);
 double   tcpPingAvg(const QString& host, int port); // 50x avg for sub-ms differentiation
