@@ -179,7 +179,7 @@ DiagnosticResult vpnStatus(DiagId id) {
     out.append(QStringLiteral("VPN Status Detection"));
     out.append(QStringLiteral("Two-pass TCP probe + Hodges-Lehmann + Exact Permutation + Cliff's Delta:"));
     out.append(QStringLiteral("  1. TCP quick-scan → filter reachable servers"));
-    out.append(QStringLiteral("  2. TCP 100-success + HL on candidate countries (≥3 reachable, 8s cap)"));
+    out.append(QStringLiteral("  2. HTTP 100KB download on candidate countries (≥3 reachable)"));
     out.append(QStringLiteral("  3. Hodges-Lehmann per-country robust location (96% efficiency)"));
     out.append(QStringLiteral("  4. Country B = lowest HL estimate (N≥5)"));
     out.append(QStringLiteral("  5. Exact permutation p-value + Cliff's δ effect size"));
@@ -231,22 +231,23 @@ DiagnosticResult vpnStatus(DiagId id) {
             return a->country < b->country;     // tie-break
         });
 
-    // ── Pass 2: TCP multi-connect probe — 10-thread parallel ────────
-    // 5WHY: Fixed-count successful connects (not time-budget) ensures
-    // consistent statistical quality: every server contributes exactly
-    // kTargetSuccesses measurements (or times out trying).  Eliminates
-    // survivorship bias where distant servers contribute only a few
-    // fast outliers while local servers contribute hundreds.
+    // ── Pass 2: HTTP 100KB micro-download probe — 10-thread parallel ─
+    // 5WHY: TCP RTT is fundamentally broken for geographic distance
+    // measurement on cloud-hosted machines.  CDN/WAN optimizers (G-Core,
+    // Akamai, Cloudflare) transparently intercept TCP SYNs and terminate
+    // connections at the nearest edge node — producing 1-2ms "RTT" to
+    // servers 10,000km away.  HTTP 100KB download cannot be faked: the
+    // data must traverse the full network path, and VPN overhead (MTU
+    // fragmentation, encryption per packet) accumulates across ~70 TCP
+    // segments, amplifying geographic differences 50-400x vs TCP RTT.
     QMap<QString, QVector<double>> byCountry;
-    std::atomic<int> tcpOk{0}, tcpFail{0}, quickFb{0};
+    std::atomic<int> httpOk{0}, httpFail{0}, quickFb{0};
     std::atomic<int> workIdx{0};
     std::atomic<bool> pass2Expired{false};
     std::mutex resultMutex;
     QElapsedTimer pass2Timer; pass2Timer.start();
 
     const int kThreads = 10;
-    const int kTargetSuccesses = 100;  // target successful connects per server
-    const int kMaxTimePerServer = 8000; // 8s hard cap per server
     std::vector<std::thread> threads;
     threads.reserve(kThreads);
 
@@ -262,29 +263,11 @@ DiagnosticResult vpnStatus(DiagId id) {
 
                 double lat = -1.0;
                 if (candidates.contains(srv->country)) {
-                    QVector<double> measurements;
-                    measurements.reserve(kTargetSuccesses);
-                    QElapsedTimer srvTimer; srvTimer.start();
-                    int successes = 0;
-
-                    while (successes < kTargetSuccesses) {
-                        int elapsed = (int)srvTimer.elapsed();
-                        if (elapsed >= kMaxTimePerServer) break;
-                        int timeout = qMin(kMaxTimePerServer - elapsed, 2000);
-                        if (timeout < 500) timeout = 500;
-
-                        QElapsedTimer ct; ct.start();
-                        int sock = tcpConnect(srv->host, srv->port, timeout);
-                        if (sock >= 0) {
-                            measurements.append(ct.nsecsElapsed() / 1e6);
-                            closeSocket(sock);
-                            successes++;
-                        }
-                    }
-
-                    if (successes >= 5) {
-                        lat = (successes >= 50) ? hodgesLehmann(measurements)
-                             : [&](){ double s=0; for(double v:measurements)s+=v; return s/successes; }();
+                    QString probeUrl = srv->url + QStringLiteral("/download?size=100000");
+                    QElapsedTimer total; total.start();
+                    SpeedResult sr = httpDownload(probeUrl, 100000, 8000);
+                    if (sr.ok && sr.mbps > 0.01) {
+                        lat = total.elapsed(); // total: connect + download
                         localOk++;
                     } else {
                         localFail++;
@@ -302,13 +285,13 @@ DiagnosticResult vpnStatus(DiagId id) {
             std::lock_guard<std::mutex> lock(resultMutex);
             for (auto it = local.begin(); it != local.end(); ++it)
                 byCountry[it.key()] += it.value();
-            tcpOk += localOk; tcpFail += localFail; quickFb += localFb;
+            httpOk += localOk; httpFail += localFail; quickFb += localFb;
         });
     }
     for (auto& t : threads) t.join();
 
-    out.append(QStringLiteral("  TCP probe (10 threads, target %1 successes/server): %2 ok, %3 failed, %4 quick-fb")
-        .arg(kTargetSuccesses).arg(tcpOk.load()).arg(tcpFail.load()).arg(quickFb.load()));
+    out.append(QStringLiteral("  HTTP 100KB probe (10 threads): %1 ok, %2 failed, %3 quick-fb")
+        .arg(httpOk.load()).arg(httpFail.load()).arg(quickFb.load()));
     out.append(QStringLiteral("  Total reachable countries with samples: %1").arg(byCountry.size()));
 
     // ── Step 3: Per-country statistics ─────────────────────────────
