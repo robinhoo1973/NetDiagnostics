@@ -1,7 +1,7 @@
 #pragma once
 #include "Diagnostics/Model/GBase.h"
 namespace G1G2G3Native {
-// SpeedTest — shared between vpnStatus, speedTest, and GeoProbe.
+// SpeedTest — shared between geoIPLoc, speedTest, and GeoProbe.
 // Class declaration here (shared header), build() + server DB stay in G3.
 #define ADD_SERVER(c, h, p, n, sp) s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
 class SpeedTest {
@@ -28,6 +28,6 @@ DiagnosticResult netskopeStatus(DiagId id);
 DiagnosticResult dnsServers(DiagId id);
 DiagnosticResult dnsCache(DiagId id);
 DiagnosticResult dnsPollution(DiagId id);
-DiagnosticResult vpnStatus(DiagId id);
+DiagnosticResult geoIPLoc(DiagId id);
 DiagnosticResult speedTest(DiagId id);
 }

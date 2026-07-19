@@ -205,7 +205,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
         case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
-        case DiagId::G2VpnStatus:          return T1(G1G2G3Native::vpnStatus);
+        case DiagId::G3GeoIPLoc:          return T1(G1G2G3Native::geoIPLoc);
         case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::speedTest);
 
         // 閳光偓閳光偓 G4: Remote Host 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓

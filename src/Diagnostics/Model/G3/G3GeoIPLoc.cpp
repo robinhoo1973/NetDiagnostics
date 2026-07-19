@@ -148,9 +148,9 @@ static double cliffDelta(double U, int nA, int nB) {
 //   5. Cliff's Delta effect size: δ = 1−2U/(nA·nB)
 //   6. Decision: p<0.05 + |δ|≥0.33 → VPN; p<0.05 + |δ|<0.33 → possible; |δ|≥0.33 → suspected
 
-DiagnosticResult vpnStatus(DiagId id) {
+DiagnosticResult geoIPLoc(DiagId id) {
     DiagnosticResult r;
-    r.id = id; r.group = DiagGroup::G2;
+    r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
@@ -463,6 +463,7 @@ DiagnosticResult vpnStatus(DiagId id) {
         out.append(QStringLiteral("    Effect size suggests real difference — more samples needed."));
         scenario = QStringLiteral("VPN suspected (%1 → %2, p≥0.05, δ=%3)")
             .arg(countryName(countryA), countryName(countryB)).arg(delta, 0, 'f', 2);
+        status = DiagStatus::Warning;
     } else {
         out.append(QStringLiteral("  VPN Status: VPN possible — %1 (GeoIP) ≠ %2 (physical)")
             .arg(countryName(countryA), countryName(countryB)));
