@@ -1,4 +1,4 @@
-// Server DB v5 — TCP+TTFB validated, >=5/country target
+// Server DB — final harvest
 
     // -- East Asia --
     ADD_SERVER("CN","beijing.unicomtest.com",8080,"Beijing","BJ Unicom");
