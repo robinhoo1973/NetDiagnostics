@@ -1,10 +1,8 @@
-﻿#pragma once
+#pragma once
 #include "Diagnostics/Model/GBase.h"
 namespace G1G2G3Native {
-// SpeedTest — shared between vpnStatus and speedTest diagnostics.
-// 5WHY: Was a thin forward-decl (only detectCountry).  vpnStatus also needs
-// Server struct, allServers(), serversForCountry(), and constructor — all
-// defined in the FULL class.  Now defined here so both .cpp files see it.
+// SpeedTest — shared between vpnStatus, speedTest, and GeoProbe.
+// Class declaration here (shared header), build() + server DB stay in G3.
 #define ADD_SERVER(c, h, p, n, sp) s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
 class SpeedTest {
 public:
@@ -16,11 +14,8 @@ public:
 private: void build(); QMap<QString, QVector<Server>> m;
 };
 inline void SpeedTest::build() {
-    // 5WHY: Server DB rebuilt per SpeedTest instance (~210 entries × 2 TUs).
-    // Static local builds once, subsequent calls do a cheap QMap shallow copy
-    // (Qt ref-counted containers — O(1) copy, O(n) append avoided).
     static QMap<QString, QVector<Server>> sDb = []() {
-        QMap<QString, QVector<Server>> m;  // shadows class member, satisfies ADD_SERVER macro
+        QMap<QString, QVector<Server>> m;
         Server s;
         #include "G3ServerDb.inc"
         return m;
