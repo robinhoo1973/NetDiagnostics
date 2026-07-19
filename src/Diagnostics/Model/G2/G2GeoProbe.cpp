@@ -49,6 +49,16 @@ QStringList GeoProbe::regionTags(const QString& cc) {
         {"GR",{"Europe","Europe/Southern Europe"}},
         {"SE",{"Europe","Europe/Northern Europe"}},
         {"RU",{"Europe","Europe/Eastern Europe"}},
+        {"PL",{"Europe","Europe/Eastern Europe"}},
+        {"UA",{"Europe","Europe/Eastern Europe"}},
+        {"CH",{"Europe","Europe/Western Europe"}},
+        {"AT",{"Europe","Europe/Western Europe"}},
+        {"BE",{"Europe","Europe/Western Europe"}},
+        {"NO",{"Europe","Europe/Northern Europe"}},
+        {"FI",{"Europe","Europe/Northern Europe"}},
+        {"DK",{"Europe","Europe/Northern Europe"}},
+        {"IE",{"Europe","Europe/Western Europe"}},
+        {"PT",{"Europe","Europe/Southern Europe"}},
         // North America
         {"US",{"North America"}},
         {"CA",{"North America"}},
@@ -56,6 +66,9 @@ QStringList GeoProbe::regionTags(const QString& cc) {
         // South America
         {"BR",{"South America"}},
         {"AR",{"South America"}},
+        {"CO",{"South America"}},
+        {"CL",{"South America"}},
+        {"PE",{"South America"}},
         // Africa
         {"ZA",{"Africa","Africa/Southern Africa"}},
         {"NG",{"Africa","Africa/West Africa"}},
