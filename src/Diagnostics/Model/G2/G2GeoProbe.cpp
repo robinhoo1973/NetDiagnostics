@@ -329,10 +329,9 @@ GeoProbe::BestServer GeoProbe::selectBestServer(
             QElapsedTimer t; t.start();
             int sock = tcpConnect(srv.host, srv.port, 5000);
             if (sock >= 0) {
-                QString path = QStringLiteral("/download?size=100000");
                 QString dlHost = (srv.port != 80) ? QStringLiteral("%1:%2").arg(srv.host).arg(srv.port) : srv.host;
-                QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
-                    .arg(path, dlHost).toUtf8();
+                QByteArray req = QStringLiteral("GET / HTTP/1.0\r\nHost: %1\r\nUser-Agent: ND/1.0\r\nConnection: close\r\n\r\n")
+                    .arg(dlHost).toUtf8();
                 ::send(sock, req.constData(), req.size(), 0);
                 fd_set fds; struct timeval tv = {5, 0};
                 FD_ZERO(&fds); FD_SET(sock, &fds);
