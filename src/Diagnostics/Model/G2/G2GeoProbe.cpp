@@ -105,13 +105,14 @@ GeoProbe::Result GeoProbe::probe(int maxTimeSec) {
     if (r.physicalCountry.isEmpty() && !r.countries.isEmpty())
         r.physicalCountry = r.countries[0].code;
 
-    // Best server in physical country
-    if (!r.physicalCountry.isEmpty()) {
-        QVector<ServerResult> cs;
-        for (auto& sr : results)
-            if (sr.ok && sr.country == r.physicalCountry) cs.append(sr);
-        r.bestServer = selectBestServer(cs, 5);
-    }
+    // Round 2: top 5 globally by TTFB, 3-repeat CI selection
+    QVector<ServerResult> allOk;
+    for (auto& sr : results)
+        if (sr.ok && sr.ttfbMs > 0) allOk.append(sr);
+    std::sort(allOk.begin(), allOk.end(),
+              [](const ServerResult& a, const ServerResult& b) { return a.ttfbMs < b.ttfbMs; });
+    if (allOk.size() > 5) allOk.resize(5);
+    r.bestServer = selectBestServer(allOk, 3);
 
     r.durationSec = totalTimer.elapsed() / 1000.0;
     return r;
@@ -310,11 +311,11 @@ GeoProbe::BestServer GeoProbe::selectBestServer(
     BestServer best;
     if (candidates.isEmpty()) return best;
 
-    // Sort by initial TTFB, take top 3
+    // Sort by initial TTFB, take top 5
     auto top = candidates;
     std::sort(top.begin(), top.end(),
               [](const ServerResult& a, const ServerResult& b) { return a.ttfbMs < b.ttfbMs; });
-    if (top.size() > 3) top.resize(3);
+    if (top.size() > 5) top.resize(5);
 
     struct Scored { ServerResult srv; double median; double ci; };
     QVector<Scored> scored;
@@ -390,7 +391,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
 
     QStringList out;
     out.append(QStringLiteral("Internet Connectivity"));
-    out.append(QStringLiteral("Method: TTFB probe → top 5 → multi-round CI → speed test"));
+    out.append(QStringLiteral("Method: TTFB global probe → top 5 → 3-round CI → speed test"));
     out.append(QString());
 
     // ── Phase 1-2: Location ──
