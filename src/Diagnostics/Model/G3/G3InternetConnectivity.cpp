@@ -5,7 +5,7 @@
 // Wired to DiagId::G3InternetConnectivity via TaskFactory.
 // =============================================================================
 #include "Diagnostics/Model/GeoProbe.h"
-#include "Diagnostics/Model/G3/G3InternetDns.h"
+#include "Diagnostics/Model/G3/G3InternetConnectivity.h"
 #include "Diagnostics/Model/GHelpers.h"
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
