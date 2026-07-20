@@ -9,18 +9,20 @@ static QString hostHeader(const QString& host, int port) {
     return (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
 }
 
-// ── Raw HTTP GET — returns response body ────────────────────────────
+// ── Raw HTTP GET — returns raw HTTP response (headers + body) ───────
 // 5WHY: httpGet was removed during GeoProbe refactoring (httpTtfb +
 // httpDownload replaced it), but G3InternetDns.cpp was created after
 // the removal and still references it.  Restore it so G3InternetDns
 // GeoIP country detection works.  Follows the same TCP connect + send +
 // recv pattern as httpTtfb/httpDownload.
 QByteArray httpGet(const QString& host, int port, const QString& path,
-                   int timeoutMs, int maxBytes) {
+                   int timeoutMs, int maxBytes, const QString& connectHost) {
     QByteArray body;
-    int sock = tcpConnect(host, port, qMin(timeoutMs, 3000));
+    QString connTarget = connectHost.isEmpty() ? host : connectHost;
+    int sock = tcpConnect(connTarget, port, qMin(timeoutMs, 3000));
     if (sock < 0) return body;
 
+    // Always use the original host (not IP) in the Host header for virtual-host routing
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
         .arg(path, hostHeader(host, port)).toUtf8();
 
@@ -72,15 +74,15 @@ QByteArray httpGet(const QString& host, int port, const QString& path,
 // HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
-    SpeedResult r = {0, 0, 0, false};
+    SpeedResult r = {0, 0, 0, false, {}};
     ParsedUrl pu = parseHttpUrl(urlStr);
-    if (pu.host.isEmpty()) return r;
+    if (pu.host.isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
     QString host = pu.host; int port = pu.port;
     QString path = pu.path;
 
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
-    if (sock < 0) return r;
+    if (sock < 0) { r.error = QStringLiteral("TCP connect failed"); return r; }
     fd_set fdset; struct timeval tv; // reused by send/recv loops below
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
@@ -105,7 +107,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         if (n == 0) break;
         reqSent += n;
     }
-    if (reqSent < req.size()) { closeSocket(sock); return r; } // incomplete send
+    if (reqSent < req.size()) { r.error = QStringLiteral("HTTP request send incomplete"); closeSocket(sock); return r; }
 
     // Read with timing — measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
@@ -160,6 +162,8 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
                 int codeStart = statusLine.indexOf(' ');
                 httpOk = (codeStart > 0 && codeStart + 4 <= statusLine.size()
                           && statusLine.mid(codeStart + 1, 3) == "200");
+                if (!httpOk && codeStart > 0 && codeStart + 4 <= statusLine.size())
+                    r.error = QStringLiteral("HTTP %1").arg(QString::fromLatin1(statusLine.mid(codeStart + 1, 3)));
                 body = headerBuf.mid(hdrEnd + 4);
                 headersDone = true;
                 startNs = t.nsecsElapsed(); // reset timer to body start
@@ -190,6 +194,112 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         double secs = r.durationMs / 1000.0;
         r.mbps = bits / secs / 1000000.0;
         r.ok = true;
+    } else if (r.error.isEmpty()) {
+        if (r.bytes <= 0)
+            r.error = QStringLiteral("No data received");
+        else if (r.durationMs <= 0)
+            r.error = QStringLiteral("Transfer duration too short");
+        else
+            r.error = QStringLiteral("Insufficient data (%1 bytes)").arg(r.bytes);
+    }
+    return r;
+}
+
+// HTTP upload with throughput measurement — POST data to server
+SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs) {
+    SpeedResult r = {0, 0, 0, false, {}};
+    ParsedUrl pu = parseHttpUrl(urlStr);
+    if (pu.host.isEmpty()) { r.error = QStringLiteral("Invalid URL"); return r; }
+    QString host = pu.host; int port = pu.port;
+
+    QElapsedTimer t; t.start();
+    int sock = tcpConnect(host, port, 3000);
+    if (sock < 0) { r.error = QStringLiteral("TCP connect failed"); return r; }
+
+    // Generate random payload
+    QByteArray payload(targetBytes, 'A');
+    for (int i = 0; i < targetBytes; i += 64)
+        payload[i] = (char)('A' + (i / 64) % 26);
+
+    QByteArray req = QStringLiteral("POST %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nContent-Type: application/octet-stream\r\nContent-Length: %3\r\nConnection: close\r\n\r\n")
+        .arg(pu.path.isEmpty() ? QStringLiteral("/") : pu.path, hostHeader(host, port)).arg(targetBytes).toUtf8();
+    req.append(payload);
+
+    // 5WHY: startNs was placed AFTER the send loop, so it measured only
+    // the server response receive time. For upload, the throughput-relevant
+    // phase is the send itself — the response is just a tiny HTTP 200 OK.
+    // Move startNs before the send loop so Mbps = bytes * 8 / (send + recv).
+    qint64 startNs = t.nsecsElapsed();
+
+    // Send request + body
+    int reqSent = 0;
+    QElapsedTimer sendGuard; sendGuard.start();
+    while (reqSent < req.size()) {
+        if (sendGuard.elapsed() > timeoutMs) break;
+        auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
+        if (n < 0) {
+#if defined(_WIN32)
+            if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
+#else
+            if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
+#endif
+            break;
+        }
+        if (n == 0) break;
+        reqSent += n;
+    }
+    if (reqSent < req.size()) { r.error = QStringLiteral("Upload send incomplete"); closeSocket(sock); return r; }
+
+    // Read HTTP response
+    fd_set fdset; struct timeval tv;
+    QByteArray respBuf;
+    char buf[4096];
+    QElapsedTimer recvGuard; recvGuard.start();
+    while (respBuf.size() < 4096) {
+        int remaining = qMin(timeoutMs, 30000) - (int)recvGuard.elapsed();
+        if (remaining <= 0) break;
+        int selectMs = qMax(remaining, 50);
+        FD_ZERO(&fdset); FD_SET(sock, &fdset);
+        tv = {selectMs / 1000, (selectMs % 1000) * 1000};
+        if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
+        ssize_t n = recv(sock, buf, sizeof(buf), 0);
+        if (n > 0) { respBuf.append(buf, (int)n); }
+        else if (n == 0) break;
+        else {
+#if defined(_WIN32)
+            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
+#else
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+#endif
+            break;
+        }
+    }
+    closeSocket(sock);
+
+    qint64 elapsedNs = t.nsecsElapsed() - startNs;
+    if (elapsedNs <= 0) elapsedNs = 1;
+    r.bytes = targetBytes;  // we count bytes sent
+    r.durationMs = (int)(elapsedNs / 1000000);
+
+    if (r.durationMs > 0 && !respBuf.isEmpty()) {
+        // Check for HTTP 200
+        int hdrEnd = respBuf.indexOf("\r\n\r\n");
+        if (hdrEnd < 0) hdrEnd = respBuf.indexOf("\n\n");
+        QByteArray hdrs = (hdrEnd > 0) ? respBuf.left(hdrEnd) : respBuf;
+        int sp1 = hdrs.indexOf(' ');
+        bool httpOk = (sp1 > 0 && hdrs.mid(sp1 + 1, 3) == "200");
+        if (httpOk) {
+            double bits = r.bytes * 8.0;
+            double secs = r.durationMs / 1000.0;
+            r.mbps = bits / secs / 1000000.0;
+            r.ok = true;
+        } else {
+            r.error = QStringLiteral("HTTP %1").arg(sp1 > 0 ? QString::fromLatin1(hdrs.mid(sp1 + 1, 3)) : QStringLiteral("???"));
+        }
+    } else if (r.durationMs <= 0) {
+        r.error = QStringLiteral("No upload response");
+    } else {
+        r.error = QStringLiteral("Empty upload response");
     }
     return r;
 }

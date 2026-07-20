@@ -112,13 +112,17 @@ inline double median(QVector<double> v) {
 
 // Forward declarations (defined in GCommon.cpp, non-static — shared across TUs)
 int      tcpPingMs(const QString& host, int port);
-struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
+struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; QString error; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
+SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs);
 
-// Raw HTTP GET — TCP connect + GET request → response body.
+// Raw HTTP GET — TCP connect + GET request → raw HTTP response (headers + body).
 // Used by G3InternetDns for GeoIP country detection (Phase 3).
+// When connectHost is non-empty, connects to that address (e.g. IP) but still
+// sends `host` in the HTTP Host header — bypasses DNS for the TCP connection.
 QByteArray httpGet(const QString& host, int port, const QString& path,
-                   int timeoutMs = 3000, int maxBytes = 4096);
+                   int timeoutMs = 3000, int maxBytes = 4096,
+                   const QString& connectHost = QString());
 
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
 // Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.
