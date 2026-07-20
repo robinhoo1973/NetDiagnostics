@@ -36,7 +36,7 @@ static int timeoutFor(DiagId id) {
         case DiagId::G4Ping:            return 30000; // 4 probes at ~3s each
         case DiagId::G4Traceroute:      return 90000; // 30 hops at ~2s each
         case DiagId::G4PathPing:        return 120000;// traceroute + per-hop ping
-        case DiagId::G3InternetSpeedTest:return 180000;// download + upload phases
+        case DiagId::G3InternetConnectivity:return 180000;// download + upload phases
         case DiagId::G5CurlVerbose:     return 120000;
         case DiagId::G5HttpTiming:      return 90000;
         default:                        return 60000;
@@ -204,7 +204,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
         case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
         case DiagId::G3GeoIPLoc:          return T1(G1G2G3Native::geoIPLoc);
-        case DiagId::G3InternetSpeedTest:  return T1(G1G2G3Native::internetConnectivity);
+        case DiagId::G3InternetConnectivity:  return T1(G1G2G3Native::internetConnectivity);
 
         // 閳光偓閳光偓 G4: Remote Host 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 #if defined(PLATFORM_IOS)

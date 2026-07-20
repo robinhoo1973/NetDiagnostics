@@ -33,7 +33,7 @@ inline std::optional<int> diagIdFromString(const QString& name) {
         {"G2ArpTable",         12}, {"G2ProxySettings",    13},
         {"G3NetskopeStatus",   14}, {"G3DnsServers",       15},
         {"G3DnsCache",         16}, {"G3DnsPollution",     17},
-        {"G3InternetSpeedTest",18}, {"G4DnsResolution",    19},
+        {"G3InternetConnectivity",18}, {"G4DnsResolution",    19},
         {"G4Ping",             20}, {"G4Traceroute",       21},
         {"G4PathPing",         22}, {"G4MtuDiscovery",     23},
         {"G5UrlParsing",       24}, {"G5TcpConnect",       25},
