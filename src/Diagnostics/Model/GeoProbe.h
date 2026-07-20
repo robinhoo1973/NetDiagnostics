@@ -7,17 +7,26 @@
 //   ProbeExecutor  — persistent probe worker thread
 //   ProbeFeedback  — statistics & aggregation
 //
-// Public API: only probe() and getFeedback().
+// Public API: probe(), getFeedback(), server database, region tags.
 // =============================================================================
 #pragma once
 
 #include "Diagnostics/Model/ProbeConfig.h"
 #include <QObject>
+#include <QVector>
+#include <QString>
+#include <QMap>
 
 class ProbeDatabase;
 class ProbeScheduler;
 class ProbeExecutor;
 class ProbeFeedback;
+
+// Speed-test server entry (global server database)
+struct ProbeServer {
+    QString host; int port = 80;
+    QString name, sponsor, country, url;
+};
 
 class GeoProbe {
 public:
@@ -32,7 +41,11 @@ public:
     // Clear all cached probe results (call at start of each diagnostic run)
     void clear();
 
-    // Static: region tag mapping (shared by Executor, Feedback, Scheduler)
+    // ── Server database (static immutable data) ──
+    static QVector<ProbeServer> allServers();
+    static QVector<ProbeServer> serversForCountry(const QString& hint);
+
+    // ── Region tag mapping (static immutable data) ──
     static QStringList regionTags(const QString& countryCode);
 
 private:
@@ -40,6 +53,8 @@ private:
     ~GeoProbe();
     GeoProbe(const GeoProbe&) = delete;
     GeoProbe& operator=(const GeoProbe&) = delete;
+
+    static void ensureServerDbLoaded();
 
     ProbeDatabase*  m_database  = nullptr;
     ProbeScheduler* m_scheduler = nullptr;

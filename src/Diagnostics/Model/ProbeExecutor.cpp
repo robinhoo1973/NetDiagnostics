@@ -3,7 +3,6 @@
 // =============================================================================
 #include "Diagnostics/Model/ProbeExecutor.h"
 #include "Common/Services/ProbeDatabase.h"
-#include "Diagnostics/Model/G3/G3InternetDns.h"
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/GHelpers.h"
 #include <QDateTime>
@@ -25,10 +24,9 @@ void ProbeExecutor::requestStop() {
 
 void ProbeExecutor::run() {
     // Pre-build host→metadata lookup table (single-threaded, then shared read-only)
-    G1G2G3Native::SpeedTest st;
     struct Meta { QString country; QStringList regionTags; };
     QHash<QString, Meta> metaByHost;
-    for (const auto& srv : st.allServers()) {
+    for (const auto& srv : GeoProbe::allServers()) {
         Meta m; m.country = srv.country;
         m.regionTags = GeoProbe::regionTags(srv.country);
         metaByHost.insert(srv.host + ":" + QString::number(srv.port), m);

@@ -4,7 +4,6 @@
 #include "Diagnostics/Model/ProbeScheduler.h"
 #include "Common/Services/ProbeDatabase.h"
 #include "Diagnostics/Model/ProbeExecutor.h"
-#include "Diagnostics/Model/G3/G3InternetDns.h"
 #include "Diagnostics/Model/GeoProbe.h"
 
 ProbeScheduler::ProbeScheduler(ProbeDatabase* db, ProbeExecutor* exec)
@@ -28,15 +27,14 @@ QStringList ProbeScheduler::resolveHosts(const ProbeConfig& config) const {
         return keys;
     };
 
-    G1G2G3Native::SpeedTest st;
     switch (config.scope) {
         case ProbeConfig::Global:
-            return makeKeys(st.allServers());
+            return makeKeys(GeoProbe::allServers());
         case ProbeConfig::ByCountry:
-            return makeKeys(st.serversForCountry(config.scopeValue));
+            return makeKeys(GeoProbe::serversForCountry(config.scopeValue));
         case ProbeConfig::ByRegion: {
             QStringList keys;
-            for (const auto& srv : st.allServers()) {
+            for (const auto& srv : GeoProbe::allServers()) {
                 if (GeoProbe::regionTags(srv.country).contains(config.scopeValue))
                     keys.append(srv.host + ":" + QString::number(srv.port));
             }

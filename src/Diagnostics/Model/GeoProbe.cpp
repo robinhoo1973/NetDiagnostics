@@ -7,6 +7,107 @@
 #include "Diagnostics/Model/ProbeFeedback.h"
 #include "Common/Services/ProbeDatabase.h"
 #include <QMap>
+#include <QFile>
+#include <QStandardPaths>
+#include <QRegularExpression>
+#include <QTextStream>
+
+// ── Server DB macro (same format as G3ServerDb.inc) ─────────────────
+#define ADD_SERVER(c, h, p, n, sp) \
+    s.host=h; s.port=p; s.name=n; s.sponsor=sp; s.country=c; \
+    s.url=QStringLiteral("http://%1:%2").arg(h).arg(p); m[c].append(s);
+
+// ── Lazy-loaded server database ─────────────────────────────────────
+static QMap<QString, QVector<ProbeServer>> sServerDb;
+static bool sServerDbLoaded = false;
+
+void GeoProbe::ensureServerDbLoaded() {
+    if (sServerDbLoaded) return;
+
+    // Step 1: try runtime-updated DB (from ServerDbUpdater downloads)
+    QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                 + QStringLiteral("/G3ServerDb.inc");
+    if (QFile::exists(path)) {
+        QFile f(path);
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            QRegularExpression re(QLatin1String(
+                R"re(ADD_SERVER\("([^"]+)","([^"]+)",(\d+),"([^"]*)","([^"]*)"\);)re"));
+            QTextStream ts(&f);
+            while (!ts.atEnd()) {
+                auto m = re.match(ts.readLine().trimmed());
+                if (m.hasMatch()) {
+                    ProbeServer s;
+                    s.country = m.captured(1);
+                    s.host    = m.captured(2);
+                    s.port    = m.captured(3).toInt();
+                    s.name    = m.captured(4);
+                    s.sponsor = m.captured(5);
+                    s.url = QStringLiteral("http://%1:%2").arg(s.host).arg(s.port);
+                    sServerDb[s.country].append(s);
+                }
+            }
+        }
+    }
+
+    // Step 2: fallback — compiled-in server DB
+    if (sServerDb.isEmpty()) {
+        QMap<QString, QVector<ProbeServer>> m;
+        ProbeServer s;
+        #include "Diagnostics/Model/G3/G3ServerDb.inc"
+        sServerDb = m;
+    }
+
+    sServerDbLoaded = true;
+}
+
+QVector<ProbeServer> GeoProbe::allServers() {
+    ensureServerDbLoaded();
+    QVector<ProbeServer> out;
+    int total = 0;
+    for (auto it = sServerDb.cbegin(); it != sServerDb.cend(); ++it)
+        total += it.value().size();
+    out.reserve(total);
+    for (auto it = sServerDb.cbegin(); it != sServerDb.cend(); ++it)
+        out += it.value();
+    return out;
+}
+
+QVector<ProbeServer> GeoProbe::serversForCountry(const QString& hint) {
+    ensureServerDbLoaded();
+    auto it = sServerDb.constFind(hint);
+    if (it != sServerDb.cend()) return it.value();
+    QString p = hint.left(2).toUpper();
+    it = sServerDb.constFind(p);
+    if (it != sServerDb.cend()) return it.value();
+
+    // Continent fallback
+    static const QMap<QString, QStringList> continentFallback = {
+        {"Asia",     {"CN","KR","SG","IN","JP","AE"}},
+        {"Europe",   {"DE","GB","FR","NL","IT","ES","SE","PL","RU"}},
+        {"North America", {"US","CA","MX"}},
+        {"South America", {"BR","AR","CL","CO","PE"}},
+        {"Africa",   {"ZA","KE","NG","EG"}},
+        {"Oceania",  {"AU","NZ"}},
+    };
+    QString continent;
+    for (auto cit = continentFallback.cbegin(); cit != continentFallback.cend(); ++cit) {
+        if (cit.value().contains(p)) { continent = cit.key(); break; }
+    }
+    if (!continent.isEmpty()) {
+        auto fit = continentFallback.constFind(continent);
+        if (fit != continentFallback.cend()) {
+            QVector<ProbeServer> nearby;
+            for (const auto& cc : fit.value()) {
+                auto cit2 = sServerDb.constFind(cc);
+                if (cit2 != sServerDb.cend()) nearby += cit2.value();
+            }
+            if (!nearby.isEmpty()) return nearby;
+        }
+    }
+    return {};
+}
+
+#undef ADD_SERVER
 
 GeoProbe& GeoProbe::instance() {
     static GeoProbe inst;

@@ -29,11 +29,9 @@ DiagnosticResult internetConnectivity(DiagId id) {
     ProbeResult result = gp.getFeedback(cfg);
 
     // ── Build server metadata lookup (name, sponsor, IP) ──────────
-    // static: server DB is immutable, copy once per process lifetime
-    static SpeedTest st;
     struct Meta { QString name; QString sponsor; };
     QHash<QString, Meta> metaByKey;  // key = "host:port"
-    for (const auto& srv : st.allServers()) {
+    for (const auto& srv : GeoProbe::allServers()) {
         Meta m; m.name = srv.name; m.sponsor = srv.sponsor;
         metaByKey.insert(srv.host + QStringLiteral(":") + QString::number(srv.port), m);
     }
