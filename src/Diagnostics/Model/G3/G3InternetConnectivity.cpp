@@ -47,13 +47,13 @@ DiagnosticResult internetConnectivity(DiagId id) {
 
     QStringList out;
     out.append(QStringLiteral("Internet Connectivity"));
-    out.append(QStringLiteral("Method: TTFB global probe → 3-round → HL aggregation → speed test"));
+    out.append(QStringLiteral("Method: TTFB Global Probe → 3-Round → HL Aggregation → Speed Test"));
     out.append(QString());
 
     // ── Phase 1: Location ────────────────────────────────────────
     out.append(QStringLiteral("── Phase 1: Location ──"));
-    out.append(QStringLiteral("Physical location: %1").arg(result.physicalCountry));
-    out.append(QStringLiteral("Probed %1 servers, %2 countries reachable")
+    out.append(QStringLiteral("Physical Location: %1").arg(result.physicalCountry));
+    out.append(QStringLiteral("Probed %1 Servers, %2 Countries Reachable")
         .arg(result.servers.size()).arg(result.countries.size()));
     out.append(QString());
 
@@ -92,7 +92,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
 
     // ── Phase 3: Best server ─────────────────────────────────────
     if (result.servers.isEmpty()) {
-        out.append(QStringLiteral("No reachable server found"));
+        out.append(QStringLiteral("No Reachable Server Found"));
         r.summary = QStringLiteral("No Internet Connectivity");
         r.status = DiagStatus::Fail;
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
@@ -130,7 +130,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
     if (pingMs < 0)
         out.append(QStringLiteral("  Ping:    ✗ TCP Connect Failed"));
     else
-        out.append(QStringLiteral("  Ping:    ✓ %1ms TCP connect").arg(pingMs));
+        out.append(QStringLiteral("  Ping:    ✓ %1ms TCP Connect").arg(pingMs));
     out.append(QString());
 
     // ── Tiered speed test ──
