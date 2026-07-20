@@ -57,8 +57,14 @@ ProbeResult ProbeFeedback::get(const ProbeConfig& config) {
 // ── Per-server statistics: HL median + MAD + 95% CI ─────────────────
 ServerResult ProbeFeedback::computeServerStats(const ProbeDatabase::Task& task) const {
     ServerResult sr;
-    sr.host = task.host;
-    sr.port = task.port;
+    // 5WHY: task.host and task.port are documented as "filled by Executor"
+    // but ProbeExecutor::writeResults() never writes them — it only writes
+    // results, country, and regionTags.  task.key is the canonical source:
+    // ProbeScheduler sets it to "host:port" at upsert time.  Parse it here
+    // so ServerResult always has valid host/port regardless of Executor.
+    int colon = task.key.lastIndexOf(':');
+    sr.host = (colon > 0) ? task.key.left(colon) : task.key;
+    sr.port = (colon > 0) ? task.key.mid(colon + 1).toInt() : 80;
     sr.country = task.country;
     sr.regionTags = task.regionTags;
 
