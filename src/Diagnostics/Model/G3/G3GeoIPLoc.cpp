@@ -332,35 +332,42 @@ DiagnosticResult geoIPLoc(DiagId id) {
     out.append(QStringLiteral("  Mann-Whitney U = %1, p-value = %2, Cliff's Delta = %3")
         .arg(U, 0, 'f', 1).arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3));
 
-    // VPN decision
-    // 5WHY: r.summary was only a single-word VPN status (e.g. "No VPN",
-    // "VPN detected"), hiding the two location values that drove the
-    // conclusion.  Users need both Physical and GeoIP locations visible
-    // in the summary, followed by the VPN inference.
+    // ── VPN decision ──────────────────────────────────────────────
+    // Decision matrix: country match + statistical significance + effect size.
+    // Mann-Whitney U test: p < 0.05 = significant latency difference.
+    // Cliff's Delta (δ): |δ| ≥ 0.33 = medium/large effect (Cohen's convention).
+    // VPN inference: GeoIP country ≠ Physical country AND latency differs.
+    auto fmtLoc = [&]() { return QStringLiteral("GeoIP=%1, Physical=%2, p=%3, δ=%4")
+        .arg(countryName(countryA)).arg(countryName(countryB))
+        .arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3); };
+
     if (countryA == countryB) {
-        out.append(QStringLiteral("  Status: No VPN detected — GeoIP matches physical location"));
+        out.append(QStringLiteral("  Status: No VPN — GeoIP and Physical both %1 (%2)")
+            .arg(countryName(countryA)).arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → No VPN")
             .arg(countryName(countryB)).arg(countryName(countryA));
         r.status = DiagStatus::Info;
     } else if (pValue < 0.05 && std::abs(delta) >= 0.33) {
-        out.append(QStringLiteral("  Status: VPN DETECTED (p<%1, |delta|=%2)")
-            .arg(pValue < 0.01 ? "0.01" : "0.05").arg(std::abs(delta), 0, 'f', 2));
+        out.append(QStringLiteral("  Status: VPN DETECTED — %1")
+            .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN detected")
             .arg(countryName(countryB)).arg(countryName(countryA));
         r.status = DiagStatus::Warning;
     } else if (pValue < 0.05 && std::abs(delta) < 0.33) {
-        out.append(QStringLiteral("  Status: VPN likely (significant p-value, small effect)"));
+        out.append(QStringLiteral("  Status: VPN likely — significant latency difference, small effect (%1)")
+            .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN likely")
             .arg(countryName(countryB)).arg(countryName(countryA));
         r.status = DiagStatus::Info;
     } else if (std::abs(delta) >= 0.33) {
-        out.append(QStringLiteral("  Status: VPN suspected (medium effect, inconclusive p-value)"));
-        r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN suspected")
+        out.append(QStringLiteral("  Status: VPN possible — medium effect but inconclusive significance (%1)")
+            .arg(fmtLoc()));
+        r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN possible")
             .arg(countryName(countryB)).arg(countryName(countryA));
         r.status = DiagStatus::Info;
     } else {
-        out.append(QStringLiteral("  Status: Inconclusive — GeoIP=%1, physical=%2")
-            .arg(countryName(countryA)).arg(countryName(countryB)));
+        out.append(QStringLiteral("  Status: Inconclusive — %1")
+            .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → Inconclusive")
             .arg(countryName(countryB)).arg(countryName(countryA));
         r.status = DiagStatus::Info;
