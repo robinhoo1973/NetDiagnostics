@@ -1,5 +1,5 @@
 // =============================================================================
-// ProbeExecutor.cpp — Persistent probe worker thread implementation
+// ProbeExecutor.cpp — On-demand probe worker thread
 // =============================================================================
 #include "Diagnostics/Model/ProbeExecutor.h"
 #include "Common/Services/ProbeDatabase.h"
@@ -13,16 +13,10 @@
 ProbeExecutor::ProbeExecutor(ProbeDatabase* db, QObject* parent)
     : QThread(parent), m_db(db) {}
 
-ProbeExecutor::~ProbeExecutor() { shutdown(); }
+ProbeExecutor::~ProbeExecutor() { requestStop(); }
 
-void ProbeExecutor::notify() {
-    QMutexLocker lock(&m_mutex);
-    m_condition.wakeOne();
-}
-
-void ProbeExecutor::shutdown() {
-    m_shutdown.store(true);
-    notify();
+void ProbeExecutor::requestStop() {
+    m_stopRequested.store(true);
     if (isRunning()) {
         wait(5000);
         if (isRunning()) terminate();
@@ -30,24 +24,18 @@ void ProbeExecutor::shutdown() {
 }
 
 void ProbeExecutor::run() {
-    while (!m_shutdown.load()) {
-        // Wait for notification
-        {
-            QMutexLocker lock(&m_mutex);
-            while (!m_db->hasWaitingTasks() && !m_shutdown.load()) {
-                m_condition.wait(&m_mutex);  // block until notify() wakes us
-            }
-        }
-        if (m_shutdown.load()) break;
+    // Build SpeedTest database once for metadata lookup
+    G1G2G3Native::SpeedTest st;
 
-        // Fetch a batch of Waiting tasks from Database
+    while (!m_stopRequested.load()) {
+        // Fetch a batch of Waiting tasks
         QVector<ServerTask> batch = m_db->fetchWaiting(512);
-        if (batch.isEmpty()) continue;
+        if (batch.isEmpty()) {
+            // No more Waiting tasks — auto-stop
+            break;
+        }
 
-        // Build SpeedTest database for metadata lookup
-        G1G2G3Native::SpeedTest st;
-
-        // Parallel probe using std::thread pool
+        // Parallel probe using 10-thread pool
         std::atomic<int> workIdx{0};
         const int kThreads = 10;
         std::vector<std::thread> threads;
@@ -61,13 +49,13 @@ void ProbeExecutor::run() {
 
                     ServerTask& task = batch[idx];
 
-                    // ① Parse host:port
+                    // Parse host:port
                     int colon = task.key.lastIndexOf(':');
                     QString host = task.key.left(colon);
                     int port = task.key.mid(colon + 1).toInt();
                     if (port <= 0) port = 80;
 
-                    // ② Lookup metadata from SpeedTest database
+                    // Lookup metadata
                     QString country = "XX";
                     QStringList regionTags;
                     for (const auto& srv : st.allServers()) {
@@ -78,16 +66,15 @@ void ProbeExecutor::run() {
                     }
                     regionTags = G1G2G3Native::GeoProbe::regionTags(country);
 
-                    // ③ Execute TTFB probes
+                    // Execute TTFB probes
                     QVector<double> results;
                     results.reserve(task.rounds);
-                    QString path = "/";
                     for (int r = 0; r < task.rounds; r++) {
-                        double ttfb = G1G2G3Native::httpTtfb(host, port, path, 3000, 8);
+                        double ttfb = G1G2G3Native::httpTtfb(host, port, "/", 3000, 8);
                         if (ttfb >= 0) results.append(ttfb);
                     }
 
-                    // ④ Write raw results + metadata back to Database
+                    // Write raw results back to Database
                     m_db->writeResults(task.key, results, country, regionTags);
                 }
             });

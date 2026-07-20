@@ -3,15 +3,22 @@
 // =============================================================================
 #include "Diagnostics/Model/ProbeScheduler.h"
 #include "Common/Services/ProbeDatabase.h"
+#include "Diagnostics/Model/ProbeExecutor.h"
 #include "Diagnostics/Model/G3/G3InternetDns.h"
 #include "Diagnostics/Model/GeoProbe.h"
 
-ProbeScheduler::ProbeScheduler(ProbeDatabase* db) : m_db(db) {}
+ProbeScheduler::ProbeScheduler(ProbeDatabase* db, ProbeExecutor* exec)
+    : m_db(db), m_exec(exec) {}
 
 void ProbeScheduler::submit(const ProbeConfig& config) {
     QStringList hosts = resolveHosts(config);
     for (const auto& host : hosts) {
         m_db->upsert(host, config.rounds);
+    }
+
+    // Start Executor if it's not already running and there's work to do
+    if (!m_exec->isRunning() && m_db->hasWaitingTasks()) {
+        m_exec->start();
     }
 }
 

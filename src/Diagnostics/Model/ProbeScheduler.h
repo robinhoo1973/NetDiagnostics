@@ -7,12 +7,14 @@
 #include <QStringList>
 
 class ProbeDatabase;
+class ProbeExecutor;
 
 class ProbeScheduler {
 public:
-    explicit ProbeScheduler(ProbeDatabase* db);
+    ProbeScheduler(ProbeDatabase* db, ProbeExecutor* exec);
 
-    // Submit probe request — non-blocking
+    // Submit probe request — non-blocking.
+    // Automatically starts Executor if it's not already running.
     void submit(const ProbeConfig& config);
 
     // Resolve config.scope → list of "host:port" keys
@@ -20,4 +22,5 @@ public:
 
 private:
     ProbeDatabase* m_db;
+    ProbeExecutor* m_exec;
 };
