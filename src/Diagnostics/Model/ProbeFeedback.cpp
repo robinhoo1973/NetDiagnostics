@@ -85,10 +85,11 @@ ServerResult ProbeFeedback::computeServerStats(const ServerTask& task) const {
     sr.mad = mad;
 
     // 95% CI using t-distribution (small-sample corrected)
-    // t_0.025,df for df=1..6, fallback z=1.96 for n>7
-    static const double T95[] = {0, 0, 12.71, 4.30, 3.18, 2.78, 2.57, 1.96};
+    // t_0.025,df indexed by df = min(n-1, 6).  z=1.96 for n≥8.
+    // df:  1      2      3      4      5      6       ≥7
+    static const double T95[] = {0, 12.71, 4.30, 3.18, 2.78, 2.57, 2.45, 1.96};
     int df = std::min(n - 1, 6);
-    double tval = T95[df];
+    double tval = (df < 7) ? T95[df] : 1.96;
     // MAD→SD consistency factor: 1.4826 under normality
     sr.ciHalf = tval * 1.4826 * mad / std::sqrt(static_cast<double>(n));
 
