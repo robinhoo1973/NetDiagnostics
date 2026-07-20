@@ -16,10 +16,8 @@ void ProbeScheduler::submit(const ProbeConfig& config) {
         m_db->upsert(host, config.rounds);
     }
 
-    // Start Executor if it's not already running and there's work to do
-    if (!m_exec->isRunning() && m_db->hasWaitingTasks()) {
-        m_exec->start();
-    }
+    // QThread::start() is a no-op if already running — safe to call unconditionally
+    m_exec->start();
 }
 
 QStringList ProbeScheduler::resolveHosts(const ProbeConfig& config) const {

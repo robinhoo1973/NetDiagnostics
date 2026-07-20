@@ -36,7 +36,10 @@ void ProbeExecutor::run() {
 
     while (!m_stopRequested.load()) {
         QVector<ServerTask> batch = m_db->fetchWaiting(512);
-        if (batch.isEmpty()) break;  // auto-stop
+        if (batch.isEmpty()) {
+            QThread::msleep(100);  // idle: brief yield before re-check
+            continue;
+        }
 
         // 5WHY: st.allServers() called from 10 threads caused data race
         // on QMap implicit-sharing refcount.  Pre-built QHash above is
