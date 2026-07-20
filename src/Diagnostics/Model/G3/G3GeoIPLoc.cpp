@@ -17,7 +17,7 @@ namespace G1G2G3Native {
 
 // ── ISO 3166-1 country code → name ───────────────────────────────────
 static QString countryName(const QString& a2) {
-    if (a2 == QStringLiteral("XX")) return QStringLiteral("Unknown");
+    if (a2.isEmpty() || a2 == QStringLiteral("XX")) return QStringLiteral("Unknown");
     static const QMap<QString, QString> map = {
         {"CN","China"},{"US","United States"},{"JP","Japan"},{"KR","South Korea"},
         {"SG","Singapore"},{"IN","India"},{"DE","Germany"},{"GB","United Kingdom"},
@@ -226,7 +226,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
                     .arg(countryName(countryB)).arg(bestN));
             }
         }
-        if (countryB == QStringLiteral("XX")) {
+        if (countryB.isEmpty() || countryB == QStringLiteral("XX")) {
             out.append(QStringLiteral("Status: insufficient data for VPN analysis"));
             r.summary = QStringLiteral("GeoIP: %1, Physical: unknown")
                 .arg(countryName(countryA));
