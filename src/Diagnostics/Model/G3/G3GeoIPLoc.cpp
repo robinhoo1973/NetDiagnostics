@@ -156,13 +156,23 @@ static QString detectCountry(int timeoutMs = 3000) {
                 }
             }
             // Also try JSON array ["CN",...] format
-            if (cc.isEmpty() && body.startsWith("[\"") && body.length() >= 6)
-                cc = body.mid(2, 2).toUpper();
+            if (cc.isEmpty() && body.startsWith("[\"") && body.length() >= 6) {
+                QString arrCc = body.mid(2, 2).toUpper();
+                if (arrCc[0] >= 'A' && arrCc[0] <= 'Z'
+                    && arrCc[1] >= 'A' && arrCc[1] <= 'Z')
+                    cc = arrCc;
+            }
             break;
         }
-        case 1: // ── Plain-text 2-letter country code ──
-            if (body.length() == 2 && body[0].isLetter() && body[1].isLetter())
-                cc = body.toUpper();
+        case 1: { // ── Plain-text 2-letter country code ──
+            if (body.length() == 2) {
+                QString ptCc = body.toUpper();
+                if (ptCc[0] >= 'A' && ptCc[0] <= 'Z'
+                    && ptCc[1] >= 'A' && ptCc[1] <= 'Z')
+                    cc = ptCc;
+            }
+            break;
+        }
             break;
         }
 
