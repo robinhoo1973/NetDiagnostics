@@ -10,7 +10,6 @@ public:
     SpeedTest() { build(); }
     QVector<Server> serversForCountry(const QString& hint) const;
     QVector<Server> allServers() const;
-    static QString detectCountry(int = 3000);
 private: void build(); QMap<QString, QVector<Server>> m;
 };
 inline void SpeedTest::build() {

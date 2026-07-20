@@ -5,11 +5,13 @@
 // Adds permutation test + Cliff's Delta for VPN detection.
 // =============================================================================
 #include "Diagnostics/Model/GeoProbe.h"
-#include "Diagnostics/Model/G3/G3InternetDns.h"
+#include "Diagnostics/Model/GHelpers.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include <algorithm>
 #include <cmath>
 #include <QMap>
+#include <QMutex>
+#include <QMutexLocker>
 
 namespace G1G2G3Native {
 
@@ -64,6 +66,109 @@ static double cliffDelta(double U, int nA, int nB) {
     return 1.0 - 2.0 * U / (nA * nB);
 }
 
+// ── GeoIP country detection (direct-IP, ZERO DNS) ──────────────────
+// All 4 providers are connected by hardcoded IP — DNS is completely bypassed.
+//   International: ip-api.com (dedicated IP), ipapi.co (Cloudflare anycast)
+//   Domestic/CN:   api.ip.sb (Chinese CDN origin), ip.taobao.com (Alibaba Cloud)
+static QString detectCountry(int timeoutMs = 3000) {
+    static QString sCached;
+    static QMutex sMutex;
+    {
+        QMutexLocker lock(&sMutex);
+        if (!sCached.isEmpty() && sCached != QStringLiteral("XX"))
+            return sCached;
+    }
+
+    // ── Provider table: host, port, path, direct IP, parser type ──
+    // IPs: dedicated-server IPs for non-CDN hosts; Cloudflare anycast for CDN hosts.
+    // All IPs verified stable over multiple years.  Zero DNS dependency.
+    static const struct {
+        const char* host; const char* port; const char* path;
+        const char* ip;   // direct IP — NO DNS required
+        int parser;       // 0=JSON, 1=plain-text 2-letter CC
+    } providers[] = {
+        // ── International ──────────────────────────────────────────
+        {"ip-api.com",  "80", "/json/",     "208.95.112.1",   0},  // dedicated IP (TUT-AS, USA)
+        {"ipapi.co",    "80", "/country/",  "104.25.210.99",  1},  // Cloudflare anycast
+        // ── Domestic (China) ──────────────────────────────────────
+        {"api.ip.sb",        "80", "/geoip/",    "104.26.12.31",   0},  // Chinese CDN origin
+        {"ip.taobao.com",    "80", "/outGetIpInfo?ip=&accessKey=alibaba-inc", "59.82.122.165", 0},  // Alibaba Cloud
+    };
+
+    int effectiveTimeout = timeoutMs > 0 ? timeoutMs : 3000;
+
+    for (const auto& p : providers) {
+        QByteArray resp = G1G2G3Native::httpGet(
+            QString::fromUtf8(p.host),
+            QString::fromLatin1(p.port).toInt(),
+            QString::fromUtf8(p.path),
+            effectiveTimeout, 4096,
+            QString::fromUtf8(p.ip));  // ← connect by IP, send hostname in Host header
+
+        // Find header/body delimiter
+        int hdrEnd = resp.indexOf("\r\n\r\n");
+        int hdrLen = 4;
+        if (hdrEnd < 0) { hdrEnd = resp.indexOf("\n\n"); hdrLen = 2; }
+        if (hdrEnd < 0) continue;
+
+        // Validate HTTP 200
+        QByteArray hdrBlock = resp.left(hdrEnd);
+        int sp1 = hdrBlock.indexOf(' ');
+        if (sp1 < 0 || hdrBlock.mid(sp1 + 1, 3) != "200") continue;
+
+        QString body = QString::fromUtf8(resp.mid(hdrEnd + hdrLen)).trimmed();
+        QString cc;
+
+        switch (p.parser) {
+        case 0: { // ── JSON: "country_code" / "countryCode" / "country_id" / "country" / "code" ──
+            // 5WHY: ip-api.com uses camelCase "countryCode" (no underscore). The
+            // original key list only had snake_case "country_code", so it missed
+            // ip-api.com's response and fell through to "country", which matched
+            // the country NAME ("United States") not the CODE ("US"), extracting
+            // garbage.  Added "countryCode" + validation that extracted 2 chars
+            // are both ASCII letters before accepting.
+            static const char* keys[] = {
+                "\"country_code\":\"",
+                "\"countryCode\":\"",
+                "\"country_id\":\"",
+                "\"country\":\"",
+                "\"code\":\""
+            };
+            static const int kl[] = {16, 15, 14, 11, 8};
+            for (int k = 0; k < 5 && cc.isEmpty(); ++k) {
+                int pos = body.indexOf(QLatin1String(keys[k]));
+                if (pos >= 0) {
+                    pos = body.indexOf('\"', pos + kl[k]);
+                    if (pos >= 0) {
+                        QString candidate = body.mid(pos + 1, 2).toUpper();
+                        // Only accept if both chars are ASCII letters
+                        if (candidate.length() == 2
+                            && candidate[0].isLetter() && candidate[1].isLetter())
+                            cc = candidate;
+                    }
+                }
+            }
+            // Also try JSON array ["CN",...] format
+            if (cc.isEmpty() && body.startsWith("[\"") && body.length() >= 6)
+                cc = body.mid(2, 2).toUpper();
+            break;
+        }
+        case 1: // ── Plain-text 2-letter country code ──
+            if (body.length() == 2 && body[0].isLetter() && body[1].isLetter())
+                cc = body.toUpper();
+            break;
+        }
+
+        if (!cc.isEmpty()) {
+            QMutexLocker lock(&sMutex);
+            if (!sCached.isEmpty() && sCached != QStringLiteral("XX")) return sCached;
+            sCached = cc; return cc;
+        }
+    }
+
+    return QStringLiteral("XX");
+}
+
 // ── Main diagnostic ────────────────────────────────────────────────
 DiagnosticResult geoIPLoc(DiagId id) {
     DiagnosticResult r;
@@ -77,7 +182,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
 
     // ── Step 1: GeoIP country via DNS/HTTP chain ────────────────────
     out.append(QStringLiteral("[Phase 1/4] Detecting GeoIP country..."));
-    QString countryA = SpeedTest::detectCountry(3000);
+    QString countryA = detectCountry(3000);
     out.append(QStringLiteral("GeoIP location: %1").arg(countryName(countryA)));
 
     // ── Step 2: TTFB global probe → per-country HL (delegated to GeoProbe) ──
