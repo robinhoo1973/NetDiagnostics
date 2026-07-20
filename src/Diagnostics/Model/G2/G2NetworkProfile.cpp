@@ -99,7 +99,7 @@ DiagnosticResult networkProfile(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("Network profile collected");
+    r.summary = QStringLiteral("Network Profile Collected");
     r.durationMs = 0;
     return r;
 }

@@ -306,7 +306,7 @@ DiagnosticResult ipConfiguration(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("IP configuration collected");
+    r.summary = QStringLiteral("IP Configuration Collected");
     r.durationMs = t.elapsed();
     return r;
 }

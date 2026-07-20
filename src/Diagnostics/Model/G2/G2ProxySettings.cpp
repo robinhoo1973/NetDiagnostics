@@ -37,7 +37,7 @@ DiagnosticResult proxySettings(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = DiagStatus::Info;
-    r.summary = QStringLiteral("Proxy settings collected");
+    r.summary = QStringLiteral("Proxy Settings Collected");
     r.durationMs = 0;
     return r;
 }

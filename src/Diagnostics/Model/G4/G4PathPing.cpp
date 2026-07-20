@@ -6,7 +6,7 @@ DiagnosticResult pathPing(const QString& target) {
     if (target.isEmpty()) return noTargetResult(r.id, r.group);
     QString host = extractHostname(target);
     quint32 targetIp = resolveIPv4(host);
-    if (!targetIp) { r.status = DiagStatus::Fail; r.summary = QStringLiteral("DNS resolution failed"); return r; }
+    if (!targetIp) { r.status = DiagStatus::Fail; r.summary = QStringLiteral("DNS Resolution Failed"); return r; }
     struct in_addr a; a.s_addr = htonl(targetIp);
     QString targetIpStr = ip4ToStr(a);
 
@@ -202,9 +202,9 @@ DiagnosticResult pathPing(const QString& target) {
     r.details   = lines.join('\n');
     r.durationMs = totalTimer.elapsed();
 
-    if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("%1 hops, target reached").arg(hopCount); }
-    else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial: %1 hops").arg(hopCount); }
-    else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("Target unreachable"); }
+    if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("%1 Hops, Target Reached").arg(hopCount); }
+    else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial: %1 Hops").arg(hopCount); }
+    else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("Target Unreachable"); }
     return r;
 }
 

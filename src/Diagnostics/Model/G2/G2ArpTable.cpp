@@ -118,7 +118,7 @@ DiagnosticResult arpTable(DiagId id) {
         : QStringLiteral("ARP table collected via sysctl");
 #else
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("ARP table collected");
+    r.summary = QStringLiteral("ARP Table Collected");
 #endif
 #endif
 #endif  // close converted #elif

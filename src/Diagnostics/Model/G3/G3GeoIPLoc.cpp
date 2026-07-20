@@ -334,7 +334,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
             .arg(countryName(countryA)).arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → No VPN")
             .arg(countryName(countryB)).arg(countryName(countryA));
-        r.status = DiagStatus::Info;
+        r.status = DiagStatus::Pass;  // both locations agree → passing
     } else if (pValue < 0.05 && std::abs(delta) >= 0.33) {
         out.append(QStringLiteral("  Status: VPN DETECTED — %1")
             .arg(fmtLoc()));
