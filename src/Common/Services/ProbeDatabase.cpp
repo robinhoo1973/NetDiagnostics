@@ -22,6 +22,7 @@ ProbeDatabase::UpsertResult ProbeDatabase::upsert(const QString& key, int rounds
 
     if (t.status == ServerTask::Done && t.rounds < rounds) {
         t.rounds = rounds;
+        t.results.clear();     // fresh measurements for new round count
         t.status = ServerTask::Waiting;
         return {Requeued, t};
     }

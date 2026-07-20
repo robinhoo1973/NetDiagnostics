@@ -35,7 +35,7 @@ void ProbeExecutor::run() {
         {
             QMutexLocker lock(&m_mutex);
             while (!m_db->hasWaitingTasks() && !m_shutdown.load()) {
-                m_condition.wait(&m_mutex, 1000);
+                m_condition.wait(&m_mutex);  // block until notify() wakes us
             }
         }
         if (m_shutdown.load()) break;

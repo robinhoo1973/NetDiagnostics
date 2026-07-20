@@ -26,6 +26,10 @@ GeoProbe::~GeoProbe() {
 
 void GeoProbe::probe(const ProbeConfig& config) {
     m_scheduler->submit(config);
+    // Wake the Executor if new Waiting tasks were created
+    if (m_database->hasWaitingTasks()) {
+        m_executor->notify();
+    }
 }
 
 ProbeResult GeoProbe::getFeedback(const ProbeConfig& config) {

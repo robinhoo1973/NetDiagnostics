@@ -45,7 +45,9 @@ ProbeResult ProbeFeedback::get(const ProbeConfig& config) {
             break;
     }
 
-    // Step 4: topN truncation
+    // Step 4: sort by TTFB ASC + topN truncation
+    std::sort(servers.begin(), servers.end(),
+              [](const ServerResult& a, const ServerResult& b) { return a.ttfbMs < b.ttfbMs; });
     if (config.topN > 0 && servers.size() > config.topN) {
         servers.resize(config.topN);
     }

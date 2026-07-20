@@ -36,16 +36,14 @@ DiagnosticResult internetConnectivity(DiagId id) {
         .arg(result.servers.size()).arg(result.countries.size()));
     out.append(QString());
 
-    // ── Phase 2: Top 5 servers ──
+    // ── Phase 2: Top 5 servers (sorted by TTFB, fastest first) ──
     int shown = 0;
-    for (auto& cr : result.countries) {
-        for (auto& sr : cr.servers) {
-            if (shown >= 5) break;
-            out.append(QStringLiteral("  %1. %2 (%3) — %4ms")
-                .arg(shown + 1).arg(sr.host).arg(cr.code).arg(sr.ttfbMs, 0, 'f', 1));
-            shown++;
-        }
+    for (const auto& sr : result.servers) {
         if (shown >= 5) break;
+        out.append(QStringLiteral("  %1. %2 (%3) — %4ms (±%5ms)")
+            .arg(shown + 1).arg(sr.host).arg(sr.country)
+            .arg(sr.ttfbMs, 0, 'f', 1).arg(sr.ciHalf, 0, 'f', 1));
+        shown++;
     }
     out.append(QString());
 
