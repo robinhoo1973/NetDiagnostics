@@ -3,7 +3,7 @@
 // =============================================================================
 #include "Common/Services/ProbeDatabase.h"
 
-ProbeDatabase::UpsertResult ProbeDatabase::upsert(const QString& key, int rounds) {
+void ProbeDatabase::upsert(const QString& key, int rounds) {
     QMutexLocker lock(&m_mutex);
     auto it = m_table.find(key);
 
@@ -11,27 +11,26 @@ ProbeDatabase::UpsertResult ProbeDatabase::upsert(const QString& key, int rounds
         ServerTask t;
         t.key = key; t.rounds = rounds; t.status = ServerTask::Waiting;
         m_table.insert(key, t);
-        return {Created, t};
+        return;
     }
 
     ServerTask& t = it.value();
 
     if (t.status == ServerTask::Done && t.rounds >= rounds) {
-        return {NoOp, t};
+        return;  // already satisfied
     }
 
     if (t.status == ServerTask::Done && t.rounds < rounds) {
         t.rounds = rounds;
-        t.results.clear();     // fresh measurements for new round count
+        t.results.clear();
         t.status = ServerTask::Waiting;
-        return {Requeued, t};
+        return;
     }
 
-    // Waiting or Running
+    // Waiting or Running — bump round count if needed
     if (t.rounds < rounds) {
         t.rounds = rounds;
     }
-    return {Merged, t};
 }
 
 QVector<ServerTask> ProbeDatabase::fetchWaiting(int maxCount) {
