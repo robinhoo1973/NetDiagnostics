@@ -8,12 +8,16 @@
 #include "Common/Services/ProbeDatabase.h"
 #include <QMap>
 
+GeoProbe& GeoProbe::instance() {
+    static GeoProbe inst;
+    return inst;
+}
+
 GeoProbe::GeoProbe() {
     m_database  = new ProbeDatabase();
     m_executor  = new ProbeExecutor(m_database);
-    m_scheduler = new ProbeScheduler(m_database, m_executor);  // Scheduler starts Executor
+    m_scheduler = new ProbeScheduler(m_database, m_executor);
     m_feedback  = new ProbeFeedback(m_database, m_scheduler);
-    // Executor is started on-demand by Scheduler::submit() — not here
 }
 
 GeoProbe::~GeoProbe() {
@@ -25,11 +29,15 @@ GeoProbe::~GeoProbe() {
 }
 
 void GeoProbe::probe(const ProbeConfig& config) {
-    m_scheduler->submit(config);  // auto-starts Executor if needed
+    m_scheduler->submit(config);
 }
 
 ProbeResult GeoProbe::getFeedback(const ProbeConfig& config) {
     return m_feedback->get(config);
+}
+
+void GeoProbe::clear() {
+    m_database->clear();
 }
 
 // ── Region tag mapping (static, shared by Executor/Feedback/Scheduler) ─

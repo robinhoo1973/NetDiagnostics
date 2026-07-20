@@ -50,7 +50,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // ── Create MVC Controllers & Models ──────────────────────────────────
     m_targetModel  = new TargetModel(this);
     m_resultsModel = new ResultsModel(this);
-    m_geoProbe     = new GeoProbe();
     m_dashCtrl   = new DashboardController(this, this);
     m_diagCtrl   = new DiagnosticsController(this, this);
     m_configCtrl = new ConfigurationController(this, this);
@@ -112,7 +111,6 @@ AppState::~AppState() {
     if (m_runStatus == RunStatus::Running) {
         m_runStatus = RunStatus::Cancelled;
     }
-    delete m_geoProbe;
 }
 
 // ── App version / edition / build number ─────────────────────────────────
@@ -237,7 +235,7 @@ void AppState::runDiagnostics() {
     TRACE(" runDiagnostics start target='%s'\n", m_targetModel->target().toUtf8().constData());
 
     // Clear probe cache before each diagnostic run
-    m_geoProbe->database()->clear();
+    GeoProbe::instance().clear();
 
     // Reset state before each run (clears previous results, error messages, etc.)
     reset();

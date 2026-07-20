@@ -15,7 +15,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 
-    GeoProbe gp;
+    GeoProbe& gp = GeoProbe::instance();
 
     ProbeConfig cfg;
     cfg.scope = ProbeConfig::Global;
