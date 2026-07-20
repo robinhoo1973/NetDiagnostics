@@ -340,7 +340,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
             .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Detected")
             .arg(countryName(countryB)).arg(countryName(countryA));
-        r.status = DiagStatus::Warning;
+        r.status = DiagStatus::Info;  // both locations available → Information
     } else if (pValue < 0.05 && std::abs(delta) < 0.33) {
         out.append(QStringLiteral("  Status: VPN Likely — Significant Latency Difference, Small Effect (%1)")
             .arg(fmtLoc()));
