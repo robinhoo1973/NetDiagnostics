@@ -124,6 +124,10 @@ QByteArray httpGet(const QString& host, int port, const QString& path,
                    int timeoutMs = 3000, int maxBytes = 4096,
                    const QString& connectHost = QString());
 
+// HTTPS GET — uses QNetworkAccessManager for TLS.  Returns response body.
+// Synchronous (local QEventLoop).  Used by G3GeoIPLoc for GeoIP providers.
+QByteArray httpsGet(const QString& url, int timeoutMs = 5000);
+
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
 // Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.
 double   httpTtfb(const QString& host, int port, const QString& path,

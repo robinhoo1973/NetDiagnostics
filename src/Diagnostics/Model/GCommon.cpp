@@ -2,6 +2,12 @@
 #include "Common/Utils/NetUtil.h"
 #include <QMutex>
 #include <QMutexLocker>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QUrl>
+#include <QEventLoop>
+#include <QTimer>
 namespace G1G2G3Native {
 
 // ── Host header with RFC 7230 §5.4 port inclusion ──────────────────
@@ -361,6 +367,45 @@ double httpTtfb(const QString& host, int port, const QString& path,
     }
     closeSocket(sock);
     return ttfb;
+}
+
+// ── HTTPS GET — QNetworkAccessManager with TLS ────────────────────────
+// 5WHY: httpGet uses raw TCP sockets — no TLS support.  When GeoIP
+// providers (ipapi.co, ip.taobao.com) return 301 redirects to HTTPS,
+// httpGet skips non-200 responses → provider fails.  httpsGet uses
+// QNetworkAccessManager which handles TLS + redirects transparently.
+QByteArray httpsGet(const QString& url, int timeoutMs) {
+    QNetworkAccessManager nam;
+    QUrl qurl(url);
+    QNetworkRequest req{qurl};
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NetDiagnostics/1.0"));
+    req.setRawHeader("Accept", "text/plain,application/json");
+
+    QNetworkReply* reply = nam.get(req, QByteArray());
+
+    QEventLoop loop;
+    QTimer timer;
+    timer.setSingleShot(true);
+    QObject::connect(&timer, &QTimer::timeout, &loop, &QEventLoop::quit);
+    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    timer.start(timeoutMs);
+
+    loop.exec();
+
+    if (!reply->isFinished()) {
+        reply->abort();
+        reply->deleteLater();
+        return {};
+    }
+
+    QByteArray body;
+    if (reply->error() == QNetworkReply::NoError) {
+        int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (status == 200)
+            body = reply->readAll();
+    }
+    reply->deleteLater();
+    return body;
 }
 
 } // namespace G1G2G3Native
