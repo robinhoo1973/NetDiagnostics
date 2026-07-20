@@ -66,10 +66,9 @@ static double cliffDelta(double U, int nA, int nB) {
     return 1.0 - 2.0 * U / (nA * nB);
 }
 
-// ── GeoIP country detection (IP-first, DNS fallback) ───────────────
-// ip-api.com uses a dedicated-IP connection (no DNS).  ifconfig.co
-// is a DNS-based fallback in case ip-api.com is unreachable.
-// Verified working with HTTP/1.0 raw-TCP on port 80 (July 2026).
+// ── GeoIP country detection via HTTPS ─────────────────────────────
+// Uses QNetworkAccessManager for TLS + automatic redirect handling.
+// All 3 providers verified working via HTTPS (July 2026).
 static QString detectCountry(int timeoutMs = 3000) {
     static QString sCached;
     static QMutex sMutex;
@@ -79,45 +78,28 @@ static QString detectCountry(int timeoutMs = 3000) {
             return sCached;
     }
 
-    // ── Provider table: host, port, path, direct IP, parser type ──
-    // 5WHY: ipapi.co → 301 HTTPS redirect (Cloudflare blocks HTTP).
-    // api.ip.sb → returns caller IP, not geo data.  ip.taobao.com →
-    // 301 redirect + QPS rate limit.  All 3 dead with HTTP/1.0 raw TCP.
-    // Fix: ip-api.com (dedicated IP, no CDN) + ifconfig.co as backup.
-    // Empty ip = use hostname with DNS (only as last-resort fallback).
+    // ── Provider table: HTTPS URL, parser type ──
+    // 5WHY: HTTP raw-TCP failed for 3/4 providers (301 redirects, wrong
+    // responses).  Switched to QNetworkAccessManager (TLS) + HTTPS URLs
+    // which handles redirects and encryption transparently.
     static const struct {
-        const char* host; const char* port; const char* path;
-        const char* ip;   // direct IP (empty = use hostname via DNS)
+        const char* url;  // full HTTPS URL
         int parser;       // 0=JSON, 1=plain-text 2-letter CC
     } providers[] = {
-        {"ip-api.com",    "80", "/json/",                  "208.95.112.1", 0},  // dedicated IP
-        {"ip-api.com",    "80", "/line/?fields=countryCode", "208.95.112.1", 1},  // same IP, plain text
-        {"ifconfig.co",   "80", "/country-iso",            "",             1},  // CDN, DNS fallback
+        {"https://ip-api.com/json/",                  0},  // JSON: "countryCode":"KR"
+        {"https://ipapi.co/country/",                 1},  // plain: "KR"
+        {"https://ifconfig.co/country-iso",           1},  // plain: "KR"
     };
 
-    int effectiveTimeout = timeoutMs > 0 ? timeoutMs : 3000;
+    int effectiveTimeout = timeoutMs > 0 ? timeoutMs : 5000;
 
     for (const auto& p : providers) {
-        QByteArray resp = G1G2G3Native::httpGet(
-            QString::fromUtf8(p.host),
-            QString::fromLatin1(p.port).toInt(),
-            QString::fromUtf8(p.path),
-            effectiveTimeout, 4096,
-            QString::fromUtf8(p.ip));  // ← connect by IP, send hostname in Host header
+        QByteArray body = G1G2G3Native::httpsGet(
+            QString::fromUtf8(p.url), effectiveTimeout);
+        if (body.isEmpty()) continue;
 
-        // Find header/body delimiter
-        int hdrEnd = resp.indexOf("\r\n\r\n");
-        int hdrLen = 4;
-        if (hdrEnd < 0) { hdrEnd = resp.indexOf("\n\n"); hdrLen = 2; }
-        if (hdrEnd < 0) continue;
-
-        // Validate HTTP 200
-        QByteArray hdrBlock = resp.left(hdrEnd);
-        int sp1 = hdrBlock.indexOf(' ');
-        if (sp1 < 0 || hdrBlock.mid(sp1 + 1, 3) != "200") continue;
-
-        QString body = QString::fromUtf8(resp.mid(hdrEnd + hdrLen)).trimmed();
         QString cc;
+        QString text = QString::fromUtf8(body).trimmed();
 
         switch (p.parser) {
         case 0: { // ── JSON: "country_code" / "countryCode" / "country_id" / "country" / "code" ──
@@ -136,11 +118,11 @@ static QString detectCountry(int timeoutMs = 3000) {
             };
             static const int kl[] = {16, 15, 14, 11, 8};
             for (int k = 0; k < 5 && cc.isEmpty(); ++k) {
-                int pos = body.indexOf(QLatin1String(keys[k]));
+                int pos = text.indexOf(QLatin1String(keys[k]));
                 if (pos >= 0) {
-                    pos = body.indexOf('\"', pos + kl[k]);
+                    pos = text.indexOf('\"', pos + kl[k]);
                     if (pos >= 0) {
-                        QString candidate = body.mid(pos + 1, 2).toUpper();
+                        QString candidate = text.mid(pos + 1, 2).toUpper();
                         // 5WHY: QChar::isLetter() returns true for ALL Unicode
                         // letters (CJK, Cyrillic, Arabic, etc.), not just ASCII.
                         // If a JSON provider's "country_id" key misses but
@@ -156,8 +138,8 @@ static QString detectCountry(int timeoutMs = 3000) {
                 }
             }
             // Also try JSON array ["CN",...] format
-            if (cc.isEmpty() && body.startsWith("[\"") && body.length() >= 6) {
-                QString arrCc = body.mid(2, 2).toUpper();
+            if (cc.isEmpty() && text.startsWith("[\"") && text.length() >= 6) {
+                QString arrCc = text.mid(2, 2).toUpper();
                 if (arrCc[0] >= 'A' && arrCc[0] <= 'Z'
                     && arrCc[1] >= 'A' && arrCc[1] <= 'Z')
                     cc = arrCc;
@@ -165,8 +147,8 @@ static QString detectCountry(int timeoutMs = 3000) {
             break;
         }
         case 1: { // ── Plain-text 2-letter country code ──
-            if (body.length() == 2) {
-                QString ptCc = body.toUpper();
+            if (text.length() == 2) {
+                QString ptCc = text.toUpper();
                 if (ptCc[0] >= 'A' && ptCc[0] <= 'Z'
                     && ptCc[1] >= 'A' && ptCc[1] <= 'Z')
                     cc = ptCc;
