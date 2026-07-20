@@ -9,6 +9,66 @@ static QString hostHeader(const QString& host, int port) {
     return (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
 }
 
+// ── Raw HTTP GET — returns response body ────────────────────────────
+// 5WHY: httpGet was removed during GeoProbe refactoring (httpTtfb +
+// httpDownload replaced it), but G3InternetDns.cpp was created after
+// the removal and still references it.  Restore it so G3InternetDns
+// GeoIP country detection works.  Follows the same TCP connect + send +
+// recv pattern as httpTtfb/httpDownload.
+QByteArray httpGet(const QString& host, int port, const QString& path,
+                   int timeoutMs, int maxBytes) {
+    QByteArray body;
+    int sock = tcpConnect(host, port, qMin(timeoutMs, 3000));
+    if (sock < 0) return body;
+
+    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
+        .arg(path, hostHeader(host, port)).toUtf8();
+
+    // Send request (EAGAIN-safe)
+    int sent = 0; int sendAttempts = 0;
+    while (sent < req.size() && sendAttempts < 100) {
+        int n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
+        if (n > 0) { sent += n; sendAttempts = 0; }
+        else if (n < 0) {
+#if defined(_WIN32)
+            if (WSAGetLastError() != WSAEWOULDBLOCK) break;
+#else
+            if (errno != EAGAIN && errno != EWOULDBLOCK) break;
+#endif
+            fd_set wfds; struct timeval wtv = {0, 100000};
+            FD_ZERO(&wfds); FD_SET(sock, &wfds);
+            if (select(sock + 1, nullptr, &wfds, nullptr, &wtv) <= 0) break;
+            sendAttempts++;
+        } else break;
+    }
+    if (sent < req.size()) { closeSocket(sock); return body; }
+
+    // Read response
+    fd_set fdset; struct timeval tv;
+    QElapsedTimer guard; guard.start();
+    char buf[4096];
+    while (body.size() < maxBytes && guard.elapsed() < timeoutMs) {
+        FD_ZERO(&fdset); FD_SET(sock, &fdset);
+        int remaining = timeoutMs - (int)guard.elapsed();
+        if (remaining <= 0) break;
+        tv = {remaining / 1000, (remaining % 1000) * 1000};
+        if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
+        int n = (int)recv(sock, buf, sizeof(buf), 0);
+        if (n > 0) body.append(buf, n);
+        else if (n == 0) break;
+        else {
+#if defined(_WIN32)
+            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
+#else
+            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+#endif
+            break;
+        }
+    }
+    closeSocket(sock);
+    return body;
+}
+
 // HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
