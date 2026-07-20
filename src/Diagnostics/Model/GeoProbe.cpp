@@ -11,6 +11,8 @@
 #include <QStandardPaths>
 #include <QRegularExpression>
 #include <QTextStream>
+#include <QMutex>
+#include <QMutexLocker>
 
 // ── Server DB macro (same format as G3ServerDb.inc) ─────────────────
 #define ADD_SERVER(c, h, p, n, sp) \
@@ -20,8 +22,17 @@
 // ── Lazy-loaded server database ─────────────────────────────────────
 static QMap<QString, QVector<ProbeServer>> sServerDb;
 static bool sServerDbLoaded = false;
+static QMutex sServerDbMutex;
 
 void GeoProbe::ensureServerDbLoaded() {
+    // 5WHY: Old SpeedTest class had per-instance `m` members — concurrent
+    // calls to build() only caused redundant (but safe) population of
+    // separate instances.  Refactoring to a single shared sServerDb
+    // introduced a data race: Executor worker thread and diagnostic thread
+    // could both call allServers()/serversForCountry() before the DB was
+    // loaded, writing to the same QMap without synchronization.
+    // Fixed: QMutex protects the critical section.
+    QMutexLocker lock(&sServerDbMutex);
     if (sServerDbLoaded) return;
 
     // Step 1: try runtime-updated DB (from ServerDbUpdater downloads)
