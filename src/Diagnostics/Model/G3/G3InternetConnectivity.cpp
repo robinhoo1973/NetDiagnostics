@@ -93,7 +93,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
     // ── Phase 3: Best server ─────────────────────────────────────
     if (result.servers.isEmpty()) {
         out.append(QStringLiteral("No reachable server found"));
-        r.summary = QStringLiteral("No internet connectivity");
+        r.summary = QStringLiteral("No Internet Connectivity");
         r.status = DiagStatus::Fail;
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.durationMs = t.elapsed(); return r;
@@ -109,7 +109,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
     if (bestMeta != metaByKey.cend() && !bestMeta->sponsor.isEmpty())
         out.append(QStringLiteral("  Sponsor: %1").arg(bestMeta->sponsor));
     out.append(QStringLiteral("  Host:    %1:%2").arg(best.host).arg(best.port));
-    out.append(QStringLiteral("  IP:      %1").arg(bestIp.isEmpty() ? QStringLiteral("(unresolved)") : bestIp));
+    out.append(QStringLiteral("  IP:      %1").arg(bestIp.isEmpty() ? QStringLiteral("(Unresolved)") : bestIp));
     out.append(QStringLiteral("  Country: %1").arg(best.country));
     out.append(QStringLiteral("  TTFB:    %1ms (95% CI ±%2ms, %3 rounds)")
         .arg(best.ttfbMs, 0, 'f', 1).arg(best.ciHalf, 0, 'f', 1).arg(best.rounds));
@@ -121,14 +121,14 @@ DiagnosticResult internetConnectivity(DiagId id) {
 
     // Pre-check: DNS resolution (reuses Phase 2 result, no redundant lookup)
     if (bestIp.isEmpty())
-        out.append(QStringLiteral("  DNS:     ✗ failed — hostname not resolved"));
+        out.append(QStringLiteral("  DNS:     ✗ Failed — Hostname Not Resolved"));
     else
         out.append(QStringLiteral("  DNS:     ✓ %1").arg(bestIp));
 
     // Pre-check: TCP ping
     int pingMs = G1G2G3Native::tcpPingMs(best.host, best.port);
     if (pingMs < 0)
-        out.append(QStringLiteral("  Ping:    ✗ TCP connect failed"));
+        out.append(QStringLiteral("  Ping:    ✗ TCP Connect Failed"));
     else
         out.append(QStringLiteral("  Ping:    ✓ %1ms TCP connect").arg(pingMs));
     out.append(QString());
@@ -177,7 +177,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
                 anyDlOk = true;
                 if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
             } else {
-                QString err = dl.error.isEmpty() ? QStringLiteral("unknown error") : dl.error;
+                QString err = dl.error.isEmpty() ? QStringLiteral("Unknown Error") : dl.error;
                 dlRows.append({
                     QString::fromLatin1(tier.label),
                     QStringLiteral("—"),
@@ -210,7 +210,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
                 anyUlOk = true;
                 if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
             } else {
-                QString err = ul.error.isEmpty() ? QStringLiteral("unknown error") : ul.error;
+                QString err = ul.error.isEmpty() ? QStringLiteral("Unknown Error") : ul.error;
                 ulRows.append({
                     QString::fromLatin1(tier.label),
                     QStringLiteral("—"),
@@ -231,17 +231,17 @@ DiagnosticResult internetConnectivity(DiagId id) {
             .arg(bestDlMbps, 0, 'f', 1).arg(bestUlMbps, 0, 'f', 1);
         r.status = DiagStatus::Pass;
     } else if (anyDlOk) {
-        r.summary = QStringLiteral("Connected — %1 (%2ms, ↓%3 Mbps, upload N/A)")
+        r.summary = QStringLiteral("Connected — %1 (%2ms, ↓%3 Mbps, Upload N/A)")
             .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0)
             .arg(bestDlMbps, 0, 'f', 1);
         r.status = DiagStatus::Warning;
     } else if (anyUlOk) {
-        r.summary = QStringLiteral("Connected — %1 (%2ms, download N/A, ↑%3 Mbps)")
+        r.summary = QStringLiteral("Connected — %1 (%2ms, Download N/A, ↑%3 Mbps)")
             .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0)
             .arg(bestUlMbps, 0, 'f', 1);
         r.status = DiagStatus::Warning;
     } else {
-        r.summary = QStringLiteral("Connected — %1 (%2ms, speed test failed)")
+        r.summary = QStringLiteral("Connected — %1 (%2ms, Speed Test Failed)")
             .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0);
         r.status = DiagStatus::Warning;
     }

@@ -150,9 +150,9 @@ DiagnosticResult dnsCache(DiagId id) {
     r.details = r.rawOutput;
     r.status = hasCache ? DiagStatus::Pass : DiagStatus::Info;
     if (hasCache)
-        r.summary = QStringLiteral("Cache active — %1 cached DNS entries").arg(cacheEntries);
+        r.summary = QStringLiteral("Cache Active — %1 Cached DNS Entries").arg(cacheEntries);
     else
-        r.summary = QStringLiteral("No local DNS cache detected");
+        r.summary = QStringLiteral("No Local DNS Cache Detected");
     r.durationMs = (int)t.elapsed();
     return r;
 }

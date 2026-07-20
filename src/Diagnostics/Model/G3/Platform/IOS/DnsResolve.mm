@@ -132,7 +132,7 @@ DiagnosticResult __attribute__((used)) iosDnsResolve(DiagId id, const QString& t
         out.append(QStringLiteral(";; ANSWER SECTION: (empty)"));
         out.append(QString());
         r.status = DiagStatus::Fail;
-        r.summary = QStringLiteral("DNS resolution failed for %1").arg(host);
+        r.summary = QStringLiteral("DNS Resolution Failed for %1").arg(host);
     }
     out << DiagnosticFormatter::formatDnsFooter(elapsed, "system resolver (CFHost)");
     r.rawOutput = out.join('\n');

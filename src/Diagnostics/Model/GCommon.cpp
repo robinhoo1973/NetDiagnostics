@@ -82,7 +82,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
 
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
-    if (sock < 0) { r.error = QStringLiteral("TCP connect failed"); return r; }
+    if (sock < 0) { r.error = QStringLiteral("TCP Connect Failed"); return r; }
     fd_set fdset; struct timeval tv; // reused by send/recv loops below
 
     // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
@@ -107,7 +107,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         if (n == 0) break;
         reqSent += n;
     }
-    if (reqSent < req.size()) { r.error = QStringLiteral("HTTP request send incomplete"); closeSocket(sock); return r; }
+    if (reqSent < req.size()) { r.error = QStringLiteral("HTTP Request Send Incomplete"); closeSocket(sock); return r; }
 
     // Read with timing — measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
@@ -196,11 +196,11 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         r.ok = true;
     } else if (r.error.isEmpty()) {
         if (r.bytes <= 0)
-            r.error = QStringLiteral("No data received");
+            r.error = QStringLiteral("No Data Received");
         else if (r.durationMs <= 0)
-            r.error = QStringLiteral("Transfer duration too short");
+            r.error = QStringLiteral("Transfer Duration Too Short");
         else
-            r.error = QStringLiteral("Insufficient data (%1 bytes)").arg(r.bytes);
+            r.error = QStringLiteral("Insufficient Data (%1 bytes)").arg(r.bytes);
     }
     return r;
 }
@@ -214,7 +214,7 @@ SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs) {
 
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
-    if (sock < 0) { r.error = QStringLiteral("TCP connect failed"); return r; }
+    if (sock < 0) { r.error = QStringLiteral("TCP Connect Failed"); return r; }
 
     // Generate random payload
     QByteArray payload(targetBytes, 'A');
@@ -248,7 +248,7 @@ SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs) {
         if (n == 0) break;
         reqSent += n;
     }
-    if (reqSent < req.size()) { r.error = QStringLiteral("Upload send incomplete"); closeSocket(sock); return r; }
+    if (reqSent < req.size()) { r.error = QStringLiteral("Upload Send Incomplete"); closeSocket(sock); return r; }
 
     // Read HTTP response
     fd_set fdset; struct timeval tv;
@@ -297,9 +297,9 @@ SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs) {
             r.error = QStringLiteral("HTTP %1").arg(sp1 > 0 ? QString::fromLatin1(hdrs.mid(sp1 + 1, 3)) : QStringLiteral("???"));
         }
     } else if (r.durationMs <= 0) {
-        r.error = QStringLiteral("No upload response");
+        r.error = QStringLiteral("No Upload Response");
     } else {
-        r.error = QStringLiteral("Empty upload response");
+        r.error = QStringLiteral("Empty Upload Response");
     }
     return r;
 }
