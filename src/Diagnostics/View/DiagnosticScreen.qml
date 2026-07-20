@@ -365,7 +365,7 @@ Item {
                     width: Math.max(parent.width, implicitWidth)
                     Label { id: dtTitle; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
                     Label { id: dtStatus; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
-                    Label { id: dtSummary; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
+                    Label { id: dtSummary; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
                     Repeater {
                         model: currentDetail.properties || []

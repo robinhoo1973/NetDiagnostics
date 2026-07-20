@@ -142,11 +142,11 @@ DiagnosticResult traceroute(const QString& target) {
     }
     r.rawOutput = lines.join('\n');
     r.details   = lines.join('\n');
-    if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("Target reached in %1 hops").arg(hopCount); }
-    else if (blocked) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Path filtered by a router at hop %1").arg(hopCount); }
+    if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("Target Reached in %1 Hops").arg(hopCount); }
+    else if (blocked) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Path Filtered by a Router at Hop %1").arg(hopCount); }
     else if (tcpReachable) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("ICMP filtered 鈥?%1 reachable via TCP").arg(host); }
-    else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial path (%1 hops)").arg(hopCount); }
-    else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No hops discovered"); }
+    else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial Path (%1 Hops)").arg(hopCount); }
+    else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No Hops Discovered"); }
     return r;
 }
 

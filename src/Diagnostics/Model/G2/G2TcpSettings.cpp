@@ -147,7 +147,7 @@ DiagnosticResult tcpSettings(DiagId id) {
         : QStringLiteral("TCP settings collected via sysctl");
 #else
     r.status = DiagStatus::Pass;
-    r.summary = QStringLiteral("TCP settings collected");
+    r.summary = QStringLiteral("TCP Settings Collected");
 #endif
 #endif  // close converted #elif
 #endif  // close converted #elif

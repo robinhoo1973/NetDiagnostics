@@ -267,7 +267,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.status = out.size() > 3 ? DiagStatus::Pass : DiagStatus::Info;
-    r.summary = QStringLiteral("WiFi diagnostics complete");
+    r.summary = QStringLiteral("WiFi Diagnostics Complete");
     r.durationMs = t.elapsed();
     return r;
 }

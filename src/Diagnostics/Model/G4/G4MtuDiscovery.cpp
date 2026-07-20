@@ -125,8 +125,8 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     r.properties.append(prop("Host", host));
     r.properties.append(prop("MtuValue", QString::number(discoveredMtu)));
     r.properties.append(prop("MssValue", QString::number(mss)));
-    if (discoveredMtu >= 1500) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("MTU %1 (standard)").arg(discoveredMtu); }
-    else if (discoveredMtu >= 1280) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("MTU %1 (below 1500)").arg(discoveredMtu); }
+    if (discoveredMtu >= 1500) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("MTU %1 (Standard)").arg(discoveredMtu); }
+    else if (discoveredMtu >= 1280) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("MTU %1 (Below 1500)").arg(discoveredMtu); }
     else { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Low MTU: %1").arg(discoveredMtu); }
     return r;
 }

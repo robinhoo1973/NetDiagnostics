@@ -188,7 +188,7 @@ DiagnosticResult dnsResolution(const QString& target) {
         r.summary = QStringLiteral("%1 → %2").arg(host, ipsAll.join(QStringLiteral(", ")));
         r.status = DiagStatus::Pass;
     } else {
-        r.summary = QStringLiteral("DNS resolution failed for %1").arg(host);
+        r.summary = QStringLiteral("DNS Resolution Failed for %1").arg(host);
         r.status = DiagStatus::Fail;
     }
     r.properties.append(prop("Target", target));
