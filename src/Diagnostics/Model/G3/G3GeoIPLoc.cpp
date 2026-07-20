@@ -66,10 +66,10 @@ static double cliffDelta(double U, int nA, int nB) {
     return 1.0 - 2.0 * U / (nA * nB);
 }
 
-// ── GeoIP country detection (direct-IP, ZERO DNS) ──────────────────
-// All 4 providers are connected by hardcoded IP — DNS is completely bypassed.
-//   International: ip-api.com (dedicated IP), ipapi.co (Cloudflare anycast)
-//   Domestic/CN:   api.ip.sb (Chinese CDN origin), ip.taobao.com (Alibaba Cloud)
+// ── GeoIP country detection (IP-first, DNS fallback) ───────────────
+// ip-api.com uses a dedicated-IP connection (no DNS).  ifconfig.co
+// is a DNS-based fallback in case ip-api.com is unreachable.
+// Verified working with HTTP/1.0 raw-TCP on port 80 (July 2026).
 static QString detectCountry(int timeoutMs = 3000) {
     static QString sCached;
     static QMutex sMutex;
@@ -80,19 +80,19 @@ static QString detectCountry(int timeoutMs = 3000) {
     }
 
     // ── Provider table: host, port, path, direct IP, parser type ──
-    // IPs: dedicated-server IPs for non-CDN hosts; Cloudflare anycast for CDN hosts.
-    // All IPs verified stable over multiple years.  Zero DNS dependency.
+    // 5WHY: ipapi.co → 301 HTTPS redirect (Cloudflare blocks HTTP).
+    // api.ip.sb → returns caller IP, not geo data.  ip.taobao.com →
+    // 301 redirect + QPS rate limit.  All 3 dead with HTTP/1.0 raw TCP.
+    // Fix: ip-api.com (dedicated IP, no CDN) + ifconfig.co as backup.
+    // Empty ip = use hostname with DNS (only as last-resort fallback).
     static const struct {
         const char* host; const char* port; const char* path;
-        const char* ip;   // direct IP — NO DNS required
+        const char* ip;   // direct IP (empty = use hostname via DNS)
         int parser;       // 0=JSON, 1=plain-text 2-letter CC
     } providers[] = {
-        // ── International ──────────────────────────────────────────
-        {"ip-api.com",  "80", "/json/",     "208.95.112.1",   0},  // dedicated IP (TUT-AS, USA)
-        {"ipapi.co",    "80", "/country/",  "104.25.210.99",  1},  // Cloudflare anycast
-        // ── Domestic (China) ──────────────────────────────────────
-        {"api.ip.sb",        "80", "/geoip/",    "104.26.12.31",   0},  // Chinese CDN origin
-        {"ip.taobao.com",    "80", "/outGetIpInfo?ip=&accessKey=alibaba-inc", "59.82.122.165", 0},  // Alibaba Cloud
+        {"ip-api.com",    "80", "/json/",                  "208.95.112.1", 0},  // dedicated IP
+        {"ip-api.com",    "80", "/line/?fields=countryCode", "208.95.112.1", 1},  // same IP, plain text
+        {"ifconfig.co",   "80", "/country-iso",            "",             1},  // CDN, DNS fallback
     };
 
     int effectiveTimeout = timeoutMs > 0 ? timeoutMs : 3000;
