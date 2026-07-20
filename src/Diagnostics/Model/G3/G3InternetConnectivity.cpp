@@ -2,7 +2,7 @@
 // G3InternetConnectivity.cpp — Internet Connectivity diagnostic (G3)
 //
 // Uses GeoProbe for TTFB-based server probing + speed test on best server.
-// Wired to DiagId::G3InternetSpeedTest via TaskFactory.
+// Wired to DiagId::G3InternetConnectivity via TaskFactory.
 // =============================================================================
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/GHelpers.h"
