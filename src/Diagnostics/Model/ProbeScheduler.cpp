@@ -21,31 +21,24 @@ void ProbeScheduler::submit(const ProbeConfig& config) {
 }
 
 QStringList ProbeScheduler::resolveHosts(const ProbeConfig& config) const {
+    auto makeKeys = [](const auto& servers) {
+        QStringList keys;
+        for (const auto& srv : servers)
+            keys.append(srv.host + ":" + QString::number(srv.port));
+        return keys;
+    };
+
+    G1G2G3Native::SpeedTest st;
     switch (config.scope) {
-        case ProbeConfig::Global: {
-            QStringList keys;
-            G1G2G3Native::SpeedTest st;
-            for (const auto& srv : st.allServers()) {
-                keys.append(srv.host + ":" + QString::number(srv.port));
-            }
-            return keys;
-        }
-        case ProbeConfig::ByCountry: {
-            QStringList keys;
-            G1G2G3Native::SpeedTest st;
-            for (const auto& srv : st.serversForCountry(config.scopeValue)) {
-                keys.append(srv.host + ":" + QString::number(srv.port));
-            }
-            return keys;
-        }
+        case ProbeConfig::Global:
+            return makeKeys(st.allServers());
+        case ProbeConfig::ByCountry:
+            return makeKeys(st.serversForCountry(config.scopeValue));
         case ProbeConfig::ByRegion: {
             QStringList keys;
-            G1G2G3Native::SpeedTest st;
             for (const auto& srv : st.allServers()) {
-                auto tags = G1G2G3Native::GeoProbe::regionTags(srv.country);
-                if (tags.contains(config.scopeValue)) {
+                if (G1G2G3Native::GeoProbe::regionTags(srv.country).contains(config.scopeValue))
                     keys.append(srv.host + ":" + QString::number(srv.port));
-                }
             }
             return keys;
         }
