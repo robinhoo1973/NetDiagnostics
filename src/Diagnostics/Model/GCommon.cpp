@@ -11,8 +11,8 @@ static QString hostHeader(const QString& host, int port) {
 
 // ── Raw HTTP GET — returns raw HTTP response (headers + body) ───────
 // 5WHY: httpGet was removed during GeoProbe refactoring (httpTtfb +
-// httpDownload replaced it), but G3InternetDns.cpp was created after
-// the removal and still references it.  Restore it so G3InternetDns
+// httpDownload replaced it), but G3GeoIPLoc.cpp was created after
+// the removal and still references it.  Restore it so G3GeoIPLoc
 // GeoIP country detection works.  Follows the same TCP connect + send +
 // recv pattern as httpTtfb/httpDownload.
 QByteArray httpGet(const QString& host, int port, const QString& path,

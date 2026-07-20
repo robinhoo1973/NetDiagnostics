@@ -4,7 +4,7 @@
 #include "Diagnostics/Controller/TaskFactory.h"
 #include "Diagnostics/Model/G1/G1SystemAdapters.h"
 #include "Diagnostics/Model/G2/G2Connectivity.h"
-#include "Diagnostics/Model/G3/G3InternetDns.h"
+#include "Diagnostics/Model/G3/G3Diagnostics.h"
 #include "Diagnostics/Model/G4/G4RemoteHost.h"
 #include "Diagnostics/Model/NetworkProbe.h"
 #include "Common/Utils/Logger.h"
