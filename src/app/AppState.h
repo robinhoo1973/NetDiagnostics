@@ -29,8 +29,6 @@ class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
-class GeoProbe;
-
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {
@@ -275,8 +273,6 @@ private:
 
     // MVC Controllers (own page-specific logic and sub-objects)
     DashboardController* m_dashCtrl = nullptr;
-    // GeoProbe: shared probe engine (owns Executor thread + Database)
-    GeoProbe* m_geoProbe = nullptr;
     DiagnosticsController* m_diagCtrl = nullptr;
     ConfigurationController* m_configCtrl = nullptr;
     ReportController* m_reportCtrl = nullptr;
