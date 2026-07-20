@@ -31,16 +31,16 @@ ProbeResult ProbeFeedback::get(const ProbeConfig& config) {
     QString physicalCountry;
 
     switch (config.aggregation) {
-        case ProbeConfig::ByCountry: {
+        case ProbeConfig::Aggregation::ByCountry: {
             countries = aggregateByCountry(servers);
             if (!countries.isEmpty()) physicalCountry = countries[0].code;
             break;
         }
-        case ProbeConfig::ByRegion: {
+        case ProbeConfig::Aggregation::ByRegion: {
             regions = aggregateByRegion(servers);
             break;
         }
-        case ProbeConfig::None:
+        case ProbeConfig::Aggregation::None:
             break;
     }
 
@@ -87,7 +87,7 @@ ServerResult ProbeFeedback::computeServerStats(const ProbeDatabase::Task& task) 
     int df = std::min(n - 1, 6);
     double tval = (df < 7) ? T95[df] : 1.96;
     // MAD→SD consistency factor: 1.4826 under normality
-    sr.ciHalf = tval * 1.4826 * mad / std::sqrt(static_cast<double>(n));
+    sr.ciHalf = tval * 1.4826 * sr.mad / std::sqrt(static_cast<double>(n));
 
     return sr;
 }

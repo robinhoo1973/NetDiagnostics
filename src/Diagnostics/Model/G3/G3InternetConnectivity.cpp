@@ -20,7 +20,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
     ProbeConfig cfg;
     cfg.scope = ProbeConfig::Global;
     cfg.rounds = 3;
-    cfg.aggregation = ProbeConfig::ByCountry;
+    cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
 
     gp.probe(cfg);
     ProbeResult result = gp.getFeedback(cfg);
