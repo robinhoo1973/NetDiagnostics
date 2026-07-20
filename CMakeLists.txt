@@ -71,7 +71,6 @@ set(SOURCES
     src/Diagnostics/Model/G3/G3DnsPollution.cpp
     src/Diagnostics/Model/G3/G3GeoIPLoc.cpp
     src/Diagnostics/Model/G3/G3InternetConnectivity.cpp
-    src/Diagnostics/Model/G3/G3InternetSpeedTest.cpp
     src/Diagnostics/Model/G4/G4DnsResolution.cpp
     src/Diagnostics/Model/G4/G4Ping.cpp
     src/Diagnostics/Model/G4/G4Traceroute.cpp
