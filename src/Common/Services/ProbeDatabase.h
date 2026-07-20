@@ -37,9 +37,7 @@ public:
     ProbeDatabase() = default;
 
     // ── Scheduler API ────────────────────────────────────────────────
-    enum UpsertAction { Created, NoOp, Requeued, Merged };
-    struct UpsertResult { UpsertAction action; ServerTask task; };
-    UpsertResult upsert(const QString& key, int rounds);
+    void upsert(const QString& key, int rounds);
 
     // ── Executor API ─────────────────────────────────────────────────
     QVector<ServerTask> fetchWaiting(int maxCount);
