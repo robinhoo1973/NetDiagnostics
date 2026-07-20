@@ -6,6 +6,7 @@
 // =============================================================================
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/G3/G3InternetDns.h"
+#include "Diagnostics/View/DiagnosticFormatter.h"
 #include <algorithm>
 #include <cmath>
 #include <QMap>
@@ -121,6 +122,33 @@ DiagnosticResult geoIPLoc(DiagId id) {
             r.durationMs = t.elapsed(); return r;
         }
     }
+
+    // ── Top 5 Physical Locations (sorted by HL latency) ─────────────
+    if (!result.countries.isEmpty()) {
+        out.append(QString());
+        out.append(QStringLiteral("Top 5 Physical Locations:"));
+        out.append(QString());
+        int n = qMin(5, result.countries.size());
+        static const QVector<DiagnosticFormatter::ColSpec> kLocCols = {
+            {"Rank",              4, true},
+            {"Country",          20, false},
+            {"HL Latency (ms)", 15, true},
+            {"Servers",           7, true},
+        };
+        QList<QStringList> rows;
+        rows.reserve(n);
+        for (int i = 0; i < n; ++i) {
+            const auto& cr = result.countries[i];
+            rows.append({
+                QString::number(i + 1),
+                countryName(cr.code),
+                QStringLiteral("%1").arg(cr.hlMs, 0, 'f', 1),
+                QString::number(cr.serverCount),
+            });
+        }
+        out.append(DiagnosticFormatter::formatTable(kLocCols, rows));
+    }
+
     if (countryA == QStringLiteral("XX")) {
         out.append(QStringLiteral("Status: location estimated as %1 (GeoIP unreachable)").arg(countryName(countryB)));
         r.summary = QStringLiteral("Location est.");
@@ -175,7 +203,11 @@ DiagnosticResult geoIPLoc(DiagId id) {
     double mu = nA * nB / 2.0;
     double obsDev = std::abs(U - mu);
 
-    double pValue = (N <= 20) ? exactPermutationPValue(combined, nA, nB, obsDev)
+    // 5WHY: passed combined (raw TTFB ms) instead of ranks (1-based ints).
+    // Raw values are 100-2000× larger than rank values, so |U_raw - mu| >= obsDev
+    // is true for EVERY permutation → extremeCount = totalPerms → pValue = 1.0.
+    // Both pValue < 0.05 branches were unreachable — VPN detection was dead code.
+    double pValue = (N <= 20) ? exactPermutationPValue(ranks, nA, nB, obsDev)
                               : 1.0;  // fallback for large N
     double delta = cliffDelta(U, nA, nB);
 

@@ -13,6 +13,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QMap>
+#include <QSet>
 #include "Common/Model/DiagId.h"
 #include "Common/Model/DiagnosticResult.h"
 
@@ -32,6 +33,7 @@ public:
     // Called by AppState during scheduling
     void setTotalPerGroup(const QMap<DiagGroup, int>& totalPerGroup);
     void setTotalDiags(int total);
+    void setEnabledDiags(const QSet<int>& enabledIds);  // from DiagnosticConfig
     // Called by AppState when the target changes, so G5 tests can be filtered
     void setSchemeFilter(const QString& scheme, bool hasUrl);
     // Called by AppState when a result completes
@@ -64,6 +66,7 @@ private:
     int m_totalDiags = 0;
     int m_resultsVersion = 0;
     int m_currentRunningGroup = -1;  // -1 = no group running
+    QSet<int> m_enabledDiags;       // set of DiagId ints from DiagnosticConfig
     QString m_schemeFilter;
     bool m_hasUrlScheme = false;
 

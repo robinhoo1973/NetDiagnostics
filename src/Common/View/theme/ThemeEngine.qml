@@ -35,9 +35,9 @@ QtObject {
         textPrimary:      "#0F172A", textSecondary:   "#475569",
         textMuted:        "#64748B",
         accent:           "#F43F5E", cyan:            "#06B6D4",
-        passGreen:        "#059669", warnYellow:      "#B45309",
-        failRed:          "#DC2626", skipGray:        "#6B7280",
-        infoBlue:         "#3B82F6",
+        passGreen:        "#10B981", warnYellow:      "#D97706",
+        failRed:          "#EF4444", skipGray:        "#6B7280",
+        infoBlue:         "#6366F1",
         borderCard:       "#E2E8F0", borderSubtle:    "#F1F5F9",
         borderFocused:    "#0EA5E9"
     })
@@ -51,9 +51,9 @@ QtObject {
         textPrimary:      "#F1F5F9", textSecondary:   "#94A3B8",
         textMuted:        "#94A3B8",
         accent:           "#FB7185", cyan:            "#22D3EE",
-        passGreen:        "#4ADE80", warnYellow:      "#FBBF24",
-        failRed:          "#F87171", skipGray:        "#9CA3AF",
-        infoBlue:         "#60A5FA",
+        passGreen:        "#34D399", warnYellow:      "#F59E0B",
+        failRed:          "#EF4444", skipGray:        "#9CA3AF",
+        infoBlue:         "#818CF8",
         borderCard:       "#334155", borderSubtle:    "#1E293B",
         borderFocused:    "#38BDF8"
     })
@@ -70,11 +70,11 @@ QtObject {
     property string accent:          "#FB7185"
     property string accentBlue:      "#818CF8"
     property string cyan:            "#22D3EE"
-    property string passGreen:       "#4ADE80"
-    property string warnYellow:      "#FBBF24"
-    property string failRed:         "#F87171"
+    property string passGreen:       "#34D399"
+    property string warnYellow:      "#F59E0B"
+    property string failRed:         "#EF4444"
     property string skipGray:        "#9CA3AF"
-    property string infoBlue:        "#60A5FA"
+    property string infoBlue:        "#818CF8"
     property string borderCard:      "#334155"
     property string borderSubtle:    "#1E293B"
     property string borderFocused:   "#38BDF8"

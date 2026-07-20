@@ -300,6 +300,13 @@ void AppState::runDiagnostics() {
     }
     m_resultsModel->setTotalPerGroup(m_totalPerGroup);
     m_resultsModel->setTotalDiags(m_totalDiags);
+    // Pass enabled diag IDs so ResultsModel can show disabled tests as skipped immediately
+    {
+        QSet<int> enabledIds;
+        const auto& cfgEnabled = m_configCtrl->config().enabledDiags();
+        for (auto id : cfgEnabled) enabledIds.insert(static_cast<int>(id));
+        m_resultsModel->setEnabledDiags(enabledIds);
+    }
     TRACE(" %d groups, %d total tests\n", (int)m_pendingGroups.size(), m_totalDiags);
 
     if (m_pendingGroups.isEmpty()) {

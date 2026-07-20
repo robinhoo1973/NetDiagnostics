@@ -17,6 +17,10 @@ void ResultsModel::setTotalPerGroup(const QMap<DiagGroup, int>& totalPerGroup) {
     m_totalPerGroup = totalPerGroup;
 }
 
+void ResultsModel::setEnabledDiags(const QSet<int>& enabledIds) {
+    m_enabledDiags = enabledIds;
+}
+
 void ResultsModel::setTotalDiags(int total) {
     m_totalDiags = total;
 }
@@ -43,6 +47,7 @@ void ResultsModel::clear() {
     m_totalDiags = 0;
     m_resultsVersion = 0;
     m_currentRunningGroup = -1;
+    m_enabledDiags.clear();
     m_cachedStatsVersion = -1;
     m_cachedGroupStats.clear();
     emit progressChanged();
@@ -104,6 +109,21 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
         if (m_results.contains(id)) {
             if (m_results[id].status == DiagStatus::Skipped) continue;
             list.append(resultToVariantMap(m_results[id], true));
+        } else if (!m_enabledDiags.isEmpty() && !m_enabledDiags.contains(static_cast<int>(id))) {
+            // Disabled in config — show as pending with skip icon, not spinning
+            QVariantMap m;
+            m["id"] = static_cast<int>(id);
+            m["diagId"] = static_cast<int>(id);
+            m["displayName"] = ::diagDisplayName(id);
+            m["status"] = -1;
+            m["statusIcon"] = QStringLiteral("badge-skip");
+            m["summary"] = QString();
+            m["details"] = QString();
+            m["durationMs"] = 0;
+            m["isDone"] = false;
+            m["isPending"] = true;
+            m["isRunning"] = false;  // disabled — never shows spinner
+            list.append(m);
         } else {
             QVariantMap m;
             m["id"] = static_cast<int>(id);
@@ -116,7 +136,7 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
             m["durationMs"] = 0;
             m["isDone"] = false;
             m["isPending"] = true;
-            // isRunning: this pending test's group matches the currently executing group
+            // isRunning: this enabled pending test's group matches the currently executing group
             m["isRunning"] = (static_cast<int>(g) == m_currentRunningGroup);
             list.append(m);
         }

@@ -14,23 +14,30 @@ Item {
     signal detailClicked(var data)
 
     // 5WHY: icon size 12 → 16 (M3 iconSm) for better status
-    // recognition at a glance.  Nested ternaries replaced with
-    // lookup table for readability and maintainability.
-    readonly property var _statusIcons: ({
-        0: ["badge-check",   ThemeEngine.passGreen],
-        1: ["badge-warning", ThemeEngine.warnYellow],
-        2: ["badge-close",   ThemeEngine.failRed],
-        3: ["badge-skip",    ThemeEngine.skipGray],
-        4: ["badge-error",   ThemeEngine.failRed],
-        5: ["badge-info",    ThemeEngine.infoBlue]
-    })
+    // recognition at a glance.  Switched from static property var
+    // snapshot to dynamic switch functions — static snapshots don't
+    // update when ThemeEngine.applyTheme() changes palette colors.
     function _statusIcon(s) {
-        var entry = _statusIcons[s]
-        return entry ? entry[0] : "badge-skip"
+        switch (s) {
+            case 0: return "badge-check";
+            case 1: return "badge-warning";
+            case 2: return "badge-close";
+            case 3: return "badge-skip";
+            case 4: return "badge-error";
+            case 5: return "badge-info";
+            default: return "badge-skip";
+        }
     }
     function _statusColor(s) {
-        var entry = _statusIcons[s]
-        return entry ? entry[1] : ThemeEngine.skipGray
+        switch (s) {
+            case 0: return ThemeEngine.passGreen;
+            case 1: return ThemeEngine.warnYellow;
+            case 2: return ThemeEngine.failRed;
+            case 3: return ThemeEngine.skipGray;
+            case 4: return ThemeEngine.failRed;
+            case 5: return ThemeEngine.infoBlue;
+            default: return ThemeEngine.skipGray;
+        }
     }
 
     // ── Pending item ──────────────────────────────────────────────────
