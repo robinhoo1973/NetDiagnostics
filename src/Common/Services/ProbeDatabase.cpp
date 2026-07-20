@@ -8,22 +8,22 @@ void ProbeDatabase::upsert(const QString& key, int rounds) {
     auto it = m_table.find(key);
 
     if (it == m_table.end()) {
-        ServerTask t;
-        t.key = key; t.rounds = rounds; t.status = ServerTask::Waiting;
+        ProbeDatabase::Task t;
+        t.key = key; t.rounds = rounds; t.status = ProbeDatabase::Task::Waiting;
         m_table.insert(key, t);
         return;
     }
 
-    ServerTask& t = it.value();
+    ProbeDatabase::Task& t = it.value();
 
-    if (t.status == ServerTask::Done && t.rounds >= rounds) {
+    if (t.status == ProbeDatabase::Task::Done && t.rounds >= rounds) {
         return;  // already satisfied
     }
 
-    if (t.status == ServerTask::Done && t.rounds < rounds) {
+    if (t.status == ProbeDatabase::Task::Done && t.rounds < rounds) {
         t.rounds = rounds;
         t.results.clear();
-        t.status = ServerTask::Waiting;
+        t.status = ProbeDatabase::Task::Waiting;
         return;
     }
 
@@ -33,12 +33,12 @@ void ProbeDatabase::upsert(const QString& key, int rounds) {
     }
 }
 
-QVector<ServerTask> ProbeDatabase::fetchWaiting(int maxCount) {
+QVector<ProbeDatabase::Task> ProbeDatabase::fetchWaiting(int maxCount) {
     QMutexLocker lock(&m_mutex);
-    QVector<ServerTask> batch;
+    QVector<ProbeDatabase::Task> batch;
     for (auto& t : m_table) {
-        if (t.status == ServerTask::Waiting) {
-            t.status = ServerTask::Running;
+        if (t.status == ProbeDatabase::Task::Waiting) {
+            t.status = ProbeDatabase::Task::Running;
             batch.append(t);
             if (batch.size() >= maxCount) break;
         }
@@ -51,32 +51,33 @@ void ProbeDatabase::writeResults(const QString& key, const QVector<double>& resu
     QMutexLocker lock(&m_mutex);
     auto it = m_table.find(key);
     if (it == m_table.end()) return;
-    ServerTask& t = it.value();
+    ProbeDatabase::Task& t = it.value();
     t.results.append(results);
     t.country = country;
     t.regionTags = regionTags;
-    t.status = ServerTask::Done;
+    t.status = ProbeDatabase::Task::Done;
     m_condition.wakeAll();
 }
 
-ProbeDatabase::ServerTask ProbeDatabase::read(const QString& key) const {
+ProbeDatabase::ProbeDatabase::Task ProbeDatabase::read(const QString& key) const {
     QMutexLocker lock(&m_mutex);
     return m_table.value(key);
 }
 
 void ProbeDatabase::waitForCompletion(const QStringList& keys) {
     QMutexLocker lock(&m_mutex);
-    while (true) {
+    QDeadlineTimer deadline(60'000);  // 60s timeout guard
+    while (!deadline.hasExpired()) {
         bool allDone = true;
         for (const auto& key : keys) {
             auto it = m_table.find(key);
-            if (it == m_table.end() || it.value().status != ServerTask::Done) {
+            if (it == m_table.end() || it.value().status != ProbeDatabase::Task::Done) {
                 allDone = false;
                 break;
             }
         }
         if (allDone) break;
-        m_condition.wait(&m_mutex);
+        m_condition.wait(&m_mutex, 1000);  // wake every 1s to re-check
     }
 }
 
@@ -88,7 +89,7 @@ void ProbeDatabase::clear() {
 bool ProbeDatabase::hasWaitingTasks() const {
     QMutexLocker lock(&m_mutex);
     for (const auto& t : m_table) {
-        if (t.status == ServerTask::Waiting) return true;
+        if (t.status == ProbeDatabase::Task::Waiting) return true;
     }
     return false;
 }

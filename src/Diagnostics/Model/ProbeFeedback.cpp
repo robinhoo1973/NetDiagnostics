@@ -20,7 +20,7 @@ ProbeResult ProbeFeedback::get(const ProbeConfig& config) {
     // Step 2: read raw TTFB → per-server statistics
     QVector<ServerResult> servers;
     for (const auto& host : hosts) {
-        ServerTask task = m_db->read(host);
+        ProbeDatabase::Task task = m_db->read(host);
         if (task.results.isEmpty()) continue;
         servers.append(computeServerStats(task));
     }
@@ -55,7 +55,7 @@ ProbeResult ProbeFeedback::get(const ProbeConfig& config) {
 }
 
 // ── Per-server statistics: HL median + MAD + 95% CI ─────────────────
-ServerResult ProbeFeedback::computeServerStats(const ServerTask& task) const {
+ServerResult ProbeFeedback::computeServerStats(const ProbeDatabase::Task& task) const {
     ServerResult sr;
     sr.host = task.host;
     sr.port = task.port;
@@ -96,22 +96,25 @@ ServerResult ProbeFeedback::computeServerStats(const ServerTask& task) const {
 QVector<CountryResult> ProbeFeedback::aggregateByCountry(
     const QVector<ServerResult>& servers) const
 {
-    QMap<QString, QVector<double>> byCC;
+    // Single-pass: group servers by country, collect TTFB values to compute HL later
+    struct Group { QVector<ServerResult> srv; QVector<double> ttfb; };
+    QMap<QString, Group> byCC;
     for (const auto& srv : servers) {
-        if (srv.ok && srv.ttfbMs > 0) byCC[srv.country].append(srv.ttfbMs);
+        if (srv.ok && srv.ttfbMs > 0) {
+            auto& g = byCC[srv.country];
+            g.srv.append(srv);
+            g.ttfb.append(srv.ttfbMs);
+        }
     }
 
     QVector<CountryResult> out;
     for (auto it = byCC.begin(); it != byCC.end(); ++it) {
-        if (it.value().size() < 2) continue;
+        if (it.value().ttfb.size() < 2) continue;
         CountryResult cr;
         cr.code = it.key();
-        cr.hlMs = G1G2G3Native::hodgesLehmann(it.value());
-        cr.serverCount = it.value().size();
-        // attach matching servers
-        for (const auto& srv : servers) {
-            if (srv.country == cr.code) cr.servers.append(srv);
-        }
+        cr.hlMs = G1G2G3Native::hodgesLehmann(it.value().ttfb);
+        cr.serverCount = it.value().ttfb.size();
+        cr.servers = std::move(it.value().srv);
         out.append(cr);
     }
     std::sort(out.begin(), out.end(),
