@@ -3,7 +3,6 @@
 // =============================================================================
 #include "Diagnostics/Model/ProbeFeedback.h"
 #include "Diagnostics/Model/ProbeScheduler.h"
-#include "Common/Services/ProbeDatabase.h"
 #include "Diagnostics/Model/GHelpers.h"
 #include <algorithm>
 #include <cmath>

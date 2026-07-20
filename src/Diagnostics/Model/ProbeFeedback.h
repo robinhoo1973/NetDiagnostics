@@ -7,8 +7,8 @@
 #pragma once
 
 #include "Diagnostics/Model/ProbeConfig.h"
+#include "Common/Services/ProbeDatabase.h"  // for ServerTask
 
-class ProbeDatabase;
 class ProbeScheduler;
 
 class ProbeFeedback {
