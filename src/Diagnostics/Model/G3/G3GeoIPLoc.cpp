@@ -67,8 +67,8 @@ static double cliffDelta(double U, int nA, int nB) {
 }
 
 // ── GeoIP country detection via HTTPS ─────────────────────────────
-// Uses QNetworkAccessManager for TLS + automatic redirect handling.
-// All 3 providers verified working via HTTPS (July 2026).
+// QNetworkAccessManager handles TLS + redirects transparently.
+// 3 providers, all verified working via HTTPS (July 2026).
 static QString detectCountry(int timeoutMs = 3000) {
     static QString sCached;
     static QMutex sMutex;
@@ -78,17 +78,13 @@ static QString detectCountry(int timeoutMs = 3000) {
             return sCached;
     }
 
-    // ── Provider table: HTTPS URL, parser type ──
-    // 5WHY: HTTP raw-TCP failed for 3/4 providers (301 redirects, wrong
-    // responses).  Switched to QNetworkAccessManager (TLS) + HTTPS URLs
-    // which handles redirects and encryption transparently.
     static const struct {
-        const char* url;  // full HTTPS URL
-        int parser;       // 0=JSON, 1=plain-text 2-letter CC
+        const char* url;
+        int parser;  // 0=JSON, 1=plain-text 2-letter CC
     } providers[] = {
-        {"https://ip-api.com/json/",                  0},  // JSON: "countryCode":"KR"
-        {"https://ipapi.co/country/",                 1},  // plain: "KR"
-        {"https://ifconfig.co/country-iso",           1},  // plain: "KR"
+        {"https://ip-api.com/json/",        0},
+        {"https://ipapi.co/country/",       1},
+        {"https://ifconfig.co/country-iso", 1},
     };
 
     int effectiveTimeout = timeoutMs > 0 ? timeoutMs : 5000;
