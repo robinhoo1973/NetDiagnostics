@@ -150,7 +150,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
     double bestDlMbps = 0, bestUlMbps = 0;
 
     static const QVector<DiagnosticFormatter::ColSpec> kSpeedCols = {
-        {"Size",     7, false},
+        {"Size",     7,  true},
         {"Speed",   10,  true},
         {"Time",     6,  true},
         {"Bytes",    8,  true},
