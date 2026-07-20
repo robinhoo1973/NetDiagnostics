@@ -115,6 +115,11 @@ int      tcpPingMs(const QString& host, int port);
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
 
+// Raw HTTP GET — TCP connect + GET request → response body.
+// Used by G3InternetDns for GeoIP country detection (Phase 3).
+QByteArray httpGet(const QString& host, int port, const QString& path,
+                   int timeoutMs = 3000, int maxBytes = 4096);
+
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
 // Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.
 double   httpTtfb(const QString& host, int port, const QString& path,

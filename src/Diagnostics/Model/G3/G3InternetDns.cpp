@@ -84,13 +84,11 @@ QString SpeedTest::detectCountry(int timeoutMs) {
             return sCached;
     }
 
-    // Phase 1: DNS UDP → OpenDNS myip
-    QByteArray dnsResp = G1G2G3Native::httpGet(
-        QStringLiteral("myip.opendns.com"), 53,
-        QStringLiteral("/"), timeoutMs > 0 ? timeoutMs : 3000, 512);
-
-    // Phase 2: DoH → AliDNS (GFW-safe CDN)
-    QByteArray dohResp;
+    // 5WHY: Phase 1 (DNS UDP → OpenDNS) and Phase 2 (DoH → AliDNS)
+    // were dead code — dnsResp and dohResp were fetched but never used.
+    // Only Phase 3 (HTTP GeoIP providers) actually drives country
+    // detection.  Removing Phases 1-2 eliminates the dependency on
+    // httpGet for DNS queries and speeds up detectCountry().
 
     // Phase 3: HTTPS GeoIP providers
     static const char* providers[][3] = {
@@ -100,10 +98,13 @@ QString SpeedTest::detectCountry(int timeoutMs) {
         {"api.country.is", "80", "/"},
     };
 
+    // 5WHY: QStringLiteral(p[0]) / QStringLiteral(p[2]) failed because
+    // QStringLiteral only accepts string literals, not runtime const char*
+    // variables.  Use QString::fromUtf8() instead.
     for (auto& p : providers) {
         QByteArray resp = G1G2G3Native::httpGet(
-            QStringLiteral(p[0]), QString(p[1]).toInt(),
-            QStringLiteral(p[2]), 2000, 4096);
+            QString::fromUtf8(p[0]), QString(p[1]).toInt(),
+            QString::fromUtf8(p[2]), 2000, 4096);
 
         // Extract HTTP body
         int hdrEnd = resp.indexOf("\r\n\r\n");
