@@ -95,12 +95,31 @@ DiagnosticResult geoIPLoc(DiagId id) {
     QString countryB = result.physicalCountry;
     out.append(QStringLiteral("Physical location (lowest HL): %1").arg(countryName(countryB)));
 
+    // 5WHY: aggregateByCountry requires ≥2 servers per country. If all
+    // countries have only 1 reachable server, result.countries is empty
+    // and physicalCountry is "XX".  Fallback: find the country with the
+    // most reachable servers from result.servers and use its lowest HL.
     if (countryB == QStringLiteral("XX") || result.countries.isEmpty()) {
-        out.append(QStringLiteral("Status: insufficient data for VPN analysis"));
-        r.summary = QStringLiteral("Location unknown");
-        r.status = DiagStatus::Warning;
-        r.rawOutput = out.join('\n'); r.details = r.rawOutput;
-        r.durationMs = t.elapsed(); return r;
+        if (!result.servers.isEmpty()) {
+            QMap<QString, int> countPerCountry;
+            for (const auto& srv : result.servers)
+                if (srv.ok && srv.ttfbMs > 0) countPerCountry[srv.country]++;
+            int bestN = 0; QString bestCC;
+            for (auto it = countPerCountry.begin(); it != countPerCountry.end(); ++it)
+                if (it.value() > bestN) { bestN = it.value(); bestCC = it.key(); }
+            if (bestN > 0) {
+                countryB = bestCC;
+                out.append(QStringLiteral("Physical location (fallback): %1 (%2 reachable)")
+                    .arg(countryName(countryB)).arg(bestN));
+            }
+        }
+        if (countryB == QStringLiteral("XX")) {
+            out.append(QStringLiteral("Status: insufficient data for VPN analysis"));
+            r.summary = QStringLiteral("Location unknown");
+            r.status = DiagStatus::Warning;
+            r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+            r.durationMs = t.elapsed(); return r;
+        }
     }
     if (countryA == QStringLiteral("XX")) {
         out.append(QStringLiteral("Status: location estimated as %1 (GeoIP unreachable)").arg(countryName(countryB)));
