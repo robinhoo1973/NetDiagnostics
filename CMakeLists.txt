@@ -32,7 +32,12 @@ set(SOURCES
     src/Diagnostics/View/DiagnosticFormatter.cpp
     src/Common/Services/DiagnosticTask.cpp
     src/Diagnostics/Controller/TaskFactory.cpp
+    src/Common/Services/ProbeDatabase.cpp
     src/Diagnostics/Model/NetworkProbe.cpp
+    src/Diagnostics/Model/GeoProbe.cpp
+    src/Diagnostics/Model/ProbeScheduler.cpp
+    src/Diagnostics/Model/ProbeExecutor.cpp
+    src/Diagnostics/Model/ProbeFeedback.cpp
     src/app/TargetModel.cpp
     src/app/ResultsModel.cpp
     src/app/AppState.cpp
