@@ -1,15 +1,12 @@
 // =============================================================================
-// ProbeExecutor.h — Persistent probe worker thread
+// ProbeExecutor.h — On-demand probe worker thread
 //
-// Polls ProbeDatabase for Waiting tasks, executes TTFB measurements
-// via 10-thread parallel pool, writes raw results back to Database.
-// All hostname resolution and metadata lookup happens here (high cohesion).
+// Started by Scheduler when Waiting tasks exist, auto-stops when
+// no more Waiting tasks remain (fetchWaiting returns empty).
 // =============================================================================
 #pragma once
 
 #include <QThread>
-#include <QMutex>
-#include <QWaitCondition>
 #include <atomic>
 
 class ProbeDatabase;
@@ -21,12 +18,9 @@ public:
     ~ProbeExecutor();
 
     void run() override;
-    void notify();               // wake the worker thread
-    void shutdown();
+    void requestStop();            // called during shutdown
 
 private:
     ProbeDatabase* m_db;
-    QMutex m_mutex;
-    QWaitCondition m_condition;
-    std::atomic<bool> m_shutdown{false};
+    std::atomic<bool> m_stopRequested{false};
 };
