@@ -29,7 +29,7 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G3DnsServers:       return QStringLiteral("DNS Servers");
         case DiagId::G3DnsCache:         return QStringLiteral("DNS Cache");
         case DiagId::G3DnsPollution:     return QStringLiteral("DNS Pollution");
-        case DiagId::G3GeoIPLoc:         return QStringLiteral("IP Geolocation");
+        case DiagId::G3GeoIPLoc:         return QStringLiteral("IP Geo Location");
         case DiagId::G3InternetConnectivity: return QStringLiteral("Internet Connectivity");
         case DiagId::G4DnsResolution:    return QStringLiteral("DNS Resolution");
         case DiagId::G4Ping:             return QStringLiteral("Ping");
