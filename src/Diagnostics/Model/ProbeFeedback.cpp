@@ -79,10 +79,7 @@ ServerResult ProbeFeedback::computeServerStats(const ServerTask& task) const {
     // MAD (Median Absolute Deviation)
     QVector<double> absDev(n);
     for (int i = 0; i < n; i++) absDev[i] = std::abs(raw[i] - hl);
-    std::sort(absDev.begin(), absDev.end());
-    double mad = (n % 2 == 1) ? absDev[n / 2]
-                              : (absDev[n / 2 - 1] + absDev[n / 2]) / 2.0;
-    sr.mad = mad;
+    sr.mad = G1G2G3Native::median(absDev);
 
     // 95% CI using t-distribution (small-sample corrected)
     // t_0.025,df indexed by df = min(n-1, 6).  z=1.96 for n≥8.

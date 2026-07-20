@@ -101,6 +101,15 @@ inline double hodgesLehmann(const QVector<double>& v) {
            : (pairs[npairs / 2 - 1] + pairs[npairs / 2]) / 2.0;
 }
 
+// ── Generic median ───────────────────────────────────────────────────
+inline double median(QVector<double> v) {
+    int n = v.size();
+    if (n == 0) return 0.0;
+    if (n == 1) return v[0];
+    std::sort(v.begin(), v.end());
+    return (n % 2 == 1) ? v[n / 2] : (v[n / 2 - 1] + v[n / 2]) / 2.0;
+}
+
 // Forward declarations (defined in GCommon.cpp, non-static — shared across TUs)
 int      tcpPingMs(const QString& host, int port);
 struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; };
