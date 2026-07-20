@@ -16,8 +16,8 @@ struct ProbeConfig {
 
     int rounds = 3;               // TTFB measurements per server
 
-    enum Aggregation { None, ByCountry, ByRegion };
-    Aggregation aggregation = ByCountry;
+    enum class Aggregation { None, ByCountry, ByRegion };
+    Aggregation aggregation = Aggregation::ByCountry;
 
     int topN = 0;                 // 0 = return all, N = top N only
 };

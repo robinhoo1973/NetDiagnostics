@@ -83,7 +83,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
     ProbeConfig cfg;
     cfg.scope = ProbeConfig::Global;
     cfg.rounds = 1;       // single round for fast country detection
-    cfg.aggregation = ProbeConfig::ByCountry;
+    cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
 
     gp.probe(cfg);
     ProbeResult result = gp.getFeedback(cfg);

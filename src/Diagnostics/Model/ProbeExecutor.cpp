@@ -30,7 +30,7 @@ void ProbeExecutor::run() {
     QHash<QString, Meta> metaByHost;
     for (const auto& srv : st.allServers()) {
         Meta m; m.country = srv.country;
-        m.regionTags = G1G2G3Native::GeoProbe::regionTags(srv.country);
+        m.regionTags = GeoProbe::regionTags(srv.country);
         metaByHost.insert(srv.host + ":" + QString::number(srv.port), m);
     }
 
@@ -41,10 +41,8 @@ void ProbeExecutor::run() {
             continue;
         }
 
-        // 5WHY: st.allServers() called from 10 threads caused data race
-        // on QMap implicit-sharing refcount.  Pre-built QHash above is
-        // read-only during the parallel loop — thread-safe.
-        // One thread per server — max parallelism for I/O-bound TTFB probes.
+        // Pre-built QHash is read-only during the parallel loop — thread-safe.
+        const auto& lookup = metaByHost;
         // All 138 threads block mostly on recv(), so context-switch overhead is
         // negligible compared to 3-8s network wait per server.
         std::vector<std::thread> threads;

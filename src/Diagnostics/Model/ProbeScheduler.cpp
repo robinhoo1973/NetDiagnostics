@@ -37,7 +37,7 @@ QStringList ProbeScheduler::resolveHosts(const ProbeConfig& config) const {
         case ProbeConfig::ByRegion: {
             QStringList keys;
             for (const auto& srv : st.allServers()) {
-                if (G1G2G3Native::GeoProbe::regionTags(srv.country).contains(config.scopeValue))
+                if (GeoProbe::regionTags(srv.country).contains(config.scopeValue))
                     keys.append(srv.host + ":" + QString::number(srv.port));
             }
             return keys;
