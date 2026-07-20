@@ -59,7 +59,7 @@ void ProbeDatabase::writeResults(const QString& key, const QVector<double>& resu
     m_condition.wakeAll();
 }
 
-ProbeDatabase::ProbeDatabase::Task ProbeDatabase::read(const QString& key) const {
+ProbeDatabase::Task ProbeDatabase::read(const QString& key) const {
     QMutexLocker lock(&m_mutex);
     return m_table.value(key);
 }
