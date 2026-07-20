@@ -19,7 +19,7 @@ public:
     ProbeResult get(const ProbeConfig& config);
 
 private:
-    ServerResult computeServerStats(const ServerTask& task) const;
+    ServerResult computeServerStats(const ProbeDatabase::Task& task) const;
     QVector<CountryResult> aggregateByCountry(const QVector<ServerResult>& servers) const;
     QVector<RegionResult> aggregateByRegion(const QVector<ServerResult>& servers) const;
 
