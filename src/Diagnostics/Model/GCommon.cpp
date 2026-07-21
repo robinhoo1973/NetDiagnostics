@@ -408,4 +408,37 @@ QByteArray httpsGet(const QString& url, int timeoutMs) {
     return body;
 }
 
+// ── DoH DNS query — JSON API ──────────────────────────────────────────
+// Queries a DoH resolver (Google/Cloudflare/AliDNS/DNSPod), parses the
+// JSON response, returns resolved IP addresses.  Empty list on failure.
+// Uses the same httpsGet() transport as GeoIP detection.
+QStringList dohQuery(const QString& endpoint, const QString& domain,
+                     const QString& type, int timeoutMs) {
+    QStringList ips;
+    QString queryUrl = QStringLiteral("%1?name=%2&type=%3")
+        .arg(endpoint, domain, type);
+    QByteArray body = httpsGet(queryUrl, timeoutMs);
+    if (body.isEmpty()) return ips;
+
+    // Parse JSON: {"Answer":[{"name":"...","type":1,"TTL":300,"data":"1.2.3.4"},...]}
+    // Use string ops to avoid QJsonDocument dependency — same pattern as detectCountry.
+    QString json = QString::fromUtf8(body);
+    int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
+    if (ansStart < 0) return ips;
+
+    int sectionEnd = json.indexOf(']', ansStart);
+    int pos = ansStart;
+    while ((pos = json.indexOf(QStringLiteral("\"data\":\""), pos)) >= 0
+           && (sectionEnd < 0 || pos < sectionEnd)) {
+        pos += 8; // skip "data":"
+        int end = json.indexOf('\"', pos);
+        if (end > pos) {
+            QString ip = json.mid(pos, end - pos);
+            if (!ip.isEmpty() && ip[0].isDigit())
+                ips.append(ip);
+        }
+    }
+    return ips;
+}
+
 } // namespace G1G2G3Native
