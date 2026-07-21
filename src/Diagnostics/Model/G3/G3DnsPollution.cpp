@@ -51,31 +51,9 @@ DiagnosticResult dnsPollution(DiagId id) {
         for (const auto& ep : kDohEndpoints) {
             ResolverResult rr;
             rr.label = QString::fromUtf8(ep.label);
-            rr.ok = false;
-
-            QString queryUrl = QStringLiteral("%1?name=%2&type=A")
-                .arg(QString::fromUtf8(ep.url), QString::fromUtf8(td.domain));
-            QByteArray body = G1G2G3Native::httpsGet(queryUrl, 4000);
-
-            if (!body.isEmpty()) {
-                // Parse JSON: {"Answer":[{"data":"1.2.3.4"},...]}
-                QString json = QString::fromUtf8(body);
-                int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
-                if (ansStart >= 0) {
-                    int pos = ansStart;
-                    while ((pos = json.indexOf(QStringLiteral("\"data\":\""), pos)) >= 0
-                           && pos < json.indexOf(']', ansStart)) {
-                        pos += 8; // skip "data":"
-                        int end = json.indexOf('\"', pos);
-                        if (end > pos) {
-                            QString ip = json.mid(pos, end - pos);
-                            if (!ip.isEmpty() && ip[0].isDigit())
-                                rr.ips.append(ip);
-                        }
-                    }
-                    rr.ok = !rr.ips.isEmpty();
-                }
-            }
+            rr.ips = G1G2G3Native::dohQuery(
+                QString::fromUtf8(ep.url), QString::fromUtf8(td.domain));
+            rr.ok = !rr.ips.isEmpty();
             results.append(rr);
         }
 

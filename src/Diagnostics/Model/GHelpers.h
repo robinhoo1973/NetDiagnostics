@@ -128,6 +128,13 @@ QByteArray httpGet(const QString& host, int port, const QString& path,
 // Synchronous (local QEventLoop).  Used by G3GeoIPLoc for GeoIP providers.
 QByteArray httpsGet(const QString& url, int timeoutMs = 5000);
 
+// DoH (DNS-over-HTTPS) query — uses JSON API.  Returns resolved IP addresses.
+// endpoint: DoH resolver URL (e.g. "https://dns.google/resolve")
+// domain:   hostname to resolve (e.g. "www.google.com")
+// type:     record type, default "A" for IPv4
+QStringList dohQuery(const QString& endpoint, const QString& domain,
+                     const QString& type = QStringLiteral("A"), int timeoutMs = 4000);
+
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
 // Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.
 double   httpTtfb(const QString& host, int port, const QString& path,
