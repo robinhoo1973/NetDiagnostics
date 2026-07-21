@@ -14,18 +14,21 @@ static const struct {
     {"Cloudflare (US)", "https://cloudflare-dns.com/dns-query"},
 };
 
-// ── /16 subnet prefix for CDN vs pollution disambiguation ───────────
-static QString prefix16(const QString& ip) {
-    int dot2 = ip.indexOf('.', ip.indexOf('.') + 1);
-    return (dot2 > 0) ? ip.left(dot2) : ip;
+// ── /24 subnet prefix — industry standard for IP reputation ─────────
+// BIND RRL, GFW pollution research, and IP reputation systems all use
+// /24 (256 IPs) as the optimal granularity: tight enough to distinguish
+// different organizations, broad enough to handle CDN edge variations.
+// /16 is too broad — 65,536 IPs may span multiple ASes.
+static QString prefix24(const QString& ip) {
+    int dot3 = ip.indexOf('.', ip.indexOf('.', ip.indexOf('.') + 1) + 1);
+    return (dot3 > 0) ? ip.left(dot3) : ip;
 }
 
-// ── Check if any domestic IP shares /16 with any international IP ────
 static bool sharesPrefix(const QStringList& a, const QStringList& b) {
     for (const auto& ipA : a) {
-        QString p = prefix16(ipA);
+        QString p = prefix24(ipA);
         for (const auto& ipB : b) {
-            if (prefix16(ipB) == p) return true;
+            if (prefix24(ipB) == p) return true;
         }
     }
     return false;
@@ -84,7 +87,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     // ═══════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("── Phase 2: DNS Pollution Check (DoH) ──"));
     out.append(QStringLiteral("Compares domestic (AliDNS, DNSPod) vs international (Google, Cloudflare)"));
-    out.append(QStringLiteral("DoH resolvers.  Same /16 subnet = CDN geo-routing (not pollution)."));
+    out.append(QStringLiteral("DoH resolvers.  Same /24 subnet = CDN geo-routing (not pollution)."));
     out.append(QString());
 
     static const struct {
@@ -165,7 +168,7 @@ DiagnosticResult dnsPollution(DiagId id) {
             .arg(QStringLiteral("Consensus (≥3/4):"), -20)
             .arg(consensusIps.isEmpty() ? QStringLiteral("(no consensus)") : consensusIps.join(QStringLiteral(", "))));
 
-        // ── Pollution verdict (with /16 CDN disambiguation) ──────────
+        // ── Pollution verdict (with /24 CDN disambiguation) ──────────
         if (domesticIps.isEmpty() && internationalIps.isEmpty()) {
             out.append(QStringLiteral("  → All resolvers failed — inconclusive"));
             pollutionErrors++;
@@ -177,12 +180,12 @@ DiagnosticResult dnsPollution(DiagId id) {
             out.append(QStringLiteral("  → International resolvers unreachable — network restriction?"));
             pollutionErrors++;
         } else if (sharesPrefix(domesticIps, internationalIps)) {
-            out.append(QStringLiteral("  → Clean — IPs share /16 subnet (CDN geo-routing, not pollution)"));
+            out.append(QStringLiteral("  → Clean — IPs share /24 subnet (CDN geo-routing, not pollution)"));
             out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
             out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
             pollutionClean++;
         } else {
-            out.append(QStringLiteral("  → POLLUTED — Domestic IPs differ from international (no shared /16)"));
+            out.append(QStringLiteral("  → POLLUTED — Domestic IPs differ from international (no shared /24)"));
             out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
             out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
             pollutionDetails.append(QStringLiteral("%1: %2 vs %3")
