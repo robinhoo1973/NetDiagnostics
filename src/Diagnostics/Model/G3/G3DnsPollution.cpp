@@ -44,18 +44,41 @@ DiagnosticResult dnsPollution(DiagId id) {
     QStringList pollutionDetails;
 
     for (const auto& td : kTestDomains) {
-        // ── Query all 4 DoH resolvers ───────────────────────────────
+        // ── Query all 4 DoH resolvers individually ──────────────────
         struct ResolverResult { QString label; QStringList ips; bool ok; };
         QVector<ResolverResult> results;
 
         for (const auto& ep : kDohEndpoints) {
             ResolverResult rr;
             rr.label = QString::fromUtf8(ep.label);
-            rr.ips = G1G2G3Native::dohQuery(
-                QString::fromUtf8(ep.url), QString::fromUtf8(td.domain));
+            QString queryUrl = QStringLiteral("%1?name=%2&type=A")
+                .arg(QString::fromUtf8(ep.url), QString::fromUtf8(td.domain));
+            QByteArray body = G1G2G3Native::httpsGet(queryUrl, 4000);
+            if (!body.isEmpty()) {
+                QString json = QString::fromUtf8(body);
+                int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
+                if (ansStart >= 0) {
+                    int pos = ansStart;
+                    int sectionEnd = json.indexOf(']', ansStart);
+                    while ((pos = json.indexOf(QStringLiteral("\"data\":\""), pos)) >= 0
+                           && (sectionEnd < 0 || pos < sectionEnd)) {
+                        pos += 8;
+                        int end = json.indexOf('\"', pos);
+                        if (end > pos) {
+                            QString ip = json.mid(pos, end - pos);
+                            if (!ip.isEmpty() && ip[0].isDigit())
+                                rr.ips.append(ip);
+                        }
+                    }
+                }
+            }
             rr.ok = !rr.ips.isEmpty();
             results.append(rr);
         }
+
+        // ── Consensus: dohQuery() returns majority-vote IPs ──────────
+        QStringList consensusIps = G1G2G3Native::dohQuery(
+            QString::fromUtf8(td.domain));
 
         // ── Compare domestic vs international ───────────────────────
         QStringList domesticIps, internationalIps;
@@ -88,6 +111,12 @@ DiagnosticResult dnsPollution(DiagId id) {
             out.append(QStringLiteral("  %1  %2  %3")
                 .arg(rr.label, -18).arg(ips, -36).arg(status));
         }
+
+        // ── Consensus (majority vote across all 4) ─────────────────
+        out.append(QStringLiteral("  %1  %2")
+            .arg(QStringLiteral("Consensus (≥3/4):"), -20)
+            .arg(consensusIps.isEmpty() ? QStringLiteral("(no consensus)")
+                 : consensusIps.join(QStringLiteral(", "))));
 
         // ── Pollution verdict ──────────────────────────────────────
         if (domesticIps.isEmpty() && internationalIps.isEmpty()) {

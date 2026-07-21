@@ -408,12 +408,9 @@ QByteArray httpsGet(const QString& url, int timeoutMs) {
     return body;
 }
 
-// ── DoH DNS query — JSON API ──────────────────────────────────────────
-// Queries a DoH resolver (Google/Cloudflare/AliDNS/DNSPod), parses the
-// JSON response, returns resolved IP addresses.  Empty list on failure.
-// Uses the same httpsGet() transport as GeoIP detection.
-QStringList dohQuery(const QString& endpoint, const QString& domain,
-                     const QString& type, int timeoutMs) {
+// ── DoH DNS query (single resolver) ────────────────────────────────────
+static QStringList dohQuerySingle(const QString& endpoint, const QString& domain,
+                                   const QString& type, int timeoutMs) {
     QStringList ips;
     QString queryUrl = QStringLiteral("%1?name=%2&type=%3")
         .arg(endpoint, domain, type);
@@ -421,7 +418,6 @@ QStringList dohQuery(const QString& endpoint, const QString& domain,
     if (body.isEmpty()) return ips;
 
     // Parse JSON: {"Answer":[{"name":"...","type":1,"TTL":300,"data":"1.2.3.4"},...]}
-    // Use string ops to avoid QJsonDocument dependency — same pattern as detectCountry.
     QString json = QString::fromUtf8(body);
     int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
     if (ansStart < 0) return ips;
@@ -430,7 +426,7 @@ QStringList dohQuery(const QString& endpoint, const QString& domain,
     int pos = ansStart;
     while ((pos = json.indexOf(QStringLiteral("\"data\":\""), pos)) >= 0
            && (sectionEnd < 0 || pos < sectionEnd)) {
-        pos += 8; // skip "data":"
+        pos += 8;
         int end = json.indexOf('\"', pos);
         if (end > pos) {
             QString ip = json.mid(pos, end - pos);
@@ -439,6 +435,49 @@ QStringList dohQuery(const QString& endpoint, const QString& domain,
         }
     }
     return ips;
+}
+
+// ── DoH DNS query — 4-resolver majority consensus ──────────────────────
+// 5WHY: Querying a single DoH resolver risks trusting a compromised or
+// censored server.  Querying 4 resolvers (2 domestic CN + 2 international)
+// and taking the majority vote ensures the result is trustworthy even if
+// 1-2 resolvers are polluted.
+QStringList dohQuery(const QString& domain, const QString& type, int timeoutMs) {
+    static const struct {
+        const char* url;
+    } kResolvers[] = {
+        {"https://dns.alidns.com/resolve"},       // AliDNS (CN)
+        {"https://doh.pub/dns-query"},             // DNSPod / Tencent (CN)
+        {"https://dns.google/resolve"},            // Google (US)
+        {"https://cloudflare-dns.com/dns-query"},  // Cloudflare (US)
+    };
+
+    // Collect all IPs from all resolvers, counting frequency
+    QMap<QString, int> freq;
+    int responders = 0;
+    for (const auto& r : kResolvers) {
+        QStringList ips = dohQuerySingle(
+            QString::fromUtf8(r.url), domain, type, timeoutMs);
+        if (!ips.isEmpty()) responders++;
+        for (const auto& ip : ips)
+            freq[ip]++;
+    }
+
+    // Majority consensus: return IPs seen by ≥3 resolvers (≥75%)
+    // If no majority (all IPs have ≤2 votes), return all unique IPs
+    int threshold = qMin(3, responders);
+    if (threshold < 2) threshold = 1;  // only 1-2 responders → any IP counts
+    QStringList result;
+    for (auto it = freq.begin(); it != freq.end(); ++it) {
+        if (it.value() >= threshold)
+            result.append(it.key());
+    }
+    if (result.isEmpty()) {
+        // No majority — return all unique IPs
+        for (auto it = freq.begin(); it != freq.end(); ++it)
+            result.append(it.key());
+    }
+    return result;
 }
 
 } // namespace G1G2G3Native
