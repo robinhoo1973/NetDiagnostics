@@ -35,9 +35,9 @@ QtObject {
         textPrimary:      "#0F172A", textSecondary:   "#475569",
         textMuted:        "#64748B",
         accent:           "#F43F5E", cyan:            "#06B6D4",
-        passGreen:        "#10B981", warnYellow:      "#D97706",
-        failRed:          "#EF4444", skipGray:        "#6B7280",
-        infoBlue:         "#6366F1",
+        passGreen:        "#34D399", warnYellow:      "#F59E0B",
+        failRed:          "#EF4444", skipGray:        "#9CA3AF",
+        infoBlue:         "#818CF8",
         borderCard:       "#E2E8F0", borderSubtle:    "#F1F5F9",
         borderFocused:    "#0EA5E9"
     })
