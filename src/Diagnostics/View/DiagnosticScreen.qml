@@ -101,7 +101,7 @@ Item {
                     mode: "bare"
                     pdfAccent: ThemeEngine.cyan
                     htmlAccent: ThemeEngine.primary
-                    visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
+                    visible: appState.runStatus === 2 && appState.totalCompleted > 0
                     onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
             }
