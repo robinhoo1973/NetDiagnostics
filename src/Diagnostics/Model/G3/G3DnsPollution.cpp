@@ -3,17 +3,6 @@
 
 namespace G1G2G3Native {
 
-// ── DoH endpoint configuration ──────────────────────────────────────
-static const struct {
-    const char* label;
-    const char* url;
-} kDohEndpoints[] = {
-    {"AliDNS (CN)",     "https://dns.alidns.com/resolve"},
-    {"DNSPod (CN)",     "https://doh.pub/dns-query"},
-    {"Google (US)",     "https://dns.google/resolve"},
-    {"Cloudflare (US)", "https://cloudflare-dns.com/dns-query"},
-};
-
 // ── /24 subnet prefix — industry standard for IP reputation ─────────
 // BIND RRL, GFW pollution research, and IP reputation systems all use
 // /24 (256 IPs) as the optimal granularity: tight enough to distinguish
@@ -102,94 +91,36 @@ DiagnosticResult dnsPollution(DiagId id) {
     };
 
     for (const auto& td : kTestDomains) {
-        struct ResolverResult { QString label; QStringList ips; bool ok; };
-        QVector<ResolverResult> results;
-
-        for (const auto& ep : kDohEndpoints) {
-            ResolverResult rr;
-            rr.label = QString::fromUtf8(ep.label);
-            QString queryUrl = QStringLiteral("%1?name=%2&type=A")
-                .arg(QString::fromUtf8(ep.url), QString::fromUtf8(td.domain));
-            QByteArray body = G1G2G3Native::httpsGet(queryUrl, 4000);
-            if (!body.isEmpty()) {
-                QString json = QString::fromUtf8(body);
-                int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
-                if (ansStart >= 0) {
-                    int pos = ansStart;
-                    int sectionEnd = json.indexOf(']', ansStart);
-                    while ((pos = json.indexOf(QStringLiteral("\"data\":\""), pos)) >= 0
-                           && (sectionEnd < 0 || pos < sectionEnd)) {
-                        pos += 8;
-                        int end = json.indexOf('\"', pos);
-                        if (end > pos) {
-                            QString ip = json.mid(pos, end - pos);
-                            if (!ip.isEmpty() && ip[0].isDigit())
-                                rr.ips.append(ip);
-                        }
-                    }
-                }
-            }
-            rr.ok = !rr.ips.isEmpty();
-            results.append(rr);
-        }
-
-        QStringList consensusIps = G1G2G3Native::dohQuery(
+        // ── DoH consensus (4 resolvers, majority vote) ──────────────
+        QStringList dohIps = G1G2G3Native::dohQuery(
             QString::fromUtf8(td.domain));
+        QString dohStr = dohIps.isEmpty() ? QStringLiteral("(no response)")
+                        : dohIps.join(QStringLiteral(", "));
 
-        QStringList domesticIps, internationalIps;
-        for (const auto& rr : results) {
-            bool isDomestic = rr.label.contains(QStringLiteral("CN)"));
-            for (const auto& ip : rr.ips) {
-                if (isDomestic) {
-                    if (!domesticIps.contains(ip)) domesticIps.append(ip);
-                } else {
-                    if (!internationalIps.contains(ip)) internationalIps.append(ip);
-                }
-            }
-        }
+        // ── Local DNS (system resolver) ────────────────────────────
+        QString localIp = DnsResolver::instance().resolve(
+            QString::fromUtf8(td.domain), 3000);
+        QString localStr = localIp.isEmpty() ? QStringLiteral("(no response)") : localIp;
 
-        // ── Per-domain table ─────────────────────────────────────────
+        // ── Verdict ────────────────────────────────────────────────
         out.append(QStringLiteral("── %1 (%2) ──").arg(td.domain, td.description));
-        out.append(QStringLiteral("  %1  %2  %3")
-            .arg(QStringLiteral("Resolver"), -18)
-            .arg(QStringLiteral("Result IPs"), -36)
-            .arg(QStringLiteral("Status")));
-        out.append(QStringLiteral("  %1  %2  %3")
-            .arg(QString(18, '-')).arg(QString(36, '-')).arg(QString(10, '-')));
+        out.append(QStringLiteral("  DoH:    %1").arg(dohStr));
+        out.append(QStringLiteral("  Local:  %1").arg(localStr));
 
-        for (const auto& rr : results) {
-            out.append(QStringLiteral("  %1  %2  %3")
-                .arg(rr.label, -18)
-                .arg(rr.ips.isEmpty() ? QStringLiteral("(no response)") : rr.ips.join(QStringLiteral(", ")), -36)
-                .arg(rr.ok ? QStringLiteral("OK") : QStringLiteral("FAIL")));
-        }
-
-        out.append(QStringLiteral("  %1  %2")
-            .arg(QStringLiteral("Consensus (≥3/4):"), -20)
-            .arg(consensusIps.isEmpty() ? QStringLiteral("(no consensus)") : consensusIps.join(QStringLiteral(", "))));
-
-        // ── Pollution verdict (with /24 CDN disambiguation) ──────────
-        if (domesticIps.isEmpty() && internationalIps.isEmpty()) {
-            out.append(QStringLiteral("  → All resolvers failed — inconclusive"));
+        if (dohIps.isEmpty()) {
+            out.append(QStringLiteral("  → Inconclusive — DoH query failed"));
             pollutionErrors++;
-        } else if (domesticIps.isEmpty()) {
-            out.append(QStringLiteral("  → Domestic resolvers returned no results — possible block"));
-            pollutionDetails.append(QStringLiteral("%1: domestic failed").arg(td.domain));
-            pollutionWarn++;
-        } else if (internationalIps.isEmpty()) {
-            out.append(QStringLiteral("  → International resolvers unreachable — network restriction?"));
+        } else if (localIp.isEmpty()) {
+            out.append(QStringLiteral("  → Local DNS failed — cannot compare"));
             pollutionErrors++;
-        } else if (sharesPrefix(domesticIps, internationalIps)) {
-            out.append(QStringLiteral("  → Clean — IPs share /24 subnet (CDN geo-routing, not pollution)"));
-            out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
-            out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
+        } else if (sharesPrefix(dohIps, {localIp})) {
+            out.append(QStringLiteral("  → Clean — local IP shares /24 with DoH consensus"));
             pollutionClean++;
         } else {
-            out.append(QStringLiteral("  → POLLUTED — Domestic IPs differ from international (no shared /24)"));
-            out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
-            out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
-            pollutionDetails.append(QStringLiteral("%1: %2 vs %3")
-                .arg(td.domain, domesticIps.join(','), internationalIps.join(',')));
+            out.append(QStringLiteral("  → POLLUTED — local IP (%1) not in DoH /24 range (%2)")
+                .arg(localIp, dohIps.join(',')));
+            pollutionDetails.append(QStringLiteral("%1: local=%2, DoH=%3")
+                .arg(td.domain, localIp, dohIps.join(',')));
             pollutionWarn++;
         }
         out.append(QString());
