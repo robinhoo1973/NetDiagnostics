@@ -1,11 +1,12 @@
 #include "Diagnostics/Model/GHelpers.h"
+#include "Common/Services/DnsResolver.h"
 
 namespace G1G2G3Native {
 
 // ── DoH endpoint configuration ──────────────────────────────────────
 static const struct {
-    const char* label;    // human-readable name
-    const char* url;      // DoH JSON API endpoint
+    const char* label;
+    const char* url;
 } kDohEndpoints[] = {
     {"AliDNS (CN)",     "https://dns.alidns.com/resolve"},
     {"DNSPod (CN)",     "https://doh.pub/dns-query"},
@@ -13,23 +14,79 @@ static const struct {
     {"Cloudflare (US)", "https://cloudflare-dns.com/dns-query"},
 };
 
+// ── /16 subnet prefix for CDN vs pollution disambiguation ───────────
+static QString prefix16(const QString& ip) {
+    int dot2 = ip.indexOf('.', ip.indexOf('.') + 1);
+    return (dot2 > 0) ? ip.left(dot2) : ip;
+}
+
+// ── Check if any domestic IP shares /16 with any international IP ────
+static bool sharesPrefix(const QStringList& a, const QStringList& b) {
+    for (const auto& ipA : a) {
+        QString p = prefix16(ipA);
+        for (const auto& ipB : b) {
+            if (prefix16(ipB) == p) return true;
+        }
+    }
+    return false;
+}
+
 DiagnosticResult dnsPollution(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
     QStringList out;
 
-    out.append(QStringLiteral("DNS Pollution Check (DoH Multi-Resolver)"));
-    out.append(QStringLiteral("========================================="));
-    out.append(QString());
-    out.append(QStringLiteral("Queries known domains via 4 DNS-over-HTTPS resolvers:"));
-    out.append(QStringLiteral("  Domestic:  AliDNS, DNSPod (Tencent)"));
-    out.append(QStringLiteral("  International: Google DNS, Cloudflare DNS"));
-    out.append(QStringLiteral("If domestic resolvers return different IPs than international,"));
-    out.append(QStringLiteral("DNS pollution / GFW interference is likely."));
+    out.append(QStringLiteral("DNS Pollution & Hijacking Check"));
+    out.append(QStringLiteral("================================"));
     out.append(QString());
 
-    // ── Test domains: diverse categories commonly affected by GFW ────
+    int hijackWarn = 0, pollutionWarn = 0;
+    int hijackClean = 0, pollutionClean = 0;
+    int hijackTimeout = 0, pollutionErrors = 0;
+    QStringList hijackIPs, pollutionDetails;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 1: ISP DNS Hijacking (NXDOMAIN hijack test)
+    // ═══════════════════════════════════════════════════════════════════
+    out.append(QStringLiteral("── Phase 1: ISP DNS Hijacking Check ──"));
+    out.append(QStringLiteral("Tests whether non-existent domains resolve to IP addresses."));
+    out.append(QStringLiteral("If they do, your ISP/DNS provider is hijacking NXDOMAIN."));
+    out.append(QString());
+
+    static const char* kFakeDomains[] = {
+        "thisdomainshouldnotexist12345.com",
+        "nonexistent-test-domain-98765.org",
+        "definitely-not-real-domain-42.net",
+    };
+
+    for (const auto& domain : kFakeDomains) {
+        QElapsedTimer probe; probe.start();
+        QString ip = DnsResolver::instance().resolve(QString::fromUtf8(domain), 3000);
+        int elapsed = static_cast<int>(probe.elapsed());
+        if (!ip.isEmpty()) {
+            out.append(QStringLiteral("  %1 → RESOLVED: %2 (%3ms)")
+                .arg(domain, ip).arg(elapsed));
+            hijackWarn++;
+            if (!hijackIPs.contains(ip)) hijackIPs.append(ip);
+        } else if (elapsed >= 3000) {
+            out.append(QStringLiteral("  %1 → TIMEOUT (%2ms)").arg(domain).arg(elapsed));
+            hijackTimeout++;
+        } else {
+            out.append(QStringLiteral("  %1 → NXDOMAIN (%2ms)").arg(domain).arg(elapsed));
+            hijackClean++;
+        }
+    }
+    out.append(QString());
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Phase 2: DNS Pollution (DoH multi-resolver comparison)
+    // ═══════════════════════════════════════════════════════════════════
+    out.append(QStringLiteral("── Phase 2: DNS Pollution Check (DoH) ──"));
+    out.append(QStringLiteral("Compares domestic (AliDNS, DNSPod) vs international (Google, Cloudflare)"));
+    out.append(QStringLiteral("DoH resolvers.  Same /16 subnet = CDN geo-routing (not pollution)."));
+    out.append(QString());
+
     static const struct {
         const char* domain;
         const char* description;
@@ -41,11 +98,7 @@ DiagnosticResult dnsPollution(DiagId id) {
         {"www.wikipedia.org", "Knowledge Base"},
     };
 
-    int polluted = 0, clean = 0, errors = 0;
-    QStringList pollutionDetails;
-
     for (const auto& td : kTestDomains) {
-        // ── Query all 4 DoH resolvers individually ──────────────────
         struct ResolverResult { QString label; QStringList ips; bool ok; };
         QVector<ResolverResult> results;
 
@@ -77,11 +130,9 @@ DiagnosticResult dnsPollution(DiagId id) {
             results.append(rr);
         }
 
-        // ── Consensus: dohQuery() returns majority-vote IPs ──────────
         QStringList consensusIps = G1G2G3Native::dohQuery(
             QString::fromUtf8(td.domain));
 
-        // ── Compare domestic vs international ───────────────────────
         QStringList domesticIps, internationalIps;
         for (const auto& rr : results) {
             bool isDomestic = rr.label.contains(QStringLiteral("CN)"));
@@ -94,97 +145,96 @@ DiagnosticResult dnsPollution(DiagId id) {
             }
         }
 
-        // ── Output per-domain table ─────────────────────────────────
+        // ── Per-domain table ─────────────────────────────────────────
         out.append(QStringLiteral("── %1 (%2) ──").arg(td.domain, td.description));
         out.append(QStringLiteral("  %1  %2  %3")
             .arg(QStringLiteral("Resolver"), -18)
             .arg(QStringLiteral("Result IPs"), -36)
             .arg(QStringLiteral("Status")));
         out.append(QStringLiteral("  %1  %2  %3")
-            .arg(QString(18, '-'))
-            .arg(QString(36, '-'))
-            .arg(QString(10, '-')));
+            .arg(QString(18, '-')).arg(QString(36, '-')).arg(QString(10, '-')));
 
         for (const auto& rr : results) {
-            QString ips = rr.ips.isEmpty() ? QStringLiteral("(no response)")
-                         : rr.ips.join(QStringLiteral(", "));
-            QString status = rr.ok ? QStringLiteral("OK") : QStringLiteral("FAIL");
             out.append(QStringLiteral("  %1  %2  %3")
-                .arg(rr.label, -18).arg(ips, -36).arg(status));
+                .arg(rr.label, -18)
+                .arg(rr.ips.isEmpty() ? QStringLiteral("(no response)") : rr.ips.join(QStringLiteral(", ")), -36)
+                .arg(rr.ok ? QStringLiteral("OK") : QStringLiteral("FAIL")));
         }
 
-        // ── Consensus (majority vote across all 4) ─────────────────
         out.append(QStringLiteral("  %1  %2")
             .arg(QStringLiteral("Consensus (≥3/4):"), -20)
-            .arg(consensusIps.isEmpty() ? QStringLiteral("(no consensus)")
-                 : consensusIps.join(QStringLiteral(", "))));
+            .arg(consensusIps.isEmpty() ? QStringLiteral("(no consensus)") : consensusIps.join(QStringLiteral(", "))));
 
-        // ── Pollution verdict ──────────────────────────────────────
+        // ── Pollution verdict (with /16 CDN disambiguation) ──────────
         if (domesticIps.isEmpty() && internationalIps.isEmpty()) {
             out.append(QStringLiteral("  → All resolvers failed — inconclusive"));
-            errors++;
+            pollutionErrors++;
         } else if (domesticIps.isEmpty()) {
             out.append(QStringLiteral("  → Domestic resolvers returned no results — possible block"));
             pollutionDetails.append(QStringLiteral("%1: domestic failed").arg(td.domain));
-            polluted++;
+            pollutionWarn++;
         } else if (internationalIps.isEmpty()) {
             out.append(QStringLiteral("  → International resolvers unreachable — network restriction?"));
-            errors++;
+            pollutionErrors++;
+        } else if (sharesPrefix(domesticIps, internationalIps)) {
+            out.append(QStringLiteral("  → Clean — IPs share /16 subnet (CDN geo-routing, not pollution)"));
+            out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
+            out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
+            pollutionClean++;
         } else {
-            // Compare IP sets
-            bool mismatch = false;
-            for (const auto& dip : domesticIps) {
-                if (!internationalIps.contains(dip)) { mismatch = true; break; }
-            }
-            if (!mismatch) {
-                for (const auto& iip : internationalIps) {
-                    if (!domesticIps.contains(iip)) { mismatch = true; break; }
-                }
-            }
-            if (mismatch) {
-                out.append(QStringLiteral("  → MISMATCH — Domestic IPs differ from international"));
-                out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
-                out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
-                pollutionDetails.append(QStringLiteral("%1: %2 vs %3")
-                    .arg(td.domain, domesticIps.join(','), internationalIps.join(',')));
-                polluted++;
-            } else {
-                out.append(QStringLiteral("  → Clean — all resolvers agree"));
-                clean++;
-            }
+            out.append(QStringLiteral("  → POLLUTED — Domestic IPs differ from international (no shared /16)"));
+            out.append(QStringLiteral("     Domestic:      %1").arg(domesticIps.join(QStringLiteral(", "))));
+            out.append(QStringLiteral("     International: %1").arg(internationalIps.join(QStringLiteral(", "))));
+            pollutionDetails.append(QStringLiteral("%1: %2 vs %3")
+                .arg(td.domain, domesticIps.join(','), internationalIps.join(',')));
+            pollutionWarn++;
         }
         out.append(QString());
     }
 
-    // ── Final verdict ───────────────────────────────────────────────
+    // ═══════════════════════════════════════════════════════════════════
+    // Combined verdict
+    // ═══════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("=================================================================="));
-    out.append(QStringLiteral("Summary: %1 clean, %2 polluted, %3 errors")
-        .arg(clean).arg(polluted).arg(errors));
+    out.append(QStringLiteral("Phase 1 (ISP Hijack):  %1 clean, %2 hijacked, %3 timeout")
+        .arg(hijackClean).arg(hijackWarn).arg(hijackTimeout));
+    out.append(QStringLiteral("Phase 2 (DNS Pollution): %1 clean, %2 polluted, %3 errors")
+        .arg(pollutionClean).arg(pollutionWarn).arg(pollutionErrors));
 
-    if (polluted > 0) {
-        out.append(QStringLiteral("Verdict: DNS POLLUTION DETECTED"));
+    bool hijackDetected = hijackWarn > 0;
+    bool pollutionDetected = pollutionWarn > 0;
+
+    if (hijackDetected && pollutionDetected) {
+        out.append(QStringLiteral("Verdict: DNS HIJACKING + POLLUTION detected"));
         out.append(QString());
-        out.append(QStringLiteral("Domestic DNS resolvers returned different IP addresses than"));
-        out.append(QStringLiteral("international resolvers for the following domains:"));
+        out.append(QStringLiteral("  ISP Hijack IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
+        for (const auto& d : pollutionDetails)
+            out.append(QStringLiteral("  Pollution: %1").arg(d));
+        r.status = DiagStatus::Warning;
+        r.summary = QStringLiteral("DNS: hijack + pollution");
+    } else if (hijackDetected) {
+        out.append(QStringLiteral("Verdict: ISP DNS HIJACKING detected"));
+        out.append(QStringLiteral("  Redirect IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
+        r.status = DiagStatus::Warning;
+        r.summary = QStringLiteral("DNS hijack: %1 IP(s)").arg(hijackIPs.size());
+    } else if (pollutionDetected) {
+        out.append(QStringLiteral("Verdict: DNS POLLUTION detected"));
         for (const auto& d : pollutionDetails)
             out.append(QStringLiteral("  • %1").arg(d));
-        out.append(QString());
-        out.append(QStringLiteral("This strongly suggests DNS poisoning / GFW interference."));
         r.status = DiagStatus::Warning;
-        r.summary = QStringLiteral("DNS polluted: %1/%2 domains").arg(polluted)
-            .arg(polluted + clean + errors);
-    } else if (errors > 0 && clean == 0) {
-        out.append(QStringLiteral("Verdict: INCONCLUSIVE — all queries failed (network restriction?)"));
-        r.status = DiagStatus::Info;
-        r.summary = QStringLiteral("DNS: all queries failed");
-    } else if (errors > 0) {
-        out.append(QStringLiteral("Verdict: LIKELY CLEAN — no pollution on resolvable domains (%1 errors)").arg(errors));
-        r.status = DiagStatus::Info;
-        r.summary = QStringLiteral("DNS: %1 clean, %2 errors").arg(clean).arg(errors);
+        r.summary = QStringLiteral("DNS polluted: %1/%2 domains").arg(pollutionWarn)
+            .arg(pollutionWarn + pollutionClean + pollutionErrors);
     } else {
-        out.append(QStringLiteral("Verdict: DNS CLEAN — no pollution detected across %1 domains").arg(clean));
-        r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("DNS clean (%1 domains)").arg(clean);
+        int totalErrors = hijackTimeout + pollutionErrors;
+        if (totalErrors > 0 && hijackClean + pollutionClean == 0) {
+            out.append(QStringLiteral("Verdict: INCONCLUSIVE — all queries failed"));
+            r.status = DiagStatus::Info;
+            r.summary = QStringLiteral("DNS: all queries failed");
+        } else {
+            out.append(QStringLiteral("Verdict: DNS CLEAN — no hijacking or pollution detected"));
+            r.status = DiagStatus::Pass;
+            r.summary = QStringLiteral("DNS clean");
+        }
     }
 
     r.rawOutput = out.join('\n');
