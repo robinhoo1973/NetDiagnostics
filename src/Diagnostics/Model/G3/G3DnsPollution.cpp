@@ -1,5 +1,6 @@
 #include "Diagnostics/Model/GHelpers.h"
 #include "Common/Services/DnsResolver.h"
+#include <QCryptographicHash>
 
 namespace G1G2G3Native {
 
@@ -72,15 +73,30 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QStringLiteral("If they do, your ISP/DNS provider is hijacking NXDOMAIN."));
     out.append(QString());
 
-    static const char* kFakeDomains[] = {
-        "thisdomainshouldnotexist12345.com",
-        "nonexistent-test-domain-98765.org",
-        "definitely-not-real-domain-42.net",
-    };
+    // 5WHY: Static fake domains could be whitelisted by hijacking ISPs
+    // or cached by DNS servers.  Date+random-hex domains are unique per
+    // run, guaranteeing no prior resolution exists — any IP returned is
+    // definitive hijacking evidence.
+    // Format: YYYYMMDD-xxxx-dns-test.{com,org,net}
+    QString datePrefix = QDateTime::currentDateTime().toString("yyyyMMdd");
+    QString domains[3];
+    for (int i = 0; i < 3; ++i) {
+        QByteArray seed = QStringLiteral("%1-%2-dns-hijack-test")
+            .arg(datePrefix).arg(i).toUtf8();
+        QString hex = QString::fromUtf8(
+            QCryptographicHash::hash(seed, QCryptographicHash::Md5).toHex().left(4));
+        static const char* tlds[] = {"com", "org", "net"};
+        domains[i] = QStringLiteral("%1-%2-dns-test.%3")
+            .arg(datePrefix, hex, tlds[i]);
+    }
+    out.append(QStringLiteral("Test domains (generated fresh per run):"));
+    for (int i = 0; i < 3; ++i)
+        out.append(QStringLiteral("  · %1").arg(domains[i]));
+    out.append(QString());
 
-    for (const auto& domain : kFakeDomains) {
+    for (const auto& domain : domains) {
         QElapsedTimer probe; probe.start();
-        QString ip = DnsResolver::instance().resolve(QString::fromUtf8(domain), 3000);
+        QString ip = DnsResolver::instance().resolve(domain, 3000);
         int elapsed = static_cast<int>(probe.elapsed());
         if (!ip.isEmpty()) {
             out.append(QStringLiteral("  %1 → RESOLVED: %2 (%3ms)")
