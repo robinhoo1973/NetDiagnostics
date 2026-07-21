@@ -408,7 +408,8 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
                             " style=\"border:1px solid %2\">"
                             "<tr><td bgcolor=\"%3\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:%4;line-height:1.5;margin:0\">%1</pre></td></tr></table><br/>")
+                            "font-size:11px;color:%4;line-height:1.5;margin:0;width:100%;"
+                            "white-space:pre-wrap;word-break:break-all\">%1</pre></td></tr></table><br/>")
                             .arg(body.toHtmlEscaped(),
                                  borderColor, codeBlockBg, codeBlockFg);
                 }
@@ -506,7 +507,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         "details.test.fail>summary{border-left:4px solid #F87171}details.test.skip>summary{border-left:4px solid #9CA3AF}"
         "details.test.info>summary{border-left:4px solid #60A5FA}"
         ".body{padding:14px 16px 18px;border-top:1px solid #334155}"
-        ".analysis{background:#0f1629;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
+        ".analysis{background:#0f1629;color:#c0c0d0;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"
         ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}");
