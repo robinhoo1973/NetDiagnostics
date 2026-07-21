@@ -674,7 +674,7 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     // 5WHY: 10pt default was too small for PDF reading. 12pt base font
     // with 680px text width produces readable output on A4 pages.
     doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 12));
-    doc.setTextWidth(680);  // fit A4 page width at 96 DPI
+    doc.setTextWidth(800);  // fit A4 page width at 96 DPI
     doc.setHtml(html);
     doc.print(&writer);
     return QFile::exists(path) ? path : QString();
