@@ -261,18 +261,15 @@ Rectangle {
                         text: appState.runStatus === 1 ? "■" : "▶"
                         font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
                     function runOrCancel() {
-                        if (appState.runStatus === 1) { appState.cancel() }
-                        else {
-                            // 5WHY: validation failure was silent — user clicks Run, nothing
-                            // happens, no feedback. Now checks error BEFORE calling canRun()
-                            // (which may have side effects) and shows a brief red flash on the
-                            // button border for error identification (WCAG 2.1 SC 3.3.1).
+                        if (appState.runStatus === 1) {
+                            Qt.callLater(function() { appState.cancel() })
+                        } else {
                             var err = appState.targetValidationError()
                             if (err !== "" || !appState.canRun()) {
                                 validationFlash.start()
                                 return
                             }
-                            appState.runDiagnostics()
+                            Qt.callLater(function() { appState.runDiagnostics() })
                         }
                     }
                     Rectangle {
@@ -298,18 +295,12 @@ Rectangle {
                     MouseArea { anchors.fill: parent
                         enabled: appState.runStatus === 1 || appState.canRun()
                         cursorShape: Qt.PointingHandCursor
-                        // 5WHY: runDiagnostics() emits runStatusChanged() which triggers
-                        // QML bindings that can synchronously destroy NativePdfDocument
-                        // or other QObjects. If that destruction occurs while this onClicked
-                        // handler is still on the call stack, Qt calls qFatal().
-                        // Fix: Qt.callLater() defers runOrCancel() until the signal handler
-                        // stack unwinds, so any object deletion happens safely afterwards.
-                        onClicked: Qt.callLater(function() { runBtn.runOrCancel() })
+                        onClicked: runBtn.runOrCancel()
                     }
                     activeFocusOnTab: true
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
-                            Qt.callLater(function() { runBtn.runOrCancel() })
+                            runBtn.runOrCancel()
                             event.accepted = true
                         }
                     }
