@@ -29,15 +29,16 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QStringLiteral("DNS pollution / GFW interference is likely."));
     out.append(QString());
 
-    // ── Test domains: commonly blocked / redirected in certain regions ─
+    // ── Test domains: diverse categories commonly affected by GFW ────
     static const struct {
         const char* domain;
         const char* description;
     } kTestDomains[] = {
-        {"www.google.com",   "Google Search"},
-        {"www.youtube.com",  "YouTube"},
-        {"www.facebook.com", "Facebook"},
-        {"www.twitter.com",  "Twitter"},
+        {"www.google.com",    "Search Engine"},
+        {"www.youtube.com",   "Video Platform"},
+        {"www.telegram.org",  "Messaging"},
+        {"www.bbc.com",       "News Media"},
+        {"www.wikipedia.org", "Knowledge Base"},
     };
 
     int polluted = 0, clean = 0, errors = 0;
