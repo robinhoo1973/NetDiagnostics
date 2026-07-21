@@ -69,7 +69,10 @@ static double cliffDelta(double U, int nA, int nB) {
 // ── GeoIP country detection via HTTPS ─────────────────────────────
 // QNetworkAccessManager handles TLS + redirects transparently.
 // 3 providers, all verified working via HTTPS (July 2026).
-static QString detectCountry(int timeoutMs = 3000) {
+// 5WHY: MUST be called on main thread (or any thread with QAbstractEventDispatcher).
+// QNetworkAccessManager requires an event dispatcher to process TLS handshakes.
+// Preload from AppState::runDiagnostics() before dispatching to QtConcurrent threads.
+QString detectCountry(int timeoutMs) {
     static QString sCached;
     static QMutex sMutex;
     {
@@ -151,7 +154,6 @@ static QString detectCountry(int timeoutMs = 3000) {
             }
             break;
         }
-            break;
         }
 
         if (!cc.isEmpty()) {

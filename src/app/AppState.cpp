@@ -9,6 +9,7 @@
 #include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/Logger.h"
 #include "Diagnostics/Model/GeoProbe.h"
+#include "Diagnostics/Model/G3/G3Diagnostics.h"
 #include "Dashboard/Controller/DashboardController.h"
 #include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
@@ -236,6 +237,12 @@ void AppState::runDiagnostics() {
 
     // Clear probe cache before each diagnostic run
     GeoProbe::instance().clear();
+
+    // 5WHY: detectCountry() uses QNetworkAccessManager (TLS) which requires
+    // a QAbstractEventDispatcher.  QtConcurrent worker threads don't have one.
+    // Preload the GeoIP cache here on the main thread so subsequent calls from
+    // any worker thread return instantly from the static cache.
+    G1G2G3Native::detectCountry(5000);
 
     // Reset state before each run (clears previous results, error messages, etc.)
     reset();
