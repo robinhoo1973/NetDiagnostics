@@ -408,7 +408,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
                             " style=\"border:1px solid %2\">"
                             "<tr><td bgcolor=\"%3\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:%4;line-height:1.5;margin:0;width:100%\">%1</pre></td></tr></table><br/>")
+                            "font-size:11px;color:%4;line-height:1.5;margin:0\">%1</pre></td></tr></table><br/>")
                             .arg(body.toHtmlEscaped(),
                                  borderColor, codeBlockBg, codeBlockFg);
                 }
@@ -491,7 +491,8 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:#9CA3AF}"
         ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:#60A5FA}"
         ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:#F87171}"
-        "table.grid{width:100%;border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
+        ".wrap table{table-layout:fixed;width:100%}"
+        "table.grid{border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
         "table.grid th{text-align:left;padding:11px 12px;background:var(--card-bg);color:var(--fg2);font-weight:600}"
         "table.grid td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}"
         "tr.sec td{background:var(--sec-row-bg);color:#60A5FA;font-weight:700}"
