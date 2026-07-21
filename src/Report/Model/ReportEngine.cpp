@@ -407,9 +407,8 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                         h += QStringLiteral(
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
                             " style=\"border:1px solid %2\">"
-                            "<tr><td bgcolor=\"%3\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:%4;line-height:1.5;margin:0;width:100%;"
-                            "white-space:pre-wrap;word-break:break-all\">%1</pre></td></tr></table><br/>")
+                            "<tr><td bgcolor=\"%3\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
+                            "font-size:11px;color:%4;line-height:1.5;margin:0\">%1</pre></td></tr></table><br/>")
                             .arg(body.toHtmlEscaped(),
                                  borderColor, codeBlockBg, codeBlockFg);
                 }
