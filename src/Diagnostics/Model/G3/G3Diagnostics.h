@@ -8,5 +8,6 @@ DiagnosticResult dnsCache(DiagId id);
 DiagnosticResult dnsPollution(DiagId id);
 DiagnosticResult geoIPLoc(DiagId id);
 DiagnosticResult internetConnectivity(DiagId id);
+QString detectCountry(int timeoutMs = 5000);
 
 } // namespace G1G2G3Native
