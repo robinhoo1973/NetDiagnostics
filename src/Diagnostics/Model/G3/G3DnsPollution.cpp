@@ -3,24 +3,50 @@
 
 namespace G1G2G3Native {
 
-// ── /24 subnet prefix — industry standard for IP reputation ─────────
-// BIND RRL, GFW pollution research, and IP reputation systems all use
-// /24 (256 IPs) as the optimal granularity: tight enough to distinguish
-// different organizations, broad enough to handle CDN edge variations.
-// /16 is too broad — 65,536 IPs may span multiple ASes.
-static QString prefix24(const QString& ip) {
-    int dot3 = ip.indexOf('.', ip.indexOf('.', ip.indexOf('.') + 1) + 1);
-    return (dot3 > 0) ? ip.left(dot3) : ip;
+// ── DNS pollution detection helpers ─────────────────────────────────
+// Best practices (2024-2026 research + industry standards):
+//   1. DoH results are TRUSTED (encrypted, cannot be tampered mid-path).
+//   2. Private/reserved IP from local DNS = ISP hijacking.
+//   3. /24 match = same CDN edge = clean (CDN geo-routing, not pollution).
+//   4. /8 mismatch = different org/AS = polluted (GFW injects foreign IPs).
+//   5. Otherwise = suspicious (inconclusive, may need manual check).
+static QString prefix(int n, const QString& ip) {
+    int dots = 0, i = 0;
+    for (; i < ip.length() && dots < n; ++i)
+        if (ip[i] == '.') ++dots;
+    return (dots == n) ? ip.left(i - 1) : ip;
+}
+
+static bool isPrivateIp(const QString& ip) {
+    if (ip.startsWith("127.") || ip.startsWith("10.")) return true;
+    if (ip.startsWith("192.168.") || ip.startsWith("172.")) {
+        // 172.16.0.0 - 172.31.255.255
+        int second = ip.mid(4, ip.indexOf('.', 4) - 4).toInt();
+        if (second >= 16 && second <= 31) return true;
+    }
+    if (ip == "0.0.0.0") return true;
+    return false;
 }
 
 static bool sharesPrefix(const QStringList& a, const QStringList& b) {
     for (const auto& ipA : a) {
-        QString p = prefix24(ipA);
+        QString p24 = prefix(3, ipA);
         for (const auto& ipB : b) {
-            if (prefix24(ipB) == p) return true;
+            if (prefix(3, ipB) == p24) return true;
         }
     }
     return false;
+}
+
+static bool differentOrg(const QStringList& a, const QStringList& b) {
+    // Different /8 = different organization → strong pollution signal
+    for (const auto& ipA : a) {
+        QString p8 = prefix(1, ipA);
+        for (const auto& ipB : b) {
+            if (prefix(1, ipB) == p8) return false;
+        }
+    }
+    return !a.isEmpty() && !b.isEmpty();
 }
 
 DiagnosticResult dnsPollution(DiagId id) {
@@ -75,8 +101,11 @@ DiagnosticResult dnsPollution(DiagId id) {
     // Phase 2: DNS Pollution (DoH multi-resolver comparison)
     // ═══════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("── Phase 2: DNS Pollution Check (DoH) ──"));
-    out.append(QStringLiteral("Compares domestic (AliDNS, DNSPod) vs international (Google, Cloudflare)"));
-    out.append(QStringLiteral("DoH resolvers.  Same /24 subnet = CDN geo-routing (not pollution)."));
+    out.append(QStringLiteral("DoH results are trusted (encrypted, untampered). Detection tiers:"));
+    out.append(QStringLiteral("  · Private/reserved IP → ISP hijacking"));
+    out.append(QStringLiteral("  · Same /24 subnet    → CDN geo-routing (clean)"));
+    out.append(QStringLiteral("  · Different /8 range  → Different org → polluted"));
+    out.append(QStringLiteral("  · Same /8, no /24     → Suspicious (benefit of doubt)"));
     out.append(QString());
 
     static const struct {
@@ -113,15 +142,26 @@ DiagnosticResult dnsPollution(DiagId id) {
         } else if (localIp.isEmpty()) {
             out.append(QStringLiteral("  → Local DNS failed — cannot compare"));
             pollutionErrors++;
+        } else if (isPrivateIp(localIp)) {
+            out.append(QStringLiteral("  → HIJACKED — local DNS returned private/reserved IP (%1)")
+                .arg(localIp));
+            pollutionDetails.append(QStringLiteral("%1: local=%2 (private IP)")
+                .arg(td.domain, localIp));
+            pollutionWarn++;
         } else if (sharesPrefix(dohIps, {localIp})) {
-            out.append(QStringLiteral("  → Clean — local IP shares /24 with DoH consensus"));
+            out.append(QStringLiteral("  → Clean — local IP shares /24 with DoH (same CDN edge)"));
             pollutionClean++;
-        } else {
-            out.append(QStringLiteral("  → POLLUTED — local IP (%1) not in DoH /24 range (%2)")
+        } else if (differentOrg(dohIps, {localIp})) {
+            out.append(QStringLiteral("  → POLLUTED — local IP (%1) in different /8 from DoH (%2)")
                 .arg(localIp, dohIps.join(',')));
             pollutionDetails.append(QStringLiteral("%1: local=%2, DoH=%3")
                 .arg(td.domain, localIp, dohIps.join(',')));
             pollutionWarn++;
+        } else {
+            out.append(QStringLiteral("  → Suspicious — same /8 but no /24 match (possible CDN, check ASN)"));
+            out.append(QStringLiteral("     Local: %1, DoH: %2")
+                .arg(localIp, dohIps.join(',')));
+            pollutionClean++;  // give benefit of doubt
         }
         out.append(QString());
     }
