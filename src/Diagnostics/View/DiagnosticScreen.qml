@@ -98,7 +98,7 @@ Item {
                 // values, removing the intermediate property chain.
                 ShareButtons {
                     id: appBarShareBtns
-                    mode: "compact"
+                    mode: "bare"
                     pdfAccent: ThemeEngine.cyan
                     htmlAccent: ThemeEngine.primary
                     visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags

@@ -6,26 +6,24 @@ import "../theme"
 // ══════════════════════════════════════════════════════════════════════════════
 // ShareButtons — Reusable PDF/HTML share button pair
 //
-// Three visual modes:
+// Four visual modes:
+//   "bare"     — icon-only, no background wrapper (AppBar)
 //   "compact"  — solid-color icon squares (36dp), icon fills button (100%)
 //   "labeled"  — icon+text buttons (fillWidth), for Dashboard preview overlay
 //   "wide"     — icon+text buttons (fillWidth, 48dp height), for Report preview
 //
-// Compact mode uses solid accent fill + white icon for high contrast
-// per WCAG 2.1 SC 1.4.11. Accent colors set by each page:
+// Accent colors set by each page:
 //   - Diagnostic:  pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //   - Dashboard:   pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
 //   - Report:      pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
-//
-// Icons: compact 100%, labeled 90%, wide 40dp (83% of 48dp).
 // ══════════════════════════════════════════════════════════════════════════════
 
 RowLayout {
     id: shareRoot
-    spacing: 6
+    spacing: _spacing
 
     // ── Public API ──────────────────────────────────────────────────────────
-    property string mode: "compact"           // "compact" | "labeled" | "wide"
+    property string mode: "compact"           // "bare" | "compact" | "labeled" | "wide"
     property bool   locked: !appState.isPremium
     property color  pdfAccent: ThemeEngine.failRed
     property color  htmlAccent: ThemeEngine.accentBlue
@@ -34,33 +32,23 @@ RowLayout {
     readonly property bool _isMobile: ThemeEngine.isMobile
 
     // ── Sizes derived from mode ─────────────────────────────────────────────
-    // 5WHY: compact buttons were 48dp — too large for the 48dp-tall AppBar
-    // where they now reside. Reduced to 36dp button with 24dp icon (67% fill)
-    // — snug within AppBar, icon still legible at 24dp.
-    // 5WHY: User requested icon fills button completely (no margin).
-    // _iconSize now matches _btnHeight for compact mode (36dp) so the icon
-    // extends fully to the rounded-rect edges.  MultiEffect colorization
-    // ensures the SVG renders cleanly at the larger size.
-    // 5WHY: labeled/wide modes have text labels alongside the icon.
-    // labeled icon was 16dp (40% of _btnHeight 40dp) — too small for
-    // the Dashboard Report Review overlay where the share button is the
-    // primary CTA. Now 90% of button height per UX review.
-    readonly property int _iconSize:  mode === "compact" ? _btnHeight :
-                                      (mode === "wide" ? 40 : Math.round(_btnHeight * 0.9))
+    // 5WHY: "bare" mode — clickable icons without any button rectangle.
+    // Icon size 20dp matches AppBar icon scale; spacing iconSize/4 ≈ 5dp.
+    readonly property int _iconSize:  mode === "bare"    ? 20 :
+                                      mode === "compact" ? _btnHeight :
+                                      mode === "wide"    ? 40 : Math.round(_btnHeight * 0.9)
+    readonly property int _spacing:   mode === "bare"    ? Math.max(1, Math.round(_iconSize / 4)) : 6
     readonly property int _btnHeight: mode === "compact" ? 36 :
-                                      (mode === "wide" ? 48 : 40)
-    readonly property int _btnRadius: mode === "wide" ? 10 : 8
+                                      mode === "wide"    ? 48 : 40
+    readonly property int _btnRadius: mode === "wide"    ? 10 : 8
 
     // ── PDF button ──────────────────────────────────────────────────────────
     Loader {
         id: pdfLoader
-        Layout.fillWidth: shareRoot.mode !== "compact"
-        sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
+        Layout.fillWidth: shareRoot.mode !== "compact" && shareRoot.mode !== "bare"
+        sourceComponent: shareRoot.mode === "compact" ? compactBtn
+                       : shareRoot.mode === "bare"    ? bareBtn : labeledBtn
         onLoaded: {
-            // 5WHY: accent is now handled declaratively by Binding objects
-            // inside compactBtn / labeledBtn — no Qt.binding() needed here.
-            // This eliminates the two-phase init timing issue during theme
-            // switches (Loader.onLoaded fires before QML binding propagation).
             item.iconName = "file-pdf"
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "pdf"
@@ -71,14 +59,44 @@ RowLayout {
     // ── HTML button ─────────────────────────────────────────────────────────
     Loader {
         id: htmlLoader
-        Layout.fillWidth: shareRoot.mode !== "compact"
-        sourceComponent: shareRoot.mode === "compact" ? compactBtn : labeledBtn
+        Layout.fillWidth: shareRoot.mode !== "compact" && shareRoot.mode !== "bare"
+        sourceComponent: shareRoot.mode === "compact" ? compactBtn
+                       : shareRoot.mode === "bare"    ? bareBtn : labeledBtn
         onLoaded: {
-            // 5WHY: accent handled declaratively (see pdfLoader comment).
             item.iconName = "file-html"
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "html"
             item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn })
+        }
+    }
+
+    // ── Bare: icon-only without button wrapper (AppBar) ────────────────
+    Component {
+        id: bareBtn
+        AppIcon {
+            id: bareIcon
+            property string iconName: ""
+            property color accent: "transparent"
+            property bool locked: false
+            property string formatTag: ""
+            property string labelText: ""
+
+            name: parent.iconName; size: shareRoot._iconSize
+            color: parent.accent
+            opacity: parent.locked ? 0.4 : 1.0
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: shareRoot.shareRequested(parent.formatTag)
+            }
+            Accessible.name: parent.labelText
+            Binding {
+                target: bareIcon
+                property: "accent"
+                value: bareIcon.iconName === "file-pdf" ? shareRoot.pdfAccent :
+                       bareIcon.iconName === "file-html" ? shareRoot.htmlAccent :
+                       "transparent"
+            }
         }
     }
 
