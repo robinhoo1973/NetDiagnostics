@@ -104,8 +104,8 @@ DiagnosticResult dnsPollution(DiagId id) {
 
         // ── Verdict ────────────────────────────────────────────────
         out.append(QStringLiteral("── %1 (%2) ──").arg(td.domain, td.description));
-        out.append(QStringLiteral("  DoH:    %1").arg(dohStr));
-        out.append(QStringLiteral("  Local:  %1").arg(localStr));
+        out.append(QStringLiteral("  Trusted DoH Query Results: %1").arg(dohStr));
+        out.append(QStringLiteral("  Local DNS Query Results:   %1").arg(localStr));
 
         if (dohIps.isEmpty()) {
             out.append(QStringLiteral("  → Inconclusive — DoH query failed"));
