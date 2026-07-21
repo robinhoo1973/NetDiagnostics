@@ -73,28 +73,39 @@ RowLayout {
     // ── Bare: icon-only without button wrapper (AppBar) ────────────────
     Component {
         id: bareBtn
-        AppIcon {
-            id: bareIcon
+        Item {
+            id: bareRoot
+            // 5WHY: bareBtn is loaded as the top-level item by Loader, so
+            // `parent` inside child elements refers to bareRoot, not the
+            // Loader.  Unlike compactBtn/labeledBtn where the Rectangle is
+            // the wrapper, bareRoot is an explicit Item carrying the props.
             property string iconName: ""
             property color accent: "transparent"
             property bool locked: false
             property string formatTag: ""
             property string labelText: ""
 
-            name: parent.iconName; size: shareRoot._iconSize
-            color: parent.accent
-            opacity: parent.locked ? 0.4 : 1.0
+            implicitWidth: shareRoot._iconSize
+            implicitHeight: shareRoot._iconSize
+
+            AppIcon {
+                id: bareIcon
+                anchors.centerIn: parent
+                name: bareRoot.iconName; size: shareRoot._iconSize
+                color: bareRoot.accent
+                opacity: bareRoot.locked ? 0.4 : 1.0
+            }
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: shareRoot.shareRequested(parent.formatTag)
+                onClicked: shareRoot.shareRequested(bareRoot.formatTag)
             }
-            Accessible.name: parent.labelText
+            Accessible.name: bareRoot.labelText
             Binding {
-                target: bareIcon
+                target: bareRoot
                 property: "accent"
-                value: bareIcon.iconName === "file-pdf" ? shareRoot.pdfAccent :
-                       bareIcon.iconName === "file-html" ? shareRoot.htmlAccent :
+                value: bareRoot.iconName === "file-pdf" ? shareRoot.pdfAccent :
+                       bareRoot.iconName === "file-html" ? shareRoot.htmlAccent :
                        "transparent"
             }
         }
