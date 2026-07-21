@@ -86,7 +86,7 @@ Item {
             Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar
             border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 12 }
+                anchors { fill: parent; leftMargin: 16; rightMargin: 10 }
                 AppIcon { name: "diagnostics"; size: 20; color: ThemeEngine.cyan }
                 Item { width: 10 }
                 Label { text: Tr.diagnostics; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }

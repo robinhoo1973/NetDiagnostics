@@ -33,8 +33,8 @@ RowLayout {
 
     // ── Sizes derived from mode ─────────────────────────────────────────────
     // 5WHY: "bare" mode — clickable icons without any button rectangle.
-    // Icon size 20dp matches AppBar icon scale; spacing iconSize/4 ≈ 5dp.
-    readonly property int _iconSize:  mode === "bare"    ? 20 :
+    // AppBar height = 48dp, 85% ≈ 40dp. Spacing = iconSize/4 = 10dp.
+    readonly property int _iconSize:  mode === "bare"    ? 40 :
                                       mode === "compact" ? _btnHeight :
                                       mode === "wide"    ? 40 : Math.round(_btnHeight * 0.9)
     readonly property int _spacing:   mode === "bare"    ? Math.max(1, Math.round(_iconSize / 4)) : 6
