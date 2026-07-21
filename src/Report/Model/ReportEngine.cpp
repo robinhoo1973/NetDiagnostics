@@ -232,7 +232,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
     QString h;
     h += QStringLiteral("<div style=\"font-family:'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif;"
-        "color:%1;max-width:800px;margin:0 auto\">").arg(textPrimary);
+        "color:%1;max-width:700px;margin:0 auto\">").arg(textPrimary);
 
     // ── Header band with gradient-style dark background ─────────────────
     // Header text colours — always light-on-dark for the header band
@@ -408,7 +408,8 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
                             " style=\"border:1px solid %2\">"
                             "<tr><td bgcolor=\"%3\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:%4;line-height:1.5;margin:0\">%1</pre></td></tr></table><br/>")
+                            "font-size:11px;color:%4;line-height:1.5;margin:0;"
+                            "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table><br/>")
                             .arg(body.toHtmlEscaped(),
                                  borderColor, codeBlockBg, codeBlockFg);
                 }
@@ -661,20 +662,20 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     // at screen DPI (96) but rendered at printer DPI, producing illegible
     // micro-text. Fix: force PDF resolution to match screen DPI so font
     // sizes are consistent with the in-app QTextDocument preview.
-    //   A4 = 210mm - 15mm*2 margins = 180mm usable ≈ 7.09 inches
-    //   At 96 DPI: 680px text width for proper page-fit layout.
+    //   Content area: A4 210mm - 12mm×2 margins = 186mm ≈ 7.32 in
+    //   At 96 DPI: 186/25.4×96 ≈ 703 px → round to 700 px text width.
     const QString path = normalizeReportPath(filePath);
     QPdfWriter writer(path);
     writer.setResolution(96);  // match screen DPI for consistent font sizing
     writer.setPageSize(QPageSize(QPageSize::A4));
-    writer.setPageMargins(QMarginsF(15, 15, 15, 15), QPageLayout::Millimeter);
+    writer.setPageMargins(QMarginsF(12, 15, 12, 15), QPageLayout::Millimeter);
     writer.setTitle(QStringLiteral("Network Diagnostic Report"));
 
     QTextDocument doc;
-    // 5WHY: 10pt default was too small for PDF reading. 12pt base font
-    // with 680px text width produces readable output on A4 pages.
+    // 5WHY: 12pt base font with 700px text width produces readable
+    // output on A4 pages at 96 DPI (matches screen rendering).
     doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 12));
-    doc.setTextWidth(800);  // fit A4 page width at 96 DPI
+    doc.setTextWidth(700);  // content area 186mm at 96 DPI ≈ 700 px
     doc.setHtml(html);
     doc.print(&writer);
     return QFile::exists(path) ? path : QString();

@@ -403,14 +403,11 @@ ColumnLayout {
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
                     if (appState.targetValidationError() !== "") {
-                        // 5WHY: Clicking Run with validation error silently did nothing.
-                        // User had no feedback — didn't know WHY the button was ignored.
-                        // Flash the validation error and briefly highlight the input border.
                         validationFlash.start()
                         return
                     }
                     if (!appState.canRun()) return
-                    appState.runDiagnostics()
+                    Qt.callLater(function() { appState.runDiagnostics() })
                 }
             }
             // Validation error feedback animation — brief red flash on click
@@ -434,7 +431,7 @@ ColumnLayout {
                         return
                     }
                     if (appState.canRun())
-                        appState.runDiagnostics()
+                        Qt.callLater(function() { appState.runDiagnostics() })
                 }
             }
         }
@@ -449,12 +446,12 @@ ColumnLayout {
                 id: stopBtnArea
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: appState.cancel()
+                onClicked: Qt.callLater(function() { appState.cancel() })
             }
             activeFocusOnTab: true
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Return || event.key === Qt.Key_Space)
-                    appState.cancel()
+                    Qt.callLater(function() { appState.cancel() })
             }
         }
     }

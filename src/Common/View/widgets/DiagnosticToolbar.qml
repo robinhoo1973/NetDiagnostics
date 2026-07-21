@@ -298,12 +298,18 @@ Rectangle {
                     MouseArea { anchors.fill: parent
                         enabled: appState.runStatus === 1 || appState.canRun()
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: runBtn.runOrCancel()
+                        // 5WHY: runDiagnostics() emits runStatusChanged() which triggers
+                        // QML bindings that can synchronously destroy NativePdfDocument
+                        // or other QObjects. If that destruction occurs while this onClicked
+                        // handler is still on the call stack, Qt calls qFatal().
+                        // Fix: Qt.callLater() defers runOrCancel() until the signal handler
+                        // stack unwinds, so any object deletion happens safely afterwards.
+                        onClicked: Qt.callLater(function() { runBtn.runOrCancel() })
                     }
                     activeFocusOnTab: true
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
-                            runBtn.runOrCancel()
+                            Qt.callLater(function() { runBtn.runOrCancel() })
                             event.accepted = true
                         }
                     }

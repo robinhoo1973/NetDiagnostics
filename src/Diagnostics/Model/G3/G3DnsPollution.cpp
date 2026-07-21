@@ -19,11 +19,24 @@ static QString prefix(int n, const QString& ip) {
 }
 
 static bool isPrivateIp(const QString& ip) {
+    // RFC 1918 + loopback + CGNAT + special-use
     if (ip.startsWith("127.") || ip.startsWith("10.")) return true;
-    if (ip.startsWith("192.168.") || ip.startsWith("172.")) {
-        // 172.16.0.0 - 172.31.255.255
-        int second = ip.mid(4, ip.indexOf('.', 4) - 4).toInt();
-        if (second >= 16 && second <= 31) return true;
+    if (ip.startsWith("192.168.")) return true;
+    if (ip.startsWith("172.")) {
+        // 172.16.0.0 – 172.31.255.255 (RFC 1918)
+        int dot = ip.indexOf('.', 4);
+        if (dot > 4) {
+            int second = ip.mid(4, dot - 4).toInt();
+            if (second >= 16 && second <= 31) return true;
+        }
+    }
+    if (ip.startsWith("100.")) {
+        // 100.64.0.0 – 100.127.255.255 (RFC 6598 CGNAT)
+        int dot = ip.indexOf('.', 4);
+        if (dot > 4) {
+            int second = ip.mid(4, dot - 4).toInt();
+            if (second >= 64 && second <= 127) return true;
+        }
     }
     if (ip == "0.0.0.0") return true;
     return false;
@@ -61,22 +74,21 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QString());
 
     int hijackWarn = 0, pollutionWarn = 0;
-    int hijackClean = 0, pollutionClean = 0;
+    int hijackClean = 0, pollutionClean = 0, pollutionSuspicious = 0;
     int hijackTimeout = 0, pollutionErrors = 0;
     QStringList hijackIPs, pollutionDetails;
 
     // ═══════════════════════════════════════════════════════════════════
     // Phase 1: ISP DNS Hijacking (NXDOMAIN hijack test)
     // ═══════════════════════════════════════════════════════════════════
-    out.append(QStringLiteral("── Phase 1: ISP DNS Hijacking Check ──"));
-    out.append(QStringLiteral("Tests whether non-existent domains resolve to IP addresses."));
-    out.append(QStringLiteral("If they do, your ISP/DNS provider is hijacking NXDOMAIN."));
+    out.append(QStringLiteral("── Phase 1: ISP DNS Hijacking ──"));
+    out.append(QStringLiteral("Fake domains that resolve to an IP indicate ISP DNS hijacking."));
     out.append(QString());
 
     // 5WHY: Static fake domains could be whitelisted by hijacking ISPs
-    // or cached by DNS servers.  Date+random-hex domains are unique per
-    // run, guaranteeing no prior resolution exists — any IP returned is
-    // definitive hijacking evidence.
+    // or cached by DNS servers.  Date+hash-hex domains are unique per
+    // day per index, making preemptive whitelisting impractical — any
+    // IP returned is definitive hijacking evidence.
     // Format: YYYYMMDD-xxxx-dns-test.{com,org,net}
     QString datePrefix = QDateTime::currentDateTime().toString("yyyyMMdd");
     QString domains[3];
@@ -89,9 +101,6 @@ DiagnosticResult dnsPollution(DiagId id) {
         domains[i] = QStringLiteral("%1-%2-dns-test.%3")
             .arg(datePrefix, hex, tlds[i]);
     }
-    out.append(QStringLiteral("Test domains (generated fresh per run):"));
-    for (int i = 0; i < 3; ++i)
-        out.append(QStringLiteral("  · %1").arg(domains[i]));
     out.append(QString());
 
     for (const auto& domain : domains) {
@@ -99,15 +108,14 @@ DiagnosticResult dnsPollution(DiagId id) {
         QString ip = DnsResolver::instance().resolve(domain, 3000);
         int elapsed = static_cast<int>(probe.elapsed());
         if (!ip.isEmpty()) {
-            out.append(QStringLiteral("  %1 → RESOLVED: %2 (%3ms)")
-                .arg(domain, ip).arg(elapsed));
+            out.append(QStringLiteral("  %1 → HIJACKED: %2 (%3ms)").arg(domain, ip).arg(elapsed));
             hijackWarn++;
             if (!hijackIPs.contains(ip)) hijackIPs.append(ip);
         } else if (elapsed >= 3000) {
             out.append(QStringLiteral("  %1 → TIMEOUT (%2ms)").arg(domain).arg(elapsed));
             hijackTimeout++;
         } else {
-            out.append(QStringLiteral("  %1 → NXDOMAIN (%2ms)").arg(domain).arg(elapsed));
+            out.append(QStringLiteral("  %1 → Not resolved").arg(domain));
             hijackClean++;
         }
     }
@@ -116,12 +124,8 @@ DiagnosticResult dnsPollution(DiagId id) {
     // ═══════════════════════════════════════════════════════════════════
     // Phase 2: DNS Pollution (DoH multi-resolver comparison)
     // ═══════════════════════════════════════════════════════════════════
-    out.append(QStringLiteral("── Phase 2: DNS Pollution Check (DoH) ──"));
-    out.append(QStringLiteral("DoH results are trusted (encrypted, untampered). Detection tiers:"));
-    out.append(QStringLiteral("  · Private/reserved IP → ISP hijacking"));
-    out.append(QStringLiteral("  · Same /24 subnet    → CDN geo-routing (clean)"));
-    out.append(QStringLiteral("  · Different /8 range  → Different org → polluted"));
-    out.append(QStringLiteral("  · Same /8, no /24     → Suspicious (benefit of doubt)"));
+    out.append(QStringLiteral("── Phase 2: DNS Pollution (DoH vs Local) ──"));
+    out.append(QStringLiteral("Compares trusted DoH (encrypted DNS) against your local DNS resolver."));
     out.append(QString());
 
     static const struct {
@@ -147,37 +151,35 @@ DiagnosticResult dnsPollution(DiagId id) {
             QString::fromUtf8(td.domain), 3000);
         QString localStr = localIp.isEmpty() ? QStringLiteral("(no response)") : localIp;
 
-        // ── Verdict ────────────────────────────────────────────────
-        out.append(QStringLiteral("── %1 (%2) ──").arg(td.domain, td.description));
-        out.append(QStringLiteral("  Trusted DoH Query Results: %1").arg(dohStr));
-        out.append(QStringLiteral("  Local DNS Query Results:   %1").arg(localStr));
-
+        // ── 1-line per-domain verdict ──────────────────────────
         if (dohIps.isEmpty()) {
-            out.append(QStringLiteral("  → Inconclusive — DoH query failed"));
+            out.append(QStringLiteral("  %1 (%2) — DoH query failed, skipped")
+                .arg(td.domain, td.description));
             pollutionErrors++;
         } else if (localIp.isEmpty()) {
-            out.append(QStringLiteral("  → Local DNS failed — cannot compare"));
+            out.append(QStringLiteral("  %1 (%2) — Local DNS failed, skipped")
+                .arg(td.domain, td.description));
             pollutionErrors++;
         } else if (isPrivateIp(localIp)) {
-            out.append(QStringLiteral("  → HIJACKED — local DNS returned private/reserved IP (%1)")
-                .arg(localIp));
+            out.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (private IP)")
+                .arg(td.domain, td.description, localIp));
             pollutionDetails.append(QStringLiteral("%1: local=%2 (private IP)")
                 .arg(td.domain, localIp));
             pollutionWarn++;
         } else if (sharesPrefix(dohIps, {localIp})) {
-            out.append(QStringLiteral("  → Clean — local IP shares /24 with DoH (same CDN edge)"));
+            out.append(QStringLiteral("  %1 (%2) — Clean")
+                .arg(td.domain, td.description));
             pollutionClean++;
         } else if (differentOrg(dohIps, {localIp})) {
-            out.append(QStringLiteral("  → POLLUTED — local IP (%1) in different /8 from DoH (%2)")
-                .arg(localIp, dohIps.join(',')));
+            out.append(QStringLiteral("  %1 (%2) — DoH=%3, Local=%4 → POLLUTED")
+                .arg(td.domain, td.description, dohStr, localStr));
             pollutionDetails.append(QStringLiteral("%1: local=%2, DoH=%3")
                 .arg(td.domain, localIp, dohIps.join(',')));
             pollutionWarn++;
         } else {
-            out.append(QStringLiteral("  → Suspicious — same /8 but no /24 match (possible CDN, check ASN)"));
-            out.append(QStringLiteral("     Local: %1, DoH: %2")
-                .arg(localIp, dohIps.join(',')));
-            pollutionClean++;  // give benefit of doubt
+            out.append(QStringLiteral("  %1 (%2) — DoH=%3, Local=%4 → Suspicious (check manually)")
+                .arg(td.domain, td.description, dohStr, localStr));
+            pollutionSuspicious++;
         }
         out.append(QString());
     }
@@ -188,38 +190,54 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QStringLiteral("=================================================================="));
     out.append(QStringLiteral("Phase 1 (ISP Hijack):  %1 clean, %2 hijacked, %3 timeout")
         .arg(hijackClean).arg(hijackWarn).arg(hijackTimeout));
-    out.append(QStringLiteral("Phase 2 (DNS Pollution): %1 clean, %2 polluted, %3 errors")
-        .arg(pollutionClean).arg(pollutionWarn).arg(pollutionErrors));
+    {
+        QString s = QStringLiteral("Phase 2 (DNS Pollution): %1 clean, %2 polluted, %3 errors")
+            .arg(pollutionClean).arg(pollutionWarn).arg(pollutionErrors);
+        if (pollutionSuspicious > 0)
+            s += QStringLiteral(", %1 suspicious").arg(pollutionSuspicious);
+        out.append(s);
+    }
 
     bool hijackDetected = hijackWarn > 0;
     bool pollutionDetected = pollutionWarn > 0;
+    bool phase2AllFailed = (pollutionErrors > 0 && pollutionClean == 0
+                            && pollutionWarn == 0 && pollutionSuspicious == 0);
 
     if (hijackDetected && pollutionDetected) {
         out.append(QStringLiteral("Verdict: DNS HIJACKING + POLLUTION detected"));
         out.append(QString());
         out.append(QStringLiteral("  ISP Hijack IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
         for (const auto& d : pollutionDetails)
-            out.append(QStringLiteral("  Pollution: %1").arg(d));
+            out.append(QStringLiteral("  • %1").arg(d));
         r.status = DiagStatus::Warning;
         r.summary = QStringLiteral("DNS: hijack + pollution");
     } else if (hijackDetected) {
         out.append(QStringLiteral("Verdict: ISP DNS HIJACKING detected"));
-        out.append(QStringLiteral("  Redirect IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
+        out.append(QStringLiteral("  Hijack IPs: %1").arg(hijackIPs.join(QStringLiteral(", "))));
         r.status = DiagStatus::Warning;
         r.summary = QStringLiteral("DNS hijack: %1 IP(s)").arg(hijackIPs.size());
     } else if (pollutionDetected) {
-        out.append(QStringLiteral("Verdict: DNS POLLUTION detected"));
-        for (const auto& d : pollutionDetails)
-            out.append(QStringLiteral("  • %1").arg(d));
+        int phase2Total = pollutionWarn + pollutionClean + pollutionSuspicious + pollutionErrors;
+        out.append(QStringLiteral("Verdict: DNS POLLUTION — %1/%2 domains affected")
+            .arg(pollutionWarn).arg(phase2Total));
         r.status = DiagStatus::Warning;
         r.summary = QStringLiteral("DNS polluted: %1/%2 domains").arg(pollutionWarn)
-            .arg(pollutionWarn + pollutionClean + pollutionErrors);
+            .arg(phase2Total);
     } else {
         int totalErrors = hijackTimeout + pollutionErrors;
-        if (totalErrors > 0 && hijackClean + pollutionClean == 0) {
+        if (totalErrors > 0 && hijackClean + pollutionClean + pollutionSuspicious == 0) {
             out.append(QStringLiteral("Verdict: INCONCLUSIVE — all queries failed"));
             r.status = DiagStatus::Info;
             r.summary = QStringLiteral("DNS: all queries failed");
+        } else if (phase2AllFailed) {
+            out.append(QStringLiteral("Verdict: Phase 1 clean, Phase 2 inconclusive (all DoH queries failed)"));
+            r.status = DiagStatus::Info;
+            r.summary = QStringLiteral("DNS: hijack clean, pollution inconclusive");
+        } else if (pollutionSuspicious > 0) {
+            out.append(QStringLiteral("Verdict: SUSPICIOUS — %1 domain(s) need manual check")
+                .arg(pollutionSuspicious));
+            r.status = DiagStatus::Info;
+            r.summary = QStringLiteral("DNS: %1 suspicious").arg(pollutionSuspicious);
         } else {
             out.append(QStringLiteral("Verdict: DNS CLEAN — no hijacking or pollution detected"));
             r.status = DiagStatus::Pass;
