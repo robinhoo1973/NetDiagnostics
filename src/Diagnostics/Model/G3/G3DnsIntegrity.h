@@ -21,8 +21,8 @@ struct DnsSignal {
 };
 
 struct DnsIntegrityResult {
-    enum Verdict { Clean, Suspicious, Polluted, Hijacked };
-    Verdict  verdict = Clean;
+    enum class Verdict { Pass, Suspicious, Polluted, Hijacked };
+    Verdict  verdict = Verdict::Pass;
     int      scorePercent = 0;   // 0-100
     QVector<DnsSignal> signals;
     QStringList output;          // formatted per-domain lines
