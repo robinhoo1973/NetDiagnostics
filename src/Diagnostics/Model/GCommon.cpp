@@ -600,16 +600,45 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     // exhaust the pool when domain tasks occupy all threads and resolver
     // tasks have no threads to execute → deadlock.  std::thread bypasses
     // the pool entirely, giving each resolver a dedicated OS thread.
+    // 5WHY: If dohQuerySingleFull throws an exception inside std::thread,
+    // the uncaught exception calls std::terminate() → hard process crash.
+    // QtConcurrent::run (DiagnosticTask.cpp:40-51) has explicit try-catch
+    // guards; std::thread does NOT.  Also, if std::thread construction
+    // fails mid-loop, previously launched threads leak (still joinable,
+    // destructor calls terminate()).  Both fixed with try-catch + RAII join.
+    struct ThreadGuard {
+        std::thread* threads; int count; bool armed;
+        ThreadGuard(std::thread* t, int n) : threads(t), count(n), armed(true) {}
+        ~ThreadGuard() { if (armed) for (int j = 0; j < count; ++j) if (threads[j].joinable()) threads[j].join(); }
+        void release() { armed = false; }
+    };
     static const int kResolverCount = sizeof(kResolvers) / sizeof(kResolvers[0]);
-    DohDnsFullResult resolverResults[kResolverCount];
+    DohDnsFullResult resolverResults[kResolverCount]{};
     std::thread resolverThreads[kResolverCount];
+    ThreadGuard guard(resolverThreads, kResolverCount);
     for (int i = 0; i < kResolverCount; ++i) {
-        resolverThreads[i] = std::thread([&, i]() {
-            resolverResults[i] = dohQuerySingleFull(
-                QString::fromUtf8(kResolvers[i].url), domain, type, timeoutMs);
-        });
+        try {
+            resolverThreads[i] = std::thread([&, i]() {
+                try {
+                    resolverResults[i] = dohQuerySingleFull(
+                        QString::fromUtf8(kResolvers[i].url), domain, type, timeoutMs);
+                } catch (const std::exception&) {
+                    // Leave resolverResults[i] as default (empty records, minTtl=-1).
+                    // Caller handles empty aRecords gracefully as "resolver failed".
+                } catch (...) {
+                    // Qt internal exceptions — same fallback as above.
+                }
+            });
+        } catch (const std::system_error&) {
+            // Thread creation failed (resource exhaustion) — skip remaining
+            // resolvers.  Guard joins already-launched threads on scope exit.
+            guard.count = i;  // only join threads 0..i-1
+            break;
+        }
     }
-    for (int i = 0; i < kResolverCount; ++i) resolverThreads[i].join();
+    guard.release();  // explicit join so results are fully populated below
+    for (int i = 0; i < kResolverCount; ++i)
+        if (resolverThreads[i].joinable()) resolverThreads[i].join();
 
     QMap<QString, int> freq;
     QStringList allCnames;
