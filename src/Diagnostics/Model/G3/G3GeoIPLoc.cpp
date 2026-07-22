@@ -162,7 +162,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
     // ── Step 1: GeoIP country via DNS/HTTP chain ────────────────────
     out.append(QStringLiteral("[Phase 1/4] Detecting GeoIP Country..."));
     QString countryA = detectCountry(3000);
-    out.append(QStringLiteral("GeoIP Location: %1").arg(countryName(countryA)));
+    out.append(QStringLiteral("GeoIP Location: %1").arg(countryFullName(countryA)));
 
     // ── Step 2: TTFB global probe → per-country HL (delegated to GeoProbe) ──
     ProbeConfig cfg;
@@ -178,7 +178,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
 
     // ── Step 3: Find physical location (lowest HL country) ──────────
     QString countryB = result.physicalCountry;
-    out.append(QStringLiteral("Physical Location (Lowest HL): %1").arg(countryName(countryB)));
+    out.append(QStringLiteral("Physical Location (Lowest HL): %1").arg(countryFullName(countryB)));
 
     // 5WHY: aggregateByCountry requires ≥2 servers per country. If all
     // countries have only 1 reachable server, result.countries is empty
@@ -195,13 +195,13 @@ DiagnosticResult geoIPLoc(DiagId id) {
             if (bestN > 0) {
                 countryB = bestCC;
                 out.append(QStringLiteral("Physical Location (Fallback): %1 (%2 Reachable)")
-                    .arg(countryName(countryB)).arg(bestN));
+                    .arg(countryFullName(countryB)).arg(bestN));
             }
         }
         if (countryB.isEmpty() || countryB == QStringLiteral("XX")) {
             out.append(QStringLiteral("Status: Insufficient Data for VPN Analysis"));
             r.summary = QStringLiteral("GeoIP: %1, Physical: Unknown")
-                .arg(countryName(countryA));
+                .arg(countryFullName(countryA));
             r.status = DiagStatus::Warning;
             r.rawOutput = out.join('\n'); r.details = r.rawOutput;
             r.durationMs = t.elapsed(); return r;
@@ -226,7 +226,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
             const auto& cr = result.countries[i];
             rows.append({
                 QString::number(i + 1),
-                countryName(cr.code),
+                countryFullName(cr.code),
                 QStringLiteral("%1").arg(cr.hlMs, 0, 'f', 1),
                 QString::number(cr.serverCount),
             });
@@ -235,9 +235,9 @@ DiagnosticResult geoIPLoc(DiagId id) {
     }
 
     if (countryA == QStringLiteral("XX")) {
-        out.append(QStringLiteral("Status: Location Estimated as %1 (GeoIP Unreachable)").arg(countryName(countryB)));
+        out.append(QStringLiteral("Status: Location Estimated as %1 (GeoIP Unreachable)").arg(countryFullName(countryB)));
         r.summary = QStringLiteral("Physical: %1 (GeoIP Unreachable)")
-            .arg(countryName(countryB));
+            .arg(countryFullName(countryB));
         r.status = DiagStatus::Warning;
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.durationMs = t.elapsed(); return r;
@@ -258,9 +258,9 @@ DiagnosticResult geoIPLoc(DiagId id) {
     int nA = samplesA.size(), nB = samplesB.size();
     if (nA < 3 || nB < 3) {
         out.append(QStringLiteral("GeoIP Country %1: %2 Samples, Physical Country %3: %4 Samples — Insufficient for VPN Test")
-            .arg(countryName(countryA)).arg(nA).arg(countryName(countryB)).arg(nB));
+            .arg(countryFullName(countryA)).arg(nA).arg(countryFullName(countryB)).arg(nB));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 (Insufficient Data for VPN)")
-            .arg(countryName(countryB)).arg(countryName(countryA));
+            .arg(countryFullName(countryB)).arg(countryFullName(countryA));
         r.status = DiagStatus::Info;
         r.rawOutput = out.join('\n'); r.details = r.rawOutput;
         r.durationMs = t.elapsed(); return r;
@@ -300,7 +300,7 @@ DiagnosticResult geoIPLoc(DiagId id) {
 
     out.append(QStringLiteral("[Phase 4/4] Statistical Results:"));
     out.append(QStringLiteral("  GeoIP (%1): %2 Samples, Physical (%3): %4 Samples")
-        .arg(countryName(countryA)).arg(nA).arg(countryName(countryB)).arg(nB));
+        .arg(countryFullName(countryA)).arg(nA).arg(countryFullName(countryB)).arg(nB));
     out.append(QStringLiteral("  Mann-Whitney U = %1, p-value = %2, Cliff's Delta = %3")
         .arg(U, 0, 'f', 1).arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3));
 
@@ -310,38 +310,38 @@ DiagnosticResult geoIPLoc(DiagId id) {
     // Cliff's Delta (δ): |δ| ≥ 0.33 = medium/large effect (Cohen's convention).
     // VPN inference: GeoIP country ≠ Physical country AND latency differs.
     auto fmtLoc = [&]() { return QStringLiteral("GeoIP=%1, Physical=%2, p=%3, δ=%4")
-        .arg(countryName(countryA)).arg(countryName(countryB))
+        .arg(countryFullName(countryA)).arg(countryFullName(countryB))
         .arg(pValue, 0, 'f', 4).arg(delta, 0, 'f', 3); };
 
     if (countryA == countryB) {
         out.append(QStringLiteral("  Status: No VPN — GeoIP and Physical Both %1 (%2)")
-            .arg(countryName(countryA)).arg(fmtLoc()));
+            .arg(countryFullName(countryA)).arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → No VPN")
-            .arg(countryName(countryB)).arg(countryName(countryA));
+            .arg(countryFullName(countryB)).arg(countryFullName(countryA));
         r.status = DiagStatus::Pass;  // both locations agree → passing
     } else if (pValue < 0.05 && std::abs(delta) >= 0.33) {
         out.append(QStringLiteral("  Status: VPN DETECTED — %1")
             .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Detected")
-            .arg(countryName(countryB)).arg(countryName(countryA));
+            .arg(countryFullName(countryB)).arg(countryFullName(countryA));
         r.status = DiagStatus::Info;  // both locations available → Information
     } else if (pValue < 0.05 && std::abs(delta) < 0.33) {
         out.append(QStringLiteral("  Status: VPN Likely — Significant Latency Difference, Small Effect (%1)")
             .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Likely")
-            .arg(countryName(countryB)).arg(countryName(countryA));
+            .arg(countryFullName(countryB)).arg(countryFullName(countryA));
         r.status = DiagStatus::Info;
     } else if (std::abs(delta) >= 0.33) {
         out.append(QStringLiteral("  Status: VPN Possible — Medium Effect, Inconclusive Significance (%1)")
             .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → VPN Possible")
-            .arg(countryName(countryB)).arg(countryName(countryA));
+            .arg(countryFullName(countryB)).arg(countryFullName(countryA));
         r.status = DiagStatus::Info;
     } else {
         out.append(QStringLiteral("  Status: Inconclusive — %1")
             .arg(fmtLoc()));
         r.summary = QStringLiteral("Physical: %1, GeoIP: %2 → Inconclusive")
-            .arg(countryName(countryB)).arg(countryName(countryA));
+            .arg(countryFullName(countryB)).arg(countryFullName(countryA));
         r.status = DiagStatus::Info;
     }
 
