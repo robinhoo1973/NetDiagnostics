@@ -232,7 +232,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
     QString h;
     h += QStringLiteral("<div style=\"font-family:'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif;"
-        "color:%1;max-width:750px;margin:0 auto\">").arg(textPrimary);
+        "color:%1;width:100%;margin:0 auto\">").arg(textPrimary);
 
     // ── Header band with gradient-style dark background ─────────────────
     // Header text colours — always light-on-dark for the header band
@@ -308,7 +308,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         const QString glabel = g < data.groupLabels.size() ? data.groupLabels[g].toHtmlEscaped() : QString();
         h += QStringLiteral(
             "<table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"%1\" style=\"padding:12px 14px\">"
+            "<td style=\"background-color:%1;padding:12px 14px\">"
             "<span style=\"font-size:14px;color:%2\"><b>G%3 &middot; %4</b></span>&nbsp;&nbsp;"
             "<span style=\"font-size:12px;color:%5\"><b>P %6</b></span>"
             "<span style=\"font-size:12px;color:%7\"> &middot; </span><span style=\"font-size:12px;color:%8\"><b>I %9</b></span>"
@@ -328,7 +328,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         h += QStringLiteral(
             "<table width=\"100%\" cellpadding=\"9\" cellspacing=\"0\""
             " style=\"border-collapse:collapse\">"
-            "<tr bgcolor=\"%1\">"
+            "<tr style=\"background-color:%1\">"
             "<th align=\"left\" width=\"42%\" style=\"padding:10px 9px;border-bottom:2px solid %2\">"
             "<span style=\"font-size:11px;color:%3\">TEST</span></th>"
             "<th align=\"left\" width=\"16%\" style=\"padding:10px 9px;border-bottom:2px solid %2\">"
@@ -374,7 +374,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
     if (fullDetail) {
         h += QStringLiteral("<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\"><tr>"
-            "<td bgcolor=\"%1\"><span style=\"font-size:18px;color:%2\"><b>Detailed Output</b></span></td>"
+            "<td style=\"background-color:%1\"><span style=\"font-size:18px;color:%2\"><b>Detailed Output</b></span></td>"
             "</tr></table><br/>").arg(bgSection).arg(colorCyan);
         for (int g = 0; g < 5; ++g) {
             auto it = data.groupStats.find(g);
@@ -663,24 +663,21 @@ QString ReportEngine::exportHtml(const QString& filePath, const QString& html) {
 
 QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     // 5WHY: QPdfWriter default resolution (1200 DPI) makes QTextDocument
-    // fonts appear tiny — CSS px sizes (e.g. font-size:13px) are laid out
-    // at screen DPI (96) but rendered at printer DPI, producing illegible
-    // micro-text. Fix: force PDF resolution to match screen DPI so font
-    // sizes are consistent with the in-app QTextDocument preview.
-    //   A4 portrait: 210mm - 6mm×2 margins = 198mm ≈ 7.80 in
-    //   At 96 DPI: 198/25.4×96 ≈ 748 px → round to 750 px text width.
+    // fonts appear tiny. 96 DPI matches screen pixel→mm mapping so CSS
+    // px sizes render at the intended physical size.
+    //   A4 = 210 mm.  5 mm margins → content = 200 mm.
+    //   Let QTextDocument auto-fill the content area — no setTextWidth()
+    //   means the document uses the full page width minus margins.
     const QString path = normalizeReportPath(filePath);
     QPdfWriter writer(path);
-    writer.setResolution(96);  // match screen DPI for consistent font sizing
+    writer.setResolution(96);
     writer.setPageSize(QPageSize(QPageSize::A4));
-    writer.setPageMargins(QMarginsF(6, 12, 6, 12), QPageLayout::Millimeter);
+    writer.setPageMargins(QMarginsF(5, 12, 5, 12), QPageLayout::Millimeter);
     writer.setTitle(QStringLiteral("Network Diagnostic Report"));
 
     QTextDocument doc;
-    // 5WHY: 12pt base font with 750px text width on A4 portrait
-    // produces readable output at 96 DPI (matches screen rendering).
     doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 12));
-    doc.setTextWidth(750);  // content area 198mm at 96 DPI ≈ 750 px
+    // textWidth NOT set — document auto-fills page content area (200mm at 96 DPI)
     doc.setHtml(html);
     doc.print(&writer);
     return QFile::exists(path) ? path : QString();

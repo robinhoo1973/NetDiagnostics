@@ -262,14 +262,16 @@ Rectangle {
                         font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
                     function runOrCancel() {
                         if (appState.runStatus === 1) {
-                            Qt.callLater(function() { appState.cancel() })
+                            if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
+                            else appState.cancel()
                         } else {
                             var err = appState.targetValidationError()
                             if (err !== "" || !appState.canRun()) {
                                 validationFlash.start()
                                 return
                             }
-                            Qt.callLater(function() { appState.runDiagnostics() })
+                            if (ThemeEngine.isMobile) Qt.callLater(function() { appState.runDiagnostics() })
+                            else appState.runDiagnostics()
                         }
                     }
                     Rectangle {
