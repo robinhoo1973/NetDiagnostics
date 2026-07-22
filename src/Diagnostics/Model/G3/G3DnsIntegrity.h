@@ -37,11 +37,12 @@ struct DnsIntegrityResult {
 };
 
 // ── Scoring engine ─────────────────────────────────────────────────
-// Signals used (IP-independent, structure/metadata only):
-//   CNAME anomaly  (weight=5): DoH has CNAME chain → pollution returns bare A
-//   TTL anomaly    (weight=3): TTL < 10s → injection often sets TTL=0
-//   Timing anomaly (weight=2): UDP < 15ms → injection is near-instant
-// Total weight = 10. Thresholds: >20% Suspicious, >40% Polluted, >60% Hijacked
+// Signals (IP-independent, structure/metadata only):
+//   TLS cert mismatch (weight=5): cert SAN/CN does not match domain
+//   CNAME anomaly     (weight=5): DoH has CNAME chain → pollution returns bare A
+//   TTL anomaly       (weight=3): TTL < 10s → injection often sets TTL=0
+//   Timing anomaly    (weight=2): UDP < 15ms → injection is near-instant
+// Total weight = 15. Thresholds: >14% Suspicious, >33% Polluted, >60% Hijacked
 DnsIntegrityResult scoreDnsIntegrity(
     const QString& domain,
     const QString& description,
