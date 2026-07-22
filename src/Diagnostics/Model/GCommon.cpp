@@ -609,7 +609,11 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     struct ThreadGuard {
         std::thread* threads; int count; bool armed;
         ThreadGuard(std::thread* t, int n) : threads(t), count(n), armed(true) {}
-        ~ThreadGuard() { if (armed) for (int j = 0; j < count; ++j) if (threads[j].joinable()) threads[j].join(); }
+        // 5WHY: std::thread::join() can throw std::system_error.  If join()
+        // throws inside the destructor while already unwinding for another
+        // exception, std::terminate() is called (C++11 noexcept destructors).
+        // Catch and swallow — the alternative is process termination.
+        ~ThreadGuard() { if (armed) for (int j = 0; j < count; ++j) if (threads[j].joinable()) try { threads[j].join(); } catch (...) {} }
         void release() { armed = false; }
     };
     static const int kResolverCount = sizeof(kResolvers) / sizeof(kResolvers[0]);
