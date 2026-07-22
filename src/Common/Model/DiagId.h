@@ -66,7 +66,7 @@ enum class DiagId {
     G3NetskopeStatus,
     G3DnsServers,
     G3DnsCache,
-    G3DnsPollution,
+    G3DnsIntegrity,
     G3GeoIPLoc,
     G3InternetConnectivity,
 
@@ -124,7 +124,7 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G3NetskopeStatus:
         case DiagId::G3DnsServers:
         case DiagId::G3DnsCache:
-        case DiagId::G3DnsPollution:
+        case DiagId::G3DnsIntegrity:
         case DiagId::G3GeoIPLoc:
         case DiagId::G3InternetConnectivity:
             return DiagGroup::G3;
@@ -170,7 +170,7 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G2NetworkProfile, DiagId::G2TcpSettings, DiagId::G2DefaultGateway,
         DiagId::G2RoutingTable, DiagId::G2ArpTable, DiagId::G2ProxySettings,
         DiagId::G3NetskopeStatus, DiagId::G3DnsServers, DiagId::G3DnsCache,
-        DiagId::G3DnsPollution,
+        DiagId::G3DnsIntegrity,
         DiagId::G3InternetConnectivity, DiagId::G3GeoIPLoc,
         DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
         DiagId::G4PathPing, DiagId::G4MtuDiscovery,
