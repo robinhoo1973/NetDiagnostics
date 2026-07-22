@@ -480,4 +480,121 @@ QStringList dohQuery(const QString& domain, const QString& type, int timeoutMs) 
     return result;
 }
 
+// ── DoH full-record query (single resolver) ─────────────────────────
+static DohFullResult dohQuerySingleFull(const QString& endpoint,
+                                         const QString& domain,
+                                         const QString& type, int timeoutMs) {
+    DohFullResult result;
+    QString queryUrl = QStringLiteral("%1?name=%2&type=%3")
+        .arg(endpoint, domain, type);
+    QByteArray body = httpsGet(queryUrl, timeoutMs);
+    if (body.isEmpty()) return result;
+
+    QString json = QString::fromUtf8(body);
+    int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
+    if (ansStart < 0) return result;
+
+    int sectionEnd = json.indexOf(']', ansStart);
+    int pos = ansStart;
+
+    // Parse each record object in the Answer array
+    while (pos < sectionEnd) {
+        // Find next record object opening brace
+        int recStart = json.indexOf('{', pos);
+        if (recStart < 0 || recStart >= sectionEnd) break;
+        int recEnd = json.indexOf('}', recStart);
+        if (recEnd < 0 || recEnd >= sectionEnd) { pos = recStart + 1; continue; }
+
+        // Extract fields from this record
+        QString record = json.mid(recStart, recEnd - recStart + 1);
+
+        auto extractStr = [&](const QString& key) -> QString {
+            int k = record.indexOf('"' + key + '"');
+            if (k < 0) return {};
+            int v = record.indexOf('"', k + key.length() + 2);
+            if (v < 0) return {};
+            int ve = record.indexOf('"', v + 1);
+            if (ve < 0) return {};
+            return record.mid(v + 1, ve - v - 1);
+        };
+        auto extractInt = [&](const QString& key) -> int {
+            return extractStr(key).toInt();
+        };
+
+        DohRecord rec;
+        rec.name = extractStr(QStringLiteral("name"));
+        rec.type = extractInt(QStringLiteral("type"));
+        rec.ttl  = extractInt(QStringLiteral("TTL"));
+        rec.data = extractStr(QStringLiteral("data"));
+
+        if (rec.type == 1 && !rec.data.isEmpty() && rec.data[0].isDigit()) {
+            result.aRecords.append(rec.data);
+        }
+        if (rec.type == 5 && !rec.data.isEmpty()) {
+            result.cnameChain.append(rec.data);
+            result.hasCname = true;
+        }
+        if (rec.ttl > 0 && rec.ttl < result.minTtl)
+            result.minTtl = rec.ttl;
+
+        result.allRecords.append(rec);
+        pos = recEnd + 1;
+    }
+    return result;
+}
+
+// ── DoH full-record query — 4-resolver majority consensus ──────────
+DohFullResult dohQueryFull(const QString& domain, const QString& type, int timeoutMs) {
+    static const struct { const char* url; } kResolvers[] = {
+        {"https://dns.alidns.com/resolve"},
+        {"https://doh.pub/dns-query"},
+        {"https://dns.google/resolve"},
+        {"https://cloudflare-dns.com/dns-query"},
+    };
+
+    // Collect A records and CNAME chains from all resolvers
+    QMap<QString, int> freq;
+    QStringList allCnames;
+    QList<DohRecord> allRecs;
+    int globalMinTtl = 86400;
+    bool globalHasCname = false;
+    int responders = 0;
+
+    for (const auto& r : kResolvers) {
+        DohFullResult fr = dohQuerySingleFull(
+            QString::fromUtf8(r.url), domain, type, timeoutMs);
+        if (!fr.aRecords.isEmpty()) responders++;
+        for (const auto& ip : fr.aRecords) freq[ip]++;
+        if (fr.hasCname) {
+            globalHasCname = true;
+            for (const auto& c : fr.cnameChain)
+                if (!allCnames.contains(c)) allCnames.append(c);
+        }
+        if (fr.minTtl < globalMinTtl) globalMinTtl = fr.minTtl;
+        allRecs.append(fr.allRecords);
+    }
+
+    // Majority consensus for A records
+    int threshold = qMin(3, responders);
+    if (threshold < 2) threshold = 1;
+
+    QStringList consensusIps;
+    for (auto it = freq.begin(); it != freq.end(); ++it) {
+        if (it.value() >= threshold)
+            consensusIps.append(it.key());
+    }
+    if (consensusIps.isEmpty()) {
+        for (auto it = freq.begin(); it != freq.end(); ++it)
+            consensusIps.append(it.key());
+    }
+
+    DohFullResult result;
+    result.aRecords   = consensusIps;
+    result.cnameChain = allCnames;
+    result.hasCname   = globalHasCname;
+    result.minTtl     = (globalMinTtl < 86400) ? globalMinTtl : 0;
+    result.allRecords = allRecs;
+    return result;
+}
+
 } // namespace G1G2G3Native

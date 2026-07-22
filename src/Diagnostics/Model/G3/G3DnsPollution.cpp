@@ -1,4 +1,5 @@
 #include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/G3/G3DnsIntegrity.h"
 #include "Common/Services/DnsResolver.h"
 #include <QCryptographicHash>
 
@@ -122,10 +123,10 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QString());
 
     // ═══════════════════════════════════════════════════════════════════
-    // Phase 2: DNS Pollution (DoH multi-resolver comparison)
+    // Phase 2: DNS Pollution (multi-signal integrity check)
     // ═══════════════════════════════════════════════════════════════════
-    out.append(QStringLiteral("── Phase 2: DNS Pollution (DoH vs Local) ──"));
-    out.append(QStringLiteral("Compares trusted DoH (encrypted DNS) against your local DNS resolver."));
+    out.append(QStringLiteral("── Phase 2: DNS Integrity Check ──"));
+    out.append(QStringLiteral("Multi-signal cross-verification: DoH vs UDP vs CNAME vs TTL vs timing."));
     out.append(QString());
 
     static const struct {
@@ -140,46 +141,61 @@ DiagnosticResult dnsPollution(DiagId id) {
     };
 
     for (const auto& td : kTestDomains) {
-        // ── DoH consensus (4 resolvers, majority vote) ──────────────
-        QStringList dohIps = G1G2G3Native::dohQuery(
+        QElapsedTimer probe; probe.start();
+
+        // ── DoH full-record query (CNAME + TTL + IPs) ────────────
+        DohFullResult doh = G1G2G3Native::dohQueryFull(
             QString::fromUtf8(td.domain));
-        QString dohStr = dohIps.isEmpty() ? QStringLiteral("(no response)")
-                        : dohIps.join(QStringLiteral(", "));
 
-        // ── Local DNS (system resolver) ────────────────────────────
-        QString localIp = DnsResolver::instance().resolve(
+        // ── Local DNS (UDP, system resolver) ─────────────────────
+        QString localUdpIp = DnsResolver::instance().resolve(
             QString::fromUtf8(td.domain), 3000);
-        QString localStr = localIp.isEmpty() ? QStringLiteral("(no response)") : localIp;
+        int localMs = static_cast<int>(probe.elapsed());
 
-        // ── 1-line per-domain verdict ──────────────────────────
-        if (dohIps.isEmpty()) {
+        // ── Score with multi-signal engine ───────────────────────
+        DnsIntegrityResult ir = scoreDnsIntegrity(
+            QString::fromUtf8(td.domain), td.description,
+            doh, localUdpIp, localMs,
+            QString()/*TCP not yet*/, 0);
+
+        // ── Handle DoH/local failures ────────────────────────────
+        if (doh.aRecords.isEmpty()) {
             out.append(QStringLiteral("  %1 (%2) — DoH query failed, skipped")
                 .arg(td.domain, td.description));
             pollutionErrors++;
-        } else if (localIp.isEmpty()) {
+        } else if (localUdpIp.isEmpty()) {
             out.append(QStringLiteral("  %1 (%2) — Local DNS failed, skipped")
                 .arg(td.domain, td.description));
             pollutionErrors++;
-        } else if (isPrivateIp(localIp)) {
+        } else if (isPrivateIp(localUdpIp)) {
+            // Private IP override — definitive hijacking regardless of score
             out.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (private IP)")
-                .arg(td.domain, td.description, localIp));
+                .arg(td.domain, td.description, localUdpIp));
             pollutionDetails.append(QStringLiteral("%1: local=%2 (private IP)")
-                .arg(td.domain, localIp));
-            pollutionWarn++;
-        } else if (sharesPrefix(dohIps, {localIp})) {
-            out.append(QStringLiteral("  %1 (%2) — Clean")
-                .arg(td.domain, td.description));
-            pollutionClean++;
-        } else if (differentOrg(dohIps, {localIp})) {
-            out.append(QStringLiteral("  %1 (%2) — DoH=%3, Local=%4 → POLLUTED")
-                .arg(td.domain, td.description, dohStr, localStr));
-            pollutionDetails.append(QStringLiteral("%1: local=%2, DoH=%3")
-                .arg(td.domain, localIp, dohIps.join(',')));
+                .arg(td.domain, localUdpIp));
             pollutionWarn++;
         } else {
-            out.append(QStringLiteral("  %1 (%2) — DoH=%3, Local=%4 → Suspicious (check manually)")
-                .arg(td.domain, td.description, dohStr, localStr));
-            pollutionSuspicious++;
+            // ── Use multi-signal scored output ─────────────────
+            for (const auto& line : ir.output)
+                out.append(line);
+
+            switch (ir.verdict) {
+            case DnsIntegrityResult::Clean:
+                pollutionClean++; break;
+            case DnsIntegrityResult::Suspicious:
+                pollutionSuspicious++; break;
+            case DnsIntegrityResult::Polluted:
+                pollutionWarn++;
+                pollutionDetails.append(QStringLiteral("%1: score=%2%, DoH=%3, Local=%4")
+                    .arg(td.domain).arg(ir.scorePercent)
+                    .arg(ir.dohIps.join(','), ir.localUdpIp));
+                break;
+            case DnsIntegrityResult::Hijacked:
+                pollutionWarn++;
+                pollutionDetails.append(QStringLiteral("%1: HIJACKED (score=%2%)")
+                    .arg(td.domain).arg(ir.scorePercent));
+                break;
+            }
         }
         out.append(QString());
     }
