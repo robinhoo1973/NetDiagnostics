@@ -1,0 +1,66 @@
+name: Cleanup CI Runs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'  # weekly Sunday 03:00 UTC
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete old workflow runs — keep only last success per workflow
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # List all workflows
+          workflows=$(gh api "repos/$REPO/actions/workflows" --jq '.workflows[].id')
+          total_deleted=0
+
+          for wf_id in $workflows; do
+            wf_name=$(gh api "repos/$REPO/actions/workflows/$wf_id" --jq '.name')
+            echo "::group::Workflow: $wf_name (id=$wf_id)"
+
+            # Get the last successful run for this workflow
+            last_success=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs" \
+              --jq '[.workflow_runs[] | select(.conclusion=="success")][0]')
+            last_id=$(echo "$last_success" | jq -r '.id // empty')
+            last_created=$(echo "$last_success" | jq -r '.created_at // empty')
+
+            if [ -z "$last_id" ]; then
+              echo "  No successful runs found — skipping"
+              echo "::endgroup::"
+              continue
+            fi
+
+            echo "  Keeping run #$last_id ($last_created)"
+
+            # List and delete all OTHER runs for this workflow
+            page=1
+            while true; do
+              runs=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs" \
+                -f "per_page=100" -f "page=$page" \
+                --jq '.workflow_runs[] | select(.id != '$last_id') | .id')
+
+              if [ -z "$runs" ]; then
+                break
+              fi
+
+              for run_id in $runs; do
+                echo "  Deleting run #$run_id"
+                gh api --silent -X DELETE "repos/$REPO/actions/runs/$run_id" || true
+                total_deleted=$((total_deleted + 1))
+              done
+
+              page=$((page + 1))
+            done
+
+            echo "::endgroup::"
+          done
+
+          echo "Total runs deleted: $total_deleted"
