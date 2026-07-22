@@ -142,6 +142,10 @@ struct DohFullResult {
     QList<DohRecord> allRecords; // all parsed records
     bool            hasCname = false;
     int             minTtl = 86400;  // minimum TTL across all records (high default)
+    // DNSSEC fields (from DoH JSON top-level)
+    int             dnsStatus = 0;   // 0=NOERROR, 2=SERVFAIL (DNSSEC failure)
+    bool            adFlag = false;  // Authenticated Data — DNSSEC validated
+    bool            dnssecFailed = false; // Status=2 + AD=false → DNSSEC failure
 };
 
 // DoH (DNS-over-HTTPS) query — queries 4 resolvers, returns majority consensus.
