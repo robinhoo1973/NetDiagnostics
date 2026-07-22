@@ -101,10 +101,10 @@ QString detectCountry(int timeoutMs) {
     static const int kProvCount = sizeof(providers) / sizeof(providers[0]);
     QFuture<QPair<int,QByteArray>> futures[kProvCount];
     for (int i = 0; i < kProvCount; ++i) {
-        futures[i] = QtConcurrent::run([url = QString::fromUtf8(providers[i].url),
+        futures[i] = QtConcurrent::run([i, url = QString::fromUtf8(providers[i].url),
                                          timeout = effectiveTimeout]()
             -> QPair<int,QByteArray> {
-            return {i, G1G2G3Native::httpsGet(url, timeout)};
+            return qMakePair(i, G1G2G3Native::httpsGet(url, timeout));
         });
     }
 
