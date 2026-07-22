@@ -141,7 +141,7 @@ DiagnosticResult dnsIntegrity(DiagId id) {
 
     for (const auto& td : kTestDomains) {
         // ── DoH full-record query (CNAME + TTL + IPs) ────────────
-        DohFullResult doh = G1G2G3Native::dohQueryFull(
+        DOH_FULL_RESULT doh = G1G2G3Native::dohQueryFull(
             QString::fromUtf8(td.domain));
 
         // ── Local DNS (UDP, system resolver) ─────────────────────
@@ -151,7 +151,7 @@ DiagnosticResult dnsIntegrity(DiagId id) {
         int localMs = static_cast<int>(probe.elapsed());
 
         // ── Score with multi-signal engine ───────────────────────
-        DnsIntegrityResult ir = scoreDnsIntegrity(
+        DNS_INTEGRITY_RESULT ir = scoreDnsIntegrity(
             QString::fromUtf8(td.domain), td.description,
             doh, localUdpIp, localMs);
 
@@ -177,17 +177,17 @@ DiagnosticResult dnsIntegrity(DiagId id) {
                 out.append(line);
 
             switch (ir.verdict) {
-            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_CLEAN:
+            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_CLEAN:
                 pollutionClean++; break;
-            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_SUSPECT:
+            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_SUSPECT:
                 pollutionSuspicious++; break;
-            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_TAMPERED:
+            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_TAMPERED:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: score=%2%, DoH=%3, Local=%4")
                     .arg(td.domain).arg(ir.scorePercent)
                     .arg(ir.dohIps.join(','), ir.localUdpIp));
                 break;
-            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_HIJACKED:
+            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_HIJACKED:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: HIJACKED (score=%2%)")
                     .arg(td.domain).arg(ir.scorePercent));
