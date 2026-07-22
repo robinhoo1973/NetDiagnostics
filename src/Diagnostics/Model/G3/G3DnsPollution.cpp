@@ -155,8 +155,7 @@ DiagnosticResult dnsPollution(DiagId id) {
         // ── Score with multi-signal engine ───────────────────────
         DnsIntegrityResult ir = scoreDnsIntegrity(
             QString::fromUtf8(td.domain), td.description,
-            doh, localUdpIp, localMs,
-            QString()/*TCP not yet*/, 0);
+            doh, localUdpIp, localMs);
 
         // ── Handle DoH/local failures ────────────────────────────
         if (doh.aRecords.isEmpty()) {

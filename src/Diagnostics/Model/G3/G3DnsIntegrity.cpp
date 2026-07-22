@@ -1,5 +1,11 @@
 // =============================================================================
 // G3DnsIntegrity.cpp — Multi-signal DNS integrity scoring engine
+//
+// Signals are deliberately IP-independent — CDN/Anycast/GeoDNS make IP
+// comparisons unreliable.  Instead we analyze DNS response STRUCTURE:
+//   · CNAME chain — pollution often returns bare A-record, skipping CNAME
+//   · TTL — pollution injection often has TTL=0 or TTL=1
+//   · Response timing — injected responses arrive near-instantly
 // =============================================================================
 #include "Diagnostics/Model/G3/G3DnsIntegrity.h"
 #include "Diagnostics/Model/GHelpers.h"
@@ -8,48 +14,35 @@ namespace G1G2G3Native {
 
 // ── Signal definitions ─────────────────────────────────────────────
 
-static DnsSignal sigUdpVsTcp(const QString& localUdpIp, const QString& localTcpIp) {
-    bool mismatch = !localUdpIp.isEmpty() && !localTcpIp.isEmpty()
-                    && localUdpIp != localTcpIp;
-    return {4, mismatch,
-        mismatch ? QStringLiteral("UDP(%1) ≠ TCP(%2)").arg(localUdpIp, localTcpIp)
-                 : QString()};
+static DnsSignal sigCnameAnomaly(bool dohHasCname) {
+    // Pollution/great-firewall DNS injection typically returns a bare
+    // A-record response without the CNAME chain that legitimate CDN
+    // domains use (e.g. www.google.com → CNAME → google.com → A).
+    return {5, dohHasCname ? false : true,
+        dohHasCname ? QString()
+                    : QStringLiteral("No CNAME chain — DoH returned bare A-record "
+                                     "(legitimate CDN domains normally have CNAME indirection)")};
 }
 
-static DnsSignal sigDohVsUdp(const QStringList& dohIps, const QString& localIp) {
-    if (dohIps.isEmpty() || localIp.isEmpty()) return {4, false, {}};
-    bool differ = !dohIps.contains(localIp);
-    return {4, differ,
-        differ ? QStringLiteral("DoH(%1) ≠ Local(%2)")
-                    .arg(dohIps.join(','), localIp)
-               : QString()};
-}
-
-static DnsSignal sigCnameAnomaly(bool dohHasCname, bool localHasCname) {
-    bool anomaly = dohHasCname && !localHasCname;
-    return {3, anomaly,
-        anomaly ? QStringLiteral("DoH has CNAME chain, local is bare A-record")
-                : QString()};
-}
-
-static DnsSignal sigTtlAnomaly(int dohMinTtl, int localTtl) {
-    bool dohTtlLow = (dohMinTtl > 0 && dohMinTtl < 10);
-    bool localTtlLow = (localTtl > 0 && localTtl < 10);
-    bool anomaly = dohTtlLow || localTtlLow;
-    QString detail;
-    if (dohTtlLow) detail = QStringLiteral("DoH TTL=%1s (abnormally low)").arg(dohMinTtl);
-    if (localTtlLow) {
-        if (!detail.isEmpty()) detail += "; ";
-        detail += QStringLiteral("Local TTL=%1s (abnormally low)").arg(localTtl);
-    }
-    return {2, anomaly, anomaly ? detail : QString()};
+static DnsSignal sigTtlAnomaly(int dohMinTtl) {
+    // Legitimate DNS TTLs are typically 60-3600 seconds.  Pollution
+    // injection devices (GFW, ISP hijacking boxes) often set TTL=0
+    // or TTL=1 to prevent caching of the fake response.
+    bool low = (dohMinTtl > 0 && dohMinTtl < 10);
+    return {3, low,
+        low ? QStringLiteral("TTL=%1s abnormally low (normal: 60-3600s)")
+                  .arg(dohMinTtl)
+             : QString()};
 }
 
 static DnsSignal sigTimingAnomaly(int localMs) {
+    // Legitimate DNS recursion involves network round-trips + resolver
+    // processing → typically 30-200ms.  Injection responses come from
+    // a local device on the network path → <15ms is suspicious.
     bool tooFast = (localMs > 0 && localMs < 15);
     return {2, tooFast,
-        tooFast ? QStringLiteral("UDP response %1ms (suspiciously fast — possible injection)")
-                    .arg(localMs)
+        tooFast ? QStringLiteral("UDP response %1ms (suspiciously fast — "
+                                 "legitimate recursion takes 30ms+)".arg(localMs)
                 : QString()};
 }
 
@@ -59,24 +52,19 @@ DnsIntegrityResult scoreDnsIntegrity(
     const QString& domain,
     const QString& description,
     const DohFullResult& doh,
-    const QString& localUdpIp, int localUdpMs,
-    const QString& localTcpIp, int localTcpMs)
+    const QString& localUdpIp, int localUdpMs)
 {
     DnsIntegrityResult r;
-    r.dohIps    = doh.aRecords;
+    r.dohIps     = doh.aRecords;
     r.localUdpIp = localUdpIp;
-    r.localTcpIp = localTcpIp;
     r.localUdpMs = localUdpMs;
-    r.localTcpMs = localTcpMs;
-    r.dohMinTtl = doh.minTtl;
+    r.dohMinTtl  = doh.minTtl;
     r.cnameChain = doh.cnameChain;
-    r.hasCname  = doh.hasCname;
+    r.hasCname   = doh.hasCname;
 
-    // ── Collect signals ──────────────────────────────────────────
-    r.signals.append(sigUdpVsTcp(localUdpIp, localTcpIp));
-    r.signals.append(sigDohVsUdp(doh.aRecords, localUdpIp));
-    r.signals.append(sigCnameAnomaly(doh.hasCname, false)); // local CNAME N/A from getaddrinfo
-    r.signals.append(sigTtlAnomaly(doh.minTtl, 0)); // local TTL N/A from getaddrinfo
+    // ── Collect signals (IP-independent, structure/metadata only) ──
+    r.signals.append(sigCnameAnomaly(doh.hasCname));
+    r.signals.append(sigTtlAnomaly(doh.minTtl));
     r.signals.append(sigTimingAnomaly(localUdpMs));
 
     // ── Weighted scoring ────────────────────────────────────────
@@ -91,12 +79,13 @@ DnsIntegrityResult scoreDnsIntegrity(
     }
     r.scorePercent = totalWeight > 0 ? (triggeredWeight * 100 / totalWeight) : 0;
 
-    // ── Verdict thresholds ──────────────────────────────────────
+    // ── Verdict thresholds (total weight = 10) ──────────────────
+    //   0-20% Clean, 21-40% Suspicious, 41-60% Polluted, >60% Hijacked
     if (r.scorePercent > 60)
         r.verdict = DnsIntegrityResult::Hijacked;
-    else if (r.scorePercent > 30)
+    else if (r.scorePercent > 40)
         r.verdict = DnsIntegrityResult::Polluted;
-    else if (r.scorePercent > 15)
+    else if (r.scorePercent > 20)
         r.verdict = DnsIntegrityResult::Suspicious;
     else
         r.verdict = DnsIntegrityResult::Clean;
@@ -111,23 +100,28 @@ DnsIntegrityResult scoreDnsIntegrity(
         case DnsIntegrityResult::Hijacked:   statusIcon = QStringLiteral("HIJACKED"); break;
     }
 
-    QString dohStr = r.dohIps.isEmpty() ? QStringLiteral("no response") : r.dohIps.join(',');
-    QString line = QStringLiteral("%1 — DoH=%2").arg(label, dohStr);
-    r.output.append(line);
+    // Per-domain header
+    r.output.append(QStringLiteral("%1 — Score: %2% → %3")
+        .arg(label).arg(r.scorePercent).arg(statusIcon));
+
+    // Key metadata (not IP-based comparison)
+    r.output.append(QStringLiteral("    DoH: %1 (TTL=%2, CNAME=%3)")
+        .arg(r.dohIps.isEmpty() ? QStringLiteral("no response") : r.dohIps.join(','))
+        .arg(doh.minTtl > 0 ? QStringLiteral("%1s").arg(doh.minTtl) : QStringLiteral("?"))
+        .arg(doh.hasCname ? doh.cnameChain.join(QStringLiteral(" → ")) : QStringLiteral("none")));
 
     if (!localUdpIp.isEmpty())
-        r.output.append(QStringLiteral("    UDP: %1 (%2ms, TTL=%3)")
-            .arg(localUdpIp).arg(localUdpMs).arg(doh.minTtl > 0 ? QString::number(doh.minTtl) : "?"));
-    if (!localTcpIp.isEmpty() && localTcpIp != localUdpIp)
-        r.output.append(QStringLiteral("    TCP: %1 (%2ms)")
-            .arg(localTcpIp).arg(localTcpMs));
-    if (doh.hasCname)
-        r.output.append(QStringLiteral("    CNAME: %1").arg(doh.cnameChain.join(QStringLiteral(" → "))));
+        r.output.append(QStringLiteral("    Local UDP: %1 (%2ms)")
+            .arg(localUdpIp).arg(localUdpMs));
 
-    r.output.append(QStringLiteral("    Score: %1% → %2 (%3 signal(s))")
-        .arg(r.scorePercent).arg(statusIcon).arg(triggeredSignals.size()));
-    for (const auto& d : triggeredSignals)
-        r.output.append(QStringLiteral("      · %1").arg(d));
+    // Only show signals that triggered
+    if (!triggeredSignals.isEmpty()) {
+        r.output.append(QStringLiteral("    Anomalies (%1):").arg(triggeredSignals.size()));
+        for (const auto& d : triggeredSignals)
+            r.output.append(QStringLiteral("      · %1").arg(d));
+    } else {
+        r.output.append(QStringLiteral("    No anomalies detected."));
+    }
 
     return r;
 }
