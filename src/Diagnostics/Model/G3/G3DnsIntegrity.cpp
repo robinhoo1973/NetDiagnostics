@@ -18,6 +18,10 @@
 #include <QCryptographicHash>
 #include <QSslSocket>
 #include <QSslCertificate>
+#include <QFuture>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QtConcurrent/QtConcurrentRun>
 
 namespace G1G2G3Native {
 
@@ -275,41 +279,74 @@ DiagnosticResult dnsIntegrity(DiagId id) {
         {"www.wikipedia.org", "Knowledge Base"},
     };
 
-    for (const auto& td : kTestDomains) {
-        // ── DoH full-record query (CNAME + TTL + IPs) ───────────────
-        DohDnsFullResult doh = dohQueryFull(QString::fromUtf8(td.domain));
+    // 5WHY: 5 test domains were analyzed SEQUENTIALLY — each domain's
+    // DoH query + local DNS + scoring is fully independent (different
+    // hosts, no shared state).  Parallelizing with QtConcurrent cuts
+    // Phase 2 worst case from 5×max(per-domain) to max(per-domain).
+    // With parallel DoH (#3) each domain completes in ~4s worst case,
+    // so all 5 finish in ~4s instead of ~20s.
+    static const int kDomCount = sizeof(kTestDomains) / sizeof(kTestDomains[0]);
+    struct DomainResult {
+        QStringList lines;
+        enum Tag { Error, PrivateIp, Scored } tag = Error;
+        DnsIntegrityResult::Verdict verdict = DnsIntegrityResult::Verdict::DNS_INTEGRITY_CLEAN;
+        int scorePercent = 0;
+        QString dohIps;
+        QString localUdpIp;
+        QString domain;
+    };
+    QFuture<DomainResult> domFutures[kDomCount];
+    for (int i = 0; i < kDomCount; ++i) {
+        domFutures[i] = QtConcurrent::run([td = kTestDomains[i]]() -> DomainResult {
+            DomainResult dr;
+            dr.domain = QString::fromUtf8(td.domain);
+            DohDnsFullResult doh = dohQueryFull(dr.domain);
+            QElapsedTimer probe; probe.start();
+            QString localUdpIp = DnsResolver::instance().resolve(dr.domain, 3000);
+            int localMs = static_cast<int>(probe.elapsed());
+            dr.localUdpIp = localUdpIp;
 
-        // ── Local DNS (UDP, system resolver) ────────────────────────
-        QElapsedTimer probe; probe.start();
-        QString localUdpIp = DnsResolver::instance().resolve(
-            QString::fromUtf8(td.domain), 3000);
-        int localMs = static_cast<int>(probe.elapsed());
+            if (doh.aRecords.isEmpty()) {
+                dr.lines.append(QStringLiteral("  %1 (%2) — DoH Query Failed, Skipped")
+                    .arg(td.domain, td.description));
+                dr.tag = DomainResult::Error;
+            } else if (localUdpIp.isEmpty()) {
+                dr.lines.append(QStringLiteral("  %1 (%2) — Local DNS Failed, Skipped")
+                    .arg(td.domain, td.description));
+                dr.tag = DomainResult::Error;
+            } else if (isPrivateIp(localUdpIp)) {
+                dr.lines.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (Private IP)")
+                    .arg(td.domain, td.description, localUdpIp));
+                dr.tag = DomainResult::PrivateIp;
+            } else {
+                DnsIntegrityResult ir = scoreDnsIntegrity(
+                    dr.domain, QString::fromUtf8(td.description),
+                    doh, localUdpIp, localMs);
+                dr.lines = ir.output;
+                dr.verdict = ir.verdict;
+                dr.scorePercent = ir.scorePercent;
+                dr.dohIps = ir.dohIps.join(',');
+                dr.tag = DomainResult::Scored;
+            }
+            dr.lines.append(QString());
+            return dr;
+        });
+    }
 
-        // ── Handle DoH/local failures first (avoid wasted scoring) ──
-        if (doh.aRecords.isEmpty()) {
-            out.append(QStringLiteral("  %1 (%2) — DoH Query Failed, Skipped")
-                .arg(td.domain, td.description));
-            pollutionErrors++;
-        } else if (localUdpIp.isEmpty()) {
-            out.append(QStringLiteral("  %1 (%2) — Local DNS Failed, Skipped")
-                .arg(td.domain, td.description));
-            pollutionErrors++;
-        } else if (isPrivateIp(localUdpIp)) {
-            out.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (Private IP)")
-                .arg(td.domain, td.description, localUdpIp));
+    for (int i = 0; i < kDomCount; ++i) {
+        DomainResult dr = domFutures[i].result();
+        for (const auto& line : dr.lines)
+            out.append(line);
+
+        switch (dr.tag) {
+        case DomainResult::Error:
+            pollutionErrors++; break;
+        case DomainResult::PrivateIp:
             pollutionDetails.append(QStringLiteral("%1: local=%2 (private IP)")
-                .arg(td.domain, localUdpIp));
-            pollutionWarn++;
-        } else {
-            // ── Score with multi-signal engine ──────────────────────
-            DnsIntegrityResult ir = scoreDnsIntegrity(
-                QString::fromUtf8(td.domain), td.description,
-                doh, localUdpIp, localMs);
-
-            for (const auto& line : ir.output)
-                out.append(line);
-
-            switch (ir.verdict) {
+                .arg(dr.domain, dr.localUdpIp));
+            pollutionWarn++; break;
+        case DomainResult::Scored:
+            switch (dr.verdict) {
             case DnsIntegrityResult::Verdict::DNS_INTEGRITY_CLEAN:
                 pollutionClean++; break;
             case DnsIntegrityResult::Verdict::DNS_INTEGRITY_SUSPECT:
@@ -317,17 +354,17 @@ DiagnosticResult dnsIntegrity(DiagId id) {
             case DnsIntegrityResult::Verdict::DNS_INTEGRITY_TAMPERED:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: score=%2%, DoH=%3, Local=%4")
-                    .arg(td.domain).arg(ir.scorePercent)
-                    .arg(ir.dohIps.join(','), ir.localUdpIp));
+                    .arg(dr.domain).arg(dr.scorePercent)
+                    .arg(dr.dohIps, dr.localUdpIp));
                 break;
             case DnsIntegrityResult::Verdict::DNS_INTEGRITY_HIJACKED:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: HIJACKED (score=%2%)")
-                    .arg(td.domain).arg(ir.scorePercent));
+                    .arg(dr.domain).arg(dr.scorePercent));
                 break;
             }
+            break;
         }
-        out.append(QString());
     }
 
     // ═══════════════════════════════════════════════════════════════════

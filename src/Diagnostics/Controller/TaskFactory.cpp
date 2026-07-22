@@ -36,6 +36,7 @@ static int timeoutFor(DiagId id) {
         case DiagId::G4Ping:            return 30000; // 4 probes at ~3s each
         case DiagId::G4Traceroute:      return 90000; // 30 hops at ~2s each
         case DiagId::G4PathPing:        return 120000;// traceroute + per-hop ping
+        case DiagId::G3DnsPollution:   return 120000;// DoH queries × 5 domains + TLS
         case DiagId::G3InternetConnectivity:return 180000;// download + upload phases
         case DiagId::G5CurlVerbose:     return 120000;
         case DiagId::G5HttpTiming:      return 90000;

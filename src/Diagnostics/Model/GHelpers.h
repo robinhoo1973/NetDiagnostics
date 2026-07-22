@@ -151,8 +151,11 @@ QStringList dohQuery(const QString& domain,
 
 // DoH query with full record parsing — returns A records, CNAME chain, TTL.
 // Same 4-resolver majority logic as dohQuery(), but preserves record metadata.
+// 5WHY: DoH timeout was 4000ms, but typical response is 50-500ms.
+// 2000ms provides 4× headroom for congested networks while halving
+// the worst-case wait for unreachable resolvers.
 DohDnsFullResult dohQueryFull(const QString& domain,
-                           const QString& type = QStringLiteral("A"), int timeoutMs = 4000);
+                           const QString& type = QStringLiteral("A"), int timeoutMs = 2000);
 
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
 // Returns -1.0 on failure. Shared by GeoProbe and geoIPLoc.
