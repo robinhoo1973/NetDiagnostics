@@ -10,6 +10,7 @@
 #include <QFuture>
 #include <QtConcurrent/QtConcurrent>
 #include <thread>
+#include <vector>
 #include <QUrl>
 #include <QEventLoop>
 #include <QTimer>
@@ -597,52 +598,28 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     // because this function may be called from within a QtConcurrent::run
     // context (parallel domains in dnsIntegrity).  QtConcurrent uses a
     // fixed-size thread pool; nested .run() + .result() blocking can
-    // exhaust the pool when domain tasks occupy all threads and resolver
-    // tasks have no threads to execute → deadlock.  std::thread bypasses
-    // the pool entirely, giving each resolver a dedicated OS thread.
-    // 5WHY: If dohQuerySingleFull throws an exception inside std::thread,
-    // the uncaught exception calls std::terminate() → hard process crash.
-    // QtConcurrent::run (DiagnosticTask.cpp:40-51) has explicit try-catch
-    // guards; std::thread does NOT.  Also, if std::thread construction
-    // fails mid-loop, previously launched threads leak (still joinable,
-    // destructor calls terminate()).  Both fixed with try-catch + RAII join.
-    struct ThreadGuard {
-        std::thread* threads; int count; bool armed;
-        ThreadGuard(std::thread* t, int n) : threads(t), count(n), armed(true) {}
-        // 5WHY: std::thread::join() can throw std::system_error.  If join()
-        // throws inside the destructor while already unwinding for another
-        // exception, std::terminate() is called (C++11 noexcept destructors).
-        // Catch and swallow — the alternative is process termination.
-        ~ThreadGuard() { if (armed) for (int j = 0; j < count; ++j) if (threads[j].joinable()) try { threads[j].join(); } catch (...) {} }
-        void release() { armed = false; }
-    };
+    // Parallel DoH: std::thread avoids QtConcurrent pool deadlock (nested callers).
+    // Exceptions caught in thread body; std::vector provides RAII join on scope exit.
     static const int kResolverCount = sizeof(kResolvers) / sizeof(kResolvers[0]);
     DohDnsFullResult resolverResults[kResolverCount]{};
-    std::thread resolverThreads[kResolverCount];
-    ThreadGuard guard(resolverThreads, kResolverCount);
+    std::vector<std::thread> resolverThreads;
+    resolverThreads.reserve(kResolverCount);
     for (int i = 0; i < kResolverCount; ++i) {
         try {
-            resolverThreads[i] = std::thread([&, i]() {
+            resolverThreads.emplace_back([&, i]() {
                 try {
                     resolverResults[i] = dohQuerySingleFull(
                         QString::fromUtf8(kResolvers[i].url), domain, type, timeoutMs);
-                } catch (const std::exception&) {
-                    // Leave resolverResults[i] as default (empty records, minTtl=-1).
-                    // Caller handles empty aRecords gracefully as "resolver failed".
                 } catch (...) {
-                    // Qt internal exceptions — same fallback as above.
+                    // Leave default (empty records, minTtl=-1) — treated as failure.
                 }
             });
         } catch (const std::system_error&) {
-            // Thread creation failed (resource exhaustion) — skip remaining
-            // resolvers.  Guard joins already-launched threads on scope exit.
-            guard.count = i;  // only join threads 0..i-1
-            break;
+            break;  // resource exhaustion — skip remaining, join what we have
         }
     }
-    guard.release();  // explicit join so results are fully populated below
-    for (int i = 0; i < kResolverCount; ++i)
-        if (resolverThreads[i].joinable()) resolverThreads[i].join();
+    for (auto& t : resolverThreads)
+        try { if (t.joinable()) t.join(); } catch (...) {}
 
     QMap<QString, int> freq;
     QStringList allCnames;
@@ -782,6 +759,8 @@ QString countryCode3(const QString& code2) {
     return (it != kCountryBy2.cend()) ? it->first : code2;
 }
 QString countryFullName(const QString& code2) {
+    if (code2.isEmpty() || code2 == QStringLiteral("XX"))
+        return QStringLiteral("Unknown");
     auto it = kCountryBy2.constFind(code2);
     return (it != kCountryBy2.cend()) ? it->second : code2;
 }
