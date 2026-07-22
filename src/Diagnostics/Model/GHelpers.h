@@ -141,7 +141,7 @@ struct DohDnsFullResult {
     QStringList     cnameChain;  // CNAME targets in order
     QList<DohDnsRecord> allRecords; // all parsed records
     bool            hasCname = false;
-    int             minTtl = 86400;  // minimum TTL across all records (high default)
+    int             minTtl = -1;   // -1 = no TTL data sentinel; 0 = real TTL=0 (pollution signal)
 };
 
 // DoH (DNS-over-HTTPS) query — queries 4 resolvers, returns majority consensus.
