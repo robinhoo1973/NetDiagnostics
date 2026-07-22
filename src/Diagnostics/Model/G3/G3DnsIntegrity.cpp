@@ -63,7 +63,7 @@ static QString tlsCheckCert(const QString& ip, const QString& domain, int timeou
 
 // ── Signal definitions ─────────────────────────────────────────────
 
-static DnsSignal sigTlsCertMismatch(const QString& localIp, const QString& domain) {
+static DNS_INTEGRITY_SIGNAL sigTlsCertMismatch(const QString& localIp, const QString& domain) {
     if (localIp.isEmpty()) return {5, false, {}};
     QString result = tlsCheckCert(localIp, domain, 3000);
     bool mismatch = !result.isEmpty() && result != QStringLiteral("no TLS");
@@ -71,7 +71,7 @@ static DnsSignal sigTlsCertMismatch(const QString& localIp, const QString& domai
         mismatch ? result : QString()};
 }
 
-static DnsSignal sigCnameAnomaly(bool dohHasCname) {
+static DNS_INTEGRITY_SIGNAL sigCnameAnomaly(bool dohHasCname) {
     // Pollution/great-firewall DNS injection typically returns a bare
     // A-record response without the CNAME chain that legitimate CDN
     // domains use (e.g. www.google.com → CNAME → google.com → A).
@@ -80,7 +80,7 @@ static DnsSignal sigCnameAnomaly(bool dohHasCname) {
                     : QStringLiteral("No CNAME Chain - DoH Returned Bare A-Record (Legitimate CDN Domains Normally Have CNAME Indirection)")};
 }
 
-static DnsSignal sigTtlAnomaly(int dohMinTtl) {
+static DNS_INTEGRITY_SIGNAL sigTtlAnomaly(int dohMinTtl) {
     // Legitimate DNS TTLs are typically 60-3600 seconds.  Pollution
     // injection devices (GFW, ISP hijacking boxes) often set TTL=0
     // or TTL=1 to prevent caching of the fake response.
@@ -91,7 +91,7 @@ static DnsSignal sigTtlAnomaly(int dohMinTtl) {
              : QString()};
 }
 
-static DnsSignal sigTimingAnomaly(int localMs) {
+static DNS_INTEGRITY_SIGNAL sigTimingAnomaly(int localMs) {
     // Legitimate DNS recursion involves network round-trips + resolver
     // processing → typically 30-200ms.  Injection responses come from
     // a local device on the network path → <15ms is suspicious.
@@ -103,13 +103,13 @@ static DnsSignal sigTimingAnomaly(int localMs) {
 
 // ── Scoring engine ─────────────────────────────────────────────────
 
-DnsIntegrityResult scoreDnsIntegrity(
+DNS_INTEGRITY_RESULT scoreDnsIntegrity(
     const QString& domain,
     const QString& description,
-    const DohFullResult& doh,
+    const DOH_FULL_RESULT& doh,
     const QString& localUdpIp, int localUdpMs)
 {
-    DnsIntegrityResult r;
+    DNS_INTEGRITY_RESULT r;
     r.dohIps     = doh.aRecords;
     r.localUdpIp = localUdpIp;
     r.localUdpMs = localUdpMs;
@@ -139,22 +139,22 @@ DnsIntegrityResult scoreDnsIntegrity(
     // ── Verdict thresholds (total weight = 15) ──────────────────
     //   One signal(5/15)=33%→Polluted, two signals(10/15)=67%→Hijacked
     if (r.scorePercent > 60)
-        r.verdict = DnsIntegrityResult::Verdict::DNS_INTEGRITY_HIJACKED;
+        r.verdict = DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_HIJACKED;
     else if (r.scorePercent > 33)
-        r.verdict = DnsIntegrityResult::Verdict::DNS_INTEGRITY_TAMPERED;
+        r.verdict = DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_TAMPERED;
     else if (r.scorePercent > 14)
-        r.verdict = DnsIntegrityResult::Verdict::DNS_INTEGRITY_SUSPECT;
+        r.verdict = DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_SUSPECT;
     else
-        r.verdict = DnsIntegrityResult::Verdict::DNS_INTEGRITY_CLEAN;
+        r.verdict = DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_CLEAN;
 
     // ── Build output lines ──────────────────────────────────────
     QString label = QStringLiteral("  %1 (%2)").arg(domain, description);
     QString statusIcon;
     switch (r.verdict) {
-        case DnsIntegrityResult::Verdict::DNS_INTEGRITY_CLEAN:       statusIcon = QStringLiteral("Clean"); break;
-        case DnsIntegrityResult::Verdict::DNS_INTEGRITY_SUSPECT: statusIcon = QStringLiteral("Suspicious"); break;
-        case DnsIntegrityResult::Verdict::DNS_INTEGRITY_TAMPERED:   statusIcon = QStringLiteral("POLLUTED"); break;
-        case DnsIntegrityResult::Verdict::DNS_INTEGRITY_HIJACKED:   statusIcon = QStringLiteral("HIJACKED"); break;
+        case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_CLEAN:       statusIcon = QStringLiteral("Clean"); break;
+        case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_SUSPECT: statusIcon = QStringLiteral("Suspicious"); break;
+        case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_TAMPERED:   statusIcon = QStringLiteral("POLLUTED"); break;
+        case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_HIJACKED:   statusIcon = QStringLiteral("HIJACKED"); break;
     }
 
     // Per-domain header
