@@ -162,4 +162,10 @@ inline double httpTtfb(const ParsedUrl& pu, int connectTimeoutMs = 5000, int rea
     return httpTtfb(pu.host, pu.port, pu.path, connectTimeoutMs, readTimeoutSec);
 }
 
+// ── ISO 3166-1 country code display helpers ──────────────────────
+// Converts 2-letter ISO code (e.g. "CN") → 3-letter (e.g. "CHN") for table view,
+// or → full name (e.g. "China") for non-table display.
+QString countryCode3(const QString& code2);
+QString countryFullName(const QString& code2);
+
 } // namespace G1G2G3Native

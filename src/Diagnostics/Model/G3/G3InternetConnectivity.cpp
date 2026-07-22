@@ -52,7 +52,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
 
     // ── Phase 1: Location ────────────────────────────────────────
     out.append(QStringLiteral("── Phase 1: Location ──"));
-    out.append(QStringLiteral("Physical Location: %1").arg(result.physicalCountry));
+    out.append(QStringLiteral("Physical Location: %1").arg(countryFullName(result.physicalCountry)));
     out.append(QStringLiteral("Probed %1 Servers, %2 Countries Reachable")
         .arg(result.servers.size()).arg(result.countries.size()));
     out.append(QString());
@@ -70,7 +70,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
         topRows.append({
             QString::number(shown + 1),
             name,
-            sr.country,
+            countryCode3(sr.country),
             ip.isEmpty() ? sr.host : ip,
             QStringLiteral("%1ms").arg(sr.ttfbMs, 0, 'f', 1),
             QStringLiteral("±%1ms").arg(sr.ciHalf, 0, 'f', 1),
@@ -110,7 +110,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
         out.append(QStringLiteral("  Sponsor: %1").arg(bestMeta->sponsor));
     out.append(QStringLiteral("  Host:    %1:%2").arg(best.host).arg(best.port));
     out.append(QStringLiteral("  IP:      %1").arg(bestIp.isEmpty() ? QStringLiteral("(Unresolved)") : bestIp));
-    out.append(QStringLiteral("  Country: %1").arg(best.country));
+    out.append(QStringLiteral("  Country: %1").arg(countryFullName(best.country)));
     out.append(QStringLiteral("  TTFB:    %1ms (95% CI ±%2ms, %3 rounds)")
         .arg(best.ttfbMs, 0, 'f', 1).arg(best.ciHalf, 0, 'f', 1).arg(best.rounds));
     out.append(QString());
@@ -227,22 +227,22 @@ DiagnosticResult internetConnectivity(DiagId id) {
     // ── Summary ──────────────────────────────────────────────────
     if (anyDlOk && anyUlOk) {
         r.summary = QStringLiteral("Connected — %1 (%2ms, ↓%3/↑%4 Mbps)")
-            .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
             .arg(bestDlMbps, 0, 'f', 1).arg(bestUlMbps, 0, 'f', 1);
         r.status = DiagStatus::Pass;
     } else if (anyDlOk) {
         r.summary = QStringLiteral("Connected — %1 (%2ms, ↓%3 Mbps, Upload N/A)")
-            .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
             .arg(bestDlMbps, 0, 'f', 1);
         r.status = DiagStatus::Warning;
     } else if (anyUlOk) {
         r.summary = QStringLiteral("Connected — %1 (%2ms, Download N/A, ↑%3 Mbps)")
-            .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0)
+            .arg(countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0)
             .arg(bestUlMbps, 0, 'f', 1);
         r.status = DiagStatus::Warning;
     } else {
         r.summary = QStringLiteral("Connected — %1 (%2ms, Speed Test Failed)")
-            .arg(result.physicalCountry).arg(best.ttfbMs, 0, 'f', 0);
+            .arg(countryFullName(result.physicalCountry)).arg(best.ttfbMs, 0, 'f', 0);
         r.status = DiagStatus::Warning;
     }
 
