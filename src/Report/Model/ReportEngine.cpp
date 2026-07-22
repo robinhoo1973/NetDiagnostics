@@ -231,8 +231,12 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     }
 
     QString h;
+    // 5WHY: QTextDocument (Qt Rich Text subset) does not support CSS
+    // "width:100%" or "margin:0 auto" on <div> — only HTML width attr
+    // on <table>/<img>/<td>.  Drop unsupported props; textWidth is set
+    // in exportPdf() and print() uses the page width for layout.
     h += QStringLiteral("<div style=\"font-family:'Helvetica Neue',Arial,'PingFang SC','Microsoft YaHei',sans-serif;"
-        "color:%1;width:100%;margin:0 auto\">").arg(textPrimary);
+        "color:%1\">").arg(textPrimary);
 
     // ── Header band with gradient-style dark background ─────────────────
     // Header text colours — always light-on-dark for the header band
@@ -390,7 +394,17 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
                                                                   : r.displayName).toHtmlEscaped();
                     const QString sc = reportStatusColor(r.status);
+                    // 5WHY: A single page-break-inside:avoid wrapping a
+                    // nested-table header AND a potentially-tall code-block
+                    // table is unreliable in QTextDocument — Qt Rich Text
+                    // page-break support is limited and nested <table>
+                    // structures defeat it.  Split into two independent
+                    // blocks: the short header stays avoid; the code block
+                    // gets page-break-before:avoid so it stays attached to
+                    // the header when there's room, but can break internally
+                    // when the content exceeds one page.
                     h += QStringLiteral(
+                        // — Header block (page-break-inside:avoid — always short enough) —
                         "<div style=\"page-break-inside:avoid\">"
                         "<table width=\"100%\" cellpadding=\"10\" cellspacing=\"0\"><tr>"
                         "<td style=\"background-color:%1;padding:12px 14px\">"
@@ -405,18 +419,23 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     if (!r.summary.isEmpty())
                         h += QStringLiteral("<br/><span style=\"font-size:12px;color:%1\">%2</span>")
                             .arg(textSecondary, r.summary.toHtmlEscaped());
-                    h += QStringLiteral("</td></tr></table>");
+                    h += QStringLiteral("</td></tr></table></div>");
+
+                    // — Code block (page-break-before:avoid — stay with header if there's room) —
                     const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
-                    if (!body.trimmed().isEmpty())
+                    if (!body.trimmed().isEmpty()) {
                         h += QStringLiteral(
+                            "<div style=\"page-break-before:avoid\">"
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
                             " style=\"border:1px solid %2\">"
-                            "<tr><td style=\"background-color:%3\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
+                            "<tr><td style=\"background-color:%3;padding-top:0\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
                             "font-size:11px;color:%4;line-height:1.5;margin:0;"
-                            "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>")
+                            "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
+                            "</div>")
                             .arg(body.toHtmlEscaped(),
                                  borderColor, codeBlockBg, codeBlockFg);
-                    h += QStringLiteral("</div><br/>");  // close page-break-inside:avoid wrapper
+                    }
+                    h += QStringLiteral("<br/>");
                 }
             }
         }
@@ -666,8 +685,6 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     // fonts appear tiny. 96 DPI matches screen pixel→mm mapping so CSS
     // px sizes render at the intended physical size.
     //   A4 = 210 mm.  5 mm margins → content = 200 mm.
-    //   Let QTextDocument auto-fill the content area — no setTextWidth()
-    //   means the document uses the full page width minus margins.
     const QString path = normalizeReportPath(filePath);
     QPdfWriter writer(path);
     writer.setResolution(96);
@@ -675,9 +692,23 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     writer.setPageMargins(QMarginsF(5, 12, 5, 12), QPageLayout::Millimeter);
     writer.setTitle(QStringLiteral("Network Diagnostic Report"));
 
+    // 5WHY: QTextDocument default textWidth (-1) uses idealWidth() —
+    // the natural width of the widest unbreakable content line — NOT
+    // the page content area.  print() only handles vertical pagination;
+    // it does NOT propagate the page width to textWidth.  Explicitly
+    // compute the content-area pixel width from the page layout so
+    // tables with width="100%" fill the full A4 content area.
+    //   A4 = 210 mm.  5 mm margins → content = 200 mm.
+    //   At 96 DPI: 200 / 25.4 × 96 ≈ 755.9 px → 756.
+    const QPageLayout layout = writer.pageLayout();
+    const QMarginsF margins = layout.margins(QPageLayout::Millimeter);
+    const QSizeF pageSizeMm = writer.pageSize().size(QPageSize::Millimeter);
+    const double contentWidthMm = pageSizeMm.width() - margins.left() - margins.right();
+    const int textWidthPx = qRound(contentWidthMm / 25.4 * writer.resolution());
+
     QTextDocument doc;
     doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 12));
-    // textWidth NOT set — document auto-fills page content area (200mm at 96 DPI)
+    doc.setTextWidth(textWidthPx);
     doc.setHtml(html);
     doc.print(&writer);
     return QFile::exists(path) ? path : QString();
