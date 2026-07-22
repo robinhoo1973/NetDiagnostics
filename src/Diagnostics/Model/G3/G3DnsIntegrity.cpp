@@ -77,8 +77,8 @@ static DnsSignal sigCnameAnomaly(bool dohHasCname) {
     // domains use (e.g. www.google.com → CNAME → google.com → A).
     return {5, dohHasCname ? false : true,
         dohHasCname ? QString()
-                    : QStringLiteral("No CNAME chain — DoH returned bare A-record "
-                                     "(legitimate CDN domains normally have CNAME indirection)")};
+                    : QStringLiteral("No CNAME Chain — DoH Returned Bare A-Record "
+                                     "(Legitimate CDN Domains Normally Have CNAME Indirection)")};
 }
 
 static DnsSignal sigTtlAnomaly(int dohMinTtl) {
@@ -87,7 +87,7 @@ static DnsSignal sigTtlAnomaly(int dohMinTtl) {
     // or TTL=1 to prevent caching of the fake response.
     bool low = (dohMinTtl > 0 && dohMinTtl < 10);
     return {3, low,
-        low ? QStringLiteral("TTL=%1s abnormally low (normal: 60-3600s)")
+        low ? QStringLiteral("TTL=%1s Abnormally Low (Normal: 60-3600s)")
                   .arg(dohMinTtl)
              : QString()};
 }
@@ -98,8 +98,8 @@ static DnsSignal sigTimingAnomaly(int localMs) {
     // a local device on the network path → <15ms is suspicious.
     bool tooFast = (localMs > 0 && localMs < 15);
     return {2, tooFast,
-        tooFast ? QStringLiteral("UDP response %1ms (suspiciously fast — "
-                                 "legitimate recursion takes 30ms+)".arg(localMs)
+        tooFast ? QStringLiteral("UDP Response %1ms (Suspiciously Fast — "
+                                 "Legitimate Recursion Takes 30ms+)".arg(localMs)
                 : QString()};
 }
 
@@ -165,9 +165,9 @@ DnsIntegrityResult scoreDnsIntegrity(
 
     // Key metadata
     r.output.append(QStringLiteral("    DoH: %1 (TTL=%2, CNAME=%3)")
-        .arg(r.dohIps.isEmpty() ? QStringLiteral("no response") : r.dohIps.join(','))
+        .arg(r.dohIps.isEmpty() ? QStringLiteral("No Response") : r.dohIps.join(','))
         .arg(doh.minTtl > 0 ? QStringLiteral("%1s").arg(doh.minTtl) : QStringLiteral("?"))
-        .arg(doh.hasCname ? doh.cnameChain.join(QStringLiteral(" → ")) : QStringLiteral("none")));
+        .arg(doh.hasCname ? doh.cnameChain.join(QStringLiteral(" → ")) : QStringLiteral("None")));
 
     if (!localUdpIp.isEmpty())
         r.output.append(QStringLiteral("    Local UDP: %1 (%2ms)")
@@ -179,7 +179,7 @@ DnsIntegrityResult scoreDnsIntegrity(
         for (const auto& d : triggeredSignals)
             r.output.append(QStringLiteral("      · %1").arg(d));
     } else {
-        r.output.append(QStringLiteral("    No anomalies detected."));
+        r.output.append(QStringLiteral("    No Anomalies Detected."));
     }
 
     return r;
