@@ -702,7 +702,7 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     //   At 96 DPI: 200 / 25.4 × 96 ≈ 755.9 px → 756.
     const QPageLayout layout = writer.pageLayout();
     const QMarginsF margins = layout.margins(QPageLayout::Millimeter);
-    const QSizeF pageSizeMm = writer.pageSize().size(QPageSize::Millimeter);
+    const QSizeF pageSizeMm = layout.pageSize().size(QPageSize::Millimeter);
     const double contentWidthMm = pageSizeMm.width() - margins.left() - margins.right();
     const int textWidthPx = qRound(contentWidthMm / 25.4 * writer.resolution());
 
