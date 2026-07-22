@@ -523,18 +523,23 @@ static DohDnsFullResult dohQuerySingleFull(const QString& endpoint,
         // extractStr returned the NEXT field name instead of the integer.  .toInt()
         // on "TTL" returned 0 → rec.type never matched 1 (A record) → aRecords
         // always empty → ALL DoH queries reported as failed.
+        // 5WHY: extractInt used to return 0 for both "key not found" and
+        // "value is 0", making them indistinguishable.  DNS types and TTLs
+        // are unsigned, so -1 unambiguously means "not found / no value".
+        // Downstream: rec.ttl=-1 fails rec.ttl>=0 guard (correctly excluded),
+        // rec.type=-1 never matches type==1 or type==5 (treated as unknown).
         auto extractInt = [&](const QString& key) -> int {
             int k = record.indexOf('"' + key + '"');
-            if (k < 0) return 0;
+            if (k < 0) return -1;   // key not present
             int colon = record.indexOf(':', k + key.length() + 2);
-            if (colon < 0) return 0;
+            if (colon < 0) return -1; // malformed record
             // Skip whitespace after colon
             int v = colon + 1;
             while (v < record.length() && (record[v] == ' ' || record[v] == '\t')) v++;
-            // Extract digits (with optional leading minus, though DNS types/TTLs are unsigned)
+            // Extract digits (non-negative for DNS types/TTLs)
             int end = v;
-            while (end < record.length() && (record[end].isDigit() || record[end] == '-')) end++;
-            if (end == v) return 0;
+            while (end < record.length() && record[end].isDigit()) end++;
+            if (end == v) return -1; // no numeric value found
             return record.mid(v, end - v).toInt();
         };
 
@@ -551,7 +556,12 @@ static DohDnsFullResult dohQuerySingleFull(const QString& endpoint,
             result.cnameChain.append(rec.data);
             result.hasCname = true;
         }
-        if (rec.ttl > 0 && rec.ttl < result.minTtl)
+        // 5WHY: TTL=0 is a documented pollution injection signal
+        // (injection devices set TTL=0 to prevent caching).  Changed
+        // > to >= so TTL=0 is captured instead of silently excluded.
+        // Sentinels: minTtl=-1 means no TTL data yet (for first record),
+        // minTtl=0 means real TTL=0 was observed (pollution signal).
+        if (rec.ttl >= 0 && (result.minTtl < 0 || rec.ttl < result.minTtl))
             result.minTtl = rec.ttl;
 
         result.allRecords.append(rec);
@@ -573,7 +583,7 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     QMap<QString, int> freq;
     QStringList allCnames;
     QList<DohDnsRecord> allRecs;
-    int globalMinTtl = 86400;
+    int globalMinTtl = -1;  // -1 = no TTL data yet (0 = real TTL=0 observed)
     bool globalHasCname = false;
     int responders = 0;
 
@@ -587,7 +597,9 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
             for (const auto& c : fr.cnameChain)
                 if (!allCnames.contains(c)) allCnames.append(c);
         }
-        if (fr.minTtl < globalMinTtl) globalMinTtl = fr.minTtl;
+        // Sentinel-aware: -1 means no TTL data, skip; 0 means real TTL=0
+        if (fr.minTtl >= 0 && (globalMinTtl < 0 || fr.minTtl < globalMinTtl))
+            globalMinTtl = fr.minTtl;
         allRecs.append(fr.allRecords);
     }
 
@@ -609,7 +621,8 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     result.aRecords   = consensusIps;
     result.cnameChain = allCnames;
     result.hasCname   = globalHasCname;
-    result.minTtl     = (globalMinTtl < 86400) ? globalMinTtl : 0;
+    // -1 sentinel means no TTL data at all; any value >= 0 is a real TTL
+    result.minTtl     = globalMinTtl;  // -1 = no data, >= 0 = real min TTL
     result.allRecords = allRecs;
     return result;
 }

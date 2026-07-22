@@ -32,7 +32,7 @@ struct DnsIntegrityResult {
     QStringList dohIps;
     QString     localUdpIp;
     int         localUdpMs = 0;
-    int         dohMinTtl = 0;
+    int         dohMinTtl = -1;  // -1 = no TTL data (matches DohDnsFullResult sentinel)
     QStringList cnameChain;
     bool        hasCname = false;
 };

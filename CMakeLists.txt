@@ -67,7 +67,6 @@ set(SOURCES
     src/Diagnostics/Model/G3/G3NetskopeStatus.cpp
     src/Diagnostics/Model/G3/G3DnsServers.cpp
     src/Diagnostics/Model/G3/G3DnsCache.cpp
-    src/Diagnostics/Model/G3/G3DnsPollution.cpp
     src/Diagnostics/Model/G3/G3DnsIntegrity.cpp
     src/Diagnostics/Model/G3/G3GeoIPLoc.cpp
     src/Diagnostics/Model/G3/G3InternetConnectivity.cpp
