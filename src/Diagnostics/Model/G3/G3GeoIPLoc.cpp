@@ -12,6 +12,8 @@
 #include <QMap>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QFuture>
+#include <QtConcurrent/QtConcurrentRun>
 
 namespace G1G2G3Native {
 
@@ -92,9 +94,24 @@ QString detectCountry(int timeoutMs) {
 
     int effectiveTimeout = timeoutMs > 0 ? timeoutMs : 5000;
 
-    for (const auto& p : providers) {
-        QByteArray body = G1G2G3Native::httpsGet(
-            QString::fromUtf8(p.url), effectiveTimeout);
+    // 5WHY: 3 GeoIP providers were queried SEQUENTIALLY — each httpsGet
+    // blocks up to effectiveTimeout (3000ms).  Since they are independent
+    // (different servers), parallelizing cuts worst case from 9s to 3s.
+    // First-run only: subsequent calls hit the static sCached.
+    static const int kProvCount = sizeof(providers) / sizeof(providers[0]);
+    QFuture<QPair<int,QByteArray>> futures[kProvCount];
+    for (int i = 0; i < kProvCount; ++i) {
+        futures[i] = QtConcurrent::run([url = QString::fromUtf8(providers[i].url),
+                                         timeout = effectiveTimeout]()
+            -> QPair<int,QByteArray> {
+            return {i, G1G2G3Native::httpsGet(url, timeout)};
+        });
+    }
+
+    for (int i = 0; i < kProvCount; ++i) {
+        QPair<int,QByteArray> r = futures[i].result();
+        const auto& p = providers[r.first];
+        QByteArray body = r.second;
         if (body.isEmpty()) continue;
 
         QString cc;
@@ -102,12 +119,6 @@ QString detectCountry(int timeoutMs) {
 
         switch (p.parser) {
         case 0: { // ── JSON: "country_code" / "countryCode" / "country_id" / "country" / "code" ──
-            // 5WHY: ip-api.com uses camelCase "countryCode" (no underscore). The
-            // original key list only had snake_case "country_code", so it missed
-            // ip-api.com's response and fell through to "country", which matched
-            // the country NAME ("United States") not the CODE ("US"), extracting
-            // garbage.  Added "countryCode" + validation that extracted 2 chars
-            // are both ASCII letters before accepting.
             static const char* keys[] = {
                 "\"country_code\":\"",
                 "\"countryCode\":\"",
@@ -122,13 +133,6 @@ QString detectCountry(int timeoutMs) {
                     pos = text.indexOf('\"', pos + kl[k]);
                     if (pos >= 0) {
                         QString candidate = text.mid(pos + 1, 2).toUpper();
-                        // 5WHY: QChar::isLetter() returns true for ALL Unicode
-                        // letters (CJK, Cyrillic, Arabic, etc.), not just ASCII.
-                        // If a JSON provider's "country_id" key misses but
-                        // "country":"中国" matches, isLetter() would accept the
-                        // Chinese chars as a valid country code.  ISO 3166-1
-                        // alpha-2 codes are ALWAYS two ASCII uppercase letters
-                        // (A-Z).  Explicit range check fixes this.
                         if (candidate.length() == 2
                             && candidate[0] >= 'A' && candidate[0] <= 'Z'
                             && candidate[1] >= 'A' && candidate[1] <= 'Z')
@@ -136,7 +140,6 @@ QString detectCountry(int timeoutMs) {
                     }
                 }
             }
-            // Also try JSON array ["CN",...] format
             if (cc.isEmpty() && text.startsWith("[\"") && text.length() >= 6) {
                 QString arrCc = text.mid(2, 2).toUpper();
                 if (arrCc[0] >= 'A' && arrCc[0] <= 'Z'
