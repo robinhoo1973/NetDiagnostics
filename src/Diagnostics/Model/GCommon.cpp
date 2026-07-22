@@ -9,6 +9,7 @@
 #include <QPair>
 #include <QFuture>
 #include <QtConcurrent/QtConcurrent>
+#include <thread>
 #include <QUrl>
 #include <QEventLoop>
 #include <QTimer>
@@ -591,17 +592,24 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     // 5WHY: 4 DoH resolvers were queried SEQUENTIALLY — each httpsGet
     // blocks with a QEventLoop for up to timeoutMs.  Since the 4
     // resolvers are independent (different servers, no data dependency),
-    // parallelizing them with QtConcurrent cuts worst case from
-    // 4×timeoutMs to max(timeoutMs).  With timeoutMs=2000, that's
-    // 8s→2s per domain, ~30s reduction across 5 domains.
+    // parallelizing with std::thread cuts worst case from 4×timeoutMs
+    // to max(timeoutMs).  std::thread is used INSTEAD of QtConcurrent
+    // because this function may be called from within a QtConcurrent::run
+    // context (parallel domains in dnsIntegrity).  QtConcurrent uses a
+    // fixed-size thread pool; nested .run() + .result() blocking can
+    // exhaust the pool when domain tasks occupy all threads and resolver
+    // tasks have no threads to execute → deadlock.  std::thread bypasses
+    // the pool entirely, giving each resolver a dedicated OS thread.
     static const int kResolverCount = sizeof(kResolvers) / sizeof(kResolvers[0]);
-    QFuture<DohDnsFullResult> futures[kResolverCount];
+    DohDnsFullResult resolverResults[kResolverCount];
+    std::thread resolverThreads[kResolverCount];
     for (int i = 0; i < kResolverCount; ++i) {
-        futures[i] = QtConcurrent::run([url = QString::fromUtf8(kResolvers[i].url),
-                                         &domain, &type, timeoutMs]() {
-            return dohQuerySingleFull(url, domain, type, timeoutMs);
+        resolverThreads[i] = std::thread([&, i]() {
+            resolverResults[i] = dohQuerySingleFull(
+                QString::fromUtf8(kResolvers[i].url), domain, type, timeoutMs);
         });
     }
+    for (int i = 0; i < kResolverCount; ++i) resolverThreads[i].join();
 
     QMap<QString, int> freq;
     QStringList allCnames;
@@ -611,7 +619,7 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     int responders = 0;
 
     for (int i = 0; i < kResolverCount; ++i) {
-        DohDnsFullResult fr = futures[i].result();
+        DohDnsFullResult fr = resolverResults[i];
         if (!fr.aRecords.isEmpty()) responders++;
         for (const auto& ip : fr.aRecords) freq[ip]++;
         if (fr.hasCname) {
