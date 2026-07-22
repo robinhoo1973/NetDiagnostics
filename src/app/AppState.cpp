@@ -8,6 +8,7 @@
 #include "Diagnostics/Controller/TaskFactory.h"
 #include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/Logger.h"
+#include <QtConcurrent/QtConcurrent>
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/G3/G3Diagnostics.h"
 #include "Dashboard/Controller/DashboardController.h"
@@ -238,11 +239,15 @@ void AppState::runDiagnostics() {
     // Clear probe cache before each diagnostic run
     GeoProbe::instance().clear();
 
-    // 5WHY: detectCountry() uses QNetworkAccessManager (TLS) which requires
-    // a QAbstractEventDispatcher.  QtConcurrent worker threads don't have one.
-    // Preload the GeoIP cache here on the main thread so subsequent calls from
-    // any worker thread return instantly from the static cache.
-    G1G2G3Native::detectCountry(5000);
+    // 5WHY: detectCountry() blocked the main thread for up to 5 seconds,
+    // freezing the UI after Run was clicked. The original concern (QNAM
+    // needing an event dispatcher) is moot — httpsGet() creates its own
+    // local QEventLoop, which works in any thread.  Preload the GeoIP
+    // cache in a background thread so subsequent calls from diagnostics
+    // return instantly from the static cache without blocking the UI.
+    QtConcurrent::run([]() {
+        G1G2G3Native::detectCountry(5000);
+    });
 
     // Reset state before each run (clears previous results, error messages, etc.)
     reset();
