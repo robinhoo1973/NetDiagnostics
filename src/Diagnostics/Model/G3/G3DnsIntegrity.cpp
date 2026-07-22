@@ -56,8 +56,8 @@ static QString tlsCheckCert(const QString& ip, const QString& domain, int timeou
     QString actualCn = cns.isEmpty() ? QStringLiteral("unknown") : cns.first();
     QString actualSan = sanValues.isEmpty() ? QString() : sanValues.first();
     QString detail = actualSan.isEmpty()
-        ? QStringLiteral("TLS cert CN=%1 ≠ %2").arg(actualCn, domain)
-        : QStringLiteral("TLS cert SAN=%1 / CN=%2 ≠ %3").arg(actualSan, actualCn, domain);
+        ? QStringLiteral("TLS Cert CN=%1 ≠ %2").arg(actualCn, domain)
+        : QStringLiteral("TLS Cert SAN=%1 / CN=%2 ≠ %3").arg(actualSan, actualCn, domain);
     return detail;
 }
 
