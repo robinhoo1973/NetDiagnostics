@@ -21,9 +21,8 @@ struct DnsSignal {
 };
 
 struct DnsIntegrityResult {
-    // Must use words already proven safe on iOS (DiagStatus::Pass/Warning/Fail compile fine)
-    enum class Verdict { Pass, Warning, Fail, Critical };
-    Verdict  verdict = Verdict::Pass;
+    enum class Verdict { DNS_INTEGRITY_CLEAN, DNS_INTEGRITY_SUSPECT, DNS_INTEGRITY_TAMPERED, DNS_INTEGRITY_HIJACKED };
+    Verdict  verdict = Verdict::DNS_INTEGRITY_CLEAN;
     int      scorePercent = 0;   // 0-100
     QVector<DnsSignal> signals;
     QStringList output;          // formatted per-domain lines
