@@ -24,7 +24,7 @@ struct DnsIntegrityResult {
     enum class Verdict { DNS_INTEGRITY_CLEAN, DNS_INTEGRITY_SUSPECT, DNS_INTEGRITY_TAMPERED, DNS_INTEGRITY_HIJACKED };
     Verdict  verdict = Verdict::DNS_INTEGRITY_CLEAN;
     int      scorePercent = 0;   // 0-100
-    QVector<DnsSignal> signals;
+    QVector<DnsSignal> detectedSignals;
     QStringList output;          // formatted per-domain lines
 
     // Metadata extracted during analysis
