@@ -1,6 +1,6 @@
 ﻿#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult wiredDiagnostics(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();

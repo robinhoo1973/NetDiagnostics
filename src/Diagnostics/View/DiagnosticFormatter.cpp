@@ -1,5 +1,5 @@
 ﻿// =============================================================================
-// DiagnosticFormatter.cpp — Shared output formatting (extracted from G1G2G3Native)
+// DiagnosticFormatter.cpp — Shared output formatting (extracted from SystemDiagnostics)
 // =============================================================================
 // UX alignment principles:
 //   • Numeric data → RIGHT-aligned (easy visual magnitude comparison)

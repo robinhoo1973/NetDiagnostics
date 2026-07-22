@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Diagnostics/Model/GBase.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult networkAdapters(DiagId id);
 DiagnosticResult nicAdvanced(DiagId id);
 DiagnosticResult wifiDiagnostics(DiagId id);

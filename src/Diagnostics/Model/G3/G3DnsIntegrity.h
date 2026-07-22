@@ -13,7 +13,7 @@
 #include <QVector>
 #include "Diagnostics/Model/GHelpers.h"
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 
 struct DnsIntegritySignal {
     int     weight;      // 1-5
@@ -50,4 +50,4 @@ DnsIntegrityResult scoreDnsIntegrity(
     const DohDnsFullResult& doh,
     const QString& localUdpIp, int localUdpMs);
 
-} // namespace G1G2G3Native
+} // namespace SystemDiagnostics

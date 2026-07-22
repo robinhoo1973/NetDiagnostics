@@ -1,7 +1,7 @@
 #include "Diagnostics/Model/GBase.h"
 #include "Common/Model/ResultProperty.h"
 #include "Diagnostics/Model/GHelpers.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult dhcpStatus(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();

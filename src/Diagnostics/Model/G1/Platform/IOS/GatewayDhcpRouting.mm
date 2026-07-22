@@ -148,7 +148,7 @@ static QVector<IosRoute> iosReadRoutes() {
 }
 
 // ���� Interface IPv4 + gateway helpers (cellular / WiFi panels) ����������������������
-// Public (non-static): declared in G1Ios.h, called from G1G2G3Native.
+// Public (non-static): declared in G1Ios.h, called from SystemDiagnostics.
 QString iosInterfaceIPv4(const QString& iface) {
     struct ifaddrs* ifa = nullptr;
     if (getifaddrs(&ifa) != 0) return QString();
@@ -780,7 +780,7 @@ QVariantMap iosCellularInfo()
 
 // 5WHY: iosCellularInfo() existed and worked but was never wired to
 // TaskFactory after MVC refactoring.  G1CellularInfo was incorrectly
-// 5WHY: iosCellularDiag() REMOVED — G1G2G3Native::cellularInfo()
+// 5WHY: iosCellularDiag() REMOVED — SystemDiagnostics::cellularInfo()
 // provides richer output with SIM iteration, IP/gateway per interface,
 // and signal strength.  TaskFactory now routes directly to it.
 

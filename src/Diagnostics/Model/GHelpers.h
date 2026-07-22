@@ -5,7 +5,7 @@
 #include "Common/Utils/Logger.h"
 #include <cstring>
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 
 // ── MAC address formatting ──────────────────────────────────────────
 static QString macToStr(const unsigned char* mac) {
@@ -171,4 +171,4 @@ inline double httpTtfb(const ParsedUrl& pu, int connectTimeoutMs = 5000, int rea
 QString countryCode3(const QString& code2);
 QString countryFullName(const QString& code2);
 
-} // namespace G1G2G3Native
+} // namespace SystemDiagnostics

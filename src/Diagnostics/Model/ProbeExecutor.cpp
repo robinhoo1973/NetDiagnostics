@@ -61,7 +61,7 @@ void ProbeExecutor::run() {
                 QVector<double> results;
                 results.reserve(task->rounds);
                 for (int r = 0; r < task->rounds; r++) {
-                    double ttfb = G1G2G3Native::httpTtfb(host, port, "/", 3000, 8);
+                    double ttfb = SystemDiagnostics::httpTtfb(host, port, "/", 3000, 8);
                     if (ttfb >= 0) results.append(ttfb);
                 }
 

@@ -1,5 +1,5 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult routingTable(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.timestamp = QDateTime::currentDateTime();

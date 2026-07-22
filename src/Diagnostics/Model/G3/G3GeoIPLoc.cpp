@@ -15,7 +15,7 @@
 #include <QFuture>
 #include <QtConcurrent/QtConcurrent>
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 
 // ── Forward declarations ──────────────────────────────────────────
 static double exactPermutationPValue(const QVector<double>& combined, int nA, int nB, double obsDev);
@@ -83,7 +83,7 @@ QString detectCountry(int timeoutMs) {
         futures[i] = QtConcurrent::run([i, url = QString::fromUtf8(providers[i].url),
                                          timeout = effectiveTimeout]()
             -> QPair<int,QByteArray> {
-            return qMakePair(i, G1G2G3Native::httpsGet(url, timeout));
+            return qMakePair(i, SystemDiagnostics::httpsGet(url, timeout));
         });
     }
 
@@ -350,4 +350,4 @@ DiagnosticResult geoIPLoc(DiagId id) {
     return r;
 }
 
-} // namespace G1G2G3Native
+} // namespace SystemDiagnostics

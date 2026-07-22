@@ -44,7 +44,7 @@ static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in&
 // Returns connected socket fd, or -1 on failure. Eliminates ~14 lines of
 // boilerplate per call site (socket, hostToAddr, nonblock, connect, select, SO_ERROR).
 // Replaces identical blocks in G4RemoteHost::tcpRttMs, G4RemoteHost::tcpTraceHop,
-// G1G2G3Native::httpDownload, tcpPingMs, httpTtfb.
+// SystemDiagnostics::httpDownload, tcpPingMs, httpTtfb.
 inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;

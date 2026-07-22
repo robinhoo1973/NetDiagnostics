@@ -3,7 +3,7 @@
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
 #include "Common/Platform/Apple/macOS/WifiHelper.h"
 #endif
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult wifiDiagnostics(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.timestamp = QDateTime::currentDateTime();

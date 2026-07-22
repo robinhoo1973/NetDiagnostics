@@ -23,7 +23,7 @@
 #include <QMutexLocker>
 #include <QtConcurrent/QtConcurrent>
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 
 // ── IP helper utilities ──────────────────────────────────────────────
 
@@ -434,4 +434,4 @@ DiagnosticResult dnsIntegrity(DiagId id) {
     return r;
 }
 
-} // namespace G1G2G3Native
+} // namespace SystemDiagnostics

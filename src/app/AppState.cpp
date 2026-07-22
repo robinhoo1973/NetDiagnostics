@@ -246,7 +246,7 @@ void AppState::runDiagnostics() {
     // cache in a background thread so subsequent calls from diagnostics
     // return instantly from the static cache without blocking the UI.
     QtConcurrent::run([]() {
-        G1G2G3Native::detectCountry(5000);
+        SystemDiagnostics::detectCountry(5000);
     });
 
     // Reset state before each run (clears previous results, error messages, etc.)

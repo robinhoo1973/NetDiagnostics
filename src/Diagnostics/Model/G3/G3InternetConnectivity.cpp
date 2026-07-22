@@ -10,7 +10,7 @@
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 
 DiagnosticResult internetConnectivity(DiagId id) {
     DiagnosticResult r;
@@ -126,7 +126,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
         out.append(QStringLiteral("  DNS:     ✓ %1").arg(bestIp));
 
     // Pre-check: TCP ping
-    int pingMs = G1G2G3Native::tcpPingMs(best.host, best.port);
+    int pingMs = SystemDiagnostics::tcpPingMs(best.host, best.port);
     if (pingMs < 0)
         out.append(QStringLiteral("  Ping:    ✗ TCP Connect Failed"));
     else
@@ -272,4 +272,4 @@ DiagnosticResult internetConnectivity(DiagId id) {
     return r;
 }
 
-} // namespace G1G2G3Native
+} // namespace SystemDiagnostics
