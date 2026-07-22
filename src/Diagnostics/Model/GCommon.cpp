@@ -481,10 +481,10 @@ QStringList dohQuery(const QString& domain, const QString& type, int timeoutMs) 
 }
 
 // ── DoH full-record query (single resolver) ─────────────────────────
-static DOH_FULL_RESULT dohQuerySingleFull(const QString& endpoint,
+static DohDnsFullResult dohQuerySingleFull(const QString& endpoint,
                                          const QString& domain,
                                          const QString& type, int timeoutMs) {
-    DOH_FULL_RESULT result;
+    DohDnsFullResult result;
     QString queryUrl = QStringLiteral("%1?name=%2&type=%3")
         .arg(endpoint, domain, type);
     QByteArray body = httpsGet(queryUrl, timeoutMs);
@@ -521,7 +521,7 @@ static DOH_FULL_RESULT dohQuerySingleFull(const QString& endpoint,
             return extractStr(key).toInt();
         };
 
-        DOH_RECORD rec;
+        DohDnsRecord rec;
         rec.name = extractStr(QStringLiteral("name"));
         rec.type = extractInt(QStringLiteral("type"));
         rec.ttl  = extractInt(QStringLiteral("TTL"));
@@ -544,7 +544,7 @@ static DOH_FULL_RESULT dohQuerySingleFull(const QString& endpoint,
 }
 
 // ── DoH full-record query — 4-resolver majority consensus ──────────
-DOH_FULL_RESULT dohQueryFull(const QString& domain, const QString& type, int timeoutMs) {
+DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int timeoutMs) {
     static const struct { const char* url; } kResolvers[] = {
         {"https://dns.alidns.com/resolve"},
         {"https://doh.pub/dns-query"},
@@ -555,13 +555,13 @@ DOH_FULL_RESULT dohQueryFull(const QString& domain, const QString& type, int tim
     // Collect A records and CNAME chains from all resolvers
     QMap<QString, int> freq;
     QStringList allCnames;
-    QList<DOH_RECORD> allRecs;
+    QList<DohDnsRecord> allRecs;
     int globalMinTtl = 86400;
     bool globalHasCname = false;
     int responders = 0;
 
     for (const auto& r : kResolvers) {
-        DOH_FULL_RESULT fr = dohQuerySingleFull(
+        DohDnsFullResult fr = dohQuerySingleFull(
             QString::fromUtf8(r.url), domain, type, timeoutMs);
         if (!fr.aRecords.isEmpty()) responders++;
         for (const auto& ip : fr.aRecords) freq[ip]++;
@@ -588,7 +588,7 @@ DOH_FULL_RESULT dohQueryFull(const QString& domain, const QString& type, int tim
             consensusIps.append(it.key());
     }
 
-    DOH_FULL_RESULT result;
+    DohDnsFullResult result;
     result.aRecords   = consensusIps;
     result.cnameChain = allCnames;
     result.hasCname   = globalHasCname;

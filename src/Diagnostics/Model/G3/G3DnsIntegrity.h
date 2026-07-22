@@ -15,17 +15,17 @@
 
 namespace G1G2G3Native {
 
-struct DNS_INTEGRITY_SIGNAL {
+struct DnsIntegritySignal {
     int     weight;      // 1-5
     bool    triggered;   // anomaly detected?
     QString detail;      // human-readable
 };
 
-struct DNS_INTEGRITY_RESULT {
+struct DnsIntegrityResult {
     enum class Verdict { DNS_INTEGRITY_CLEAN, DNS_INTEGRITY_SUSPECT, DNS_INTEGRITY_TAMPERED, DNS_INTEGRITY_HIJACKED };
     Verdict  verdict = Verdict::DNS_INTEGRITY_CLEAN;
     int      scorePercent = 0;   // 0-100
-    QVector<DNS_INTEGRITY_SIGNAL> detectedSignals;
+    QVector<DnsIntegritySignal> detectedSignals;
     QStringList output;          // formatted per-domain lines
 
     // Metadata extracted during analysis
@@ -44,10 +44,10 @@ struct DNS_INTEGRITY_RESULT {
 //   TTL anomaly       (weight=3): TTL < 10s → injection often sets TTL=0
 //   Timing anomaly    (weight=2): UDP < 15ms → injection is near-instant
 // Total weight = 15. Thresholds: >14% Suspicious, >33% Polluted, >60% Hijacked
-DNS_INTEGRITY_RESULT scoreDnsIntegrity(
+DnsIntegrityResult scoreDnsIntegrity(
     const QString& domain,
     const QString& description,
-    const DOH_FULL_RESULT& doh,
+    const DohDnsFullResult& doh,
     const QString& localUdpIp, int localUdpMs);
 
 } // namespace G1G2G3Native

@@ -129,17 +129,17 @@ QByteArray httpGet(const QString& host, int port, const QString& path,
 QByteArray httpsGet(const QString& url, int timeoutMs = 5000);
 
 // ── DoH DNS records ────────────────────────────────────────────────
-struct DOH_RECORD {
+struct DohDnsRecord {
     QString name;     // owner name (e.g. "www.google.com.")
     int     type = 0;  // 1=A, 5=CNAME, 2=NS, 28=AAAA
     int     ttl  = 0;
     QString data;     // IP for A/AAAA, target for CNAME/NS
 };
 
-struct DOH_FULL_RESULT {
+struct DohDnsFullResult {
     QStringList     aRecords;    // A-record IPs (backward compat)
     QStringList     cnameChain;  // CNAME targets in order
-    QList<DOH_RECORD> allRecords; // all parsed records
+    QList<DohDnsRecord> allRecords; // all parsed records
     bool            hasCname = false;
     int             minTtl = 86400;  // minimum TTL across all records (high default)
 };
@@ -151,7 +151,7 @@ QStringList dohQuery(const QString& domain,
 
 // DoH query with full record parsing — returns A records, CNAME chain, TTL.
 // Same 4-resolver majority logic as dohQuery(), but preserves record metadata.
-DOH_FULL_RESULT dohQueryFull(const QString& domain,
+DohDnsFullResult dohQueryFull(const QString& domain,
                            const QString& type = QStringLiteral("A"), int timeoutMs = 4000);
 
 // HTTP TTFB probe — TCP connect + HTTP GET → time to first byte (ms).
