@@ -422,26 +422,37 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     h += QStringLiteral("</td></tr></table></div>");
 
                     // — Code block (page-break-before:avoid — stay with header if there's room) —
-                    // 5WHY: Dark-background <td> cells create stark orphaned
-                    // rectangles when QTextDocument splits a long <pre> across
-                    // pages — the continuation cell renders its full background
-                    // colour but with truncated content.  QTextDocument cannot
-                    // avoid breaking inside large table cells, so dark cell
-                    // backgrounds are fundamentally incompatible with multi-page
-                    // PDF output.  Replace with a left-border accent (same cyan
-                    // as section headings) — visually distinct, zero page-break
-                    // artifacts, and the border renders correctly at any split.
+                    // 5WHY: Dark-background <td> cells create orphaned
+                    // rectangles at page breaks.  For light-theme PDFs use
+                    // a transparent background with a cyan left-border accent
+                    // — zero page-break artifacts.  For dark-theme PDFs, a
+                    // transparent background makes light text (textPrimary)
+                    // invisible against the white PDF page, so we use the
+                    // dark code-block background + light text for readability,
+                    // accepting the page-break artifact (dark-on-dark blends).
                     const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
                     if (!body.trimmed().isEmpty()) {
-                        h += QStringLiteral(
-                            "<div style=\"page-break-before:avoid\">"
-                            "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
-                            " style=\"border-left:4px solid %2\">"
-                            "<tr><td style=\"padding:12px 14px\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:%3;line-height:1.5;margin:0;"
-                            "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
-                            "</div>")
-                            .arg(body.toHtmlEscaped(), colorCyan, textPrimary);
+                        if (darkBackground) {
+                            h += QStringLiteral(
+                                "<div style=\"page-break-before:avoid\">"
+                                "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
+                                " style=\"border-left:4px solid %2\">"
+                                "<tr><td style=\"background-color:%3;padding:12px 14px\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
+                                "font-size:11px;color:%4;line-height:1.5;margin:0;"
+                                "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
+                                "</div>")
+                                .arg(body.toHtmlEscaped(), colorCyan, codeBlockBg, codeBlockFg);
+                        } else {
+                            h += QStringLiteral(
+                                "<div style=\"page-break-before:avoid\">"
+                                "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
+                                " style=\"border-left:4px solid %2\">"
+                                "<tr><td style=\"padding:12px 14px\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
+                                "font-size:11px;color:%3;line-height:1.5;margin:0;"
+                                "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
+                                "</div>")
+                                .arg(body.toHtmlEscaped(), colorCyan, textPrimary);
+                        }
                     }
                     h += QStringLiteral("<br/>");
                 }
@@ -710,7 +721,11 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     // so content fills the full A4 printable area (200 mm at 96 DPI).
     const QPageLayout layout = writer.pageLayout();
     const QRectF paintRectMm = layout.paintRect(QPageLayout::Millimeter);
-    const int pageWidthPx  = qRound(paintRectMm.width()  / 25.4 * writer.resolution());
+    // 5WHY: paintRect alone still leaves ~10 % whitespace — QPdfWriter
+    // may apply internal bleed/margin on top of the explicit page
+    // margins.  Scale the computed pixel dimensions by 1.1× to fully
+    // fill the A4 sheet (210 mm → ~794 px at 96 DPI, margins 5 mm).
+    const int pageWidthPx  = qRound(paintRectMm.width()  / 25.4 * writer.resolution() * 1.1);
     const int pageHeightPx = qRound(paintRectMm.height() / 25.4 * writer.resolution());
 
     QTextDocument doc;
