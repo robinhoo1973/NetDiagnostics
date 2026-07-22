@@ -11,6 +11,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include "Diagnostics/Model/GHelpers.h"
 
 namespace G1G2G3Native {
 
