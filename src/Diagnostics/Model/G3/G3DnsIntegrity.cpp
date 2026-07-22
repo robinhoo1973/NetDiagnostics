@@ -71,6 +71,18 @@ static DnsSignal sigTlsCertMismatch(const QString& localIp, const QString& domai
         mismatch ? result : QString()};
 }
 
+static DnsSignal sigDnssecFailure(bool dnssecFailed) {
+    // DNSSEC-validating DoH resolvers (Google, Cloudflare) set AD=true
+    // when the response signature is verified.  If ≥2 resolvers return
+    // SERVFAIL (Status=2) with AD=false, the DNSSEC chain is broken —
+    // definitive tampering evidence.  Only triggers for DNSSEC-enabled
+    // domains; for non-DNSSEC domains, dnssecFailed remains false.
+    return {5, dnssecFailed,
+        dnssecFailed ? QStringLiteral("DNSSEC validation failed — ≥2 resolvers returned SERVFAIL "
+                                     "(signature verification broken, likely DNS tampering)")
+                     : QString()};
+}
+
 static DnsSignal sigCnameAnomaly(bool dohHasCname) {
     // Pollution/great-firewall DNS injection typically returns a bare
     // A-record response without the CNAME chain that legitimate CDN
@@ -121,12 +133,13 @@ DnsIntegrityResult scoreDnsIntegrity(
 
     // ── Collect signals ──────────────────────────────────────────
     r.signals.append(sigTlsCertMismatch(localUdpIp, domain));
+    r.signals.append(sigDnssecFailure(doh.dnssecFailed));
     r.signals.append(sigCnameAnomaly(doh.hasCname));
     r.signals.append(sigTtlAnomaly(doh.minTtl));
     r.signals.append(sigTimingAnomaly(localUdpMs));
 
-    // ── Weighted scoring (total weight = 15) ─────────────────────
-    //   TLS cert mismatch: 5   CNAME anomaly: 5   TTL: 3   Timing: 2
+    // ── Weighted scoring (total weight = 20) ─────────────────────
+    //   TLS cert: 5   DNSSEC: 5   CNAME: 5   TTL: 3   Timing: 2
     int totalWeight = 0, triggeredWeight = 0;
     QStringList triggeredSignals;
     for (const auto& s : r.signals) {
@@ -138,13 +151,14 @@ DnsIntegrityResult scoreDnsIntegrity(
     }
     r.scorePercent = totalWeight > 0 ? (triggeredWeight * 100 / totalWeight) : 0;
 
-    // ── Verdict thresholds (total weight = 15) ──────────────────
-    //   TLS alone(5/15)=33%→Polluted, TLS+CNAME(10/15)=67%→Hijacked
-    if (r.scorePercent > 60)
+    // ── Verdict thresholds (total weight = 20) ──────────────────
+    //   Signal alone(5/20)=25%→Suspicious, two signals(10/20)=50%→Polluted
+    //   Three signals(15/20)=75%→Hijacked
+    if (r.scorePercent > 50)
         r.verdict = DnsIntegrityResult::Hijacked;
-    else if (r.scorePercent > 33)
+    else if (r.scorePercent > 25)
         r.verdict = DnsIntegrityResult::Polluted;
-    else if (r.scorePercent > 14)
+    else if (r.scorePercent > 10)
         r.verdict = DnsIntegrityResult::Suspicious;
     else
         r.verdict = DnsIntegrityResult::Clean;
@@ -163,11 +177,16 @@ DnsIntegrityResult scoreDnsIntegrity(
     r.output.append(QStringLiteral("%1 — Score: %2% → %3")
         .arg(label).arg(r.scorePercent).arg(statusIcon));
 
-    // Key metadata (not IP-based comparison)
-    r.output.append(QStringLiteral("    DoH: %1 (TTL=%2, CNAME=%3)")
+    // Key metadata
+    r.output.append(QStringLiteral("    DoH: %1 (TTL=%2, CNAME=%3, DNSSEC=%4)")
         .arg(r.dohIps.isEmpty() ? QStringLiteral("no response") : r.dohIps.join(','))
         .arg(doh.minTtl > 0 ? QStringLiteral("%1s").arg(doh.minTtl) : QStringLiteral("?"))
-        .arg(doh.hasCname ? doh.cnameChain.join(QStringLiteral(" → ")) : QStringLiteral("none")));
+        .arg(doh.hasCname ? doh.cnameChain.join(QStringLiteral(" → ")) : QStringLiteral("none"))
+        .arg(doh.dnssecFailed ? QStringLiteral("FAILED") :
+             doh.adFlag      ? QStringLiteral("validated") : QStringLiteral("N/A")));
+
+    if (doh.dnssecFailed)
+        r.output.append(QStringLiteral("    ⚠ DNSSEC validation failed — DNS response tampered"));
 
     if (!localUdpIp.isEmpty())
         r.output.append(QStringLiteral("    Local UDP: %1 (%2ms)")

@@ -491,6 +491,32 @@ static DohFullResult dohQuerySingleFull(const QString& endpoint,
     if (body.isEmpty()) return result;
 
     QString json = QString::fromUtf8(body);
+
+    // ── DNSSEC: extract top-level Status and AD flag ─────────────
+    // "Status": 0 = NOERROR, 2 = SERVFAIL (DNSSEC validation failure)
+    // "AD": true = Authenticated Data (resolver validated DNSSEC)
+    {
+        auto extractTopLevel = [&](const QString& key) -> QString {
+            int k = json.indexOf('"' + key + '"');
+            if (k < 0) return {};
+            int colon = json.indexOf(':', k);
+            if (colon < 0) return {};
+            int v = colon + 1;
+            while (v < json.length() && (json[v].isSpace() || json[v] == ',')) v++;
+            // Extract value: true / false / number
+            int ve = v;
+            while (ve < json.length() && (json[ve].isLetterOrNumber() || json[ve] == '-')) ve++;
+            return json.mid(v, ve - v);
+        };
+        QString statusStr = extractTopLevel(QStringLiteral("Status"));
+        QString adStr     = extractTopLevel(QStringLiteral("AD"));
+        if (!statusStr.isEmpty()) {
+            result.dnsStatus = statusStr.toInt();
+            result.adFlag    = (adStr == QStringLiteral("true"));
+            result.dnssecFailed = (result.dnsStatus == 2 && !result.adFlag);
+        }
+    }
+
     int ansStart = json.indexOf(QStringLiteral("\"Answer\":["));
     if (ansStart < 0) return result;
 
@@ -559,6 +585,10 @@ DohFullResult dohQueryFull(const QString& domain, const QString& type, int timeo
     int globalMinTtl = 86400;
     bool globalHasCname = false;
     int responders = 0;
+    // DNSSEC: aggregate across resolvers
+    int  dnssecFailures = 0;
+    int  dnssecValidated = 0;
+    int  servfailCount = 0;
 
     for (const auto& r : kResolvers) {
         DohFullResult fr = dohQuerySingleFull(
@@ -572,6 +602,10 @@ DohFullResult dohQueryFull(const QString& domain, const QString& type, int timeo
         }
         if (fr.minTtl < globalMinTtl) globalMinTtl = fr.minTtl;
         allRecs.append(fr.allRecords);
+        // DNSSEC tracking
+        if (fr.dnssecFailed) dnssecFailures++;
+        if (fr.adFlag) dnssecValidated++;
+        if (fr.dnsStatus == 2) servfailCount++;
     }
 
     // Majority consensus for A records
@@ -594,6 +628,10 @@ DohFullResult dohQueryFull(const QString& domain, const QString& type, int timeo
     result.hasCname   = globalHasCname;
     result.minTtl     = (globalMinTtl < 86400) ? globalMinTtl : 0;
     result.allRecords = allRecs;
+    // DNSSEC: flag as failed if ≥2 resolvers returned SERVFAIL with no AD
+    result.dnssecFailed = (dnssecFailures >= 2 || (servfailCount >= 2 && dnssecValidated == 0));
+    result.adFlag       = (dnssecValidated >= 2);
+    result.dnsStatus    = (servfailCount >= 2) ? 2 : 0;
     return result;
 }
 
