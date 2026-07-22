@@ -177,17 +177,17 @@ DiagnosticResult dnsPollution(DiagId id) {
                 out.append(line);
 
             switch (ir.verdict) {
-            case DnsIntegrityResult::Verdict::Pass:
+            case DnsIntegrityResult::Verdict::Good:
                 pollutionClean++; break;
-            case DnsIntegrityResult::Verdict::Suspicious:
+            case DnsIntegrityResult::Verdict::Warn:
                 pollutionSuspicious++; break;
-            case DnsIntegrityResult::Verdict::Polluted:
+            case DnsIntegrityResult::Verdict::Bad:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: score=%2%, DoH=%3, Local=%4")
                     .arg(td.domain).arg(ir.scorePercent)
                     .arg(ir.dohIps.join(','), ir.localUdpIp));
                 break;
-            case DnsIntegrityResult::Verdict::Hijacked:
+            case DnsIntegrityResult::Verdict::Attack:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: HIJACKED (score=%2%)")
                     .arg(td.domain).arg(ir.scorePercent));
