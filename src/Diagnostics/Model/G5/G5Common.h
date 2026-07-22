@@ -93,12 +93,12 @@ static size_t curlWriteCallback(char* ptr, size_t, size_t nmemb, void* userp) {
 }
 
 // 5WHY: Transient network issues (DNS timeout, TCP reset, SSL renegotiation
-// failure) can cause HTTP diagnostics to fail on the first attempt.  A single
-// retry gives the network stack a second chance before reporting failure,
-// matching the InternetConnectivity speed-test retry pattern.
+// failure) can cause HTTP diagnostics to fail.  Up to 5 attempts — first
+// success returns immediately, 5 failures return the last error.
 static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect = false,
                            int maxRedirects = 5) {
-    auto perform = [&](CurlResult& cr, bool isRetry) -> bool {
+    static const int kMaxAttempts = 5;
+    auto perform = [&](CurlResult& cr, int attempt) -> bool {
         cr = CurlResult{};
         CURL* curl = curl_easy_init();
         if (!curl) { cr.error = QStringLiteral("curl_easy_init() failed"); return false; }
@@ -144,8 +144,8 @@ static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect =
             curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &redirectUrl);
             if (redirectUrl) cr.redirectLocation = QString::fromUtf8(redirectUrl);
 
-            if (isRetry)
-                cr.lines.prepend(QStringLiteral("* (Retry succeeded)"));
+            if (attempt > 0)
+                cr.lines.prepend(QStringLiteral("* (Attempt %1 succeeded)").arg(attempt + 1));
 
             cr.lines.append(QString());
             cr.lines.append(QStringLiteral("  %1  %2  %3  %4  %5  %6")
@@ -182,9 +182,9 @@ static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect =
     };
 
     CurlResult cr;
-    if (perform(cr, false)) return cr;           // first attempt succeeded
-    CurlResult cr2;
-    if (perform(cr2, true)) return cr2;           // retry succeeded
-    return cr;                                     // both failed, return first error
+    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+        if (perform(cr, attempt)) return cr;       // success — return immediately
+    }
+    return cr;                                       // all 5 attempts failed
 }
 #endif // NO_CURL
