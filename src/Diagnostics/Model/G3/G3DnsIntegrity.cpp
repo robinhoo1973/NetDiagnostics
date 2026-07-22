@@ -141,22 +141,22 @@ DnsIntegrityResult scoreDnsIntegrity(
     // ── Verdict thresholds (total weight = 15) ──────────────────
     //   One signal(5/15)=33%→Polluted, two signals(10/15)=67%→Hijacked
     if (r.scorePercent > 60)
-        r.verdict = DnsIntegrityResult::Verdict::Attack;
+        r.verdict = DnsIntegrityResult::Verdict::kV_Hijacked;
     else if (r.scorePercent > 33)
-        r.verdict = DnsIntegrityResult::Verdict::Bad;
+        r.verdict = DnsIntegrityResult::Verdict::kV_Tampered;
     else if (r.scorePercent > 14)
-        r.verdict = DnsIntegrityResult::Verdict::Warn;
+        r.verdict = DnsIntegrityResult::Verdict::kV_Suspect;
     else
-        r.verdict = DnsIntegrityResult::Verdict::Good;
+        r.verdict = DnsIntegrityResult::Verdict::kV_Clean;
 
     // ── Build output lines ──────────────────────────────────────
     QString label = QStringLiteral("  %1 (%2)").arg(domain, description);
     QString statusIcon;
     switch (r.verdict) {
-        case DnsIntegrityResult::Verdict::Good:       statusIcon = QStringLiteral("Clean"); break;
-        case DnsIntegrityResult::Verdict::Warn: statusIcon = QStringLiteral("Suspicious"); break;
-        case DnsIntegrityResult::Verdict::Bad:   statusIcon = QStringLiteral("POLLUTED"); break;
-        case DnsIntegrityResult::Verdict::Attack:   statusIcon = QStringLiteral("HIJACKED"); break;
+        case DnsIntegrityResult::Verdict::kV_Clean:       statusIcon = QStringLiteral("Clean"); break;
+        case DnsIntegrityResult::Verdict::kV_Suspect: statusIcon = QStringLiteral("Suspicious"); break;
+        case DnsIntegrityResult::Verdict::kV_Tampered:   statusIcon = QStringLiteral("POLLUTED"); break;
+        case DnsIntegrityResult::Verdict::kV_Hijacked:   statusIcon = QStringLiteral("HIJACKED"); break;
     }
 
     // Per-domain header
