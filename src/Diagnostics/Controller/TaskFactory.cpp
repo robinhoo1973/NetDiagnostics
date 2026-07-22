@@ -36,7 +36,7 @@ static int timeoutFor(DiagId id) {
         case DiagId::G4Ping:            return 30000; // 4 probes at ~3s each
         case DiagId::G4Traceroute:      return 90000; // 30 hops at ~2s each
         case DiagId::G4PathPing:        return 120000;// traceroute + per-hop ping
-        case DiagId::G3DnsPollution:   return 120000;// DoH queries × 5 domains + TLS
+        case DiagId::G3DnsIntegrity:   return 120000;// DoH queries × 5 domains + TLS
         case DiagId::G3InternetConnectivity:return 180000;// download + upload phases
         case DiagId::G5CurlVerbose:     return 120000;
         case DiagId::G5HttpTiming:      return 90000;
@@ -67,7 +67,7 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
         case DiagId::G3DnsCache:
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
-        // 5WHY: Removed G1IpConfiguration/G3DnsServers/G3DnsPollution from
+        // 5WHY: Removed G1IpConfiguration/G3DnsServers/G3DnsIntegrity from
         // iOS skip list (commit 1b7e5d9 added them incorrectly).  Pre-MVC
         // (commit bd73d78) these ran via native G1G2G3Native functions which
         // return empty PASS on iOS — harmless, not crashes.  platformSkipReason()
@@ -98,8 +98,8 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("Android resolves DNS via ConnectivityManager; /etc/resolv.conf is not populated or readable by apps.");
         case DiagId::G3DnsCache:
             return QStringLiteral("Android does not expose the system DNS resolver cache to apps.");
-        case DiagId::G3DnsPollution:
-            return QStringLiteral("DNS pollution detection requires reading system DNS resolver state, which is unavailable on Android.");
+        case DiagId::G3DnsIntegrity:
+            return QStringLiteral("DNS integrity check requires reading system DNS resolver state, which is unavailable on Android.");
         default:
             return QString();
     }
@@ -203,7 +203,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3NetskopeStatus:     return T1(G1G2G3Native::netskopeStatus);
         case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
-        case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsIntegrity);
+        case DiagId::G3DnsIntegrity:       return T1(G1G2G3Native::dnsIntegrity);
         case DiagId::G3GeoIPLoc:          return T1(G1G2G3Native::geoIPLoc);
         case DiagId::G3InternetConnectivity:  return T1(G1G2G3Native::internetConnectivity);
 
