@@ -17,27 +17,6 @@
 
 namespace G1G2G3Native {
 
-// ── ISO 3166-1 country code → name ───────────────────────────────────
-static QString countryName(const QString& a2) {
-    if (a2.isEmpty() || a2 == QStringLiteral("XX")) return QStringLiteral("Unknown");
-    static const QMap<QString, QString> map = {
-        {"CN","China"},{"US","United States"},{"JP","Japan"},{"KR","South Korea"},
-        {"SG","Singapore"},{"IN","India"},{"DE","Germany"},{"GB","United Kingdom"},
-        {"FR","France"},{"NL","Netherlands"},{"SE","Sweden"},{"RU","Russia"},
-        {"BR","Brazil"},{"AU","Australia"},{"CA","Canada"},{"HK","Hong Kong"},
-        {"TW","Taiwan"},{"AE","United Arab Emirates"},{"TR","Turkey"},{"ZA","South Africa"},
-        {"IT","Italy"},{"ES","Spain"},{"PL","Poland"},{"UA","Ukraine"},{"CH","Switzerland"},
-        {"AT","Austria"},{"BE","Belgium"},{"NO","Norway"},{"FI","Finland"},{"DK","Denmark"},
-        {"IE","Ireland"},{"PT","Portugal"},{"GR","Greece"},{"IL","Israel"},
-        {"MX","Mexico"},{"AR","Argentina"},{"CO","Colombia"},{"CL","Chile"},{"PE","Peru"},
-        {"MY","Malaysia"},{"ID","Indonesia"},{"PH","Philippines"},{"VN","Vietnam"},
-        {"TH","Thailand"},{"BD","Bangladesh"},{"PK","Pakistan"},{"LK","Sri Lanka"},
-        {"EG","Egypt"},{"NG","Nigeria"},{"KE","Kenya"},{"MN","Mongolia"},
-        {"NZ","New Zealand"},{"QA","Qatar"},{"SA","Saudi Arabia"},
-    };
-    return map.value(a2, a2);
-}
-
 // ── Forward declarations ──────────────────────────────────────────
 static double exactPermutationPValue(const QVector<double>& combined, int nA, int nB, double obsDev);
 static double cliffDelta(double U, int nA, int nB);

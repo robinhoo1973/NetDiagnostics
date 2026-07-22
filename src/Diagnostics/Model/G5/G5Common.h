@@ -99,7 +99,6 @@ static size_t curlWriteCallback(char* ptr, size_t, size_t nmemb, void* userp) {
 static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect = false,
                            int maxRedirects = 5) {
     auto perform = [&](CurlResult& cr, bool isRetry) -> bool {
-        (void)maxRedirects;
         cr = CurlResult{};
         CURL* curl = curl_easy_init();
         if (!curl) { cr.error = QStringLiteral("curl_easy_init() failed"); return false; }
