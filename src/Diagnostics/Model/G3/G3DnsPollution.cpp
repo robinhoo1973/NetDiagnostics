@@ -64,7 +64,7 @@ static bool differentOrg(const QStringList& a, const QStringList& b) {
     return !a.isEmpty() && !b.isEmpty();
 }
 
-DiagnosticResult dnsPollution(DiagId id) {
+DiagnosticResult dnsIntegrity(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();

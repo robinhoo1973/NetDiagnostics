@@ -202,7 +202,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G3NetskopeStatus:     return T1(G1G2G3Native::netskopeStatus);
         case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
         case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
-        case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsPollution);
+        case DiagId::G3DnsPollution:       return T1(G1G2G3Native::dnsIntegrity);
         case DiagId::G3GeoIPLoc:          return T1(G1G2G3Native::geoIPLoc);
         case DiagId::G3InternetConnectivity:  return T1(G1G2G3Native::internetConnectivity);
 
