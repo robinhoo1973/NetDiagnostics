@@ -16,9 +16,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          set -euo pipefail
+          set -e
 
-          # List all workflows
           workflows=$(gh api "repos/$REPO/actions/workflows" --jq '.workflows[].id')
           total_deleted=0
 
@@ -26,34 +25,33 @@ jobs:
             wf_name=$(gh api "repos/$REPO/actions/workflows/$wf_id" --jq '.name')
             echo "::group::Workflow: $wf_name (id=$wf_id)"
 
-            # Get the last successful run for this workflow
-            last_success=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs" \
-              --jq '[.workflow_runs[] | select(.conclusion=="success")][0]')
-            last_id=$(echo "$last_success" | jq -r '.id // empty')
-            last_created=$(echo "$last_success" | jq -r '.created_at // empty')
+            # Get the last successful run — API returns newest first
+            last_id=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
+              --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+            last_date=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
+              --jq '.workflow_runs[0].created_at // empty' 2>/dev/null || echo "")
 
             if [ -z "$last_id" ]; then
-              echo "  No successful runs found — skipping"
+              echo "  No successful runs — skip"
               echo "::endgroup::"
               continue
             fi
 
-            echo "  Keeping run #$last_id ($last_created)"
+            echo "  Keep: #$last_id ($last_date)"
 
-            # List and delete all OTHER runs for this workflow
+            # Delete all OTHER runs for this workflow (paginated)
             page=1
             while true; do
-              runs=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs" \
-                -f "per_page=100" -f "page=$page" \
-                --jq '.workflow_runs[] | select(.id != '$last_id') | .id')
+              run_ids=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?per_page=100&page=$page" \
+                --jq '[.workflow_runs[] | select(.id != '$last_id') | .id] | join(" ")' 2>/dev/null || echo "")
 
-              if [ -z "$runs" ]; then
+              if [ -z "$run_ids" ]; then
                 break
               fi
 
-              for run_id in $runs; do
-                echo "  Deleting run #$run_id"
-                gh api --silent -X DELETE "repos/$REPO/actions/runs/$run_id" || true
+              for run_id in $run_ids; do
+                echo "  Delete #$run_id"
+                gh api --silent -X DELETE "repos/$REPO/actions/runs/$run_id" 2>/dev/null || true
                 total_deleted=$((total_deleted + 1))
               done
 
@@ -63,4 +61,4 @@ jobs:
             echo "::endgroup::"
           done
 
-          echo "Total runs deleted: $total_deleted"
+          echo "Total deleted: $total_deleted"
