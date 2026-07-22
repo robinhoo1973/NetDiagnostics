@@ -13,7 +13,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QFuture>
-#include <QtConcurrent/QtConcurrentRun>
+#include <QtConcurrent/QtConcurrent>
 
 namespace G1G2G3Native {
 
