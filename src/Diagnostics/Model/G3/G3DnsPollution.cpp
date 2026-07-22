@@ -141,7 +141,7 @@ DiagnosticResult dnsIntegrity(DiagId id) {
 
     for (const auto& td : kTestDomains) {
         // ── DoH full-record query (CNAME + TTL + IPs) ────────────
-        DOH_FULL_RESULT doh = G1G2G3Native::dohQueryFull(
+        DohDnsFullResult doh = G1G2G3Native::dohQueryFull(
             QString::fromUtf8(td.domain));
 
         // ── Local DNS (UDP, system resolver) ─────────────────────
@@ -151,7 +151,7 @@ DiagnosticResult dnsIntegrity(DiagId id) {
         int localMs = static_cast<int>(probe.elapsed());
 
         // ── Score with multi-signal engine ───────────────────────
-        DNS_INTEGRITY_RESULT ir = scoreDnsIntegrity(
+        DnsIntegrityResult ir = scoreDnsIntegrity(
             QString::fromUtf8(td.domain), td.description,
             doh, localUdpIp, localMs);
 
@@ -177,17 +177,17 @@ DiagnosticResult dnsIntegrity(DiagId id) {
                 out.append(line);
 
             switch (ir.verdict) {
-            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_CLEAN:
+            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_CLEAN:
                 pollutionClean++; break;
-            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_SUSPECT:
+            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_SUSPECT:
                 pollutionSuspicious++; break;
-            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_TAMPERED:
+            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_TAMPERED:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: score=%2%, DoH=%3, Local=%4")
                     .arg(td.domain).arg(ir.scorePercent)
                     .arg(ir.dohIps.join(','), ir.localUdpIp));
                 break;
-            case DNS_INTEGRITY_RESULT::Verdict::DNS_INTEGRITY_HIJACKED:
+            case DnsIntegrityResult::Verdict::DNS_INTEGRITY_HIJACKED:
                 pollutionWarn++;
                 pollutionDetails.append(QStringLiteral("%1: HIJACKED (score=%2%)")
                     .arg(td.domain).arg(ir.scorePercent));
