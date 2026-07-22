@@ -407,7 +407,8 @@ ColumnLayout {
                         return
                     }
                     if (!appState.canRun()) return
-                    Qt.callLater(function() { appState.runDiagnostics() })
+                    if (ThemeEngine.isMobile) Qt.callLater(function() { appState.runDiagnostics() })
+                    else appState.runDiagnostics()
                 }
             }
             // Validation error feedback animation — brief red flash on click
@@ -430,8 +431,10 @@ ColumnLayout {
                         validationFlash.start()
                         return
                     }
-                    if (appState.canRun())
-                        Qt.callLater(function() { appState.runDiagnostics() })
+                    if (appState.canRun()) {
+                        if (ThemeEngine.isMobile) Qt.callLater(function() { appState.runDiagnostics() })
+                        else appState.runDiagnostics()
+                    }
                 }
             }
         }
@@ -446,12 +449,17 @@ ColumnLayout {
                 id: stopBtnArea
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: Qt.callLater(function() { appState.cancel() })
+                onClicked: {
+                    if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
+                    else appState.cancel()
+                }
             }
             activeFocusOnTab: true
             Keys.onPressed: function(event) {
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Space)
-                    Qt.callLater(function() { appState.cancel() })
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                    if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
+                    else appState.cancel()
+                }
             }
         }
     }
