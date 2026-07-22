@@ -6,13 +6,70 @@
 //   · CNAME chain — pollution often returns bare A-record, skipping CNAME
 //   · TTL — pollution injection often has TTL=0 or TTL=1
 //   · Response timing — injected responses arrive near-instantly
+//   · TLS certificate — definitive: cert SAN/CN must match the domain
 // =============================================================================
 #include "Diagnostics/Model/G3/G3DnsIntegrity.h"
 #include "Diagnostics/Model/GHelpers.h"
+#include <QSslSocket>
+#include <QSslCertificate>
 
 namespace G1G2G3Native {
 
+// ── TLS certificate domain verification ───────────────────────────
+
+static QString tlsCheckCert(const QString& ip, const QString& domain, int timeoutMs = 3000) {
+    // Connect to the IP directly but verify the certificate against the
+    // domain name via SNI.  If the IP was injected by DNS pollution, the
+    // server at that IP won't have a valid certificate for the domain.
+    // Returns the certificate CN on mismatch, empty string on success,
+    // or "no TLS" if the connection fails (port 443 closed = not a signal).
+    QSslSocket socket;
+    socket.setPeerVerifyMode(QSslSocket::VerifyNone);  // don't abort on mismatch
+    socket.connectToHostEncrypted(ip, 443, domain);     // IP to connect, domain for SNI
+    if (!socket.waitForEncrypted(timeoutMs)) {
+        socket.disconnectFromHost();
+        return QStringLiteral("no TLS");  // connection failed → not a signal
+    }
+
+    const auto certs = socket.peerCertificateChain();
+    socket.disconnectFromHost();
+    if (certs.isEmpty()) return {};  // shouldn't happen after successful handshake
+
+    const auto& cert = certs.first();
+
+    // Check SAN (Subject Alternative Names) — modern certs use this
+    const auto sans = cert.subjectAlternativeNames();
+    const auto sanValues = sans.values();
+    for (const auto& san : sanValues) {
+        if (san == domain || (san.startsWith("*.") && domain.endsWith(san.mid(1))))
+            return {};  // matched
+    }
+
+    // Fall back to CN (Common Name) — older certs
+    const auto cns = cert.subjectInfo(QSslCertificate::CommonName);
+    for (const auto& cn : cns) {
+        if (cn == domain || (cn.startsWith("*.") && domain.endsWith(cn.mid(1))))
+            return {};  // matched
+    }
+
+    // Mismatch — the certificate at this IP is NOT for the target domain
+    QString actualCn = cns.isEmpty() ? QStringLiteral("unknown") : cns.first();
+    QString actualSan = sanValues.isEmpty() ? QString() : sanValues.first();
+    QString detail = actualSan.isEmpty()
+        ? QStringLiteral("TLS cert CN=%1 ≠ %2").arg(actualCn, domain)
+        : QStringLiteral("TLS cert SAN=%1 / CN=%2 ≠ %3").arg(actualSan, actualCn, domain);
+    return detail;
+}
+
 // ── Signal definitions ─────────────────────────────────────────────
+
+static DnsSignal sigTlsCertMismatch(const QString& localIp, const QString& domain) {
+    if (localIp.isEmpty()) return {5, false, {}};
+    QString result = tlsCheckCert(localIp, domain, 3000);
+    bool mismatch = !result.isEmpty() && result != QStringLiteral("no TLS");
+    return {5, mismatch,
+        mismatch ? result : QString()};
+}
 
 static DnsSignal sigCnameAnomaly(bool dohHasCname) {
     // Pollution/great-firewall DNS injection typically returns a bare
@@ -62,12 +119,14 @@ DnsIntegrityResult scoreDnsIntegrity(
     r.cnameChain = doh.cnameChain;
     r.hasCname   = doh.hasCname;
 
-    // ── Collect signals (IP-independent, structure/metadata only) ──
+    // ── Collect signals ──────────────────────────────────────────
+    r.signals.append(sigTlsCertMismatch(localUdpIp, domain));
     r.signals.append(sigCnameAnomaly(doh.hasCname));
     r.signals.append(sigTtlAnomaly(doh.minTtl));
     r.signals.append(sigTimingAnomaly(localUdpMs));
 
-    // ── Weighted scoring ────────────────────────────────────────
+    // ── Weighted scoring (total weight = 15) ─────────────────────
+    //   TLS cert mismatch: 5   CNAME anomaly: 5   TTL: 3   Timing: 2
     int totalWeight = 0, triggeredWeight = 0;
     QStringList triggeredSignals;
     for (const auto& s : r.signals) {
@@ -79,13 +138,13 @@ DnsIntegrityResult scoreDnsIntegrity(
     }
     r.scorePercent = totalWeight > 0 ? (triggeredWeight * 100 / totalWeight) : 0;
 
-    // ── Verdict thresholds (total weight = 10) ──────────────────
-    //   0-20% Clean, 21-40% Suspicious, 41-60% Polluted, >60% Hijacked
+    // ── Verdict thresholds (total weight = 15) ──────────────────
+    //   TLS alone(5/15)=33%→Polluted, TLS+CNAME(10/15)=67%→Hijacked
     if (r.scorePercent > 60)
         r.verdict = DnsIntegrityResult::Hijacked;
-    else if (r.scorePercent > 40)
+    else if (r.scorePercent > 33)
         r.verdict = DnsIntegrityResult::Polluted;
-    else if (r.scorePercent > 20)
+    else if (r.scorePercent > 14)
         r.verdict = DnsIntegrityResult::Suspicious;
     else
         r.verdict = DnsIntegrityResult::Clean;
