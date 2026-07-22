@@ -2,7 +2,7 @@
 // DnsResolver.h — Shared DNS resolution with timeout (singleton)
 //
 // Eliminates the duplicated resolveWithTimeout / resolveHostWithTimeout across
-// G1G2G3Native.cpp, G4RemoteHost.cpp, and NetworkProbe.cpp.
+// SystemDiagnostics.cpp, G4RemoteHost.cpp, and NetworkProbe.cpp.
 //
 // Apple: uses dispatch_semaphore + dispatch_async_f (GCD thread pool, reliable
 //        kernel-level timeout, no thread leak).

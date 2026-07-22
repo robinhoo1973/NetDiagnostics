@@ -1,6 +1,6 @@
 ﻿#pragma once
 #include "Diagnostics/Model/GBase.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult routingTable(DiagId id);
 DiagnosticResult arpTable(DiagId id);
 DiagnosticResult networkProfile(DiagId id);

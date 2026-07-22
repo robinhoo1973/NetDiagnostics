@@ -39,7 +39,7 @@ Cross-platform command execution. Includes `proc.moveToThread(QThread::currentTh
 ### `src/engine/diagnostic/DiagnosticEngine.h` / `DiagnosticEngine.cpp`
 Core diagnostic engine. Orchestrates test execution, manages results, handles timeouts and cancellation.
 
-### `src/engine/diagnostic/G1G2G3Native.h` / `G1G2G3Native.cpp`
+### `src/engine/diagnostic/SystemDiagnostics.h` / `SystemDiagnostics.cpp`
 G1/G2/G3 native diagnostics (18 tests):
 - **G1:** Network adapters, NIC advanced, WiFi, wired, DHCP status, IP configuration, active connections
 - **G2:** Network profile, TCP settings, default gateway, routing table, ARP table, proxy settings

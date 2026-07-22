@@ -69,10 +69,10 @@ static QString platformSkipReason(DiagId id) {
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
         // 5WHY: Removed G1IpConfiguration/G3DnsServers/G3DnsIntegrity from
         // iOS skip list (commit 1b7e5d9 added them incorrectly).  Pre-MVC
-        // (commit bd73d78) these ran via native G1G2G3Native functions which
+        // (commit bd73d78) these ran via native SystemDiagnostics functions which
         // return empty PASS on iOS — harmless, not crashes.  platformSkipReason()
         // did not exist pre-MVC.  Only skip tests that would crash/error on iOS.
-        // 5WHY: G1CellularInfo routed to G1G2G3Native::cellularInfo() — no longer skipped.
+        // 5WHY: G1CellularInfo routed to SystemDiagnostics::cellularInfo() — no longer skipped.
         default:
             return QString();
     }
@@ -142,24 +142,24 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 
     switch (id) {
         // 閳光偓閳光偓 G1: System & Adapters 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
-        case DiagId::G1NetworkAdapters:    return T1(G1G2G3Native::networkAdapters, 15000);
-        case DiagId::G1NicAdvanced:        return T1(G1G2G3Native::nicAdvanced);
+        case DiagId::G1NetworkAdapters:    return T1(SystemDiagnostics::networkAdapters, 15000);
+        case DiagId::G1NicAdvanced:        return T1(SystemDiagnostics::nicAdvanced);
 #if defined(PLATFORM_ANDROID)
         case DiagId::G1WifiDiagnostics:
             return T3([](DiagId id, const QString&) { return androidWifiDiag(id); });
 #else
-        case DiagId::G1WifiDiagnostics:    return T1(G1G2G3Native::wifiDiagnostics);
+        case DiagId::G1WifiDiagnostics:    return T1(SystemDiagnostics::wifiDiagnostics);
 #endif
-        case DiagId::G1WiredDiagnostics:   return T1(G1G2G3Native::wiredDiagnostics);
+        case DiagId::G1WiredDiagnostics:   return T1(SystemDiagnostics::wiredDiagnostics);
 #if defined(PLATFORM_IOS)
         case DiagId::G1DhcpStatus:
             return T3([](DiagId id, const QString&) { return iosDhcpDiag(id); });
         // 5WHY: iosCellularDiag() produces simplified output (carrier/MCC/MNC only).
-        // G1G2G3Native::cellularInfo() runs the FULL SIM iteration with IP/gateway
+        // SystemDiagnostics::cellularInfo() runs the FULL SIM iteration with IP/gateway
         // per interface, signal strength, and multi-SIM detail.  Route to the
         // native function so iOS users see the same rich output as desktop builds.
         case DiagId::G1CellularInfo:
-            return T1(G1G2G3Native::cellularInfo);
+            return T1(SystemDiagnostics::cellularInfo);
 #else
 #if defined(PLATFORM_ANDROID)
         case DiagId::G1DhcpStatus:
@@ -167,18 +167,18 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G1CellularInfo:
             return T3([](DiagId id, const QString&) { return androidCellularDiag(id); });
 #else
-        case DiagId::G1DhcpStatus:         return T1(G1G2G3Native::dhcpStatus);
-        case DiagId::G1CellularInfo:       return T1(G1G2G3Native::cellularInfo);
+        case DiagId::G1DhcpStatus:         return T1(SystemDiagnostics::dhcpStatus);
+        case DiagId::G1CellularInfo:       return T1(SystemDiagnostics::cellularInfo);
 #endif
 #endif  // closes #if defined(PLATFORM_IOS)
         // 5WHY: Moved OUT of #else so compiled on iOS.  Pre-MVC these ran
         // via native functions returning empty PASS on iOS — harmless.
-        case DiagId::G1IpConfiguration:    return T1(G1G2G3Native::ipConfiguration);
-        case DiagId::G1ActiveConnections:  return T1(G1G2G3Native::activeConnections);
+        case DiagId::G1IpConfiguration:    return T1(SystemDiagnostics::ipConfiguration);
+        case DiagId::G1ActiveConnections:  return T1(SystemDiagnostics::activeConnections);
 
         // 閳光偓閳光偓 G2: Connectivity & Security 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
-        case DiagId::G2NetworkProfile:     return T1(G1G2G3Native::networkProfile);
-        case DiagId::G2TcpSettings:        return T1(G1G2G3Native::tcpSettings);
+        case DiagId::G2NetworkProfile:     return T1(SystemDiagnostics::networkProfile);
+        case DiagId::G2TcpSettings:        return T1(SystemDiagnostics::tcpSettings);
 #if defined(PLATFORM_IOS)
         case DiagId::G2DefaultGateway:
             return T3([](DiagId id, const QString&) { return iosDefaultGatewayDiag(id); });
@@ -187,25 +187,25 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
         case DiagId::G2DefaultGateway:
             return T3([](DiagId id, const QString&) { return androidGatewayDiag(id); });
 #else
-        case DiagId::G2DefaultGateway:     return T1(G1G2G3Native::defaultGateway);
+        case DiagId::G2DefaultGateway:     return T1(SystemDiagnostics::defaultGateway);
 #endif
 #endif  // 5WHY: closes #if defined(PLATFORM_IOS) at L182 — fix runaway #else blocking G2Routing-G5 on iOS
 #if defined(PLATFORM_IOS)
         case DiagId::G2RoutingTable:
             return T3([](DiagId id, const QString&) { return iosRoutingTableDiag(id); });
 #else
-        case DiagId::G2RoutingTable:       return T1(G1G2G3Native::routingTable);
+        case DiagId::G2RoutingTable:       return T1(SystemDiagnostics::routingTable);
 #endif
-        case DiagId::G2ArpTable:           return T1(G1G2G3Native::arpTable);
-        case DiagId::G2ProxySettings:      return T1(G1G2G3Native::proxySettings);
+        case DiagId::G2ArpTable:           return T1(SystemDiagnostics::arpTable);
+        case DiagId::G2ProxySettings:      return T1(SystemDiagnostics::proxySettings);
 
         // 閳光偓閳光偓 G3: Internet & DNS 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
-        case DiagId::G3NetskopeStatus:     return T1(G1G2G3Native::netskopeStatus);
-        case DiagId::G3DnsServers:         return T1(G1G2G3Native::dnsServers);
-        case DiagId::G3DnsCache:           return T1(G1G2G3Native::dnsCache);
-        case DiagId::G3DnsIntegrity:       return T1(G1G2G3Native::dnsIntegrity);
-        case DiagId::G3GeoIPLoc:          return T1(G1G2G3Native::geoIPLoc);
-        case DiagId::G3InternetConnectivity:  return T1(G1G2G3Native::internetConnectivity);
+        case DiagId::G3NetskopeStatus:     return T1(SystemDiagnostics::netskopeStatus);
+        case DiagId::G3DnsServers:         return T1(SystemDiagnostics::dnsServers);
+        case DiagId::G3DnsCache:           return T1(SystemDiagnostics::dnsCache);
+        case DiagId::G3DnsIntegrity:       return T1(SystemDiagnostics::dnsIntegrity);
+        case DiagId::G3GeoIPLoc:          return T1(SystemDiagnostics::geoIPLoc);
+        case DiagId::G3InternetConnectivity:  return T1(SystemDiagnostics::internetConnectivity);
 
         // 閳光偓閳光偓 G4: Remote Host 閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓閳光偓
 #if defined(PLATFORM_IOS)

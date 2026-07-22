@@ -1,7 +1,7 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
 #include <QProcess>
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult dnsCache(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();

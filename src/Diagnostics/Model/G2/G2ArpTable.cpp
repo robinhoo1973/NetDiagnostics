@@ -1,5 +1,5 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult arpTable(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
     r.status = DiagStatus::Info;  // 5WHY: cppcheck found uninitialized r.status

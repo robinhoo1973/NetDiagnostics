@@ -1,6 +1,6 @@
 ﻿#include "Diagnostics/Model/GHelpers.h"
 
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult dnsServers(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
     r.timestamp = QDateTime::currentDateTime();

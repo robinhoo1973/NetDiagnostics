@@ -1,6 +1,6 @@
 ﻿#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 DiagnosticResult activeConnections(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G1;
     r.status = DiagStatus::Info;  // 5WHY: cppcheck found uninitialized r.status —

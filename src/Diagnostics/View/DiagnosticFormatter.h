@@ -4,7 +4,7 @@
 // Standardizes all diagnostic output to match Windows CLI tool formats:
 //   ipconfig /all, route print, arp -a, netstat -an, nslookup, ping, tracert
 //
-// Replaces file-local tblFmt() in G1G2G3Native.cpp and manual QString::arg()
+// Replaces file-local tblFmt() in SystemDiagnostics.cpp and manual QString::arg()
 // formatting scattered across G4RemoteHost, G5WebsiteUrl, IosDnsTask, etc.
 // =============================================================================
 #pragma once

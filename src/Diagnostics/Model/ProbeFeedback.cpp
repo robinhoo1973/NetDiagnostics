@@ -76,7 +76,7 @@ ServerResult ProbeFeedback::computeServerStats(const ProbeDatabase::Task& task) 
     sr.ok = true;
 
     // HL median
-    double hl = G1G2G3Native::hodgesLehmann(raw);
+    double hl = SystemDiagnostics::hodgesLehmann(raw);
     sr.ttfbMs = hl;
 
     if (n < 2) return sr;
@@ -84,7 +84,7 @@ ServerResult ProbeFeedback::computeServerStats(const ProbeDatabase::Task& task) 
     // MAD (Median Absolute Deviation)
     QVector<double> absDev(n);
     for (int i = 0; i < n; i++) absDev[i] = std::abs(raw[i] - hl);
-    sr.mad = G1G2G3Native::median(absDev);
+    sr.mad = SystemDiagnostics::median(absDev);
 
     // 95% CI using t-distribution (small-sample corrected)
     // t_0.025,df indexed by df = min(n-1, 6).  z=1.96 for n≥8.
@@ -118,7 +118,7 @@ QVector<CountryResult> ProbeFeedback::aggregateByCountry(
         if (it.value().ttfb.size() < 2) continue;
         CountryResult cr;
         cr.code = it.key();
-        cr.hlMs = G1G2G3Native::hodgesLehmann(it.value().ttfb);
+        cr.hlMs = SystemDiagnostics::hodgesLehmann(it.value().ttfb);
         cr.serverCount = it.value().ttfb.size();
         cr.servers = std::move(it.value().srv);
         out.append(cr);
@@ -146,7 +146,7 @@ QVector<RegionResult> ProbeFeedback::aggregateByRegion(
         if (it.value().size() < 2) continue;
         RegionResult rr;
         rr.tag = it.key();
-        rr.hlMs = G1G2G3Native::hodgesLehmann(it.value());
+        rr.hlMs = SystemDiagnostics::hodgesLehmann(it.value());
         rr.serverCount = it.value().size();
         QSet<QString> ccs;
         for (const auto& srv : servers)

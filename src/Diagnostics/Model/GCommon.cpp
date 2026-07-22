@@ -14,7 +14,7 @@
 #include <QUrl>
 #include <QEventLoop>
 #include <QTimer>
-namespace G1G2G3Native {
+namespace SystemDiagnostics {
 
 // ── Host header with RFC 7230 §5.4 port inclusion ──────────────────
 static QString hostHeader(const QString& host, int port) {
@@ -765,4 +765,4 @@ QString countryFullName(const QString& code2) {
     return (it != kCountryBy2.cend()) ? it->second : code2;
 }
 
-} // namespace G1G2G3Native
+} // namespace SystemDiagnostics
