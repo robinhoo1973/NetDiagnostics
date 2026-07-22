@@ -77,8 +77,7 @@ static DnsSignal sigCnameAnomaly(bool dohHasCname) {
     // domains use (e.g. www.google.com → CNAME → google.com → A).
     return {5, dohHasCname ? false : true,
         dohHasCname ? QString()
-                    : QStringLiteral("No CNAME Chain — DoH Returned Bare A-Record "
-                                     "(Legitimate CDN Domains Normally Have CNAME Indirection)")};
+                    : QStringLiteral("No CNAME Chain - DoH Returned Bare A-Record (Legitimate CDN Domains Normally Have CNAME Indirection)")};
 }
 
 static DnsSignal sigTtlAnomaly(int dohMinTtl) {
@@ -98,8 +97,7 @@ static DnsSignal sigTimingAnomaly(int localMs) {
     // a local device on the network path → <15ms is suspicious.
     bool tooFast = (localMs > 0 && localMs < 15);
     return {2, tooFast,
-        tooFast ? QStringLiteral("UDP Response %1ms (Suspiciously Fast — "
-                                 "Legitimate Recursion Takes 30ms+)".arg(localMs)
+        tooFast ? QStringLiteral("UDP Response %1ms (Suspiciously Fast - Legitimate Recursion Takes 30ms+)").arg(localMs)
                 : QString()};
 }
 
