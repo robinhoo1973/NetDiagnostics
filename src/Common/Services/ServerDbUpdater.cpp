@@ -58,7 +58,7 @@ void ServerDbUpdater::checkForUpdates(bool force, Callback callback) {
     QUrl manifestUrl(m_manifestUrl);
     QNetworkRequest manifestReq(manifestUrl);
     manifestReq.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NetDiagnostics/1.0"));
-    QNetworkReply* manifestReply = m_nam->get(manifestReq, QByteArray());
+    QNetworkReply* manifestReply = m_nam->get(manifestReq);
 
     QEventLoop loop;
     QTimer timer;
@@ -118,7 +118,7 @@ void ServerDbUpdater::checkForUpdates(bool force, Callback callback) {
     QUrl dlUrl(downloadUrl);
     QNetworkRequest dlReq(dlUrl);
     dlReq.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NetDiagnostics/1.0"));
-    QNetworkReply* dlReply = m_nam->get(dlReq, QByteArray());
+    QNetworkReply* dlReply = m_nam->get(dlReq);
 
     QEventLoop loop2;
     QTimer timer2;

@@ -96,7 +96,7 @@ DiagnosticResult dnsIntegrity(DiagId id) {
     for (int i = 0; i < 3; ++i) {
         QByteArray seed = QStringLiteral("%1-%2-dns-hijack-test")
             .arg(datePrefix).arg(i).toUtf8();
-        QString hex = QString::fromUtf8(
+        QString hex = QString::fromLatin1(
             QCryptographicHash::hash(seed, QCryptographicHash::Md5).toHex().left(4));
         static const char* tlds[] = {"com", "org", "net"};
         domains[i] = QStringLiteral("%1-%2-dns-test.%3")
@@ -150,28 +150,28 @@ DiagnosticResult dnsIntegrity(DiagId id) {
             QString::fromUtf8(td.domain), 3000);
         int localMs = static_cast<int>(probe.elapsed());
 
-        // ── Score with multi-signal engine ───────────────────────
-        DnsIntegrityResult ir = scoreDnsIntegrity(
-            QString::fromUtf8(td.domain), td.description,
-            doh, localUdpIp, localMs);
-
-        // ── Handle DoH/local failures ────────────────────────────
+        // ── Handle DoH/local failures first (avoid wasted scoring) ─
         if (doh.aRecords.isEmpty()) {
-            out.append(QStringLiteral("  %1 (%2) — DoH query failed, skipped")
+            out.append(QStringLiteral("  %1 (%2) — DoH Query Failed, Skipped")
                 .arg(td.domain, td.description));
             pollutionErrors++;
         } else if (localUdpIp.isEmpty()) {
-            out.append(QStringLiteral("  %1 (%2) — Local DNS failed, skipped")
+            out.append(QStringLiteral("  %1 (%2) — Local DNS Failed, Skipped")
                 .arg(td.domain, td.description));
             pollutionErrors++;
         } else if (isPrivateIp(localUdpIp)) {
             // Private IP override — definitive hijacking regardless of score
-            out.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (private IP)")
+            out.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (Private IP)")
                 .arg(td.domain, td.description, localUdpIp));
             pollutionDetails.append(QStringLiteral("%1: local=%2 (private IP)")
                 .arg(td.domain, localUdpIp));
             pollutionWarn++;
         } else {
+            // ── Score with multi-signal engine ───────────────────
+            DnsIntegrityResult ir = scoreDnsIntegrity(
+                QString::fromUtf8(td.domain), td.description,
+                doh, localUdpIp, localMs);
+
             // ── Use multi-signal scored output ─────────────────
             for (const auto& line : ir.output)
                 out.append(line);

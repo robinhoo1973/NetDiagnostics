@@ -381,7 +381,7 @@ QByteArray httpsGet(const QString& url, int timeoutMs) {
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("NetDiagnostics/1.0"));
     req.setRawHeader("Accept", "text/plain,application/json");
 
-    QNetworkReply* reply = nam.get(req, QByteArray());
+    QNetworkReply* reply = nam.get(req);
 
     QEventLoop loop;
     QTimer timer;
@@ -509,6 +509,7 @@ static DohDnsFullResult dohQuerySingleFull(const QString& endpoint,
         QString record = json.mid(recStart, recEnd - recStart + 1);
 
         auto extractStr = [&](const QString& key) -> QString {
+            // Extracts a quoted-string JSON value: "key":"value"
             int k = record.indexOf('"' + key + '"');
             if (k < 0) return {};
             int v = record.indexOf('"', k + key.length() + 2);
@@ -517,8 +518,24 @@ static DohDnsFullResult dohQuerySingleFull(const QString& endpoint,
             if (ve < 0) return {};
             return record.mid(v + 1, ve - v - 1);
         };
+        // 5WHY: extractInt delegated to extractStr() which only handles quoted-string
+        // values ("key":"value").  But JSON integers are unquoted ("type":1), so
+        // extractStr returned the NEXT field name instead of the integer.  .toInt()
+        // on "TTL" returned 0 → rec.type never matched 1 (A record) → aRecords
+        // always empty → ALL DoH queries reported as failed.
         auto extractInt = [&](const QString& key) -> int {
-            return extractStr(key).toInt();
+            int k = record.indexOf('"' + key + '"');
+            if (k < 0) return 0;
+            int colon = record.indexOf(':', k + key.length() + 2);
+            if (colon < 0) return 0;
+            // Skip whitespace after colon
+            int v = colon + 1;
+            while (v < record.length() && (record[v] == ' ' || record[v] == '\t')) v++;
+            // Extract digits (with optional leading minus, though DNS types/TTLs are unsigned)
+            int end = v;
+            while (end < record.length() && (record[end].isDigit() || record[end] == '-')) end++;
+            if (end == v) return 0;
+            return record.mid(v, end - v).toInt();
         };
 
         DohDnsRecord rec;
