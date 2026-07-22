@@ -70,7 +70,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     QElapsedTimer t; t.start();
     QStringList out;
 
-    out.append(QStringLiteral("DNS Pollution & Hijacking Check"));
+    out.append(QStringLiteral("DNS Integrity Check"));
     out.append(QStringLiteral("================================"));
     out.append(QString());
 
@@ -122,7 +122,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QString());
 
     // ═══════════════════════════════════════════════════════════════════
-    // Phase 2: DNS Pollution (multi-signal integrity check)
+    // Phase 2: DNS Integrity (multi-signal cross-verification)
     // ═══════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("── Phase 2: DNS Integrity Check ──"));
     out.append(QStringLiteral("Multi-Signal Cross-Verification: CNAME Chain, TTL, Response Timing, and TLS Certificate."));
@@ -204,7 +204,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     out.append(QStringLiteral("Phase 1 (ISP Hijack):  %1 clean, %2 hijacked, %3 timeout")
         .arg(hijackClean).arg(hijackWarn).arg(hijackTimeout));
     {
-        QString s = QStringLiteral("Phase 2 (DNS Pollution): %1 clean, %2 polluted, %3 errors")
+        QString s = QStringLiteral("Phase 2 (DNS Integrity): %1 clean, %2 warned, %3 errors")
             .arg(pollutionClean).arg(pollutionWarn).arg(pollutionErrors);
         if (pollutionSuspicious > 0)
             s += QStringLiteral(", %1 suspicious").arg(pollutionSuspicious);

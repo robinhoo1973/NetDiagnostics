@@ -177,7 +177,7 @@ Item {
             14: t("Netskope Status", "Statut Netskope", "Netskope-Status", "Статус Netskope", "Stato Netskope", "Netskope状态", "Netskope狀態", "Estado de Netskope", "Estado do Netskope"),
             15: t("DNS Servers", "Serveurs DNS", "DNS-Server", "DNS серверы", "Server DNS", "DNS服务器", "DNS伺服器", "Servidores DNS", "Servidores DNS"),
             16: t("DNS Cache", "Cache DNS", "DNS-Cache", "DNS кэш", "Cache DNS", "DNS缓存", "DNS快取", "Caché DNS", "Cache DNS"),
-            17: t("DNS Pollution", "Pollution DNS", "DNS-Verschmutzung", "Загрязнение DNS", "Inquinamento DNS", "DNS污染", "DNS污染", "Contaminación DNS", "Poluição DNS"),
+            17: t("DNS Integrity", "Intégrité DNS", "DNS-Integrität", "Целостность DNS", "Integrità DNS", "DNS完整性", "DNS完整性", "Integridad DNS", "Integridade DNS"),
             18: t("IP Geolocation", "Géolocalisation IP", "IP-Geolokalisierung", "IP Геолокация", "Geolocalizzazione IP", "IP地理定位", "IP地理定位", "Geolocalización IP", "Geolocalização IP"),
             19: t("Internet Connectivity & Speed", "Connectivité et débit", "Internet & Geschwindigkeit", "Интернет и скорость", "Connettività e velocità", "互联网连接与速度", "網際網路連線與速度", "Conectividad y velocidad de Internet", "Conectividade e velocidade da Internet"),
             20: t("DNS Resolution", "Résolution DNS", "DNS-Auflösung", "DNS разрешение", "Risoluzione DNS", "DNS解析", "DNS解析", "Resolución DNS", "Resolução DNS"),
