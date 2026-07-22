@@ -22,38 +22,37 @@ jobs:
           total_deleted=0
 
           self_name="$GITHUB_WORKFLOW"
+          self_run_id="$GITHUB_RUN_ID"
 
           for wf_id in $workflows; do
             wf_name=$(gh api "repos/$REPO/actions/workflows/$wf_id" --jq '.name')
             echo "::group::Workflow: $wf_name (id=$wf_id)"
 
-            # Skip self — the currently running workflow can't delete itself.
-            # Its old runs will be cleaned on the NEXT scheduled execution.
+            # Decide which run to keep:
+            #   Self:  keep the CURRENT run ($GITHUB_RUN_ID)
+            #   Other: keep the last successful run
             if [ "$wf_name" = "$self_name" ]; then
-              echo "  Skipping self (this workflow)"
+              keep_id="$self_run_id"
+              keep_label="current run"
+            else
+              keep_id=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
+                --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+              keep_label="last success"
+            fi
+
+            if [ -z "$keep_id" ]; then
+              echo "  No runs to keep — skip"
               echo "::endgroup::"
               continue
             fi
 
-            # Get the last successful run — API returns newest first
-            last_id=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
-              --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
-            last_date=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
-              --jq '.workflow_runs[0].created_at // empty' 2>/dev/null || echo "")
-
-            if [ -z "$last_id" ]; then
-              echo "  No successful runs — skip"
-              echo "::endgroup::"
-              continue
-            fi
-
-            echo "  Keep: #$last_id ($last_date)"
+            echo "  Keep: #$keep_id ($keep_label)"
 
             # Delete all OTHER runs for this workflow (paginated)
             page=1
             while true; do
               run_ids=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?per_page=100&page=$page" \
-                --jq '[.workflow_runs[] | select(.id != '$last_id') | .id] | join(" ")' 2>/dev/null || echo "")
+                --jq '[.workflow_runs[] | select(.id != '$keep_id') | .id] | join(" ")' 2>/dev/null || echo "")
 
               if [ -z "$run_ids" ]; then
                 break
