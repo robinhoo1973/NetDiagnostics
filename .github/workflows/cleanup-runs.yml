@@ -21,9 +21,19 @@ jobs:
           workflows=$(gh api "repos/$REPO/actions/workflows" --jq '.workflows[].id')
           total_deleted=0
 
+          self_name="$GITHUB_WORKFLOW"
+
           for wf_id in $workflows; do
             wf_name=$(gh api "repos/$REPO/actions/workflows/$wf_id" --jq '.name')
             echo "::group::Workflow: $wf_name (id=$wf_id)"
+
+            # Skip self — the currently running workflow can't delete itself.
+            # Its old runs will be cleaned on the NEXT scheduled execution.
+            if [ "$wf_name" = "$self_name" ]; then
+              echo "  Skipping self (this workflow)"
+              echo "::endgroup::"
+              continue
+            fi
 
             # Get the last successful run — API returns newest first
             last_id=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
