@@ -83,7 +83,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     // Phase 1: ISP DNS Hijacking (NXDOMAIN hijack test)
     // ═══════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("── Phase 1: ISP DNS Hijacking ──"));
-    out.append(QStringLiteral("Fake domains that resolve to an IP indicate ISP DNS hijacking."));
+    out.append(QStringLiteral("Fake Domains That Resolve to an IP Indicate ISP DNS Hijacking."));
     out.append(QString());
 
     // 5WHY: Static fake domains could be whitelisted by hijacking ISPs
@@ -102,7 +102,6 @@ DiagnosticResult dnsPollution(DiagId id) {
         domains[i] = QStringLiteral("%1-%2-dns-test.%3")
             .arg(datePrefix, hex, tlds[i]);
     }
-    out.append(QString());
 
     for (const auto& domain : domains) {
         QElapsedTimer probe; probe.start();
@@ -116,7 +115,7 @@ DiagnosticResult dnsPollution(DiagId id) {
             out.append(QStringLiteral("  %1 → TIMEOUT (%2ms)").arg(domain).arg(elapsed));
             hijackTimeout++;
         } else {
-            out.append(QStringLiteral("  %1 → Not resolved").arg(domain));
+            out.append(QStringLiteral("  %1 → Not Resolved").arg(domain));
             hijackClean++;
         }
     }
@@ -126,7 +125,7 @@ DiagnosticResult dnsPollution(DiagId id) {
     // Phase 2: DNS Pollution (multi-signal integrity check)
     // ═══════════════════════════════════════════════════════════════════
     out.append(QStringLiteral("── Phase 2: DNS Integrity Check ──"));
-    out.append(QStringLiteral("Multi-signal cross-verification: DoH vs UDP vs CNAME vs TTL vs timing."));
+    out.append(QStringLiteral("Multi-Signal Cross-Verification: CNAME Chain, TTL, Response Timing, and TLS Certificate."));
     out.append(QString());
 
     static const struct {
