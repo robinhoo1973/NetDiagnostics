@@ -423,36 +423,58 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
                     // — Code block (page-break-before:avoid — stay with header if there's room) —
                     // 5WHY: Dark-background <td> cells create orphaned
-                    // rectangles at page breaks.  For light-theme PDFs use
-                    // a transparent background with a cyan left-border accent
-                    // — zero page-break artifacts.  For dark-theme PDFs, a
-                    // transparent background makes light text (textPrimary)
-                    // invisible against the white PDF page, so we use the
-                    // dark code-block background + light text for readability,
-                    // accepting the page-break artifact (dark-on-dark blends).
+                    // rectangles when QTextDocument tears a <td bgcolor>
+                    // at a page boundary and re-lays the fragment with wrong
+                    // width="100%" context.  Fix: render every output line as
+                    // its own <tr><td>.  QTextDocument never splits inside a
+                    // <tr>, so page breaks always land on a row boundary where
+                    // each <td> is a complete, independent layout unit.  No
+                    // page-break-inside hacks, no row-count estimates needed.
+                    // Light theme uses transparent <td> regardless → unaffected.
                     const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
                     if (!body.trimmed().isEmpty()) {
-                        if (darkBackground) {
-                            h += QStringLiteral(
-                                "<div style=\"page-break-before:avoid\">"
-                                "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
-                                " style=\"border-left:4px solid %2\">"
-                                "<tr><td style=\"background-color:%3;padding:12px 14px\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                                "font-size:11px;color:%4;line-height:1.5;margin:0;"
-                                "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
-                                "</div>")
-                                .arg(body.toHtmlEscaped(), colorCyan, codeBlockBg, codeBlockFg);
-                        } else {
-                            h += QStringLiteral(
-                                "<div style=\"page-break-before:avoid\">"
-                                "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
-                                " style=\"border-left:4px solid %2\">"
-                                "<tr><td style=\"padding:12px 14px\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                                "font-size:11px;color:%3;line-height:1.5;margin:0;"
-                                "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
-                                "</div>")
-                                .arg(body.toHtmlEscaped(), colorCyan, textPrimary);
+                        const QStringList lines = body.split(QStringLiteral("\n"));
+                        h += QStringLiteral(
+                            "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\""
+                            " style=\"page-break-before:avoid;border-left:4px solid %1\">")
+                            .arg(colorCyan);
+                        for (int i = 0; i < lines.size(); ++i) {
+                            const bool firstRow = (i == 0);
+                            const bool lastRow  = (i == lines.size() - 1);
+                            // 5WHY: firstRow and lastRow are not mutually
+                            // exclusive — a single-line body hits both.
+                            // Handle the intersection first so symmetric
+                            // padding ("12px 14px") is used instead of the
+                            // lop-sided first-row-only branch.
+                            const QString padding = (firstRow && lastRow)
+                                ? QStringLiteral("padding:12px 14px")
+                                : firstRow
+                                ? QStringLiteral("padding:12px 14px 0 14px")
+                                : lastRow
+                                ? QStringLiteral("padding:0 14px 12px 14px")
+                                : QStringLiteral("padding:0 14px");
+                            const QString cell = lines[i].isEmpty()
+                                ? QStringLiteral("&nbsp;")
+                                : lines[i].toHtmlEscaped();
+                            if (darkBackground) {
+                                h += QStringLiteral(
+                                    "<tr><td style=\"background-color:%1;%2;"
+                                    "font-family:'SF Mono','Consolas','Courier New',monospace;"
+                                    "font-size:11px;color:%3;line-height:1.5;"
+                                    "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\""
+                                    " width=\"100%\">%4</td></tr>")
+                                    .arg(codeBlockBg, padding, codeBlockFg, cell);
+                            } else {
+                                h += QStringLiteral(
+                                    "<tr><td style=\"%1;"
+                                    "font-family:'SF Mono','Consolas','Courier New',monospace;"
+                                    "font-size:11px;color:%2;line-height:1.5;"
+                                    "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\""
+                                    " width=\"100%\">%3</td></tr>")
+                                    .arg(padding, textPrimary, cell);
+                            }
                         }
+                        h += QStringLiteral("</table>");
                     }
                     h += QStringLiteral("<br/>");
                 }
