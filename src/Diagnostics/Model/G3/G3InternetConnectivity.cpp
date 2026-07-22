@@ -146,9 +146,6 @@ DiagnosticResult internetConnectivity(DiagId id) {
         {1000000, "1 MB" },
     };
 
-    bool anyDlOk = false, anyUlOk = false;
-    double bestDlMbps = 0, bestUlMbps = 0;
-
     static const QVector<DiagnosticFormatter::ColSpec> kSpeedCols = {
         {"Size",     7,  true},
         {"Speed",   10,  true},
@@ -157,72 +154,96 @@ DiagnosticResult internetConnectivity(DiagId id) {
         {"Status",  18, false},
     };
 
-    // Download table
-    out.append(QStringLiteral("  Download:"));
-    out.append(QString());
-    {
-        QList<QStringList> dlRows;
-        for (const auto& tier : kDlTiers) {
-            QString dlUrl = QStringLiteral("http://%1:%2/download?size=%3")
-                .arg(best.host).arg(best.port).arg(tier.bytes);
-            SpeedResult dl = httpDownload(dlUrl, tier.bytes, 15000);
-            if (dl.ok && dl.mbps > 0.01) {
-                dlRows.append({
-                    QString::fromLatin1(tier.label),
-                    QStringLiteral("%1 Mbps").arg(dl.mbps, 0, 'f', 1),
-                    QStringLiteral("%1ms").arg(dl.durationMs),
-                    QString::number(dl.bytes),
-                    QStringLiteral("✓"),
-                });
-                anyDlOk = true;
-                if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
-            } else {
-                QString err = dl.error.isEmpty() ? QStringLiteral("Unknown Error") : dl.error;
-                dlRows.append({
-                    QString::fromLatin1(tier.label),
-                    QStringLiteral("—"),
-                    QStringLiteral("—"),
-                    QStringLiteral("—"),
-                    err,
-                });
-            }
-        }
-        out.append(DiagnosticFormatter::formatTable(kSpeedCols, dlRows));
-    }
-    out.append(QString());
+    bool anyDlOk = false, anyUlOk = false;
+    double bestDlMbps = 0, bestUlMbps = 0;
+    QStringList dlOut, ulOut;  // deferred output for retry
 
-    // Upload table
-    out.append(QStringLiteral("  Upload:"));
-    out.append(QString());
-    {
-        QList<QStringList> ulRows;
-        for (const auto& tier : kUlTiers) {
-            QString ulUrl = QStringLiteral("http://%1:%2/upload").arg(best.host).arg(best.port);
-            SpeedResult ul = httpUpload(ulUrl, tier.bytes, 15000);
-            if (ul.ok && ul.mbps > 0.01) {
-                ulRows.append({
-                    QString::fromLatin1(tier.label),
-                    QStringLiteral("%1 Mbps").arg(ul.mbps, 0, 'f', 1),
-                    QStringLiteral("%1ms").arg(ul.durationMs),
-                    QString::number(ul.bytes),
-                    QStringLiteral("✓"),
-                });
-                anyUlOk = true;
-                if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
-            } else {
-                QString err = ul.error.isEmpty() ? QStringLiteral("Unknown Error") : ul.error;
-                ulRows.append({
-                    QString::fromLatin1(tier.label),
-                    QStringLiteral("—"),
-                    QStringLiteral("—"),
-                    QStringLiteral("—"),
-                    err,
-                });
-            }
+    // 5WHY: Network jitter or transient server issues can cause all
+    // speed-test tiers to fail on the first pass.  A single retry
+    // gives the server/network a second chance before reporting failure.
+    for (int pass = 0; pass < 2; ++pass) {
+        if (pass == 1) {
+            out.append(QStringLiteral("  (Retry after all tiers failed)"));
+            out.append(QString());
         }
-        out.append(DiagnosticFormatter::formatTable(kSpeedCols, ulRows));
+
+        anyDlOk = false; anyUlOk = false;
+        bestDlMbps = 0; bestUlMbps = 0;
+        dlOut.clear(); ulOut.clear();
+
+        // Download table
+        dlOut.append(QStringLiteral("  Download:"));
+        dlOut.append(QString());
+        {
+            QList<QStringList> dlRows;
+            for (const auto& tier : kDlTiers) {
+                QString dlUrl = QStringLiteral("http://%1:%2/download?size=%3")
+                    .arg(best.host).arg(best.port).arg(tier.bytes);
+                SpeedResult dl = httpDownload(dlUrl, tier.bytes, 15000);
+                if (dl.ok && dl.mbps > 0.01) {
+                    dlRows.append({
+                        QString::fromLatin1(tier.label),
+                        QStringLiteral("%1 Mbps").arg(dl.mbps, 0, 'f', 1),
+                        QStringLiteral("%1ms").arg(dl.durationMs),
+                        QString::number(dl.bytes),
+                        QStringLiteral("✓"),
+                    });
+                    anyDlOk = true;
+                    if (dl.mbps > bestDlMbps) bestDlMbps = dl.mbps;
+                } else {
+                    QString err = dl.error.isEmpty() ? QStringLiteral("Unknown Error") : dl.error;
+                    dlRows.append({
+                        QString::fromLatin1(tier.label),
+                        QStringLiteral("—"),
+                        QStringLiteral("—"),
+                        QStringLiteral("—"),
+                        err,
+                    });
+                }
+            }
+            dlOut.append(DiagnosticFormatter::formatTable(kSpeedCols, dlRows));
+        }
+        dlOut.append(QString());
+
+        // Upload table
+        ulOut.append(QStringLiteral("  Upload:"));
+        ulOut.append(QString());
+        {
+            QList<QStringList> ulRows;
+            for (const auto& tier : kUlTiers) {
+                QString ulUrl = QStringLiteral("http://%1:%2/upload").arg(best.host).arg(best.port);
+                SpeedResult ul = httpUpload(ulUrl, tier.bytes, 15000);
+                if (ul.ok && ul.mbps > 0.01) {
+                    ulRows.append({
+                        QString::fromLatin1(tier.label),
+                        QStringLiteral("%1 Mbps").arg(ul.mbps, 0, 'f', 1),
+                        QStringLiteral("%1ms").arg(ul.durationMs),
+                        QString::number(ul.bytes),
+                        QStringLiteral("✓"),
+                    });
+                    anyUlOk = true;
+                    if (ul.mbps > bestUlMbps) bestUlMbps = ul.mbps;
+                } else {
+                    QString err = ul.error.isEmpty() ? QStringLiteral("Unknown Error") : ul.error;
+                    ulRows.append({
+                        QString::fromLatin1(tier.label),
+                        QStringLiteral("—"),
+                        QStringLiteral("—"),
+                        QStringLiteral("—"),
+                        err,
+                    });
+                }
+            }
+            ulOut.append(DiagnosticFormatter::formatTable(kSpeedCols, ulRows));
+        }
+        ulOut.append(QString());
+
+        // Stop retrying if anything succeeded
+        if (anyDlOk || anyUlOk) break;
     }
-    out.append(QString());
+
+    out.append(dlOut);
+    out.append(ulOut);
 
     // ── Summary ──────────────────────────────────────────────────
     if (anyDlOk && anyUlOk) {
