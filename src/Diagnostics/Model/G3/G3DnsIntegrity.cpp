@@ -120,16 +120,16 @@ DnsIntegrityResult scoreDnsIntegrity(
     r.hasCname   = doh.hasCname;
 
     // ── Collect signals ──────────────────────────────────────────
-    r.signals.append(sigTlsCertMismatch(localUdpIp, domain));
-    r.signals.append(sigCnameAnomaly(doh.hasCname));
-    r.signals.append(sigTtlAnomaly(doh.minTtl));
-    r.signals.append(sigTimingAnomaly(localUdpMs));
+    r.detectedSignals.append(sigTlsCertMismatch(localUdpIp, domain));
+    r.detectedSignals.append(sigCnameAnomaly(doh.hasCname));
+    r.detectedSignals.append(sigTtlAnomaly(doh.minTtl));
+    r.detectedSignals.append(sigTimingAnomaly(localUdpMs));
 
     // ── Weighted scoring (total weight = 15) ─────────────────────
     //   TLS cert: 5   CNAME: 5   TTL: 3   Timing: 2
     int totalWeight = 0, triggeredWeight = 0;
     QStringList triggeredSignals;
-    for (const auto& s : r.signals) {
+    for (const auto& s : r.detectedSignals) {
         totalWeight += s.weight;
         if (s.triggered) {
             triggeredWeight += s.weight;
