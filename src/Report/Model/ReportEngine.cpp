@@ -422,18 +422,26 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     h += QStringLiteral("</td></tr></table></div>");
 
                     // — Code block (page-break-before:avoid — stay with header if there's room) —
+                    // 5WHY: Dark-background <td> cells create stark orphaned
+                    // rectangles when QTextDocument splits a long <pre> across
+                    // pages — the continuation cell renders its full background
+                    // colour but with truncated content.  QTextDocument cannot
+                    // avoid breaking inside large table cells, so dark cell
+                    // backgrounds are fundamentally incompatible with multi-page
+                    // PDF output.  Replace with a left-border accent (same cyan
+                    // as section headings) — visually distinct, zero page-break
+                    // artifacts, and the border renders correctly at any split.
                     const QString body = r.details.isEmpty() ? r.rawOutput : r.details;
                     if (!body.trimmed().isEmpty()) {
                         h += QStringLiteral(
                             "<div style=\"page-break-before:avoid\">"
                             "<table width=\"100%\" cellpadding=\"12\" cellspacing=\"0\""
-                            " style=\"border:1px solid %2\">"
-                            "<tr><td style=\"background-color:%3;padding-top:0\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
-                            "font-size:11px;color:%4;line-height:1.5;margin:0;"
+                            " style=\"border-left:4px solid %2\">"
+                            "<tr><td style=\"padding:12px 14px\" width=\"100%\"><pre style=\"font-family:'SF Mono','Consolas','Courier New',monospace;"
+                            "font-size:11px;color:%3;line-height:1.5;margin:0;"
                             "white-space:pre-wrap;word-wrap:break-word;overflow-wrap:break-word\">%1</pre></td></tr></table>"
                             "</div>")
-                            .arg(body.toHtmlEscaped(),
-                                 borderColor, codeBlockBg, codeBlockFg);
+                            .arg(body.toHtmlEscaped(), colorCyan, textPrimary);
                     }
                     h += QStringLiteral("<br/>");
                 }
@@ -692,23 +700,23 @@ QString ReportEngine::exportPdf(const QString& filePath, const QString& html) {
     writer.setPageMargins(QMarginsF(5, 12, 5, 12), QPageLayout::Millimeter);
     writer.setTitle(QStringLiteral("Network Diagnostic Report"));
 
-    // 5WHY: QTextDocument default textWidth (-1) uses idealWidth() —
-    // the natural width of the widest unbreakable content line — NOT
-    // the page content area.  print() only handles vertical pagination;
-    // it does NOT propagate the page width to textWidth.  Explicitly
-    // compute the content-area pixel width from the page layout so
-    // tables with width="100%" fill the full A4 content area.
-    //   A4 = 210 mm.  5 mm margins → content = 200 mm.
-    //   At 96 DPI: 200 / 25.4 × 96 ≈ 755.9 px → 756.
+    // 5WHY: QTextDocument has TWO independent layout dimensions:
+    //   textWidth  – line-wrapping width (default -1 → idealWidth())
+    //   pageSize   – page viewport for rendering / pagination
+    // print() renders each page inside doc.pageSize(), NOT the
+    // printer's pageLayout.  Without setPageSize(), the doc defaults
+    // to a smaller internal size, leaving excessive whitespace even
+    // when textWidth is correct.  Set BOTH to the printer's paintRect
+    // so content fills the full A4 printable area (200 mm at 96 DPI).
     const QPageLayout layout = writer.pageLayout();
-    const QMarginsF margins = layout.margins(QPageLayout::Millimeter);
-    const QSizeF pageSizeMm = layout.pageSize().size(QPageSize::Millimeter);
-    const double contentWidthMm = pageSizeMm.width() - margins.left() - margins.right();
-    const int textWidthPx = qRound(contentWidthMm / 25.4 * writer.resolution());
+    const QRectF paintRectMm = layout.paintRect(QPageLayout::Millimeter);
+    const int pageWidthPx  = qRound(paintRectMm.width()  / 25.4 * writer.resolution());
+    const int pageHeightPx = qRound(paintRectMm.height() / 25.4 * writer.resolution());
 
     QTextDocument doc;
     doc.setDefaultFont(QFont(QStringLiteral("Helvetica"), 12));
-    doc.setTextWidth(textWidthPx);
+    doc.setPageSize(QSizeF(pageWidthPx, pageHeightPx));
+    doc.setTextWidth(pageWidthPx);
     doc.setHtml(html);
     doc.print(&writer);
     return QFile::exists(path) ? path : QString();
