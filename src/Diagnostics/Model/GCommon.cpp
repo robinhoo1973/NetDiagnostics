@@ -8,7 +8,7 @@
 #include <QHash>
 #include <QPair>
 #include <QFuture>
-#include <QtConcurrent/QtConcurrentRun>
+#include <QtConcurrent/QtConcurrent>
 #include <QUrl>
 #include <QEventLoop>
 #include <QTimer>

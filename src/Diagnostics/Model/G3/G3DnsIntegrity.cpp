@@ -21,7 +21,7 @@
 #include <QFuture>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QtConcurrent/QtConcurrentRun>
+#include <QtConcurrent/QtConcurrent>
 
 namespace G1G2G3Native {
 
