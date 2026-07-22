@@ -140,13 +140,12 @@ DiagnosticResult dnsPollution(DiagId id) {
     };
 
     for (const auto& td : kTestDomains) {
-        QElapsedTimer probe; probe.start();
-
         // ── DoH full-record query (CNAME + TTL + IPs) ────────────
         DohFullResult doh = G1G2G3Native::dohQueryFull(
             QString::fromUtf8(td.domain));
 
         // ── Local DNS (UDP, system resolver) ─────────────────────
+        QElapsedTimer probe; probe.start();
         QString localUdpIp = DnsResolver::instance().resolve(
             QString::fromUtf8(td.domain), 3000);
         int localMs = static_cast<int>(probe.elapsed());
