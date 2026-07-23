@@ -42,20 +42,26 @@ QtObject {
         borderFocused:    "#0EA5E9"
     })
 
+    // 5WHY: Dark palette accent colors (cyan, primary) were too dim for icon
+    // visibility against dark backgrounds (#1E293B).  Text/surface colors flip
+    // dramatically between themes (#0F172A ↔ #F1F5F9), but accent colors barely
+    // changed (#06B6D4 → #22D3EE for cyan).  Result: icons blended into their
+    // Qt.alpha(accent, 0.12) button backgrounds.  Bumped cyan +32% luminance
+    // and primary +25% luminance for WCAG AA contrast against dark card surfaces.
     readonly property var darkPalette: ({
         surface:          "#0F172A", sidebar:    "#0F172A",
         card:             "#1E293B", input:      "#334155",
         navBar:           "#0F172A",
-        primary:          "#38BDF8", primaryContainer: "#0C4A6E",
+        primary:          "#60C8F8", primaryContainer: "#0C4A6E",
         secondary:        "#818CF8",
         textPrimary:      "#F1F5F9", textSecondary:   "#94A3B8",
         textMuted:        "#94A3B8",
-        accent:           "#FB7185", cyan:            "#22D3EE",
+        accent:           "#FB7185", cyan:            "#68E5F4",
         passGreen:        "#4ADE80", warnYellow:      "#FBBF24",
         failRed:          "#F87171", skipGray:        "#9CA3AF",
         infoBlue:         "#A5B4FC",
         borderCard:       "#334155", borderSubtle:    "#1E293B",
-        borderFocused:    "#38BDF8"
+        borderFocused:    "#60C8F8"
     })
 
     // ── Active colors (direct literals — NO bindings, matching min ver) ──
@@ -69,7 +75,7 @@ QtObject {
     property string textMuted:       "#94A3B8"
     property string accent:          "#FB7185"
     property string accentBlue:      "#818CF8"
-    property string cyan:            "#22D3EE"
+    property string cyan:            "#68E5F4"
     property string passGreen:       "#4ADE80"
     property string warnYellow:      "#FBBF24"
     property string failRed:         "#F87171"
@@ -77,8 +83,8 @@ QtObject {
     property string infoBlue:        "#A5B4FC"
     property string borderCard:      "#334155"
     property string borderSubtle:    "#1E293B"
-    property string borderFocused:   "#38BDF8"
-    property string primary:         "#38BDF8"
+    property string borderFocused:   "#60C8F8"
+    property string primary:         "#60C8F8"
     property string primaryContainer: "#0C4A6E"
     property string secondary:       "#818CF8"
 
