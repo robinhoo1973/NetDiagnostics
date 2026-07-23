@@ -4,6 +4,8 @@
 #include "app/AppState.h"
 #if defined(PLATFORM_IOS)
 #include <ifaddrs.h>
+#elif defined(PLATFORM_ANDROID)
+#include <QJniObject>
 #endif
 #include "Common/Model/DiagNames.h"
 #include "Common/Services/DnsResolver.h"
@@ -252,7 +254,29 @@ bool AppState::isCellularData() const {
     freeifaddrs(ifs);
     return hasCellular && !hasWiFi;  // only warn if cellular is the sole connection
 #elif defined(PLATFORM_ANDROID)
-    return false;  // requires JNI ConnectivityManager; defer to mobile check
+    // Android: use ConnectivityManager via JNI to check active transports.
+    // Returns true only when TRANSPORT_CELLULAR is active AND TRANSPORT_WIFI
+    // is NOT active — same logic as iOS (warn only on cellular-only).
+    QJniObject ctx = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative", "activity",
+        "()Landroid/app/Activity;");
+    if (!ctx.isValid()) return false;
+    QJniObject svc = ctx.callObjectMethod(
+        "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;",
+        QJniObject::fromString("connectivity").object<jstring>());
+    if (!svc.isValid()) return false;
+    QJniObject net = svc.callObjectMethod(
+        "getActiveNetwork", "()Landroid/net/Network;");
+    if (!net.isValid()) return false;
+    QJniObject caps = svc.callObjectMethod(
+        "getNetworkCapabilities", "(Landroid/net/Network;)Landroid/net/NetworkCapabilities;",
+        net.object());
+    if (!caps.isValid()) return false;
+    bool hasWiFi = caps.callMethod<jboolean>(
+        "hasTransport", "(I)Z", 1);   // TRANSPORT_WIFI = 1
+    bool hasCell = caps.callMethod<jboolean>(
+        "hasTransport", "(I)Z", 0);   // TRANSPORT_CELLULAR = 0
+    return hasCell && !hasWiFi;
 #else
     return false;  // desktop — not applicable
 #endif
