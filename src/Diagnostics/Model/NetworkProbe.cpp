@@ -13,7 +13,6 @@
 #include <QTimer>
 #include <QMutex>
 #include <QtConcurrent/QtConcurrent>
-#include <cstring>
 #include <algorithm>
 
 #if defined(_WIN32)

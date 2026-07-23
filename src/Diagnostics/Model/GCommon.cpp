@@ -22,10 +22,9 @@ static QString hostHeader(const QString& host, int port) {
 }
 
 // ── Raw HTTP GET — returns raw HTTP response (headers + body) ───────
-// 5WHY: httpGet was removed during GeoProbe refactoring (httpTtfb +
-// httpDownload replaced it), but G3GeoIPLoc.cpp was created after
-// the removal and still references it.  Restore it so G3GeoIPLoc
-// GeoIP country detection works.  Follows the same TCP connect + send +
+// Plain TCP HTTP GET without TLS.  Currently unused (all callers use
+// httpsGet for TLS support) but retained as a building block for future
+// non-TLS HTTP diagnostics.  Follows the same TCP connect + send +
 // recv pattern as httpTtfb/httpDownload.
 QByteArray httpGet(const QString& host, int port, const QString& path,
                    int timeoutMs, int maxBytes, const QString& connectHost) {
@@ -575,7 +574,6 @@ static DohDnsFullResult dohQuerySingleFull(const QString& endpoint,
         if (rec.ttl >= 0 && (result.minTtl < 0 || rec.ttl < result.minTtl))
             result.minTtl = rec.ttl;
 
-        result.allRecords.append(rec);
         pos = recEnd + 1;
     }
     return result;
@@ -622,7 +620,6 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
 
     QMap<QString, int> freq;
     QStringList allCnames;
-    QList<DohDnsRecord> allRecs;
     int globalMinTtl = -1;  // -1 = no TTL data yet (0 = real TTL=0 observed)
     bool globalHasCname = false;
     int responders = 0;
@@ -639,7 +636,6 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
         // Sentinel-aware: -1 means no TTL data, skip; 0 means real TTL=0
         if (fr.minTtl >= 0 && (globalMinTtl < 0 || fr.minTtl < globalMinTtl))
             globalMinTtl = fr.minTtl;
-        allRecs.append(fr.allRecords);
     }
 
     // Majority consensus for A records
@@ -662,7 +658,6 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     result.hasCname   = globalHasCname;
     // -1 sentinel means no TTL data at all; any value >= 0 is a real TTL
     result.minTtl     = globalMinTtl;  // -1 = no data, >= 0 = real min TTL
-    result.allRecords = allRecs;
     return result;
 }
 

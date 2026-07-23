@@ -3,7 +3,6 @@
 #include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include "Common/Utils/Logger.h"
-#include <cstring>
 
 namespace SystemDiagnostics {
 
@@ -117,7 +116,8 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
 SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs);
 
 // Raw HTTP GET — TCP connect + GET request → raw HTTP response (headers + body).
-// Used by G3GeoIPLoc for GeoIP country detection (Phase 3).
+// Plain TCP without TLS (use httpsGet for HTTPS).  Currently unused but retained
+// as a building block for future non-TLS HTTP diagnostics.
 // When connectHost is non-empty, connects to that address (e.g. IP) but still
 // sends `host` in the HTTP Host header — bypasses DNS for the TCP connection.
 QByteArray httpGet(const QString& host, int port, const QString& path,
@@ -139,7 +139,6 @@ struct DohDnsRecord {
 struct DohDnsFullResult {
     QStringList     aRecords;    // A-record IPs (backward compat)
     QStringList     cnameChain;  // CNAME targets in order
-    QList<DohDnsRecord> allRecords; // all parsed records
     bool            hasCname = false;
     int             minTtl = -1;   // -1 = no TTL data sentinel; 0 = real TTL=0 (pollution signal)
 };

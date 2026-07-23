@@ -14,7 +14,6 @@ typedef SSIZE_T ssize_t;
 #include <atomic>
 #include <QFile>
 #include <QDir>
-#include <cstring>
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
