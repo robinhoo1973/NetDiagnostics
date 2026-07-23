@@ -22,8 +22,13 @@ inline const QMap<QString, int>& defaultPorts() {
     static const QMap<QString, int> ports = {
         {"http",80},{"https",443},{"ftp",21},{"ftps",990},{"sftp",22},{"ssh",22},
         {"telnet",23},{"rdp",3389},{"smtp",25},{"smtps",465},{"imap",143},{"imaps",993},
-        {"pop3",110},{"pop3s",995},{"mysql",3306},{"postgresql",5432},{"redis",6379},
-        {"mongodb",27017},{"mssql",1433},{"ldap",389},{"ldaps",636},{"mqtt",1883},{"mqtts",8883}
+        {"pop3",110},{"pop3s",995},
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+        // Database / directory / message protocols — not applicable on mobile.
+        {"mysql",3306},{"postgresql",5432},{"redis",6379},
+        {"mongodb",27017},{"mssql",1433},{"ldap",389},{"ldaps",636},
+        {"mqtt",1883},{"mqtts",8883},
+#endif
     };
     return ports;
 }
@@ -102,12 +107,15 @@ inline bool g5DiagMatchesScheme(DiagId id, const QString& schemeLower) {
     if (isFtp)  return id == DiagId::G5FtpDiagnostics;
     if (isSsh)  return id == DiagId::G5SshDiagnostics;
 
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+    // Database / directory / message protocols — hidden on mobile (no server daemons).
     if (schemeLower == "mysql")      return id == DiagId::G5Mysql;
     if (schemeLower == "postgresql") return id == DiagId::G5Postgres;
     if (schemeLower == "redis")      return id == DiagId::G5Redis;
     if (schemeLower == "mongodb")    return id == DiagId::G5Mongodb;
     if (schemeLower == "ldap")       return id == DiagId::G5Ldap;
     if (schemeLower == "mqtt")       return id == DiagId::G5Mqtt;
+#endif
     if (schemeLower == "telnet")     return id == DiagId::G5Telnet;
     if (schemeLower == "smtp" || schemeLower == "smtps"
      || schemeLower == "imap" || schemeLower == "imaps"
