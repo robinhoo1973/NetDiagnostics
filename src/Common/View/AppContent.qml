@@ -15,6 +15,22 @@ Item {
     property bool navBlocked: (stackView.currentItem && stackView.currentItem.overlayVisible === true) || false
     signal closeRequested()
 
+    // 5WHY: Nav buttons were disabled when overlays were open, preventing
+    // navigation.  Users expect nav taps to dismiss overlays like tapping
+    // the backdrop does.  Close any open overlay on the active screen.
+    function closeCurrentOverlay() {
+        var item = stackView.currentItem
+        if (!item) return
+        // Close detail overlay (DiagnosticScreen)
+        if (item.detailOverlay && item.detailOverlay.visible) item.detailOverlay.visible = false
+        // Close preview overlay (ReportScreen / DashboardScreen)
+        if (typeof item.previewVisible !== 'undefined' && item.previewVisible) item.previewVisible = false
+        // Close share dialog
+        if (typeof item.shareStage !== 'undefined' && item.shareStage !== 0) item.shareStage = 0
+        // Close cellular warning
+        if (appState.cellularWarnVisible) appState.cellularWarnVisible = false
+    }
+
     // ── Single source of truth for tab definitions ───────────────────
     readonly property var tabScreens: ["dashboard","diagnostic","config","settings"]
     readonly property var tabComponents: [dashboardComp, diagnosticComp, configComp, settingsComp]
@@ -79,11 +95,10 @@ Item {
                             { screen: "dashboard",  icon: "dashboard" },
                             { screen: "diagnostic", icon: "diagnostics" },
                             { screen: "config",     icon: "config" },
-                            { screen: "settings",   icon: "settings" }
+                            { screen: "settings",   icon: "tune" }
                         ]
                         delegate: ItemDelegate {
                             id: navBtn
-                            enabled: !content.navBlocked
                             property bool active: stackView.currentItem && stackView.currentItem.objectName === modelData.screen
                             property string labelText: {
                                 Tr.lang // force re-evaluation on language change
@@ -130,7 +145,10 @@ Item {
                                     }
                                 }
                             }
-                            onClicked: if (!navBlocked) switchToTab(index)
+                            onClicked: {
+                                if (navBlocked) { closeCurrentOverlay(); return }
+                                switchToTab(index)
+                            }
                         }
                     }
                 }

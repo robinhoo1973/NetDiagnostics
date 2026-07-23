@@ -25,7 +25,7 @@ Item {
             anchors.fill: parent; spacing: 0
             RowLayout {
                 Layout.fillWidth: true; Layout.preferredHeight: 44
-                anchors { leftMargin: 16; rightMargin: 16 }
+                Layout.leftMargin: 16; Layout.rightMargin: 16
                 AppIcon { name: "config"; size: 20; color: ThemeEngine.colors.textPrimary }
                 Item { width: 10 }
                 Label { text: Tr.diagConfig; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
