@@ -767,6 +767,7 @@ QVariantMap iosCellularInfo()
                             assigned.insert(m.value("radioAccessRaw").toString());
                     }
                     for (NSString* rk in rats) {
+                        if (!rats[rk]) continue;  // skip nil values
                         QString raw = QString::fromNSString(rats[rk]);
                         if (!assigned.contains(raw)) {
                             // Assign this orphaned RAT to the first unmatched SIM
