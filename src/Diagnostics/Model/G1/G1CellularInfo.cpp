@@ -27,9 +27,13 @@ DiagnosticResult cellularInfo(DiagId id) {
             const QString carrier = sim.value(QStringLiteral("carrierName")).toString();
             out.append(QStringLiteral("%1Carrier: %2").arg(pad,
                 carrier.isEmpty() ? QStringLiteral("(hidden by iOS 16+)") : carrier));
+            // 5WHY: iOS serviceCurrentRadioAccessTechnology only returns RAT
+            // for SIMs with an active radio connection.  Secondary/inactive
+            // SIMs have no radioAccess key → radio was empty → line silently
+            // skipped.  Now shows "(not available)" for inactive SIMs.
             const QString radio = sim.value(QStringLiteral("radioAccess")).toString();
-            if (!radio.isEmpty())
-                out.append(QStringLiteral("%1Radio Access: %2").arg(pad, radio));
+            out.append(QStringLiteral("%1Radio Access: %2").arg(pad,
+                radio.isEmpty() ? QStringLiteral("(not available)") : radio));
         }
         out.append(QStringLiteral("  %1: %2")
             .arg(multiSim ? QStringLiteral("Data IP (active line)") : QStringLiteral("IP Address"),

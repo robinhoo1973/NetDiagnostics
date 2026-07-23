@@ -248,9 +248,10 @@ Item {
         anchors.fill: parent
         color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.previewVisible; z: 1000
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false }
         Rectangle {
             anchors { fill: parent; margins: isMobile ? 0 : 8 }
+            MouseArea { anchors.fill: parent }  // absorb clicks inside card
             radius: isMobile ? 0 : 12; color: ThemeEngine.colors.card; clip: true
             border { width: isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
             ColumnLayout {
@@ -342,7 +343,7 @@ Item {
         parent: page.parent ? page.parent : page; anchors.fill: parent
         color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.shareStage !== 0; z: 1100
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent; onClicked: page.shareStage = 0 }
         Rectangle {
             anchors.centerIn: parent
             width: Math.min(420, parent.width * 0.92)

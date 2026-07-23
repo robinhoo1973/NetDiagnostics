@@ -21,6 +21,9 @@ Item {
     function doShare(fmt) { pendingShareFormat = fmt; shareStage = appState.isPremium ? 2 : 1 }
     function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
 
+    // ── Mobile data warning ──────────────────────────────────────────
+    function cancelCellularRun() { appState.continueAfterCellularWarn = null; /* no-op — just dismiss */ }
+
     Connections {
         target: appState
         function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
@@ -254,13 +257,83 @@ Item {
         Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary }
     }
 
+    // ── Mobile data warning dialog ────────────────────────────────────
+    Rectangle {
+        id: cellularDialog
+        parent: page.parent ? page.parent : page; anchors.fill: parent
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
+        visible: appState.cellularWarnVisible; z: 1150
+        MouseArea { anchors.fill: parent; onClicked: { appState.cellularWarnVisible = false } }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(420, parent.width * 0.92)
+            implicitHeight: cellCol.implicitHeight + 40
+            radius: 14; color: ThemeEngine.colors.card
+            border { width: 1.5; color: ThemeEngine.colors.borderFocused }
+            ColumnLayout {
+                id: cellCol
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+                spacing: 12
+                // Icon badge
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 56; implicitHeight: 56; radius: 28
+                    color: Qt.alpha(ThemeEngine.warnYellow, 0.12)
+                    border { width: 1.5; color: Qt.alpha(ThemeEngine.warnYellow, 0.35) }
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: "warning"; size: 28
+                        color: ThemeEngine.warnYellow
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                    text: "Mobile Data Warning"
+                    font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary
+                }
+                Label {
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                    text: "You are on cellular data. G3 Internet tests may consume data.\nContinue?"
+                    font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    Layout.topMargin: 8; spacing: 12
+                    Layout.alignment: Qt.AlignHCenter
+                    Rectangle {
+                        implicitWidth: cancelBtn.implicitWidth + 24; implicitHeight: 36; radius: 8
+                        color: Qt.alpha(ThemeEngine.textSecondary, 0.10)
+                        border { width: 1; color: Qt.alpha(ThemeEngine.textSecondary, 0.25) }
+                        Label {
+                            id: cancelBtn
+                            anchors.centerIn: parent
+                            text: "Cancel"; font.pixelSize: 13; font.weight: Font.Medium
+                            color: ThemeEngine.textSecondary
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { appState.cellularWarnVisible = false } }
+                    }
+                    Rectangle {
+                        implicitWidth: contBtn.implicitWidth + 24; implicitHeight: 36; radius: 8
+                        color: ThemeEngine.warnYellow
+                        Label {
+                            id: contBtn
+                            anchors.centerIn: parent
+                            text: "Continue"; font.pixelSize: 13; font.weight: Font.Bold
+                            color: "#0F172A"
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: appState.continueAfterCellularWarn }
+                    }
+                }
+            }
+        }
+    }
+
     // ── Share subscription dialog ─────────────────────────────────────
     Rectangle {
         id: shareDialog
         parent: page.parent ? page.parent : page; anchors.fill: parent
         color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.shareStage !== 0; z: 1100
-        MouseArea { anchors.fill: parent }
+        MouseArea { anchors.fill: parent; onClicked: page.shareStage = 0 }
         Rectangle {
             anchors.centerIn: parent
             width: Math.min(420, parent.width * 0.92)

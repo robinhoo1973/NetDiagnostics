@@ -2,6 +2,9 @@
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
+#if defined(PLATFORM_IOS)
+#include <ifaddrs.h>
+#endif
 #include "Common/Model/DiagNames.h"
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
@@ -225,6 +228,39 @@ bool AppState::isGroupActive(int groupInt) const {
     return m_activeGroups.contains(groupInt);
 }
 
+// ── Cellular detection ─────────────────────────────────────────────────────
+bool AppState::isCellularData() const {
+#if defined(PLATFORM_IOS)
+    // iOS: check for pdp_ip* interfaces (Packet Data Protocol = cellular)
+    struct ifaddrs* ifs = nullptr;
+    if (getifaddrs(&ifs) != 0 || !ifs) return false;
+    bool found = false;
+    for (auto* p = ifs; p; p = p->ifa_next) {
+        if (p->ifa_name && strncmp(p->ifa_name, "pdp_ip", 6) == 0
+            && (p->ifa_flags & IFF_UP) && (p->ifa_flags & IFF_RUNNING)) {
+            found = true; break;
+        }
+    }
+    freeifaddrs(ifs);
+    return found;
+#elif defined(PLATFORM_ANDROID)
+    // Android: simplified — if no WiFi, assume cellular
+    return false;  // requires JNI ConnectivityManager; defer to mobile check
+#else
+    return false;  // desktop — not applicable
+#endif
+}
+
+// ── Continue after cellular warning ─────────────────────────────────────────
+void AppState::continueAfterCellularWarn() {
+    _cellularWarnVisible = false;
+    emit cellularWarnVisibleChanged();
+    // Skip cellular check on re-entry — user already approved
+    _cellularApproved = true;
+    runDiagnostics();
+    _cellularApproved = false;
+}
+
 // ── Run diagnostics ────────────────────────────────────────────────────────
 void AppState::runDiagnostics() {
     // Force-reset if stuck from a previous run
@@ -234,6 +270,18 @@ void AppState::runDiagnostics() {
         m_runStatus = RunStatus::Idle;
         m_runGeneration.fetch_add(1, std::memory_order_release);
     }
+
+    // 5WHY: G3 Internet tests make real network requests (DNS, HTTP, DoH).
+    // On cellular, warn the user before running to avoid unexpected data usage.
+    // The QML dialog watches cellularWarnVisible; continueAfterCellularWarn()
+    // resumes execution after user confirmation.
+    if (!_cellularApproved && isCellularData() && m_configCtrl
+        && m_configCtrl->isGroupAnyEnabled(static_cast<int>(DiagGroup::G3))) {
+        _cellularWarnVisible = true;
+        emit cellularWarnVisibleChanged();
+        return;
+    }
+
     TRACE(" runDiagnostics start target='%s'\n", m_targetModel->target().toUtf8().constData());
 
     // Clear probe cache before each diagnostic run

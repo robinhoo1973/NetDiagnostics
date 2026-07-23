@@ -118,7 +118,11 @@ public:
     QStringList groupLabels() const;
 
     // ── Invokable methods (callable from QML) ──────────────────────────────
-    // NOTE: runDiagnostics/cancel → TODO: extract to DiagnosticsController
+    Q_INVOKABLE bool isCellularData() const;  // true if active connection is cellular
+    Q_PROPERTY(bool cellularWarnVisible READ cellularWarnVisible WRITE setCellularWarnVisible NOTIFY cellularWarnVisibleChanged)
+    bool cellularWarnVisible() const { return _cellularWarnVisible; }
+    void setCellularWarnVisible(bool v) { if (v != _cellularWarnVisible) { _cellularWarnVisible = v; emit cellularWarnVisibleChanged(); } }
+    Q_INVOKABLE void continueAfterCellularWarn();
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();
     // NOTE: diag/group config → delegated to ConfigurationController::config()
@@ -218,6 +222,7 @@ signals:
     void groupChanged();
     void diagCompleted(int diagIdInt);
     void diagFailed(int diagIdInt);     // Phase 3: emitted when status is Fail or Error
+    void cellularWarnVisibleChanged();
     void resultsReset();
     void stateVersionChanged();
     void languageChanged();
@@ -269,6 +274,8 @@ private:
     QString m_currentDiagName;
     QString m_errorMessage;
     QString m_targetError;
+    bool _cellularWarnVisible = false;
+    bool _cellularApproved = false;   // suppress cellular check on re-entry
     int m_totalDiags = 0;
 
     // MVC Controllers (own page-specific logic and sub-objects)
