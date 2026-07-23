@@ -67,9 +67,8 @@ Item {
                         spacing: 6
                         Repeater {
                             model: [
-                                { label: Tr.themeSystem, mode: ThemeEngine.sysMode },
-                                { label: Tr.themeLight,  mode: ThemeEngine.litMode },
-                                { label: Tr.themeDark,   mode: ThemeEngine.drkMode }
+                                { label: Tr.themeLight,  mode: ThemeEngine.litMode, icon: "brightness" },
+                                { label: Tr.themeDark,   mode: ThemeEngine.drkMode, icon: "moon" }
                             ]
                             delegate: Rectangle {
                                 // Adaptive: fill available RowLayout space evenly
@@ -85,13 +84,23 @@ Item {
                                     color: ThemeEngine.mode === modelData.mode
                                            ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard
                                 }
-                                Label {
+                                ColumnLayout {
                                     anchors.centerIn: parent
-                                    text: modelData.label
-                                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                                    font.weight: ThemeEngine.mode === modelData.mode ? Font.DemiBold : Font.Normal
-                                    color: ThemeEngine.mode === modelData.mode
-                                           ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                    spacing: 2
+                                    AppIcon {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        name: modelData.icon; size: 14
+                                        color: ThemeEngine.mode === modelData.mode
+                                               ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                    }
+                                    Label {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        text: modelData.label
+                                        font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                                        font.weight: ThemeEngine.mode === modelData.mode ? Font.DemiBold : Font.Normal
+                                        color: ThemeEngine.mode === modelData.mode
+                                               ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                    }
                                 }
                                 // 5WHY: MouseArea-only controls lack keyboard accessibility
                                 // (WCAG 2.1 SC 2.1.1). Add Keys.onPressed for Enter/Space.
