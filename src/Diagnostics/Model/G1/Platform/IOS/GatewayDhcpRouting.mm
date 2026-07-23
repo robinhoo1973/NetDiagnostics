@@ -754,32 +754,30 @@ QVariantMap iosCellularInfo()
                     sims.append(sim);
                 }
                 // Second pass: if any SIM lacks a RAT match, scan rats for
-                // orphaned entries (RAT values not yet assigned to any SIM).
+                // orphaned entries and assign them to unmatched SIMs.
+                // 5WHY: Used a QSet<QString> of already-assigned raw RAT strings
+                // to skip duplicates.  When both SIMs are on the same technology
+                // (e.g. both "LTE"), the second entry was skipped because its
+                // raw value matched the first — leaving the active-SIM unmatched.
+                // Now tracks which rats KEYS were consumed instead of raw values.
                 bool hasUnmatched = false;
                 for (int i = 0; i < sims.size(); ++i)
                     if (!sims[i].toMap().value("_ratMatched").toBool()) { hasUnmatched = true; break; }
                 if (hasUnmatched && rats && rats.count > 0) {
-                    // Build set of already-assigned raw RAT strings
-                    QSet<QString> assigned;
-                    for (int i = 0; i < sims.size(); ++i) {
-                        auto m = sims[i].toMap();
-                        if (m.value("_ratMatched").toBool())
-                            assigned.insert(m.value("radioAccessRaw").toString());
-                    }
+                    QSet<NSString*> consumedKeys;
                     for (NSString* rk in rats) {
-                        if (!rats[rk]) continue;  // skip nil values
-                        QString raw = QString::fromNSString(rats[rk]);
-                        if (!assigned.contains(raw)) {
-                            // Assign this orphaned RAT to the first unmatched SIM
-                            for (int i = 0; i < sims.size(); ++i) {
-                                QVariantMap m = sims[i].toMap();
-                                if (!m.value("_ratMatched").toBool()) {
-                                    m["radioAccess"] = QString::fromNSString(radioAccessLabel(rats[rk]));
-                                    m["radioAccessRaw"] = raw;
-                                    m["_ratMatched"] = true;
-                                    sims[i] = m;
-                                    break;
-                                }
+                        if (!rats[rk]) continue;
+                        if (consumedKeys.contains(rk)) continue;
+                        consumedKeys.insert(rk);
+                        // Assign this rats entry to the first unmatched SIM
+                        for (int i = 0; i < sims.size(); ++i) {
+                            QVariantMap m = sims[i].toMap();
+                            if (!m.value("_ratMatched").toBool()) {
+                                m["radioAccess"] = QString::fromNSString(radioAccessLabel(rats[rk]));
+                                m["radioAccessRaw"] = QString::fromNSString(rats[rk]);
+                                m["_ratMatched"] = true;
+                                sims[i] = m;
+                                break;
                             }
                         }
                     }
