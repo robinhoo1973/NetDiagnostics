@@ -50,7 +50,7 @@ Item {
             Item { Layout.preferredHeight: 24 }
 
             // ── Appearance Section ────────────────────────────────────
-            SectionHeader { iconName: "tune"; title: Tr.appearanceSection }
+            SectionHeader { iconName: "brightness"; title: Tr.appearanceSection }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: themeCol.implicitHeight + 32; radius: 12
