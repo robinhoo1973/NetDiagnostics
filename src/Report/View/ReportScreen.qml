@@ -226,7 +226,10 @@ Item {
         color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.previewVisible
         z: 1000
-        MouseArea { anchors.fill: parent } // absorb background clicks
+        // 5WHY: Overlay was modal — background MouseArea swallowed clicks
+        // without closing.  Now clicking outside the card dismisses the
+        // preview (same as clicking the close button).
+        MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false }
 
         Rectangle {
             anchors {
@@ -234,6 +237,9 @@ Item {
                 margins: page.isMobile ? 0 : 8
             }
             radius: page.isMobile ? 0 : 12; color: ThemeEngine.colors.card
+            // Absorb clicks inside the card so they don't reach the background
+            // MouseArea and dismiss the overlay
+            MouseArea { anchors.fill: parent }
             clip: true
             border { width: page.isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
 
@@ -372,7 +378,7 @@ Item {
         color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
         visible: page.shareStage !== 0
         z: 1100
-        MouseArea { anchors.fill: parent } // absorb background clicks
+        MouseArea { anchors.fill: parent; onClicked: page.shareStage = 0 }
 
         Rectangle {
             anchors.centerIn: parent

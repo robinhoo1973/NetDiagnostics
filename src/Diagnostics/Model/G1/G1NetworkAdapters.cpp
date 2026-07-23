@@ -131,8 +131,9 @@ DiagnosticResult networkAdapters(DiagId id) {
         } else {
             if (hasNonEmptyValue(cell, "carrierName"))
                 out.append(QStringLiteral("  Carrier: %1").arg(cell["carrierName"].toString()));
-            if (hasNonEmptyValue(cell, "radioAccess"))
-                out.append(QStringLiteral("  Radio Access: %1").arg(cell["radioAccess"].toString()));
+            // 5WHY: same gating bug as G1CellularInfo — inactive SIMs have no radioAccess
+            out.append(QStringLiteral("  Radio Access: %1").arg(
+                hasNonEmptyValue(cell, "radioAccess") ? cell["radioAccess"].toString() : QStringLiteral("(not available)")));
         }
         const QString cellIp = iosInterfaceIPv4(QStringLiteral("pdp_ip0"));
         const QString cellGw = iosGatewayForInterface(QStringLiteral("pdp_ip0"));
