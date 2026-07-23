@@ -271,8 +271,6 @@ Item {
             implicitHeight: cellCol.implicitHeight + 48
             radius: 20; color: ThemeEngine.colors.card
             border { width: 1; color: ThemeEngine.colors.borderSubtle }
-            // Inner card absorbs clicks
-            MouseArea { anchors.fill: parent }
             ColumnLayout {
                 id: cellCol
                 anchors { left: parent.left; right: parent.right; top: parent.top; margins: 28 }
