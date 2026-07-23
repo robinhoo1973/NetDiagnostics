@@ -242,8 +242,12 @@ bool AppState::isCellularData() const {
         bool up = (p->ifa_flags & IFF_UP) && (p->ifa_flags & IFF_RUNNING);
         if (!up) continue;
         if (strncmp(p->ifa_name, "pdp_ip", 6) == 0) hasCellular = true;
+        // 5WHY: Some WiFi interfaces only have IPv6 (AF_INET6) on certain
+        // carriers/configs.  Check for any valid address family — the presence
+        // of an IP on an en* interface means the interface is provisioned.
         if (strncmp(p->ifa_name, "en", 2) == 0
-            && p->ifa_addr && p->ifa_addr->sa_family == AF_INET) hasWiFi = true;
+            && p->ifa_addr && (p->ifa_addr->sa_family == AF_INET
+                            || p->ifa_addr->sa_family == AF_INET6)) hasWiFi = true;
     }
     freeifaddrs(ifs);
     return hasCellular && !hasWiFi;  // only warn if cellular is the sole connection

@@ -263,8 +263,8 @@ Item {
         parent: page.parent ? page.parent : page; anchors.fill: parent
         color: Qt.alpha(ThemeEngine.colors.surface, 0.82)
         visible: appState.cellularWarnVisible; z: 1150
-        // Backdrop: tap to dismiss (= cancel)
-        MouseArea { anchors.fill: parent; onClicked: { appState.cellularWarnVisible = false } }
+        // Backdrop: tap to dismiss → cancel entire diagnostic run
+        MouseArea { anchors.fill: parent; onClicked: { appState.cellularWarnVisible = false; appState.cancel() } }
         Rectangle {
             anchors.centerIn: parent
             width: Math.min(380, parent.width * 0.88)
@@ -319,7 +319,7 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: { appState.cellularWarnVisible = false }
+                            onClicked: { appState.cellularWarnVisible = false; appState.cancel() }
                         }
                     }
                     // Continue — prominent filled
