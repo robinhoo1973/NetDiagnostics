@@ -261,66 +261,81 @@ Item {
     Rectangle {
         id: cellularDialog
         parent: page.parent ? page.parent : page; anchors.fill: parent
-        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.82)
         visible: appState.cellularWarnVisible; z: 1150
+        // Backdrop: tap to dismiss (= cancel)
         MouseArea { anchors.fill: parent; onClicked: { appState.cellularWarnVisible = false } }
         Rectangle {
             anchors.centerIn: parent
-            width: Math.min(420, parent.width * 0.92)
-            implicitHeight: cellCol.implicitHeight + 40
-            radius: 14; color: ThemeEngine.colors.card
-            border { width: 1.5; color: ThemeEngine.colors.borderFocused }
+            width: Math.min(380, parent.width * 0.88)
+            implicitHeight: cellCol.implicitHeight + 48
+            radius: 20; color: ThemeEngine.colors.card
+            border { width: 1; color: ThemeEngine.colors.borderSubtle }
+            // Inner card absorbs clicks
+            MouseArea { anchors.fill: parent }
             ColumnLayout {
                 id: cellCol
-                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
-                spacing: 12
-                // Icon badge
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 28 }
+                spacing: 16
+                // Icon — signal/cellular indicator
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 56; implicitHeight: 56; radius: 28
-                    color: Qt.alpha(ThemeEngine.warnYellow, 0.12)
-                    border { width: 1.5; color: Qt.alpha(ThemeEngine.warnYellow, 0.35) }
+                    implicitWidth: 64; implicitHeight: 64; radius: 32
+                    color: Qt.alpha(ThemeEngine.warnYellow, 0.10)
                     AppIcon {
                         anchors.centerIn: parent
-                        name: "warning"; size: 28
+                        name: "wifi"; size: 32
                         color: ThemeEngine.warnYellow
                     }
                 }
+                // Title
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: Tr.cellularWarnTitle
-                    font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 18
+                    font.weight: Font.Bold; color: ThemeEngine.textPrimary
                 }
+                // Body — context-aware: mentions G3 tests are next
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: Tr.cellularWarnBody
-                    font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 13
+                    color: ThemeEngine.textSecondary; lineHeight: 1.5; wrapMode: Text.WordWrap
                 }
+                // Buttons
                 RowLayout {
-                    Layout.topMargin: 8; spacing: 12
-                    Layout.alignment: Qt.AlignHCenter
+                    Layout.topMargin: 4; spacing: 12
+                    Layout.fillWidth: true
+                    // Cancel — subtle outline
                     Rectangle {
-                        implicitWidth: cancelBtn.implicitWidth + 24; implicitHeight: 36; radius: 8
-                        color: Qt.alpha(ThemeEngine.textSecondary, 0.10)
-                        border { width: 1; color: Qt.alpha(ThemeEngine.textSecondary, 0.25) }
+                        Layout.fillWidth: true; implicitHeight: 44; radius: 12
+                        color: "transparent"
+                        border { width: 1.5; color: Qt.alpha(ThemeEngine.textSecondary, 0.30) }
                         Label {
-                            id: cancelBtn
                             anchors.centerIn: parent
-                            text: Tr.cellularCancel; font.pixelSize: 13; font.weight: Font.Medium
-                            color: ThemeEngine.textSecondary
+                            text: Tr.cellularCancel
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 14
+                            font.weight: Font.Medium; color: ThemeEngine.textSecondary
                         }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { appState.cellularWarnVisible = false } }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: { appState.cellularWarnVisible = false }
+                        }
                     }
+                    // Continue — prominent filled
                     Rectangle {
-                        implicitWidth: contBtn.implicitWidth + 24; implicitHeight: 36; radius: 8
-                        color: ThemeEngine.warnYellow
+                        Layout.fillWidth: true; implicitHeight: 44; radius: 12
+                        color: ThemeEngine.cyan
                         Label {
-                            id: contBtn
                             anchors.centerIn: parent
-                            text: Tr.cellularContinue; font.pixelSize: 13; font.weight: Font.Bold
-                            color: "#0F172A"
+                            text: Tr.cellularContinue
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 14
+                            font.weight: Font.Bold; color: "#0F172A"
                         }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: appState.continueAfterCellularWarn }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: appState.continueAfterCellularWarn
+                        }
                     }
                 }
             }

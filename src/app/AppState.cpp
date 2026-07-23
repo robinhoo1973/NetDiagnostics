@@ -231,20 +231,23 @@ bool AppState::isGroupActive(int groupInt) const {
 // ── Cellular detection ─────────────────────────────────────────────────────
 bool AppState::isCellularData() const {
 #if defined(PLATFORM_IOS)
-    // iOS: check for pdp_ip* interfaces (Packet Data Protocol = cellular)
+    // iOS: check for pdp_ip* interfaces (Packet Data Protocol = cellular).
+    // Also check for active WiFi (en* with UP+RUNNING) — if WiFi is active,
+    // treat as non-cellular regardless of pdp_ip state (dual-SIM standby).
     struct ifaddrs* ifs = nullptr;
     if (getifaddrs(&ifs) != 0 || !ifs) return false;
-    bool found = false;
+    bool hasCellular = false, hasWiFi = false;
     for (auto* p = ifs; p; p = p->ifa_next) {
-        if (p->ifa_name && strncmp(p->ifa_name, "pdp_ip", 6) == 0
-            && (p->ifa_flags & IFF_UP) && (p->ifa_flags & IFF_RUNNING)) {
-            found = true; break;
-        }
+        if (!p->ifa_name) continue;
+        bool up = (p->ifa_flags & IFF_UP) && (p->ifa_flags & IFF_RUNNING);
+        if (!up) continue;
+        if (strncmp(p->ifa_name, "pdp_ip", 6) == 0) hasCellular = true;
+        if (strncmp(p->ifa_name, "en", 2) == 0
+            && p->ifa_addr && p->ifa_addr->sa_family == AF_INET) hasWiFi = true;
     }
     freeifaddrs(ifs);
-    return found;
+    return hasCellular && !hasWiFi;  // only warn if cellular is the sole connection
 #elif defined(PLATFORM_ANDROID)
-    // Android: simplified — if no WiFi, assume cellular
     return false;  // requires JNI ConnectivityManager; defer to mobile check
 #else
     return false;  // desktop — not applicable
@@ -255,9 +258,10 @@ bool AppState::isCellularData() const {
 void AppState::continueAfterCellularWarn() {
     _cellularWarnVisible = false;
     emit cellularWarnVisibleChanged();
-    // Skip cellular check on re-entry — user already approved
+    // Skip cellular check on re-entry — user already approved.
+    // Resume from the current group (G3 was paused in startNextGroup).
     _cellularApproved = true;
-    runDiagnostics();
+    startNextGroup();
     _cellularApproved = false;
 }
 
@@ -269,17 +273,6 @@ void AppState::runDiagnostics() {
         cancel();
         m_runStatus = RunStatus::Idle;
         m_runGeneration.fetch_add(1, std::memory_order_release);
-    }
-
-    // 5WHY: G3 Internet tests make real network requests (DNS, HTTP, DoH).
-    // On cellular, warn the user before running to avoid unexpected data usage.
-    // The QML dialog watches cellularWarnVisible; continueAfterCellularWarn()
-    // resumes execution after user confirmation.
-    if (!_cellularApproved && isCellularData() && m_configCtrl
-        && m_configCtrl->isGroupAnyEnabled(static_cast<int>(DiagGroup::G3))) {
-        _cellularWarnVisible = true;
-        emit cellularWarnVisibleChanged();
-        return;
     }
 
     TRACE(" runDiagnostics start target='%s'\n", m_targetModel->target().toUtf8().constData());
@@ -407,6 +400,17 @@ void AppState::startNextGroup() {
 
     auto& gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
+
+    // 5WHY: G3 Internet tests make real network requests (DNS, HTTP, DoH).
+    // Check at the G2→G3 boundary (not at runDiagnostics start) so G1/G2
+    // complete first, and only warn when cellular is the sole connection.
+    if (!_cellularApproved && gt.group == DiagGroup::G3 && isCellularData()
+        && m_configCtrl && m_configCtrl->isGroupAnyEnabled(static_cast<int>(DiagGroup::G3))) {
+        _cellularWarnVisible = true;
+        emit cellularWarnVisibleChanged();
+        return;  // pause — continueAfterCellularWarn() will resume
+    }
+
     m_activeGroupDone.store(0);
     m_resultsModel->setCurrentGroup(m_currentGroupIdx);  // spinner for this group
     bumpVersion();
