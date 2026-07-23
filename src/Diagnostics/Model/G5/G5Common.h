@@ -16,7 +16,6 @@ typedef SSIZE_T ssize_t;
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QTcpSocket>
-#include <cstring>
 #include <cstdio>
 #include "Common/Utils/NetUtil.h"  // cross-platform closeSocket, setSocketNonBlocking etc.
 

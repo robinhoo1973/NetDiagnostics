@@ -13,7 +13,7 @@
 #include <QDir>
 #include <QRegularExpression>
 #include <QProcess>
-#include <cstring>
+
 #if defined(_WIN32)
 #include <winsock2.h>
 #include <ws2tcpip.h>
