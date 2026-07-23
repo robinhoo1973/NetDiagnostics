@@ -288,12 +288,12 @@ Item {
                 }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: "Mobile Data Warning"
+                    text: Tr.cellularWarnTitle
                     font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary
                 }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: "You are on cellular data. G3 Internet tests may consume data.\nContinue?"
+                    text: Tr.cellularWarnBody
                     font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap
                 }
                 RowLayout {
@@ -306,7 +306,7 @@ Item {
                         Label {
                             id: cancelBtn
                             anchors.centerIn: parent
-                            text: "Cancel"; font.pixelSize: 13; font.weight: Font.Medium
+                            text: Tr.cellularCancel; font.pixelSize: 13; font.weight: Font.Medium
                             color: ThemeEngine.textSecondary
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { appState.cellularWarnVisible = false } }
@@ -317,7 +317,7 @@ Item {
                         Label {
                             id: contBtn
                             anchors.centerIn: parent
-                            text: "Continue"; font.pixelSize: 13; font.weight: Font.Bold
+                            text: Tr.cellularContinue; font.pixelSize: 13; font.weight: Font.Bold
                             color: "#0F172A"
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: appState.continueAfterCellularWarn }
