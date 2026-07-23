@@ -102,6 +102,10 @@ Item {
     readonly property string dialogCancel: t("Cancel", "Annuler", "Abbrechen", "Отмена", "Annulla", "取消", "取消", "Cancelar", "Cancelar")
     readonly property string reportResultsAvailable: t(" results available", " résultats disponibles", " Ergebnisse verfügbar", " результатов", " risultati disponibili", " 个结果可用", " 個結果可用", " resultados disponibles", " resultados disponíveis")
     readonly property string reportNoResults: t("No diagnostic results", "Aucun résultat de diagnostic", "Keine Diagnoseergebnisse", "Нет результатов", "Nessun risultato", "无诊断结果", "無診斷結果", "Sin resultados de diagnóstico", "Sem resultados de diagnóstico")
+    readonly property string cellularWarnTitle: t("Mobile Data Warning", "Avertissement données mobiles", "Mobile Datenwarnung", "Предупреждение о мобильных данных", "Avviso dati mobili", "移动数据警告", "流動數據警告", "Advertencia de datos móviles", "Aviso de dados móveis")
+    readonly property string cellularWarnBody: t("You are on cellular data. G3 Internet tests may consume data.\nContinue?", "Vous utilisez les données mobiles. Les tests Internet G3 peuvent consommer des données.\nContinuer ?", "Sie nutzen mobile Daten. G3-Internettests können Daten verbrauchen.\nFortfahren?", "Вы используете мобильные данные. Интернет-тесты G3 могут расходовать трафик.\nПродолжить?", "Stai usando dati mobili. I test Internet G3 potrebbero consumare dati.\nContinuare?", "您正在使用移动数据。G3 互联网测试可能会消耗流量。\n继续？", "您正在使用流動數據。G3 互聯網測試可能會消耗流量。\n繼續？", "Estás usando datos móviles. Las pruebas G3 pueden consumir datos.\n¿Continuar?", "Você está usando dados móveis. Os testes G3 podem consumir dados.\nContinuar?")
+    readonly property string cellularCancel: t("Cancel", "Annuler", "Abbrechen", "Отмена", "Annulla", "取消", "取消", "Cancelar", "Cancelar")
+    readonly property string cellularContinue: t("Continue", "Continuer", "Fortfahren", "Продолжить", "Continua", "继续", "繼續", "Continuar", "Continuar")
 
     // ── Target Analysis ──
     readonly property string targetAnalysis: t("Target Analysis", "Analyse de la cible", "Zielanalyse", "Анализ цели", "Analisi obiettivo", "目标分析", "目標分析", "Análisis del objetivo", "Análise do alvo")
