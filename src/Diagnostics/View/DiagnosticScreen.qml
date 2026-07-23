@@ -332,7 +332,7 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: appState.continueAfterCellularWarn
+                            onClicked: appState.continueAfterCellularWarn()
                         }
                     }
                 }
