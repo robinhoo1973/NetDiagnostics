@@ -597,7 +597,6 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
     // to max(timeoutMs).  std::thread is used INSTEAD of QtConcurrent
     // because this function may be called from within a QtConcurrent::run
     // context (parallel domains in dnsIntegrity).  QtConcurrent uses a
-    // fixed-size thread pool; nested .run() + .result() blocking can
     // Parallel DoH: std::thread avoids QtConcurrent pool deadlock (nested callers).
     // Exceptions caught in thread body; std::vector provides RAII join on scope exit.
     static const int kResolverCount = sizeof(kResolvers) / sizeof(kResolvers[0]);
