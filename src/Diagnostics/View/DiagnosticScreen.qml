@@ -22,7 +22,7 @@ Item {
     function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
 
     // ── Mobile data warning ──────────────────────────────────────────
-    function cancelCellularRun() { appState.continueAfterCellularWarn = null; /* no-op — just dismiss */ }
+    // Cancel = just hide the dialog (cellularWarnVisible=false via QML binding)
 
     Connections {
         target: appState
