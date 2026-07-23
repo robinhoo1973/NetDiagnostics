@@ -21,9 +21,11 @@ Item {
         mipmap: true
         visible: false
     }
-    // MultiEffect colorization — applies root.color to the SVG source.
-    // SVGs with currentColor render black in Qt SVG, so colorization=1.0
-    // fully replaces the source color with the tint while preserving alpha.
+    // MultiEffect colorization at 1.0 replaces hue+saturation but PRESERVES
+    // source luminance.  SVG icons MUST use white strokes (#FFFFFF, 100%
+    // luminance) so the colorized result is the full-brightness target color.
+    // Icons using currentColor (0% luminance) or #C0C0D0 (75% = pastel) were
+    // invisible or washed out on dark backgrounds — fixed in SVG sources.
     MultiEffect {
         anchors.fill: parent
         source: iconImg

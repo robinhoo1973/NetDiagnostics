@@ -1,6 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <!-- PDF document icon -->
+<!-- 5WHY: MultiEffect.colorization preserves source luminance. currentColor
+     renders black (0% luminance) in Qt SVG, so colorized result was near-black
+     on any background — invisible on dark themes.  White (100% luminance)
+     produces full-brightness target color via MultiEffect. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
   <polyline points="14 2 14 8 20 8"/>
-  <text x="7" y="17" font-size="5" font-weight="bold" fill="currentColor" stroke="none">PDF</text>
+  <text x="7" y="17" font-size="5" font-weight="bold" fill="#FFFFFF" stroke="none">PDF</text>
 </svg>
