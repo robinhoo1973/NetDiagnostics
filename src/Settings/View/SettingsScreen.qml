@@ -205,7 +205,7 @@ Item {
                 id: restoreSection
                 visible: ThemeEngine.isMobile
                 Layout.fillWidth: true; spacing: 0
-                SectionHeader { iconName: "badge-check"; title: Tr.subscribeTitle }
+                SectionHeader { iconName: "check"; title: Tr.subscribeTitle }
                 Item { Layout.preferredHeight: 12 }
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: restoreBtnCol.implicitHeight + 32; radius: 12
