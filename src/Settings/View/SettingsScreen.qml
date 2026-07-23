@@ -33,7 +33,7 @@ Item {
         border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "tune"; size: 20; color: ThemeEngine.colors.primary }
+            AppIcon { name: "gear"; size: 20; color: ThemeEngine.colors.primary }
             Item { width: 10 }
             Label { text: Tr.settings; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
         }
@@ -50,7 +50,7 @@ Item {
             Item { Layout.preferredHeight: 24 }
 
             // ── Appearance Section ────────────────────────────────────
-            SectionHeader { iconName: "settings"; title: Tr.appearanceSection }
+            SectionHeader { iconName: "tune"; title: Tr.appearanceSection }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: themeCol.implicitHeight + 32; radius: 12

@@ -95,7 +95,7 @@ Item {
                             { screen: "dashboard",  icon: "dashboard" },
                             { screen: "diagnostic", icon: "diagnostics" },
                             { screen: "config",     icon: "config" },
-                            { screen: "settings",   icon: "tune" }
+                            { screen: "settings",   icon: "gear" }
                         ]
                         delegate: ItemDelegate {
                             id: navBtn
