@@ -27,8 +27,6 @@ set(SOURCES
     src/Common/Model/DiagnosticResult.cpp
     src/Common/Model/CaptureFeatureGate.cpp
     src/Common/Platform/PlatformCapture.cpp
-    src/Common/Platform/PlatformKeepAwake.cpp
-    src/Common/Platform/PlatformRecording.cpp
     src/EvidenceCapture/CaptureService.cpp
     src/EvidenceCapture/CaptureStateMachine.cpp
     src/EvidenceCapture/NavigationAdapter.cpp
@@ -105,6 +103,25 @@ set(SOURCES
     src/Diagnostics/Model/G5/G5Ldap.cpp
     src/Diagnostics/Model/G5/G5Mqtt.cpp
 )
+
+# ── Desktop-only platform sources (QProcess not available on iOS/Android) ──
+# 5WHY: PlatformRecording + PlatformKeepAwake use QProcess which doesn't
+# exist on iOS/Android. Guarding them here instead of with #ifdef stubs
+# avoids the need for QProcess headers at all on mobile platforms.
+if(NOT IOS AND NOT ANDROID)
+    list(APPEND SOURCES
+        src/Common/Platform/PlatformKeepAwake.cpp
+        src/Common/Platform/PlatformRecording.cpp
+    )
+else()
+    # 5WHY: QProcess is not available on iOS/Android. Use stub implementations
+    # so the linker can resolve platformStartRecording/StopRecording symbols
+    # without pulling in QProcess headers.
+    list(APPEND SOURCES
+        src/Common/Platform/PlatformKeepAwakeStubs.cpp
+        src/Common/Platform/PlatformRecordingStubs.cpp
+    )
+endif()
 
 # ── Automated testing harness (ND_TESTING) ──────────────────────────────
 if(ND_TESTING)

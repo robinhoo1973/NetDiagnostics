@@ -23,7 +23,6 @@
 #include <QDebug>
 #include <QUrl>
 #include <QStorageInfo>
-#include <QProcess>
 
 // 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
 // risking credential leakage (user:pass@host) and token exposure (query params).
