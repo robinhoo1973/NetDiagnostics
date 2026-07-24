@@ -1,6 +1,6 @@
 import QtQuick
 
-// ── Shared font loading — used by main.qml and SimulatorScreen.qml ──
+// ── Shared font loading — used by main.qml ──
 // Place one instance in each ApplicationWindow root; Qt deduplicates
 // the underlying TTF registrations across windows.
 Item {

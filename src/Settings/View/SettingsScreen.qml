@@ -304,7 +304,7 @@ Item {
                     Item { Layout.preferredHeight: 8 }
                     AboutRow { aboutIcon: "🌙"; aboutText: Tr.darkTheme }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "🖥"; aboutText: Tr.simulatorMode }
+
                 }
             }
             Item { Layout.preferredHeight: 24 }

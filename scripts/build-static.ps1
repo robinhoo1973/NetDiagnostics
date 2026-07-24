@@ -2,7 +2,7 @@
 .SYNOPSIS
     NetDiagnostic Static Build 鈥?Fully static linked compilation (zero non-OS DLL)
 .DESCRIPTION
-    Builds production + simulator executables with truly static linking using
+    Builds production executable with truly static linking using
     the MSYS2 pre-built qt6-static package at /ucrt64/qt6-static.
 
     All non-Qt dependencies (zlib, brotli, pcre2, freetype, harfbuzz, libpng,
@@ -17,9 +17,9 @@
     All build logs are written to dist/.
 
 .PARAMETER ProdOnly
-    Build only production version (default: both)
+    Build only production version (default: true, simulator removed)
 .PARAMETER SimOnly
-    Build only simulator version (default: both)
+    DEPRECATED: simulator feature removed, this flag has no effect
 .PARAMETER Clean
     Clean previous build artifacts before building
 .PARAMETER NoCleanTemp
@@ -31,11 +31,11 @@
 
 .EXAMPLE
     .\scripts\build-static.ps1
-    Build both production + simulator (fully static, zero non-OS DLL)
+    Build production (fully static, zero non-OS DLL)
 
 .EXAMPLE
-    .\scripts\build-static.ps1 -ProdOnly -Clean
-    Clean then build production only
+    .\scripts\build-static.ps1 -Clean
+    Clean then build production
 #>
 
 param(
@@ -239,17 +239,16 @@ function Initialize-BuildEnv {
 
     # Output file names
     $script:PROD_NAME = "netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH)$($script:EXE_EXT)"
-    $script:SIM_NAME  = "netdiag-$($script:BUILD_OS)-$($script:BUILD_ARCH)-sim$($script:EXE_EXT)"
 }
 
 # ============================================================================
-# 5. App Static Build (Production + Simulator in parallel)
+# 5. App Static Build (Production)
 # ============================================================================
 function Invoke-AppBuild {
-    Write-Step "Static Build (Production + Simulator)"
+    Write-Step "Static Build (Production)"
 
-    $build_prod = -not $SimOnly
-    $build_sim  = -not $ProdOnly
+    $build_prod = $true
+    $build_sim  = $false  # Simulator feature removed
 
     $build_number = (Get-Date -Format "yyyyMMdd") + "00"
 
@@ -451,9 +450,6 @@ check_exe() {
 
 check_exe "`$DIST_DIR/$($script:PROD_NAME)" "Production"
 echo ""
-check_exe "`$DIST_DIR/$($script:SIM_NAME)" "Simulator"
-
-echo ""
 
 if [ "`$FAIL" -ne 0 ]; then
     echo "=============================================================="
@@ -554,8 +550,6 @@ function Show-Report {
     Write-Host "  Run production:" -ForegroundColor Gray
     Write-Host "    .\dist\$($script:PROD_NAME)" -ForegroundColor White
     Write-Host ""
-    Write-Host "  Run simulator:" -ForegroundColor Gray
-    Write-Host "    .\dist\$($script:SIM_NAME)" -ForegroundColor White
     Write-Host ""
 
     Write-Host "  NOTE: Full G5 diagnostics enabled (static curl linked)." -ForegroundColor Green

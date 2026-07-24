@@ -47,7 +47,7 @@ jobs:
     uses: ./.github/workflows/version.yml
 
   # ===================================================================
-  # Linux x86_64 - native GCC build + simulator
+  # Linux x86_64 - native GCC build
   # ===================================================================
   linux-x86_64:
     name: Linux x86_64
@@ -94,17 +94,6 @@ jobs:
       - name: Build (production)
         run: ninja -C build net_diagnostics
 
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION=linux-x86_64 \
-            -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostics_sim
 
       - name: Build AppImage (production)
         run: |
@@ -154,41 +143,6 @@ jobs:
           mv netdiagnostics*.rpm NetDiagnostics-Linux-x86_64.rpm 2>/dev/null || true
           ls -lh NetDiagnostics-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
 
-      - name: Build AppImage (simulator)
-        run: |
-          mkdir -p AppDir-sim/usr/bin AppDir-sim/usr/share/applications AppDir-sim/usr/share/icons/hicolor/256x256/apps
-          cp build-sim/net_diagnostics_sim AppDir-sim/usr/bin/
-          cp resources/netanalysis-sim.desktop AppDir-sim/usr/share/applications/
-          cp resources/icons/netanalysis.png AppDir-sim/usr/share/icons/hicolor/256x256/apps/
-          ./linuxdeployqt-continuous-x86_64.AppImage AppDir-sim/usr/share/applications/netanalysis-sim.desktop -appimage -no-copy-copyright-files -no-translations || true
-          mv *.AppImage NetDiagnostics-Linux-x86_64-sim.AppImage 2>/dev/null || true
-
-      - name: Package deb (simulator)
-        run: |
-          mkdir -p pkg-deb-sim/usr/bin pkg-deb-sim/usr/share/applications pkg-deb-sim/usr/share/icons/hicolor/256x256/apps pkg-deb-sim/DEBIAN
-          cp build-sim/net_diagnostics_sim pkg-deb-sim/usr/bin/
-          cp resources/netanalysis-sim.desktop pkg-deb-sim/usr/share/applications/
-          cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
-          cat > pkg-deb-sim/DEBIAN/control << EOF
-          Package: netdiagnostics-sim
-          Version: ${{ needs.version.outputs.pkg_version }}
-          Architecture: amd64
-          Maintainer: ${{ env.MAINTAINER }}
-          Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
-          Description: NetDiagnostic Simulator - Network diagnostics testing tool
-          EOF
-          dpkg-deb --build pkg-deb-sim NetDiagnostics-Linux-x86_64-sim.deb
-          ls -lh NetDiagnostics-Linux-x86_64-sim.deb
-
-      - name: Package rpm (simulator)
-        run: |
-          fpm -s dir -t rpm -n netdiagnostics-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
-            --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
-            build-sim/net_diagnostics_sim=/usr/bin/net_diagnostics_sim \
-            resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
-            resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostics-sim*.rpm NetDiagnostics-Linux-x86_64-sim.rpm 2>/dev/null || true
-          ls -lh NetDiagnostics-Linux-x86_64-sim.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -202,7 +156,7 @@ jobs:
 
 
   # ===================================================================
-  # Linux arm64 - native GCC build + simulator
+  # Linux arm64 - native GCC build
   # ===================================================================
   linux-arm64:
     name: Linux arm64
@@ -250,17 +204,6 @@ jobs:
       - name: Build (production)
         run: ninja -C build net_diagnostics
 
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION=linux-arm64 \
-            -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostics_sim
 
       # linuxdeployqt does not provide an arm64 AppImage binary.
       # Fall back to the native linuxdeployqt from apt (built for arm64).
@@ -314,43 +257,6 @@ jobs:
           mv netdiagnostics*.rpm NetDiagnostics-Linux-arm64.rpm 2>/dev/null || true
           ls -lh NetDiagnostics-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
 
-      - name: Build AppImage (simulator)
-        run: |
-          if command -v linuxdeployqt &>/dev/null || sudo apt-get install -y -qq linuxdeployqt 2>/dev/null; then
-            mkdir -p AppDir-sim/usr/bin AppDir-sim/usr/share/applications AppDir-sim/usr/share/icons/hicolor/256x256/apps
-            cp build-sim/net_diagnostics_sim AppDir-sim/usr/bin/
-            cp resources/netanalysis-sim.desktop AppDir-sim/usr/share/applications/
-            cp resources/icons/netanalysis.png AppDir-sim/usr/share/icons/hicolor/256x256/apps/
-            linuxdeployqt AppDir-sim/usr/share/applications/netanalysis-sim.desktop -appimage -no-copy-copyright-files -no-translations || true
-            mv *.AppImage NetDiagnostics-Linux-arm64-sim.AppImage 2>/dev/null || true
-          fi
-
-      - name: Package deb (simulator)
-        run: |
-          mkdir -p pkg-deb-sim/usr/bin pkg-deb-sim/usr/share/applications pkg-deb-sim/usr/share/icons/hicolor/256x256/apps pkg-deb-sim/DEBIAN
-          cp build-sim/net_diagnostics_sim pkg-deb-sim/usr/bin/
-          cp resources/netanalysis-sim.desktop pkg-deb-sim/usr/share/applications/
-          cp resources/icons/netanalysis.png pkg-deb-sim/usr/share/icons/hicolor/256x256/apps/
-          cat > pkg-deb-sim/DEBIAN/control << EOF
-          Package: netdiagnostics-sim
-          Version: ${{ needs.version.outputs.pkg_version }}
-          Architecture: arm64
-          Maintainer: ${{ env.MAINTAINER }}
-          Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
-          Description: NetDiagnostic Simulator - Network diagnostics testing tool
-          EOF
-          dpkg-deb --build pkg-deb-sim NetDiagnostics-Linux-arm64-sim.deb
-          ls -lh NetDiagnostics-Linux-arm64-sim.deb
-
-      - name: Package rpm (simulator)
-        run: |
-          fpm -s dir -t rpm -n netdiagnostics-sim -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
-            --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
-            build-sim/net_diagnostics_sim=/usr/bin/net_diagnostics_sim \
-            resources/netanalysis-sim.desktop=/usr/share/applications/netanalysis-sim.desktop \
-            resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostics-sim*.rpm NetDiagnostics-Linux-arm64-sim.rpm 2>/dev/null || true
-          ls -lh NetDiagnostics-Linux-arm64-sim.rpm 2>/dev/null || echo "(rpm skipped)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -564,27 +470,13 @@ jobs:
             "-DGCC_TRUE_LIBPTHREAD=${GCC_TRUE_LIBPTHREAD}"
           )
 
-          # Configure both in parallel (independent build trees)
-          cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=OFF -B build -S . &
-          cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=ON  -B build-sim -S . &
-          wait
+          # Build production
+          cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=OFF -B build -S .
+          ninja -C build net_diagnostics
 
-          # Build both in parallel.  The simulator may fail on Qt 6.11
-          # (QQuickItem incomplete type — header layout changed); treat
-          # its failure as non-fatal so DLL verification still runs.
-          ninja -C build net_diagnostics &
-          ninja -C build-sim net_diagnostics_sim || true &
-          wait
-
-          # Post-process (strip + copy - fast, sequential)
+          # Post-process (strip + copy)
           strip build/net_diagnostics.exe
           cp build/net_diagnostics.exe dist/netdiag-win-x86_64-standalone.exe
-          if [ -f build-sim/net_diagnostics_sim.exe ]; then
-            strip build-sim/net_diagnostics_sim.exe
-            cp build-sim/net_diagnostics_sim.exe dist/netdiag-win-x86_64-sim-standalone.exe
-          else
-            echo ">>> Simulator exe skipped (Qt 6.11 header incompatibility)"
-          fi
 
       # - Enforce zero non-OS DLL dependencies -
       - name: Verify zero non-OS DLL dependencies
@@ -623,7 +515,6 @@ jobs:
           }
 
           check_exe dist/netdiag-win-x86_64-standalone.exe
-          check_exe dist/netdiag-win-x86_64-sim-standalone.exe
 
           if [ "$FAIL" -ne 0 ]; then
             echo ""
@@ -647,7 +538,6 @@ jobs:
           name: NetDiagnostics-Windows-x86_64-Static
           path: |
             dist/netdiag-win-x86_64-standalone.exe
-            dist/netdiag-win-x86_64-sim-standalone.exe
           if-no-files-found: error
 
   # ===================================================================
@@ -676,7 +566,7 @@ jobs:
             mingw-w64-ucrt-x86_64-qt6-translations
             mingw-w64-ucrt-x86_64-nsis
 
-      - name: Build Production + Simulator
+      - name: Build
         shell: msys2 {0}
         run: |
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
@@ -685,13 +575,6 @@ jobs:
             -DAPP_EDITION=dynamic \
             -B build -S .
           ninja -C build net_diagnostics
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION=dynamic \
-            -B build-sim -S .
-          ninja -C build-sim net_diagnostics_sim
 
       - name: Deploy Qt DLLs (windeployqt)
         shell: msys2 {0}
@@ -701,22 +584,6 @@ jobs:
           export PATH="$QT_BIN:$PATH"
           mkdir -p dist/installer
           cp build/net_diagnostics.exe dist/installer/
-          cp build-sim/net_diagnostics_sim.exe dist/installer/ 2>/dev/null || true
-          # Deploy Qt DLLs, plugins, and QML modules into dist/installer/.
-          # Previously this command passed --qmldir and --libdir.
-          # --qmldir was removed because Qt 6.7+ on MSYS2 no longer ships
-          # qmlimportscanner.exe (the newer 'qml' tool is used instead), and
-          # windeployqt can detect required QML modules from binary analysis.
-          # --libdir was removed so Qt DLLs stay beside the exe in dist/installer/,
-          # which is required for NSIS packaging.
-          windeployqt dist/installer/net_diagnostics.exe \
-            --no-translations \
-            --no-compiler-runtime
-          if [ -f dist/installer/net_diagnostics_sim.exe ]; then
-            windeployqt dist/installer/net_diagnostics_sim.exe \
-              --no-translations \
-              --no-compiler-runtime
-          fi
           # Copy third-party runtime DLLs that windeployqt doesn't handle
           for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
                      libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
@@ -745,7 +612,7 @@ jobs:
           if-no-files-found: error
 
   # ===================================================================
-  # macOS arm64 — Apple Silicon native build + simulator + DMG
+  # macOS arm64 — Apple Silicon native build + DMG
   # ===================================================================
   macos-arm64:
     name: macOS arm64
@@ -772,19 +639,6 @@ jobs:
       - name: Build (production)
         run: ninja -C build net_diagnostics
 
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostics_sim
-
       - name: Package DMG (production)
         run: |
           if [ -d build/net_diagnostics.app ]; then
@@ -798,14 +652,6 @@ jobs:
             hdiutil create -volname "NetDiagnostics" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
           fi
         continue-on-error: true
-
-      - name: Package DMG (simulator)
-        continue-on-error: true
-        run: |
-          mkdir -p pkg-sim/NetDiagnostic.app/Contents/MacOS
-          cp build-sim/net_diagnostics_sim pkg-sim/NetDiagnostic.app/Contents/MacOS/
-          hdiutil create -volname "NetDiagnostics Sim" -srcfolder pkg-sim/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64-sim.dmg || true
-          ls -lh NetDiagnostics-macOS-arm64-sim.dmg 2>/dev/null || echo "(sim DMG skipped)"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -1071,8 +917,6 @@ jobs:
               normalized_ext="$ext"
               [ "$normalized_ext" = "appimage" ] && normalized_ext="AppImage"
               case "$base" in
-                *-sim.*|*-sim-*)
-                  name="netdiagnostics-${os}-${arch}-sim.${normalized_ext}" ;;
                 *.appimage) name="netdiagnostics-${os}-${arch}.${normalized_ext}" ;;
                 *.deb)      name="netdiagnostics-${os}-${arch}.deb" ;;
                 *.rpm)      name="netdiagnostics-${os}-${arch}.rpm" ;;

@@ -6,7 +6,7 @@ import "widgets"
 import "theme"
 
 // ── Shared production GUI: nav bar + screen stack ─────────────────────
-// Used by both main.qml (production) and SimulatorScreen.qml (simulator)
+// Used by main.qml (production)
 
 Item {
     id: content
