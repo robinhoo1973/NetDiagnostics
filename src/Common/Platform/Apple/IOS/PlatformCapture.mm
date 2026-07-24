@@ -56,7 +56,7 @@ bool platformCaptureScreenshot(const QString& filePath) {
             @autoreleasepool {
                 UIImage* image = captureKeyWindowImage();
                 if (image) {
-                    pngData = [UIImagePNGRepresentation(image) retain];
+                    pngData = UIImagePNGRepresentation(image);
                     success = (pngData != nil);
                 }
             }
