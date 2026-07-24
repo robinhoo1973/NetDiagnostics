@@ -153,7 +153,9 @@ public:
     int languageIndex() const;
     Q_INVOKABLE void setLanguage(int index);
 
-    // Theme mode — 0=system, 1=light, 2=dark (matches ThemeEngine.sysMode/litMode/drkMode)
+    // Theme mode — 1=light, 2=dark (matches ThemeEngine.litMode/drkMode).
+    // Mode 0 (system) was removed from the UI (commit fbaebe9) and
+    // is treated as dark for backward compatibility with stored settings.
     int themeMode() const;
     Q_INVOKABLE void setThemeMode(int mode);
     Q_INVOKABLE bool isDarkMode() const { return themeMode() != 1; }
@@ -267,7 +269,7 @@ private:
     QString m_errorMessage;
     QString m_targetError;
     bool _cellularWarnVisible = false;
-    bool _cellularApproved = false;   // suppress cellular check on re-entry
+    bool _bypassCellularCheck = false;   // one-shot: suppress check for current G3 entry only
     int m_totalDiags = 0;
 
     // MVC Controllers (own page-specific logic and sub-objects)

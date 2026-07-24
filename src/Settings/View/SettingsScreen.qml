@@ -71,18 +71,20 @@ Item {
                                 { label: Tr.themeDark,   mode: ThemeEngine.drkMode, icon: "moon" }
                             ]
                             delegate: Rectangle {
+                                // 5WHY: Cache ThemeEngine.mode comparison — evaluated 6 times
+                                // in color/border/icon/label properties below.
+                                readonly property bool isActive: ThemeEngine.mode === modelData.mode
                                 // Adaptive: fill available RowLayout space evenly
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 80
                                 // 5WHY: Theme buttons were 36pt — below 44pt Apple HIG minimum.
                                 // Increased for accessible touch interaction.
-                                implicitHeight: 42; radius: ThemeEngine.radius.md
-                                color: ThemeEngine.mode === modelData.mode
-                                       ? ThemeEngine.colors.primaryContainer : "transparent"
+                                // 48pt mobile (MD3 + HIG compliant), 40pt desktop.
+                                implicitHeight: ThemeEngine.isMobile ? 48 : 40; radius: ThemeEngine.radius.md
+                                color: isActive ? ThemeEngine.colors.primaryContainer : "transparent"
                                 border {
                                     width: 1
-                                    color: ThemeEngine.mode === modelData.mode
-                                           ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard
+                                    color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard
                                 }
                                 ColumnLayout {
                                     anchors.centerIn: parent
@@ -90,20 +92,20 @@ Item {
                                     AppIcon {
                                         Layout.alignment: Qt.AlignHCenter
                                         name: modelData.icon; size: 14
-                                        color: ThemeEngine.mode === modelData.mode
-                                               ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                        color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
                                     }
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: modelData.label
                                         font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                                        font.weight: ThemeEngine.mode === modelData.mode ? Font.DemiBold : Font.Normal
-                                        color: ThemeEngine.mode === modelData.mode
-                                               ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
+                                        font.weight: isActive ? Font.DemiBold : Font.Normal
+                                        color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
                                     }
                                 }
                                 // 5WHY: MouseArea-only controls lack keyboard accessibility
                                 // (WCAG 2.1 SC 2.1.1). Add Keys.onPressed for Enter/Space.
+                                // 5WHY: Missing Accessible properties break screen-reader
+                                // (VoiceOver/TalkBack) identification of theme toggle buttons.
                                 MouseArea {
                                     id: themeBtnArea
                                     anchors.fill: parent
@@ -120,6 +122,9 @@ Item {
                                         ThemeEngine.mode = modelData.mode
                                     }
                                 }
+                                Accessible.name: modelData.label
+                                Accessible.role: Accessible.Button
+                                Accessible.description: isActive ? qsTr("Active theme") : qsTr("Switch to this theme")
                             }
                         }
                     }

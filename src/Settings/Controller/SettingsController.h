@@ -27,7 +27,9 @@ public:
     int languageIndex() const { return m_languageIndex; }
     Q_INVOKABLE void setLanguageIndex(int idx);
 
-    // Theme (0=system, 1=light, 2=dark)
+    // Theme (1=light, 2=dark).  Value 0 (system) is accepted for backward
+    // compatibility with saved settings but treated as dark — the system
+    // theme option was removed from the UI in feat(settings).
     int themeMode() const { return m_themeMode; }
     Q_INVOKABLE void setThemeMode(int mode);
 

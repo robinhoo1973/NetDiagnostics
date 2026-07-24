@@ -11,8 +11,6 @@
 
 static constexpr const char* kSettingsGroup = "AppSettings";
 
-// Forward declare AppState methods that SettingsController needs
-static bool isDarkMode();
 
 SettingsController::SettingsController(AppState* appState, QObject* parent)
     : QObject(parent), m_appState(appState)
@@ -37,7 +35,11 @@ void SettingsController::setLanguageIndex(int index) {
 }
 
 void SettingsController::setThemeMode(int mode) {
-    if (mode < 0 || mode > 2) return;
+    // Mode 0 (system) was removed from the UI (commit fbaebe9).
+    // Only valid modes are 1=light, 2=dark.  Mode 0 is rejected
+    // here (setter) but silently migrated to dark in loadSettings()
+    // for backward compatibility with stored QSettings.
+    if (mode < 1 || mode > 2) return;
     if (m_themeMode == mode) return;
     m_themeMode = mode;
     emit themeChanged();
@@ -66,7 +68,7 @@ void SettingsController::shareReport(const QString& format) {
         .filePath(QStringLiteral("NetDiagnostics_report.%1").arg(ext));
     const QString saved = (ext == QLatin1String("pdf"))
         ? m_appState->exportPdf(tmp)
-        : m_appState->exportHtml(tmp, isDarkMode());
+        : m_appState->exportHtml(tmp, m_appState->isDarkMode());
     if (saved.isEmpty()) { emit m_appState->reportShared(false); return; }
     platformShareFile(saved,
                       ext == QLatin1String("pdf") ? QStringLiteral("application/pdf")
@@ -90,7 +92,7 @@ void SettingsController::shareReport(const QString& format) {
         .filePath(QStringLiteral("NetDiagnostics_report.%1").arg(ext));
     const QString reportPath = (ext == QLatin1String("pdf"))
         ? m_appState->exportPdf(tmp)
-        : m_appState->exportHtml(tmp, isDarkMode());
+        : m_appState->exportHtml(tmp, m_appState->isDarkMode());
     if (reportPath.isEmpty()) { emit m_appState->reportShared(false); return; }
     m_appState->emailReportDesktop(reportPath);
     emit m_appState->reportShared(true);
@@ -130,7 +132,10 @@ void SettingsController::loadSettings() {
         emit languageChanged();
     }
     int theme = s.value("themeMode", 2).toInt();
-    if (theme >= 0 && theme <= 2 && theme != m_themeMode) {
+    // Migrate legacy mode=0 (system theme) to dark to prevent
+    // UX deadlock where neither light/dark button appears selected.
+    if (theme == 0) theme = 2;
+    if (theme >= 1 && theme <= 2 && theme != m_themeMode) {
         m_themeMode = theme;
         emit themeChanged();
     }
@@ -147,11 +152,3 @@ void SettingsController::saveSettings() {
     s.sync();
 }
 
-// ── Stub: dark mode detection (AppState has isDarkMode()) ────────────────
-static bool isDarkMode() {
-#if defined(Q_OS_IOS) || defined(Q_OS_ANDROID)
-    return false; // mobile always dark
-#else
-    return true;  // desktop dark
-#endif
-}

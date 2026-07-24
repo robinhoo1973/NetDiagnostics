@@ -64,7 +64,6 @@ Item {
     readonly property string realtimeDiag: t("Real-time diagnostic engine", "Moteur de diagnostic en temps réel", "Echtzeit-Diagnose-Engine", "Движок диагностики в реальном времени", "Motore di diagnostica in tempo reale", "实时诊断引擎", "實時診斷引擎", "Motor de diagnóstico en tiempo real", "Mecanismo de diagnóstico em tempo real")
     readonly property string detailedReport: t("Detailed reporting and export", "Rapports détaillés et exportation", "Detaillierte Berichte und Export", "Подробная отчетность и экспорт", "Report dettagliati ed esportazione", "详细报告和导出", "詳細報告和匯出", "Informes detallados y exportación", "Relatórios detalhados e exportação")
     readonly property string darkTheme: t("Dark theme UI", "Interface thème sombre", "Dunkles Design", "Темная тема", "Interfaccia tema scuro", "深色主题界面", "深色主題介面", "Interfaz con tema oscuro", "Interface com tema escuro")
-    readonly property string themeSystem: t("System", "Système", "System", "Система", "Sistema", "系统", "系統", "Sistema", "Sistema")
     readonly property string themeLight:  t("Light",  "Clair",    "Hell",    "Светлая", "Chiaro",  "浅色", "淺色", "Claro",  "Claro")
     readonly property string themeDark:   t("Dark",   "Sombre",   "Dunkel",  "Темная",  "Scuro",   "深色", "深色", "Oscuro", "Escuro")
 
