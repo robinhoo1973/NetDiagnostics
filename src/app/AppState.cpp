@@ -7,6 +7,7 @@
 #elif defined(PLATFORM_ANDROID)
 #include <QJniObject>
 #endif
+#include "Common/Model/CaptureFeatureGate.h"
 #include "Common/Model/DiagNames.h"
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
@@ -166,6 +167,19 @@ int AppState::languageIndex() const { return m_settingsCtrl->languageIndex(); }
 int AppState::themeMode() const { return m_settingsCtrl->themeMode(); }
 bool AppState::isPremium() const { return m_settingsCtrl->isPremium(); }
 bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInProgress(); }
+
+// ── Hidden capture feature gate ──────────────────────────────────────
+bool AppState::isCaptureFeatureEnabled() const {
+    return CaptureFeatureGate::isFeatureEnabled();
+}
+void AppState::enableCaptureFeature() {
+    CaptureFeatureGate::setFeatureEnabled(true);
+    emit captureFeatureChanged();
+}
+void AppState::disableCaptureFeature() {
+    CaptureFeatureGate::setFeatureEnabled(false);
+    emit captureFeatureChanged();
+}
 
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {

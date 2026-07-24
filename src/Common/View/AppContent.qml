@@ -12,7 +12,15 @@ Item {
     id: content
     readonly property alias stackView: stackView
     property bool compact: false // mobile: icons only, right-aligned, no close
-    property bool navBlocked: (stackView.currentItem && stackView.currentItem.overlayVisible === true) || false
+    // 5WHY: navBlocked only checked item-local overlayVisible (detailOverlay /
+    // previewOverlay), not the cross-cutting cellular-warning dialog.  If the
+    // cellular warning was showing without a detail overlay, navBlocked was
+    // false, closeCurrentOverlay() was never called, and the nav tap bypassed
+    // the dismiss+cancel logic — leaving the run paused at G2->G3 forever.
+    // Include cellularWarnVisible so ANY navigation tap while the warning is
+    // showing triggers the dismiss+cancel path in closeCurrentOverlay().
+    property bool navBlocked: (stackView.currentItem && stackView.currentItem.overlayVisible === true)
+                               || appState.cellularWarnVisible
     signal closeRequested()
 
     // 5WHY: Nav buttons were disabled when overlays were open, preventing

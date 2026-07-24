@@ -65,6 +65,9 @@ class AppState : public QObject {
     // Crash report from the previous run (detected at startup). QML can show a
     // banner offering to share/upload the report when hasCrashReport is true.
     Q_PROPERTY(bool hasCrashReport READ hasCrashReport NOTIFY crashReportChanged)
+    // Hidden capture feature (screenshot/recording) — activated by double-clicking
+    // the app icon in Settings > About. Persisted via CaptureFeatureGate/QSettings.
+    Q_PROPERTY(bool captureFeatureEnabled READ isCaptureFeatureEnabled NOTIFY captureFeatureChanged)
 
 public:
     explicit AppState(QObject* parent = nullptr);
@@ -174,6 +177,13 @@ public:
     Q_INVOKABLE QString generatePreviewPdf() const;
     Q_INVOKABLE void requestSavePath(const QString& format);
 
+    // ── Hidden capture feature (screenshot/recording) ─────────────────────
+    // Activated by double-clicking the app icon in Settings > About.
+    // Gate stored in QSettings("capture/featureEnabled"), default false.
+    Q_INVOKABLE bool isCaptureFeatureEnabled() const;
+    Q_INVOKABLE void enableCaptureFeature();   // toggles the gate ON
+    Q_INVOKABLE void disableCaptureFeature();  // toggles the gate OFF
+
     // ── Premium / sharing ──────────────────────────────────────────────────
     bool isPremium() const;
     Q_INVOKABLE void setPremium(bool v);
@@ -230,6 +240,7 @@ signals:
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
     void crashReportChanged();
+    void captureFeatureChanged();
 
 private slots:
     void onDiagFinished(DiagId id, const DiagnosticResult& result);

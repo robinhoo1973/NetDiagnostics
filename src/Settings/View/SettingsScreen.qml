@@ -269,6 +269,22 @@ Item {
                 Item { Layout.preferredHeight: 32 }
             }
 
+            // 5WHY: captureToast + captureToastTimer were inside the
+            // restoreSection ColumnLayout (visible only on mobile).
+            // On desktop the toast was never rendered — the user got no
+            // visual confirmation after double-clicking the app icon.
+            // Move them to the main setCol so they are always visible.
+            // Capture feature activation toast
+            Label {
+                id: captureToast
+                Layout.fillWidth: true
+                visible: captureToastTimer.running
+                font.family: ThemeEngine.monoFont
+                font.pixelSize: 11; color: ThemeEngine.cyan
+                Layout.topMargin: captureToast.visible ? 8 : 0
+            }
+            Timer { id: captureToastTimer; interval: 3000 }
+
             // ── About Section ──────────────────────────────────────────
             SectionHeader { iconName: "info"; title: Tr.aboutSection }
             Item { Layout.preferredHeight: 12 }
@@ -279,9 +295,72 @@ Item {
                     id: aboutCol
                     anchors { fill: parent; margins: 16 } spacing: 0
                     // App icon + name
+                    // ── Hidden capture feature: double-click the app icon to toggle ──
+                    // Enables automatic screenshot/recording during diagnostics.
+                    // Design ref: review/06_Capture_Architecture_Design.md §2.1-2.2
                     RowLayout {
-                        Rectangle { implicitWidth: 48; implicitHeight: 48; radius: 12; color: Qt.alpha(ThemeEngine.accentBlue, 0.15)
-                            AppIcon { anchors.centerIn: parent; name: "wifi"; size: 28; color: ThemeEngine.accentBlue } }
+                        Rectangle {
+                            id: appIconRect
+                            implicitWidth: 48; implicitHeight: 48; radius: 12
+                            // Subtle glow when capture feature is enabled
+                            color: appState.captureFeatureEnabled
+                                   ? Qt.alpha(ThemeEngine.cyan, 0.25)
+                                   : Qt.alpha(ThemeEngine.accentBlue, 0.15)
+                            border {
+                                width: appState.captureFeatureEnabled ? 1.5 : 0
+                                color: appState.captureFeatureEnabled ? ThemeEngine.cyan : "transparent"
+                            }
+                            AppIcon {
+                                anchors.centerIn: parent
+                                name: appState.captureFeatureEnabled ? "diagnostics" : "wifi"
+                                size: 28
+                                color: appState.captureFeatureEnabled ? ThemeEngine.cyan : ThemeEngine.accentBlue
+                            }
+                            // Double-click to toggle the hidden capture feature
+                            MouseArea {
+                                id: appIconMouseArea
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                // Track single-click for potential hint (5WHY: only after 3
+                                // single clicks without double-click do we show a subtle hint)
+                                property int clickCount: 0
+                                Timer {
+                                    id: clickResetTimer
+                                    interval: 800  // double-click window
+                                    onTriggered: {
+                                        // If the user clicked once and didn't double-click,
+                                        // reset — no hint on single accidental click.
+                                        appIconMouseArea.clickCount = 0
+                                    }
+                                }
+                                onClicked: function(mouse) {
+                                    clickCount++
+                                    if (clickCount === 1) {
+                                        clickResetTimer.restart()
+                                    } else if (clickCount >= 2) {
+                                        clickCount = 0
+                                        clickResetTimer.stop()
+                                        // Toggle the capture feature
+                                        if (appState.captureFeatureEnabled) {
+                                            appState.disableCaptureFeature()
+                                            captureToast.text = Tr.captureDisabledToast
+                                        } else {
+                                            appState.enableCaptureFeature()
+                                            captureToast.text = Tr.captureEnabledToast
+                                        }
+                                        captureToastTimer.restart()
+                                    }
+                                }
+                            }
+                        }
+                        // Small indicator dot when capture is enabled
+                        Rectangle {
+                            visible: appState.captureFeatureEnabled
+                            width: 8; height: 8; radius: 4
+                            color: ThemeEngine.cyan
+                            Layout.alignment: Qt.AlignTop
+                            Layout.leftMargin: -8; Layout.topMargin: 2
+                        }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
                             Label { text: "NetDiagnostics" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
