@@ -18,8 +18,11 @@ void platformSetKeepAwake(bool enable) {
     // the main thread via Qt's event loop.
     dispatch_async(dispatch_get_main_queue(), ^{
         [UIApplication sharedApplication].idleTimerDisabled = enable;
+        // 5WHY: update state inside the dispatch block so
+        // platformIsKeepAwake() never returns a value inconsistent
+        // with the actual system state.
+        s_keepAwakeRequested = enable;
     });
-    s_keepAwakeRequested = enable;
 }
 
 bool platformIsKeepAwake() {

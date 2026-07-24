@@ -18,7 +18,6 @@ static NSString*           s_outputPath  = nil;
 static RecordingCallback   s_startCb;
 static bool                s_recording   = false;
 static bool                s_stopping    = false;
-static int                 s_frameCount  = 0;
 
 // 5WHY: ReplayKit delivers CMSampleBuffer callbacks serially on its
 // own internal queue.  Appending directly from the callback is safe —
@@ -58,7 +57,11 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
     NSURL* url = [NSURL fileURLWithPath:s_outputPath];
     s_writer = [[AVAssetWriter alloc] initWithURL:url fileType:AVFileTypeMPEG4 error:&err];
     if (!s_writer || err) {
-        if (s_startCb) s_startCb(false, QString::fromNSString(err.localizedDescription));
+        if (s_startCb) {
+            s_startCb(false, QString::fromNSString(err.localizedDescription));
+            s_startCb = nullptr;
+        }
+        s_outputPath = nil;
         return;
     }
 
@@ -79,13 +82,18 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
     s_input.expectsMediaDataInRealTime = YES;
 
     if (![s_writer canAddInput:s_input]) {
-        if (s_startCb) s_startCb(false, QStringLiteral("Cannot add video input to writer"));
+        if (s_startCb) {
+            s_startCb(false, QStringLiteral("Cannot add video input to writer"));
+            s_startCb = nullptr;
+        }
+        s_writer = nil;
+        s_input = nil;
+        s_outputPath = nil;
         return;
     }
     [s_writer addInput:s_input];
 
     // ── Start capture + writer ──
-    s_frameCount = 0;
     [s_writer startWriting];
     // 5WHY: startSessionAtSourceTime deferred until first sample arrives.
     // Calling it before any sample has been appended places the writer
@@ -102,7 +110,14 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                 dispatch_async(dispatch_get_main_queue(), ^{
                     s_startCb(false, QString::fromNSString(error.localizedDescription));
                 });
+                s_startCb = nullptr;
             }
+            // 5WHY: clean up static references so a subsequent
+            // platformStartRecording doesn't pick up stale state.
+            s_writer = nil;
+            s_input = nil;
+            s_outputPath = nil;
+            s_stopping = false;
             return;
         }
 
@@ -116,18 +131,17 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         if (!s_recording && s_writer.status == AVAssetWriterStatusUnknown) {
             [s_writer startSessionAtSourceTime:CMSampleBufferGetPresentationTimeStamp(sampleBuffer)];
             s_recording = true;
-            s_frameCount = 0;
             if (s_startCb) {
                 dispatch_async(dispatch_get_main_queue(), ^{
                     s_startCb(true, outPath);
                 });
+                s_startCb = nullptr;
             }
         }
 
         // Append frame to writer (serialized via writer queue)
         if (s_recording && s_input.readyForMoreMediaData) {
             [s_input appendSampleBuffer:sampleBuffer];
-            s_frameCount++;
         }
     } completionHandler:^(NSError* error) {
         if (error) {
@@ -136,7 +150,12 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                 dispatch_async(dispatch_get_main_queue(), ^{
                     s_startCb(false, QString::fromNSString(error.localizedDescription));
                 });
+                s_startCb = nullptr;
             }
+            s_writer = nil;
+            s_input = nil;
+            s_outputPath = nil;
+            s_stopping = false;
         }
     }];
 }
@@ -155,6 +174,9 @@ void platformStopRecording(RecordingCallback callback) {
             s_recording = false;
             s_stopping = false;
             if (callback) callback(false, QString::fromNSString(error.localizedDescription));
+            s_writer = nil;
+            s_input = nil;
+            s_outputPath = nil;
             return;
         }
 
@@ -172,7 +194,6 @@ void platformStopRecording(RecordingCallback callback) {
             NSString* finalError = s_writer.error.localizedDescription;
             s_writer = nil;
             s_input = nil;
-            s_frameCount = 0;
 
             if (s_outputPath) {
                 if (ok && callback) {
