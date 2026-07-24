@@ -9,6 +9,7 @@
 #include "Common/Platform/PlatformCapture.h"
 #include "Common/Platform/PlatformRecording.h"
 #include "Common/Platform/PlatformKeepAwake.h"
+#include "Common/Platform/PlatformFocus.h"
 #include "app/AppState.h"
 #include <QStandardPaths>
 #include <QDir>
@@ -71,6 +72,10 @@ CaptureOrchestrator::~CaptureOrchestrator() {
         platformStopRecording(nullptr);
     }
     platformSetKeepAwake(false);
+    // 5WHY: Safety net — if cancel() or the terminal-state handlers didn't
+    // restore system state, disable focus mode here so subsequent app usage
+    // isn't affected by the capture's DND/brightness changes.
+    platformDisableFocusMode();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -196,6 +201,7 @@ void CaptureOrchestrator::cancel() {
     bool didCancel = m_stateMachine->transitionTo(CaptureState::Cancelled);
     if (didCancel) {
         platformSetKeepAwake(false);
+        platformDisableFocusMode();
         emit captureCancelled();
     }
     // If transition was rejected, the FSM stays in its current state and
@@ -225,6 +231,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         m_currentAction = QStringLiteral("Preparing to capture...");
         emit actionChanged(m_currentAction);
         platformSetKeepAwake(true);
+        platformEnableFocusMode();  // 5WHY: suppress notifications during capture
         // Safety net: if the QML preflight overlay fails to load or the
         // countdown signal is never emitted, auto-advance after 10s so the
         // capture doesn't hang forever. The state guard ensures this won't
@@ -277,7 +284,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Completed:
         platformSetKeepAwake(false);
-        // 5WHY: emit captureCompleted synchronously races with the async QML
+        platformDisableFocusMode();
         // Loader — onStateChanged sets source="CaptureResultSummary.qml"
         // which loads asynchronously, but captureCompleted fires in the
         // same event-loop iteration before the Loader finishes.  Defer the
@@ -290,7 +297,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Failed:
         platformSetKeepAwake(false);
-        // 5WHY: emitting a generic "CAPTURE_FAILED" here overwrites the
+        platformDisableFocusMode();
         // specific error code the phase handler already emitted (e.g.
         // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
         // restores system state; the specific error was already emitted.
@@ -300,6 +307,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // Safety net: if cancel() couldn't disable keep-awake (e.g. the
         // transition was triggered from a path other than cancel()), do it here.
         platformSetKeepAwake(false);
+        platformDisableFocusMode();
         break;
 
     default:

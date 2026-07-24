@@ -123,6 +123,19 @@ Item {
                     captureOverlay.pendingError = false; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
                 }
+                // 5WHY: intermediate states (CreatingSession→StartingRecording and
+                // StoppingRecording→Finalizing) had no overlay handler.  The
+                // Countdown overlay stayed visible during these transitions,
+                // making it appear frozen.  Clear the overlay source but keep
+                // active=true so the next state (ExecutingSteps/Completed) can
+                // load its overlay without re-incubating the Loader.
+                else if (s === captureOverlay.kCaptureCreatingSession
+                      || s === captureOverlay.kCaptureStartingRecording
+                      || s === captureOverlay.kCaptureStoppingRecording
+                      || s === captureOverlay.kCaptureFinalizing) {
+                    captureOverlay.pendingError = false
+                    captureOverlay.source = ""
+                }
                 else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled) {
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
@@ -249,6 +262,11 @@ Item {
                     // 5WHY: The QML countdown is now the sole authority.
                     // When the visual 3-2-1 reaches 0, call the orchestrator
                     // to transition CountdownToStart → CreatingSession.
+                    // Clear the overlay immediately so the countdown UI
+                    // doesn't linger during session creation and recording
+                    // startup (which may block on system permission dialogs).
+                    captureOverlay.pendingError = false
+                    captureOverlay.source = ""
                     captureOrchestrator.onCountdownFinished()
                 })
             }

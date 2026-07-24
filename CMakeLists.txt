@@ -115,6 +115,7 @@ if(NOT IOS AND NOT ANDROID)
         src/Common/Platform/PlatformCapture.cpp
         src/Common/Platform/PlatformKeepAwake.cpp
         src/Common/Platform/PlatformRecording.cpp
+        src/Common/Platform/Desktop/PlatformFocus.cpp
     )
 endif()
 
@@ -143,6 +144,8 @@ if(IOS)
         src/Common/Platform/Apple/IOS/PlatformCapture.mm
         src/Common/Platform/Apple/IOS/PlatformKeepAwake.mm
         src/Common/Platform/Apple/IOS/PlatformRecording.mm
+        # Programmatic focus / DND mode
+        src/Common/Platform/Apple/IOS/PlatformFocus.mm
 	)
 endif()
 if(ANDROID)
@@ -154,6 +157,8 @@ if(ANDROID)
         src/Common/Platform/Android/PlatformCapture.cpp
         src/Common/Platform/Android/PlatformRecording.cpp
         src/Common/Platform/Android/PlatformKeepAwake.cpp
+        # Programmatic focus / DND mode
+        src/Common/Platform/Android/PlatformFocus.cpp
 	)
 endif()
 	# ---- Native PDF renderer --- available on all platforms --------------

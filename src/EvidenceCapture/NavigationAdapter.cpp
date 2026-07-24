@@ -171,27 +171,46 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
 
 void NavigationAdapter::openReportPreview() {
     if (!m_appContent) return;
-
-    // 5WHY: m_appContent->findChild<AppState*>() fails — use direct pointer.
     if (!m_appState) return;
 
-    // Build HTML and navigate to settings tab where report is accessible.
-    QString html = m_appState->buildReportHtml(true, m_appState->isDarkMode());
-    if (html.isEmpty()) return;
+    // 5WHY: The old code switched to tab 3 (settings) and captured that page
+    // instead of the actual report preview.  The dashboard tab (index 0) has
+    // a built-in preview overlay controlled by `previewVisible` and
+    // `openPreview()`.  Switch to dashboard, call openPreview() on the
+    // dashboard QML item, then let the scenario's Capture step screenshot it.
 
-    // 5WHY: silently failing to switch tab means the capture will
-    // screenshot the wrong page.  Log the failure for diagnostics.
+    // Switch to dashboard tab where the report preview overlay lives
     bool invoked = QMetaObject::invokeMethod(m_appContent, "switchToTab",
-                              Q_ARG(int, 3)); // settings tab → Report preview
+                              Q_ARG(int, 0)); // dashboard tab
     if (!invoked) {
-        qWarning() << "NavigationAdapter: openReportPreview switchToTab(3) not invocable";
+        qWarning() << "NavigationAdapter: openReportPreview switchToTab(0) not invocable";
+        emit diagnosticComplete();
+        return;
     }
 
-    // 5WHY: The loop below iterated the StackView depth and did nothing with
-    // each item.  Q_UNUSED(html) explicitly discarded the built report.
-    // This was dead code that never showed a report preview.
-    // TODO: Show the actual report preview overlay for automated capture.
-    // Currently report capture is best-effort — the screenshot captures
-    // the settings page, not the report content itself.
-    emit diagnosticComplete(); // signal we're done (report capture is best-effort)
+    // Find the dashboard item in the StackView
+    QObject* stackView = m_appContent->property("stackView").value<QObject*>();
+    if (!stackView) {
+        emit diagnosticComplete();
+        return;
+    }
+    QObject* cur = stackView->property("currentItem").value<QObject*>();
+    if (!cur || cur->property("objectName").toString() != QStringLiteral("dashboard")) {
+        emit diagnosticComplete();
+        return;
+    }
+
+    // Call the dashboard's openPreview() to build and show the report preview
+    bool previewInvoked = QMetaObject::invokeMethod(cur, "openPreview");
+    if (!previewInvoked) {
+        qWarning() << "NavigationAdapter: openPreview not invocable on DashboardScreen";
+        emit diagnosticComplete();
+        return;
+    }
+
+    // 5WHY: The preview overlay needs a moment to render the report HTML
+    // into an image.  The Capture step for report should use WaitPageReady
+    // (2000ms) before taking the screenshot to let the overlay settle.
+    // The diagnosticComplete signal tells the scenario to proceed.
+    emit diagnosticComplete();
 }
