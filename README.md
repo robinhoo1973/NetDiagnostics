@@ -46,7 +46,6 @@
 - **Group-sequential execution** — `std::thread` concurrency with `std::atomic` group tracking
 - **Startup crash diagnostics** — `ND_DEBUG=ON` writes timestamped startup events to `%TEMP%\NetDiagnostics_startup.log`
 - **Single-instance lock** — prevents duplicate application instances
-- **Simulator mode** — device-frame UI for testing on desktop
 
 ## Supported Platforms
 
@@ -88,8 +87,8 @@
 # Native build (auto-detect host platform)
 ./scripts/build-all.sh
 
-# Cross-compile specific target + simulator
-./scripts/build-all.sh --target windows-x86_64 --sim
+# Cross-compile specific target
+./scripts/build-all.sh --target windows-x86_64
 
 # Auto-fix ALL missing dependencies
 ./scripts/build-all.sh --fix --target all
@@ -126,13 +125,6 @@ cmake -G Ninja \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
 ninja -C build/android net_diagnostics
-```
-
-#### Simulator
-
-```bash
-cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
-ninja -C build net_diagnostics_sim
 ```
 
 ### Debug Build (startup crash diagnostics)

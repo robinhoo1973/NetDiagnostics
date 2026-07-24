@@ -46,7 +46,6 @@
 - **分组顺序执行** — `std::thread` 并发，`std::atomic` 分组跟踪
 - **启动崩溃诊断** — `ND_DEBUG=ON` 将带时间戳的启动事件写入 `%TEMP%\NetDiagnostics_startup.log`
 - **单实例锁** — 防止重复启动应用实例
-- **模拟器模式** — 桌面端设备框 UI，便于测试
 
 ## 支持平台
 
@@ -88,8 +87,8 @@
 # 原生构建（自动检测宿主平台）
 ./scripts/build-all.sh
 
-# 交叉编译指定目标 + 模拟器
-./scripts/build-all.sh --target windows-x86_64 --sim
+# 交叉编译指定目标
+./scripts/build-all.sh --target windows-x86_64
 
 # 自动修复所有缺失依赖
 ./scripts/build-all.sh --fix --target all
@@ -126,13 +125,6 @@ cmake -G Ninja \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
 ninja -C build/android net_diagnostics
-```
-
-#### 模拟器
-
-```bash
-cmake -G Ninja -DBUILD_SIMULATOR=ON -B build -S .
-ninja -C build net_diagnostics_sim
 ```
 
 ### 调试构建（启动崩溃诊断）
