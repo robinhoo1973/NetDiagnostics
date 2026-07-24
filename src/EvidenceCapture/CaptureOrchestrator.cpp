@@ -459,7 +459,7 @@ void CaptureOrchestrator::finalizeSession() {
         // Corrupt manifest means the session directory is compromised —
         // transition to Failed so the user can retry.
         if (doc.isNull()) {
-            mf.close();
+            // 5WHY: QFile destructor closes via RAII — explicit close() is dead code.
             failCapture(QStringLiteral("MANIFEST_CORRUPT"), QStringLiteral("Session manifest is corrupt, cannot finalize."));
             return;
         }
