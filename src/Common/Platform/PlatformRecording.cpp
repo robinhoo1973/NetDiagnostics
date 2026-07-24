@@ -172,6 +172,16 @@ void platformStopRecording(RecordingCallback callback) {
 
     QString path = s_recordingPath;
 
+    // 5WHY: QProcess cleanup was duplicated in both the timeout and
+    // normal-finished paths. Extracted into a single helper to ensure
+    // consistent cleanup (deleteLater + nullptr) in all stop scenarios.
+    auto cleanupProc = []() {
+        if (s_recordingProc) {
+            s_recordingProc->deleteLater();
+            s_recordingProc = nullptr;
+        }
+    };
+
     // Disconnect the original finished handler from platformStartRecording
     QObject::disconnect(s_finishedConn);
 
@@ -197,12 +207,7 @@ void platformStopRecording(RecordingCallback callback) {
             } else {
                 if (callback) callback(false, QStringLiteral("Recording stop timed out"));
             }
-            // Clean up QProcess — only the start-handler (now disconnected)
-            // had deleteLater; the stop path must release it here.
-            if (s_recordingProc) {
-                s_recordingProc->deleteLater();
-                s_recordingProc = nullptr;
-            }
+            cleanupProc();
         }
     });
 
@@ -223,12 +228,7 @@ void platformStopRecording(RecordingCallback callback) {
             } else {
                 if (callback) callback(false, QStringLiteral("Recording file is empty or missing"));
             }
-            // Clean up QProcess — the start-handler was disconnected;
-            // the stop path must release the QProcess here.
-            if (s_recordingProc) {
-                s_recordingProc->deleteLater();
-                s_recordingProc = nullptr;
-            }
+            cleanupProc();
         });
 }
 

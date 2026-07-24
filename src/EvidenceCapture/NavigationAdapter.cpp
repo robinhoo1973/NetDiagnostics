@@ -152,6 +152,12 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
         qWarning() << "NavigationAdapter: showDetailOverlay not invocable on DiagnosticScreen";
         return;
     }
+    // 5WHY: showDetailOverlay() only populates label texts, not the
+    // currentDetail property that drives the properties Repeater grid.
+    // Without this, the detail overlay shows an empty properties section
+    // when opened from automated capture (the QML path sets currentDetail
+    // separately via page.currentDetail = d || {}).
+    diagScreen->setProperty("currentDetail", QVariant::fromValue(detail));
     emit detailOpened();
 }
 

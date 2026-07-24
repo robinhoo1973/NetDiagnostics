@@ -133,5 +133,6 @@ private:
     QString       m_sessionDir;
     bool          m_recording = false;  // true if mode is RecordingOnly or Both
     bool          m_doScreenshot = false; // true if mode is ScreenshotOnly or Both
+    int           m_countdownGen = 0;     // incremented per CountdownToStart entry; prevents stale safety timers
     QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()
 };

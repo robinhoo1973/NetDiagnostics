@@ -49,7 +49,7 @@ Item {
         var statusNames = ["Pass","Warning","Fail","Skipped","Error","Info"]
         var s = detail.status !== undefined ? detail.status : 0
         dtStatus.text = "Status: " + (statusNames[s] || "Unknown")
-            + "    Duration: " + (detail.durationMs || 0) + "ms"
+            + "    Duration: " + (detail.durationMs !== undefined ? detail.durationMs : 0) + "ms"
         dtSummary.text = detail.summary || ""
         dtOutput.text = detail.details || ""
         detailOverlay.visible = true
@@ -266,7 +266,10 @@ Item {
                                 showDetailOverlay({
                                     displayName: (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid),
                                     status: (d && d.status !== undefined) ? d.status : 0,
-                                    durationMs: (d && d.durationMs) ? d.durationMs : (data.durationMs || 0),
+                                    // 5WHY: falsy-zero bug — a test that took 0ms has
+                                    // d.durationMs===0 which is falsy, falling to the
+                                    // wrong default. Use strict undefined check instead.
+                                    durationMs: (d && d.durationMs !== undefined) ? d.durationMs : (data.durationMs || 0),
                                     summary: (d && d.summary) ? d.summary : (data.summary || ""),
                                     details: (d && d.details) ? d.details : ""
                                 })

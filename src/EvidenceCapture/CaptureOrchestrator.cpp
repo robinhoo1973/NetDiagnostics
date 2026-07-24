@@ -185,12 +185,20 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // countdown signal is never emitted, auto-advance after 10s so the
         // capture doesn't hang forever. The state guard ensures this won't
         // race with a successful QML countdown (which fires at ~3s).
-        QTimer::singleShot(10000, this, [this]() {
-            if (m_stateMachine->state() == CaptureState::CountdownToStart) {
-                qWarning() << "CaptureOrchestrator: countdown safety timer fired — QML overlay may have failed to load";
-                m_stateMachine->transitionTo(CaptureState::CreatingSession);
-            }
-        });
+        // 5WHY: without a generation counter, a stale timer from a previous
+        // cancel+restart cycle can fire during a NEW CountdownToStart and
+        // prematurely advance it. The generation counter makes each timer
+        // guard against only its own capture attempt.
+        {
+            int gen = ++m_countdownGen;
+            QTimer::singleShot(10000, this, [this, gen]() {
+                if (m_countdownGen == gen
+                    && m_stateMachine->state() == CaptureState::CountdownToStart) {
+                    qWarning() << "CaptureOrchestrator: countdown safety timer fired — QML overlay may have failed to load";
+                    m_stateMachine->transitionTo(CaptureState::CreatingSession);
+                }
+            });
+        }
         break;
 
     case CaptureState::CreatingSession:
