@@ -6,7 +6,6 @@ project(NetDiagnostic VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 
 option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
 option(ND_TESTING "Enable automated headless testing harness" OFF)
-option(BUILD_SIMULATOR "Build simulator variant" ON)
 
 if(NOT DEFINED APP_EDITION)
     set(APP_EDITION "")
@@ -194,33 +193,6 @@ qt_add_executable(net_diagnostics WIN32 MANUAL_FINALIZATION ${SOURCES} ${QML_RES
 setup_platform_bundle(net_diagnostics)
 configure_netdiag_target(net_diagnostics)
 
-# ── Simulator target ───────────────────────────────────────────────────
-if(BUILD_SIMULATOR)
-    set(SIM_SOURCES ${SOURCES})
-    list(REMOVE_ITEM SIM_SOURCES "src/main.cpp")
-    # Validate removal
-    list(FIND SOURCES "src/main.cpp" _main_cpp_idx)
-    if(_main_cpp_idx GREATER -1)
-        list(FIND SIM_SOURCES "src/main.cpp" _still_there)
-        if(_still_there GREATER -1)
-            message(FATAL_ERROR "Failed to remove src/main.cpp from SIM_SOURCES ??path mismatch?")
-        endif()
-    endif()
-    list(APPEND SIM_SOURCES "src/main_simulator.cpp")
-    # Simulator modules ??header-only (.h) with Q_OBJECT macros.
-    # Listed as SOURCES so CMake AUTOMOC generates moc_*.cpp for them.
-    # CMake does NOT compile .h files; it only passes them through moc.
-    list(APPEND SIM_SOURCES
-        "src/Common/Services/Simulator/SimulatorConfig.h"
-        "src/Common/Services/Simulator/QtConfigAdapter.h"
-        "src/Common/Services/Simulator/ScreenshotService.h"
-        "src/Common/Services/Simulator/MatrixOrchestrator.h"
-        "src/Common/Services/Simulator/PlatformSimulationPolicyEngine.h"
-        "src/Common/Services/Simulator/ProtocolRegistry.h"
-    )
-    qt_add_executable(net_diagnostics_sim WIN32 MANUAL_FINALIZATION ${SIM_SOURCES} ${QML_RESOURCES})
-    configure_netdiag_target(net_diagnostics_sim)
-endif()
 
 # ── Tests ──────────────────────────────────────────────────────────────
 option(BUILD_TESTS "Build test suite" OFF)

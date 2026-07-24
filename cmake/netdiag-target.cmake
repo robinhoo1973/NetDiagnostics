@@ -1,6 +1,5 @@
 ﻿# ── netdiag-target.cmake ────────────────────────────────────────────────
-# Shared target configuration for net_diagnostics (production) and
-# net_diagnostics_sim (simulator).  Eliminates ~60 lines of duplication.
+# Shared target configuration for net_diagnostics.
 #
 # Usage: configure_netdiag_target(target_name)
 # ─────────────────────────────────────────────────────────────────────────
@@ -134,14 +133,12 @@ function(configure_netdiag_target TARGET)
 
     # ── macOS PDFKit framework ───────────────────────────────────────
     # 5WHY: PDFKit was linked in setup_platform_bundle() which is only
-    # called for the production target.  The simulator target also needs
-    # PDFKit (PlatformPdfRenderer.mm uses PDFDocument).  Moved here so
-    # both net_diagnostics and net_diagnostics_sim link against it.
+    # called for the production target.  PlatformPdfRenderer.mm uses
+    # PDFDocument.  Moved here so all targets link against it.
     if(APPLE AND NOT IOS)
         find_library(PDFKIT PDFKit REQUIRED)
         target_link_libraries(${TARGET} PRIVATE ${PDFKIT})
-        # 5WHY: CoreWLAN used by WifiHelper.mm — must be linked for both
-        # the production target AND the simulator target (same as PDFKit).
+        # 5WHY: CoreWLAN used by WifiHelper.mm.
         find_library(COREWLAN CoreWLAN REQUIRED)
         target_link_libraries(${TARGET} PRIVATE ${COREWLAN})
     endif()
@@ -257,11 +254,8 @@ function(setup_platform_bundle TARGET)
         else()
             message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
         endif()
-        # PDFKit linking moved to configure_netdiag_target so both
-        # production and simulator targets get the framework.
+        # PDFKit and CoreWLAN linking moved to configure_netdiag_target.
         # See 5WHY comment there for rationale.
-        # 5WHY: CoreWLAN linking moved to configure_netdiag_target so both
-        # production and simulator targets get the framework.
     endif()
 
     # iOS .app bundle

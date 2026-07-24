@@ -99,19 +99,6 @@ jobs:
             echo "[OK] .app ad-hoc signed"
           fi
 
-      - name: Configure (simulator)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DBUILD_SIMULATOR=ON \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build-sim -S .
-
-      - name: Build (simulator)
-        run: ninja -C build-sim net_diagnostics_sim
-
       - name: Package DMG
         continue-on-error: true
         run: |

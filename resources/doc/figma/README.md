@@ -51,7 +51,7 @@ The preview shows all 5 screens (Dashboard, Diagnostics, Config, Report, Setting
 | borderCard | #3A3A5A | Card borders |
 | borderSubtle | #2A2A4A | Inner / subtle borders |
 | borderFocused | #0078D4 | Focused element border |
-| simBg | #2D2D2D | Simulator background |
+
 
 ### Typography
 
@@ -82,8 +82,7 @@ ApplicationWindow
     ├── ReportScreen     — PDF/HTML preview + share flow + Premium IAP dialog
     └── SettingsScreen   — Language (9) + Premium section (Restore on mobile) + About
 
-SimulatorScreen (desktop only):
-    └── Device frame wrapper around the same 5 screens
+
 ```
 
 ## Architecture Notes
@@ -95,4 +94,4 @@ SimulatorScreen (desktop only):
 
 ## Legacy SVGs
 
-The SVG files (`00-design-system.svg` through `05-simulator-desktop.svg`) are legacy reference exports from an earlier design iteration. For the most current design reference, use `design-preview.html`.
+Legacy SVG files are reference exports from an earlier design iteration. For the most current design reference, use `design-preview.html`.

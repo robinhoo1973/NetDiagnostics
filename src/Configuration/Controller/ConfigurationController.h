@@ -41,7 +41,6 @@ public:
 
 signals:
     void groupActiveChanged();
-    void skipRulesChanged();
 
 private:
     AppState* m_appState;

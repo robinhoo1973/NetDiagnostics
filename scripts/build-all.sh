@@ -34,7 +34,7 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC
 PASS="${GREEN}✓${NC}"; FAIL="${RED}✗${NC}"; WARN="${YELLOW}⚠${NC}"; SKIP="${CYAN}○${NC}"
 
 MODE="build"
-TARGET="native"; SIM_MODE="off"
+TARGET="native"
 SKIP_CHECK=false; CLEAN=false; FIX_DEPS=false
 INSTALL_PREFIX="${HOME}/.local"
 GLOBAL_PREFIX="/usr/local"
@@ -81,8 +81,8 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --target)      TARGET="$2"; shift 2 ;;
-        --sim)         SIM_MODE="also"; shift ;;
-        --sim-only)    SIM_MODE="only"; shift ;;
+        --sim)         warn "--sim is deprecated (simulator feature removed)"; shift ;;
+        --sim-only)    warn "--sim-only is deprecated (simulator feature removed)"; shift ;;
 
         --check-only)  MODE="check-only"; shift ;;
         --fix|-f)      FIX_DEPS=true; shift ;;
@@ -890,27 +890,6 @@ build_one() {
     log "  → dist/netdiag-${tag}${ext}"
 }
 
-build_sim() {
-    local tag="$1" os="$2" arch="$3" qt_path="$4" toolchain="$5" cxx_flags="${6:-}"
-    local build_dir="${BUILD_BASE}/${tag}-sim"; local ext=""; [[ "$os" == "Windows" ]] && ext=".exe"
-    log "Building simulator: $tag"
-    local cmake_args=(-G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_SIMULATOR=ON)
-    [[ "$toolchain" != "native" ]] && cmake_args+=(-DCMAKE_TOOLCHAIN_FILE="$toolchain")
-    [[ -n "$qt_path" ]] && cmake_args+=(-DCMAKE_PREFIX_PATH="$qt_path")
-    rm -rf "$build_dir"; mkdir -p "$build_dir"
-    info "  Configuring..."
-    ( [[ -n "$cxx_flags" ]] && export CMAKE_CXX_FLAGS="$cxx_flags"
-      cmake "${cmake_args[@]}" -B "$build_dir" -S "$PROJECT_DIR" > "$build_dir/cmake.log" 2>&1
-    ) || { err "  CMake failed — $build_dir/cmake.log"; return 1; }
-    info "  Compiling..."
-    cmake --build "$build_dir" --target net_diagnostics_sim -j"$JOBS" > "$build_dir/build.log" 2>&1 || {
-        warn "  Build failed — $build_dir/build.log"; return 1
-    }
-    local out_name="netdiag-sim-${tag}"
-    cp "$build_dir/net_diagnostics_sim${ext}" "$DIST_DIR/${out_name}${ext}" || true
-    log "  → dist/${out_name}${ext}"
-}
-
 # ── Platform builds ────────────────────────────────────────────────────────
 _maybe_mingw_qt() {
     for p in "${GLOBAL_PREFIX}/Qt6-mingw/"*"/mingw_64/lib/cmake/Qt6" \
@@ -922,8 +901,7 @@ _maybe_mingw_qt() {
 
 build_linux_arm64() {
     local tc="$TC_DIR/linux-arm64.cmake"; [[ -f "$tc" ]] || tc="native"
-    [[ "$SIM_MODE" != "only" ]] && build_one "linux-arm64" "Linux" "arm64" "" "$tc" ""
-    [[ "$SIM_MODE" != "off" ]]  && build_sim "linux-arm64" "Linux" "arm64" "" "$tc" ""
+    build_one "linux-arm64" "Linux" "arm64" "" "$tc" ""
 }
 build_linux_x86_64() {
     local gxx; gxx="$(command -v x86_64-linux-gnu-g++ 2>/dev/null || echo "")"
@@ -937,8 +915,7 @@ build_linux_x86_64() {
     [[ -z "$qt_x64" ]] && { warn "Qt6 x86_64 missing — skip"; return 0; }
     local tc="$TC_DIR/linux-x86_64.cmake"; [[ -f "$tc" ]] || { warn "Toolchain missing: $tc"; return 0; }
     local flgs="-O2 -static-libgcc -static-libstdc++"
-    [[ "$SIM_MODE" != "only" ]] && build_one "linux-x86_64" "Linux" "x86_64" "$qt_x64" "$tc" "$flgs"
-    [[ "$SIM_MODE" != "off" ]]  && build_sim "linux-x86_64" "Linux" "x86_64" "$qt_x64" "$tc" "$flgs"
+    build_one "linux-x86_64" "Linux" "x86_64" "$qt_x64" "$tc" "$flgs"
 }
 build_windows_x86_64() {
     local gxx; gxx="$(command -v x86_64-w64-mingw32-g++ 2>/dev/null || echo "")"
@@ -948,8 +925,7 @@ build_windows_x86_64() {
     local mingw_qt; mingw_qt="$(_maybe_mingw_qt)"
     [[ -z "$mingw_qt" ]] && { warn "Qt6 mingw-w64 missing — skip (try --fix)"; return 0; }
     local tc="$TC_DIR/windows-x86_64.cmake"; local flgs="-O2 -static-libgcc -static-libstdc++ -static"
-    [[ "$SIM_MODE" != "only" ]] && build_one "windows-x86_64" "Windows" "x86_64" "$mingw_qt" "$tc" "$flgs"
-    [[ "$SIM_MODE" != "off" ]]  && build_sim "windows-x86_64" "Windows" "x86_64" "$mingw_qt" "$tc" "$flgs"
+    build_one "windows-x86_64" "Windows" "x86_64" "$mingw_qt" "$tc" "$flgs"
 }
 build_windows_arm64() {
     # Uses LLVM-MinGW (Clang), not GCC — only Clang supports aarch64-w64-mingw32
@@ -964,8 +940,7 @@ build_windows_arm64() {
     done
     [[ -z "$mingw_qt" ]] && { warn "Qt6 aarch64 mingw missing — skip (try --fix)"; return 0; }
     local tc="$TC_DIR/windows-arm64.cmake"; local flgs="-O2"
-    [[ "$SIM_MODE" != "only" ]] && build_one "windows-arm64" "Windows" "arm64" "$mingw_qt" "$tc" "$flgs"
-    [[ "$SIM_MODE" != "off" ]]  && build_sim "windows-arm64" "Windows" "arm64" "$mingw_qt" "$tc" "$flgs"
+    build_one "windows-arm64" "Windows" "arm64" "$mingw_qt" "$tc" "$flgs"
 }
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -993,7 +968,7 @@ fi
 
 echo ""; echo "============================================="
 echo " NetDiagnostic Build — Targets: ${TARGETS[*]}"
-echo " Simulator: ${SIM_MODE}"
+# Simulator feature removed
 echo "============================================="; echo ""
 
 BUILT=0  FAILED=0

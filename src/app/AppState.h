@@ -148,13 +148,6 @@ public:
     Q_INVOKABLE void showDetailDialog(int diagIdInt);
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const { return m_resultsModel->getDetailResult(diagIdInt); }
 
-    // ── Simulator skip-policy bridge (Phase 2) ───────────────────────────
-    // Accepts QVariantList of {diagId, testName, reason} maps from QML.
-    // Called when the simulated OS/device changes so the policy engine can
-    // enforce per-platform skip rules during diagnostic execution.
-    Q_INVOKABLE void setSkipRules(const QVariantList& rules);
-    Q_INVOKABLE QVariantList skipRules() const { return m_skipRules; }
-    Q_PROPERTY(QVariantList policyRules READ skipRules NOTIFY skipRulesChanged)
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
     int resultsVersion() const { return m_resultsModel->resultsVersion(); }
     int languageIndex() const;
@@ -234,7 +227,6 @@ signals:
     void purchaseInProgressChanged();
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
-    void skipRulesChanged();
     void crashReportChanged();
 
 private slots:
@@ -303,7 +295,4 @@ private:
     // m_languageIndex, m_themeMode, m_premium → now owned by SettingsController
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
 
-    // ── Simulator skip-policy state ──────────────────────────────────────
-    QVariantList       m_skipRules;       // exposed to QML via policyRules
-    QHash<int, QString> m_skipReasonMap;   // fast diagId → reason lookup
 };
