@@ -47,6 +47,12 @@ class CaptureScenario {
 public:
     CaptureScenario() = default;
 
+    // 5WHY: createSession() needs to distinguish scenarios in session
+    // directory names (blueprint §11.2).  Without a scenarioId on the
+    // container, the naming logic had to guess or hardcode.
+    QString scenarioId() const { return m_scenarioId; }
+    void setScenarioId(const QString& id) { m_scenarioId = id; }
+
     void addStep(const CaptureStep& step) { m_steps.append(step); }
     void addSteps(const QVector<CaptureStep>& steps) { m_steps.append(steps); }
 
@@ -60,6 +66,7 @@ public:
     void clear() { m_steps.clear(); }
 
 private:
+    QString m_scenarioId;
     QVector<CaptureStep> m_steps;
 };
 

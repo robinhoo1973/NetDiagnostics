@@ -10,6 +10,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QTimer>
 
 class ScrollController : public QObject {
@@ -43,7 +44,10 @@ private slots:
     void onScrollTick();
 
 private:
-    QObject* m_flickable = nullptr;
+    // 5WHY: raw QObject* becomes dangling when the QML page changes and
+    // the Flickable is destroyed.  QPointer auto-nulls on destruction,
+    // and the destroyed() signal connection below cancels scrolling.
+    QPointer<QObject> m_flickable;
     QTimer* m_timer;
     qreal m_startY = 0;
     qreal m_targetY = 0;

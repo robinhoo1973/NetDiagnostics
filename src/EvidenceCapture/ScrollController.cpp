@@ -19,11 +19,29 @@ void ScrollController::setFlickable(QObject* flickable) {
     if (m_scrolling) {
         cancel();
     }
+    // 5WHY: Disconnect any previous destroyed() signal and connect the new
+    // one so ScrollController auto-cancels when the QML page changes and
+    // the Flickable is destroyed (prevents use-after-free).
+    if (m_flickable) {
+        QObject::disconnect(m_flickable, &QObject::destroyed,
+                            this, &ScrollController::cancel);
+    }
     m_flickable = flickable;
+    if (flickable) {
+        connect(flickable, &QObject::destroyed,
+                this, &ScrollController::cancel);
+    }
 }
 
 void ScrollController::scrollToBottom(int durationMs) {
-    if (!m_flickable || durationMs <= 0) return;
+    // 5WHY: silent return without emitting scrollFinished() hangs the
+    // capture forever — executeNextStep() waits for the signal that
+    // never arrives.  Emit asynchronously so callers inside executeStep()
+    // don't re-enter before m_currentStep is incremented.
+    if (!m_flickable || durationMs <= 0) {
+        QTimer::singleShot(0, this, [this]() { emit scrollFinished(); });
+        return;
+    }
     if (m_scrolling) cancel();
 
     // Read QML Flickable properties via QMetaObject

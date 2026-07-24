@@ -19,9 +19,13 @@ QMap<CaptureState, QSet<CaptureState>> CaptureStateMachine::buildTransitionTable
                                           CaptureState::Cancelled,
                                           CaptureState::Failed};
 
-    // CreatingSession → StartingRecording (recording modes) or ExecutingSteps (screenshot-only), Failed
+    // 5WHY: CreatingSession excluded Cancelled — if session creation blocks
+    // on slow I/O (network filesystem, disk spin-up), the user's cancel
+    // request is silently ignored.  Adding Cancelled gives the user an escape
+    // hatch; the Cancelled handler in the orchestrator cleans up properly.
     t[CaptureState::CreatingSession] = {CaptureState::StartingRecording,
                                          CaptureState::ExecutingSteps,
+                                         CaptureState::Cancelled,
                                          CaptureState::Failed};
 
     // StartingRecording → ExecutingSteps, Failed, Cancelled

@@ -143,7 +143,11 @@ Item {
                         captureOverlay.active = false
                         captureOverlay.source = ""
                     }
-                    captureOverlay.pendingError = false  // reset for next capture
+                    // 5WHY: Don't reset pendingError here. onLoaded reads it
+                    // to decide whether to apply errorCode/errorMessage to the
+                    // incubated item.  If we zero it here, onLoaded sees false
+                    // and skips the error property injection.  Reset happens in
+                    // onLoaded after the properties are applied (see below).
                 }
             }
             function onStepChanged(current, total) {
@@ -212,6 +216,14 @@ Item {
                 item.errorCode = captureOverlay.pendingErrorCode
                 item.errorMessage = captureOverlay.pendingErrorMessage
             }
+            // 5WHY: Clear all pending error state after the Loader has
+            // incubated and applied properties.  If we clear before
+            // onLoaded fires, the above block skips the error injection.
+            // Leaving stale errorCode/errorMessage from a previous
+            // capture risks leaking error text into an unrelated panel.
+            captureOverlay.pendingError = false
+            captureOverlay.pendingErrorCode = ""
+            captureOverlay.pendingErrorMessage = ""
             // CaptureModePanel → start capture
             if (typeof item.startRequested !== "undefined") {
                 item.startRequested.connect(function(mode, url) {

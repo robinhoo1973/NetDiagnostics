@@ -21,8 +21,21 @@
 #include <QDateTime>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QUrl>
 #include <QStorageInfo>
 #include <QProcess>
+
+// 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
+// risking credential leakage (user:pass@host) and token exposure (query params).
+// Centralize the sanitization here so all data-exfiltration paths go through
+// one well-audited function.
+static QString sanitizeUrl(const QString& raw) {
+    QUrl u(raw);
+    u.setPassword(QString());            // strip password
+    u.setQuery(QString());               // strip query params (may contain tokens)
+    // Keep scheme + host + port + path — enough for audit but not for replay.
+    return u.toString(QUrl::RemoveUserInfo | QUrl::PrettyDecoded);
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Constructor
@@ -152,17 +165,25 @@ void CaptureOrchestrator::cancel() {
         m_pollTimer = nullptr;
     }
 
-    // Stop recording if active
+    // 5WHY: platformStopRecording(nullptr) initiates an async stop —
+    // after it returns, platformIsRecording() is already false (the
+    // atomic is flipped), so the destructor's safety net is moot.
+    // Clear m_recording immediately so the flag doesn't leak into
+    // the next capture session.
     if (m_recording && platformIsRecording()) {
         platformStopRecording(nullptr);
+        m_recording = false;
+    } else {
+        m_recording = false;
     }
-    m_recording = false;
 
     // Stop any in-progress scroll
     m_scrollCtrl->cancel();
 
-    // 5WHY: transitionTo(Cancelled) is not valid from every state
-    // (e.g. CreatingSession, StoppingRecording, Finalizing reject it).
+    // 5WHY: transitionTo(Cancelled) is not valid from every state.
+    // CreatingSession rejects it (FSM table lacks the transition).
+    // StoppingRecording and Finalizing both accept Cancelled per the
+    // FSM table (verified in CaptureStateMachine.cpp:46-48).
     // Only emit captureCancelled and disable keep-awake if the FSM
     // accepted the transition.  If rejected, the FSM continues and its
     // terminal handlers will disable keep-awake.
@@ -220,6 +241,11 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::CreatingSession:
         createSession();
+        // 5WHY: createSession() can transition to Failed (STORAGE_ERROR).
+        // If it did, we must NOT override that with a spurious transition
+        // to StartingRecording/ExecutingSteps.  All terminal states reject
+        // incoming transitions, but the code path is semantically wrong.
+        if (m_stateMachine->state() != CaptureState::CreatingSession) return;
         if (m_recording) {
             m_stateMachine->transitionTo(CaptureState::StartingRecording);
         } else {
@@ -330,12 +356,18 @@ void CaptureOrchestrator::createSession() {
     case Both:           modeStr = QStringLiteral("both");        break;
     }
 
+    // 5WHY: yyyyMMdd-HHmmss omitted timezone — cross-tz captures collide.
+    // Blueprint §11.2 requires yyyyMMdd_HHmmss_timezone_scenario.
     QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+    QString tz = QDateTime::currentDateTime().timeZoneAbbreviation();
+    // Scenario ID already set by the mode panel flow; default to "full_diagnostic".
+    QString scenario = m_filteredScenario.scenarioId().isEmpty()
+        ? QStringLiteral("full_diagnostic") : m_filteredScenario.scenarioId();
     // Store under Evidence/AutoCapture/ adjacent to crash reports
     // 5WHY: co-located with crash reports so all diagnostic evidence is in one place.
     QString root = QStandardPaths::writableLocation(
         QStandardPaths::AppDataLocation) + QStringLiteral("/Evidence/AutoCapture");
-    m_sessionDir = root + QStringLiteral("/") + ts + QStringLiteral("_") + modeStr;
+    m_sessionDir = root + QStringLiteral("/") + ts + QStringLiteral("_") + tz + QStringLiteral("_") + scenario + QStringLiteral("_") + modeStr;
 
     // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
     // sees pendingError=true and keeps the error overlay visible.
@@ -345,7 +377,7 @@ void CaptureOrchestrator::createSession() {
     QJsonObject manifest;
     manifest["session_id"] = ts;
     manifest["capture_mode"] = modeStr;
-    manifest["diag_url"] = m_diagUrl;
+    manifest["diag_url"] = sanitizeUrl(m_diagUrl);
     manifest["started_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
     manifest["status"] = "running";
     manifest["captures"] = QJsonArray();
@@ -362,7 +394,7 @@ void CaptureOrchestrator::createSession() {
         logStream << "=== Automated Capture Session ===\n"
                   << "Session:  " << ts << "\n"
                   << "Mode:     " << modeStr << "\n"
-                  << "URL:      " << m_diagUrl << "\n"
+                  << "URL:      " << sanitizeUrl(m_diagUrl) << "\n"
                   << "Started:  " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n\n";
     }
 

@@ -585,6 +585,14 @@ void AppState::cancel() {
     m_runStatus = RunStatus::Cancelled;
     m_currentDiagName.clear();
 
+    // 5WHY: AppState::cancel() never cleaned up the auto-capture session,
+    // leaving m_captureService->m_active=true.  Subsequent diagnostic runs
+    // silently skipped capture because startSession() returned early when
+    // m_active was already set.  Always end the capture session on cancel.
+    if (m_captureService && m_captureService->isActive()) {
+        m_captureService->cancelSession();
+    }
+
     // 5WHY: _cellularWarnVisible was cleared by QML callers (Cancel button,
     // backdrop tap, nav dismiss) before calling cancel(), but cancel() itself
     // never reset it.  If any future C++ code path calls cancel() without

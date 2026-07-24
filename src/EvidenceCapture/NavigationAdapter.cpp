@@ -39,8 +39,16 @@ void NavigationAdapter::switchToTab(int index) {
         return;
     }
 
-    QMetaObject::invokeMethod(m_appContent, "switchToTab",
-                              Q_ARG(int, index));
+    bool invoked = QMetaObject::invokeMethod(m_appContent, "switchToTab",
+                               Q_ARG(int, index));
+    // 5WHY: invokeMethod return was unchecked — if a QML refactoring
+    // renames/removes switchToTab, capture silently proceeds with wrong
+    // page.  Log and emit failure so the caller can react.
+    if (!invoked) {
+        qWarning() << "NavigationAdapter: switchToTab not invocable";
+        emit tabSwitchFailed(index);
+        return;
+    }
 }
 
 void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
@@ -171,8 +179,13 @@ void NavigationAdapter::openReportPreview() {
     QString html = m_appState->buildReportHtml(true, m_appState->isDarkMode());
     if (html.isEmpty()) return;
 
-    QMetaObject::invokeMethod(m_appContent, "switchToTab",
-                              Q_ARG(int, 3)); // switch to settings (report accessible from there)
+    // 5WHY: silently failing to switch tab means the capture will
+    // screenshot the wrong page.  Log the failure for diagnostics.
+    bool invoked = QMetaObject::invokeMethod(m_appContent, "switchToTab",
+                              Q_ARG(int, 3)); // settings tab → Report preview
+    if (!invoked) {
+        qWarning() << "NavigationAdapter: openReportPreview switchToTab(3) not invocable";
+    }
 
     // 5WHY: The loop below iterated the StackView depth and did nothing with
     // each item.  Q_UNUSED(html) explicitly discarded the built report.

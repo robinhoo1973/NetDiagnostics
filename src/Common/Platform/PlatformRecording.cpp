@@ -182,13 +182,12 @@ void platformStopRecording(RecordingCallback callback) {
         }
     };
 
-    // Disconnect the original finished handler from platformStartRecording
+    // Disconnect the original finished handler from platformStartRecording.
+    // 5WHY: s_stopping atomic exchange at line 167 is the sole guard against
+    // double-stop.  Clearing s_finishedConn only helps if s_stopping somehow
+    // fires twice — but the exchange already returns true the second time,
+    // bailing early.  Let the atomic guard carry the contract alone.
     QObject::disconnect(s_finishedConn);
-    // 5WHY: clear the connection handle so the next platformStartRecording()
-    // sets a fresh one.  If a second platformStopRecording() were to call
-    // disconnect(s_finishedConn) again (guarded by s_stopping, but belt-and-
-    // suspenders), it would disconnect the NEW start's handler instead.
-    s_finishedConn = QMetaObject::Connection();
 
     // Send 'q' to ffmpeg to gracefully stop
     s_recordingProc->write("q");
