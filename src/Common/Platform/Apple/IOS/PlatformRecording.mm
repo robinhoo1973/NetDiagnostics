@@ -47,7 +47,7 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         return;
     }
 
-    s_outputPath = [outPath.toNSString() retain];
+    s_outputPath = outPath.toNSString();  // ARC retains automatically
     s_startCb = callback;
 
     // Remove previous file
@@ -182,7 +182,7 @@ void platformStopRecording(RecordingCallback callback) {
                         ? QString::fromNSString(finalError)
                         : QStringLiteral("Writer did not complete"));
                 }
-                [s_outputPath release];
+                // ARC releases automatically
                 s_outputPath = nil;
             }
         }];

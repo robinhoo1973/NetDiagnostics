@@ -72,11 +72,8 @@ bool platformCaptureScreenshot(const QString& filePath) {
 
     NSString* nsPath = [NSString stringWithUTF8String:filePath.toUtf8().constData()];
     BOOL wrote = [pngData writeToFile:nsPath atomically:YES];
-    // 5WHY: retain was needed for the dispatch_async path (ARC would
-    // release when the block exits). Release here to balance.
-    if (![NSThread isMainThread] && pngData) {
-        [pngData release];
-    }
+    // 5WHY: Under ARC, __block variables are auto-retained on assignment
+    // and auto-released when they go out of scope. No manual retain/release.
     return wrote;
 }
 
