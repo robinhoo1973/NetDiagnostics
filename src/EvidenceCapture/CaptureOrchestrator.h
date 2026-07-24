@@ -109,6 +109,10 @@ private:
 
     // ── Helpers ─────────────────────────────────────────────────────────
     QString sessionDir() const;
+    // Single gateway for all failure paths — emits captureFailed BEFORE
+    // transitioning to Failed.  5WHY: was copy-pasted 6x with ordering
+    // comments at each site; extracting here guarantees it once.
+    void failCapture(const QString& errorCode, const QString& message);
     void appendToManifest(const QString& description, const QString& filePath);
 
     // Cached scenario — built once in startCapture, filtered by mode.

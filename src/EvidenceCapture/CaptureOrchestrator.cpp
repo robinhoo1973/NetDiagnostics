@@ -31,8 +31,10 @@
 // one well-audited function.
 static QString sanitizeUrl(const QString& raw) {
     QUrl u(raw);
-    u.setPassword(QString());            // strip password
-    u.setQuery(QString());               // strip query params (may contain tokens)
+    // 5WHY: RemoveUserInfo flag on toString() already strips both user
+    // and password — setPassword() was dead code. Only query needs manual
+    // stripping since no QUrl::RemoveQuery flag exists.
+    u.setQuery(QString());
     // Keep scheme + host + port + path — enough for audit but not for replay.
     return u.toString(QUrl::RemoveUserInfo | QUrl::PrettyDecoded);
 }
@@ -86,6 +88,11 @@ void CaptureOrchestrator::setAppContent(QObject* appContent) {
 
 void CaptureOrchestrator::setScrollFlickable(QObject* flickable) {
     m_scrollCtrl->setFlickable(flickable);
+}
+
+void CaptureOrchestrator::failCapture(const QString& errorCode, const QString& message) {
+    emit captureFailed(errorCode, message);
+    m_stateMachine->transitionTo(CaptureState::Failed);
 }
 
 void CaptureOrchestrator::requestModeSelection() {
@@ -377,7 +384,8 @@ void CaptureOrchestrator::createSession() {
     QJsonObject manifest;
     manifest["session_id"] = ts;
     manifest["capture_mode"] = modeStr;
-    manifest["diag_url"] = sanitizeUrl(m_diagUrl);
+    QString safeUrl = sanitizeUrl(m_diagUrl);
+    manifest["diag_url"] = safeUrl;
     manifest["started_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
     manifest["status"] = "running";
     manifest["captures"] = QJsonArray();
@@ -394,7 +402,7 @@ void CaptureOrchestrator::createSession() {
         logStream << "=== Automated Capture Session ===\n"
                   << "Session:  " << ts << "\n"
                   << "Mode:     " << modeStr << "\n"
-                  << "URL:      " << sanitizeUrl(m_diagUrl) << "\n"
+                  << "URL:      " << safeUrl << "\n"
                   << "Started:  " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n\n";
     }
 
@@ -416,8 +424,7 @@ void CaptureOrchestrator::startPlatformRecording() {
         } else {
             // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
             // sees pendingError=true and keeps the error overlay visible.
-            emit captureFailed(QStringLiteral("RECORDING_FAILED"), pathOrError);
-            m_stateMachine->transitionTo(CaptureState::Failed);
+            failCapture(QStringLiteral("RECORDING_FAILED"), pathOrError);
         }
     });
 }
@@ -438,8 +445,7 @@ void CaptureOrchestrator::stopPlatformRecording() {
             // Now transitions to Failed so the manifest reflects reality.
             m_currentAction = QStringLiteral("Recording stop failed: ") + pathOrError;
             emit actionChanged(m_currentAction);
-            emit captureFailed(QStringLiteral("RECORDING_STOP_FAILED"), pathOrError);
-            m_stateMachine->transitionTo(CaptureState::Failed);
+            failCapture(QStringLiteral("RECORDING_STOP_FAILED"), pathOrError);
         }
     });
 }
