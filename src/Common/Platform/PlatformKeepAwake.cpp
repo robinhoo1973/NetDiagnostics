@@ -13,7 +13,7 @@ static std::atomic<bool> s_keepAwake{false};
 static quint32 s_inhibitCookie = 0;
 // 5WHY: cookie can validly be 0 per freedesktop spec. Track inhibit state
 // separately so we always emit UnInhibit when we previously inhibited.
-static bool s_inhibited = false;
+static bool s_inhibited = false;  // main-thread only; guarded by s_keepAwake atomic
 
 void platformSetKeepAwake(bool enable) {
     if (enable == s_keepAwake.load()) return;
