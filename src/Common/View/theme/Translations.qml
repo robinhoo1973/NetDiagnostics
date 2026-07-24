@@ -287,6 +287,9 @@ Item {
     readonly property string themeLabel: t("Theme", "Thème", "Design", "Тема", "Tema", "主题", "主題", "Tema", "Tema")
     readonly property string languageSection: t("Language", "Langue", "Sprache", "Язык", "Lingua", "语言", "語言", "Idioma", "Idioma")
     readonly property string aboutSection: t("About", "À propos", "Über", "О программе", "Informazioni", "关于", "關於", "Acerca de", "Sobre")
+    // ── Hidden capture feature toasts ──
+    readonly property string captureEnabledToast: t("📸 Screen capture enabled", "📸 Capture d'écran activée", "📸 Bildschirmaufnahme aktiviert", "📸 Захват экрана включен", "📸 Cattura schermo abilitata", "📸 录屏截屏已启用", "📸 錄屏截屏已啟用", "📸 Captura de pantalla habilitada", "📸 Captura de tela habilitada")
+    readonly property string captureDisabledToast: t("📸 Screen capture disabled", "📸 Capture d'écran désactivée", "📸 Bildschirmaufnahme deaktiviert", "📸 Захват экрана выключен", "📸 Cattura schermo disabilitata", "📸 录屏截屏已禁用", "📸 錄屏截屏已禁用", "📸 Captura de pantalla deshabilitada", "📸 Captura de tela desabilitada")
     readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")
