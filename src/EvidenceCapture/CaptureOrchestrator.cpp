@@ -293,7 +293,7 @@ void CaptureOrchestrator::createSession() {
         QStandardPaths::AppDataLocation) + QStringLiteral("/Evidence/AutoCapture");
     m_sessionDir = root + QStringLiteral("/") + ts + QStringLiteral("_") + modeStr;
 
-    QDir().mkpath(m_sessionDir);
+    if (!QDir().mkpath(m_sessionDir)) { m_stateMachine->transitionTo(CaptureState::Failed); emit captureFailed(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory")); return; }
 
     // Write initial manifest.json
     QJsonObject manifest;
@@ -394,7 +394,10 @@ void CaptureOrchestrator::finalizeSession(bool success) {
         QByteArray data = mf.readAll();
         mf.seek(0);
         QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (doc.isNull()) { mf.close(); return; }  // corrupt/empty — don't overwrite
+        // 5WHY: just returning leaves FSM stuck in Finalizing forever.
+        // Corrupt manifest means the session directory is compromised —
+        // transition to Failed so the user can retry.
+        if (doc.isNull()) { mf.close(); m_stateMachine->transitionTo(CaptureState::Failed); return; }
         QJsonObject obj = doc.object();
         obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
         obj["status"] = QStringLiteral("completed");
@@ -468,9 +471,11 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
 
     // ── Capture-before: take screenshot before executing the action ──
     if (step->captureBefore && m_doScreenshot) {
+        QString safeDesc = step->description;
+        safeDesc.replace(QLatin1Char(':'), QLatin1Char('-')); // Windows-safe
         QString filePath = m_sessionDir + QStringLiteral("/")
             + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
-            + QStringLiteral("_") + step->description + QStringLiteral(".png");
+            + QStringLiteral("_") + safeDesc + QStringLiteral(".png");
         if (platformCaptureScreenshot(filePath)) {
             m_captureCount++;
             emit captureCountChanged(m_captureCount);
@@ -527,6 +532,9 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // ("param = filename label"), but code was reading step->description
         // which is empty for Capture steps, producing filenames like "XX_.png".
         QString label = step->param.isEmpty() ? step->description : step->param;
+        // 5WHY: description can contain ':' (e.g. "Diagnostics: run") which is
+        // illegal in Windows filenames. Replace with '-' for cross-platform safety.
+        label.replace(QLatin1Char(':'), QLatin1Char('-'));
         QString filePath = m_sessionDir + QStringLiteral("/")
             + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
             + QStringLiteral("_") + label + QStringLiteral(".png");
@@ -571,12 +579,15 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
             // Cancel any previous run first
             if (m_appState->runStatusInt() == 1) {
                 m_appState->cancel();
-                QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 500);
             }
+            // 5WHY: processEvents(500) was called between cancel() and
+            // runDiagnostics(), which could dispatch pending timers from
+            // previous steps and trigger WaitDiagComplete re-entrantly
+            // BEFORE runDiagnostics() had executed. cancel() is synchronous;
+            // no event-loop pump is needed.
             m_appState->runDiagnostics();
         }
         // WaitDiagComplete follows immediately in the scenario
-        // 5WHY: Same infinite-recursion fix as Capture above.
         QTimer::singleShot(100, this, [this]() { executeNextStep(); });
         break;
     }
