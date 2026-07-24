@@ -72,6 +72,10 @@ void CaptureOrchestrator::setAppContent(QObject* appContent) {
     m_navAdapter->setAppContent(appContent);
 }
 
+void CaptureOrchestrator::setScrollFlickable(QObject* flickable) {
+    m_scrollCtrl->setFlickable(flickable);
+}
+
 void CaptureOrchestrator::requestModeSelection() {
     if (!CaptureFeatureGate::isFeatureEnabled()) {
         CaptureFeatureGate::setFeatureEnabled(true);
@@ -91,6 +95,13 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
         emit captureFailed(QStringLiteral("NO_URL"),
                            QStringLiteral("Please enter a diagnostic URL."));
         return;
+    }
+
+    // 5WHY: After a prior capture reaches Completed/Cancelled/Failed (terminal),
+    // the transition table has no path back to Preflight. reset() returns the
+    // machine to Idle, from which Preflight IS a valid transition.
+    if (m_stateMachine->isTerminal()) {
+        m_stateMachine->reset();
     }
 
     m_captureMode = captureMode;
@@ -120,20 +131,23 @@ void CaptureOrchestrator::cancel() {
     if (m_recording && platformIsRecording()) {
         platformStopRecording(nullptr);
     }
+    m_recording = false;
+
+    // Stop any in-progress scroll
+    m_scrollCtrl->cancel();
 
     // Restore screen state
     platformSetKeepAwake(false);
 
-    // Clean up session
-    if (!m_sessionDir.isEmpty()) {
-        QDir dir(m_sessionDir);
-        if (dir.exists()) {
-            // Keep partial results; don't delete
-        }
+    // 5WHY: transitionTo(Cancelled) is not valid from every state
+    // (e.g. CreatingSession, StoppingRecording, Finalizing reject it).
+    // Only emit captureCancelled if the FSM accepted the transition.
+    bool didCancel = m_stateMachine->transitionTo(CaptureState::Cancelled);
+    if (didCancel) {
+        emit captureCancelled();
     }
-
-    m_stateMachine->transitionTo(CaptureState::Cancelled);
-    emit captureCancelled();
+    // If transition was rejected, the FSM stays in its current state and
+    // will complete normally (or fail with a timeout).
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -195,8 +209,10 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Failed:
         platformSetKeepAwake(false);
-        emit captureFailed(QStringLiteral("CAPTURE_FAILED"),
-                           QStringLiteral("Capture failed. See execution.log for details."));
+        // 5WHY: emitting a generic "CAPTURE_FAILED" here overwrites the
+        // specific error code the phase handler already emitted (e.g.
+        // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
+        // restores system state; the specific error was already emitted.
         break;
 
     case CaptureState::Cancelled:
@@ -213,20 +229,32 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 void CaptureOrchestrator::runPreflight() {
-    // Check ffmpeg availability for recording modes
+    // 5WHY: Synchronous QProcess::waitForFinished(3000) blocked the main
+    // (UI) thread for up to 3 seconds.  Use an async QProcess so the
+    // event loop stays responsive during the preflight check.
     if (m_recording) {
-        QProcess which;
-        which.start(QStringLiteral("which"), {QStringLiteral("ffmpeg")});
-        which.waitForFinished(3000);
-        if (which.exitCode() != 0) {
-            m_stateMachine->transitionTo(CaptureState::Failed);
-            emit captureFailed(QStringLiteral("NO_FFMPEG"),
-                               QStringLiteral("ffmpeg is required for screen recording. "
-                                              "Install: sudo apt install ffmpeg"));
-            return;
-        }
+        auto* which = new QProcess(this);
+        connect(which, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, which](int exitCode, QProcess::ExitStatus) {
+            which->deleteLater();
+            if (exitCode != 0) {
+                m_stateMachine->transitionTo(CaptureState::Failed);
+                emit captureFailed(QStringLiteral("NO_FFMPEG"),
+                                   QStringLiteral("ffmpeg is required for screen recording. "
+                                                  "Install: sudo apt install ffmpeg"));
+                return;
+            }
+            // ffmpeg found — continue with disk space check
+            finishPreflight();
+        });
+        which->start(QStringLiteral("which"), {QStringLiteral("ffmpeg")});
+        return;
     }
 
+    finishPreflight();
+}
+
+void CaptureOrchestrator::finishPreflight() {
     // Check disk space (>100MB)
     QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QStorageInfo storage(root);
@@ -320,6 +348,26 @@ void CaptureOrchestrator::stopPlatformRecording() {
 }
 
 void CaptureOrchestrator::finalizeSession(bool success) {
+    // 5WHY: when success is false, the manifest is updated with status "failed"
+    // but the state machine was stuck in Finalizing forever. Now transitions to
+    // Failed so callers see the error and the machine can be reset for retry.
+    if (!success) {
+        // Update manifest with failed status, then transition
+        QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
+        if (mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
+            QByteArray data = mf.readAll();
+            mf.seek(0);
+            QJsonDocument doc = QJsonDocument::fromJson(data);
+            QJsonObject obj = doc.object();
+            obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+            obj["status"] = "failed";
+            mf.resize(0);
+            mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+        }
+        m_stateMachine->transitionTo(CaptureState::Failed);
+        return;
+    }
+
     // Update manifest
     QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
     if (mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
@@ -442,13 +490,17 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     }
 
     case StepAction::Capture: {
+        // 5WHY: step->param holds the filename label per StepAction enum comment
+        // ("param = filename label"), but code was reading step->description
+        // which is empty for Capture steps, producing filenames like "XX_.png".
+        QString label = step->param.isEmpty() ? step->description : step->param;
         QString filePath = m_sessionDir + QStringLiteral("/")
             + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
-            + QStringLiteral("_") + step->description + QStringLiteral(".png");
+            + QStringLiteral("_") + label + QStringLiteral(".png");
         if (platformCaptureScreenshot(filePath)) {
             m_captureCount++;
             emit captureCountChanged(m_captureCount);
-            appendToManifest(step->description, filePath);
+            appendToManifest(label, filePath);
         }
         // 5WHY: Calling executeNextStep() directly from inside executeStep()
         // before the outer executeNextStep() has incremented m_currentStep

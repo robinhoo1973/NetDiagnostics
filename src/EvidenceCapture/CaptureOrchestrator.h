@@ -70,6 +70,10 @@ public:
     // QML engine is initialized (in main.cpp after context properties).
     Q_INVOKABLE void setAppContent(QObject* appContent);
 
+    // Wire a QML Flickable to the ScrollController so recording-mode
+    // scroll steps actually scroll the page instead of silently no-oping.
+    Q_INVOKABLE void setScrollFlickable(QObject* flickable);
+
 signals:
     void stateChanged();
     void stepChanged(int current, int total);
@@ -90,8 +94,8 @@ private slots:
 private:
     // ── Step execution ──────────────────────────────────────────────────
     void executeStep(int stepIndex);
-    void handleStepAction(const CaptureStep& step);
     void runPreflight();
+    void finishPreflight();  // second half of preflight after async ffmpeg check
     void createSession();
     void startPlatformRecording();
     void stopPlatformRecording();

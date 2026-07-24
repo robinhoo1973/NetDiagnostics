@@ -22,6 +22,16 @@ Rectangle {
     property alias captureCount: countLabel.text
     property alias elapsedText: elapsedLabel.text
 
+    // 5WHY: wireFlickable was missing — ScrollController::setFlickable was
+    // never called, so all Scroll steps silently no-opped (m_flickable==nullptr).
+    // Captures the Flickable from the current StackView page and passes it to
+    // the orchestrator's ScrollController so recording-mode scrolls actually work.
+    function wireFlickable(flickable) {
+        if (flickable && typeof captureOrchestrator !== "undefined") {
+            captureOrchestrator.setScrollFlickable(flickable)
+        }
+    }
+
     Rectangle {
         anchors.centerIn: parent
         width: Math.min(400, parent.width * 0.9)

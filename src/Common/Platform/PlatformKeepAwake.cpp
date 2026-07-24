@@ -11,6 +11,9 @@
 // Stores the inhibit cookie so we can uninhibit on disable.
 static std::atomic<bool> s_keepAwake{false};
 static quint32 s_inhibitCookie = 0;
+// 5WHY: cookie can validly be 0 per freedesktop spec. Track inhibit state
+// separately so we always emit UnInhibit when we previously inhibited.
+static bool s_inhibited = false;
 
 void platformSetKeepAwake(bool enable) {
     if (enable == s_keepAwake.load()) return;
@@ -34,11 +37,12 @@ void platformSetKeepAwake(bool enable) {
         int idx = output.indexOf("uint32 ");
         if (idx >= 0) {
             s_inhibitCookie = output.mid(idx + 7).trimmed().toUInt();
+            s_inhibited = true;
         }
         s_keepAwake = true;
         qDebug() << "[PlatformKeepAwake] Inhibit cookie:" << s_inhibitCookie;
     } else {
-        if (s_inhibitCookie > 0) {
+        if (s_inhibited) {
             QProcess proc;
             proc.start(QStringLiteral("dbus-send"), {
                 QStringLiteral("--session"),
@@ -50,6 +54,7 @@ void platformSetKeepAwake(bool enable) {
             });
             proc.waitForFinished(3000);
             s_inhibitCookie = 0;
+            s_inhibited = false;
         }
         s_keepAwake = false;
         qDebug() << "[PlatformKeepAwake] UnInhibited";

@@ -124,6 +124,11 @@ Item {
             function onCaptureCompleted(sessionPath) {
                 if (captureOverlay.item && typeof captureOverlay.item.sessionPath !== "undefined") {
                     captureOverlay.item.sessionPath = sessionPath
+                    // 5WHY: ResultSummary properties were never populated,
+                    // showing 0 screenshots and empty recording/duration.
+                    captureOverlay.item.totalScreenshots = captureOrchestrator.captureCount
+                    captureOverlay.item.recordingFile = captureOrchestrator.captureCount > 0 ? "recording.mp4" : ""
+                    captureOverlay.item.elapsedTime = "~45s"
                 }
             }
         }
@@ -147,6 +152,10 @@ Item {
             }
             // Preflight countdown finished
             if (typeof item.countdownFinished !== "undefined") {
+                // 5WHY: start() was never called after loading the preflight
+                // overlay, so the countdown never animated — it stayed at "3".
+                // Kick off the countdown as soon as the overlay is ready.
+                if (typeof item.start === "function") item.start()
                 item.countdownFinished.connect(function() {
                     // Countdown done — orchestrator auto-advances,
                     // next state change will load the running overlay

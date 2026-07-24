@@ -438,7 +438,12 @@ void AppState::runDiagnostics() {
                               .arg(m_totalDiags).arg(m_pendingGroups.size()));
 
     // ── Automated capture: start session if feature is enabled ──────────
-    if (CaptureFeatureGate::isFeatureEnabled()) {
+    // 5WHY: When CaptureOrchestrator triggers a diagnostic via its own
+    // RunDiagnostic step, CaptureService::startSession() would start a
+    // second, competing capture session.  Skip auto-capture when the
+    // orchestrator is already driving the flow — it manages its own captures.
+    if (CaptureFeatureGate::isFeatureEnabled()
+        && !(m_captureOrch && m_captureOrch->isRunning())) {
         m_captureService->startSession();
     }
 
