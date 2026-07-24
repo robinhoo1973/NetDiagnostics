@@ -27,8 +27,11 @@ Item {
         if (typeof item.previewVisible !== 'undefined' && item.previewVisible) item.previewVisible = false
         // Close share dialog
         if (typeof item.shareStage !== 'undefined' && item.shareStage !== 0) item.shareStage = 0
-        // Close cellular warning
-        if (appState.cellularWarnVisible) appState.cellularWarnVisible = false
+        // 5WHY: Dismissing the cellular warning via nav tap left the run
+        // paused at the G2->G3 boundary with no way to resume.  The dialog's
+        // own Cancel button calls appState.cancel(); match that behaviour so
+        // the run doesn't hang in Running state after navigation.
+        if (appState.cellularWarnVisible) { appState.cellularWarnVisible = false; appState.cancel() }
     }
 
     // ── Single source of truth for tab definitions ───────────────────

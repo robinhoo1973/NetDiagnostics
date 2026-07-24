@@ -12,7 +12,6 @@ pragma Singleton
 import QtQuick
 
 QtObject {
-    readonly property int sysMode: 0
     readonly property int litMode: 1
     readonly property int drkMode: 2
     property int mode: drkMode

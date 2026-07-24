@@ -819,7 +819,7 @@ QVariantMap iosCellularInfo()
 
     // Signal strength is not available via public API (iOS restricts this)
     info["signalNotice"] = QStringLiteral("Signal strength: unavailable (Apple restricts public API access)");
-    info["signalNote"] = QStringLiteral("To monitor signal: use Xcode -> Simulator -> I/O -> Cellular");
+    info["signalNote"] = QStringLiteral("To monitor signal strength: use the device's built-in Field Test mode (*3001#12345#*) or a third-party cellular monitor app");
 
     return info;
 }

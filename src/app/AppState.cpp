@@ -162,10 +162,10 @@ void AppState::bumpVersion() {
 }
 
 // ── Language switching ──────────────────────────────────────────────────
-int AppState::languageIndex() const { return m_settingsCtrl ? m_settingsCtrl->languageIndex() : 0; }
-int AppState::themeMode() const { return m_settingsCtrl ? m_settingsCtrl->themeMode() : 2; }
-bool AppState::isPremium() const { return m_settingsCtrl ? m_settingsCtrl->isPremium() : false; }
-bool AppState::purchaseInProgress() const { return m_settingsCtrl ? m_settingsCtrl->purchaseInProgress() : false; }
+int AppState::languageIndex() const { return m_settingsCtrl->languageIndex(); }
+int AppState::themeMode() const { return m_settingsCtrl->themeMode(); }
+bool AppState::isPremium() const { return m_settingsCtrl->isPremium(); }
+bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInProgress(); }
 
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {
@@ -204,9 +204,10 @@ bool AppState::isDiagEnabled(int diagIdInt) const { return m_configCtrl->config(
 // which updates in-memory state but bypasses ConfigurationController's
 // saveSettings() — individual test enable/disable toggles were LOST
 // on app restart.  Now routes through the controller, which persists
-// enabledDiags to QSettings on every change.
-void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_configCtrl->setDiagEnabled(diagIdInt, enabled); saveSettings(); bumpVersion(); }
-void AppState::setGroupEnabled(int groupInt, bool enabled) { m_configCtrl->setGroupEnabled(groupInt, enabled); saveSettings(); bumpVersion(); }
+// enabledDiags to QSettings on every change.  AppState::saveSettings()
+// only stores activeGroups and is not needed here.
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_configCtrl->setDiagEnabled(diagIdInt, enabled); bumpVersion(); }
+void AppState::setGroupEnabled(int groupInt, bool enabled) { m_configCtrl->setGroupEnabled(groupInt, enabled); bumpVersion(); }
 bool AppState::isGroupAllEnabled(int groupInt) const { return m_configCtrl->config().isGroupAllEnabled(groupInt); }
 bool AppState::isGroupAnyEnabled(int groupInt) const { return m_configCtrl->config().isGroupAnyEnabled(groupInt); }
 
@@ -284,13 +285,21 @@ bool AppState::isCellularData() const {
 
 // ── Continue after cellular warning ─────────────────────────────────────────
 void AppState::continueAfterCellularWarn() {
+    // 5WHY: No idempotency guard — if called twice (e.g. signal queue
+    // delay + rapid double-tap), the second call would reset
+    // m_activeGroupDone.store(0) and create duplicate G3 tasks.
+    if (!_cellularWarnVisible) return;
     _cellularWarnVisible = false;
     emit cellularWarnVisibleChanged();
-    // Skip cellular check on re-entry — user already approved.
-    // Resume from the current group (G3 was paused in startNextGroup).
-    _cellularApproved = true;
+    // 5WHY: _bypassCellularCheck is a one-shot flag that suppresses the
+    // cellular-data check for exactly one entry into startNextGroup().
+    // It is set immediately before the call and cleared immediately after,
+    // so it cannot leak into subsequent group transitions (e.g. G4/G5).
+    // The flag is NOT a user-approval token — it is purely a control-flow
+    // bypass for the G2→G3 boundary after the user clicked Continue.
+    _bypassCellularCheck = true;
     startNextGroup();
-    _cellularApproved = false;
+    _bypassCellularCheck = false;
 }
 
 // ── Run diagnostics ────────────────────────────────────────────────────────
@@ -432,7 +441,7 @@ void AppState::startNextGroup() {
     // 5WHY: G3 Internet tests make real network requests (DNS, HTTP, DoH).
     // Check at the G2→G3 boundary (not at runDiagnostics start) so G1/G2
     // complete first, and only warn when cellular is the sole connection.
-    if (!_cellularApproved && gt.group == DiagGroup::G3 && isCellularData()
+    if (!_bypassCellularCheck && gt.group == DiagGroup::G3 && isCellularData()
         && m_configCtrl && m_configCtrl->isGroupAnyEnabled(static_cast<int>(DiagGroup::G3))) {
         _cellularWarnVisible = true;
         emit cellularWarnVisibleChanged();
@@ -531,6 +540,17 @@ void AppState::cancel() {
     if (m_runStatus != RunStatus::Running) return;
     m_runStatus = RunStatus::Cancelled;
     m_currentDiagName.clear();
+
+    // 5WHY: _cellularWarnVisible was cleared by QML callers (Cancel button,
+    // backdrop tap, nav dismiss) before calling cancel(), but cancel() itself
+    // never reset it.  If any future C++ code path calls cancel() without
+    // first clearing the flag, the cellular warning dialog stays visible.
+    // Tie the cellular warning lifecycle to the run lifecycle to prevent
+    // a zombie dialog after the run is gone.
+    if (_cellularWarnVisible) {
+        _cellularWarnVisible = false;
+        emit cellularWarnVisibleChanged();
+    }
 
     // DiagnosticTask::cancel() stops the per-task watchdog and suppresses
     // the finished() signal via the atomic cancelled flag. Tasks in-flight

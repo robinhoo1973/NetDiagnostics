@@ -280,9 +280,12 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     implicitWidth: 64; implicitHeight: 64; radius: 32
                     color: Qt.alpha(ThemeEngine.warnYellow, 0.10)
+                    // 5WHY: "wifi" icon was misleading — this dialog warns about
+                    // cellular data, not WiFi.  Changed to "warning" which
+                    // is semantically correct for a warning/alert dialog.
                     AppIcon {
                         anchors.centerIn: parent
-                        name: "wifi"; size: 32
+                        name: "warning"; size: 32
                         color: ThemeEngine.warnYellow
                     }
                 }
