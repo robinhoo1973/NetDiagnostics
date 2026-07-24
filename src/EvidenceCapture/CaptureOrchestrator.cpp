@@ -320,12 +320,9 @@ void CaptureOrchestrator::runPreflight() {
     if (m_recording) {
         QString ffmpegPath = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
         if (ffmpegPath.isEmpty()) {
-            // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
-            // sees pendingError=true and keeps the error overlay visible.
-            emit captureFailed(QStringLiteral("NO_FFMPEG"),
-                               QStringLiteral("ffmpeg is required for screen recording. "
-                                              "Install: sudo apt install ffmpeg"));
-            m_stateMachine->transitionTo(CaptureState::Failed);
+            failCapture(QStringLiteral("NO_FFMPEG"),
+                        QStringLiteral("ffmpeg is required for screen recording. "
+                                       "Install: sudo apt install ffmpeg"));
             return;
         }
         // ffmpeg found — continue with disk space check
@@ -344,11 +341,8 @@ void CaptureOrchestrator::finishPreflight() {
     QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QStorageInfo storage(root);
     if (storage.isValid() && storage.bytesAvailable() < 100 * 1024 * 1024) {
-        // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
-        // sees pendingError=true and keeps the error overlay visible.
-        emit captureFailed(QStringLiteral("LOW_DISK"),
-                           QStringLiteral("Less than 100MB disk space available."));
-        m_stateMachine->transitionTo(CaptureState::Failed);
+        failCapture(QStringLiteral("LOW_DISK"),
+                    QStringLiteral("Less than 100MB disk space available."));
         return;
     }
 
@@ -376,9 +370,10 @@ void CaptureOrchestrator::createSession() {
         QStandardPaths::AppDataLocation) + QStringLiteral("/Evidence/AutoCapture");
     m_sessionDir = root + QStringLiteral("/") + ts + QStringLiteral("_") + tz + QStringLiteral("_") + scenario + QStringLiteral("_") + modeStr;
 
-    // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
-    // sees pendingError=true and keeps the error overlay visible.
-    if (!QDir().mkpath(m_sessionDir)) { emit captureFailed(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory")); m_stateMachine->transitionTo(CaptureState::Failed); return; }
+    if (!QDir().mkpath(m_sessionDir)) {
+        failCapture(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory"));
+        return;
+    }
 
     // Write initial manifest.json
     QJsonObject manifest;
@@ -422,8 +417,6 @@ void CaptureOrchestrator::startPlatformRecording() {
             emit actionChanged(m_currentAction);
             m_stateMachine->transitionTo(CaptureState::ExecutingSteps);
         } else {
-            // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
-            // sees pendingError=true and keeps the error overlay visible.
             failCapture(QStringLiteral("RECORDING_FAILED"), pathOrError);
         }
     });
@@ -465,7 +458,11 @@ void CaptureOrchestrator::finalizeSession() {
         // 5WHY: just returning leaves FSM stuck in Finalizing forever.
         // Corrupt manifest means the session directory is compromised —
         // transition to Failed so the user can retry.
-        if (doc.isNull()) { mf.close(); emit captureFailed(QStringLiteral("MANIFEST_CORRUPT"), QStringLiteral("Session manifest is corrupt, cannot finalize.")); m_stateMachine->transitionTo(CaptureState::Failed); return; }
+        if (doc.isNull()) {
+            mf.close();
+            failCapture(QStringLiteral("MANIFEST_CORRUPT"), QStringLiteral("Session manifest is corrupt, cannot finalize."));
+            return;
+        }
         QJsonObject obj = doc.object();
         obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
         obj["status"] = QStringLiteral("completed");
@@ -508,13 +505,9 @@ void CaptureOrchestrator::executeNextStep() {
     const CaptureStep* step = m_filteredScenario.stepAt(m_currentStep);
     if (!step) {
         // Shouldn't happen, but handle gracefully.
-        // 5WHY: transitioning to Failed here without emitting captureFailed
-        // leaves the UI with no error feedback — the Failed handler in
-        // onStateChanged no longer emits a generic message (by design).
-        emit captureFailed(QStringLiteral("STEP_NOT_FOUND"),
-                           QStringLiteral("Internal error: step not found at index %1")
-                               .arg(m_currentStep));
-        m_stateMachine->transitionTo(CaptureState::Failed);
+        failCapture(QStringLiteral("STEP_NOT_FOUND"),
+                    QStringLiteral("Internal error: step not found at index %1")
+                        .arg(m_currentStep));
         return;
     }
 
