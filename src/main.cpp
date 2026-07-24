@@ -28,6 +28,8 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
+#include "EvidenceCapture/CaptureService.h"
+#include "EvidenceCapture/CaptureOrchestrator.h"
 #include "Dashboard/Controller/DashboardController.h"
 #include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
@@ -154,6 +156,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
+    // Automated capture service (screenshots during diagnostics)
+    engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
+    engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
@@ -205,7 +210,7 @@ int main(int argc, char *argv[])
     // ── Headless testing mode: --test runs scenarios, no GUI ──────────
     if (argc >= 2 && strcmp(argv[1], "--test") == 0) {
         QString logPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation)
-                        + "/netdiag-test-" + QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss") + ".log";
+                        + "/netdiag-test-" + QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss") + ".log";
         TestHarness::instance().setLogPath(logPath);
         TestHarness::instance().setAppState(&appState);
         TestHarness::instance().logInfo("Headless test mode started");
@@ -296,6 +301,17 @@ int main(int argc, char *argv[])
     }
     STARTUP_LOG("QML loaded successfully. Showing window.");
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
+
+    // ── Wire AppContent to CaptureOrchestrator for automated navigation ──
+    {
+        QObject* appContent = engine.rootObjects().first()
+            ? engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("appContent"))
+            : nullptr;
+        if (appContent) {
+            appState.captureOrchestrator()->setAppContent(appContent);
+            STARTUP_TRACE("CaptureOrchestrator: AppContent wired for automated navigation");
+        }
+    }
     // 5WHY: The startup log exists only to diagnose launch crashes.
     // Once QML loads + window shows, the app started successfully —
     // delete the log so stale crash-debug logs don't accumulate.

@@ -29,6 +29,8 @@ class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
+class CaptureService;
+class CaptureOrchestrator;
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {
@@ -81,6 +83,8 @@ public:
     SettingsController* settingsController() const { return m_settingsCtrl; }
     TargetModel* targetModel() const { return m_targetModel; }
     ResultsModel* resultsModel() const { return m_resultsModel; }
+    class CaptureService* captureService() const { return m_captureService; }
+    class CaptureOrchestrator* captureOrchestrator() const { return m_captureOrch; }
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
@@ -293,6 +297,13 @@ private:
     // DiagnosticConfig now owned by ConfigurationController (m_configCtrl)
     // ReportEngine handles HTML/PDF generation + file dialogs
     ReportEngine m_reportEngine;
+
+    // CaptureService: automated screenshot capture during diagnostics.
+    // Owned by AppState; exposed to QML via captureService() accessor.
+    CaptureService* m_captureService = nullptr;
+    // CaptureOrchestrator: full automated capture workflow (navigation + diag + scroll).
+    // Owned by AppState; exposed to QML via captureOrchestrator() accessor.
+    CaptureOrchestrator* m_captureOrch = nullptr;
 
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_totalPerGroup;

@@ -235,7 +235,7 @@ void TestHarness::takeScreenshot(const QString& label) {
     QDir().mkpath(m_screenshotDir);
 
     QString filename = QStringLiteral("%1/%2-%3.txt")
-        .arg(m_screenshotDir, QDateTime::currentDateTime().toString("yyyyMMdd-hhmmss"), label);
+        .arg(m_screenshotDir, QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss"), label);
     QFile f(filename);
     if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream ts(&f);

@@ -340,15 +340,18 @@ Item {
                                     } else if (clickCount >= 2) {
                                         clickCount = 0
                                         clickResetTimer.stop()
-                                        // Toggle the capture feature
+                                        // 5WHY: was just toggling a boolean — now opens the
+                                        // CaptureModePanel so the user can choose mode + URL.
                                         if (appState.captureFeatureEnabled) {
                                             appState.disableCaptureFeature()
                                             captureToast.text = Tr.captureDisabledToast
+                                            captureToastTimer.restart()
                                         } else {
-                                            appState.enableCaptureFeature()
+                                            // Enable gate + request mode selection panel
+                                            captureOrchestrator.requestModeSelection()
                                             captureToast.text = Tr.captureEnabledToast
+                                            captureToastTimer.restart()
                                         }
-                                        captureToastTimer.restart()
                                     }
                                 }
                             }

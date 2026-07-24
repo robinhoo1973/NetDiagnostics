@@ -26,6 +26,14 @@ set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
     src/Common/Model/CaptureFeatureGate.cpp
+    src/Common/Platform/PlatformCapture.cpp
+    src/Common/Platform/PlatformKeepAwake.cpp
+    src/Common/Platform/PlatformRecording.cpp
+    src/EvidenceCapture/CaptureService.cpp
+    src/EvidenceCapture/CaptureStateMachine.cpp
+    src/EvidenceCapture/NavigationAdapter.cpp
+    src/EvidenceCapture/ScrollController.cpp
+    src/EvidenceCapture/CaptureOrchestrator.cpp
     src/Common/Utils/Logger.cpp
     src/Common/Services/DnsResolver.cpp
     src/Common/Services/ServerDbUpdater.cpp

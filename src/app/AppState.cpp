@@ -8,6 +8,8 @@
 #include <QJniObject>
 #endif
 #include "Common/Model/CaptureFeatureGate.h"
+#include "EvidenceCapture/CaptureService.h"
+#include "EvidenceCapture/CaptureOrchestrator.h"
 #include "Common/Model/DiagNames.h"
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
@@ -63,6 +65,10 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_configCtrl = new ConfigurationController(this, this);
     m_reportCtrl = new ReportController(this, this);
     m_settingsCtrl = new SettingsController(this, this);
+
+    // ── Automated capture service (screenshots during diagnostics) ──────────
+    m_captureService = new CaptureService(this);
+    m_captureOrch = new CaptureOrchestrator(this, this);
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.
@@ -431,6 +437,11 @@ void AppState::runDiagnostics() {
     Logger::instance().event(QStringLiteral("Starting diagnostic run: %1 tests in %2 groups")
                               .arg(m_totalDiags).arg(m_pendingGroups.size()));
 
+    // ── Automated capture: start session if feature is enabled ──────────
+    if (CaptureFeatureGate::isFeatureEnabled()) {
+        m_captureService->startSession();
+    }
+
     startNextGroup();
 }
 
@@ -446,7 +457,21 @@ void AppState::startNextGroup() {
         emit progressChanged();
         bumpVersion();
         Logger::instance().event(QStringLiteral("Diagnostic run complete"));
+
+        // ── Automated capture: end session on diagnostic complete ──────────
+        // 5WHY: endSession() already captures "99_session_end" with the
+        // final screen state. The separate "99_run_complete" capture was
+        // redundant — it would produce two near-identical screenshots.
+        if (CaptureFeatureGate::isFeatureEnabled()) {
+            m_captureService->endSession();
+        }
         return;
+    }
+
+    // ── Automated capture: screenshot at group boundary (G{N}_complete) ──
+    if (CaptureFeatureGate::isFeatureEnabled() && m_currentGroupIdx > 0) {
+        int prevGroup = m_currentGroupIdx;  // 1-indexed: G1→1, G2→2, etc.
+        m_captureService->capture(QStringLiteral("G%1_complete").arg(prevGroup));
     }
 
     auto& gt = m_pendingGroups[m_currentGroupIdx];

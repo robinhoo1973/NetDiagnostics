@@ -10,6 +10,7 @@ import "theme"
 
 Item {
     id: content
+    objectName: "appContent"
     readonly property alias stackView: stackView
     property bool compact: false // mobile: icons only, right-aligned, no close
     // 5WHY: navBlocked only checked item-local overlayVisible (detailOverlay /
@@ -63,6 +64,124 @@ Item {
     Component { id: dashboardComp;  DashboardScreen  { objectName: "dashboard"  } }
     Component { id: configComp;     ConfigScreen     { objectName: "config"     } }
     Component { id: settingsComp;   SettingsScreen   { objectName: "settings"   } }
+
+    // ── Capture overlay loader — single mount point for capture UI stack ──
+    // 5WHY: CaptureModePanel/CaptureOrchestrator were unreachable dead code.
+    // This Loader is driven by captureOrchestrator signals: modeSelectionRequested
+    // → load CaptureModePanel; stateChanged → load running/summary overlays.
+    Loader {
+        id: captureOverlay
+        anchors.fill: parent
+        z: 2000
+        active: false
+
+        // ── Listen for orchestrator signals ──────────────────────────────
+        Connections {
+            target: captureOrchestrator
+            function onModeSelectionRequested() {
+                captureOverlay.active = true
+                captureOverlay.source = "qrc:/qml/capture/CaptureModePanel.qml"
+            }
+            function onStateChanged() {
+                var s = captureOrchestrator.state
+                // 2=CountdownToStart → show preflight overlay
+                if (s === 2) {
+                    captureOverlay.active = true
+                    captureOverlay.source = "qrc:/qml/capture/CapturePreflightOverlay.qml"
+                }
+                // 5=ExecutingSteps → show running overlay
+                else if (s === 5) {
+                    captureOverlay.active = true
+                    captureOverlay.source = "qrc:/qml/capture/CaptureRunningOverlay.qml"
+                }
+                // 8=Completed → show result summary
+                else if (s === 8) {
+                    captureOverlay.active = true
+                    captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                }
+                // 0=Idle, 9=Cancelled, 10=Failed → dismiss overlay
+                else if (s === 0 || s === 9 || s === 10) {
+                    captureOverlay.active = false
+                    captureOverlay.source = ""
+                }
+            }
+            function onStepChanged(current, total) {
+                if (captureOverlay.item && typeof captureOverlay.item.stepProgress !== "undefined") {
+                    captureOverlay.item.stepProgress = current
+                    captureOverlay.item.stepTotal = total
+                }
+            }
+            function onActionChanged(action) {
+                if (captureOverlay.item && typeof captureOverlay.item.currentStep !== "undefined") {
+                    captureOverlay.item.currentStep = action
+                }
+            }
+            function onCaptureCountChanged(count) {
+                if (captureOverlay.item && typeof captureOverlay.item.captureCount !== "undefined") {
+                    captureOverlay.item.captureCount = count
+                }
+            }
+            function onCaptureCompleted(sessionPath) {
+                if (captureOverlay.item && typeof captureOverlay.item.sessionPath !== "undefined") {
+                    captureOverlay.item.sessionPath = sessionPath
+                }
+            }
+        }
+
+        // ── Wire loaded panel signals to orchestrator ────────────────────
+        onLoaded: {
+            if (!item) return
+            // CaptureModePanel → start capture
+            if (typeof item.startRequested !== "undefined") {
+                item.startRequested.connect(function(mode, url) {
+                    captureOrchestrator.startCapture(mode, url)
+                })
+            }
+            // Any panel → cancel
+            if (typeof item.cancelled !== "undefined") {
+                item.cancelled.connect(function() {
+                    captureOrchestrator.cancel()
+                    captureOverlay.active = false
+                    captureOverlay.source = ""
+                })
+            }
+            // Preflight countdown finished
+            if (typeof item.countdownFinished !== "undefined") {
+                item.countdownFinished.connect(function() {
+                    // Countdown done — orchestrator auto-advances,
+                    // next state change will load the running overlay
+                })
+            }
+            // Result summary dismissed
+            if (typeof item.dismissed !== "undefined") {
+                item.dismissed.connect(function() {
+                    captureOverlay.active = false
+                    captureOverlay.source = ""
+                })
+            }
+            // Wire ScrollController when running overlay is on diagnostic page
+            if (typeof item.wireFlickable === "function") {
+                var currentItem = stackView.currentItem
+                if (currentItem) {
+                    var flick = findFlickable(currentItem)
+                    if (flick) item.wireFlickable(flick)
+                }
+            }
+        }
+
+        function findFlickable(obj) {
+            if (!obj) return null
+            if (typeof obj.contentHeight !== "undefined" && typeof obj.contentY !== "undefined")
+                return obj
+            if (obj.children) {
+                for (var i = 0; i < obj.children.length; i++) {
+                    var r = findFlickable(obj.children[i])
+                    if (r) return r
+                }
+            }
+            return null
+        }
+    }
 
     ColumnLayout {
         anchors.fill: parent; spacing: 0
