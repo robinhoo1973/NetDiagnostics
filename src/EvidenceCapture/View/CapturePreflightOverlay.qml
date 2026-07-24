@@ -86,12 +86,17 @@ Rectangle {
             }
 
             // Big countdown number
+            // 5WHY: Behavior on text with NumberAnimation doesn't work —
+            // NumberAnimation operates on numeric properties but text is a
+            // string.  QML silently ignores this.  Use opacity transition
+            // instead to create a brief fade between countdown values.
             Label {
                 Layout.alignment: Qt.AlignHCenter
                 text: root.countdown
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 64
                 font.weight: Font.Bold; color: T.ThemeEngine.cyan
-                Behavior on text { NumberAnimation { duration: 200 } }
+                opacity: 1.0
+                Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.InQuad } }
             }
 
             Rectangle {

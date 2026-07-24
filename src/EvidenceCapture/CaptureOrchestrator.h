@@ -105,7 +105,7 @@ private:
     void createSession();
     void startPlatformRecording();
     void stopPlatformRecording();
-    void finalizeSession(bool success);
+    void finalizeSession();
 
     // ── Helpers ─────────────────────────────────────────────────────────
     QString sessionDir() const;
@@ -134,5 +134,6 @@ private:
     bool          m_recording = false;  // true if mode is RecordingOnly or Both
     bool          m_doScreenshot = false; // true if mode is ScreenshotOnly or Both
     int           m_countdownGen = 0;     // incremented per CountdownToStart entry; prevents stale safety timers
+    QTimer*       m_pollTimer = nullptr;  // non-null during WaitDiagComplete polling; stopped/cleared on cancel
     QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()
 };

@@ -118,6 +118,10 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     m_currentStep = 0;
     m_captureCount = 0;
     m_sessionDir.clear();
+    m_currentAction.clear();  // 5WHY: stale action from a previous capture (e.g.
+    // "Recording saved: ...") would be briefly visible in the QML overlay until
+    // the first onStateChanged → CountdownToStart sets a new action.  Clear it
+    // at the start so the UI shows an empty state until the new action is set.
     m_elapsed.start();
 
     // Build and cache the scenario once, filtered by capture mode
@@ -134,6 +138,19 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
 
 void CaptureOrchestrator::cancel() {
     if (!m_stateMachine->isRunning()) return;
+
+    // 5WHY: Stop all active timers to prevent stale callbacks after cancel.
+    // m_delayTimer (inter-step settle delay) and m_pollTimer (WaitDiagComplete
+    // polling) must be stopped so they don't fire after the state machine has
+    // left ExecutingSteps.  While executeNextStep() guards against wrong state,
+    // stopping timers here avoids wasted work and prevents potential re-entrancy
+    // from timer callbacks interleaving with cleanup.
+    m_delayTimer->stop();
+    if (m_pollTimer) {
+        m_pollTimer->stop();
+        m_pollTimer->deleteLater();
+        m_pollTimer = nullptr;
+    }
 
     // Stop recording if active
     if (m_recording && platformIsRecording()) {
@@ -223,7 +240,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::Finalizing:
-        finalizeSession(true);
+        finalizeSession();
         break;
 
     case CaptureState::Completed:
@@ -372,45 +389,27 @@ void CaptureOrchestrator::stopPlatformRecording() {
     platformStopRecording([this](bool ok, const QString& pathOrError) {
         if (ok) {
             m_currentAction = QStringLiteral("Recording saved: ") + pathOrError;
+            emit actionChanged(m_currentAction);
+            m_stateMachine->transitionTo(CaptureState::Finalizing);
         } else {
-            m_currentAction = QStringLiteral("Recording stop issue: ") + pathOrError;
+            // 5WHY: Previously always transitioned to Finalizing even on
+            // recording stop failure, causing finalizeSession() to mark
+            // the session as "completed" with a missing/corrupt recording.
+            // Now transitions to Failed so the manifest reflects reality.
+            m_currentAction = QStringLiteral("Recording stop failed: ") + pathOrError;
+            emit actionChanged(m_currentAction);
+            emit captureFailed(QStringLiteral("RECORDING_STOP_FAILED"), pathOrError);
+            m_stateMachine->transitionTo(CaptureState::Failed);
         }
-        emit actionChanged(m_currentAction);
-        m_stateMachine->transitionTo(CaptureState::Finalizing);
     });
 }
 
-void CaptureOrchestrator::finalizeSession(bool success) {
-    // 5WHY: when success is false, the manifest is updated with status "failed"
-    // but the state machine was stuck in Finalizing forever. Now transitions to
-    // Failed so callers see the error and the machine can be reset for retry.
-    if (!success) {
-        // Update manifest with failed status, then transition
-        QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
-        if (mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
-            QByteArray data = mf.readAll();
-            mf.seek(0);
-            QJsonDocument doc = QJsonDocument::fromJson(data);
-            QJsonObject obj = doc.object();
-            obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
-            obj["status"] = "failed";
-            mf.resize(0);
-            mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
-        }
-        // 5WHY: append session summary to execution log even on failure,
-        // so the log doesn't appear truncated when steps were executed
-        // before the failure occurred.
-        QFile logFile(m_sessionDir + QStringLiteral("/execution.log"));
-        if (logFile.open(QIODevice::Append | QIODevice::Text)) {
-            QTextStream logStream(&logFile);
-            logStream << "\n--- Session failed ---\n"
-                      << "Total captures: " << m_captureCount << "\n"
-                      << "Ended: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
-        }
-        m_stateMachine->transitionTo(CaptureState::Failed);
-        return;
-    }
-
+void CaptureOrchestrator::finalizeSession() {
+    // 5WHY: the success parameter was dead code after stopPlatformRecording
+    // refactored to transition directly to Failed on error. Recording stop
+    // failures and all other errors now transition to Failed state directly,
+    // so finalizeSession only handles the success path.  The corrupt-manifest
+    // fallback below is the only remaining failure path through this function.
     // Update manifest
     QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
     if (mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
@@ -420,7 +419,7 @@ void CaptureOrchestrator::finalizeSession(bool success) {
         // 5WHY: just returning leaves FSM stuck in Finalizing forever.
         // Corrupt manifest means the session directory is compromised —
         // transition to Failed so the user can retry.
-        if (doc.isNull()) { mf.close(); m_stateMachine->transitionTo(CaptureState::Failed); return; }
+        if (doc.isNull()) { mf.close(); emit captureFailed(QStringLiteral("MANIFEST_CORRUPT"), QStringLiteral("Session manifest is corrupt, cannot finalize.")); m_stateMachine->transitionTo(CaptureState::Failed); return; }
         QJsonObject obj = doc.object();
         obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
         obj["status"] = QStringLiteral("completed");
@@ -617,25 +616,35 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
 
     case StepAction::WaitDiagComplete: {
         int timeout = step->param.isEmpty() ? 120000 : step->param.toInt();
-        // Poll for diagnostic completion
-        auto pollTimer = new QTimer(this);
+        // Clean up any previous poll timer (shouldn't happen, but be safe)
+        if (m_pollTimer) {
+            m_pollTimer->stop();
+            m_pollTimer->deleteLater();
+            m_pollTimer = nullptr;
+        }
+        // 5WHY: was a local QTimer that couldn't be stopped on cancel.
+        // Now stored in m_pollTimer so CaptureOrchestrator::cancel() can
+        // stop it, preventing wasted ticks and potential re-entrancy.
+        m_pollTimer = new QTimer(this);
         auto elapsed = std::make_shared<int>(0);
-        pollTimer->setInterval(500);
+        m_pollTimer->setInterval(500);
 
-        connect(pollTimer, &QTimer::timeout, this, [=]() mutable {
+        connect(m_pollTimer, &QTimer::timeout, this, [=]() mutable {
             *elapsed += 500;
             int status = m_appState ? m_appState->runStatusInt() : 0;
 
             if (status != 1) { // not Running → complete/cancelled/error
-                pollTimer->stop();
-                pollTimer->deleteLater();
+                m_pollTimer->stop();
+                m_pollTimer->deleteLater();
+                m_pollTimer = nullptr;
                 // Small delay to let results render
                 QTimer::singleShot(1000, this, [this]() {
                     executeNextStep();
                 });
             } else if (*elapsed >= timeout) {
-                pollTimer->stop();
-                pollTimer->deleteLater();
+                m_pollTimer->stop();
+                m_pollTimer->deleteLater();
+                m_pollTimer = nullptr;
                 // Timeout — try to cancel and continue
                 if (m_appState) m_appState->cancel();
                 QTimer::singleShot(500, this, [this]() {
@@ -643,7 +652,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
                 });
             }
         });
-        pollTimer->start();
+        m_pollTimer->start();
         break;
     }
 

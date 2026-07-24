@@ -112,9 +112,22 @@ Item {
                     captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
                 }
-                else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled || s === captureOverlay.kCaptureFailed) {
+                else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled) {
                     captureOverlay.active = false
                     captureOverlay.source = ""
+                }
+                else if (s === captureOverlay.kCaptureFailed) {
+                    // 5WHY: onCaptureFailed loads the error overlay BEFORE
+                    // onStateChanged fires for Failed.  If we unload here,
+                    // the error summary is immediately hidden.  Only unload
+                    // if no error overlay is currently showing (i.e. the
+                    // failure originated from a path that didn't first emit
+                    // captureFailed, such as a corrupt manifest in finalizeSession).
+                    // In that case no overlay is loaded yet, so hiding is correct.
+                    if (!captureOverlay.item || !captureOverlay.item.isError) {
+                        captureOverlay.active = false
+                        captureOverlay.source = ""
+                    }
                 }
             }
             function onStepChanged(current, total) {
@@ -153,6 +166,22 @@ Item {
                     captureOverlay.item.recordingFile = captureOrchestrator.isRecordingCapture() ? "recording.mp4" : ""
                     captureOverlay.item.elapsedTime = captureOrchestrator.elapsedSeconds + "s"
                 }
+            }
+            function onCaptureFailed(errorCode, userMessage) {
+                // 5WHY: Failed state hides the overlay with no user feedback.
+                // Show a lightweight failure summary so the user knows the
+                // capture did not complete and why.
+                captureOverlay.active = true
+                captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                // The ResultSummary overlay will populate after onLoaded fires;
+                // use a singleShot to set properties after the component is ready.
+                Qt.callLater(function() {
+                    if (captureOverlay.item) {
+                        captureOverlay.item.isError = true
+                        captureOverlay.item.errorMessage = userMessage
+                        captureOverlay.item.errorCode = errorCode
+                    }
+                })
             }
         }
 
