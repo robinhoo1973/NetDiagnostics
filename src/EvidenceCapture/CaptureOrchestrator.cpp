@@ -287,10 +287,12 @@ void CaptureOrchestrator::runPreflight() {
     if (m_recording) {
         QString ffmpegPath = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
         if (ffmpegPath.isEmpty()) {
-            m_stateMachine->transitionTo(CaptureState::Failed);
+            // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
+            // sees pendingError=true and keeps the error overlay visible.
             emit captureFailed(QStringLiteral("NO_FFMPEG"),
                                QStringLiteral("ffmpeg is required for screen recording. "
                                               "Install: sudo apt install ffmpeg"));
+            m_stateMachine->transitionTo(CaptureState::Failed);
             return;
         }
         // ffmpeg found — continue with disk space check
@@ -309,9 +311,11 @@ void CaptureOrchestrator::finishPreflight() {
     QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QStorageInfo storage(root);
     if (storage.isValid() && storage.bytesAvailable() < 100 * 1024 * 1024) {
-        m_stateMachine->transitionTo(CaptureState::Failed);
+        // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
+        // sees pendingError=true and keeps the error overlay visible.
         emit captureFailed(QStringLiteral("LOW_DISK"),
                            QStringLiteral("Less than 100MB disk space available."));
+        m_stateMachine->transitionTo(CaptureState::Failed);
         return;
     }
 
@@ -333,7 +337,9 @@ void CaptureOrchestrator::createSession() {
         QStandardPaths::AppDataLocation) + QStringLiteral("/Evidence/AutoCapture");
     m_sessionDir = root + QStringLiteral("/") + ts + QStringLiteral("_") + modeStr;
 
-    if (!QDir().mkpath(m_sessionDir)) { m_stateMachine->transitionTo(CaptureState::Failed); emit captureFailed(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory")); return; }
+    // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
+    // sees pendingError=true and keeps the error overlay visible.
+    if (!QDir().mkpath(m_sessionDir)) { emit captureFailed(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory")); m_stateMachine->transitionTo(CaptureState::Failed); return; }
 
     // Write initial manifest.json
     QJsonObject manifest;
@@ -376,8 +382,10 @@ void CaptureOrchestrator::startPlatformRecording() {
             emit actionChanged(m_currentAction);
             m_stateMachine->transitionTo(CaptureState::ExecutingSteps);
         } else {
-            m_stateMachine->transitionTo(CaptureState::Failed);
+            // 5WHY: emit captureFailed BEFORE transitionTo so onStateChanged(Failed)
+            // sees pendingError=true and keeps the error overlay visible.
             emit captureFailed(QStringLiteral("RECORDING_FAILED"), pathOrError);
+            m_stateMachine->transitionTo(CaptureState::Failed);
         }
     });
 }

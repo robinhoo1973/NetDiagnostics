@@ -78,6 +78,11 @@ Item {
         // checks this (not item.isError which is async via Qt.callLater)
         // to prevent the error overlay from being hidden mid-incubation.
         property bool pendingError: false
+        // 5WHY: Qt.callLater runs BEFORE Loader incubation, so item is null
+        // when the callback fires.  Store error params on the Loader itself
+        // (not the item) so onLoaded can apply them after incubation completes.
+        property string pendingErrorCode: ""
+        property string pendingErrorMessage: ""
 
         // CaptureState enum values — MUST stay in sync with CaptureStateMachine.h enum order.
         // 5WHY: Hardcoded magic numbers (s === 2, 5, 8, ...) silently break overlay
@@ -99,43 +104,46 @@ Item {
         Connections {
             target: captureOrchestrator
             function onModeSelectionRequested() {
-                captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
+                // 5WHY: pendingError must be false for all non-error transitions
+                // so onStateChanged(Failed) can distinguish error vs normal flow.
+                captureOverlay.pendingError = false; captureOverlay.active = true
                 captureOverlay.source = "qrc:/qml/capture/CaptureModePanel.qml"
             }
             function onStateChanged() {
                 var s = captureOrchestrator.state
                 if (s === captureOverlay.kCaptureCountdown) {
-                    captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
+                    captureOverlay.pendingError = false; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CapturePreflightOverlay.qml"
                 }
                 else if (s === captureOverlay.kCaptureExecuting) {
-                    captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
+                    captureOverlay.pendingError = false; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureRunningOverlay.qml"
                 }
                 else if (s === captureOverlay.kCaptureCompleted) {
-                    captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
+                    captureOverlay.pendingError = false; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
                 }
                 else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled) {
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""
-                    captureOverlay.pendingError = false
                 }
                 else if (s === captureOverlay.kCaptureFailed) {
-                    // 5WHY: onCaptureFailed loads the error overlay BEFORE
-                    // onStateChanged fires for Failed.  If we unload here,
-                    // the error summary is immediately hidden.  Only unload
-                    // if no error overlay is currently showing (i.e. the
-                    // failure originated from a path that didn't first emit
-                    // captureFailed, such as a corrupt manifest in finalizeSession).
-                    // In that case no overlay is loaded yet, so hiding is correct.
-                    if (!captureOverlay.item || !captureOverlay.item.isError) {
+                    // 5WHY: onCaptureFailed() sets pendingError=true synchronously
+                    // BEFORE the state machine transitions to Failed.  Use the
+                    // synchronous pendingError flag (not item.isError which is set
+                    // asynchronously via Qt.callLater) so the guard works reliably
+                    // even when the Loader hasn't finished incubating.
+                    //
+                    // If pendingError is true → error overlay was requested by
+                    // onCaptureFailed → keep the overlay visible.
+                    // If pendingError is false → failure without captureFailed
+                    // signal (e.g. corrupt manifest) → no overlay loaded → hide.
+                    if (!captureOverlay.pendingError) {
                         captureOverlay.active = false
-                    captureOverlay.pendingError = false
                         captureOverlay.source = ""
-                    captureOverlay.pendingError = false
                     }
+                    captureOverlay.pendingError = false  // reset for next capture
                 }
             }
             function onStepChanged(current, total) {
@@ -176,26 +184,34 @@ Item {
                 }
             }
             function onCaptureFailed(errorCode, userMessage) {
-                // 5WHY: Failed state hides the overlay with no user feedback.
-                // Show a lightweight failure summary so the user knows the
-                // capture did not complete and why.
-                captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
+                // 5WHY: set pendingError=true synchronously so onStateChanged(Failed)
+                // can distinguish this path from a 'silent' Failed transition
+                // (e.g. corrupt manifest) and keep the error overlay visible.
+                //
+                // Store error params on the Loader (not via Qt.callLater which
+                // runs before incubation — item would be null).  onLoaded reads
+                // pendingErrorCode/pendingErrorMessage and applies them to the
+                // fully-incubated item, avoiding the timing race entirely.
+                captureOverlay.pendingError = true
+                captureOverlay.pendingErrorCode = errorCode
+                captureOverlay.pendingErrorMessage = userMessage
+                captureOverlay.active = true
                 captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
-                // The ResultSummary overlay will populate after onLoaded fires;
-                // use a singleShot to set properties after the component is ready.
-                Qt.callLater(function() {
-                    if (captureOverlay.item) {
-                        captureOverlay.item.isError = true
-                        captureOverlay.item.errorMessage = userMessage
-                        captureOverlay.item.errorCode = errorCode
-                    }
-                })
             }
         }
 
         // ── Wire loaded panel signals to orchestrator ────────────────────
         onLoaded: {
             if (!item) return
+            // 5WHY: Apply error properties stored on the Loader during
+            // onCaptureFailed.  At this point the Loader has finished
+            // incubation so item is guaranteed to exist.  This replaces
+            // the broken Qt.callLater pattern which ran before incubation.
+            if (captureOverlay.pendingError && typeof item.isError !== "undefined") {
+                item.isError = true
+                item.errorCode = captureOverlay.pendingErrorCode
+                item.errorMessage = captureOverlay.pendingErrorMessage
+            }
             // CaptureModePanel → start capture
             if (typeof item.startRequested !== "undefined") {
                 item.startRequested.connect(function(mode, url) {
@@ -209,7 +225,6 @@ Item {
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""
-                    captureOverlay.pendingError = false
                 })
             }
             // Preflight countdown finished
@@ -231,7 +246,6 @@ Item {
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""
-                    captureOverlay.pendingError = false
                 })
             }
             // Wire ScrollController when running overlay is on diagnostic page
