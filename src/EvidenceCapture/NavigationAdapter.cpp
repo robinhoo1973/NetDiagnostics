@@ -171,18 +171,6 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
     emit detailOpened();
 }
 
-void NavigationAdapter::runDiagnostic(const QString& url) {
-    // 5WHY: m_appContent->findChild<AppState*>() fails — AppState is a
-    // context property, not a QObject child. Use the direct pointer.
-    if (!m_appState) return;
-
-    m_appState->setTarget(url);
-    // Use a small delay to let the UI update before starting
-    QTimer::singleShot(500, this, [this]() {
-        m_appState->runDiagnostics();
-    });
-}
-
 void NavigationAdapter::openReportPreview() {
     if (!m_appContent) return;
 

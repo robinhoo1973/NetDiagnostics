@@ -5,7 +5,6 @@
 #include "EvidenceCapture/CaptureScenario.h"
 #include "EvidenceCapture/NavigationAdapter.h"
 #include "EvidenceCapture/ScrollController.h"
-#include "EvidenceCapture/CaptureService.h"
 #include "Common/Model/CaptureFeatureGate.h"
 #include "Common/Platform/PlatformCapture.h"
 #include "Common/Platform/PlatformRecording.h"
@@ -34,7 +33,6 @@ CaptureOrchestrator::CaptureOrchestrator(AppState* appState, QObject* parent)
     , m_stateMachine(new CaptureStateMachine(this))
     , m_navAdapter(new NavigationAdapter(nullptr, m_appState, this))
     , m_scrollCtrl(new ScrollController(this))
-    , m_captureSvc(appState->captureService())
     , m_delayTimer(new QTimer(this))
 {
     m_delayTimer->setSingleShot(true);
@@ -653,16 +651,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
 // Step completion callbacks
 // ═════════════════════════════════════════════════════════════════════════════
 
-void CaptureOrchestrator::onStepPageReady(int tabIndex) {
-    Q_UNUSED(tabIndex);
-    // Page is ready; next step is triggered by the callback in executeStep
-}
-
 void CaptureOrchestrator::onStepScrollFinished() {
-    executeNextStep();
-}
-
-void CaptureOrchestrator::onStepDiagComplete() {
     executeNextStep();
 }
 

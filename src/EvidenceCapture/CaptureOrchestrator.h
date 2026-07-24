@@ -29,8 +29,6 @@
 class AppState;
 class NavigationAdapter;
 class ScrollController;
-class CaptureService;
-
 class CaptureOrchestrator : public QObject {
     Q_OBJECT
 
@@ -95,9 +93,7 @@ signals:
 private slots:
     void onStateChanged(int from, int to);
     void executeNextStep();
-    void onStepPageReady(int tabIndex);
     void onStepScrollFinished();
-    void onStepDiagComplete();
 
 private:
     // ── Step execution ──────────────────────────────────────────────────
@@ -123,7 +119,6 @@ private:
     CaptureStateMachine*  m_stateMachine = nullptr;
     NavigationAdapter*    m_navAdapter = nullptr;
     ScrollController*     m_scrollCtrl = nullptr;
-    CaptureService*       m_captureSvc = nullptr;  // not owned (AppState owns)
     QTimer*               m_delayTimer = nullptr;  // for inter-step delays
 
     // ── State ───────────────────────────────────────────────────────────

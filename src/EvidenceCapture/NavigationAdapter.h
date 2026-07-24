@@ -36,9 +36,6 @@ public:
     // Open the diagnostic detail overlay for a given DiagId.
     Q_INVOKABLE void openDiagnosticDetail(int diagIdInt);
 
-    // Trigger diagnostic: set target URL + run.
-    Q_INVOKABLE void runDiagnostic(const QString& url);
-
     // Open report preview.
     Q_INVOKABLE void openReportPreview();
 
