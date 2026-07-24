@@ -141,34 +141,12 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
     QVariantMap detail = m_appState->getDetailResult(diagIdInt);
     if (detail.isEmpty()) return;
 
-    // Set overlay properties on DiagnosticScreen
-    QObject* overlay = diagScreen->property("detailOverlay").value<QObject*>();
-    if (!overlay) return;
-
-    // Populate detail fields
-    QString displayName = detail.value("displayName").toString();
-    int status = detail.value("status", 0).toInt();
-    QStringList statusNames = {"Pass","Warning","Fail","Skipped","Error","Info"};
-    QString statusStr = (status >= 0 && status < statusNames.size())
-                        ? statusNames.at(status) : QStringLiteral("Unknown");
-    qint64 dur = detail.value("durationMs", 0).toLongLong();
-    QString summary = detail.value("summary").toString();
-    QString details = detail.value("details").toString();
-
-    // Set QML overlay properties via QMetaObject or property system
-    QObject* titleLabel = overlay->findChild<QObject*>(QStringLiteral("dtTitle"));
-    QObject* statusLabel = overlay->findChild<QObject*>(QStringLiteral("dtStatus"));
-    QObject* summaryLabel = overlay->findChild<QObject*>(QStringLiteral("dtSummary"));
-    QObject* outputLabel = overlay->findChild<QObject*>(QStringLiteral("dtOutput"));
-
-    if (titleLabel)   titleLabel->setProperty("text", displayName);
-    if (statusLabel)  statusLabel->setProperty("text",
-        QStringLiteral("Status: %1    Duration: %2ms").arg(statusStr).arg(dur));
-    if (summaryLabel) summaryLabel->setProperty("text", summary);
-    if (outputLabel)  outputLabel->setProperty("text", details);
-
-    // Show the overlay
-    overlay->setProperty("visible", true);
+    // 5WHY: was using findChild by objectName string to poke QML widget
+    // internals — brittle coupling to DiagnosticScreen's private structure.
+    // Now calls the well-known showDetailOverlay() QML function instead.
+    // The DiagnosticScreen owns the mapping from data fields to its widgets.
+    QMetaObject::invokeMethod(diagScreen, "showDetailOverlay",
+                              Q_ARG(QVariant, QVariant::fromValue(detail)));
     emit detailOpened();
 }
 

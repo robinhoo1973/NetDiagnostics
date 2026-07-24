@@ -18,7 +18,9 @@
 static QProcess*   s_recordingProc   = nullptr;
 static QString     s_recordingPath;
 static std::atomic<bool> s_recording{false};
+static std::atomic<bool> s_stopping{false};   // prevents double-callback on stop
 static RecordingCallback s_startCallback;
+static QMetaObject::Connection s_finishedConn; // track original finished handler
 
 #if defined(__linux__) || defined(__APPLE__) || defined(_WIN32)
 
@@ -117,8 +119,8 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         }
     });
 
-    // Handle process exit
-    QObject::connect(s_recordingProc,
+    // Handle process exit (normal completion without explicit stop)
+    s_finishedConn = QObject::connect(s_recordingProc,
         QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
         [=](int exitCode, QProcess::ExitStatus status) {
             Q_UNUSED(exitCode);
@@ -158,7 +160,20 @@ void platformStopRecording(RecordingCallback callback) {
         return;
     }
 
+    // 5WHY: platformStopRecording was called twice (cancel + destructor),
+    // connecting a second finished handler without disconnecting the first.
+    // Both fired on process exit — double callback. Atomic guard + disconnect
+    // ensures exactly one callback per stop request.
+    bool wasStopping = s_stopping.exchange(true);
+    if (wasStopping) {
+        if (callback) callback(false, QStringLiteral("Stop already in progress"));
+        return;
+    }
+
     QString path = s_recordingPath;
+
+    // Disconnect the original finished handler from platformStartRecording
+    QObject::disconnect(s_finishedConn);
 
     // Send 'q' to ffmpeg to gracefully stop
     s_recordingProc->write("q");
@@ -166,12 +181,14 @@ void platformStopRecording(RecordingCallback callback) {
 
     // Wait up to 15s for ffmpeg to finalize
     QTimer::singleShot(15000, [=]() {
-        if (s_recording.load()) {
-            // Force kill if still running
+        // 5WHY: only fire if we're still the active stop request AND
+        // recording hasn't been finalized by the finished handler below.
+        if (s_stopping.load() && s_recording.load()) {
             if (s_recordingProc) {
                 s_recordingProc->kill();
             }
             s_recording = false;
+            s_stopping = false;
             if (callback) callback(false, QStringLiteral("Recording stop timed out"));
         }
     });
@@ -182,8 +199,11 @@ void platformStopRecording(RecordingCallback callback) {
         [=](int exitCode, QProcess::ExitStatus status) {
             Q_UNUSED(exitCode);
             Q_UNUSED(status);
+            // 5WHY: check s_stopping to ensure this is the stop handler,
+            // not a stale handler from a previous (already cancelled) stop.
+            if (!s_stopping.load()) return;
             s_recording = false;
-            // Verify file exists and has content
+            s_stopping = false;
             QFileInfo fi(path);
             if (fi.exists() && fi.size() > 0) {
                 if (callback) callback(true, path);

@@ -40,6 +40,21 @@ Item {
     property color _snapIconColor: _snapHasError ? ThemeEngine.warnYellow : ThemeEngine.infoBlue
     property int _snapVersion: 0
 
+    // 5WHY: NavigationAdapter.openDiagnosticDetail() used findChild by
+    // objectName string to set properties on internal QML labels — brittle
+    // coupling. This function encapsulates the overlay population so the
+    // NavigationAdapter only needs to call one well-known function.
+    function showDetailOverlay(detail) {
+        dtTitle.text = detail.displayName || ""
+        var statusNames = ["Pass","Warning","Fail","Skipped","Error","Info"]
+        var s = detail.status !== undefined ? detail.status : 0
+        dtStatus.text = "Status: " + (statusNames[s] || "Unknown")
+            + "    Duration: " + (detail.durationMs || 0) + "ms"
+        dtSummary.text = detail.summary || ""
+        dtOutput.text = detail.details || ""
+        detailOverlay.visible = true
+    }
+
     function takeSnapshot() {
         _snapTargetError = appState.targetValidationError()
         _snapVersion++

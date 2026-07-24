@@ -81,6 +81,14 @@ void CaptureOrchestrator::requestModeSelection() {
     emit modeSelectionRequested();
 }
 
+void CaptureOrchestrator::onCountdownFinished() {
+    // 5WHY: Called by QML when the visual 3-2-1 countdown reaches 0.
+    // Only valid from CountdownToStart state.
+    if (m_stateMachine->state() == CaptureState::CountdownToStart) {
+        m_stateMachine->transitionTo(CaptureState::CreatingSession);
+    }
+}
+
 void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) {
     if (!CaptureFeatureGate::isFeatureEnabled()) {
         emit captureFailed(QStringLiteral("FEATURE_DISABLED"),
@@ -165,15 +173,13 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::CountdownToStart:
-        // QML handles the countdown via state binding; when countdown ends,
-        // QML calls transitionTo(CreatingSession) via a signal or direct call.
-        // For now, auto-advance after 3s (QML overlay will be added later).
+        // 5WHY: was using QTimer::singleShot(3000) independent of the QML
+        // countdown — two timers racing. Now the QML countdown is the sole
+        // authority: CapturePreflightOverlay.countdownFinished() calls
+        // onCountdownFinished() below, which transitions to CreatingSession.
         m_currentAction = QStringLiteral("Preparing to capture...");
         emit actionChanged(m_currentAction);
         platformSetKeepAwake(true);
-        QTimer::singleShot(3000, this, [this]() {
-            m_stateMachine->transitionTo(CaptureState::CreatingSession);
-        });
         break;
 
     case CaptureState::CreatingSession:

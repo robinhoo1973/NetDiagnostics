@@ -180,11 +180,10 @@ Item {
                 // Kick off the countdown as soon as the overlay is ready.
                 if (typeof item.start === "function") item.start()
                 item.countdownFinished.connect(function() {
-                    // 5WHY: The C++ side has an independent 3s QTimer that
-                    // auto-advances CountdownToStart→CreatingSession. The QML
-                    // countdown is a visual animation only — when it finishes,
-                    // the C++ timer has already fired or will fire within ~50ms.
-                    // No action needed here; onStateChanged handles the overlay.
+                    // 5WHY: The QML countdown is now the sole authority.
+                    // When the visual 3-2-1 reaches 0, call the orchestrator
+                    // to transition CountdownToStart → CreatingSession.
+                    captureOrchestrator.onCountdownFinished()
                 })
             }
             // Result summary dismissed

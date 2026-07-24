@@ -68,9 +68,11 @@ public:
     Q_INVOKABLE void startCapture(int captureMode, const QString& diagUrl);
     Q_INVOKABLE void cancel();
     Q_INVOKABLE bool isRunning() const { return m_stateMachine->isRunning(); }
-    // True when the capture mode is RecordingOnly or Both — used by QML
-    // to decide whether to show a recording file path in the result summary.
     Q_INVOKABLE bool isRecordingCapture() const { return m_recording; }
+    // Called by QML CapturePreflightOverlay when the visual countdown reaches 0.
+    // Replaces the old C++ QTimer::singleShot(3000) — the QML countdown is the
+    // single source of truth for timing.
+    Q_INVOKABLE void onCountdownFinished();
 
     // Set the AppContent QML object for navigation. Must be called after
     // QML engine is initialized (in main.cpp after context properties).
