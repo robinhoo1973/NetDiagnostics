@@ -9,7 +9,6 @@
 #pragma once
 
 #include <QObject>
-#include <QTimer>
 #include <QString>
 #include <functional>
 
@@ -58,7 +57,6 @@ signals:
 private:
     QObject* m_appContent = nullptr;
     AppState* m_appState = nullptr;
-    QTimer* m_pollTimer;
 
     static const QStringList kPageNames; // ["dashboard","diagnostic","config","settings"]
 };

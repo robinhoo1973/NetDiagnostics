@@ -6,7 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../../Common/View/theme" as T
+import "../theme" as T
 
 Rectangle {
     id: root

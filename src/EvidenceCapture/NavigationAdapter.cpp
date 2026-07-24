@@ -24,10 +24,7 @@ NavigationAdapter::NavigationAdapter(QObject* appContent, AppState* appState, QO
     : QObject(parent)
     , m_appContent(appContent)
     , m_appState(appState)
-    , m_pollTimer(new QTimer(this))
 {
-    m_pollTimer->setInterval(200); // poll every 200ms
-    m_pollTimer->setSingleShot(false);
 }
 
 void NavigationAdapter::setAppContent(QObject* appContent) {

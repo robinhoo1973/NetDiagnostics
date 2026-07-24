@@ -111,6 +111,7 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     m_currentStep = 0;
     m_captureCount = 0;
     m_sessionDir.clear();
+    m_elapsed.start();
 
     // Build and cache the scenario once, filtered by capture mode
     CaptureScenario scenario = buildDefaultScenario(m_diagUrl);
@@ -136,14 +137,14 @@ void CaptureOrchestrator::cancel() {
     // Stop any in-progress scroll
     m_scrollCtrl->cancel();
 
-    // Restore screen state
-    platformSetKeepAwake(false);
-
     // 5WHY: transitionTo(Cancelled) is not valid from every state
     // (e.g. CreatingSession, StoppingRecording, Finalizing reject it).
-    // Only emit captureCancelled if the FSM accepted the transition.
+    // Only emit captureCancelled and disable keep-awake if the FSM
+    // accepted the transition.  If rejected, the FSM continues and its
+    // terminal handlers will disable keep-awake.
     bool didCancel = m_stateMachine->transitionTo(CaptureState::Cancelled);
     if (didCancel) {
+        platformSetKeepAwake(false);
         emit captureCancelled();
     }
     // If transition was rejected, the FSM stays in its current state and
@@ -204,7 +205,15 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Completed:
         platformSetKeepAwake(false);
-        emit captureCompleted(m_sessionDir);
+        // 5WHY: emit captureCompleted synchronously races with the async QML
+        // Loader — onStateChanged sets source="CaptureResultSummary.qml"
+        // which loads asynchronously, but captureCompleted fires in the
+        // same event-loop iteration before the Loader finishes.  Defer the
+        // signal so the Loader has time to begin incubation and the
+        // onCaptureCompleted handler finds the ResultSummary item.
+        QTimer::singleShot(0, this, [this]() {
+            emit captureCompleted(m_sessionDir);
+        });
         break;
 
     case CaptureState::Failed:
@@ -216,7 +225,9 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::Cancelled:
-        // Already handled in cancel()
+        // Safety net: if cancel() couldn't disable keep-awake (e.g. the
+        // transition was triggered from a path other than cancel()), do it here.
+        platformSetKeepAwake(false);
         break;
 
     default:
@@ -230,31 +241,30 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
 void CaptureOrchestrator::runPreflight() {
     // 5WHY: Synchronous QProcess::waitForFinished(3000) blocked the main
-    // (UI) thread for up to 3 seconds.  Use an async QProcess so the
-    // event loop stays responsive during the preflight check.
+    // (UI) thread for up to 3 seconds.  Use Qt's findExecutable() which
+    // searches PATH without spawning a process — faster and portable
+    // (doesn't rely on the external `which` command).
     if (m_recording) {
-        auto* which = new QProcess(this);
-        connect(which, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-                this, [this, which](int exitCode, QProcess::ExitStatus) {
-            which->deleteLater();
-            if (exitCode != 0) {
-                m_stateMachine->transitionTo(CaptureState::Failed);
-                emit captureFailed(QStringLiteral("NO_FFMPEG"),
-                                   QStringLiteral("ffmpeg is required for screen recording. "
-                                                  "Install: sudo apt install ffmpeg"));
-                return;
-            }
-            // ffmpeg found — continue with disk space check
-            finishPreflight();
-        });
-        which->start(QStringLiteral("which"), {QStringLiteral("ffmpeg")});
-        return;
+        QString ffmpegPath = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+        if (ffmpegPath.isEmpty()) {
+            m_stateMachine->transitionTo(CaptureState::Failed);
+            emit captureFailed(QStringLiteral("NO_FFMPEG"),
+                               QStringLiteral("ffmpeg is required for screen recording. "
+                                              "Install: sudo apt install ffmpeg"));
+            return;
+        }
+        // ffmpeg found — continue with disk space check
     }
 
     finishPreflight();
 }
 
 void CaptureOrchestrator::finishPreflight() {
+    // 5WHY: If the FSM left Preflight (cancelled, failed) while the async
+    // ffmpeg check ran, bail out — don't continue the preflight from a
+    // stale state.
+    if (m_stateMachine->state() != CaptureState::Preflight) return;
+
     // Check disk space (>100MB)
     QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QStorageInfo storage(root);
@@ -364,6 +374,16 @@ void CaptureOrchestrator::finalizeSession(bool success) {
             mf.resize(0);
             mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
         }
+        // 5WHY: append session summary to execution log even on failure,
+        // so the log doesn't appear truncated when steps were executed
+        // before the failure occurred.
+        QFile logFile(m_sessionDir + QStringLiteral("/execution.log"));
+        if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream logStream(&logFile);
+            logStream << "\n--- Session failed ---\n"
+                      << "Total captures: " << m_captureCount << "\n"
+                      << "Ended: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
+        }
         m_stateMachine->transitionTo(CaptureState::Failed);
         return;
     }
@@ -374,9 +394,10 @@ void CaptureOrchestrator::finalizeSession(bool success) {
         QByteArray data = mf.readAll();
         mf.seek(0);
         QJsonDocument doc = QJsonDocument::fromJson(data);
+        if (doc.isNull()) { mf.close(); return; }  // corrupt/empty — don't overwrite
         QJsonObject obj = doc.object();
         obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
-        obj["status"] = success ? QStringLiteral("completed") : QStringLiteral("failed");
+        obj["status"] = QStringLiteral("completed");
         obj["total_captures"] = m_captureCount;
         mf.resize(0);
         mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
@@ -386,14 +407,12 @@ void CaptureOrchestrator::finalizeSession(bool success) {
     QFile logFile2(m_sessionDir + QStringLiteral("/execution.log"));
     if (logFile2.open(QIODevice::Append | QIODevice::Text)) {
         QTextStream logStream2(&logFile2);
-        logStream2 << "\n--- Session " << (success ? "complete" : "failed") << " ---\n"
+        logStream2 << "\n--- Session complete ---\n"
                    << "Total captures: " << m_captureCount << "\n"
                    << "Ended: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
     }
 
-    if (success) {
-        m_stateMachine->transitionTo(CaptureState::Completed);
-    }
+    m_stateMachine->transitionTo(CaptureState::Completed);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -417,7 +436,13 @@ void CaptureOrchestrator::executeNextStep() {
 
     const CaptureStep* step = m_filteredScenario.stepAt(m_currentStep);
     if (!step) {
-        // Shouldn't happen, but handle gracefully
+        // Shouldn't happen, but handle gracefully.
+        // 5WHY: transitioning to Failed here without emitting captureFailed
+        // leaves the UI with no error feedback — the Failed handler in
+        // onStateChanged no longer emits a generic message (by design).
+        emit captureFailed(QStringLiteral("STEP_NOT_FOUND"),
+                           QStringLiteral("Internal error: step not found at index %1")
+                               .arg(m_currentStep));
         m_stateMachine->transitionTo(CaptureState::Failed);
         return;
     }
@@ -490,6 +515,14 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     }
 
     case StepAction::Capture: {
+        // 5WHY: RecordingOnly mode (m_doScreenshot=false) should NOT produce
+        // PNG files. The captureBefore path correctly guards with m_doScreenshot,
+        // but explicit Capture steps had no guard — leaking ~10 screenshots per
+        // recording-only session.
+        if (!m_doScreenshot) {
+            QTimer::singleShot(0, this, [this]() { executeNextStep(); });
+            break;
+        }
         // 5WHY: step->param holds the filename label per StepAction enum comment
         // ("param = filename label"), but code was reading step->description
         // which is empty for Capture steps, producing filenames like "XX_.png".

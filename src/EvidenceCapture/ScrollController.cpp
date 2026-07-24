@@ -38,8 +38,13 @@ void ScrollController::scrollToBottom(int durationMs) {
     m_targetY = maxY;
 
     if (m_targetY <= m_startY) {
-        // Already at bottom — nothing to scroll
-        emit scrollFinished();
+        // Already at bottom — nothing to scroll.
+        // Defer scrollFinished so callers inside executeStep() don't re-enter
+        // executeNextStep() before the outer call has incremented m_currentStep,
+        // which would cause the same step to re-execute and the next step to skip.
+        QTimer::singleShot(0, this, [this]() {
+            emit scrollFinished();
+        });
         return;
     }
 

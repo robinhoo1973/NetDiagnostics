@@ -35,13 +35,15 @@ QMap<CaptureState, QSet<CaptureState>> CaptureStateMachine::buildTransitionTable
                                         CaptureState::Cancelled,
                                         CaptureState::Failed};
 
-    // StoppingRecording → Finalizing, Failed
+    // StoppingRecording → Finalizing, Failed, Cancelled
     t[CaptureState::StoppingRecording] = {CaptureState::Finalizing,
-                                           CaptureState::Failed};
+                                           CaptureState::Failed,
+                                           CaptureState::Cancelled};
 
-    // Finalizing → Completed, Failed
+    // Finalizing → Completed, Failed, Cancelled
     t[CaptureState::Finalizing] = {CaptureState::Completed,
-                                    CaptureState::Failed};
+                                    CaptureState::Failed,
+                                    CaptureState::Cancelled};
 
     // Terminal states → reset() returns to Idle
     t[CaptureState::Completed]  = {};

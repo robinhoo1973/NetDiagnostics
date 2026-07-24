@@ -21,6 +21,7 @@
 #include <QObject>
 #include <QTimer>
 #include <QString>
+#include <QElapsedTimer>
 #include <functional>
 #include "EvidenceCapture/CaptureStateMachine.h"
 #include "EvidenceCapture/CaptureScenario.h"
@@ -39,6 +40,7 @@ class CaptureOrchestrator : public QObject {
     Q_PROPERTY(int totalSteps READ totalSteps NOTIFY stepChanged)
     Q_PROPERTY(QString currentAction READ currentAction NOTIFY actionChanged)
     Q_PROPERTY(int captureCount READ captureCount NOTIFY captureCountChanged)
+    Q_PROPERTY(int elapsedSeconds READ elapsedSeconds NOTIFY stateChanged)
 
 public:
     enum CaptureMode {
@@ -57,6 +59,9 @@ public:
     int totalSteps() const { return m_totalSteps; }
     QString currentAction() const { return m_currentAction; }
     int captureCount() const { return m_captureCount; }
+    int elapsedSeconds() const {
+        return m_elapsed.isValid() ? static_cast<int>(m_elapsed.elapsed() / 1000) : 0;
+    }
 
     // ── QML-invokable API ───────────────────────────────────────────────
     // Request the mode selection panel. Enables the feature gate and emits
@@ -65,6 +70,9 @@ public:
     Q_INVOKABLE void startCapture(int captureMode, const QString& diagUrl);
     Q_INVOKABLE void cancel();
     Q_INVOKABLE bool isRunning() const { return m_stateMachine->isRunning(); }
+    // True when the capture mode is RecordingOnly or Both — used by QML
+    // to decide whether to show a recording file path in the result summary.
+    Q_INVOKABLE bool isRecordingCapture() const { return m_recording; }
 
     // Set the AppContent QML object for navigation. Must be called after
     // QML engine is initialized (in main.cpp after context properties).
@@ -128,4 +136,5 @@ private:
     QString       m_sessionDir;
     bool          m_recording = false;  // true if mode is RecordingOnly or Both
     bool          m_doScreenshot = false; // true if mode is ScreenshotOnly or Both
+    QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()
 };

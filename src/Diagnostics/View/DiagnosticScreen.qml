@@ -467,9 +467,9 @@ Item {
                 Column {
                     id: detailCol; spacing: 8
                     width: Math.max(parent.width, implicitWidth)
-                    Label { id: dtTitle; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
-                    Label { id: dtStatus; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
-                    Label { id: dtSummary; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
+                    Label { id: dtTitle; objectName: "dtTitle"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
+                    Label { id: dtStatus; objectName: "dtStatus"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
+                    Label { id: dtSummary; objectName: "dtSummary"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
                     Repeater {
                         model: currentDetail.properties || []
@@ -479,7 +479,7 @@ Item {
                             Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

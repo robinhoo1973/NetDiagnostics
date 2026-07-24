@@ -75,6 +75,22 @@ Item {
         z: 2000
         active: false
 
+        // CaptureState enum values — MUST stay in sync with CaptureStateMachine.h enum order.
+        // 5WHY: Hardcoded magic numbers (s === 2, 5, 8, ...) silently break overlay
+        // display when the C++ enum is reordered.  Named constants make the mapping
+        // visible and grep-able so a reorder is not missed.
+        readonly property int kCaptureIdle: 0
+        readonly property int kCapturePreflight: 1
+        readonly property int kCaptureCountdown: 2
+        readonly property int kCaptureCreatingSession: 3
+        readonly property int kCaptureStartingRecording: 4
+        readonly property int kCaptureExecuting: 5
+        readonly property int kCaptureStoppingRecording: 6
+        readonly property int kCaptureFinalizing: 7
+        readonly property int kCaptureCompleted: 8
+        readonly property int kCaptureCancelled: 9
+        readonly property int kCaptureFailed: 10
+
         // ── Listen for orchestrator signals ──────────────────────────────
         Connections {
             target: captureOrchestrator
@@ -84,23 +100,19 @@ Item {
             }
             function onStateChanged() {
                 var s = captureOrchestrator.state
-                // 2=CountdownToStart → show preflight overlay
-                if (s === 2) {
+                if (s === captureOverlay.kCaptureCountdown) {
                     captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CapturePreflightOverlay.qml"
                 }
-                // 5=ExecutingSteps → show running overlay
-                else if (s === 5) {
+                else if (s === captureOverlay.kCaptureExecuting) {
                     captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureRunningOverlay.qml"
                 }
-                // 8=Completed → show result summary
-                else if (s === 8) {
+                else if (s === captureOverlay.kCaptureCompleted) {
                     captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
                 }
-                // 0=Idle, 9=Cancelled, 10=Failed → dismiss overlay
-                else if (s === 0 || s === 9 || s === 10) {
+                else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled || s === captureOverlay.kCaptureFailed) {
                     captureOverlay.active = false
                     captureOverlay.source = ""
                 }
@@ -127,8 +139,8 @@ Item {
                     // 5WHY: ResultSummary properties were never populated,
                     // showing 0 screenshots and empty recording/duration.
                     captureOverlay.item.totalScreenshots = captureOrchestrator.captureCount
-                    captureOverlay.item.recordingFile = captureOrchestrator.captureCount > 0 ? "recording.mp4" : ""
-                    captureOverlay.item.elapsedTime = "~45s"
+                    captureOverlay.item.recordingFile = captureOrchestrator.isRecordingCapture() ? "recording.mp4" : ""
+                    captureOverlay.item.elapsedTime = captureOrchestrator.elapsedSeconds + "s"
                 }
             }
         }
