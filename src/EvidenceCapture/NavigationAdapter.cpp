@@ -6,6 +6,7 @@
 #include <QMetaObject>
 #include <QVariant>
 #include <QCoreApplication>
+#include <QDebug>
 #include <QTimer>
 #include <QThread>
 
@@ -145,8 +146,12 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
     // internals — brittle coupling to DiagnosticScreen's private structure.
     // Now calls the well-known showDetailOverlay() QML function instead.
     // The DiagnosticScreen owns the mapping from data fields to its widgets.
-    QMetaObject::invokeMethod(diagScreen, "showDetailOverlay",
+    bool invoked = QMetaObject::invokeMethod(diagScreen, "showDetailOverlay",
                               Q_ARG(QVariant, QVariant::fromValue(detail)));
+    if (!invoked) {
+        qWarning() << "NavigationAdapter: showDetailOverlay not invocable on DiagnosticScreen";
+        return;
+    }
     emit detailOpened();
 }
 

@@ -20,6 +20,7 @@
 #include <QTextStream>
 #include <QDateTime>
 #include <QCoreApplication>
+#include <QDebug>
 #include <QStorageInfo>
 #include <QProcess>
 
@@ -180,6 +181,16 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         m_currentAction = QStringLiteral("Preparing to capture...");
         emit actionChanged(m_currentAction);
         platformSetKeepAwake(true);
+        // Safety net: if the QML preflight overlay fails to load or the
+        // countdown signal is never emitted, auto-advance after 10s so the
+        // capture doesn't hang forever. The state guard ensures this won't
+        // race with a successful QML countdown (which fires at ~3s).
+        QTimer::singleShot(10000, this, [this]() {
+            if (m_stateMachine->state() == CaptureState::CountdownToStart) {
+                qWarning() << "CaptureOrchestrator: countdown safety timer fired — QML overlay may have failed to load";
+                m_stateMachine->transitionTo(CaptureState::CreatingSession);
+            }
+        });
         break;
 
     case CaptureState::CreatingSession:

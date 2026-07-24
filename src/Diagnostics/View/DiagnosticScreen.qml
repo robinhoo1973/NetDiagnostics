@@ -257,18 +257,20 @@ Item {
                         delegate: DiagGroupPanel {
                             anchors { left: parent.left; right: parent.right }
                             groupIndex: modelData
+                            // 5WHY: previously duplicated overlay-population logic also in
+                            // showDetailOverlay(). Refactored to call the shared function
+                            // so bugfixes to overlay display apply uniformly.
                             onDetailClicked: function(data) {
                                 var tid = data.diagId
                                 var d = appState.getDetailResult(tid)
-                                dtTitle.text = (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid)
-                                var statStr = "Unknown"
-                                if (d && d.status !== undefined) statStr = ["Pass","Warning","Fail","Skipped","Error","Info"][d.status] || "Unknown"
-                                var durStr = (d && d.durationMs) ? d.durationMs : (data.durationMs || 0)
-                                dtStatus.text = "Status: " + statStr + "    Duration: " + durStr + "ms"
-                                dtSummary.text = (d && d.summary) ? d.summary : (data.summary || "")
-                                dtOutput.text = (d && d.details) ? d.details : ""
+                                showDetailOverlay({
+                                    displayName: (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid),
+                                    status: (d && d.status !== undefined) ? d.status : 0,
+                                    durationMs: (d && d.durationMs) ? d.durationMs : (data.durationMs || 0),
+                                    summary: (d && d.summary) ? d.summary : (data.summary || ""),
+                                    details: (d && d.details) ? d.details : ""
+                                })
                                 page.currentDetail = d || {}
-                                detailOverlay.visible = true
                             }
                         }
                     }

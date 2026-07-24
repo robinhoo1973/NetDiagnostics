@@ -189,7 +189,20 @@ void platformStopRecording(RecordingCallback callback) {
             }
             s_recording = false;
             s_stopping = false;
-            if (callback) callback(false, QStringLiteral("Recording stop timed out"));
+            // 5WHY: ffmpeg may have written a valid file before we killed it.
+            // Check file existence before declaring failure.
+            QFileInfo fi(path);
+            if (fi.exists() && fi.size() > 0) {
+                if (callback) callback(true, path);
+            } else {
+                if (callback) callback(false, QStringLiteral("Recording stop timed out"));
+            }
+            // Clean up QProcess — only the start-handler (now disconnected)
+            // had deleteLater; the stop path must release it here.
+            if (s_recordingProc) {
+                s_recordingProc->deleteLater();
+                s_recordingProc = nullptr;
+            }
         }
     });
 
@@ -209,6 +222,12 @@ void platformStopRecording(RecordingCallback callback) {
                 if (callback) callback(true, path);
             } else {
                 if (callback) callback(false, QStringLiteral("Recording file is empty or missing"));
+            }
+            // Clean up QProcess — the start-handler was disconnected;
+            // the stop path must release the QProcess here.
+            if (s_recordingProc) {
+                s_recordingProc->deleteLater();
+                s_recordingProc = nullptr;
             }
         });
 }
