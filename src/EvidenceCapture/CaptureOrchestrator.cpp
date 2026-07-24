@@ -316,7 +316,17 @@ void CaptureOrchestrator::runPreflight() {
     // (UI) thread for up to 3 seconds.  Use Qt's findExecutable() which
     // searches PATH without spawning a process — faster and portable
     // (doesn't rely on the external `which` command).
+    //
+    // 5WHY: The ffmpeg check was platform-agnostic but ffmpeg is only
+    // needed on desktop platforms (Linux/macOS/Windows).  iOS uses
+    // ReplayKit and Android uses MediaProjection — neither needs ffmpeg.
+    // Checking for ffmpeg on mobile platforms is a false negative that
+    // blocks recording mode entirely.
     if (m_recording) {
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+        // Mobile platforms use native recording APIs — no ffmpeg check needed.
+        // platformStartRecording() reports any errors via its callback.
+#else
         QString ffmpegPath = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
         if (ffmpegPath.isEmpty()) {
             failCapture(QStringLiteral("NO_FFMPEG"),
@@ -325,6 +335,7 @@ void CaptureOrchestrator::runPreflight() {
             return;
         }
         // ffmpeg found — continue with disk space check
+#endif
     }
 
     finishPreflight();

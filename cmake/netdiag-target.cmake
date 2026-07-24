@@ -124,6 +124,8 @@ function(configure_netdiag_target TARGET)
             "-framework CFNetwork"
             "-framework SystemConfiguration"
             "-framework StoreKit"
+            "-framework ReplayKit"
+            "-framework AVFoundation"
         )
     elseif(ANDROID)
         target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID)

@@ -108,18 +108,13 @@ set(SOURCES
 # 5WHY: PlatformRecording + PlatformKeepAwake use QProcess which doesn't
 # exist on iOS/Android. Guarding them here instead of with #ifdef stubs
 # avoids the need for QProcess headers at all on mobile platforms.
+# 5WHY: PlatformRecording + PlatformKeepAwake use QProcess (ffmpeg) on
+# desktop.  iOS/Android have separate native implementations in their
+# respective platform sections below — no stubs needed.
 if(NOT IOS AND NOT ANDROID)
     list(APPEND SOURCES
         src/Common/Platform/PlatformKeepAwake.cpp
         src/Common/Platform/PlatformRecording.cpp
-    )
-else()
-    # 5WHY: QProcess is not available on iOS/Android. Use stub implementations
-    # so the linker can resolve platformStartRecording/StopRecording symbols
-    # without pulling in QProcess headers.
-    list(APPEND SOURCES
-        src/Common/Platform/PlatformKeepAwakeStubs.cpp
-        src/Common/Platform/PlatformRecordingStubs.cpp
     )
 endif()
 
@@ -144,6 +139,10 @@ if(IOS)
         src/Common/Platform/Apple/IOS/PlatformShare.mm
         src/Common/Platform/Apple/IOS/PlatformStore.mm
         src/Common/Platform/Apple/IOS/PlatformPdfRenderer.mm
+        # Native capture implementations (replaces desktop ffmpeg stubs)
+        src/Common/Platform/Apple/IOS/PlatformCapture.mm
+        src/Common/Platform/Apple/IOS/PlatformKeepAwake.mm
+        src/Common/Platform/Apple/IOS/PlatformRecording.mm
 	)
 endif()
 if(ANDROID)
@@ -151,6 +150,10 @@ if(ANDROID)
         src/Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.cpp
         src/Common/Platform/Android/PlatformShare.cpp
         src/Common/Platform/Android/PlatformPdfRenderer.cpp
+        # Native capture implementations (replaces desktop ffmpeg stubs)
+        src/Common/Platform/Android/PlatformCapture.cpp
+        src/Common/Platform/Android/PlatformRecording.cpp
+        src/Common/Platform/Android/PlatformKeepAwake.cpp
 	)
 endif()
 	# ---- Native PDF renderer --- available on all platforms --------------

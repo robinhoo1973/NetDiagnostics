@@ -49,7 +49,13 @@ void ScrollController::scrollToBottom(int durationMs) {
     QVariant height   = m_flickable->property("height");
     QVariant contentY = m_flickable->property("contentY");
 
-    if (!contentH.isValid() || !height.isValid() || !contentY.isValid()) return;
+    // 5WHY: silently returning without emitting scrollFinished() hangs the
+    // capture forever at a Scroll step.  Treat invalid QVariant properties
+    // the same as !m_flickable — the wired object isn't really a Flickable.
+    if (!contentH.isValid() || !height.isValid() || !contentY.isValid()) {
+        QTimer::singleShot(0, this, [this]() { emit scrollFinished(); });
+        return;
+    }
 
     qreal maxY = qMax(0.0, contentH.toDouble() - height.toDouble());
     m_startY = contentY.toDouble();
