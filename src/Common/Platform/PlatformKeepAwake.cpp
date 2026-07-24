@@ -19,9 +19,22 @@ void platformSetKeepAwake(bool enable) {
     if (enable == s_keepAwake.load()) return;
 
     if (enable) {
-        // Try org.freedesktop.ScreenSaver.Inhibit (works with GNOME, KDE, XFCE)
-        QProcess proc;
-        proc.start(QStringLiteral("dbus-send"), {
+        // Try org.freedesktop.ScreenSaver.Inhibit (works with GNOME, KDE, XFCE).
+        // 5WHY: waitForFinished(3000) blocked the UI thread for up to 3s.
+        // Use async QProcess — the inhibit is best-effort; if it fails,
+        // the screen may lock during capture but the UI is never frozen.
+        auto* proc = new QProcess();
+        QObject::connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            proc, [proc](int, QProcess::ExitStatus) {
+                QByteArray output = proc->readAllStandardOutput();
+                int idx = output.indexOf("uint32 ");
+                if (idx >= 0) {
+                    s_inhibitCookie = output.mid(idx + 7).trimmed().toUInt();
+                    s_inhibited = true;
+                }
+                proc->deleteLater();
+            });
+        proc->start(QStringLiteral("dbus-send"), {
             QStringLiteral("--session"),
             QStringLiteral("--dest=org.freedesktop.ScreenSaver"),
             QStringLiteral("--type=method_call"),
@@ -31,20 +44,17 @@ void platformSetKeepAwake(bool enable) {
             QStringLiteral("string:NetDiagnostics"),
             QStringLiteral("string:Automated screen capture in progress")
         });
-        proc.waitForFinished(3000);
-        QByteArray output = proc.readAllStandardOutput();
-        // Parse cookie from reply: "uint32 N"
-        int idx = output.indexOf("uint32 ");
-        if (idx >= 0) {
-            s_inhibitCookie = output.mid(idx + 7).trimmed().toUInt();
-            s_inhibited = true;
-        }
         s_keepAwake = true;
-        qDebug() << "[PlatformKeepAwake] Inhibit cookie:" << s_inhibitCookie;
     } else {
         if (s_inhibited) {
-            QProcess proc;
-            proc.start(QStringLiteral("dbus-send"), {
+            auto* proc = new QProcess();
+            QObject::connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                proc, [proc](int, QProcess::ExitStatus) {
+                    s_inhibitCookie = 0;
+                    s_inhibited = false;
+                    proc->deleteLater();
+                });
+            proc->start(QStringLiteral("dbus-send"), {
                 QStringLiteral("--session"),
                 QStringLiteral("--dest=org.freedesktop.ScreenSaver"),
                 QStringLiteral("--type=method_call"),
@@ -52,12 +62,8 @@ void platformSetKeepAwake(bool enable) {
                 QStringLiteral("org.freedesktop.ScreenSaver.UnInhibit"),
                 QStringLiteral("uint32:") + QString::number(s_inhibitCookie)
             });
-            proc.waitForFinished(3000);
-            s_inhibitCookie = 0;
-            s_inhibited = false;
         }
         s_keepAwake = false;
-        qDebug() << "[PlatformKeepAwake] UnInhibited";
     }
 }
 
