@@ -17,9 +17,7 @@
     All build logs are written to dist/.
 
 .PARAMETER ProdOnly
-    Build only production version (default: true, simulator removed)
-.PARAMETER SimOnly
-    DEPRECATED: simulator feature removed, this flag has no effect
+    Build only production version (default: true)
 .PARAMETER Clean
     Clean previous build artifacts before building
 .PARAMETER NoCleanTemp
@@ -40,7 +38,6 @@
 
 param(
     [switch]$ProdOnly,
-    [switch]$SimOnly,
     [switch]$Clean,
     [switch]$NoCleanTemp,
     [switch]$Debug,
@@ -248,7 +245,6 @@ function Invoke-AppBuild {
     Write-Step "Static Build (Production)"
 
     $build_prod = $true
-    $build_sim  = $false  # Simulator feature removed
 
     $build_number = (Get-Date -Format "yyyyMMdd") + "00"
 
@@ -280,16 +276,15 @@ echo ""
 
 # ---- Build function ----
 build_target() {
-    local target="`$1"      # net_diagnostics or net_diagnostics_sim
-    local sim_flag="`$2"    # OFF or ON
-    local out_name="`$3"    # output filename
-    local log_base="`$4"    # log file prefix under DIST_DIR
+    local target="`$1"      # net_diagnostics
+    local out_name="`$2"    # output filename
+    local log_base="`$3"    # log file prefix under DIST_DIR
 
     local build_dir="`${BUILD_BASE}/`${target}"
 
     echo ""
     echo "=============================================="
-    echo "  Configuring: `$target (SIMULATOR=`$sim_flag)"
+    echo "  Configuring: `$target"
     echo "=============================================="
 
     rm -rf "`${build_dir}" && mkdir -p "`${build_dir}"
@@ -305,7 +300,6 @@ build_target() {
         -DCMAKE_EXE_LINKER_FLAGS="`${STATIC_LINK_FLAGS}" \
         -DCMAKE_CXX_STANDARD_LIBRARIES="`${STANDARD_LIBS}" \
         -DCMAKE_PREFIX_PATH="`${CMAKE_PREFIX_PATH}" \
-        -DBUILD_SIMULATOR="`${sim_flag}" \
         \
         -DBUILD_TESTS=OFF \
         -DND_TESTING=${nd_testing_val} \
@@ -315,11 +309,7 @@ build_target() {
     echo ""
     echo "=== Building: `$target ==="
 
-    if [ "`$target" = "net_diagnostics_sim" ]; then
-        ninja net_diagnostics_sim 2>&1 | tee "`${DIST_DIR}/`${log_base}.ninja"
-    else
-        ninja net_diagnostics 2>&1 | tee "`${DIST_DIR}/`${log_base}.ninja"
-    fi
+    ninja net_diagnostics 2>&1 | tee "`${DIST_DIR}/`${log_base}.ninja"
 
     # Strip debug symbols to reduce size
     echo ""
@@ -333,17 +323,11 @@ build_target() {
 
 # ---- Launch builds in parallel ----
 BUILD_PROD="$($build_prod.ToString().ToLower())"
-BUILD_SIM="$($build_sim.ToString().ToLower())"
 
 pids=()
 
 if [ "`$BUILD_PROD" = "true" ]; then
-    build_target "net_diagnostics" "OFF" "$($script:PROD_NAME)" "build-prod" &
-    pids+=(`$!)
-fi
-
-if [ "`$BUILD_SIM" = "true" ]; then
-    build_target "net_diagnostics_sim" "ON" "$($script:SIM_NAME)" "build-sim" &
+    build_target "net_diagnostics" "$($script:PROD_NAME)" "build-prod" &
     pids+=(`$!)
 fi
 
@@ -379,7 +363,6 @@ exit 0
 
     Write-Info "Starting builds in parallel..."
     if ($build_prod) { Write-Info "  Production: $($script:PROD_NAME)" }
-    if ($build_sim)  { Write-Info "  Simulator:  $($script:SIM_NAME)" }
     Write-Host ""
 
     $bash_exe = Join-Path $MsysPath "usr\bin\bash.exe"
@@ -400,13 +383,6 @@ exit 0
             $sz = [math]::Round((Get-Item $p).Length / 1MB, 1)
             Write-OK "Production: $($script:PROD_NAME) ($sz MB)"
         } else { Write-Err "Production not found: $p" }
-    }
-    if ($build_sim) {
-        $p = Join-Path $DIST_DIR $script:SIM_NAME
-        if (Test-Path $p) {
-            $sz = [math]::Round((Get-Item $p).Length / 1MB, 1)
-            Write-OK "Simulator:  $($script:SIM_NAME) ($sz MB)"
-        } else { Write-Err "Simulator not found: $p" }
     }
 }
 
@@ -528,7 +504,7 @@ function Show-Report {
             } else {
                 "$([math]::Round($f.Length/1KB, 1)) KB"
             }
-            $color = if ($f.Name -match "sim") { "Yellow" } else { "Cyan" }
+            $color = "Cyan"
             Write-Host "    $($f.Name)" -ForegroundColor $color -NoNewline
             Write-Host "  $size" -ForegroundColor Gray
         }

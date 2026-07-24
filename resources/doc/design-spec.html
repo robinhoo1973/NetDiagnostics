@@ -7,7 +7,7 @@
 <style>
 :root {
   --bg-dark: #1E1E2E; --bg-sidebar: #252538; --bg-card: #16213E;
-  --bg-appbar: #1A1A2E; --bg-sim: #2D2D2D;
+  --bg-appbar: #1A1A2E;
   --text-primary: #E0E0E0; --text-secondary: #A0A0B8;
   --accent-blue: #0078D4; --accent-red: #E94560; --cyan: #00BCD4;
   --pass: #4ADE80; --warn: #FACC15; --fail: #EF4444; --skip: #888888;
@@ -98,7 +98,6 @@ p, ul { padding: 0 40px; margin-bottom: 8px; }
   <div class="swatch" style="background:#252538"><span class="hex">#252538</span><span class="name">bgSidebar</span></div>
   <div class="swatch" style="background:#16213E"><span class="hex">#16213E</span><span class="name">bgCard</span></div>
   <div class="swatch" style="background:#1A1A2E"><span class="hex">#1A1A2E</span><span class="name">AppBar bg</span></div>
-  <div class="swatch" style="background:#2D2D2D"><span class="hex">#2D2D2D</span><span class="name">Sim bg</span></div>
   <div class="swatch" style="background:#0078D4"><span class="hex">#0078D4</span><span class="name">accentBlue</span></div>
   <div class="swatch" style="background:#E94560"><span class="hex">#E94560</span><span class="name">accent</span></div>
   <div class="swatch" style="background:#00BCD4"><span class="hex">#00BCD4</span><span class="name">cyan</span></div>
@@ -361,67 +360,10 @@ p, ul { padding: 0 40px; margin-bottom: 8px; }
 
 <h3>7.5 iOS iPhone (Narrow, 375–440 dp wide × 667–956 dp tall)</h3>
 <p>Supported iOS device references: iPhone SE 3rd gen (375×667 dp, home button), iPhone 15 Pro (393×852 dp, Dynamic Island), iPhone 15 Pro Max (430×932 dp, Dynamic Island), iPhone 16 (402×874 dp, Dynamic Island), iPhone 16 Pro Max (440×956 dp, Dynamic Island).</p>
-<p>Same narrow layout as Android. Key differences: iOS sandbox limits G2/G3/G4 diagnostics (returns SKIPPED with degradation note). Safe area padding for notch/Dynamic Island (44pt top inset). Compact nav bar (32px). Devices with Dynamic Island (iPhone 14 Pro+ and iPhone 15+ series) render an island indicator in the simulator frame.</p>
+<p>Same narrow layout as Android. Key differences: iOS sandbox limits G2/G3/G4 diagnostics (returns SKIPPED with degradation note). Safe area padding for notch/Dynamic Island (44pt top inset). Compact nav bar (32px). Devices with Dynamic Island (iPhone 14 Pro+ and iPhone 15+ series) render an island indicator.</p>
 
 <h3>7.6 iOS iPad / Android Tablet (Wide, &ge;600dp reference)</h3>
 <p>Supported tablet devices: iPad mini 6th gen (744×1133 dp), iPad Pro 11″ M4 (834×1210 dp), iPad Pro 12.9″ M4 (1024×1366 dp). Tablets trigger the Wide layout at &ge;600dp, with the full 260px sidebar visible. Landscape tablets get the sidebar + content side-by-side. Portrait tablets with width &lt;600dp fall back to narrow stacked layout.</p>
-
-<!-- ═══════════════════════════ SIMULATOR ═══════════════════════════ -->
-<h2>8. Simulator Screen</h2>
-<div class="screen">
-  <div class="screen-title">SimulatorScreen | Scaffold bg: #2D2D2D (DIFFERENT from app bg!) | AppBar: #1A1A2E elevation 2</div>
-  <div style="background:#2D2D2D;min-height:300px;display:flex;align-items:center;justify-content:center">
-    <div style="width:280px;background:#000;border-radius:24px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
-      <div style="background:#1A1A2E;border-radius:12px;overflow:hidden;min-height:200px">
-        <div style="padding:8px 12px;background:#1A1A2E;font-size:9px;color:var(--text-secondary);display:flex;gap:4px">&#9632; &#9632; &#9632;</div>
-        <div style="padding:8px;background:var(--bg-dark);min-height:160px;font-size:9px;color:var(--text-secondary);text-align:center;display:flex;align-items:center;justify-content:center">NetDiagnostic App<br>(embedded in device frame)</div>
-      </div>
-      <div style="margin-top:6px;text-align:center;font-size:8px;color:#666">Simulated: iPhone 15 Pro</div>
-    </div>
-  </div>
-</div>
-<p><b>Simulator supports 18 device frames across 4 OS families:</b></p>
-<h3>8.1 Desktop devices (6)</h3>
-<table style="margin:0 40px;border-collapse:collapse;font-size:11px">
-<tr style="color:var(--cyan);font-weight:600"><td style="padding:4px 16px">Device</td><td style="padding:4px 16px">Resolution</td><td style="padding:4px 16px">Bezel</td><td style="padding:4px 16px">Frame Style</td></tr>
-<tr><td style="padding:4px 16px">Windows 11 (x64)</td><td style="padding:4px 16px">1024×640</td><td style="padding:4px 16px">0px</td><td style="padding:4px 16px">Thin border, #1E1E2E bg, 8px radius</td></tr>
-<tr><td style="padding:4px 16px">Windows 11 (ARM64)</td><td style="padding:4px 16px">1024×640</td><td style="padding:4px 16px">0px</td><td style="padding:4px 16px">Thin border, #1E1E2E bg, 8px radius</td></tr>
-<tr><td style="padding:4px 16px">Ubuntu 24.04 (x64)</td><td style="padding:4px 16px">1024×640</td><td style="padding:4px 16px">0px</td><td style="padding:4px 16px">Thin border, #1E1E2E bg, 8px radius</td></tr>
-<tr><td style="padding:4px 16px">Ubuntu 24.04 (ARM64)</td><td style="padding:4px 16px">1024×640</td><td style="padding:4px 16px">0px</td><td style="padding:4px 16px">Thin border, #1E1E2E bg, 8px radius</td></tr>
-<tr><td style="padding:4px 16px">macOS 15 (x64)</td><td style="padding:4px 16px">1024×640</td><td style="padding:4px 16px">0px</td><td style="padding:4px 16px">Thin border, #1E1E2E bg, 8px radius</td></tr>
-<tr><td style="padding:4px 16px">macOS 15 (ARM64)</td><td style="padding:4px 16px">1024×640</td><td style="padding:4px 16px">0px</td><td style="padding:4px 16px">Thin border, #1E1E2E bg, 8px radius</td></tr>
-</table>
-<h3>8.2 iOS devices (8)</h3>
-<table style="margin:0 40px;border-collapse:collapse;font-size:11px">
-<tr style="color:var(--cyan);font-weight:600"><td style="padding:4px 16px">Device</td><td style="padding:4px 16px">Resolution</td><td style="padding:4px 16px">Bezel</td><td style="padding:4px 16px">Notch/Island</td><td style="padding:4px 16px">Corner Radius</td></tr>
-<tr><td style="padding:4px 16px">iPhone SE (3rd gen)</td><td style="padding:4px 16px">375×667</td><td style="padding:4px 16px">8px</td><td style="padding:4px 16px">No (home button)</td><td style="padding:4px 16px">20px</td></tr>
-<tr><td style="padding:4px 16px">iPhone 15 Pro</td><td style="padding:4px 16px">393×852</td><td style="padding:4px 16px">12px</td><td style="padding:4px 16px">Dynamic Island</td><td style="padding:4px 16px">55px</td></tr>
-<tr><td style="padding:4px 16px">iPhone 15 Pro Max</td><td style="padding:4px 16px">430×932</td><td style="padding:4px 16px">12px</td><td style="padding:4px 16px">Dynamic Island</td><td style="padding:4px 16px">55px</td></tr>
-<tr><td style="padding:4px 16px">iPhone 16</td><td style="padding:4px 16px">402×874</td><td style="padding:4px 16px">11px</td><td style="padding:4px 16px">Dynamic Island</td><td style="padding:4px 16px">55px</td></tr>
-<tr><td style="padding:4px 16px">iPhone 16 Pro Max</td><td style="padding:4px 16px">440×956</td><td style="padding:4px 16px">11px</td><td style="padding:4px 16px">Dynamic Island</td><td style="padding:4px 16px">55px</td></tr>
-<tr><td style="padding:4px 16px">iPad mini (6th gen)</td><td style="padding:4px 16px">744×1133</td><td style="padding:4px 16px">14px</td><td style="padding:4px 16px">No</td><td style="padding:4px 16px">16px</td></tr>
-<tr><td style="padding:4px 16px">iPad Pro 11″ (M4)</td><td style="padding:4px 16px">834×1210</td><td style="padding:4px 16px">14px</td><td style="padding:4px 16px">No</td><td style="padding:4px 16px">18px</td></tr>
-<tr><td style="padding:4px 16px">iPad Pro 12.9″ (M4)</td><td style="padding:4px 16px">1024×1366</td><td style="padding:4px 16px">14px</td><td style="padding:4px 16px">No</td><td style="padding:4px 16px">18px</td></tr>
-</table>
-<h3>8.3 Android devices (5)</h3>
-<table style="margin:0 40px;border-collapse:collapse;font-size:11px">
-<tr style="color:var(--cyan);font-weight:600"><td style="padding:4px 16px">Device</td><td style="padding:4px 16px">Resolution</td><td style="padding:4px 16px">Bezel</td><td style="padding:4px 16px">Camera Cutout</td><td style="padding:4px 16px">Corner Radius</td></tr>
-<tr><td style="padding:4px 16px">Pixel 8</td><td style="padding:4px 16px">412×915</td><td style="padding:4px 16px">8px</td><td style="padding:4px 16px">Punch-hole (center)</td><td style="padding:4px 16px">20px</td></tr>
-<tr><td style="padding:4px 16px">Pixel 9 Pro</td><td style="padding:4px 16px">448×1008</td><td style="padding:4px 16px">7px</td><td style="padding:4px 16px">Punch-hole (center)</td><td style="padding:4px 16px">20px</td></tr>
-<tr><td style="padding:4px 16px">Galaxy S24</td><td style="padding:4px 16px">360×780</td><td style="padding:4px 16px">6px</td><td style="padding:4px 16px">Punch-hole (center)</td><td style="padding:4px 16px">16px</td></tr>
-<tr><td style="padding:4px 16px">Galaxy S24 Ultra</td><td style="padding:4px 16px">384×854</td><td style="padding:4px 16px">6px</td><td style="padding:4px 16px">Punch-hole (center)</td><td style="padding:4px 16px">16px</td></tr>
-<tr><td style="padding:4px 16px">OnePlus 12</td><td style="padding:4px 16px">412×917</td><td style="padding:4px 16px">7px</td><td style="padding:4px 16px">Punch-hole (center)</td><td style="padding:4px 16px">18px</td></tr>
-</table>
-<h3>8.4 Simulator UX behavior</h3>
-<ul>
-  <li><b>Device selector:</b> Dropdown popup in top AppBar, grouped by OS with colored icon badges (Windows=#00A4EF, Linux=#FCC624, macOS/iOS=#007AFF, Android=#3DDC84). Lists device name, OS badge, and resolution.</li>
-  <li><b>Orientation toggle:</b> Portrait/Landscape rotate button in AppBar — swaps width ↔ height, recalculates scale.</li>
-  <li><b>Auto-scale:</b> Scale transform fits the device frame within the window (min 0.1×). 200ms polling timer ensures ARM64 Qt signal delivery.</li>
-  <li><b>Compact mode:</b> Automatically enabled when iOS or Android device selected — nav bar switches to icon-only (44px buttons, right-aligned), close button hidden.</li>
-  <li><b>Frame rendering:</b> Desktop: thin 1px border, #1E1E2E fill, corner radius +2px. Mobile: bezel-thick borderless #0A0A0A fill, outer corner radius = screen radius + bezel thickness.</li>
-  <li><b>Dynamic Island:</b> Flagged per-device (island:true). Rendered as a pill-shaped indicator at the top of the screen area for iPhone 14 Pro+ series.</li>
-  <li><b>Status bar area:</b> 36px tall header bar above the main app content on all devices — represents the native status bar / title bar.</li>
-</ul>
 
 <!-- ═══════════════════════════ SPACING TABLE ═══════════════════════════ -->
 <h2>9. Spacing &amp; Dimensions Reference</h2>

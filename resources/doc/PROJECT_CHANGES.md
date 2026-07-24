@@ -18,9 +18,6 @@
 ### `src/main.cpp`
 Production entry point. Sets up `QGuiApplication`, injects Theme as C++ `QVariantMap` (20 color constants), loads QML main window with `showFullScreen()`.
 
-### `src/main_simulator.cpp`
-Simulator entry point. Same Theme C++ injection as `main.cpp`. Supports `ND_AUTORUN` env var for headless testing. Retains `QSG_RENDER_LOOP=basic` for ARM64 stability.
-
 ### `src/app/AppState.h` / `AppState.cpp`
 Application state manager. Key features:
 - **Group-sequential execution:** `std::thread` per test, `QTimer::singleShot` for result delivery, `std::atomic<int>` for group completion tracking
@@ -123,14 +120,6 @@ Report preview (planned features): PDF export, Email share, HTML reports, Histor
 ### `screens/SettingsScreen.qml`
 Application settings.
 
-### `screens/SimulatorScreen.qml`
-Device frame simulator:
-- Navigation bar: 5 tabs (Dashboard/Diagnostics/Config/Report/Settings)
-- StackView page switching: `simStack.clear()` + `simStack.push(url)`
-- Device popup with device/frame selection
-- Scale calculation with orientation handling
-- Screen Rectangle with layer-based corner rounding
-
 ### `widgets/AppIcon.qml`
 SVG icon component with `name` and `size` properties.
 
@@ -203,15 +192,6 @@ Target host input with bidirectional binding, clear button, and Run button.
 |------|----------|
 | `windows.svg`, `linux.svg`, `apple.svg`, `android.svg` | Platform indicators |
 
-### Simulator Icons
-| Icon | Purpose |
-|------|---------|
-| `sim-icon-beaker.svg` | Lab beaker |
-| `sim-icon-bug.svg` | Debug/bug |
-| `sim-icon-flask.svg` | Flask |
-| `sim-icon-monitor-play.svg` | Monitor with play |
-| `sim-icon-network-lab.svg` | Network lab |
-
 ### App Identity
 | File | Purpose |
 |------|---------|
@@ -228,7 +208,6 @@ Self-contained multi-platform build system:
 - Dep check: ninja, cmake, g++/clang++, pkg-config, Qt6, fonts, QRC
 - `--fix`: auto-installs missing tools from source (ninja, cmake, mingw-w64, LLVM-MinGW, Qt6)
 - Cross-compilation targets: linux-arm64 (native), linux-x86_64, windows-x86_64, windows-arm64
-- Simulator variant: `--sim` for device-frame UI build alongside production binary
 - Smart TMPDIR: auto-detects small tmpfs (<10 GB) and falls back to `~/.cache`
 
 ### `scripts/build-static.ps1`
@@ -248,14 +227,12 @@ CMake toolchain files for cross-compilation:
 GitHub Actions CI/CD workflow:
 - Triggers: push/PR to master
 - 6 build jobs: Linux (x86_64/arm64), Windows (x86_64/arm64), macOS (x86_64/arm64)
-- Simulator builds: Linux x86_64, Windows x86_64, macOS x86_64, macOS arm64
-- Artifacts: compiled binaries + simulator binaries
+- Artifacts: compiled binaries
 - Release upload on tag push
 
 ### `CMakeLists.txt`
 - Qt6: Core, Concurrent, Quick, QuickControls2, Widgets, Network
 - libcurl: HTTP/HTTPS diagnostics
-- `BUILD_SIMULATOR` option for simulator target
 - `BUILD_TESTS` option for test suite
 - Windows: links ws2_32, winhttp, iphlpapi, wlanapi, dnsapi, ole32, shell32, etc.
 - Linux/macOS: links resolv
@@ -285,16 +262,16 @@ Qt resource file registering all QML files, SVG icons, and fonts (61 entries).
 
 ## 6. Platform Support Matrix
 
-| Platform | Arch | Compiler | Simulator | Status |
-|----------|------|----------|-----------|--------|
-| Linux | arm64 | GCC | — | ✅ Full (native) |
-| Linux | x86_64 | GCC | ✅ | ✅ Full |
-| Windows | x86_64 | mingw-w64 | ✅ | ✅ Cross-compile |
-| Windows | ARM64 | LLVM-MinGW | — | ✅ Cross-compile |
-| macOS | x86_64 | Apple Clang | ✅ | ✅ Full |
-| macOS | arm64 | Apple Clang | ✅ | ✅ Full |
-| Android | — | NDK | — | ⚠️ Mostly works |
-| iOS | — | Xcode | — | ⚠️ Sandbox limited |
+| Platform | Arch | Compiler | Status |
+|----------|------|----------|--------|
+| Linux | arm64 | GCC | ✅ Full (native) |
+| Linux | x86_64 | GCC | ✅ Full |
+| Windows | x86_64 | mingw-w64 | ✅ Cross-compile |
+| Windows | ARM64 | LLVM-MinGW | ✅ Cross-compile |
+| macOS | x86_64 | Apple Clang | ✅ Full |
+| macOS | arm64 | Apple Clang | ✅ Full |
+| Android | — | NDK | ⚠️ Mostly works |
+| iOS | — | Xcode | ⚠️ Sandbox limited |
 
 ---
 

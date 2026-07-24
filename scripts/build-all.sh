@@ -3,19 +3,16 @@
 # build-all.sh — Self-contained build system for NetDiagnostic-QT
 #
 # Checks dependencies, auto-fixes light-weight tools, builds production
-# and simulator binaries across multiple platforms. With --fix, downloads
+# across multiple platforms. With --fix, downloads
 # missing toolchains from GitHub and builds/installs them globally.
 #
 # Usage:
 #   ./scripts/build-all.sh                              # check deps + native build
 #   ./scripts/build-all.sh --check-only                 # only check dependencies
 #   ./scripts/build-all.sh --fix                        # auto-fix + check deps
-#   ./scripts/build-all.sh --target linux-arm64 --sim   # build + simulator
-#   ./scripts/build-all.sh --target all --sim --clean   # all platforms + sim
 #   ./scripts/build-all.sh --no-check --clean           # skip dep check
 #
 # Targets:  linux-arm64 linux-x86_64 windows-x86_64 windows-arm64 all native
-# Sim styles: android ios linux windows all
 # =============================================================================
 set -euo pipefail
 
@@ -56,8 +53,6 @@ Usage: ./scripts/build-all.sh [options]
 Options:
   --target <t>     Build target (default: native = current host)
                    linux-arm64 | linux-x86_64 | windows-x86_64 | windows-arm64 | all | native
-  --sim            Also build simulator variants (4 OS styles per target)
-  --sim-only       Build ONLY simulator variant (skip production binary)
   --check-only     Only run dependency check, do not build
   --fix            Auto-install missing tools from GitHub (ninja/cmake/mingw/Qt6)
   --no-check       Skip dependency check entirely
@@ -68,12 +63,10 @@ Examples:
   ./scripts/build-all.sh                             # default: check + native build
   ./scripts/build-all.sh --check-only                # just verify dependencies
   ./scripts/build-all.sh --fix                       # auto-fix ALL missing deps
-  ./scripts/build-all.sh --target all --sim           # all platforms + simulators
   ./scripts/build-all.sh --target windows-x86_64      # cross-compile Windows
-  ./scripts/build-all.sh --sim-only                   # simulator only
   ./scripts/build-all.sh --no-check --clean           # clean rebuild, skip dep check
 
-Output: dist/netdiag{-sim}-{platform}[.exe]
+Output: dist/netdiag-{platform}[.exe]
 EOF
 }
 
@@ -81,8 +74,6 @@ EOF
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --target)      TARGET="$2"; shift 2 ;;
-        --sim)         warn "--sim is deprecated (simulator feature removed)"; shift ;;
-        --sim-only)    warn "--sim-only is deprecated (simulator feature removed)"; shift ;;
 
         --check-only)  MODE="check-only"; shift ;;
         --fix|-f)      FIX_DEPS=true; shift ;;
@@ -957,18 +948,13 @@ fi
 
 if [[ "$CLEAN" == "true" ]]; then
     rm -rf "$BUILD_BASE"
-    # Clean old artifacts: only match names with 3+ segments after "sim-"
-    # Old: netdiag-sim-linux-arm64-linux (3 hyphens after sim)
-    # New: netdiag-sim-linux-arm64        (2 hyphens after sim) — KEEP
-    for f in "$DIST_DIR"/netdiag-sim-*-*-* \
-             "$DIST_DIR"/net_diagnostics-* "$DIST_DIR"/net_diagnostics; do
+    for f in "$DIST_DIR"/net_diagnostics-* "$DIST_DIR"/net_diagnostics; do
         [[ -f "$f" ]] && rm -f "$f"
     done 2>/dev/null || true
 fi
 
 echo ""; echo "============================================="
 echo " NetDiagnostic Build — Targets: ${TARGETS[*]}"
-# Simulator feature removed
 echo "============================================="; echo ""
 
 BUILT=0  FAILED=0

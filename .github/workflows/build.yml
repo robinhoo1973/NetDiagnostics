@@ -420,8 +420,8 @@ jobs:
           cmake --install build
           echo ">>> Qt static build complete."
 
-      # - Build Production + Simulator in parallel -
-      - name: Build Production + Simulator (static, parallel)
+      # - Build Production -
+      - name: Build Production (static)
         shell: msys2 {0}
         run: |
           set -euxo pipefail
@@ -470,8 +470,7 @@ jobs:
             "-DGCC_TRUE_LIBPTHREAD=${GCC_TRUE_LIBPTHREAD}"
           )
 
-          # Build production
-          cmake "${CMAKE_COMMON[@]}" -DBUILD_SIMULATOR=OFF -B build -S .
+          cmake "${CMAKE_COMMON[@]}" -B build -S .
           ninja -C build net_diagnostics
 
           # Post-process (strip + copy)
