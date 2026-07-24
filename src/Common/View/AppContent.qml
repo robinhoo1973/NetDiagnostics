@@ -74,6 +74,10 @@ Item {
         anchors.fill: parent
         z: 2000
         active: false
+        // 5WHY: onCaptureFailed sets this synchronously. onStateChanged
+        // checks this (not item.isError which is async via Qt.callLater)
+        // to prevent the error overlay from being hidden mid-incubation.
+        property bool pendingError: false
 
         // CaptureState enum values — MUST stay in sync with CaptureStateMachine.h enum order.
         // 5WHY: Hardcoded magic numbers (s === 2, 5, 8, ...) silently break overlay
@@ -95,26 +99,28 @@ Item {
         Connections {
             target: captureOrchestrator
             function onModeSelectionRequested() {
-                captureOverlay.active = true
+                captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
                 captureOverlay.source = "qrc:/qml/capture/CaptureModePanel.qml"
             }
             function onStateChanged() {
                 var s = captureOrchestrator.state
                 if (s === captureOverlay.kCaptureCountdown) {
-                    captureOverlay.active = true
+                    captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CapturePreflightOverlay.qml"
                 }
                 else if (s === captureOverlay.kCaptureExecuting) {
-                    captureOverlay.active = true
+                    captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureRunningOverlay.qml"
                 }
                 else if (s === captureOverlay.kCaptureCompleted) {
-                    captureOverlay.active = true
+                    captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
                     captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
                 }
                 else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled) {
                     captureOverlay.active = false
+                    captureOverlay.pendingError = false
                     captureOverlay.source = ""
+                    captureOverlay.pendingError = false
                 }
                 else if (s === captureOverlay.kCaptureFailed) {
                     // 5WHY: onCaptureFailed loads the error overlay BEFORE
@@ -126,7 +132,9 @@ Item {
                     // In that case no overlay is loaded yet, so hiding is correct.
                     if (!captureOverlay.item || !captureOverlay.item.isError) {
                         captureOverlay.active = false
+                    captureOverlay.pendingError = false
                         captureOverlay.source = ""
+                    captureOverlay.pendingError = false
                     }
                 }
             }
@@ -171,7 +179,7 @@ Item {
                 // 5WHY: Failed state hides the overlay with no user feedback.
                 // Show a lightweight failure summary so the user knows the
                 // capture did not complete and why.
-                captureOverlay.active = true
+                captureOverlay.pendingError = true; captureOverlay.pendingError = true; captureOverlay.active = true
                 captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
                 // The ResultSummary overlay will populate after onLoaded fires;
                 // use a singleShot to set properties after the component is ready.
@@ -199,7 +207,9 @@ Item {
                 item.cancelled.connect(function() {
                     captureOrchestrator.cancel()
                     captureOverlay.active = false
+                    captureOverlay.pendingError = false
                     captureOverlay.source = ""
+                    captureOverlay.pendingError = false
                 })
             }
             // Preflight countdown finished
@@ -219,7 +229,9 @@ Item {
             if (typeof item.dismissed !== "undefined") {
                 item.dismissed.connect(function() {
                     captureOverlay.active = false
+                    captureOverlay.pendingError = false
                     captureOverlay.source = ""
+                    captureOverlay.pendingError = false
                 })
             }
             // Wire ScrollController when running overlay is on diagnostic page
