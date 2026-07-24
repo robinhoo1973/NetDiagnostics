@@ -26,7 +26,6 @@ set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
     src/Common/Model/CaptureFeatureGate.cpp
-    src/Common/Platform/PlatformCapture.cpp
     src/EvidenceCapture/CaptureService.cpp
     src/EvidenceCapture/CaptureStateMachine.cpp
     src/EvidenceCapture/NavigationAdapter.cpp
@@ -113,6 +112,7 @@ set(SOURCES
 # respective platform sections below — no stubs needed.
 if(NOT IOS AND NOT ANDROID)
     list(APPEND SOURCES
+        src/Common/Platform/PlatformCapture.cpp
         src/Common/Platform/PlatformKeepAwake.cpp
         src/Common/Platform/PlatformRecording.cpp
     )
