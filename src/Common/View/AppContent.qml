@@ -122,6 +122,17 @@ Item {
                     captureOverlay.item.stepProgress = current
                     captureOverlay.item.stepTotal = total
                 }
+                // 5WHY: Flickable was wired once on overlay load, but Navigate
+                // steps change tabs — the old Flickable is destroyed/replaced.
+                // Re-wire on every step so ScrollController always has the
+                // current page's Flickable.
+                if (captureOverlay.item && typeof captureOverlay.item.wireFlickable === "function") {
+                    var cur = stackView.currentItem
+                    if (cur) {
+                        var f = captureOverlay.findFlickable(cur)
+                        if (f) captureOverlay.item.wireFlickable(f)
+                    }
+                }
             }
             function onActionChanged(action) {
                 if (captureOverlay.item && typeof captureOverlay.item.currentStep !== "undefined") {
@@ -169,8 +180,11 @@ Item {
                 // Kick off the countdown as soon as the overlay is ready.
                 if (typeof item.start === "function") item.start()
                 item.countdownFinished.connect(function() {
-                    // Countdown done — orchestrator auto-advances,
-                    // next state change will load the running overlay
+                    // 5WHY: The C++ side has an independent 3s QTimer that
+                    // auto-advances CountdownToStart→CreatingSession. The QML
+                    // countdown is a visual animation only — when it finishes,
+                    // the C++ timer has already fired or will fire within ~50ms.
+                    // No action needed here; onStateChanged handles the overlay.
                 })
             }
             // Result summary dismissed

@@ -116,6 +116,18 @@ Rectangle {
                 }
             }
 
+            // 5WHY: elapsedText was never populated — the overlay always showed "0s".
+            // Poll captureOrchestrator.elapsedSeconds every second for live display.
+            Timer {
+                id: elapsedTimer
+                interval: 1000; repeat: true; running: true
+                onTriggered: {
+                    if (typeof captureOrchestrator !== "undefined") {
+                        elapsedLabel.text = captureOrchestrator.elapsedSeconds + "s"
+                    }
+                }
+            }
+
             // Cancel button
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 44; radius: 12

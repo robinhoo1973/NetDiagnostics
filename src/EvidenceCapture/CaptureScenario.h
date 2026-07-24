@@ -12,6 +12,7 @@
 #include <QString>
 #include <QVector>
 #include <QObject>
+#include "Common/Model/DiagId.h"
 
 // ═════════════════════════════════════════════════════════════════════════════
 // StepAction — what the orchestrator should do for this step
@@ -94,8 +95,10 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
         {StepAction::WaitDiagComplete,"120000", "",          false, false},
         {StepAction::Capture,        "06_diag_complete",    "",    false},
 
-        // ── Phase 3: InternetConnectivity detail (DiagId 19) ───────────
-        {StepAction::OpenDetail,     "19", "InternetConnectivity", true, false},
+        // ── Phase 3: InternetConnectivity detail ───────────────────────
+        {StepAction::OpenDetail,
+         QString::number(static_cast<int>(DiagId::G3InternetConnectivity)),
+         "InternetConnectivity", true, false},
         {StepAction::WaitPageReady,  "2000", "",            false, false},
         {StepAction::Capture,        "07_connectivity_detail","",   false},
         // Scroll during recording only — captures the full detail content

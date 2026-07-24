@@ -6,6 +6,7 @@
 #include <QMetaObject>
 #include <QVariant>
 #include <QCoreApplication>
+#include <QTimer>
 #include <QThread>
 
 const QStringList NavigationAdapter::kPageNames = {
