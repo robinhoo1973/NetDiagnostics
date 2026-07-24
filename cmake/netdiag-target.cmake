@@ -126,6 +126,7 @@ function(configure_netdiag_target TARGET)
             "-framework StoreKit"
             "-framework ReplayKit"
             "-framework AVFoundation"
+            "-framework CoreMedia"
         )
     elseif(ANDROID)
         target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID)
