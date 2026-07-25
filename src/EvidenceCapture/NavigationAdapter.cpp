@@ -89,7 +89,7 @@ void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
     // captures this, hiding the lifecycle dependency.  stackView is QPointer
     // so it auto-nulls if the StackView is destroyed before the timer fires.
     connect(pollTimer, &QTimer::timeout, this,
-            [this, elapsed, targetName, onReady, stackView]() mutable {
+            [this, elapsed, targetName, onReady, stackView, pollTimer, tabIndex, timeoutMs]() mutable {
         // 5WHY: Guard against StackView destruction during polling.
         // QPointer auto-nulls; bail out rather than dereferencing nullptr.
         if (!stackView) {
