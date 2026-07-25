@@ -91,10 +91,11 @@ public:
     // iOS: always true (no programmatic Focus mode API — user MUST enable manually).
     // Android: true only if platformEnableFocusMode() failed (DND not granted).
     // Desktop: false.
-    Q_PROPERTY(bool needsFocusModeSetup READ needsFocusModeSetup CONSTANT)
+    Q_PROPERTY(bool needsFocusModeSetup READ needsFocusModeSetup NOTIFY needsFocusModeSetupChanged)
     bool needsFocusModeSetup() const;
 
 signals:
+    void needsFocusModeSetupChanged();
     void stateChanged();
     void stepChanged(int current, int total);
     void actionChanged(const QString& action);

@@ -53,19 +53,29 @@ void CaptureOrchestrator::restoreSystemState() {
     // Android's setRequestedOrientation(USER) restores the default (harmless
     // if never locked), iOS/Desktop stubs return false (no-op).  No guard
     // needed; call unconditionally like brightness/focus restore.
-    platformUnlockOrientation();
+    if (!platformUnlockOrientation()) {
+        qWarning() << "CaptureOrchestrator: orientation unlock failed or was never locked";
+    }
     if (!platformDisableFocusMode()) {
         qWarning() << "CaptureOrchestrator: focus-mode restore failed or was never enabled";
     }
+    emit needsFocusModeSetupChanged();
 
-    // 5WHY: If failCapture() is called while a recording is active (e.g. from
-    // executeNextStep → STEP_NOT_FOUND, or any future error path added during
-    // ExecutingSteps), the FSM transitions directly to Failed without first
-    // stopping the recording.  The old destructor had a defensive force-stop
-    // block that was removed when restoreSystemState() was centralized.
-    // Restore it here as a safety net — platformStopRecording(nullptr) is a
-    // fire-and-forget async stop (same pattern as cancel() line ~201).
-    if (m_recording && platformIsRecording()) {
+    // 5WHY: Always force-stop the platform recording when m_recording is
+    // true, even if platformIsRecording() returns false.  A cancel during
+    // StartingRecording (before the first video frame arrives) leaves the
+    // ReplayKit/MediaProjection capture handler active without a
+    // corresponding stop — s_recording is false, so platformIsRecording()
+    // returns false, and the guard would skip the stop call.  The frame
+    // handler then fires on the next video frame, sets s_recording=true,
+    // and the recording runs indefinitely with no C++ tracking.
+    //
+    // platformStopRecording(nullptr) handles the !s_recording case correctly:
+    // it sets s_stopping=true and clears s_startCb (see PlatformRecording.mm
+    // lines ~233, ~266-272).  This causes the frame handler to discard
+    // frames (if (s_stopping) return at line 187) and prevents the recording
+    // from ever starting — exactly what we want.
+    if (m_recording) {
         platformStopRecording(nullptr);
     }
     m_recording = false;
@@ -132,6 +142,10 @@ static const int kStepDeferMs            = 100;   // async deferral to avoid inf
 static const int kReportPreviewTimeoutMs = 5000;  // openReportPreview safety fallback
 static const int kPreviewRenderSettleMs  = 1000;  // QML overlay render settle before screenshot
 static const int kCountdownSafetyMs      = 10000; // preflight-countdown safety-net timeout
+static const int kNavigateSettleMs       = 500;   // page settle after navigate (screenshot mode)
+static const int kNavigateSettleRecordMs = 4000;  // page settle after navigate (recording mode)
+static const int kDiagCancelTimeoutMs    = 500;   // settle after diagnostic cancel on timeout
+static const int kOpenDetailSettleMs     = 1500;  // StackView settle after tab switch for OpenDetail
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Constructor
@@ -417,6 +431,11 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
                            "notifications may interrupt the capture.  Grant "
                            "notification policy access in system Settings.";
         }
+        // 5WHY: needsFocusModeSetup was declared CONSTANT but its value changes
+        // on Android after platformEnableFocusMode() toggles s_focusEnabled.
+        // Emit the NOTIFY signal so the QML visible binding on the DND hint
+        // label re-evaluates and hides the hint once DND is active.
+        emit needsFocusModeSetupChanged();
         // 5WHY: All three platform functions now return bool — warn if any
         // preflight setup fails so the user/developer knows why the recording
         // is dim, the orientation shifts, or notifications interrupt capture.
@@ -814,7 +833,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
                     // Page didn't load — continue anyway (best effort)
                 }
                 // Schedule next step with a small delay for visual settle
-                scheduleStepAfter(m_recording ? 4000 : 500);
+                scheduleStepAfter(m_recording ? kNavigateSettleRecordMs : kNavigateSettleMs);
             });
         break;
     }
@@ -927,7 +946,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
                 m_pollTimer = nullptr;
                 // Timeout — try to cancel and continue
                 if (m_appState) m_appState->cancel();
-                QTimer::singleShot(500, this, [this]() {
+                QTimer::singleShot(kDiagCancelTimeoutMs, this, [this]() {
                     executeNextStep();
                 });
             }
@@ -945,7 +964,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // 1500ms settle delay, the stale timer would otherwise open the
         // diagnostic detail view on an aborted capture session.
         int gen = m_countdownGen;
-        QTimer::singleShot(1500, this, [this, diagId, gen]() {
+        QTimer::singleShot(kOpenDetailSettleMs, this, [this, diagId, gen]() {
             if (m_countdownGen != gen) return;
             m_navAdapter->openDiagnosticDetail(diagId);
             scheduleStepAfter(kPreviewRenderSettleMs);

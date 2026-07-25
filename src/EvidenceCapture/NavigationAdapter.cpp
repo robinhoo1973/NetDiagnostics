@@ -93,8 +93,8 @@ void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
         // 5WHY: Guard against StackView destruction during polling.
         // QPointer auto-nulls; bail out rather than dereferencing nullptr.
         if (!stackView) {
-            m_pageReadyTimer->stop();
-            m_pageReadyTimer->deleteLater();
+            pollTimer->stop();
+            pollTimer->deleteLater();
             m_pageReadyTimer = nullptr;
             if (onReady) onReady(false);
             return;

@@ -9,7 +9,6 @@
 #include <QDir>
 #include <QtDebug>
 #include <atomic>
-#include <memory>
 #import <ReplayKit/ReplayKit.h>
 #import <AVFoundation/AVFoundation.h>
 
@@ -74,6 +73,13 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         if (callback) callback(false, QStringLiteral("Recording already in progress"));
         return;
     }
+
+    // 5WHY: s_stopping may be left true from a previous cancel-during-
+    // StartingRecording (platformStopRecording sets it to true when
+    // !s_recording to prevent the frame handler from starting the
+    // recording).  Reset it here so the new session's frame handler
+    // doesn't discard all frames.
+    s_stopping = false;
 
     // Clear any stale error from a previous recording session
     dispatch_sync(s_stateQueue(), ^{
@@ -202,16 +208,20 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
             // threads is a data race (§[intro.races] UB).  Wrap access in
             // the state queue — this only executes once (first frame), so
             // the dispatch_sync cost is a one-time overhead of ~1-3 µs.
-            auto cbPtr = std::make_shared<RecordingCallback>();
+            // 5WHY: Use __block (consistent with cleanupAfterError pattern
+            // at line ~150) instead of shared_ptr — the callback fires
+            // exactly once and shared_ptr's heap allocation + refcounting
+            // is unnecessary overhead for a single-owner transfer.
+            __block RecordingCallback cb;
             dispatch_sync(s_stateQueue(), ^{
                 if (s_startCb) {
-                    *cbPtr = std::move(s_startCb);
+                    cb = std::move(s_startCb);
                     s_startCb = nullptr;
                 }
             });
-            if (*cbPtr) {
+            if (cb) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    (*cbPtr)(true, outPath);
+                    cb(true, outPath);
                 });
             }
         }
