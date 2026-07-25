@@ -13,6 +13,8 @@
 // (not available to third-party apps without MDM).
 // =============================================================================
 #include "Common/Platform/PlatformFocus.h"
+#include <QString>
+#include <QtDebug>
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 
