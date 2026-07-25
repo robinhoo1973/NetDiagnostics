@@ -116,6 +116,10 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                     s_startCb(false, QString::fromNSString(error.localizedDescription));
                 });
                 s_startCb = nullptr;
+            } else {
+                // 5WHY: mid-capture error after s_startCb was consumed —
+                // store for platformStopRecording to report.
+                s_lastError = error.localizedDescription;
             }
             // 5WHY: clean up static references so a subsequent
             // platformStartRecording doesn't pick up stale state.
@@ -166,8 +170,17 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
 }
 
 void platformStopRecording(RecordingCallback callback) {
+    // 5WHY: mid-capture errors after s_startCb was consumed store the error
+    // in s_lastError. Report it here instead of the generic message.
     if (!s_recording || s_stopping) {
-        if (callback) callback(false, QStringLiteral("No recording in progress"));
+        if (callback) {
+            if (s_lastError) {
+                callback(false, QString::fromNSString(s_lastError));
+                s_lastError = nil;
+            } else {
+                callback(false, QStringLiteral("No recording in progress"));
+            }
+        }
         return;
     }
     s_stopping = true;

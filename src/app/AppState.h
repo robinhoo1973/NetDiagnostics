@@ -29,10 +29,8 @@ class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 class CaptureService;
 class CaptureOrchestrator;
-#endif
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {

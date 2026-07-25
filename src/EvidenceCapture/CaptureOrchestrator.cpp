@@ -66,16 +66,10 @@ CaptureOrchestrator::CaptureOrchestrator(AppState* appState, QObject* parent)
 }
 
 CaptureOrchestrator::~CaptureOrchestrator() {
-    // 5WHY: cancel() already stops recording and disables keepAwake.
-    // Calling platformStopRecording(nullptr) again is redundant and
-    // risks a race with the cancel() path's stop callbacks.
+    // 5WHY: cancel() already stops recording (lines 186-191, always sets
+    // m_recording=false regardless of FSM transition) and disables keepAwake.
     if (m_stateMachine->isRunning()) {
         cancel();
-    }
-    // Safety net: if cancel() failed to stop recording (e.g. state
-    // machine rejected the transition), force-stop here.
-    if (m_recording && platformIsRecording()) {
-        platformStopRecording(nullptr);
     }
     platformSetKeepAwake(false);
     // 5WHY: Safety net — if cancel() or the terminal-state handlers didn't
@@ -408,15 +402,21 @@ void CaptureOrchestrator::createSession() {
     QString safeUrl = sanitizeUrl(m_diagUrl);
     manifest["diag_url"] = safeUrl;
     manifest["started_at"] = now.toString(Qt::ISODate);
-    manifest["timestamp"] = now.toString(Qt::ISODate);
     manifest["status"] = "running";
     manifest["device"] = QSysInfo::machineHostName();
     manifest["os"] = QSysInfo::productType() + QStringLiteral(" ") + QSysInfo::productVersion();
     manifest["captures"] = QJsonArray();
 
     QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
-    if (mf.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        mf.write(QJsonDocument(manifest).toJson(QJsonDocument::Indented));
+    if (!mf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        failCapture(QStringLiteral("STORAGE_ERROR"),
+                    QStringLiteral("Cannot write session manifest"));
+        return;
+    }
+    if (mf.write(QJsonDocument(manifest).toJson(QJsonDocument::Indented)) == -1) {
+        failCapture(QStringLiteral("STORAGE_ERROR"),
+                    QStringLiteral("Failed to write session manifest"));
+        return;
     }
 
     // Write execution log header
@@ -427,7 +427,7 @@ void CaptureOrchestrator::createSession() {
                   << "Session:  " << ts << "\n"
                   << "Mode:     " << modeStr << "\n"
                   << "URL:      " << safeUrl << "\n"
-                  << "Started:  " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n\n";
+                  << "Started:  " << now.toString(Qt::ISODate) << "\n\n";
     }
 
     m_currentAction = QStringLiteral("Session created: ") + m_sessionDir;
@@ -480,26 +480,29 @@ void CaptureOrchestrator::finalizeSession() {
     // fallback below is the only remaining failure path through this function.
     // Update manifest
     QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
-    if (mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
-        QByteArray data = mf.readAll();
-        mf.seek(0);
-        QJsonDocument doc = QJsonDocument::fromJson(data);
-        // 5WHY: just returning leaves FSM stuck in Finalizing forever.
-        // Corrupt manifest means the session directory is compromised —
-        // transition to Failed so the user can retry.
-        if (doc.isNull()) {
-            // 5WHY: QFile destructor closes via RAII — explicit close() is dead code.
-            failCapture(QStringLiteral("MANIFEST_CORRUPT"), QStringLiteral("Session manifest is corrupt, cannot finalize."));
-            return;
-        }
-        QJsonObject obj = doc.object();
-        obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
-        obj["status"] = QStringLiteral("completed");
-        obj["total_captures"] = m_captureCount;
-        obj["duration_s"] = elapsedSeconds();
-        mf.resize(0);
-        mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+    if (!mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        failCapture(QStringLiteral("MANIFEST_ERROR"),
+                    QStringLiteral("Cannot open session manifest for finalization"));
+        return;
     }
+    QByteArray data = mf.readAll();
+    mf.seek(0);
+    QJsonDocument doc = QJsonDocument::fromJson(data);
+    // 5WHY: just returning leaves FSM stuck in Finalizing forever.
+    // Corrupt manifest means the session directory is compromised —
+    // transition to Failed so the user can retry.
+    if (doc.isNull()) {
+        // 5WHY: QFile destructor closes via RAII — explicit close() is dead code.
+        failCapture(QStringLiteral("MANIFEST_CORRUPT"), QStringLiteral("Session manifest is corrupt, cannot finalize."));
+        return;
+    }
+    QJsonObject obj = doc.object();
+    obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    obj["status"] = QStringLiteral("completed");
+    obj["total_captures"] = m_captureCount;
+    obj["duration_s"] = elapsedSeconds();
+    mf.resize(0);
+    mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
 
     // Append to execution log
     QFile logFile2(m_sessionDir + QStringLiteral("/Logs/execution.log"));
@@ -770,7 +773,10 @@ void CaptureOrchestrator::appendToManifest(const QString& description,
                                             const QString& filePath) {
     // Read current manifest, append capture entry, write back
     QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
-    if (!mf.open(QIODevice::ReadWrite | QIODevice::Text)) return;
+    if (!mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        qWarning() << "CaptureOrchestrator: cannot open manifest for append, capture entry lost";
+        return;
+    }
 
     QByteArray data = mf.readAll();
     QJsonDocument doc = QJsonDocument::fromJson(data);
