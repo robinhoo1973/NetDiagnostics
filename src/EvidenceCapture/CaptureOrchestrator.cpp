@@ -787,6 +787,14 @@ void CaptureOrchestrator::appendToManifest(const QString& description,
     }
 
     QByteArray data = mf.readAll();
+    // 5WHY: readAll() leaves the file position at EOF. resize(0) truncates
+    // the file but does NOT reset the file offset, so a subsequent write()
+    // would start at the stale EOF position — creating a sparse file with
+    // leading null bytes that corrupts the manifest.  Seek back to 0 first.
+    if (!mf.seek(0)) {
+        qWarning() << "CaptureOrchestrator: cannot seek manifest, capture entry lost";
+        return;
+    }
     QJsonDocument doc = QJsonDocument::fromJson(data);
     if (doc.isNull()) {
         qWarning() << "CaptureOrchestrator: manifest is corrupt, cannot append capture entry";

@@ -76,8 +76,11 @@ void platformSetMaxBrightness() {
 }
 
 void platformRestoreBrightness() {
-    if (!s_brightnessSaved) return;
+    // 5WHY: guard must be inside the runOnMainThread block — if it's on the
+    // calling thread, a concurrent call can slip past before the block
+    // executes, causing a double-restore or stale-value TOCTOU.
     runOnMainThread(^{
+        if (!s_brightnessSaved) return;
         [UIScreen mainScreen].brightness = s_savedBrightness;
         s_brightnessSaved = false;
     });

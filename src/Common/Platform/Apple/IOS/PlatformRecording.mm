@@ -189,6 +189,9 @@ void platformStopRecording(RecordingCallback callback) {
                 callback(false, QStringLiteral("No recording in progress"));
             }
         }
+        // 5WHY: clear s_lastError even when callback is null so a stale
+        // mid-capture error does not leak into a subsequent recording session.
+        s_lastError = nil;
         return;
     }
     s_stopping = true;

@@ -28,10 +28,12 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+// 5WHY: includes must remain unconditional — static_cast<QObject*>(appState.captureOrchestrator())
+// on lines 164-165 requires the full class definition to verify QObject inheritance, even on
+// desktop where the return value is always nullptr.  The CMakeLists.txt already excludes the
+// .cpp files from desktop builds, so there is no link-time dependency.
 #include "EvidenceCapture/CaptureService.h"
 #include "EvidenceCapture/CaptureOrchestrator.h"
-#endif
 #include "Dashboard/Controller/DashboardController.h"
 #include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
@@ -159,10 +161,18 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
     // Automated capture service (screenshots during diagnostics).
-    // Always registered so QML typeof guards work on all platforms —
-    // accessors return nullptr on desktop, which is falsy in QML.
+    // Capture context properties: always registered so QML null guards
+    // work on all platforms.  The desktop accessors return nullptr,
+    // which is falsy in QML.  On desktop, these files are not compiled,
+    // so the #if guards prevent linker errors for CaptureOrchestrator
+    // member functions while keeping context properties defined.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
     engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
+#else
+    engine.rootContext()->setContextProperty("captureService", QVariant());
+    engine.rootContext()->setContextProperty("captureOrchestrator", QVariant());
+#endif
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
@@ -307,6 +317,7 @@ int main(int argc, char *argv[])
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
 
     // ── Wire AppContent to CaptureOrchestrator for automated navigation ──
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     if (auto* orch = appState.captureOrchestrator()) {
         QObject* appContent = engine.rootObjects().first()
             ? engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("appContent"))
@@ -316,6 +327,7 @@ int main(int argc, char *argv[])
             STARTUP_TRACE("CaptureOrchestrator: AppContent wired for automated navigation");
         }
     }
+#endif
     // 5WHY: The startup log exists only to diagnose launch crashes.
     // Once QML loads + window shows, the app started successfully —
     // delete the log so stale crash-debug logs don't accumulate.
