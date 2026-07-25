@@ -273,7 +273,9 @@ Item {
                     // startup (which may block on system permission dialogs).
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""
-                    captureOrchestrator.onCountdownFinished()
+                    if (captureOrchestrator !== null) {
+                        captureOrchestrator.onCountdownFinished()
+                    }
                 })
             }
             // Result summary dismissed

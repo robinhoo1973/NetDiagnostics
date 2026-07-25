@@ -80,7 +80,20 @@ Rectangle {
                 spacing: 6
                 Layout.fillWidth: true
                 Label { text: "• Please do not touch the device"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
-                Label { text: "• Enable Do Not Disturb mode"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
+                // 5WHY: iOS has no programmatic Focus mode API.  Make the
+                // DND hint a clickable link that opens the system settings
+                // page where the user can manually enable it.
+                Label {
+                    text: "• Enable Do Not Disturb mode  (tap to open Settings)"
+                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
+                    color: T.ThemeEngine.cyan
+                    font.underline: true
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: captureOrchestrator.openFocusSettings()
+                    }
+                }
                 Label { text: "• Screen will stay awake"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
                 Label { text: "• Estimated time: ~45 seconds"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
             }

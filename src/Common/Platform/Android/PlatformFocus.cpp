@@ -170,3 +170,32 @@ void platformRestoreBrightness() {
         "(Landroid/view/WindowManager$LayoutParams;)V", attrs.object());
     s_brightnessSaved = false;
 }
+
+// ── Orientation lock ────────────────────────────────────────────────
+// 5WHY: SCREEN_ORIENTATION_LOCKED = 14 (API 18+). Restore to
+// SCREEN_ORIENTATION_USER = 2 to resume system-managed rotation.
+void platformLockOrientation() {
+    QJniObject activity = getQtActivity();
+    if (!activity.isValid()) return;
+    activity.callMethod<void>("setRequestedOrientation", "(I)V", 14);
+}
+
+void platformUnlockOrientation() {
+    QJniObject activity = getQtActivity();
+    if (!activity.isValid()) return;
+    activity.callMethod<void>("setRequestedOrientation", "(I)V", 2);
+}
+
+void platformOpenFocusSettings() {
+    // 5WHY: startActivity from a non-Activity context (our C++ is
+    // called from QML, not from an Activity subclass) requires the
+    // FLAG_ACTIVITY_NEW_TASK flag, or Android throws an exception.
+    QJniObject activity = getQtActivity();
+    if (!activity.isValid()) return;
+    QJniObject intent("android/content/Intent",
+        "(Ljava/lang/String;)V",
+        QJniObject::fromString("android.settings.NOTIFICATION_SETTINGS").object());
+    intent.callMethod<void>("addFlags", "(I)V", 0x10000000); // FLAG_ACTIVITY_NEW_TASK
+    activity.callMethod<void>("startActivity",
+        "(Landroid/content/Intent;)V", intent.object());
+}

@@ -114,6 +114,27 @@ Rectangle {
                 wrapMode: Text.WrapAnywhere
             }
 
+            // ── Focus mode exit reminder (success only) ─────────────
+            // 5WHY: iOS cannot programmatically disable Focus mode.
+            // Android restores DND automatically, but if the user manually
+            // enabled it via Settings, they still need to undo it.
+            Rectangle {
+                visible: !root.isError
+                Layout.fillWidth: true; implicitHeight: 36; radius: 8
+                color: Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
+                border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.2) }
+                Label {
+                    anchors { fill: parent; margins: 10 }
+                    text: "⚠ If you enabled Focus/DND manually, tap to open Settings to disable it"
+                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
+                    color: T.ThemeEngine.warnYellow; font.underline: true
+                    verticalAlignment: Text.AlignVCenter
+                }
+                MouseArea {
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    onClicked: captureOrchestrator.openFocusSettings()
+                }
+            }
             // Done / Dismiss button
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 44; radius: 12

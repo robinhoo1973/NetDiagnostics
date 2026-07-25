@@ -9,7 +9,7 @@
 // Platforms:
 //   Linux/macOS desktop — no-op (no public API to suppress notifications)
 //   Windows — no-op (no public API; Focus Assist requires WinRT)
-//   iOS — brightness → 0 + silent physical-switch simulation (best-effort)
+//   iOS — set max brightness (1.0) for clear recordings + mute audio (best-effort)
 //   Android — NotificationManager.setInterruptionFilter (API 23+)
 //
 // Design ref: review/06_Capture_Architecture_Design.md §2.6
@@ -33,3 +33,15 @@ void platformSetMaxBrightness();
 
 /// Restore screen brightness to the level saved by platformSetMaxBrightness().
 void platformRestoreBrightness();
+
+/// [iOS/Android only] Open the system Focus / Do-Not-Disturb settings page
+/// so the user can manually enable it before capture starts.
+/// Desktop: no-op.
+void platformOpenFocusSettings();
+
+/// Lock screen orientation to current value to prevent rotation during capture.
+/// Must be paired with platformUnlockOrientation() at capture end.
+void platformLockOrientation();
+
+/// Restore auto-rotation after capture completes.
+void platformUnlockOrientation();

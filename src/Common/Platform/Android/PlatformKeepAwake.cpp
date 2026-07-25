@@ -9,6 +9,12 @@
 
 static bool s_keepAwake = false;
 
+// 5WHY: android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON = 0x00000080
+// Using the constant value directly avoids a JNI static-field lookup on every
+// toggle.  If this flag value ever changes in a future Android SDK (unlikely
+// since it's been stable since API 1), this would need to be updated.
+static constexpr jint kFlagKeepScreenOn = 0x00000080;
+
 void platformSetKeepAwake(bool enable) {
     QJniObject activity = QNativeInterface::QAndroidApplication::context();
     if (!activity.isValid()) return;
@@ -18,11 +24,9 @@ void platformSetKeepAwake(bool enable) {
     if (!window.isValid()) return;
 
     if (enable) {
-        window.callMethod<void>("addFlags", "(I)V",
-            static_cast<jint>(0x00000080)); // FLAG_KEEP_SCREEN_ON = 0x80
+        window.callMethod<void>("addFlags", "(I)V", kFlagKeepScreenOn);
     } else {
-        window.callMethod<void>("clearFlags", "(I)V",
-            static_cast<jint>(0x00000080));
+        window.callMethod<void>("clearFlags", "(I)V", kFlagKeepScreenOn);
     }
     s_keepAwake = enable;
 }

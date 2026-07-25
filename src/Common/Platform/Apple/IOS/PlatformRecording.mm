@@ -209,6 +209,23 @@ void platformStopRecording(RecordingCallback callback) {
             return;
         }
 
+        // 5WHY: A concurrent capture-handler error (from the ReplayKit
+        // internal queue) may have already cleaned up s_input and s_writer
+        // before this block executes.  ObjC nil-messaging on
+        // markAsFinished / finishWritingWithCompletionHandler would silently
+        // no-op — and the inner completion block would never fire, leaving
+        // the caller hanging forever.  Detect the torn-down state here so
+        // the callback is always delivered.
+        if (!s_input || !s_writer) {
+            s_recording = false;
+            s_stopping = false;
+            if (callback) callback(false, QStringLiteral("Recording already stopped due to error"));
+            s_writer = nil;
+            s_input = nil;
+            s_outputPath = nil;
+            return;
+        }
+
         [s_input markAsFinished];
         [s_writer finishWritingWithCompletionHandler:^{
             s_recording = false;

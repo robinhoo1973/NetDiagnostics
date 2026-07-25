@@ -70,7 +70,11 @@ bool platformCaptureScreenshot(const QString& filePath) {
 
     if (!success || !pngData) return false;
 
-    NSString* nsPath = [NSString stringWithUTF8String:filePath.toUtf8().constData()];
+    // 5WHY: toUtf8() returns a temporary QByteArray — store it in a local
+    // so constData() does not become a dangling pointer if this expression
+    // is ever refactored across multiple statements.
+    QByteArray utf8Path = filePath.toUtf8();
+    NSString* nsPath = [NSString stringWithUTF8String:utf8Path.constData()];
     BOOL wrote = [pngData writeToFile:nsPath atomically:YES];
     // 5WHY: Under ARC, __block variables are auto-retained on assignment
     // and auto-released when they go out of scope. No manual retain/release.

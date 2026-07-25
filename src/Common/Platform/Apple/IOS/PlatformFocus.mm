@@ -85,3 +85,22 @@ void platformRestoreBrightness() {
         s_brightnessSaved = false;
     });
 }
+
+// ── Orientation lock ────────────────────────────────────────────────
+// 5WHY: Qt/QML doesn't own UIViewController — can't override
+// supportedInterfaceOrientations.  Use QML Screen.orientation
+// (ApplicationWindow.contentOrientation) to lock from the QML side.
+// These stubs exist so the cross-platform caller compiles without #ifdef.
+void platformLockOrientation() {}
+void platformUnlockOrientation() {}
+
+void platformOpenFocusSettings() {
+    // 5WHY: iOS does not allow programmatic Focus mode activation.
+    // The best we can do is open Settings → Focus so the user can
+    // manually enable it.  App-Prefs:root=Focus works on iOS 15+.
+    NSURL* url = [NSURL URLWithString:@"App-Prefs:root=Focus"];
+    if ([[UIApplication sharedApplication] canOpenURL:url]) {
+        [[UIApplication sharedApplication] openURL:url
+            options:@{} completionHandler:nil];
+    }
+}

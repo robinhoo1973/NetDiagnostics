@@ -82,6 +82,10 @@ public:
     // scroll steps actually scroll the page instead of silently no-oping.
     Q_INVOKABLE void setScrollFlickable(QObject* flickable);
 
+    // Open the system Focus / Do-Not-Disturb settings page (iOS/Android).
+    // Called from CapturePreflightOverlay when the user taps the DND hint.
+    Q_INVOKABLE void openFocusSettings();
+
 signals:
     void stateChanged();
     void stepChanged(int current, int total);

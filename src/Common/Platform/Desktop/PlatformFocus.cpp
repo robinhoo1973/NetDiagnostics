@@ -32,3 +32,6 @@ bool platformIsFocusModeEnabled() {
 // Desktop: no portable brightness API. No-op stubs.
 void platformSetMaxBrightness() {}
 void platformRestoreBrightness() {}
+void platformLockOrientation() {}
+void platformUnlockOrientation() {}
+void platformOpenFocusSettings() { /* desktop: no-op */ }

@@ -29,6 +29,7 @@
 void CaptureOrchestrator::restoreSystemState() {
     platformRestoreBrightness();
     platformDisableFocusMode();
+    platformUnlockOrientation();
 }
 
 // 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
@@ -92,6 +93,10 @@ void CaptureOrchestrator::setAppContent(QObject* appContent) {
 
 void CaptureOrchestrator::setScrollFlickable(QObject* flickable) {
     m_scrollCtrl->setFlickable(flickable);
+}
+
+void CaptureOrchestrator::openFocusSettings() {
+    platformOpenFocusSettings();
 }
 
 void CaptureOrchestrator::failCapture(const QString& errorCode, const QString& message) {
@@ -183,10 +188,8 @@ void CaptureOrchestrator::cancel() {
     // the next capture session.
     if (m_recording && platformIsRecording()) {
         platformStopRecording(nullptr);
-        m_recording = false;
-    } else {
-        m_recording = false;
     }
+    m_recording = false;
 
     // Stop any in-progress scroll
     m_scrollCtrl->cancel();
@@ -231,8 +234,10 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         m_currentAction = QStringLiteral("Preparing to capture...");
         emit actionChanged(m_currentAction);
         platformSetKeepAwake(true);
-        platformEnableFocusMode();  // 5WHY: suppress notifications during capture
-        platformSetMaxBrightness(); // ensure max screen brightness for clear recordings
+        platformEnableFocusMode();  // suppress notifications during capture
+        platformSetMaxBrightness(); // max screen brightness for clear recordings
+        platformLockOrientation();  // 5WHY: lock to current orientation per
+                                    // ScreenCapture_AutoDemo_Design §6
         // Safety net: if the QML preflight overlay fails to load or the
         // countdown signal is never emitted, auto-advance after 10s so the
         // capture doesn't hang forever. The state guard ensures this won't
@@ -356,9 +361,13 @@ void CaptureOrchestrator::finishPreflight() {
     // stale state.
     if (m_stateMachine->state() != CaptureState::Preflight) return;
 
-    // Check disk space (>100MB)
-    QString root = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QStorageInfo storage(root);
+    // Check disk space (>100MB) — use same base path as createSession()
+#if defined(PLATFORM_IOS)
+    QString preflightRoot = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
+    QString preflightRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+#endif
+    QStorageInfo storage(preflightRoot);
     if (storage.isValid() && storage.bytesAvailable() < 100 * 1024 * 1024) {
         failCapture(QStringLiteral("LOW_DISK"),
                     QStringLiteral("Less than 100MB disk space available."));
@@ -376,14 +385,18 @@ void CaptureOrchestrator::createSession() {
     case Both:           modeStr = QStringLiteral("Video+Screenshot"); break;
     }
 
-    // Blueprint §10: yyyyMMdd_HHmmss_zzz under CrashReports/Capture/
-    // 5WHY: zzz (milliseconds) prevents directory collisions when two captures
-    // are started within the same second (e.g., rapid retry after storage error).
+    // 5WHY: iOS log files (debug.log, crash.log) live under
+    // Documents/NetDiagnostics/ — co-locating Capture output there
+    // makes all diagnostic evidence discoverable in one place via Files.app.
+    // Desktop: AppDataLocation; iOS: DocumentsLocation (matched to Logger.cpp).
     const QDateTime now = QDateTime::currentDateTime();
     QString ts = now.toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
-    // Store under CrashReports/Capture/ per design doc §10
-    QString root = QStandardPaths::writableLocation(
-        QStandardPaths::AppDataLocation) + QStringLiteral("/CrashReports/Capture");
+#if defined(PLATFORM_IOS)
+    QString base = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
+    QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+#endif
+    QString root = base + QStringLiteral("/NetDiagnostics/Capture");
     m_sessionDir = root + QStringLiteral("/") + ts;
 
     // Create subdirectories per design §10 structure
@@ -519,6 +532,9 @@ void CaptureOrchestrator::finalizeSession() {
         logStream2 << "\n--- Session complete ---\n"
                    << "Total captures: " << m_captureCount << "\n"
                    << "Ended: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
+        if (logStream2.status() != QTextStream::Ok) {
+            qWarning() << "CaptureOrchestrator: failed to append execution log";
+        }
     }
 
     m_stateMachine->transitionTo(CaptureState::Completed);
@@ -575,8 +591,11 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     if (step->captureBefore && m_doScreenshot) {
         QString safeDesc = step->description;
         safeDesc.replace(QLatin1Char(':'), QLatin1Char('-')); // Windows-safe
+        // 5WHY: m_captureCount is incremented AFTER building the filename.
+        // Using m_captureCount+1 (1-indexed) ensures the filename number
+        // matches the manifest seq field (also post-increment, 1-indexed).
         QString filePath = m_sessionDir + QStringLiteral("/Screenshots/")
-            + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
+            + QStringLiteral("%1").arg(m_captureCount + 1, 2, 10, QLatin1Char('0'))
             + QStringLiteral("_") + safeDesc + QStringLiteral(".png");
         if (platformCaptureScreenshot(filePath)) {
             m_captureCount++;
@@ -637,8 +656,11 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // 5WHY: description can contain ':' (e.g. "Diagnostics: run") which is
         // illegal in Windows filenames. Replace with '-' for cross-platform safety.
         label.replace(QLatin1Char(':'), QLatin1Char('-'));
+        // 5WHY: m_captureCount is incremented AFTER building the filename.
+        // Using m_captureCount+1 (1-indexed) ensures the filename number
+        // matches the manifest seq field (also post-increment, 1-indexed).
         QString filePath = m_sessionDir + QStringLiteral("/Screenshots/")
-            + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
+            + QStringLiteral("%1").arg(m_captureCount + 1, 2, 10, QLatin1Char('0'))
             + QStringLiteral("_") + label + QStringLiteral(".png");
         if (platformCaptureScreenshot(filePath)) {
             m_captureCount++;
