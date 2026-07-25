@@ -24,6 +24,8 @@
 #include <QDebug>
 #include <QUrl>
 #include <QStorageInfo>
+#include <QSysInfo>
+#include <QDesktopServices>
 
 // 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
 // risking credential leakage (user:pass@host) and token exposure (query params).
@@ -292,6 +294,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // onCaptureCompleted handler finds the ResultSummary item.
         QTimer::singleShot(0, this, [this]() {
             emit captureCompleted(m_sessionDir);
+        QDesktopServices::openUrl(QUrl::fromLocalFile(m_sessionDir));
         });
         break;
 
@@ -370,46 +373,48 @@ void CaptureOrchestrator::finishPreflight() {
 void CaptureOrchestrator::createSession() {
     QString modeStr;
     switch (m_captureMode) {
-    case ScreenshotOnly: modeStr = QStringLiteral("screenshot"); break;
-    case RecordingOnly:  modeStr = QStringLiteral("recording");  break;
-    case Both:           modeStr = QStringLiteral("both");        break;
+    case ScreenshotOnly: modeStr = QStringLiteral("Screenshot"); break;
+    case RecordingOnly:  modeStr = QStringLiteral("Video");      break;
+    case Both:           modeStr = QStringLiteral("Video+Screenshot"); break;
     }
 
-    // 5WHY: yyyyMMdd-HHmmss omitted timezone — cross-tz captures collide.
-    // Blueprint §11.2 requires yyyyMMdd_HHmmss_timezone_scenario.
-    QString ts = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
-    QString tz = QDateTime::currentDateTime().timeZoneAbbreviation();
-    // Scenario ID already set by the mode panel flow; default to "full_diagnostic".
-    QString scenario = m_filteredScenario.scenarioId().isEmpty()
-        ? QStringLiteral("full_diagnostic") : m_filteredScenario.scenarioId();
-    // Store under Evidence/AutoCapture/ adjacent to crash reports
-    // 5WHY: co-located with crash reports so all diagnostic evidence is in one place.
+    // Blueprint §10: yyyyMMdd_HHmmss under CrashReports/Capture/
+    const QDateTime now = QDateTime::currentDateTime();
+    QString ts = now.toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    // Store under CrashReports/Capture/ per design doc §10
     QString root = QStandardPaths::writableLocation(
-        QStandardPaths::AppDataLocation) + QStringLiteral("/Evidence/AutoCapture");
-    m_sessionDir = root + QStringLiteral("/") + ts + QStringLiteral("_") + tz + QStringLiteral("_") + scenario + QStringLiteral("_") + modeStr;
+        QStandardPaths::AppDataLocation) + QStringLiteral("/CrashReports/Capture");
+    m_sessionDir = root + QStringLiteral("/") + ts;
 
-    if (!QDir().mkpath(m_sessionDir)) {
+    // Create subdirectories per design §10 structure
+    if (!QDir().mkpath(m_sessionDir + QStringLiteral("/Screenshots"))
+        || !QDir().mkpath(m_sessionDir + QStringLiteral("/Videos"))
+        || !QDir().mkpath(m_sessionDir + QStringLiteral("/Logs"))
+        || !QDir().mkpath(m_sessionDir + QStringLiteral("/Metadata"))) {
         failCapture(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory"));
         return;
     }
 
-    // Write initial manifest.json
+    // Write initial manifest.json (in Metadata/ per design §10)
     QJsonObject manifest;
     manifest["session_id"] = ts;
     manifest["capture_mode"] = modeStr;
     QString safeUrl = sanitizeUrl(m_diagUrl);
     manifest["diag_url"] = safeUrl;
-    manifest["started_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    manifest["started_at"] = now.toString(Qt::ISODate);
+    manifest["timestamp"] = now.toString(Qt::ISODate);
     manifest["status"] = "running";
+    manifest["device"] = QSysInfo::machineHostName();
+    manifest["os"] = QSysInfo::productType() + QStringLiteral(" ") + QSysInfo::productVersion();
     manifest["captures"] = QJsonArray();
 
-    QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
+    QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
     if (mf.open(QIODevice::WriteOnly | QIODevice::Text)) {
         mf.write(QJsonDocument(manifest).toJson(QJsonDocument::Indented));
     }
 
     // Write execution log header
-    QFile logFile(m_sessionDir + QStringLiteral("/execution.log"));
+    QFile logFile(m_sessionDir + QStringLiteral("/Logs/execution.log"));
     if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream logStream(&logFile);
         logStream << "=== Automated Capture Session ===\n"
@@ -424,7 +429,7 @@ void CaptureOrchestrator::createSession() {
 }
 
 void CaptureOrchestrator::startPlatformRecording() {
-    QString recPath = m_sessionDir + QStringLiteral("/recording");
+    QString recPath = m_sessionDir + QStringLiteral("/Videos/Capture_AutoDemo");
 
     m_currentAction = QStringLiteral("Starting screen recording...");
     emit actionChanged(m_currentAction);
@@ -468,7 +473,7 @@ void CaptureOrchestrator::finalizeSession() {
     // so finalizeSession only handles the success path.  The corrupt-manifest
     // fallback below is the only remaining failure path through this function.
     // Update manifest
-    QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
+    QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
     if (mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
         QByteArray data = mf.readAll();
         mf.seek(0);
@@ -485,12 +490,13 @@ void CaptureOrchestrator::finalizeSession() {
         obj["completed_at"] = QDateTime::currentDateTime().toString(Qt::ISODate);
         obj["status"] = QStringLiteral("completed");
         obj["total_captures"] = m_captureCount;
+        obj["duration_s"] = elapsedSeconds();
         mf.resize(0);
         mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
     }
 
     // Append to execution log
-    QFile logFile2(m_sessionDir + QStringLiteral("/execution.log"));
+    QFile logFile2(m_sessionDir + QStringLiteral("/Logs/execution.log"));
     if (logFile2.open(QIODevice::Append | QIODevice::Text)) {
         QTextStream logStream2(&logFile2);
         logStream2 << "\n--- Session complete ---\n"
@@ -552,7 +558,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     if (step->captureBefore && m_doScreenshot) {
         QString safeDesc = step->description;
         safeDesc.replace(QLatin1Char(':'), QLatin1Char('-')); // Windows-safe
-        QString filePath = m_sessionDir + QStringLiteral("/")
+        QString filePath = m_sessionDir + QStringLiteral("/Screenshots/")
             + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
             + QStringLiteral("_") + safeDesc + QStringLiteral(".png");
         if (platformCaptureScreenshot(filePath)) {
@@ -583,7 +589,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
                 connect(m_delayTimer, &QTimer::timeout, this, [this]() {
                     executeNextStep();
                 });
-                m_delayTimer->start(m_recording ? 2000 : 500);  // longer delay for recording
+                m_delayTimer->start(m_recording ? 4000 : 500);  // longer delay for recording
             });
         break;
     }
@@ -614,7 +620,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // 5WHY: description can contain ':' (e.g. "Diagnostics: run") which is
         // illegal in Windows filenames. Replace with '-' for cross-platform safety.
         label.replace(QLatin1Char(':'), QLatin1Char('-'));
-        QString filePath = m_sessionDir + QStringLiteral("/")
+        QString filePath = m_sessionDir + QStringLiteral("/Screenshots/")
             + QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'))
             + QStringLiteral("_") + label + QStringLiteral(".png");
         if (platformCaptureScreenshot(filePath)) {
@@ -757,7 +763,7 @@ QString CaptureOrchestrator::sessionDir() const {
 void CaptureOrchestrator::appendToManifest(const QString& description,
                                             const QString& filePath) {
     // Read current manifest, append capture entry, write back
-    QFile mf(m_sessionDir + QStringLiteral("/manifest.json"));
+    QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
     if (!mf.open(QIODevice::ReadWrite | QIODevice::Text)) return;
 
     QByteArray data = mf.readAll();

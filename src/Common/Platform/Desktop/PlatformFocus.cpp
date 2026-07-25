@@ -28,3 +28,7 @@ void platformDisableFocusMode() {
 bool platformIsFocusModeEnabled() {
     return s_focusEnabled;
 }
+
+// Desktop: no portable brightness API. No-op stubs.
+void platformSetMaxBrightness() {}
+void platformRestoreBrightness() {}

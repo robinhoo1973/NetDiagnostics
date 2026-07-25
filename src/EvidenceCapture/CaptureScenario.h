@@ -78,52 +78,52 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
 
     s.addSteps({
         // ── Phase 1: All tabs ──────────────────────────────────────────
-        {StepAction::Navigate,       "0", "Dashboard",     true,  false},
-        {StepAction::WaitPageReady,  "3000", "",            false, false},
-        {StepAction::Capture,        "01_dashboard",       "",    false},
+        {StepAction::Navigate,       "0", "000_Dashboard",     true,  false},
+        {StepAction::WaitPageReady,  "3000", "",                false, false},
+        {StepAction::Capture,        "001_Dashboard_Main",     "",    false},
 
-        {StepAction::Navigate,       "1", "Diagnostics",   true,  false},
-        {StepAction::WaitPageReady,  "3000", "",            false, false},
-        {StepAction::Capture,        "02_diagnostic",      "",    false},
+        {StepAction::Navigate,       "1", "001_Diagnostics",   true,  false},
+        {StepAction::WaitPageReady,  "3000", "",                false, false},
+        {StepAction::Capture,        "002_Diagnostic",         "",    false},
 
-        {StepAction::Navigate,       "2", "Config",        true,  false},
-        {StepAction::WaitPageReady,  "3000", "",            false, false},
-        {StepAction::Capture,        "03_config",          "",    false},
+        {StepAction::Navigate,       "2", "002_Config",        true,  false},
+        {StepAction::WaitPageReady,  "3000", "",                false, false},
+        {StepAction::Capture,        "003_Config",             "",    false},
 
-        {StepAction::Navigate,       "3", "Settings",      true,  false},
-        {StepAction::WaitPageReady,  "3000", "",            false, false},
-        {StepAction::Capture,        "04_settings",        "",    false},
+        {StepAction::Navigate,       "3", "003_Settings",      true,  false},
+        {StepAction::WaitPageReady,  "3000", "",                false, false},
+        {StepAction::Capture,        "004_Settings",           "",    false},
 
         // ── Phase 2: Diagnostic run ────────────────────────────────────
-        {StepAction::Navigate,       "1", "Diagnostics: run", true, false},
+        {StepAction::Navigate,       "1", "004_Diagnostic_PreRun", true, false},
         {StepAction::SetUrl,         diagUrl, "",            false, false},
-        {StepAction::Capture,        "05_pre_diag",         "",    false},
+        {StepAction::Capture,        "005_Diagnostic_Input",  "",    false},
         {StepAction::RunDiagnostic,  "", "",                 false, false},
         {StepAction::WaitDiagComplete,"120000", "",          false, false},
-        {StepAction::Capture,        "06_diag_complete",    "",    false},
+        {StepAction::Capture,        "010_Diagnostic_Result", "",    false},
 
         // ── Phase 3: InternetConnectivity detail ───────────────────────
         {StepAction::OpenDetail,
          QString::number(static_cast<int>(DiagId::G3InternetConnectivity)),
-         "InternetConnectivity", true, false},
+         "011_InternetConnectivity", true, false},
         {StepAction::WaitPageReady,  "2000", "",            false, false},
-        {StepAction::Capture,        "07_connectivity_detail","",   false},
+        {StepAction::Capture,        "011_InternetConnectivity_Top","",false},
         // Scroll during recording only — captures the full detail content
         {StepAction::Scroll,         "3000", "Connectivity scroll", false, true},
-        {StepAction::Capture,        "08_connectivity_end", "",    false},
+        {StepAction::Capture,        "012_InternetConnectivity_Bottom","",false},
 
         // ── Phase 4: Dashboard ─────────────────────────────────────────
-        {StepAction::Navigate,       "0", "Dashboard",     true,  false},
-        {StepAction::WaitPageReady,  "3000", "",            false, false},
-        {StepAction::Capture,        "09_dashboard",       "",    false},
+        {StepAction::Navigate,       "0", "020_Dashboard",     true,  false},
+        {StepAction::WaitPageReady,  "3000", "",                false, false},
+        {StepAction::Capture,        "020_Dashboard_AfterDiagnostic","",false},
         // Scroll during recording — captures dashboard scroll content
         {StepAction::Scroll,         "5000", "Dashboard scroll", false, true},
-        {StepAction::Capture,        "10_dashboard_end",   "",    false},
+        {StepAction::Capture,        "021_Dashboard_End",     "",    false},
 
         // ── Phase 5: Report preview ────────────────────────────────────
-        {StepAction::OpenReport,     "", "Report Preview", true,  false},
-        {StepAction::WaitPageReady,  "3000", "",            false, false},
-        {StepAction::Capture,        "11_report",          "",    false},
+        {StepAction::OpenReport,     "", "030_Report",        true,  false},
+        {StepAction::WaitPageReady,  "3000", "",               false, false},
+        {StepAction::Capture,        "030_Report_Summary",    "",    false},
     });
 
     return s;

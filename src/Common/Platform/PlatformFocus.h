@@ -26,3 +26,10 @@ void platformDisableFocusMode();
 
 /// Returns true if focus mode is currently active.
 bool platformIsFocusModeEnabled();
+
+/// Set screen brightness to maximum for clear recordings.
+/// Saves previous brightness and restores via platformRestoreBrightness().
+void platformSetMaxBrightness();
+
+/// Restore screen brightness to the level saved by platformSetMaxBrightness().
+void platformRestoreBrightness();

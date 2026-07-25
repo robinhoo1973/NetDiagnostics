@@ -52,3 +52,23 @@ void platformDisableFocusMode() {
 bool platformIsFocusModeEnabled() {
     return s_focusEnabled;
 }
+
+// ── Brightness control for recording clarity ──────────────────────────────
+static CGFloat s_savedBrightness = -1.0;
+
+void platformSetMaxBrightness() {
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        if (s_savedBrightness < 0) {
+            s_savedBrightness = [UIScreen mainScreen].brightness;
+        }
+        [UIScreen mainScreen].brightness = 1.0;
+    });
+}
+
+void platformRestoreBrightness() {
+    if (s_savedBrightness < 0) return;
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        [UIScreen mainScreen].brightness = s_savedBrightness;
+        s_savedBrightness = -1.0;
+    });
+}
