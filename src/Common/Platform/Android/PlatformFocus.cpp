@@ -91,8 +91,11 @@ bool platformDisableFocusMode() {
 
     QJniObject activity = getQtActivity();
     if (!activity.isValid()) {
-        qWarning() << "PlatformFocus: Cannot get Qt activity to restore DND";
-        s_focusEnabled = false;
+        qWarning() << "PlatformFocus: Cannot get Qt activity to restore DND — will retry";
+        // 5WHY: Keep s_focusEnabled=true on JNI failure — same pattern as
+        // platformRestoreBrightness which preserves s_brightnessSaved.
+        // The destructor safety net (restoreSystemState) provides a second
+        // chance when the Activity recovers.  Only clear after success.
         return false;
     }
 

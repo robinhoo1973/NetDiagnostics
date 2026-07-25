@@ -241,6 +241,15 @@ void platformStopRecording(RecordingCallback callback) {
     // 5WHY: lock-free atomic check first — fast path for the common case
     // where recording was never started or already stopped.
     if (!s_recording || s_stopping) {
+        // 5WHY: Set s_stopping=true FIRST — closes the TOCTOU window
+        // between the outer !s_recording check above and the inner
+        // !s_recording check below.  If the ReplayKit frame handler
+        // fires on its queue between those two reads and starts the
+        // recording, s_stopping=true causes the handler's guard
+        // (if (s_stopping) return;) to prevent the session from
+        // beginning — the recording never starts and the callback
+        // (s_startCb) remains stored for delivery below.
+        s_stopping = true;
         if (callback) {
             __block QString errMsg;
             __block bool hasError = false;
@@ -260,17 +269,11 @@ void platformStopRecording(RecordingCallback callback) {
         // 5WHY: if callback is nil, s_lastError stays in the queue for
         // the next caller (e.g. destructor safety net).
         //
-        // 5WHY: When !s_recording (recording hasn't started yet, e.g. cancel
-        // during StartingRecording), the ReplayKit frame handler may still
-        // fire after this function returns and invoke the stale s_startCb
-        // callback, which would try to transition the FSM out of its current
-        // (terminal/cancelled) state.  Clear s_startCb AND set s_stopping so
-        // the frame handler (line 186: if (s_stopping) return) prevents the
-        // recording from ever starting — without s_stopping, the recording
-        // starts on the platform and runs indefinitely because the orchestrator
-        // has already cleared m_recording in restoreSystemState().
+        // 5WHY: s_stopping was already set to true at the top of this block
+        // to close the TOCTOU window.  If recording hasn't started yet, also
+        // clear s_startCb to prevent the first-frame callback from firing on
+        // a stale session.
         if (!s_recording) {
-            s_stopping = true;
             dispatch_sync(s_stateQueue(), ^{
                 s_startCb = nullptr;
             });
