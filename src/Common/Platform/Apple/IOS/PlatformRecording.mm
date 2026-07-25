@@ -39,6 +39,10 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         return;
     }
 
+    // 5WHY: clear any stale error from a previous recording session
+    // so platformStopRecording doesn't report an old error for a new session.
+    s_lastError = nil;
+
     // Ensure output directory exists
     QString outPath = filePath;
     if (!outPath.endsWith(QStringLiteral(".mp4"), Qt::CaseInsensitive))
@@ -160,6 +164,10 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                     s_startCb(false, QString::fromNSString(error.localizedDescription));
                 });
                 s_startCb = nullptr;
+            } else {
+                // 5WHY: mid-capture error after s_startCb was consumed —
+                // store for platformStopRecording to report.
+                s_lastError = error.localizedDescription;
             }
             s_writer = nil;
             s_input = nil;

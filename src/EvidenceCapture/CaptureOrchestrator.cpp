@@ -191,8 +191,8 @@ void CaptureOrchestrator::cancel() {
     // Stop any in-progress scroll
     m_scrollCtrl->cancel();
 
-    // 5WHY: transitionTo(Cancelled) is not valid from every state.
-    // CreatingSession rejects it (FSM table lacks the transition).
+    // 5WHY: transitionTo(Cancelled) is not valid from every state
+    // (Idle and terminal states reject it — see FSM table).
     // StoppingRecording and Finalizing both accept Cancelled per the
     // FSM table (verified in CaptureStateMachine.cpp:46-48).
     // Only emit captureCancelled and disable keep-awake if the FSM
@@ -486,7 +486,11 @@ void CaptureOrchestrator::finalizeSession() {
         return;
     }
     QByteArray data = mf.readAll();
-    mf.seek(0);
+    if (!mf.seek(0)) {
+        failCapture(QStringLiteral("MANIFEST_ERROR"),
+                    QStringLiteral("Cannot seek manifest for finalization"));
+        return;
+    }
     QJsonDocument doc = QJsonDocument::fromJson(data);
     // 5WHY: just returning leaves FSM stuck in Finalizing forever.
     // Corrupt manifest means the session directory is compromised —
@@ -502,7 +506,11 @@ void CaptureOrchestrator::finalizeSession() {
     obj["total_captures"] = m_captureCount;
     obj["duration_s"] = elapsedSeconds();
     mf.resize(0);
-    mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+    if (mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented)) == -1) {
+        failCapture(QStringLiteral("MANIFEST_ERROR"),
+                    QStringLiteral("Failed to write finalized manifest"));
+        return;
+    }
 
     // Append to execution log
     QFile logFile2(m_sessionDir + QStringLiteral("/Logs/execution.log"));
@@ -796,6 +804,12 @@ void CaptureOrchestrator::appendToManifest(const QString& description,
     captures.append(entry);
 
     obj["captures"] = captures;
-    mf.resize(0);
-    mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+    if (!mf.resize(0)) {
+        qWarning() << "CaptureOrchestrator: cannot resize manifest, capture entry may be lost";
+        return;
+    }
+    if (mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented)) == -1) {
+        qWarning() << "CaptureOrchestrator: cannot write manifest, capture entry lost";
+        return;
+    }
 }
