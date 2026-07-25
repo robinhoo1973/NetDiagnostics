@@ -83,7 +83,13 @@ Rectangle {
                 // 5WHY: iOS has no programmatic Focus mode API.  Make the
                 // DND hint a clickable link that opens the system settings
                 // page where the user can manually enable it.
+                // 5WHY (round-28): The hint was always shown regardless of
+                // whether DND was already active.  On Android where
+                // platformEnableFocusMode() can succeed, showing the hint when
+                // DND is ON is misleading.  Use needsFocusModeSetup from the
+                // orchestrator — iOS always true, Android conditional.
                 Label {
+                    visible: captureOrchestrator ? captureOrchestrator.needsFocusModeSetup : false
                     text: "• Enable Do Not Disturb mode  (tap to open Settings)"
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                     color: T.ThemeEngine.cyan

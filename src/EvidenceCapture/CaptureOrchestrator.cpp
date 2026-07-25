@@ -192,6 +192,25 @@ void CaptureOrchestrator::openFocusSettings() {
     platformOpenFocusSettings();
 }
 
+bool CaptureOrchestrator::needsFocusModeSetup() const {
+    // 5WHY: The preflight overlay always shows the DND hint, but on Android
+    // where DND can be enabled programmatically (platformEnableFocusMode()),
+    // showing the hint when DND is already active is misleading.  On iOS,
+    // programmatic Focus mode is unavailable — platformEnableFocusMode() only
+    // mutes audio — so the hint must always appear.
+#if defined(PLATFORM_IOS)
+    // iOS: no programmatic Focus mode API — user must always be reminded.
+    return true;
+#elif defined(PLATFORM_ANDROID)
+    // Android: platformEnableFocusMode() may succeed if the user granted
+    // ACCESS_NOTIFICATION_POLICY.  Show the hint only when DND is NOT active.
+    return !platformIsFocusModeEnabled();
+#else
+    // Desktop: no DND support — hint is irrelevant.
+    return false;
+#endif
+}
+
 QString CaptureOrchestrator::captureBasePath() {
     // 5WHY: iOS log files (debug.log, crash.log) live under
     // Documents/NetDiagnostics/ — co-locating Capture output there
@@ -226,8 +245,18 @@ void CaptureOrchestrator::failCapture(const QString& errorCode, const QString& m
 }
 
 void CaptureOrchestrator::requestModeSelection() {
+    // 5WHY: was calling CaptureFeatureGate::setFeatureEnabled(true) directly,
+    // bypassing AppState::enableCaptureFeature().  The captureFeatureChanged
+    // signal was never emitted, so the QML binding appState.captureFeatureEnabled
+    // stayed stale — the Settings icon glow/dot indicator didn't update after
+    // the first double-click.  Route through AppState so the NOTIFY signal fires
+    // and the QML bindings re-evaluate.
     if (!CaptureFeatureGate::isFeatureEnabled()) {
-        CaptureFeatureGate::setFeatureEnabled(true);
+        if (m_appState) {
+            m_appState->enableCaptureFeature();
+        } else {
+            CaptureFeatureGate::setFeatureEnabled(true);
+        }
     }
     emit modeSelectionRequested();
 }
@@ -314,6 +343,17 @@ void CaptureOrchestrator::cancel() {
     // returns immediately (its guard checks this flag first).
     m_waitingForReportPreview = false;
 
+    // 5WHY: cancel() stopped m_delayTimer and m_pollTimer, but did NOT
+    // increment m_countdownGen.  Stale QTimer::singleShot callbacks from
+    // OpenDetail (1500ms, executeStep line ~910) and OpenReport (5000ms,
+    // executeStep line ~935) use m_countdownGen as a stale-session guard.
+    // Since cancel() left m_countdownGen unchanged, those callbacks would
+    // fire and call openDiagnosticDetail() + restart m_delayTimer on a
+    // cancelled session — a UI glitch where detail overlays appear briefly
+    // after the user cancelled.  Incrementing the generation counter here
+    // invalidates all outstanding callbacks in one atomic operation.
+    ++m_countdownGen;
+
     // 5WHY: platformStopRecording(nullptr) initiates an async stop.
     // Do NOT clear m_recording here — if the recording hasn't started yet
     // (e.g. cancel during StartingRecording, before the platform callback
@@ -352,7 +392,6 @@ void CaptureOrchestrator::cancel() {
 
 void CaptureOrchestrator::onStateChanged(int from, int to) {
     Q_UNUSED(from);
-    emit stateChanged();
 
     CaptureState s = static_cast<CaptureState>(to);
 
@@ -467,6 +506,14 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
     default:
         break;
     }
+
+    // 5WHY: Emit stateChanged AFTER the C++ case body so QML handlers see
+    // the fully-configured state.  Previously emitted before the switch,
+    // which meant onStateChanged(CountdownToStart) fired QML's preflight
+    // overlay load BEFORE platformSetKeepAwake/SetMaxBrightness/LockOrientation
+    // and the safety timer were set up — a 3s countdown could finish before
+    // the 10s safety net was registered.
+    emit stateChanged();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

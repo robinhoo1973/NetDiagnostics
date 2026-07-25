@@ -100,16 +100,27 @@ Item {
         readonly property int kCaptureCancelled: 9
         readonly property int kCaptureFailed: 10
 
-        // 5WHY: captureOrchestrator is always registered as a context property
-        // (valid QObject on mobile, QVariant::fromValue(nullptr) on desktop).
-        // The old typeof guard is dead — since main.cpp always sets the property,
-        // a direct reference with null target is safe: Connections silently
-        // ignores a null target and never fires its handlers.
-        readonly property var _capOrch: captureOrchestrator
+        // 5WHY: If a capture QML source fails to load (import resolution failure,
+        // QRC corruption, platform-specific incompatibility), the Loader silently
+        // enters status=Error and item remains null.  Without this handler, the
+        // user sees nothing — no panel, no error, no indication anything went wrong.
+        // Log the error so a developer investigating a blank overlay can diagnose
+        // the failure from console output on iOS/Android.
+        onStatusChanged: {
+            if (captureOverlay.status === Loader.Error) {
+                console.warn("CaptureOrchestrator: Loader failed to load",
+                              captureOverlay.source,
+                              "- check QML imports and QRC paths")
+            }
+        }
 
+        // 5WHY: Indirect binding (property var → captureOrchestrator → Connections.target)
+        // was fragile across Qt 6.x versions — some QML engines lost the binding at
+        // QML load time, leaving target=null and silently disabling all signal handlers.
+        // Use captureOrchestrator directly to eliminate the indirection layer.
         // ── Listen for orchestrator signals ──────────────────────────────
         Connections {
-            target: _capOrch
+            target: captureOrchestrator
             function onModeSelectionRequested() {
                 // 5WHY: pendingError must be false for all non-error transitions
                 // so onStateChanged(Failed) can distinguish error vs normal flow.

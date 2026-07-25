@@ -321,39 +321,25 @@ Item {
                                 id: appIconMouseArea
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                // Track single-click for potential hint (5WHY: only after 3
-                                // single clicks without double-click do we show a subtle hint)
-                                property int clickCount: 0
-                                Timer {
-                                    id: clickResetTimer
-                                    interval: 800  // double-click window
-                                    onTriggered: {
-                                        // If the user clicked once and didn't double-click,
-                                        // reset — no hint on single accidental click.
-                                        appIconMouseArea.clickCount = 0
-                                    }
-                                }
-                                onClicked: function(mouse) {
-                                    clickCount++
-                                    if (clickCount === 1) {
-                                        clickResetTimer.restart()
-                                    } else if (clickCount >= 2) {
-                                        clickCount = 0
-                                        clickResetTimer.stop()
-                                        // 5WHY: was just toggling a boolean — now opens the
-                                        // CaptureModePanel so the user can choose mode + URL.
-                                        if (appState.captureFeatureEnabled) {
-                                            appState.disableCaptureFeature()
-                                            captureToast.text = Tr.captureDisabledToast
-                                            captureToastTimer.restart()
-                                        } else {
-                                            // Enable gate + request mode selection panel
-                                            if (captureOrchestrator !== null) {
-                                                captureOrchestrator.requestModeSelection()
-                                            }
-                                            captureToast.text = Tr.captureEnabledToast
-                                            captureToastTimer.restart()
+                                // 5WHY: Custom clickCount+Timer double-click detection was fragile.
+                                // The QML function(mouse) form may not resolve scope correctly in
+                                // some Qt versions.  Use the native onDoubleClicked handler which
+                                // uses the system's platform-aware double-click interval and avoids
+                                // QML scope-resolution pitfalls.
+                                onDoubleClicked: {
+                                    // 5WHY: was just toggling a boolean — now opens the
+                                    // CaptureModePanel so the user can choose mode + URL.
+                                    if (appState.captureFeatureEnabled) {
+                                        appState.disableCaptureFeature()
+                                        captureToast.text = Tr.captureDisabledToast
+                                        captureToastTimer.restart()
+                                    } else {
+                                        // Enable gate + request mode selection panel
+                                        if (captureOrchestrator !== null) {
+                                            captureOrchestrator.requestModeSelection()
                                         }
+                                        captureToast.text = Tr.captureEnabledToast
+                                        captureToastTimer.restart()
                                     }
                                 }
                             }
