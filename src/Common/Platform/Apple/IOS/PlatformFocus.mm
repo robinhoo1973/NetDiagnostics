@@ -16,24 +16,28 @@
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 
-static bool s_focusEnabled = false;
-
-bool platformEnableFocusMode() {
-    if (s_focusEnabled) return true;
-
-    // 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
-    // Check isMainThread first — if already on main, execute directly.
-    // CaptureOrchestrator always calls this from the Qt main thread.
-    void (^block)(void) = ^{
-        // Mute audio (best-effort — this silences app audio, not ringer)
-        [[AVAudioSession sharedInstance] setActive:NO error:nil];
-    };
-
+// ── Main-thread dispatch helper ───────────────────────────────────────────
+// 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
+// Use this helper to safely execute UI work on the main thread regardless
+// of the calling thread.  Eliminates duplication across all platformFocus
+// and brightness functions.
+static void runOnMainThread(void (^block)(void)) {
     if ([NSThread isMainThread]) {
         block();
     } else {
         dispatch_sync(dispatch_get_main_queue(), block);
     }
+}
+
+static bool s_focusEnabled = false;
+
+bool platformEnableFocusMode() {
+    if (s_focusEnabled) return true;
+
+    runOnMainThread(^{
+        // Mute audio (best-effort — this silences app audio, not ringer)
+        [[AVAudioSession sharedInstance] setActive:NO error:nil];
+    });
 
     s_focusEnabled = true;
     return true;
@@ -42,17 +46,10 @@ bool platformEnableFocusMode() {
 void platformDisableFocusMode() {
     if (!s_focusEnabled) return;
 
-    // 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
-    void (^block)(void) = ^{
+    runOnMainThread(^{
         // Reactivate audio session (reverses the setActive:NO in enable)
         [[AVAudioSession sharedInstance] setActive:YES error:nil];
-    };
-
-    if ([NSThread isMainThread]) {
-        block();
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), block);
-    }
+    });
 
     s_focusEnabled = false;
 }
@@ -62,35 +59,26 @@ bool platformIsFocusModeEnabled() {
 }
 
 // ── Brightness control for recording clarity ──────────────────────────────
-// 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
-// Check isMainThread first — if already on the main thread, execute directly.
 static CGFloat s_savedBrightness = -1.0;
+// 5WHY: Track save state with a separate boolean, consistent with the
+// Android fix.  Avoids relying on a magic sentinel value that could
+// overlap with a valid brightness value.
+static bool s_brightnessSaved = false;
 
 void platformSetMaxBrightness() {
-    if ([NSThread isMainThread]) {
-        if (s_savedBrightness < 0) {
+    runOnMainThread(^{
+        if (!s_brightnessSaved) {
             s_savedBrightness = [UIScreen mainScreen].brightness;
+            s_brightnessSaved = true;
         }
         [UIScreen mainScreen].brightness = 1.0;
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            if (s_savedBrightness < 0) {
-                s_savedBrightness = [UIScreen mainScreen].brightness;
-            }
-            [UIScreen mainScreen].brightness = 1.0;
-        });
-    }
+    });
 }
 
 void platformRestoreBrightness() {
-    if (s_savedBrightness < 0) return;
-    if ([NSThread isMainThread]) {
+    if (!s_brightnessSaved) return;
+    runOnMainThread(^{
         [UIScreen mainScreen].brightness = s_savedBrightness;
-        s_savedBrightness = -1.0;
-    } else {
-        dispatch_sync(dispatch_get_main_queue(), ^{
-            [UIScreen mainScreen].brightness = s_savedBrightness;
-            s_savedBrightness = -1.0;
-        });
-    }
+        s_brightnessSaved = false;
+    });
 }

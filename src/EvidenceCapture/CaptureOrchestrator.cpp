@@ -25,7 +25,6 @@
 #include <QUrl>
 #include <QStorageInfo>
 #include <QSysInfo>
-#include <QDesktopServices>
 
 // 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
 // risking credential leakage (user:pass@host) and token exposure (query params).
@@ -298,11 +297,6 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // onCaptureCompleted handler finds the ResultSummary item.
         QTimer::singleShot(0, this, [this]() {
             emit captureCompleted(m_sessionDir);
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
-            // Desktop: open session directory in file manager for user convenience.
-            // Mobile platforms do not support opening file:// URIs via openUrl.
-            QDesktopServices::openUrl(QUrl::fromLocalFile(m_sessionDir));
-#endif
         });
         break;
 

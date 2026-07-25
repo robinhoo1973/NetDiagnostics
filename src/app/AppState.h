@@ -306,9 +306,10 @@ private:
     // Owned by AppState; exposed to QML via captureService() accessor.
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     CaptureService* m_captureService = nullptr;
-#endif
     // CaptureOrchestrator: full automated capture workflow (navigation + diag + scroll).
     // Owned by AppState; exposed to QML via captureOrchestrator() accessor.
+    CaptureOrchestrator* m_captureOrch = nullptr;
+#endif
 
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_totalPerGroup;

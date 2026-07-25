@@ -85,5 +85,11 @@
         <!-- Config (stay in resources/) -->
         <file>qtquickcontrols2.conf</file>
 
+        <!-- Evidence Capture overlays -->
+        <file alias="qml/capture/CaptureModePanel.qml">../src/EvidenceCapture/View/CaptureModePanel.qml</file>
+        <file alias="qml/capture/CapturePreflightOverlay.qml">../src/EvidenceCapture/View/CapturePreflightOverlay.qml</file>
+        <file alias="qml/capture/CaptureRunningOverlay.qml">../src/EvidenceCapture/View/CaptureRunningOverlay.qml</file>
+        <file alias="qml/capture/CaptureResultSummary.qml">../src/EvidenceCapture/View/CaptureResultSummary.qml</file>
+
     </qresource>
 </RCC>
