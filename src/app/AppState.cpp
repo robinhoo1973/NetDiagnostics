@@ -8,8 +8,10 @@
 #include <QJniObject>
 #endif
 #include "Common/Model/CaptureFeatureGate.h"
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 #include "EvidenceCapture/CaptureService.h"
 #include "EvidenceCapture/CaptureOrchestrator.h"
+#endif
 #include "Common/Model/DiagNames.h"
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
@@ -67,8 +69,10 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_settingsCtrl = new SettingsController(this, this);
 
     // ── Automated capture service (screenshots during diagnostics) ──────────
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     m_captureService = new CaptureService(this);
     m_captureOrch = new CaptureOrchestrator(this, this);
+#endif
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.
@@ -442,10 +446,12 @@ void AppState::runDiagnostics() {
     // RunDiagnostic step, CaptureService::startSession() would start a
     // second, competing capture session.  Skip auto-capture when the
     // orchestrator is already driving the flow — it manages its own captures.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     if (CaptureFeatureGate::isFeatureEnabled()
         && !(m_captureOrch && m_captureOrch->isRunning())) {
         m_captureService->startSession();
     }
+#endif
 
     startNextGroup();
 }
@@ -467,17 +473,21 @@ void AppState::startNextGroup() {
         // 5WHY: endSession() already captures "99_session_end" with the
         // final screen state. The separate "99_run_complete" capture was
         // redundant — it would produce two near-identical screenshots.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
         if (CaptureFeatureGate::isFeatureEnabled()) {
             m_captureService->endSession();
         }
+#endif
         return;
     }
 
     // ── Automated capture: screenshot at group boundary (G{N}_complete) ──
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     if (CaptureFeatureGate::isFeatureEnabled() && m_currentGroupIdx > 0) {
         int prevGroup = m_currentGroupIdx;  // 1-indexed: G1→1, G2→2, etc.
         m_captureService->capture(QStringLiteral("G%1_complete").arg(prevGroup));
     }
+#endif
 
     auto& gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
@@ -589,9 +599,11 @@ void AppState::cancel() {
     // leaving m_captureService->m_active=true.  Subsequent diagnostic runs
     // silently skipped capture because startSession() returned early when
     // m_active was already set.  Always end the capture session on cancel.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     if (m_captureService && m_captureService->isActive()) {
         m_captureService->cancelSession();
     }
+#endif
 
     // 5WHY: _cellularWarnVisible was cleared by QML callers (Cancel button,
     // backdrop tap, nav dismiss) before calling cancel(), but cancel() itself

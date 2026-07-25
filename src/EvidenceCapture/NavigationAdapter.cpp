@@ -184,19 +184,16 @@ void NavigationAdapter::openReportPreview() {
                               Q_ARG(int, 0)); // dashboard tab
     if (!invoked) {
         qWarning() << "NavigationAdapter: openReportPreview switchToTab(0) not invocable";
-        emit diagnosticComplete();
         return;
     }
 
     // Find the dashboard item in the StackView
     QObject* stackView = m_appContent->property("stackView").value<QObject*>();
     if (!stackView) {
-        emit diagnosticComplete();
         return;
     }
     QObject* cur = stackView->property("currentItem").value<QObject*>();
     if (!cur || cur->property("objectName").toString() != QStringLiteral("dashboard")) {
-        emit diagnosticComplete();
         return;
     }
 
@@ -204,13 +201,10 @@ void NavigationAdapter::openReportPreview() {
     bool previewInvoked = QMetaObject::invokeMethod(cur, "openPreview");
     if (!previewInvoked) {
         qWarning() << "NavigationAdapter: openPreview not invocable on DashboardScreen";
-        emit diagnosticComplete();
         return;
     }
 
     // 5WHY: The preview overlay needs a moment to render the report HTML
     // into an image.  The Capture step for report should use WaitPageReady
     // (2000ms) before taking the screenshot to let the overlay settle.
-    // The diagnosticComplete signal tells the scenario to proceed.
-    emit diagnosticComplete();
 }

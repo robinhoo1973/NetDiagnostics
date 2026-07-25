@@ -77,6 +77,7 @@ CaptureOrchestrator::~CaptureOrchestrator() {
     // 5WHY: Safety net — if cancel() or the terminal-state handlers didn't
     // restore system state, disable focus mode here so subsequent app usage
     // isn't affected by the capture's DND/brightness changes.
+    platformRestoreBrightness();
     platformDisableFocusMode();
 }
 
@@ -203,6 +204,7 @@ void CaptureOrchestrator::cancel() {
     bool didCancel = m_stateMachine->transitionTo(CaptureState::Cancelled);
     if (didCancel) {
         platformSetKeepAwake(false);
+        platformRestoreBrightness();
         platformDisableFocusMode();
         emit captureCancelled();
     }
@@ -234,6 +236,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         emit actionChanged(m_currentAction);
         platformSetKeepAwake(true);
         platformEnableFocusMode();  // 5WHY: suppress notifications during capture
+        platformSetMaxBrightness(); // ensure max screen brightness for clear recordings
         // Safety net: if the QML preflight overlay fails to load or the
         // countdown signal is never emitted, auto-advance after 10s so the
         // capture doesn't hang forever. The state guard ensures this won't
@@ -286,6 +289,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Completed:
         platformSetKeepAwake(false);
+        platformRestoreBrightness();
         platformDisableFocusMode();
         // Loader — onStateChanged sets source="CaptureResultSummary.qml"
         // which loads asynchronously, but captureCompleted fires in the
@@ -294,12 +298,17 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // onCaptureCompleted handler finds the ResultSummary item.
         QTimer::singleShot(0, this, [this]() {
             emit captureCompleted(m_sessionDir);
-        QDesktopServices::openUrl(QUrl::fromLocalFile(m_sessionDir));
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+            // Desktop: open session directory in file manager for user convenience.
+            // Mobile platforms do not support opening file:// URIs via openUrl.
+            QDesktopServices::openUrl(QUrl::fromLocalFile(m_sessionDir));
+#endif
         });
         break;
 
     case CaptureState::Failed:
         platformSetKeepAwake(false);
+        platformRestoreBrightness();
         platformDisableFocusMode();
         // specific error code the phase handler already emitted (e.g.
         // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
@@ -310,6 +319,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // Safety net: if cancel() couldn't disable keep-awake (e.g. the
         // transition was triggered from a path other than cancel()), do it here.
         platformSetKeepAwake(false);
+        platformRestoreBrightness();
         platformDisableFocusMode();
         break;
 
@@ -768,6 +778,10 @@ void CaptureOrchestrator::appendToManifest(const QString& description,
 
     QByteArray data = mf.readAll();
     QJsonDocument doc = QJsonDocument::fromJson(data);
+    if (doc.isNull()) {
+        qWarning() << "CaptureOrchestrator: manifest is corrupt, cannot append capture entry";
+        return;
+    }
     QJsonObject obj = doc.object();
     QJsonArray captures = obj["captures"].toArray();
 

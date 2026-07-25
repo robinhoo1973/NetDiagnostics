@@ -28,8 +28,10 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 #include "EvidenceCapture/CaptureService.h"
 #include "EvidenceCapture/CaptureOrchestrator.h"
+#endif
 #include "Dashboard/Controller/DashboardController.h"
 #include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
@@ -157,8 +159,10 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
     // Automated capture service (screenshots during diagnostics)
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
     engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
+#endif
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
@@ -303,6 +307,7 @@ int main(int argc, char *argv[])
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
 
     // ── Wire AppContent to CaptureOrchestrator for automated navigation ──
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     {
         QObject* appContent = engine.rootObjects().first()
             ? engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("appContent"))
@@ -312,6 +317,7 @@ int main(int argc, char *argv[])
             STARTUP_TRACE("CaptureOrchestrator: AppContent wired for automated navigation");
         }
     }
+#endif
     // 5WHY: The startup log exists only to diagnose launch crashes.
     // Once QML loads + window shows, the app started successfully —
     // delete the log so stale crash-debug logs don't accumulate.

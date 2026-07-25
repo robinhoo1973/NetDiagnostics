@@ -48,7 +48,6 @@ public:
 signals:
     void pageReady(int tabIndex);
     void tabSwitchFailed(int tabIndex);
-    void diagnosticComplete();
     void detailOpened();
 
 private:

@@ -22,7 +22,7 @@ bool platformEnableFocusMode() {
     // Get the NotificationManager service
     QJniObject activity = QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative",
-        "getActivity",
+        "activity",
         "()Landroid/app/Activity;");
     if (!activity.isValid()) {
         qWarning() << "PlatformFocus: Cannot get Qt activity";
@@ -38,6 +38,16 @@ bool platformEnableFocusMode() {
             "Ljava/lang/String;").object());
     if (!notificationManager.isValid()) {
         qWarning() << "PlatformFocus: Cannot get NotificationManager";
+        return false;
+    }
+
+    // Check if notification policy access has been granted by the user.
+    // setInterruptionFilter() requires ACCESS_NOTIFICATION_POLICY which is
+    // a special app-ops permission — the user must grant it in Settings.
+    jboolean hasPolicy = notificationManager.callMethod<jboolean>(
+        "isNotificationPolicyAccessGranted");
+    if (!hasPolicy) {
+        qWarning() << "PlatformFocus: ACCESS_NOTIFICATION_POLICY not granted — DND unavailable";
         return false;
     }
 
@@ -62,7 +72,7 @@ void platformDisableFocusMode() {
 
     QJniObject activity = QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative",
-        "getActivity",
+        "activity",
         "()Landroid/app/Activity;");
     if (!activity.isValid()) {
         qWarning() << "PlatformFocus: Cannot get Qt activity to restore DND";
@@ -97,6 +107,10 @@ bool platformIsFocusModeEnabled() {
 // guaranteed. Use the window-level brightness instead — works from any
 // Activity context without additional permissions.
 static float s_savedBrightness = -1.0f;
+// 5WHY: -1.0f is also Android's BRIGHTNESS_OVERRIDE_NONE (use system
+// brightness), so we cannot use < 0 as a "not yet saved" sentinel.
+// Track separately with a boolean.
+static bool s_brightnessSaved = false;
 
 void platformSetMaxBrightness() {
     QJniObject activity = QJniObject::callStaticObjectMethod(
@@ -112,9 +126,11 @@ void platformSetMaxBrightness() {
         "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
     if (!attrs.isValid()) return;
 
-    // Save current brightness
-    jfloat current = attrs.getField<jfloat>("screenBrightness");
-    if (s_savedBrightness < 0) s_savedBrightness = current;
+    // Save current brightness (only on first call so we can restore the original)
+    if (!s_brightnessSaved) {
+        s_savedBrightness = attrs.getField<jfloat>("screenBrightness");
+        s_brightnessSaved = true;
+    }
 
     // Set max brightness (1.0f = 100%)
     attrs.setField("screenBrightness", 1.0f);
@@ -123,7 +139,7 @@ void platformSetMaxBrightness() {
 }
 
 void platformRestoreBrightness() {
-    if (s_savedBrightness < 0) return;
+    if (!s_brightnessSaved) return;
 
     QJniObject activity = QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative", "activity",
@@ -141,5 +157,5 @@ void platformRestoreBrightness() {
     attrs.setField("screenBrightness", s_savedBrightness);
     window.callMethod<void>("setAttributes",
         "(Landroid/view/WindowManager$LayoutParams;)V", attrs.object());
-    s_savedBrightness = -1.0f;
+    s_brightnessSaved = false;
 }

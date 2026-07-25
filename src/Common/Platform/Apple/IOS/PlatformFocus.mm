@@ -3,9 +3,11 @@
 // =============================================================================
 // iOS does not expose a public API to programmatically enable DND/Focus mode.
 // As a best-effort alternative:
-//   1. Lower screen brightness to near-zero to reduce visual distraction
-//   2. Mute the device via Ringer switch simulation (AVAudioSession)
-//   3. Prevent screen lock (already handled by PlatformKeepAwake)
+//   1. Mute the app's audio session (AVAudioSession) — silences in-app audio
+//   2. Prevent screen lock (already handled by PlatformKeepAwake)
+// Note: Screen brightness is managed separately by platformSetMaxBrightness /
+// platformRestoreBrightness, which set max brightness for clear recordings
+// and restore the original level after capture.
 //
 // True Focus mode activation requires the Settings app or a system extension
 // (not available to third-party apps without MDM).
@@ -15,21 +17,23 @@
 #import <AVFoundation/AVFoundation.h>
 
 static bool s_focusEnabled = false;
-static CGFloat s_originalBrightness = -1.0;
 
 bool platformEnableFocusMode() {
     if (s_focusEnabled) return true;
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        // Save original brightness
-        s_originalBrightness = [UIScreen mainScreen].brightness;
-
-        // Lower brightness to near-zero to suppress visual distractions
-        [UIScreen mainScreen].brightness = 0.05;
-
+    // 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
+    // Check isMainThread first — if already on main, execute directly.
+    // CaptureOrchestrator always calls this from the Qt main thread.
+    void (^block)(void) = ^{
         // Mute audio (best-effort — this silences app audio, not ringer)
         [[AVAudioSession sharedInstance] setActive:NO error:nil];
-    });
+    };
+
+    if ([NSThread isMainThread]) {
+        block();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), block);
+    }
 
     s_focusEnabled = true;
     return true;
@@ -38,13 +42,17 @@ bool platformEnableFocusMode() {
 void platformDisableFocusMode() {
     if (!s_focusEnabled) return;
 
-    dispatch_sync(dispatch_get_main_queue(), ^{
-        // Restore original brightness
-        if (s_originalBrightness >= 0.0) {
-            [UIScreen mainScreen].brightness = s_originalBrightness;
-            s_originalBrightness = -1.0;
-        }
-    });
+    // 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
+    void (^block)(void) = ^{
+        // Reactivate audio session (reverses the setActive:NO in enable)
+        [[AVAudioSession sharedInstance] setActive:YES error:nil];
+    };
+
+    if ([NSThread isMainThread]) {
+        block();
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), block);
+    }
 
     s_focusEnabled = false;
 }
@@ -54,21 +62,35 @@ bool platformIsFocusModeEnabled() {
 }
 
 // ── Brightness control for recording clarity ──────────────────────────────
+// 5WHY: dispatch_sync on the main queue from the main thread deadlocks.
+// Check isMainThread first — if already on the main thread, execute directly.
 static CGFloat s_savedBrightness = -1.0;
 
 void platformSetMaxBrightness() {
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    if ([NSThread isMainThread]) {
         if (s_savedBrightness < 0) {
             s_savedBrightness = [UIScreen mainScreen].brightness;
         }
         [UIScreen mainScreen].brightness = 1.0;
-    });
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            if (s_savedBrightness < 0) {
+                s_savedBrightness = [UIScreen mainScreen].brightness;
+            }
+            [UIScreen mainScreen].brightness = 1.0;
+        });
+    }
 }
 
 void platformRestoreBrightness() {
     if (s_savedBrightness < 0) return;
-    dispatch_sync(dispatch_get_main_queue(), ^{
+    if ([NSThread isMainThread]) {
         [UIScreen mainScreen].brightness = s_savedBrightness;
         s_savedBrightness = -1.0;
-    });
+    } else {
+        dispatch_sync(dispatch_get_main_queue(), ^{
+            [UIScreen mainScreen].brightness = s_savedBrightness;
+            s_savedBrightness = -1.0;
+        });
+    }
 }

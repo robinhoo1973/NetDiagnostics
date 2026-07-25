@@ -17,8 +17,8 @@ static bool s_focusEnabled = false;
 
 bool platformEnableFocusMode() {
     // Desktop: no public API to suppress notifications.  No-op.
-    s_focusEnabled = true;
-    return false;  // indicates no-op
+    s_focusEnabled = false;  // never truly enabled — focus is a no-op on desktop
+    return false;            // indicates no-op
 }
 
 void platformDisableFocusMode() {

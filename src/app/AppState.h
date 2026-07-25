@@ -29,8 +29,10 @@ class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 class CaptureService;
 class CaptureOrchestrator;
+#endif
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {
@@ -83,8 +85,10 @@ public:
     SettingsController* settingsController() const { return m_settingsCtrl; }
     TargetModel* targetModel() const { return m_targetModel; }
     ResultsModel* resultsModel() const { return m_resultsModel; }
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     class CaptureService* captureService() const { return m_captureService; }
     class CaptureOrchestrator* captureOrchestrator() const { return m_captureOrch; }
+#endif
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
@@ -300,10 +304,11 @@ private:
 
     // CaptureService: automated screenshot capture during diagnostics.
     // Owned by AppState; exposed to QML via captureService() accessor.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     CaptureService* m_captureService = nullptr;
+#endif
     // CaptureOrchestrator: full automated capture workflow (navigation + diag + scroll).
     // Owned by AppState; exposed to QML via captureOrchestrator() accessor.
-    CaptureOrchestrator* m_captureOrch = nullptr;
 
     QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_totalPerGroup;

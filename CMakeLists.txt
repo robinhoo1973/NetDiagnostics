@@ -26,11 +26,6 @@ set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
     src/Common/Model/CaptureFeatureGate.cpp
-    src/EvidenceCapture/CaptureService.cpp
-    src/EvidenceCapture/CaptureStateMachine.cpp
-    src/EvidenceCapture/NavigationAdapter.cpp
-    src/EvidenceCapture/ScrollController.cpp
-    src/EvidenceCapture/CaptureOrchestrator.cpp
     src/Common/Utils/Logger.cpp
     src/Common/Services/DnsResolver.cpp
     src/Common/Services/ServerDbUpdater.cpp
@@ -116,6 +111,21 @@ if(NOT IOS AND NOT ANDROID)
         src/Common/Platform/PlatformKeepAwake.cpp
         src/Common/Platform/PlatformRecording.cpp
         src/Common/Platform/Desktop/PlatformFocus.cpp
+    )
+endif()
+
+# ── Evidence capture (iOS/Android only — no desktop support) ──────────────
+# 5WHY: Capture feature uses mobile-native APIs (ReplayKit, MediaProjection,
+# UIApplication idleTimerDisabled, etc.) that have no desktop equivalent.
+# Excluding from desktop builds avoids QProcess dependency and dead code.
+if(IOS OR ANDROID)
+    list(APPEND SOURCES
+
+        src/EvidenceCapture/CaptureService.cpp
+        src/EvidenceCapture/CaptureStateMachine.cpp
+        src/EvidenceCapture/NavigationAdapter.cpp
+        src/EvidenceCapture/ScrollController.cpp
+        src/EvidenceCapture/CaptureOrchestrator.cpp
     )
 endif()
 
