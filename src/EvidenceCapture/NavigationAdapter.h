@@ -14,6 +14,7 @@
 #include <functional>
 
 class AppState;
+class QTimer;
 
 class NavigationAdapter : public QObject {
     Q_OBJECT
