@@ -85,10 +85,11 @@ public:
     SettingsController* settingsController() const { return m_settingsCtrl; }
     TargetModel* targetModel() const { return m_targetModel; }
     ResultsModel* resultsModel() const { return m_resultsModel; }
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
-    class CaptureService* captureService() const { return m_captureService; }
-    class CaptureOrchestrator* captureOrchestrator() const { return m_captureOrch; }
-#endif
+    // 5WHY: accessors always declared so QML context properties are never
+    // undefined on any platform. On desktop they return nullptr — QML
+    // guards check for falsy values instead of typeof.
+    class CaptureService* captureService() const;
+    class CaptureOrchestrator* captureOrchestrator() const;
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;

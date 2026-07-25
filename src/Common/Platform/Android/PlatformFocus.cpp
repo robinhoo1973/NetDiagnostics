@@ -16,14 +16,21 @@
 static bool s_focusEnabled = false;
 static int s_originalFilter = -1;  // saved interruption filter
 
+// 5WHY: QtNative activity acquisition duplicated in enableFocusMode,
+// disableFocusMode, setMaxBrightness, and restoreBrightness (4x the same
+// 5-line JNI pattern).  Extract once.
+static QJniObject getQtActivity() {
+    return QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative",
+        "activity",
+        "()Landroid/app/Activity;");
+}
+
 bool platformEnableFocusMode() {
     if (s_focusEnabled) return true;
 
     // Get the NotificationManager service
-    QJniObject activity = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative",
-        "activity",
-        "()Landroid/app/Activity;");
+    QJniObject activity = getQtActivity();
     if (!activity.isValid()) {
         qWarning() << "PlatformFocus: Cannot get Qt activity";
         return false;
@@ -70,10 +77,7 @@ bool platformEnableFocusMode() {
 void platformDisableFocusMode() {
     if (!s_focusEnabled) return;
 
-    QJniObject activity = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative",
-        "activity",
-        "()Landroid/app/Activity;");
+    QJniObject activity = getQtActivity();
     if (!activity.isValid()) {
         qWarning() << "PlatformFocus: Cannot get Qt activity to restore DND";
         s_focusEnabled = false;
@@ -113,9 +117,7 @@ static float s_savedBrightness = -1.0f;
 static bool s_brightnessSaved = false;
 
 void platformSetMaxBrightness() {
-    QJniObject activity = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    QJniObject activity = getQtActivity();
     if (!activity.isValid()) return;
 
     QJniObject window = activity.callObjectMethod(
@@ -141,18 +143,27 @@ void platformSetMaxBrightness() {
 void platformRestoreBrightness() {
     if (!s_brightnessSaved) return;
 
-    QJniObject activity = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
-    if (!activity.isValid()) return;
+    QJniObject activity = getQtActivity();
+    // 5WHY: If any JNI call fails (activity destroyed, app in background),
+    // clear s_brightnessSaved so a future capture doesn't restore a stale brightness.
+    if (!activity.isValid()) {
+        s_brightnessSaved = false;
+        return;
+    }
 
     QJniObject window = activity.callObjectMethod(
         "getWindow", "()Landroid/view/Window;");
-    if (!window.isValid()) return;
+    if (!window.isValid()) {
+        s_brightnessSaved = false;
+        return;
+    }
 
     QJniObject attrs = window.callObjectMethod(
         "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
-    if (!attrs.isValid()) return;
+    if (!attrs.isValid()) {
+        s_brightnessSaved = false;
+        return;
+    }
 
     attrs.setField("screenBrightness", s_savedBrightness);
     window.callMethod<void>("setAttributes",

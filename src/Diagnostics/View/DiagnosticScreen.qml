@@ -110,14 +110,14 @@ Item {
                 Label { text: Tr.diagnostics; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
                 // ── Capture indicator — shows when automated screenshots are active ──
                 Rectangle {
-                    visible: appState.captureFeatureEnabled && typeof captureService !== "undefined" && captureService.active
+                    visible: appState.captureFeatureEnabled && captureService !== null && captureService.active
                     implicitWidth: captureLabel.implicitWidth + 16; implicitHeight: 28; radius: 14
                     color: Qt.alpha(ThemeEngine.cyan, 0.15)
                     border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.4) }
                     Label {
                         id: captureLabel
                         anchors.centerIn: parent
-                        text: typeof captureService !== "undefined" ? ("📸 " + captureService.captureCount) : ""
+                        text: captureService !== null ? ("📸 " + captureService.captureCount) : ""
                         font.family: ThemeEngine.monoFont; font.pixelSize: 11
                         color: ThemeEngine.cyan
                     }

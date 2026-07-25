@@ -190,10 +190,12 @@ void NavigationAdapter::openReportPreview() {
     // Find the dashboard item in the StackView
     QObject* stackView = m_appContent->property("stackView").value<QObject*>();
     if (!stackView) {
+        qWarning() << "NavigationAdapter: openReportPreview cannot access stackView";
         return;
     }
     QObject* cur = stackView->property("currentItem").value<QObject*>();
     if (!cur || cur->property("objectName").toString() != QStringLiteral("dashboard")) {
+        qWarning() << "NavigationAdapter: openReportPreview dashboard not current item, skipping preview";
         return;
     }
 

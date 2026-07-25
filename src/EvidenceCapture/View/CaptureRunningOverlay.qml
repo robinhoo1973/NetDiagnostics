@@ -27,7 +27,7 @@ Rectangle {
     // Captures the Flickable from the current StackView page and passes it to
     // the orchestrator's ScrollController so recording-mode scrolls actually work.
     function wireFlickable(flickable) {
-        if (flickable && typeof captureOrchestrator !== "undefined") {
+        if (flickable && captureOrchestrator !== null) {
             captureOrchestrator.setScrollFlickable(flickable)
         }
     }
@@ -122,7 +122,7 @@ Rectangle {
                 id: elapsedTimer
                 interval: 1000; repeat: true; running: true
                 onTriggered: {
-                    if (typeof captureOrchestrator !== "undefined") {
+                    if (captureOrchestrator !== null) {
                         elapsedLabel.text = captureOrchestrator.elapsedSeconds + "s"
                     }
                 }

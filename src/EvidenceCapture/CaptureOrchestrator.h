@@ -114,6 +114,11 @@ private:
     // comments at each site; extracting here guarantees it once.
     void failCapture(const QString& errorCode, const QString& message);
     void appendToManifest(const QString& description, const QString& filePath);
+    // 5WHY: platformRestoreBrightness + platformDisableFocusMode was
+    // copy-pasted at 6 call sites (destructor, cancel, Completed, Failed,
+    // Cancelled, onStateChanged).  Centralize so new terminal states
+    // cannot forget the restore pair.
+    void restoreSystemState();
 
     // Cached scenario — built once in startCapture, filtered by mode.
     // executeNextStep and executeStep both use this filtered copy so

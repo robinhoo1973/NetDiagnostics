@@ -158,11 +158,11 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
-    // Automated capture service (screenshots during diagnostics)
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    // Automated capture service (screenshots during diagnostics).
+    // Always registered so QML typeof guards work on all platforms —
+    // accessors return nullptr on desktop, which is falsy in QML.
     engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
     engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
-#endif
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
@@ -307,17 +307,15 @@ int main(int argc, char *argv[])
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
 
     // ── Wire AppContent to CaptureOrchestrator for automated navigation ──
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
-    {
+    if (auto* orch = appState.captureOrchestrator()) {
         QObject* appContent = engine.rootObjects().first()
             ? engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("appContent"))
             : nullptr;
         if (appContent) {
-            appState.captureOrchestrator()->setAppContent(appContent);
+            orch->setAppContent(appContent);
             STARTUP_TRACE("CaptureOrchestrator: AppContent wired for automated navigation");
         }
     }
-#endif
     // 5WHY: The startup log exists only to diagnose launch crashes.
     // Once QML loads + window shows, the app started successfully —
     // delete the log so stale crash-debug logs don't accumulate.

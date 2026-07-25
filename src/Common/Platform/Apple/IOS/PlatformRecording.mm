@@ -18,6 +18,11 @@ static NSString*           s_outputPath  = nil;
 static RecordingCallback   s_startCb;
 static bool                s_recording   = false;
 static bool                s_stopping    = false;
+// 5WHY: mid-capture errors after s_startCb was consumed were silently
+// dropped — platformStopRecording saw !s_recording and returned
+// "No recording in progress" instead of the real error. Store the
+// error here so platformStopRecording can report it.
+static NSString*           s_lastError   = nil;
 
 // 5WHY: ReplayKit delivers CMSampleBuffer callbacks serially on its
 // own internal queue.  Appending directly from the callback is safe —

@@ -100,9 +100,15 @@ Item {
         readonly property int kCaptureCancelled: 9
         readonly property int kCaptureFailed: 10
 
+        // 5WHY: captureOrchestrator context property is only set on iOS/Android.
+        // On desktop builds referencing it directly in a Connections binding
+        // produces QML warnings.  Guard with typeof so the Connections target
+        // is null on desktop (harmless) and the orchestrator on mobile.
+        readonly property var _capOrch: typeof captureOrchestrator !== "undefined" ? captureOrchestrator : null
+
         // ── Listen for orchestrator signals ──────────────────────────────
         Connections {
-            target: captureOrchestrator
+            target: _capOrch
             function onModeSelectionRequested() {
                 // 5WHY: pendingError must be false for all non-error transitions
                 // so onStateChanged(Failed) can distinguish error vs normal flow.

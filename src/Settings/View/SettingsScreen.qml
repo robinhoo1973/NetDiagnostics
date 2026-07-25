@@ -348,7 +348,7 @@ Item {
                                             captureToastTimer.restart()
                                         } else {
                                             // Enable gate + request mode selection panel
-                                            if (typeof captureOrchestrator !== "undefined") {
+                                            if (captureOrchestrator !== null) {
                                                 captureOrchestrator.requestModeSelection()
                                             }
                                             captureToast.text = Tr.captureEnabledToast

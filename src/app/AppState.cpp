@@ -182,6 +182,23 @@ bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInPro
 bool AppState::isCaptureFeatureEnabled() const {
     return CaptureFeatureGate::isFeatureEnabled();
 }
+
+// 5WHY: accessors always declared so QML context properties are never
+// undefined on any platform. On desktop they return nullptr.
+CaptureService* AppState::captureService() const {
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    return m_captureService;
+#else
+    return nullptr;
+#endif
+}
+CaptureOrchestrator* AppState::captureOrchestrator() const {
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    return m_captureOrch;
+#else
+    return nullptr;
+#endif
+}
 void AppState::enableCaptureFeature() {
     CaptureFeatureGate::setFeatureEnabled(true);
     emit captureFeatureChanged();

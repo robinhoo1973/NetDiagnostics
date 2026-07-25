@@ -26,6 +26,11 @@
 #include <QStorageInfo>
 #include <QSysInfo>
 
+void CaptureOrchestrator::restoreSystemState() {
+    platformRestoreBrightness();
+    platformDisableFocusMode();
+}
+
 // 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
 // risking credential leakage (user:pass@host) and token exposure (query params).
 // Centralize the sanitization here so all data-exfiltration paths go through
@@ -76,8 +81,7 @@ CaptureOrchestrator::~CaptureOrchestrator() {
     // 5WHY: Safety net — if cancel() or the terminal-state handlers didn't
     // restore system state, disable focus mode here so subsequent app usage
     // isn't affected by the capture's DND/brightness changes.
-    platformRestoreBrightness();
-    platformDisableFocusMode();
+    restoreSystemState();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -203,8 +207,7 @@ void CaptureOrchestrator::cancel() {
     bool didCancel = m_stateMachine->transitionTo(CaptureState::Cancelled);
     if (didCancel) {
         platformSetKeepAwake(false);
-        platformRestoreBrightness();
-        platformDisableFocusMode();
+        restoreSystemState();
         emit captureCancelled();
     }
     // If transition was rejected, the FSM stays in its current state and
@@ -288,8 +291,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Completed:
         platformSetKeepAwake(false);
-        platformRestoreBrightness();
-        platformDisableFocusMode();
+        restoreSystemState();
         // Loader — onStateChanged sets source="CaptureResultSummary.qml"
         // which loads asynchronously, but captureCompleted fires in the
         // same event-loop iteration before the Loader finishes.  Defer the
@@ -302,8 +304,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Failed:
         platformSetKeepAwake(false);
-        platformRestoreBrightness();
-        platformDisableFocusMode();
+        restoreSystemState();
         // specific error code the phase handler already emitted (e.g.
         // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
         // restores system state; the specific error was already emitted.
@@ -313,8 +314,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // Safety net: if cancel() couldn't disable keep-awake (e.g. the
         // transition was triggered from a path other than cancel()), do it here.
         platformSetKeepAwake(false);
-        platformRestoreBrightness();
-        platformDisableFocusMode();
+        restoreSystemState();
         break;
 
     default:
@@ -382,9 +382,11 @@ void CaptureOrchestrator::createSession() {
     case Both:           modeStr = QStringLiteral("Video+Screenshot"); break;
     }
 
-    // Blueprint §10: yyyyMMdd_HHmmss under CrashReports/Capture/
+    // Blueprint §10: yyyyMMdd_HHmmss_zzz under CrashReports/Capture/
+    // 5WHY: zzz (milliseconds) prevents directory collisions when two captures
+    // are started within the same second (e.g., rapid retry after storage error).
     const QDateTime now = QDateTime::currentDateTime();
-    QString ts = now.toString(QStringLiteral("yyyyMMdd_HHmmss"));
+    QString ts = now.toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
     // Store under CrashReports/Capture/ per design doc §10
     QString root = QStandardPaths::writableLocation(
         QStandardPaths::AppDataLocation) + QStringLiteral("/CrashReports/Capture");
