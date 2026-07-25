@@ -99,6 +99,18 @@ void CaptureOrchestrator::openFocusSettings() {
     platformOpenFocusSettings();
 }
 
+QString CaptureOrchestrator::captureBasePath() {
+    // 5WHY: iOS log files (debug.log, crash.log) live under
+    // Documents/NetDiagnostics/ — co-locating Capture output there
+    // makes all diagnostic evidence discoverable in one place via Files.app.
+    // Desktop: AppDataLocation; iOS: DocumentsLocation (matched to Logger.cpp).
+#if defined(PLATFORM_IOS)
+    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+#endif
+}
+
 void CaptureOrchestrator::failCapture(const QString& errorCode, const QString& message) {
     emit captureFailed(errorCode, message);
     m_stateMachine->transitionTo(CaptureState::Failed);
@@ -362,11 +374,7 @@ void CaptureOrchestrator::finishPreflight() {
     if (m_stateMachine->state() != CaptureState::Preflight) return;
 
     // Check disk space (>100MB) — use same base path as createSession()
-#if defined(PLATFORM_IOS)
-    QString preflightRoot = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-#else
-    QString preflightRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-#endif
+    QString preflightRoot = captureBasePath();
     QStorageInfo storage(preflightRoot);
     if (storage.isValid() && storage.bytesAvailable() < 100 * 1024 * 1024) {
         failCapture(QStringLiteral("LOW_DISK"),
@@ -391,11 +399,7 @@ void CaptureOrchestrator::createSession() {
     // Desktop: AppDataLocation; iOS: DocumentsLocation (matched to Logger.cpp).
     const QDateTime now = QDateTime::currentDateTime();
     QString ts = now.toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
-#if defined(PLATFORM_IOS)
-    QString base = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-#else
-    QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-#endif
+    QString base = captureBasePath();
     QString root = base + QStringLiteral("/NetDiagnostics/Capture");
     m_sessionDir = root + QStringLiteral("/") + ts;
 

@@ -88,8 +88,14 @@ void platformRestoreBrightness() {
 
 // ── Orientation lock ────────────────────────────────────────────────
 // 5WHY: Qt/QML doesn't own UIViewController — can't override
-// supportedInterfaceOrientations.  Use QML Screen.orientation
-// (ApplicationWindow.contentOrientation) to lock from the QML side.
+// supportedInterfaceOrientations.
+//
+// IMPLEMENTATION GAP (2026-07-25): These stubs mean orientation is NEVER
+// locked on iOS during capture.  The intended QML-based solution
+// (ApplicationWindow.contentOrientation) requires work in main.qml /
+// AppContent.qml to save/restore the orientation property.  Until that
+// QML wiring is added, orientation lock is a no-op on iOS.
+//
 // These stubs exist so the cross-platform caller compiles without #ifdef.
 void platformLockOrientation() {}
 void platformUnlockOrientation() {}
@@ -97,10 +103,24 @@ void platformUnlockOrientation() {}
 void platformOpenFocusSettings() {
     // 5WHY: iOS does not allow programmatic Focus mode activation.
     // The best we can do is open Settings → Focus so the user can
-    // manually enable it.  App-Prefs:root=Focus works on iOS 15+.
+    // manually enable it.
+    //
+    // App-Prefs:root=Focus is a private URL scheme that works on iOS 15-17
+    // but may fail on iOS 18+ (Apple tightens private scheme enforcement).
+    // canOpenURL: serves as a runtime guard — if it returns NO (iOS 18+
+    // or App Review rejection), fall back to the app's own Settings page.
     NSURL* url = [NSURL URLWithString:@"App-Prefs:root=Focus"];
     if ([[UIApplication sharedApplication] canOpenURL:url]) {
         [[UIApplication sharedApplication] openURL:url
             options:@{} completionHandler:nil];
+    } else {
+        // Fallback: open the app's Settings bundle page.  This won't
+        // navigate to Focus but at least gives the user access to system
+        // settings where they can manually navigate.
+        NSURL* fallbackUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+        if (fallbackUrl) {
+            [[UIApplication sharedApplication] openURL:fallbackUrl
+                options:@{} completionHandler:nil];
+        }
     }
 }

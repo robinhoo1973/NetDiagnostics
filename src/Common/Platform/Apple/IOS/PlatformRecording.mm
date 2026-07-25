@@ -184,7 +184,6 @@ void platformStopRecording(RecordingCallback callback) {
         if (callback) {
             if (s_lastError) {
                 callback(false, QString::fromNSString(s_lastError));
-                s_lastError = nil;
             } else {
                 callback(false, QStringLiteral("No recording in progress"));
             }

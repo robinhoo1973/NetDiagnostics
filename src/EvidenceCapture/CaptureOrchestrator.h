@@ -123,6 +123,10 @@ private:
     // Cancelled, onStateChanged).  Centralize so new terminal states
     // cannot forget the restore pair.
     void restoreSystemState();
+    // 5WHY: iOS log/capture files must live under DocumentsLocation (accessible
+    // via Files.app), while desktop uses AppDataLocation.  Centralize the #ifdef
+    // so finishPreflight() and createSession() don't duplicate the path logic.
+    static QString captureBasePath();
 
     // Cached scenario — built once in startCapture, filtered by mode.
     // executeNextStep and executeStep both use this filtered copy so

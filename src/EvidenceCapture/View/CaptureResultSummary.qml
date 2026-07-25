@@ -114,12 +114,13 @@ Rectangle {
                 wrapMode: Text.WrapAnywhere
             }
 
-            // ── Focus mode exit reminder (success only) ─────────────
+            // ── Focus mode exit reminder ────────────────────────────
             // 5WHY: iOS cannot programmatically disable Focus mode.
             // Android restores DND automatically, but if the user manually
             // enabled it via Settings, they still need to undo it.
+            // Show on both success AND error — a failed capture doesn't
+            // mean the user should stay in DND mode unaware.
             Rectangle {
-                visible: !root.isError
                 Layout.fillWidth: true; implicitHeight: 36; radius: 8
                 color: Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
                 border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.2) }
