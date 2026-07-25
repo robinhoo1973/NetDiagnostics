@@ -206,9 +206,10 @@ int main(int argc, char *argv[])
     // Capture QML warnings/errors to the startup log
     QObject::connect(&engine, &QQmlApplicationEngine::warnings,
         &engine, [](const QList<QQmlError>& warnings) {
-            for (const auto& w : warnings)
+            for (const auto& w : warnings) {
                 QByteArray warnUtf8 = w.toString().toUtf8();
                 STARTUP_LOG("QML WARNING: %s", warnUtf8.constData());
+            }
         });
 
     const QUrl url("qrc:/qml/main.qml");
