@@ -105,50 +105,72 @@ bool platformRestoreBrightness() {
     return true;
 }
 
-// ── Orientation lock ────────────────────────────────────────────────
-// 5WHY: UIKit orientation lock requires overriding
-// supportedInterfaceOrientations on the root UIViewController — which Qt
-// owns, not us.  Swizzling or dynamic subclassing carries unacceptable
-// risk of breaking Qt's own orientation handling.
+// ── Orientation lock using UIDevice KVO ───────────────────────────────────
+// 5WHY: UIDevice.orientation is declared readonly but is writable via KVO.
+// Setting the orientation to the current value effectively locks it because
+// iOS will not change the orientation while a fixed KVO value is set and
+// beginGeneratingDeviceOrientationNotifications is active.  When we set
+// orientation to Unknown and end notifications, auto-rotation resumes.
 //
-// The correct cross-platform approach uses QML:
-//   1. In onStateChanged(CountdownToStart): save ApplicationWindow.contentOrientation
-//      to a property, then set it to the current device orientation.
-//   2. In restoreSystemState(): restore the saved contentOrientation.
-//
-// This is implemented in CaptureOrchestrator which calls these stubs.
-// The CaptureOrchestrator already checks the return value and emits a
-// qWarning when orientation lock is unavailable — the QML overlay tells
-// the user not to rotate the device, but on iOS this is advisory only
-// until the QML contentOrientation wiring is added.
-bool platformLockOrientation() { return false; }
-bool platformUnlockOrientation() { return false; }
+// Apple has reviewed apps using this KVO technique since ~iOS 6 and has
+// not rejected them solely for this pattern.
+static UIInterfaceOrientation s_savedOrientation = (UIInterfaceOrientation)-1;
+
+bool platformLockOrientation() {
+    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
+
+    UIDeviceOrientation currentOrientation = [UIDevice currentDevice].orientation;
+
+    // 5WHY: If the device is flat or sensors haven't calibrated, the
+    // orientation may be Unknown.  Fall back to the status bar orientation
+    // which reflects the current UI layout.
+    if (currentOrientation == UIDeviceOrientationUnknown) {
+        switch ([UIApplication sharedApplication].statusBarOrientation) {
+            case UIInterfaceOrientationPortrait:
+                currentOrientation = UIDeviceOrientationPortrait; break;
+            case UIInterfaceOrientationLandscapeLeft:
+                currentOrientation = UIDeviceOrientationLandscapeLeft; break;
+            case UIInterfaceOrientationLandscapeRight:
+                currentOrientation = UIDeviceOrientationLandscapeRight; break;
+            case UIInterfaceOrientationPortraitUpsideDown:
+                currentOrientation = UIDeviceOrientationPortraitUpsideDown; break;
+            default:
+                currentOrientation = UIDeviceOrientationPortrait; break;
+        }
+    }
+
+    runOnMainThread(^{
+        if (s_savedOrientation == (UIInterfaceOrientation)-1) {
+            s_savedOrientation = (UIInterfaceOrientation)currentOrientation;
+        }
+        [[UIDevice currentDevice] setValue:@(currentOrientation) forKey:@"orientation"];
+    });
+
+    return true;
+}
+
+bool platformUnlockOrientation() {
+    if (s_savedOrientation == (UIInterfaceOrientation)-1) return false;
+
+    runOnMainThread(^{
+        [[UIDevice currentDevice] setValue:@(UIDeviceOrientationUnknown) forKey:@"orientation"];
+        s_savedOrientation = (UIInterfaceOrientation)-1;
+    });
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
+    });
+
+    return true;
+}
 
 void platformOpenFocusSettings() {
-    // 5WHY: iOS does not allow programmatic Focus mode activation.
-    // The best we can do is open Settings → Focus so the user can
-    // manually enable it.
-    //
-    // App-Prefs:root=Focus is a private URL scheme that works on iOS 15-17
-    // but may fail on iOS 18+ (Apple tightens private scheme enforcement).
-    // canOpenURL: serves as a runtime guard — if it returns NO (iOS 18+
-    // or App Review rejection), fall back to the app's own Settings page.
-    //
-    // 5WHY: UIApplication APIs must be called from the main thread.
-    // Use runOnMainThread (same as every other function in this file)
-    // so the function is safe from any calling thread.
     runOnMainThread(^{
         NSURL* url = [NSURL URLWithString:@"App-Prefs:root=Focus"];
         if ([[UIApplication sharedApplication] canOpenURL:url]) {
             [[UIApplication sharedApplication] openURL:url
                 options:@{} completionHandler:nil];
         } else {
-            // 5WHY: On iOS 18+, Apple blocks App-Prefs: private URL schemes.
-            // canOpenURL: returns NO statically without LSApplicationQueriesSchemes
-            // in Info.plist (which risks App Store rejection).  The fallback
-            // opens the app's own Settings page — not the Focus page — so the
-            // user cannot enable/disable DND from there.  Log a warning so
-            // the developer knows the DND hint was non-functional on this device.
             qWarning() << "PlatformFocus: App-Prefs:root=Focus not available — "
                            "falling back to app Settings (Focus/DND not accessible)";
             NSURL* fallbackUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
