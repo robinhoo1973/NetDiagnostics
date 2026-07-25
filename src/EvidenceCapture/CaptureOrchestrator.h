@@ -39,6 +39,10 @@ class CaptureOrchestrator : public QObject {
     Q_PROPERTY(QString currentAction READ currentAction NOTIFY actionChanged)
     Q_PROPERTY(int captureCount READ captureCount NOTIFY captureCountChanged)
     Q_PROPERTY(int elapsedSeconds READ elapsedSeconds NOTIFY stateChanged)
+    // 5WHY: Screenshots capture the entire screen including the capture progress
+    // overlay (z:2100).  Set this to true before platformCaptureScreenshot() so
+    // QML can hide the overlay, then false after — the screenshot is clean.
+    Q_PROPERTY(bool suppressOverlay READ suppressOverlay NOTIFY suppressOverlayChanged)
 
 public:
     enum CaptureMode {
@@ -70,6 +74,7 @@ public:
     Q_INVOKABLE bool isRunning() const { return m_stateMachine->isRunning(); }
     Q_INVOKABLE bool isRecordingCapture() const { return m_recording; }
     bool wantsScreenshot() const { return m_captureMode == ScreenshotOnly || m_captureMode == Both; }
+    bool suppressOverlay() const { return m_suppressOverlay; }
     // Called by QML CapturePreflightOverlay when the visual countdown reaches 0.
     // Replaces the old C++ QTimer::singleShot(3000) — the QML countdown is the
     // single source of truth for timing.
@@ -101,6 +106,7 @@ public:
 
 signals:
     void needsFocusModeSetupChanged();
+    void suppressOverlayChanged();
     void stateChanged();
     void stepChanged(int current, int total);
     void actionChanged(const QString& action);
@@ -182,6 +188,7 @@ private:
     bool          m_recording = false;  // true if mode is RecordingOnly or Both
     int           m_countdownGen = 0;     // incremented per CountdownToStart entry; prevents stale safety timers
     bool          m_waitingForReportPreview = false; // set during OpenReport step; cleared by onReportPreviewReady
+    bool          m_suppressOverlay = false;          // true during screenshot capture — QML hides overlay
 
     QTimer*       m_pollTimer = nullptr;  // non-null during WaitDiagComplete polling; stopped/cleared on cancel
     QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()

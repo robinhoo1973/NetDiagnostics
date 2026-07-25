@@ -1127,8 +1127,19 @@ bool CaptureOrchestrator::takeScreenshot(const QString& sanitizedLabel,
     QString filePath = m_sessionDir + kSubdirScreenshots
         + QStringLiteral("/%1").arg(m_captureCount + 1, 3, 10, QLatin1Char('0'))
         + QStringLiteral("_") + sanitizedLabel + QStringLiteral(".png");
-    if (!platformCaptureScreenshot(filePath))
+    // 5WHY: The capture running overlay (z:2100) is rendered on top of the app
+    // and would appear in every screenshot — progress bar, step labels, red dot.
+    // Hide it during the screenshot so evidence files show only the diagnostic
+    // content.  QML binds visible/capacity to suppressOverlay.
+    m_suppressOverlay = true;
+    emit suppressOverlayChanged();
+    bool ok = platformCaptureScreenshot(filePath);
+    m_suppressOverlay = false;
+    emit suppressOverlayChanged();
+    if (!ok) {
+        qWarning() << "CaptureOrchestrator: screenshot failed for" << sanitizedLabel;
         return false;
+    }
     m_captureCount++;
     emit captureCountChanged(m_captureCount);
     appendToManifest(manifestDesc, filePath);

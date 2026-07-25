@@ -14,6 +14,14 @@ Rectangle {
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.92)
     z: 2100
 
+    // 5WHY: During screenshot capture, the progress overlay (step labels,
+    // progress bar, red dot, stats) would appear in the screenshot.  The
+    // orchestrator sets suppressOverlay=true before platformCaptureScreenshot()
+    // and false after — we hide instantly via opacity:0 to avoid the overlay
+    // content showing up in evidence files.
+    opacity: captureOrchestrator && captureOrchestrator.suppressOverlay ? 0 : 1
+    Behavior on opacity { NumberAnimation { duration: 80 } }
+
     signal cancelled()
 
     property alias currentStep: stepLabel.text
