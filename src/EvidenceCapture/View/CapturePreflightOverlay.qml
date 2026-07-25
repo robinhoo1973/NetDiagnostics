@@ -198,8 +198,12 @@ Rectangle {
                     Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.InQuad } }
                 }
 
+                // 5WHY: Cancel button was visible only when readyForCountdown=true.
+                // On iOS (needsFocusModeSetup=true), readyForCountdown requires
+                // focusConfirmed=true — users who changed their mind and wanted
+                // to cancel were trapped with no dismiss option.  Always show
+                // the Cancel button so the user can back out at any time.
                 Rectangle {
-                    visible: root.readyForCountdown
                     Layout.fillWidth: true; implicitHeight: 44; radius: 12
                     color: "transparent"
                     border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.3) }

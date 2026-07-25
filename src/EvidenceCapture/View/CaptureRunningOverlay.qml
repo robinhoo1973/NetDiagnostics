@@ -17,10 +17,10 @@ Rectangle {
     // 5WHY: During screenshot capture, the progress overlay (step labels,
     // progress bar, red dot, stats) would appear in the screenshot.  The
     // orchestrator sets suppressOverlay=true before platformCaptureScreenshot()
-    // and false after — we hide instantly via opacity:0 to avoid the overlay
-    // content showing up in evidence files.
+    // and false after.  We bind opacity directly — no Behavior animation
+    // because the suppress toggle must be instant (any animation delay
+    // would leave the overlay partially visible during the capture).
     opacity: captureOrchestrator && captureOrchestrator.suppressOverlay ? 0 : 1
-    Behavior on opacity { NumberAnimation { duration: 80 } }
 
     signal cancelled()
 

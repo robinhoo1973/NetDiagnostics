@@ -776,13 +776,13 @@ void CaptureOrchestrator::finalizeSession() {
     }
 
     // Append to execution log
-    QFile logFile2(m_sessionDir + kExecLogRelPath);
-    if (logFile2.open(QIODevice::Append | QIODevice::Text)) {
-        QTextStream logStream2(&logFile2);
-        logStream2 << "\n--- Session complete ---\n"
+    QFile logFile(m_sessionDir + kExecLogRelPath);
+    if (logFile.open(QIODevice::Append | QIODevice::Text)) {
+        QTextStream logStream(&logFile);
+        logStream << "\n--- Session complete ---\n"
                    << "Total captures: " << m_captureCount << "\n"
                    << "Ended: " << QDateTime::currentDateTime().toString(Qt::ISODate) << "\n";
-        if (logStream2.status() != QTextStream::Ok) {
+        if (logStream.status() != QTextStream::Ok) {
             qWarning() << "CaptureOrchestrator: failed to append execution log";
         }
     }
@@ -1130,9 +1130,16 @@ bool CaptureOrchestrator::takeScreenshot(const QString& sanitizedLabel,
     // 5WHY: The capture running overlay (z:2100) is rendered on top of the app
     // and would appear in every screenshot — progress bar, step labels, red dot.
     // Hide it during the screenshot so evidence files show only the diagnostic
-    // content.  QML binds visible/capacity to suppressOverlay.
+    // content.  QML binds opacity to suppressOverlay.
+    //
+    // 5WHY (round-30): QML property bindings are evaluated lazily — the
+    // emits in lines 1135/1138 both fire in the same event-loop iteration
+    // and the binding engine sees only the final value (false).  The
+    // overlay was NEVER hidden.  Call processEvents() after the first emit
+    // to flush pending QML binding updates before the screenshot runs.
     m_suppressOverlay = true;
     emit suppressOverlayChanged();
+    QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
     bool ok = platformCaptureScreenshot(filePath);
     m_suppressOverlay = false;
     emit suppressOverlayChanged();

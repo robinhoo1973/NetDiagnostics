@@ -189,9 +189,15 @@ bool platformLockOrientation() {
 }
 
 bool platformUnlockOrientation() {
+    // 5WHY: Read s_savedOrientation BEFORE dispatching to main thread.
+    // If orientation was never locked (sentinel still -1), return false
+    // immediately — no main-thread work needed and callers can distinguish
+    // "was never locked" from "successfully unlocked".
+    if (s_savedOrientation == (UIInterfaceOrientation)-1) return false;
+
     runOnMainThread(^{
-        // 5WHY: Must read s_savedOrientation under the main-thread
-        // serialisation to avoid a data race with platformLockOrientation.
+        // 5WHY: Re-check under main-thread serialisation to avoid a
+        // data race with platformLockOrientation.
         if (s_savedOrientation == (UIInterfaceOrientation)-1) return;
 
         [[UIDevice currentDevice] setValue:@(UIDeviceOrientationUnknown) forKey:@"orientation"];
