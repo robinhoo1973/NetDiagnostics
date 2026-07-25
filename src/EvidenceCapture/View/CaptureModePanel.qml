@@ -21,8 +21,11 @@ Rectangle {
     // so the user can independently toggle Screenshots and Recording via checkboxes.
     // Android's MediaProjection cannot take screenshots during recording — the user
     // must choose ONE mode via radio buttons.
+    // 5WHY: On Android (!supportsBothModes), default to ScreenshotOnly.
+    // Defaulting both to true would produce computedMode=2 (Both) which is
+    // unsupported — screenshots during recording would fail/corrupt on Android.
     property bool wantsScreenshot: true
-    property bool wantsRecording: true
+    property bool wantsRecording: captureOrchestrator ? captureOrchestrator.supportsBothModes : false
     property string diagUrl: appState.target || "https://httpbin.org"
 
     // Compute the capture mode int from checkbox/radio state.
@@ -134,7 +137,7 @@ Rectangle {
                         onClicked: {
                             // 5WHY: On Android (supportsBothModes=false), the two modes
                             // are mutually exclusive — selecting one deselects the other.
-                            if (!captureOrchestrator.supportsBothModes) {
+                            if (captureOrchestrator &amp;&amp; !captureOrchestrator.supportsBothModes) {
                                 root.wantsScreenshot = !root.wantsScreenshot
                                 if (root.wantsScreenshot) root.wantsRecording = false
                             } else {
@@ -198,7 +201,7 @@ Rectangle {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (!captureOrchestrator.supportsBothModes) {
+                            if (captureOrchestrator &amp;&amp; !captureOrchestrator.supportsBothModes) {
                                 root.wantsRecording = !root.wantsRecording
                                 if (root.wantsRecording) root.wantsScreenshot = false
                             } else {
@@ -211,7 +214,7 @@ Rectangle {
 
             // Both-selected indicator (iOS only — Android doesn't support Both)
             Label {
-                visible: root.computedMode === 2 && captureOrchestrator.supportsBothModes
+                visible: root.computedMode === 2 &amp;&amp; captureOrchestrator &amp;&amp; captureOrchestrator.supportsBothModes
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: "📸+🎥  Both modes enabled — recommended for complete evidence"
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 10

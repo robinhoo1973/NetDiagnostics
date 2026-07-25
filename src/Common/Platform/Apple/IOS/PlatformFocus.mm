@@ -189,23 +189,20 @@ bool platformLockOrientation() {
 }
 
 bool platformUnlockOrientation() {
-    // 5WHY: Read s_savedOrientation BEFORE dispatching to main thread.
-    // If orientation was never locked (sentinel still -1), return false
-    // immediately — no main-thread work needed and callers can distinguish
-    // "was never locked" from "successfully unlocked".
-    if (s_savedOrientation == (UIInterfaceOrientation)-1) return false;
-
+    // 5WHY: Read and write s_savedOrientation entirely inside runOnMainThread
+    // to avoid a data race with platformLockOrientation() which also writes
+    // it on the main thread.  The __block flag lets us return the result.
+    __block BOOL wasLocked = NO;
     runOnMainThread(^{
-        // 5WHY: Re-check under main-thread serialisation to avoid a
-        // data race with platformLockOrientation.
         if (s_savedOrientation == (UIInterfaceOrientation)-1) return;
+        wasLocked = YES;
 
         [[UIDevice currentDevice] setValue:@(UIDeviceOrientationUnknown) forKey:@"orientation"];
         s_savedOrientation = (UIInterfaceOrientation)-1;
         [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
     });
 
-    return true;
+    return wasLocked;
 }
 
 void platformOpenFocusSettings() {

@@ -49,10 +49,10 @@ void CaptureOrchestrator::restoreSystemState() {
     // still locked to capture orientation — rendering at the wrong
     // orientation and causing visual glitches when orientation is then
     // unlocked.  Orient → DND = notifications arrive at user's orientation.
-    // 5WHY: platformUnlockOrientation is idempotent on all platforms —
-    // Android's setRequestedOrientation(USER) restores the default (harmless
-    // if never locked), iOS/Desktop stubs return false (no-op).  No guard
-    // needed; call unconditionally like brightness/focus restore.
+    // 5WHY: platformUnlockOrientation is idempotent on Android
+    // (setRequestedOrientation(USER) restores the default).  iOS now
+    // returns true when unlocking succeeded, false when orientation was
+    // never locked (sentinel guard).  Check return for diagnostics.
     if (!platformUnlockOrientation()) {
         qWarning() << "CaptureOrchestrator: orientation unlock failed or was never locked";
     }
