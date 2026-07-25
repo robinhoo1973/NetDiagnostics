@@ -9,6 +9,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <functional>
 
@@ -36,7 +37,10 @@ public:
     // Open the diagnostic detail overlay for a given DiagId.
     Q_INVOKABLE void openDiagnosticDetail(int diagIdInt);
 
-    // Open report preview.
+    // Open report preview.  Emits reportPreviewReady(bool ok) when the
+    // async operation completes (success or failure), or never if the
+    // initial switchToTab fails synchronously (in which case the caller's
+    // timeout should advance the scenario).
     Q_INVOKABLE void openReportPreview();
 
     // Get the current tab index (-1 if unknown).
@@ -49,10 +53,13 @@ signals:
     void pageReady(int tabIndex);
     void tabSwitchFailed(int tabIndex);
     void detailOpened();
+    void reportPreviewReady(bool ok);
 
 private:
-    QObject* m_appContent = nullptr;
+    void doOpenReportPreview(); // deferred body of openReportPreview (500ms timer)
+    QPointer<QObject> m_appContent = nullptr;
     AppState* m_appState = nullptr;
+    QPointer<QTimer> m_pageReadyTimer = nullptr;  // active waitForPageReady poll timer
 
     static const QStringList kPageNames; // ["dashboard","diagnostic","config","settings"]
 };

@@ -7,31 +7,67 @@
 #include <QString>
 #include <QFileInfo>
 #include <QDir>
+#include <QtDebug>
+#include <atomic>
+#include <memory>
 #import <ReplayKit/ReplayKit.h>
 #import <AVFoundation/AVFoundation.h>
 
-// Static recording state — single-recording model matches the API contract.
+// ── Serial state queue ───────────────────────────────────────────────────
+// 5WHY: s_writer, s_input, s_lastError, s_startCb, and s_outputPath are
+// ObjC object pointers / C++ std::function accessed from two threads:
+//   (a) the calling thread (main thread via CaptureOrchestrator)
+//   (b) the ReplayKit internal queue (capture/stop/completion handlers)
+//
+// std::atomic does not compose with ARC __strong ownership, and the
+// ReplayKit queue is NOT the same as the main thread — a raw pointer
+// read/write race on ARM64 can technically tear across cache lines.
+//
+// ReplayKit serialises its own callbacks (frame delivery, error, and
+// stop-completion all fire on one internal serial queue), so handlers
+// never run concurrently with each other.  The remaining race is:
+//   Main thread reads s_lastError / s_writer / s_input
+//       while
+//   ReplayKit queue writes them (error handler or stop-completion)
+//
+// A dedicated serial dispatch queue serialises every cross-thread state
+// mutation.  Frame-appending (CMSampleBuffer → AVAssetWriterInput) runs
+// at 30/60 fps and does NOT go through this queue — it only reads
+// s_recording (atomic) and s_input (stable pointer during normal recording);
+// the ReplayKit queue guarantees errors won't fire mid-frame.
+//
+// Callbacks are invoked OUTSIDE the state queue to avoid deadlock:
+//   s_stateQueue → dispatch_async(main) → callback
+// rather than:
+//   main → dispatch_sync(s_stateQueue) → dispatch_async(main) DEADLOCK
+// =============================================================================
+static dispatch_queue_t s_stateQueue() {
+    static dispatch_queue_t q;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        q = dispatch_queue_create("netdiag.recording.state",
+                                   DISPATCH_QUEUE_SERIAL);
+    });
+    return q;
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
 static RPScreenRecorder*   s_recorder    = nil;
 static AVAssetWriter*      s_writer      = nil;
 static AVAssetWriterInput* s_input       = nil;
 static NSString*           s_outputPath  = nil;
 static RecordingCallback   s_startCb;
-static bool                s_recording   = false;
-static bool                s_stopping    = false;
-// 5WHY: mid-capture errors after s_startCb was consumed were silently
-// dropped — platformStopRecording saw !s_recording and returned
-// "No recording in progress" instead of the real error. Store the
-// error here so platformStopRecording can report it.
+// s_recording / s_stopping use std::atomic for fast lock-free checks on both
+// the calling thread and the ReplayKit frame-delivery hot path.
+static std::atomic<bool>   s_recording{false};
+static std::atomic<bool>   s_stopping{false};
+// Protected by s_stateQueue() — every read/write from a thread other than
+// the exclusive writer's thread must use dispatch_sync(s_stateQueue(), …).
 static NSString*           s_lastError   = nil;
 
-// 5WHY: ReplayKit delivers CMSampleBuffer callbacks serially on its
-// own internal queue.  Appending directly from the callback is safe —
-// no need for a second serialization queue.  The previous s_writerQueue
-// was allocated but never dispatched to (dead code).
-
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
 // iOS: RPScreenRecorder.startCapture → AVAssetWriter → .mp4
-// ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
 
 void platformStartRecording(const QString& filePath, RecordingCallback callback) {
     if (s_recording) {
@@ -39,9 +75,10 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         return;
     }
 
-    // 5WHY: clear any stale error from a previous recording session
-    // so platformStopRecording doesn't report an old error for a new session.
-    s_lastError = nil;
+    // Clear any stale error from a previous recording session
+    dispatch_sync(s_stateQueue(), ^{
+        s_lastError = nil;
+    });
 
     // Ensure output directory exists
     QString outPath = filePath;
@@ -55,7 +92,7 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         return;
     }
 
-    s_outputPath = outPath.toNSString();  // ARC retains automatically
+    s_outputPath = outPath.toNSString();
     s_startCb = callback;
 
     // Remove previous file
@@ -104,9 +141,36 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
 
     // ── Start capture + writer ──
     [s_writer startWriting];
-    // 5WHY: startSessionAtSourceTime deferred until first sample arrives.
-    // Calling it before any sample has been appended places the writer
-    // in an inconsistent state.
+
+    // 5WHY: The capture-handler and completion-handler error paths each
+    // duplicated a ~16-line cleanup block.  Extract once — defined before
+    // startCaptureWithHandler so it is alive when the handlers fire.
+    void (^cleanupAfterError)(NSError*) = ^(NSError* err) {
+        __block RecordingCallback cb;
+        __block QString errStr;
+        dispatch_sync(s_stateQueue(), ^{
+            if (s_startCb) {
+                cb = s_startCb;
+                s_startCb = nullptr;
+                errStr = QString::fromNSString(err.localizedDescription);
+            } else {
+                s_lastError = err.localizedDescription;
+            }
+            s_writer = nil;
+            s_input = nil;
+            s_outputPath = nil;
+        });
+        s_stopping = false;
+        if (cb) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                cb(false, errStr);
+            });
+        }
+    };
+
+    // 5WHY: startSessionAtSourceTime MUST be deferred until the first sample
+    // arrives.  Calling it before any sample has been appended places the
+    // writer in an inconsistent state (AVAssetWriterStatusUnknown → failed).
 
     [s_recorder startCaptureWithHandler:^(CMSampleBufferRef sampleBuffer,
                                            RPSampleBufferType bufferType,
@@ -115,113 +179,131 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
             s_stopping = true;
             [s_writer cancelWriting];
             s_recording = false;
-            if (s_startCb) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    s_startCb(false, QString::fromNSString(error.localizedDescription));
-                });
-                s_startCb = nullptr;
-            } else {
-                // 5WHY: mid-capture error after s_startCb was consumed —
-                // store for platformStopRecording to report.
-                s_lastError = error.localizedDescription;
-            }
-            // 5WHY: clean up static references so a subsequent
-            // platformStartRecording doesn't pick up stale state.
-            s_writer = nil;
-            s_input = nil;
-            s_outputPath = nil;
-            s_stopping = false;
+            cleanupAfterError(error);
             return;
         }
 
         if (bufferType != RPSampleBufferTypeVideo) return;
-
         if (s_stopping) return;
 
-        // 5WHY: startSessionAtSourceTime MUST be the first frame's PTS,
-        // not kCMTimeZero.  Using zero can cause the first few frames
-        // to have negative decode timestamps, corrupting the output.
+        // 5WHY: startSessionAtSourceTime MUST use the first frame's PTS,
+        // not kCMTimeZero.  Using zero can cause the first few frames to
+        // have negative decode timestamps, corrupting the output.
+        // s_writer was set before startCaptureWithHandler and is only
+        // mutated by the error/stop handlers on this same ReplayKit queue
+        // — safe to read directly on the frame-delivery hot path.
         if (!s_recording && s_writer.status == AVAssetWriterStatusUnknown) {
             [s_writer startSessionAtSourceTime:CMSampleBufferGetPresentationTimeStamp(sampleBuffer)];
             s_recording = true;
-            if (s_startCb) {
+            // 5WHY: s_startCb (std::function) read/write was unsynchronised
+            // between the ReplayKit queue and the main thread via
+            // platformStopRecording → dispatch_sync(s_stateQueue(), …).
+            // Concurrent read/write of a non-trivial C++ object from two
+            // threads is a data race (§[intro.races] UB).  Wrap access in
+            // the state queue — this only executes once (first frame), so
+            // the dispatch_sync cost is a one-time overhead of ~1-3 µs.
+            auto cbPtr = std::make_shared<RecordingCallback>();
+            dispatch_sync(s_stateQueue(), ^{
+                if (s_startCb) {
+                    *cbPtr = std::move(s_startCb);
+                    s_startCb = nullptr;
+                }
+            });
+            if (*cbPtr) {
                 dispatch_async(dispatch_get_main_queue(), ^{
-                    s_startCb(true, outPath);
+                    (*cbPtr)(true, outPath);
                 });
-                s_startCb = nullptr;
             }
         }
 
-        // Append frame to writer (serialized via writer queue)
         if (s_recording && s_input.readyForMoreMediaData) {
             [s_input appendSampleBuffer:sampleBuffer];
         }
     } completionHandler:^(NSError* error) {
         if (error) {
             s_recording = false;
-            if (s_startCb) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    s_startCb(false, QString::fromNSString(error.localizedDescription));
-                });
-                s_startCb = nullptr;
-            } else {
-                // 5WHY: mid-capture error after s_startCb was consumed —
-                // store for platformStopRecording to report.
-                s_lastError = error.localizedDescription;
-            }
-            s_writer = nil;
-            s_input = nil;
-            s_outputPath = nil;
-            s_stopping = false;
+            cleanupAfterError(error);
         }
     }];
 }
 
 void platformStopRecording(RecordingCallback callback) {
-    // 5WHY: mid-capture errors after s_startCb was consumed store the error
-    // in s_lastError. Report it here instead of the generic message.
+    // 5WHY: lock-free atomic check first — fast path for the common case
+    // where recording was never started or already stopped.
     if (!s_recording || s_stopping) {
         if (callback) {
-            if (s_lastError) {
-                callback(false, QString::fromNSString(s_lastError));
+            __block QString errMsg;
+            __block bool hasError = false;
+            dispatch_sync(s_stateQueue(), ^{
+                if (s_lastError) {
+                    errMsg = QString::fromNSString(s_lastError);
+                    s_lastError = nil;  // delivered — clear for next session
+                    hasError = true;
+                }
+            });
+            if (hasError) {
+                callback(false, errMsg);
             } else {
                 callback(false, QStringLiteral("No recording in progress"));
             }
         }
-        // 5WHY: clear s_lastError even when callback is null so a stale
-        // mid-capture error does not leak into a subsequent recording session.
-        s_lastError = nil;
+        // 5WHY: if callback is nil, s_lastError stays in the queue for
+        // the next caller (e.g. destructor safety net).
+        //
+        // 5WHY: When !s_recording (recording hasn't started yet, e.g. cancel
+        // during StartingRecording), the ReplayKit frame handler may still
+        // fire after this function returns and invoke the stale s_startCb
+        // callback, which would try to transition the FSM out of its current
+        // (terminal/cancelled) state.  Clear s_startCb AND set s_stopping so
+        // the frame handler (line 186: if (s_stopping) return) prevents the
+        // recording from ever starting — without s_stopping, the recording
+        // starts on the platform and runs indefinitely because the orchestrator
+        // has already cleared m_recording in restoreSystemState().
+        if (!s_recording) {
+            s_stopping = true;
+            dispatch_sync(s_stateQueue(), ^{
+                s_startCb = nullptr;
+            });
+        }
         return;
     }
     s_stopping = true;
 
-    // 5WHY: stopCapture and finishWriting are asynchronous.  The callback
-    // must fire AFTER both complete, or the file may be incomplete/zero-byte.
     [s_recorder stopCaptureWithHandler:^(NSError* error) {
         if (error) {
             s_recording = false;
             s_stopping = false;
             if (callback) callback(false, QString::fromNSString(error.localizedDescription));
-            s_writer = nil;
-            s_input = nil;
-            s_outputPath = nil;
+            dispatch_sync(s_stateQueue(), ^{
+                s_writer = nil;
+                s_input = nil;
+                s_outputPath = nil;
+            });
             return;
         }
 
         // 5WHY: A concurrent capture-handler error (from the ReplayKit
         // internal queue) may have already cleaned up s_input and s_writer
-        // before this block executes.  ObjC nil-messaging on
-        // markAsFinished / finishWritingWithCompletionHandler would silently
-        // no-op — and the inner completion block would never fire, leaving
-        // the caller hanging forever.  Detect the torn-down state here so
-        // the callback is always delivered.
-        if (!s_input || !s_writer) {
+        // before this block executes.  Read under the state queue so we
+        // see a consistent snapshot.
+        __block BOOL tornDown = NO;
+        __block QString tearDownMsg;
+        dispatch_sync(s_stateQueue(), ^{
+            if (!s_input || !s_writer) {
+                tornDown = YES;
+                tearDownMsg = s_lastError
+                    ? QStringLiteral("Recording already stopped due to error: ") + QString::fromNSString(s_lastError)
+                    : QStringLiteral("Recording already stopped due to error");
+                s_lastError = nil;
+                s_writer = nil;
+                s_input = nil;
+                s_outputPath = nil;
+            }
+        });
+        if (tornDown) {
             s_recording = false;
             s_stopping = false;
-            if (callback) callback(false, QStringLiteral("Recording already stopped due to error"));
-            s_writer = nil;
-            s_input = nil;
-            s_outputPath = nil;
+            if (callback) callback(false, tearDownMsg);
             return;
         }
 
@@ -230,26 +312,36 @@ void platformStopRecording(RecordingCallback callback) {
             s_recording = false;
             s_stopping = false;
 
-            // 5WHY: s_writer.status and s_writer.error must be captured
-            // BEFORE s_writer is set to nil.  ObjC nil-messaging returns
-            // 0 / nil, so checking .status after nil always shows
-            // AVAssetWriterStatusUnknown instead of the real failure.
-            BOOL ok = (s_writer.status == AVAssetWriterStatusCompleted);
-            AVAssetWriterStatus finalStatus = s_writer.status;
-            NSString* finalError = s_writer.error.localizedDescription;
-            s_writer = nil;
-            s_input = nil;
+            __block BOOL ok;
+            __block NSString* outPath;
+            __block NSString* finalError;
+            __block AVAssetWriterStatus finalStatus;
+            dispatch_sync(s_stateQueue(), ^{
+                ok = (s_writer.status == AVAssetWriterStatusCompleted);
+                finalStatus = s_writer.status;
+                finalError = s_writer.error.localizedDescription;
+                outPath = s_outputPath;
+                s_writer = nil;
+                s_input = nil;
+                s_outputPath = nil;
+            });
 
-            if (s_outputPath) {
+            if (outPath) {
                 if (ok && callback) {
-                    callback(true, QString::fromNSString(s_outputPath));
+                    callback(true, QString::fromNSString(outPath));
                 } else if (callback) {
                     callback(false, finalStatus == AVAssetWriterStatusFailed
                         ? QString::fromNSString(finalError)
                         : QStringLiteral("Writer did not complete"));
                 }
-                // ARC releases automatically
-                s_outputPath = nil;
+            } else if (callback) {
+                // 5WHY: A concurrent ReplayKit error handler may have
+                // cleared s_outputPath before this completion block ran.
+                // If outPath is nil AND a real callback is waiting, we
+                // MUST deliver it — otherwise the FSM hangs in
+                // StoppingRecording forever (no timeout on stop-callback).
+                callback(false, QStringLiteral("Recording output path lost — "
+                    "concurrent error may have torn down the session"));
             }
         }];
     }];

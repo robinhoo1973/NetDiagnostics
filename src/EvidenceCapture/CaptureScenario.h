@@ -75,55 +75,71 @@ private:
 // ═════════════════════════════════════════════════════════════════════════════
 inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
     CaptureScenario s;
+    s.setScenarioId(QStringLiteral("full_diagnostic"));
 
     s.addSteps({
         // ── Phase 1: All tabs ──────────────────────────────────────────
-        {StepAction::Navigate,       "0", "000_Dashboard",     true,  false},
+        // 5WHY: captureBefore on the very first step captures whatever page
+        // the user was on before capture started — not the Dashboard label.
+        // Set captureBefore=false; the Capture step that follows covers it.
+        // 5WHY (round-28): captureBefore on subsequent Navigate steps
+        // duplicated the screenshot already taken by the preceding Capture
+        // step AND labelled it with the *destination* page name, creating
+        // evidence files whose content didn't match their filename.  The
+        // explicit Capture step already captures the page after WaitPageReady
+        // settle; there is no additional visual change between that Capture
+        // and the next Navigate.  Set captureBefore=false on all Navigate
+        // steps that follow a Capture of the same page.
+        {StepAction::Navigate,       "0", "Dashboard",          false, false},
         {StepAction::WaitPageReady,  "3000", "",                false, false},
-        {StepAction::Capture,        "001_Dashboard_Main",     "",    false},
+        {StepAction::Capture,        "Dashboard_Main",         "",    false},
 
-        {StepAction::Navigate,       "1", "001_Diagnostics",   true,  false},
+        {StepAction::Navigate,       "1", "Diagnostics",        false, false},
         {StepAction::WaitPageReady,  "3000", "",                false, false},
-        {StepAction::Capture,        "002_Diagnostic",         "",    false},
+        {StepAction::Capture,        "Diagnostic",             "",    false},
 
-        {StepAction::Navigate,       "2", "002_Config",        true,  false},
+        {StepAction::Navigate,       "2", "Config",             false, false},
         {StepAction::WaitPageReady,  "3000", "",                false, false},
-        {StepAction::Capture,        "003_Config",             "",    false},
+        {StepAction::Capture,        "Config",                 "",    false},
 
-        {StepAction::Navigate,       "3", "003_Settings",      true,  false},
+        {StepAction::Navigate,       "3", "Settings",           false, false},
         {StepAction::WaitPageReady,  "3000", "",                false, false},
-        {StepAction::Capture,        "004_Settings",           "",    false},
+        {StepAction::Capture,        "Settings",               "",    false},
 
         // ── Phase 2: Diagnostic run ────────────────────────────────────
-        {StepAction::Navigate,       "1", "004_Diagnostic_PreRun", true, false},
-        {StepAction::SetUrl,         diagUrl, "",            false, false},
-        {StepAction::Capture,        "005_Diagnostic_Input",  "",    false},
-        {StepAction::RunDiagnostic,  "", "",                 false, false},
-        {StepAction::WaitDiagComplete,"120000", "",          false, false},
-        {StepAction::Capture,        "010_Diagnostic_Result", "",    false},
+        {StepAction::Navigate,       "1", "Diagnostic_PreRun",  false, false},
+        {StepAction::SetUrl,         diagUrl, "",               false, false},
+        {StepAction::Capture,        "Diagnostic_Input",       "",    false},
+        {StepAction::RunDiagnostic,  "", "",                    false, false},
+        {StepAction::WaitDiagComplete,"120000", "",             false, false},
+        {StepAction::Capture,        "Diagnostic_Result",      "",    false},
 
         // ── Phase 3: InternetConnectivity detail ───────────────────────
         {StepAction::OpenDetail,
          QString::number(static_cast<int>(DiagId::G3InternetConnectivity)),
-         "011_InternetConnectivity", true, false},
-        {StepAction::WaitPageReady,  "2000", "",            false, false},
-        {StepAction::Capture,        "011_InternetConnectivity_Top","",false},
+         "InternetConnectivity",    false, false},
+        {StepAction::WaitPageReady,  "2000", "",                false, false},
+        {StepAction::Capture,        "InternetConnectivity_Top","",   false},
         // Scroll during recording only — captures the full detail content
         {StepAction::Scroll,         "3000", "Connectivity scroll", false, true},
-        {StepAction::Capture,        "012_InternetConnectivity_Bottom","",false},
+        // 5WHY: Bottom capture without a preceding scroll is identical to Top.
+        // Mark recordingOnly so screenshot mode skips this duplicate.
+        {StepAction::Capture,        "InternetConnectivity_Bottom","",false, true},
 
         // ── Phase 4: Dashboard ─────────────────────────────────────────
-        {StepAction::Navigate,       "0", "020_Dashboard",     true,  false},
-        {StepAction::WaitPageReady,  "3000", "",                false, false},
-        {StepAction::Capture,        "020_Dashboard_AfterDiagnostic","",false},
+        {StepAction::Navigate,       "0", "Dashboard_AfterDiag", false, false},
+        {StepAction::WaitPageReady,  "3000", "",                 false, false},
+        {StepAction::Capture,        "Dashboard_AfterDiagnostic","",   false},
         // Scroll during recording — captures dashboard scroll content
         {StepAction::Scroll,         "5000", "Dashboard scroll", false, true},
-        {StepAction::Capture,        "021_Dashboard_End",     "",    false},
+        // 5WHY: End capture without a preceding scroll is identical to AfterDiagnostic.
+        // Mark recordingOnly so screenshot mode skips this duplicate.
+        {StepAction::Capture,        "Dashboard_End",          "",    false, true},
 
         // ── Phase 5: Report preview ────────────────────────────────────
-        {StepAction::OpenReport,     "", "030_Report",        true,  false},
-        {StepAction::WaitPageReady,  "3000", "",               false, false},
-        {StepAction::Capture,        "030_Report_Summary",    "",    false},
+        {StepAction::OpenReport,     "", "Report",              false, false},
+        {StepAction::WaitPageReady,  "3000", "",                false, false},
+        {StepAction::Capture,        "Report_Summary",         "",    false},
     });
 
     return s;

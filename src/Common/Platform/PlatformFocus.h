@@ -22,17 +22,21 @@
 bool platformEnableFocusMode();
 
 /// Disable focus mode and restore system notification state.
-void platformDisableFocusMode();
+/// Returns true if focus mode was successfully disabled.
+bool platformDisableFocusMode();
 
 /// Returns true if focus mode is currently active.
 bool platformIsFocusModeEnabled();
 
 /// Set screen brightness to maximum for clear recordings.
 /// Saves previous brightness and restores via platformRestoreBrightness().
-void platformSetMaxBrightness();
+/// Returns true if brightness was successfully set, false if the platform
+/// cannot control brightness or the operation failed.
+bool platformSetMaxBrightness();
 
 /// Restore screen brightness to the level saved by platformSetMaxBrightness().
-void platformRestoreBrightness();
+/// Returns true if brightness was successfully restored.
+bool platformRestoreBrightness();
 
 /// [iOS/Android only] Open the system Focus / Do-Not-Disturb settings page
 /// so the user can manually enable it before capture starts.
@@ -41,7 +45,10 @@ void platformOpenFocusSettings();
 
 /// Lock screen orientation to current value to prevent rotation during capture.
 /// Must be paired with platformUnlockOrientation() at capture end.
-void platformLockOrientation();
+/// Returns true if orientation was successfully locked, false on platforms
+/// that cannot control orientation (iOS, Desktop).
+bool platformLockOrientation();
 
 /// Restore auto-rotation after capture completes.
-void platformUnlockOrientation();
+/// Returns true if orientation was successfully restored.
+bool platformUnlockOrientation();

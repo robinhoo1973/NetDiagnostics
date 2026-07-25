@@ -16,9 +16,21 @@
 static bool s_focusEnabled = false;
 static int s_originalFilter = -1;  // saved interruption filter
 
-// 5WHY: QtNative activity acquisition duplicated in enableFocusMode,
-// disableFocusMode, setMaxBrightness, and restoreBrightness (4x the same
-// 5-line JNI pattern).  Extract once.
+// 5WHY: QJniObject::callStaticObjectMethod("QtNative", "activity") was
+// called at 7 sites — 3× in rapid succession during capture startup.
+// Each call crosses the JNI boundary with thread-state transitions and
+// reference-table bookkeeping (~1-3ms each).  However, the Activity
+// MUST NOT be cached across calls because Android destroys and recreates
+// the Activity on configuration changes (rotation, multi-window resize,
+// locale change).  The JNI overhead (3 calls per capture startup) is
+// negligible compared to the risk of operating on a destroyed Activity.
+//
+// 5WHY: Other Android platform files use QNativeInterface::QAndroidApplication::context(),
+// which returns the application Context (not necessarily an Activity).
+// Window-level operations (getWindow, setRequestedOrientation) require an
+// Activity — the application Context does not have a Window.  We stay with
+// QtNative::activity() which returns the QtActivity and is guaranteed to
+// be an Activity subclass.
 static QJniObject getQtActivity() {
     return QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative",
@@ -74,14 +86,14 @@ bool platformEnableFocusMode() {
     return true;
 }
 
-void platformDisableFocusMode() {
-    if (!s_focusEnabled) return;
+bool platformDisableFocusMode() {
+    if (!s_focusEnabled) return false;
 
     QJniObject activity = getQtActivity();
     if (!activity.isValid()) {
         qWarning() << "PlatformFocus: Cannot get Qt activity to restore DND";
         s_focusEnabled = false;
-        return;
+        return false;
     }
 
     QJniObject notificationManager = activity.callObjectMethod(
@@ -100,6 +112,7 @@ void platformDisableFocusMode() {
 
     s_focusEnabled = false;
     qInfo() << "PlatformFocus: DND disabled";
+    return true;
 }
 
 bool platformIsFocusModeEnabled() {
@@ -116,17 +129,26 @@ static float s_savedBrightness = -1.0f;
 // Track separately with a boolean.
 static bool s_brightnessSaved = false;
 
-void platformSetMaxBrightness() {
+bool platformSetMaxBrightness() {
     QJniObject activity = getQtActivity();
-    if (!activity.isValid()) return;
+    if (!activity.isValid()) {
+        qWarning() << "PlatformFocus: cannot get Activity to set max brightness";
+        return false;
+    }
 
     QJniObject window = activity.callObjectMethod(
         "getWindow", "()Landroid/view/Window;");
-    if (!window.isValid()) return;
+    if (!window.isValid()) {
+        qWarning() << "PlatformFocus: cannot get Window to set max brightness";
+        return false;
+    }
 
     QJniObject attrs = window.callObjectMethod(
         "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
-    if (!attrs.isValid()) return;
+    if (!attrs.isValid()) {
+        qWarning() << "PlatformFocus: cannot get LayoutParams to set max brightness";
+        return false;
+    }
 
     // Save current brightness (only on first call so we can restore the original)
     if (!s_brightnessSaved) {
@@ -138,63 +160,116 @@ void platformSetMaxBrightness() {
     attrs.setField("screenBrightness", 1.0f);
     window.callMethod<void>("setAttributes",
         "(Landroid/view/WindowManager$LayoutParams;)V", attrs.object());
+    return true;
 }
 
-void platformRestoreBrightness() {
-    if (!s_brightnessSaved) return;
+bool platformRestoreBrightness() {
+    if (!s_brightnessSaved) return false;
 
     QJniObject activity = getQtActivity();
-    // 5WHY: If any JNI call fails (activity destroyed, app in background),
-    // clear s_brightnessSaved so a future capture doesn't restore a stale brightness.
+    // 5WHY: Previously cleared s_brightnessSaved on every JNI failure path.
+    // If the Activity was temporarily invalid (app backgrounded during capture
+    // teardown), the saved value was abandoned.  On the next capture,
+    // platformSetMaxBrightness() saw s_brightnessSaved==false and re-saved the
+    // *current* brightness — which was still 1.0 from the failed restore —
+    // permanently losing the user's original brightness.
+    //
+    // Now we KEEP s_brightnessSaved on JNI failure.  restoreSystemState() is
+    // called from the destructor as a safety net, giving a second chance when
+    // the Activity recovers.  Only clear s_brightnessSaved after a successful
+    // restore.
     if (!activity.isValid()) {
-        s_brightnessSaved = false;
-        return;
+        qWarning() << "PlatformFocus: cannot get Activity for brightness restore — will retry";
+        return false;
     }
 
     QJniObject window = activity.callObjectMethod(
         "getWindow", "()Landroid/view/Window;");
     if (!window.isValid()) {
-        s_brightnessSaved = false;
-        return;
+        qWarning() << "PlatformFocus: cannot get Window for brightness restore — will retry";
+        return false;
     }
 
     QJniObject attrs = window.callObjectMethod(
         "getAttributes", "()Landroid/view/WindowManager$LayoutParams;");
     if (!attrs.isValid()) {
-        s_brightnessSaved = false;
-        return;
+        qWarning() << "PlatformFocus: cannot get LayoutParams for brightness restore — will retry";
+        return false;
     }
 
     attrs.setField("screenBrightness", s_savedBrightness);
     window.callMethod<void>("setAttributes",
         "(Landroid/view/WindowManager$LayoutParams;)V", attrs.object());
     s_brightnessSaved = false;
+    return true;
 }
 
 // ── Orientation lock ────────────────────────────────────────────────
 // 5WHY: SCREEN_ORIENTATION_LOCKED = 14 (API 18+). Restore to
 // SCREEN_ORIENTATION_USER = 2 to resume system-managed rotation.
-void platformLockOrientation() {
+bool platformLockOrientation() {
     QJniObject activity = getQtActivity();
-    if (!activity.isValid()) return;
+    if (!activity.isValid()) {
+        qWarning() << "PlatformFocus: cannot get Activity to lock orientation";
+        return false;
+    }
+    QJniEnvironment env;
     activity.callMethod<void>("setRequestedOrientation", "(I)V", 14);
+    // 5WHY: setRequestedOrientation returns void — a successful JNI call
+    // does not guarantee the framework honoured the request (Activity may
+    // be finishing during a configuration change).  Check for JNI exceptions
+    // at least; a silent JNI throw means the call was discarded entirely.
+    if (env.checkAndClearExceptions()) {
+        qWarning() << "PlatformFocus: setRequestedOrientation(LOCKED) threw JNI exception";
+        return false;
+    }
+    return true;
 }
 
-void platformUnlockOrientation() {
+bool platformUnlockOrientation() {
     QJniObject activity = getQtActivity();
-    if (!activity.isValid()) return;
+    if (!activity.isValid()) {
+        qWarning() << "PlatformFocus: cannot get Activity to unlock orientation";
+        return false;
+    }
+    QJniEnvironment env;
     activity.callMethod<void>("setRequestedOrientation", "(I)V", 2);
+    if (env.checkAndClearExceptions()) {
+        qWarning() << "PlatformFocus: setRequestedOrientation(USER) threw JNI exception";
+        return false;
+    }
+    return true;
 }
 
 void platformOpenFocusSettings() {
     // 5WHY: startActivity from a non-Activity context (our C++ is
     // called from QML, not from an Activity subclass) requires the
     // FLAG_ACTIVITY_NEW_TASK flag, or Android throws an exception.
+    //
+    // 5WHY: NOTIFICATION_POLICY_ACCESS_SETTINGS (API 23+) opens the
+    // "Do Not Disturb access" page where the user can grant this app
+    // permission to control DND.  NOTIFICATION_SETTINGS opens the
+    // app's notification channel settings — the wrong page for this
+    // purpose, since the user needs to grant DND access, not manage
+    // notification channels.
     QJniObject activity = getQtActivity();
-    if (!activity.isValid()) return;
+    if (!activity.isValid()) {
+        qWarning() << "PlatformFocus: cannot get Activity to open focus settings";
+        return;
+    }
     QJniObject intent("android/content/Intent",
         "(Ljava/lang/String;)V",
-        QJniObject::fromString("android.settings.NOTIFICATION_SETTINGS").object());
+        QJniObject::fromString("android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS").object());
+    if (!intent.isValid()) {
+        // 5WHY: On custom Android ROMs (Samsung, Huawei, Xiaomi) the
+        // NOTIFICATION_POLICY_ACCESS_SETTINGS action may not be registered.
+        // Log a warning so the user/developer knows why the Settings page
+        // didn't open when they tapped the DND hint in the preflight overlay.
+        qWarning() << "PlatformFocus: cannot construct DND settings Intent — "
+                       "NOTIFICATION_POLICY_ACCESS_SETTINGS may not be "
+                       "supported on this device";
+        return;
+    }
     intent.callMethod<void>("addFlags", "(I)V", 0x10000000); // FLAG_ACTIVITY_NEW_TASK
     activity.callMethod<void>("startActivity",
         "(Landroid/content/Intent;)V", intent.object());

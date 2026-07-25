@@ -21,8 +21,9 @@ bool platformEnableFocusMode() {
     return false;            // indicates no-op
 }
 
-void platformDisableFocusMode() {
+bool platformDisableFocusMode() {
     s_focusEnabled = false;
+    return false;
 }
 
 bool platformIsFocusModeEnabled() {
@@ -30,8 +31,8 @@ bool platformIsFocusModeEnabled() {
 }
 
 // Desktop: no portable brightness API. No-op stubs.
-void platformSetMaxBrightness() {}
-void platformRestoreBrightness() {}
-void platformLockOrientation() {}
-void platformUnlockOrientation() {}
+bool platformSetMaxBrightness() { return false; }
+bool platformRestoreBrightness() { return false; }
+bool platformLockOrientation() { return false; }
+bool platformUnlockOrientation() { return false; }
 void platformOpenFocusSettings() { /* desktop: no-op */ }

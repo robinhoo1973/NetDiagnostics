@@ -36,22 +36,37 @@ bool platformEnableFocusMode() {
 
     runOnMainThread(^{
         // Mute audio (best-effort — this silences app audio, not ringer)
-        [[AVAudioSession sharedInstance] setActive:NO error:nil];
+        // 5WHY: An active VoIP call or higher-priority audio session can
+        // cause setActive:NO to fail.  Capture the NSError so failure is
+        // visible in the console log — otherwise the capture proceeds
+        // assuming audio is muted when it is not.
+        NSError* err = nil;
+        BOOL ok = [[AVAudioSession sharedInstance] setActive:NO error:&err];
+        if (!ok) {
+            qWarning() << "PlatformFocus: cannot deactivate audio session — "
+                           "app audio may not be muted during capture:"
+                        << QString::fromNSString(err.localizedDescription);
+        }
     });
 
     s_focusEnabled = true;
     return true;
 }
 
-void platformDisableFocusMode() {
-    if (!s_focusEnabled) return;
+bool platformDisableFocusMode() {
+    if (!s_focusEnabled) return false;
 
     runOnMainThread(^{
-        // Reactivate audio session (reverses the setActive:NO in enable)
-        [[AVAudioSession sharedInstance] setActive:YES error:nil];
+        NSError* err = nil;
+        [[AVAudioSession sharedInstance] setActive:YES error:&err];
+        if (err) {
+            qWarning() << "PlatformFocus: error reactivating audio session:"
+                        << QString::fromNSString(err.localizedDescription);
+        }
     });
 
     s_focusEnabled = false;
+    return true;
 }
 
 bool platformIsFocusModeEnabled() {
@@ -59,46 +74,53 @@ bool platformIsFocusModeEnabled() {
 }
 
 // ── Brightness control for recording clarity ──────────────────────────────
+// 5WHY: UIScreen.brightness is clamped to [0.0, 1.0], so the sentinel -1.0
+// cannot overlap with any valid brightness value.  Unlike Android where
+// -1.0f collides with BRIGHTNESS_OVERRIDE_NONE, iOS can derive "has been
+// saved" directly from the float — no separate boolean needed.
 static CGFloat s_savedBrightness = -1.0;
-// 5WHY: Track save state with a separate boolean, consistent with the
-// Android fix.  Avoids relying on a magic sentinel value that could
-// overlap with a valid brightness value.
-static bool s_brightnessSaved = false;
 
-void platformSetMaxBrightness() {
+bool platformSetMaxBrightness() {
     runOnMainThread(^{
-        if (!s_brightnessSaved) {
+        if (s_savedBrightness < 0.0) {
             s_savedBrightness = [UIScreen mainScreen].brightness;
-            s_brightnessSaved = true;
         }
         [UIScreen mainScreen].brightness = 1.0;
     });
+    return true;
 }
 
-void platformRestoreBrightness() {
-    // 5WHY: guard must be inside the runOnMainThread block — if it's on the
-    // calling thread, a concurrent call can slip past before the block
-    // executes, causing a double-restore or stale-value TOCTOU.
+bool platformRestoreBrightness() {
+    if (s_savedBrightness < 0.0) return false;
+    // 5WHY: The guard check above ensures we only dispatch when there is
+    // work to do.  The block itself must be serialised on the main thread
+    // to avoid TOCTOU with a concurrent platformSetMaxBrightness.
     runOnMainThread(^{
-        if (!s_brightnessSaved) return;
+        if (s_savedBrightness < 0.0) return;  // re-check under main-thread serialisation
         [UIScreen mainScreen].brightness = s_savedBrightness;
-        s_brightnessSaved = false;
+        s_savedBrightness = -1.0;  // reset sentinel
     });
+    return true;
 }
 
 // ── Orientation lock ────────────────────────────────────────────────
-// 5WHY: Qt/QML doesn't own UIViewController — can't override
-// supportedInterfaceOrientations.
+// 5WHY: UIKit orientation lock requires overriding
+// supportedInterfaceOrientations on the root UIViewController — which Qt
+// owns, not us.  Swizzling or dynamic subclassing carries unacceptable
+// risk of breaking Qt's own orientation handling.
 //
-// IMPLEMENTATION GAP (2026-07-25): These stubs mean orientation is NEVER
-// locked on iOS during capture.  The intended QML-based solution
-// (ApplicationWindow.contentOrientation) requires work in main.qml /
-// AppContent.qml to save/restore the orientation property.  Until that
-// QML wiring is added, orientation lock is a no-op on iOS.
+// The correct cross-platform approach uses QML:
+//   1. In onStateChanged(CountdownToStart): save ApplicationWindow.contentOrientation
+//      to a property, then set it to the current device orientation.
+//   2. In restoreSystemState(): restore the saved contentOrientation.
 //
-// These stubs exist so the cross-platform caller compiles without #ifdef.
-void platformLockOrientation() {}
-void platformUnlockOrientation() {}
+// This is implemented in CaptureOrchestrator which calls these stubs.
+// The CaptureOrchestrator already checks the return value and emits a
+// qWarning when orientation lock is unavailable — the QML overlay tells
+// the user not to rotate the device, but on iOS this is advisory only
+// until the QML contentOrientation wiring is added.
+bool platformLockOrientation() { return false; }
+bool platformUnlockOrientation() { return false; }
 
 void platformOpenFocusSettings() {
     // 5WHY: iOS does not allow programmatic Focus mode activation.
@@ -109,18 +131,29 @@ void platformOpenFocusSettings() {
     // but may fail on iOS 18+ (Apple tightens private scheme enforcement).
     // canOpenURL: serves as a runtime guard — if it returns NO (iOS 18+
     // or App Review rejection), fall back to the app's own Settings page.
-    NSURL* url = [NSURL URLWithString:@"App-Prefs:root=Focus"];
-    if ([[UIApplication sharedApplication] canOpenURL:url]) {
-        [[UIApplication sharedApplication] openURL:url
-            options:@{} completionHandler:nil];
-    } else {
-        // Fallback: open the app's Settings bundle page.  This won't
-        // navigate to Focus but at least gives the user access to system
-        // settings where they can manually navigate.
-        NSURL* fallbackUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
-        if (fallbackUrl) {
-            [[UIApplication sharedApplication] openURL:fallbackUrl
+    //
+    // 5WHY: UIApplication APIs must be called from the main thread.
+    // Use runOnMainThread (same as every other function in this file)
+    // so the function is safe from any calling thread.
+    runOnMainThread(^{
+        NSURL* url = [NSURL URLWithString:@"App-Prefs:root=Focus"];
+        if ([[UIApplication sharedApplication] canOpenURL:url]) {
+            [[UIApplication sharedApplication] openURL:url
                 options:@{} completionHandler:nil];
+        } else {
+            // 5WHY: On iOS 18+, Apple blocks App-Prefs: private URL schemes.
+            // canOpenURL: returns NO statically without LSApplicationQueriesSchemes
+            // in Info.plist (which risks App Store rejection).  The fallback
+            // opens the app's own Settings page — not the Focus page — so the
+            // user cannot enable/disable DND from there.  Log a warning so
+            // the developer knows the DND hint was non-functional on this device.
+            qWarning() << "PlatformFocus: App-Prefs:root=Focus not available — "
+                           "falling back to app Settings (Focus/DND not accessible)";
+            NSURL* fallbackUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+            if (fallbackUrl) {
+                [[UIApplication sharedApplication] openURL:fallbackUrl
+                    options:@{} completionHandler:nil];
+            }
         }
-    }
+    });
 }

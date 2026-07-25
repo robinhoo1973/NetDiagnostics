@@ -44,7 +44,7 @@ static int timeoutFor(DiagId id) {
     }
 }
 
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
 // Diagnostics that cannot return useful data inside the mobile sandbox. They
 // stay visible in the UI but are reported as Skipped; the detail page shows this
 // reason. Tests that HAVE a working native/mobile implementation are absent here.
@@ -131,7 +131,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
                                              custTmo > 0 ? custTmo : tmo);
     };
 
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     // Short-circuit platform-unsupported tests: show them as Skipped with an
     // explanation (detail page) instead of misleading empty/hardcoded output.
     if (const QString skipReason = platformSkipReason(id); !skipReason.isEmpty())

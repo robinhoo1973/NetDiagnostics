@@ -62,7 +62,10 @@ void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
 
     // Poll the StackView for the target page objectName
     // StackView is: m_appContent->stackView
-    QObject* stackView = m_appContent->property("stackView").value<QObject*>();
+    // 5WHY: Use QPointer so the polling lambda auto-detects StackView
+    // destruction (app teardown, QML engine reset).  A raw QObject* would
+    // dangle silently — stackView->property() on freed memory is UB.
+    QPointer<QObject> stackView = m_appContent->property("stackView").value<QObject*>();
     if (!stackView) {
         if (onReady) onReady(false);
         return;
@@ -70,10 +73,32 @@ void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
 
     // Shared state for the polling lambda
     auto elapsed = std::make_shared<int>(0);
+    // 5WHY: stop any prior poll timer before creating a new one — if
+    // waitForPageReady is called again before the previous timer completes
+    // (unlikely but possible with rapid re-entry), both timers would
+    // poll concurrently and each emit pageReady, advancing steps twice.
+    if (m_pageReadyTimer) {
+        m_pageReadyTimer->stop();
+        m_pageReadyTimer->deleteLater();
+    }
     auto pollTimer = new QTimer(this);
+    m_pageReadyTimer = pollTimer;
     pollTimer->setInterval(200);
 
-    connect(pollTimer, &QTimer::timeout, this, [=]() mutable {
+    // 5WHY: Explicit capture list — [=] in a member function implicitly
+    // captures this, hiding the lifecycle dependency.  stackView is QPointer
+    // so it auto-nulls if the StackView is destroyed before the timer fires.
+    connect(pollTimer, &QTimer::timeout, this,
+            [this, elapsed, targetName, onReady, stackView]() mutable {
+        // 5WHY: Guard against StackView destruction during polling.
+        // QPointer auto-nulls; bail out rather than dereferencing nullptr.
+        if (!stackView) {
+            m_pageReadyTimer->stop();
+            m_pageReadyTimer->deleteLater();
+            m_pageReadyTimer = nullptr;
+            if (onReady) onReady(false);
+            return;
+        }
         *elapsed += 200;
 
         // Check if the target page is the current item
@@ -87,11 +112,13 @@ void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
         if (found) {
             pollTimer->stop();
             pollTimer->deleteLater();
+            m_pageReadyTimer = nullptr;
             emit pageReady(tabIndex);
             if (onReady) onReady(true);
         } else if (*elapsed >= timeoutMs) {
             pollTimer->stop();
             pollTimer->deleteLater();
+            m_pageReadyTimer = nullptr;
             emit tabSwitchFailed(tabIndex);
             if (onReady) onReady(false);
         }
@@ -180,33 +207,45 @@ void NavigationAdapter::openReportPreview() {
     // dashboard QML item, then let the scenario's Capture step screenshot it.
 
     // Switch to dashboard tab where the report preview overlay lives
-    bool invoked = QMetaObject::invokeMethod(m_appContent, "switchToTab",
-                              Q_ARG(int, 0)); // dashboard tab
-    if (!invoked) {
+    bool switched = QMetaObject::invokeMethod(m_appContent, "switchToTab",
+                                              Q_ARG(int, 0)); // dashboard tab
+    if (!switched) {
         qWarning() << "NavigationAdapter: openReportPreview switchToTab(0) not invocable";
+        emit reportPreviewReady(false);
         return;
     }
 
-    // Find the dashboard item in the StackView
+    // 5WHY: StackView.pop/push operations are asynchronous — the
+    // transition animation completes on the next frame.  Accessing
+    // currentItem synchronously after switchToTab returns the OLD
+    // item (or the wrong page).  Defer openPreview() by 500ms so
+    // the StackView has time to settle and currentItem reflects the
+    // dashboard page.
+    QTimer::singleShot(500, this, &NavigationAdapter::doOpenReportPreview);
+}
+
+void NavigationAdapter::doOpenReportPreview() {
+    // 5WHY: openReportPreview() defers by 500ms for the StackView transition
+    // to settle.  m_appContent (now QPointer) may have been destroyed in that
+    // window (e.g. QML engine teardown during app exit).  Guard the deref.
+    if (!m_appContent) {
+        emit reportPreviewReady(false);
+        return;
+    }
+    bool ok = false;
     QObject* stackView = m_appContent->property("stackView").value<QObject*>();
-    if (!stackView) {
-        qWarning() << "NavigationAdapter: openReportPreview cannot access stackView";
-        return;
+    if (stackView) {
+        QObject* cur = stackView->property("currentItem").value<QObject*>();
+        if (cur && cur->property("objectName").toString() == QStringLiteral("dashboard")) {
+            ok = QMetaObject::invokeMethod(cur, "openPreview");
+            if (!ok) {
+                qWarning() << "NavigationAdapter: openPreview not invocable on DashboardScreen";
+            }
+        } else {
+            qWarning() << "NavigationAdapter: openReportPreview dashboard not current after StackView settle";
+        }
+    } else {
+        qWarning() << "NavigationAdapter: openReportPreview cannot access stackView (async)";
     }
-    QObject* cur = stackView->property("currentItem").value<QObject*>();
-    if (!cur || cur->property("objectName").toString() != QStringLiteral("dashboard")) {
-        qWarning() << "NavigationAdapter: openReportPreview dashboard not current item, skipping preview";
-        return;
-    }
-
-    // Call the dashboard's openPreview() to build and show the report preview
-    bool previewInvoked = QMetaObject::invokeMethod(cur, "openPreview");
-    if (!previewInvoked) {
-        qWarning() << "NavigationAdapter: openPreview not invocable on DashboardScreen";
-        return;
-    }
-
-    // 5WHY: The preview overlay needs a moment to render the report HTML
-    // into an image.  The Capture step for report should use WaitPageReady
-    // (2000ms) before taking the screenshot to let the overlay settle.
+    emit reportPreviewReady(ok);
 }

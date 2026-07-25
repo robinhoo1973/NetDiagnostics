@@ -44,6 +44,12 @@ void ScrollController::scrollToBottom(int durationMs) {
     }
     if (m_scrolling) cancel();
 
+    // 5WHY: Design spec (§4.5) says "scroll from top to bottom at constant
+    // speed" but the old code scrolled from wherever the Flickable happened
+    // to be.  If a prior captureBefore or scroll changed the position, the
+    // recording would miss the top portion of the page.  Reset to top first.
+    m_flickable->setProperty("contentY", 0.0);
+
     // Read QML Flickable properties via QMetaObject
     QVariant contentH = m_flickable->property("contentHeight");
     QVariant height   = m_flickable->property("height");
@@ -87,6 +93,12 @@ void ScrollController::cancel() {
     m_progress = 0;
     emit scrollingChanged();
     emit progressChanged();
+    // 5WHY: If the Flickable is destroyed during an active scroll (e.g.
+    // unexpected page transition, QObject::destroyed signal), the
+    // CaptureOrchestrator's onStepScrollFinished() never fires and the
+    // capture hangs in ExecutingSteps forever.  Emit scrollFinished
+    // asynchronously so callers inside executeStep() don't re-enter.
+    QTimer::singleShot(0, this, [this]() { emit scrollFinished(); });
 }
 
 void ScrollController::onScrollTick() {

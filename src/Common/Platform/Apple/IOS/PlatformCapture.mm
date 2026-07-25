@@ -7,6 +7,7 @@
 #include <QString>
 #include <QFileInfo>
 #include <QDir>
+#include <QtDebug>
 #import <UIKit/UIKit.h>
 
 // 5WHY: the same capture logic ran in two branches (main-thread direct
@@ -65,7 +66,16 @@ bool platformCaptureScreenshot(const QString& filePath) {
         // 5WHY: DISPATCH_TIME_FOREVER could hang if the main queue is
         // deadlocked. 30s timeout is generous — if we can't capture in
         // 30s the device is likely unresponsive anyway.
-        dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC));
+        long result = dispatch_semaphore_wait(sem, dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC));
+        if (result != 0) {
+            // 5WHY: Timeout — the main thread is blocked/unresponsive.
+            // The dispatch_async block is still pending and will eventually
+            // write to __block variables, but we must bail now.  Return
+            // false so the orchestrator can proceed to the next step
+            // rather than hanging indefinitely.
+            qWarning() << "PlatformCapture: screenshot timed out after 30s — main thread unresponsive";
+            return false;
+        }
     }
 
     if (!success || !pngData) return false;

@@ -69,6 +69,7 @@ public:
     Q_INVOKABLE void cancel();
     Q_INVOKABLE bool isRunning() const { return m_stateMachine->isRunning(); }
     Q_INVOKABLE bool isRecordingCapture() const { return m_recording; }
+    bool wantsScreenshot() const { return m_captureMode == ScreenshotOnly || m_captureMode == Both; }
     // Called by QML CapturePreflightOverlay when the visual countdown reaches 0.
     // Replaces the old C++ QTimer::singleShot(3000) — the QML countdown is the
     // single source of truth for timing.
@@ -100,6 +101,7 @@ private slots:
     void onStateChanged(int from, int to);
     void executeNextStep();
     void onStepScrollFinished();
+    void onReportPreviewReady(bool ok);
 
 private:
     // ── Step execution ──────────────────────────────────────────────────
@@ -127,6 +129,19 @@ private:
     // via Files.app), while desktop uses AppDataLocation.  Centralize the #ifdef
     // so finishPreflight() and createSession() don't duplicate the path logic.
     static QString captureBasePath();
+    // 5WHY: captureBefore and Capture steps duplicated ~15 lines of identical
+    // screenshot-take logic (file path, platformCaptureScreenshot, increment
+    // counter, emit signal, append to manifest).  Extract once — the only
+    // difference between the two call sites is the label source.
+    bool takeScreenshot(const QString& sanitizedLabel, const QString& manifestDesc);
+    // 5WHY: Navigate and WaitPageReady both duplicated the same
+    // targeted-disconnect + connect(executeNextStep) + start(ms) pattern.
+    // A future step needing a delayed advance would copy it a third time.
+    void scheduleStepAfter(int ms);
+    // 5WHY: Five step types (Capture-skip, Scroll-skip, SetUrl, RunDiagnostic,
+    // WaitDiagComplete) all copy-pasted the same QTimer::singleShot(100ms)
+    // lambda.  Extract once so a timing change applies uniformly.
+    void deferNextStep();
 
     // Cached scenario — built once in startCapture, filtered by mode.
     // executeNextStep and executeStep both use this filtered copy so
@@ -149,8 +164,9 @@ private:
     QString       m_currentAction;
     QString       m_sessionDir;
     bool          m_recording = false;  // true if mode is RecordingOnly or Both
-    bool          m_doScreenshot = false; // true if mode is ScreenshotOnly or Both
     int           m_countdownGen = 0;     // incremented per CountdownToStart entry; prevents stale safety timers
+    bool          m_waitingForReportPreview = false; // set during OpenReport step; cleared by onReportPreviewReady
+
     QTimer*       m_pollTimer = nullptr;  // non-null during WaitDiagComplete polling; stopped/cleared on cancel
     QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()
 };

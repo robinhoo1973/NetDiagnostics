@@ -91,7 +91,11 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: captureOrchestrator.openFocusSettings()
+                        onClicked: {
+                            if (captureOrchestrator) {
+                                captureOrchestrator.openFocusSettings()
+                            }
+                        }
                     }
                 }
                 Label { text: "• Screen will stay awake"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }

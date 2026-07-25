@@ -111,7 +111,7 @@ function(configure_netdiag_target TARGET)
 
     # ── Platform compile definitions + frameworks ────────────────────
     if(IOS)
-        target_compile_definitions(${TARGET} PRIVATE PLATFORM_IOS)
+        target_compile_definitions(${TARGET} PRIVATE PLATFORM_IOS PLATFORM_MOBILE)
         target_compile_options(${TARGET} PRIVATE
             -F "${IOS_FRAMEWORKS_DIR}"
             -fobjc-arc)  # ensure ARC manages dispatch/NS objects in .mm files
@@ -129,7 +129,7 @@ function(configure_netdiag_target TARGET)
             "-framework CoreMedia"
         )
     elseif(ANDROID)
-        target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID)
+        target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID PLATFORM_MOBILE)
         # jnigraphics: AndroidBitmap_* functions used by PlatformPdfRenderer_android.cpp
         target_link_libraries(${TARGET} PRIVATE jnigraphics)
     endif()

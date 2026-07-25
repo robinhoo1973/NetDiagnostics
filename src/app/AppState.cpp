@@ -8,7 +8,7 @@
 #include <QJniObject>
 #endif
 #include "Common/Model/CaptureFeatureGate.h"
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
 #include "EvidenceCapture/CaptureService.h"
 #include "EvidenceCapture/CaptureOrchestrator.h"
 #endif
@@ -44,10 +44,10 @@
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
 #endif
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_MOBILE)
 #include <QDialog>
 #endif
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_MOBILE)
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QDialogButtonBox>
@@ -69,7 +69,7 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_settingsCtrl = new SettingsController(this, this);
 
     // ── Automated capture service (screenshots during diagnostics) ──────────
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     m_captureService = new CaptureService(this);
     m_captureOrch = new CaptureOrchestrator(this, this);
 #endif
@@ -186,14 +186,14 @@ bool AppState::isCaptureFeatureEnabled() const {
 // 5WHY: accessors always declared so QML context properties are never
 // undefined on any platform. On desktop they return nullptr.
 CaptureService* AppState::captureService() const {
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     return m_captureService;
 #else
     return nullptr;
 #endif
 }
 CaptureOrchestrator* AppState::captureOrchestrator() const {
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     return m_captureOrch;
 #else
     return nullptr;
@@ -463,7 +463,7 @@ void AppState::runDiagnostics() {
     // RunDiagnostic step, CaptureService::startSession() would start a
     // second, competing capture session.  Skip auto-capture when the
     // orchestrator is already driving the flow — it manages its own captures.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     if (CaptureFeatureGate::isFeatureEnabled()
         && !(m_captureOrch && m_captureOrch->isRunning())) {
         m_captureService->startSession();
@@ -490,7 +490,7 @@ void AppState::startNextGroup() {
         // 5WHY: endSession() already captures "99_session_end" with the
         // final screen state. The separate "99_run_complete" capture was
         // redundant — it would produce two near-identical screenshots.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
         if (CaptureFeatureGate::isFeatureEnabled()) {
             m_captureService->endSession();
         }
@@ -499,7 +499,7 @@ void AppState::startNextGroup() {
     }
 
     // ── Automated capture: screenshot at group boundary (G{N}_complete) ──
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     if (CaptureFeatureGate::isFeatureEnabled() && m_currentGroupIdx > 0) {
         int prevGroup = m_currentGroupIdx;  // 1-indexed: G1→1, G2→2, etc.
         m_captureService->capture(QStringLiteral("G%1_complete").arg(prevGroup));
@@ -616,7 +616,7 @@ void AppState::cancel() {
     // leaving m_captureService->m_active=true.  Subsequent diagnostic runs
     // silently skipped capture because startSession() returned early when
     // m_active was already set.  Always end the capture session on cancel.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     if (m_captureService && m_captureService->isActive()) {
         m_captureService->cancelSession();
     }
@@ -830,7 +830,7 @@ void AppState::setCrashReportPath(const QString& path) {
 void AppState::shareCrashReport() {
     if (m_crashReportPath.isEmpty() || !QFile::exists(m_crashReportPath))
         return;
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     // Mobile: OS share sheet so the user can email/upload the crash log.
     platformShareFile(m_crashReportPath, QStringLiteral("text/plain"),
                       QStringLiteral("NetDiagnostics Crash Report"));
@@ -851,7 +851,7 @@ void AppState::showDetailDialog(int diagIdInt) {
     
     const auto& r = m_results[id];
     
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+#if !defined(PLATFORM_MOBILE)
     // Use heap-allocated dialog with show() instead of exec()
     // exec() creates a nested event loop that crashes QML on ARM64
     auto* dlg = new QDialog(nullptr, Qt::Dialog | Qt::WindowCloseButtonHint);
@@ -922,7 +922,7 @@ void AppState::showDetailDialog(int diagIdInt) {
     layout->addWidget(btnBox);
     
     dlg->show();
-#endif // !PLATFORM_IOS && !PLATFORM_ANDROID
+#endif // !PLATFORM_MOBILE
 }
 
 // =============================================================================

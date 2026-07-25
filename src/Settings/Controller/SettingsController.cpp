@@ -63,7 +63,7 @@ void SettingsController::shareReport(const QString& format) {
     if (!m_premium.isPremium()) { emit premiumRequired(); return; }
     const QString ext = (format == QLatin1String("pdf")) ? QStringLiteral("pdf")
                                                           : QStringLiteral("html");
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     const QString tmp = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
         .filePath(QStringLiteral("NetDiagnostics_report.%1").arg(ext));
     const QString saved = (ext == QLatin1String("pdf"))
@@ -114,7 +114,7 @@ void SettingsController::shareExistingReport(const QString& filePath, const QStr
     }
     const QString mimeType = (format == QLatin1String("pdf"))
         ? QStringLiteral("application/pdf") : QStringLiteral("text/html");
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     platformShareFile(filePath, mimeType, QStringLiteral("Network Diagnostic Report"));
     emit m_appState->reportShared(true);
 #else

@@ -100,11 +100,12 @@ Item {
         readonly property int kCaptureCancelled: 9
         readonly property int kCaptureFailed: 10
 
-        // 5WHY: captureOrchestrator context property is only set on iOS/Android.
-        // On desktop builds referencing it directly in a Connections binding
-        // produces QML warnings.  Guard with typeof so the Connections target
-        // is null on desktop (harmless) and the orchestrator on mobile.
-        readonly property var _capOrch: typeof captureOrchestrator !== "undefined" ? captureOrchestrator : null
+        // 5WHY: captureOrchestrator is always registered as a context property
+        // (valid QObject on mobile, QVariant::fromValue(nullptr) on desktop).
+        // The old typeof guard is dead — since main.cpp always sets the property,
+        // a direct reference with null target is safe: Connections silently
+        // ignores a null target and never fires its handlers.
+        readonly property var _capOrch: captureOrchestrator
 
         // ── Listen for orchestrator signals ──────────────────────────────
         Connections {
@@ -246,13 +247,17 @@ Item {
             // CaptureModePanel → start capture
             if (typeof item.startRequested !== "undefined") {
                 item.startRequested.connect(function(mode, url) {
-                    captureOrchestrator.startCapture(mode, url)
+                    if (captureOrchestrator !== null) {
+                        captureOrchestrator.startCapture(mode, url)
+                    }
                 })
             }
             // Any panel → cancel
             if (typeof item.cancelled !== "undefined") {
                 item.cancelled.connect(function() {
-                    captureOrchestrator.cancel()
+                    if (captureOrchestrator !== null) {
+                        captureOrchestrator.cancel()
+                    }
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""

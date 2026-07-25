@@ -1,6 +1,15 @@
 // =============================================================================
 // CaptureOrchestrator.cpp — Master orchestrator implementation
 // =============================================================================
+
+// 5WHY: This file is only compiled on iOS/Android (CMakeLists.txt gates
+// capture sources behind IOS OR ANDROID).  Enforce the invariant here so
+// a future desktop build attempt fails with a clear message instead of
+// silent runtime misbehavior (e.g., skipping the ffmpeg check).
+#if !defined(PLATFORM_MOBILE)
+#error CaptureOrchestrator is currently mobile-only (see CMakeLists.txt ios/android guard)
+#endif
+
 #include "EvidenceCapture/CaptureOrchestrator.h"
 #include "EvidenceCapture/CaptureScenario.h"
 #include "EvidenceCapture/NavigationAdapter.h"
@@ -27,9 +36,39 @@
 #include <QSysInfo>
 
 void CaptureOrchestrator::restoreSystemState() {
-    platformRestoreBrightness();
-    platformDisableFocusMode();
+    // 5WHY: platformSetKeepAwake(false) was still called separately at every
+    // terminal-state handler (5 sites) even after the other three restore calls
+    // were centralized.  Adding it here guarantees no future terminal state
+    // forgets to release the wakelock — battery-drain regression prevention.
+    platformSetKeepAwake(false);
+    if (!platformRestoreBrightness()) {
+        qWarning() << "CaptureOrchestrator: brightness restore failed or was never set";
+    }
+    // 5WHY: Restore orientation BEFORE disabling focus mode.  If DND is
+    // disabled first, queued notifications flood in while the screen is
+    // still locked to capture orientation — rendering at the wrong
+    // orientation and causing visual glitches when orientation is then
+    // unlocked.  Orient → DND = notifications arrive at user's orientation.
+    // 5WHY: platformUnlockOrientation is idempotent on all platforms —
+    // Android's setRequestedOrientation(USER) restores the default (harmless
+    // if never locked), iOS/Desktop stubs return false (no-op).  No guard
+    // needed; call unconditionally like brightness/focus restore.
     platformUnlockOrientation();
+    if (!platformDisableFocusMode()) {
+        qWarning() << "CaptureOrchestrator: focus-mode restore failed or was never enabled";
+    }
+
+    // 5WHY: If failCapture() is called while a recording is active (e.g. from
+    // executeNextStep → STEP_NOT_FOUND, or any future error path added during
+    // ExecutingSteps), the FSM transitions directly to Failed without first
+    // stopping the recording.  The old destructor had a defensive force-stop
+    // block that was removed when restoreSystemState() was centralized.
+    // Restore it here as a safety net — platformStopRecording(nullptr) is a
+    // fire-and-forget async stop (same pattern as cancel() line ~201).
+    if (m_recording && platformIsRecording()) {
+        platformStopRecording(nullptr);
+    }
+    m_recording = false;
 }
 
 // 5WHY: Manifest and execution log wrote raw m_diagUrl without sanitization,
@@ -46,6 +85,54 @@ static QString sanitizeUrl(const QString& raw) {
     return u.toString(QUrl::RemoveUserInfo | QUrl::PrettyDecoded);
 }
 
+// 5WHY: Colon-to-dash sanitization for Windows-safe filenames was copy-pasted
+// in two branches of executeStep (captureBefore + Capture).  Extract once.
+// Broadened to cover all characters illegal in Windows filenames so a future
+// step description containing <, >, ", /, \, |, ?, or * doesn't cause a
+// silent file-creation failure when output is copied to a Windows share.
+static QString sanitizeFilename(const QString& raw) {
+    QString s = raw;
+    // 5WHY: Single-pass character switch — O(n) instead of O(9n) from 9
+    // sequential s.replace() calls, each doing a full string scan even when
+    // the illegal character is absent (the common case for 8 of 9 chars).
+    for (int i = 0; i < s.size(); ++i) {
+        switch (s[i].unicode()) {
+        case ':': case '/': case '\\': case '<': case '>':
+        case '"': case '|': case '?': case '*':
+            s[i] = QLatin1Char('-');
+            break;
+        }
+    }
+    // Trim trailing dots and spaces (Windows restriction: Explorer strips them,
+    // but the filesystem rejects them if they're the only trailing chars).
+    // 5WHY: while-loop with endsWith() + chop(1) was O(n^2) — each endsWith()
+    // rescanned the string.  Find the trim point in one reverse scan (O(n)).
+    int end = s.size() - 1;
+    while (end >= 0 && (s[end] == QLatin1Char('.') || s[end] == QLatin1Char(' '))) {
+        --end;
+    }
+    s.truncate(end + 1);
+    if (s.isEmpty()) s = QStringLiteral("capture");
+    return s;
+}
+
+// 5WHY: "/Metadata/manifest.json", "/Logs/execution.log", and subdirectory names
+// were bare string literals repeated 3–4 times each.  A rename would require a
+// grep-and-replace across every site — easy to miss one.  Centralize once.
+static const QString kManifestRelPath = QStringLiteral("/Metadata/manifest.json");
+static const QString kExecLogRelPath  = QStringLiteral("/Logs/execution.log");
+static const QString kSubdirScreenshots = QStringLiteral("/Screenshots");
+static const QString kSubdirVideos      = QStringLiteral("/Videos");
+static const QString kSubdirLogs        = QStringLiteral("/Logs");
+static const QString kSubdirMetadata    = QStringLiteral("/Metadata");
+
+// 5WHY: Magic numbers for timing delays were bare integer literals scattered
+// across 5+ call sites.  Named constants let you tune capture pacing globally.
+static const int kStepDeferMs            = 100;   // async deferral to avoid infinite recursion
+static const int kReportPreviewTimeoutMs = 5000;  // openReportPreview safety fallback
+static const int kPreviewRenderSettleMs  = 1000;  // QML overlay render settle before screenshot
+static const int kCountdownSafetyMs      = 10000; // preflight-countdown safety-net timeout
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Constructor
 // ═════════════════════════════════════════════════════════════════════════════
@@ -59,24 +146,30 @@ CaptureOrchestrator::CaptureOrchestrator(AppState* appState, QObject* parent)
     , m_delayTimer(new QTimer(this))
 {
     m_delayTimer->setSingleShot(true);
+    // Single permanent connection — eliminate disconnect+reconnect churn
+    // on every Navigate/WaitPageReady step (scheduleStepAfter now just starts).
+    connect(m_delayTimer, &QTimer::timeout, this, &CaptureOrchestrator::executeNextStep);
 
     connect(m_stateMachine, &CaptureStateMachine::stateChanged,
             this, &CaptureOrchestrator::onStateChanged);
     connect(m_scrollCtrl, &ScrollController::scrollFinished,
             this, &CaptureOrchestrator::onStepScrollFinished);
+    connect(m_navAdapter, &NavigationAdapter::reportPreviewReady,
+            this, &CaptureOrchestrator::onReportPreviewReady);
 }
 
 CaptureOrchestrator::~CaptureOrchestrator() {
-    // 5WHY: cancel() already stops recording (lines 186-191, always sets
-    // m_recording=false regardless of FSM transition) and disables keepAwake.
+    // 5WHY: cancel() already stops recording (fire-and-forget async stop).
+    // m_recording is cleared in restoreSystemState(), not in cancel(),
+    // to prevent the starting-recording race (see cancel() comment).
     if (m_stateMachine->isRunning()) {
-        cancel();
+        cancel();  // triggers restoreSystemState() via onStateChanged(Cancelled)
+    } else {
+        // 5WHY: Safety net — if cancel() wasn't called (FSM already terminal
+        // or never started), restore system state here so the device is not
+        // left in capture mode after object teardown.
+        restoreSystemState();
     }
-    platformSetKeepAwake(false);
-    // 5WHY: Safety net — if cancel() or the terminal-state handlers didn't
-    // restore system state, disable focus mode here so subsequent app usage
-    // isn't affected by the capture's DND/brightness changes.
-    restoreSystemState();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -104,16 +197,32 @@ QString CaptureOrchestrator::captureBasePath() {
     // Documents/NetDiagnostics/ — co-locating Capture output there
     // makes all diagnostic evidence discoverable in one place via Files.app.
     // Desktop: AppDataLocation; iOS: DocumentsLocation (matched to Logger.cpp).
+    //
+    // 5WHY: PLATFORM_IOS (not PLATFORM_MOBILE) is used here because iOS and
+    // Android genuinely differ on this path — iOS must use DocumentsLocation
+    // for Files.app discoverability, while Android uses AppDataLocation.
+    // The file's #error guard ensures the #else branch only hits Android.
+    //
+    // 5WHY: Called twice during session startup.  Cache in a static local —
+    // the writable location never changes during the app's lifetime.
+    static QString path;
+    if (path.isEmpty()) {
 #if defined(PLATFORM_IOS)
-    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        path = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
 #else
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 #endif
+    }
+    return path;
 }
 
 void CaptureOrchestrator::failCapture(const QString& errorCode, const QString& message) {
-    emit captureFailed(errorCode, message);
+    // 5WHY: Transition FSM FIRST so onStateChanged(Failed) runs
+    // restoreSystemState() BEFORE the captureFailed signal fires.
+    // A QML handler reading captureOrchestrator.state synchronously
+    // from captureFailed would otherwise see the pre-Failed state.
     m_stateMachine->transitionTo(CaptureState::Failed);
+    emit captureFailed(errorCode, message);
 }
 
 void CaptureOrchestrator::requestModeSelection() {
@@ -155,7 +264,6 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     m_captureMode = captureMode;
     m_diagUrl = diagUrl.trimmed();
     m_recording = (captureMode == RecordingOnly || captureMode == Both);
-    m_doScreenshot = (captureMode == ScreenshotOnly || captureMode == Both);
     m_currentStep = 0;
     m_captureCount = 0;
     m_sessionDir.clear();
@@ -163,6 +271,13 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     // "Recording saved: ...") would be briefly visible in the QML overlay until
     // the first onStateChanged → CountdownToStart sets a new action.  Clear it
     // at the start so the UI shows an empty state until the new action is set.
+    // 5WHY: If the previous session was cancelled during OpenReport before the
+    // safety timeout fired, m_waitingForReportPreview was left true — a new
+    // session reaching OpenReport would save a second safety timeout while the
+    // stale one was still pending, allowing the stale timer to prematurely
+    // advance the new session.  Reset it so each session starts with a clean
+    // report-preview wait state.
+    m_waitingForReportPreview = false;
     m_elapsed.start();
 
     // Build and cache the scenario once, filtered by capture mode
@@ -192,16 +307,22 @@ void CaptureOrchestrator::cancel() {
         m_pollTimer->deleteLater();
         m_pollTimer = nullptr;
     }
+    // 5WHY: If cancel is called during OpenReport, m_waitingForReportPreview
+    // was left true.  The NavigationAdapter's 500ms deferred timer would still
+    // fire reportPreviewReady → onReportPreviewReady → schedule a 1s-delayed
+    // executeNextStep with a stale FSM state.  Reset it so the stale callback
+    // returns immediately (its guard checks this flag first).
+    m_waitingForReportPreview = false;
 
-    // 5WHY: platformStopRecording(nullptr) initiates an async stop —
-    // after it returns, platformIsRecording() is already false (the
-    // atomic is flipped), so the destructor's safety net is moot.
-    // Clear m_recording immediately so the flag doesn't leak into
-    // the next capture session.
+    // 5WHY: platformStopRecording(nullptr) initiates an async stop.
+    // Do NOT clear m_recording here — if the recording hasn't started yet
+    // (e.g. cancel during StartingRecording, before the platform callback
+    // fires), the recording may start after this guard and would never be
+    // stopped.  restoreSystemState() is the single point that clears
+    // m_recording AFTER its own safety-net force-stop check.
     if (m_recording && platformIsRecording()) {
         platformStopRecording(nullptr);
     }
-    m_recording = false;
 
     // Stop any in-progress scroll
     m_scrollCtrl->cancel();
@@ -215,8 +336,10 @@ void CaptureOrchestrator::cancel() {
     // terminal handlers will disable keep-awake.
     bool didCancel = m_stateMachine->transitionTo(CaptureState::Cancelled);
     if (didCancel) {
-        platformSetKeepAwake(false);
-        restoreSystemState();
+        // 5WHY: restoreSystemState() is called in onStateChanged(Cancelled)
+        // (line ~410) — the transitionTo above triggers it synchronously.
+        // Calling it here too would invoke platformUnlockOrientation /
+        // platformDisableFocusMode twice (JNI round-trips and warnings).
         emit captureCancelled();
     }
     // If transition was rejected, the FSM stays in its current state and
@@ -246,10 +369,25 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         m_currentAction = QStringLiteral("Preparing to capture...");
         emit actionChanged(m_currentAction);
         platformSetKeepAwake(true);
-        platformEnableFocusMode();  // suppress notifications during capture
-        platformSetMaxBrightness(); // max screen brightness for clear recordings
-        platformLockOrientation();  // 5WHY: lock to current orientation per
-                                    // ScreenCapture_AutoDemo_Design §6
+        // 5WHY: DND is best-effort — on Android it requires the user to grant
+        // ACCESS_NOTIFICATION_POLICY permission in Settings.  If the permission
+        // wasn't granted, warn so the user isn't surprised when notifications
+        // interrupt the capture.  Don't fail the capture — DND is a nice-to-have.
+        if (!platformEnableFocusMode()) {
+            qWarning() << "CaptureOrchestrator: Focus/DND mode unavailable — "
+                           "notifications may interrupt the capture.  Grant "
+                           "notification policy access in system Settings.";
+        }
+        // 5WHY: All three platform functions now return bool — warn if any
+        // preflight setup fails so the user/developer knows why the recording
+        // is dim, the orientation shifts, or notifications interrupt capture.
+        if (!platformSetMaxBrightness()) {
+            qWarning() << "CaptureOrchestrator: cannot set max screen brightness";
+        }
+        if (!platformLockOrientation()) {
+            qWarning() << "CaptureOrchestrator: orientation lock unavailable "
+                           "— device rotation may disrupt the recording";
+        }
         // Safety net: if the QML preflight overlay fails to load or the
         // countdown signal is never emitted, auto-advance after 10s so the
         // capture doesn't hang forever. The state guard ensures this won't
@@ -260,7 +398,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // guard against only its own capture attempt.
         {
             int gen = ++m_countdownGen;
-            QTimer::singleShot(10000, this, [this, gen]() {
+            QTimer::singleShot(kCountdownSafetyMs, this, [this, gen]() {
                 if (m_countdownGen == gen
                     && m_stateMachine->state() == CaptureState::CountdownToStart) {
                     qWarning() << "CaptureOrchestrator: countdown safety timer fired — QML overlay may have failed to load";
@@ -301,7 +439,6 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::Completed:
-        platformSetKeepAwake(false);
         restoreSystemState();
         // Loader — onStateChanged sets source="CaptureResultSummary.qml"
         // which loads asynchronously, but captureCompleted fires in the
@@ -314,17 +451,16 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::Failed:
-        platformSetKeepAwake(false);
         restoreSystemState();
-        // specific error code the phase handler already emitted (e.g.
+        // Specific error code the phase handler already emitted (e.g.
         // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
         // restores system state; the specific error was already emitted.
         break;
 
     case CaptureState::Cancelled:
-        // Safety net: if cancel() couldn't disable keep-awake (e.g. the
-        // transition was triggered from a path other than cancel()), do it here.
-        platformSetKeepAwake(false);
+        // restoreSystemState() includes keepAwake(false) — no need for a
+        // separate call here even when the Cancelled transition was triggered
+        // from a non-cancel() path (e.g. FSM auto-transition on error).
         restoreSystemState();
         break;
 
@@ -348,21 +484,10 @@ void CaptureOrchestrator::runPreflight() {
     // ReplayKit and Android uses MediaProjection — neither needs ffmpeg.
     // Checking for ffmpeg on mobile platforms is a false negative that
     // blocks recording mode entirely.
-    if (m_recording) {
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
-        // Mobile platforms use native recording APIs — no ffmpeg check needed.
-        // platformStartRecording() reports any errors via its callback.
-#else
-        QString ffmpegPath = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
-        if (ffmpegPath.isEmpty()) {
-            failCapture(QStringLiteral("NO_FFMPEG"),
-                        QStringLiteral("ffmpeg is required for screen recording. "
-                                       "Install: sudo apt install ffmpeg"));
-            return;
-        }
-        // ffmpeg found — continue with disk space check
-#endif
-    }
+    // 5WHY: This file is only compiled on iOS/Android (CMakeLists.txt gates
+    // capture sources behind IOS OR ANDROID).  Mobile platforms use native
+    // recording APIs (ReplayKit / MediaProjection) — no ffmpeg check needed.
+    // platformStartRecording() reports any errors via its callback.
 
     finishPreflight();
 }
@@ -374,8 +499,7 @@ void CaptureOrchestrator::finishPreflight() {
     if (m_stateMachine->state() != CaptureState::Preflight) return;
 
     // Check disk space (>100MB) — use same base path as createSession()
-    QString preflightRoot = captureBasePath();
-    QStorageInfo storage(preflightRoot);
+    QStorageInfo storage(captureBasePath());
     if (storage.isValid() && storage.bytesAvailable() < 100 * 1024 * 1024) {
         failCapture(QStringLiteral("LOW_DISK"),
                     QStringLiteral("Less than 100MB disk space available."));
@@ -391,28 +515,36 @@ void CaptureOrchestrator::createSession() {
     case ScreenshotOnly: modeStr = QStringLiteral("Screenshot"); break;
     case RecordingOnly:  modeStr = QStringLiteral("Video");      break;
     case Both:           modeStr = QStringLiteral("Video+Screenshot"); break;
+    default:             modeStr = QStringLiteral("Unknown");    break;
     }
 
-    // 5WHY: iOS log files (debug.log, crash.log) live under
-    // Documents/NetDiagnostics/ — co-locating Capture output there
-    // makes all diagnostic evidence discoverable in one place via Files.app.
-    // Desktop: AppDataLocation; iOS: DocumentsLocation (matched to Logger.cpp).
     const QDateTime now = QDateTime::currentDateTime();
     QString ts = now.toString(QStringLiteral("yyyyMMdd_HHmmss_zzz"));
     QString base = captureBasePath();
     QString root = base + QStringLiteral("/NetDiagnostics/Capture");
     m_sessionDir = root + QStringLiteral("/") + ts;
 
-    // Create subdirectories per design §10 structure
-    if (!QDir().mkpath(m_sessionDir + QStringLiteral("/Screenshots"))
-        || !QDir().mkpath(m_sessionDir + QStringLiteral("/Videos"))
-        || !QDir().mkpath(m_sessionDir + QStringLiteral("/Logs"))
-        || !QDir().mkpath(m_sessionDir + QStringLiteral("/Metadata"))) {
+    // 5WHY: Four sequential mkpath() calls each re-verify the full parent
+    // chain (m_sessionDir with ~4 path components), causing ~12-16 redundant
+    // stat() syscalls on the capture startup hot path.  Create m_sessionDir
+    // once via mkpath, then create each subdirectory via mkdir (single stat).
+    QDir dir;
+    if (!dir.mkpath(m_sessionDir)
+        || !dir.mkdir(m_sessionDir + kSubdirScreenshots)
+        || !dir.mkdir(m_sessionDir + kSubdirVideos)
+        || !dir.mkdir(m_sessionDir + kSubdirLogs)
+        || !dir.mkdir(m_sessionDir + kSubdirMetadata)) {
         failCapture(QStringLiteral("STORAGE_ERROR"), QStringLiteral("Cannot create session directory"));
         return;
     }
 
     // Write initial manifest.json (in Metadata/ per design §10)
+    // 5WHY: QSysInfo::machineHostName() calls gethostname() (syscall),
+    // productType/Version may read /etc/os-release.  These are immutable
+    // for the process lifetime — cache in static locals.
+    static const QString s_hostName = QSysInfo::machineHostName();
+    static const QString s_osInfo   = QSysInfo::productType() + QStringLiteral(" ") + QSysInfo::productVersion();
+
     QJsonObject manifest;
     manifest["session_id"] = ts;
     manifest["capture_mode"] = modeStr;
@@ -420,11 +552,11 @@ void CaptureOrchestrator::createSession() {
     manifest["diag_url"] = safeUrl;
     manifest["started_at"] = now.toString(Qt::ISODate);
     manifest["status"] = "running";
-    manifest["device"] = QSysInfo::machineHostName();
-    manifest["os"] = QSysInfo::productType() + QStringLiteral(" ") + QSysInfo::productVersion();
+    manifest["device"] = s_hostName;
+    manifest["os"] = s_osInfo;
     manifest["captures"] = QJsonArray();
 
-    QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
+    QFile mf(m_sessionDir + kManifestRelPath);
     if (!mf.open(QIODevice::WriteOnly | QIODevice::Text)) {
         failCapture(QStringLiteral("STORAGE_ERROR"),
                     QStringLiteral("Cannot write session manifest"));
@@ -437,7 +569,7 @@ void CaptureOrchestrator::createSession() {
     }
 
     // Write execution log header
-    QFile logFile(m_sessionDir + QStringLiteral("/Logs/execution.log"));
+    QFile logFile(m_sessionDir + kExecLogRelPath);
     if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream logStream(&logFile);
         logStream << "=== Automated Capture Session ===\n"
@@ -445,6 +577,13 @@ void CaptureOrchestrator::createSession() {
                   << "Mode:     " << modeStr << "\n"
                   << "URL:      " << safeUrl << "\n"
                   << "Started:  " << now.toString(Qt::ISODate) << "\n\n";
+        // 5WHY: QTextStream buffers writes — operator<< failures are only
+        // detected by checking status() after the writes.  Without this check,
+        // a disk-full condition during header writing is silently swallowed
+        // (consistent with finalizeSession() which also checks stream status).
+        if (logStream.status() != QTextStream::Ok) {
+            qWarning() << "CaptureOrchestrator: failed to write execution log header";
+        }
     }
 
     m_currentAction = QStringLiteral("Session created: ") + m_sessionDir;
@@ -452,7 +591,7 @@ void CaptureOrchestrator::createSession() {
 }
 
 void CaptureOrchestrator::startPlatformRecording() {
-    QString recPath = m_sessionDir + QStringLiteral("/Videos/Capture_AutoDemo");
+    QString recPath = m_sessionDir + kSubdirVideos + QStringLiteral("/Capture_AutoDemo");
 
     m_currentAction = QStringLiteral("Starting screen recording...");
     emit actionChanged(m_currentAction);
@@ -496,18 +635,30 @@ void CaptureOrchestrator::finalizeSession() {
     // so finalizeSession only handles the success path.  The corrupt-manifest
     // fallback below is the only remaining failure path through this function.
     // Update manifest
-    QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
-    if (!mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
+    // 5WHY: Use the same atomic temp-file-then-rename pattern as
+    // appendToManifest().  A crash between resize(0) and write() in the
+    // old in-place approach left a zero-byte manifest — losing all
+    // journaled capture entries even though the PNG files were intact.
+    const QString manifestPath = m_sessionDir + kManifestRelPath;
+    QFile mf(manifestPath);
+    if (!mf.open(QIODevice::ReadOnly | QIODevice::Text)) {
         failCapture(QStringLiteral("MANIFEST_ERROR"),
                     QStringLiteral("Cannot open session manifest for finalization"));
         return;
     }
     QByteArray data = mf.readAll();
-    if (!mf.seek(0)) {
+    // 5WHY: readAll() returns whatever was readable — on a failing
+    // storage medium the returned data may be truncated without
+    // QFile signalling an error synchronously.  Check the file's
+    // error state so we don't silently finalize with partial data
+    // that happens to parse as valid-but-incomplete JSON.
+    if (mf.error() != QFile::NoError) {
         failCapture(QStringLiteral("MANIFEST_ERROR"),
-                    QStringLiteral("Cannot seek manifest for finalization"));
+                    QStringLiteral("Cannot read session manifest for finalization"));
         return;
     }
+    mf.close();  // release the file handle before rename
+
     QJsonDocument doc = QJsonDocument::fromJson(data);
     // 5WHY: just returning leaves FSM stuck in Finalizing forever.
     // Corrupt manifest means the session directory is compromised —
@@ -522,15 +673,15 @@ void CaptureOrchestrator::finalizeSession() {
     obj["status"] = QStringLiteral("completed");
     obj["total_captures"] = m_captureCount;
     obj["duration_s"] = elapsedSeconds();
-    mf.resize(0);
-    if (mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented)) == -1) {
+
+    if (!atomicWriteManifest(manifestPath, obj)) {
         failCapture(QStringLiteral("MANIFEST_ERROR"),
-                    QStringLiteral("Failed to write finalized manifest"));
+                    QStringLiteral("Cannot write finalized manifest"));
         return;
     }
 
     // Append to execution log
-    QFile logFile2(m_sessionDir + QStringLiteral("/Logs/execution.log"));
+    QFile logFile2(m_sessionDir + kExecLogRelPath);
     if (logFile2.open(QIODevice::Append | QIODevice::Text)) {
         QTextStream logStream2(&logFile2);
         logStream2 << "\n--- Session complete ---\n"
@@ -589,25 +740,13 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         ? QStringLiteral("Step %1").arg(stepIndex + 1)
         : step->description;
     emit actionChanged(m_currentAction);
-    emit stepChanged(stepIndex, m_totalSteps);
+    // 5WHY: executeNextStep() already emits stepChanged before calling us —
+    // emitting here too causes QML property bindings to re-evaluate twice
+    // per step, triggering flicker in any step-progress animation.
 
     // ── Capture-before: take screenshot before executing the action ──
-    if (step->captureBefore && m_doScreenshot) {
-        QString safeDesc = step->description;
-        safeDesc.replace(QLatin1Char(':'), QLatin1Char('-')); // Windows-safe
-        // 5WHY: m_captureCount is incremented AFTER building the filename.
-        // Using m_captureCount+1 (1-indexed) ensures the filename number
-        // matches the manifest seq field (also post-increment, 1-indexed).
-        QString filePath = m_sessionDir + QStringLiteral("/Screenshots/")
-            + QStringLiteral("%1").arg(m_captureCount + 1, 2, 10, QLatin1Char('0'))
-            + QStringLiteral("_") + safeDesc + QStringLiteral(".png");
-        if (platformCaptureScreenshot(filePath)) {
-            m_captureCount++;
-            emit captureCountChanged(m_captureCount);
-
-            // Update manifest
-            appendToManifest(step->description, filePath);
-        }
+    if (step->captureBefore && wantsScreenshot()) {
+        takeScreenshot(sanitizeFilename(step->description), step->description);
     }
 
     // ── Execute the action ──
@@ -625,57 +764,39 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
                     // Page didn't load — continue anyway (best effort)
                 }
                 // Schedule next step with a small delay for visual settle
-                m_delayTimer->disconnect();
-                connect(m_delayTimer, &QTimer::timeout, this, [this]() {
-                    executeNextStep();
-                });
-                m_delayTimer->start(m_recording ? 4000 : 500);  // longer delay for recording
+                scheduleStepAfter(m_recording ? 4000 : 500);
             });
         break;
     }
 
     case StepAction::WaitPageReady: {
         int timeout = step->param.isEmpty() ? 3000 : step->param.toInt();
-        m_delayTimer->disconnect();
-        connect(m_delayTimer, &QTimer::timeout, this, [this]() {
-            executeNextStep();
-        });
-        m_delayTimer->start(timeout);
+        scheduleStepAfter(timeout);
         break;
     }
 
     case StepAction::Capture: {
-        // 5WHY: RecordingOnly mode (m_doScreenshot=false) should NOT produce
-        // PNG files. The captureBefore path correctly guards with m_doScreenshot,
+        // 5WHY: RecordingOnly mode (wantsScreenshot()=false) should NOT produce
+        // PNG files. The captureBefore path correctly guards with wantsScreenshot(),
         // but explicit Capture steps had no guard — leaking ~10 screenshots per
         // recording-only session.
-        if (!m_doScreenshot) {
-            QTimer::singleShot(0, this, [this]() { executeNextStep(); });
+        if (!wantsScreenshot()) {
+            // 5WHY: consistent 100ms async deferral with Scroll/SetUrl/RunDiagnostic
+            // skip paths — avoids the stale-step infinite-recursion bug.
+            deferNextStep();
             break;
         }
         // 5WHY: step->param holds the filename label per StepAction enum comment
         // ("param = filename label"), but code was reading step->description
         // which is empty for Capture steps, producing filenames like "XX_.png".
-        QString label = step->param.isEmpty() ? step->description : step->param;
-        // 5WHY: description can contain ':' (e.g. "Diagnostics: run") which is
-        // illegal in Windows filenames. Replace with '-' for cross-platform safety.
-        label.replace(QLatin1Char(':'), QLatin1Char('-'));
-        // 5WHY: m_captureCount is incremented AFTER building the filename.
-        // Using m_captureCount+1 (1-indexed) ensures the filename number
-        // matches the manifest seq field (also post-increment, 1-indexed).
-        QString filePath = m_sessionDir + QStringLiteral("/Screenshots/")
-            + QStringLiteral("%1").arg(m_captureCount + 1, 2, 10, QLatin1Char('0'))
-            + QStringLiteral("_") + label + QStringLiteral(".png");
-        if (platformCaptureScreenshot(filePath)) {
-            m_captureCount++;
-            emit captureCountChanged(m_captureCount);
-            appendToManifest(label, filePath);
-        }
+        QString label = sanitizeFilename(
+            step->param.isEmpty() ? step->description : step->param);
+        takeScreenshot(label, label);
         // 5WHY: Calling executeNextStep() directly from inside executeStep()
         // before the outer executeNextStep() has incremented m_currentStep
         // causes infinite recursion — the same step is re-executed forever.
         // Schedule the next step asynchronously so m_currentStep++ runs first.
-        QTimer::singleShot(100, this, [this]() { executeNextStep(); });
+        deferNextStep();
         break;
     }
 
@@ -688,7 +809,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
             // onStepScrollFinished() will call executeNextStep()
         } else {
             // 5WHY: Same infinite-recursion fix as Capture above.
-            QTimer::singleShot(100, this, [this]() { executeNextStep(); });
+            deferNextStep();
         }
         break;
     }
@@ -698,7 +819,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
             m_appState->setTarget(step->param);
         }
         // 5WHY: Same infinite-recursion fix as Capture above.
-        QTimer::singleShot(100, this, [this]() { executeNextStep(); });
+        deferNextStep();
         break;
     }
 
@@ -716,7 +837,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
             m_appState->runDiagnostics();
         }
         // WaitDiagComplete follows immediately in the scenario
-        QTimer::singleShot(100, this, [this]() { executeNextStep(); });
+        deferNextStep();
         break;
     }
 
@@ -735,7 +856,10 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         auto elapsed = std::make_shared<int>(0);
         m_pollTimer->setInterval(500);
 
-        connect(m_pollTimer, &QTimer::timeout, this, [=]() mutable {
+        // 5WHY: Explicit capture list prevents accidental capture of future
+        // large locals added above this lambda in executeStep() (~200 lines).
+        connect(m_pollTimer, &QTimer::timeout, this,
+                [this, elapsed, timeout]() mutable {
             *elapsed += 500;
             int status = m_appState ? m_appState->runStatusInt() : 0;
 
@@ -744,7 +868,7 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
                 m_pollTimer->deleteLater();
                 m_pollTimer = nullptr;
                 // Small delay to let results render
-                QTimer::singleShot(1000, this, [this]() {
+                QTimer::singleShot(kPreviewRenderSettleMs, this, [this]() {
                     executeNextStep();
                 });
             } else if (*elapsed >= timeout) {
@@ -766,21 +890,44 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         int diagId = step->param.toInt();
         // First ensure we're on the diagnostic page
         m_navAdapter->switchToTab(1); // diagnostics tab
-        QTimer::singleShot(1500, this, [this, diagId]() {
+        // 5WHY: Generation-counter guard prevents the deferred navigation
+        // from firing after cancellation — if the user cancels during the
+        // 1500ms settle delay, the stale timer would otherwise open the
+        // diagnostic detail view on an aborted capture session.
+        int gen = m_countdownGen;
+        QTimer::singleShot(1500, this, [this, diagId, gen]() {
+            if (m_countdownGen != gen) return;
             m_navAdapter->openDiagnosticDetail(diagId);
-            QTimer::singleShot(1000, this, [this]() {
-                executeNextStep();
-            });
+            scheduleStepAfter(kPreviewRenderSettleMs);
         });
         break;
     }
 
     case StepAction::OpenReport: {
         m_navAdapter->openReportPreview();
-        // Best-effort — report preview may not be directly accessible
-        QTimer::singleShot(2000, this, [this]() {
-            executeNextStep();
-        });
+        m_waitingForReportPreview = true;
+        // 5WHY: openReportPreview() is async — it defers openPreview() by
+        // 500ms for the StackView transition to settle.  The old code used a
+        // fixed 2000ms timer that advanced regardless of whether the preview
+        // actually opened, silently producing wrong screenshots on failure.
+        // Now we wait for the reportPreviewReady(bool) signal (connected in
+        // the constructor).  If the signal never fires (e.g. QML refactoring
+        // removes the signal emission), the 5s safety timeout advances the
+        // scenario so the capture doesn't hang forever.
+        // 5WHY: capture the current m_countdownGen (incremented once per
+        // CountdownToStart) so a stale safety timeout from a cancelled
+        // session cannot prematurely advance a new session that reaches
+        // OpenReport.
+        {
+            int gen = m_countdownGen;
+            QTimer::singleShot(kReportPreviewTimeoutMs, this, [this, gen]() {
+                if (m_waitingForReportPreview && m_countdownGen == gen) {
+                    m_waitingForReportPreview = false;
+                    qWarning() << "CaptureOrchestrator: report preview timed out — advancing anyway";
+                    executeNextStep();
+                }
+            });
+        }
         break;
     }
 
@@ -795,6 +942,38 @@ void CaptureOrchestrator::onStepScrollFinished() {
     executeNextStep();
 }
 
+void CaptureOrchestrator::onReportPreviewReady(bool ok) {
+    if (!m_waitingForReportPreview) return;
+    m_waitingForReportPreview = false;
+
+    if (!ok) {
+        qWarning() << "CaptureOrchestrator: report preview failed to open — "
+                       "screenshot may capture the wrong page";
+    }
+
+    // 5WHY: Small settle delay (1s) after the preview opens so the QML
+    // overlay has time to render before the next Capture step screenshots
+    // it.  The WaitPageReady step that follows OpenReport in the scenario
+    // provides additional settle time.
+    QTimer::singleShot(kPreviewRenderSettleMs, this, [this]() {
+        executeNextStep();
+    });
+}
+
+// 5WHY: Navigate and WaitPageReady both duplicated the same 3-line ritual:
+// targeted-disconnect(m_delayTimer, timeout, this), then connect a lambda
+// that calls executeNextStep(), then start(ms).  Any new step needing a
+// delayed advance would copy this a third time.  Extract once.
+void CaptureOrchestrator::scheduleStepAfter(int ms) {
+    // 5WHY: Permanent connection established in constructor (line ~153).
+    // No need to disconnect+reconnect on every call — just start the timer.
+    m_delayTimer->start(ms);
+}
+
+void CaptureOrchestrator::deferNextStep() {
+    QTimer::singleShot(kStepDeferMs, this, [this]() { executeNextStep(); });
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═════════════════════════════════════════════════════════════════════════════
@@ -803,24 +982,84 @@ QString CaptureOrchestrator::sessionDir() const {
     return m_sessionDir;
 }
 
+// 5WHY: captureBefore and Capture blocks in executeStep() duplicated ~15 lines
+// of identical screenshot-path logic.  The m_captureCount+1 off-by-one fix
+// had to be applied identically in both places.  Extract once — the caller
+// handles label selection and step-advance timing; this handles the common
+// mechanics.
+bool CaptureOrchestrator::takeScreenshot(const QString& sanitizedLabel,
+                                          const QString& manifestDesc) {
+    QString filePath = m_sessionDir + kSubdirScreenshots
+        + QStringLiteral("/%1").arg(m_captureCount + 1, 3, 10, QLatin1Char('0'))
+        + QStringLiteral("_") + sanitizedLabel + QStringLiteral(".png");
+    if (!platformCaptureScreenshot(filePath))
+        return false;
+    m_captureCount++;
+    emit captureCountChanged(m_captureCount);
+    appendToManifest(manifestDesc, filePath);
+    return true;
+}
+
+// 5WHY: finalizeSession() and appendToManifest() each duplicated a ~14-line
+// "write JSON to .tmp file, close, then atomic rename" block.  Extract once
+// so a fix (e.g. adding fsync before rename for non-journaling filesystems)
+// applies uniformly.  Returns true on success; caller handles error reporting.
+static bool atomicWriteManifest(const QString& manifestPath, const QJsonObject& obj) {
+    const QString tmpPath = manifestPath + QStringLiteral(".tmp");
+    QFile tmpFile(tmpPath);
+    if (!tmpFile.open(QIODevice::WriteOnly | QIODevice::Text))
+        return false;
+    if (tmpFile.write(QJsonDocument(obj).toJson(QJsonDocument::Indented)) == -1) {
+        tmpFile.remove();
+        return false;
+    }
+    tmpFile.close();
+    // 5WHY: QFile::rename() on POSIX is an atomic rename(2) — the destination
+    // is atomically replaced.  If the app crashes before this line, only the
+    // .tmp file is lost; the original manifest is untouched.
+    if (!tmpFile.rename(manifestPath)) {
+        tmpFile.remove();  // clean up orphaned temp file
+        return false;
+    }
+    return true;
+}
+
 void CaptureOrchestrator::appendToManifest(const QString& description,
                                             const QString& filePath) {
-    // Read current manifest, append capture entry, write back
-    QFile mf(m_sessionDir + QStringLiteral("/Metadata/manifest.json"));
-    if (!mf.open(QIODevice::ReadWrite | QIODevice::Text)) {
+    // 5WHY: This performs a full read-parse-modify-truncate-write cycle per
+    // capture entry — an N+1 I/O pattern.  For a 20-screenshot session this is
+    // 20 full manifest rewrites.  Deliberately NOT batched in memory: the
+    // manifest acts as a write-ahead journal.  Each entry is persisted
+    // immediately so that if the app crashes mid-capture (e.g. the user is
+    // capturing evidence of a crash), partial results — all screenshots taken
+    // before the crash — are already recorded in the manifest.  Batching would
+    // lose all evidence if the crash occurs before finalizeSession().
+    //
+    // 5WHY: The old code opened the manifest ReadWrite, called resize(0), then
+    // write().  A crash between resize(0) and write() left a zero-byte file —
+    // losing ALL previously journaled entries even though the PNG files were
+    // intact.  Now we write the new content to a temp file and rename it over
+    // the original.  On POSIX (Linux/macOS/iOS), rename() is atomic — the
+    // destination is either the old or new content, never a partial file.
+    // On Windows, QFile::rename() may fall back to copy+delete, but capture
+    // happens on mobile/desktop where POSIX atomic rename is available.
+    const QString manifestPath = m_sessionDir + kManifestRelPath;
+    QFile mf(manifestPath);
+    if (!mf.open(QIODevice::ReadOnly | QIODevice::Text)) {
         qWarning() << "CaptureOrchestrator: cannot open manifest for append, capture entry lost";
         return;
     }
 
     QByteArray data = mf.readAll();
-    // 5WHY: readAll() leaves the file position at EOF. resize(0) truncates
-    // the file but does NOT reset the file offset, so a subsequent write()
-    // would start at the stale EOF position — creating a sparse file with
-    // leading null bytes that corrupts the manifest.  Seek back to 0 first.
-    if (!mf.seek(0)) {
-        qWarning() << "CaptureOrchestrator: cannot seek manifest, capture entry lost";
+    // 5WHY: Check the file error state after readAll — consistent with
+    // finalizeSession().  A failing storage medium may return truncated
+    // data that happens to parse as valid-but-incomplete JSON.
+    if (mf.error() != QFile::NoError) {
+        qWarning() << "CaptureOrchestrator: read error on manifest, cannot append capture entry";
         return;
     }
+    mf.close();  // release the file handle before rename
+
     QJsonDocument doc = QJsonDocument::fromJson(data);
     if (doc.isNull()) {
         qWarning() << "CaptureOrchestrator: manifest is corrupt, cannot append capture entry";
@@ -830,19 +1069,17 @@ void CaptureOrchestrator::appendToManifest(const QString& description,
     QJsonArray captures = obj["captures"].toArray();
 
     QJsonObject entry;
-    entry["seq"] = QStringLiteral("%1").arg(m_captureCount, 2, 10, QLatin1Char('0'));
+    entry["seq"] = QStringLiteral("%1").arg(m_captureCount, 3, 10, QLatin1Char('0'));
     entry["description"] = description;
-    entry["file"] = QFileInfo(filePath).fileName();
-    entry["size"] = QFileInfo(filePath).size();
+    QFileInfo fi(filePath);
+    entry["file"] = fi.fileName();
+    entry["size"] = fi.size();
     entry["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
     captures.append(entry);
 
     obj["captures"] = captures;
-    if (!mf.resize(0)) {
-        qWarning() << "CaptureOrchestrator: cannot resize manifest, capture entry may be lost";
-        return;
-    }
-    if (mf.write(QJsonDocument(obj).toJson(QJsonDocument::Indented)) == -1) {
+
+    if (!atomicWriteManifest(manifestPath, obj)) {
         qWarning() << "CaptureOrchestrator: cannot write manifest, capture entry lost";
         return;
     }

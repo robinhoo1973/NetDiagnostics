@@ -133,7 +133,11 @@ Rectangle {
                 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: captureOrchestrator.openFocusSettings()
+                    onClicked: {
+                        if (captureOrchestrator) {
+                            captureOrchestrator.openFocusSettings()
+                        }
+                    }
                 }
             }
             // Done / Dismiss button

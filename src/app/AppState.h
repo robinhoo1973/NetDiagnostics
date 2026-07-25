@@ -303,7 +303,7 @@ private:
 
     // CaptureService: automated screenshot capture during diagnostics.
     // Owned by AppState; exposed to QML via captureService() accessor.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     CaptureService* m_captureService = nullptr;
     // CaptureOrchestrator: full automated capture workflow (navigation + diag + scroll).
     // Owned by AppState; exposed to QML via captureOrchestrator() accessor.

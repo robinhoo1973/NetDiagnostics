@@ -1,4 +1,4 @@
-﻿#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
+﻿#ifdef PLATFORM_MOBILE
 #include <QGuiApplication>
 #else
 #include <QApplication>
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
     bool hadCrash = CrashHandler::checkForPreviousCrash();
 
     qputenv("QSG_RENDER_LOOP", "basic");
-#if(defined(PLATFORM_IOS)||defined(PLATFORM_ANDROID))
+#ifdef PLATFORM_MOBILE
     QGuiApplication app(argc, argv);
 #else
     QApplication app(argc, argv);
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
     // which is falsy in QML.  On desktop, these files are not compiled,
     // so the #if guards prevent linker errors for CaptureOrchestrator
     // member functions while keeping context properties defined.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
     engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
 #else
@@ -207,7 +207,8 @@ int main(int argc, char *argv[])
     QObject::connect(&engine, &QQmlApplicationEngine::warnings,
         &engine, [](const QList<QQmlError>& warnings) {
             for (const auto& w : warnings)
-                STARTUP_LOG("QML WARNING: %s", w.toString().toUtf8().constData());
+                QByteArray warnUtf8 = w.toString().toUtf8();
+                STARTUP_LOG("QML WARNING: %s", warnUtf8.constData());
         });
 
     const QUrl url("qrc:/qml/main.qml");
@@ -252,7 +253,8 @@ int main(int argc, char *argv[])
     // immediately when object creation fails during engine.load().
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, [url](const QUrl &objUrl) {
-            STARTUP_LOG("QML FATAL: object creation failed for %s", objUrl.toString().toUtf8().constData());
+            QByteArray fatalUtf8 = objUrl.toString().toUtf8();
+            STARTUP_LOG("QML FATAL: object creation failed for %s", fatalUtf8.constData());
             if (url == objUrl)
                 QCoreApplication::exit(-1);
         },
@@ -273,7 +275,7 @@ int main(int argc, char *argv[])
         // report the root cause instead of just seeing a flash-and-quit.
         STARTUP_LOG("FATAL: QML engine failed to load %s — no root objects", "qrc:/qml/main.qml");
         qCritical() << "QML engine failed to load" << url;
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
         // 5WHY: On iOS/Android there is no QMessageBox (QtWidgets is
         // excluded on mobile).  Do NOT use qFatal() here — it calls abort()
         // which produces a SIGABRT crash report in TestFlight/Play Console,
@@ -319,7 +321,7 @@ int main(int argc, char *argv[])
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
 
     // ── Wire AppContent to CaptureOrchestrator for automated navigation ──
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#if defined(PLATFORM_MOBILE)
     if (auto* orch = appState.captureOrchestrator()) {
         QObject* appContent = engine.rootObjects().first()
             ? engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("appContent"))
