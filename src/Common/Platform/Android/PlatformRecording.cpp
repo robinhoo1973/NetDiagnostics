@@ -28,6 +28,7 @@
 #include <QFileInfo>
 #include <QDir>
 #include <QDebug>
+#include <atomic>
 
 // QtAndroidPrivate is available as a private header when building for Android
 // with Qt 6.3+.  Guard with __ANDROID__ and a runtime availability check.
@@ -40,7 +41,7 @@
 // Static state
 // ═══════════════════════════════════════════════════════════════════════════
 static bool            s_recording   = false;
-static bool            s_stopping    = false;
+static std::atomic<bool> s_stopping {false};
 static QString         s_outputPath;
 static RecordingCallback s_startCallback = nullptr;
 // 5WHY: MediaProjection and VirtualDisplay are JNI global refs that must
@@ -272,7 +273,13 @@ void platformStopRecording(RecordingCallback callback) {
         return;
     }
 
-    s_stopping = true;
+    // 5WHY: Atomic guard prevents double-stop from cancel() +
+    // restoreSystemState() racing.  The first call proceeds with
+    // stop+release; the second returns immediately.
+    if (s_stopping.exchange(true)) {
+        if (callback) callback(false, QStringLiteral("Stop already in progress"));
+        return;
+    }
 
     if (s_mediaRecorder.isValid()) {
         try {

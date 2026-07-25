@@ -117,32 +117,57 @@ bool platformRestoreBrightness() {
 static UIInterfaceOrientation s_savedOrientation = (UIInterfaceOrientation)-1;
 
 bool platformLockOrientation() {
-    [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-
-    UIDeviceOrientation currentOrientation = [UIDevice currentDevice].orientation;
-
-    // 5WHY: If the device is flat or sensors haven't calibrated, the
-    // orientation may be Unknown.  Fall back to the status bar orientation
-    // which reflects the current UI layout.
-    if (currentOrientation == UIDeviceOrientationUnknown) {
-        switch ([UIApplication sharedApplication].statusBarOrientation) {
-            case UIInterfaceOrientationPortrait:
-                currentOrientation = UIDeviceOrientationPortrait; break;
-            case UIInterfaceOrientationLandscapeLeft:
-                currentOrientation = UIDeviceOrientationLandscapeLeft; break;
-            case UIInterfaceOrientationLandscapeRight:
-                currentOrientation = UIDeviceOrientationLandscapeRight; break;
-            case UIInterfaceOrientationPortraitUpsideDown:
-                currentOrientation = UIDeviceOrientationPortraitUpsideDown; break;
-            default:
-                currentOrientation = UIDeviceOrientationPortrait; break;
-        }
-    }
+    __block UIDeviceOrientation currentOrientation = UIDeviceOrientationUnknown;
 
     runOnMainThread(^{
+        // 5WHY: beginGeneratingDeviceOrientationNotifications is REQUIRED
+        // before reading [UIDevice currentDevice].orientation — otherwise
+        // the value is always UIDeviceOrientationUnknown.  Must be on the
+        // main thread per Apple docs (UIDevice is not thread-safe).
+        [[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
+
+        currentOrientation = [UIDevice currentDevice].orientation;
+
+        // 5WHY: If the device is flat or sensors haven't calibrated, the
+        // orientation may be Unknown.  Fall back to the interface orientation
+        // from the window scene (iOS 13+) or status bar (iOS 12 fallback).
+        if (currentOrientation == UIDeviceOrientationUnknown) {
+            UIInterfaceOrientation uiOrientation = UIInterfaceOrientationPortrait;
+#if defined(__IPHONE_13_0)
+            if (@available(iOS 13.0, *)) {
+                // 5WHY: statusBarOrientation was deprecated in iOS 13.
+                // Use windowScene.interfaceOrientation instead.
+                UIWindowScene* scene = (UIWindowScene*)[UIApplication sharedApplication]
+                    .connectedScenes.anyObject;
+                if (scene) {
+                    uiOrientation = scene.interfaceOrientation;
+                }
+            } else
+#endif
+            {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+                uiOrientation = [UIApplication sharedApplication].statusBarOrientation;
+#pragma clang diagnostic pop
+            }
+            switch (uiOrientation) {
+                case UIInterfaceOrientationPortrait:
+                    currentOrientation = UIDeviceOrientationPortrait; break;
+                case UIInterfaceOrientationLandscapeLeft:
+                    currentOrientation = UIDeviceOrientationLandscapeLeft; break;
+                case UIInterfaceOrientationLandscapeRight:
+                    currentOrientation = UIDeviceOrientationLandscapeRight; break;
+                case UIInterfaceOrientationPortraitUpsideDown:
+                    currentOrientation = UIDeviceOrientationPortraitUpsideDown; break;
+                default:
+                    currentOrientation = UIDeviceOrientationPortrait; break;
+            }
+        }
+
         if (s_savedOrientation == (UIInterfaceOrientation)-1) {
             s_savedOrientation = (UIInterfaceOrientation)currentOrientation;
         }
+        // 5WHY: Force the device orientation via KVO.
         [[UIDevice currentDevice] setValue:@(currentOrientation) forKey:@"orientation"];
     });
 
@@ -150,14 +175,13 @@ bool platformLockOrientation() {
 }
 
 bool platformUnlockOrientation() {
-    if (s_savedOrientation == (UIInterfaceOrientation)-1) return false;
-
     runOnMainThread(^{
+        // 5WHY: Must read s_savedOrientation under the main-thread
+        // serialisation to avoid a data race with platformLockOrientation.
+        if (s_savedOrientation == (UIInterfaceOrientation)-1) return;
+
         [[UIDevice currentDevice] setValue:@(UIDeviceOrientationUnknown) forKey:@"orientation"];
         s_savedOrientation = (UIInterfaceOrientation)-1;
-    });
-
-    dispatch_async(dispatch_get_main_queue(), ^{
         [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
     });
 
