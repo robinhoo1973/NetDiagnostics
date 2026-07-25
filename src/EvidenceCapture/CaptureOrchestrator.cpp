@@ -628,6 +628,9 @@ void CaptureOrchestrator::stopPlatformRecording() {
     });
 }
 
+// Forward declaration: defined after appendToManifest (file-scope static).
+static bool atomicWriteManifest(const QString& manifestPath, const QJsonObject& obj);
+
 void CaptureOrchestrator::finalizeSession() {
     // 5WHY: the success parameter was dead code after stopPlatformRecording
     // refactored to transition directly to Failed on error. Recording stop
