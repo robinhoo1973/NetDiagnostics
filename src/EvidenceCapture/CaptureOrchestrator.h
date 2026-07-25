@@ -94,6 +94,11 @@ public:
     Q_PROPERTY(bool needsFocusModeSetup READ needsFocusModeSetup NOTIFY needsFocusModeSetupChanged)
     bool needsFocusModeSetup() const;
 
+    // iOS supports simultaneous recording+screenshot via ReplayKit.
+    // Android's MediaProjection cannot screenshot during recording.
+    Q_PROPERTY(bool supportsBothModes READ supportsBothModes CONSTANT)
+    bool supportsBothModes() const;
+
 signals:
     void needsFocusModeSetupChanged();
     void stateChanged();

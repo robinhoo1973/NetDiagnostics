@@ -232,6 +232,18 @@ bool CaptureOrchestrator::needsFocusModeSetup() const {
 #endif
 }
 
+bool CaptureOrchestrator::supportsBothModes() const {
+    // 5WHY: iOS ReplayKit delivers CMSampleBuffer frames — screenshots can
+    // be extracted from the recording stream.  Android's MediaProjection
+    // captures the screen into a Surface; taking a separate QScreen::grabWindow
+    // during recording is not supported (contention on the display pipeline).
+#if defined(PLATFORM_IOS)
+    return true;
+#else
+    return false;
+#endif
+}
+
 QString CaptureOrchestrator::captureBasePath() {
     // 5WHY: iOS log files (debug.log, crash.log) live under
     // Documents/NetDiagnostics/ — co-locating Capture output there

@@ -17,17 +17,34 @@ Rectangle {
     signal countdownFinished()
     signal cancelled()
 
-    property int countdown: (captureOrchestrator && captureOrchestrator.needsFocusModeSetup) ? 5 : 3
+    // 5WHY: On iOS (needsFocusModeSetup=true), the user must manually enable
+    // Focus/DND mode before capture can begin.  The "I'm Ready" button sets
+    // this flag; until then, the countdown is hidden and the timer is paused.
+    property bool focusConfirmed: false
+    // Countdown is ready when either focus setup isn't needed (Android/Desktop)
+    // OR the user has confirmed they've enabled it (iOS).
+    readonly property bool readyForCountdown: {
+        if (!captureOrchestrator || !captureOrchestrator.needsFocusModeSetup) return true
+        return focusConfirmed
+    }
+    onFocusConfirmedChanged: {
+        if (focusConfirmed && running) {
+            // User tapped "I'm Ready" — begin countdown immediately
+            countdown = 5
+            countdownTimer.restart()
+        }
+    }
+
+    property int countdown: 5
     property bool running: false
 
     function start() {
-        // 5WHY: When Focus/DND mode needs manual setup (iOS), extend the
-        // countdown from 3s to 5s to give the user time to read the DND hint
-        // and tap to open Settings.  The 3s countdown was too short for the
-        // user to notice and act on the hint before capture began.
-        countdown = (captureOrchestrator && captureOrchestrator.needsFocusModeSetup) ? 5 : 3
+        countdown = 5
+        focusConfirmed = false
         running = true
-        countdownTimer.restart()
+        if (readyForCountdown) {
+            countdownTimer.restart()
+        }
     }
     function stop() {
         running = false
@@ -109,18 +126,55 @@ Rectangle {
                     // platformEnableFocusMode() can succeed, showing the hint when
                     // DND is ON is misleading.  Use needsFocusModeSetup from the
                     // orchestrator — iOS always true, Android conditional.
-                    Label {
+                    // 5WHY: iOS Focus/DND mode setup requires manual user action.
+                    // Show a prominent guide + "I've enabled Focus mode" button
+                    // that the user must tap BEFORE the countdown begins.  Without
+                    // this, the 3-5s countdown starts while the user is still
+                    // reading the hint — they have no time to act.
+                    Rectangle {
                         visible: captureOrchestrator ? captureOrchestrator.needsFocusModeSetup : false
-                        text: "• Enable Do Not Disturb mode  (tap to open Settings)"
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
-                        color: T.ThemeEngine.cyan
-                        font.underline: true
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (captureOrchestrator) {
-                                    captureOrchestrator.openFocusSettings()
+                        Layout.fillWidth: true; implicitHeight: focusCol.implicitHeight + 20; radius: 12
+                        color: Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
+                        border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.25) }
+                        ColumnLayout {
+                            id: focusCol
+                            anchors { fill: parent; margins: 12 }
+                            spacing: 8
+                            Label {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: "⚠️ Focus / Do Not Disturb must be enabled manually on this device.\n\n1. Tap below to open Settings → Focus\n2. Enable any Focus mode (e.g. Do Not Disturb)\n3. Return here and tap 'I\\'m Ready'"
+                                font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
+                                color: T.ThemeEngine.textSecondary
+                            }
+                            RowLayout { spacing: 8
+                                Rectangle {
+                                    Layout.fillWidth: true; implicitHeight: 36; radius: 8
+                                    color: Qt.alpha(T.ThemeEngine.cyan, 0.12)
+                                    border { width: 1; color: T.ThemeEngine.cyan }
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "Open Settings"
+                                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
+                                        color: T.ThemeEngine.cyan
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                        onClicked: { if (captureOrchestrator) captureOrchestrator.openFocusSettings() }
+                                    }
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true; implicitHeight: 36; radius: 8
+                                    color: T.ThemeEngine.cyan
+                                    Label {
+                                        anchors.centerIn: parent
+                                        text: "✓ I'm Ready"
+                                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
+                                        color: "#0F172A"
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.focusConfirmed = true
+                                    }
                                 }
                             }
                         }
@@ -129,13 +183,14 @@ Rectangle {
                     Label { text: "• Estimated time: ~45 seconds"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
                 }
 
-                // Big countdown number
+                // Big countdown number (hidden until focus is confirmed on iOS)
                 // 5WHY: Behavior on text with NumberAnimation doesn't work —
                 // NumberAnimation operates on numeric properties but text is a
                 // string.  QML silently ignores this.  Use opacity transition
                 // instead to create a brief fade between countdown values.
                 Label {
                     Layout.alignment: Qt.AlignHCenter
+                    visible: root.readyForCountdown
                     text: root.countdown
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 64
                     font.weight: Font.Bold; color: T.ThemeEngine.cyan
@@ -144,6 +199,7 @@ Rectangle {
                 }
 
                 Rectangle {
+                    visible: root.readyForCountdown
                     Layout.fillWidth: true; implicitHeight: 44; radius: 12
                     color: "transparent"
                     border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.3) }

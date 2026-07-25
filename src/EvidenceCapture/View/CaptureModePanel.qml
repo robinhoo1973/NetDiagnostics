@@ -17,16 +17,16 @@ Rectangle {
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.85)
     z: 2000
 
-    // 5WHY: Was a single selectedMode int with 3 radio-button options
-    // (ScreenshotOnly, RecordingOnly, Both).  "Both" was the union of the
-    // other two — semantically redundant and confusing.  Use independent
-    // checkboxes: the user can freely combine Screenshots + Recording.
+    // 5WHY: iOS ReplayKit supports simultaneous recording+screenshot (Both mode)
+    // so the user can independently toggle Screenshots and Recording via checkboxes.
+    // Android's MediaProjection cannot take screenshots during recording — the user
+    // must choose ONE mode via radio buttons.
     property bool wantsScreenshot: true
     property bool wantsRecording: true
     property string diagUrl: appState.target || "https://httpbin.org"
 
-    // Compute the capture mode int from checkbox state.
-    // 0=ScreenshotOnly, 1=RecordingOnly, 2=Both
+    // Compute the capture mode int from checkbox/radio state.
+    // 0=ScreenshotOnly, 1=RecordingOnly, 2=Both (iOS only)
     readonly property int computedMode: (wantsScreenshot && wantsRecording) ? 2
                                       : wantsScreenshot ? 0
                                       : wantsRecording ? 1
@@ -131,11 +131,20 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.wantsScreenshot = !root.wantsScreenshot
+                        onClicked: {
+                            // 5WHY: On Android (supportsBothModes=false), the two modes
+                            // are mutually exclusive — selecting one deselects the other.
+                            if (!captureOrchestrator.supportsBothModes) {
+                                root.wantsScreenshot = !root.wantsScreenshot
+                                if (root.wantsScreenshot) root.wantsRecording = false
+                            } else {
+                                root.wantsScreenshot = !root.wantsScreenshot
+                            }
+                        }
                     }
                 }
 
-                // Recording checkbox
+                // Recording checkbox (or radio on Android)
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: 52; radius: 12
                     color: root.wantsRecording
@@ -188,14 +197,21 @@ Rectangle {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.wantsRecording = !root.wantsRecording
+                        onClicked: {
+                            if (!captureOrchestrator.supportsBothModes) {
+                                root.wantsRecording = !root.wantsRecording
+                                if (root.wantsRecording) root.wantsScreenshot = false
+                            } else {
+                                root.wantsRecording = !root.wantsRecording
+                            }
+                        }
                     }
                 }
             }
 
-            // Both-selected indicator
+            // Both-selected indicator (iOS only — Android doesn't support Both)
             Label {
-                visible: root.computedMode === 2
+                visible: root.computedMode === 2 && captureOrchestrator.supportsBothModes
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: "📸+🎥  Both modes enabled — recommended for complete evidence"
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 10
