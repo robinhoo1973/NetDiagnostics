@@ -19,7 +19,10 @@
 // to diagnose (no console access without a Mac), STARTUP_LOG compiled to
 // nothing.  Always enable it on iOS so the app writes a startup log the
 // user can retrieve via Files.app (see DocumentsLocation routing below).
-#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
+// 5WHY (Android): Same problem — Release builds have no PC connectivity
+// for logcat, and crashes during QML startup leave zero diagnostic trail.
+// Enable on all mobile platforms unconditionally.
+#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 
 #include <QFile>
 #include <QTextStream>

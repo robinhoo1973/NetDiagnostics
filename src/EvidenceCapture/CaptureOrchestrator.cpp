@@ -59,7 +59,14 @@ void CaptureOrchestrator::restoreSystemState() {
     if (!platformDisableFocusMode()) {
         qWarning() << "CaptureOrchestrator: focus-mode restore failed or was never enabled";
     }
-    emit needsFocusModeSetupChanged();
+    // 5WHY: needsFocusModeSetupChanged was emitted unconditionally in
+    // restoreSystemState(), which fires from terminal states (Completed,
+    // Failed, Cancelled).  At that point the preflight overlay (the only
+    // consumer of needsFocusModeSetup) is gone — the signal was a no-op.
+    // Only emit if the FSM is still running (overlays could be visible).
+    if (m_stateMachine->isRunning()) {
+        emit needsFocusModeSetupChanged();
+    }
 
     // 5WHY: Always force-stop the platform recording when m_recording is
     // true, even if platformIsRecording() returns false.  A cancel during
@@ -635,6 +642,10 @@ void CaptureOrchestrator::createSession() {
     }
 
     // Write execution log header
+    // 5WHY: open() failure was silently ignored — if the log file cannot be
+    // created (disk full, permissions, path too long), the capture proceeded
+    // with no execution log and no warning.  Log a warning so the developer
+    // can diagnose why the execution log is missing from the session directory.
     QFile logFile(m_sessionDir + kExecLogRelPath);
     if (logFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
         QTextStream logStream(&logFile);
@@ -650,6 +661,9 @@ void CaptureOrchestrator::createSession() {
         if (logStream.status() != QTextStream::Ok) {
             qWarning() << "CaptureOrchestrator: failed to write execution log header";
         }
+    } else {
+        qWarning() << "CaptureOrchestrator: cannot open execution log for writing:"
+                   << (m_sessionDir + kExecLogRelPath);
     }
 
     m_currentAction = QStringLiteral("Session created: ") + m_sessionDir;
@@ -775,6 +789,9 @@ void CaptureOrchestrator::executeNextStep() {
 
     if (m_currentStep >= m_filteredScenario.stepCount()) {
         // All steps done
+        // 5WHY: Log step completion to the execution log so the log records
+        // the full capture journey — not just a header and footer.
+        appendExecLog(QStringLiteral("All %1 steps complete").arg(m_totalSteps));
         if (m_recording && platformIsRecording()) {
             m_stateMachine->transitionTo(CaptureState::StoppingRecording);
         } else {
@@ -791,6 +808,17 @@ void CaptureOrchestrator::executeNextStep() {
                         .arg(m_currentStep));
         return;
     }
+
+    // 5WHY: Execution log previously had only header+footer with no per-step
+    // entries.  If the capture crashed mid-session, the log revealed nothing
+    // about which step was executing or what actions had been performed.
+    // Log every step with its action, description, and timestamp so partial
+    // sessions are auditable even when finalizeSession() never runs.
+    appendExecLog(QStringLiteral("[Step %1/%2] %3  %4")
+        .arg(m_currentStep + 1)
+        .arg(m_totalSteps)
+        .arg(step->description.isEmpty() ? QStringLiteral("(action %1)").arg(static_cast<int>(step->action)) : step->description)
+        .arg(step->captureBefore ? QStringLiteral("(screenshot before)") : QString()));
 
     executeStep(m_currentStep);
 
@@ -815,7 +843,10 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
 
     // ── Capture-before: take screenshot before executing the action ──
     if (step->captureBefore && wantsScreenshot()) {
-        takeScreenshot(sanitizeFilename(step->description), step->description);
+        if (!takeScreenshot(sanitizeFilename(step->description), step->description)) {
+            qWarning() << "CaptureOrchestrator: capture-before screenshot failed for step"
+                       << (stepIndex + 1) << step->description;
+        }
     }
 
     // ── Execute the action ──
@@ -860,7 +891,13 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // which is empty for Capture steps, producing filenames like "XX_.png".
         QString label = sanitizeFilename(
             step->param.isEmpty() ? step->description : step->param);
-        takeScreenshot(label, label);
+        // 5WHY: takeScreenshot() return value was ignored — a failed screenshot
+        // (platformCaptureScreenshot returns false) was silently skipped with no
+        // warning.  Log the failure so the developer can diagnose missing captures.
+        if (!takeScreenshot(label, label)) {
+            qWarning() << "CaptureOrchestrator: screenshot failed for step"
+                       << (stepIndex + 1) << label;
+        }
         // 5WHY: Calling executeNextStep() directly from inside executeStep()
         // before the outer executeNextStep() has incremented m_currentStep
         // causes infinite recursion — the same step is re-executed forever.
@@ -1041,6 +1078,23 @@ void CaptureOrchestrator::scheduleStepAfter(int ms) {
 
 void CaptureOrchestrator::deferNextStep() {
     QTimer::singleShot(kStepDeferMs, this, [this]() { executeNextStep(); });
+}
+
+void CaptureOrchestrator::appendExecLog(const QString& line) {
+    // 5WHY: Per-step entries give the execution log auditability.  Without
+    // them, a mid-capture crash leaves only the session header — zero
+    // information about which steps completed or what was in progress.
+    // Best-effort append: if the log file is unwritable (disk full, permissions
+    // changed mid-session), silently skip — don't fail the capture over logging.
+    if (m_sessionDir.isEmpty()) return;
+    QFile logFile(m_sessionDir + kExecLogRelPath);
+    if (!logFile.open(QIODevice::Append | QIODevice::Text)) return;
+    QTextStream ts(&logFile);
+    ts << QDateTime::currentDateTime().toString(QStringLiteral("hh:mm:ss.zzz "))
+       << line << "\n";
+    // 5WHY: flush() ensures the entry is on disk before the next potentially-
+    // crashing operation.  Without flush, buffered writes are lost on crash.
+    ts.flush();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

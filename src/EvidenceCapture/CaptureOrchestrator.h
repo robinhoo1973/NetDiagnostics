@@ -146,6 +146,9 @@ private:
     // targeted-disconnect + connect(executeNextStep) + start(ms) pattern.
     // A future step needing a delayed advance would copy it a third time.
     void scheduleStepAfter(int ms);
+    // 5WHY: Per-step execution log entries were missing — only header+footer
+    // existed.  Append a timestamped line to the session's execution log.
+    void appendExecLog(const QString& line);
     // 5WHY: Five step types (Capture-skip, Scroll-skip, SetUrl, RunDiagnostic,
     // WaitDiagComplete) all copy-pasted the same QTimer::singleShot(100ms)
     // lambda.  Extract once so a timing change applies uniformly.

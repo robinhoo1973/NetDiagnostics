@@ -34,9 +34,12 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(400, parent.width * 0.9)
         implicitHeight: sumCol.implicitHeight + 48
+        // 5WHY: No max-height constraint — on landscape the dialog can overflow.
+        height: Math.min(implicitHeight, parent.height * 0.92)
         radius: 20
         color: T.ThemeEngine.colors.card
         border { width: 1; color: root.isError ? Qt.alpha(T.ThemeEngine.failRed, 0.3) : T.ThemeEngine.colors.borderCard }
+        clip: true
 
         MouseArea { anchors.fill: parent } // absorb clicks
 

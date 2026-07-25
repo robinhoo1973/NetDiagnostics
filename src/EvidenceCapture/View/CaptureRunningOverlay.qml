@@ -36,9 +36,13 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(400, parent.width * 0.9)
         implicitHeight: runCol.implicitHeight + 40
+        // 5WHY: implicitHeight had no upper bound — on landscape devices the
+        // dialog could overflow the screen.  Clamp to 92% of parent height.
+        height: Math.min(implicitHeight, parent.height * 0.92)
         radius: 20
         color: T.ThemeEngine.colors.card
         border { width: 1; color: T.ThemeEngine.colors.borderCard }
+        clip: true
 
         ColumnLayout {
             id: runCol

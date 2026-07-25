@@ -4,7 +4,7 @@
 // Design ref: docs/AutomatedEvidenceCapture_Design.md §2.1
 //
 // Shown after user double-clicks the Settings app icon.
-// User selects: Screenshot Only / Recording Only / Both + diagnostic URL.
+// User selects: Screenshots + Recording (independent checkboxes) + diagnostic URL.
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -17,8 +17,20 @@ Rectangle {
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.85)
     z: 2000
 
-    property int selectedMode: 2  // default: Both
+    // 5WHY: Was a single selectedMode int with 3 radio-button options
+    // (ScreenshotOnly, RecordingOnly, Both).  "Both" was the union of the
+    // other two — semantically redundant and confusing.  Use independent
+    // checkboxes: the user can freely combine Screenshots + Recording.
+    property bool wantsScreenshot: true
+    property bool wantsRecording: true
     property string diagUrl: appState.target || "https://httpbin.org"
+
+    // Compute the capture mode int from checkbox state.
+    // 0=ScreenshotOnly, 1=RecordingOnly, 2=Both
+    readonly property int computedMode: (wantsScreenshot && wantsRecording) ? 2
+                                      : wantsScreenshot ? 0
+                                      : wantsRecording ? 1
+                                      : -1  // nothing selected — Start button disabled
 
     signal startRequested(int mode, string url)
     signal cancelled()
@@ -33,9 +45,12 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(400, parent.width * 0.9)
         implicitHeight: panelCol.implicitHeight + 48
+        // 5WHY: No max-height constraint — on landscape the dialog can overflow.
+        height: Math.min(implicitHeight, parent.height * 0.92)
         radius: 20
         color: T.ThemeEngine.colors.card
         border { width: 1; color: T.ThemeEngine.colors.borderFocused }
+        clip: true
 
         // Absorb clicks inside the card
         MouseArea { anchors.fill: parent }
@@ -55,61 +70,136 @@ Rectangle {
 
             Label {
                 Layout.fillWidth: true
-                text: "Select capture mode and enter a diagnostic URL."
+                text: "Select capture options and enter a diagnostic URL."
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
             }
 
-            // Mode selector
+            // Mode selector — independent checkboxes
             ColumnLayout {
                 spacing: 8
-                Repeater {
-                    model: [
-                        { icon: "📸", label: "Screenshot Only",     desc: "Capture screenshots of each page", mode: 0 },
-                        { icon: "🎥", label: "Recording Only",       desc: "Record video of automated flow",  mode: 1 },
-                        { icon: "📸+🎥", label: "Both (Recommended)", desc: "Record video + save screenshots", mode: 2 }
-                    ]
-                    delegate: Rectangle {
-                        Layout.fillWidth: true; implicitHeight: 52; radius: 12
-                        color: root.selectedMode === modelData.mode
-                               ? Qt.alpha(T.ThemeEngine.cyan, 0.12)
-                               : "transparent"
-                        border {
-                            width: root.selectedMode === modelData.mode ? 1.5 : 1
-                            color: root.selectedMode === modelData.mode
+                // Screenshots checkbox
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 52; radius: 12
+                    color: root.wantsScreenshot
+                           ? Qt.alpha(T.ThemeEngine.cyan, 0.12)
+                           : "transparent"
+                    border {
+                        width: root.wantsScreenshot ? 1.5 : 1
+                        color: root.wantsScreenshot
+                               ? T.ThemeEngine.cyan
+                               : T.ThemeEngine.colors.borderCard
+                    }
+                    RowLayout {
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 12
+                        // Checkbox indicator
+                        Rectangle {
+                            implicitWidth: 22; implicitHeight: 22; radius: 4
+                            color: root.wantsScreenshot
                                    ? T.ThemeEngine.cyan
-                                   : T.ThemeEngine.colors.borderCard
-                        }
-                        RowLayout {
-                            anchors { fill: parent; margins: 12 }
-                            spacing: 12
+                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.15)
+                            border { width: 1.5; color: root.wantsScreenshot ? T.ThemeEngine.cyan : T.ThemeEngine.colors.borderCard }
                             Label {
-                                text: modelData.icon
-                                font.pixelSize: 22
-                            }
-                            ColumnLayout {
-                                spacing: 2
-                                Label {
-                                    text: modelData.label
-                                    font.family: T.ThemeEngine.monoFont
-                                    font.pixelSize: 13; font.weight: Font.DemiBold
-                                    color: T.ThemeEngine.textPrimary
-                                }
-                                Label {
-                                    text: modelData.desc
-                                    font.family: T.ThemeEngine.monoFont
-                                    font.pixelSize: 10
-                                    color: T.ThemeEngine.textSecondary
-                                }
+                                anchors.centerIn: parent
+                                text: "✓"
+                                visible: root.wantsScreenshot
+                                font.pixelSize: 14; font.weight: Font.Bold
+                                color: "#0F172A"
                             }
                         }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.selectedMode = modelData.mode
+                        Label {
+                            text: "📸"
+                            font.pixelSize: 22
+                        }
+                        ColumnLayout {
+                            spacing: 2
+                            Label {
+                                text: "Screenshots"
+                                font.family: T.ThemeEngine.monoFont
+                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                color: T.ThemeEngine.textPrimary
+                            }
+                            Label {
+                                text: "Capture screenshots of each diagnostic page"
+                                font.family: T.ThemeEngine.monoFont
+                                font.pixelSize: 10
+                                color: T.ThemeEngine.textSecondary
+                            }
                         }
                     }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.wantsScreenshot = !root.wantsScreenshot
+                    }
                 }
+
+                // Recording checkbox
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 52; radius: 12
+                    color: root.wantsRecording
+                           ? Qt.alpha(T.ThemeEngine.cyan, 0.12)
+                           : "transparent"
+                    border {
+                        width: root.wantsRecording ? 1.5 : 1
+                        color: root.wantsRecording
+                               ? T.ThemeEngine.cyan
+                               : T.ThemeEngine.colors.borderCard
+                    }
+                    RowLayout {
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 12
+                        // Checkbox indicator
+                        Rectangle {
+                            implicitWidth: 22; implicitHeight: 22; radius: 4
+                            color: root.wantsRecording
+                                   ? T.ThemeEngine.cyan
+                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.15)
+                            border { width: 1.5; color: root.wantsRecording ? T.ThemeEngine.cyan : T.ThemeEngine.colors.borderCard }
+                            Label {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                visible: root.wantsRecording
+                                font.pixelSize: 14; font.weight: Font.Bold
+                                color: "#0F172A"
+                            }
+                        }
+                        Label {
+                            text: "🎥"
+                            font.pixelSize: 22
+                        }
+                        ColumnLayout {
+                            spacing: 2
+                            Label {
+                                text: "Screen Recording"
+                                font.family: T.ThemeEngine.monoFont
+                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                color: T.ThemeEngine.textPrimary
+                            }
+                            Label {
+                                text: "Record video of the automated diagnostic flow"
+                                font.family: T.ThemeEngine.monoFont
+                                font.pixelSize: 10
+                                color: T.ThemeEngine.textSecondary
+                            }
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.wantsRecording = !root.wantsRecording
+                    }
+                }
+            }
+
+            // Both-selected indicator
+            Label {
+                visible: root.computedMode === 2
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                text: "📸+🎥  Both modes enabled — recommended for complete evidence"
+                font.family: T.ThemeEngine.monoFont; font.pixelSize: 10
+                color: T.ThemeEngine.cyan
             }
 
             // URL input
@@ -156,16 +246,24 @@ Rectangle {
                 }
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: 44; radius: 12
-                    color: T.ThemeEngine.cyan
+                    // 5WHY: Disable the Start button visually when nothing is
+                    // selected (computedMode == -1).  Previously the user could
+                    // tap Start with no mode selected, producing a meaningless
+                    // session with zero screenshots and no recording.
+                    color: root.computedMode >= 0
+                           ? T.ThemeEngine.cyan
+                           : Qt.alpha(T.ThemeEngine.textSecondary, 0.2)
                     Label {
                         anchors.centerIn: parent
                         text: "▶ Start Capture"
                         font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
-                        font.weight: Font.Bold; color: "#0F172A"
+                        font.weight: Font.Bold
+                        color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
                     }
                     MouseArea {
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.startRequested(root.selectedMode, root.diagUrl)
+                        enabled: root.computedMode >= 0
+                        onClicked: root.startRequested(root.computedMode, root.diagUrl)
                     }
                 }
             }

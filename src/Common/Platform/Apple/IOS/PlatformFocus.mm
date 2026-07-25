@@ -36,6 +36,20 @@ static bool s_focusEnabled = false;
 bool platformEnableFocusMode() {
     if (s_focusEnabled) return true;
 
+    // 5WHY: iOS has no public API for programmatic Focus/DND mode
+    // (requires MDM or a system extension).  The best we can do is
+    // mute the audio session.  Log a clear warning so the developer
+    // and user (via console) know that true DND is NOT active and
+    // notifications/vibrations may still interrupt the capture.
+    static bool warnedOnce = false;
+    if (!warnedOnce) {
+        qWarning() << "PlatformFocus: iOS has no programmatic Focus/DND API — "
+                       "only audio session is muted.  The user MUST manually "
+                       "enable Do Not Disturb via Control Center or the Settings "
+                       "app (tap the DND hint in the preflight overlay).";
+        warnedOnce = true;
+    }
+
     runOnMainThread(^{
         // Mute audio (best-effort — this silences app audio, not ringer)
         // 5WHY: An active VoIP call or higher-priority audio session can
