@@ -170,8 +170,10 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
     engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
 #else
-    engine.rootContext()->setContextProperty("captureService", QVariant());
-    engine.rootContext()->setContextProperty("captureOrchestrator", QVariant());
+    // 5WHY: QVariant() produces undefined in QML, which breaks !== null guards.
+    // QVariant::fromValue((QObject*)nullptr) produces null — falsy and safe.
+    engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(nullptr)));
+    engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(nullptr)));
 #endif
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
