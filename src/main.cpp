@@ -169,6 +169,17 @@ int main(int argc, char *argv[])
 #if defined(PLATFORM_MOBILE)
     engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
     engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
+    // 5WHY: On iOS static builds, the linker may strip QML type
+    // registrations for C++ types only exposed via Q_PROPERTY pointers.
+    // CaptureSessionDisplay is never instantiated in QML — it's created
+    // in C++ and passed through captureOrchestrator.sessionDisplay.
+    // Without this registration, the QML engine cannot resolve
+    // d.stepDisplay / d.elapsedDisplay / d.showRecordingDot etc.,
+    // and the compact floating status bar silently renders with all
+    // fallback defaults (zeros, hidden elements).
+    qmlRegisterUncreatableType<CaptureSessionDisplay>(
+        "NetDiagnostics.Capture", 1, 0, "CaptureSessionDisplay",
+        QStringLiteral("Cannot create CaptureSessionDisplay from QML"));
 #else
     // 5WHY: QVariant() produces undefined in QML, which breaks !== null guards.
     // QVariant::fromValue((QObject*)nullptr) produces null — falsy and safe.

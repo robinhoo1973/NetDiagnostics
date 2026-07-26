@@ -22,6 +22,7 @@
 #include <QObject>
 #include <QTimer>
 #include <QString>
+#include <QtQmlIntegration>
 
 class CaptureOrchestrator;
 
