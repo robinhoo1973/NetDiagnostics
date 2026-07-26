@@ -8,6 +8,7 @@
 #include <QDebug>
 #include <QTimer>
 #include <QQmlComponent>
+#include <QJSValue>
 
 const QStringList NavigationAdapter::kPageNames = {
     QStringLiteral("dashboard"),
@@ -118,7 +119,22 @@ void NavigationAdapter::switchToTab(int index) {
     // Step 2: Page not found in stack — create a new instance and push it.
     // Access the tabComponents array (defined in AppContent.qml) to get
     // the pre-declared QQmlComponent for this tab.
-    QVariantList components = m_appContent->property("tabComponents").toList();
+    // 5WHY: tabComponents is a QML `property var` storing a JavaScript array.
+    // QObject::property().toList() relies on Qt 6's automatic QJSValue→QVariantList
+    // conversion, which may not work on all platforms (iOS static build, older Qt).
+    // Extract robustly: try toList() first; if empty, fall back to QJSValue API.
+    QVariant tv = m_appContent->property("tabComponents");
+    QVariantList components = tv.toList();
+    if (components.isEmpty()) {
+        QJSValue js = tv.value<QJSValue>();
+        if (js.isArray()) {
+            const int len = js.property(QStringLiteral("length")).toInt();
+            components.reserve(len);
+            for (int i = 0; i < len; ++i)
+                components.append(js.property(i).toVariant());
+        }
+    }
+
     if (index >= components.size()) {
         qWarning() << "NavigationAdapter: tabComponents index" << index
                     << "out of range (size=" << components.size() << ")";
@@ -148,7 +164,7 @@ void NavigationAdapter::switchToTab(int index) {
                           Q_ARG(QVariant, QVariant::fromValue(page)));
     if (!ok) {
         qWarning() << "NavigationAdapter: push to" << targetName << "failed";
-        delete page;
+        page->deleteLater();
         emit tabSwitchFailed(index);
         return;
     }
