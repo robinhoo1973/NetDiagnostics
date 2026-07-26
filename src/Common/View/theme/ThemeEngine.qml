@@ -143,4 +143,10 @@ QtObject {
     // 5WHY: three files had identical copies (_pad2, _pad2Fixed, _pad2Badge).
     // Centralized here as single source of truth.
     function pad2(n) { return (n < 10 ? " " : "") + n }
+
+    // Shared zero-pad for HH:MM:SS time display (ES5-compatible, no padStart).
+    // 5WHY: CaptureRunningOverlay defined a local padZero() that duplicates
+    // the identical pattern with '0' instead of ' '.  Centralize so future
+    // consumers (video trim UI, debug timestamps) don't write a third copy.
+    function pad0(n) { return (n < 10 ? "0" : "") + n }
 }

@@ -1,17 +1,19 @@
 // =============================================================================
 // CaptureRunningOverlay.qml — Minimal floating status bar during capture
 // =============================================================================
+// Design ref: docs/AutomatedEvidenceCapture_Design.md §2.1
+//
 // Design: compact auto-hiding status bar, top-right aligned, transparent
 // background with shadow.  Does NOT block underlying UI interaction.
 // Hidden during screenshots via suppressOverlay opacity binding.
 //
-// Layout:  ● 00:01:23 │ 📷  3 │ ✓✓  5/12
-//           ↑          ↑  ↑   ↑    ↑ ↑
-//           blinking   │  │   │    │ └─ total steps (right-aligned, 2-digit)
-//           red dot    │  │   │    └─ separator
-//                      │  │   └─ screenshot count (right-aligned, 2-digit)
-//                      │  └─ screenshot icon (camera SVG, Lucide)
-//                      └─ recording duration (HH:MM:SS)
+// Layout:  ● 00:01:23 │ camera  N │ list-checks  N/M
+//           ↑          ↑  ↑   ↑       ↑        ↑
+//           blinking   │  │   │       │        └─ total steps (right-aligned)
+//           red dot    │  │   │       └─ task icon (Lucide MIT, textSecondary)
+//                      │  │   └─ screenshot count (right-aligned, cyan)
+//                      │  └─ screenshot icon (camera SVG, Lucide MIT, cyan)
+//                      └─ recording duration (HH:MM:SS, monospace)
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -54,6 +56,11 @@ Rectangle {
     width: Math.max(0, statusRow.implicitWidth + leftPadding + rightPadding)
     height: 36
     radius: 10
+    // 5WHY: All other rounded Rectangles in EvidenceCapture/View clip
+    // their children (PreflightOverlay, ResultSummary, ModePanel).
+    // Without clip:true, RowLayout children could render outside the
+    // rounded corners if they ever exceed the 36px bar height.
+    clip: true
 
     // ── Use padding so the RowLayout doesn't need anchors.centerIn ──
     // 5WHY: anchors.centerIn on a RowLayout inside a Rectangle with
@@ -224,20 +231,15 @@ Rectangle {
         onClicked: root.cancelled()
     }
 
-    // ── Zero-pad helper: "0" + n for n<10, else n as string ────────
-    // 5WHY: String.prototype.padStart is ES2017 — unavailable on Qt 5.x
-    // QML engines (ES5-only).  ThemeEngine.qml explicitly documents this
-    // limitation and provides pad2() for space-padding.  Zero-padding
-    // for HH:MM:SS time display needs its own ES5-compatible helper.
-    function padZero(n) { return (n < 10 ? "0" : "") + n }
-
     // ── Poll elapsed time every second ───────────────────────────────
-    // 5WHY: Timer runs only while the overlay is active.  QML Loader
-    // destroys the item when source changes, so the Timer stops
-    // naturally when the overlay is replaced.
+    // 5WHY: Bind running to captureOrchestrator availability.  On
+    // desktop (orchestrator==nullptr), the Timer would fire every 1s
+    // doing no-ops — a perpetual useless wakeup.  The Loader destroys
+    // this item on source change, so the Timer also stops naturally.
     Timer {
         id: elapsedTimer
-        interval: 1000; repeat: true; running: true
+        interval: 1000; repeat: true
+        running: captureOrchestrator !== null
         onTriggered: updateElapsed()
     }
 
@@ -249,7 +251,7 @@ Rectangle {
             var h = Math.floor(secs / 3600)
             var m = Math.floor((secs % 3600) / 60)
             var s = secs % 60
-            elapsedLabel.text = padZero(h) + ":" + padZero(m) + ":" + padZero(s)
+            elapsedLabel.text = T.ThemeEngine.pad0(h) + ":" + T.ThemeEngine.pad0(m) + ":" + T.ThemeEngine.pad0(s)
         }
     }
 
@@ -259,8 +261,8 @@ Rectangle {
     // subsequent changes — the initial values must be read directly
     // so the status bar shows correct data from the first frame.
     //
-    // 5WHY: ThemeEngine.pad2() is the shared ES5-compatible pad helper
-    // (ThemeEngine.qml line 145).  Use it instead of a local copy so
+    // 5WHY: ThemeEngine.pad2()/pad0() are the shared ES5-compatible pad
+    // helpers (ThemeEngine.qml).  Use them instead of local copies so
     // the source-of-truth stays in the theme module.
     Component.onCompleted: {
         if (captureOrchestrator) {
