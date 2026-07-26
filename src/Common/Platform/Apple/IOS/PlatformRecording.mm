@@ -166,23 +166,28 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
     // startCaptureWithHandler so it is alive when the handlers fire.
     void (^cleanupAfterError)(NSError*) = ^(NSError* err) {
         __block RecordingCallback cb;
-        __block QString errStr;
+        __block NSString* errDesc;
         dispatch_sync(s_stateQueue(), ^{
             if (s_startCb) {
                 cb = s_startCb;
                 s_startCb = nullptr;
-                errStr = QString::fromNSString(err.localizedDescription);
+                errDesc = err.localizedDescription;
             } else {
                 s_lastError = err.localizedDescription;
             }
             s_writer = nil;
             s_input = nil;
             s_outputPath = nil;
+            // 5WHY: Reset s_stopping inside the state queue so the
+            // s_writer/s_input/s_outputPath=nil writes and the
+            // s_stopping=false write are a single synchronised snapshot.
+            // A concurrent platformStopRecording on the main thread sees a
+            // consistent state: either all pre-cleanup or all post-cleanup.
+            s_stopping = false;
         });
-        s_stopping = false;
         if (cb) {
             dispatch_async(dispatch_get_main_queue(), ^{
-                cb(false, errStr);
+                cb(false, QString::fromNSString(errDesc));
             });
         }
     };
@@ -237,32 +242,48 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
             }
             if (s_writer.status == AVAssetWriterStatusWriting
                 || s_writer.status == AVAssetWriterStatusUnknown) {
-            CMTime firstPts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
-            qInfo() << "PlatformRecording: first video frame — starting session at PTS"
-                     << firstPts.value << "/" << firstPts.timescale;
-            [s_writer startSessionAtSourceTime:firstPts];
-            s_recording = true;
-            // 5WHY: s_startCb (std::function) read/write was unsynchronised
-            // between the ReplayKit queue and the main thread via
-            // platformStopRecording → dispatch_sync(s_stateQueue(), …).
-            // Concurrent read/write of a non-trivial C++ object from two
-            // threads is a data race (§[intro.races] UB).  Wrap access in
-            // the state queue — this only executes once (first frame), so
-            // the dispatch_sync cost is a one-time overhead of ~1-3 µs.
-            __block RecordingCallback cb;
-            dispatch_sync(s_stateQueue(), ^{
-                if (s_startCb) {
-                    cb = std::move(s_startCb);
-                    s_startCb = nullptr;
-                }
-            });
-            if (cb) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    cb(true, outPath);
+                CMTime firstPts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+                qInfo() << "PlatformRecording: first video frame — starting session at PTS"
+                         << firstPts.value << "/" << firstPts.timescale;
+                [s_writer startSessionAtSourceTime:firstPts];
+                s_recording = true;
+                // 5WHY: s_startCb (std::function) read/write was unsynchronised
+                // between the ReplayKit queue and the main thread via
+                // platformStopRecording → dispatch_sync(s_stateQueue(), …).
+                // Concurrent read/write of a non-trivial C++ object from two
+                // threads is a data race (§[intro.races] UB).  Wrap access in
+                // the state queue — this only executes once (first frame), so
+                // the dispatch_sync cost is a one-time overhead of ~1-3 µs.
+                __block RecordingCallback cb;
+                dispatch_sync(s_stateQueue(), ^{
+                    if (s_startCb) {
+                        cb = std::move(s_startCb);
+                        s_startCb = nullptr;
+                    }
                 });
+                if (cb) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        cb(true, outPath);
+                    });
+                } else {
+                    qWarning() << "PlatformRecording: no start callback — recording may be orphaned";
+                }
             } else {
-                qWarning() << "PlatformRecording: no start callback — recording may be orphaned";
-            }
+                // 5WHY: If the writer entered an unexpected status (Completed
+                // or Cancelled) between startWriting and first-frame arrival,
+                // we must not silently drop frames forever.  Treat as a
+                // terminal error so the orchestrator transitions to Failed
+                // (consistent with the AVAssetWriterStatusFailed path above).
+                qWarning() << "PlatformRecording: AVAssetWriter in unexpected status before first frame — status:"
+                           << (int)s_writer.status
+                           << "error:" << (s_writer.error ? QString::fromNSString(s_writer.error.localizedDescription) : QStringLiteral("none"));
+                s_stopping = true;
+                s_recording = false;
+                [s_writer cancelWriting];
+                cleanupAfterError(s_writer.error ?: [NSError errorWithDomain:@"PlatformRecording"
+                                                              code:-1
+                                                          userInfo:@{NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Writer in unexpected status %ld before first frame", (long)s_writer.status]}]);
+                return;
             } // end if (s_writer.status == Writing || Unknown)
         } // end if (!s_recording)
 

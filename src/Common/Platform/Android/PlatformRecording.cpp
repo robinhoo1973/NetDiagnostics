@@ -340,12 +340,20 @@ void platformStopRecording(RecordingCallback callback) {
     }
 
     if (s_virtualDisplay.isValid()) {
-        s_virtualDisplay.callMethod<void>("release");
+        try {
+            s_virtualDisplay.callMethod<void>("release");
+        } catch (...) {
+            qWarning() << "PlatformRecording: VirtualDisplay.release() threw during stop cleanup";
+        }
         s_virtualDisplay = {};
     }
 
     if (s_mediaProjection.isValid()) {
-        s_mediaProjection.callMethod<void>("stop");
+        try {
+            s_mediaProjection.callMethod<void>("stop");
+        } catch (...) {
+            qWarning() << "PlatformRecording: MediaProjection.stop() threw during stop cleanup";
+        }
         s_mediaProjection = {};
     }
 

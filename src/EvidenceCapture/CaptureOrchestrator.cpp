@@ -154,6 +154,7 @@ static const int kNavigateSettleMs       = 500;   // page settle after navigate 
 static const int kNavigateSettleRecordMs = 4000;  // page settle after navigate (recording mode)
 static const int kDiagCancelTimeoutMs    = 500;   // settle after diagnostic cancel on timeout
 static const int kOpenDetailSettleMs     = 1500;  // StackView settle after tab switch for OpenDetail
+static const int kRecordingStartTimeoutMs = 30000; // platform recording start safety timeout
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Constructor
@@ -532,6 +533,27 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
     case CaptureState::StartingRecording:
         qInfo() << "CaptureOrchestrator: entering StartingRecording";
         startPlatformRecording();
+        // 5WHY: StartingRecording is an async state — the FSM only advances
+        // when the platform recording callback fires.  If the callback is
+        // never invoked (AVAssetWriter enters unexpected status, JNI
+        // exception drops callback, ReplayKit permission dialog cancelled),
+        // the FSM would hang forever.  Add a 30s safety timeout consistent
+        // with the other async-state timeouts in this file (CountdownToStart,
+        // OpenReport, Navigate, WaitDiagComplete all have timeouts).
+        {
+            int gen = m_countdownGen;
+            QTimer::singleShot(kRecordingStartTimeoutMs, this, [this, gen]() {
+                if (m_countdownGen == gen
+                    && m_stateMachine->state() == CaptureState::StartingRecording) {
+                    qWarning() << "CaptureOrchestrator: recording start timeout — "
+                                  "platform callback never fired, aborting";
+                    // Force-stop the platform recording in case it partially started
+                    if (m_recording) platformStopRecording(nullptr);
+                    failCapture(QStringLiteral("RECORDING_START_TIMEOUT"),
+                                QStringLiteral("Screen recording failed to start within 30 seconds"));
+                }
+            });
+        }
         break;
 
     case CaptureState::ExecutingSteps:
