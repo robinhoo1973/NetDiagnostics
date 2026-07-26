@@ -31,15 +31,25 @@ CaptureSessionDisplay::CaptureSessionDisplay(CaptureOrchestrator* orchestrator,
     // Avoids 1s CPU wake-ups for the entire app lifetime.
 
     // ── Seed with current orchestrator state ─────────────────────────
-    // 5WHY: Only seed step display if a session exists (totalSteps > 0).
-    // Seeding onStepChanged(0,0) would produce "step 1 of 0" when no
-    // capture has been started yet — a misleading initial state.
+    // 5WHY: Only seed if a session exists (totalSteps > 0).  The header
+    // initializers (stepDisplay=" 0", countDisplay=" 0", elapsed="00:00:00",
+    // showScreenshotGroup=true, showRecordingDot=false) are already correct
+    // for the pre-session state.  Seeding onStepChanged(0,0) would produce
+    // "step 1 of 0" when no capture has started — a misleading initial state.
+    // The onCaptureCountChanged/updateVisibility calls outside the guard were
+    // always no-ops in the normal path (set values = header initializers).
     if (m_orchestrator->totalSteps() > 0) {
         onStepChanged(m_orchestrator->currentStep(), m_orchestrator->totalSteps());
+        onCaptureCountChanged(m_orchestrator->captureCount());
+        updateVisibility();
+        // 5WHY: When the display is created mid-session, seed the elapsed
+        // display with the current value and start the timer so it continues
+        // updating.  (Normal path: timer starts via onCaptureModeChanged()
+        // in the next startCapture call.)
+        if (m_orchestrator->isRunning() && !m_elapsedTimer->isActive()) {
+            m_elapsedTimer->start();
+        }
     }
-    onCaptureCountChanged(m_orchestrator->captureCount());
-    updateVisibility();
-    onElapsedTick();
 }
 
 // ═════════════════════════════════════════════════════════════════════════
