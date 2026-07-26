@@ -238,31 +238,31 @@ void platformOpenFocusSettings() {
         ];
 
         // 5WHY: Recursive __block to iterate the fallback chain with
-        // completion-handler feedback on each attempt.  Tries canOpenURL
-        // first (fast rejection of unsupported schemes), then openURL with
-        // a completionHandler that verifies success and falls through on
-        // failure.
+        // completion-handler feedback on each attempt.
         __block void (^tryOpenUrl)(NSUInteger);
         tryOpenUrl = ^(NSUInteger idx) {
             if (idx >= urls.count) {
                 qWarning() << "PlatformFocus: all Focus/DND URL schemes failed — "
                                "no Settings page opened";
+                // 5WHY: Break the __block retain cycle.  The block captures
+                // its own __block storage, and the completionHandler blocks
+                // also capture it.  Setting tryOpenUrl=nil releases the
+                // block from the byref, breaking the cycle when the outer
+                // runOnMainThread block exits.
+                tryOpenUrl = nil;
                 return;
             }
             NSURL* url = urls[idx];
             if (![[UIApplication sharedApplication] canOpenURL:url]) {
-                // Scheme not supported at all — skip to next fallback
                 tryOpenUrl(idx + 1);
                 return;
             }
-            // 5WHY: Use completionHandler to verify the URL actually opened.
-            // If success=NO (private scheme blocked at runtime, iOS 18+),
-            // fall through to the next URL in the chain.
             [[UIApplication sharedApplication] openURL:url options:@{}
                 completionHandler:^(BOOL success) {
                     if (success) {
                         qInfo() << "PlatformFocus: opened settings via"
                                  << QString::fromNSString(url.absoluteString);
+                        tryOpenUrl = nil;
                     } else {
                         qWarning() << "PlatformFocus: openURL failed for"
                                     << QString::fromNSString(url.absoluteString)

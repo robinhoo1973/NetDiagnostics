@@ -228,9 +228,16 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         // StartingRecording with no timeout.  Treat Failed as a terminal
         // error: report it so the orchestrator transitions to Failed.
         if (!s_recording) {
-            if (s_writer.status == AVAssetWriterStatusFailed) {
+            // 5WHY: Read s_writer.status once — AVAssetWriter.status is
+            // atomic (non-nonatomic) so each access acquires an internal
+            // spinlock.  The status cannot change between consecutive reads
+            // on the same ReplayKit serial queue, so hoisting into a local
+            // eliminates a redundant acquire/release and closes a TOCTOU
+            // window between the Failed check and the Writing||Unknown check.
+            AVAssetWriterStatus const st = s_writer.status;
+            if (st == AVAssetWriterStatusFailed) {
                 qWarning() << "PlatformRecording: AVAssetWriter failed before first frame — status:"
-                           << (int)s_writer.status
+                           << (int)st
                            << "error:" << (s_writer.error ? QString::fromNSString(s_writer.error.localizedDescription) : QStringLiteral("none"));
                 s_stopping = true;
                 s_recording = false;
@@ -240,8 +247,8 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                                                           userInfo:@{NSLocalizedDescriptionKey: @"Writer failed before first frame"}]);
                 return;
             }
-            if (s_writer.status == AVAssetWriterStatusWriting
-                || s_writer.status == AVAssetWriterStatusUnknown) {
+            if (st == AVAssetWriterStatusWriting
+                || st == AVAssetWriterStatusUnknown) {
                 CMTime firstPts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
                 qInfo() << "PlatformRecording: first video frame — starting session at PTS"
                          << firstPts.value << "/" << firstPts.timescale;
