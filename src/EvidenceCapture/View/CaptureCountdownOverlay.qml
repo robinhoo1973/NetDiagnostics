@@ -72,13 +72,15 @@ Rectangle {
             }
 
             // Big countdown number
+            // 5WHY: Behavior on opacity with constant opacity=1.0 is dead code —
+            // the property never changes, so the Behavior never triggers.
+            // The countdown text update (root.countdown → Label.text) is a string
+            // binding that re-evaluates instantly each second — sufficient UX.
             Label {
                 Layout.alignment: Qt.AlignHCenter
                 text: root.countdown
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 64
                 font.weight: Font.Bold; color: T.ThemeEngine.cyan
-                opacity: 1.0
-                Behavior on opacity { NumberAnimation { duration: 150; easing.type: Easing.InQuad } }
             }
 
             Label {
