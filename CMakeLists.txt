@@ -126,6 +126,7 @@ if(IOS OR ANDROID)
         src/EvidenceCapture/NavigationAdapter.cpp
         src/EvidenceCapture/ScrollController.cpp
         src/EvidenceCapture/CaptureOrchestrator.cpp
+        src/EvidenceCapture/CaptureSessionDisplay.cpp
     )
 endif()
 

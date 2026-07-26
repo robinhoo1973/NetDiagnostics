@@ -11,6 +11,7 @@
 #endif
 
 #include "EvidenceCapture/CaptureOrchestrator.h"
+#include "EvidenceCapture/CaptureSessionDisplay.h"
 #include "EvidenceCapture/CaptureScenario.h"
 #include "EvidenceCapture/NavigationAdapter.h"
 #include "EvidenceCapture/ScrollController.h"
@@ -179,6 +180,13 @@ CaptureOrchestrator::CaptureOrchestrator(AppState* appState, QObject* parent)
             this, &CaptureOrchestrator::onStepScrollFinished);
     connect(m_navAdapter, &NavigationAdapter::reportPreviewReady,
             this, &CaptureOrchestrator::onReportPreviewReady);
+
+    // ── Display Model — created once, lives as long as the orchestrator ─
+    // 5WHY: Eliminates QML-side Component.onCompleted seeding +
+    // Connections handlers + Timer polling.  All display formatting
+    // (pad2, pad0, HH:MM:SS) lives in C++ as a single source of truth.
+    // QML binds declaratively to sessionDisplay.stepDisplay etc.
+    m_sessionDisplay = new CaptureSessionDisplay(this, this);
 }
 
 CaptureOrchestrator::~CaptureOrchestrator() {

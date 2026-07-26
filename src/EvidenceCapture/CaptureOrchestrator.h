@@ -29,6 +29,7 @@
 class AppState;
 class NavigationAdapter;
 class ScrollController;
+class CaptureSessionDisplay;
 class CaptureOrchestrator : public QObject {
     Q_OBJECT
 
@@ -61,6 +62,14 @@ class CaptureOrchestrator : public QObject {
     Q_INVOKABLE bool wasRecordingSession() const {
         return m_captureMode == RecordingOnly || m_captureMode == Both;
     }
+
+    // ── Display Model (C++-formatted strings for declarative QML) ───
+    // 5WHY: Eliminates the fragile dual-initialization in QML
+    // (Component.onCompleted vs Connections.onStepChanged using
+    // different offset arithmetic).  Single C++ formatting path,
+    // QML binds declaratively with zero JavaScript.
+    Q_PROPERTY(CaptureSessionDisplay* sessionDisplay READ sessionDisplay CONSTANT)
+    CaptureSessionDisplay* sessionDisplay() const { return m_sessionDisplay; }
 
 public:
     enum CaptureMode {
@@ -200,6 +209,7 @@ private:
     NavigationAdapter*    m_navAdapter = nullptr;
     ScrollController*     m_scrollCtrl = nullptr;
     QTimer*               m_delayTimer = nullptr;  // for inter-step delays
+    CaptureSessionDisplay* m_sessionDisplay = nullptr; // C++-formatted display strings for QML
 
     // ── State ───────────────────────────────────────────────────────────
     int           m_captureMode = 0;

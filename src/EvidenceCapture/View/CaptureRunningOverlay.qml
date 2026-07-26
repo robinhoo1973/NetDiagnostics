@@ -3,17 +3,19 @@
 // =============================================================================
 // Design ref: docs/AutomatedEvidenceCapture_Design.md §2.1
 //
-// Design: compact auto-hiding status bar, top-right aligned, transparent
-// background with shadow.  Does NOT block underlying UI interaction.
-// Hidden during screenshots via suppressOverlay opacity binding.
+// Architecture (Display Model pattern):
+//   All display formatting (pad2, pad0, HH:MM:SS) is done in C++ by
+//   CaptureSessionDisplay.  QML binds declaratively — zero JavaScript,
+//   zero Component.onCompleted, zero Timer polling, zero Connections.
+//   Single source of truth, no fragile C++/QML initialization coupling.
 //
 // Layout:  ● 00:01:23 │ camera  N │ list-checks  N/M
 //           ↑          ↑  ↑   ↑       ↑        ↑
-//           blinking   │  │   │       │        └─ total steps (right-aligned)
+//           blinking   │  │   │       │        └─ totalDisplay (right-aligned)
 //           red dot    │  │   │       └─ task icon (Lucide MIT, textSecondary)
-//                      │  │   └─ screenshot count (right-aligned, cyan)
+//                      │  │   └─ countDisplay (right-aligned, cyan)
 //                      │  └─ screenshot icon (camera SVG, Lucide MIT, cyan)
-//                      └─ recording duration (HH:MM:SS, monospace)
+//                      └─ elapsedDisplay (HH:MM:SS, monospace)
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -28,26 +30,15 @@ Rectangle {
 
     signal cancelled()
 
-    // ── Derived: true when screenshots are enabled for this session ──
-    // 5WHY: RecordingOnly mode takes zero screenshots — a persistent
-    // "camera 0" indicator is dead UI.  Bind visibility of the entire
-    // camera+count+separator group to this flag so they collapse when
-    // screenshots are not being taken.  RowLayout auto-excludes items
-    // with visible=false, so no manual layout adjustment is needed.
-    // 5WHY: readonly prevents accidental assignment from permanently
-    // disconnecting the binding.
-    readonly property bool showScreenshotGroup: captureOrchestrator
-        && captureOrchestrator.wantsScreenshot
+    // ── Shorthand for the display model ──────────────────────────────
+    readonly property var d: captureOrchestrator
+        ? captureOrchestrator.sessionDisplay : null
 
     // 5WHY: The old overlay was a large centered modal card (~400x300px)
     // that blocked the entire app UI behind it — navigation, diagnostics,
     // and scrolling were all occluded.  Replace with a compact floating
     // status bar anchored to the top-right corner with transparent
     // background, so the automated capture steps can execute visibly.
-    //
-    // 5WHY: During screenshot capture, the orchestrator sets
-    // suppressOverlay=true, which drives this opacity binding to 0.
-    // This prevents the status bar from appearing in evidence PNGs.
 
     // ── Layout: top-right aligned, auto-width, fixed height ──────────
     anchors.top: parent.top
@@ -56,31 +47,13 @@ Rectangle {
     width: Math.max(0, statusRow.implicitWidth + leftPadding + rightPadding)
     height: 36
     radius: 10
-    // 5WHY: All other rounded Rectangles in EvidenceCapture/View clip
-    // their children (PreflightOverlay, ResultSummary, ModePanel).
-    // Without clip:true, RowLayout children could render outside the
-    // rounded corners if they ever exceed the 36px bar height.
     clip: true
 
-    // ── Use padding so the RowLayout doesn't need anchors.centerIn ──
-    // 5WHY: anchors.centerIn on a RowLayout inside a Rectangle with
-    // width bound to the RowLayout's implicitWidth creates a fragile
-    // dependency chain.  Use padding on the container instead — the
-    // width formula becomes implicitWidth + padding, and the RowLayout
-    // fills the padded area naturally via anchors.fill.
     leftPadding: 14
     rightPadding: 14
 
     // ── Transparent background with shadow ───────────────────────────
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.72)
-    // 5WHY: MultiEffect (QtQuick.Effects) replaces DropShadow
-    // (Qt5Compat.GraphicalEffects).  The compat module is NOT linked
-    // by this project — DropShadow would cause a QML load error on iOS.
-    // MultiEffect is already used by AppIcon.qml with the same import.
-    //
-    // 5WHY: layer.enabled bound to opacity>0 so the GPU offscreen buffer
-    // and shadow compositing stop during screenshot suppression instead
-    // of rendering an invisible element every frame.
     layer.enabled: opacity > 0
     layer.effect: MultiEffect {
         shadowEnabled: true
@@ -94,37 +67,27 @@ Rectangle {
     // ── Hidden during screenshots ────────────────────────────────────
     opacity: captureOrchestrator && captureOrchestrator.suppressOverlay ? 0 : 1
 
-    // ── Status row: ● 00:00:00 │ camera  3 │ list-checks  5/12 ──
+    // ── Status row ───────────────────────────────────────────────────
     RowLayout {
         id: statusRow
         anchors.fill: parent
         spacing: 8
 
         // Blinking red recording dot — visible only when recording
-        // 5WHY: In screenshot-only mode there is no recording, so a
-        // blinking red "recording" indicator is misleading.  Bind
-        // visibility to the orchestrator's isRecordingCapture property.
         Rectangle {
             implicitWidth: 8; implicitHeight: 8; radius: 4
             color: T.ThemeEngine.failRed
-            visible: captureOrchestrator && captureOrchestrator.isRecordingCapture
+            visible: d ? d.showRecordingDot : false
             SequentialAnimation on opacity {
-                // 5WHY: Bind running to visible so the animation driver
-                // stops ticking when the dot is hidden (screenshot-only
-                // mode).  Unconditional running wastes CPU on every frame.
                 running: visible; loops: Animation.Infinite
                 NumberAnimation { from: 1.0; to: 0.2; duration: 600 }
                 NumberAnimation { from: 0.2; to: 1.0; duration: 600 }
             }
         }
 
-        // Elapsed time: HH:MM:SS
-        // 5WHY: monospace font + fixed minimum width prevents the bar
-        // from resizing horizontally as time digits change (e.g. 0→1
-        // character width differences in proportional fonts).
+        // Elapsed time: HH:MM:SS — formatted by C++ Display Model
         Label {
-            id: elapsedLabel
-            text: "00:00:00"
+            text: d ? d.elapsedDisplay : "00:00:00"
             font.family: T.ThemeEngine.monoFont
             font.pixelSize: 13; font.weight: Font.DemiBold
             color: T.ThemeEngine.textPrimary
@@ -132,46 +95,42 @@ Rectangle {
             horizontalAlignment: Text.AlignHCenter
         }
 
-        // Thin separator (between time and screenshot group)
-        // 5WHY: In RecordingOnly mode the screenshot group is hidden — this
-        // separator must also hide, otherwise it becomes an orphaned visual
-        // element floating between the elapsed time and the task icon.
+        // Thin separator (time → screenshot group)
         Rectangle {
             implicitWidth: 1; implicitHeight: 16
             color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
-            visible: showScreenshotGroup
+            visible: d ? d.showScreenshotGroup : false
         }
 
         // ── Screenshot group (hidden in RecordingOnly mode) ──────────
-        // Screenshot icon — camera (Lucide, MIT), simple body + lens
+        // Screenshot icon
         AppIcon {
             name: "camera"
             size: 15
             color: T.ThemeEngine.cyan
             Layout.leftMargin: 1
-            visible: showScreenshotGroup
+            visible: d ? d.showScreenshotGroup : false
         }
 
-        // Screenshot count — right-aligned, minimum 2-digit width
+        // Screenshot count
         Label {
-            id: countLabel
-            text: " 0"
+            text: d ? d.countDisplay : " 0"
             font.family: T.ThemeEngine.monoFont
             font.pixelSize: 13; font.weight: Font.DemiBold
             color: T.ThemeEngine.cyan
             Layout.minimumWidth: 22
             horizontalAlignment: Text.AlignRight
-            visible: showScreenshotGroup
+            visible: d ? d.showScreenshotGroup : false
         }
 
-        // Thin separator (between screenshot group and task group)
+        // Thin separator (screenshot group → task group)
         Rectangle {
             implicitWidth: 1; implicitHeight: 16
             color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
-            visible: showScreenshotGroup
+            visible: d ? d.showScreenshotGroup : false
         }
 
-        // Task icon — checklist (Lucide, MIT), lines + checks = task progress
+        // Task icon
         AppIcon {
             name: "list-checks"
             size: 15
@@ -179,14 +138,11 @@ Rectangle {
             Layout.leftMargin: 1
         }
 
-        // Task progress: current / total
-        // 5WHY: Both numbers use monospace right-aligned with fixed
-        // minimum width so " 1/12" and "10/12" align properly.
+        // Task progress: current / total — formatted by C++ Display Model
         RowLayout {
             spacing: 1
             Label {
-                id: stepCurrentLabel
-                text: " 0"
+                text: d ? d.stepDisplay : " 0"
                 font.family: T.ThemeEngine.monoFont
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.cyan
@@ -200,8 +156,7 @@ Rectangle {
                 color: T.ThemeEngine.textSecondary
             }
             Label {
-                id: stepTotalLabel
-                text: " 0"
+                text: d ? d.totalDisplay : " 0"
                 font.family: T.ThemeEngine.monoFont
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.textPrimary
@@ -212,96 +167,14 @@ Rectangle {
     }
 
     // ── Tap anywhere on the bar to cancel capture ────────────────────
-    // 5WHY: The entire bar is a single tap target.  On mobile, a
-    // dedicated Cancel button inside a 36px bar would be ~40px wide —
-    // difficult to tap reliably.  Making the whole bar tappable is more
-    // ergonomic and consistent with iOS/Android status-bar patterns.
     MouseArea {
         anchors.fill: parent
-        // 5WHY: When suppressOverlay is true (during screenshots) the
-        // parent Rectangle's opacity is 0 but MouseArea still intercepts
-        // clicks — a tap in the top-right corner would silently cancel
-        // the capture.  Disable the MouseArea when the bar is hidden so
-        // clicks pass through to the underlying UI.
-        // 5WHY: In Qt6, MouseArea inherits from Item and has its own
-        // opacity property (default 1.0).  Unqualified "opacity" resolves
-        // to MouseArea.opacity, NOT root.opacity — so the enabled check
-        // was always true.  Explicitly scope to root.opacity.
         enabled: root.opacity > 0
         onClicked: root.cancelled()
     }
 
-    // ── Poll elapsed time every second ───────────────────────────────
-    // 5WHY: Bind running to captureOrchestrator availability.  On
-    // desktop (orchestrator==nullptr), the Timer would fire every 1s
-    // doing no-ops — a perpetual useless wakeup.  The Loader destroys
-    // this item on source change, so the Timer also stops naturally.
-    Timer {
-        id: elapsedTimer
-        interval: 1000; repeat: true
-        running: captureOrchestrator !== null
-        onTriggered: updateElapsed()
-    }
-
-    // 5WHY: Extracted from the Timer's onTriggered so
-    // Component.onCompleted can also call it — see below.
-    function updateElapsed() {
-        if (captureOrchestrator) {
-            var secs = captureOrchestrator.elapsedSeconds
-            var h = Math.floor(secs / 3600)
-            var m = Math.floor((secs % 3600) / 60)
-            var s = secs % 60
-            elapsedLabel.text = T.ThemeEngine.pad0(h) + ":" + T.ThemeEngine.pad0(m) + ":" + T.ThemeEngine.pad0(s)
-        }
-    }
-
-    // ── Initialize from current C++ state on load ────────────────────
-    // 5WHY: The overlay may load mid-capture (e.g. after preflight).
-    // stepChanged and captureCountChanged signals only fire on
-    // subsequent changes — the initial values must be read directly
-    // so the status bar shows correct data from the first frame.
-    //
-    // 5WHY: ThemeEngine.pad2()/pad0() are the shared ES5-compatible pad
-    // helpers (ThemeEngine.qml).  Use them instead of local copies so
-    // the source-of-truth stays in the theme module.
-    Component.onCompleted: {
-        if (captureOrchestrator) {
-            // 5WHY: executeNextStep() emits stepChanged(0, total) and
-            // increments m_currentStep BEFORE stateChanged fires.  By the
-            // time this overlay loads, m_currentStep has already advanced
-            // past step 0.  Using currentStep (without +1) recovers the
-            // 1-indexed display value that the missed stepChanged(0, ...)
-            // would have produced.  The Connections handler still applies
-            // +1 for subsequent stepChanged signals.
-            stepCurrentLabel.text = T.ThemeEngine.pad2(captureOrchestrator.currentStep)
-            stepTotalLabel.text = T.ThemeEngine.pad2(captureOrchestrator.totalSteps)
-            countLabel.text = T.ThemeEngine.pad2(captureOrchestrator.captureCount)
-            // 5WHY: The elapsed timer fires 1 s after start — during the
-            // first second the bar would show stale "00:00:00".  Seed the
-            // label with the current value so it is correct from frame 0.
-            updateElapsed()
-        }
-    }
-
-    // ── Update status from C++ signals ───────────────────────────────
-    Connections {
-        target: captureOrchestrator
-        function onStepChanged(current, total) {
-            // 5WHY: C++ emits 0-indexed current, totalSteps.  Display
-            // 1-indexed for the user (step 1 of N).
-            stepCurrentLabel.text = T.ThemeEngine.pad2(current + 1)
-            stepTotalLabel.text = T.ThemeEngine.pad2(total)
-        }
-        function onCaptureCountChanged(count) {
-            countLabel.text = T.ThemeEngine.pad2(count)
-        }
-    }
-
     // ── Wire Flickable for scroll steps ──────────────────────────────
-    // 5WHY: ScrollController needs a Flickable reference to perform
-    // smooth scrolls during recording-mode capture.  Without this,
-    // Scroll steps silently no-op (ScrollController::m_flickable==nullptr).
-    // The AppContent onStepChanged handler calls this every step so the
+    // 5WHY: Called by AppContent.onStepChanged on every step so
     // ScrollController always has the current page's Flickable.
     function wireFlickable(flickable) {
         if (flickable && captureOrchestrator) {
