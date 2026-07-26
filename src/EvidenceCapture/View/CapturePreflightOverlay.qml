@@ -156,7 +156,7 @@ Rectangle {
                             spacing: 8
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                text: "⚠️ Focus / Do Not Disturb must be enabled manually.\n\nThis device requires a one-time permission or manual\nsetup before notifications can be suppressed.\n\n1. Tap below to open Settings\n2. Grant notification access or enable Focus/DND\n3. Return here and tap 'I'm Ready'"
+                                text: "⚠️ Focus / Do Not Disturb must be enabled manually.\n\nThis device requires a one-time permission or manual\nsetup before notifications can be suppressed.\n\n1. Tap below to open Settings\n2. Enable Focus/DND (or grant notification access)\n   (iOS 18+: if app Settings opens, tap back then Focus)\n3. Return here and tap 'I'm Ready'"
                                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }
