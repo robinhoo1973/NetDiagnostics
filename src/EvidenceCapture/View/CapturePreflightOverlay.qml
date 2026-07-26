@@ -154,7 +154,7 @@ Rectangle {
                             spacing: 8
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                text: "⚠️ Focus / Do Not Disturb must be enabled manually on this device.\n\n1. Tap below to open Settings → Focus\n2. Enable any Focus mode (e.g. Do Not Disturb)\n3. Return here and tap 'I'm Ready'"
+                                text: "⚠️ Focus / Do Not Disturb must be enabled manually on this device.\n\niOS has no automatic Focus mode API for apps.\n\n1. Tap below to open Settings\n2. Navigate to Focus (iOS 18+: tap back then Focus)\n3. Enable any Focus mode (e.g. Do Not Disturb)\n4. Return here and tap 'I'm Ready'"
                                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }

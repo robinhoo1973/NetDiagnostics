@@ -212,19 +212,50 @@ bool platformUnlockOrientation() {
 }
 
 void platformOpenFocusSettings() {
+    // 5WHY: iOS has no public API to open the Focus/DND settings page.
+    // The private URL scheme App-Prefs:root=Focus works on iOS 15-17 but
+    // is blocked on iOS 18+.  We try the following fallback chain:
+    //   1. App-Prefs:root=Focus (iOS 15-17, best UX)
+    //   2. App-Prefs:root=DO_NOT_DISTURB (iOS 13+ fallback, some versions)
+    //   3. prefs:root=DO_NOT_DISTURB (legacy iOS 12 fallback)
+    //   4. UIApplicationOpenSettingsURLString (app's own Settings page)
+    //
+    // The user MUST manually enable Focus/DND — iOS has no programmatic
+    // Focus mode API for third-party apps (requires MDM or entitlement).
     runOnMainThread(^{
-        NSURL* url = [NSURL URLWithString:@"App-Prefs:root=Focus"];
-        if ([[UIApplication sharedApplication] canOpenURL:url]) {
-            [[UIApplication sharedApplication] openURL:url
+        // Primary: modern private scheme (iOS 15-17)
+        NSURL* focusUrl = [NSURL URLWithString:@"App-Prefs:root=Focus"];
+        if ([[UIApplication sharedApplication] canOpenURL:focusUrl]) {
+            [[UIApplication sharedApplication] openURL:focusUrl
                 options:@{} completionHandler:nil];
-        } else {
-            qWarning() << "PlatformFocus: App-Prefs:root=Focus not available — "
-                           "falling back to app Settings (Focus/DND not accessible)";
-            NSURL* fallbackUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
-            if (fallbackUrl) {
-                [[UIApplication sharedApplication] openURL:fallbackUrl
-                    options:@{} completionHandler:nil];
-            }
+            return;
+        }
+
+        // Fallback 1: DND-specific private scheme
+        NSURL* dndUrl = [NSURL URLWithString:@"App-Prefs:root=DO_NOT_DISTURB"];
+        if ([[UIApplication sharedApplication] canOpenURL:dndUrl]) {
+            qInfo() << "PlatformFocus: opened DND settings via App-Prefs:root=DO_NOT_DISTURB";
+            [[UIApplication sharedApplication] openURL:dndUrl
+                options:@{} completionHandler:nil];
+            return;
+        }
+
+        // Fallback 2: legacy prefs scheme (iOS 12)
+        NSURL* legacyUrl = [NSURL URLWithString:@"prefs:root=DO_NOT_DISTURB"];
+        if ([[UIApplication sharedApplication] canOpenURL:legacyUrl]) {
+            [[UIApplication sharedApplication] openURL:legacyUrl
+                options:@{} completionHandler:nil];
+            return;
+        }
+
+        // Last resort: app's own Settings page (not the Focus page)
+        qWarning() << "PlatformFocus: no Focus/DND URL scheme available — "
+                       "falling back to app Settings (Focus/DND not accessible "
+                       "from this page on iOS 18+)";
+        NSURL* appSettingsUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
+        if (appSettingsUrl) {
+            [[UIApplication sharedApplication] openURL:appSettingsUrl
+                options:@{} completionHandler:nil];
         }
     });
 }
