@@ -159,8 +159,23 @@ static void setupRecorder(int resultCode, QJniObject data) {
         s_mediaRecorder.callMethod<void>("start");
     } catch (...) {
         qWarning() << "PlatformRecording: MediaRecorder prepare/start threw — tearing down";
-        s_mediaRecorder.callMethod<void>("release");
+        // 5WHY: release() can also throw if the MediaRecorder is in a
+        // corrupted state after a failed prepare/start.  Wrap in a nested
+        // try/catch so a JNI exception from release() doesn't escape the
+        // outer catch handler and crash through the QtAndroidPrivate callback.
+        try {
+            s_mediaRecorder.callMethod<void>("release");
+        } catch (...) {
+            qWarning() << "PlatformRecording: MediaRecorder.release() also threw during cleanup";
+        }
         s_mediaRecorder = {};
+        // 5WHY: s_mediaProjection was set at line 105 BEFORE prepare/start.
+        // If we fail here, the projection must be stopped or the screen-cast
+        // icon stays in the status bar indefinitely.
+        if (s_mediaProjection.isValid()) {
+            s_mediaProjection.callMethod<void>("stop");
+            s_mediaProjection = {};
+        }
         if (s_startCallback) {
             auto cb = s_startCallback;
             s_startCallback = nullptr;
@@ -193,9 +208,26 @@ static void setupRecorder(int resultCode, QJniObject data) {
         nullptr, nullptr);
 
     if (!s_virtualDisplay.isValid()) {
-        s_mediaRecorder.callMethod<void>("stop");
-        s_mediaRecorder.callMethod<void>("release");
+        // 5WHY: platformStopRecording wraps stop() in try/catch (line 294).
+        // Match that protection here for symmetry — a partially-started
+        // MediaRecorder can throw IllegalStateException on stop().
+        try {
+            s_mediaRecorder.callMethod<void>("stop");
+        } catch (...) {
+            qWarning() << "PlatformRecording: MediaRecorder.stop() threw during VirtualDisplay failure cleanup";
+        }
+        try {
+            s_mediaRecorder.callMethod<void>("release");
+        } catch (...) {
+            qWarning() << "PlatformRecording: MediaRecorder.release() threw during VirtualDisplay failure cleanup";
+        }
         s_mediaRecorder = {};
+        // 5WHY: s_mediaProjection was set at line 105.  Stop it so the
+        // screen-cast icon doesn't persist in the status bar.
+        if (s_mediaProjection.isValid()) {
+            s_mediaProjection.callMethod<void>("stop");
+            s_mediaProjection = {};
+        }
         if (s_startCallback) {
             auto cb = s_startCallback;
             s_startCallback = nullptr;

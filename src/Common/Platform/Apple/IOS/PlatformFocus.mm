@@ -128,7 +128,13 @@ bool platformRestoreBrightness() {
 //
 // Apple has reviewed apps using this KVO technique since ~iOS 6 and has
 // not rejected them solely for this pattern.
-static UIInterfaceOrientation s_savedOrientation = (UIInterfaceOrientation)-1;
+// 5WHY: UIDeviceOrientation is the correct enum — the KVO orientation lock at
+// line 185 writes a UIDeviceOrientation value via @(currentOrientation), and
+// the fallback switch at lines 168-178 maps UIInterfaceOrientation to
+// UIDeviceOrientation.  Using UIInterfaceOrientation for s_savedOrientation
+// caused a silent enum mismatch: landscape values differ between the two enums
+// (UIDeviceOrientationLandscapeLeft=3 vs UIInterfaceOrientationLandscapeLeft=4).
+static UIDeviceOrientation s_savedOrientation = (UIDeviceOrientation)-1;
 
 bool platformLockOrientation() {
     __block UIDeviceOrientation currentOrientation = UIDeviceOrientationUnknown;
@@ -178,8 +184,8 @@ bool platformLockOrientation() {
             }
         }
 
-        if (s_savedOrientation == (UIInterfaceOrientation)-1) {
-            s_savedOrientation = (UIInterfaceOrientation)currentOrientation;
+        if (s_savedOrientation == (UIDeviceOrientation)-1) {
+            s_savedOrientation = currentOrientation;
         }
         // 5WHY: Force the device orientation via KVO.
         [[UIDevice currentDevice] setValue:@(currentOrientation) forKey:@"orientation"];
@@ -194,11 +200,11 @@ bool platformUnlockOrientation() {
     // it on the main thread.  The __block flag lets us return the result.
     __block BOOL wasLocked = NO;
     runOnMainThread(^{
-        if (s_savedOrientation == (UIInterfaceOrientation)-1) return;
+        if (s_savedOrientation == (UIDeviceOrientation)-1) return;
         wasLocked = YES;
 
         [[UIDevice currentDevice] setValue:@(UIDeviceOrientationUnknown) forKey:@"orientation"];
-        s_savedOrientation = (UIInterfaceOrientation)-1;
+        s_savedOrientation = (UIDeviceOrientation)-1;
         [[UIDevice currentDevice] endGeneratingDeviceOrientationNotifications];
     });
 
