@@ -25,10 +25,18 @@ CaptureSessionDisplay::CaptureSessionDisplay(CaptureOrchestrator* orchestrator,
     m_elapsedTimer->setInterval(1000);
     connect(m_elapsedTimer, &QTimer::timeout,
             this, &CaptureSessionDisplay::onElapsedTick);
-    m_elapsedTimer->start();
+    // 5WHY: Don't start the timer in the constructor — it runs on
+    // captureModeChanged() (first startCapture call) and auto-stops
+    // via onElapsedTick() when the FSM reaches a terminal state.
+    // Avoids 1s CPU wake-ups for the entire app lifetime.
 
     // ── Seed with current orchestrator state ─────────────────────────
-    onStepChanged(m_orchestrator->currentStep(), m_orchestrator->totalSteps());
+    // 5WHY: Only seed step display if a session exists (totalSteps > 0).
+    // Seeding onStepChanged(0,0) would produce "step 1 of 0" when no
+    // capture has been started yet — a misleading initial state.
+    if (m_orchestrator->totalSteps() > 0) {
+        onStepChanged(m_orchestrator->currentStep(), m_orchestrator->totalSteps());
+    }
     onCaptureCountChanged(m_orchestrator->captureCount());
     updateVisibility();
     onElapsedTick();
@@ -64,10 +72,24 @@ void CaptureSessionDisplay::onCaptureCountChanged(int count) {
 
 void CaptureSessionDisplay::onCaptureModeChanged() {
     updateVisibility();
+    // 5WHY: Start the elapsed timer when CaptureOrchestrator begins
+    // a new session.  The timer auto-stops in onElapsedTick() when
+    // the FSM reaches Idle/Completed/Cancelled/Failed.
+    if (!m_elapsedTimer->isActive()) {
+        m_elapsedTimer->start();
+    }
 }
 
 void CaptureSessionDisplay::onElapsedTick() {
     if (!m_orchestrator) return;
+    // 5WHY: Auto-stop the timer when the capture FSM is Idle or
+    // terminal (Completed=8, Cancelled=9, Failed=10).  Restart
+    // happens via onCaptureModeChanged() on the next session.
+    int state = m_orchestrator->stateInt();
+    if (state == 0 || state >= 8) {
+        m_elapsedTimer->stop();
+        return;
+    }
     int secs = m_orchestrator->elapsedSeconds();
     int h = secs / 3600;
     int m = (secs % 3600) / 60;

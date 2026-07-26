@@ -64,7 +64,7 @@ private slots:
     void onElapsedTick();
 
 private:
-    // ── ES5-compatible zero-pad (no padStart in Qt 5.x QML) ─────────
+    // ── Numeric formatting helpers (used for display strings) ────────
     static QString pad0(int n) { return (n < 10 ? QLatin1String("0") : QString()) + QString::number(n); }
     static QString pad2(int n) { return (n < 10 ? QLatin1String(" ") : QString()) + QString::number(n); }
 

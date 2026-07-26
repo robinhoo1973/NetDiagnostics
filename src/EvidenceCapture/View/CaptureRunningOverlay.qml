@@ -70,7 +70,11 @@ Rectangle {
     // ── Status row ───────────────────────────────────────────────────
     RowLayout {
         id: statusRow
-        anchors.fill: parent
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.leftMargin: parent.leftPadding
+        anchors.rightMargin: parent.rightPadding
+        anchors.verticalCenter: parent.verticalCenter
         spacing: 8
 
         // Blinking red recording dot — visible only when recording
