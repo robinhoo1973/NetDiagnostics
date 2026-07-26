@@ -21,7 +21,7 @@
 #if defined(PLATFORM_ANDROID)
 
 #include "Common/Platform/PlatformRecording.h"
-#include <QJniObject>
+#include "Common/Platform/Android/PlatformAndroidJni.h"
 #include <QJniEnvironment>
 #include <QCoreApplication>
 #include <QFile>
@@ -54,20 +54,10 @@ static QJniObject      s_mediaRecorder;
 static int             s_requestCode = 1001;
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Helper: get Qt activity
-// ═══════════════════════════════════════════════════════════════════════════
-static QJniObject getActivity() {
-    return QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative",
-        "activity",
-        "()Landroid/app/Activity;");
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // Helper: get MediaProjectionManager system service
 // ═══════════════════════════════════════════════════════════════════════════
 static QJniObject getProjectionManager() {
-    QJniObject activity = getActivity();
+    QJniObject activity = getQtActivity();
     if (!activity.isValid()) return {};
     return activity.callObjectMethod(
         "getSystemService",
@@ -91,7 +81,7 @@ static void setupRecorder(int resultCode, QJniObject data) {
         return;
     }
 
-    QJniObject activity = getActivity();
+    QJniObject activity = getQtActivity();
     if (!activity.isValid()) {
         if (s_startCallback) {
             auto cb = s_startCallback;
@@ -157,8 +147,27 @@ static void setupRecorder(int resultCode, QJniObject data) {
     s_mediaRecorder.callMethod<void>("setVideoSize", "(II)V", 1280, 720);
     s_mediaRecorder.callMethod<void>("setVideoFrameRate", "(I)V", 30);
 
-    s_mediaRecorder.callMethod<void>("prepare");
-    s_mediaRecorder.callMethod<void>("start");
+    // 5WHY: MediaRecorder.prepare() and .start() can throw IOException
+    // (invalid output file, unsupported codec) or IllegalStateException
+    // (wrong call order).  QJniObject translates pending JNI exceptions
+    // into C++ exceptions — without try/catch, an uncaught exception
+    // propagates through the QtAndroidPrivate callback and crashes.
+    // The stop/release calls in platformStopRecording() already have
+    // this protection; add it here for symmetry.
+    try {
+        s_mediaRecorder.callMethod<void>("prepare");
+        s_mediaRecorder.callMethod<void>("start");
+    } catch (...) {
+        qWarning() << "PlatformRecording: MediaRecorder prepare/start threw — tearing down";
+        s_mediaRecorder.callMethod<void>("release");
+        s_mediaRecorder = {};
+        if (s_startCallback) {
+            auto cb = s_startCallback;
+            s_startCallback = nullptr;
+            cb(false, QStringLiteral("MediaRecorder prepare/start failed"));
+        }
+        return;
+    }
 
     // Get display density for VirtualDisplay
     QJniObject metrics("android/util/DisplayMetrics", "()V");
@@ -317,7 +326,12 @@ bool platformIsRecording() {
 }
 
 bool platformSupportsScreenshotWhileRecording() {
-    return true;
+    // 5WHY: MediaProjection captures the screen into a Surface via
+    // VirtualDisplay.  Taking a separate QScreen::grabWindow during
+    // recording contends on the display pipeline and produces
+    // corrupted/blank screenshots.  Both mode is iOS-only (ReplayKit
+    // delivers CMSampleBuffer frames that can be extracted in-band).
+    return false;
 }
 
 #endif // PLATFORM_ANDROID

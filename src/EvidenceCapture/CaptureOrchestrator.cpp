@@ -233,15 +233,12 @@ bool CaptureOrchestrator::needsFocusModeSetup() const {
 }
 
 bool CaptureOrchestrator::supportsBothModes() const {
-    // 5WHY: iOS ReplayKit delivers CMSampleBuffer frames — screenshots can
-    // be extracted from the recording stream.  Android's MediaProjection
-    // captures the screen into a Surface; taking a separate QScreen::grabWindow
-    // during recording is not supported (contention on the display pipeline).
-#if defined(PLATFORM_IOS)
-    return true;
-#else
-    return false;
-#endif
+    // 5WHY: Delegate to the platform layer which owns the capability
+    // knowledge.  Each platform's PlatformRecording.cpp returns the
+    // ground truth for whether simultaneous recording+screenshot is
+    // possible.  Avoids #ifdef fragility and keeps the orchestrator
+    // platform-agnostic.
+    return platformSupportsScreenshotWhileRecording();
 }
 
 QString CaptureOrchestrator::captureBasePath() {
@@ -1140,6 +1137,16 @@ bool CaptureOrchestrator::takeScreenshot(const QString& sanitizedLabel,
     m_suppressOverlay = true;
     emit suppressOverlayChanged();
     QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+    // 5WHY: processEvents() can dispatch pending timers (m_delayTimer from
+    // a concurrent Navigate settle, QTimer::singleShot callbacks) that may
+    // trigger executeNextStep() or cancel() re-entrantly.  If the FSM has
+    // left ExecutingSteps, abort — taking a screenshot outside the capture
+    // loop would produce a stale/corrupt evidence file.
+    if (m_stateMachine->state() != CaptureState::ExecutingSteps) {
+        m_suppressOverlay = false;
+        emit suppressOverlayChanged();
+        return false;
+    }
     bool ok = platformCaptureScreenshot(filePath);
     m_suppressOverlay = false;
     emit suppressOverlayChanged();

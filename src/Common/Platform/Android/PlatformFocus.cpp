@@ -9,34 +9,12 @@
 //   https://developer.android.com/reference/android/app/NotificationManager
 // =============================================================================
 #include "Common/Platform/PlatformFocus.h"
-#include <QJniObject>
+#include "Common/Platform/Android/PlatformAndroidJni.h"
 #include <QJniEnvironment>
 #include <QtDebug>
 
 static bool s_focusEnabled = false;
 static int s_originalFilter = -1;  // saved interruption filter
-
-// 5WHY: QJniObject::callStaticObjectMethod("QtNative", "activity") was
-// called at 7 sites — 3× in rapid succession during capture startup.
-// Each call crosses the JNI boundary with thread-state transitions and
-// reference-table bookkeeping (~1-3ms each).  However, the Activity
-// MUST NOT be cached across calls because Android destroys and recreates
-// the Activity on configuration changes (rotation, multi-window resize,
-// locale change).  The JNI overhead (3 calls per capture startup) is
-// negligible compared to the risk of operating on a destroyed Activity.
-//
-// 5WHY: Other Android platform files use QNativeInterface::QAndroidApplication::context(),
-// which returns the application Context (not necessarily an Activity).
-// Window-level operations (getWindow, setRequestedOrientation) require an
-// Activity — the application Context does not have a Window.  We stay with
-// QtNative::activity() which returns the QtActivity and is guaranteed to
-// be an Activity subclass.
-static QJniObject getQtActivity() {
-    return QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative",
-        "activity",
-        "()Landroid/app/Activity;");
-}
 
 bool platformEnableFocusMode() {
     if (s_focusEnabled) return true;
