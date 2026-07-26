@@ -137,7 +137,7 @@ Rectangle {
                         onClicked: {
                             // 5WHY: On Android (supportsBothModes=false), the two modes
                             // are mutually exclusive — selecting one deselects the other.
-                            if (captureOrchestrator &amp;&amp; !captureOrchestrator.supportsBothModes) {
+                            if (captureOrchestrator && !captureOrchestrator.supportsBothModes) {
                                 root.wantsScreenshot = !root.wantsScreenshot
                                 if (root.wantsScreenshot) root.wantsRecording = false
                             } else {
@@ -201,7 +201,7 @@ Rectangle {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (captureOrchestrator &amp;&amp; !captureOrchestrator.supportsBothModes) {
+                            if (captureOrchestrator && !captureOrchestrator.supportsBothModes) {
                                 root.wantsRecording = !root.wantsRecording
                                 if (root.wantsRecording) root.wantsScreenshot = false
                             } else {
@@ -214,7 +214,7 @@ Rectangle {
 
             // Both-selected indicator (iOS only — Android doesn't support Both)
             Label {
-                visible: root.computedMode === 2 &amp;&amp; captureOrchestrator &amp;&amp; captureOrchestrator.supportsBothModes
+                visible: root.computedMode === 2 && captureOrchestrator && captureOrchestrator.supportsBothModes
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: "📸+🎥  Both modes enabled — recommended for complete evidence"
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 10
