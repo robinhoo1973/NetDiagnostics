@@ -17,6 +17,30 @@ const QStringList NavigationAdapter::kPageNames = {
     QStringLiteral("settings")
 };
 
+// 5WHY: After switching tabs, the page may retain its previous scroll
+// position — a diagnostic run scrolled to the bottom, then navigating back
+// to Dashboard would capture the footer instead of the header.  Recursively
+// find the first Flickable (has contentY+contentHeight) in the page tree
+// and reset it to the top so every screenshot starts from a consistent origin.
+static void scrollPageToTop(QObject* page) {
+    if (!page) return;
+
+    // Check if this object is a Flickable (has contentY property)
+    const QMetaObject* mo = page->metaObject();
+    int contentYIdx = mo->indexOfProperty("contentY");
+    int contentHIdx = mo->indexOfProperty("contentHeight");
+    if (contentYIdx >= 0 && contentHIdx >= 0) {
+        page->setProperty("contentY", 0.0);
+        return;
+    }
+
+    // Recurse into children
+    const QObjectList kids = page->children();
+    for (QObject* kid : kids) {
+        if (kid) scrollPageToTop(kid);
+    }
+}
+
 QString NavigationAdapter::pageObjectName(int tabIndex) {
     if (tabIndex < 0 || tabIndex >= kPageNames.size()) return {};
     return kPageNames.at(tabIndex);
@@ -83,6 +107,7 @@ void NavigationAdapter::switchToTab(int index) {
                 emit tabSwitchFailed(index);
             }
             qInfo() << "NavigationAdapter: popped to existing page" << targetName;
+            scrollPageToTop(child);
             return;
         }
     }
@@ -126,6 +151,7 @@ void NavigationAdapter::switchToTab(int index) {
     }
 
     qInfo() << "NavigationAdapter: pushed new page" << targetName;
+    scrollPageToTop(page);
 }
 
 void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
