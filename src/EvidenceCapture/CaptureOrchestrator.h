@@ -43,6 +43,24 @@ class CaptureOrchestrator : public QObject {
     // overlay (z:2100).  Set this to true before platformCaptureScreenshot() so
     // QML can hide the overlay, then false after — the screenshot is clean.
     Q_PROPERTY(bool suppressOverlay READ suppressOverlay NOTIFY suppressOverlayChanged)
+    // 5WHY: RecordingOnly mode takes zero screenshots — the camera icon and
+    // screenshot count in the status bar are dead UI that confuses users.
+    // Expose wantsScreenshot so QML can hide the screenshot group when
+    // the capture mode is RecordingOnly.  Uses captureModeChanged NOTIFY
+    // (emitted once in startCapture) instead of stateChanged (~11x/session).
+    Q_PROPERTY(bool wantsScreenshot READ wantsScreenshot NOTIFY captureModeChanged)
+    // 5WHY: isRecordingCapture() was Q_INVOKABLE — QML bindings to invokables
+    // are evaluated once at creation time with no change tracking.  Promote
+    // to Q_PROPERTY with NOTIFY so QML bindings re-evaluate if m_recording
+    // ever becomes dynamic (e.g. pause/resume recording mid-session).
+    Q_PROPERTY(bool isRecordingCapture READ isRecordingCapture NOTIFY captureModeChanged)
+    // 5WHY: restoreSystemState() clears m_recording before the deferred
+    // captureCompleted signal fires, so isRecordingCapture() always returns
+    // false in the onCaptureCompleted handler.  wasRecordingSession() reads
+    // m_captureMode instead, which survives restoreSystemState().
+    Q_INVOKABLE bool wasRecordingSession() const {
+        return m_captureMode == RecordingOnly || m_captureMode == Both;
+    }
 
 public:
     enum CaptureMode {
@@ -110,6 +128,7 @@ public:
     bool supportsBothModes() const;
 
 signals:
+    void captureModeChanged();  // emitted once in startCapture() after mode + m_recording are set
     void needsFocusModeSetupChanged();
     void suppressOverlayChanged();
     void stateChanged();

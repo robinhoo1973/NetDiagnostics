@@ -182,14 +182,12 @@ Item {
                 }
             }
             function onStepChanged(current, total) {
-                if (captureOverlay.item && typeof captureOverlay.item.stepProgress !== "undefined") {
-                    captureOverlay.item.stepProgress = current
-                    captureOverlay.item.stepTotal = total
-                }
-                // 5WHY: Flickable was wired once on overlay load, but Navigate
-                // steps change tabs — the old Flickable is destroyed/replaced.
-                // Re-wire on every step so ScrollController always has the
-                // current page's Flickable.
+                // 5WHY: The new CaptureRunningOverlay handles step-label
+                // updates via its own Connections block (stepProgress/
+                // stepTotal aliases were removed).  Only the Flickable
+                // re-wire is needed here — ScrollController must track
+                // the current page's Flickable as Navigate steps switch
+                // tabs and the old Flickable is destroyed/replaced.
                 if (captureOverlay.item && typeof captureOverlay.item.wireFlickable === "function") {
                     var cur = stackView.currentItem
                     if (cur) {
@@ -198,23 +196,29 @@ Item {
                     }
                 }
             }
-            function onActionChanged(action) {
-                if (captureOverlay.item && typeof captureOverlay.item.currentStep !== "undefined") {
-                    captureOverlay.item.currentStep = action
-                }
-            }
-            function onCaptureCountChanged(count) {
-                if (captureOverlay.item && typeof captureOverlay.item.captureCount !== "undefined") {
-                    captureOverlay.item.captureCount = count
-                }
-            }
+            // 5WHY: onActionChanged + onCaptureCountChanged handlers were
+            // removed.  The new compact status bar displays step numbers
+            // and screenshot count via its own Connections block, so the
+            // aliases (currentStep, captureCount) no longer exist.
+            // Action text (e.g. "Navigating to Diagnostics...") is
+            // deliberately omitted from the compact bar — only numeric
+            // progress indicators fit in the 36px floating pill.  The
+            // C++ emission of actionChanged() is preserved for potential
+            // future use (e.g. a detail-expansion panel).
+            // Setting the removed aliases via typeof-guarded if-blocks
+            // was dead code that silently skipped every invocation.
             function onCaptureCompleted(sessionPath) {
                 if (captureOverlay.item && typeof captureOverlay.item.sessionPath !== "undefined") {
                     captureOverlay.item.sessionPath = sessionPath
                     // 5WHY: ResultSummary properties were never populated,
                     // showing 0 screenshots and empty recording/duration.
                     captureOverlay.item.totalScreenshots = captureOrchestrator.captureCount
-                    captureOverlay.item.recordingFile = captureOrchestrator.isRecordingCapture() ? "recording.mp4" : ""
+                    // 5WHY: isRecordingCapture() reads m_recording which
+                    // restoreSystemState() clears BEFORE the deferred
+                    // captureCompleted signal fires.  wasRecordingSession()
+                    // reads m_captureMode instead, which survives
+                    // restoreSystemState() — see CaptureOrchestrator.h:57-63.
+                    captureOverlay.item.recordingFile = captureOrchestrator.wasRecordingSession() ? "recording.mp4" : ""
                     captureOverlay.item.elapsedTime = captureOrchestrator.elapsedSeconds + "s"
                 }
             }

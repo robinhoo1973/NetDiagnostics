@@ -39,6 +39,7 @@
         <!-- NativePdfPageView   → resources_nativepdf.qrc (conditional) -->
 
         <!-- Icons (stay in resources/) -->
+        <file>icons/camera.svg</file>
         <file>icons/check.svg</file>
         <file>icons/circle.svg</file>
         <file>icons/close.svg</file>
@@ -63,6 +64,7 @@
         <file>icons/tune.svg</file>
         <file>icons/warning.svg</file>
         <file>icons/wifi.svg</file>
+        <file>icons/list-checks.svg</file>
         <file>icons/mail.svg</file>
         <file>icons/badge-check.svg</file>
         <file>icons/badge-close.svg</file>
