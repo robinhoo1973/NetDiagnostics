@@ -431,6 +431,8 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::CountdownToStart:
+        qInfo() << "CaptureOrchestrator: entering CountdownToStart — "
+                   "setting up keepAwake, focus, brightness, orientation";
         // 5WHY: was using QTimer::singleShot(3000) independent of the QML
         // countdown — two timers racing. Now the QML countdown is the sole
         // authority: CapturePreflightOverlay.countdownFinished() calls
@@ -497,10 +499,13 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::StartingRecording:
+        qInfo() << "CaptureOrchestrator: entering StartingRecording";
         startPlatformRecording();
         break;
 
     case CaptureState::ExecutingSteps:
+        qInfo() << "CaptureOrchestrator: entering ExecutingSteps — "
+                   << m_totalSteps << " steps to execute";
         executeNextStep();
         break;
 
@@ -687,10 +692,12 @@ void CaptureOrchestrator::startPlatformRecording() {
 
     platformStartRecording(recPath, [this](bool ok, const QString& pathOrError) {
         if (ok) {
+            qInfo() << "CaptureOrchestrator: recording started — path:" << pathOrError;
             m_currentAction = QStringLiteral("Recording started");
             emit actionChanged(m_currentAction);
             m_stateMachine->transitionTo(CaptureState::ExecutingSteps);
         } else {
+            qWarning() << "CaptureOrchestrator: recording start FAILED:" << pathOrError;
             failCapture(QStringLiteral("RECORDING_FAILED"), pathOrError);
         }
     });

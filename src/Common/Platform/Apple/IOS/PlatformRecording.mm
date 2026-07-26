@@ -146,7 +146,20 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
     [s_writer addInput:s_input];
 
     // ── Start capture + writer ──
-    [s_writer startWriting];
+    BOOL started = [s_writer startWriting];
+    if (!started) {
+        qWarning() << "PlatformRecording: AVAssetWriter.startWriting failed — status:"
+                    << (int)s_writer.status
+                    << "error:" << (s_writer.error ? QString::fromNSString(s_writer.error.localizedDescription) : QStringLiteral("none"));
+        if (s_startCb) {
+            s_startCb(false, QStringLiteral("AVAssetWriter failed to start writing"));
+            s_startCb = nullptr;
+        }
+        s_writer = nil;
+        s_input = nil;
+        s_outputPath = nil;
+        return;
+    }
 
     // 5WHY: The capture-handler and completion-handler error paths each
     // duplicated a ~16-line cleanup block.  Extract once — defined before
@@ -198,8 +211,17 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         // s_writer was set before startCaptureWithHandler and is only
         // mutated by the error/stop handlers on this same ReplayKit queue
         // — safe to read directly on the frame-delivery hot path.
-        if (!s_recording && s_writer.status == AVAssetWriterStatusUnknown) {
-            [s_writer startSessionAtSourceTime:CMSampleBufferGetPresentationTimeStamp(sampleBuffer)];
+        // 5WHY: After startWriting, the writer transitions to Writing status
+        // (NOT Unknown).  The old check `== AVAssetWriterStatusUnknown` was
+        // always false — the first-frame callback NEVER fired, the FSM stayed
+        // stuck in StartingRecording, and all subsequent frames were silently
+        // dropped.  Accept Writing status so the session actually begins.
+        if (!s_recording && (s_writer.status == AVAssetWriterStatusWriting
+                             || s_writer.status == AVAssetWriterStatusUnknown)) {
+            CMTime firstPts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+            qInfo() << "PlatformRecording: first video frame — starting session at PTS"
+                     << firstPts.value << "/" << firstPts.timescale;
+            [s_writer startSessionAtSourceTime:firstPts];
             s_recording = true;
             // 5WHY: s_startCb (std::function) read/write was unsynchronised
             // between the ReplayKit queue and the main thread via
@@ -208,10 +230,6 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
             // threads is a data race (§[intro.races] UB).  Wrap access in
             // the state queue — this only executes once (first frame), so
             // the dispatch_sync cost is a one-time overhead of ~1-3 µs.
-            // 5WHY: Use __block (consistent with cleanupAfterError pattern
-            // at line ~150) instead of shared_ptr — the callback fires
-            // exactly once and shared_ptr's heap allocation + refcounting
-            // is unnecessary overhead for a single-owner transfer.
             __block RecordingCallback cb;
             dispatch_sync(s_stateQueue(), ^{
                 if (s_startCb) {
@@ -223,6 +241,8 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                 dispatch_async(dispatch_get_main_queue(), ^{
                     cb(true, outPath);
                 });
+            } else {
+                qWarning() << "PlatformRecording: no start callback — recording may be orphaned";
             }
         }
 
