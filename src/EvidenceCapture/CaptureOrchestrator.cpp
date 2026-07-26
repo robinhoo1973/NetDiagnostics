@@ -382,6 +382,14 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     m_waitingForReportPreview = false;
     m_elapsed.start();
 
+    // 5WHY: m_executingStep is the re-entrancy guard for executeNextStep().
+    // If the previous session left it true (abnormal exit from executeNextStep,
+    // failCapture called during executeStep before reaching the m_executingStep=false
+    // at the bottom), the next session's first executeNextStep() would return
+    // immediately — silently skipping ALL steps.  Reset alongside all other
+    // session-level state for a clean start.
+    m_executingStep = false;
+
     // Build and cache the scenario once, filtered by capture mode
     CaptureScenario scenario = buildDefaultScenario(m_diagUrl);
     m_filteredScenario.clear();
@@ -415,6 +423,13 @@ void CaptureOrchestrator::cancel() {
     // executeNextStep with a stale FSM state.  Reset it so the stale callback
     // returns immediately (its guard checks this flag first).
     m_waitingForReportPreview = false;
+
+    // 5WHY: cancel() stopped m_delayTimer and m_pollTimer, but did NOT
+    // stop m_pageReadyTimer in NavigationAdapter.  The polling timer kept
+    // firing at 200ms intervals, wasting CPU on cross-boundary QML↔C++
+    // property access until its natural 3s timeout.  Stop it so the
+    // cancelled session is truly idle.
+    m_navAdapter->stopPageReadyPolling();
 
     // 5WHY: cancel() stopped m_delayTimer and m_pollTimer, but did NOT
     // increment m_sessionGen.  Stale QTimer::singleShot callbacks from
@@ -871,7 +886,25 @@ void CaptureOrchestrator::finalizeSession() {
 // ═════════════════════════════════════════════════════════════════════════════
 
 void CaptureOrchestrator::executeNextStep() {
-    if (m_stateMachine->state() != CaptureState::ExecutingSteps) return;
+    // 5WHY: takeScreenshot() calls processEvents() to flush the QML overlay
+    // hide binding before capturing.  Any pending timer (m_delayTimer from a
+    // stale scheduleStepAfter, a QTimer::singleShot from a concurrently-firing
+    // deferred callback) would dispatch during processEvents and call
+    // executeNextStep() re-entrantly — advancing m_currentStep inside the
+    // original executeStep() call, silently skipping one or more steps.
+    //
+    // The current scenario has no such pending timers at the Capture step
+    // (all prior async operations complete before), but this depends on
+    // fragile scenario ordering.  A future step addition could break it.
+    // The guard makes executeNextStep() idempotent — a re-entrant call is a
+    // safe no-op that leaves m_currentStep unchanged.
+    if (m_executingStep) return;
+    m_executingStep = true;
+
+    if (m_stateMachine->state() != CaptureState::ExecutingSteps) {
+        m_executingStep = false;
+        return;
+    }
 
     // 5WHY: Check all-done BEFORE emitting stepChanged so the display
     // never shows "step N+1 of N" when m_currentStep has advanced past
@@ -889,6 +922,7 @@ void CaptureOrchestrator::executeNextStep() {
         } else {
             m_stateMachine->transitionTo(CaptureState::Finalizing);
         }
+        m_executingStep = false;
         return;
     }
 
@@ -897,6 +931,7 @@ void CaptureOrchestrator::executeNextStep() {
     const CaptureStep* step = m_filteredScenario.stepAt(m_currentStep);
     if (!step) {
         // Shouldn't happen, but handle gracefully.
+        m_executingStep = false;
         failCapture(QStringLiteral("STEP_NOT_FOUND"),
                     QStringLiteral("Internal error: step not found at index %1")
                         .arg(m_currentStep));
@@ -918,6 +953,7 @@ void CaptureOrchestrator::executeNextStep() {
 
     // Move to next step (steps that need async waiting will pause via state transitions)
     m_currentStep++;
+    m_executingStep = false;
 }
 
 void CaptureOrchestrator::executeStep(int stepIndex) {
@@ -1171,7 +1207,19 @@ void CaptureOrchestrator::scheduleStepAfter(int ms) {
 }
 
 void CaptureOrchestrator::deferNextStep() {
-    QTimer::singleShot(kStepDeferMs, this, [this]() { executeNextStep(); });
+    // 5WHY: Other async paths (OpenDetail, OpenReport timeout, countdown
+    // safety timer) all use m_sessionGen guards to invalidate stale callbacks
+    // from cancelled sessions.  deferNextStep was the sole async path without
+    // one, relying solely on the FSM-state check in executeNextStep().
+    // Adding the gen guard makes deferNextStep consistent and closes the
+    // theoretical TOCTOU window between cancel()'s FSM transition and the
+    // QTimer::singleShot firing — on any platform where FSM transitions might
+    // be deferred, the gen guard ensures the callback is silently discarded.
+    int gen = m_sessionGen;
+    QTimer::singleShot(kStepDeferMs, this, [this, gen]() {
+        if (m_sessionGen != gen) return;
+        executeNextStep();
+    });
 }
 
 void CaptureOrchestrator::appendExecLog(const QString& line) {

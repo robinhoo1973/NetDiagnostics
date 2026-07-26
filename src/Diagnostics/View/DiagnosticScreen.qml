@@ -55,6 +55,16 @@ Item {
         detailOverlay.visible = true
     }
 
+    // 5WHY: NavigationAdapter opens multiple detail popups sequentially
+    // during automated capture.  Without a dismiss function, the previous
+    // overlay remains visible when the next OpenDetail fires, causing QML
+    // state confusion (stale data, visual flicker).  This function gives
+    // the NavigationAdapter a clean entry to close any existing overlay
+    // before calling showDetailOverlay() with new data.
+    function dismissDetailOverlay() {
+        detailOverlay.visible = false
+    }
+
     function takeSnapshot() {
         _snapTargetError = appState.targetValidationError()
         _snapVersion++

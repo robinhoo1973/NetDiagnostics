@@ -20,11 +20,19 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Effects
+// 5WHY: QtQuick.Effects MultiEffect requires Qt6::QuickEffects which is not
+// linked in iOS static builds (cmake/dependencies.cmake only has Core,
+// Concurrent, Quick, QuickControls2, Network).  The import failure causes
+// the Loader to enter Error state silently — the status bar never renders.
+// Replace with a simple offset Rectangle for the drop shadow.
 import "../theme" as T
 import "../widgets"
 
-Rectangle {
+// 5WHY: Use Item as root to host two child Rectangles — a shadow layer
+// (offset + semi-transparent black) and the content layer.  This avoids
+// the need for QtQuick.Effects MultiEffect entirely, working on ALL
+// platforms including iOS static builds where Qt6::QuickEffects is absent.
+Item {
     id: root
     z: 2100
 
@@ -44,137 +52,148 @@ Rectangle {
     anchors.top: parent.top
     anchors.right: parent.right
     anchors.margins: 12
-    width: Math.max(0, statusRow.implicitWidth + leftPadding + rightPadding)
+    width: Math.max(0, statusRow.implicitWidth + bar.leftPadding + bar.rightPadding)
     height: 36
-    radius: 10
-    clip: true
-
-    leftPadding: 14
-    rightPadding: 14
-
-    // ── Transparent background with shadow ───────────────────────────
-    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.72)
-    layer.enabled: opacity > 0
-    layer.effect: MultiEffect {
-        shadowEnabled: true
-        shadowBlur: 0.6
-        blurMax: 10
-        shadowColor: Qt.alpha("#000000", 0.25)
-        shadowVerticalOffset: 2
-        shadowHorizontalOffset: 1
-    }
 
     // ── Hidden during screenshots ────────────────────────────────────
     opacity: captureOrchestrator && captureOrchestrator.suppressOverlay ? 0 : 1
 
-    // ── Status row ───────────────────────────────────────────────────
-    RowLayout {
-        id: statusRow
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.leftMargin: parent.leftPadding
-        anchors.rightMargin: parent.rightPadding
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: 8
+    // ── Shadow layer: offset Rectangle, no effects dependency ────────
+    // 5WHY: anchors.fill + anchors.leftMargin shrinks the shadow (both
+    // ends constrained).  For a proper drop shadow the rectangle must
+    // be the same size as the content, just offset by (dx, dy).
+    // Use explicit left/top anchors + independent width/height.
+    Rectangle {
+        anchors.left: bar.left
+        anchors.leftMargin: 1
+        anchors.top: bar.top
+        anchors.topMargin: 2
+        width: bar.width
+        height: bar.height
+        radius: bar.radius
+        color: Qt.alpha("#000000", 0.18)
+    }
 
-        // Blinking red recording dot — visible only when recording
-        Rectangle {
-            implicitWidth: 8; implicitHeight: 8; radius: 4
-            color: T.ThemeEngine.failRed
-            visible: d ? d.showRecordingDot : false
-            SequentialAnimation on opacity {
-                running: visible; loops: Animation.Infinite
-                NumberAnimation { from: 1.0; to: 0.2; duration: 600 }
-                NumberAnimation { from: 0.2; to: 1.0; duration: 600 }
-            }
-        }
+    // ── Content bar (transparent background) ─────────────────────────
+    Rectangle {
+        id: bar
+        anchors.fill: parent
+        radius: 10
+        clip: true
+        color: Qt.alpha(T.ThemeEngine.colors.surface, 0.72)
 
-        // Elapsed time: HH:MM:SS — formatted by C++ Display Model
-        Label {
-            text: d ? d.elapsedDisplay : "00:00:00"
-            font.family: T.ThemeEngine.monoFont
-            font.pixelSize: 13; font.weight: Font.DemiBold
-            color: T.ThemeEngine.textPrimary
-            Layout.minimumWidth: 72
-            horizontalAlignment: Text.AlignHCenter
-        }
+        leftPadding: 14
+        rightPadding: 14
 
-        // Thin separator (time → screenshot group)
-        Rectangle {
-            implicitWidth: 1; implicitHeight: 16
-            color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
-            visible: d ? d.showScreenshotGroup : false
-        }
-
-        // ── Screenshot group (hidden in RecordingOnly mode) ──────────
-        // Screenshot icon
-        AppIcon {
-            name: "camera"
-            size: 15
-            color: T.ThemeEngine.cyan
-            Layout.leftMargin: 1
-            visible: d ? d.showScreenshotGroup : false
-        }
-
-        // Screenshot count
-        Label {
-            text: d ? d.countDisplay : " 0"
-            font.family: T.ThemeEngine.monoFont
-            font.pixelSize: 13; font.weight: Font.DemiBold
-            color: T.ThemeEngine.cyan
-            Layout.minimumWidth: 22
-            horizontalAlignment: Text.AlignRight
-            visible: d ? d.showScreenshotGroup : false
-        }
-
-        // Thin separator (screenshot group → task group)
-        Rectangle {
-            implicitWidth: 1; implicitHeight: 16
-            color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
-            visible: d ? d.showScreenshotGroup : false
-        }
-
-        // Task icon
-        AppIcon {
-            name: "list-checks"
-            size: 15
-            color: T.ThemeEngine.textSecondary
-            Layout.leftMargin: 1
-        }
-
-        // Task progress: current / total — formatted by C++ Display Model
+        // ── Status row ───────────────────────────────────────────────
         RowLayout {
-            spacing: 1
-            Label {
-                text: d ? d.stepDisplay : " 0"
-                font.family: T.ThemeEngine.monoFont
-                font.pixelSize: 13; font.weight: Font.DemiBold
-                color: T.ThemeEngine.cyan
-                Layout.minimumWidth: 18
-                horizontalAlignment: Text.AlignRight
+            id: statusRow
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: parent.leftPadding
+            anchors.rightMargin: parent.rightPadding
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 8
+
+            // Blinking red recording dot — visible only when recording
+            Rectangle {
+                implicitWidth: 8; implicitHeight: 8; radius: 4
+                color: T.ThemeEngine.failRed
+                visible: d ? d.showRecordingDot : false
+                SequentialAnimation on opacity {
+                    running: visible; loops: Animation.Infinite
+                    NumberAnimation { from: 1.0; to: 0.2; duration: 600 }
+                    NumberAnimation { from: 0.2; to: 1.0; duration: 600 }
+                }
             }
+
+            // Elapsed time: HH:MM:SS — formatted by C++ Display Model
             Label {
-                text: "/"
-                font.family: T.ThemeEngine.monoFont
-                font.pixelSize: 11
-                color: T.ThemeEngine.textSecondary
-            }
-            Label {
-                text: d ? d.totalDisplay : " 0"
+                text: d ? d.elapsedDisplay : "00:00:00"
                 font.family: T.ThemeEngine.monoFont
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.textPrimary
-                Layout.minimumWidth: 18
+                Layout.minimumWidth: 72
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            // Thin separator (time → screenshot group)
+            Rectangle {
+                implicitWidth: 1; implicitHeight: 16
+                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
+                visible: d ? d.showScreenshotGroup : false
+            }
+
+            // ── Screenshot group (hidden in RecordingOnly mode) ──────
+            // Screenshot icon
+            AppIcon {
+                name: "camera"
+                size: 15
+                color: T.ThemeEngine.cyan
+                Layout.leftMargin: 1
+                visible: d ? d.showScreenshotGroup : false
+            }
+
+            // Screenshot count
+            Label {
+                text: d ? d.countDisplay : " 0"
+                font.family: T.ThemeEngine.monoFont
+                font.pixelSize: 13; font.weight: Font.DemiBold
+                color: T.ThemeEngine.cyan
+                Layout.minimumWidth: 22
                 horizontalAlignment: Text.AlignRight
+                visible: d ? d.showScreenshotGroup : false
+            }
+
+            // Thin separator (screenshot group → task group)
+            Rectangle {
+                implicitWidth: 1; implicitHeight: 16
+                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
+                visible: d ? d.showScreenshotGroup : false
+            }
+
+            // Task icon
+            AppIcon {
+                name: "list-checks"
+                size: 15
+                color: T.ThemeEngine.textSecondary
+                Layout.leftMargin: 1
+            }
+
+            // Task progress: current / total — formatted by C++ Display Model
+            RowLayout {
+                spacing: 1
+                Label {
+                    text: d ? d.stepDisplay : " 0"
+                    font.family: T.ThemeEngine.monoFont
+                    font.pixelSize: 13; font.weight: Font.DemiBold
+                    color: T.ThemeEngine.cyan
+                    Layout.minimumWidth: 18
+                    horizontalAlignment: Text.AlignRight
+                }
+                Label {
+                    text: "/"
+                    font.family: T.ThemeEngine.monoFont
+                    font.pixelSize: 11
+                    color: T.ThemeEngine.textSecondary
+                }
+                Label {
+                    text: d ? d.totalDisplay : " 0"
+                    font.family: T.ThemeEngine.monoFont
+                    font.pixelSize: 13; font.weight: Font.DemiBold
+                    color: T.ThemeEngine.textPrimary
+                    Layout.minimumWidth: 18
+                    horizontalAlignment: Text.AlignRight
+                }
             }
         }
-    }
 
-    // ── Tap anywhere on the bar to cancel capture ────────────────────
-    MouseArea {
-        anchors.fill: parent
-        enabled: root.opacity > 0
-        onClicked: root.cancelled()
+        // ── Tap anywhere on the bar to cancel capture ────────────────
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.opacity > 0
+            onClicked: root.cancelled()
+        }
     }
 
     // ── Wire Flickable for scroll steps ──────────────────────────────

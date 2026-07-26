@@ -5,10 +5,8 @@
 #include "app/AppState.h"
 #include <QMetaObject>
 #include <QVariant>
-#include <QCoreApplication>
 #include <QDebug>
 #include <QTimer>
-#include <QThread>
 
 const QStringList NavigationAdapter::kPageNames = {
     QStringLiteral("dashboard"),
@@ -34,7 +32,20 @@ void NavigationAdapter::setAppContent(QObject* appContent) {
 }
 
 void NavigationAdapter::switchToTab(int index) {
-    if (!m_appContent || index < 0 || index >= kPageNames.size()) {
+    // 5WHY: Silent failure when m_appContent is null (wiring not yet done or
+    // findChild("appContent") failed in main.cpp) — the capture scenario
+    // proceeds with no tab switch, producing screenshots of the wrong page.
+    // Log the failure so a developer investigating a silent capture mis-routing
+    // can instantly identify the missing wiring as the root cause.
+    if (!m_appContent) {
+        qWarning() << "NavigationAdapter: switchToTab(" << index
+                    << ") aborted — m_appContent is null (wiring failed?)";
+        emit tabSwitchFailed(index);
+        return;
+    }
+    if (index < 0 || index >= kPageNames.size()) {
+        qWarning() << "NavigationAdapter: switchToTab(" << index
+                    << ") aborted — index out of range [0," << kPageNames.size() - 1 << "]";
         emit tabSwitchFailed(index);
         return;
     }
@@ -53,7 +64,15 @@ void NavigationAdapter::switchToTab(int index) {
 
 void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
                                           std::function<void(bool)> onReady) {
-    if (!m_appContent || tabIndex < 0 || tabIndex >= kPageNames.size()) {
+    if (!m_appContent) {
+        qWarning() << "NavigationAdapter: waitForPageReady(" << tabIndex
+                    << ") aborted — m_appContent is null";
+        if (onReady) onReady(false);
+        return;
+    }
+    if (tabIndex < 0 || tabIndex >= kPageNames.size()) {
+        qWarning() << "NavigationAdapter: waitForPageReady(" << tabIndex
+                    << ") aborted — index out of range";
         if (onReady) onReady(false);
         return;
     }
@@ -67,6 +86,8 @@ void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
     // dangle silently — stackView->property() on freed memory is UB.
     QPointer<QObject> stackView = m_appContent->property("stackView").value<QObject*>();
     if (!stackView) {
+        qWarning() << "NavigationAdapter: waitForPageReady(" << tabIndex
+                    << ") aborted — stackView property null on m_appContent";
         if (onReady) onReady(false);
         return;
     }
@@ -137,17 +158,46 @@ int NavigationAdapter::currentTabIndex() const {
     return kPageNames.indexOf(name);
 }
 
+// 5WHY: cancel() in CaptureOrchestrator stops m_delayTimer and m_pollTimer,
+// but NOT m_pageReadyTimer in NavigationAdapter — the poll timer kept
+// firing at 200ms intervals, accessing stackView properties across the
+// QML↔C++ boundary, until its natural 3s timeout.  On a cancelled session
+// this is wasted work.  This method gives cancel() a clean stop point.
+void NavigationAdapter::stopPageReadyPolling() {
+    if (m_pageReadyTimer) {
+        m_pageReadyTimer->stop();
+        m_pageReadyTimer->deleteLater();
+        m_pageReadyTimer = nullptr;
+    }
+}
+
 void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
-    if (!m_appContent) return;
+    // 5WHY: All silent-return paths below left zero diagnostic info on iOS.
+    // If the capture scenario requests OpenDetail and the diagnostic page
+    // isn't the current item, none of the five return paths log anything —
+    // the developer has no way to know why the detail never opened.
+    if (!m_appContent) {
+        qWarning() << "NavigationAdapter: openDiagnosticDetail(" << diagIdInt
+                    << ") aborted — m_appContent is null";
+        return;
+    }
     // 5WHY: m_appContent->property("appState") fails because appState is a
     // QML context property, not a QObject property on AppContent.  Similarly,
     // findChild<AppState*>() fails because AppState is not in AppContent's
     // QObject child hierarchy.  Use the direct m_appState pointer instead.
-    if (!m_appState) return;
+    if (!m_appState) {
+        qWarning() << "NavigationAdapter: openDiagnosticDetail(" << diagIdInt
+                    << ") aborted — m_appState is null";
+        return;
+    }
 
     // Find the DiagnosticScreen in the StackView
     QObject* stackView = m_appContent->property("stackView").value<QObject*>();
-    if (!stackView) return;
+    if (!stackView) {
+        qWarning() << "NavigationAdapter: openDiagnosticDetail(" << diagIdInt
+                    << ") aborted — stackView property not found on m_appContent";
+        return;
+    }
 
     // Find the diagnostic page: check currentItem first (most common case),
     // then iterate all items via the StackView's internal list (limited access).
@@ -172,10 +222,32 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
         Q_UNUSED(depth);
     }
 
-    if (!diagScreen) return;
+    if (!diagScreen) {
+        qWarning() << "NavigationAdapter: openDiagnosticDetail(" << diagIdInt
+                    << ") aborted — DiagnosticScreen not found in StackView";
+        return;
+    }
+
+    // 5WHY: When multiple OpenDetail steps run sequentially, the previous
+    // overlay may still be visible.  showDetailOverlay() toggles/updates
+    // the overlay content but calling it while an overlay is already open
+    // may cause QML state confusion (stale data, visual flicker).  Close
+    // any existing overlay first so each OpenDetail starts from a clean
+    // diagnostic screen state.
+    // 5WHY: Check the return value — if dismissDetailOverlay doesn't exist
+    // (mismatched QML/C++ deployment), the subsequent showDetailOverlay
+    // may repopulate a stale overlay instead of refreshing from scratch.
+    if (!QMetaObject::invokeMethod(diagScreen, "dismissDetailOverlay")) {
+        qWarning() << "NavigationAdapter: dismissDetailOverlay not invocable — "
+                       "overlay may carry stale data from previous detail";
+    }
 
     QVariantMap detail = m_appState->getDetailResult(diagIdInt);
-    if (detail.isEmpty()) return;
+    if (detail.isEmpty()) {
+        qWarning() << "NavigationAdapter: openDiagnosticDetail(" << diagIdInt
+                    << ") aborted — getDetailResult returned empty (diag not yet run?)";
+        return;
+    }
 
     // 5WHY: was using findChild by objectName string to poke QML widget
     // internals — brittle coupling to DiagnosticScreen's private structure.
@@ -197,8 +269,14 @@ void NavigationAdapter::openDiagnosticDetail(int diagIdInt) {
 }
 
 void NavigationAdapter::openReportPreview() {
-    if (!m_appContent) return;
-    if (!m_appState) return;
+    if (!m_appContent) {
+        qWarning() << "NavigationAdapter: openReportPreview aborted — m_appContent is null";
+        return;
+    }
+    if (!m_appState) {
+        qWarning() << "NavigationAdapter: openReportPreview aborted — m_appState is null";
+        return;
+    }
 
     // 5WHY: The old code switched to tab 3 (settings) and captured that page
     // instead of the actual report preview.  The dashboard tab (index 0) has

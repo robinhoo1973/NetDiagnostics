@@ -223,6 +223,7 @@ private:
     int           m_sessionGen = 0;     // incremented per session start; invalidates stale callbacks from prior sessions
     bool          m_waitingForReportPreview = false; // set during OpenReport step; cleared by onReportPreviewReady
     bool          m_suppressOverlay = false;          // true during screenshot capture — QML hides overlay
+    bool          m_executingStep = false;             // re-entrancy guard for executeNextStep() during processEvents
 
     QTimer*       m_pollTimer = nullptr;  // non-null during WaitDiagComplete polling; stopped/cleared on cancel
     QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()

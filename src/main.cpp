@@ -341,6 +341,14 @@ int main(int argc, char *argv[])
         if (appContent) {
             orch->setAppContent(appContent);
             STARTUP_TRACE("CaptureOrchestrator: AppContent wired for automated navigation");
+        } else {
+            // 5WHY: If findChild("appContent") returns null, the orchestrator
+            // will silently fail ALL navigation steps — tab switches, detail
+            // opens, report preview — without any diagnostic.  The capture
+            // will complete with screenshots of whatever page the user was on.
+            STARTUP_LOG("CaptureOrchestrator: FAILED to wire AppContent — "
+                        "findChild(\"appContent\") returned null. "
+                        "Automated capture navigation will not work.");
         }
     }
 #endif

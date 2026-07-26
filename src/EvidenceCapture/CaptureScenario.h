@@ -114,17 +114,51 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
         {StepAction::WaitDiagComplete,"120000", "",             false, false},
         {StepAction::Capture,        "Diagnostic_Result",      "",    false},
 
-        // ── Phase 3: InternetConnectivity detail ───────────────────────
+        // ── Phase 3: Diagnostic detail popups (one per group) ──────────
+        // 5WHY: Only InternetConnectivity was captured, leaving 4 of 5
+        // diagnostic groups without detail evidence.  Open representative
+        // detail popups from all 5 groups so every group has at least one
+        // detail screenshot for comprehensive evidence coverage.
+
+        // G1 — Network Adapters (System & Adapters)
+        {StepAction::OpenDetail,
+         QString::number(static_cast<int>(DiagId::G1NetworkAdapters)),
+         "G1_NetworkAdapters",     false, false},
+        {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
+        {StepAction::Capture,        "G1_NetworkAdapters_Detail","", false},
+
+        // G2 — Default Gateway (Connectivity & Security)
+        {StepAction::OpenDetail,
+         QString::number(static_cast<int>(DiagId::G2DefaultGateway)),
+         "G2_DefaultGateway",      false, false},
+        {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
+        {StepAction::Capture,        "G2_DefaultGateway_Detail","",   false},
+
+        // G3 — Internet Connectivity (Internet & DNS)
         {StepAction::OpenDetail,
          QString::number(static_cast<int>(DiagId::G3InternetConnectivity)),
-         "InternetConnectivity",    false, false},
-        {StepAction::WaitPageReady,  "2000", "",                false, false},
-        {StepAction::Capture,        "InternetConnectivity_Top","",   false},
+         "G3_InternetConnectivity",false, false},
+        {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
+        {StepAction::Capture,        "G3_InternetConnectivity_Detail","", false},
         // Scroll during recording only — captures the full detail content
         {StepAction::Scroll,         "3000", "Connectivity scroll", false, true},
         // 5WHY: Bottom capture without a preceding scroll is identical to Top.
         // Mark recordingOnly so screenshot mode skips this duplicate.
-        {StepAction::Capture,        "InternetConnectivity_Bottom","",false, true},
+        {StepAction::Capture,        "G3_InternetConnectivity_Bottom","", false, true},
+
+        // G4 — Ping (Remote Host)
+        {StepAction::OpenDetail,
+         QString::number(static_cast<int>(DiagId::G4Ping)),
+         "G4_Ping",                false, false},
+        {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
+        {StepAction::Capture,        "G4_Ping_Detail",          "",    false},
+
+        // G5 — SSL Certificate (Protocol)
+        {StepAction::OpenDetail,
+         QString::number(static_cast<int>(DiagId::G5SslCertificate)),
+         "G5_SSLCertificate",      false, false},
+        {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
+        {StepAction::Capture,        "G5_SSLCertificate_Detail","",    false},
 
         // ── Phase 4: Dashboard ─────────────────────────────────────────
         {StepAction::Navigate,       "0", "Dashboard_AfterDiag", false, false},

@@ -47,6 +47,10 @@ public:
     // Get the current tab index (-1 if unknown).
     Q_INVOKABLE int currentTabIndex() const;
 
+    // Stop any active page-ready polling timer.  Called by the orchestrator
+    // on cancel to prevent wasted 200ms-interval polling after session abort.
+    Q_INVOKABLE void stopPageReadyPolling();
+
     // Page object names indexed by tab.
     static QString pageObjectName(int tabIndex);
 
