@@ -226,20 +226,20 @@ void CaptureOrchestrator::openFocusSettings() {
 }
 
 bool CaptureOrchestrator::needsFocusModeSetup() const {
-    // 5WHY: The preflight overlay always shows the DND hint, but on Android
-    // where DND can be enabled programmatically (platformEnableFocusMode()),
-    // showing the hint when DND is already active is misleading.  On iOS,
-    // programmatic Focus mode is unavailable — platformEnableFocusMode() only
-    // mutes audio — so the hint must always appear.
+    // 5WHY: The DND guide overlay (CapturePreflightOverlay) contains
+    // iOS-specific instructions ("iOS 18+: if app Settings opens...") and
+    // links to the iOS Settings app.  On Android, DND is handled by
+    // platformEnableFocusMode() in onStateChanged(CountdownToStart) —
+    // if it succeeds, DND is active; if it fails, a qWarning is logged
+    // but the capture still proceeds.  There is no need for a manual
+    // DND setup overlay on Android — the user goes directly to countdown.
+    //
+    // On iOS, programmatic Focus mode is unavailable — the user MUST
+    // manually enable DND in Settings before capture, so the overlay
+    // with instructions is always needed.
 #if defined(PLATFORM_IOS)
-    // iOS: no programmatic Focus mode API — user must always be reminded.
     return true;
-#elif defined(PLATFORM_ANDROID)
-    // Android: platformEnableFocusMode() may succeed if the user granted
-    // ACCESS_NOTIFICATION_POLICY.  Show the hint only when DND is NOT active.
-    return !platformIsFocusModeEnabled();
 #else
-    // Desktop: no DND support — hint is irrelevant.
     return false;
 #endif
 }
