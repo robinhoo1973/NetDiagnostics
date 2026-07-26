@@ -290,7 +290,19 @@ Item {
             // Preflight overlay → user confirmed DND → switch to countdown
             if (typeof item.requestCountdown !== "undefined") {
                 item.requestCountdown.connect(function() {
-                    // 5WHY: Clear the DND guide and load the standalone
+                    // 5WHY: The 120s countdown fallback timer (registered in
+                    // onStateChanged CountdownToStart) uses m_sessionGen to
+                    // determine if it should fire.  notifyCountdownStarted()
+                    // increments m_sessionGen, invalidating the fallback.
+                    // Without this call, the fallback timer remains live
+                    // during the entire DND setup window — if the user
+                    // takes >120s, it fires and skips the countdown entirely.
+                    // CountdownOverlay.start() also calls this, advancing
+                    // gen again to set up the 10s safety timer.
+                    if (captureOrchestrator !== null) {
+                        captureOrchestrator.notifyCountdownStarted()
+                    }
+                    // Clear the DND guide and load the standalone
                     // countdown overlay.  The countdown will auto-start
                     // via its own start() function in the next onLoaded.
                     captureOverlay.source = "qrc:/qml/capture/CaptureCountdownOverlay.qml"
