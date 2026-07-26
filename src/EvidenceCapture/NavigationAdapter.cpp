@@ -142,10 +142,12 @@ void NavigationAdapter::switchToTab(int index) {
         return;
     }
 
-    QQmlComponent* comp = qvariant_cast<QQmlComponent*>(components.at(index));
+    QQmlComponent* comp = qobject_cast<QQmlComponent*>(
+        qvariant_cast<QObject*>(components.at(index)));
     if (!comp) {
         qWarning() << "NavigationAdapter: tabComponents[" << index
-                    << "] is not a QQmlComponent";
+                    << "] is not a QQmlComponent (qvariant type="
+                    << components.at(index).typeName() << ")";
         emit tabSwitchFailed(index);
         return;
     }

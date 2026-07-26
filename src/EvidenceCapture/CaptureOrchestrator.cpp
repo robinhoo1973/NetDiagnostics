@@ -357,9 +357,9 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     m_captureMode = captureMode;
     m_diagUrl = diagUrl.trimmed();
     m_recording = (captureMode == RecordingOnly || captureMode == Both);
-    qInfo() << "CaptureOrchestrator: startCapture mode=" << captureMode
-            << "recording=" << m_recording
-            << "url=" << m_diagUrl;
+    qInfo().noquote()
+        << QStringLiteral("CaptureOrchestrator: startCapture mode=%1 recording=%2 url=%3")
+               .arg(captureMode).arg(m_recording).arg(m_diagUrl);
     // 5WHY: Emit once so QML bindings on wantsScreenshot + isRecordingCapture
     // re-evaluate before the FSM transitions (the overlay loads at ExecutingSteps,
     // long after this point).  A dedicated signal replaces the old stateChanged
