@@ -30,8 +30,10 @@ Rectangle {
     onFocusConfirmedChanged: {
         if (focusConfirmed && running) {
             // User tapped "I'm Ready" — begin countdown + notify C++
+            // 5WHY: countdown is still 5 from start() — the timer was never
+            // started on iOS (readyForCountdown was false), so it was never
+            // decremented.  No need to reset it.
             if (captureOrchestrator) captureOrchestrator.notifyCountdownStarted()
-            countdown = 5
             countdownTimer.restart()
         }
     }
@@ -154,7 +156,7 @@ Rectangle {
                             spacing: 8
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                text: "⚠️ Focus / Do Not Disturb must be enabled manually on this device.\n\niOS has no automatic Focus mode API for apps.\n\n1. Tap below to open Settings\n2. Navigate to Focus (iOS 18+: tap back then Focus)\n3. Enable any Focus mode (e.g. Do Not Disturb)\n4. Return here and tap 'I'm Ready'"
+                                text: "⚠️ Focus / Do Not Disturb must be enabled manually.\n\nThis device requires a one-time permission or manual\nsetup before notifications can be suppressed.\n\n1. Tap below to open Settings\n2. Grant notification access or enable Focus/DND\n3. Return here and tap 'I'm Ready'"
                                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }
