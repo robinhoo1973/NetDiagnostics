@@ -8,7 +8,6 @@
 #include <QDebug>
 #include <QTimer>
 #include <QQmlComponent>
-#include <QQmlEngine>
 
 const QStringList NavigationAdapter::kPageNames = {
     QStringLiteral("dashboard"),
@@ -22,14 +21,17 @@ const QStringList NavigationAdapter::kPageNames = {
 // to Dashboard would capture the footer instead of the header.  Recursively
 // find the first Flickable (has contentY+contentHeight) in the page tree
 // and reset it to the top so every screenshot starts from a consistent origin.
+// 5WHY: Use property().isValid() rather than metaObject()->indexOfProperty().
+// Qt 6's dynamic property system may bypass static meta-object registration
+// for QML-instantiated types on iOS — indexOfProperty returns -1 for a valid
+// dynamic property, while property() correctly reads it.
 static void scrollPageToTop(QObject* page) {
     if (!page) return;
 
-    // Check if this object is a Flickable (has contentY property)
-    const QMetaObject* mo = page->metaObject();
-    int contentYIdx = mo->indexOfProperty("contentY");
-    int contentHIdx = mo->indexOfProperty("contentHeight");
-    if (contentYIdx >= 0 && contentHIdx >= 0) {
+    // Check if this object has Flickable-like scroll properties
+    QVariant cy = page->property("contentY");
+    QVariant ch = page->property("contentHeight");
+    if (cy.isValid() && ch.isValid()) {
         page->setProperty("contentY", 0.0);
         return;
     }
@@ -105,6 +107,7 @@ void NavigationAdapter::switchToTab(int index) {
             if (!ok) {
                 qWarning() << "NavigationAdapter: pop to" << targetName << "failed";
                 emit tabSwitchFailed(index);
+                return;
             }
             qInfo() << "NavigationAdapter: popped to existing page" << targetName;
             scrollPageToTop(child);
@@ -376,14 +379,11 @@ void NavigationAdapter::openReportPreview() {
     // `openPreview()`.  Switch to dashboard, call openPreview() on the
     // dashboard QML item, then let the scenario's Capture step screenshot it.
 
-    // Switch to dashboard tab where the report preview overlay lives
-    bool switched = QMetaObject::invokeMethod(m_appContent, "switchToTab",
-                                              Q_ARG(int, 0)); // dashboard tab
-    if (!switched) {
-        qWarning() << "NavigationAdapter: openReportPreview switchToTab(0) not invocable";
-        emit reportPreviewReady(false);
-        return;
-    }
+    // Switch to dashboard tab where the report preview overlay lives.
+    // 5WHY: Use our own switchToTab(0) which directly manipulates the
+    // StackView via C++ — bypasses the QML AppContent.switchToTab() function
+    // whose QMetaObject::invokeMethod fails on iOS static builds.
+    switchToTab(0);
 
     // 5WHY: StackView.pop/push operations are asynchronous — the
     // transition animation completes on the next frame.  Accessing
