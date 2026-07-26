@@ -2,7 +2,7 @@
 // CapturePreflightOverlay.qml — Focus/DND guide before capture starts
 // =============================================================================
 // Design: Separated from the countdown.  This overlay only handles Focus/DND
-// setup.  When the user confirms readiness, it emits requestCountdown() and
+// setup.  When the user confirms readiness, it emits preflightConfirmed() and
 // the AppContent Loader swaps to CaptureCountdownOverlay.
 //
 // On platforms where Focus setup is not needed (Android with programmatic DND),
@@ -19,7 +19,11 @@ Rectangle {
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.88)
     z: 2100
 
-    signal requestCountdown()
+    // 5WHY: The preflight overlay only handles Focus/DND setup
+    // confirmation.  When the user confirms readiness, it emits
+    // preflightConfirmed and AppContent switches to the standalone
+    // countdown overlay.
+    signal preflightConfirmed()
     signal cancelled()
 
     // 5WHY: On iOS (needsFocusModeSetup=true), the user must manually enable
@@ -119,7 +123,7 @@ Rectangle {
                                     }
                                     MouseArea {
                                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.requestCountdown()
+                                        onClicked: root.preflightConfirmed()
                                     }
                                 }
                             }

@@ -107,6 +107,16 @@ public:
     // single source of truth for timing.
     Q_INVOKABLE void onCountdownFinished();
 
+    // 5WHY: notifyCountdownStarted() does two things: (1) increments m_sessionGen
+    // to invalidate the 120s fallback timer, and (2) registers a 10s safety timer.
+    // Calling it from the preflightConfirmed handler would invalidate the 120s
+    // fallback BUT would also register a premature 10s timer that gets invalidated
+    // by the countdown overlay's start() → notifyCountdownStarted() call.  This
+    // method only does (1) — increment m_sessionGen — and registers a 30s safety
+    // timer to cover the window between preflight confirmation and countdown overlay
+    // load (in case the countdown QML fails to load on iOS static builds).
+    Q_INVOKABLE void invalidateCountdownFallback();
+
     // Set the AppContent QML object for navigation. Must be called after
     // QML engine is initialized (in main.cpp after context properties).
     Q_INVOKABLE void setAppContent(QObject* appContent);
@@ -148,6 +158,11 @@ signals:
     void captureCancelled();
     void captureFailed(const QString& errorCode, const QString& userMessage);
     void modeSelectionRequested();  // QML should show CaptureModePanel
+    // 5WHY: Emitted when a Navigate step needs to switch tabs.  QML
+    // AppContent listens and calls switchToTab().  This signal-based
+    // relay avoids QMetaObject::invokeMethod failures on iOS static builds
+    // where QML JavaScript functions aren't exposed via the C++ meta-object.
+    void navigateToTabRequested(int index);
 
 private slots:
     void onStateChanged(int from, int to);

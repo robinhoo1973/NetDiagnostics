@@ -151,6 +151,7 @@ static const int kReportPreviewTimeoutMs = 5000;  // openReportPreview safety fa
 static const int kPreviewRenderSettleMs  = 1000;  // QML overlay render settle before screenshot
 static const int kCountdownSafetyMs      = 10000; // preflight-countdown safety-net timeout
 static const int kCountdownFallbackMs    = 120000; // fallback if QML never confirms (iOS DND setup abandon)
+static const int kPreflightConfirmTimeoutMs = 30000; // safety if countdown overlay fails to load after DND confirm
 static const int kNavigateSettleMs       = 500;   // page settle after navigate (screenshot mode)
 static const int kNavigateSettleRecordMs = 4000;  // page settle after navigate (recording mode)
 static const int kDiagCancelTimeoutMs    = 500;   // settle after diagnostic cancel on timeout
@@ -323,6 +324,31 @@ void CaptureOrchestrator::notifyCountdownStarted() {
             m_stateMachine->transitionTo(CaptureState::CreatingSession);
         }
     });
+}
+
+void CaptureOrchestrator::invalidateCountdownFallback() {
+    // 5WHY: The 120s fallback timer registered in onStateChanged(CountdownToStart)
+    // uses m_sessionGen as a guard.  When the user confirms DND setup in the
+    // preflight overlay, we need to invalidate that fallback (the user is
+    // actively engaging with the UI).  We increment m_sessionGen to kill the
+    // 120s fallback, then register a 30s safety timer to cover the window
+    // between preflight confirmation and countdown overlay load.  If the
+    // countdown QML fails to load on iOS static builds, this timer prevents
+    // the FSM from hanging in CountdownToStart forever.
+    //
+    // When the countdown overlay's start() calls notifyCountdownStarted(), it
+    // increments m_sessionGen again, invalidating this 30s timer and registering
+    // the proper 10s safety timer for the actual countdown.
+    int gen = ++m_sessionGen;
+    QTimer::singleShot(kPreflightConfirmTimeoutMs, this, [this, gen]() {
+        if (m_sessionGen == gen
+            && m_stateMachine->state() == CaptureState::CountdownToStart) {
+            qWarning() << "CaptureOrchestrator: invalidateCountdownFallback safety timer"
+                          " fired — countdown overlay may have failed to load on iOS";
+            m_stateMachine->transitionTo(CaptureState::CreatingSession);
+        }
+    });
+    qInfo() << "CaptureOrchestrator: countdown fallback invalidated, sessionGen=" << m_sessionGen;
 }
 
 void CaptureOrchestrator::onCountdownFinished() {
@@ -996,6 +1022,16 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
 
     case StepAction::Navigate: {
         int tabIdx = step->param.toInt();
+        // 5WHY: Two-pronged navigation for reliability across all platforms:
+        // (1) Signal-based relay: QML AppContent.switchToTab() handles the
+        //     actual navigation.  This path works on iOS static Qt builds
+        //     where QMetaObject::invokeMethod on QML JS functions fails.
+        // (2) C++ direct path: NavigationAdapter manipulates StackView from
+        //     C++ (pop-to-existing or create-new via QQmlComponent).  This
+        //     path works on desktop/dynamic builds.
+        // Both paths are safe to run — QML switchToTab is idempotent and
+        // the C++ path is best-effort with logging on failure.
+        emit navigateToTabRequested(tabIdx);
         m_navAdapter->switchToTab(tabIdx);
 
         // Wait for page ready before continuing
@@ -1137,6 +1173,9 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     case StepAction::OpenDetail: {
         int diagId = step->param.toInt();
         // First ensure we're on the diagnostic page
+        // 5WHY: Use signal-based relay in addition to C++ direct path
+        // for the same reliability reasons as the Navigate step above.
+        emit navigateToTabRequested(1); // diagnostics tab
         m_navAdapter->switchToTab(1); // diagnostics tab
         // 5WHY: Generation-counter guard prevents the deferred navigation
         // from firing after cancellation — if the user cancels during the

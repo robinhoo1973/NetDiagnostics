@@ -69,6 +69,22 @@ Item {
     // 5WHY: CaptureModePanel/CaptureOrchestrator were unreachable dead code.
     // This Loader is driven by captureOrchestrator signals: modeSelectionRequested
     // → load CaptureModePanel; stateChanged → load running/summary overlays.
+
+    // ── Navigation signal relay ──────────────────────────────────────────
+    // 5WHY: NavigationAdapter::switchToTab() directly manipulates StackView
+    // from C++ but accessing QQmlComponent from property var → QVariantList
+    // fails on iOS static Qt builds.  This Connections block provides a
+    // reliable QML→QML path: CaptureOrchestrator emits navigateToTabRequested,
+    // and AppContent.switchToTab() handles the navigation in pure QML.
+    // This is safe to run in addition to the C++ direct path — switchToTab()
+    // is idempotent (it pops to an existing page or pushes a new one).
+    Connections {
+        target: captureOrchestrator
+        function onNavigateToTabRequested(index) {
+            content.switchToTab(index)
+        }
+    }
+
     Loader {
         id: captureOverlay
         anchors.fill: parent
@@ -288,27 +304,20 @@ Item {
                 })
             }
             // Preflight overlay → user confirmed DND → switch to countdown
-            if (typeof item.requestCountdown !== "undefined") {
-                item.requestCountdown.connect(function() {
-                    // 5WHY: The 120s countdown fallback timer (registered in
-                    // onStateChanged CountdownToStart) uses m_sessionGen to
-                    // determine if it should fire.  notifyCountdownStarted()
-                    // increments m_sessionGen, invalidating the fallback.
-                    // Without this call, the fallback timer remains live
-                    // during the entire DND setup window — if the user
-                    // takes >120s, it fires and skips the countdown entirely.
-                    // CountdownOverlay.start() also calls this, advancing
-                    // gen again to set up the 10s safety timer.
+            if (typeof item.preflightConfirmed !== "undefined") {
+                item.preflightConfirmed.connect(function() {
+                    // 5WHY: preflightConfirmed is emitted by the preflight
+                    // overlay when DND setup is confirmed.  Invalidate the
+                    // 120s fallback timer and switch to the countdown overlay.
                     if (captureOrchestrator !== null) {
-                        captureOrchestrator.notifyCountdownStarted()
+                        captureOrchestrator.invalidateCountdownFallback()
                     }
-                    // Clear the DND guide and load the standalone
-                    // countdown overlay.  The countdown will auto-start
-                    // via its own start() function in the next onLoaded.
+                    captureOverlay.pendingError = false
+                    // Close preflight window, open countdown window
                     captureOverlay.source = "qrc:/qml/capture/CaptureCountdownOverlay.qml"
                 })
             }
-            // Countdown overlay → auto-start + handle finish
+            // Countdown overlay — auto-start + handle finish
             if (typeof item.countdownFinished !== "undefined") {
                 // 5WHY: start() was never called after loading the countdown
                 // overlay, so the countdown never animated — it stayed at "5".
