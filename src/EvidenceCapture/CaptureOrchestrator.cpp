@@ -304,9 +304,9 @@ void CaptureOrchestrator::notifyCountdownStarted() {
     // permission dialog).  Instead, start the safety timer only when the
     // QML countdown timer actually begins (after Focus confirmation).
     // On Android, QML calls this immediately when the preflight loads.
-    int gen = ++m_countdownGen;
+    int gen = ++m_sessionGen;
     QTimer::singleShot(kCountdownSafetyMs, this, [this, gen]() {
-        if (m_countdownGen == gen
+        if (m_sessionGen == gen
             && m_stateMachine->state() == CaptureState::CountdownToStart) {
             qWarning() << "CaptureOrchestrator: countdown safety timer fired — "
                            "QML overlay may have failed to load";
@@ -398,15 +398,15 @@ void CaptureOrchestrator::cancel() {
     m_waitingForReportPreview = false;
 
     // 5WHY: cancel() stopped m_delayTimer and m_pollTimer, but did NOT
-    // increment m_countdownGen.  Stale QTimer::singleShot callbacks from
+    // increment m_sessionGen.  Stale QTimer::singleShot callbacks from
     // OpenDetail (1500ms, executeStep line ~910) and OpenReport (5000ms,
-    // executeStep line ~935) use m_countdownGen as a stale-session guard.
-    // Since cancel() left m_countdownGen unchanged, those callbacks would
+    // executeStep line ~935) use m_sessionGen as a stale-session guard.
+    // Since cancel() left m_sessionGen unchanged, those callbacks would
     // fire and call openDiagnosticDetail() + restart m_delayTimer on a
     // cancelled session — a UI glitch where detail overlays appear briefly
     // after the user cancelled.  Incrementing the generation counter here
     // invalidates all outstanding callbacks in one atomic operation.
-    ++m_countdownGen;
+    ++m_sessionGen;
 
     // 5WHY: platformStopRecording(nullptr) initiates an async stop.
     // Do NOT clear m_recording here — if the recording hasn't started yet
@@ -500,13 +500,13 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // The FSM would hang in CountdownToStart forever.  Add a fallback
         // timer (120s) here that fires only if notifyCountdownStarted() was
         // never invoked (gen counters won't have diverged).  When QML calls
-        // notifyCountdownStarted(), it increments m_countdownGen, which
+        // notifyCountdownStarted(), it increments m_sessionGen, which
         // invalidates this fallback timer — so it never races with the
         // shorter 10s timer in notifyCountdownStarted().
         {
-            int fallbackGen = m_countdownGen;
+            int fallbackGen = m_sessionGen;
             QTimer::singleShot(kCountdownFallbackMs, this, [this, fallbackGen]() {
-                if (m_countdownGen == fallbackGen
+                if (m_sessionGen == fallbackGen
                     && m_stateMachine->state() == CaptureState::CountdownToStart) {
                     qWarning() << "CaptureOrchestrator: countdown fallback timer fired — "
                                   "QML preflight may have failed to load or user abandoned Focus setup";
@@ -541,9 +541,9 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // with the other async-state timeouts in this file (CountdownToStart,
         // OpenReport, Navigate, WaitDiagComplete all have timeouts).
         {
-            int gen = m_countdownGen;
+            int gen = m_sessionGen;
             QTimer::singleShot(kRecordingStartTimeoutMs, this, [this, gen]() {
-                if (m_countdownGen == gen
+                if (m_sessionGen == gen
                     && m_stateMachine->state() == CaptureState::StartingRecording) {
                     qWarning() << "CaptureOrchestrator: recording start timeout — "
                                   "platform callback never fired, aborting";
@@ -1069,9 +1069,9 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // from firing after cancellation — if the user cancels during the
         // 1500ms settle delay, the stale timer would otherwise open the
         // diagnostic detail view on an aborted capture session.
-        int gen = m_countdownGen;
+        int gen = m_sessionGen;
         QTimer::singleShot(kOpenDetailSettleMs, this, [this, diagId, gen]() {
-            if (m_countdownGen != gen) return;
+            if (m_sessionGen != gen) return;
             m_navAdapter->openDiagnosticDetail(diagId);
             scheduleStepAfter(kPreviewRenderSettleMs);
         });
@@ -1089,14 +1089,14 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // the constructor).  If the signal never fires (e.g. QML refactoring
         // removes the signal emission), the 5s safety timeout advances the
         // scenario so the capture doesn't hang forever.
-        // 5WHY: capture the current m_countdownGen (incremented once per
+        // 5WHY: capture the current m_sessionGen (incremented once per
         // CountdownToStart) so a stale safety timeout from a cancelled
         // session cannot prematurely advance a new session that reaches
         // OpenReport.
         {
-            int gen = m_countdownGen;
+            int gen = m_sessionGen;
             QTimer::singleShot(kReportPreviewTimeoutMs, this, [this, gen]() {
-                if (m_waitingForReportPreview && m_countdownGen == gen) {
+                if (m_waitingForReportPreview && m_sessionGen == gen) {
                     m_waitingForReportPreview = false;
                     qWarning() << "CaptureOrchestrator: report preview timed out — advancing anyway";
                     executeNextStep();

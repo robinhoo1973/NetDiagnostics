@@ -282,14 +282,14 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
                 // terminal error so the orchestrator transitions to Failed
                 // (consistent with the AVAssetWriterStatusFailed path above).
                 qWarning() << "PlatformRecording: AVAssetWriter in unexpected status before first frame — status:"
-                           << (int)s_writer.status
+                           << (int)st
                            << "error:" << (s_writer.error ? QString::fromNSString(s_writer.error.localizedDescription) : QStringLiteral("none"));
                 s_stopping = true;
                 s_recording = false;
                 [s_writer cancelWriting];
                 cleanupAfterError(s_writer.error ?: [NSError errorWithDomain:@"PlatformRecording"
                                                               code:-1
-                                                          userInfo:@{NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Writer in unexpected status %ld before first frame", (long)s_writer.status]}]);
+                                                          userInfo:@{NSLocalizedDescriptionKey: [NSString stringWithFormat:@"Writer in unexpected status %ld before first frame", (long)st]}]);
                 return;
             } // end if (s_writer.status == Writing || Unknown)
         } // end if (!s_recording)

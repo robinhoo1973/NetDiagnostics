@@ -191,7 +191,7 @@ private:
     QString       m_currentAction;
     QString       m_sessionDir;
     bool          m_recording = false;  // true if mode is RecordingOnly or Both
-    int           m_countdownGen = 0;     // incremented per CountdownToStart entry; prevents stale safety timers
+    int           m_sessionGen = 0;     // incremented per session start; invalidates stale callbacks from prior sessions
     bool          m_waitingForReportPreview = false; // set during OpenReport step; cleared by onReportPreviewReady
     bool          m_suppressOverlay = false;          // true during screenshot capture — QML hides overlay
 
