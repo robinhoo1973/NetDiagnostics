@@ -362,6 +362,12 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     emit captureModeChanged();
     m_currentStep = 0;
     m_captureCount = 0;
+    // 5WHY: Resetting m_captureCount must notify CaptureSessionDisplay so
+    // the countDisplay resets to " 0".  Without this, the display retains
+    // the previous session's screenshot count until the first screenshot
+    // of the new session fires captureCountChanged (which could be several
+    // seconds later if leading steps are Navigate/WaitPageReady).
+    emit captureCountChanged(0);
     m_sessionDir.clear();
     m_currentAction.clear();  // 5WHY: stale action from a previous capture (e.g.
     // "Recording saved: ...") would be briefly visible in the QML overlay until
