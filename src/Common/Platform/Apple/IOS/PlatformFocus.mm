@@ -213,49 +213,64 @@ bool platformUnlockOrientation() {
 
 void platformOpenFocusSettings() {
     // 5WHY: iOS has no public API to open the Focus/DND settings page.
-    // The private URL scheme App-Prefs:root=Focus works on iOS 15-17 but
-    // is blocked on iOS 18+.  We try the following fallback chain:
+    // Private URL schemes (App-Prefs:, prefs:) can return YES from
+    // canOpenURL but silently fail in openURL on iOS 18+.  We use
+    // completionHandler callbacks to detect failure and fall through:
     //   1. App-Prefs:root=Focus (iOS 15-17, best UX)
-    //   2. App-Prefs:root=DO_NOT_DISTURB (iOS 13+ fallback, some versions)
-    //   3. prefs:root=DO_NOT_DISTURB (legacy iOS 12 fallback)
-    //   4. UIApplicationOpenSettingsURLString (app's own Settings page)
+    //   2. App-Prefs:root=DO_NOT_DISTURB (iOS 13+ fallback)
+    //   3. prefs:root=DO_NOT_DISTURB (legacy iOS 12)
+    //   4. UIApplicationOpenSettingsURLString (last resort)
     //
     // The user MUST manually enable Focus/DND — iOS has no programmatic
     // Focus mode API for third-party apps (requires MDM or entitlement).
+    //
+    // 5WHY: canOpenURL cannot reliably detect whether openURL will succeed
+    // for private URL schemes (especially on iOS 18+).  Without a completion
+    // handler, silent openURL failure leaves the user with no Settings page
+    // opened at all.  The completion-handler chain detects each failure and
+    // tries the next fallback, ensuring at least the app Settings opens.
     runOnMainThread(^{
-        // Primary: modern private scheme (iOS 15-17)
-        NSURL* focusUrl = [NSURL URLWithString:@"App-Prefs:root=Focus"];
-        if ([[UIApplication sharedApplication] canOpenURL:focusUrl]) {
-            [[UIApplication sharedApplication] openURL:focusUrl
-                options:@{} completionHandler:nil];
-            return;
-        }
+        NSArray<NSURL*>* urls = @[
+            [NSURL URLWithString:@"App-Prefs:root=Focus"],
+            [NSURL URLWithString:@"App-Prefs:root=DO_NOT_DISTURB"],
+            [NSURL URLWithString:@"prefs:root=DO_NOT_DISTURB"],
+            [NSURL URLWithString:UIApplicationOpenSettingsURLString],
+        ];
 
-        // Fallback 1: DND-specific private scheme
-        NSURL* dndUrl = [NSURL URLWithString:@"App-Prefs:root=DO_NOT_DISTURB"];
-        if ([[UIApplication sharedApplication] canOpenURL:dndUrl]) {
-            qInfo() << "PlatformFocus: opened DND settings via App-Prefs:root=DO_NOT_DISTURB";
-            [[UIApplication sharedApplication] openURL:dndUrl
-                options:@{} completionHandler:nil];
-            return;
-        }
-
-        // Fallback 2: legacy prefs scheme (iOS 12)
-        NSURL* legacyUrl = [NSURL URLWithString:@"prefs:root=DO_NOT_DISTURB"];
-        if ([[UIApplication sharedApplication] canOpenURL:legacyUrl]) {
-            [[UIApplication sharedApplication] openURL:legacyUrl
-                options:@{} completionHandler:nil];
-            return;
-        }
-
-        // Last resort: app's own Settings page (not the Focus page)
-        qWarning() << "PlatformFocus: no Focus/DND URL scheme available — "
-                       "falling back to app Settings (Focus/DND not accessible "
-                       "from this page on iOS 18+)";
-        NSURL* appSettingsUrl = [NSURL URLWithString:UIApplicationOpenSettingsURLString];
-        if (appSettingsUrl) {
-            [[UIApplication sharedApplication] openURL:appSettingsUrl
-                options:@{} completionHandler:nil];
-        }
+        // 5WHY: Recursive __block to iterate the fallback chain with
+        // completion-handler feedback on each attempt.  Tries canOpenURL
+        // first (fast rejection of unsupported schemes), then openURL with
+        // a completionHandler that verifies success and falls through on
+        // failure.
+        __block void (^tryOpenUrl)(NSUInteger);
+        tryOpenUrl = ^(NSUInteger idx) {
+            if (idx >= urls.count) {
+                qWarning() << "PlatformFocus: all Focus/DND URL schemes failed — "
+                               "no Settings page opened";
+                return;
+            }
+            NSURL* url = urls[idx];
+            if (![[UIApplication sharedApplication] canOpenURL:url]) {
+                // Scheme not supported at all — skip to next fallback
+                tryOpenUrl(idx + 1);
+                return;
+            }
+            // 5WHY: Use completionHandler to verify the URL actually opened.
+            // If success=NO (private scheme blocked at runtime, iOS 18+),
+            // fall through to the next URL in the chain.
+            [[UIApplication sharedApplication] openURL:url options:@{}
+                completionHandler:^(BOOL success) {
+                    if (success) {
+                        qInfo() << "PlatformFocus: opened settings via"
+                                 << QString::fromNSString(url.absoluteString);
+                    } else {
+                        qWarning() << "PlatformFocus: openURL failed for"
+                                    << QString::fromNSString(url.absoluteString)
+                                    << "— trying next fallback";
+                        tryOpenUrl(idx + 1);
+                    }
+                }];
+        };
+        tryOpenUrl(0);  // start with primary URL (Focus)
     });
 }
