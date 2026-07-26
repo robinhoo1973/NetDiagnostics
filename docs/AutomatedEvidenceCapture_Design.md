@@ -2,9 +2,11 @@
 
 > **目标读者**：代码 Agent  
 > **用途**：作为实施的唯一主蓝图，逐节对应实现步骤  
-> **版本**：2.0  
-> **日期**：2026-07-24  
+> **版本**：2.1  
+> **日期**：2026-07-26  
 > **基于**：`review/06_Capture_Architecture_Design.md` + `review/iOS_Android_Automated_Evidence_Capture_Implementation_Blueprint_CN.md` + 现有已实现的 CaptureFeatureGate / PlatformCapture / CaptureService
+>  
+> **v2.1 更新**：重构 CaptureRunningOverlay 从全屏模态卡片到紧凑浮动状态条；新增 `wantsScreenshot`/`isRecordingCapture` Q_PROPERTY 及 `captureModeChanged` 信号；新增 `wasRecordingSession()` Q_INVOKABLE 修复 `restoreSystemState()` 清除 `m_recording` 后的竞态；新增 Lucide SVG 图标（camera、list-checks）
 
 ---
 
@@ -55,7 +57,7 @@
          │
          ▼
   ┌─────────────────────────────┐
-  │   🎬 捕获模式选择面板        │  ← CaptureModePanel (新增)
+  │   🎬 捕获模式选择面板        │  ← CaptureModePanel
   │                             │
   │   📸 仅截屏                  │
   │   🎥 仅录屏                  │
@@ -67,7 +69,7 @@
                 │ 点击 "开始采集"
                 ▼
   ┌─────────────────────────────┐
-  │   ⚠️  准备开始采集           │  ← CapturePreflightOverlay (新增)
+  │   ⚠️  准备开始采集           │  ← CapturePreflightOverlay
   │                             │
   │   • 请勿触碰设备              │
   │   • 建议开启勿扰模式          │
@@ -79,22 +81,19 @@
   └─────────────┬───────────────┘
                 │ 倒计时结束
                 ▼
-  ┌─────────────────────────────┐
-  │   🔴 采集中...               │  ← CaptureRunningOverlay (新增)
-  │   ───────────────────────   │
-  │   ✅ Dashboard (1/7)        │
-  │   ⏳ Diagnostic (2/7)       │
-  │   ⬜ Config (3/7)           │
-  │   ⬜ Settings (4/7)         │
-  │   ...                       │
-  │        已采集: 📸 3          │
-  │                             │
-  │   [✕ 取消采集]               │
-  └─────────────┬───────────────┘
+  ┌──────────────────────────────────────────────┐
+  │  后台可见的自动导航+截屏/录屏执行              │
+  │                                              │
+  │  ┌──────────────────────────────────────┐    │
+  │  │ ● 00:01:23 │ ⊙  7 │ ☰  5/12  ← 浮动条│   │  ← CaptureRunningOverlay (重构)
+  │  └──────────────────────────────────────┘    │
+  │                                              │
+  │  [底层 UI 完全可见 + 可交互]                   │
+  └─────────────┬────────────────────────────────┘
                 │ 采集完成/取消
                 ▼
   ┌─────────────────────────────┐
-  │   ✅ 采集完成                │  ← CaptureResultSummary (新增)
+  │   ✅ 采集完成                │  ← CaptureResultSummary
   │                             │
   │   截图:  7 张                │
   │   录像:  1 段 (00:42)        │
@@ -105,16 +104,47 @@
   └─────────────────────────────┘
 ```
 
+**关键的 UX 设计变更** — `CaptureRunningOverlay` 从全屏模态卡片重构为紧凑浮动状态条：
+
+- **旧设计（已移除）**：`anchors.fill: parent`、92% 不透明背景的居中卡片（~400×300px），完全遮挡底层 UI
+- **新设计**：36px 高、透明（72% 不透明度）+ 投影、锚定右上角的浮动条。不阻挡底层 UI 交互，导航/诊断/滚动在状态条背后可见、可操作
+- **设计理由（5WHY）**：旧模态遮挡了所有底层 UI——导航、诊断和滚动均被完全隐藏。用户无法验证采集进度，触摸事件被拦截。紧凑的浮动条让自动采集步骤在视觉上可验证
+
+```
+浮动条布局:
+
+● 00:01:23 │ ⊙  7 │ ☰  5/12
+↑ ↑         ↑  ↑   ↑    ↑ ↑
+│ └ HH:MM:SS│  │   │    │ └ 总步数（2位右对齐，monospace）
+│           │  │   │    └ 分隔符
+│           │  │   └ 截图计数（2位右对齐，monospace，青色）
+│           │  └ 截图图标（camera SVG, Lucide MIT, 青色）
+│           └ 录像计时（固定最小宽度 72px，monospace，HH:MM:SS）
+└ 闪烁红色录制圆点（仅 isRecordingCapture=true 时可见）
+```
+
+| 元素 | 实现 | 可见性约束 |
+|---|---|---|
+| 录制圆点 | 8×8px Rectangle，红色，闪烁动画（600ms） | `visible: isRecordingCapture`；仅录像/双模式 |
+| 截图图标+计数 | Lucide `camera` SVG + 数字 | `visible: wantsScreenshot`；RecordingOnly 模式隐藏整组 |
+| 任务图标+进度 | Lucide `list-checks` SVG + `current/total` | 始终可见 |
+| 取消操作 | 整条 tappable（MouseArea.fill） | `enabled: root.opacity > 0`；截图隐藏期间禁用 |
+```
+
 ### 2.2 视觉设计规范
 
 | 元素 | 规范 |
 |------|------|
 | **模式选择面板** | 卡片式，居中弹出，圆角 20px，半透明背景遮罩 |
 | **激活图标** | 青色 `ThemeEngine.cyan`，diagnostics 图标（✅已实现） |
-| **倒计时** | 大号数字（48px），居中，脉冲动画 |
-| **进度指示** | 步骤列表 + ✅/⏳/⬜ 状态标记，绿色通过、灰色等待 |
-| **运行指示器** | 红色脉冲圆点 + "采集中..." 文字 |
-| **Toast 提示** | 底部居中，圆角 Pill，3s 自动消失 |
+| **倒计时** | 大号数字（64px），居中，脉冲动画 |
+| **浮动状态条** | 右上角锚定，36px 高，圆角 10px，`surface` 色 @ 72% alpha + `MultiEffect` 投影（blurMax=10, shadowBlur=0.6, 偏移 1,2） |
+| **录制指示器** | 8×8px 红色脉冲圆点（`failRed`），600ms 闪烁（SequentialAnimation），仅录像模式可见 |
+| **截图图标** | Lucide `camera` SVG（MIT），15px，`cyan` 色，通过 `AppIcon`+`MultiEffect` colorization 渲染 |
+| **任务图标** | Lucide `list-checks` SVG（MIT），15px，`textSecondary` 色 |
+| **数字显示** | Monospace 13px DemiBold，右对齐，单数字前导空格（ThemeEngine.pad2），`cyan`/`textPrimary` |
+| **耗时格式** | HH:MM:SS，ES5 padZero 零填充，1s 定时器轮询 `elapsedSeconds` |
+| **截图隐藏** | `opacity: suppressOverlay ? 0 : 1`，`layer.enabled` 绑定 `opacity>0`（跳过 GPU 阴影），`MouseArea.enabled` 绑定 `root.opacity>0`（防止误触取消） |
 
 ---
 
@@ -162,7 +192,7 @@
 | 决策 | 理由 |
 |------|------|
 | **编排器放 C++** | 状态机需精确控制时序；QML Timer 不够可靠 |
-| **QML overlay 独立于页面栈** | 不干扰正常导航；顶层显示采集状态 |
+| **QML overlay 浮动于页面栈之上** | 右上角 36px 透明浮动条，不阻挡底层 UI 交互；z:2100 顶层显示采集状态；`layer.enabled: opacity>0` 按需开关 GPU 阴影 |
 | **NavigationAdapter 通过 QMetaObject** | 不耦合 QML 类型；可被 C++ state machine 驱动 |
 | **录屏平台隔离** | 与 PlatformShare/PlatformStore 模式一致 |
 | **存储与 Crash 报告同目录** | 统一证据根目录（`<AppData>/Evidence/`），便于查找和管理 |
@@ -232,6 +262,18 @@ private:
     QString m_sessionDir;
 };
 ```
+
+#### Q_PROPERTY 补充（v2.1 新增）
+
+| 属性 | 类型 | NOTIFY | 用途 |
+|---|---|---|---|
+| `wantsScreenshot` | `bool` | `captureModeChanged` | RecordingOnly 模式下隐藏截图图标组 |
+| `isRecordingCapture` | `bool` | `captureModeChanged` | 控制闪烁录制圆点可见性 |
+| `suppressOverlay` | `bool` | `suppressOverlayChanged` | 截图瞬间隐藏浮动条 |
+
+**`wasRecordingSession()` Q_INVOKABLE**：读取 `m_captureMode`（而非 `m_recording`）判断是否进行了录屏。`restoreSystemState()` 在 `captureCompleted` 信号延迟发射前就清除了 `m_recording`，导致 `isRecordingCapture()` 在 ResultSummary 中永远返回 false。`wasRecordingSession()` 通过读取 `m_captureMode`（不受 `restoreSystemState()` 影响）修复此竞态。
+
+**`captureModeChanged()` 信号**：替代原来的 `stateChanged`（每 session ~11 次发射）。`wantsScreenshot` 和 `isRecordingCapture` 的值在 `startCapture()` 中设定一次后整个 session 不变，专用的 NOTIFY 信号仅在 `startCapture()` 中发射一次。
 
 ### 4.2 CaptureStateMachine (状态机)
 
@@ -797,7 +839,7 @@ CaptureOrchestrator::startCapture(mode=Recording, url)
 ### Phase 4: QML UI
 - [ ] CaptureModePanel — 模式选择面板
 - [ ] CapturePreflightOverlay — 倒计时 + 提示
-- [ ] CaptureRunningOverlay — 进度指示
+- [x] CaptureRunningOverlay — 紧凑浮动状态条（已从全屏模态卡片重构为右上角 36px 透明浮动条，支持截图隐藏、录制模式自适应显隐）
 - [ ] CaptureResultSummary — 完成摘要
 
 ### Phase 5: 集成和测试
@@ -838,7 +880,7 @@ src/Common/Platform/
 src/EvidenceCapture/View/
 ├── CaptureModePanel.qml           (~150 行) 模式选择面板
 ├── CapturePreflightOverlay.qml    (~120 行) 倒计时覆盖层
-├── CaptureRunningOverlay.qml      (~100 行) 进度指示覆盖层
+├── CaptureRunningOverlay.qml      (~310 行) 紧凑浮动状态条（重构后）
 ├── CaptureResultSummary.qml       (~130 行) 完成摘要面板
 ```
 
