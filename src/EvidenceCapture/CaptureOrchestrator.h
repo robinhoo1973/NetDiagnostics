@@ -25,11 +25,11 @@
 #include <functional>
 #include "EvidenceCapture/CaptureStateMachine.h"
 #include "EvidenceCapture/CaptureScenario.h"
+#include "EvidenceCapture/CaptureSessionDisplay.h"
 
 class AppState;
 class NavigationAdapter;
 class ScrollController;
-class CaptureSessionDisplay;
 class CaptureOrchestrator : public QObject {
     Q_OBJECT
 
