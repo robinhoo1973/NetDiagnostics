@@ -29,7 +29,8 @@ Rectangle {
     }
     onFocusConfirmedChanged: {
         if (focusConfirmed && running) {
-            // User tapped "I'm Ready" — begin countdown immediately
+            // User tapped "I'm Ready" — begin countdown + notify C++
+            if (captureOrchestrator) captureOrchestrator.notifyCountdownStarted()
             countdown = 5
             countdownTimer.restart()
         }
@@ -43,6 +44,10 @@ Rectangle {
         focusConfirmed = false
         running = true
         if (readyForCountdown) {
+            // 5WHY: Notify C++ that the countdown has actually started so it
+            // can register its safety-net timer.  On iOS this fires after
+            // focus confirmation; on Android it fires immediately.
+            if (captureOrchestrator) captureOrchestrator.notifyCountdownStarted()
             countdownTimer.restart()
         }
     }

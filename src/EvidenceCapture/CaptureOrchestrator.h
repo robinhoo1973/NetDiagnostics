@@ -87,6 +87,11 @@ public:
     // Wire a QML Flickable to the ScrollController so recording-mode
     // scroll steps actually scroll the page instead of silently no-oping.
     Q_INVOKABLE void setScrollFlickable(QObject* flickable);
+    // Called by QML when the actual countdown timer begins (after Focus
+    // confirmation on iOS, immediately on Android).  Registers the C++
+    // safety-net timer that prevents the capture from hanging if the
+    // countdown signal is never emitted (QML overlay load failure).
+    Q_INVOKABLE void notifyCountdownStarted();
 
     // Open the system Focus / Do-Not-Disturb settings page (iOS/Android).
     // Called from CapturePreflightOverlay when the user taps the DND hint.

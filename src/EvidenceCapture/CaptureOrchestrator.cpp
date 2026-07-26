@@ -291,6 +291,28 @@ void CaptureOrchestrator::requestModeSelection() {
     emit modeSelectionRequested();
 }
 
+void CaptureOrchestrator::notifyCountdownStarted() {
+    // 5WHY: The C++ safety timer was previously registered in
+    // onStateChanged(CountdownToStart), which fires BEFORE the QML
+    // countdown actually begins.  On iOS, the user must manually enable
+    // Focus mode first — opening Settings, enabling DND, returning —
+    // which can take 30-60 seconds.  The old 10s safety timer would fire
+    // while the user was still in Settings, prematurely advancing the FSM
+    // to CreatingSession → StartingRecording (triggering the ReplayKit
+    // permission dialog).  Instead, start the safety timer only when the
+    // QML countdown timer actually begins (after Focus confirmation).
+    // On Android, QML calls this immediately when the preflight loads.
+    int gen = ++m_countdownGen;
+    QTimer::singleShot(kCountdownSafetyMs, this, [this, gen]() {
+        if (m_countdownGen == gen
+            && m_stateMachine->state() == CaptureState::CountdownToStart) {
+            qWarning() << "CaptureOrchestrator: countdown safety timer fired — "
+                           "QML overlay may have failed to load";
+            m_stateMachine->transitionTo(CaptureState::CreatingSession);
+        }
+    });
+}
+
 void CaptureOrchestrator::onCountdownFinished() {
     // 5WHY: Called by QML when the visual 3-2-1 countdown reaches 0.
     // Only valid from CountdownToStart state.
@@ -464,24 +486,11 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
             qWarning() << "CaptureOrchestrator: orientation lock unavailable "
                            "— device rotation may disrupt the recording";
         }
-        // Safety net: if the QML preflight overlay fails to load or the
-        // countdown signal is never emitted, auto-advance after 10s so the
-        // capture doesn't hang forever. The state guard ensures this won't
-        // race with a successful QML countdown (which fires at ~3s).
-        // 5WHY: without a generation counter, a stale timer from a previous
-        // cancel+restart cycle can fire during a NEW CountdownToStart and
-        // prematurely advance it. The generation counter makes each timer
-        // guard against only its own capture attempt.
-        {
-            int gen = ++m_countdownGen;
-            QTimer::singleShot(kCountdownSafetyMs, this, [this, gen]() {
-                if (m_countdownGen == gen
-                    && m_stateMachine->state() == CaptureState::CountdownToStart) {
-                    qWarning() << "CaptureOrchestrator: countdown safety timer fired — QML overlay may have failed to load";
-                    m_stateMachine->transitionTo(CaptureState::CreatingSession);
-                }
-            });
-        }
+        // 5WHY: Safety timer is now registered by notifyCountdownStarted(),
+        // called from QML when the actual countdown begins.  On iOS this is
+        // after the user confirms Focus mode; on Android it fires immediately
+        // when the preflight overlay loads.  In both cases, the timer is
+        // a generation-guarded fallback for QML overlay load failure.
         break;
 
     case CaptureState::CreatingSession:
