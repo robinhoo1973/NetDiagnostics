@@ -131,7 +131,16 @@ Item {
                 var s = captureOrchestrator.state
                 if (s === captureOverlay.kCaptureCountdown) {
                     captureOverlay.pendingError = false; captureOverlay.active = true
-                    captureOverlay.source = "qrc:/qml/capture/CapturePreflightOverlay.qml"
+                    // 5WHY: Separate DND guide from countdown.  On platforms
+                    // that need manual Focus setup (iOS), show the DND guide
+                    // first.  On platforms with programmatic DND (Android),
+                    // go directly to the countdown overlay.
+                    // needsFocusModeSetup: iOS always true, Android conditional.
+                    if (captureOrchestrator.needsFocusModeSetup) {
+                        captureOverlay.source = "qrc:/qml/capture/CapturePreflightOverlay.qml"
+                    } else {
+                        captureOverlay.source = "qrc:/qml/capture/CaptureCountdownOverlay.qml"
+                    }
                 }
                 else if (s === captureOverlay.kCaptureExecuting) {
                     captureOverlay.pendingError = false; captureOverlay.active = true
@@ -278,15 +287,24 @@ Item {
                     captureOverlay.source = ""
                 })
             }
-            // Preflight countdown finished
+            // Preflight overlay → user confirmed DND → switch to countdown
+            if (typeof item.requestCountdown !== "undefined") {
+                item.requestCountdown.connect(function() {
+                    // 5WHY: Clear the DND guide and load the standalone
+                    // countdown overlay.  The countdown will auto-start
+                    // via its own start() function in the next onLoaded.
+                    captureOverlay.source = "qrc:/qml/capture/CaptureCountdownOverlay.qml"
+                })
+            }
+            // Countdown overlay → auto-start + handle finish
             if (typeof item.countdownFinished !== "undefined") {
-                // 5WHY: start() was never called after loading the preflight
-                // overlay, so the countdown never animated — it stayed at "3".
+                // 5WHY: start() was never called after loading the countdown
+                // overlay, so the countdown never animated — it stayed at "5".
                 // Kick off the countdown as soon as the overlay is ready.
                 if (typeof item.start === "function") item.start()
                 item.countdownFinished.connect(function() {
                     // 5WHY: The QML countdown is now the sole authority.
-                    // When the visual 3-2-1 reaches 0, call the orchestrator
+                    // When the visual 5-4-3-2-1 reaches 0, call the orchestrator
                     // to transition CountdownToStart → CreatingSession.
                     // Clear the overlay immediately so the countdown UI
                     // doesn't linger during session creation and recording
