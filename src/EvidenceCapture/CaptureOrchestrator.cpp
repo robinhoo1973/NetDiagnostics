@@ -867,8 +867,12 @@ void CaptureOrchestrator::finalizeSession() {
 void CaptureOrchestrator::executeNextStep() {
     if (m_stateMachine->state() != CaptureState::ExecutingSteps) return;
 
-    emit stepChanged(m_currentStep, m_totalSteps);
-
+    // 5WHY: Check all-done BEFORE emitting stepChanged so the display
+    // never shows "step N+1 of N" when m_currentStep has advanced past
+    // the last step index.  Previously stepChanged was emitted first,
+    // then the all-done check ran — the off-by-one emission caused a
+    // brief flash of e.g. "8/7" on a 7-step session before the FSM
+    // transitioned away from ExecutingSteps.
     if (m_currentStep >= m_filteredScenario.stepCount()) {
         // All steps done
         // 5WHY: Log step completion to the execution log so the log records
@@ -881,6 +885,8 @@ void CaptureOrchestrator::executeNextStep() {
         }
         return;
     }
+
+    emit stepChanged(m_currentStep, m_totalSteps);
 
     const CaptureStep* step = m_filteredScenario.stepAt(m_currentStep);
     if (!step) {

@@ -83,10 +83,11 @@ void CaptureSessionDisplay::onCaptureModeChanged() {
 void CaptureSessionDisplay::onElapsedTick() {
     if (!m_orchestrator) return;
     // 5WHY: Auto-stop the timer when the capture FSM is Idle or
-    // terminal (Completed=8, Cancelled=9, Failed=10).  Restart
-    // happens via onCaptureModeChanged() on the next session.
-    int state = m_orchestrator->stateInt();
-    if (state == 0 || state >= 8) {
+    // terminal (Completed/Cancelled/Failed).  Restart happens via
+    // onCaptureModeChanged() on the next session.
+    // Use isRunning() instead of hardcoded stateInt() magic numbers
+    // so the check survives FSM enum renumbering.
+    if (!m_orchestrator->isRunning()) {
         m_elapsedTimer->stop();
         return;
     }
