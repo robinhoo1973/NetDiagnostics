@@ -7,6 +7,8 @@
 #include <QVariant>
 #include <QDebug>
 #include <QTimer>
+#include <QQmlComponent>
+#include <QQmlEngine>
 
 const QStringList NavigationAdapter::kPageNames = {
     QStringLiteral("dashboard"),
@@ -50,16 +52,80 @@ void NavigationAdapter::switchToTab(int index) {
         return;
     }
 
-    bool invoked = QMetaObject::invokeMethod(m_appContent, "switchToTab",
-                               Q_ARG(int, index));
-    // 5WHY: invokeMethod return was unchecked — if a QML refactoring
-    // renames/removes switchToTab, capture silently proceeds with wrong
-    // page.  Log and emit failure so the caller can react.
-    if (!invoked) {
-        qWarning() << "NavigationAdapter: switchToTab not invocable";
+    // 5WHY: QMetaObject::invokeMethod(m_appContent, "switchToTab", ...)
+    // calls a QML-defined JavaScript function via the Qt meta-object system.
+    // On iOS static builds the meta-method registration for QML functions
+    // may differ from desktop dynamic builds — invokeMethod returns false
+    // and the tab switch silently fails.  Bypass the QML function entirely:
+    // directly manipulate the StackView from C++ using the same logic as
+    // AppContent.switchToTab().
+    QObject* stackView = m_appContent->property("stackView").value<QObject*>();
+    if (!stackView) {
+        qWarning() << "NavigationAdapter: switchToTab(" << index
+                    << ") aborted — cannot access stackView from m_appContent";
         emit tabSwitchFailed(index);
         return;
     }
+
+    const QString targetName = kPageNames.at(index);
+
+    // Step 1: Check if target page already exists in the stack.
+    // The QML switchToTab iterates stackView.depth and calls stackView.get(i).
+    // The C++ equivalent uses the contentChildren property.
+    QObjectList children = stackView->property("contentChildren").value<QObjectList>();
+    for (auto* child : children) {
+        if (child && child->property("objectName").toString() == targetName) {
+            // Page exists — pop to it (makes it the top item).
+            bool ok = QMetaObject::invokeMethod(stackView, "pop",
+                                  Q_ARG(QVariant, QVariant::fromValue(child)));
+            if (!ok) {
+                qWarning() << "NavigationAdapter: pop to" << targetName << "failed";
+                emit tabSwitchFailed(index);
+            }
+            qInfo() << "NavigationAdapter: popped to existing page" << targetName;
+            return;
+        }
+    }
+
+    // Step 2: Page not found in stack — create a new instance and push it.
+    // Access the tabComponents array (defined in AppContent.qml) to get
+    // the pre-declared QQmlComponent for this tab.
+    QVariantList components = m_appContent->property("tabComponents").toList();
+    if (index >= components.size()) {
+        qWarning() << "NavigationAdapter: tabComponents index" << index
+                    << "out of range (size=" << components.size() << ")";
+        emit tabSwitchFailed(index);
+        return;
+    }
+
+    QQmlComponent* comp = qvariant_cast<QQmlComponent*>(components.at(index));
+    if (!comp) {
+        qWarning() << "NavigationAdapter: tabComponents[" << index
+                    << "] is not a QQmlComponent";
+        emit tabSwitchFailed(index);
+        return;
+    }
+
+    QObject* page = comp->create();
+    if (!page) {
+        qWarning() << "NavigationAdapter: failed to create page for tab" << index
+                    << "—" << comp->errorString();
+        emit tabSwitchFailed(index);
+        return;
+    }
+
+    page->setProperty("objectName", targetName);
+
+    bool ok = QMetaObject::invokeMethod(stackView, "push",
+                          Q_ARG(QVariant, QVariant::fromValue(page)));
+    if (!ok) {
+        qWarning() << "NavigationAdapter: push to" << targetName << "failed";
+        delete page;
+        emit tabSwitchFailed(index);
+        return;
+    }
+
+    qInfo() << "NavigationAdapter: pushed new page" << targetName;
 }
 
 void NavigationAdapter::waitForPageReady(int tabIndex, int timeoutMs,
