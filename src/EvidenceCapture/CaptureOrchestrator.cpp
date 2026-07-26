@@ -169,6 +169,8 @@ CaptureOrchestrator::CaptureOrchestrator(AppState* appState, QObject* parent)
     , m_scrollCtrl(new ScrollController(this))
     , m_delayTimer(new QTimer(this))
 {
+    qInfo() << "CaptureOrchestrator: constructed, navAdapter appContent is"
+            << (m_navAdapter ? "pending wiring" : "NULL");
     m_delayTimer->setSingleShot(true);
     // Single permanent connection — eliminate disconnect+reconnect churn
     // on every Navigate/WaitPageReady step (scheduleStepAfter now just starts).
@@ -355,6 +357,9 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     m_captureMode = captureMode;
     m_diagUrl = diagUrl.trimmed();
     m_recording = (captureMode == RecordingOnly || captureMode == Both);
+    qInfo() << "CaptureOrchestrator: startCapture mode=" << captureMode
+            << "recording=" << m_recording
+            << "url=" << m_diagUrl;
     // 5WHY: Emit once so QML bindings on wantsScreenshot + isRecordingCapture
     // re-evaluate before the FSM transitions (the overlay loads at ExecutingSteps,
     // long after this point).  A dedicated signal replaces the old stateChanged
@@ -900,6 +905,13 @@ void CaptureOrchestrator::executeNextStep() {
     // safe no-op that leaves m_currentStep unchanged.
     if (m_executingStep) return;
     m_executingStep = true;
+
+    // 5WHY: Log step execution so iOS debugging can confirm that the
+    // scenario engine is running.  Without this log, a frozen status bar
+    // could mean either "FSM didn't reach ExecutingSteps" or "steps execute
+    // but QML overlay failed to load" — indistinguishable without console.
+    qInfo() << "CaptureOrchestrator: executeNextStep #" << (m_currentStep + 1)
+            << "of" << m_totalSteps;
 
     if (m_stateMachine->state() != CaptureState::ExecutingSteps) {
         m_executingStep = false;
