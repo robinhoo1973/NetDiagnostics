@@ -216,8 +216,27 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
         // always false — the first-frame callback NEVER fired, the FSM stayed
         // stuck in StartingRecording, and all subsequent frames were silently
         // dropped.  Accept Writing status so the session actually begins.
-        if (!s_recording && (s_writer.status == AVAssetWriterStatusWriting
-                             || s_writer.status == AVAssetWriterStatusUnknown)) {
+        // 5WHY (round-31): If the writer transitions to Failed between
+        // startWriting (returns YES) and first-frame arrival (e.g. disk full),
+        // neither Writing nor Unknown matches — the first-frame handler
+        // silently drops all frames and the FSM hangs forever in
+        // StartingRecording with no timeout.  Treat Failed as a terminal
+        // error: report it so the orchestrator transitions to Failed.
+        if (!s_recording) {
+            if (s_writer.status == AVAssetWriterStatusFailed) {
+                qWarning() << "PlatformRecording: AVAssetWriter failed before first frame — status:"
+                           << (int)s_writer.status
+                           << "error:" << (s_writer.error ? QString::fromNSString(s_writer.error.localizedDescription) : QStringLiteral("none"));
+                s_stopping = true;
+                s_recording = false;
+                [s_writer cancelWriting];
+                cleanupAfterError(s_writer.error ?: [NSError errorWithDomain:@"PlatformRecording"
+                                                              code:-1
+                                                          userInfo:@{NSLocalizedDescriptionKey: @"Writer failed before first frame"}]);
+                return;
+            }
+            if (s_writer.status == AVAssetWriterStatusWriting
+                || s_writer.status == AVAssetWriterStatusUnknown) {
             CMTime firstPts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
             qInfo() << "PlatformRecording: first video frame — starting session at PTS"
                      << firstPts.value << "/" << firstPts.timescale;
@@ -244,7 +263,8 @@ void platformStartRecording(const QString& filePath, RecordingCallback callback)
             } else {
                 qWarning() << "PlatformRecording: no start callback — recording may be orphaned";
             }
-        }
+            } // end if (s_writer.status == Writing || Unknown)
+        } // end if (!s_recording)
 
         if (s_recording && s_input.readyForMoreMediaData) {
             [s_input appendSampleBuffer:sampleBuffer];

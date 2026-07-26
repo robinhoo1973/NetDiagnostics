@@ -149,6 +149,7 @@ static const int kStepDeferMs            = 100;   // async deferral to avoid inf
 static const int kReportPreviewTimeoutMs = 5000;  // openReportPreview safety fallback
 static const int kPreviewRenderSettleMs  = 1000;  // QML overlay render settle before screenshot
 static const int kCountdownSafetyMs      = 10000; // preflight-countdown safety-net timeout
+static const int kCountdownFallbackMs    = 120000; // fallback if QML never confirms (iOS DND setup abandon)
 static const int kNavigateSettleMs       = 500;   // page settle after navigate (screenshot mode)
 static const int kNavigateSettleRecordMs = 4000;  // page settle after navigate (recording mode)
 static const int kDiagCancelTimeoutMs    = 500;   // settle after diagnostic cancel on timeout
@@ -491,6 +492,27 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // after the user confirms Focus mode; on Android it fires immediately
         // when the preflight overlay loads.  In both cases, the timer is
         // a generation-guarded fallback for QML overlay load failure.
+        //
+        // 5WHY (round-31): If the QML preflight overlay fails to load, or
+        // the iOS user walks away without confirming Focus mode,
+        // notifyCountdownStarted() is never called — no safety timer runs.
+        // The FSM would hang in CountdownToStart forever.  Add a fallback
+        // timer (120s) here that fires only if notifyCountdownStarted() was
+        // never invoked (gen counters won't have diverged).  When QML calls
+        // notifyCountdownStarted(), it increments m_countdownGen, which
+        // invalidates this fallback timer — so it never races with the
+        // shorter 10s timer in notifyCountdownStarted().
+        {
+            int fallbackGen = m_countdownGen;
+            QTimer::singleShot(kCountdownFallbackMs, this, [this, fallbackGen]() {
+                if (m_countdownGen == fallbackGen
+                    && m_stateMachine->state() == CaptureState::CountdownToStart) {
+                    qWarning() << "CaptureOrchestrator: countdown fallback timer fired — "
+                                  "QML preflight may have failed to load or user abandoned Focus setup";
+                    m_stateMachine->transitionTo(CaptureState::CreatingSession);
+                }
+            });
+        }
         break;
 
     case CaptureState::CreatingSession:

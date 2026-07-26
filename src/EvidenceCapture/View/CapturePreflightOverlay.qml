@@ -40,6 +40,13 @@ Rectangle {
     property bool running: false
 
     function start() {
+        // 5WHY: Guard against double-call — if the Loader re-incubates the
+        // overlay (configuration change, memory pressure), start() may fire
+        // twice.  Resetting focusConfirmed on a running instance would hide
+        // the countdown on iOS, trapping the user.  Return early if already
+        // running so the existing countdown and Focus-confirmation state
+        // are preserved.
+        if (running) return
         countdown = 5
         focusConfirmed = false
         running = true
@@ -147,7 +154,7 @@ Rectangle {
                             spacing: 8
                             Label {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                text: "⚠️ Focus / Do Not Disturb must be enabled manually on this device.\n\n1. Tap below to open Settings → Focus\n2. Enable any Focus mode (e.g. Do Not Disturb)\n3. Return here and tap 'I\\'m Ready'"
+                                text: "⚠️ Focus / Do Not Disturb must be enabled manually on this device.\n\n1. Tap below to open Settings → Focus\n2. Enable any Focus mode (e.g. Do Not Disturb)\n3. Return here and tap 'I'm Ready'"
                                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }

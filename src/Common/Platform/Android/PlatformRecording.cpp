@@ -328,7 +328,14 @@ void platformStopRecording(RecordingCallback callback) {
         } catch (...) {
             qWarning() << "PlatformRecording: MediaRecorder.stop() threw — continuing cleanup";
         }
-        s_mediaRecorder.callMethod<void>("release");
+        // 5WHY: release() can also throw if MediaRecorder is in a corrupted
+        // state after stop().  Wrap in try/catch for symmetry with setupRecorder()
+        // (which protects both stop+release in the prepare/start failure path).
+        try {
+            s_mediaRecorder.callMethod<void>("release");
+        } catch (...) {
+            qWarning() << "PlatformRecording: MediaRecorder.release() threw during stop cleanup";
+        }
         s_mediaRecorder = {};
     }
 
