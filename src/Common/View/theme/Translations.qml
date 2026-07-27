@@ -44,7 +44,6 @@ Item {
     readonly property string stop: t("■ Stop", "■ Arrêter", "■ Stopp", "■ Стоп", "■ Ferma", "■ 停止", "■ 停止", "■ Detener", "■ Parar")
     readonly property string target: t("Target", "Cible", "Ziel", "Цель", "Obiettivo", "目标", "目標", "Objetivo", "Alvo")
     // ── ConfigScreen ──
-    readonly property string diagConfig: t("Diagnostic Configuration", "Configuration diagnostic", "Diagnosekonfiguration", "Конфигурация диагностики", "Configurazione diagnostica", "诊断配置", "診斷配置", "Configuración de diagnóstico", "Configuração de diagnóstico")
     readonly property string selectAll: t("Select All", "Tout sélectionner", "Alle auswählen", "Выбрать все", "Seleziona tutto", "全选", "全選", "Seleccionar todo", "Selecionar tudo")
     readonly property string deselectAll: t("Deselect All", "Tout désélectionner", "Alle abwählen", "Отменить все", "Deseleziona tutto", "取消全选", "取消全選", "Deseleccionar todo", "Desmarcar tudo")
 

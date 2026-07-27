@@ -212,6 +212,15 @@ private:
     // WaitDiagComplete) all copy-pasted the same QTimer::singleShot(100ms)
     // lambda.  Extract once so a timing change applies uniformly.
     void deferNextStep();
+    // 5WHY: The pattern "int gen = ++m_sessionGen; QTimer::singleShot(ms, this,
+    // [this, gen](){ if (m_sessionGen != gen) return; ... })" appeared at 6
+    // call sites (notifyCountdownStarted, invalidateCountdownFallback, two
+    // onStateChanged timeout blocks, deferNextStep, OpenReport safety timer).
+    // Extract once — the gen-guard contract is enforced uniformly and future
+    // sites cannot forget the guard (stale callbacks after cancel/restart).
+    // If incrementGen is true, m_sessionGen is incremented BEFORE capturing
+    // the generation snapshot — this invalidates previously-scheduled timers.
+    void scheduleGenGuarded(int ms, bool incrementGen, std::function<void()> onFire);
 
     // Cached scenario — built once in startCapture, filtered by mode.
     // executeNextStep and executeStep both use this filtered copy so

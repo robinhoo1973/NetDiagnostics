@@ -33,9 +33,10 @@ Item {
         border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "gear"; size: 20; color: ThemeEngine.colors.primary }
+            AppIcon { name: "gear"; size: 20; color: ThemeEngine.cyan }
             Item { width: 10 }
-            Label { text: Tr.settings; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+            Label { text: Tr.settings; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+            Item { Layout.fillWidth: true }
         }
     }
 

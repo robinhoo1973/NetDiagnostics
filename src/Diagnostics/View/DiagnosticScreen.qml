@@ -105,11 +105,11 @@ Item {
         anchors.fill: parent; spacing: 0
 
         // AppBar (matches Dashboard/Settings/Config — 48px Material compact)
-        // 5WHY: Share buttons were in the results header, competing for space
-        // with status badges on narrow screens. Moving them to the AppBar:
-        // - fixes horizontal overflow (badges now have the full row)
-        // - matches platform conventions (share actions belong in top chrome)
-        // - shares space with the title, always visible when results exist
+        // 5WHY: PDF/HTML share buttons were in the AppBar competing for
+        // horizontal space with the title.  They are now in the results
+        // header ("Diagnostic Complete" bar) vertically centered across
+        // both rows of status content.  The AppBar now only shows the title
+        // + capture indicator — consistent with Dashboard/Settings format.
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar
             border { width: 1; color: ThemeEngine.colors.borderCard }
@@ -134,19 +134,10 @@ Item {
                 }
                 Item { width: 8 }
                 Item { Layout.fillWidth: true }
-                // 5WHY: theme color timing — using Qt.binding through
-                // shareRoot.pdfAccent adds an indirection layer that may
-                // evaluate before ThemeEngine.applyTheme() finishes during
-                // init or theme switch. Directly bind accent to ThemeEngine
-                // values, removing the intermediate property chain.
-                ShareButtons {
-                    id: appBarShareBtns
-                    mode: "bare"
-                    pdfAccent: ThemeEngine.cyan
-                    htmlAccent: ThemeEngine.primary
-                    visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
-                    onShareRequested: function(fmt) { page.doShare(fmt) }
-                }
+                // 5WHY: PDF/HTML share buttons moved to the results header
+                // ("Diagnostic Complete" bar) where they are vertically centered
+                // across both rows of status content.  The AppBar now only shows
+                // the title — consistent with Dashboard/Settings/Config format.
             }
         }
 
@@ -157,62 +148,87 @@ Item {
         }
 
         // ═══════════════ RESULTS HEADER ════════════════════════════════
-        // 5WHY: Single Row 1 (status label + count), Row 2 (badges
-        // LEFT-aligned on all platforms). Desktop inline badges removed
-        // — two-row layout is consistent across desktop and mobile.
-        // Height is content-driven (no fixed implicitHeight).
+        // 5WHY: Share buttons moved from AppBar to here, vertically centered
+        // across both rows of status content.  On the AppBar they competed for
+        // horizontal space with the title.  Here they sit next to "Diagnostic
+        // Complete" — the natural place for export actions.
         Rectangle {
             Layout.fillWidth: true
             readonly property bool _showBadges: appState.totalCompleted > 0
-            implicitHeight: statusCol.implicitHeight + (isMobile ? 16 : 12)
-            Layout.minimumHeight: appState.runStatus === 1 ? 36 : implicitHeight
+            // 5WHY: Use fixed 36px minimum instead of binding Layout.minimumHeight
+            // to implicitHeight — prevents a latent binding cycle if future children
+            // use Layout.fillHeight (which would make their height depend on the
+            // parent's allocated height → implicitHeight becomes allocation-dependent).
+            implicitHeight: Math.max(statusCol.implicitHeight,
+                                     (statusBarShareBtns.visible ? statusBarShareBtns.implicitHeight : 0))
+                            + (isMobile ? 12 : 8)
+            Layout.minimumHeight: 36
             color: ThemeEngine.colors.navBar
             border { width: 1; color: ThemeEngine.colors.borderCard }
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
-            ColumnLayout {
-                id: statusCol
-                anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 8; bottomMargin: 8 }
-                spacing: 2
-                // Row 1 — status label + count
-                RowLayout {
-                    spacing: 8
-                    AppIcon {
-                        id: statusSpinner
-                        name: appState.runStatus === 1 ? "spinner" : "diagnostics"
-                        size: 16
-                        color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
-                        RotationAnimation on rotation {
-                            running: appState.runStatus === 1
-                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
-                            onStopped: statusSpinner.rotation = 0
+            RowLayout {
+                anchors { fill: parent; leftMargin: 12; rightMargin: 10; topMargin: 4; bottomMargin: 4 }
+                spacing: 6
+                ColumnLayout {
+                    id: statusCol
+                    Layout.fillWidth: true
+                    spacing: 2
+                    // Row 1 — status label + count
+                    RowLayout {
+                        spacing: 8
+                        AppIcon {
+                            id: statusSpinner
+                            name: appState.runStatus === 1 ? "spinner" : "diagnostics"
+                            size: 16
+                            color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
+                            RotationAnimation on rotation {
+                                running: appState.runStatus === 1
+                                from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                                onStopped: statusSpinner.rotation = 0
+                            }
                         }
+                        Item { width: 4 }
+                        Label {
+                            text: appState.runStatus === 1 ? Tr.runningDots :
+                                  appState.runStatus === 2 ? Tr.complete :
+                                  appState.runStatus === 3 ? Tr.cancelled :
+                                  appState.runStatus === 4 ? Tr.errorStatus : Tr.results
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+                            color: appState.runStatus === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary
+                        }
+                        Label {
+                            visible: appState.runStatus === 1 && appState.totalDiags > 0
+                            text: appState.totalCompleted + " / " + appState.totalDiags
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
+                            color: ThemeEngine.cyan
+                        }
+                        Item { Layout.fillWidth: true }
                     }
-                    Item { width: 4 }
-                    Label {
-                        text: appState.runStatus === 1 ? Tr.runningDots :
-                              appState.runStatus === 2 ? Tr.complete :
-                              appState.runStatus === 3 ? Tr.cancelled :
-                              appState.runStatus === 4 ? Tr.errorStatus : Tr.results
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
-                        color: appState.runStatus === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary
+                    // Row 2 — status badges, LEFT-aligned on all platforms
+                    RowLayout {
+                        spacing: 4; visible: _showBadges
+                        Item { width: 11 }
+                        StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __agg.pass }
+                        StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __agg.info }
+                        StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __agg.warn }
+                        StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __agg.fail }
+                        StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __agg.skip }
                     }
-                    Label {
-                        visible: appState.runStatus === 1 && appState.totalDiags > 0
-                        text: appState.totalCompleted + " / " + appState.totalDiags
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                        color: ThemeEngine.cyan
-                    }
-                    Item { Layout.fillWidth: true }
                 }
-                // Row 2 — status badges, LEFT-aligned on all platforms
-                RowLayout {
-                    spacing: 4; visible: _showBadges
-                    Item { width: 11 }
-                    StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __agg.pass }
-                    StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __agg.info }
-                    StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __agg.warn }
-                    StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __agg.fail }
-                    StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __agg.skip }
+                // 5WHY: Share buttons moved from AppBar to results header.
+                // Vertically centered across both status rows via
+                // Layout.alignment: Qt.AlignVCenter so the 40dp icons span
+                // the full height of both rows naturally.  No extra
+                // ColumnLayout wrapper needed — ShareButtons is a RowLayout
+                // that aligns correctly on its own.
+                ShareButtons {
+                    id: statusBarShareBtns
+                    Layout.alignment: Qt.AlignVCenter
+                    mode: "bare"
+                    pdfAccent: ThemeEngine.cyan
+                    htmlAccent: ThemeEngine.primary
+                    visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
+                    onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
             }
         }

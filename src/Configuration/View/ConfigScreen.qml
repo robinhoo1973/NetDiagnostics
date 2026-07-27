@@ -24,11 +24,12 @@ Item {
         ColumnLayout {
             anchors.fill: parent; spacing: 0
             RowLayout {
-                Layout.fillWidth: true; Layout.preferredHeight: 44
+                Layout.fillWidth: true; Layout.preferredHeight: 48
                 Layout.leftMargin: 16; Layout.rightMargin: 16
-                AppIcon { name: "config"; size: 20; color: ThemeEngine.colors.textPrimary }
+                AppIcon { name: "config"; size: 20; color: ThemeEngine.cyan }
                 Item { width: 10 }
-                Label { text: Tr.diagConfig; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+                Label { text: Tr.config; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+                Item { Layout.fillWidth: true }
             }
             // TabBar — Flutter: G1..G5 tabs
             Rectangle {

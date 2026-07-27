@@ -315,14 +315,11 @@ void CaptureOrchestrator::notifyCountdownStarted() {
     // permission dialog).  Instead, start the safety timer only when the
     // QML countdown timer actually begins (after Focus confirmation).
     // On Android, QML calls this immediately when the preflight loads.
-    int gen = ++m_sessionGen;
-    QTimer::singleShot(kCountdownSafetyMs, this, [this, gen]() {
-        if (m_sessionGen == gen
-            && m_stateMachine->state() == CaptureState::CountdownToStart) {
-            qWarning() << "CaptureOrchestrator: countdown safety timer fired — "
-                           "QML overlay may have failed to load";
-            m_stateMachine->transitionTo(CaptureState::CreatingSession);
-        }
+    scheduleGenGuarded(kCountdownSafetyMs, true, [this]() {
+        if (m_stateMachine->state() != CaptureState::CountdownToStart) return;
+        qWarning() << "CaptureOrchestrator: countdown safety timer fired — "
+                       "QML overlay may have failed to load";
+        m_stateMachine->transitionTo(CaptureState::CreatingSession);
     });
 }
 
@@ -339,14 +336,11 @@ void CaptureOrchestrator::invalidateCountdownFallback() {
     // When the countdown overlay's start() calls notifyCountdownStarted(), it
     // increments m_sessionGen again, invalidating this 30s timer and registering
     // the proper 10s safety timer for the actual countdown.
-    int gen = ++m_sessionGen;
-    QTimer::singleShot(kPreflightConfirmTimeoutMs, this, [this, gen]() {
-        if (m_sessionGen == gen
-            && m_stateMachine->state() == CaptureState::CountdownToStart) {
-            qWarning() << "CaptureOrchestrator: invalidateCountdownFallback safety timer"
-                          " fired — countdown overlay may have failed to load on iOS";
-            m_stateMachine->transitionTo(CaptureState::CreatingSession);
-        }
+    scheduleGenGuarded(kPreflightConfirmTimeoutMs, true, [this]() {
+        if (m_stateMachine->state() != CaptureState::CountdownToStart) return;
+        qWarning() << "CaptureOrchestrator: invalidateCountdownFallback safety timer"
+                      " fired — countdown overlay may have failed to load on iOS";
+        m_stateMachine->transitionTo(CaptureState::CreatingSession);
     });
     qInfo() << "CaptureOrchestrator: countdown fallback invalidated, sessionGen=" << m_sessionGen;
 }
@@ -568,17 +562,12 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // notifyCountdownStarted(), it increments m_sessionGen, which
         // invalidates this fallback timer — so it never races with the
         // shorter 10s timer in notifyCountdownStarted().
-        {
-            int fallbackGen = m_sessionGen;
-            QTimer::singleShot(kCountdownFallbackMs, this, [this, fallbackGen]() {
-                if (m_sessionGen == fallbackGen
-                    && m_stateMachine->state() == CaptureState::CountdownToStart) {
-                    qWarning() << "CaptureOrchestrator: countdown fallback timer fired — "
-                                  "QML preflight may have failed to load or user abandoned Focus setup";
-                    m_stateMachine->transitionTo(CaptureState::CreatingSession);
-                }
-            });
-        }
+        scheduleGenGuarded(kCountdownFallbackMs, false, [this]() {
+            if (m_stateMachine->state() != CaptureState::CountdownToStart) return;
+            qWarning() << "CaptureOrchestrator: countdown fallback timer fired — "
+                          "QML preflight may have failed to load or user abandoned Focus setup";
+            m_stateMachine->transitionTo(CaptureState::CreatingSession);
+        });
         break;
 
     case CaptureState::CreatingSession:
@@ -605,20 +594,15 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // the FSM would hang forever.  Add a 30s safety timeout consistent
         // with the other async-state timeouts in this file (CountdownToStart,
         // OpenReport, Navigate, WaitDiagComplete all have timeouts).
-        {
-            int gen = m_sessionGen;
-            QTimer::singleShot(kRecordingStartTimeoutMs, this, [this, gen]() {
-                if (m_sessionGen == gen
-                    && m_stateMachine->state() == CaptureState::StartingRecording) {
-                    qWarning() << "CaptureOrchestrator: recording start timeout — "
-                                  "platform callback never fired, aborting";
-                    // Force-stop the platform recording in case it partially started
-                    if (m_recording) platformStopRecording(nullptr);
-                    failCapture(QStringLiteral("RECORDING_START_TIMEOUT"),
-                                QStringLiteral("Screen recording failed to start within 30 seconds"));
-                }
-            });
-        }
+        scheduleGenGuarded(kRecordingStartTimeoutMs, false, [this]() {
+            if (m_stateMachine->state() != CaptureState::StartingRecording) return;
+            qWarning() << "CaptureOrchestrator: recording start timeout — "
+                          "platform callback never fired, aborting";
+            // Force-stop the platform recording in case it partially started
+            if (m_recording) platformStopRecording(nullptr);
+            failCapture(QStringLiteral("RECORDING_START_TIMEOUT"),
+                        QStringLiteral("Screen recording failed to start within 30 seconds"));
+        });
         break;
 
     case CaptureState::ExecutingSteps:
@@ -1191,6 +1175,10 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     }
 
     case StepAction::OpenReport: {
+        // 5WHY: Use signal-based relay in addition to C++ direct path
+        // for the same reliability reasons as the Navigate step above.
+        // The dashboard tab (index 0) is where the report preview lives.
+        emit navigateToTabRequested(0); // dashboard tab
         m_navAdapter->openReportPreview();
         m_waitingForReportPreview = true;
         // 5WHY: openReportPreview() is async — it defers openPreview() by
@@ -1205,16 +1193,12 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         // CountdownToStart) so a stale safety timeout from a cancelled
         // session cannot prematurely advance a new session that reaches
         // OpenReport.
-        {
-            int gen = m_sessionGen;
-            QTimer::singleShot(kReportPreviewTimeoutMs, this, [this, gen]() {
-                if (m_waitingForReportPreview && m_sessionGen == gen) {
-                    m_waitingForReportPreview = false;
-                    qWarning() << "CaptureOrchestrator: report preview timed out — advancing anyway";
-                    executeNextStep();
-                }
-            });
-        }
+        scheduleGenGuarded(kReportPreviewTimeoutMs, false, [this]() {
+            if (!m_waitingForReportPreview) return;
+            m_waitingForReportPreview = false;
+            qWarning() << "CaptureOrchestrator: report preview timed out — advancing anyway";
+            executeNextStep();
+        });
         break;
     }
 
@@ -1257,6 +1241,22 @@ void CaptureOrchestrator::scheduleStepAfter(int ms) {
     m_delayTimer->start(ms);
 }
 
+// 5WHY: The gen-guarded QTimer::singleShot pattern appeared at 6 call sites.
+// Every site captures m_sessionGen (optionally incrementing it first),
+// schedules a one-shot timer, and checks m_sessionGen hasn't changed before
+// executing the payload.  Without this helper, a future site could forget the
+// gen guard and run stale callbacks after cancel()/restart() — a bug class
+// documented 3 separate times in existing 5WHY comments.
+void CaptureOrchestrator::scheduleGenGuarded(int ms, bool incrementGen,
+                                             std::function<void()> onFire) {
+    if (incrementGen) ++m_sessionGen;
+    int gen = m_sessionGen;
+    QTimer::singleShot(ms, this, [this, gen, cb = std::move(onFire)]() {
+        if (m_sessionGen != gen) return;
+        cb();
+    });
+}
+
 void CaptureOrchestrator::deferNextStep() {
     // 5WHY: Other async paths (OpenDetail, OpenReport timeout, countdown
     // safety timer) all use m_sessionGen guards to invalidate stale callbacks
@@ -1266,9 +1266,7 @@ void CaptureOrchestrator::deferNextStep() {
     // theoretical TOCTOU window between cancel()'s FSM transition and the
     // QTimer::singleShot firing — on any platform where FSM transitions might
     // be deferred, the gen guard ensures the callback is silently discarded.
-    int gen = m_sessionGen;
-    QTimer::singleShot(kStepDeferMs, this, [this, gen]() {
-        if (m_sessionGen != gen) return;
+    scheduleGenGuarded(kStepDeferMs, false, [this]() {
         executeNextStep();
     });
 }
