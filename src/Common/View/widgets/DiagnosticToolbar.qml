@@ -257,9 +257,11 @@ Rectangle {
                     color: appState.runStatus === 1 ? ThemeEngine.failRed
                            : appState.canRun() ? ThemeEngine.accentBlue
                            : Qt.alpha(ThemeEngine.accentBlue, 0.3)
-                    Label { anchors.centerIn: parent
-                        text: appState.runStatus === 1 ? "■" : "▶"
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: "white" }
+                    // 5WHY: Replaced ▶/■ Unicode with play/stop SVG icons
+                    // for consistent iconography across the app.
+                    AppIcon { anchors.centerIn: parent
+                        name: appState.runStatus === 1 ? "stop" : "play"
+                        size: 16; color: "white" }
                     function runOrCancel() {
                         if (appState.runStatus === 1) {
                             if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })

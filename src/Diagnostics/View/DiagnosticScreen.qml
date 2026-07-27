@@ -116,15 +116,20 @@ Item {
             // ── Capture indicator — shows when automated screenshots are active ──
             Rectangle {
                 visible: appState.captureFeatureEnabled && captureService !== null && captureService.active
-                implicitWidth: captureLabel.implicitWidth + 16; implicitHeight: 28; radius: 14
+                implicitWidth: captureRow.implicitWidth + 16; implicitHeight: 28; radius: 14
                 color: Qt.alpha(ThemeEngine.cyan, 0.15)
                 border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.4) }
-                Label {
-                    id: captureLabel
+                RowLayout {
+                    id: captureRow
                     anchors.centerIn: parent
-                    text: captureService !== null ? ("📸 " + captureService.captureCount) : ""
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                    color: ThemeEngine.cyan
+                    spacing: 4
+                    // 5WHY: Replaced 📸 emoji with camera SVG for consistent iconography.
+                    AppIcon { name: "camera"; size: 12; color: ThemeEngine.cyan }
+                    Label {
+                        text: captureService !== null ? captureService.captureCount : ""
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                        color: ThemeEngine.cyan
+                    }
                 }
             }
             Item { width: 8 }

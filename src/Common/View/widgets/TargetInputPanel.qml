@@ -444,7 +444,13 @@ ColumnLayout {
             visible: appState.runStatus === 1
             Layout.preferredWidth: Math.min(90, parent.width * 0.25); implicitHeight: 44; radius: 8
             color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.5) }
-            Label { anchors.centerIn: parent; text: Tr.stop; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.failRed }
+            // 5WHY: Replaced ■ Unicode prefix with stop SVG icon + text label.
+            RowLayout {
+                anchors.centerIn: parent
+                spacing: 6
+                AppIcon { name: "stop"; size: 12; color: ThemeEngine.failRed }
+                Label { text: Tr.stop; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.failRed }
+            }
             MouseArea {
                 id: stopBtnArea
                 anchors.fill: parent

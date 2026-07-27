@@ -39,9 +39,13 @@ Item {
     readonly property string cancelled: t("Cancelled", "Annulé", "Abgebrochen", "Отменено", "Annullato", "已取消", "已取消", "Cancelado", "Cancelado")
     readonly property string errorCheck: t("Error — Check Target", "Erreur — Vérifier la cible", "Fehler — Ziel prüfen", "Ошибка — Проверьте цель", "Errore — Controlla target", "错误 — 检查目标", "錯誤 — 檢查目標", "Error — Verifique el objetivo", "Erro — Verifique o alvo")
     readonly property string results: t("Results", "Résultats", "Ergebnisse", "Результаты", "Risultati", "结果", "結果", "Resultados", "Resultados")
-    readonly property string runDiag: t("▶ Run Diagnostics", "▶ Lancer diagnostic", "▶ Diagnose starten", "▶ Запустить", "▶ Avvia diagnostica", "▶ 运行诊断", "▶ 運行診斷", "▶ Ejecutar diagnósticos", "▶ Executar diagnósticos")
+    // 5WHY: Removed ▶ emoji prefix — DiagnosticToolbar already renders a play
+    // icon in the run/stop button.  Duplicating the icon in the label text
+    // creates a double-icon visual artifact and wastes horizontal label space.
+    readonly property string runDiag: t("Run Diagnostics", "Lancer diagnostic", "Diagnose starten", "Запустить", "Avvia diagnostica", "运行诊断", "運行診斷", "Ejecutar diagnósticos", "Executar diagnósticos")
     readonly property string running: t("⏳ Running...", "⏳ En cours...", "⏳ Läuft...", "⏳ Выполняется...", "⏳ In corso...", "⏳ 运行中...", "⏳ 運行中...", "⏳ Ejecutando...", "⏳ Executando...")
-    readonly property string stop: t("■ Stop", "■ Arrêter", "■ Stopp", "■ Стоп", "■ Ferma", "■ 停止", "■ 停止", "■ Detener", "■ Parar")
+    // 5WHY: Removed ■ emoji prefix — DiagnosticToolbar renders stop SVG icon.
+    readonly property string stop: t("Stop", "Arrêter", "Stopp", "Стоп", "Ferma", "停止", "停止", "Detener", "Parar")
     readonly property string target: t("Target", "Cible", "Ziel", "Цель", "Obiettivo", "目标", "目標", "Objetivo", "Alvo")
     // ── ConfigScreen ──
     readonly property string selectAll: t("Select All", "Tout sélectionner", "Alle auswählen", "Выбрать все", "Seleziona tutto", "全选", "全選", "Seleccionar todo", "Selecionar tudo")
@@ -287,8 +291,9 @@ Item {
     readonly property string languageSection: t("Language", "Langue", "Sprache", "Язык", "Lingua", "语言", "語言", "Idioma", "Idioma")
     readonly property string aboutSection: t("About", "À propos", "Über", "О программе", "Informazioni", "关于", "關於", "Acerca de", "Sobre")
     // ── Hidden capture feature toasts ──
-    readonly property string captureEnabledToast: t("📸 Screen capture enabled", "📸 Capture d'écran activée", "📸 Bildschirmaufnahme aktiviert", "📸 Захват экрана включен", "📸 Cattura schermo abilitata", "📸 录屏截屏已启用", "📸 錄屏截屏已啟用", "📸 Captura de pantalla habilitada", "📸 Captura de tela habilitada")
-    readonly property string captureDisabledToast: t("📸 Screen capture disabled", "📸 Capture d'écran désactivée", "📸 Bildschirmaufnahme deaktiviert", "📸 Захват экрана выключен", "📸 Cattura schermo disabilitata", "📸 录屏截屏已禁用", "📸 錄屏截屏已禁用", "📸 Captura de pantalla deshabilitada", "📸 Captura de tela desabilitada")
+    // 5WHY: Removed 📸 emoji prefix — toast rendering code should add AppIcon instead.
+    readonly property string captureEnabledToast: t("Screen capture enabled", "Capture d'écran activée", "Bildschirmaufnahme aktiviert", "Захват экрана включен", "Cattura schermo abilitata", "录屏截屏已启用", "錄屏截屏已啟用", "Captura de pantalla habilitada", "Captura de tela habilitada")
+    readonly property string captureDisabledToast: t("Screen capture disabled", "Capture d'écran désactivée", "Bildschirmaufnahme deaktiviert", "Захват экрана выключен", "Cattura schermo disabilitata", "录屏截屏已禁用", "錄屏截屏已禁用", "Captura de pantalla deshabilitada", "Captura de tela desabilitada")
     // ── Capture overlay labels ──────────────────────────────────────
     readonly property string captureTitle: t("Capture Mode", "Mode capture", "Aufnahmemodus", "Режим захвата", "Modalità cattura", "采集模式", "採集模式", "Modo captura", "Modo captura")
     readonly property string captureDesc: t("Select capture mode and enter a diagnostic URL.", "Sélectionnez le mode et entrez une URL.", "Wählen Sie den Modus und geben Sie eine URL ein.", "Выберите режим и введите URL.", "Seleziona la modalità e inserisci un URL.", "选择采集模式并输入诊断网址。", "選擇採集模式並輸入診斷網址。", "Seleccione el modo e ingrese una URL.", "Selecione o modo e insira uma URL.")
@@ -308,28 +313,29 @@ Item {
     readonly property string captureDone: t("Done", "Terminé", "Fertig", "Готово", "Fatto", "完成", "完成", "Hecho", "Concluído")
     readonly property string captureDismiss: t("Dismiss", "Fermer", "Schließen", "Закрыть", "Chiudi", "关闭", "關閉", "Cerrar", "Fechar")
 
-    // 5WHY: Platform-specific DND reminder — iOS needs manual exit (tappable → Settings),
-    // Android auto-disables DND and shows a brief confirmation.  Desktop hides this entirely.
+    // 5WHY: Removed ⚠/✓ emoji prefix — CaptureResultSummary already renders
+    // a warning/check AppIcon next to this text.  Duplicating the icon as
+    // Unicode in the text string creates a double-icon visual artifact.
     readonly property string captureDndIosMsg: t(
-        "⚠ Focus/DND was enabled — tap here to open Settings and disable it",
-        "⚠ Le mode Focus/NPD était activé — appuyez ici pour ouvrir Réglages et le désactiver",
-        "⚠ Fokus/Nicht-stören war aktiviert — tippen Sie hier, um die Einstellungen zu öffnen",
-        "⚠ Был включен режим фокусировки/НБ — нажмите здесь, чтобы открыть Настройки",
-        "⚠ Focus/Non disturbare era attivo — tocca qui per aprire Impostazioni",
-        "⚠ 专注模式/勿扰模式已开启 — 点击此处前往设置中关闭",
-        "⚠ 專注模式/勿擾模式已開啟 — 點此前往設定中關閉",
-        "⚠ Focus/No molestar estaba activado — pulse aquí para abrir Ajustes",
-        "⚠ Foco/Não perturbe estava ativo — toque aqui para abrir Configurações")
+        "Focus/DND was enabled — tap here to open Settings and disable it",
+        "Le mode Focus/NPD était activé — appuyez ici pour ouvrir Réglages et le désactiver",
+        "Fokus/Nicht-stören war aktiviert — tippen Sie hier, um die Einstellungen zu öffnen",
+        "Был включен режим фокусировки/НБ — нажмите здесь, чтобы открыть Настройки",
+        "Focus/Non disturbare era attivo — tocca qui per aprire Impostazioni",
+        "专注模式/勿扰模式已开启 — 点击此处前往设置中关闭",
+        "專注模式/勿擾模式已開啟 — 點此前往設定中關閉",
+        "Focus/No molestar estaba activado — pulse aquí para abrir Ajustes",
+        "Foco/Não perturbe estava ativo — toque aqui para abrir Configurações")
     readonly property string captureDndAndroidMsg: t(
-        "✓ Focus/DND has been automatically disabled",
-        "✓ Le mode Focus/NPD a été automatiquement désactivé",
-        "✓ Fokus/Nicht-stören wurde automatisch deaktiviert",
-        "✓ Режим фокусировки/НБ был автоматически отключен",
-        "✓ Focus/Non disturbare è stato disattivato automaticamente",
-        "✓ 专注模式/勿扰模式已自动关闭",
-        "✓ 專注模式/勿擾模式已自動關閉",
-        "✓ Focus/No molestar se ha desactivado automáticamente",
-        "✓ Foco/Não perturbe foi desativado automaticamente")
+        "Focus/DND has been automatically disabled",
+        "Le mode Focus/NPD a été automatiquement désactivé",
+        "Fokus/Nicht-stören wurde automatisch deaktiviert",
+        "Режим фокусировки/НБ был автоматически отключен",
+        "Focus/Non disturbare è stato disattivato automaticamente",
+        "专注模式/勿扰模式已自动关闭",
+        "專注模式/勿擾模式已自動關閉",
+        "Focus/No molestar se ha desactivado automáticamente",
+        "Foco/Não perturbe foi desativado automaticamente")
     readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")

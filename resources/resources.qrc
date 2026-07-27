@@ -44,7 +44,10 @@
 
         <!-- Icons (stay in resources/) -->
         <file>icons/camera.svg</file>
+        <file>icons/chart.svg</file>
         <file>icons/check.svg</file>
+        <file>icons/chevron-down.svg</file>
+        <file>icons/chevron-right.svg</file>
         <file>icons/circle.svg</file>
         <file>icons/close.svg</file>
         <file>icons/config.svg</file>
@@ -70,6 +73,7 @@
         <file>icons/wifi.svg</file>
         <file>icons/list-checks.svg</file>
         <file>icons/mail.svg</file>
+        <file>icons/monitor.svg</file>
         <file>icons/badge-check.svg</file>
         <file>icons/badge-close.svg</file>
         <file>icons/badge-warning.svg</file>
@@ -83,6 +87,7 @@
         <file>icons/spinner.svg</file>
         <file>icons/sun.svg</file>
         <file>icons/video.svg</file>
+        <file>icons/zap.svg</file>
         <file>icons/netanalysis.ico</file>
 
         <!-- Fonts (stay in resources/) -->

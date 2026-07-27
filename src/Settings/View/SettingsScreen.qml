@@ -175,9 +175,10 @@ Item {
                         indicator: Rectangle {
                             width: 24; height: 24; radius: 4; color: "transparent"
                             anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                            Label {
+                            // 5WHY: Replaced ▾ Unicode triangle with chevron-down SVG.
+                            AppIcon {
                                 anchors.centerIn: parent
-                                text: "▾"; font.pixelSize: 12; color: ThemeEngine.textSecondary
+                                name: "chevron-down"; size: 12; color: ThemeEngine.textSecondary
                             }
                         }
                         delegate: ItemDelegate {
@@ -269,14 +270,19 @@ Item {
             // On desktop the toast was never rendered — the user got no
             // visual confirmation after double-clicking the app icon.
             // Move them to the main setCol so they are always visible.
-            // Capture feature activation toast
-            Label {
+            // Capture feature activation toast — now with SVG icon.
+            RowLayout {
                 id: captureToast
-                Layout.fillWidth: true
                 visible: captureToastTimer.running
-                font.family: ThemeEngine.monoFont
-                font.pixelSize: 11; color: ThemeEngine.cyan
+                spacing: 6
                 Layout.topMargin: captureToast.visible ? 8 : 0
+                AppIcon { name: "camera"; size: 14; color: ThemeEngine.cyan }
+                Label {
+                    id: captureToastLabel
+                    Layout.fillWidth: true
+                    font.family: ThemeEngine.monoFont
+                    font.pixelSize: 11; color: ThemeEngine.cyan
+                }
             }
             Timer { id: captureToastTimer; interval: 3000 }
 
@@ -326,14 +332,14 @@ Item {
                                     // CaptureModePanel so the user can choose mode + URL.
                                     if (appState.captureFeatureEnabled) {
                                         appState.disableCaptureFeature()
-                                        captureToast.text = Tr.captureDisabledToast
+                                        captureToastLabel.text = Tr.captureDisabledToast
                                         captureToastTimer.restart()
                                     } else {
                                         // Enable gate + request mode selection panel
                                         if (captureOrchestrator !== null) {
                                             captureOrchestrator.requestModeSelection()
                                         }
-                                        captureToast.text = Tr.captureEnabledToast
+                                        captureToastLabel.text = Tr.captureEnabledToast
                                         captureToastTimer.restart()
                                     }
                                 }
@@ -366,13 +372,13 @@ Item {
                     Label { Layout.fillWidth: true; text: Tr.aboutDesc
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5 }
                     Item { Layout.preferredHeight: 16 }
-                    AboutRow { aboutIcon: "💻"; aboutText: Tr.crossPlat }
+                    AboutRow { aboutIcon: "monitor"; aboutText: Tr.crossPlat }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "⚡"; aboutText: Tr.realtimeDiag }
+                    AboutRow { aboutIcon: "zap"; aboutText: Tr.realtimeDiag }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "📊"; aboutText: Tr.detailedReport }
+                    AboutRow { aboutIcon: "chart"; aboutText: Tr.detailedReport }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "🌙"; aboutText: Tr.darkTheme }
+                    AboutRow { aboutIcon: "moon"; aboutText: Tr.darkTheme }
                     Item { Layout.preferredHeight: 8 }
 
                 }
@@ -400,7 +406,8 @@ Item {
 
     component AboutRow: RowLayout {
         property string aboutIcon: ""; property string aboutText: ""
-        Label { text: aboutIcon; font.pixelSize: 16; color: ThemeEngine.colors.textSecondary; Layout.alignment: Qt.AlignTop }
+        // 5WHY: Replaced emoji Label with AppIcon for consistent SVG iconography.
+        AppIcon { name: aboutIcon; size: 16; color: ThemeEngine.colors.textSecondary; Layout.alignment: Qt.AlignTop }
         Item { width: 10 }
         Label { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.textSecondary, 0.8) }
     }

@@ -84,7 +84,9 @@ Rectangle {
                     StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
                     StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
                 }
-                Label { text:expanded?"▼":"▶"; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
+                // 5WHY: Replaced ▼/▶ Unicode arrows with chevron SVG icons
+                // for consistent iconography across the app.
+                AppIcon { name: expanded ? "chevron-down" : "chevron-right"; size: 14; color: ThemeEngine.colors.textSecondary }
             }
 
             // Row 2 — result badges on their own line (phone portrait only)
