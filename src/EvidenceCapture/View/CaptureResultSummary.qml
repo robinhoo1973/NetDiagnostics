@@ -73,7 +73,7 @@ Rectangle {
         width: Math.min(420, parent.width * 0.9)
         implicitHeight: sumCol.implicitHeight + 48
         height: Math.min(implicitHeight, parent.height * 0.92)
-        radius: 24
+        radius: 28
         color: T.ThemeEngine.colors.card
         border {
             width: 1
@@ -83,10 +83,10 @@ Rectangle {
         }
         clip: true
 
-        // Top accent — red for error, green for success
+        // Top accent — 2px refined, red for error, green for success
         Rectangle {
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 3; radius: 3
+            height: 2; radius: 2
             color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.passGreen
         }
 
@@ -103,13 +103,13 @@ Rectangle {
 
         ColumnLayout {
             id: sumCol
-            anchors { fill: parent; margins: 28 }
-            spacing: 18
+            anchors { fill: parent; margins: 24 }
+            spacing: 16
 
             // ── Status icon ─────────────────────────────────────────
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
-                implicitWidth: 72; implicitHeight: 72; radius: 36
+                implicitWidth: 64; implicitHeight: 64; radius: 32
                 color: root.isError
                     ? Qt.alpha(T.ThemeEngine.failRed, 0.10)
                     : Qt.alpha(T.ThemeEngine.passGreen, 0.10)
@@ -122,7 +122,7 @@ Rectangle {
                 AppIcon {
                     anchors.centerIn: parent
                     name: root.isError ? "error" : "check"
-                    size: 34
+                    size: 30
                     color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.passGreen
                 }
             }
@@ -131,7 +131,7 @@ Rectangle {
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: root.isError ? "Capture Failed" : "Capture Complete"
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 20
+                font.family: T.ThemeEngine.monoFont; font.pixelSize: 18
                 font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
             }
 
@@ -160,11 +160,11 @@ Rectangle {
 
             // ── Stats rows (success only) ───────────────────────────
             ColumnLayout {
-                spacing: 10; visible: !root.isError
+                spacing: 8; visible: !root.isError
 
                 // Screenshots count
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 10
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 10
                     color: Qt.alpha(T.ThemeEngine.colors.input, 0.4)
                     RowLayout {
                         anchors { fill: parent; margins: 14 }
@@ -187,7 +187,7 @@ Rectangle {
 
                 // Recording status
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 10
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 10
                     visible: root.recordingFile !== ""
                     color: Qt.alpha(T.ThemeEngine.colors.input, 0.4)
                     RowLayout {
@@ -216,7 +216,7 @@ Rectangle {
 
                 // Duration
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 10
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 10
                     color: Qt.alpha(T.ThemeEngine.colors.input, 0.4)
                     RowLayout {
                         anchors { fill: parent; margins: 14 }

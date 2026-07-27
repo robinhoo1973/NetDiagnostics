@@ -33,15 +33,15 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(400, parent.width * 0.9)
         height: Math.min(preCol.implicitHeight + 48, parent.height * 0.92)
-        radius: 24
+        radius: 28
         color: T.ThemeEngine.colors.card
         border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.borderCard, 0.6) }
         clip: true
 
-        // Top accent
+        // Top accent — 2px refined
         Rectangle {
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 3; radius: 3
+            height: 2; radius: 2
             color: T.ThemeEngine.warnYellow
         }
 
@@ -58,20 +58,20 @@ Rectangle {
                 width: cardFlick.width
                 spacing: 18
                 anchors {
-                    left: parent.left; leftMargin: 28
-                    right: parent.right; rightMargin: 28
-                    top: parent.top; topMargin: 28
+                    left: parent.left; leftMargin: 24
+                    right: parent.right; rightMargin: 24
+                    top: parent.top; topMargin: 24
                 }
 
                 // ── Icon ────────────────────────────────────────────
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 72; implicitHeight: 72; radius: 36
+                    implicitWidth: 64; implicitHeight: 64; radius: 32
                     color: Qt.alpha(T.ThemeEngine.warnYellow, 0.10)
                     border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.2) }
                     AppIcon {
                         anchors.centerIn: parent
-                        name: "warning"; size: 34
+                        name: "warning"; size: 30
                         color: T.ThemeEngine.warnYellow
                     }
                 }

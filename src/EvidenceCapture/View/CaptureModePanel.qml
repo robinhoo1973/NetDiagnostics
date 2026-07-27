@@ -51,16 +51,17 @@ Rectangle {
         width: Math.min(420, parent.width * 0.92)
         implicitHeight: panelCol.implicitHeight + 48
         height: Math.min(implicitHeight, parent.height * 0.92)
-        radius: 24
+        // M3 spec: 28dp corner radius for basic dialogs
+        radius: 28
         color: T.ThemeEngine.colors.card
         border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.borderCard, 0.6) }
         clip: true
 
-        // Subtle top accent line
+        // Subtle top accent — 2px for refined appearance
         Rectangle {
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 3
-            radius: 3
+            height: 2
+            radius: 2
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: T.ThemeEngine.primary }
@@ -83,37 +84,42 @@ Rectangle {
 
         ColumnLayout {
             id: panelCol
-            anchors { fill: parent; margins: 28 }
-            spacing: 20
+            // M3 spec: 24dp uniform padding for basic dialogs
+            anchors { fill: parent; margins: 24 }
+            spacing: 0
 
             // ── Header ──────────────────────────────────────────────
+            Item { Layout.preferredHeight: 4 }
             RowLayout {
                 spacing: 12
-                AppIcon { name: "camera"; size: 26; color: T.ThemeEngine.cyan }
+                AppIcon { name: "camera"; size: 24; color: T.ThemeEngine.cyan }
                 Label {
                     text: "Capture Mode"
                     font.family: T.ThemeEngine.monoFont
-                    font.pixelSize: 20; font.weight: Font.Bold
+                    font.pixelSize: 18; font.weight: Font.Bold
                     color: T.ThemeEngine.textPrimary
                 }
             }
 
+            // M3: 16dp title→body spacing via 4+4+8 layout items
+            Item { Layout.preferredHeight: 4 }
             Label {
                 Layout.fillWidth: true
                 text: "Choose how you'd like to capture evidence during diagnostics."
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
-                lineHeight: 1.4
+                lineHeight: 1.45
             }
 
+            Item { Layout.preferredHeight: 4 }
             // ── Mode selector cards ─────────────────────────────────
             ColumnLayout {
-                spacing: 10
+                spacing: 8
 
-                // ── Screenshots card ────────────────────────────────
+                // M3: comfortable 72px card height for 48px minimum touch target
                 Rectangle {
                     id: screenshotCard
-                    Layout.fillWidth: true; implicitHeight: 66; radius: 14
+                    Layout.fillWidth: true; implicitHeight: 72; radius: 12
                     color: root.wantsScreenshot
                            ? Qt.alpha(T.ThemeEngine.cyan, 0.10)
                            : Qt.alpha(T.ThemeEngine.colors.input, 0.3)
@@ -127,21 +133,20 @@ Rectangle {
                     Behavior on color  { ColorAnimation { duration: 200 } }
                     Behavior on border.color { ColorAnimation { duration: 200 } }
 
-                    // Subtle glow when selected
                     Rectangle {
-                        anchors.fill: parent; radius: 14
+                        anchors.fill: parent; radius: 12
                         visible: root.wantsScreenshot
                         color: "transparent"
-                        border { width: 3; color: Qt.alpha(T.ThemeEngine.cyan, 0.08) }
+                        border { width: 2; color: Qt.alpha(T.ThemeEngine.cyan, 0.06) }
                     }
 
                     RowLayout {
                         anchors { fill: parent; margins: 14 }
-                        spacing: 14
+                        spacing: 12
 
                         // Icon container
                         Rectangle {
-                            implicitWidth: 40; implicitHeight: 40; radius: 10
+                            implicitWidth: 42; implicitHeight: 42; radius: 10
                             color: root.wantsScreenshot
                                    ? Qt.alpha(T.ThemeEngine.cyan, 0.18)
                                    : Qt.alpha(T.ThemeEngine.textSecondary, 0.08)
@@ -213,7 +218,7 @@ Rectangle {
                 // ── Recording card ──────────────────────────────────
                 Rectangle {
                     id: recordingCard
-                    Layout.fillWidth: true; implicitHeight: 66; radius: 14
+                    Layout.fillWidth: true; implicitHeight: 72; radius: 12
                     color: root.wantsRecording
                            ? Qt.alpha(T.ThemeEngine.cyan, 0.10)
                            : Qt.alpha(T.ThemeEngine.colors.input, 0.3)
@@ -227,18 +232,18 @@ Rectangle {
                     Behavior on border.color { ColorAnimation { duration: 200 } }
 
                     Rectangle {
-                        anchors.fill: parent; radius: 14
+                        anchors.fill: parent; radius: 12
                         visible: root.wantsRecording
                         color: "transparent"
-                        border { width: 3; color: Qt.alpha(T.ThemeEngine.cyan, 0.08) }
+                        border { width: 2; color: Qt.alpha(T.ThemeEngine.cyan, 0.06) }
                     }
 
                     RowLayout {
                         anchors { fill: parent; margins: 14 }
-                        spacing: 14
+                        spacing: 12
 
                         Rectangle {
-                            implicitWidth: 40; implicitHeight: 40; radius: 10
+                            implicitWidth: 42; implicitHeight: 42; radius: 10
                             color: root.wantsRecording
                                    ? Qt.alpha(T.ThemeEngine.cyan, 0.18)
                                    : Qt.alpha(T.ThemeEngine.textSecondary, 0.08)

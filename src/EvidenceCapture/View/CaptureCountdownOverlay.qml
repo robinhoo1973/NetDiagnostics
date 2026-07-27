@@ -64,31 +64,31 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(340, parent.width * 0.82)
         height: Math.min(ctCol.implicitHeight + 48, parent.height * 0.65)
-        radius: 24
+        radius: 28
         color: T.ThemeEngine.colors.card
         border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.borderCard, 0.6) }
         clip: true
 
-        // Top accent
+        // Top accent — 2px refined
         Rectangle {
             anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 3; radius: 3
+            height: 2; radius: 2
             color: T.ThemeEngine.cyan
         }
 
         ColumnLayout {
             id: ctCol
-            anchors { fill: parent; margins: 32 }
-            spacing: 24
+            anchors { fill: parent; margins: 24 }
+            spacing: 20
 
             // ── Timer icon ──────────────────────────────────────────
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
-                implicitWidth: 56; implicitHeight: 56; radius: 28
+                implicitWidth: 48; implicitHeight: 48; radius: 24
                 color: Qt.alpha(T.ThemeEngine.cyan, 0.10)
                 AppIcon {
                     anchors.centerIn: parent
-                    name: "timer"; size: 28
+                    name: "timer"; size: 24
                     color: T.ThemeEngine.cyan
                 }
             }
@@ -97,7 +97,7 @@ Rectangle {
             Label {
                 Layout.alignment: Qt.AlignHCenter
                 text: "Starting capture in"
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 16
+                font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
                 font.weight: Font.DemiBold; color: T.ThemeEngine.textPrimary
             }
 
@@ -149,8 +149,10 @@ Rectangle {
                         // parent.  If someone wraps this Label in another Item
                         // for visual grouping, implicit parent would silently
                         // break, stopping the pulse with no warning.
-                        NumberAnimation { target: countLabel; property: "scale"; from: 1.0; to: 1.15; duration: 300; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: countLabel; property: "scale"; from: 1.15; to: 1.0; duration: 700; easing.type: Easing.InOutCubic }
+                        // 5WHY: 250ms expand + 750ms contract = 1000ms total,
+                        // precisely matching the 1-second countdown interval.
+                        NumberAnimation { target: countLabel; property: "scale"; from: 1.0; to: 1.18; duration: 250; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: countLabel; property: "scale"; from: 1.18; to: 1.0; duration: 750; easing.type: Easing.InOutCubic }
                     }
                 }
             }
