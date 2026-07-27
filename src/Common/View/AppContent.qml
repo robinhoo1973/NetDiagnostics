@@ -100,6 +100,42 @@ Item {
         property string pendingErrorCode: ""
         property string pendingErrorMessage: ""
 
+        // 5WHY: When capture completes while a report preview is visible
+        // (DashboardScreen/ReportScreen previewVisible=true), the
+        // CaptureResultSummary overlays the preview immediately, then
+        // auto-dismisses via its 15 s/30 s countdown while the user is
+        // still reading the report.  By the time they return to the
+        // dashboard the result is gone.
+        //
+        // Fix: delay loading the ResultSummary until the preview overlay
+        // is dismissed.  Store completion data here so onLoaded can inject
+        // it into the incubated item regardless of when it loads.
+        property bool pendingCompletedOverlay: false
+        property string storedSessionPath: ""
+        property int    storedTotalScreenshots: 0
+        property string storedRecordingFile: ""
+        property string storedElapsedTime: ""
+
+        // 5WHY: Poll stackView.currentItem.previewVisible every 500 ms
+        // while capture completed data is pending.  When the user dismisses
+        // the report preview, load the result summary immediately.
+        Timer {
+            id: completionDelayTimer
+            interval: 500; repeat: true
+            onTriggered: {
+                if (!captureOverlay.pendingCompletedOverlay) { stop(); return }
+                var cur = stackView.currentItem
+                // 5WHY: If currentItem is null (tab switch in progress) or
+                // previewVisible is false, the preview is gone — safe to show.
+                if (!cur || typeof cur.previewVisible === "undefined" || !cur.previewVisible) {
+                    stop()
+                    captureOverlay.pendingCompletedOverlay = false
+                    captureOverlay.active = true
+                    captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                }
+            }
+        }
+
         // CaptureState enum values — MUST stay in sync with CaptureStateMachine.h enum order.
         // 5WHY: Hardcoded magic numbers (s === 2, 5, 8, ...) silently break overlay
         // display when the C++ enum is reordered.  Named constants make the mapping
@@ -163,8 +199,21 @@ Item {
                     captureOverlay.source = "qrc:/qml/capture/CaptureRunningOverlay.qml"
                 }
                 else if (s === captureOverlay.kCaptureCompleted) {
-                    captureOverlay.pendingError = false; captureOverlay.active = true
-                    captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                    captureOverlay.pendingError = false
+                    // 5WHY: If a report preview is currently visible
+                    // (DashboardScreen/ReportScreen.previewVisible),
+                    // delay loading the ResultSummary until the user
+                    // dismisses the preview.  Otherwise the result
+                    // auto-dismisses while the user reads the report.
+                    var cur = stackView.currentItem
+                    if (cur && typeof cur.previewVisible !== "undefined" && cur.previewVisible) {
+                        captureOverlay.pendingCompletedOverlay = true
+                        completionDelayTimer.restart()
+                    } else {
+                        captureOverlay.pendingCompletedOverlay = false
+                        captureOverlay.active = true
+                        captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                    }
                 }
                 // 5WHY: intermediate states (CreatingSession→StartingRecording and
                 // StoppingRecording→Finalizing) had no overlay handler.  The
@@ -182,6 +231,9 @@ Item {
                 else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled) {
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
+                    captureOverlay.pendingCompletedOverlay = false
+                    captureOverlay.storedSessionPath = ""  // 5WHY: clear stale completion data
+                    completionDelayTimer.stop()
                     captureOverlay.source = ""
                 }
                 else if (s === captureOverlay.kCaptureFailed) {
@@ -233,16 +285,17 @@ Item {
             // Setting the removed aliases via typeof-guarded if-blocks
             // was dead code that silently skipped every invocation.
             function onCaptureCompleted(sessionPath) {
+                // 5WHY: Always store completion data on the Loader — the
+                // ResultSummary may load now OR later (if delayed by a
+                // visible report preview).  onLoaded applies stored data.
+                captureOverlay.storedSessionPath = sessionPath
+                captureOverlay.storedTotalScreenshots = captureOrchestrator.captureCount
+                captureOverlay.storedRecordingFile = captureOrchestrator.wasRecordingSession() ? "recording.mp4" : ""
+                captureOverlay.storedElapsedTime = captureOrchestrator.elapsedSeconds + "s"
+                // If already loaded (no preview delay), apply directly
                 if (captureOverlay.item && typeof captureOverlay.item.sessionPath !== "undefined") {
                     captureOverlay.item.sessionPath = sessionPath
-                    // 5WHY: ResultSummary properties were never populated,
-                    // showing 0 screenshots and empty recording/duration.
                     captureOverlay.item.totalScreenshots = captureOrchestrator.captureCount
-                    // 5WHY: isRecordingCapture() reads m_recording which
-                    // restoreSystemState() clears BEFORE the deferred
-                    // captureCompleted signal fires.  wasRecordingSession()
-                    // reads m_captureMode instead, which survives
-                    // restoreSystemState() — see CaptureOrchestrator.h:57-63.
                     captureOverlay.item.recordingFile = captureOrchestrator.wasRecordingSession() ? "recording.mp4" : ""
                     captureOverlay.item.elapsedTime = captureOrchestrator.elapsedSeconds + "s"
                 }
@@ -284,6 +337,20 @@ Item {
             captureOverlay.pendingError = false
             captureOverlay.pendingErrorCode = ""
             captureOverlay.pendingErrorMessage = ""
+            // 5WHY: Apply stored completion data when ResultSummary
+            // loads (may have been delayed by a visible report preview).
+            if (typeof item.sessionPath !== "undefined" && captureOverlay.storedSessionPath !== "") {
+                item.sessionPath = captureOverlay.storedSessionPath
+                item.totalScreenshots = captureOverlay.storedTotalScreenshots
+                item.recordingFile = captureOverlay.storedRecordingFile
+                item.elapsedTime = captureOverlay.storedElapsedTime
+                // Clear after application so stale data doesn't leak
+                // into a subsequent capture's result summary.
+                captureOverlay.storedSessionPath = ""
+                captureOverlay.storedTotalScreenshots = 0
+                captureOverlay.storedRecordingFile = ""
+                captureOverlay.storedElapsedTime = ""
+            }
             // CaptureModePanel → start capture
             if (typeof item.startRequested !== "undefined") {
                 item.startRequested.connect(function(mode, url) {
