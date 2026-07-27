@@ -1174,6 +1174,16 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
         break;
     }
 
+    case StepAction::CloseOverlay: {
+        // 5WHY: After a Capture step that screenshots a detail/preview overlay,
+        // the overlay stays open — the next Navigate or OpenDetail step would
+        // carry stale visual state.  Close any open overlay on the current page
+        // so subsequent steps start from a clean screen.
+        m_navAdapter->closeCurrentOverlay();
+        deferNextStep();
+        break;
+    }
+
     case StepAction::OpenReport: {
         m_navAdapter->openReportPreview();
         m_waitingForReportPreview = true;

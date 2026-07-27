@@ -437,3 +437,39 @@ void NavigationAdapter::doOpenReportPreview() {
     }
     emit reportPreviewReady(ok);
 }
+
+void NavigationAdapter::closeCurrentOverlay() {
+    // 5WHY: After a Capture step following OpenDetail or OpenReport, the
+    // overlay is still visible — the scenario moves on while the detail/
+    // preview remains open.  Close any open overlay on the current page
+    // so the next step starts from a clean state.
+    if (!m_appContent) return;
+
+    // Access the StackView via AppContent's property
+    QVariant stackViewVariant = m_appContent->property("stackView");
+    if (!stackViewVariant.isValid()) return;
+    QObject* stackView = stackViewVariant.value<QObject*>();
+    if (!stackView) return;
+
+    QObject* currentItem = stackView->property("currentItem").value<QObject*>();
+    if (!currentItem) return;
+
+    // Close detail overlay on DiagnosticScreen
+    QVariant detailOverlayVar = currentItem->property("detailOverlay");
+    if (detailOverlayVar.isValid()) {
+        QObject* detailOverlay = detailOverlayVar.value<QObject*>();
+        if (detailOverlay) {
+            bool visible = detailOverlay->property("visible").toBool();
+            if (visible) {
+                detailOverlay->setProperty("visible", false);
+            }
+        }
+    }
+
+    // Close preview overlay on DashboardScreen/ReportScreen
+    // previewVisible is a QML property on the page item
+    QVariant previewVisibleVar = currentItem->property("previewVisible");
+    if (previewVisibleVar.isValid() && previewVisibleVar.toBool()) {
+        currentItem->setProperty("previewVisible", false);
+    }
+}

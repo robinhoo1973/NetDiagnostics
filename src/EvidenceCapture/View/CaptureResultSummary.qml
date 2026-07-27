@@ -26,7 +26,23 @@ Rectangle {
     property string errorMessage: ""
     property string errorCode: ""
 
+    // Countdown auto-close — longer for recording (video encoding may still run)
+    property int countdown: root.recordingFile !== "" ? 30 : 15
+    property bool dismissed: false
+
     signal dismissed()
+
+    Timer {
+        id: countdownTimer
+        interval: 1000; running: true; repeat: true
+        onTriggered: {
+            root.countdown = Math.max(0, root.countdown - 1)
+            if (root.countdown <= 0 && !root.dismissed) {
+                root.dismissed = true
+                root.dismissed()
+            }
+        }
+    }
 
     MouseArea { anchors.fill: parent; onClicked: root.dismissed() }
 
@@ -118,24 +134,42 @@ Rectangle {
             }
 
             // ── Focus mode exit reminder ────────────────────────────
-            // 5WHY: iOS cannot programmatically disable Focus mode.
-            // Android restores DND automatically, but if the user manually
-            // enabled it via Settings, they still need to undo it.
-            // Show on both success AND error — a failed capture doesn't
-            // mean the user should stay in DND mode unaware.
+            // 5WHY: iOS cannot programmatically disable Focus mode — the
+            // user MUST manually exit DND via Settings.  Android auto-disables
+            // DND via restoreSystemState() → platformDisableFocusMode().
+            // Desktop never enabled DND (platformEnableFocusMode is a no-op).
+            //
+            // Platform-aware behaviour:
+            //   iOS:     Show manual DND exit reminder (tappable → Settings)
+            //   Android: Show brief confirmation that DND was auto-disabled
+            //   Desktop: Hidden (no DND was ever active)
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 36; radius: 8
-                color: Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
-                border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.2) }
+                visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
+                color: Qt.platform.os === "ios"
+                    ? Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
+                    : Qt.alpha(T.ThemeEngine.passGreen, 0.08)
+                border { width: 1
+                    color: Qt.platform.os === "ios"
+                        ? Qt.alpha(T.ThemeEngine.warnYellow, 0.2)
+                        : Qt.alpha(T.ThemeEngine.passGreen, 0.2)
+                }
                 Label {
                     anchors { fill: parent; margins: 10 }
-                    text: "⚠ If you enabled Focus/DND manually, tap to open Settings to disable it"
+                    text: Qt.platform.os === "ios"
+                        ? "⚠ Focus/DND was enabled — tap here to open Settings and disable it"
+                        : "✓ Focus/DND has been automatically disabled"
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
-                    color: T.ThemeEngine.warnYellow; font.underline: true
+                    color: Qt.platform.os === "ios"
+                        ? T.ThemeEngine.warnYellow
+                        : T.ThemeEngine.passGreen
+                    font.underline: Qt.platform.os === "ios"
                     verticalAlignment: Text.AlignVCenter
                 }
                 MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    anchors.fill: parent
+                    cursorShape: Qt.platform.os === "ios" ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: Qt.platform.os === "ios"
                     onClicked: {
                         if (captureOrchestrator) {
                             captureOrchestrator.openFocusSettings()
@@ -143,19 +177,24 @@ Rectangle {
                     }
                 }
             }
-            // Done / Dismiss button
+            // Done / Dismiss button with countdown
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 44; radius: 12
                 color: root.isError ? Qt.alpha(T.ThemeEngine.failRed, 0.2) : T.ThemeEngine.cyan
                 Label {
                     anchors.centerIn: parent
-                    text: root.isError ? "✕ Dismiss" : "✓ Done"
+                    text: root.isError
+                        ? "✕ Dismiss"
+                        : (root.countdown > 0 ? "✓ Done (" + root.countdown + "s)" : "✓ Done")
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
                     font.weight: Font.Bold; color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
                 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: root.dismissed()
+                    onClicked: {
+                        countdownTimer.stop()
+                        root.dismissed()
+                    }
                 }
             }
         }

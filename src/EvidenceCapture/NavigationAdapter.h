@@ -47,6 +47,11 @@ public:
     // Get the current tab index (-1 if unknown).
     Q_INVOKABLE int currentTabIndex() const;
 
+    // Close any open detail overlay on DiagnosticScreen or preview overlay
+    // on DashboardScreen.  Called after screenshot steps that follow
+    // OpenDetail/OpenReport to clean up the overlay before the next step.
+    Q_INVOKABLE void closeCurrentOverlay();
+
     // Stop any active page-ready polling timer.  Called by the orchestrator
     // on cancel to prevent wasted 200ms-interval polling after session abort.
     Q_INVOKABLE void stopPageReadyPolling();
