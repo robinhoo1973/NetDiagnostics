@@ -72,7 +72,6 @@ Item {
                                 currentGroup = index
                             }
                         }
-                    }
                 }
         }
     }
