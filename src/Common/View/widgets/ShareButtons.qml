@@ -177,12 +177,15 @@ RowLayout {
             RowLayout {
                 anchors.centerIn: parent; spacing: 6
                 AppIcon {
-                    visible: parent.parent.iconName !== ""
-                    name: parent.parent.iconName; size: shareRoot._iconSize
-                    color: parent.parent.accent
+                    // 5WHY: Use the named id instead of parent.parent —
+                    // doubly-indirect parent references silently break
+                    // when nesting changes (added Item, refactored layout).
+                    visible: labeledRect.iconName !== ""
+                    name: labeledRect.iconName; size: shareRoot._iconSize
+                    color: labeledRect.accent
                 }
                 Label {
-                    text: parent.parent.labelText + (parent.parent.locked ? "  " + Tr.premiumBadge : "")
+                    text: labeledRect.labelText + (labeledRect.locked ? "  " + Tr.premiumBadge : "")
                     color: ThemeEngine.textPrimary
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: 12
