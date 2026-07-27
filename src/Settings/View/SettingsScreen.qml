@@ -31,6 +31,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "gear"
         title: Tr.settings
+        Item { Layout.fillWidth: true }
     }
 
     Flickable {

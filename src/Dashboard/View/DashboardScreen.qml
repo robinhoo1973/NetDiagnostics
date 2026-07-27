@@ -78,6 +78,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "dashboard"
         title: Tr.dashboard
+        Item { Layout.fillWidth: true }
     }
 
     // Empty state

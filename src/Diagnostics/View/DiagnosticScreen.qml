@@ -128,6 +128,7 @@ Item {
                 }
             }
             Item { width: 8 }
+            Item { Layout.fillWidth: true }
         }
 
         // ═══════════════ TOOLBAR ═══════════════════════════════════════

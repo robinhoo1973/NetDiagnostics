@@ -47,7 +47,12 @@ Rectangle {
             font.weight: Font.DemiBold
             color: T.ThemeEngine.textPrimary
         }
-        // Caller's children inserted here by default property alias
-        Item { Layout.fillWidth: true }
+        // Caller's children inserted here by default property alias.
+        //
+        // IMPORTANT: Layout.fillWidth spacer must be provided by the caller
+        // as their LAST child.  QML's default property appends user-provided
+        // items AFTER component-internal children.  If the spacer were here,
+        // any caller child (e.g. capture indicator badge) would be pushed
+        // to the right edge instead of sitting adjacent to the title.
     }
 }

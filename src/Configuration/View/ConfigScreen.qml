@@ -21,15 +21,16 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "config"
         title: Tr.config
+        Item { Layout.fillWidth: true }
     }
     // TabBar — Flutter: G1..G5 tabs
     Rectangle {
         id: tabBar
-        anchors { left: parent.left; right: parent.right; top: appBar.bottom }
+        anchors { left: parent.left; right: parent.right; top: appBar.bottom; topMargin: -1 }
         implicitHeight: 38; color: ThemeEngine.colors.navBar
         border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
-            anchors { fill: parent; leftMargin: 16; rightMargin: 16 }; spacing: 0
+            anchors.fill: parent; spacing: 0
                 Repeater {
                         model: appState.groupLabels
                         delegate: ItemDelegate {

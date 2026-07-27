@@ -108,6 +108,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "report"
         title: Tr.reportPreview
+        Item { Layout.fillWidth: true }
     }
 
     // Centered content — scrollable; a holder keeps the column vertically centered
