@@ -155,8 +155,17 @@ Item {
         // three identical blocks that all loaded the ResultSummary.  A single
         // function prevents future divergence — if the source path or overlay
         // activation sequence changes, it's updated in exactly one place.
+        // 5WHY: clearPendingCompletion() zeros storedSessionPath and the
+        // other stored* properties — the exact data that onLoaded needs to
+        // inject into the incubated ResultSummary.  If we call it here,
+        // onLoaded sees storedSessionPath === "" and skips applyCompletionData,
+        // leaving the ResultSummary with empty/default values (0 screenshots,
+        // blank path, 0s elapsed).  Only clear the pending flag and Timer;
+        // onLoaded calls clearPendingCompletion() AFTER applying the data.
         function showResultSummary() {
-            clearPendingCompletion()
+            pendingCompletedOverlay = false
+            completionDelayTimer.stop()
+            completionDelayTimer._tickCount = 0
             active = true
             source = "qrc:/qml/capture/CaptureResultSummary.qml"
         }
@@ -303,6 +312,11 @@ Item {
                         // this specific screen's previewVisible, not whatever
                         // screen is current at poll time (user may switch tabs).
                         captureOverlay._storedPreviewScreen = cur
+                        // 5WHY: QML Timer.restart() resets the interval counter
+                        // but NOT custom properties — _tickCount survives across
+                        // restart() calls.  Reset it to 0 so the 60s safety cap
+                        // is measured from THIS deferral, not a prior one.
+                        completionDelayTimer._tickCount = 0
                         completionDelayTimer.restart()
                     } else {
                         captureOverlay.pendingCompletedOverlay = false

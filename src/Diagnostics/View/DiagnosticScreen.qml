@@ -378,6 +378,31 @@ Item {
                 stopAutoContinue()
             }
         }
+        // 5WHY: onVisibleChanged only fires when `visible` transitions.
+        // If the cellular warning dialog is ALREADY visible when capture
+        // starts (e.g. from a prior cancelled diagnostic), visible stays
+        // true and onVisibleChanged never fires — the auto-dismiss Timer
+        // never starts.  Listen for capture-orchestrator signals that
+        // indicate capture has become active, and start the countdown if
+        // the dialog is already visible.
+        Connections {
+            target: typeof captureOrchestrator !== "undefined" && captureOrchestrator
+                ? captureOrchestrator : null
+            // 5WHY: captureModeChanged fires before the FSM transitions
+            // out of Idle, so isRunning() returns false at this point.
+            // Remove the isCaptureRunning() guard — the Timer's own
+            // onTriggered handler checks isCaptureRunning() on every tick
+            // and will cancel itself if the capture hasn't actually started
+            // or has already finished.  The first tick is 1s after restart(),
+            // by which time the FSM will have transitioned.
+            function onCaptureModeChanged() {
+                if (cellularDialog.visible
+                    && autoContinueCountdown <= 0) {
+                    autoContinueCountdown = 3
+                    autoContinueTimer.restart()
+                }
+            }
+        }
 
         // Backdrop: tap to dismiss → cancel entire diagnostic run
         MouseArea {

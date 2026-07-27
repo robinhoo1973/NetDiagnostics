@@ -377,6 +377,12 @@ void platformStopRecording(RecordingCallback callback) {
                     s_stopping = false;
                 });
             }];
+        } else {
+            // 5WHY: needsReplayKitStop is false — no AVAssetWriter was
+            // allocated, so no recording was ever started and no async
+            // stop is pending.  Reset s_stopping immediately so future
+            // calls don't see a phantom "stop in progress" flag.
+            s_stopping = false;
         }
         if (callback) {
             __block QString errMsg;
@@ -404,12 +410,20 @@ void platformStopRecording(RecordingCallback callback) {
         if (error) {
             s_recording = false;
             s_stopping = false;
-            if (callback) callback(false, QString::fromNSString(error.localizedDescription));
+            // 5WHY: Nil s_writer IMMEDIATELY under the state queue BEFORE
+            // delivering the callback.  The callback chain (failCapture ->
+            // restoreSystemState -> platformStopRecording) is synchronous
+            // and re-enters platformStopRecording while s_stopping is
+            // false.  If s_writer is non-nil at that point, the re-entrant
+            // call enters the needsReplayKitStop path and calls
+            // stopCaptureWithHandler a second time - violating Apple's
+            // once-per-session contract and causing undefined behavior.
             dispatch_sync(s_stateQueue(), ^{
                 s_writer = nil;
                 s_input = nil;
                 s_outputPath = nil;
             });
+            if (callback) callback(false, QString::fromNSString(error.localizedDescription));
             return;
         }
 

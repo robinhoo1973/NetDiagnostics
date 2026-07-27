@@ -419,7 +419,11 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     // solely by the NOTIFY signal — without it, the binding engine does not
     // re-evaluate and carries the stale true value from the previous session.
     // The QML toast would either show prematurely or fail to re-trigger.
+    // Perf: only iOS uses the DND reminder — skip unnecessary signal on
+    // desktop/Android to avoid wasted QML binding re-evaluations.
+#if defined(PLATFORM_IOS)
     emit dndReminderChanged();
+#endif
     m_elapsed.start();
 
     // 5WHY: m_executingStep is the re-entrancy guard for executeNextStep().
@@ -832,7 +836,24 @@ void CaptureOrchestrator::startPlatformRecording() {
     m_currentAction = QStringLiteral("Starting screen recording...");
     emit actionChanged(m_currentAction);
 
-    platformStartRecording(recPath, [this](bool ok, const QString& pathOrError) {
+    // 5WHY: The platform start callback was missing the gen-guard + FSM-state
+    // guard pattern that the stop callback uses.  If the user cancels during
+    // StartingRecording and immediately starts a new capture, the stale start
+    // callback would otherwise fire on the new session, clobbering the FSM
+    // with a spurious transitionTo(ExecutingSteps) and emitting a stale
+    // actionChanged signal.
+    int gen = m_sessionGen;
+    platformStartRecording(recPath, [this, gen](bool ok, const QString& pathOrError) {
+        if (m_sessionGen != gen) {
+            qWarning() << "CaptureOrchestrator: stale start callback"
+                          " ignored (session gen changed)";
+            return;
+        }
+        if (m_stateMachine->state() != CaptureState::StartingRecording) {
+            qWarning() << "CaptureOrchestrator: start callback arrived"
+                          " after FSM already left StartingRecording — ignored";
+            return;
+        }
         if (ok) {
             qInfo() << "CaptureOrchestrator: recording started — path:" << pathOrError;
             m_currentAction = QStringLiteral("Recording started");
@@ -1337,8 +1358,6 @@ void CaptureOrchestrator::emitDndReminderIfNeeded() {
         m_showDndReminder = true;
         emit dndReminderChanged();
     }
-#else
-    Q_UNUSED(m_showDndReminder);
 #endif
 }
 
