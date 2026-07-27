@@ -79,14 +79,14 @@ Rectangle {
                 // ── Title ───────────────────────────────────────────
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: "Prepare to Capture"
+                    text: Tr.capturePrepare
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 20
                     font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
                 }
 
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: "A few things to check before we begin."
+                    text: Tr.capturePreflightTitle
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                     color: T.ThemeEngine.textSecondary
                 }
@@ -100,7 +100,7 @@ Rectangle {
                         AppIcon { name: "badge-info"; size: 18; color: T.ThemeEngine.textSecondary }
                         Label {
                             Layout.fillWidth: true
-                            text: "Please do not touch the device during capture"
+                            text: Tr.captureDoNotTouch
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
                         }
@@ -111,7 +111,7 @@ Rectangle {
                         AppIcon { name: "sun"; size: 18; color: T.ThemeEngine.textSecondary }
                         Label {
                             Layout.fillWidth: true
-                            text: "Screen will stay awake during the session"
+                            text: Tr.captureScreenAwake
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
                         }
@@ -122,7 +122,7 @@ Rectangle {
                         AppIcon { name: "timer"; size: 18; color: T.ThemeEngine.textSecondary }
                         Label {
                             Layout.fillWidth: true
-                            text: "Estimated duration: ~45 seconds"
+                            text: Tr.captureEstTime
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
@@ -146,7 +146,7 @@ Rectangle {
                             spacing: 8
                             AppIcon { name: "warning"; size: 16; color: T.ThemeEngine.warnYellow }
                             Label {
-                                text: "Focus / Do Not Disturb must be enabled"
+                                text: Tr.captureDndRequired
                                 font.family: T.ThemeEngine.monoFont
                                 font.pixelSize: 12; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.warnYellow
@@ -155,7 +155,7 @@ Rectangle {
 
                         Label {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
-                            text: "This device requires manual setup before notifications can be suppressed.\n\n1. Open Settings below\n2. Enable Focus / DND (or grant notification access)\n3. Return here and tap \"I'm Ready\""
+                            text: Tr.captureDndInstructions
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                             color: T.ThemeEngine.textSecondary; lineHeight: 1.5
                         }
@@ -173,7 +173,7 @@ Rectangle {
                                     anchors.centerIn: parent; spacing: 6
                                     AppIcon { name: "gear"; size: 14; color: T.ThemeEngine.warnYellow }
                                     Label {
-                                        text: "Open Settings"
+                                        text: Tr.captureOpenSettings
                                         font.family: T.ThemeEngine.monoFont
                                         font.pixelSize: 12; font.weight: Font.DemiBold
                                         color: T.ThemeEngine.warnYellow
@@ -197,7 +197,7 @@ Rectangle {
                                         // 5WHY: Dark check on cyan-filled button is readable on both themes.
                                         color: "#0F172A" }
                                     Label {
-                                        text: "I'm Ready"
+                                        text: Tr.captureImReady
                                         font.family: T.ThemeEngine.monoFont
                                         font.pixelSize: 12; font.weight: Font.Bold
                                         // 5WHY: Dark text on cyan button is readable on both themes.
@@ -223,7 +223,7 @@ Rectangle {
                     Behavior on scale { NumberAnimation { duration: 100 } }
                     Label {
                         anchors.centerIn: parent
-                        text: "Cancel Capture"
+                        text: Tr.captureCancelBtn
                         font.family: T.ThemeEngine.monoFont
                         font.pixelSize: 14; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary

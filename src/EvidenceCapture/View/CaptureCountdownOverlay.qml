@@ -96,7 +96,7 @@ Rectangle {
             // ── Title ───────────────────────────────────────────────
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: "Starting capture in"
+                text: Tr.captureStartingIn
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
                 font.weight: Font.DemiBold; color: T.ThemeEngine.textPrimary
             }
@@ -172,7 +172,7 @@ Rectangle {
             // ── Subtitle ────────────────────────────────────────────
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: "Please do not touch the device"
+                text: Tr.captureDoNotTouch
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary
             }
@@ -186,7 +186,7 @@ Rectangle {
                 Behavior on scale { NumberAnimation { duration: 100 } }
                 Label {
                     anchors.centerIn: parent
-                    text: "Cancel Capture"
+                    text: Tr.captureCancelBtn
                     font.family: T.ThemeEngine.monoFont
                     font.pixelSize: 14; font.weight: Font.DemiBold
                     color: T.ThemeEngine.textSecondary

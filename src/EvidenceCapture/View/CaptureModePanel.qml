@@ -94,7 +94,7 @@ Rectangle {
                 spacing: 12
                 AppIcon { name: "camera"; size: 24; color: T.ThemeEngine.cyan }
                 Label {
-                    text: "Capture Mode"
+                    text: Tr.captureTitle
                     font.family: T.ThemeEngine.monoFont
                     font.pixelSize: 18; font.weight: Font.Bold
                     color: T.ThemeEngine.textPrimary
@@ -105,7 +105,7 @@ Rectangle {
             Item { Layout.preferredHeight: 4 }
             Label {
                 Layout.fillWidth: true
-                text: "Choose how you'd like to capture evidence during diagnostics."
+                text: Tr.captureDesc
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
                 lineHeight: 1.45
@@ -161,13 +161,13 @@ Rectangle {
                         ColumnLayout {
                             spacing: 2
                             Label {
-                                text: "Screenshots"
+                                text: Tr.captureScreenshotsLabel
                                 font.family: T.ThemeEngine.monoFont
                                 font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
                             }
                             Label {
-                                text: "Capture each diagnostic page as images"
+                                text: Tr.captureScreenshotsDesc
                                 font.family: T.ThemeEngine.monoFont
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
@@ -258,13 +258,13 @@ Rectangle {
                         ColumnLayout {
                             spacing: 2
                             Label {
-                                text: "Screen Recording"
+                                text: Tr.captureRecordingLabel
                                 font.family: T.ThemeEngine.monoFont
                                 font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
                             }
                             Label {
-                                text: "Record video of the automated diagnostic flow"
+                                text: Tr.captureRecordingDesc
                                 font.family: T.ThemeEngine.monoFont
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
@@ -322,7 +322,7 @@ Rectangle {
                     spacing: 6
                     AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.cyan }
                     Label {
-                        text: "Both modes — complete evidence capture"
+                        text: Tr.captureBothHint
                         font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                         color: T.ThemeEngine.cyan
                     }
@@ -342,7 +342,7 @@ Rectangle {
                     spacing: 6
                     AppIcon { name: "globe"; size: 14; color: T.ThemeEngine.textSecondary }
                     Label {
-                        text: "Diagnostic URL"
+                        text: Tr.captureDiagUrl
                         font.family: T.ThemeEngine.monoFont
                         font.pixelSize: 12; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary
@@ -389,7 +389,7 @@ Rectangle {
                     Behavior on scale { NumberAnimation { duration: 100 } }
                     Label {
                         anchors.centerIn: parent
-                        text: "Cancel"
+                        text: Tr.captureCancelShort
                         font.family: T.ThemeEngine.monoFont
                         font.pixelSize: 14; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary
@@ -421,7 +421,7 @@ Rectangle {
                             color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
                         }
                         Label {
-                            text: "Start Capture"
+                            text: Tr.captureStartBtn
                             font.family: T.ThemeEngine.monoFont
                             font.pixelSize: 15; font.weight: Font.Bold
                             color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary

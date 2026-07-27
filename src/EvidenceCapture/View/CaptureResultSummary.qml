@@ -130,7 +130,7 @@ Rectangle {
             // ── Title ───────────────────────────────────────────────
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.isError ? "Capture Failed" : "Capture Complete"
+                text: root.isError ? Tr.captureFailed : Tr.captureComplete
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 18
                 font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
             }
@@ -171,7 +171,7 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "camera"; size: 18; color: T.ThemeEngine.cyan }
                         Label {
-                            text: "Screenshots captured"
+                            text: Tr.captureScreenshotsCount
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
@@ -195,7 +195,7 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "video"; size: 18; color: T.ThemeEngine.passGreen }
                         Label {
-                            text: "Screen recording"
+                            text: Tr.captureRecordingSaved
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
@@ -205,7 +205,7 @@ Rectangle {
                             color: Qt.alpha(T.ThemeEngine.passGreen, 0.12)
                             Label {
                                 anchors.centerIn: parent
-                                text: "Saved"
+                                text: Tr.captureSavedBadge
                                 font.family: T.ThemeEngine.monoFont
                                 font.pixelSize: 11; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.passGreen
@@ -223,7 +223,7 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "timer"; size: 18; color: T.ThemeEngine.accentBlue }
                         Label {
-                            text: "Total duration"
+                            text: Tr.captureTotalDuration
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
@@ -315,8 +315,8 @@ Rectangle {
                     }
                     Label {
                         text: root.isError
-                            ? "Dismiss"
-                            : (root.countdown > 0 ? "Done (" + root.countdown + "s)" : "Done")
+                            ? Tr.captureDismiss
+                            : (root.countdown > 0 ? Tr.captureDone + " (" + root.countdown + "s)" : Tr.captureDone)
                         font.family: T.ThemeEngine.monoFont
                         font.pixelSize: 15; font.weight: Font.Bold
                         color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
