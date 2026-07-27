@@ -372,7 +372,7 @@ Item {
             // becomes visible — not via a cached property binding that
             // never re-evaluates (Q_INVOKABLE has no NOTIFY signal).
             if (visible && isCaptureRunning()) {
-                autoContinueCountdown = 3
+                autoContinueCountdown = 5
                 autoContinueTimer.restart()
             } else if (!visible) {
                 stopAutoContinue()
@@ -398,7 +398,7 @@ Item {
             function onCaptureModeChanged() {
                 if (cellularDialog.visible
                     && autoContinueCountdown <= 0) {
-                    autoContinueCountdown = 3
+                    autoContinueCountdown = 5
                     autoContinueTimer.restart()
                 }
             }

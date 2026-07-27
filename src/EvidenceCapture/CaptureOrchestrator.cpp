@@ -954,7 +954,17 @@ void CaptureOrchestrator::finalizeSession() {
         }
     }
 
-    m_stateMachine->transitionTo(CaptureState::Completed);
+    // 5WHY: The StoppingRecording timeout handler (line ~649) checks
+    // transitionTo's return and falls through to failCapture on rejection.
+    // finalizeSession() did not — a rejected transition would leave the
+    // FSM stuck in Finalizing forever, manifest written but captureCompleted
+    // never emitted.  Match the defensive pattern.
+    if (!m_stateMachine->transitionTo(CaptureState::Completed)) {
+        qWarning() << "CaptureOrchestrator: transition to Completed rejected"
+                      " — FSM in unexpected state, forcing failCapture";
+        failCapture(QStringLiteral("FINALIZE_ERROR"),
+                    QStringLiteral("Session finalized but FSM rejected completion"));
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

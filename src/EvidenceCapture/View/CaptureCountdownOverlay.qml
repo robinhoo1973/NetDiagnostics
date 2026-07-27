@@ -18,7 +18,7 @@ Rectangle {
     z: 2100
 
     // ── Entry animation ─────────────────────────────────────────────
-    scale: 0.90; opacity: 0
+    scale: 0.92; opacity: 0
     Behavior on scale  { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
     Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     Component.onCompleted: { scale = 1.0; opacity = 1.0 }
@@ -62,7 +62,7 @@ Rectangle {
     Rectangle {
         id: card
         anchors.centerIn: parent
-        width: Math.min(340, parent.width * 0.82)
+        width: Math.min(420, parent.width * 0.9)
         height: Math.min(ctCol.implicitHeight + 48, parent.height * 0.65)
         radius: 28
         color: T.ThemeEngine.colors.card

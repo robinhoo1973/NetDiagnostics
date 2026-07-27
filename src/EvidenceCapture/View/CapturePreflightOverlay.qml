@@ -31,7 +31,7 @@ Rectangle {
     Rectangle {
         id: card
         anchors.centerIn: parent
-        width: Math.min(400, parent.width * 0.9)
+        width: Math.min(420, parent.width * 0.9)
         height: Math.min(preCol.implicitHeight + 48, parent.height * 0.92)
         radius: 28
         color: T.ThemeEngine.colors.card

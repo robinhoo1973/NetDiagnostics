@@ -423,7 +423,13 @@ void platformStopRecording(RecordingCallback callback) {
                 s_input = nil;
                 s_outputPath = nil;
             });
-            if (callback) callback(false, QString::fromNSString(error.localizedDescription));
+            // 5WHY: stopCaptureWithHandler fires on ReplayKit's queue.
+            // Dispatch to main so the C++ callback (CaptureOrchestrator)
+            // can safely mutate QObject/QML state.
+            if (callback) {
+                auto cb = callback; auto msg = QString::fromNSString(error.localizedDescription);
+                dispatch_async(dispatch_get_main_queue(), ^{ cb(false, msg); });
+            }
             return;
         }
 
@@ -473,20 +479,26 @@ void platformStopRecording(RecordingCallback callback) {
 
             if (outPath) {
                 if (ok && callback) {
-                    callback(true, QString::fromNSString(outPath));
+                    // 5WHY: finishWritingWithCompletionHandler fires on
+                    // AVFoundation's internal queue.  The C++ callback
+                    // (CaptureOrchestrator) mutates QObject/QML state
+                    // which must only be touched from the main thread.
+                    // dispatch_async(main) matches the start-callback
+                    // pattern at lines 189 and 272.
+                    auto cb = callback; auto path = QString::fromNSString(outPath);
+                    dispatch_async(dispatch_get_main_queue(), ^{ cb(true, path); });
                 } else if (callback) {
-                    callback(false, finalStatus == AVAssetWriterStatusFailed
+                    auto cb = callback; auto msg = finalStatus == AVAssetWriterStatusFailed
                         ? QString::fromNSString(finalError)
-                        : QStringLiteral("Writer did not complete"));
+                        : QStringLiteral("Writer did not complete");
+                    dispatch_async(dispatch_get_main_queue(), ^{ cb(false, msg); });
                 }
             } else if (callback) {
-                // 5WHY: A concurrent ReplayKit error handler may have
-                // cleared s_outputPath before this completion block ran.
-                // If outPath is nil AND a real callback is waiting, we
-                // MUST deliver it — otherwise the FSM hangs in
-                // StoppingRecording forever (no timeout on stop-callback).
-                callback(false, QStringLiteral("Recording output path lost — "
-                    "concurrent error may have torn down the session"));
+                auto cb = callback;
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    cb(false, QStringLiteral("Recording output path lost — "
+                        "concurrent error may have torn down the session"));
+                });
             }
         }];
     }];

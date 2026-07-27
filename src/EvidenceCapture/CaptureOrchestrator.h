@@ -268,8 +268,16 @@ private:
     QString       m_diagUrl;
     QString       m_currentAction;
     QString       m_sessionDir;
-    bool          m_recording = false;  // true if mode is RecordingOnly or Both
-    int           m_sessionGen = 0;     // incremented per session start; invalidates stale callbacks from prior sessions
+    // 5WHY: m_recording is read on the ReplayKit/MediaProjection callback thread
+    // via platformIsRecording() and written on the main thread.  Plain bool is a
+    // C++ data race (UB).  std::atomic guarantees tear-free reads/writes and
+    // prevents compiler reordering across the atomic access.
+    std::atomic<bool> m_recording{false};
+    // 5WHY: m_sessionGen is snapshotted on the main thread and compared on the
+    // platform callback thread inside isCallbackValid().  Plain int across
+    // threads is a C++ data race.  std::atomic prevents torn reads and ensures
+    // the platform thread sees the most recent increment.
+    std::atomic<int> m_sessionGen{0};
     bool          m_waitingForReportPreview = false; // set during OpenReport step; cleared by onReportPreviewReady
     bool          m_suppressOverlay = false;          // true during screenshot capture — QML hides overlay
     bool          m_executingStep = false;             // re-entrancy guard for executeNextStep() during processEvents
