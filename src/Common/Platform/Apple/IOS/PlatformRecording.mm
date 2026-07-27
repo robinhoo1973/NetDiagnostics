@@ -318,6 +318,66 @@ void platformStopRecording(RecordingCallback callback) {
         // beginning — the recording never starts and the callback
         // (s_startCb) remains stored for delivery below.
         s_stopping = true;
+        if (!s_recording) {
+            dispatch_sync(s_stateQueue(), ^{
+                s_startCb = nullptr;
+            });
+        }
+        // 5WHY: When s_recording is false, the early-return path skipped
+        // [s_recorder stopCaptureWithHandler:] entirely.  If ReplayKit was
+        // started (startCaptureWithHandler called but AVAssetWriter never
+        // started — e.g. writer status went to Failed/Cancelled before the
+        // first frame), the ReplayKit capture session leaks: the handler
+        // keeps running, the iOS system recording indicator persists, and
+        // the app cannot start a new recording.  Always attempt to stop
+        // ReplayKit when s_recorder exists AND s_writer was allocated
+        // (proof that startCaptureWithHandler was called).
+        //
+        // Check s_writer (under state queue) as a proxy for "was
+        // startCaptureWithHandler called?" — s_writer is allocated in
+        // platformStartRecording() just before startCaptureWithHandler.
+        __block BOOL needsReplayKitStop = NO;
+        dispatch_sync(s_stateQueue(), ^{
+            needsReplayKitStop = (s_writer != nil);
+        });
+        // 5WHY: Only call stopCaptureWithHandler when s_recording is false
+        // (ReplayKit was started but AVAssetWriter never began). If s_recording
+        // is true (a stop is already in progress via the normal path at line
+        // 376), calling stopCaptureWithHandler a second time violates Apple's
+        // "once per recording session" contract and causes the second callback
+        // to prematurely reset s_stopping=false — corrupting the stop state.
+        // restoreSystemState() is the primary caller that triggers this path
+        // while a stop is already in progress (via StoppingRecording timeout
+        // → failCapture → transitionTo(Failed) → restoreSystemState).
+        if (needsReplayKitStop && !s_recording) {
+            // 5WHY: Nil s_writer IMMEDIATELY under the state queue BEFORE
+            // the async stopCaptureWithHandler call.  The async completion
+            // block (line 358) nils s_writer again — idempotent.  Without
+            // this immediate nil, a re-entrant call from restoreSystemState()
+            // (triggered by failCapture → Failed → restoreSystemState) would
+            // see s_writer still non-nil, pass the needsReplayKitStop check
+            // a second time, and call stopCaptureWithHandler twice on the
+            // same RPScreenRecorder — violating Apple's once-per-session
+            // contract and causing undefined behavior.
+            dispatch_sync(s_stateQueue(), ^{
+                s_writer = nil;
+            });
+            [s_recorder stopCaptureWithHandler:^(NSError* err) {
+                dispatch_sync(s_stateQueue(), ^{
+                    if (err) {
+                        s_lastError = err.localizedDescription;
+                    }
+                    s_writer = nil;
+                    s_input = nil;
+                    s_outputPath = nil;
+                    // 5WHY: Reset s_stopping INSIDE the state queue so all
+                    // state mutations are a single synchronised snapshot.
+                    // A concurrent platformStopRecording on the main thread
+                    // sees either all pre-cleanup or all post-cleanup state.
+                    s_stopping = false;
+                });
+            }];
+        }
         if (callback) {
             __block QString errMsg;
             __block bool hasError = false;
@@ -336,16 +396,6 @@ void platformStopRecording(RecordingCallback callback) {
         }
         // 5WHY: if callback is nil, s_lastError stays in the queue for
         // the next caller (e.g. destructor safety net).
-        //
-        // 5WHY: s_stopping was already set to true at the top of this block
-        // to close the TOCTOU window.  If recording hasn't started yet, also
-        // clear s_startCb to prevent the first-frame callback from firing on
-        // a stale session.
-        if (!s_recording) {
-            dispatch_sync(s_stateQueue(), ^{
-                s_startCb = nullptr;
-            });
-        }
         return;
     }
     s_stopping = true;

@@ -157,6 +157,7 @@ static const int kNavigateSettleRecordMs = 4000;  // page settle after navigate 
 static const int kDiagCancelTimeoutMs    = 500;   // settle after diagnostic cancel on timeout
 static const int kOpenDetailSettleMs     = 1500;  // StackView settle after tab switch for OpenDetail
 static const int kRecordingStartTimeoutMs = 30000; // platform recording start safety timeout
+static const int kRecordingStopTimeoutMs  = 30000; // platform recording stop safety timeout (ReplayKit callback may hang)
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Constructor
@@ -279,12 +280,19 @@ QString CaptureOrchestrator::captureBasePath() {
 }
 
 void CaptureOrchestrator::failCapture(const QString& errorCode, const QString& message) {
-    // 5WHY: Transition FSM FIRST so onStateChanged(Failed) runs
-    // restoreSystemState() BEFORE the captureFailed signal fires.
-    // A QML handler reading captureOrchestrator.state synchronously
-    // from captureFailed would otherwise see the pre-Failed state.
-    m_stateMachine->transitionTo(CaptureState::Failed);
+    // 5WHY: Emit captureFailed FIRST so the QML onCaptureFailed handler sets
+    // pendingError=true BEFORE onStateChanged(Failed) runs.  When onStateChanged
+    // checks pendingError and sees true, it keeps the error overlay visible
+    // instead of briefly hiding it.  The AppContent.qml onStateChanged handler
+    // guards with `if (!captureOverlay.pendingError)` — without this ordering,
+    // that guard triggers a hide-then-show flicker on every failure path.
+    //
+    // The FSM transition fires onStateChanged(Failed) which calls
+    // restoreSystemState() — running system restore AFTER the QML error overlay
+    // is already visible is acceptable: the user sees the restored screen with
+    // the error card on top, consistent with the Completed state's ordering.
     emit captureFailed(errorCode, message);
+    m_stateMachine->transitionTo(CaptureState::Failed);
 }
 
 void CaptureOrchestrator::requestModeSelection() {
@@ -405,6 +413,13 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     // advance the new session.  Reset it so each session starts with a clean
     // report-preview wait state.
     m_waitingForReportPreview = false;
+    m_showDndReminder = false;  // reset DND reminder flag for new session
+    // 5WHY: m_showDndReminder was reset above but dndReminderChanged() was NOT
+    // emitted.  QML bindings on captureOrchestrator.showDndReminder are driven
+    // solely by the NOTIFY signal — without it, the binding engine does not
+    // re-evaluate and carries the stale true value from the previous session.
+    // The QML toast would either show prematurely or fail to re-trigger.
+    emit dndReminderChanged();
     m_elapsed.start();
 
     // 5WHY: m_executingStep is the re-entrancy guard for executeNextStep().
@@ -613,6 +628,28 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::StoppingRecording:
         stopPlatformRecording();
+        // 5WHY: StoppingRecording is an async state — the FSM only advances
+        // when the platform recording stop callback fires.  If stopCaptureWithHandler
+        // never invokes its completion handler (ReplayKit internal error, app
+        // backgrounded during stop, or MediaProjection callback dropped), the FSM
+        // hangs forever — Completed never reached, ResultSummary never shown,
+        // and the recording system indicator persists.  Add a 30s safety timeout
+        // consistent with StartingRecording's 30s timeout pattern.
+        scheduleGenGuarded(kRecordingStopTimeoutMs, false, [this]() {
+            if (m_stateMachine->state() != CaptureState::StoppingRecording) return;
+            qWarning() << "CaptureOrchestrator: recording stop timeout — "
+                          "platform callback never fired, force-finalizing";
+            // 5WHY: transitionTo() can return false if the FSM table
+            // rejects the transition (future refactoring, edge case).
+            // If that happens, fall through to failCapture() so QML
+            // shows an error rather than the FSM silently hanging.
+            if (!m_stateMachine->transitionTo(CaptureState::Finalizing)) {
+                qWarning() << "CaptureOrchestrator: force-finalize rejected"
+                              " — FSM may be in unexpected state, failing capture";
+                failCapture(QStringLiteral("RECORDING_STOP_TIMEOUT"),
+                    QStringLiteral("Recording stop timed out and FSM rejected finalization"));
+            }
+        });
         break;
 
     case CaptureState::Finalizing:
@@ -621,6 +658,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Completed:
         restoreSystemState();
+        emitDndReminderIfNeeded();
         // Loader — onStateChanged sets source="CaptureResultSummary.qml"
         // which loads asynchronously, but captureCompleted fires in the
         // same event-loop iteration before the Loader finishes.  Defer the
@@ -633,6 +671,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
 
     case CaptureState::Failed:
         restoreSystemState();
+        emitDndReminderIfNeeded();
         // Specific error code the phase handler already emitted (e.g.
         // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
         // restores system state; the specific error was already emitted.
@@ -643,6 +682,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // separate call here even when the Cancelled transition was triggered
         // from a non-cancel() path (e.g. FSM auto-transition on error).
         restoreSystemState();
+        emitDndReminderIfNeeded();
         break;
 
     default:
@@ -809,7 +849,35 @@ void CaptureOrchestrator::stopPlatformRecording() {
     m_currentAction = QStringLiteral("Stopping recording...");
     emit actionChanged(m_currentAction);
 
-    platformStopRecording([this](bool ok, const QString& pathOrError) {
+    // 5WHY: The platform stop callback is a raw lambda that fires on
+    // ReplayKit's/MediaProjection's internal thread.  It is NOT gen-guarded
+    // by scheduleGenGuarded() — it can fire AFTER the 30s C++ timeout has
+    // already force-transitioned to Finalizing.  Capture the current session
+    // generation so a stale callback from a cancelled/timeout session cannot
+    // clobber the current session's writer, manifest, or FSM state.
+    int gen = m_sessionGen;
+    platformStopRecording([this, gen](bool ok, const QString& pathOrError) {
+        // 5WHY: If the session was cancelled, timed out, or restarted
+        // while the platform stop was pending, m_sessionGen has changed.
+        // The stale callback would otherwise call transitionTo(Finalizing)
+        // or failCapture() on a session that has already moved past
+        // StoppingRecording — clobbering the current session's state.
+        if (m_sessionGen != gen) {
+            qWarning() << "CaptureOrchestrator: stale stop callback"
+                          " ignored (session gen changed)";
+            return;
+        }
+        // 5WHY: Gen-guard protects cross-session (cancel/restart increments
+        // gen).  But the 30s C++ timeout can also fire BEFORE this callback
+        // arrives — both share the same gen.  Add an FSM-state guard so the
+        // late callback silently returns instead of calling transitionTo()
+        // or failCapture() on a session that has already moved past
+        // StoppingRecording (Completed, Failed, Cancelled).
+        if (m_stateMachine->state() != CaptureState::StoppingRecording) {
+            qWarning() << "CaptureOrchestrator: stop callback arrived"
+                          " after FSM already left StoppingRecording — ignored";
+            return;
+        }
         if (ok) {
             m_currentAction = QStringLiteral("Recording saved: ") + pathOrError;
             emit actionChanged(m_currentAction);
@@ -1261,6 +1329,17 @@ void CaptureOrchestrator::scheduleGenGuarded(int ms, bool incrementGen,
         if (m_sessionGen != gen) return;
         cb();
     });
+}
+
+void CaptureOrchestrator::emitDndReminderIfNeeded() {
+#if defined(PLATFORM_IOS)
+    if (!m_showDndReminder) {
+        m_showDndReminder = true;
+        emit dndReminderChanged();
+    }
+#else
+    Q_UNUSED(m_showDndReminder);
+#endif
 }
 
 void CaptureOrchestrator::deferNextStep() {

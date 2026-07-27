@@ -134,7 +134,7 @@ Rectangle {
         // 5WHY: ShadowText (inline component) provides Text.Raised drop-shadow
         ShadowText {
             text: d ? d.elapsedDisplay : "00:00:00"
-            font.family: T.ThemeEngine.monoFont
+            
             font.pixelSize: 13; font.weight: Font.DemiBold
             color: T.ThemeEngine.textPrimary
             Layout.minimumWidth: 72
@@ -160,7 +160,7 @@ Rectangle {
         // Screenshot count
         ShadowText {
             text: d ? d.countDisplay : " 0"
-            font.family: T.ThemeEngine.monoFont
+            
             font.pixelSize: 13; font.weight: Font.DemiBold
             color: T.ThemeEngine.cyan
             Layout.minimumWidth: 22
@@ -188,7 +188,7 @@ Rectangle {
             spacing: 1
             ShadowText {
                 text: d ? d.stepDisplay : " 0"
-                font.family: T.ThemeEngine.monoFont
+                
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.cyan
                 Layout.minimumWidth: 18
@@ -196,13 +196,13 @@ Rectangle {
             }
             ShadowText {
                 text: "/"
-                font.family: T.ThemeEngine.monoFont
+                
                 font.pixelSize: 11
                 color: T.ThemeEngine.textSecondary
             }
             ShadowText {
                 text: d ? d.totalDisplay : " 0"
-                font.family: T.ThemeEngine.monoFont
+                
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.textPrimary
                 Layout.minimumWidth: 18

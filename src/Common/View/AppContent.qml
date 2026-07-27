@@ -111,27 +111,101 @@ Item {
         // is dismissed.  Store completion data here so onLoaded can inject
         // it into the incubated item regardless of when it loads.
         property bool pendingCompletedOverlay: false
+        // 5WHY: When the user switches tabs during the completion delay,
+        // stackView.currentItem changes but the preview is still open on the
+        // original tab.  Polling currentItem would load the ResultSummary on
+        // the wrong screen.  Cache the screen that was active when the delay
+        // started and poll THAT screen's previewVisible.
+        property var _storedPreviewScreen: null
         property string storedSessionPath: ""
         property int    storedTotalScreenshots: 0
         property string storedRecordingFile: ""
         property string storedElapsedTime: ""
 
-        // 5WHY: Poll stackView.currentItem.previewVisible every 500 ms
-        // while capture completed data is pending.  When the user dismisses
-        // the report preview, load the result summary immediately.
+        // 5WHY: pendingCompletedOverlay, stored completion data, and
+        // completionDelayTimer must be cleared as an atomic group at 4 sites:
+        // idle/cancelled, Failed, cancelled handler, dismissed handler.
+        // A dedicated function prevents the "forgot-one-property" bug class
+        // where stale data leaks into the next capture's ResultSummary.
+        function clearPendingCompletion() {
+            pendingCompletedOverlay = false
+            _storedPreviewScreen = null
+            storedSessionPath = ""
+            storedTotalScreenshots = 0
+            storedRecordingFile = ""
+            storedElapsedTime = ""
+            completionDelayTimer.stop()
+            completionDelayTimer._tickCount = 0
+        }
+
+        // 5WHY: The same four properties (sessionPath, totalScreenshots,
+        // recordingFile, elapsedTime) are assigned in onCaptureCompleted and
+        // onLoaded — two call sites that differ only in the data source
+        // (signal parameters vs stored properties).  Extract once so adding a
+        // fifth field doesn't require updating both sites (a bug class
+        // documented in the 5WHY history of this file).
+        function applyCompletionData(target, path, screenshots, recFile, elapsed) {
+            target.sessionPath = path
+            target.totalScreenshots = screenshots
+            target.recordingFile = recFile
+            target.elapsedTime = elapsed
+        }
+
+        // 5WHY: Extracted from completionDelayTimer.onTriggered which had
+        // three identical blocks that all loaded the ResultSummary.  A single
+        // function prevents future divergence — if the source path or overlay
+        // activation sequence changes, it's updated in exactly one place.
+        function showResultSummary() {
+            clearPendingCompletion()
+            active = true
+            source = "qrc:/qml/capture/CaptureResultSummary.qml"
+        }
+
+        // 5WHY: The ResultSummary auto-dismisses after 15s/30s. If it loads while
+        // a report preview is visible, the countdown expires before the user can
+        // read the report — the result is permanently lost.  The Timer polls
+        // previewVisible and defers the ResultSummary load until the user dismisses.
+        //
+        // 5WHY (round-2): Why polling and not a signal?  Screen dismissals use
+        // direct property writes (page.previewVisible=false), not a centralized
+        // API.  There is no single dismiss signal to connect to — each screen
+        // dismisses independently.  Polling is the least-invasive bridge until
+        // previewVisible is promoted to a cross-cutting AppState property like
+        // cellularWarnVisible (see AppState.h §"cross-cutting overlay state").
         Timer {
             id: completionDelayTimer
             interval: 500; repeat: true
+            // 5WHY: If previewVisible gets stuck at true (bug, device sleep,
+            // state-machine edge case), 500ms polling without a bound wastes CPU
+            // forever.  Cap at 60s (120 ticks) — at that point the user has
+            // waited long enough; show the result regardless.
+            property int _tickCount: 0
+            readonly property int _maxTicks: 120  // 60 seconds
             onTriggered: {
-                if (!captureOverlay.pendingCompletedOverlay) { stop(); return }
-                var cur = stackView.currentItem
-                // 5WHY: If currentItem is null (tab switch in progress) or
-                // previewVisible is false, the preview is gone — safe to show.
-                if (!cur || typeof cur.previewVisible === "undefined" || !cur.previewVisible) {
-                    stop()
-                    captureOverlay.pendingCompletedOverlay = false
-                    captureOverlay.active = true
-                    captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                if (!captureOverlay.pendingCompletedOverlay) { _tickCount = 0; stop(); return }
+                _tickCount++
+                // 5WHY: Check the cached screen reference, NOT stackView.currentItem.
+                // If the user switches tabs during the delay, currentItem changes to
+                // a non-preview screen.  The typeof-guard would immediately load the
+                // ResultSummary on the wrong tab — a confusing UX.  Cache the screen
+                // that was active when the delay started and poll THAT screen's
+                // previewVisible property.
+                var cur = captureOverlay._storedPreviewScreen
+                if (!cur) {
+                    // 5WHY: If the screen was destroyed (tab popped from StackView),
+                    // the preview is gone — safe to show.
+                    captureOverlay.showResultSummary()
+                    return
+                }
+                // 5WHY: typeof guard defends against accessing previewVisible on
+                // a screen that doesn't declare it (DiagnosticScreen, ConfigScreen).
+                // Without this, a ReferenceError is thrown at runtime.
+                if (typeof cur.previewVisible === "undefined" || !cur.previewVisible) {
+                    captureOverlay.showResultSummary()
+                } else if (_tickCount >= _maxTicks) {
+                    // Safety timeout — preview never dismissed, show result anyway
+                    console.warn("CaptureOrchestrator: completion delay timed out after 60s — loading ResultSummary")
+                    captureOverlay.showResultSummary()
                 }
             }
         }
@@ -176,12 +250,29 @@ Item {
             function onModeSelectionRequested() {
                 // 5WHY: pendingError must be false for all non-error transitions
                 // so onStateChanged(Failed) can distinguish error vs normal flow.
+                // 5WHY: Clear any pending completion state from a previous
+                // capture.  If a prior capture completed into the delay window
+                // (preview visible, Timer ticking) and the user somehow triggers
+                // mode selection before the Timer fires, the Timer would
+                // otherwise load the ResultSummary over CaptureModePanel —
+                // a contradictory UI state.  This is defense-in-depth; the
+                // dismissed handler normally clears pending state before the
+                // user can trigger a new capture.
+                captureOverlay.clearPendingCompletion()
                 captureOverlay.pendingError = false; captureOverlay.active = true
                 captureOverlay.source = "qrc:/qml/capture/CaptureModePanel.qml"
             }
             function onStateChanged() {
                 var s = captureOrchestrator.state
                 if (s === captureOverlay.kCaptureCountdown) {
+                    // 5WHY: A new capture is starting — clear any stale
+                    // completion data from a prior session.  If the previous
+                    // capture completed into the delay window (preview
+                    // visible, Timer ticking) and the user started a new
+                    // capture without dismissing the preview, the stale
+                    // Timer would otherwise fire mid-session and load the
+                    // ResultSummary over the countdown overlay.
+                    captureOverlay.clearPendingCompletion()
                     captureOverlay.pendingError = false; captureOverlay.active = true
                     // 5WHY: Separate DND guide from countdown.  On platforms
                     // that need manual Focus setup (iOS), show the DND guide
@@ -208,6 +299,10 @@ Item {
                     var cur = stackView.currentItem
                     if (cur && typeof cur.previewVisible !== "undefined" && cur.previewVisible) {
                         captureOverlay.pendingCompletedOverlay = true
+                        // 5WHY: Cache the screen reference so the Timer polls
+                        // this specific screen's previewVisible, not whatever
+                        // screen is current at poll time (user may switch tabs).
+                        captureOverlay._storedPreviewScreen = cur
                         completionDelayTimer.restart()
                     } else {
                         captureOverlay.pendingCompletedOverlay = false
@@ -231,9 +326,12 @@ Item {
                 else if (s === captureOverlay.kCaptureIdle || s === captureOverlay.kCaptureCancelled) {
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
-                    captureOverlay.pendingCompletedOverlay = false
-                    captureOverlay.storedSessionPath = ""  // 5WHY: clear stale completion data
-                    completionDelayTimer.stop()
+                    // 5WHY: Clear pendingCompletion as an atomic group via the
+                    // dedicated helper — the old code cleared each property
+                    // individually and twice forgot one field during refactoring
+                    // (see commit history).  The helper makes this mistake
+                    // impossible by design.
+                    captureOverlay.clearPendingCompletion()
                     captureOverlay.source = ""
                 }
                 else if (s === captureOverlay.kCaptureFailed) {
@@ -251,6 +349,15 @@ Item {
                         captureOverlay.active = false
                         captureOverlay.source = ""
                     }
+                    // 5WHY: Clear pending completion state unconditionally on
+                    // Failed.  If a prior capture completed into the delay path but
+                    // the state machine reached Failed before the Timer fired, the
+                    // Timer would otherwise reactivate the Loader and show a success
+                    // ResultSummary over the error state (contradictory UI).  The
+                    // C++ state machine guarantees Completed→Failed is impossible
+                    // today, but this guard is defense-in-depth — if that guarantee
+                    // is ever relaxed, the QML layer is still safe.
+                    captureOverlay.clearPendingCompletion()
                     // 5WHY: Don't reset pendingError here. onLoaded reads it
                     // to decide whether to apply errorCode/errorMessage to the
                     // incubated item.  If we zero it here, onLoaded sees false
@@ -285,19 +392,30 @@ Item {
             // Setting the removed aliases via typeof-guarded if-blocks
             // was dead code that silently skipped every invocation.
             function onCaptureCompleted(sessionPath) {
-                // 5WHY: Always store completion data on the Loader — the
-                // ResultSummary may load now OR later (if delayed by a
-                // visible report preview).  onLoaded applies stored data.
+                // 5WHY: Store completion data on the Loader regardless of timing —
+                // the ResultSummary may load now (no preview visible) or later
+                // (after the user dismisses the preview overlay).  onLoaded applies
+                // stored data through applyCompletionData() in both paths.
+                //
+                // 5WHY: Cache all C++ property reads in local variables BEFORE
+                // branching.  elapsedSeconds() calls clock_gettime (a syscall);
+                // reading it twice wastes a C++/QML boundary crossing.  If the
+                // format ever changes (e.g. localized units), a single computation
+                // site prevents the two branches from diverging.
+                var count = captureOrchestrator.captureCount
+                var recFile = captureOrchestrator.wasRecordingSession() ? "recording.mp4" : ""
+                var elapsed = captureOrchestrator.elapsedSeconds + "s"
+
                 captureOverlay.storedSessionPath = sessionPath
-                captureOverlay.storedTotalScreenshots = captureOrchestrator.captureCount
-                captureOverlay.storedRecordingFile = captureOrchestrator.wasRecordingSession() ? "recording.mp4" : ""
-                captureOverlay.storedElapsedTime = captureOrchestrator.elapsedSeconds + "s"
-                // If already loaded (no preview delay), apply directly
+                captureOverlay.storedTotalScreenshots = count
+                captureOverlay.storedRecordingFile = recFile
+                captureOverlay.storedElapsedTime = elapsed
+                // If already loaded (no preview delay — onStateChanged loaded
+                // the ResultSummary before this deferred signal fired), apply
+                // directly to the incubated item.
                 if (captureOverlay.item && typeof captureOverlay.item.sessionPath !== "undefined") {
-                    captureOverlay.item.sessionPath = sessionPath
-                    captureOverlay.item.totalScreenshots = captureOrchestrator.captureCount
-                    captureOverlay.item.recordingFile = captureOrchestrator.wasRecordingSession() ? "recording.mp4" : ""
-                    captureOverlay.item.elapsedTime = captureOrchestrator.elapsedSeconds + "s"
+                    captureOverlay.applyCompletionData(captureOverlay.item,
+                        sessionPath, count, recFile, elapsed)
                 }
             }
             function onCaptureFailed(errorCode, userMessage) {
@@ -309,6 +427,13 @@ Item {
                 // runs before incubation — item would be null).  onLoaded reads
                 // pendingErrorCode/pendingErrorMessage and applies them to the
                 // fully-incubated item, avoiding the timing race entirely.
+                //
+                // 5WHY: Clear pending completion state BEFORE setting the error
+                // source.  If a prior capture completed into the delay window and
+                // the Timer hasn't fired yet, leaving pendingCompletedOverlay=true
+                // would cause the Timer to reactivate the Loader and load a success
+                // ResultSummary over the error overlay (contradictory UI state).
+                captureOverlay.clearPendingCompletion()
                 captureOverlay.pendingError = true
                 captureOverlay.pendingErrorCode = errorCode
                 captureOverlay.pendingErrorMessage = userMessage
@@ -340,16 +465,20 @@ Item {
             // 5WHY: Apply stored completion data when ResultSummary
             // loads (may have been delayed by a visible report preview).
             if (typeof item.sessionPath !== "undefined" && captureOverlay.storedSessionPath !== "") {
-                item.sessionPath = captureOverlay.storedSessionPath
-                item.totalScreenshots = captureOverlay.storedTotalScreenshots
-                item.recordingFile = captureOverlay.storedRecordingFile
-                item.elapsedTime = captureOverlay.storedElapsedTime
-                // Clear after application so stale data doesn't leak
-                // into a subsequent capture's result summary.
-                captureOverlay.storedSessionPath = ""
-                captureOverlay.storedTotalScreenshots = 0
-                captureOverlay.storedRecordingFile = ""
-                captureOverlay.storedElapsedTime = ""
+                captureOverlay.applyCompletionData(item,
+                    captureOverlay.storedSessionPath,
+                    captureOverlay.storedTotalScreenshots,
+                    captureOverlay.storedRecordingFile,
+                    captureOverlay.storedElapsedTime)
+                // 5WHY: Use clearPendingCompletion() to atomically zero
+                // ALL completion-tracking state — the four stored*
+                // properties PLUS _storedPreviewScreen, the Timer, and
+                // _tickCount.  The old code manually cleared only the
+                // four stored* properties, leaving _storedPreviewScreen
+                // holding a stale QQuickItem reference from the previous
+                // capture (the exact bug class clearPendingCompletion was
+                // created to prevent).
+                captureOverlay.clearPendingCompletion()
             }
             // CaptureModePanel → start capture
             if (typeof item.startRequested !== "undefined") {
@@ -365,6 +494,15 @@ Item {
                     if (captureOrchestrator !== null) {
                         captureOrchestrator.cancel()
                     }
+                    // 5WHY: The old handler relied solely on the C++ cancel()
+                    // call to trigger stateChanged(kCaptureCancelled) for pending-
+                    // state cleanup.  If cancel() silently fails (FSM rejects the
+                    // transition, orchestrator is in a non-cancellable state), the
+                    // pending completion Timer would keep polling and reactivate
+                    // the Loader after the user cancelled — showing a stale
+                    // ResultSummary.  Clear all pending state defensively here so
+                    // the cancel is unconditional regardless of C++ side effects.
+                    captureOverlay.clearPendingCompletion()
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""
@@ -407,6 +545,12 @@ Item {
             // Result summary dismissed
             if (typeof item.dismissed !== "undefined") {
                 item.dismissed.connect(function() {
+                    // 5WHY: If dismissed fires while a completion is still
+                    // pending (deferred because a report preview is visible),
+                    // the Timer would keep polling and reactivate the Loader
+                    // to show the ResultSummary the user just dismissed.
+                    // Clear all pending state so the dismiss is final.
+                    captureOverlay.clearPendingCompletion()
                     captureOverlay.active = false
                     captureOverlay.pendingError = false
                     captureOverlay.source = ""

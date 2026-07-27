@@ -319,8 +319,74 @@ Item {
         parent: page.parent ? page.parent : page; anchors.fill: parent
         color: Qt.alpha(ThemeEngine.colors.surface, 0.82)
         visible: appState.cellularWarnVisible; z: 1150
+
+        // 5WHY: During automated capture, the cellular warning dialog
+        // blocks the diagnostic at the G2→G3 boundary — no one clicks
+        // "Continue".  Auto-dismiss after 3 seconds to simulate the
+        // user reading the warning and tapping Continue, so the capture
+        // doesn't stall for 120s waiting for WaitDiagComplete timeout.
+        property int autoContinueCountdown: 0
+        // 5WHY: Q_INVOKABLE return values cannot be tracked by QML's binding
+        // engine — there is no Q_PROPERTY NOTIFY signal.  A readonly property
+        // binding evaluates once at component creation and caches the stale
+        // value forever.  Use a function so isRunning() is evaluated FRESH
+        // every time onVisibleChanged or the Timer tick needs it.
+        function isCaptureRunning() {
+            return typeof captureOrchestrator !== "undefined"
+                && captureOrchestrator && captureOrchestrator.isRunning()
+        }
+
+        // 5WHY: Stopping the auto-continue Timer and resetting the countdown
+        // is a 2-step pair repeated at 4 sites (backdrop tap, Cancel button,
+        // Continue button, onVisibleChanged → hidden).  A missing stop() call
+        // at any site would leave the Timer ticking in the background.  Extract
+        // once so the invariant is enforced at every call site by construction.
+        function stopAutoContinue() {
+            autoContinueTimer.stop()
+            autoContinueCountdown = 0
+        }
+
+        Timer {
+            id: autoContinueTimer
+            interval: 1000; repeat: true
+            onTriggered: {
+                // 5WHY: If capture finishes or is cancelled while the cellular
+                // warning is visible, isRunning() changes to false but the
+                // Timer keeps ticking.  Without this guard, continueAfterCellularWarn()
+                // would call startNextGroup() on a cancelled/stopped capture,
+                // resuming the diagnostic run after the user already cancelled.
+                if (!isCaptureRunning()) {
+                    stopAutoContinue()
+                    appState.cellularWarnVisible = false
+                    return
+                }
+                cellularDialog.autoContinueCountdown--
+                if (cellularDialog.autoContinueCountdown <= 0) {
+                    stop()
+                    appState.continueAfterCellularWarn()
+                }
+            }
+        }
+        onVisibleChanged: {
+            // 5WHY: Call isCaptureRunning() fresh every time the dialog
+            // becomes visible — not via a cached property binding that
+            // never re-evaluates (Q_INVOKABLE has no NOTIFY signal).
+            if (visible && isCaptureRunning()) {
+                autoContinueCountdown = 3
+                autoContinueTimer.restart()
+            } else if (!visible) {
+                stopAutoContinue()
+            }
+        }
+
         // Backdrop: tap to dismiss → cancel entire diagnostic run
-        MouseArea { anchors.fill: parent; onClicked: { appState.cellularWarnVisible = false; appState.cancel() } }
+        MouseArea {
+            anchors.fill: parent
+            onClicked: {
+                stopAutoContinue()
+                appState.cellularWarnVisible = false; appState.cancel()
+            }
+        }
         Rectangle {
             anchors.centerIn: parent
             width: Math.min(380, parent.width * 0.88)
@@ -376,22 +442,30 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: { appState.cellularWarnVisible = false; appState.cancel() }
+                            onClicked: {
+                                cellularDialog.stopAutoContinue()
+                                appState.cellularWarnVisible = false; appState.cancel()
+                            }
                         }
                     }
-                    // Continue — prominent filled
+                    // Continue — prominent filled; shows auto-dismiss countdown during capture
                     Rectangle {
                         Layout.fillWidth: true; implicitHeight: 44; radius: 12
                         color: ThemeEngine.cyan
                         Label {
                             anchors.centerIn: parent
-                            text: Tr.cellularContinue
+                            text: cellularDialog.autoContinueCountdown > 0
+                                ? Tr.cellularContinue + " (" + cellularDialog.autoContinueCountdown + ")"
+                                : Tr.cellularContinue
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
                             font.weight: Font.Bold; color: "#0F172A"
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: appState.continueAfterCellularWarn()
+                            onClicked: {
+                                cellularDialog.stopAutoContinue()
+                                appState.continueAfterCellularWarn()
+                            }
                         }
                     }
                 }

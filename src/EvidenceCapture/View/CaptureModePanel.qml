@@ -18,6 +18,14 @@ Rectangle {
     anchors.fill: parent
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.82)
     z: 2000
+    // 5WHY: No explicit font.family on this panel.  Loader-loaded QML
+    // components run in an isolated context where "JetBrains Mono" (the
+    // ThemeEngine.monoFont value) may not resolve on embedded Linux ARM
+    // with minimal fontconfig.  Removing the override lets Labels inherit
+    // "DejaVu Sans Mono" from the ApplicationWindow → AppContent → Loader
+    // → this panel — DejaVu Sans Mono is FontLoader-proven to work
+    // everywhere, has 128 box-drawing glyphs + symbols that JetBrains
+    // lacks, and is already the default across all main screens.
 
     // ── Scale-in animation ──────────────────────────────────────────
     scale: 0.92; opacity: 0
@@ -94,8 +102,8 @@ Rectangle {
                 spacing: 12
                 AppIcon { name: "camera"; size: 24; color: T.ThemeEngine.cyan }
                 Label {
-                    text: Tr.captureTitle
-                    font.family: T.ThemeEngine.monoFont
+                    text: T.Tr.captureTitle
+                    
                     font.pixelSize: 18; font.weight: Font.Bold
                     color: T.ThemeEngine.textPrimary
                 }
@@ -105,8 +113,8 @@ Rectangle {
             Item { Layout.preferredHeight: 4 }
             Label {
                 Layout.fillWidth: true
-                text: Tr.captureDesc
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
+                text: T.Tr.captureDesc
+                font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
                 lineHeight: 1.45
             }
@@ -161,14 +169,14 @@ Rectangle {
                         ColumnLayout {
                             spacing: 2
                             Label {
-                                text: Tr.captureScreenshotsLabel
-                                font.family: T.ThemeEngine.monoFont
+                                text: T.Tr.captureScreenshotsLabel
+                                
                                 font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
                             }
                             Label {
-                                text: Tr.captureScreenshotsDesc
-                                font.family: T.ThemeEngine.monoFont
+                                text: T.Tr.captureScreenshotsDesc
+                                
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }
@@ -258,14 +266,14 @@ Rectangle {
                         ColumnLayout {
                             spacing: 2
                             Label {
-                                text: Tr.captureRecordingLabel
-                                font.family: T.ThemeEngine.monoFont
+                                text: T.Tr.captureRecordingLabel
+                                
                                 font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
                             }
                             Label {
-                                text: Tr.captureRecordingDesc
-                                font.family: T.ThemeEngine.monoFont
+                                text: T.Tr.captureRecordingDesc
+                                
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }
@@ -322,8 +330,8 @@ Rectangle {
                     spacing: 6
                     AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.cyan }
                     Label {
-                        text: Tr.captureBothHint
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
+                        text: T.Tr.captureBothHint
+                        font.pixelSize: 11
                         color: T.ThemeEngine.cyan
                     }
                 }
@@ -342,8 +350,8 @@ Rectangle {
                     spacing: 6
                     AppIcon { name: "globe"; size: 14; color: T.ThemeEngine.textSecondary }
                     Label {
-                        text: Tr.captureDiagUrl
-                        font.family: T.ThemeEngine.monoFont
+                        text: T.Tr.captureDiagUrl
+                        
                         font.pixelSize: 12; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary
                     }
@@ -366,7 +374,7 @@ Rectangle {
                             id: urlInput
                             Layout.fillWidth: true
                             text: root.diagUrl
-                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            font.pixelSize: 13
                             color: T.ThemeEngine.textPrimary
                             clip: true
                             selectByMouse: true
@@ -389,8 +397,8 @@ Rectangle {
                     Behavior on scale { NumberAnimation { duration: 100 } }
                     Label {
                         anchors.centerIn: parent
-                        text: Tr.captureCancelShort
-                        font.family: T.ThemeEngine.monoFont
+                        text: T.Tr.captureCancelShort
+                        
                         font.pixelSize: 14; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary
                     }
@@ -421,8 +429,8 @@ Rectangle {
                             color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
                         }
                         Label {
-                            text: Tr.captureStartBtn
-                            font.family: T.ThemeEngine.monoFont
+                            text: T.Tr.captureStartBtn
+                            
                             font.pixelSize: 15; font.weight: Font.Bold
                             color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
                         }

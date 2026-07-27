@@ -130,8 +130,8 @@ Rectangle {
             // ── Title ───────────────────────────────────────────────
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.isError ? Tr.captureFailed : Tr.captureComplete
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 18
+                text: root.isError ? T.Tr.captureFailed : T.Tr.captureComplete
+                font.pixelSize: 18
                 font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
             }
 
@@ -145,14 +145,14 @@ Rectangle {
                     Label {
                         anchors.centerIn: parent
                         text: root.errorCode
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
+                        font.pixelSize: 12
                         color: T.ThemeEngine.failRed; font.weight: Font.DemiBold
                     }
                 }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: root.errorMessage
-                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                    font.pixelSize: 13
                     color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
                     lineHeight: 1.4
                 }
@@ -171,14 +171,14 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "camera"; size: 18; color: T.ThemeEngine.cyan }
                         Label {
-                            text: Tr.captureScreenshotsCount
-                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            text: T.Tr.captureScreenshotsCount
+                            font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
                         Item { Layout.fillWidth: true }
                         Label {
                             text: root.totalScreenshots
-                            font.family: T.ThemeEngine.monoFont
+                            
                             font.pixelSize: 18; font.weight: Font.Bold
                             color: T.ThemeEngine.textPrimary
                         }
@@ -195,8 +195,8 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "video"; size: 18; color: T.ThemeEngine.passGreen }
                         Label {
-                            text: Tr.captureRecordingLabel2
-                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            text: T.Tr.captureRecordingLabel2
+                            font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
                         Item { Layout.fillWidth: true }
@@ -205,8 +205,8 @@ Rectangle {
                             color: Qt.alpha(T.ThemeEngine.passGreen, 0.12)
                             Label {
                                 anchors.centerIn: parent
-                                text: Tr.captureSavedBadge
-                                font.family: T.ThemeEngine.monoFont
+                                text: T.Tr.captureSavedBadge
+                                
                                 font.pixelSize: 11; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.passGreen
                             }
@@ -223,14 +223,14 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "timer"; size: 18; color: T.ThemeEngine.accentBlue }
                         Label {
-                            text: Tr.captureTotalDuration
-                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            text: T.Tr.captureTotalDuration
+                            font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
                         Item { Layout.fillWidth: true }
                         Label {
                             text: root.elapsedTime
-                            font.family: T.ThemeEngine.monoFont
+                            
                             font.pixelSize: 18; font.weight: Font.Bold
                             color: T.ThemeEngine.textPrimary
                         }
@@ -249,7 +249,7 @@ Rectangle {
             Label {
                 Layout.fillWidth: true; visible: !root.isError
                 text: root.sessionPath
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 10
+                font.pixelSize: 10
                 color: Qt.alpha(T.ThemeEngine.textSecondary, 0.6)
                 wrapMode: Text.WrapAnywhere
                 elide: Text.ElideMiddle
@@ -277,8 +277,8 @@ Rectangle {
                     }
                     Label {
                         Layout.fillWidth: true
-                        text: _isIos ? Tr.captureDndIosMsg : Tr.captureDndAndroidMsg
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
+                        text: _isIos ? T.Tr.captureDndIosMsg : T.Tr.captureDndAndroidMsg
+                        font.pixelSize: 11
                         color: _isIos ? T.ThemeEngine.warnYellow : T.ThemeEngine.passGreen
                         font.underline: _isIos
                         verticalAlignment: Text.AlignVCenter
@@ -315,11 +315,11 @@ Rectangle {
                     }
                     Label {
                         text: root.isError
-                            ? Tr.captureDismiss
+                            ? T.Tr.captureDismiss
                             // 5WHY: Removed hardcoded "s" (seconds) — not all
                             // languages use "s" as the abbreviation for seconds.
-                            : (root.countdown > 0 ? Tr.captureDone + " (" + root.countdown + ")" : Tr.captureDone)
-                        font.family: T.ThemeEngine.monoFont
+                            : (root.countdown > 0 ? T.Tr.captureDone + " (" + root.countdown + ")" : T.Tr.captureDone)
+                        
                         font.pixelSize: 15; font.weight: Font.Bold
                         color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
                     }

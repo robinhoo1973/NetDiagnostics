@@ -96,8 +96,8 @@ Rectangle {
             // ── Title ───────────────────────────────────────────────
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: Tr.captureStartingIn
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
+                text: T.Tr.captureStartingIn
+                font.pixelSize: 14
                 font.weight: Font.DemiBold; color: T.ThemeEngine.textPrimary
             }
 
@@ -137,7 +137,7 @@ Rectangle {
                     id: countLabel
                     anchors.centerIn: parent
                     text: root.countdown
-                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 56
+                    font.pixelSize: 56
                     font.weight: Font.Bold; color: T.ThemeEngine.cyan
                     // Pulse on each tick
                     scale: 1.0
@@ -158,9 +158,20 @@ Rectangle {
             }
 
             // ── Progress bar ────────────────────────────────────────
+            // 5WHY: implicitHeight is a general QQuickItem hint that Qt Quick
+            // Layouts treat as a last-resort fallback.  On static/cross-compiled
+            // ARM Qt builds, the Layout may skip the implicitHeight fallback path
+            // for Rectangle, resulting in zero height → invisible progress bar.
+            // Layout.preferredHeight is the Layout-specific attached property
+            // that Layouts are guaranteed to respect regardless of build config.
+            // 5WHY (round-2): The outer track at 12% opacity was invisible on
+            // embedded GPUs that clamp low-alpha fragments.  Bump to 20% so the
+            // track is visible even on Mali/Adreno embedded renderers.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: 4; radius: 2
-                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.12)
+                Layout.fillWidth: true
+                Layout.preferredHeight: 4
+                radius: 2
+                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
                 Rectangle {
                     height: parent.height; radius: 2
                     width: parent.width * (root.countdown / root.totalSeconds)
@@ -172,8 +183,8 @@ Rectangle {
             // ── Subtitle ────────────────────────────────────────────
             Label {
                 Layout.alignment: Qt.AlignHCenter
-                text: Tr.captureDoNotTouch
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
+                text: T.Tr.captureDoNotTouch
+                font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary
             }
 
@@ -186,8 +197,8 @@ Rectangle {
                 Behavior on scale { NumberAnimation { duration: 100 } }
                 Label {
                     anchors.centerIn: parent
-                    text: Tr.captureCancelBtn
-                    font.family: T.ThemeEngine.monoFont
+                    text: T.Tr.captureCancelBtn
+                    
                     font.pixelSize: 14; font.weight: Font.DemiBold
                     color: T.ThemeEngine.textSecondary
                 }

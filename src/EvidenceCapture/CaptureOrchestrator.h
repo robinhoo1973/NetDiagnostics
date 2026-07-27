@@ -55,6 +55,12 @@ class CaptureOrchestrator : public QObject {
     // to Q_PROPERTY with NOTIFY so QML bindings re-evaluate if m_recording
     // ever becomes dynamic (e.g. pause/resume recording mid-session).
     Q_PROPERTY(bool isRecordingCapture READ isRecordingCapture NOTIFY captureModeChanged)
+    // 5WHY: On iOS, the user MUST manually disable Focus/DND after capture —
+    // platformDisableFocusMode() only unmutes audio, it does not disable the
+    // system DND mode.  This flag is set when the capture successfully completes
+    // (or fails) and signals QML to show a toast reminding the user to turn off
+    // Do Not Disturb in Settings.
+    Q_PROPERTY(bool showDndReminder READ showDndReminder NOTIFY dndReminderChanged)
     // 5WHY: restoreSystemState() clears m_recording before the deferred
     // captureCompleted signal fires, so isRecordingCapture() always returns
     // false in the onCaptureCompleted handler.  wasRecordingSession() reads
@@ -62,6 +68,8 @@ class CaptureOrchestrator : public QObject {
     Q_INVOKABLE bool wasRecordingSession() const {
         return m_captureMode == RecordingOnly || m_captureMode == Both;
     }
+    // Whether QML should show a post-capture DND reminder (iOS only).
+    bool showDndReminder() const { return m_showDndReminder; }
 
     // ── Display Model (C++-formatted strings for declarative QML) ───
     // 5WHY: Eliminates the fragile dual-initialization in QML
@@ -163,6 +171,9 @@ signals:
     // relay avoids QMetaObject::invokeMethod failures on iOS static builds
     // where QML JavaScript functions aren't exposed via the C++ meta-object.
     void navigateToTabRequested(int index);
+    // Emitted when the capture completes (or fails) on iOS — signals QML
+    // to show a reminder that the user must manually disable Focus/DND.
+    void dndReminderChanged();
 
 private slots:
     void onStateChanged(int from, int to);
@@ -221,6 +232,10 @@ private:
     // If incrementGen is true, m_sessionGen is incremented BEFORE capturing
     // the generation snapshot — this invalidates previously-scheduled timers.
     void scheduleGenGuarded(int ms, bool incrementGen, std::function<void()> onFire);
+    // 5WHY: The DND-reminder emission (iOS-only) was duplicated identically
+    // across three terminal-state handlers (Completed, Failed, Cancelled).
+    // Extract once so adding a fourth terminal state cannot forget the reminder.
+    void emitDndReminderIfNeeded();
 
     // Cached scenario — built once in startCapture, filtered by mode.
     // executeNextStep and executeStep both use this filtered copy so
@@ -248,6 +263,7 @@ private:
     bool          m_waitingForReportPreview = false; // set during OpenReport step; cleared by onReportPreviewReady
     bool          m_suppressOverlay = false;          // true during screenshot capture — QML hides overlay
     bool          m_executingStep = false;             // re-entrancy guard for executeNextStep() during processEvents
+    bool          m_showDndReminder = false;           // set on Completed/Failed on iOS — QML shows DND-off toast
 
     QTimer*       m_pollTimer = nullptr;  // non-null during WaitDiagComplete polling; stopped/cleared on cancel
     QElapsedTimer m_elapsed;           // started in startCapture, read by elapsedSeconds()
