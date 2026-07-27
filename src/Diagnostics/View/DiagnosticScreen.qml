@@ -105,41 +105,29 @@ Item {
         anchors.fill: parent; spacing: 0
 
         // AppBar (matches Dashboard/Settings — 48px Material compact.
-        // ConfigScreen is 84px because its TabBar lives in the same block.)
-        // 5WHY: PDF/HTML share buttons were in the AppBar competing for
-        // horizontal space with the title.  They are now in the results
-        // header ("Diagnostic Complete" bar) vertically centered across
-        // both rows of status content.  The AppBar now only shows the title
-        // + capture indicator — consistent with Dashboard/Settings format.
-        Rectangle {
-            Layout.fillWidth: true; implicitHeight: 48; color: ThemeEngine.colors.navBar
-            border { width: 1; color: ThemeEngine.colors.borderCard }
-            RowLayout {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 10 }
-                AppIcon { name: "diagnostics"; size: 20; color: ThemeEngine.cyan }
-                Item { width: 10 }
-                Label { text: Tr.diagnostics; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
-                // ── Capture indicator — shows when automated screenshots are active ──
-                Rectangle {
-                    visible: appState.captureFeatureEnabled && captureService !== null && captureService.active
-                    implicitWidth: captureLabel.implicitWidth + 16; implicitHeight: 28; radius: 14
-                    color: Qt.alpha(ThemeEngine.cyan, 0.15)
-                    border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.4) }
-                    Label {
-                        id: captureLabel
-                        anchors.centerIn: parent
-                        text: captureService !== null ? ("📸 " + captureService.captureCount) : ""
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                        color: ThemeEngine.cyan
-                    }
+        // ConfigScreen is 84px because its TabBar lives in a separate block.)
+        // 5WHY: Share buttons moved to results header to avoid competing for
+        // horizontal space with the title.  The capture indicator badge sits
+        // in the AppBar's default content slot between title and spacer.
+        AppBar {
+            Layout.fillWidth: true
+            iconName: "diagnostics"
+            title: Tr.diagnostics
+            // ── Capture indicator — shows when automated screenshots are active ──
+            Rectangle {
+                visible: appState.captureFeatureEnabled && captureService !== null && captureService.active
+                implicitWidth: captureLabel.implicitWidth + 16; implicitHeight: 28; radius: 14
+                color: Qt.alpha(ThemeEngine.cyan, 0.15)
+                border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.4) }
+                Label {
+                    id: captureLabel
+                    anchors.centerIn: parent
+                    text: captureService !== null ? ("📸 " + captureService.captureCount) : ""
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                    color: ThemeEngine.cyan
                 }
-                Item { width: 8 }
-                Item { Layout.fillWidth: true }
-                // 5WHY: PDF/HTML share buttons moved to the results header
-                // ("Diagnostic Complete" bar) where they are vertically centered
-                // across both rows of status content.  The AppBar now only shows
-                // the title — consistent with Dashboard/Settings/Config format.
             }
+            Item { width: 8 }
         }
 
         // ═══════════════ TOOLBAR ═══════════════════════════════════════

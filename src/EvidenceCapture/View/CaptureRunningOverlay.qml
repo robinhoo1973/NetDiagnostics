@@ -17,60 +17,12 @@
 //                      │  └─ screenshot icon (camera SVG, Lucide MIT, cyan)
 //                      └─ elapsedDisplay (HH:MM:SS, monospace)
 //
-// 5WHY (progress bar invisible — root-cause analysis):
-//
-//   WHY 1 — The floating progress bar was completely invisible during
-//           recording, not just "hard to read."
-//     → The root Rectangle had color:"transparent" with no border, and
-//       ALL visual weight was delegated to child drop-shadows.  ShadowIcon,
-//       ShadowSeparator, and blinking-dot shadow all used anchors.rightMargin
-//       / bottomMargin which SHRINK the shadow layer (not offset it), so the
-//       shadow stayed at (0,0) — fully covered by foreground elements.  Only
-//       Text.Raised text had any visible effect.  90% of bar pixels were
-//       transparent; the 10% text-only was unreadable against bright backgrounds.
-//
-//   WHY 2 — Why were all three shadow implementations broken identically?
-//     → The mental model of anchors.rightMargin was inverted.  anchors.fill
-//       + anchors.leftMargin:N shifts the child RIGHT (peeking out from
-//       behind the foreground at bottom-right).  anchors.rightMargin:N
-//       shrinks from the right edge — child stays at (0,0), fully overlapped.
-//       This wrong template was copy-pasted from ShadowIcon → ShadowSeparator
-//       → blinking dot shadow, propagating the error to all non-text elements.
-//
-//   WHY 3 — Why was the wrong margin pattern accepted without validation?
-//     → No visual testing was performed against any real diagnostic screen
-//       background (white logs, colored charts, dark report pages) after the
-//       transparent-background refactoring.  The original design was an opaque
-//       modal card (Qt.alpha(surface, 0.72)) with no shadows needed.  When it
-//       was refactored to a compact transparent floating pill (~e0cac1e), MultiEffect
-//       shadows were removed (QtQuick.Effects absent on iOS) and the inline
-//       shadow-component replacement was coded but never validated visually.
-//
-//   WHY 4 — Why wasn't the absence of visible content noticed in code review?
-//     → The 5WHY comment block (originally "Label → Text.Raised") only analyzed
-//       the text rendering path.  It correctly identified that Label lacks
-//       text-shadow support and replaced all Labels with Text + style:Text.Raised.
-//       But the icon/separator/dot shadow components were defined BELOW that
-//       comment block and were never independently evaluated.  The comment's
-//       conclusion — "shadows alone provide readability against any background" —
-//       was accepted as fact without verification.
-//
-//   WHY 5 (ROOT CAUSE) — Single point of failure for visibility.  By setting
-//     color:"transparent" and removing the border, 100% of the bar's visual
-//     presence depends on child-element drop-shadows working correctly.  When
-//     shadows fail (anchor bug, platform rendering difference, GPU driver issue,
-//     future refactoring regression), there is ZERO fallback — the bar is
-//     invisible.  No semi-transparent background, no border, no container-level
-//     contrast mechanism.
-//
-//     FIX (defense-in-depth):
-//       1. Shadow direction fix (already applied): anchors.leftMargin/topMargin
-//          correctly offsets shadow to bottom-right for ShadowIcon, ShadowSeparator,
-//          and blinking dot.
-//       2. DEFENSIVE FALLBACK (this fix): Replace color:"transparent" with a
-//          subtle 45%-opaque surface-color background.  Even if all shadows were
-//          to fail, the bar retains a visible pill shape on any background.
-//          Diagnostics content still shows through the semi-transparent layer.
+// 5WHY (progress bar invisible): color:"transparent" delegated 100% of visual
+// presence to drop-shadows.  ShadowIcon/ShadowSeparator/blinking-dot used
+// anchors.rightMargin (shrinks) instead of leftMargin (offsets) — shadows
+// stayed at (0,0) fully covered by foreground.  Root cause: no defensive
+// background or border.  Fix: Qt.alpha(surface, 0.45) background + explicit
+// left+top anchors with full width/height.  Full analysis in the design doc.
 //
 // 5WHY (High-DPI shadow offset — Fix 7):
 //

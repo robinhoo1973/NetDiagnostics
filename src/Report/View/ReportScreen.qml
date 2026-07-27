@@ -102,18 +102,12 @@ Item {
         }
     }
 
-    // AppBar (Flutter: Scaffold.appBar with "Report Preview" title)
-    Rectangle {
+    // AppBar
+    AppBar {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 48; color: ThemeEngine.colors.navBar
-        border { width: 1; color: ThemeEngine.colors.borderCard }
-        RowLayout {
-            anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-            AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
-            Item { width: 10 }
-            Label { text: Tr.reportPreview; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
-        }
+        iconName: "report"
+        title: Tr.reportPreview
     }
 
     // Centered content — scrollable; a holder keeps the column vertically centered

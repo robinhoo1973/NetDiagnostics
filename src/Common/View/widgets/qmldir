@@ -2,6 +2,7 @@
 # on qrc:/) can return empty results for directories without a qmldir.
 # Explicitly declaring every QML type here eliminates the dependency on
 # directory scanning and ensures all widget types resolve at QML load time.
+AppBar 1.0 AppBar.qml
 AppIcon 1.0 AppIcon.qml
 DiagnosticToolbar 1.0 DiagnosticToolbar.qml
 DiagGroupPanel 1.0 DiagGroupPanel.qml

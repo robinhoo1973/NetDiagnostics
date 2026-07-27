@@ -27,6 +27,7 @@
         <file alias="qml/widgets/TargetInputPanel.qml">../src/Common/View/widgets/TargetInputPanel.qml</file>
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
+        <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="qml/widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="qml/widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>

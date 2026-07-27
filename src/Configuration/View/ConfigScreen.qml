@@ -16,28 +16,21 @@ Item {
     property int configPollVersion: appState.stateVersion
 
     // AppBar
-    Rectangle {
+    AppBar {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: 84; color: ThemeEngine.colors.navBar
+        iconName: "config"
+        title: Tr.config
+    }
+    // TabBar — Flutter: G1..G5 tabs
+    Rectangle {
+        id: tabBar
+        anchors { left: parent.left; right: parent.right; top: appBar.bottom }
+        implicitHeight: 38; color: ThemeEngine.colors.navBar
         border { width: 1; color: ThemeEngine.colors.borderCard }
-        ColumnLayout {
-            anchors.fill: parent; spacing: 0
-            RowLayout {
-                Layout.fillWidth: true; Layout.preferredHeight: 48
-                Layout.leftMargin: 16; Layout.rightMargin: 16
-                AppIcon { name: "config"; size: 20; color: ThemeEngine.cyan }
-                Item { width: 10 }
-                Label { text: Tr.config; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
-                Item { Layout.fillWidth: true }
-            }
-            // TabBar — Flutter: G1..G5 tabs
-            Rectangle {
-                Layout.fillWidth: true; Layout.preferredHeight: 38
-                color: "transparent"
-                RowLayout {
-                    anchors.fill: parent; spacing: 0
-                    Repeater {
+        RowLayout {
+            anchors { fill: parent; leftMargin: 16; rightMargin: 16 }; spacing: 0
+                Repeater {
                         model: appState.groupLabels
                         delegate: ItemDelegate {
                             Layout.fillWidth: true; Layout.fillHeight: true
@@ -80,12 +73,11 @@ Item {
                         }
                     }
                 }
-            }
         }
     }
 
     ColumnLayout {
-        anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
+        anchors { left: parent.left; right: parent.right; top: tabBar.bottom; bottom: parent.bottom }
         spacing: 0
 
         // ── Action Bar — Flutter: Container(padding h16 v12, bgCard alpha 0.5) ─
