@@ -251,8 +251,9 @@ Rectangle {
                 text: root.sessionPath
                 font.pixelSize: 10
                 color: Qt.alpha(T.ThemeEngine.textSecondary, 0.6)
+                // 5WHY: elide:Text.ElideMiddle is dead when wrapMode is set —
+                // Qt docs: elide only takes effect with NoWrap or maximumLineCount:1.
                 wrapMode: Text.WrapAnywhere
-                elide: Text.ElideMiddle
             }
 
             // ── Focus mode reminder ─────────────────────────────────
@@ -314,11 +315,11 @@ Rectangle {
                         color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
                     }
                     Label {
-                        text: root.isError
-                            ? T.Tr.captureDismiss
-                            // 5WHY: Removed hardcoded "s" (seconds) — not all
-                            // languages use "s" as the abbreviation for seconds.
-                            : (root.countdown > 0 ? T.Tr.captureDone + " (" + root.countdown + ")" : T.Tr.captureDone)
+                        // 5WHY: Show countdown on both success and error so the user
+                        // knows when the overlay will auto-dismiss.  Without
+                        // this, the 15s error auto-dismiss is invisible.
+                        text: (root.isError ? T.Tr.captureDismiss : T.Tr.captureDone)
+                            + (root.countdown > 0 ? " (" + root.countdown + ")" : "")
                         
                         font.pixelSize: 15; font.weight: Font.Bold
                         color: root.isError ? T.ThemeEngine.failRed : "#0F172A"

@@ -236,6 +236,16 @@ private:
     // across three terminal-state handlers (Completed, Failed, Cancelled).
     // Extract once so adding a fourth terminal state cannot forget the reminder.
     void emitDndReminderIfNeeded();
+    // 5WHY: The pair restoreSystemState() + emitDndReminderIfNeeded() appears
+    // verbatim in all three terminal-state handlers.  Extract so adding a fourth
+    // terminal state cannot forget the DND reminder.  The destructor still calls
+    // restoreSystemState() directly (no reminder emission during teardown).
+    void finalizeTerminalState();
+    // 5WHY: The gen-guard + FSM-state guard pair was copy-pasted identically
+    // in platformStartRecording and platformStopRecording callbacks.  Extract
+    // once so a third platform callback (e.g. pause) cannot forget either guard.
+    // Returns true if this callback is still valid for the current session.
+    bool isCallbackValid(int gen, CaptureState expected, const char* label) const;
 
     // Cached scenario — built once in startCapture, filtered by mode.
     // executeNextStep and executeStep both use this filtered copy so

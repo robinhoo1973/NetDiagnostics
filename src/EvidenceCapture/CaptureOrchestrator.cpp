@@ -661,8 +661,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::Completed:
-        restoreSystemState();
-        emitDndReminderIfNeeded();
+        finalizeTerminalState();
         // Loader — onStateChanged sets source="CaptureResultSummary.qml"
         // which loads asynchronously, but captureCompleted fires in the
         // same event-loop iteration before the Loader finishes.  Defer the
@@ -674,8 +673,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         break;
 
     case CaptureState::Failed:
-        restoreSystemState();
-        emitDndReminderIfNeeded();
+        finalizeTerminalState();
         // Specific error code the phase handler already emitted (e.g.
         // "NO_FFMPEG", "RECORDING_FAILED"). The Failed handler only
         // restores system state; the specific error was already emitted.
@@ -685,8 +683,7 @@ void CaptureOrchestrator::onStateChanged(int from, int to) {
         // restoreSystemState() includes keepAwake(false) — no need for a
         // separate call here even when the Cancelled transition was triggered
         // from a non-cancel() path (e.g. FSM auto-transition on error).
-        restoreSystemState();
-        emitDndReminderIfNeeded();
+        finalizeTerminalState();
         break;
 
     default:
@@ -844,16 +841,7 @@ void CaptureOrchestrator::startPlatformRecording() {
     // actionChanged signal.
     int gen = m_sessionGen;
     platformStartRecording(recPath, [this, gen](bool ok, const QString& pathOrError) {
-        if (m_sessionGen != gen) {
-            qWarning() << "CaptureOrchestrator: stale start callback"
-                          " ignored (session gen changed)";
-            return;
-        }
-        if (m_stateMachine->state() != CaptureState::StartingRecording) {
-            qWarning() << "CaptureOrchestrator: start callback arrived"
-                          " after FSM already left StartingRecording — ignored";
-            return;
-        }
+        if (!isCallbackValid(gen, CaptureState::StartingRecording, "start")) return;
         if (ok) {
             qInfo() << "CaptureOrchestrator: recording started — path:" << pathOrError;
             m_currentAction = QStringLiteral("Recording started");
@@ -878,27 +866,11 @@ void CaptureOrchestrator::stopPlatformRecording() {
     // clobber the current session's writer, manifest, or FSM state.
     int gen = m_sessionGen;
     platformStopRecording([this, gen](bool ok, const QString& pathOrError) {
-        // 5WHY: If the session was cancelled, timed out, or restarted
-        // while the platform stop was pending, m_sessionGen has changed.
-        // The stale callback would otherwise call transitionTo(Finalizing)
-        // or failCapture() on a session that has already moved past
-        // StoppingRecording — clobbering the current session's state.
-        if (m_sessionGen != gen) {
-            qWarning() << "CaptureOrchestrator: stale stop callback"
-                          " ignored (session gen changed)";
-            return;
-        }
-        // 5WHY: Gen-guard protects cross-session (cancel/restart increments
-        // gen).  But the 30s C++ timeout can also fire BEFORE this callback
-        // arrives — both share the same gen.  Add an FSM-state guard so the
-        // late callback silently returns instead of calling transitionTo()
-        // or failCapture() on a session that has already moved past
-        // StoppingRecording (Completed, Failed, Cancelled).
-        if (m_stateMachine->state() != CaptureState::StoppingRecording) {
-            qWarning() << "CaptureOrchestrator: stop callback arrived"
-                          " after FSM already left StoppingRecording — ignored";
-            return;
-        }
+        // 5WHY: Dual guard via isCallbackValid(): (1) gen-guard protects
+        // cross-session stale callbacks after cancel/restart, (2) FSM-state
+        // guard protects intra-session race where the 30s C++ timeout already
+        // advanced the FSM past StoppingRecording.
+        if (!isCallbackValid(gen, CaptureState::StoppingRecording, "stop")) return;
         if (ok) {
             m_currentAction = QStringLiteral("Recording saved: ") + pathOrError;
             emit actionChanged(m_currentAction);
@@ -1336,6 +1308,28 @@ void CaptureOrchestrator::scheduleStepAfter(int ms) {
     m_delayTimer->start(ms);
 }
 
+// 5WHY: The gen-guard + FSM-state guard pair was copy-pasted identically in
+// platformStartRecording and platformStopRecording callbacks.  Extract once
+// so a third platform callback cannot forget either guard.  Returns true if
+// the callback is still valid — gen matches (same session) and FSM is still
+// in the expected state (timeout hasn't already advanced it).
+bool CaptureOrchestrator::isCallbackValid(int gen, CaptureState expected,
+                                          const char* label) const {
+    if (m_sessionGen != gen) {
+        qWarning() << "CaptureOrchestrator: stale" << label
+                   << "callback ignored (session gen changed)";
+        return false;
+    }
+    if (m_stateMachine->state() != expected) {
+        qWarning() << "CaptureOrchestrator:" << label
+                   << "callback arrived after FSM already left expected state"
+                   << static_cast<int>(expected) << "(current:"
+                   << static_cast<int>(m_stateMachine->state()) << ") — ignored";
+        return false;
+    }
+    return true;
+}
+
 // 5WHY: The gen-guarded QTimer::singleShot pattern appeared at 6 call sites.
 // Every site captures m_sessionGen (optionally incrementing it first),
 // schedules a one-shot timer, and checks m_sessionGen hasn't changed before
@@ -1359,6 +1353,11 @@ void CaptureOrchestrator::emitDndReminderIfNeeded() {
         emit dndReminderChanged();
     }
 #endif
+}
+
+void CaptureOrchestrator::finalizeTerminalState() {
+    restoreSystemState();
+    emitDndReminderIfNeeded();
 }
 
 void CaptureOrchestrator::deferNextStep() {

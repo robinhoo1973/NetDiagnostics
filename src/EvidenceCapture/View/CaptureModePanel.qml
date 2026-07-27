@@ -167,18 +167,28 @@ Rectangle {
                         }
 
                         ColumnLayout {
+                            Layout.fillWidth: true
                             spacing: 2
                             Label {
+                                Layout.fillWidth: true
                                 text: T.Tr.captureScreenshotsLabel
-                                
+
                                 font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
                             Label {
+                                Layout.fillWidth: true
                                 text: T.Tr.captureScreenshotsDesc
-                                
+
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
+                                // 5WHY: Long translated strings overflow the card
+                                // boundary when the Label has no width constraint
+                                // inside a ColumnLayout→RowLayout hierarchy.
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
                         }
 
@@ -264,18 +274,28 @@ Rectangle {
                         }
 
                         ColumnLayout {
+                            Layout.fillWidth: true
                             spacing: 2
                             Label {
+                                Layout.fillWidth: true
                                 text: T.Tr.captureRecordingLabel
-                                
+
                                 font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
                             Label {
+                                Layout.fillWidth: true
                                 text: T.Tr.captureRecordingDesc
-                                
+
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
+                                // 5WHY: Same overflow risk as screenshot description
+                                // — long translated strings need explicit width
+                                // constraint inside the card's RowLayout.
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
                         }
 

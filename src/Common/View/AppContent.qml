@@ -127,15 +127,22 @@ Item {
         // idle/cancelled, Failed, cancelled handler, dismissed handler.
         // A dedicated function prevents the "forgot-one-property" bug class
         // where stale data leaks into the next capture's ResultSummary.
-        function clearPendingCompletion() {
+        // 5WHY: clearPendingCompletion() and showResultSummary() both stop
+        // the Timer and clear the pending flag.  Extract the shared 3-line
+        // Timer reset so adding a new Timer property (e.g. _pauseCount)
+        // requires a single-site update instead of two.
+        function resetDelayTimer() {
             pendingCompletedOverlay = false
+            completionDelayTimer.stop()
+            completionDelayTimer._tickCount = 0
+        }
+        function clearPendingCompletion() {
+            resetDelayTimer()
             _storedPreviewScreen = null
             storedSessionPath = ""
             storedTotalScreenshots = 0
             storedRecordingFile = ""
             storedElapsedTime = ""
-            completionDelayTimer.stop()
-            completionDelayTimer._tickCount = 0
         }
 
         // 5WHY: The same four properties (sessionPath, totalScreenshots,
@@ -163,9 +170,7 @@ Item {
         // blank path, 0s elapsed).  Only clear the pending flag and Timer;
         // onLoaded calls clearPendingCompletion() AFTER applying the data.
         function showResultSummary() {
-            pendingCompletedOverlay = false
-            completionDelayTimer.stop()
-            completionDelayTimer._tickCount = 0
+            resetDelayTimer()
             active = true
             source = "qrc:/qml/capture/CaptureResultSummary.qml"
         }
@@ -193,26 +198,15 @@ Item {
             onTriggered: {
                 if (!captureOverlay.pendingCompletedOverlay) { _tickCount = 0; stop(); return }
                 _tickCount++
-                // 5WHY: Check the cached screen reference, NOT stackView.currentItem.
-                // If the user switches tabs during the delay, currentItem changes to
-                // a non-preview screen.  The typeof-guard would immediately load the
-                // ResultSummary on the wrong tab — a confusing UX.  Cache the screen
-                // that was active when the delay started and poll THAT screen's
-                // previewVisible property.
                 var cur = captureOverlay._storedPreviewScreen
-                if (!cur) {
-                    // 5WHY: If the screen was destroyed (tab popped from StackView),
-                    // the preview is gone — safe to show.
-                    captureOverlay.showResultSummary()
-                    return
-                }
-                // 5WHY: typeof guard defends against accessing previewVisible on
-                // a screen that doesn't declare it (DiagnosticScreen, ConfigScreen).
-                // Without this, a ReferenceError is thrown at runtime.
-                if (typeof cur.previewVisible === "undefined" || !cur.previewVisible) {
+                // 5WHY: !cur covers screen destruction (popped from StackView).
+                // !cur.previewVisible covers both "preview dismissed" and
+                // "screen has no previewVisible property" — in QML JavaScript,
+                // accessing a non-existent property on a valid object returns
+                // undefined, and !undefined is true.  No typeof guard needed.
+                if (!cur || !cur.previewVisible) {
                     captureOverlay.showResultSummary()
                 } else if (_tickCount >= _maxTicks) {
-                    // Safety timeout — preview never dismissed, show result anyway
                     console.warn("CaptureOrchestrator: completion delay timed out after 60s — loading ResultSummary")
                     captureOverlay.showResultSummary()
                 }
@@ -305,8 +299,11 @@ Item {
                     // delay loading the ResultSummary until the user
                     // dismisses the preview.  Otherwise the result
                     // auto-dismisses while the user reads the report.
+                    // 5WHY: Consistent with completionDelayTimer's guard —
+                    // !cur.previewVisible covers both "preview dismissed" and
+                    // "screen has no previewVisible property" (undefined is falsy).
                     var cur = stackView.currentItem
-                    if (cur && typeof cur.previewVisible !== "undefined" && cur.previewVisible) {
+                    if (cur && cur.previewVisible) {
                         captureOverlay.pendingCompletedOverlay = true
                         // 5WHY: Cache the screen reference so the Timer polls
                         // this specific screen's previewVisible, not whatever
@@ -319,9 +316,11 @@ Item {
                         completionDelayTimer._tickCount = 0
                         completionDelayTimer.restart()
                     } else {
-                        captureOverlay.pendingCompletedOverlay = false
-                        captureOverlay.active = true
-                        captureOverlay.source = "qrc:/qml/capture/CaptureResultSummary.qml"
+                        // 5WHY: showResultSummary() already stops the
+                        // completionDelayTimer and clears the pending flag — the
+                        // same cleanup the else branch needs.  Reuse the single
+                        // function so the activation sequence can't diverge.
+                        captureOverlay.showResultSummary()
                     }
                 }
                 // 5WHY: intermediate states (CreatingSession→StartingRecording and

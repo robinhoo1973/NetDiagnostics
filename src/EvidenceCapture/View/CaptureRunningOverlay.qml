@@ -68,7 +68,12 @@ Rectangle {
     anchors.top: parent.top
     anchors.right: parent.right
     anchors.margins: 12
-    width: Math.max(0, statusRow.implicitWidth + leftPadding + rightPadding)
+    // 5WHY: On narrow screens (<320px) with both screenshot+recording mode
+    // active, the RowLayout's implicitWidth can exceed the parent width,
+    // pushing the bar past the left edge.  Cap width to parent width minus
+    // the right margin so the bar never overflows off-screen.
+    width: Math.min(parent.width - anchors.margins * 2,
+                    Math.max(0, statusRow.implicitWidth + leftPadding + rightPadding))
     height: 36
     radius: 10
     clip: false  // 5WHY: clip=false so Text.Raised shadow renders outside bounds

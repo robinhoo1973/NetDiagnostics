@@ -32,6 +32,24 @@ Item {
     width: size; height: size
     visible: name !== ""
 
+    // 5WHY (hazy-square-box root cause): The Rectangle color overlay at 55%
+    // opacity covered the entire Item area, including transparent SVG regions
+    // (the 1-unit margin between the 22-diameter badge circle and the 24x24
+    // viewBox).  On Mali/Adreno embedded GPUs, two rendering-pipeline defects
+    // combine to make this artifact prominent:
+    //   1. SVG render path may use opaque QImage surfaces — transparent
+    //      viewBox corners become filled with default background color.
+    //   2. mipmap:true downsamples without preserving the alpha channel,
+    //      turning what should be sub-pixel transparent corners into
+    //      visible semi-opaque haze.
+    // Fix: layer.enabled forces Qt to composite the entire icon subtree into
+    // an alpha-aware Frame Buffer Object before display.  mipmap:false
+    // prevents alpha loss during texture downsampling.  The 55%-opacity
+    // Rectangle overlay is retained as the universal colorization fallback
+    // for platforms without QtQuick.Effects/MultiEffect.
+    layer.enabled: true
+    layer.samples: 4
+
     Image {
         id: iconImg
         anchors.fill: parent
@@ -40,7 +58,10 @@ Item {
         sourceSize.height: size * 2
         fillMode: Image.PreserveAspectFit
         smooth: true
-        mipmap: true
+        // 5WHY: mipmap generation on Mali/Adreno embedded GPUs does not
+        // preserve the alpha channel — transparent SVG regions become
+        // semi-opaque, creating a visible rectangular haze around icons.
+        mipmap: false
     }
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it
