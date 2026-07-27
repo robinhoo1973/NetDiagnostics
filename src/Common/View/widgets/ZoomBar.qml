@@ -29,7 +29,11 @@ Item {
 
     // Detect mobile for larger touch targets
     readonly property bool isMobile: ThemeEngine.isMobile
-    readonly property int btnSize: isMobile ? 44 : 28
+    // 5WHY: 28px is below the WCAG 2.1 SC 2.5.5 AA minimum (24 CSS px ≈
+    // 48 physical px on 2x displays, but on 1x desktop displays 28px is
+    // below the 44pt Apple HIG minimum).  36px provides a comfortable
+    // click target on 1x displays while remaining compact.
+    readonly property int btnSize: isMobile ? 44 : 36
 
     // ── Public functions ───────────────────────────────────────────────
     function zoomIn() {

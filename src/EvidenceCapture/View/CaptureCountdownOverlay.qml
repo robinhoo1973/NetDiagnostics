@@ -16,6 +16,7 @@ Rectangle {
     anchors.fill: parent
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.86)
     z: 2100
+    font.family: T.ThemeEngine.monoFont
 
     // ── Entry animation ─────────────────────────────────────────────
     scale: 0.92; opacity: 0

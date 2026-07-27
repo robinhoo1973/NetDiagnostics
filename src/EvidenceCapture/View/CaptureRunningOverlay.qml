@@ -67,12 +67,17 @@ Rectangle {
     // ── Layout: top-right aligned, auto-width, fixed height ──────────
     anchors.top: parent.top
     anchors.right: parent.right
-    anchors.margins: 12
+    // 5WHY: Android system status bar is ~24dp tall.  A 12px top margin
+    // places the floating pill behind status bar icons (signal, battery).
+    // On iOS, the status bar icons float over content, so 12px is fine.
+    // Use platform-aware top margin: 36px on Android, 12px elsewhere.
+    anchors.topMargin: Qt.platform.os === "android" ? 36 : 12
+    anchors.rightMargin: 12
     // 5WHY: On narrow screens (<320px) with both screenshot+recording mode
     // active, the RowLayout's implicitWidth can exceed the parent width,
     // pushing the bar past the left edge.  Cap width to parent width minus
     // the right margin so the bar never overflows off-screen.
-    width: Math.min(parent.width - anchors.margins * 2,
+    width: Math.min(parent.width - anchors.rightMargin * 2,
                     Math.max(0, statusRow.implicitWidth + leftPadding + rightPadding))
     height: 36
     radius: 10

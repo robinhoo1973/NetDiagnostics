@@ -40,8 +40,12 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Static state
 // ═══════════════════════════════════════════════════════════════════════════
-static bool            s_recording   = false;
-static std::atomic<bool> s_stopping {false};
+// 5WHY: s_recording was a plain bool but is read on the main thread
+// (platformIsRecording()) and written on the Android UI thread via
+// QtAndroidPrivate callback — a C++ data race.  Make it atomic to
+// match s_stopping and the iOS PlatformRecording.mm pattern.
+static std::atomic<bool> s_recording{false};
+static std::atomic<bool> s_stopping{false};
 static QString         s_outputPath;
 static RecordingCallback s_startCallback = nullptr;
 // 5WHY: MediaProjection and VirtualDisplay are JNI global refs that must

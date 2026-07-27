@@ -619,7 +619,7 @@ Item {
                             Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; elide:Text.ElideRight; visible:text!=="" }
                 }
             }
         }

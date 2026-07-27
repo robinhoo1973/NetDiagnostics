@@ -18,7 +18,13 @@ Rectangle {
     anchors.fill: parent
     color: Qt.alpha(T.ThemeEngine.colors.surface, 0.82)
     z: 2000
-    // 5WHY: No explicit font.family on this panel.  Loader-loaded QML
+    // 5WHY: Loader-loaded components run in isolated QML contexts where
+    // ApplicationWindow font propagation through the Loader boundary is
+    // version-dependent (Qt 6.5+ reliable, earlier Qt fragile).  Set
+    // the font explicitly on the root Rectangle so ALL child Labels
+    // inherit the correct monospace font regardless of Qt version.
+    font.family: T.ThemeEngine.monoFont
+    // 5WHY: No explicit font.family on individual Labels.  Loader-loaded QML
     // components run in an isolated context where "JetBrains Mono" (the
     // ThemeEngine.monoFont value) may not resolve on embedded Linux ARM
     // with minimal fontconfig.  Removing the override lets Labels inherit
@@ -352,7 +358,7 @@ Rectangle {
                     Label {
                         text: T.Tr.captureBothHint
                         font.pixelSize: 11
-                        color: T.ThemeEngine.cyan
+                        color: T.ThemeEngine.cyan; elide: Text.ElideRight; maximumLineCount: 1
                     }
                 }
             }
