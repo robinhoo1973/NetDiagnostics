@@ -28,7 +28,10 @@ Rectangle {
 
     // Countdown auto-close — longer for recording (video encoding may still run)
     property int countdown: root.recordingFile !== "" ? 30 : 15
-    property bool dismissed: false
+    // 5WHY: Name _dismissed (not dismissed) to avoid collision with signal dismissed()
+    // QML property and signal must not share the same name — property shadows signal
+    // for non-call access, breaking item.dismissed.connect(...) in AppContent.qml.
+    property bool _dismissed: false
 
     // 5WHY: Hoist platform checks to a single readonly property instead of
     // evaluating Qt.platform.os === "ios" in 7 separate QML property bindings
@@ -43,8 +46,9 @@ Rectangle {
         interval: 1000; running: true; repeat: true
         onTriggered: {
             root.countdown = Math.max(0, root.countdown - 1)
-            if (root.countdown <= 0 && !root.dismissed) {
-                root.dismissed = true
+            if (root.countdown <= 0 && !root._dismissed) {
+                root._dismissed = true
+                countdownTimer.stop()
                 root.dismissed()
             }
         }
@@ -53,8 +57,8 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         onClicked: {
-            if (!root.dismissed) {
-                root.dismissed = true
+            if (!root._dismissed) {
+                root._dismissed = true
                 root.dismissed()
             }
         }
@@ -171,8 +175,8 @@ Rectangle {
                 Label {
                     anchors { fill: parent; margins: 10 }
                     text: _isIos
-                        ? "⚠ Focus/DND was enabled — tap here to open Settings and disable it"
-                        : "✓ Focus/DND has been automatically disabled"
+                        ? Tr.captureDndIosMsg
+                        : Tr.captureDndAndroidMsg
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
                     color: _isIos
                         ? T.ThemeEngine.warnYellow
@@ -208,13 +212,13 @@ Rectangle {
                     onClicked: {
                         countdownTimer.stop()
                         // 5WHY: Defensive guard — if the countdown auto-timer
-                        // fires on the same event-loop tick, root.dismissed
+                        // fires on the same event-loop tick, root._dismissed
                         // is already true and the signal was already emitted
                         // (see countdownTimer.onTriggered).  Prevent double-fire
                         // of the dismissed signal — the handler in AppContent
                         // is idempotent, but a future handler may not be.
-                        if (!root.dismissed) {
-                            root.dismissed = true
+                        if (!root._dismissed) {
+                            root._dismissed = true
                             root.dismissed()
                         }
                     }

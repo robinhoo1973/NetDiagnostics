@@ -307,6 +307,29 @@ Item {
     readonly property string captureFailed: t("Capture Failed", "Échec de la capture", "Aufnahme fehlgeschlagen", "Ошибка захвата", "Cattura fallita", "采集失败", "採集失敗", "Captura fallida", "Captura falhou")
     readonly property string captureDone: t("Done", "Terminé", "Fertig", "Готово", "Fatto", "完成", "完成", "Hecho", "Concluído")
     readonly property string captureDismiss: t("Dismiss", "Fermer", "Schließen", "Закрыть", "Chiudi", "关闭", "關閉", "Cerrar", "Fechar")
+
+    // 5WHY: Platform-specific DND reminder — iOS needs manual exit (tappable → Settings),
+    // Android auto-disables DND and shows a brief confirmation.  Desktop hides this entirely.
+    readonly property string captureDndIosMsg: t(
+        "⚠ Focus/DND was enabled — tap here to open Settings and disable it",
+        "⚠ Le mode Focus/NPD était activé — appuyez ici pour ouvrir Réglages et le désactiver",
+        "⚠ Fokus/Nicht-stören war aktiviert — tippen Sie hier, um die Einstellungen zu öffnen",
+        "⚠ Был включен режим фокусировки/НБ — нажмите здесь, чтобы открыть Настройки",
+        "⚠ Focus/Non disturbare era attivo — tocca qui per aprire Impostazioni",
+        "⚠ 专注模式/勿扰模式已开启 — 点击此处前往设置中关闭",
+        "⚠ 專注模式/勿擾模式已開啟 — 點此前往設定中關閉",
+        "⚠ Focus/No molestar estaba activado — pulse aquí para abrir Ajustes",
+        "⚠ Foco/Não perturbe estava ativo — toque aqui para abrir Configurações")
+    readonly property string captureDndAndroidMsg: t(
+        "✓ Focus/DND has been automatically disabled",
+        "✓ Le mode Focus/NPD a été automatiquement désactivé",
+        "✓ Fokus/Nicht-stören wurde automatisch deaktiviert",
+        "✓ Режим фокусировки/НБ был автоматически отключен",
+        "✓ Focus/Non disturbare è stato disattivato automaticamente",
+        "✓ 专注模式/勿扰模式已自动关闭",
+        "✓ 專注模式/勿擾模式已自動關閉",
+        "✓ Focus/No molestar se ha desactivado automáticamente",
+        "✓ Foco/Não perturbe foi desativado automaticamente")
     readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")
