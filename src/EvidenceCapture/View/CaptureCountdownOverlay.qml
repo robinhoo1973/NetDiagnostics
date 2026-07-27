@@ -134,6 +134,7 @@ Rectangle {
 
                 // Countdown number
                 Label {
+                    id: countLabel
                     anchors.centerIn: parent
                     text: root.countdown
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 56
@@ -144,8 +145,12 @@ Rectangle {
                         id: pulseAnim
                         running: root.running && root.countdown > 0
                         loops: Animation.Infinite
-                        NumberAnimation { target: parent; property: "scale"; from: 1.0; to: 1.15; duration: 300; easing.type: Easing.OutCubic }
-                        NumberAnimation { target: parent; property: "scale"; from: 1.15; to: 1.0; duration: 700; easing.type: Easing.InOutCubic }
+                        // 5WHY: Use explicit target id (countLabel), not implicit
+                        // parent.  If someone wraps this Label in another Item
+                        // for visual grouping, implicit parent would silently
+                        // break, stopping the pulse with no warning.
+                        NumberAnimation { target: countLabel; property: "scale"; from: 1.0; to: 1.15; duration: 300; easing.type: Easing.OutCubic }
+                        NumberAnimation { target: countLabel; property: "scale"; from: 1.15; to: 1.0; duration: 700; easing.type: Easing.InOutCubic }
                     }
                 }
             }

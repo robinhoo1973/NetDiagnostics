@@ -70,6 +70,17 @@ Rectangle {
 
         MouseArea { anchors.fill: parent } // absorb clicks
 
+        // 5WHY: Gradient MUST be declared at card level, NOT inside a Layout.
+        // QQuickGradient is not a QQuickItem — placing it as a child of
+        // RowLayout/ColumnLayout causes undefined layout behavior (silently
+        // ignored in Qt 6.x, may crash on static/embedded Qt builds).
+        Gradient {
+            id: startGradient
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: T.ThemeEngine.primary }
+            GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+        }
+
         ColumnLayout {
             id: panelCol
             anchors { fill: parent; margins: 28 }
@@ -393,12 +404,8 @@ Rectangle {
                     scale: startMa.pressed && root.computedMode >= 0 ? 0.97 : 1.0
                     Behavior on scale  { NumberAnimation { duration: 100 } }
                     Behavior on color  { ColorAnimation { duration: 200 } }
-                    // Gradient accent for enabled state
-                    gradient: root.computedMode >= 0 ? Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: T.ThemeEngine.primary }
-                        GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
-                    } : null
+                    // Gradient accent for enabled state — reuses pre-declared id
+                    gradient: root.computedMode >= 0 ? startGradient : null
                     RowLayout {
                         anchors.centerIn: parent
                         spacing: 8

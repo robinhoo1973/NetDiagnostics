@@ -30,6 +30,13 @@ Rectangle {
     property string errorMessage: ""
     property string errorCode: ""
 
+    // 5WHY: countdown starts as a declarative binding (30s for recording,
+    // 15s for screenshot-only).  The Timer's onTriggered imperatively assigns
+    // root.countdown = ..., which BREAKS the binding after the first tick.
+    // This is safe because AppContent sets recordingFile SYNCHRONOUSLY via
+    // onCaptureCompleted → the binding resolves to its final value before the
+    // 1-second Timer fires.  If recordingFile ever arrives asynchronously
+    // (e.g. from a network callback), the countdown would not extend to 30s.
     property int countdown: root.recordingFile !== "" ? 30 : 15
     property bool _dismissed: false
     readonly property bool _isIos: Qt.platform.os === "ios"
@@ -84,6 +91,15 @@ Rectangle {
         }
 
         MouseArea { anchors.fill: parent }
+
+        // 5WHY: Gradient at card level (not inside sumCol ColumnLayout).
+        // Same reasoning as CaptureModePanel — QQuickGradient is not an Item.
+        Gradient {
+            id: doneGradient
+            orientation: Gradient.Horizontal
+            GradientStop { position: 0.0; color: T.ThemeEngine.primary }
+            GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+        }
 
         ColumnLayout {
             id: sumCol
@@ -287,11 +303,7 @@ Rectangle {
                     : T.ThemeEngine.cyan
                 scale: dismissMa.pressed ? 0.97 : 1.0
                 Behavior on scale { NumberAnimation { duration: 100 } }
-                gradient: root.isError ? null : Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: T.ThemeEngine.primary }
-                    GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
-                }
+                gradient: root.isError ? null : doneGradient
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 8
