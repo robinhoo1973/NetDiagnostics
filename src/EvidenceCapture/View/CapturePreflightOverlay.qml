@@ -80,7 +80,7 @@ Rectangle {
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: Tr.capturePrepare
-                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 20
+                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 18
                     font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
                 }
 

@@ -195,7 +195,7 @@ Rectangle {
                         spacing: 12
                         AppIcon { name: "video"; size: 18; color: T.ThemeEngine.passGreen }
                         Label {
-                            text: Tr.captureRecordingSaved
+                            text: Tr.captureRecordingLabel2
                             font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
                             color: T.ThemeEngine.textSecondary
                         }
@@ -316,7 +316,9 @@ Rectangle {
                     Label {
                         text: root.isError
                             ? Tr.captureDismiss
-                            : (root.countdown > 0 ? Tr.captureDone + " (" + root.countdown + "s)" : Tr.captureDone)
+                            // 5WHY: Removed hardcoded "s" (seconds) — not all
+                            // languages use "s" as the abbreviation for seconds.
+                            : (root.countdown > 0 ? Tr.captureDone + " (" + root.countdown + ")" : Tr.captureDone)
                         font.family: T.ThemeEngine.monoFont
                         font.pixelSize: 15; font.weight: Font.Bold
                         color: root.isError ? T.ThemeEngine.failRed : "#0F172A"

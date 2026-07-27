@@ -309,7 +309,9 @@ Item {
     readonly property string captureImReady: t("I'm Ready", "Je suis prêt", "Ich bin bereit", "Я готов", "Sono pronto", "我准备好了", "我準備好了", "Estoy listo", "Estou pronto")
     readonly property string captureStartingIn: t("Starting capture in", "Démarrage de la capture dans", "Aufnahme startet in", "Захват начнется через", "Avvio cattura tra", "采集将在", "採集將在", "Inicio de captura en", "Início da captura em")
     readonly property string captureScreenshotsCount: t("Screenshots captured", "Captures d'écran prises", "Screenshots aufgenommen", "Скриншотов сделано", "Screenshot acquisiti", "截图数量", "截圖數量", "Capturas realizadas", "Capturas feitas")
-    readonly property string captureRecordingSaved: t("Screen recording", "Enregistrement d'écran", "Bildschirmaufnahme", "Запись экрана", "Registrazione schermo", "屏幕录制", "螢幕錄製", "Grabación de pantalla", "Gravação de tela")
+    // 5WHY: Key renamed from captureRecordingSaved — the label text is "Screen
+    // recording" (a stat row title), not "Recording saved" (the badge text).
+    readonly property string captureRecordingLabel2: t("Screen recording", "Enregistrement d'écran", "Bildschirmaufnahme", "Запись экрана", "Registrazione schermo", "屏幕录制", "螢幕錄製", "Grabación de pantalla", "Gravação de tela")
     readonly property string captureSavedBadge: t("Saved", "Enregistré", "Gespeichert", "Сохранено", "Salvato", "已保存", "已儲存", "Guardado", "Salvo")
     readonly property string captureTotalDuration: t("Total duration", "Durée totale", "Gesamtdauer", "Общая длительность", "Durata totale", "总耗时", "總耗時", "Duración total", "Duração total")
     readonly property string captureCancelShort: t("Cancel", "Annuler", "Abbrechen", "Отмена", "Annulla", "取消", "取消", "Cancelar", "Cancelar")
