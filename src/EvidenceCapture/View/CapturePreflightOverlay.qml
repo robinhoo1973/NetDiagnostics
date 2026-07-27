@@ -1,48 +1,49 @@
 // =============================================================================
 // CapturePreflightOverlay.qml — Focus/DND guide before capture starts
 // =============================================================================
-// Design: Separated from the countdown.  This overlay only handles Focus/DND
-// setup.  When the user confirms readiness, it emits preflightConfirmed() and
-// the AppContent Loader swaps to CaptureCountdownOverlay.
-//
-// On platforms where Focus setup is not needed (Android with programmatic DND),
-// AppContent loads CaptureCountdownOverlay directly, skipping this overlay.
+// Modern redesign: Clean card with staged instructions, SVG icon badges,
+// proper button hierarchy (outlined secondary → filled primary), smooth entry.
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme" as T
+import "../widgets"
 
 Rectangle {
     id: root
     anchors.fill: parent
-    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.88)
+    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.86)
     z: 2100
 
-    // 5WHY: The preflight overlay only handles Focus/DND setup
-    // confirmation.  When the user confirms readiness, it emits
-    // preflightConfirmed and AppContent switches to the standalone
-    // countdown overlay.
+    // ── Entry animation ─────────────────────────────────────────────
+    scale: 0.92; opacity: 0
+    Behavior on scale  { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+    Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+    Component.onCompleted: { scale = 1.0; opacity = 1.0 }
+
     signal preflightConfirmed()
     signal cancelled()
 
-    // 5WHY: On iOS (needsFocusModeSetup=true), the user must manually enable
-    // Focus/DND mode before capture.  The "I'm Ready" button confirms this
-    // and requests the transition to the countdown overlay.
-    // On Android (needsFocusModeSetup=false), this overlay is skipped entirely
-    // by AppContent — the countdown loads directly.
-
-    MouseArea { anchors.fill: parent } // absorb clicks — don't dismiss
+    MouseArea { anchors.fill: parent } // absorb clicks
 
     // ── Card ────────────────────────────────────────────────────────
     Rectangle {
+        id: card
         anchors.centerIn: parent
-        width: Math.min(380, parent.width * 0.88)
+        width: Math.min(400, parent.width * 0.9)
         height: Math.min(preCol.implicitHeight + 48, parent.height * 0.92)
-        radius: 20
+        radius: 24
         color: T.ThemeEngine.colors.card
-        border { width: 1; color: T.ThemeEngine.colors.borderCard }
+        border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.borderCard, 0.6) }
         clip: true
+
+        // Top accent
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: 3; radius: 3
+            color: T.ThemeEngine.warnYellow
+        }
 
         Flickable {
             id: cardFlick
@@ -55,97 +56,177 @@ Rectangle {
             ColumnLayout {
                 id: preCol
                 width: cardFlick.width
-                spacing: 16
-                anchors { left: parent.left; leftMargin: 28; right: parent.right; rightMargin: 28; top: parent.top; topMargin: 28 }
+                spacing: 18
+                anchors {
+                    left: parent.left; leftMargin: 28
+                    right: parent.right; rightMargin: 28
+                    top: parent.top; topMargin: 28
+                }
 
+                // ── Icon ────────────────────────────────────────────
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 80; implicitHeight: 80; radius: 40
+                    implicitWidth: 72; implicitHeight: 72; radius: 36
                     color: Qt.alpha(T.ThemeEngine.warnYellow, 0.10)
-                    Label {
+                    border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.2) }
+                    AppIcon {
                         anchors.centerIn: parent
-                        text: "⚠️"
-                        font.pixelSize: 40
+                        name: "warning"; size: 34
+                        color: T.ThemeEngine.warnYellow
                     }
+                }
+
+                // ── Title ───────────────────────────────────────────
+                Label {
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                    text: "Prepare to Capture"
+                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 20
+                    font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
                 }
 
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: "Prepare to Capture"
-                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 18
-                    font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
+                    text: "A few things to check before we begin."
+                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
+                    color: T.ThemeEngine.textSecondary
                 }
 
+                // ── Checklist items ─────────────────────────────────
                 ColumnLayout {
-                    spacing: 6
-                    Layout.fillWidth: true
-                    Label { text: "• Please do not touch the device"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
+                    spacing: 10
+                    // Item 1
+                    RowLayout {
+                        spacing: 12
+                        AppIcon { name: "badge-info"; size: 18; color: T.ThemeEngine.textSecondary }
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Please do not touch the device during capture"
+                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                        }
+                    }
+                    // Item 2
+                    RowLayout {
+                        spacing: 12
+                        AppIcon { name: "sun"; size: 18; color: T.ThemeEngine.textSecondary }
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Screen will stay awake during the session"
+                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                        }
+                    }
+                    // Item 3
+                    RowLayout {
+                        spacing: 12
+                        AppIcon { name: "timer"; size: 18; color: T.ThemeEngine.textSecondary }
+                        Label {
+                            Layout.fillWidth: true
+                            text: "Estimated duration: ~45 seconds"
+                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            color: T.ThemeEngine.textSecondary
+                        }
+                    }
+                }
 
-                    // ── DND / Focus mode guide ──────────────────────────────
-                    Rectangle {
-                        Layout.fillWidth: true; implicitHeight: focusCol.implicitHeight + 20; radius: 12
-                        color: Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
-                        border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.25) }
-                        ColumnLayout {
-                            id: focusCol
-                            anchors { fill: parent; margins: 12 }
+                // ── DND / Focus mode guide card ─────────────────────
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: dndCol.implicitHeight + 20
+                    radius: 14
+                    color: Qt.alpha(T.ThemeEngine.warnYellow, 0.06)
+                    border { width: 1; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.18) }
+
+                    ColumnLayout {
+                        id: dndCol
+                        anchors { fill: parent; margins: 16 }
+                        spacing: 10
+
+                        RowLayout {
                             spacing: 8
+                            AppIcon { name: "warning"; size: 16; color: T.ThemeEngine.warnYellow }
                             Label {
-                                Layout.fillWidth: true; wrapMode: Text.WordWrap
-                                text: "⚠️ Focus / Do Not Disturb must be enabled manually.\n\nThis device requires a one-time permission or manual\nsetup before notifications can be suppressed.\n\n1. Tap below to open Settings\n2. Enable Focus/DND (or grant notification access)\n   (iOS 18+: if app Settings opens, tap back then Focus)\n3. Return here and tap 'I'm Ready'"
-                                font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
-                                color: T.ThemeEngine.textSecondary
+                                text: "Focus / Do Not Disturb must be enabled"
+                                font.family: T.ThemeEngine.monoFont
+                                font.pixelSize: 12; font.weight: Font.DemiBold
+                                color: T.ThemeEngine.warnYellow
                             }
-                            RowLayout { spacing: 8
-                                Rectangle {
-                                    Layout.fillWidth: true; implicitHeight: 36; radius: 8
-                                    color: Qt.alpha(T.ThemeEngine.cyan, 0.12)
-                                    border { width: 1; color: T.ThemeEngine.cyan }
+                        }
+
+                        Label {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            text: "This device requires manual setup before notifications can be suppressed.\n\n1. Open Settings below\n2. Enable Focus / DND (or grant notification access)\n3. Return here and tap \"I'm Ready\""
+                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
+                            color: T.ThemeEngine.textSecondary; lineHeight: 1.5
+                        }
+
+                        RowLayout {
+                            spacing: 10
+                            // Open Settings
+                            Rectangle {
+                                Layout.fillWidth: true; implicitHeight: 42; radius: 10
+                                color: "transparent"
+                                border { width: 1.5; color: Qt.alpha(T.ThemeEngine.warnYellow, 0.35) }
+                                scale: settingsMa.pressed ? 0.97 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+                                RowLayout {
+                                    anchors.centerIn: parent; spacing: 6
+                                    AppIcon { name: "gear"; size: 14; color: T.ThemeEngine.warnYellow }
                                     Label {
-                                        anchors.centerIn: parent
                                         text: "Open Settings"
-                                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
-                                        color: T.ThemeEngine.cyan
-                                    }
-                                    MouseArea {
-                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                        onClicked: { if (captureOrchestrator) captureOrchestrator.openFocusSettings() }
+                                        font.family: T.ThemeEngine.monoFont
+                                        font.pixelSize: 12; font.weight: Font.DemiBold
+                                        color: T.ThemeEngine.warnYellow
                                     }
                                 }
-                                Rectangle {
-                                    Layout.fillWidth: true; implicitHeight: 36; radius: 8
-                                    color: T.ThemeEngine.cyan
+                                MouseArea {
+                                    id: settingsMa
+                                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: { if (captureOrchestrator) captureOrchestrator.openFocusSettings() }
+                                }
+                            }
+                            // I'm Ready
+                            Rectangle {
+                                Layout.fillWidth: true; implicitHeight: 42; radius: 10
+                                color: T.ThemeEngine.cyan
+                                scale: readyMa.pressed ? 0.97 : 1.0
+                                Behavior on scale { NumberAnimation { duration: 100 } }
+                                RowLayout {
+                                    anchors.centerIn: parent; spacing: 6
+                                    AppIcon { name: "check"; size: 14; color: "#0F172A" }
                                     Label {
-                                        anchors.centerIn: parent
-                                        text: "✓ I'm Ready"
-                                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
+                                        text: "I'm Ready"
+                                        font.family: T.ThemeEngine.monoFont
+                                        font.pixelSize: 12; font.weight: Font.Bold
                                         color: "#0F172A"
                                     }
-                                    MouseArea {
-                                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.preflightConfirmed()
-                                    }
+                                }
+                                MouseArea {
+                                    id: readyMa
+                                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.preflightConfirmed()
                                 }
                             }
                         }
                     }
-
-                    Label { text: "• Screen will stay awake"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
-                    Label { text: "• Estimated time: ~45 seconds"; font.family: T.ThemeEngine.monoFont; font.pixelSize: 12; color: T.ThemeEngine.textSecondary }
                 }
 
-                // Cancel button
+                // ── Cancel button ───────────────────────────────────
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 12
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 14
                     color: "transparent"
-                    border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.3) }
+                    border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.25) }
+                    scale: cancelMa2.pressed ? 0.97 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
                     Label {
                         anchors.centerIn: parent
                         text: "Cancel Capture"
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
+                        font.family: T.ThemeEngine.monoFont
+                        font.pixelSize: 14; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary
                     }
                     MouseArea {
+                        id: cancelMa2
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: root.cancelled()
                     }

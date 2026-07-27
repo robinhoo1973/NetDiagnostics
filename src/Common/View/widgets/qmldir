@@ -4,6 +4,9 @@
 # directory scanning and ensures all widget types resolve at QML load time.
 AppBar 1.0 AppBar.qml
 AppIcon 1.0 AppIcon.qml
+ShadowIcon 1.0 ShadowIcon.qml
+ShadowSeparator 1.0 ShadowSeparator.qml
+ShadowText 1.0 ShadowText.qml
 DiagnosticToolbar 1.0 DiagnosticToolbar.qml
 DiagGroupPanel 1.0 DiagGroupPanel.qml
 DiagResultItem 1.0 DiagResultItem.qml

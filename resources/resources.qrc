@@ -29,6 +29,9 @@
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
         <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
+        <file alias="qml/widgets/ShadowIcon.qml">../src/Common/View/widgets/ShadowIcon.qml</file>
+        <file alias="qml/widgets/ShadowSeparator.qml">../src/Common/View/widgets/ShadowSeparator.qml</file>
+        <file alias="qml/widgets/ShadowText.qml">../src/Common/View/widgets/ShadowText.qml</file>
         <file alias="qml/widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="qml/widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>
         <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
@@ -78,6 +81,9 @@
         <file>icons/brightness.svg</file>
         <file>icons/moon.svg</file>
         <file>icons/spinner.svg</file>
+        <file>icons/sun.svg</file>
+        <file>icons/video.svg</file>
+        <file>icons/image.svg</file>
         <file>icons/netanalysis.ico</file>
 
         <!-- Fonts (stay in resources/) -->

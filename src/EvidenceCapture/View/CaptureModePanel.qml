@@ -3,37 +3,37 @@
 // =============================================================================
 // Design ref: docs/AutomatedEvidenceCapture_Design.md §2.1
 //
-// Shown after user double-clicks the Settings app icon.
-// User selects: Screenshots + Recording (independent checkboxes) + diagnostic URL.
+// Modern redesign (2026-07): Card-based mode toggles with SVG iconography,
+// smooth scale-in entry animation, glass-morphism backdrop, Material Design 3
+// inspired selection states, and proper button hierarchy.
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme" as T
+import "../widgets"
 
 Rectangle {
     id: root
     anchors.fill: parent
-    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.85)
+    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.82)
     z: 2000
 
-    // 5WHY: iOS ReplayKit supports simultaneous recording+screenshot (Both mode)
-    // so the user can independently toggle Screenshots and Recording via checkboxes.
-    // Android's MediaProjection cannot take screenshots during recording — the user
-    // must choose ONE mode via radio buttons.
-    // 5WHY: On Android (!supportsBothModes), default to ScreenshotOnly.
-    // Defaulting both to true would produce computedMode=2 (Both) which is
-    // unsupported — screenshots during recording would fail/corrupt on Android.
+    // ── Scale-in animation ──────────────────────────────────────────
+    scale: 0.92; opacity: 0
+    Behavior on scale  { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
+    Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+    Component.onCompleted: { scale = 1.0; opacity = 1.0 }
+
+    // ── State ───────────────────────────────────────────────────────
     property bool wantsScreenshot: true
     property bool wantsRecording: captureOrchestrator ? captureOrchestrator.supportsBothModes : false
     property string diagUrl: appState.target || "https://httpbin.org"
 
-    // Compute the capture mode int from checkbox/radio state.
-    // 0=ScreenshotOnly, 1=RecordingOnly, 2=Both (iOS only)
     readonly property int computedMode: (wantsScreenshot && wantsRecording) ? 2
                                       : wantsScreenshot ? 0
                                       : wantsRecording ? 1
-                                      : -1  // nothing selected — Start button disabled
+                                      : -1
 
     signal startRequested(int mode, string url)
     signal cancelled()
@@ -44,99 +44,149 @@ Rectangle {
         onClicked: root.cancelled()
     }
 
+    // ── Main card ───────────────────────────────────────────────────
     Rectangle {
+        id: card
         anchors.centerIn: parent
-        width: Math.min(400, parent.width * 0.9)
+        width: Math.min(420, parent.width * 0.92)
         implicitHeight: panelCol.implicitHeight + 48
-        // 5WHY: No max-height constraint — on landscape the dialog can overflow.
         height: Math.min(implicitHeight, parent.height * 0.92)
-        radius: 20
+        radius: 24
         color: T.ThemeEngine.colors.card
-        border { width: 1; color: T.ThemeEngine.colors.borderFocused }
+        border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.borderCard, 0.6) }
         clip: true
 
-        // Absorb clicks inside the card
-        MouseArea { anchors.fill: parent }
+        // Subtle top accent line
+        Rectangle {
+            anchors { top: parent.top; left: parent.left; right: parent.right }
+            height: 3
+            radius: 3
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: T.ThemeEngine.primary }
+                GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+            }
+        }
+
+        MouseArea { anchors.fill: parent } // absorb clicks
 
         ColumnLayout {
             id: panelCol
-            anchors { fill: parent; margins: 24 }
-            spacing: 16
+            anchors { fill: parent; margins: 28 }
+            spacing: 20
 
-            // Title
-            Label {
-                text: "🎬 Capture Mode"
-                font.family: T.ThemeEngine.monoFont
-                font.pixelSize: 18; font.weight: Font.Bold
-                color: T.ThemeEngine.textPrimary
+            // ── Header ──────────────────────────────────────────────
+            RowLayout {
+                spacing: 12
+                AppIcon { name: "camera"; size: 26; color: T.ThemeEngine.cyan }
+                Label {
+                    text: "Capture Mode"
+                    font.family: T.ThemeEngine.monoFont
+                    font.pixelSize: 20; font.weight: Font.Bold
+                    color: T.ThemeEngine.textPrimary
+                }
             }
 
             Label {
                 Layout.fillWidth: true
-                text: "Select capture options and enter a diagnostic URL."
+                text: "Choose how you'd like to capture evidence during diagnostics."
                 font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
                 color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                lineHeight: 1.4
             }
 
-            // Mode selector — independent checkboxes
+            // ── Mode selector cards ─────────────────────────────────
             ColumnLayout {
-                spacing: 8
-                // Screenshots checkbox
+                spacing: 10
+
+                // ── Screenshots card ────────────────────────────────
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 52; radius: 12
+                    id: screenshotCard
+                    Layout.fillWidth: true; implicitHeight: 66; radius: 14
                     color: root.wantsScreenshot
-                           ? Qt.alpha(T.ThemeEngine.cyan, 0.12)
-                           : "transparent"
+                           ? Qt.alpha(T.ThemeEngine.cyan, 0.10)
+                           : Qt.alpha(T.ThemeEngine.colors.input, 0.3)
                     border {
-                        width: root.wantsScreenshot ? 1.5 : 1
+                        width: root.wantsScreenshot ? 2 : 1
                         color: root.wantsScreenshot
                                ? T.ThemeEngine.cyan
-                               : T.ThemeEngine.colors.borderCard
+                               : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.5)
                     }
+                    // Smooth color transition
+                    Behavior on color  { ColorAnimation { duration: 200 } }
+                    Behavior on border.color { ColorAnimation { duration: 200 } }
+
+                    // Subtle glow when selected
+                    Rectangle {
+                        anchors.fill: parent; radius: 14
+                        visible: root.wantsScreenshot
+                        color: "transparent"
+                        border { width: 3; color: Qt.alpha(T.ThemeEngine.cyan, 0.08) }
+                    }
+
                     RowLayout {
-                        anchors { fill: parent; margins: 12 }
-                        spacing: 12
-                        // Checkbox indicator
+                        anchors { fill: parent; margins: 14 }
+                        spacing: 14
+
+                        // Icon container
                         Rectangle {
-                            implicitWidth: 22; implicitHeight: 22; radius: 4
+                            implicitWidth: 40; implicitHeight: 40; radius: 10
                             color: root.wantsScreenshot
-                                   ? T.ThemeEngine.cyan
-                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.15)
-                            border { width: 1.5; color: root.wantsScreenshot ? T.ThemeEngine.cyan : T.ThemeEngine.colors.borderCard }
-                            Label {
+                                   ? Qt.alpha(T.ThemeEngine.cyan, 0.18)
+                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.08)
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                            AppIcon {
                                 anchors.centerIn: parent
-                                text: "✓"
-                                visible: root.wantsScreenshot
-                                font.pixelSize: 14; font.weight: Font.Bold
-                                color: "#0F172A"
+                                name: "camera"; size: 22
+                                color: root.wantsScreenshot ? T.ThemeEngine.cyan : T.ThemeEngine.textSecondary
                             }
                         }
-                        Label {
-                            text: "📸"
-                            font.pixelSize: 22
-                        }
+
                         ColumnLayout {
                             spacing: 2
                             Label {
                                 text: "Screenshots"
                                 font.family: T.ThemeEngine.monoFont
-                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
                             }
                             Label {
-                                text: "Capture screenshots of each diagnostic page"
+                                text: "Capture each diagnostic page as images"
                                 font.family: T.ThemeEngine.monoFont
-                                font.pixelSize: 10
+                                font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }
                         }
+
+                        Item { Layout.fillWidth: true }
+
+                        // Selection indicator
+                        Rectangle {
+                            implicitWidth: 24; implicitHeight: 24; radius: 12
+                            color: root.wantsScreenshot
+                                   ? T.ThemeEngine.cyan
+                                   : "transparent"
+                            border {
+                                width: 2
+                                color: root.wantsScreenshot
+                                       ? T.ThemeEngine.cyan
+                                       : Qt.alpha(T.ThemeEngine.textSecondary, 0.3)
+                            }
+                            Behavior on color        { ColorAnimation { duration: 200 } }
+                            Behavior on border.color { ColorAnimation { duration: 200 } }
+                            AppIcon {
+                                anchors.centerIn: parent
+                                name: "check"; size: 14
+                                color: root.wantsScreenshot ? "#0F172A" : "transparent"
+                                visible: root.wantsScreenshot
+                            }
+                        }
                     }
+
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            // 5WHY: On Android (supportsBothModes=false), the two modes
-                            // are mutually exclusive — selecting one deselects the other.
                             if (captureOrchestrator && !captureOrchestrator.supportsBothModes) {
                                 root.wantsScreenshot = !root.wantsScreenshot
                                 if (root.wantsScreenshot) root.wantsRecording = false
@@ -147,56 +197,86 @@ Rectangle {
                     }
                 }
 
-                // Recording checkbox (or radio on Android)
+                // ── Recording card ──────────────────────────────────
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 52; radius: 12
+                    id: recordingCard
+                    Layout.fillWidth: true; implicitHeight: 66; radius: 14
                     color: root.wantsRecording
-                           ? Qt.alpha(T.ThemeEngine.cyan, 0.12)
-                           : "transparent"
+                           ? Qt.alpha(T.ThemeEngine.cyan, 0.10)
+                           : Qt.alpha(T.ThemeEngine.colors.input, 0.3)
                     border {
-                        width: root.wantsRecording ? 1.5 : 1
+                        width: root.wantsRecording ? 2 : 1
                         color: root.wantsRecording
                                ? T.ThemeEngine.cyan
-                               : T.ThemeEngine.colors.borderCard
+                               : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.5)
                     }
+                    Behavior on color  { ColorAnimation { duration: 200 } }
+                    Behavior on border.color { ColorAnimation { duration: 200 } }
+
+                    Rectangle {
+                        anchors.fill: parent; radius: 14
+                        visible: root.wantsRecording
+                        color: "transparent"
+                        border { width: 3; color: Qt.alpha(T.ThemeEngine.cyan, 0.08) }
+                    }
+
                     RowLayout {
-                        anchors { fill: parent; margins: 12 }
-                        spacing: 12
-                        // Checkbox indicator
+                        anchors { fill: parent; margins: 14 }
+                        spacing: 14
+
                         Rectangle {
-                            implicitWidth: 22; implicitHeight: 22; radius: 4
+                            implicitWidth: 40; implicitHeight: 40; radius: 10
                             color: root.wantsRecording
-                                   ? T.ThemeEngine.cyan
-                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.15)
-                            border { width: 1.5; color: root.wantsRecording ? T.ThemeEngine.cyan : T.ThemeEngine.colors.borderCard }
-                            Label {
+                                   ? Qt.alpha(T.ThemeEngine.cyan, 0.18)
+                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.08)
+                            Behavior on color { ColorAnimation { duration: 200 } }
+                            AppIcon {
                                 anchors.centerIn: parent
-                                text: "✓"
-                                visible: root.wantsRecording
-                                font.pixelSize: 14; font.weight: Font.Bold
-                                color: "#0F172A"
+                                name: "video"; size: 22
+                                color: root.wantsRecording ? T.ThemeEngine.cyan : T.ThemeEngine.textSecondary
                             }
                         }
-                        Label {
-                            text: "🎥"
-                            font.pixelSize: 22
-                        }
+
                         ColumnLayout {
                             spacing: 2
                             Label {
                                 text: "Screen Recording"
                                 font.family: T.ThemeEngine.monoFont
-                                font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.pixelSize: 14; font.weight: Font.DemiBold
                                 color: T.ThemeEngine.textPrimary
                             }
                             Label {
                                 text: "Record video of the automated diagnostic flow"
                                 font.family: T.ThemeEngine.monoFont
-                                font.pixelSize: 10
+                                font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
                             }
                         }
+
+                        Item { Layout.fillWidth: true }
+
+                        Rectangle {
+                            implicitWidth: 24; implicitHeight: 24; radius: 12
+                            color: root.wantsRecording
+                                   ? T.ThemeEngine.cyan
+                                   : "transparent"
+                            border {
+                                width: 2
+                                color: root.wantsRecording
+                                       ? T.ThemeEngine.cyan
+                                       : Qt.alpha(T.ThemeEngine.textSecondary, 0.3)
+                            }
+                            Behavior on color        { ColorAnimation { duration: 200 } }
+                            Behavior on border.color { ColorAnimation { duration: 200 } }
+                            AppIcon {
+                                anchors.centerIn: parent
+                                name: "check"; size: 14
+                                color: root.wantsRecording ? "#0F172A" : "transparent"
+                                visible: root.wantsRecording
+                            }
+                        }
                     }
+
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
@@ -212,74 +292,126 @@ Rectangle {
                 }
             }
 
-            // Both-selected indicator (iOS only — Android doesn't support Both)
-            Label {
+            // ── Both-mode badge ─────────────────────────────────────
+            Rectangle {
                 visible: root.computedMode === 2 && captureOrchestrator && captureOrchestrator.supportsBothModes
-                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: "📸+🎥  Both modes enabled — recommended for complete evidence"
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 10
-                color: T.ThemeEngine.cyan
-            }
-
-            // URL input
-            ColumnLayout {
-                spacing: 4
-                Label {
-                    text: "Diagnostic URL:"
-                    font.family: T.ThemeEngine.monoFont; font.pixelSize: 12
-                    color: T.ThemeEngine.textSecondary
-                }
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 42; radius: 8
-                    color: T.ThemeEngine.bgInput
-                    border { width: 1; color: T.ThemeEngine.colors.borderCard }
-                    TextInput {
-                        id: urlInput
-                        anchors { fill: parent; margins: 10 }
-                        text: root.diagUrl
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
-                        color: T.ThemeEngine.textPrimary
-                        clip: true
-                        onTextChanged: root.diagUrl = text
+                Layout.fillWidth: true; implicitHeight: 32; radius: 8
+                color: Qt.alpha(T.ThemeEngine.cyan, 0.08)
+                border { width: 1; color: Qt.alpha(T.ThemeEngine.cyan, 0.2) }
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 6
+                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.cyan }
+                    Label {
+                        text: "Both modes — complete evidence capture"
+                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
+                        color: T.ThemeEngine.cyan
                     }
                 }
             }
 
-            // Action buttons
+            // ── Divider ─────────────────────────────────────────────
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: 1
+                color: Qt.alpha(T.ThemeEngine.colors.borderCard, 0.4)
+            }
+
+            // ── URL input ───────────────────────────────────────────
+            ColumnLayout {
+                spacing: 6
+                RowLayout {
+                    spacing: 6
+                    AppIcon { name: "globe"; size: 14; color: T.ThemeEngine.textSecondary }
+                    Label {
+                        text: "Diagnostic URL"
+                        font.family: T.ThemeEngine.monoFont
+                        font.pixelSize: 12; font.weight: Font.DemiBold
+                        color: T.ThemeEngine.textSecondary
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 44; radius: 10
+                    color: T.ThemeEngine.bgInput
+                    border {
+                        width: 1
+                        color: urlInput.activeFocus
+                               ? T.ThemeEngine.cyan
+                               : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.5)
+                    }
+                    Behavior on border.color { ColorAnimation { duration: 200 } }
+                    RowLayout {
+                        anchors { fill: parent; margins: 12 }
+                        spacing: 8
+                        AppIcon { name: "target"; size: 16; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.5) }
+                        TextInput {
+                            id: urlInput
+                            Layout.fillWidth: true
+                            text: root.diagUrl
+                            font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
+                            color: T.ThemeEngine.textPrimary
+                            clip: true
+                            selectByMouse: true
+                            onTextChanged: root.diagUrl = text
+                        }
+                    }
+                }
+            }
+
+            // ── Action buttons ──────────────────────────────────────
             RowLayout {
                 spacing: 12
+                // Cancel button
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 12
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 14
                     color: "transparent"
-                    border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.3) }
+                    border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.25) }
+                    // Hover feedback via scale
+                    scale: cancelMa.pressed ? 0.97 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 100 } }
                     Label {
                         anchors.centerIn: parent
                         text: "Cancel"
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
+                        font.family: T.ThemeEngine.monoFont
+                        font.pixelSize: 14; font.weight: Font.DemiBold
                         color: T.ThemeEngine.textSecondary
                     }
                     MouseArea {
+                        id: cancelMa
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: root.cancelled()
                     }
                 }
+                // Start button
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 12
-                    // 5WHY: Disable the Start button visually when nothing is
-                    // selected (computedMode == -1).  Previously the user could
-                    // tap Start with no mode selected, producing a meaningless
-                    // session with zero screenshots and no recording.
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 14
                     color: root.computedMode >= 0
                            ? T.ThemeEngine.cyan
-                           : Qt.alpha(T.ThemeEngine.textSecondary, 0.2)
-                    Label {
+                           : Qt.alpha(T.ThemeEngine.textSecondary, 0.15)
+                    scale: startMa.pressed && root.computedMode >= 0 ? 0.97 : 1.0
+                    Behavior on scale  { NumberAnimation { duration: 100 } }
+                    Behavior on color  { ColorAnimation { duration: 200 } }
+                    // Gradient accent for enabled state
+                    gradient: root.computedMode >= 0 ? Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0.0; color: T.ThemeEngine.primary }
+                        GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+                    } : null
+                    RowLayout {
                         anchors.centerIn: parent
-                        text: "▶ Start Capture"
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 14
-                        font.weight: Font.Bold
-                        color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
+                        spacing: 8
+                        AppIcon {
+                            name: "play"; size: 16
+                            color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
+                        }
+                        Label {
+                            text: "Start Capture"
+                            font.family: T.ThemeEngine.monoFont
+                            font.pixelSize: 15; font.weight: Font.Bold
+                            color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
+                        }
                     }
                     MouseArea {
+                        id: startMa
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         enabled: root.computedMode >= 0
                         onClicked: root.startRequested(root.computedMode, root.diagUrl)

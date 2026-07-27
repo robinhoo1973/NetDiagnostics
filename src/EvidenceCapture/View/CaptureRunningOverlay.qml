@@ -40,91 +40,12 @@ import "../theme" as T
 import "../widgets"
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Inline components — eliminate duplicated shadow-layer patterns
-// ═════════════════════════════════════════════════════════════════════════════
-
-// 5WHY: The "AppIcon + 1px-offset shadow AppIcon" pattern was duplicated
-// identically for camera and list-checks icons.  If shadow offset, color,
-// or rendering approach changes, updating both sites risks drift.  Extract
-// once so the icon shadow is a single design decision.
-component ShadowIcon: Item {
-    property string iconName: ""
-    property color  foregroundColor: "white"
-    property color  shadowColor: "#80000000"
-    property int    iconSize: 15
-    // 5WHY: 1 logical pixel = Screen.devicePixelRatio physical pixels.
-    // At 2× DPR → 2 phys px, 3× → 3 phys px.  More visible on HiDPI,
-    // not less.  Qt Quick handles this automatically via logical coords.
-    property int    shadowOffset: 1
-
-    implicitWidth: iconSize; implicitHeight: iconSize
-
-    // Drop-shadow layer — offset to bottom-right matches Text.Raised
-    // light-source convention (light from top-left).
-    // 5WHY: anchors.fill + leftMargin:N shrinks the child to W-N × H-N
-    // (here: 14×14) which is fully covered by the 15×15 foreground AppIcon
-    // at (0,0) — invisible shadow.  Anchor only left+top with explicit
-    // width/height so the shadow keeps full parent dimensions at offset
-    // (1,1)→(15,15), peeking out 1px beyond foreground at (0,0)→(14,14).
-    AppIcon {
-        anchors.left: parent.left
-        anchors.leftMargin: parent.shadowOffset
-        anchors.top: parent.top
-        anchors.topMargin: parent.shadowOffset
-        width: parent.width
-        height: parent.height
-        name: parent.iconName; size: parent.iconSize
-        color: parent.shadowColor
-    }
-    // Foreground icon
-    AppIcon {
-        anchors.fill: parent
-        name: parent.iconName; size: parent.iconSize
-        color: parent.foregroundColor
-    }
-}
-
-// 5WHY: The thin vertical separator with a 1px-offset shadow child was
-// duplicated at both separator positions.  If the separator style changes
-// (thickness, color, shadow direction), updating both sites risks drift.
-//
-// 5WHY (import alias in component body): The import "../theme" as T alias
-// MAY NOT resolve inside inline component default property bindings on some
-// Qt 6.x versions (especially static iOS builds).  All other inline components
-// in this codebase reference ThemeEngine directly without an alias.  To avoid
-// a silent QML compilation failure that causes the entire overlay to be blank,
-// we defer T.ThemeEngine references to the call site, where the alias IS
-// guaranteed to resolve correctly in the root Rectangle's scope.
-component ShadowSeparator: Rectangle {
-    property color lineColor: "white"    // required — overridden at call site
-    property color shadowColor: "white"  // required — overridden at call site
-
-    implicitWidth: 1; implicitHeight: 16
-    color: lineColor
-
-    // Drop-shadow — offset to bottom-right matches Text.Raised convention.
-    // Anchor only left+top with margins so the shadow keeps the parent's
-    // width and is visible (anchors.fill + leftMargin:1 would give the
-    // shadow 0 width when the parent is 1px wide — invisible shadow).
-    Rectangle {
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.leftMargin: 1; anchors.topMargin: 1
-        width: parent.width
-        height: parent.height
-        color: parent.shadowColor
-    }
-}
-
-// 5WHY: The Text.Raised + styleColor pattern was repeated 7 times on every
-// Text element in the status bar.  Extract once so the shadow convention
-// (Text.Raised light-source top-left → shadow bottom-right) is a single
-// design decision — changing shadow color or style is a one-line edit.
-component ShadowText: Text {
-    style: Text.Raised
-    styleColor: "#80000000"
-}
-
+// Shadow components (ShadowIcon, ShadowSeparator, ShadowText) are now in
+// src/Common/View/widgets/ — imported via "../widgets" above.  Qt 6.8.3's
+// qmlimportscanner does not support inline `component` declarations in QRC
+// builds, producing "Syntax error" during qt-cmake configure.  Moving them
+// to standalone QML files resolves the scanner limitation while preserving
+// the single-edit design decision for shadow conventions.
 // ═════════════════════════════════════════════════════════════════════════════
 // Root — semi-transparent floating HUD with shadow-augmented child elements
 // ═════════════════════════════════════════════════════════════════════════════
