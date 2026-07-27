@@ -104,7 +104,8 @@ Item {
     ColumnLayout {
         anchors.fill: parent; spacing: 0
 
-        // AppBar (matches Dashboard/Settings/Config — 48px Material compact)
+        // AppBar (matches Dashboard/Settings — 48px Material compact.
+        // ConfigScreen is 84px because its TabBar lives in the same block.)
         // 5WHY: PDF/HTML share buttons were in the AppBar competing for
         // horizontal space with the title.  They are now in the results
         // header ("Diagnostic Complete" bar) vertically centered across

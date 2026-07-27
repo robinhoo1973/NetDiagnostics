@@ -1175,10 +1175,6 @@ void CaptureOrchestrator::executeStep(int stepIndex) {
     }
 
     case StepAction::OpenReport: {
-        // 5WHY: Use signal-based relay in addition to C++ direct path
-        // for the same reliability reasons as the Navigate step above.
-        // The dashboard tab (index 0) is where the report preview lives.
-        emit navigateToTabRequested(0); // dashboard tab
         m_navAdapter->openReportPreview();
         m_waitingForReportPreview = true;
         // 5WHY: openReportPreview() is async — it defers openPreview() by

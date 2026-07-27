@@ -164,6 +164,15 @@ component ShadowSeparator: Rectangle {
     }
 }
 
+// 5WHY: The Text.Raised + styleColor pattern was repeated 7 times on every
+// Text element in the status bar.  Extract once so the shadow convention
+// (Text.Raised light-source top-left → shadow bottom-right) is a single
+// design decision — changing shadow color or style is a one-line edit.
+component ShadowText: Text {
+    style: Text.Raised
+    styleColor: "#80000000"
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Root — semi-transparent floating HUD with shadow-augmented child elements
 // ═════════════════════════════════════════════════════════════════════════════
@@ -251,16 +260,12 @@ Rectangle {
         }
 
         // Elapsed time: HH:MM:SS — formatted by C++ Display Model
-        // 5WHY: Text (QtQuick) replaces Label (QtQuick.Controls) so we
-        // can use style: Text.Raised for a built-in drop-shadow — no
-        // QtQuick.Effects import needed.
-        Text {
+        // 5WHY: ShadowText (inline component) provides Text.Raised drop-shadow
+        ShadowText {
             text: d ? d.elapsedDisplay : "00:00:00"
             font.family: T.ThemeEngine.monoFont
             font.pixelSize: 13; font.weight: Font.DemiBold
             color: T.ThemeEngine.textPrimary
-            style: Text.Raised
-            styleColor: "#80000000"
             Layout.minimumWidth: 72
             horizontalAlignment: Text.AlignHCenter
         }
@@ -282,13 +287,11 @@ Rectangle {
         }
 
         // Screenshot count
-        Text {
+        ShadowText {
             text: d ? d.countDisplay : " 0"
             font.family: T.ThemeEngine.monoFont
             font.pixelSize: 13; font.weight: Font.DemiBold
             color: T.ThemeEngine.cyan
-            style: Text.Raised
-            styleColor: "#80000000"
             Layout.minimumWidth: 22
             horizontalAlignment: Text.AlignRight
             visible: d ? d.showScreenshotGroup : false
@@ -312,31 +315,25 @@ Rectangle {
         // Task progress: current / total — formatted by C++ Display Model
         RowLayout {
             spacing: 1
-            Text {
+            ShadowText {
                 text: d ? d.stepDisplay : " 0"
                 font.family: T.ThemeEngine.monoFont
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.cyan
-                style: Text.Raised
-                styleColor: "#80000000"
                 Layout.minimumWidth: 18
                 horizontalAlignment: Text.AlignRight
             }
-            Text {
+            ShadowText {
                 text: "/"
                 font.family: T.ThemeEngine.monoFont
                 font.pixelSize: 11
                 color: T.ThemeEngine.textSecondary
-                style: Text.Raised
-                styleColor: "#80000000"
             }
-            Text {
+            ShadowText {
                 text: d ? d.totalDisplay : " 0"
                 font.family: T.ThemeEngine.monoFont
                 font.pixelSize: 13; font.weight: Font.DemiBold
                 color: T.ThemeEngine.textPrimary
-                style: Text.Raised
-                styleColor: "#80000000"
                 Layout.minimumWidth: 18
                 horizontalAlignment: Text.AlignRight
             }
