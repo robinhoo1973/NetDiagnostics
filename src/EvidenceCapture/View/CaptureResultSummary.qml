@@ -30,6 +30,12 @@ Rectangle {
     property int countdown: root.recordingFile !== "" ? 30 : 15
     property bool dismissed: false
 
+    // 5WHY: Hoist platform checks to a single readonly property instead of
+    // evaluating Qt.platform.os === "ios" in 7 separate QML property bindings
+    // (visible, color × 2, text, color, underline, cursorShape, enabled).
+    // The platform never changes at runtime, so one evaluation is sufficient.
+    readonly property bool _isIos: Qt.platform.os === "ios"
+
     signal dismissed()
 
     Timer {
@@ -44,7 +50,15 @@ Rectangle {
         }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: root.dismissed() }
+    MouseArea {
+        anchors.fill: parent
+        onClicked: {
+            if (!root.dismissed) {
+                root.dismissed = true
+                root.dismissed()
+            }
+        }
+    }
 
     Rectangle {
         anchors.centerIn: parent
@@ -145,31 +159,31 @@ Rectangle {
             //   Desktop: Hidden (no DND was ever active)
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 36; radius: 8
-                visible: Qt.platform.os === "ios" || Qt.platform.os === "android"
-                color: Qt.platform.os === "ios"
+                visible: _isIos || Qt.platform.os === "android"
+                color: _isIos
                     ? Qt.alpha(T.ThemeEngine.warnYellow, 0.08)
                     : Qt.alpha(T.ThemeEngine.passGreen, 0.08)
                 border { width: 1
-                    color: Qt.platform.os === "ios"
+                    color: _isIos
                         ? Qt.alpha(T.ThemeEngine.warnYellow, 0.2)
                         : Qt.alpha(T.ThemeEngine.passGreen, 0.2)
                 }
                 Label {
                     anchors { fill: parent; margins: 10 }
-                    text: Qt.platform.os === "ios"
+                    text: _isIos
                         ? "⚠ Focus/DND was enabled — tap here to open Settings and disable it"
                         : "✓ Focus/DND has been automatically disabled"
                     font.family: T.ThemeEngine.monoFont; font.pixelSize: 11
-                    color: Qt.platform.os === "ios"
+                    color: _isIos
                         ? T.ThemeEngine.warnYellow
                         : T.ThemeEngine.passGreen
-                    font.underline: Qt.platform.os === "ios"
+                    font.underline: _isIos
                     verticalAlignment: Text.AlignVCenter
                 }
                 MouseArea {
                     anchors.fill: parent
-                    cursorShape: Qt.platform.os === "ios" ? Qt.PointingHandCursor : Qt.ArrowCursor
-                    enabled: Qt.platform.os === "ios"
+                    cursorShape: _isIos ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    enabled: _isIos
                     onClicked: {
                         if (captureOrchestrator) {
                             captureOrchestrator.openFocusSettings()
@@ -193,7 +207,16 @@ Rectangle {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         countdownTimer.stop()
-                        root.dismissed()
+                        // 5WHY: Defensive guard — if the countdown auto-timer
+                        // fires on the same event-loop tick, root.dismissed
+                        // is already true and the signal was already emitted
+                        // (see countdownTimer.onTriggered).  Prevent double-fire
+                        // of the dismissed signal — the handler in AppContent
+                        // is idempotent, but a future handler may not be.
+                        if (!root.dismissed) {
+                            root.dismissed = true
+                            root.dismissed()
+                        }
                     }
                 }
             }

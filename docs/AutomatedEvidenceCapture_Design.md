@@ -392,6 +392,7 @@ enum class StepAction {
     WaitDiagComplete,   // 等待诊断完成
     OpenDetail,         // 打开诊断详情 (InternetConnectivity)
     OpenReport,         // 打开 Report 预览
+    CloseOverlay,       // 关闭当前页面的详情/预览浮层 (截图后清理)
 };
 
 struct CaptureStep {

@@ -127,7 +127,7 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
          "G1_NetworkAdapters",     false, false},
         {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
         {StepAction::Capture,        "G1_NetworkAdapters_Detail","", false},
-        {StepAction::CloseOverlay,   "", "",                         false, false},
+        {StepAction::CloseOverlay,   "", "Close overlay after G1_NetworkAdapters", false, false},
 
         // G2 — Default Gateway (Connectivity & Security)
         {StepAction::OpenDetail,
@@ -135,7 +135,7 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
          "G2_DefaultGateway",      false, false},
         {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
         {StepAction::Capture,        "G2_DefaultGateway_Detail","",   false},
-        {StepAction::CloseOverlay,   "", "",                         false, false},
+        {StepAction::CloseOverlay,   "", "Close overlay after G2_DefaultGateway", false, false},
 
         // G3 — Internet Connectivity (Internet & DNS)
         {StepAction::OpenDetail,
@@ -148,7 +148,7 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
         // 5WHY: Bottom capture without a preceding scroll is identical to Top.
         // Mark recordingOnly so screenshot mode skips this duplicate.
         {StepAction::Capture,        "G3_InternetConnectivity_Bottom","", false, true},
-        {StepAction::CloseOverlay,   "", "",                         false, false},
+        {StepAction::CloseOverlay,   "", "Close overlay after G3_InternetConnectivity", false, false},
 
         // G4 — Ping (Remote Host)
         {StepAction::OpenDetail,
@@ -156,7 +156,7 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
          "G4_Ping",                false, false},
         {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
         {StepAction::Capture,        "G4_Ping_Detail",          "",    false},
-        {StepAction::CloseOverlay,   "", "",                     false, false},
+        {StepAction::CloseOverlay,   "", "Close overlay after G4_Ping", false, false},
 
         // G5 — SSL Certificate (Protocol)
         {StepAction::OpenDetail,
@@ -164,7 +164,7 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
          "G5_SSLCertificate",      false, false},
         {StepAction::WaitPageReady,  "2000", "Detail render settle", false, false},
         {StepAction::Capture,        "G5_SSLCertificate_Detail","",    false},
-        {StepAction::CloseOverlay,   "", "",                         false, false},
+        {StepAction::CloseOverlay,   "", "Close overlay after G5_SSLCertificate", false, false},
 
         // ── Phase 4: Dashboard ─────────────────────────────────────────
         {StepAction::Navigate,       "0", "Dashboard_AfterDiag", false, false},
@@ -180,7 +180,7 @@ inline CaptureScenario buildDefaultScenario(const QString& diagUrl) {
         {StepAction::OpenReport,     "", "Report",              false, false},
         {StepAction::WaitPageReady,  "3000", "",                false, false},
         {StepAction::Capture,        "Report_Summary",         "",    false},
-        {StepAction::CloseOverlay,   "", "",                    false, false},
+        {StepAction::CloseOverlay,   "", "Close overlay after Report_Summary", false, false},
     });
 
     return s;

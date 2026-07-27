@@ -455,12 +455,18 @@ void NavigationAdapter::closeCurrentOverlay() {
     if (!currentItem) return;
 
     // Close detail overlay on DiagnosticScreen
-    QVariant detailOverlayVar = currentItem->property("detailOverlay");
-    if (detailOverlayVar.isValid()) {
-        QObject* detailOverlay = detailOverlayVar.value<QObject*>();
-        if (detailOverlay) {
-            bool visible = detailOverlay->property("visible").toBool();
-            if (visible) {
+    // 5WHY: Use invokeMethod("dismissDetailOverlay") for consistency with
+    // the established pattern in openDiagnosticDetail() (line 353).
+    // dismissDetailOverlay() is the designated API for programmatic overlay
+    // dismissal and triggers onVisibleChanged cleanup (clears detail fields,
+    // resets currentDetail).  Using the QML function directly is the intended
+    // path — it owns the overlay lifecycle.  Fall back to direct property
+    // access if the method is not invocable (defense in depth).
+    if (!QMetaObject::invokeMethod(currentItem, "dismissDetailOverlay")) {
+        QVariant detailOverlayVar = currentItem->property("detailOverlay");
+        if (detailOverlayVar.isValid()) {
+            QObject* detailOverlay = detailOverlayVar.value<QObject*>();
+            if (detailOverlay) {
                 detailOverlay->setProperty("visible", false);
             }
         }
