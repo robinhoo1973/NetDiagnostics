@@ -193,11 +193,14 @@ Rectangle {
                                 Behavior on scale { NumberAnimation { duration: 100 } }
                                 RowLayout {
                                     anchors.centerIn: parent; spacing: 6
-                                    AppIcon { name: "check"; size: 14; color: "#0F172A" }
+                                    AppIcon { name: "check"; size: 14
+                                        // 5WHY: Dark check on cyan-filled button is readable on both themes.
+                                        color: "#0F172A" }
                                     Label {
                                         text: "I'm Ready"
                                         font.family: T.ThemeEngine.monoFont
                                         font.pixelSize: 12; font.weight: Font.Bold
+                                        // 5WHY: Dark text on cyan button is readable on both themes.
                                         color: "#0F172A"
                                     }
                                 }

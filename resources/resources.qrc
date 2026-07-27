@@ -83,7 +83,6 @@
         <file>icons/spinner.svg</file>
         <file>icons/sun.svg</file>
         <file>icons/video.svg</file>
-        <file>icons/image.svg</file>
         <file>icons/netanalysis.ico</file>
 
         <!-- Fonts (stay in resources/) -->

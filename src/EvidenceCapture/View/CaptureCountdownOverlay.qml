@@ -119,7 +119,7 @@ Rectangle {
                     Behavior on opacity { NumberAnimation { duration: 400 } }
                 }
 
-                // Progress arc ring
+                // Decorative accent ring (static, not a progress arc — see progress bar below)
                 Rectangle {
                     anchors.centerIn: parent
                     width: 106; height: 106; radius: 53
@@ -128,7 +128,7 @@ Rectangle {
                         width: 3
                         color: T.ThemeEngine.cyan
                     }
-                    // Simulate progress arc via rotation clip (simplified: full ring with opacity)
+                    // Static accent ring framing the countdown number
                     opacity: 0.6
                 }
 

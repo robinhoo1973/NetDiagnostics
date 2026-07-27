@@ -298,6 +298,7 @@ Rectangle {
                     AppIcon {
                         name: root.isError ? "close" : "check"
                         size: 18
+                        // 5WHY: Dark text/icon on cyan-filled button is readable on both themes.
                         color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
                     }
                     Label {
