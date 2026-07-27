@@ -76,13 +76,11 @@ Rectangle {
     leftPadding: 14
     rightPadding: 14
 
-    // 5WHY (root-cause fix): A fully transparent background is a single
-    // point of failure — if ANY shadow fails (anchor bug, platform render
-    // difference, GPU driver), the bar is invisible.  Use a subtle
-    // semi-transparent surface-color background as a defensive fallback.
-    // At 45% opacity, diagnostic content still shows through while the
-    // pill shape remains visually anchored against any background.
-    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.45)
+    // 5WHY (root-cause fix, round 2): Qt.alpha(surface, 0.45) on a surface
+    // background is nearly invisible — same hue, 45% opacity blends into the
+    // diagnostic page.  Use card color at higher opacity for visible contrast:
+    // card (#1E293B) is distinctly lighter than surface (#0F172A) in dark theme.
+    color: Qt.alpha(T.ThemeEngine.colors.card, 0.88)
 
     // ── Hidden during screenshots ────────────────────────────────────
     opacity: captureOrchestrator && captureOrchestrator.suppressOverlay ? 0 : 1
