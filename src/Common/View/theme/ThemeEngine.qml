@@ -144,6 +144,9 @@ QtObject {
     // Now non-readonly, rebuilt inside applyTheme() so all 152 consumers
     // get reactive theme updates.
     property var colors: ({})
+    // 5WHY: Toast duration 3500ms was duplicated in 6 Timer declarations
+    // across 4 files.  Centralize so a UX change updates all toasts uniformly.
+    readonly property int toastDurationMs: 3500
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property string fontMono: "JetBrains Mono"
     readonly property string monoFont: fontMono

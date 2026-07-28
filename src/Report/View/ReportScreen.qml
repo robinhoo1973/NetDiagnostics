@@ -81,7 +81,7 @@ Item {
         }
     }
 
-    Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
+    Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
 
     // 5WHY: Preview image was static once generated. Auto-refresh when:
     // - Theme changes (dark/light toggle)

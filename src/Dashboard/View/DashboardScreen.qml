@@ -55,7 +55,7 @@ Item {
         appState.shareReport(fmt)
     }
 
-    Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
+    Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
 
     Connections {
         target: ThemeEngine

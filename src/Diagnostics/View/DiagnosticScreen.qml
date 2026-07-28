@@ -17,7 +17,7 @@ Item {
     property int shareStage: 0
     property string pendingShareFormat: ""
     property string toast: ""
-    Timer { id: toastTimer; interval: 3500; onTriggered: page.toast = "" }
+    Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
     function doShare(fmt) { pendingShareFormat = fmt; shareStage = appState.isPremium ? 2 : 1 }
     function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
 
