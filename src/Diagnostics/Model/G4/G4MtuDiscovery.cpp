@@ -21,17 +21,22 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     int discoveredMtu = 0, mss = 0;
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     // fd_set overflow guard: FD_SET with fd >= FD_SETSIZE corrupts the stack.
+    // 5WHY: FD_SETSIZE is 64 on Windows but SOCKET values >= 64 are common
+    // and valid — the guard would incorrectly reject valid sockets.  Skip
+    // on Windows; on Unix, fd_set is a fixed-size bitmap and overflow is
+    // undefined behavior.
+#ifndef _WIN32
     if (sock >= 0 && sock >= FD_SETSIZE) { closeSocket(sock); sock = -1; }
+#endif
     if (sock >= 0 && resolvedIp) {
         struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
         addr.sin_addr.s_addr = htonl(resolvedIp);
-        // 5WHY: setNonblockWin delegates to setSocketNonBlocking().  If the
-        // fcntl/ioctlsocket call fails, the socket stays blocking and
-        // ::connect() hangs for the OS TCP timeout (75-120s).
-        if (setNonblockWin(sock) != 0) { closeSocket(sock); sock = -1; }
-        QElapsedTimer t; t.start();
+        // 5WHY: If setSocketNonBlocking() fails, the socket stays blocking
+        // and ::connect() hangs for the OS TCP timeout (75-120s).
+        if (!setSocketNonBlocking(sock)) { closeSocket(sock); sock = -1; }
         if (sock >= 0) {
+            QElapsedTimer t; t.start();
         ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
         struct timeval tv = {3, 0};
@@ -52,8 +57,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 #endif
             }
         }
-        }
-        int rtt = (int)t.elapsed();
+            int rtt = (int)t.elapsed();
         if (mss > 0) {
             out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, ipStr).arg(mss));
             out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(ipStr).arg(mss).arg(rtt).arg(discoveredMtu));
@@ -62,6 +66,12 @@ DiagnosticResult mtuDiscovery(const QString& target) {
             out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
         }
         closeSocket(sock);
+        }
+    } else {
+        // 5WHY: If socket() succeeded but DNS resolution returned 0
+        // (timeout/NXDOMAIN), the outer if-body is skipped entirely
+        // and the fd leaks.  Close the orphaned socket.
+        if (sock >= 0) closeSocket(sock);
     }
     if (discoveredMtu == 0) {
         // 5WHY: discoveredMtu was hardcoded to 1500 BEFORE the interface

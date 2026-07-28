@@ -87,7 +87,7 @@ Rectangle {
                 RowLayout {
                     id: proRow
                     anchors.centerIn: parent; spacing: 5
-                    AppIcon { name: "badge-check"; size: 12; color: T.ThemeEngine.colors.warnYellow; nativeColor: false }
+                    AppIcon { name: "badge-check"; size: 12; color: T.ThemeEngine.colors.warnYellow }
                     Label { text: T.Tr.premiumBadge; color: T.ThemeEngine.colors.warnYellow
                         font.family: T.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
                 }

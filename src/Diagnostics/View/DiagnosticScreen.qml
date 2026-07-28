@@ -245,8 +245,7 @@ Item {
                 visible: appState.totalCompleted === 0 && appState.runStatus !== 1
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter
                     name: appState.runStatus === 4 ? "badge-error" : "diagnostics"
-                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1)
-                    nativeColor: false }
+                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: appState.runStatus === 4 ? Tr.errorCheck : Tr.runDiag

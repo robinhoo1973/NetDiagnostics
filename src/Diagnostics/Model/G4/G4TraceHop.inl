@@ -142,6 +142,11 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     // 鈹€鈹€ Fallback: TCP connect with TTL (no raw socket) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) { rttMs = 0; hopIp.clear(); return -2; }
+    // 5WHY: FD_SET with fd >= FD_SETSIZE (1024 on Linux) writes past the
+    // stack-allocated fd_set bitmap — undefined behavior / stack corruption.
+    // The ICMP raw-socket path above has this guard; the TCP fallback was
+    // missing it.  Close and return -1 so the caller can handle the error.
+    if (sock >= FD_SETSIZE) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
 
     setsockopt(sock, IPPROTO_IP, IP_TTL, reinterpret_cast<const char*>(&ttl), sizeof(ttl));
 
@@ -154,9 +159,9 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     addr.sin_port = htons(80);
     addr.sin_addr.s_addr = htonl(targetIp);
 
-    // 5WHY: If setNonblockWin (→ setSocketNonBlocking) fails, the socket
-    // stays blocking and ::connect() hangs for the OS TCP timeout (75-120s).
-    if (setNonblockWin(sock) != 0) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
+    // 5WHY: If setSocketNonBlocking() fails, the socket stays blocking
+    // and ::connect() hangs for the OS TCP timeout (75-120s).
+    if (!setSocketNonBlocking(sock)) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
     QElapsedTimer tm; tm.start();
     ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
 
@@ -211,7 +216,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
         addr.sin_family=AF_INET; addr.sin_port=htons(80);
         addr.sin_addr.s_addr=htonl(targetIp);
-        if (setNonblockWin(sock) != 0) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
+        if (!setSocketNonBlocking(sock)) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
         QElapsedTimer tm; tm.start();
         ::connect(sock,reinterpret_cast<struct sockaddr*>(&addr),sizeof(addr));
         fd_set wfds; FD_ZERO(&wfds); FD_SET(sock,&wfds);

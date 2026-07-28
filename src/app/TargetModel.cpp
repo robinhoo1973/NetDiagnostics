@@ -211,8 +211,18 @@ void TargetModel::syncFieldsFromTarget() {
     }
 
     if (!trimmed.contains(QStringLiteral("://"))) {
-        m_scheme = QStringLiteral("https"); m_host = trimmed; m_port = -1;
-        m_username.clear(); m_password.clear(); m_path.clear();
+        // 5WHY: syncFieldsFromTarget must split host/path the same way
+        // parseUrlIntoFields does, otherwise setTarget("host/path") lumps
+        // the path into m_host and DNS resolution fails.
+        int slash = trimmed.indexOf(QLatin1Char('/'));
+        if (slash >= 0) {
+            m_scheme = QStringLiteral("https"); m_host = trimmed.left(slash);
+            m_path = trimmed.mid(slash); m_port = -1;
+        } else {
+            m_scheme = QStringLiteral("https"); m_host = trimmed; m_port = -1;
+            m_path.clear();
+        }
+        m_username.clear(); m_password.clear();
         return;
     }
 
@@ -258,14 +268,14 @@ void TargetModel::syncFieldsFromTarget() {
 
 // ── QML-invokable: parse pasted URL into fields ─────────────────────────
 void TargetModel::parseUrlIntoFields(const QString& urlString) {
-    if (urlString.trimmed().isEmpty()) return;
-
     const QString trimmed = urlString.trimmed();
+    if (trimmed.isEmpty()) return;
+
     if (!trimmed.contains(QStringLiteral("://"))) {
-        // 5WHY: Two QML TextInput handlers (TargetInputPanel, DiagnosticToolbar)
-        // duplicated host/path splitting here.  Moving the split into the C++
-        // method eliminates the duplication.  Without this, typing "example.com/path"
-        // sets the ENTIRE string as host, which fails DNS resolution.
+        // 5WHY: Bare-domain input (no ://) was setting m_host/m_path but NOT
+        // clearing m_scheme/m_port/m_username/m_password.  If the user previously
+        // parsed a URL with credentials and then types a bare host/path, stale
+        // credentials from the previous URL are silently preserved.
         int slash = trimmed.indexOf(QLatin1Char('/'));
         if (slash >= 0) {
             m_host = trimmed.left(slash);
@@ -274,6 +284,8 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
             m_host = trimmed;
             m_path.clear();
         }
+        m_scheme = QStringLiteral("https"); m_port = -1;
+        m_username.clear(); m_password.clear();
         assembleTargetUrl(); // setTarget() emits targetChanged
         return;
     }

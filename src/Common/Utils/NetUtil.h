@@ -45,7 +45,7 @@ static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in&
 // boilerplate per call site (socket, hostToAddr, nonblock, connect, select, SO_ERROR).
 // Replaces identical blocks in G4RemoteHost::tcpRttMs, G4RemoteHost::tcpTraceHop,
 // SystemDiagnostics::httpDownload, tcpPingMs, httpTtfb.
-inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
+static inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
     // 5WHY: FD_SET writes past the fd_set array if sock >= FD_SETSIZE
@@ -95,7 +95,7 @@ static inline bool hostToAddr6(const QString& host, int port, struct sockaddr_in
     return inet_pton(AF_INET6, ip.toUtf8().constData(), &addr.sin6_addr) == 1;
 }
 
-inline int tcpConnect6(const QString& host, int port, int timeoutMs = 3000) {
+static inline int tcpConnect6(const QString& host, int port, int timeoutMs = 3000) {
     int sock = socket(AF_INET6, SOCK_STREAM, 0);
     if (sock < 0) return -1;
 #ifndef _WIN32

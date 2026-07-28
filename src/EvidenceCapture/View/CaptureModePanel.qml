@@ -355,7 +355,7 @@ Rectangle {
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 6
-                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.colors.cyan; nativeColor: false }
+                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.colors.cyan }
                     Label {
                         // 5WHY: Without Layout.fillWidth, this Label gets
                         // its implicitWidth (full text width), making

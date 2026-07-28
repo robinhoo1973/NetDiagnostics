@@ -75,21 +75,23 @@ Item {
     // with the overlay color.
     //
     // 5WHY (round 2): Auto-detecting by naming convention was too aggressive —
-    // callers that explicitly set `color` (e.g. warnYellow on badge-check for a
-    // PRO badge, cyan on badge-info for the both-mode hint, textMuted for a
-    // disabled toggle) expect their color to work.  Silently suppressing the
-    // overlay broke the API contract that `color` controls icon tint.
+    // callers that explicitly set `color` (e.g. warnYellow on badge-check,
+    // cyan on badge-info, textMuted on a disabled toggle) expect their color
+    // to work.  Silently suppressing the overlay broke the API contract.
     //
-    // Fix: nativeColor defaults to the naming-convention heuristic but is
-    // writable.  Callers that want their explicit color applied set
-    // nativeColor: false.  Callers that are happy with the native fill
-    // (status-mapped badge colors, default-white placeholder) need no change.
+    // 5WHY (round 3): Adding nativeColor:false at every affected call site
+    // is a bandaid — the component can auto-detect caller intent.  If the
+    // caller set a non-default color, they want the overlay.  If the color is
+    // still "white" (the default), the native SVG fill is preferred.  The
+    // edge case of explicitly setting color:"white" on a badge icon is a
+    // no-op — white overlay over white SVG = same white icon.
     //
     // badge-circle.svg has NO native colored fill — it renders as a white
     // stroke circle, so hiding the overlay makes it pure white and silently
     // ignores the caller's explicit color.  Exclude it from the default.
-    property bool nativeColor: name.indexOf("badge-") === 0
+    readonly property bool _nativeColored: name.indexOf("badge-") === 0
         && name !== "badge-circle"
+        && root.color === "white"   // caller didn't set an explicit color
 
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it
@@ -100,6 +102,6 @@ Item {
         anchors.fill: parent
         color: root.color
         opacity: 0.55
-        visible: !root.nativeColor
+        visible: !root._nativeColored
     }
 }

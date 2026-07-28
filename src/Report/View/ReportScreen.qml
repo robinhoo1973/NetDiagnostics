@@ -215,7 +215,7 @@ Item {
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.colors.textPrimary; nativeColor: false }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.colors.textPrimary }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true

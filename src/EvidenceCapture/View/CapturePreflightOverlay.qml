@@ -97,7 +97,7 @@ Rectangle {
                     // Item 1
                     RowLayout {
                         spacing: 12
-                        AppIcon { name: "badge-info"; size: 18; color: T.ThemeEngine.colors.textSecondary; nativeColor: false }
+                        AppIcon { name: "badge-info"; size: 18; color: T.ThemeEngine.colors.textSecondary }
                         Label {
                             Layout.fillWidth: true
                             text: T.Tr.captureDoNotTouch
