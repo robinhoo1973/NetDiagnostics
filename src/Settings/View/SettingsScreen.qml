@@ -3,7 +3,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme"
 import "../widgets"
-import "../dialogs"
 
 // ── Flutter SettingsScreen 1:1 — with AppBar ───────────────────────────
 Item {
