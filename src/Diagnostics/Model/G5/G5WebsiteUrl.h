@@ -89,6 +89,14 @@ inline bool g5DiagMatchesScheme(DiagId id, const QString& schemeLower) {
 
     bool isHttp = (schemeLower == "http" || schemeLower == "https");
 
+    // 5WHY: The HTTP-scheme guard `if (u.scheme() != "http" && u.scheme() != "https")
+    // return g5Result(..., "Not HTTP(S)", ...)` was copy-pasted in 6 G5 .cpp files.
+    // Extract once so the guard condition and error message are centrally maintained.
+    inline bool isHttpScheme(const QString& scheme) {
+        QString s = scheme.toLower();
+        return s == "http" || s == "https";
+    }
+
     // G5ServiceBanner: raw TCP banner grab — useful for FTP/SSH/SMTP/etc.
     // but NOT for HTTP/HTTPS (those have dedicated tests: CurlVerbose,
     // HttpHeaders, SecurityHeaders, HttpRedirect, HttpCompression, HttpTiming).

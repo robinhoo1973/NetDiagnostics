@@ -3,7 +3,7 @@
 DiagnosticResult securityHeaders(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SecurityHeaders, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);
-    if (u.scheme() != "http" && u.scheme() != "https")
+    if (!isHttpScheme(u.scheme()))
         return g5Result(DiagId::G5SecurityHeaders, "Not HTTP(S)", DiagStatus::Skipped);
     auto cr = curlHttp(u, 15000, false);
     if (!cr.ok) return g5Result(DiagId::G5SecurityHeaders, cr.error, DiagStatus::Fail);
