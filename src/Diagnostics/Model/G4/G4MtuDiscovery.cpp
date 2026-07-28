@@ -19,6 +19,11 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 
     // Try TCP connect and get MSS 鈫?derive path MTU
     int discoveredMtu = 0, mss = 0;
+    // 5WHY: socket() was called BEFORE the resolvedIp check.  On DNS failure
+    // (resolvedIp==0), the socket fd was created, FD_SETSIZE guard ran, then
+    // immediately closed — wasted kernel work (fd allocation + socket state
+    // init + teardown).  Only allocate an fd when we can actually use it.
+    if (resolvedIp) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     // fd_set overflow guard: FD_SET with fd >= FD_SETSIZE corrupts the stack.
     // 5WHY: FD_SETSIZE is 64 on Windows but SOCKET values >= 64 are common
@@ -28,7 +33,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 #ifndef _WIN32
     if (sock >= 0 && sock >= FD_SETSIZE) { closeSocket(sock); sock = -1; }
 #endif
-    if (sock >= 0 && resolvedIp) {
+    if (sock >= 0) {
         struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
         addr.sin_addr.s_addr = htonl(resolvedIp);
@@ -67,11 +72,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
             }
             closeSocket(sock);
         }
-    } else {
-        // 5WHY: If socket() succeeded but DNS resolution returned 0
-        // (timeout/NXDOMAIN), the outer if-body is skipped entirely
-        // and the fd leaks.  Close the orphaned socket.
-        if (sock >= 0) closeSocket(sock);
+    }
     }
     if (discoveredMtu == 0) {
         // 5WHY: discoveredMtu was hardcoded to 1500 BEFORE the interface
