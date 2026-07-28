@@ -423,12 +423,12 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
             // empty host — assembleTargetUrl would return early without
             // emitting targetChanged.  Emit directly so QML bindings know
             // the structured fields changed.
-            // 5WHY (round 8): m_error.clear() was missing here — if a
-            // previous URL had a validation error, it persisted in the UI
-            // alongside the new path-only text.  Match the empty-input path
-            // at line 362 which correctly clears both m_target and m_error.
+            // 5WHY (round 12): Only m_target and m_error were cleared,
+            // leaving m_path='/path', m_scheme, m_port, etc. with stale
+            // values from the previous URL.  Call clearFieldsToDefault()
+            // to reset all fields — matching the empty-input path above.
+            clearFieldsToDefault();
             m_target.clear();
-            m_error.clear();
             emit targetChanged();
         }
         return;

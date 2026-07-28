@@ -56,14 +56,18 @@ DiagnosticResult mtuDiscovery(const QString& target) {
                         discoveredMtu = ipMtu;
 #endif
                 }
-            }
-            int rtt = (int)t.elapsed();
-            if (mss > 0) {
-                out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, ipStr).arg(mss));
-                out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(ipStr).arg(mss).arg(rtt).arg(discoveredMtu));
-            } else {
-                out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, ipStr));
-                out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
+                // 5WHY: rtt and output messages were OUTSIDE the sel>0 guard,
+                // so when select() timed out, the code printed 'TCP connect
+                // succeeded but MSS not available' — falsely reporting success.
+                // Now inside sel>0 so output only prints when connect completed.
+                int rtt = (int)t.elapsed();
+                if (mss > 0) {
+                    out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, ipStr).arg(mss));
+                    out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(ipStr).arg(mss).arg(rtt).arg(discoveredMtu));
+                } else {
+                    out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, ipStr));
+                    out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
+                }
             }
             closeSocket(sock);
         }
