@@ -37,6 +37,10 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     Component.onCompleted: { scale = 1.0; opacity = 1.0 }
 
+    // 5WHY: Absorb backdrop clicks so the user cannot accidentally
+    // interact with the nav bar or diagnostic UI behind the glass overlay.
+    MouseArea { anchors.fill: parent; onClicked: {} }
+
     // ── State ───────────────────────────────────────────────────────
     property bool wantsScreenshot: true
     property bool wantsRecording: captureOrchestrator ? captureOrchestrator.supportsBothModes : false
@@ -81,7 +85,10 @@ Rectangle {
             }
         }
 
-        MouseArea { anchors.fill: parent } // absorb clicks
+        // 5WHY: QML MouseArea only consumes mouse/touch events when it has
+        // at least one signal handler connected.  Without a handler, it is
+        // click-transparent — events propagate to items behind the overlay.
+        MouseArea { anchors.fill: parent; onClicked: {} }
 
         // 5WHY: Gradient MUST be declared at card level, NOT inside a Layout.
         // QQuickGradient is not a QQuickItem — placing it as a child of

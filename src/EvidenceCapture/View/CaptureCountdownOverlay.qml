@@ -57,7 +57,10 @@ Rectangle {
         }
     }
 
-    MouseArea { anchors.fill: parent } // absorb clicks
+    // 5WHY: QML MouseArea only consumes mouse/touch events when it has
+    // at least one signal handler connected.  Without a handler, it is
+    // click-transparent — events propagate to items behind the overlay.
+    MouseArea { anchors.fill: parent; onClicked: {} }
 
     // ── Card ────────────────────────────────────────────────────────
     Rectangle {

@@ -23,6 +23,10 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     Component.onCompleted: { scale = 1.0; opacity = 1.0 }
 
+    // 5WHY: Absorb backdrop clicks so the user cannot accidentally
+    // interact with UI behind the overlay.
+    MouseArea { anchors.fill: parent; onClicked: {} }
+
     property string sessionPath: ""
     property int totalScreenshots: 0
     property string recordingFile: ""
@@ -88,7 +92,10 @@ Rectangle {
         // Top accent — 2px refined, red for error, green for success
         CardTopAccent { color: root.isError ? T.ThemeEngine.colors.failRed : T.ThemeEngine.colors.passGreen }
 
-        MouseArea { anchors.fill: parent }
+        // 5WHY: QML MouseArea only consumes mouse/touch events when it has
+        // at least one signal handler connected.  Without a handler, it is
+        // click-transparent — events propagate to items behind the overlay.
+        MouseArea { anchors.fill: parent; onClicked: {} }
 
         // 5WHY: Gradient at card level (not inside sumCol ColumnLayout).
         // Same reasoning as CaptureModePanel — QQuickGradient is not an Item.

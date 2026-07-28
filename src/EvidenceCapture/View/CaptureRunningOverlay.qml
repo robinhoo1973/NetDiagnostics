@@ -41,7 +41,7 @@ import "qrc:/qml/widgets"
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Shadow components (ShadowIcon, ShadowSeparator, ShadowText) are now in
-// src/Common/View/widgets/ — imported via "../widgets" above.  Qt 6.8.3's
+// src/Common/View/widgets/ — imported via "qrc:/qml/widgets" above.  Qt 6.8.3's
 // qmlimportscanner does not support inline `component` declarations in QRC
 // builds, producing "Syntax error" during qt-cmake configure.  Moving them
 // to standalone QML files resolves the scanner limitation while preserving

@@ -86,7 +86,7 @@ Item {
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it
     // reliable on iOS static builds where the Effects module is unavailable.
-    // Hidden for self-colored icons (badge-*, app-icon) whose native fills
+    // Hidden for self-colored badge icons whose native fills
     // provide the intended visual identity.
     Rectangle {
         anchors.fill: parent
