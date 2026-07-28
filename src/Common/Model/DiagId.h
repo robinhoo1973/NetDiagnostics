@@ -70,12 +70,13 @@ enum class DiagId {
     G3GeoIPLoc,
     G3InternetConnectivity,
 
-    // G4 — Remote Host (5)
+    // G4 — Remote Host (6)
     G4DnsResolution,
     G4Ping,
     G4Traceroute,
     G4PathPing,
     G4MtuDiscovery,
+    G4IPv6Connectivity,
 
     // G5 — Protocol (20)
     G5UrlParsing,
@@ -133,6 +134,7 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G4Traceroute:
         case DiagId::G4PathPing:
         case DiagId::G4MtuDiscovery:
+        case DiagId::G4IPv6Connectivity:
             return DiagGroup::G4;
         case DiagId::G5UrlParsing:
         case DiagId::G5TcpConnect:
@@ -173,7 +175,7 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G3DnsIntegrity,
         DiagId::G3InternetConnectivity, DiagId::G3GeoIPLoc,
         DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
-        DiagId::G4PathPing, DiagId::G4MtuDiscovery,
+        DiagId::G4PathPing, DiagId::G4MtuDiscovery, DiagId::G4IPv6Connectivity,
         DiagId::G5UrlParsing, DiagId::G5TcpConnect, DiagId::G5ServiceBanner,
         DiagId::G5CurlVerbose, DiagId::G5HttpHeaders, DiagId::G5SecurityHeaders,
         DiagId::G5SslCertificate, DiagId::G5HttpRedirect, DiagId::G5HttpCompression,

@@ -220,6 +220,7 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 #endif
 #endif  // 5WHY: closes #if defined(PLATFORM_IOS) — missing #endif compiled out G4Ping-G5 on iOS
         case DiagId::G4Ping:               return T2(G4RemoteHost::ping, 30000);
+        case DiagId::G4IPv6Connectivity:   return T2(G4RemoteHost::ipv6Connectivity);
         case DiagId::G4Traceroute:         return T2(G4RemoteHost::traceroute);
         case DiagId::G4PathPing:           return T2(G4RemoteHost::pathPing);
         case DiagId::G4MtuDiscovery:       return T2(G4RemoteHost::mtuDiscovery);

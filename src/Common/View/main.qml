@@ -8,7 +8,7 @@ ApplicationWindow {
     title: "NetDiagnostics"
     visible: true
     flags: Qt.FramelessWindowHint
-    color: ThemeEngine.bgDark
+    color: ThemeEngine.colors.surface
 
     // Window maximization is handled by C++ showMaximized() in main.cpp —
     // it maps the window in maximized state from the first frame, avoiding

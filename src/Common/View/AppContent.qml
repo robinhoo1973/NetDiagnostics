@@ -625,30 +625,30 @@ Item {
             width: Math.min(380, parent.width * 0.85)
             implicitHeight: errCol.implicitHeight + 48
             radius: 20; color: ThemeEngine.colors.card
-            border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.3) }
+            border { width: 1; color: Qt.alpha(ThemeEngine.colors.failRed, 0.3) }
             ColumnLayout {
                 id: errCol
                 anchors { fill: parent; margins: 24 }
                 spacing: 12
-                AppIcon { Layout.alignment: Qt.AlignHCenter; name: "error"; size: 40; color: ThemeEngine.failRed }
+                AppIcon { Layout.alignment: Qt.AlignHCenter; name: "error"; size: 40; color: ThemeEngine.colors.failRed }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: "Capture Overlay Load Error"
                     font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold
-                    color: ThemeEngine.textPrimary
+                    color: ThemeEngine.colors.textPrimary
                 }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                     text: "The capture panel could not be loaded.\nCheck QML imports and resource paths."
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                    color: ThemeEngine.textSecondary
+                    color: ThemeEngine.colors.textSecondary
                 }
                 Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 44; radius: 12; color: ThemeEngine.cyan
+                    Layout.fillWidth: true; implicitHeight: 44; radius: 12; color: ThemeEngine.colors.cyan
                     Label {
                         anchors.centerIn: parent
                         text: "Dismiss"; font.family: ThemeEngine.monoFont; font.pixelSize: 14
-                        font.weight: Font.Bold; color: ThemeEngine.textOnAccent
+                        font.weight: Font.Bold; color: ThemeEngine.colors.textOnAccent
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: loaderErrorFallback.visible = false }

@@ -33,6 +33,7 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G3InternetConnectivity: return QStringLiteral("Internet Connectivity");
         case DiagId::G4DnsResolution:    return QStringLiteral("DNS Resolution");
         case DiagId::G4Ping:             return QStringLiteral("Ping");
+        case DiagId::G4IPv6Connectivity: return QStringLiteral("IPv6 Connectivity");
         case DiagId::G4Traceroute:       return QStringLiteral("Traceroute");
         case DiagId::G4PathPing:         return QStringLiteral("PathPing");
         case DiagId::G4MtuDiscovery:     return QStringLiteral("MTU Discovery");

@@ -26,8 +26,11 @@ public:
     void clearCache();
 
     // Convenience: resolve hostname → IPv4 in host byte order, 0 on failure.
-    // Uses QHostInfo first, then falls back to resolve() with timeout.
     static quint32 resolveIPv4(const QString& host, int timeoutMs = 3000);
+
+    // Resolve hostname to IPv6 string. Returns empty string on timeout/failure.
+    // Uses the same thread/timeout mechanism as resolve() but with AF_INET6.
+    QString resolve6(const QString& host, int timeoutMs = 3000);
 
 private:
     DnsResolver() = default;

@@ -73,8 +73,33 @@ Item {
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }
 
-    function statusIcon(s) { switch(s) { case 0: return "badge-check"; case 1: return "badge-warning"; case 2: return "badge-close"; case 3: return "badge-skip"; default: return "badge-info" } }
-    function statusColor(s) { switch(s) { case 0: return ThemeEngine.passGreen; case 1: return ThemeEngine.warnYellow; case 2: return ThemeEngine.failRed; case 3: return ThemeEngine.skipGray; default: return ThemeEngine.accentBlue } }
+    // 5WHY: Status mapping was incomplete — only handled Pass(0) through
+    // Skipped(3), defaulting all other statuses to "badge-info"/accentBlue.
+    // DiagStatus::Error(4) and DiagStatus::Info(5) are distinct states that
+    // need separate visual treatment (Error→failRed, Info→infoBlue).  Now
+    // matches DiagResultItem._statusIcon/_statusColor exactly.
+    function statusIcon(s) {
+        switch(s) {
+            case 0: return "badge-check";
+            case 1: return "badge-warning";
+            case 2: return "badge-close";
+            case 3: return "badge-skip";
+            case 4: return "badge-error";
+            case 5: return "badge-info";
+            default: return "badge-skip";
+        }
+    }
+    function statusColor(s) {
+        switch(s) {
+            case 0: return ThemeEngine.colors.passGreen;
+            case 1: return ThemeEngine.colors.warnYellow;
+            case 2: return ThemeEngine.colors.failRed;
+            case 3: return ThemeEngine.colors.skipGray;
+            case 4: return ThemeEngine.colors.failRed;
+            case 5: return ThemeEngine.colors.infoBlue;
+            default: return ThemeEngine.colors.skipGray;
+        }
+    }
     function fmtDur(ms) {
         if (ms < 1000) return ms + "ms"
         if (ms < 60000) return (ms/1000).toFixed(1) + "s"
@@ -99,9 +124,9 @@ Item {
     // Empty state
     Column {
         anchors.centerIn: parent; spacing: 16; visible: !hasData
-        AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(ThemeEngine.textPrimary, 0.15) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.noData; font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(ThemeEngine.textSecondary, 0.6) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runFromDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: Qt.alpha(ThemeEngine.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
+        AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.15) }
+        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.noData; font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6) }
+        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runFromDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
     }
 
     Flickable {
@@ -116,21 +141,21 @@ Item {
             // ── Run Info Header Card (Flutter: check_circle + "Diagnostic Run Complete" + target/timestamp) ──
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: infoCol.implicitHeight + 32; radius: 12
-                color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 RowLayout {
                     id: infoCol
                     anchors { fill: parent; margins: 16 }
-                    AppIcon { name: "check"; size: 28; color: ThemeEngine.passGreen }
+                    AppIcon { name: "check"; size: 28; color: ThemeEngine.colors.passGreen }
                     Item { width: 14 }
                     ColumnLayout { spacing: 4
-                        Label { text: Tr.diagRunComplete; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+                        Label { text: Tr.diagRunComplete; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                         RowLayout { spacing: 4
-                            AppIcon { name: "target"; size: 12; color: Qt.alpha(ThemeEngine.textPrimary, 0.7) }
-                            Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary }
+                            AppIcon { name: "target"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
+                            Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                         RowLayout { spacing: 4
-                            AppIcon { name: "timer"; size: 12; color: Qt.alpha(ThemeEngine.textPrimary, 0.7) }
-                            Label { text: fmtTimestamp(); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary }
+                            AppIcon { name: "timer"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
+                            Label { text: fmtTimestamp(); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
                 }
@@ -141,7 +166,7 @@ Item {
             Item { Layout.preferredHeight: 32 }
 
             // ── Per-Group Results header ────────────────────────────────
-            Label { text: Tr.perGroup; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+            Label { text: Tr.perGroup; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
             Item { Layout.preferredHeight: 12 }
 
             Repeater {
@@ -160,19 +185,19 @@ Item {
             // ── Overall Summary (Flutter: _buildOverallSection) ──────────
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: sumCol.implicitHeight + 32; radius: 12
-                color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout { id: sumCol; anchors { fill: parent; margins: 16 }
-                    Label { text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+                    Label { text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     ColumnLayout {
                     Layout.fillWidth: true; spacing: 10
-                    SummaryStat { appIcon: "config"; clr: ThemeEngine.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
-                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.accentBlue; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
-                    SummaryStat { appIcon: "check"; clr: ThemeEngine.passGreen; val: _totalCompleted; lbl: Tr.completedLabel }
+                    SummaryStat { appIcon: "config"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
+                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
+                    SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: Tr.completedLabel }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 12; visible: _totalCompleted > 0 }
-                    Label { text: Tr.layerTimings; font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary; visible: _totalCompleted > 0 }
+                    Label { text: Tr.layerTimings; font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
                     Repeater {
                         model: {
@@ -185,10 +210,10 @@ Item {
                         }
                         delegate: RowLayout {
                             visible: hasData
-                            Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 2; color: ThemeEngine.accentBlue }
+                            Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 2; color: ThemeEngine.colors.secondary }
                             Item { width: 10 }
-                            Label { Layout.fillWidth: true; text: Tr.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary }
-                            Label { text: calcLayerTiming(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary }
+                            Label { Layout.fillWidth: true; text: Tr.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
+                            Label { text: calcLayerTiming(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
                 }
@@ -200,22 +225,22 @@ Item {
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: repCol.implicitHeight + 32; radius: 12
                 Layout.topMargin: 16; visible: hasData && appState.runStatus !== 1
-                color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
-                    Label { text: Tr.report; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
-                    Label { text: Tr.reportExportHint; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    Label { text: Tr.report; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                    Label { text: Tr.reportExportHint; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     // Review Report button
                     Rectangle {
                         id: reviewBtn
                         Layout.fillWidth: true; implicitHeight: 48; radius: 10
-                        color: Qt.alpha(ThemeEngine.cyan, 0.10)
-                        border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.35) }
+                        color: Qt.alpha(ThemeEngine.colors.cyan, 0.10)
+                        border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.35) }
                         RowLayout {
                             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                            AppIcon { name: "report"; size: 18; color: ThemeEngine.cyan }
+                            AppIcon { name: "report"; size: 18; color: ThemeEngine.colors.cyan }
                             Item { width: 12 }
-                            Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; color: ThemeEngine.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
+                            Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
                     }
@@ -268,12 +293,12 @@ Item {
                 // ── Header ────────────────────────────────────────────
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: 48; radius: 8
-                    color: Qt.alpha(ThemeEngine.cyan, 0.08)
+                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.08)
                     RowLayout {
                         anchors { fill: parent; margins: 8 }
-                        AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
+                        AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.cyan }
                         Item { width: 8 }
-                        Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
+                        Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
                         Rectangle {
                             id: closeBtn
                             // 5WHY: close button was 36dp — below MD3 48dp minimum
@@ -282,9 +307,9 @@ Item {
                             // ReportScreen close button visual style.
                             readonly property int _btnSz: isMobile ? 48 : 34
                             implicitWidth: _btnSz; implicitHeight: _btnSz; radius: _btnSz / 2
-                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.35)
-                                                            : Qt.alpha(ThemeEngine.failRed, 0.15)
-                            AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.failRed }
+                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.failRed, 0.35)
+                                                            : Qt.alpha(ThemeEngine.colors.failRed, 0.15)
+                            AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.failRed }
                             MouseArea {
                                 id: closeMouse
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -337,8 +362,8 @@ Item {
                 ShareButtons {
                     Layout.fillWidth: true
                     mode: "labeled"
-                    pdfAccent: ThemeEngine.cyan
-                    htmlAccent: ThemeEngine.primary
+                    pdfAccent: ThemeEngine.colors.cyan
+                    htmlAccent: ThemeEngine.colors.primary
                     onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
 }
@@ -351,7 +376,7 @@ Item {
         implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
         color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
         border { width: 1; color: ThemeEngine.colors.borderFocused }
-        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary }
+        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
     }
 
     // ── Share subscription dialog ───────────────────────────────────────
@@ -373,26 +398,26 @@ Item {
         property var _stat: calcGroupStat(groupIndex)
         Layout.fillWidth: true; implicitHeight: grpCol.implicitHeight + 28; radius: 10
         Layout.bottomMargin: 8
-        color: ThemeEngine.bgCard; border { width: 1; color: ThemeEngine.colors.borderCard }
+        color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
         ColumnLayout {
             id: grpCol; anchors { fill: parent; margins: 14 } spacing: 0
             RowLayout {
-                Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.accentBlue }
+                Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.colors.secondary }
                 Item { width: 10 }
-                Label { Layout.fillWidth: true; text: Tr.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
-                DashboardBadge { accent: ThemeEngine.passGreen;  v: _stat.pass }
-                DashboardBadge { accent: ThemeEngine.warnYellow; v: _stat.warn }
-                DashboardBadge { accent: ThemeEngine.failRed;   v: _stat.fail }
-                DashboardBadge { accent: ThemeEngine.skipGray;  v: _stat.skip }
-                DashboardBadge { accent: ThemeEngine.infoBlue; v: _stat.info||0 }
+                Label { Layout.fillWidth: true; text: Tr.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                DashboardBadge { accent: ThemeEngine.colors.passGreen;  v: _stat.pass }
+                DashboardBadge { accent: ThemeEngine.colors.warnYellow; v: _stat.warn }
+                DashboardBadge { accent: ThemeEngine.colors.failRed;   v: _stat.fail }
+                DashboardBadge { accent: ThemeEngine.colors.skipGray;  v: _stat.skip }
+                DashboardBadge { accent: ThemeEngine.colors.infoBlue; v: _stat.info||0 }
                 Item { width: 8 }
-                Label { text: getDurFromResults(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textSecondary }
+                Label { text: getDurFromResults(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
             }
             Rectangle { Layout.fillWidth: true; implicitHeight: 4; radius: 2; color: ThemeEngine.colors.borderCard
                 Rectangle {
                     height:4; radius:2
                     width: parent.width * (_stat.total > 0 ? (_stat.pass + _stat.warn + _stat.fail) / _stat.total : 0)
-                    color: _stat.fail > 0 ? ThemeEngine.warnYellow : ThemeEngine.passGreen
+                    color: _stat.fail > 0 ? ThemeEngine.colors.warnYellow : ThemeEngine.colors.passGreen
                 }
             }
             Item { Layout.preferredHeight: 8 }
@@ -402,27 +427,27 @@ Item {
                 delegate: RowLayout {
                     AppIcon { name: page.statusIcon(modelData.status); size: 14; color: page.statusColor(modelData.status) }
                     Item { width: 6 }
-                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.textSecondary; elide:Text.ElideRight }
-                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.textSecondary,0.6) }
+                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight }
+                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6) }
                 }
             }
         }
     }
 
     component DashboardBadge: Rectangle {
-        property color accent: ThemeEngine.passGreen; property int v: 0
+        property color accent: ThemeEngine.colors.passGreen; property int v: 0
         visible: v > 0; implicitWidth: 22; implicitHeight: 16; radius: 4; color: Qt.alpha(accent, 0.15)
         Label { anchors.centerIn: parent; text: v; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: accent }
     }
 
     component SummaryStat: RowLayout {
-        property string appIcon: ""; property color clr: ThemeEngine.cyan; property var val: 0; property string lbl: ""
+        property string appIcon: ""; property color clr: ThemeEngine.colors.cyan; property var val: 0; property string lbl: ""
         Layout.fillWidth: true
         spacing: 10
         AppIcon { name: appIcon; size: 16; color: clr; Layout.alignment: Qt.AlignVCenter }
         Label {
             Layout.fillWidth: true
-            text: lbl; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary
+            text: lbl; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
             elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
         }
         Label {

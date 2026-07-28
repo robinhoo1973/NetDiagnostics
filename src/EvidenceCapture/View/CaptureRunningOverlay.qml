@@ -132,7 +132,7 @@ Rectangle {
             Rectangle {
                 anchors.fill: parent
                 radius: 4
-                color: T.ThemeEngine.failRed
+                color: T.ThemeEngine.colors.failRed
                 SequentialAnimation on opacity {
                     running: parent.visible; loops: Animation.Infinite
                     NumberAnimation { from: 1.0; to: 0.2; duration: 600 }
@@ -147,14 +147,14 @@ Rectangle {
             text: d ? d.elapsedDisplay : "00:00:00"
             
             font.pixelSize: 13; font.weight: Font.DemiBold
-            color: T.ThemeEngine.textPrimary
+            color: T.ThemeEngine.colors.textPrimary
             Layout.minimumWidth: 72
             horizontalAlignment: Text.AlignHCenter
         }
 
         // Thin separator (time → screenshot group)
         ShadowSeparator {
-            lineColor: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
+            lineColor: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.20)
             shadowColor: Qt.alpha("#000000", 0.25)
             visible: d ? d.showScreenshotGroup : false
         }
@@ -163,7 +163,7 @@ Rectangle {
         ShadowIcon {
             iconName: "camera"
             iconSize: 15
-            foregroundColor: T.ThemeEngine.cyan
+            foregroundColor: T.ThemeEngine.colors.cyan
             Layout.leftMargin: 1
             visible: d ? d.showScreenshotGroup : false
         }
@@ -173,7 +173,7 @@ Rectangle {
             text: d ? d.countDisplay : " 0"
             
             font.pixelSize: 13; font.weight: Font.DemiBold
-            color: T.ThemeEngine.cyan
+            color: T.ThemeEngine.colors.cyan
             Layout.minimumWidth: 22
             horizontalAlignment: Text.AlignRight
             visible: d ? d.showScreenshotGroup : false
@@ -181,7 +181,7 @@ Rectangle {
 
         // Thin separator (screenshot group → task group)
         ShadowSeparator {
-            lineColor: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
+            lineColor: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.20)
             shadowColor: Qt.alpha("#000000", 0.25)
             visible: d ? d.showScreenshotGroup : false
         }
@@ -190,7 +190,7 @@ Rectangle {
         ShadowIcon {
             iconName: "list-checks"
             iconSize: 15
-            foregroundColor: T.ThemeEngine.textSecondary
+            foregroundColor: T.ThemeEngine.colors.textSecondary
             Layout.leftMargin: 1
         }
 
@@ -201,7 +201,7 @@ Rectangle {
                 text: d ? d.stepDisplay : " 0"
                 
                 font.pixelSize: 13; font.weight: Font.DemiBold
-                color: T.ThemeEngine.cyan
+                color: T.ThemeEngine.colors.cyan
                 Layout.minimumWidth: 18
                 horizontalAlignment: Text.AlignRight
             }
@@ -209,13 +209,13 @@ Rectangle {
                 text: "/"
                 
                 font.pixelSize: 11
-                color: T.ThemeEngine.textSecondary
+                color: T.ThemeEngine.colors.textSecondary
             }
             ShadowText {
                 text: d ? d.totalDisplay : " 0"
                 
                 font.pixelSize: 13; font.weight: Font.DemiBold
-                color: T.ThemeEngine.textPrimary
+                color: T.ThemeEngine.colors.textPrimary
                 Layout.minimumWidth: 18
                 horizontalAlignment: Text.AlignRight
             }

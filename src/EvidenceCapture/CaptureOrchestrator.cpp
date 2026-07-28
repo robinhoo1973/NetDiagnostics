@@ -362,6 +362,18 @@ void CaptureOrchestrator::onCountdownFinished() {
 }
 
 void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) {
+    // 5WHY: m_showDndReminder must be reset BEFORE any early-return paths.
+    // If a previous iOS session completed and set m_showDndReminder=true,
+    // and this startCapture() call fails early (feature disabled, already
+    // running, empty URL), the stale reminder flag leaks into the next
+    // QML binding — showing a "disable DND" toast for a session that
+    // never started.  Emit unconditionally on iOS so QML re-evaluates.
+    if (m_showDndReminder) {
+        m_showDndReminder = false;
+#if defined(PLATFORM_IOS)
+        emit dndReminderChanged();
+#endif
+    }
     if (!CaptureFeatureGate::isFeatureEnabled()) {
         emit captureFailed(QStringLiteral("FEATURE_DISABLED"),
                            QStringLiteral("Capture feature is disabled. Double-click "
@@ -413,17 +425,6 @@ void CaptureOrchestrator::startCapture(int captureMode, const QString& diagUrl) 
     // advance the new session.  Reset it so each session starts with a clean
     // report-preview wait state.
     m_waitingForReportPreview = false;
-    m_showDndReminder = false;  // reset DND reminder flag for new session
-    // 5WHY: m_showDndReminder was reset above but dndReminderChanged() was NOT
-    // emitted.  QML bindings on captureOrchestrator.showDndReminder are driven
-    // solely by the NOTIFY signal — without it, the binding engine does not
-    // re-evaluate and carries the stale true value from the previous session.
-    // The QML toast would either show prematurely or fail to re-trigger.
-    // Perf: only iOS uses the DND reminder — skip unnecessary signal on
-    // desktop/Android to avoid wasted QML binding re-evaluations.
-#if defined(PLATFORM_IOS)
-    emit dndReminderChanged();
-#endif
     m_elapsed.start();
 
     // 5WHY: m_executingStep is the re-entrancy guard for executeNextStep().

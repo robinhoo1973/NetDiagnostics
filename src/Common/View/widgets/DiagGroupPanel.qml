@@ -16,7 +16,7 @@ Rectangle {
     height: cardColumn.implicitHeight + 16
     radius: 10
     color: ThemeEngine.colors.card
-    border { width: 1; color: isRunning ? Qt.alpha(ThemeEngine.cyan, 0.4) : ThemeEngine.colors.borderCard }
+    border { width: 1; color: isRunning ? Qt.alpha(ThemeEngine.colors.cyan, 0.4) : ThemeEngine.colors.borderCard }
 
     // ── Computed state — single C++ call, shared JS object (was 7 calls) ──
     property var _gstat: { var _v=_modelVersion; var s=appState.groupStats(groupIndex)
@@ -69,20 +69,20 @@ Rectangle {
             // Row 1 — title + count + expand arrow
             RowLayout {
                 spacing: 8
-                Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.cyan:ThemeEngine.infoBlue }
+                Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.colors.cyan:ThemeEngine.colors.infoBlue }
                 ColumnLayout { spacing:1
                     Label { Layout.fillWidth:true; text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
-                    Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.cyan; elide:Text.ElideRight }
+                    Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.colors.cyan; elide:Text.ElideRight }
                 }
                 Item { Layout.fillWidth:true }
                 Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
                 // Badges inline — desktop only (wide enough to fit)
                 RowLayout { spacing: 4; visible: !compact
-                    StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
-                    StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: groupInfo }
-                    StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
-                    StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
-                    StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
+                    StatusBadge { accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   count: groupPass }
+                    StatusBadge { accent: ThemeEngine.colors.infoBlue; iconName: "badge-info";    count: groupInfo }
+                    StatusBadge { accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; count: groupWarn }
+                    StatusBadge { accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   count: groupFail }
+                    StatusBadge { accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    count: groupSkip }
                 }
                 // 5WHY: Replaced ▼/▶ Unicode arrows with chevron SVG icons
                 // for consistent iconography across the app.
@@ -94,11 +94,11 @@ Rectangle {
                 spacing: 4; visible: compact
                 // Indent to align with group name (accent bar 3px + spacing 8px = 11px)
                 Item { width: 11 }
-                StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: groupPass }
-                StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: groupInfo }
-                StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: groupWarn }
-                StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: groupFail }
-                StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: groupSkip }
+                StatusBadge { accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   count: groupPass }
+                StatusBadge { accent: ThemeEngine.colors.infoBlue; iconName: "badge-info";    count: groupInfo }
+                StatusBadge { accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; count: groupWarn }
+                StatusBadge { accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   count: groupFail }
+                StatusBadge { accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    count: groupSkip }
             }
         }
 
@@ -110,7 +110,7 @@ Rectangle {
             Rectangle {
                 height: 4; radius: 2
                 width: enabledCount>0 ? parent.width*(completedCount*1.0/enabledCount) : 0  // *1.0 forces float division (JS int math truncates)
-                color: isRunning ? ThemeEngine.cyan : ThemeEngine.passGreen
+                color: isRunning ? ThemeEngine.colors.cyan : ThemeEngine.colors.passGreen
             }
         }
 

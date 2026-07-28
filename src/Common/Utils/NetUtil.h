@@ -70,3 +70,30 @@ static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in&
     addr.sin_port = htons(port);
     return inet_pton(AF_INET, ip.toUtf8().constData(), &addr.sin_addr) == 1;
 }
+
+// ── IPv6 helpers ─────────────────────────────────────────────────────
+
+static inline bool hostToAddr6(const QString& host, int port, struct sockaddr_in6& addr) {
+    QString ip = DnsResolver::instance().resolve6(host, 3000);
+    if (ip.isEmpty()) return false;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin6_family = AF_INET6;
+    addr.sin6_port = htons(port);
+    return inet_pton(AF_INET6, ip.toUtf8().constData(), &addr.sin6_addr) == 1;
+}
+
+inline int tcpConnect6(const QString& host, int port, int timeoutMs = 3000) {
+    int sock = socket(AF_INET6, SOCK_STREAM, 0);
+    if (sock < 0) return -1;
+    struct sockaddr_in6 addr;
+    if (!hostToAddr6(host, port, addr)) { closeSocket(sock); return -1; }
+    setSocketNonBlocking(sock);
+    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
+    struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return -1; }
+    int err = 0; socklen_t len = sizeof(err);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
+    if (err != 0) { closeSocket(sock); return -1; }
+    return sock;
+}

@@ -7,7 +7,7 @@ import "../theme"
 // (BadgeLabel), DiagGroupPanel (StatusBadge), and DashboardScreen.
 // 5WHY: was duplicated inline in 3 files with identical structure.
 RowLayout {
-    property color accent: ThemeEngine.passGreen
+    property color accent: ThemeEngine.colors.passGreen
     property string iconName: "badge-info"
     property int count: 0
     spacing: 2

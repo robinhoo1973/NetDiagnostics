@@ -9,9 +9,13 @@ bool CaptureFeatureGate::isFeatureEnabled() {
 }
 
 void CaptureFeatureGate::setFeatureEnabled(bool enabled) {
+    // 5WHY: Removed explicit QSettings::sync() — it triggers a synchronous
+    // filesystem flush (NSUserDefaults synchronize on iOS, which Apple has
+    // deprecated since iOS 12).  QSettings automatically persists within a
+    // few seconds, and the feature gate changes only on double-click (rare
+    // user interaction), making sync() unnecessary I/O on the main thread.
     QSettings s;
     s.setValue(QString::fromLatin1(kSettingsKey), enabled);
-    s.sync();
 }
 
 QString CaptureFeatureGate::disabledReason() {

@@ -13,9 +13,9 @@ import "../theme"
 //   "wide"     — icon+text buttons (fillWidth, 48dp height), for Report preview
 //
 // Accent colors set by each page:
-//   - Diagnostic:  pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
-//   - Dashboard:   pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
-//   - Report:      pdfAccent=ThemeEngine.cyan,  htmlAccent=ThemeEngine.primary
+//   - Diagnostic:  pdfAccent=ThemeEngine.colors.cyan,  htmlAccent=ThemeEngine.colors.primary
+//   - Dashboard:   pdfAccent=ThemeEngine.colors.cyan,  htmlAccent=ThemeEngine.colors.primary
+//   - Report:      pdfAccent=ThemeEngine.colors.cyan,  htmlAccent=ThemeEngine.colors.primary
 // ══════════════════════════════════════════════════════════════════════════════
 
 RowLayout {
@@ -25,8 +25,8 @@ RowLayout {
     // ── Public API ──────────────────────────────────────────────────────────
     property string mode: "compact"           // "bare" | "compact" | "labeled" | "wide"
     property bool   locked: !appState.isPremium
-    property color  pdfAccent: ThemeEngine.failRed
-    property color  htmlAccent: ThemeEngine.accentBlue
+    property color  pdfAccent: ThemeEngine.colors.failRed
+    property color  htmlAccent: ThemeEngine.colors.secondary
     signal shareRequested(string format)
 
     readonly property bool _isMobile: ThemeEngine.isMobile
@@ -186,7 +186,7 @@ RowLayout {
                 }
                 Label {
                     text: labeledRect.labelText + (labeledRect.locked ? "  " + Tr.premiumBadge : "")
-                    color: ThemeEngine.textPrimary
+                    color: ThemeEngine.colors.textPrimary
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: 12
                     font.weight: Font.Medium

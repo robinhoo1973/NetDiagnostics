@@ -78,8 +78,8 @@ Rectangle {
             radius: 2
             gradient: Gradient {
                 orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: T.ThemeEngine.primary }
-                GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+                GradientStop { position: 0.0; color: T.ThemeEngine.colors.primary }
+                GradientStop { position: 1.0; color: T.ThemeEngine.colors.cyan }
             }
         }
 
@@ -92,8 +92,8 @@ Rectangle {
         Gradient {
             id: startGradient
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: T.ThemeEngine.primary }
-            GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+            GradientStop { position: 0.0; color: T.ThemeEngine.colors.primary }
+            GradientStop { position: 1.0; color: T.ThemeEngine.colors.cyan }
         }
 
         ColumnLayout {
@@ -106,12 +106,12 @@ Rectangle {
             Item { Layout.preferredHeight: 4 }
             RowLayout {
                 spacing: 12
-                AppIcon { name: "camera"; size: 24; color: T.ThemeEngine.cyan }
+                AppIcon { name: "camera"; size: 24; color: T.ThemeEngine.colors.cyan }
                 Label {
                     text: T.Tr.captureTitle
                     
                     font.pixelSize: 18; font.weight: Font.Bold
-                    color: T.ThemeEngine.textPrimary
+                    color: T.ThemeEngine.colors.textPrimary
                 }
             }
 
@@ -121,7 +121,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: T.Tr.captureDesc
                 font.pixelSize: 12
-                color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                color: T.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
                 lineHeight: 1.45
             }
 
@@ -135,12 +135,12 @@ Rectangle {
                     id: screenshotCard
                     Layout.fillWidth: true; implicitHeight: 72; radius: 12
                     color: root.wantsScreenshot
-                           ? Qt.alpha(T.ThemeEngine.cyan, 0.10)
+                           ? Qt.alpha(T.ThemeEngine.colors.cyan, 0.10)
                            : Qt.alpha(T.ThemeEngine.colors.input, 0.3)
                     border {
                         width: root.wantsScreenshot ? 2 : 1
                         color: root.wantsScreenshot
-                               ? T.ThemeEngine.cyan
+                               ? T.ThemeEngine.colors.cyan
                                : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.5)
                     }
                     // Smooth color transition
@@ -151,7 +151,7 @@ Rectangle {
                         anchors.fill: parent; radius: 12
                         visible: root.wantsScreenshot
                         color: "transparent"
-                        border { width: 2; color: Qt.alpha(T.ThemeEngine.cyan, 0.06) }
+                        border { width: 2; color: Qt.alpha(T.ThemeEngine.colors.cyan, 0.06) }
                     }
 
                     RowLayout {
@@ -162,13 +162,13 @@ Rectangle {
                         Rectangle {
                             implicitWidth: 42; implicitHeight: 42; radius: 10
                             color: root.wantsScreenshot
-                                   ? Qt.alpha(T.ThemeEngine.cyan, 0.18)
-                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.08)
+                                   ? Qt.alpha(T.ThemeEngine.colors.cyan, 0.18)
+                                   : Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.08)
                             Behavior on color { ColorAnimation { duration: 200 } }
                             AppIcon {
                                 anchors.centerIn: parent
                                 name: "camera"; size: 22
-                                color: root.wantsScreenshot ? T.ThemeEngine.cyan : T.ThemeEngine.textSecondary
+                                color: root.wantsScreenshot ? T.ThemeEngine.colors.cyan : T.ThemeEngine.colors.textSecondary
                             }
                         }
 
@@ -180,7 +180,7 @@ Rectangle {
                                 text: T.Tr.captureScreenshotsLabel
 
                                 font.pixelSize: 14; font.weight: Font.DemiBold
-                                color: T.ThemeEngine.textPrimary
+                                color: T.ThemeEngine.colors.textPrimary
                                 elide: Text.ElideRight
                                 maximumLineCount: 1
                             }
@@ -195,7 +195,7 @@ Rectangle {
                                 wrapMode: Text.WordWrap
                                 maximumLineCount: 2
                                 font.pixelSize: 11
-                                color: T.ThemeEngine.textSecondary
+                                color: T.ThemeEngine.colors.textSecondary
                             }
                         }
 
@@ -205,13 +205,13 @@ Rectangle {
                         Rectangle {
                             implicitWidth: 24; implicitHeight: 24; radius: 12
                             color: root.wantsScreenshot
-                                   ? T.ThemeEngine.cyan
+                                   ? T.ThemeEngine.colors.cyan
                                    : "transparent"
                             border {
                                 width: 2
                                 color: root.wantsScreenshot
-                                       ? T.ThemeEngine.cyan
-                                       : Qt.alpha(T.ThemeEngine.textSecondary, 0.3)
+                                       ? T.ThemeEngine.colors.cyan
+                                       : Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.3)
                             }
                             Behavior on color        { ColorAnimation { duration: 200 } }
                             Behavior on border.color { ColorAnimation { duration: 200 } }
@@ -220,7 +220,7 @@ Rectangle {
                                 name: "check"; size: 14
                                 // 5WHY: #0F172A on cyan background is readable on both light
                                 // and dark themes — cyan is mid-luminance, dark text always contrasts.
-                                color: root.wantsScreenshot ? T.ThemeEngine.textOnAccent : "transparent"
+                                color: root.wantsScreenshot ? T.ThemeEngine.colors.textOnAccent : "transparent"
                                 visible: root.wantsScreenshot
                             }
                         }
@@ -245,12 +245,12 @@ Rectangle {
                     id: recordingCard
                     Layout.fillWidth: true; implicitHeight: 72; radius: 12
                     color: root.wantsRecording
-                           ? Qt.alpha(T.ThemeEngine.cyan, 0.10)
+                           ? Qt.alpha(T.ThemeEngine.colors.cyan, 0.10)
                            : Qt.alpha(T.ThemeEngine.colors.input, 0.3)
                     border {
                         width: root.wantsRecording ? 2 : 1
                         color: root.wantsRecording
-                               ? T.ThemeEngine.cyan
+                               ? T.ThemeEngine.colors.cyan
                                : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.5)
                     }
                     Behavior on color  { ColorAnimation { duration: 200 } }
@@ -260,7 +260,7 @@ Rectangle {
                         anchors.fill: parent; radius: 12
                         visible: root.wantsRecording
                         color: "transparent"
-                        border { width: 2; color: Qt.alpha(T.ThemeEngine.cyan, 0.06) }
+                        border { width: 2; color: Qt.alpha(T.ThemeEngine.colors.cyan, 0.06) }
                     }
 
                     RowLayout {
@@ -270,13 +270,13 @@ Rectangle {
                         Rectangle {
                             implicitWidth: 42; implicitHeight: 42; radius: 10
                             color: root.wantsRecording
-                                   ? Qt.alpha(T.ThemeEngine.cyan, 0.18)
-                                   : Qt.alpha(T.ThemeEngine.textSecondary, 0.08)
+                                   ? Qt.alpha(T.ThemeEngine.colors.cyan, 0.18)
+                                   : Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.08)
                             Behavior on color { ColorAnimation { duration: 200 } }
                             AppIcon {
                                 anchors.centerIn: parent
                                 name: "video"; size: 22
-                                color: root.wantsRecording ? T.ThemeEngine.cyan : T.ThemeEngine.textSecondary
+                                color: root.wantsRecording ? T.ThemeEngine.colors.cyan : T.ThemeEngine.colors.textSecondary
                             }
                         }
 
@@ -288,7 +288,7 @@ Rectangle {
                                 text: T.Tr.captureRecordingLabel
 
                                 font.pixelSize: 14; font.weight: Font.DemiBold
-                                color: T.ThemeEngine.textPrimary
+                                color: T.ThemeEngine.colors.textPrimary
                                 elide: Text.ElideRight
                                 maximumLineCount: 1
                             }
@@ -301,7 +301,7 @@ Rectangle {
                                 wrapMode: Text.WordWrap
                                 maximumLineCount: 2
                                 font.pixelSize: 11
-                                color: T.ThemeEngine.textSecondary
+                                color: T.ThemeEngine.colors.textSecondary
                             }
                         }
 
@@ -310,13 +310,13 @@ Rectangle {
                         Rectangle {
                             implicitWidth: 24; implicitHeight: 24; radius: 12
                             color: root.wantsRecording
-                                   ? T.ThemeEngine.cyan
+                                   ? T.ThemeEngine.colors.cyan
                                    : "transparent"
                             border {
                                 width: 2
                                 color: root.wantsRecording
-                                       ? T.ThemeEngine.cyan
-                                       : Qt.alpha(T.ThemeEngine.textSecondary, 0.3)
+                                       ? T.ThemeEngine.colors.cyan
+                                       : Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.3)
                             }
                             Behavior on color        { ColorAnimation { duration: 200 } }
                             Behavior on border.color { ColorAnimation { duration: 200 } }
@@ -324,7 +324,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 name: "check"; size: 14
                                 // 5WHY: Same reasoning as screenshot card — cyan bg + dark check is universal.
-                                color: root.wantsRecording ? T.ThemeEngine.textOnAccent : "transparent"
+                                color: root.wantsRecording ? T.ThemeEngine.colors.textOnAccent : "transparent"
                                 visible: root.wantsRecording
                             }
                         }
@@ -349,12 +349,12 @@ Rectangle {
             Rectangle {
                 visible: root.computedMode === 2 && captureOrchestrator && captureOrchestrator.supportsBothModes
                 Layout.fillWidth: true; implicitHeight: 32; radius: 8
-                color: Qt.alpha(T.ThemeEngine.cyan, 0.08)
-                border { width: 1; color: Qt.alpha(T.ThemeEngine.cyan, 0.2) }
+                color: Qt.alpha(T.ThemeEngine.colors.cyan, 0.08)
+                border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.cyan, 0.2) }
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 6
-                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.cyan }
+                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.colors.cyan }
                     Label {
                         // 5WHY: Without Layout.fillWidth, this Label gets
                         // its implicitWidth (full text width), making
@@ -363,7 +363,7 @@ Rectangle {
                         Layout.fillWidth: true
                         text: T.Tr.captureBothHint
                         font.pixelSize: 11
-                        color: T.ThemeEngine.cyan; elide: Text.ElideRight; maximumLineCount: 1
+                        color: T.ThemeEngine.colors.cyan; elide: Text.ElideRight; maximumLineCount: 1
                     }
                 }
             }
@@ -379,34 +379,34 @@ Rectangle {
                 spacing: 6
                 RowLayout {
                     spacing: 6
-                    AppIcon { name: "globe"; size: 14; color: T.ThemeEngine.textSecondary }
+                    AppIcon { name: "globe"; size: 14; color: T.ThemeEngine.colors.textSecondary }
                     Label {
                         text: T.Tr.captureDiagUrl
                         
                         font.pixelSize: 12; font.weight: Font.DemiBold
-                        color: T.ThemeEngine.textSecondary
+                        color: T.ThemeEngine.colors.textSecondary
                     }
                 }
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: 44; radius: 10
-                    color: T.ThemeEngine.bgInput
+                    color: T.ThemeEngine.colors.input
                     border {
                         width: 1
                         color: urlInput.activeFocus
-                               ? T.ThemeEngine.cyan
+                               ? T.ThemeEngine.colors.cyan
                                : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.5)
                     }
                     Behavior on border.color { ColorAnimation { duration: 200 } }
                     RowLayout {
                         anchors { fill: parent; margins: 12 }
                         spacing: 8
-                        AppIcon { name: "target"; size: 16; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.5) }
+                        AppIcon { name: "target"; size: 16; color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.5) }
                         TextInput {
                             id: urlInput
                             Layout.fillWidth: true
                             text: root.diagUrl
                             font.pixelSize: 13
-                            color: T.ThemeEngine.textPrimary
+                            color: T.ThemeEngine.colors.textPrimary
                             // 5WHY: Without placeholder text, users don't know
                             // what URL format is expected.  Show a hint — the
                             // default is https://httpbin.org for testing but
@@ -415,7 +415,7 @@ Rectangle {
                                 anchors.fill: parent
                                 text: "Enter diagnostic URL..."
                                 font.pixelSize: 13
-                                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.4)
+                                color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.4)
                                 visible: !urlInput.text && !urlInput.activeFocus
                             }
                             clip: true
@@ -438,8 +438,8 @@ Rectangle {
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: 48; radius: 14
                     color: root.computedMode >= 0
-                           ? T.ThemeEngine.cyan
-                           : Qt.alpha(T.ThemeEngine.textSecondary, 0.15)
+                           ? T.ThemeEngine.colors.cyan
+                           : Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.15)
                     scale: startMa.pressed && root.computedMode >= 0 ? 0.97 : 1.0
                     Behavior on scale  { NumberAnimation { duration: 100 } }
                     Behavior on color  { ColorAnimation { duration: 200 } }
@@ -452,13 +452,13 @@ Rectangle {
                             name: "play"; size: 16
                             // 5WHY: Dark icon/text on gradient cyan/primary button
                             // is readable on both light & dark themes.
-                            color: root.computedMode >= 0 ? T.ThemeEngine.textOnAccent : T.ThemeEngine.textSecondary
+                            color: root.computedMode >= 0 ? T.ThemeEngine.colors.textOnAccent : T.ThemeEngine.colors.textSecondary
                         }
                         Label {
                             text: T.Tr.captureStartBtn
                             
                             font.pixelSize: 15; font.weight: Font.Bold
-                            color: root.computedMode >= 0 ? T.ThemeEngine.textOnAccent : T.ThemeEngine.textSecondary
+                            color: root.computedMode >= 0 ? T.ThemeEngine.colors.textOnAccent : T.ThemeEngine.colors.textSecondary
                         }
                     }
                     MouseArea {

@@ -9,7 +9,7 @@ import "../theme" as T
 Rectangle {
     id: dbtn
     property string label: ""
-    property color accent: T.ThemeEngine.cyan
+    property color accent: T.ThemeEngine.colors.cyan
     property bool filled: false
     signal clicked()
 
@@ -20,7 +20,7 @@ Rectangle {
     Label {
         anchors.centerIn: parent
         text: dbtn.label
-        color: dbtn.filled ? T.ThemeEngine.bgDark : dbtn.accent
+        color: dbtn.filled ? T.ThemeEngine.colors.surface : dbtn.accent
         font.family: T.ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
     }
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }

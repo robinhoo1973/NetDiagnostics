@@ -161,9 +161,9 @@ Item {
             Rectangle {
                 Layout.preferredWidth: page.isMobile ? 72 : 100; Layout.preferredHeight: page.isMobile ? 72 : 100
                 Layout.alignment: Qt.AlignHCenter
-                radius: 24; color: Qt.alpha(ThemeEngine.cyan, 0.08)
-                border { width: 1.5; color: Qt.alpha(ThemeEngine.cyan, 0.2) }
-                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.cyan, 0.6) }
+                radius: 24; color: Qt.alpha(ThemeEngine.colors.cyan, 0.08)
+                border { width: 1.5; color: Qt.alpha(ThemeEngine.colors.cyan, 0.2) }
+                AppIcon { anchors.centerIn: parent; name: "report"; size: page.isMobile ? 36 : 48; color: Qt.alpha(ThemeEngine.colors.cyan, 0.6) }
             }
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
@@ -172,7 +172,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 text: Tr.reportPreview
-                font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
@@ -183,7 +183,7 @@ Item {
                 Layout.alignment: Qt.AlignHCenter
                 text: page.isRunning ? Tr.runningDots
                       : (page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst)
-                font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: Qt.alpha(ThemeEngine.textSecondary, 0.6)
+                font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
                 wrapMode: Text.WordWrap
             }
@@ -191,13 +191,13 @@ Item {
 
             // Single "Review Report" button — opens unified image preview
             ColumnLayout { spacing: 10; Layout.fillWidth: true
-                ExportButton { iconName: "report"; label: Tr.reportReviewBtn; accent: ThemeEngine.cyan; onClicked: page.openPreview() }
+                ExportButton { iconName: "report"; label: Tr.reportReviewBtn; accent: ThemeEngine.colors.cyan; onClicked: page.openPreview() }
                 Label {
                     visible: page.toast !== "" || page.lastPath !== "" || page.lastFailed
                     Layout.fillWidth: true; Layout.topMargin: 4
                     text: page.toast !== "" ? page.toast
                           : (page.lastFailed ? Tr.reportExportFailed : (Tr.reportSavedTo + " " + page.lastPath))
-                    color: page.lastFailed ? ThemeEngine.failRed : (page.toast !== "" ? ThemeEngine.cyan : ThemeEngine.passGreen)
+                    color: page.lastFailed ? ThemeEngine.colors.failRed : (page.toast !== "" ? ThemeEngine.colors.cyan : ThemeEngine.colors.passGreen)
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere; horizontalAlignment: Text.AlignHCenter
                 }
@@ -208,21 +208,21 @@ Item {
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: statusRow.implicitWidth + 32; implicitHeight: 40; radius: 8
-                color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.1)
-                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.1) : Qt.alpha(ThemeEngine.warnYellow, 0.1))
-                border { width: 1; color: page.isRunning ? Qt.alpha(ThemeEngine.cyan, 0.3)
-                       : (hasResults ? Qt.alpha(ThemeEngine.passGreen, 0.3) : Qt.alpha(ThemeEngine.warnYellow, 0.3)) }
+                color: page.isRunning ? Qt.alpha(ThemeEngine.colors.cyan, 0.1)
+                       : (hasResults ? Qt.alpha(ThemeEngine.colors.passGreen, 0.1) : Qt.alpha(ThemeEngine.colors.warnYellow, 0.1))
+                border { width: 1; color: page.isRunning ? Qt.alpha(ThemeEngine.colors.cyan, 0.3)
+                       : (hasResults ? Qt.alpha(ThemeEngine.colors.passGreen, 0.3) : Qt.alpha(ThemeEngine.colors.warnYellow, 0.3)) }
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.textPrimary }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.colors.textPrimary }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
                         text: page.isRunning ? Tr.runningStatus
                               : (hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults)
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                        color: page.isRunning ? ThemeEngine.cyan : (hasResults ? ThemeEngine.passGreen : ThemeEngine.warnYellow)
+                        color: page.isRunning ? ThemeEngine.colors.cyan : (hasResults ? ThemeEngine.colors.passGreen : ThemeEngine.colors.warnYellow)
                         elide: Text.ElideRight
                     }
                 }
@@ -262,17 +262,17 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: headerRow.implicitHeight + 16
-                    color: Qt.alpha(ThemeEngine.cyan, 0.08)
+                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.08)
                     radius: 8
                     RowLayout {
                         id: headerRow
                         anchors { fill: parent; margins: 8 }
-                        AppIcon { name: "report"; size: 20; color: ThemeEngine.cyan }
+                        AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.cyan }
                         Item { width: 8 }
                         Label {
                             Layout.fillWidth: true
                             text: Tr.reportReviewBtn
-                            font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary
                             elide: Text.ElideRight
                         }
                         Rectangle {
@@ -282,9 +282,9 @@ Item {
                             // reliably tap the close button. Use 48pt on mobile.
                             readonly property int btnSize: page.isMobile ? 48 : 34
                             implicitWidth: btnSize; implicitHeight: btnSize; radius: btnSize / 2
-                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.35)
-                                                            : Qt.alpha(ThemeEngine.failRed, 0.15)
-                            AppIcon { anchors.centerIn: parent; name: "close"; size: page.isMobile ? 22 : 16; color: ThemeEngine.failRed }
+                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.failRed, 0.35)
+                                                            : Qt.alpha(ThemeEngine.colors.failRed, 0.15)
+                            AppIcon { anchors.centerIn: parent; name: "close"; size: page.isMobile ? 22 : 16; color: ThemeEngine.colors.failRed }
                             MouseArea {
                                 id: closeMouse
                                 anchors.fill: parent
@@ -323,11 +323,11 @@ Item {
                         interactive: !pinching
                         ScrollBar.vertical: ScrollBar {
                             policy: ScrollBar.AsNeeded; width: 6
-                            contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
+                            contentItem: Rectangle { color: ThemeEngine.colors.textMuted; radius: 3 }
                         }
                         ScrollBar.horizontal: ScrollBar {
                             policy: ScrollBar.AsNeeded; height: 6
-                            contentItem: Rectangle { color: ThemeEngine.textMuted; radius: 3 }
+                            contentItem: Rectangle { color: ThemeEngine.colors.textMuted; radius: 3 }
                         }
                         PinchHandler {
                             target: null
@@ -373,8 +373,8 @@ Item {
                     Layout.topMargin: 4
                     spacing: 10
                     mode: "wide"
-                    pdfAccent: ThemeEngine.cyan
-                    htmlAccent: ThemeEngine.primary
+                    pdfAccent: ThemeEngine.colors.cyan
+                    htmlAccent: ThemeEngine.colors.primary
                     onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
 }
@@ -396,7 +396,7 @@ Item {
     component DialogBtn: Rectangle {
         id: dbtn
         property string label: ""
-        property color accent: ThemeEngine.cyan
+        property color accent: ThemeEngine.colors.cyan
         property bool filled: false
         signal clicked()
         implicitHeight: 42; radius: 8
@@ -405,7 +405,7 @@ Item {
         Label {
             anchors.centerIn: parent
             text: dbtn.label
-            color: dbtn.filled ? ThemeEngine.bgDark : dbtn.accent
+            color: dbtn.filled ? ThemeEngine.colors.surface : dbtn.accent
             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
@@ -419,7 +419,7 @@ Item {
         id: btn
         property string iconName: ""
         property string label: ""
-        property color accent: ThemeEngine.cyan
+        property color accent: ThemeEngine.colors.cyan
         signal clicked()
         Layout.fillWidth: true
         implicitHeight: 48; radius: 10
@@ -431,7 +431,7 @@ Item {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: btn.iconName; size: 18; color: btn.accent }
             Item { width: 12 }
-            Label { Layout.fillWidth: true; text: btn.label; color: ThemeEngine.textPrimary
+            Label { Layout.fillWidth: true; text: btn.label; color: ThemeEngine.colors.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
                 font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
         }

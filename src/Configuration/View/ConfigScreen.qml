@@ -39,7 +39,7 @@ Item {
                                 color: "transparent"
                                 Rectangle {
                                     anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-                                    height: 2; color: index === currentGroup ? ThemeEngine.cyan : "transparent"
+                                    height: 2; color: index === currentGroup ? ThemeEngine.colors.cyan : "transparent"
                                 }
                             }
                             contentItem: RowLayout {
@@ -49,8 +49,8 @@ Item {
                                 // Now: green dot toggles activation; tab label navigates.
                                 Rectangle {
                                     Layout.preferredWidth: 14; Layout.preferredHeight: 14; radius: 7
-                                    color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
-                                    border { width: 1; color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted } }
+                                    color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.colors.passGreen : ThemeEngine.colors.textMuted }
+                                    border { width: 1; color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.colors.passGreen : ThemeEngine.colors.textMuted } }
                                     MouseArea {
                                         anchors.fill: parent
                                         // 5WHY: Visually small dot (14dp) needs a large touch
@@ -68,7 +68,7 @@ Item {
                                     text: "G" + (index + 1)
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                     font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
-                                    color: { let _ = configPollVersion; return appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.cyan : ThemeEngine.textPrimary) : ThemeEngine.textMuted }
+                                    color: { let _ = configPollVersion; return appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary) : ThemeEngine.colors.textMuted }
                                 }
                             }
                             onClicked: {
@@ -86,18 +86,18 @@ Item {
         // ── Action Bar — Flutter: Container(padding h16 v12, bgCard alpha 0.5) ─
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 60
-            color: Qt.alpha(ThemeEngine.bgCard, 0.5)
+            color: Qt.alpha(ThemeEngine.colors.card, 0.5)
             border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 ColumnLayout { spacing: 2
                     Label {
                         text: Tr.groupName(currentGroup)
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                     }
                     Label {
                         text: getDiagCountForGroup(currentGroup) + Tr.diagsSuffix
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textSecondary
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
                     }
                 }
                 Item { Layout.fillWidth: true }
@@ -109,7 +109,7 @@ Item {
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
-                    AppIcon { anchors.centerIn: parent; name: "badge-check"; size: 20; color: enabled ? ThemeEngine.passGreen : ThemeEngine.textMuted }
+                    AppIcon { anchors.centerIn: parent; name: "badge-check"; size: 20; color: enabled ? ThemeEngine.colors.passGreen : ThemeEngine.colors.textMuted }
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
@@ -131,7 +131,7 @@ Item {
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
-                    AppIcon { anchors.centerIn: parent; name: "badge-close"; size: 20; color: enabled ? ThemeEngine.failRed : ThemeEngine.textMuted }
+                    AppIcon { anchors.centerIn: parent; name: "badge-close"; size: 20; color: enabled ? ThemeEngine.colors.failRed : ThemeEngine.colors.textMuted }
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
@@ -176,7 +176,7 @@ Item {
                     AppIcon {
                         name: { let _ = configPollVersion; return appState.isDiagEnabled(modelData) ? "badge-check" : "badge-circle" }
                         size: 14
-                        color: { let _ = configPollVersion; return appState.isDiagEnabled(modelData) ? ThemeEngine.passGreen : ThemeEngine.textMuted }
+                        color: { let _ = configPollVersion; return appState.isDiagEnabled(modelData) ? ThemeEngine.colors.passGreen : ThemeEngine.colors.textMuted }
                     }
 
                     // Title + subtitle
@@ -185,14 +185,14 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             text: getDisplayName(modelData)
-                            font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: ThemeEngine.textPrimary
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: ThemeEngine.colors.textPrimary
                             elide: Text.ElideRight
                         }
                         Label {
                             Layout.fillWidth: true
                             text: getDiagDescription(modelData)
                             font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                            color: Qt.alpha(ThemeEngine.textSecondary, 0.6)
+                            color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                             elide: Text.ElideRight; maximumLineCount: 2
                             visible: text !== ""
                         }

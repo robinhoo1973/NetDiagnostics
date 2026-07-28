@@ -1,77 +1,26 @@
-﻿// =============================================================================
-// NetworkProbe.cpp 鈥?Raw socket wrappers for G4/G5 tests
+// =============================================================================
+// NetworkProbe.cpp -- High-level Qt socket wrappers for G4/G5 tests
+//
+// 5WHY: Three local raw-socket helpers (resolveIPv4, setNonBlocking,
+// connectSuccess) were dead code -- this file uses QTcpSocket/QSslSocket
+// exclusively. They were leftovers from an earlier implementation and
+// duplicated equivalents in NetUtil.h. Removed to reduce maintenance burden.
+//
+// 5WHY: The file header said "Raw socket wrappers" but all methods use
+// QTcpSocket/QSslSocket -- the Qt event-loop-integrated socket classes.
+// Renamed to accurately describe the implementation.
 // =============================================================================
 #include "Diagnostics/Model/NetworkProbe.h"
 #include <QTcpSocket>
 #include <QSslSocket>
-#include <QHostInfo>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QElapsedTimer>
-#include <QEventLoop>
-#include <QTimer>
-#include <QMutex>
-#include <QtConcurrent/QtConcurrent>
+#include <QDateTime>
+#include <QCryptographicHash>
 #include <algorithm>
 
-#if defined(_WIN32)
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <io.h>
-#define close closesocket
-#else
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#endif
-#include "Common/Services/DnsResolver.h"
-
-
-// 鈹€鈹€ Helper: resolve hostname 鈫?IPv4 (host byte order) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-static quint32 resolveIPv4(const QString& host) {
-    return DnsResolver::resolveIPv4(host, 3000);
-}
-
-// 鈹€鈹€ Helper: set socket non-blocking 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-static bool setNonBlocking(int sock) {
-#if defined(_WIN32)
-    u_long mode = 1;
-    return ioctlsocket(sock, FIONBIO, &mode) == 0;
-#else
-    int flags = fcntl(sock, F_GETFL, 0);
-    if (flags < 0) return false;
-    return fcntl(sock, F_SETFL, flags | O_NONBLOCK) == 0;
-#endif
-}
-
-// 鈹€鈹€ Helper: check if non-blocking connect succeeded 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-static bool connectSuccess(int sock) {
-    // Verify connection actually completed (not still EINPROGRESS)
-    struct sockaddr_in peer;
-    socklen_t peerLen = sizeof(peer);
-    if (getpeername(sock, reinterpret_cast<struct sockaddr*>(&peer), &peerLen) < 0) {
-        // Not connected yet 鈥?still in progress
-        return false;
-    }
-    // Connection completed 鈥?check for errors
-    int err = 0;
-    socklen_t len = sizeof(err);
-#if defined(_WIN32)
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-#else
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);
-#endif
-    return err == 0;
-}
-
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// TCP Connect
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// =============================================================================
+// TCP Connect
+// =============================================================================
 TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int timeoutMs) {
     TcpConnectResult result;
     QTcpSocket socket;
@@ -132,8 +81,10 @@ SslCertInfo NetworkProbe::sslCertInfo(const QString& host, int port, int timeout
     socket.disconnectFromHost();
     return info;
 }
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?// Well-known Port Names
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+
+// =============================================================================
+// Well-known Port Names
+// =============================================================================
 const QMap<int, QString>& NetworkProbe::wellKnownPorts() {
     static const QMap<int, QString> map = {
         {21, "ftp"},       {22, "ssh"},        {23, "telnet"},

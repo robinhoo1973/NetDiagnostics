@@ -5,19 +5,25 @@ DiagnosticResult sshDiagnostics(const QString& target) {
     if (u.scheme() != "ssh" && u.scheme() != "sftp")
         return g5Result(DiagId::G5SshDiagnostics, "Not SSH", DiagStatus::Skipped);
     int port = portForUrl(u);
+    QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return g5Result(DiagId::G5SshDiagnostics, "Connection failed", DiagStatus::Fail);
+    if (!sock.waitForConnected(5000)) {
+        auto r = g5Result(DiagId::G5SshDiagnostics, "Connection failed", DiagStatus::Fail);
+        r.durationMs = t.elapsed();
+        return r;
+    }
     sock.waitForReadyRead(3000);
     QByteArray banner = sock.readAll();
     sock.disconnectFromHost();
     QString bstr = QString::fromUtf8(banner).trimmed().left(200);
     QString version;
     if (bstr.startsWith("SSH-")) version = bstr.section(' ', 0, 0);
-    return g5Result(DiagId::G5SshDiagnostics,
+    auto r = g5Result(DiagId::G5SshDiagnostics,
         version.isEmpty() ? "No SSH banner" : version,
         version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
+    r.durationMs = t.elapsed();
+    return r;
 }
 
 } // namespace G5WebsiteUrl

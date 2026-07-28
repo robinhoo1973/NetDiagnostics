@@ -38,14 +38,14 @@ Rectangle {
         anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
         AppIcon {
             name: root.iconName; size: 20
-            color: T.ThemeEngine.cyan
+            color: T.ThemeEngine.colors.cyan
         }
         Item { width: 10 }
         Label {
             text: root.title
             font.family: T.ThemeEngine.monoFont; font.pixelSize: 15
             font.weight: Font.DemiBold
-            color: T.ThemeEngine.textPrimary
+            color: T.ThemeEngine.colors.textPrimary
         }
         // Caller's children inserted here by default property alias.
         //

@@ -14,7 +14,7 @@ ColumnLayout {
             id: liveSpinner
             name: status === 1 ? "spinner" : status === 2 ? "badge-check" : status === 3 ? "badge-close" : status === 4 ? "badge-error" : "badge-circle"
             size: 14
-            color: status === 1 ? ThemeEngine.colors.primary : (status === 2 ? ThemeEngine.passGreen : (status === 3 || status === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary))
+            color: status === 1 ? ThemeEngine.colors.primary : (status === 2 ? ThemeEngine.colors.passGreen : (status === 3 || status === 4 ? ThemeEngine.colors.failRed : ThemeEngine.colors.textPrimary))
             RotationAnimation on rotation {
                 running: status === 1; from:0; to:360; duration:1000; loops:Animation.Infinite
                 // 5WHY: Reset rotation so post-spinner icon (badge-check etc.) isn't skewed.
@@ -24,20 +24,20 @@ ColumnLayout {
         Label {
             text: status === 1 ? Tr.runningStatus : status === 2 ? Tr.completeStatus : status === 3 ? Tr.cancelledStatus : status === 4 ? Tr.errorStatus : Tr.readyStatus
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-            color: status === 1 ? ThemeEngine.cyan : status === 2 ? ThemeEngine.passGreen : status === 3 ? ThemeEngine.warnYellow : status === 4 ? ThemeEngine.failRed : ThemeEngine.textSecondary
+            color: status === 1 ? ThemeEngine.colors.cyan : status === 2 ? ThemeEngine.colors.passGreen : status === 3 ? ThemeEngine.colors.warnYellow : status === 4 ? ThemeEngine.colors.failRed : ThemeEngine.colors.textSecondary
         }
-        AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: ThemeEngine.failRed }
+        AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: ThemeEngine.colors.failRed }
         Item { Layout.fillWidth: true }
         Label {
             visible: status === 1
             text: appState.currentDiagLabel || ""
-            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true; color: ThemeEngine.cyan
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true; color: ThemeEngine.colors.cyan
             elide: Text.ElideRight; Layout.maximumWidth: 300
         }
         Label {
             visible: appState.totalDiags > 0
             text: appState.totalCompleted + " / " + appState.totalDiags
-            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary
         }
     }
 
@@ -45,7 +45,7 @@ ColumnLayout {
         visible: appState.errorMessage !== ""
         Layout.fillWidth: true; Layout.topMargin: 6
         text: Tr.errorPrefix + (appState.errorMessage || "")
-        font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: Qt.alpha(ThemeEngine.failRed, 0.8)
+        font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: Qt.alpha(ThemeEngine.colors.failRed, 0.8)
         maximumLineCount: 2; elide: Text.ElideRight
     }
 }

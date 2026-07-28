@@ -16,7 +16,7 @@ Rectangle {
     Layout.fillWidth: true
     implicitHeight: 48; radius: 14
     color: "transparent"
-    border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.25) }
+    border { width: 1.5; color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.25) }
     scale: btnMouse.pressed ? 0.97 : 1.0
     Behavior on scale { NumberAnimation { duration: 100 } }
 
@@ -25,7 +25,7 @@ Rectangle {
         text: root.text
         font.family: T.ThemeEngine.monoFont
         font.pixelSize: 14; font.weight: Font.DemiBold
-        color: T.ThemeEngine.textSecondary
+        color: T.ThemeEngine.colors.textSecondary
     }
     MouseArea {
         id: btnMouse

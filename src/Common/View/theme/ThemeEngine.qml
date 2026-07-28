@@ -7,6 +7,12 @@
 //
 // Theme switching: JS assignment (NOT QML bindings) via applyTheme().
 // Gated behind _ready flag to prevent cascading during singleton init.
+//
+// CANONICAL COLOR ACCESS: ThemeEngine.colors.xxx
+//   All colors are accessed through the `colors` JS object.  The legacy
+//   direct properties (bgDark, passGreen, etc.) below are deprecated
+//   convenience aliases kept for backward compatibility.  New code MUST
+//   use ThemeEngine.colors.xxx exclusively.
 // =============================================================================
 pragma Singleton
 import QtQuick
@@ -15,13 +21,7 @@ QtObject {
     readonly property int litMode: 1
     readonly property int drkMode: 2
     property int mode: drkMode
-    // 5WHY: report preview hardcoded dark theme. Expose reactive boolean
-    // so QML can pass ThemeEngine.isDark to C++ report generation calls.
     readonly property bool isDark: mode !== litMode
-
-    // 5WHY: platform detection (Qt.platform.os === "ios" || Qt.platform.os === "android")
-    // was duplicated as local properties (isMobile/compact/_isMobile) in 9+ files.
-    // Centralize here so adding a new platform (wasm, tvOS) requires one edit.
     readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
     // ── Palettes as JS objects (2 properties — NOT 46 QML properties) ──
@@ -42,12 +42,6 @@ QtObject {
         textOnAccent:     "#0F172A"
     })
 
-    // 5WHY: Dark palette accent colors (cyan, primary) were too dim for icon
-    // visibility against dark backgrounds (#1E293B).  Text/surface colors flip
-    // dramatically between themes (#0F172A ↔ #F1F5F9), but accent colors barely
-    // changed (#06B6D4 → #22D3EE for cyan).  Result: icons blended into their
-    // Qt.alpha(accent, 0.12) button backgrounds.  Bumped cyan +32% luminance
-    // and primary +25% luminance for WCAG AA contrast against dark card surfaces.
     readonly property var darkPalette: ({
         surface:          "#0F172A", sidebar:    "#0F172A",
         card:             "#1E293B", input:      "#334155",
@@ -65,39 +59,67 @@ QtObject {
         textOnAccent:     "#0F172A"
     })
 
-    // ── Active colors (direct literals — NO bindings, matching min ver) ──
-    property string bgDark:          "#0F172A"
-    property string bgSidebar:       "#0F172A"
-    property string bgCard:          "#1E293B"
-    property string bgInput:         "#334155"
-    property string navBar:          "#0F172A"
-    property string textPrimary:     "#F1F5F9"
-    property string textSecondary:   "#94A3B8"
-    property string textMuted:       "#94A3B8"
-    property string accent:          "#FB7185"
-    property string accentBlue:      "#818CF8"
-    property string cyan:            "#68E5F4"
-    property string passGreen:       "#4ADE80"
-    property string warnYellow:      "#FBBF24"
-    property string failRed:         "#F87171"
-    property string skipGray:        "#9CA3AF"
-    property string infoBlue:        "#A5B4FC"
-    property string borderCard:      "#334155"
-    property string borderSubtle:    "#1E293B"
-    property string borderFocused:   "#60C8F8"
-    property string primary:         "#60C8F8"
-    property string primaryContainer: "#0C4A6E"
-    property string secondary:       "#818CF8"
-    // 5WHY: #0F172A appeared at 9 hardcoded sites as "dark text on cyan
-    // button — works on both themes."  Centralize as a semantic token so
-    // a palette change doesn't silently produce unreadable button text.
-    property string textOnAccent:    "#0F172A"
+    // ═══════════════════════════════════════════════════════════════════
+    // LEGACY DIRECT PROPERTIES — @deprecated since Cycle 16
+    //
+    // 5WHY: These direct QML properties exist alongside the canonical
+    // `colors` JS object.  They were the original access pattern before
+    // the property-count limit forced consolidation into `colors`.
+    // Each is now a read-only alias that delegates to colors.xxx.
+    //
+    // USE ThemeEngine.colors.xxx INSTEAD.
+    // ═══════════════════════════════════════════════════════════════════
+
+    // @deprecated — use ThemeEngine.colors.surface
+    readonly property string bgDark:          colors.surface
+    // @deprecated — use ThemeEngine.colors.sidebar
+    readonly property string bgSidebar:       colors.sidebar
+    // @deprecated — use ThemeEngine.colors.card
+    readonly property string bgCard:          colors.card
+    // @deprecated — use ThemeEngine.colors.input
+    readonly property string bgInput:         colors.input
+    // @deprecated — use ThemeEngine.colors.navBar
+    readonly property string navBar:          colors.navBar
+    // @deprecated — use ThemeEngine.colors.textPrimary
+    readonly property string textPrimary:     colors.textPrimary
+    // @deprecated — use ThemeEngine.colors.textSecondary
+    readonly property string textSecondary:   colors.textSecondary
+    // @deprecated — use ThemeEngine.colors.textMuted
+    readonly property string textMuted:       colors.textMuted
+    // @deprecated — use ThemeEngine.colors.accent
+    readonly property string accent:          colors.accent
+    // @deprecated — use ThemeEngine.colors.secondary
+    readonly property string accentBlue:      colors.secondary
+    // @deprecated — use ThemeEngine.colors.cyan
+    readonly property string cyan:            colors.cyan
+    // @deprecated — use ThemeEngine.colors.passGreen
+    readonly property string passGreen:       colors.passGreen
+    // @deprecated — use ThemeEngine.colors.warnYellow
+    readonly property string warnYellow:      colors.warnYellow
+    // @deprecated — use ThemeEngine.colors.failRed
+    readonly property string failRed:         colors.failRed
+    // @deprecated — use ThemeEngine.colors.skipGray
+    readonly property string skipGray:        colors.skipGray
+    // @deprecated — use ThemeEngine.colors.infoBlue
+    readonly property string infoBlue:        colors.infoBlue
+    // @deprecated — use ThemeEngine.colors.borderCard
+    readonly property string borderCard:      colors.borderCard
+    // @deprecated — use ThemeEngine.colors.borderSubtle
+    readonly property string borderSubtle:    colors.borderSubtle
+    // @deprecated — use ThemeEngine.colors.borderFocused
+    readonly property string borderFocused:   colors.borderFocused
+    // @deprecated — use ThemeEngine.colors.primary
+    readonly property string primary:         colors.primary
+    // @deprecated — use ThemeEngine.colors.primaryContainer
+    readonly property string primaryContainer: colors.primaryContainer
+    // @deprecated — use ThemeEngine.colors.secondary
+    readonly property string secondary:       colors.secondary
+    // @deprecated — use ThemeEngine.colors.textOnAccent
+    readonly property string textOnAccent:    colors.textOnAccent
 
     // ── Theme switching (imperative JS — gated to skip init) ──────────
     property bool _ready: false
     Component.onCompleted: {
-        // Restore persisted theme mode from AppState (survives app restarts).
-        // Default is drkMode (2); AppState::loadSettings() restores saved value.
         if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
             mode = appState.themeMode
         }
@@ -105,53 +127,57 @@ QtObject {
         applyTheme()
     }
 
-
     function applyTheme() {
         var p = (mode === litMode) ? lightPalette : darkPalette
-        // NOTE: must use dot notation — this[key]=val does NOT trigger
-        // QML property change signals in static/cross-compiled builds
-        bgDark          = p.surface;       bgSidebar       = p.sidebar
-        bgCard          = p.card;          bgInput         = p.input
-        navBar          = p.navBar;        textPrimary     = p.textPrimary
-        textSecondary   = p.textSecondary; textMuted       = p.textMuted
-        accent          = p.accent;        accentBlue      = p.secondary
-        cyan            = p.cyan;          passGreen       = p.passGreen
-        warnYellow      = p.warnYellow;    failRed         = p.failRed
-        skipGray        = p.skipGray;      infoBlue        = p.infoBlue
-        borderCard      = p.borderCard;    borderSubtle    = p.borderSubtle
-        borderFocused   = p.borderFocused; primary         = p.primary
-        primaryContainer= p.primaryContainer; secondary     = p.secondary
-        textOnAccent    = p.textOnAccent
-        // Rebuild colors JS object so all 152 consumers get fresh theme
+
+        // 5WHY: Previously set 23 individual QML properties via direct
+        // assignment (bgDark = p.surface, passGreen = p.passGreen, ...).
+        // Now the direct properties are readonly aliases (colors.xxx), so
+        // only the `colors` object needs updating.  This eliminates 23
+        // property assignments per theme switch and makes the `colors`
+        // object the single source of truth.
         colors = ({
-            surface: bgDark, card: bgCard, input: bgInput, sidebar: bgSidebar,
-            navBar: navBar, primary: primary, primaryContainer: primaryContainer,
-            secondary: secondary, textPrimary: textPrimary,
-            textSecondary: textSecondary, textMuted: textMuted,
-            accent: accent, cyan: cyan, passGreen: passGreen,
-            warnYellow: warnYellow, failRed: failRed, skipGray: skipGray,
-            infoBlue: infoBlue, borderCard: borderCard,
-            borderSubtle: borderSubtle, borderFocused: borderFocused,
-            textOnAccent: textOnAccent
+            surface: p.surface,           sidebar: p.sidebar,
+            card: p.card,                 input: p.input,
+            navBar: p.navBar,             primary: p.primary,
+            primaryContainer: p.primaryContainer,
+            secondary: p.secondary,
+            textPrimary: p.textPrimary,   textSecondary: p.textSecondary,
+            textMuted: p.textMuted,       accent: p.accent,
+            cyan: p.cyan,                 passGreen: p.passGreen,
+            warnYellow: p.warnYellow,     failRed: p.failRed,
+            skipGray: p.skipGray,         infoBlue: p.infoBlue,
+            borderCard: p.borderCard,     borderSubtle: p.borderSubtle,
+            borderFocused: p.borderFocused,
+            textOnAccent: p.textOnAccent
         })
     }
     onModeChanged: { if (_ready) applyTheme() }
 
-    // ── Convenience object (rebuilt on every theme switch) ────────────
-    // 5WHY: readonly property var was a one-time JS object snapshot —
-    // applyTheme() updated the direct properties but colors stayed stale.
-    // Now non-readonly, rebuilt inside applyTheme() so all 152 consumers
-    // get reactive theme updates.
-    property var colors: ({})
-    // 5WHY: Toast duration 3500ms was duplicated in 6 Timer declarations
-    // across 4 files.  Centralize so a UX change updates all toasts uniformly.
+    // ── Canonical color access — single source of truth ────────────────
+    // 5WHY: colors was initialized as empty {} — the deprecated readonly
+    // aliases (bgDark: colors.surface) resolved to undefined between
+    // singleton construction and Component.onCompleted→applyTheme().
+    // Initializing with the dark palette default values ensures all
+    // color properties are valid from t=0.
+    property var colors: ({
+        surface:          "#0F172A", sidebar:    "#0F172A",
+        card:             "#1E293B", input:      "#334155",
+        navBar:           "#0F172A", primary:    "#60C8F8",
+        primaryContainer: "#0C4A6E", secondary:  "#818CF8",
+        textPrimary:      "#F1F5F9", textSecondary: "#94A3B8",
+        textMuted:        "#94A3B8", accent:     "#FB7185",
+        cyan:             "#68E5F4", passGreen:  "#4ADE80",
+        warnYellow:       "#FBBF24", failRed:    "#F87171",
+        skipGray:         "#9CA3AF", infoBlue:   "#A5B4FC",
+        borderCard:       "#334155", borderSubtle: "#1E293B",
+        borderFocused:    "#60C8F8", textOnAccent: "#0F172A"
+    })
+
     readonly property int toastDurationMs: 3500
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
     readonly property string fontMono: "JetBrains Mono"
     readonly property string monoFont: fontMono
 
-    // Shared space-pad for monospace badge alignment (ES5-compatible, no padStart).
-    // 5WHY: three files had identical copies (_pad2, _pad2Fixed, _pad2Badge).
-    // Centralized here as single source of truth.
     function pad2(n) { return (n < 10 ? " " : "") + n }
 }

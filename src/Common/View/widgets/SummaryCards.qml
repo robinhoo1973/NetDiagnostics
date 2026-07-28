@@ -11,8 +11,8 @@ ColumnLayout {
 
     // Header: "Summary" + "Total: N"
     RowLayout {
-        Label { Layout.fillWidth: true; text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
-        Label { text: Tr.totalDiagsLabel + ": " + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textSecondary }
+        Label { Layout.fillWidth: true; text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+        Label { text: Tr.totalDiagsLabel + ": " + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
@@ -22,15 +22,15 @@ ColumnLayout {
         Layout.fillWidth: true; Layout.topMargin: 4
         visible: (pass+warn+fail+skip+info) === 0
         text: Tr.runDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 11
-        color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
+        color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
         horizontalAlignment: Text.AlignHCenter
     }
     // 5 result types — each with colored icon + badge count
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.infoBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;   visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;   visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.infoBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;   visible: (pass+warn+fail+skip+info) > 0 }
 
     Connections {
         target: appState
@@ -52,7 +52,7 @@ ColumnLayout {
     }
 
     component SummaryCard: Rectangle {
-        property color accent: ThemeEngine.passGreen
+        property color accent: ThemeEngine.colors.passGreen
         property string label: ""
         property string iconName: "badge-info"
         property int count: 0
@@ -70,7 +70,7 @@ ColumnLayout {
             Item { Layout.fillWidth: true }
             Label {
                 text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Medium
-                color: ThemeEngine.textSecondary
+                color: ThemeEngine.colors.textSecondary
             }
             Item { width: 8 }
             Label {

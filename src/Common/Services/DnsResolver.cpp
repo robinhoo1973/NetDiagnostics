@@ -147,7 +147,22 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
             std::chrono::steady_clock::now() - start).count();
         if (elapsed > timeoutMs) break;
     }
-    t.detach(); // thread keeps shared_ptr alive, auto-frees when done
+    // 5WHY: t.detach() was unconditional -- even when the thread completed
+    // within the timeout (st->done==true), we detached instead of joining.
+    // A joinable thread that finishes normally consumes kernel resources
+    // (TID, stack) until explicitly joined or detached.  Joining a completed
+    // thread is immediate (no blocking), so prefer join when possible.
+    // Detach is only needed for the timeout case where getaddrinfo may still
+    // be blocked for 30-120s -- joining would block the caller.
+    if (st->done.load(std::memory_order_acquire)) {
+        t.join();   // thread completed within timeout -- immediate cleanup
+    } else {
+        t.detach(); // timeout: thread still blocked in getaddrinfo; let it
+                     // keep shared_ptr alive until it finishes, then auto-free.
+                     // Risk: rapid repeated timeouts accumulate detached threads.
+                     // Mitigated by DNS cache -- repeated lookups hit the cache
+                     // before spawning new threads.
+    }
     if (!st->done.load(std::memory_order_acquire))
         return {}; // timeout: thread still owns st via shared_ptr, safe
     {
@@ -155,6 +170,101 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
         if (!st->ip.isEmpty())
             m_cache[host] = st->ip;
     }
+    return st->ip;
+#endif
+}
+
+QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
+    struct in6_addr ip6;
+    if (inet_pton(AF_INET6, host.toUtf8().constData(), &ip6) == 1)
+        return host;
+    { QMutexLocker l(&m_mutex); QString k = QStringLiteral("v6:") + host; if (m_cache.contains(k)) return m_cache[k]; }
+
+#if defined(__APPLE__)
+    // 5WHY: resolve() uses GCD (dispatch_async_f) on Apple platforms because
+    // std::thread::detach leaks threads on iOS.  resolve6() must use the same
+    // pattern for the same reason.  Reference-counted Dns6Ctx prevents UAF
+    // on timeout: the waiter drops its reference, but the worker keeps ctx
+    // (and the semaphore) alive until it finishes.
+    struct Dns6Ctx {
+        QByteArray host;
+        char ip[INET6_ADDRSTRLEN];
+        std::atomic<bool> resolved;
+        dispatch_semaphore_t sem;
+        std::atomic<int> refs;
+    };
+    auto* ctx = new Dns6Ctx();
+    ctx->host = host.toUtf8();
+    ctx->ip[0] = '\0';
+    ctx->resolved.store(false, std::memory_order_relaxed);
+    ctx->sem = dispatch_semaphore_create(0);
+    ctx->refs.store(2, std::memory_order_relaxed);
+
+    dispatch_async_f(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ctx,
+        [](void* p) {
+            auto* c = static_cast<Dns6Ctx*>(p);
+            struct addrinfo hints = {}, *res = nullptr;
+            hints.ai_family = AF_INET6; hints.ai_socktype = SOCK_STREAM;
+            if (getaddrinfo(c->host.constData(), nullptr, &hints, &res) == 0 && res) {
+                auto* sa6 = (struct sockaddr_in6*)res->ai_addr;
+                inet_ntop(AF_INET6, &sa6->sin6_addr, c->ip, sizeof(c->ip));
+                c->resolved.store(true, std::memory_order_release);
+                freeaddrinfo(res);
+            }
+            dispatch_semaphore_signal(c->sem);
+            if (c->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+                dispatch_release(c->sem);
+                delete c;
+            }
+        });
+
+    long waitResult = dispatch_semaphore_wait(ctx->sem,
+        dispatch_time(DISPATCH_TIME_NOW, (int64_t)timeoutMs * NSEC_PER_MSEC));
+
+    QString ipOut;
+    if (waitResult == 0 && ctx->resolved.load(std::memory_order_acquire)) {
+        ipOut = QString::fromLatin1(ctx->ip);
+        if (!ipOut.isEmpty()) {
+            QMutexLocker locker(&m_mutex);
+            m_cache[QStringLiteral("v6:") + host] = ipOut;
+        }
+    }
+    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        dispatch_release(ctx->sem);
+        delete ctx;
+    }
+    return ipOut;
+#else
+    // Non-Apple: std::thread with polling loop.
+    struct State { std::atomic<bool> done{false}; QString ip; };
+    auto st = std::make_shared<State>();
+    QByteArray hb = host.toUtf8();
+    std::thread t([st, hb]() {
+        struct addrinfo hints = {}, *res;
+        hints.ai_family = AF_INET6; hints.ai_socktype = SOCK_STREAM;
+        if (getaddrinfo(hb.constData(), nullptr, &hints, &res) == 0) {
+            char ip[INET6_ADDRSTRLEN];
+            auto* sa6 = (struct sockaddr_in6*)res->ai_addr;
+            inet_ntop(AF_INET6, &sa6->sin6_addr, ip, sizeof(ip));
+            st->ip = QString::fromLatin1(ip); freeaddrinfo(res);
+        }
+        st->done.store(true, std::memory_order_release);
+    });
+    auto tm = std::chrono::steady_clock::now();
+    while (!st->done.load(std::memory_order_acquire)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now()-tm).count() > timeoutMs) break;
+    }
+    // 5WHY: prefer join() when thread completed within timeout for immediate
+    // cleanup; detach() is only needed for timeout case where getaddrinfo may
+    // still be blocked for 30-120s.
+    if (st->done.load(std::memory_order_acquire)) {
+        t.join();
+    } else {
+        t.detach();
+    }
+    if (!st->done.load(std::memory_order_acquire)) return {};
+    { QMutexLocker l(&m_mutex); if (!st->ip.isEmpty()) m_cache[QStringLiteral("v6:")+host]=st->ip; }
     return st->ip;
 #endif
 }

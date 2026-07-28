@@ -39,7 +39,7 @@ Item {
     // 5WHY: _snapHasError was a derivable property (_snapTargetError !== "") —
     // inlined directly where used to eliminate one QML binding slot.
     property string _snapIconName: _snapTargetError !== "" ? "badge-warning" : "badge-info"
-    property color _snapIconColor: _snapTargetError !== "" ? ThemeEngine.warnYellow : ThemeEngine.infoBlue
+    property color _snapIconColor: _snapTargetError !== "" ? ThemeEngine.colors.warnYellow : ThemeEngine.colors.infoBlue
     property int _snapVersion: 0
 
     // 5WHY: NavigationAdapter.openDiagnosticDetail() used findChild by
@@ -119,18 +119,18 @@ Item {
             Rectangle {
                 visible: appState.captureFeatureEnabled && captureService !== null && captureService.active
                 implicitWidth: captureRow.implicitWidth + 16; implicitHeight: 28; radius: 14
-                color: Qt.alpha(ThemeEngine.cyan, 0.15)
-                border { width: 1; color: Qt.alpha(ThemeEngine.cyan, 0.4) }
+                color: Qt.alpha(ThemeEngine.colors.cyan, 0.15)
+                border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.4) }
                 RowLayout {
                     id: captureRow
                     anchors.centerIn: parent
                     spacing: 4
                     // 5WHY: Replaced 📸 emoji with camera SVG for consistent iconography.
-                    AppIcon { name: "camera"; size: 12; color: ThemeEngine.cyan }
+                    AppIcon { name: "camera"; size: 12; color: ThemeEngine.colors.cyan }
                     Label {
                         text: captureService !== null ? captureService.captureCount : ""
                         font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                        color: ThemeEngine.cyan
+                        color: ThemeEngine.colors.cyan
                     }
                 }
             }
@@ -177,7 +177,7 @@ Item {
                             id: statusSpinner
                             name: appState.runStatus === 1 ? "spinner" : "diagnostics"
                             size: 16
-                            color: appState.runStatus === 1 ? ThemeEngine.cyan : ThemeEngine.colors.primary
+                            color: appState.runStatus === 1 ? ThemeEngine.colors.cyan : ThemeEngine.colors.primary
                             RotationAnimation on rotation {
                                 running: appState.runStatus === 1
                                 from: 0; to: 360; duration: 1000; loops: Animation.Infinite
@@ -191,13 +191,13 @@ Item {
                                   appState.runStatus === 3 ? Tr.cancelled :
                                   appState.runStatus === 4 ? Tr.errorStatus : Tr.results
                             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
-                            color: appState.runStatus === 4 ? ThemeEngine.failRed : ThemeEngine.colors.textPrimary
+                            color: appState.runStatus === 4 ? ThemeEngine.colors.failRed : ThemeEngine.colors.textPrimary
                         }
                         Label {
                             visible: appState.runStatus === 1 && appState.totalDiags > 0
                             text: appState.totalCompleted + " / " + appState.totalDiags
                             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                            color: ThemeEngine.cyan
+                            color: ThemeEngine.colors.cyan
                         }
                         Item { Layout.fillWidth: true }
                     }
@@ -205,11 +205,11 @@ Item {
                     RowLayout {
                         spacing: 4; visible: _showBadges
                         Item { width: 11 }
-                        StatusBadge { accent: ThemeEngine.passGreen;  iconName: "badge-check";   count: __agg.pass }
-                        StatusBadge { accent: ThemeEngine.infoBlue; iconName: "badge-info";    count: __agg.info }
-                        StatusBadge { accent: ThemeEngine.warnYellow; iconName: "badge-warning"; count: __agg.warn }
-                        StatusBadge { accent: ThemeEngine.failRed;    iconName: "badge-close";   count: __agg.fail }
-                        StatusBadge { accent: ThemeEngine.skipGray;   iconName: "badge-skip";    count: __agg.skip }
+                        StatusBadge { accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   count: __agg.pass }
+                        StatusBadge { accent: ThemeEngine.colors.infoBlue; iconName: "badge-info";    count: __agg.info }
+                        StatusBadge { accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; count: __agg.warn }
+                        StatusBadge { accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   count: __agg.fail }
+                        StatusBadge { accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    count: __agg.skip }
                     }
                 }
                 // 5WHY: Share buttons moved from AppBar to results header.
@@ -222,8 +222,8 @@ Item {
                     id: statusBarShareBtns
                     Layout.alignment: Qt.AlignVCenter
                     mode: "bare"
-                    pdfAccent: ThemeEngine.cyan
-                    htmlAccent: ThemeEngine.primary
+                    pdfAccent: ThemeEngine.colors.cyan
+                    htmlAccent: ThemeEngine.colors.primary
                     visible: appState.runStatus === 2 && appState.totalCompleted > 0 && appState.totalCompleted >= appState.totalDiags
                     onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
@@ -245,12 +245,12 @@ Item {
                 visible: appState.totalCompleted === 0 && appState.runStatus !== 1
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter
                     name: appState.runStatus === 4 ? "badge-error" : "diagnostics"
-                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
+                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: appState.runStatus === 4 ? Tr.errorCheck : Tr.runDiag
                     font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
-                    color: appState.runStatus === 4 ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                    color: appState.runStatus === 4 ? ThemeEngine.colors.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
                 // PM: Actionable error recovery guidance — uses Tr.* for i18n
                 Label {
@@ -312,7 +312,7 @@ Item {
         implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
         color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
         border { width: 1; color: ThemeEngine.colors.borderFocused }
-        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary }
+        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
     }
 
     // ── Mobile data warning dialog ────────────────────────────────────
@@ -428,14 +428,14 @@ Item {
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
                     implicitWidth: 64; implicitHeight: 64; radius: 32
-                    color: Qt.alpha(ThemeEngine.warnYellow, 0.10)
+                    color: Qt.alpha(ThemeEngine.colors.warnYellow, 0.10)
                     // 5WHY: "wifi" icon was misleading — this dialog warns about
                     // cellular data, not WiFi.  Changed to "warning" which
                     // is semantically correct for a warning/alert dialog.
                     AppIcon {
                         anchors.centerIn: parent
                         name: "warning"; size: 32
-                        color: ThemeEngine.warnYellow
+                        color: ThemeEngine.colors.warnYellow
                     }
                 }
                 // Title
@@ -443,14 +443,14 @@ Item {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: Tr.cellularWarnTitle
                     font.family: ThemeEngine.monoFont; font.pixelSize: 18
-                    font.weight: Font.Bold; color: ThemeEngine.textPrimary
+                    font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary
                 }
                 // Body — context-aware: mentions G3 tests are next
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: Tr.cellularWarnBody
                     font.family: ThemeEngine.monoFont; font.pixelSize: 13
-                    color: ThemeEngine.textSecondary; lineHeight: 1.5; wrapMode: Text.WordWrap
+                    color: ThemeEngine.colors.textSecondary; lineHeight: 1.5; wrapMode: Text.WordWrap
                 }
                 // Buttons
                 RowLayout {
@@ -460,12 +460,12 @@ Item {
                     Rectangle {
                         Layout.fillWidth: true; implicitHeight: 44; radius: 12
                         color: "transparent"
-                        border { width: 1.5; color: Qt.alpha(ThemeEngine.textSecondary, 0.30) }
+                        border { width: 1.5; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.30) }
                         Label {
                             anchors.centerIn: parent
                             text: Tr.cellularCancel
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
-                            font.weight: Font.Medium; color: ThemeEngine.textSecondary
+                            font.weight: Font.Medium; color: ThemeEngine.colors.textSecondary
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -478,14 +478,14 @@ Item {
                     // Continue — prominent filled; shows auto-dismiss countdown during capture
                     Rectangle {
                         Layout.fillWidth: true; implicitHeight: 44; radius: 12
-                        color: ThemeEngine.cyan
+                        color: ThemeEngine.colors.cyan
                         Label {
                             anchors.centerIn: parent
                             text: cellularDialog.autoContinueCountdown > 0
                                 ? Tr.cellularContinue + " (" + cellularDialog.autoContinueCountdown + ")"
                                 : Tr.cellularContinue
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
-                            font.weight: Font.Bold; color: ThemeEngine.textOnAccent
+                            font.weight: Font.Bold; color: ThemeEngine.colors.textOnAccent
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -554,12 +554,12 @@ Item {
             Rectangle {
                 anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 8 }
                 width: 44; height: 44; radius: 22
-                color: closeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.30) : Qt.alpha(ThemeEngine.textSecondary, 0.08)
-                border { width: 1; color: closeBtnArea.containsMouse ? ThemeEngine.failRed : Qt.alpha(ThemeEngine.textSecondary, 0.25) }
+                color: closeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.colors.failRed, 0.30) : Qt.alpha(ThemeEngine.colors.textSecondary, 0.08)
+                border { width: 1; color: closeBtnArea.containsMouse ? ThemeEngine.colors.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.25) }
                 AppIcon {
                     anchors.centerIn: parent
                     name: "close"; size: 18
-                    color: closeBtnArea.containsMouse ? Qt.lighter(ThemeEngine.failRed, 1.3) : ThemeEngine.textSecondary
+                    color: closeBtnArea.containsMouse ? Qt.lighter(ThemeEngine.colors.failRed, 1.3) : ThemeEngine.colors.textSecondary
                 }
                 MouseArea {
                     id: closeBtnArea

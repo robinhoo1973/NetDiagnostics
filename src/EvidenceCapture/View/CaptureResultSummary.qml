@@ -80,13 +80,13 @@ Rectangle {
         border {
             width: 1
             color: root.isError
-                ? Qt.alpha(T.ThemeEngine.failRed, 0.3)
+                ? Qt.alpha(T.ThemeEngine.colors.failRed, 0.3)
                 : Qt.alpha(T.ThemeEngine.colors.borderCard, 0.6)
         }
         clip: true
 
         // Top accent — 2px refined, red for error, green for success
-        CardTopAccent { color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.passGreen }
+        CardTopAccent { color: root.isError ? T.ThemeEngine.colors.failRed : T.ThemeEngine.colors.passGreen }
 
         MouseArea { anchors.fill: parent }
 
@@ -95,8 +95,8 @@ Rectangle {
         Gradient {
             id: doneGradient
             orientation: Gradient.Horizontal
-            GradientStop { position: 0.0; color: T.ThemeEngine.primary }
-            GradientStop { position: 1.0; color: T.ThemeEngine.cyan }
+            GradientStop { position: 0.0; color: T.ThemeEngine.colors.primary }
+            GradientStop { position: 1.0; color: T.ThemeEngine.colors.cyan }
         }
 
         ColumnLayout {
@@ -109,19 +109,19 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: 64; implicitHeight: 64; radius: 32
                 color: root.isError
-                    ? Qt.alpha(T.ThemeEngine.failRed, 0.10)
-                    : Qt.alpha(T.ThemeEngine.passGreen, 0.10)
+                    ? Qt.alpha(T.ThemeEngine.colors.failRed, 0.10)
+                    : Qt.alpha(T.ThemeEngine.colors.passGreen, 0.10)
                 border {
                     width: 1
                     color: root.isError
-                        ? Qt.alpha(T.ThemeEngine.failRed, 0.2)
-                        : Qt.alpha(T.ThemeEngine.passGreen, 0.2)
+                        ? Qt.alpha(T.ThemeEngine.colors.failRed, 0.2)
+                        : Qt.alpha(T.ThemeEngine.colors.passGreen, 0.2)
                 }
                 AppIcon {
                     anchors.centerIn: parent
                     name: root.isError ? "error" : "check"
                     size: 30
-                    color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.passGreen
+                    color: root.isError ? T.ThemeEngine.colors.failRed : T.ThemeEngine.colors.passGreen
                 }
             }
 
@@ -130,7 +130,7 @@ Rectangle {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: root.isError ? T.Tr.captureFailed : T.Tr.captureComplete
                 font.pixelSize: 18
-                font.weight: Font.Bold; color: T.ThemeEngine.textPrimary
+                font.weight: Font.Bold; color: T.ThemeEngine.colors.textPrimary
             }
 
             // ── Error details ───────────────────────────────────────
@@ -138,20 +138,20 @@ Rectangle {
                 spacing: 8; visible: root.isError
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: 32; radius: 8
-                    color: Qt.alpha(T.ThemeEngine.failRed, 0.08)
-                    border { width: 1; color: Qt.alpha(T.ThemeEngine.failRed, 0.15) }
+                    color: Qt.alpha(T.ThemeEngine.colors.failRed, 0.08)
+                    border { width: 1; color: Qt.alpha(T.ThemeEngine.colors.failRed, 0.15) }
                     Label {
                         anchors.centerIn: parent
                         text: root.errorCode
                         font.pixelSize: 12
-                        color: T.ThemeEngine.failRed; font.weight: Font.DemiBold
+                        color: T.ThemeEngine.colors.failRed; font.weight: Font.DemiBold
                     }
                 }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                     text: root.errorMessage
                     font.pixelSize: 13
-                    color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
+                    color: T.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
                     lineHeight: 1.4
                 }
             }
@@ -167,18 +167,18 @@ Rectangle {
                     RowLayout {
                         anchors { fill: parent; margins: 14 }
                         spacing: 12
-                        AppIcon { name: "camera"; size: 18; color: T.ThemeEngine.cyan }
+                        AppIcon { name: "camera"; size: 18; color: T.ThemeEngine.colors.cyan }
                         Label {
                             text: T.Tr.captureScreenshotsCount
                             font.pixelSize: 13
-                            color: T.ThemeEngine.textSecondary
+                            color: T.ThemeEngine.colors.textSecondary
                         }
                         Item { Layout.fillWidth: true }
                         Label {
                             text: root.totalScreenshots
                             
                             font.pixelSize: 18; font.weight: Font.Bold
-                            color: T.ThemeEngine.textPrimary
+                            color: T.ThemeEngine.colors.textPrimary
                         }
                     }
                 }
@@ -191,22 +191,22 @@ Rectangle {
                     RowLayout {
                         anchors { fill: parent; margins: 14 }
                         spacing: 12
-                        AppIcon { name: "video"; size: 18; color: T.ThemeEngine.passGreen }
+                        AppIcon { name: "video"; size: 18; color: T.ThemeEngine.colors.passGreen }
                         Label {
                             text: T.Tr.captureRecordingLabel2
                             font.pixelSize: 13
-                            color: T.ThemeEngine.textSecondary
+                            color: T.ThemeEngine.colors.textSecondary
                         }
                         Item { Layout.fillWidth: true }
                         Rectangle {
                             implicitWidth: 64; implicitHeight: 24; radius: 6
-                            color: Qt.alpha(T.ThemeEngine.passGreen, 0.12)
+                            color: Qt.alpha(T.ThemeEngine.colors.passGreen, 0.12)
                             Label {
                                 anchors.centerIn: parent
                                 text: T.Tr.captureSavedBadge
                                 
                                 font.pixelSize: 11; font.weight: Font.DemiBold
-                                color: T.ThemeEngine.passGreen
+                                color: T.ThemeEngine.colors.passGreen
                             }
                         }
                     }
@@ -219,18 +219,18 @@ Rectangle {
                     RowLayout {
                         anchors { fill: parent; margins: 14 }
                         spacing: 12
-                        AppIcon { name: "timer"; size: 18; color: T.ThemeEngine.accentBlue }
+                        AppIcon { name: "timer"; size: 18; color: T.ThemeEngine.colors.secondary }
                         Label {
                             text: T.Tr.captureTotalDuration
                             font.pixelSize: 13
-                            color: T.ThemeEngine.textSecondary
+                            color: T.ThemeEngine.colors.textSecondary
                         }
                         Item { Layout.fillWidth: true }
                         Label {
                             text: root.elapsedTime
                             
                             font.pixelSize: 18; font.weight: Font.Bold
-                            color: T.ThemeEngine.textPrimary
+                            color: T.ThemeEngine.colors.textPrimary
                         }
                     }
                 }
@@ -261,7 +261,7 @@ Rectangle {
                     return p
                 }
                 font.pixelSize: 10
-                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.6)
+                color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.6)
                 elide: Text.ElideMiddle
                 maximumLineCount: 1
             }
@@ -271,12 +271,12 @@ Rectangle {
                 Layout.fillWidth: true; implicitHeight: 40; radius: 10
                 visible: _isIos || _isAndroid
                 color: _isIos
-                    ? Qt.alpha(T.ThemeEngine.warnYellow, 0.06)
-                    : Qt.alpha(T.ThemeEngine.passGreen, 0.06)
+                    ? Qt.alpha(T.ThemeEngine.colors.warnYellow, 0.06)
+                    : Qt.alpha(T.ThemeEngine.colors.passGreen, 0.06)
                 border { width: 1
                     color: _isIos
-                        ? Qt.alpha(T.ThemeEngine.warnYellow, 0.15)
-                        : Qt.alpha(T.ThemeEngine.passGreen, 0.15)
+                        ? Qt.alpha(T.ThemeEngine.colors.warnYellow, 0.15)
+                        : Qt.alpha(T.ThemeEngine.colors.passGreen, 0.15)
                 }
                 RowLayout {
                     anchors { fill: parent; margins: 10 }
@@ -284,13 +284,13 @@ Rectangle {
                     AppIcon {
                         name: _isIos ? "warning" : "check"
                         size: 14
-                        color: _isIos ? T.ThemeEngine.warnYellow : T.ThemeEngine.passGreen
+                        color: _isIos ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.passGreen
                     }
                     Label {
                         Layout.fillWidth: true
                         text: _isIos ? T.Tr.captureDndIosMsg : T.Tr.captureDndAndroidMsg
                         font.pixelSize: 11
-                        color: _isIos ? T.ThemeEngine.warnYellow : T.ThemeEngine.passGreen
+                        color: _isIos ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.passGreen
                         font.underline: _isIos
                         verticalAlignment: Text.AlignVCenter
                         elide: Text.ElideRight
@@ -310,8 +310,8 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 50; radius: 14
                 color: root.isError
-                    ? Qt.alpha(T.ThemeEngine.failRed, 0.12)
-                    : T.ThemeEngine.cyan
+                    ? Qt.alpha(T.ThemeEngine.colors.failRed, 0.12)
+                    : T.ThemeEngine.colors.cyan
                 scale: dismissMa.pressed ? 0.97 : 1.0
                 Behavior on scale { NumberAnimation { duration: 100 } }
                 gradient: root.isError ? null : doneGradient
@@ -322,7 +322,7 @@ Rectangle {
                         name: root.isError ? "close" : "check"
                         size: 18
                         // 5WHY: Dark text/icon on cyan-filled button is readable on both themes.
-                        color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.textOnAccent
+                        color: root.isError ? T.ThemeEngine.colors.failRed : T.ThemeEngine.colors.textOnAccent
                     }
                     Label {
                         // 5WHY: Show countdown on both success and error so the user
@@ -332,7 +332,7 @@ Rectangle {
                             + (root.countdown > 0 ? " (" + root.countdown + ")" : "")
                         
                         font.pixelSize: 15; font.weight: Font.Bold
-                        color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.textOnAccent
+                        color: root.isError ? T.ThemeEngine.colors.failRed : T.ThemeEngine.colors.textOnAccent
                     }
                 }
                 MouseArea {

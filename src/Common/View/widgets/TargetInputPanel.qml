@@ -44,19 +44,19 @@ ColumnLayout {
     }
 
     RowLayout {
-        AppIcon { name: "target"; size: 13; color: Qt.alpha(ThemeEngine.textPrimary, 0.7) }
+        AppIcon { name: "target"; size: 13; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
         Item { width: 5 }
-        Label { text: Tr.target; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
+        Label { text: Tr.target; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
     // ── Scheme ComboBox + Host Field ────────────────────────────────────
     Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
-        color: ThemeEngine.bgInput
+        color: ThemeEngine.colors.input
         border { width: hostField.activeFocus || schemeCombo.activeFocus ? 1.5 : 1
-                 color: page._snapTargetError !== "" ? ThemeEngine.failRed
-                        : (hostField.activeFocus || schemeCombo.activeFocus) ? ThemeEngine.accentBlue
+                 color: page._snapTargetError !== "" ? ThemeEngine.colors.failRed
+                        : (hostField.activeFocus || schemeCombo.activeFocus) ? ThemeEngine.colors.secondary
                         : ThemeEngine.colors.borderCard }
 
         RowLayout {
@@ -96,7 +96,7 @@ ColumnLayout {
                     height: Math.min(implicitHeight, 280)
                     padding: 4
                     background: Rectangle {
-                        color: ThemeEngine.bgCard
+                        color: ThemeEngine.colors.card
                         border { width: 1; color: ThemeEngine.colors.borderCard }
                         radius: 8
                     }
@@ -163,9 +163,9 @@ ColumnLayout {
                                 Label {
                                     text: groupLabel
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 8
-                                    font.weight: Font.Bold; color: ThemeEngine.textMuted
+                                    font.weight: Font.Bold; color: ThemeEngine.colors.textMuted
                                     background: Rectangle {
-                                        color: ThemeEngine.bgCard
+                                        color: ThemeEngine.colors.card
                                         anchors.fill: parent
                                         anchors.leftMargin: -2
                                         anchors.rightMargin: -4
@@ -205,9 +205,9 @@ ColumnLayout {
             TextField {
                 id: hostField
                 Layout.fillWidth: true; Layout.fillHeight: true
-                font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary
                 placeholderText: "example.com/path"
-                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
                 text: {
                     // Combine host + path for display
                     var h = appState.targetHost
@@ -248,7 +248,7 @@ ColumnLayout {
                 visible: hostField.text !== "" && appState.runStatus !== 1
                 AppIcon {
                     anchors.centerIn: parent
-                    name: "close"; size: 10; color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                    name: "close"; size: 10; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -268,7 +268,7 @@ ColumnLayout {
                 AppIcon {
                     anchors.centerIn: parent
                     name: "tune"; size: 12
-                    color: root.advancedExpanded ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                    color: root.advancedExpanded ? ThemeEngine.colors.secondary : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -288,14 +288,14 @@ ColumnLayout {
         Rectangle {
             Layout.preferredWidth: Math.min(80, parent.width * 0.22)
             implicitHeight: 32; radius: 6
-            color: Qt.alpha(ThemeEngine.bgDark, 0.4)
-            border { width: 1; color: portField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            color: Qt.alpha(ThemeEngine.colors.surface, 0.4)
+            border { width: 1; color: portField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
             TextField {
                 id: portField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
-                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                 placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : "Port"
-                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
                 text: appState.targetPort > 0 ? "" + appState.targetPort : ""
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
@@ -309,14 +309,14 @@ ColumnLayout {
         // Username
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 32; radius: 6
-            color: Qt.alpha(ThemeEngine.bgDark, 0.4)
-            border { width: 1; color: userField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            color: Qt.alpha(ThemeEngine.colors.surface, 0.4)
+            border { width: 1; color: userField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
             TextField {
                 id: userField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
-                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                 placeholderText: Tr.usernameLabel
-                placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
                 text: appState.targetUsername
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
@@ -327,17 +327,17 @@ ColumnLayout {
         // Password
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 32; radius: 6
-            color: Qt.alpha(ThemeEngine.bgDark, 0.4)
-            border { width: 1; color: passField.activeFocus || passVisBtn.containsMouse ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+            color: Qt.alpha(ThemeEngine.colors.surface, 0.4)
+            border { width: 1; color: passField.activeFocus || passVisBtn.containsMouse ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
             RowLayout {
                 anchors { fill: parent; leftMargin: 8; rightMargin: 2 }
                 spacing: 0
                 TextField {
                     id: passField
                     Layout.fillWidth: true; Layout.fillHeight: true
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.textPrimary
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: Tr.passwordLabel
-                    placeholderTextColor: Qt.alpha(ThemeEngine.textSecondary, 0.4)
+                    placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
                     text: appState.targetPassword
                     echoMode: passField._showPass ? TextInput.Normal : TextInput.Password
                     enabled: appState.runStatus !== 1
@@ -362,8 +362,8 @@ ColumnLayout {
                         anchors.centerIn: parent
                         name: passField._showPass ? "check" : "close"
                         size: 14
-                        color: passField._showPass ? ThemeEngine.accentBlue
-                                                    : Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                        color: passField._showPass ? ThemeEngine.colors.secondary
+                                                    : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                     }
                     MouseArea {
                         id: passVisBtn
@@ -381,11 +381,11 @@ ColumnLayout {
     RowLayout {
         visible: page._snapTargetError !== ""
         spacing: 4
-        AppIcon { name: "warning"; size: 12; color: ThemeEngine.failRed }
+        AppIcon { name: "warning"; size: 12; color: ThemeEngine.colors.failRed }
         Label {
             Layout.fillWidth: true
             text: page._snapTargetError || ""
-            font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.failRed
+            font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.failRed
             wrapMode: Text.WordWrap
         }
     }
@@ -398,14 +398,14 @@ ColumnLayout {
         Rectangle {
             id: runBtn
             Layout.fillWidth: true; implicitHeight: 44; radius: 8
-            color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.accentBlue, 0.4) : (appState.canRun() ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.accentBlue, 0.3))
+            color: appState.runStatus === 1 ? Qt.alpha(ThemeEngine.colors.secondary, 0.4) : (appState.canRun() ? ThemeEngine.colors.secondary : Qt.alpha(ThemeEngine.colors.secondary, 0.3))
             // 5WHY: "white" was hardcoded — doesn't adapt to light theme.
-            // Use ThemeEngine.bgDark for enabled, textPrimary for disabled.
+            // Use ThemeEngine.colors.surface for enabled, textPrimary for disabled.
             Label {
                 anchors.centerIn: parent
                 text: appState.runStatus === 1 ? Tr.running : Tr.runDiag
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
-                color: (appState.canRun() || appState.runStatus === 1) ? ThemeEngine.bgDark : Qt.alpha(ThemeEngine.textPrimary, 0.4)
+                color: (appState.canRun() || appState.runStatus === 1) ? ThemeEngine.colors.surface : Qt.alpha(ThemeEngine.colors.textPrimary, 0.4)
             }
             // 5WHY: MouseArea-only controls lack keyboard accessibility.
             // Adding Keys.onPressed + activeFocusOnTab so keyboard users
@@ -432,7 +432,7 @@ ColumnLayout {
                 SequentialAnimation on border.color {
                     id: validationFlash
                     running: false
-                    PropertyAction { value: ThemeEngine.failRed }
+                    PropertyAction { value: ThemeEngine.colors.failRed }
                     PauseAnimation { duration: 300 }
                     PropertyAction { value: "transparent" }
                 }
@@ -457,13 +457,13 @@ ColumnLayout {
             id: stopBtn
             visible: appState.runStatus === 1
             Layout.preferredWidth: Math.min(90, parent.width * 0.25); implicitHeight: 44; radius: 8
-            color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.5) }
+            color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.colors.failRed, 0.5) }
             // 5WHY: Replaced ■ Unicode prefix with stop SVG icon + text label.
             RowLayout {
                 anchors.centerIn: parent
                 spacing: 6
-                AppIcon { name: "stop"; size: 12; color: ThemeEngine.failRed }
-                Label { text: Tr.stop; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.failRed }
+                AppIcon { name: "stop"; size: 12; color: ThemeEngine.colors.failRed }
+                Label { text: Tr.stop; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.failRed }
             }
             MouseArea {
                 id: stopBtnArea

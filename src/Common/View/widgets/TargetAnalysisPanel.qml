@@ -9,8 +9,8 @@ Rectangle {
     id: root
     property string target: ""
     radius: 8
-    color: Qt.alpha(ThemeEngine.bgCard, 0.5)
-    border { width: 1; color: Qt.alpha(ThemeEngine.accentBlue, 0.3) }
+    color: Qt.alpha(ThemeEngine.colors.card, 0.5)
+    border { width: 1; color: Qt.alpha(ThemeEngine.colors.secondary, 0.3) }
     implicitHeight: analysisColumn.implicitHeight + 20
     visible: target !== ""
 
@@ -54,30 +54,30 @@ Rectangle {
 
         // Header
         RowLayout {
-            AppIcon { name: "info"; size: 14; color: ThemeEngine.accentBlue }
+            AppIcon { name: "info"; size: 14; color: ThemeEngine.colors.secondary }
             Item { width: 6 }
             Label {
                 text: Tr.targetAnalysis
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                font.weight: Font.DemiBold; color: ThemeEngine.accentBlue
+                font.weight: Font.DemiBold; color: ThemeEngine.colors.secondary
             }
         }
         Item { Layout.preferredHeight: 6 }
 
         // Type
         RowLayout {
-            Label { text: Tr.targetTypeLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
+            Label { text: Tr.targetTypeLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
                 text: isUrl ? Tr.targetTypeUrl : (isIp ? Tr.targetTypeIp : (target !== "" ? Tr.targetTypeHostname : ""))
-                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary
             }
         }
         // Host
         RowLayout {
-            Label { text: "Host    :"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
+            Label { text: "Host    :"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
                 text: host
-                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary
             }
         }
         // IP Classification
@@ -85,7 +85,7 @@ Rectangle {
             visible: isIp
             leftPadding: 70
             text: classifyIp(host)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textSecondary
         }
 
         // URL component breakdown
@@ -115,8 +115,8 @@ Rectangle {
                 }
                 delegate: RowLayout {
                     property var pair: modelData
-                    Label { text: (pair[0] + "       ").substring(0,8) + ":"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.textSecondary }
-                    Label { text: pair[1] || ""; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.textPrimary }
+                    Label { text: (pair[0] + "       ").substring(0,8) + ":"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+                    Label { text: pair[1] || ""; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary }
                 }
             }
         }
@@ -125,7 +125,7 @@ Rectangle {
         // Known Port Reference
         Label {
             text: Tr.knownPortRef
-            font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.colors.textSecondary
         }
         Item { Layout.preferredHeight: 2 }
         Repeater {
@@ -136,13 +136,13 @@ Rectangle {
                 property var b: (idx + 1 < portRef.length) ? portRef[idx + 1] : null
                 Label {
                     text: ("     " + a[0]).slice(-5) + " " + a[1]
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.cyan
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.colors.cyan
                     Layout.preferredWidth: 110
                 }
                 Label {
                     visible: b !== null
                     text: ("     " + b[0]).slice(-5) + " " + b[1]
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.textSecondary
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.colors.textSecondary
                     Layout.preferredWidth: 110
                 }
             }

@@ -5,7 +5,7 @@ import "../theme"
 
 Rectangle {
     id: root
-    color: ThemeEngine.bgSidebar
+    color: ThemeEngine.colors.sidebar
     property bool wide: true
     property bool _advancedVisible: false
 
@@ -61,11 +61,11 @@ Rectangle {
                 Rectangle {
                     id: gearBtn
                     Layout.preferredWidth: 44; Layout.preferredHeight: 44; radius: 8
-                    color: root._advancedVisible ? Qt.alpha(ThemeEngine.accentBlue, 0.15) : "transparent"
+                    color: root._advancedVisible ? Qt.alpha(ThemeEngine.colors.secondary, 0.15) : "transparent"
                     AppIcon {
                         anchors.centerIn: parent
                         name: "tune"; size: 18
-                        color: root._advancedVisible ? ThemeEngine.accentBlue : ThemeEngine.textMuted
+                        color: root._advancedVisible ? ThemeEngine.colors.secondary : ThemeEngine.colors.textMuted
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root._advancedVisible = !root._advancedVisible }
                     activeFocusOnTab: true
@@ -125,7 +125,7 @@ Rectangle {
                         // during component initialization in some Qt configurations).
                         height: Math.min(implicitHeight, 320)
                         background: Rectangle {
-                            color: ThemeEngine.bgCard
+                            color: ThemeEngine.colors.card
                             border { width: 1; color: ThemeEngine.colors.borderCard }
                             radius: 10
                         }
@@ -212,11 +212,11 @@ Rectangle {
                 // Host field
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 30; radius: 6
-                    color: ThemeEngine.bgInput
+                    color: ThemeEngine.colors.input
                     border {
                         width: hostField.activeFocus ? 1.5 : 1
-                        color: appState.targetValidationError() !== "" ? ThemeEngine.failRed
-                               : hostField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard
+                        color: appState.targetValidationError() !== "" ? ThemeEngine.colors.failRed
+                               : hostField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard
                     }
                     TextField {
                         id: hostField
@@ -254,9 +254,9 @@ Rectangle {
                 Rectangle {
                     id: runBtn
                     width: 44; height: 44; radius: 22
-                    color: appState.runStatus === 1 ? ThemeEngine.failRed
-                           : appState.canRun() ? ThemeEngine.accentBlue
-                           : Qt.alpha(ThemeEngine.accentBlue, 0.3)
+                    color: appState.runStatus === 1 ? ThemeEngine.colors.failRed
+                           : appState.canRun() ? ThemeEngine.colors.secondary
+                           : Qt.alpha(ThemeEngine.colors.secondary, 0.3)
                     // 5WHY: Replaced ▶/■ Unicode with play/stop SVG icons
                     // for consistent iconography across the app.
                     AppIcon { anchors.centerIn: parent
@@ -285,12 +285,12 @@ Rectangle {
                     }
                     SequentialAnimation {
                         id: validationFlash
-                        PropertyAction { target: flashOverlay; property: "border.color"; value: ThemeEngine.failRed }
+                        PropertyAction { target: flashOverlay; property: "border.color"; value: ThemeEngine.colors.failRed }
                         PropertyAction { target: flashOverlay; property: "opacity"; value: 0.8 }
                         PauseAnimation { duration: 80 }
                         PropertyAction { target: flashOverlay; property: "opacity"; value: 0 }
                         PauseAnimation { duration: 80 }
-                        PropertyAction { target: flashOverlay; property: "border.color"; value: ThemeEngine.failRed }
+                        PropertyAction { target: flashOverlay; property: "border.color"; value: ThemeEngine.colors.failRed }
                         PropertyAction { target: flashOverlay; property: "opacity"; value: 0.8 }
                         PauseAnimation { duration: 80 }
                         PropertyAction { target: flashOverlay; property: "opacity"; value: 0 }
@@ -340,7 +340,7 @@ Rectangle {
                     anchors.centerIn: parent
                     name: "close"; size: 14
                     color: hostField.text !== "" && appState.runStatus !== 1
-                        ? ThemeEngine.textSecondary : "transparent"
+                        ? ThemeEngine.colors.textSecondary : "transparent"
                     visible: hostField.text !== "" && appState.runStatus !== 1
                 }
                 function doClear() {
@@ -375,8 +375,8 @@ Rectangle {
             // Port
             Rectangle {
                 Layout.preferredWidth: 80; implicitHeight: 30; radius: 6
-                color: ThemeEngine.bgInput
-                border { width: 1; color: portField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.input
+                border { width: 1; color: portField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
                 TextField {
                     id: portField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -392,8 +392,8 @@ Rectangle {
             // Username
             Rectangle {
                 visible: root._showUser; Layout.fillWidth: true; implicitHeight: 30; radius: 6
-                color: ThemeEngine.bgInput
-                border { width: 1; color: userField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.input
+                border { width: 1; color: userField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
                 TextField {
                     id: userField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -409,8 +409,8 @@ Rectangle {
             // Password
             Rectangle {
                 visible: root._showPass; Layout.fillWidth: true; implicitHeight: 30; radius: 6
-                color: ThemeEngine.bgInput
-                border { width: 1; color: passField.activeFocus ? ThemeEngine.accentBlue : ThemeEngine.colors.borderCard }
+                color: ThemeEngine.colors.input
+                border { width: 1; color: passField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
                 TextField {
                     id: passField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4

@@ -71,7 +71,7 @@ Rectangle {
         clip: true
 
         // Top accent — 2px refined
-        CardTopAccent { color: T.ThemeEngine.cyan }
+        CardTopAccent { color: T.ThemeEngine.colors.cyan }
 
         ColumnLayout {
             id: ctCol
@@ -82,11 +82,11 @@ Rectangle {
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: 48; implicitHeight: 48; radius: 24
-                color: Qt.alpha(T.ThemeEngine.cyan, 0.10)
+                color: Qt.alpha(T.ThemeEngine.colors.cyan, 0.10)
                 AppIcon {
                     anchors.centerIn: parent
                     name: "timer"; size: 24
-                    color: T.ThemeEngine.cyan
+                    color: T.ThemeEngine.colors.cyan
                 }
             }
 
@@ -95,7 +95,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 text: T.Tr.captureStartingIn
                 font.pixelSize: 14
-                font.weight: Font.DemiBold; color: T.ThemeEngine.textPrimary
+                font.weight: Font.DemiBold; color: T.ThemeEngine.colors.textPrimary
             }
 
             // ── Animated countdown number ───────────────────────────
@@ -108,7 +108,7 @@ Rectangle {
                     anchors.centerIn: parent
                     width: 100; height: 100; radius: 50
                     color: "transparent"
-                    border { width: 3; color: Qt.alpha(T.ThemeEngine.cyan, 0.15) }
+                    border { width: 3; color: Qt.alpha(T.ThemeEngine.colors.cyan, 0.15) }
                     // Subtle pulse animation
                     scale: pulseAnim.running ? 1.08 : 1.0
                     opacity: pulseAnim.running ? 0.5 : 0.3
@@ -123,7 +123,7 @@ Rectangle {
                     color: "transparent"
                     border {
                         width: 3
-                        color: T.ThemeEngine.cyan
+                        color: T.ThemeEngine.colors.cyan
                     }
                     // 5WHY: At 60% opacity, cyan (#06B6D4) on white card
                     // produces ~3.2:1 contrast — below WCAG AA 4.5:1 for
@@ -138,7 +138,7 @@ Rectangle {
                     anchors.centerIn: parent
                     text: root.countdown
                     font.pixelSize: 56
-                    font.weight: Font.Bold; color: T.ThemeEngine.cyan
+                    font.weight: Font.Bold; color: T.ThemeEngine.colors.cyan
                     // Pulse on each tick
                     scale: 1.0
                     SequentialAnimation {
@@ -171,11 +171,11 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 4
                 radius: 2
-                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.20)
+                color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.20)
                 Rectangle {
                     height: parent.height; radius: 2
                     width: parent.width * (root.countdown / root.totalSeconds)
-                    color: T.ThemeEngine.cyan
+                    color: T.ThemeEngine.colors.cyan
                     Behavior on width { NumberAnimation { duration: 900; easing.type: Easing.OutCubic } }
                 }
             }
@@ -185,7 +185,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 text: T.Tr.captureDoNotTouch
                 font.pixelSize: 12
-                color: T.ThemeEngine.textSecondary
+                color: T.ThemeEngine.colors.textSecondary
             }
 
             // ── Cancel button ───────────────────────────────────────

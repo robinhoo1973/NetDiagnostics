@@ -5,17 +5,23 @@ DiagnosticResult ftpDiagnostics(const QString& target) {
     if (u.scheme() != "ftp" && u.scheme() != "ftps")
         return g5Result(DiagId::G5FtpDiagnostics, "Not FTP", DiagStatus::Skipped);
     int port = portForUrl(u);
+    QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return g5Result(DiagId::G5FtpDiagnostics, "Connection failed", DiagStatus::Fail);
+    if (!sock.waitForConnected(5000)) {
+        auto r = g5Result(DiagId::G5FtpDiagnostics, "Connection failed", DiagStatus::Fail);
+        r.durationMs = t.elapsed();
+        return r;
+    }
     sock.waitForReadyRead(3000);
     QByteArray banner = sock.readAll();
     sock.write("QUIT\r\n");
     sock.disconnectFromHost();
-    return g5Result(DiagId::G5FtpDiagnostics,
+    auto r = g5Result(DiagId::G5FtpDiagnostics,
         banner.isEmpty() ? "No banner" : QString::fromUtf8(banner).trimmed().left(200),
         banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
+    r.durationMs = t.elapsed();
+    return r;
 
 }
 } // namespace G5WebsiteUrl

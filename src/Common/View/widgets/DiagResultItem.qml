@@ -30,13 +30,13 @@ Item {
     }
     function _statusColor(s) {
         switch (s) {
-            case 0: return ThemeEngine.passGreen;
-            case 1: return ThemeEngine.warnYellow;
-            case 2: return ThemeEngine.failRed;
-            case 3: return ThemeEngine.skipGray;
-            case 4: return ThemeEngine.failRed;
-            case 5: return ThemeEngine.infoBlue;
-            default: return ThemeEngine.skipGray;
+            case 0: return ThemeEngine.colors.passGreen;
+            case 1: return ThemeEngine.colors.warnYellow;
+            case 2: return ThemeEngine.colors.failRed;
+            case 3: return ThemeEngine.colors.skipGray;
+            case 4: return ThemeEngine.colors.failRed;
+            case 5: return ThemeEngine.colors.infoBlue;
+            default: return ThemeEngine.colors.skipGray;
         }
     }
 
@@ -47,7 +47,7 @@ Item {
         AppIcon {
             id: pendingSpinner
             name: itemData.isRunning ? "spinner" : "badge-skip"; size: 12
-            color: itemData.isRunning ? ThemeEngine.colors.primary : ThemeEngine.textMuted
+            color: itemData.isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.textMuted
             RotationAnimation on rotation {
                 running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite
                 // 5WHY: Reset rotation when spinner stops so badge-skip icon isn't skewed.
@@ -56,7 +56,7 @@ Item {
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Label {
@@ -80,7 +80,7 @@ Item {
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
-            color: { var s=itemData.status; return s===0?ThemeEngine.colors.textPrimary:(s===2?ThemeEngine.failRed:ThemeEngine.colors.textSecondary) }
+            color: { var s=itemData.status; return s===0?ThemeEngine.colors.textPrimary:(s===2?ThemeEngine.colors.failRed:ThemeEngine.colors.textSecondary) }
             Layout.fillWidth: true; elide: Text.ElideRight
         }
         Rectangle {

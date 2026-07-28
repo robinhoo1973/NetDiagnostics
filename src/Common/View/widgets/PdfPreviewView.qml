@@ -93,10 +93,10 @@ Item {
 
             Rectangle {
                 width: 32; height: 32; radius: 6
-                color: navPrevMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.2)
-                                              : Qt.alpha(ThemeEngine.cyan, 0.08)
+                color: navPrevMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.2)
+                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
                 AppIcon { anchors.centerIn: parent; name: "play"; size: 14
-                    color: ThemeEngine.cyan; rotation: 180 }
+                    color: ThemeEngine.colors.cyan; rotation: 180 }
                 MouseArea {
                     id: navPrevMa
                     anchors.fill: parent
@@ -114,17 +114,17 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: (root.currentPage + 1) + " / " + root.pageCount
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                color: ThemeEngine.textPrimary
+                color: ThemeEngine.colors.textPrimary
                 horizontalAlignment: Text.AlignHCenter
                 width: 70
             }
 
             Rectangle {
                 width: 32; height: 32; radius: 6
-                color: navNextMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.2)
-                                              : Qt.alpha(ThemeEngine.cyan, 0.08)
+                color: navNextMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.2)
+                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
                 AppIcon { anchors.centerIn: parent; name: "play"; size: 14
-                    color: ThemeEngine.cyan }
+                    color: ThemeEngine.colors.cyan }
                 MouseArea {
                     id: navNextMa
                     anchors.fill: parent
@@ -150,20 +150,20 @@ Item {
             anchors.centerIn: parent
             text: Tr.pdfLoading
             font.family: ThemeEngine.monoFont; font.pixelSize: 12
-            color: ThemeEngine.textSecondary
+            color: ThemeEngine.colors.textSecondary
         }
     }
     Rectangle {
         anchors.centerIn: parent
         width: 200; height: 36; radius: 8
-        color: Qt.alpha(ThemeEngine.failRed, 0.15)
-        border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.3) }
+        color: Qt.alpha(ThemeEngine.colors.failRed, 0.15)
+        border { width: 1; color: Qt.alpha(ThemeEngine.colors.failRed, 0.3) }
         visible: pdfDoc.status === PdfDocument.Error
         Label {
             anchors.centerIn: parent
             text: Tr.pdfLoadFailed
             font.family: ThemeEngine.monoFont; font.pixelSize: 12
-            color: ThemeEngine.failRed
+            color: ThemeEngine.colors.failRed
         }
     }
 }

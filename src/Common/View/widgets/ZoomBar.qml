@@ -83,15 +83,15 @@ Item {
             // ── Zoom out [−] ──────────────────────────────────────────
             Rectangle {
                 width: btnSize; height: btnSize; radius: 5
-                color: zoomOutMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.20)
-                                              : Qt.alpha(ThemeEngine.cyan, 0.08)
+                color: zoomOutMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.20)
+                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
                 Label {
                     anchors.centerIn: parent
                     text: "−"  // minus sign
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: root.isMobile ? 16 : 13
                     font.weight: Font.Bold
-                    color: ThemeEngine.textPrimary
+                    color: ThemeEngine.colors.textPrimary
                 }
                 MouseArea {
                     id: zoomOutMa
@@ -108,7 +108,7 @@ Item {
                 text: root.zoomPercent
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: root.isMobile ? 13 : 11
-                color: ThemeEngine.textSecondary
+                color: ThemeEngine.colors.textSecondary
                 horizontalAlignment: Text.AlignHCenter
                 width: root.isMobile ? 48 : 40
             }
@@ -116,15 +116,15 @@ Item {
             // ── Zoom in [+] ───────────────────────────────────────────
             Rectangle {
                 width: btnSize; height: btnSize; radius: 5
-                color: zoomInMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.20)
-                                              : Qt.alpha(ThemeEngine.cyan, 0.08)
+                color: zoomInMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.20)
+                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
                 Label {
                     anchors.centerIn: parent
                     text: "+"
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: root.isMobile ? 16 : 13
                     font.weight: Font.Bold
-                    color: ThemeEngine.textPrimary
+                    color: ThemeEngine.colors.textPrimary
                 }
                 MouseArea {
                     id: zoomInMa
@@ -138,7 +138,7 @@ Item {
             // ── Reset [1:1] ───────────────────────────────────────────
             Rectangle {
                 width: btnSize; height: btnSize; radius: 5
-                color: zoomResetMa.containsMouse ? Qt.alpha(ThemeEngine.cyan, 0.20)
+                color: zoomResetMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.20)
                                                  : "transparent"
                 Label {
                     anchors.centerIn: parent
@@ -146,7 +146,7 @@ Item {
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: root.isMobile ? 11 : 9
                     font.weight: Font.Bold
-                    color: ThemeEngine.textSecondary
+                    color: ThemeEngine.colors.textSecondary
                 }
                 MouseArea {
                     id: zoomResetMa

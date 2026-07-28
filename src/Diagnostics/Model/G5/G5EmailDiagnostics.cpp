@@ -8,16 +8,22 @@ DiagnosticResult emailDiagnostics(const QString& target) {
         return g5Result(DiagId::G5EmailDiagnostics,
                          "Not email protocol (smtp/smtps/imap/imaps/pop3/pop3s)", DiagStatus::Skipped);
     int port = portForUrl(u);
+    QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return g5Result(DiagId::G5EmailDiagnostics, "Connection failed", DiagStatus::Fail);
+    if (!sock.waitForConnected(5000)) {
+        auto r = g5Result(DiagId::G5EmailDiagnostics, "Connection failed", DiagStatus::Fail);
+        r.durationMs = t.elapsed();
+        return r;
+    }
     sock.waitForReadyRead(3000);
     QByteArray banner = sock.readAll();
     sock.disconnectFromHost();
-    return g5Result(DiagId::G5EmailDiagnostics,
+    auto r = g5Result(DiagId::G5EmailDiagnostics,
         banner.isEmpty() ? "No banner" : QString::fromUtf8(banner).trimmed().left(200),
         banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
+    r.durationMs = t.elapsed();
+    return r;
 }
 
 } // namespace G5WebsiteUrl

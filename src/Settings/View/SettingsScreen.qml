@@ -186,11 +186,11 @@ Item {
                         }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13
                         background: Rectangle {
-                            radius: 6; color: ThemeEngine.bgInput; border { width: 1; color: ThemeEngine.colors.borderCard }
+                            radius: 6; color: ThemeEngine.colors.input; border { width: 1; color: ThemeEngine.colors.borderCard }
                         }
                         contentItem: Label {
                             text: langCombo.displayText
-                            font: langCombo.font; color: ThemeEngine.textPrimary
+                            font: langCombo.font; color: ThemeEngine.colors.textPrimary
                             verticalAlignment: Text.AlignVCenter; leftPadding: 12
                         }
                         indicator: Rectangle {
@@ -199,17 +199,17 @@ Item {
                             // 5WHY: Replaced ▾ Unicode triangle with chevron-down SVG.
                             AppIcon {
                                 anchors.centerIn: parent
-                                name: "chevron-down"; size: 12; color: ThemeEngine.textSecondary
+                                name: "chevron-down"; size: 12; color: ThemeEngine.colors.textSecondary
                             }
                         }
                         delegate: ItemDelegate {
                             width: langCombo.width
                             contentItem: Label {
                                 text: modelData; font.family: ThemeEngine.monoFont; font.pixelSize: 13
-                                color: highlighted ? ThemeEngine.cyan : ThemeEngine.textPrimary
+                                color: highlighted ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary
                                 verticalAlignment: Text.AlignVCenter; leftPadding: 12
                             }
-                            background: Rectangle { color: highlighted ? Qt.alpha(ThemeEngine.cyan, 0.1) : "transparent" }
+                            background: Rectangle { color: highlighted ? Qt.alpha(ThemeEngine.colors.cyan, 0.1) : "transparent" }
                         }
                         popup: Popup {
                             y: langCombo.height + 4
@@ -248,22 +248,22 @@ Item {
                             Layout.fillWidth: true
                             text: appState.isPremium ? Tr.premiumUnlocked : Tr.premiumRequiredMsg
                             font.family: ThemeEngine.monoFont
-                            font.pixelSize: 12; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.4
+                            font.pixelSize: 12; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.4
                         }
                         Item { Layout.preferredHeight: 12 }
                         // Restore button — hidden when already premium
                         Rectangle {
                             visible: !appState.isPremium
                             Layout.fillWidth: true; implicitHeight: 42; radius: 8
-                            color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.warnYellow, 0.08)
-                                                               : Qt.alpha(ThemeEngine.warnYellow, 0.12)
-                            border { width: 1; color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.warnYellow, 0.3)
-                                                                                   : Qt.alpha(ThemeEngine.warnYellow, 0.4) }
+                            color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.colors.warnYellow, 0.08)
+                                                               : Qt.alpha(ThemeEngine.colors.warnYellow, 0.12)
+                            border { width: 1; color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.colors.warnYellow, 0.3)
+                                                                                   : Qt.alpha(ThemeEngine.colors.warnYellow, 0.4) }
                             Label {
                                 anchors.centerIn: parent
                                 text: appState.purchaseInProgress ? "..." : Tr.restoreBtn
                                 font.family: ThemeEngine.monoFont
-                                font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.warnYellow
+                                font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.warnYellow
                             }
                             MouseArea {
                                 anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -277,7 +277,7 @@ Item {
                             Layout.fillWidth: true
                             visible: restoreToastTimer.running
                             font.family: ThemeEngine.monoFont
-                            font.pixelSize: 11; color: ThemeEngine.warnYellow
+                            font.pixelSize: 11; color: ThemeEngine.colors.warnYellow
                             Layout.topMargin: restoreToast.visible ? 8 : 0
                         }
                         Timer { id: restoreToastTimer; interval: ThemeEngine.toastDurationMs }
@@ -297,12 +297,12 @@ Item {
                 visible: captureToastTimer.running
                 spacing: 6
                 Layout.topMargin: captureToast.visible ? 8 : 0
-                AppIcon { name: "camera"; size: 14; color: ThemeEngine.cyan }
+                AppIcon { name: "camera"; size: 14; color: ThemeEngine.colors.cyan }
                 Label {
                     id: captureToastLabel
                     Layout.fillWidth: true
                     font.family: ThemeEngine.monoFont
-                    font.pixelSize: 11; color: ThemeEngine.cyan
+                    font.pixelSize: 11; color: ThemeEngine.colors.cyan
                 }
             }
             Timer { id: captureToastTimer; interval: ThemeEngine.toastDurationMs }
@@ -317,7 +317,7 @@ Item {
                 Layout.topMargin: languageToastTimer.running ? 4 : 0
                 visible: languageToastTimer.running
                 text: languageToastText
-                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.passGreen
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.passGreen
             }
 
             // ── About Section ──────────────────────────────────────────
@@ -339,17 +339,17 @@ Item {
                             implicitWidth: 48; implicitHeight: 48; radius: 12
                             // Subtle glow when capture feature is enabled
                             color: appState.captureFeatureEnabled
-                                   ? Qt.alpha(ThemeEngine.cyan, 0.25)
-                                   : Qt.alpha(ThemeEngine.accentBlue, 0.15)
+                                   ? Qt.alpha(ThemeEngine.colors.cyan, 0.25)
+                                   : Qt.alpha(ThemeEngine.colors.secondary, 0.15)
                             border {
                                 width: appState.captureFeatureEnabled ? 1.5 : 0
-                                color: appState.captureFeatureEnabled ? ThemeEngine.cyan : "transparent"
+                                color: appState.captureFeatureEnabled ? ThemeEngine.colors.cyan : "transparent"
                             }
                             AppIcon {
                                 anchors.centerIn: parent
                                 name: appState.captureFeatureEnabled ? "diagnostics" : "wifi"
                                 size: 28
-                                color: appState.captureFeatureEnabled ? ThemeEngine.cyan : ThemeEngine.accentBlue
+                                color: appState.captureFeatureEnabled ? ThemeEngine.colors.cyan : ThemeEngine.colors.secondary
                             }
                             // Double-click to toggle the hidden capture feature
                             MouseArea {
@@ -383,19 +383,19 @@ Item {
                         Rectangle {
                             visible: appState.captureFeatureEnabled
                             width: 8; height: 8; radius: 4
-                            color: ThemeEngine.cyan
+                            color: ThemeEngine.colors.cyan
                             Layout.alignment: Qt.AlignTop
                             Layout.leftMargin: -8; Layout.topMargin: 2
                         }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
-                            Label { text: "NetDiagnostics" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
+                            Label { text: "NetDiagnostics" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
                             Label {
                                 Layout.fillWidth: true
                                 text: "Version " + appState.appVersion
                                       + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
                                       + (appState.buildNumber.length > 0 ? " Build " + appState.buildNumber : "")
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textSecondary
+                                font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
                                 wrapMode: Text.WordWrap
                             }
                         }
@@ -404,7 +404,7 @@ Item {
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard }
                     Item { Layout.preferredHeight: 12 }
                     Label { Layout.fillWidth: true; text: Tr.aboutDesc
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5 }
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5 }
                     Item { Layout.preferredHeight: 16 }
                     AboutRow { aboutIcon: "monitor"; aboutText: Tr.crossPlat }
                     Item { Layout.preferredHeight: 8 }
@@ -427,7 +427,7 @@ Item {
         Rectangle { implicitWidth: 30; implicitHeight: 30; radius: 8; color: Qt.alpha(ThemeEngine.colors.primary, 0.1)
             AppIcon { anchors.centerIn: parent; name: iconName; size: 18; color: ThemeEngine.colors.textPrimary } }
         Item { width: 12 }
-        Label { text: title; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.textPrimary }
+        Label { text: title; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
     }
 
     // 5WHY: LangBtn and SmtpField were defined but never instantiated — dead code.
@@ -443,6 +443,6 @@ Item {
         // 5WHY: Replaced emoji Label with AppIcon for consistent SVG iconography.
         AppIcon { name: aboutIcon; size: 16; color: ThemeEngine.colors.textSecondary; Layout.alignment: Qt.AlignTop }
         Item { width: 10 }
-        Label { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.textSecondary, 0.8) }
+        Label { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.8) }
     }
 }

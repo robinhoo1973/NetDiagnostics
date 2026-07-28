@@ -5,9 +5,13 @@ DiagnosticResult sslCertificate(const QString& target) {
     if (u.scheme() != "https")
         return g5Result(DiagId::G5SslCertificate, "Not HTTPS", DiagStatus::Skipped);
     int port = u.port() > 0 ? u.port() : 443;
+    QElapsedTimer t; t.start();
     auto cert = NetworkProbe::sslCertInfo(u.host(), port, 10000);
-    if (!cert.valid)
-        return g5Result(DiagId::G5SslCertificate, "Failed to get certificate", DiagStatus::Fail);
+    if (!cert.valid) {
+        auto r = g5Result(DiagId::G5SslCertificate, "Failed to get certificate", DiagStatus::Fail);
+        r.durationMs = t.elapsed();
+        return r;
+    }
     DiagStatus st = DiagStatus::Pass;
     QString summary = QStringLiteral("%1 days left").arg(cert.daysLeft);
     if (cert.daysLeft < 0) { st = DiagStatus::Fail; summary = "EXPIRED"; }
@@ -46,6 +50,7 @@ DiagnosticResult sslCertificate(const QString& target) {
     r.rawOutput = lines.join('\n'); r.details = r.rawOutput;
     r.properties.append(ResultProperty("Subject", cert.subject));
     r.properties.append(ResultProperty("Issuer", cert.issuer));
+    r.durationMs = t.elapsed();
     return r;
 }
 
