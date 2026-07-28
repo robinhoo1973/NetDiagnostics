@@ -67,7 +67,10 @@ Item {
 
     onPreviewVisibleChanged: {
         if (!previewVisible) {
-            // Cleanup handled in openPreview() before generating new image
+            // 5WHY: Clear the image path when the preview closes so the
+            // old data: URI doesn't persist in memory.  openPreview()
+            // regenerates a fresh image before setting previewVisible=true.
+            previewImagePath = ""
         }
     }
 
@@ -204,7 +207,7 @@ Item {
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: "white" }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.textPrimary }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
@@ -483,33 +486,9 @@ Item {
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
     }
 
-    component PreviewBtn: Rectangle {
-        id: pbtn
-        property string label: ""
-        property string iconName: ""
-        property color accent: ThemeEngine.cyan
-        property bool locked: false
-        signal clicked()
-        Layout.minimumWidth: 80
-        implicitHeight: 40; radius: 8
-        clip: true
-        color: Qt.alpha(accent, 0.12)
-        border { width: 1; color: Qt.alpha(accent, 0.4) }
-        RowLayout {
-            id: pbtnRow
-            anchors.centerIn: parent; spacing: 6
-            AppIcon {
-                visible: pbtn.iconName !== ""
-                name: pbtn.iconName; size: 20; color: pbtn.accent
-            }
-            Label {
-                text: pbtn.label + (pbtn.locked ? "  " + Tr.premiumBadge : "")
-                color: ThemeEngine.textPrimary
-                font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
-            }
-        }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: pbtn.clicked() }
-    }
+    // 5WHY: PreviewBtn component removed — dead code (never instantiated).
+    // The main content area uses ExportButton; the preview overlay uses
+    // built-in UI with its own close button.
 
     component ExportButton: Rectangle {
         id: btn

@@ -373,22 +373,8 @@ Item {
     }
 
     // ── Inline components ───────────────────────────────────────────────
-    component PreviewShareBtn: Rectangle {
-        id: psb
-        property string iconName: ""; property string label: ""; property color accent: ThemeEngine.cyan; property bool locked: false
-        signal clicked()
-        implicitHeight: 42; radius: 8; opacity: locked ? 0.4 : 1.0
-        color: Qt.alpha(accent, 0.10); border { width: 1; color: Qt.alpha(accent, 0.35) }
-        RowLayout { anchors { fill: parent; leftMargin: 12; rightMargin: 12 } spacing: 8
-            AppIcon { name: psb.iconName; size: 16; color: psb.accent }
-            Label { Layout.fillWidth: true; text: psb.label; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.textPrimary; elide: Text.ElideRight }
-            AppIcon { name: psb.locked ? "badge-check" : ""; size: 14; color: ThemeEngine.warnYellow; visible: psb.locked }
-        }
-        // 5WHY: locked buttons were disabled → user couldn't click to see
-        // the subscription prompt. Now always clickable — doShare() handles
-        // the premium check and shows the subscription dialog if needed.
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: psb.clicked() }
-    }
+    // 5WHY: PreviewShareBtn component removed — dead code (never instantiated).
+    // The share buttons in the preview overlay use the shared ShareButtons widget.
     component DashboardGroupRow: Rectangle {
         property int groupIndex: 0
         // Compute the group stats once per row instead of 5x (one per badge).
