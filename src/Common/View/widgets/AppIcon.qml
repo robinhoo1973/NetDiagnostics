@@ -89,9 +89,12 @@ Item {
     // badge-circle.svg has NO native colored fill — it renders as a white
     // stroke circle, so hiding the overlay makes it pure white and silently
     // ignores the caller's explicit color.  Exclude it from the default.
+    // 5WHY: QML color type compared with === "white" is always false in Qt 6
+    // because the color value type is stored as an ARGB numeric object, never
+    // a JS string.  Use Qt.colorEqual() which compares QColor values correctly.
     readonly property bool _nativeColored: name.indexOf("badge-") === 0
         && name !== "badge-circle"
-        && root.color === "white"   // caller didn't set an explicit color
+        && Qt.colorEqual(root.color, "white")   // caller didn't set an explicit color
 
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it

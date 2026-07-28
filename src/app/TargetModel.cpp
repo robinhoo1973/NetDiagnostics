@@ -162,8 +162,13 @@ void TargetModel::setTarget(const QString& t) {
             if (trimmed.contains("://")) {
                 m_error = validateUrl(trimmed);
             } else {
-                if (!isValidHostname(trimmed)) {
-                    m_error = trimmed.contains("..")
+                // 5WHY (round 3): syncFieldsFromTarget already split host/path
+                // for bare inputs (no ://).  Validate m_host (the parsed
+                // hostname) instead of trimmed (which may still contain the
+                // path).  Validating trimmed on "host/path" incorrectly rejects
+                // the '/' inside the path with a misleading hostname error.
+                if (!isValidHostname(m_host)) {
+                    m_error = m_host.contains("..")
                         ? QStringLiteral("Invalid hostname: consecutive dots")
                         : QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
                 }
@@ -269,7 +274,17 @@ void TargetModel::syncFieldsFromTarget() {
 // ── QML-invokable: parse pasted URL into fields ─────────────────────────
 void TargetModel::parseUrlIntoFields(const QString& urlString) {
     const QString trimmed = urlString.trimmed();
-    if (trimmed.isEmpty()) return;
+    // 5WHY: Returning early on empty input left stale m_host/m_path values.
+    // When the user clears the QML TextField, onTextChanged fires with text="",
+    // but parseUrlIntoFields("") returned immediately without clearing fields.
+    // Clear all structured fields and emit targetChanged so QML bindings update.
+    if (trimmed.isEmpty()) {
+        m_scheme = QStringLiteral("https"); m_host.clear(); m_port = -1;
+        m_username.clear(); m_password.clear(); m_path.clear();
+        m_target.clear(); m_error.clear();
+        emit targetChanged();
+        return;
+    }
 
     if (!trimmed.contains(QStringLiteral("://"))) {
         // 5WHY: Bare-domain input (no ://) was setting m_host/m_path but NOT
@@ -302,6 +317,12 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
         if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
         m_path = fullPath;
-        setTarget(trimmed);
+        // 5WHY: Calling setTarget(trimmed) without the m_assembling guard
+        // caused syncFieldsFromTarget() to re-parse the same raw URL via QUrl,
+        // overwriting every field we just set — the scheme fallback (line 301)
+        // was silently defeated and QUrl was constructed twice per keystroke.
+        // Use assembleTargetUrl() which sets m_assembling=true before calling
+        // setTarget(), so syncFieldsFromTarget returns immediately.
+        assembleTargetUrl(); // sets m_assembling → syncFieldsFromTarget is skipped
     }
 }

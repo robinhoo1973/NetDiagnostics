@@ -37,35 +37,35 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         if (!setSocketNonBlocking(sock)) { closeSocket(sock); sock = -1; }
         if (sock >= 0) {
             QElapsedTimer t; t.start();
-        ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-        fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        struct timeval tv = {3, 0};
-        int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
-        if (sel > 0) {
-            int err = 0; socklen_t elen = sizeof(err);
-            getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &elen);
-            if (err == 0 || err == ECONNREFUSED) {
-                socklen_t mssLen = sizeof(mss);
-                if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, reinterpret_cast<char*>(&mss), &mssLen) == 0 && mss > 0) {
-                    discoveredMtu = mss + 40; // MSS + IP(20) + TCP(20) headers
-                }
+            ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+            fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
+            struct timeval tv = {3, 0};
+            int sel = select(sock + 1, nullptr, &fdset, nullptr, &tv);
+            if (sel > 0) {
+                int err = 0; socklen_t elen = sizeof(err);
+                getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &elen);
+                if (err == 0 || err == ECONNREFUSED) {
+                    socklen_t mssLen = sizeof(mss);
+                    if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, reinterpret_cast<char*>(&mss), &mssLen) == 0 && mss > 0) {
+                        discoveredMtu = mss + 40; // MSS + IP(20) + TCP(20) headers
+                    }
 #if defined(IP_MTU)
-                // Also try IP_MTU directly
-                int ipMtu = 0; socklen_t ipMtuLen = sizeof(ipMtu);
-                if (getsockopt(sock, IPPROTO_IP, IP_MTU, reinterpret_cast<char*>(&ipMtu), &ipMtuLen) == 0 && ipMtu > discoveredMtu)
-                    discoveredMtu = ipMtu;
+                    // Also try IP_MTU directly
+                    int ipMtu = 0; socklen_t ipMtuLen = sizeof(ipMtu);
+                    if (getsockopt(sock, IPPROTO_IP, IP_MTU, reinterpret_cast<char*>(&ipMtu), &ipMtuLen) == 0 && ipMtu > discoveredMtu)
+                        discoveredMtu = ipMtu;
 #endif
+                }
             }
-        }
             int rtt = (int)t.elapsed();
-        if (mss > 0) {
-            out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, ipStr).arg(mss));
-            out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(ipStr).arg(mss).arg(rtt).arg(discoveredMtu));
-        } else {
-            out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, ipStr));
-            out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
-        }
-        closeSocket(sock);
+            if (mss > 0) {
+                out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, ipStr).arg(mss));
+                out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(ipStr).arg(mss).arg(rtt).arg(discoveredMtu));
+            } else {
+                out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, ipStr));
+                out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
+            }
+            closeSocket(sock);
         }
     } else {
         // 5WHY: If socket() succeeded but DNS resolution returned 0
@@ -116,7 +116,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
                     if (v > 0 && v > discoveredMtu && v < 10000) discoveredMtu = v;
                 }
             }
-            if (sock >= 0) close(sock);
+            if (sock >= 0) closeSocket(sock);
             freeifaddrs(ifa);
         }
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
