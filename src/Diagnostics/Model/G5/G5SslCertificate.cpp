@@ -49,4 +49,4 @@ DiagnosticResult sslCertificate(const QString& target) {
     return r;
 }
 
-}
+} // namespace G5WebsiteUrl

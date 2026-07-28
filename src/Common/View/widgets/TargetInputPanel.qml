@@ -10,11 +10,8 @@ ColumnLayout {
     property bool advancedExpanded: false
     // ── Scheme model — populated once in Component.onCompleted ─────────────
     property ListModel schemeModel: ListModel { id: _schemeModel }
-    // ── Guard flag — suppress onTextChanged during programmatic updates ───
-    // 5WHY: _syncing was declared but never set — dead code. QML's binding
-    // engine already prevents re-entrant property updates (value unchanged →
-    // no NOTIFY signal emitted). The guard is unnecessary.
-    property bool _syncing: false
+    // ── _syncing removed — dead code. QML's binding engine already prevents
+    // re-entrant property updates (value unchanged → no NOTIFY signal emitted).
 
     Component.onCompleted: {
         // ── Populate scheme model BEFORE ComboBox renders ──────────────
@@ -195,8 +192,9 @@ ColumnLayout {
                 }
 
                 // ── Scheme change handler ─────────────────────────────────
+                // 5WHY: _syncing guard removed — dead code. QML binding engine
+                // prevents re-entrant updates (value unchanged → no NOTIFY emitted).
                 onCurrentTextChanged: {
-                    if (root._syncing) return
                     if (currentText && appState.targetScheme !== currentText) {
                         appState.targetScheme = currentText
                     }

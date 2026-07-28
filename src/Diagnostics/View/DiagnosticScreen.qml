@@ -35,9 +35,10 @@ Item {
     property bool _runActive: false
     property int _cachedGen: -1
     property string _snapTargetError: ""
-    readonly property bool _snapHasError: _snapTargetError !== ""
-    property string _snapIconName: _snapHasError ? "badge-warning" : "badge-info"
-    property color _snapIconColor: _snapHasError ? ThemeEngine.warnYellow : ThemeEngine.infoBlue
+    // 5WHY: _snapHasError was a derivable property (_snapTargetError !== "") —
+    // inlined directly where used to eliminate one QML binding slot.
+    property string _snapIconName: _snapTargetError !== "" ? "badge-warning" : "badge-info"
+    property color _snapIconColor: _snapTargetError !== "" ? ThemeEngine.warnYellow : ThemeEngine.infoBlue
     property int _snapVersion: 0
 
     // 5WHY: NavigationAdapter.openDiagnosticDetail() used findChild by

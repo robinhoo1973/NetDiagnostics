@@ -255,17 +255,18 @@ bool AppState::isGroupAnyEnabled(int groupInt) const { return m_configCtrl->conf
 // ── Group activation (separate from enable/disable) ─────────────────
 void AppState::setGroupActive(int groupInt, bool active) {
     if (groupInt < 0 || groupInt >= 5) return;
-    bool changed = active ? m_activeGroups.contains(groupInt) == false
-                          : m_activeGroups.contains(groupInt) == true;
+    // 5WHY: The old code computed `changed` via a ternary with negated
+    // contains() and only acted if the membership changed.  Early-return
+    // on no-change is simpler — it eliminates the temporary bool, two
+    // negated expressions, and the nested if.
+    if (m_activeGroups.contains(groupInt) == active) return;
     if (active)
         m_activeGroups.insert(groupInt);
     else
         m_activeGroups.remove(groupInt);
-    if (changed) {
-        saveSettings();
-        emit groupActiveChanged();
-        bumpVersion();
-    }
+    saveSettings();
+    emit groupActiveChanged();
+    bumpVersion();
 }
 
 bool AppState::isGroupActive(int groupInt) const {

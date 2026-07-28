@@ -41,6 +41,7 @@ Rectangle {
     property int countdown: root.recordingFile !== "" ? 30 : 15
     property bool _dismissed: false
     readonly property bool _isIos: Qt.platform.os === "ios"
+    readonly property bool _isAndroid: Qt.platform.os === "android"
 
     signal dismissed()
 
@@ -272,7 +273,7 @@ Rectangle {
             // ── Focus mode reminder ─────────────────────────────────
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: 40; radius: 10
-                visible: _isIos || Qt.platform.os === "android"
+                visible: _isIos || _isAndroid
                 color: _isIos
                     ? Qt.alpha(T.ThemeEngine.warnYellow, 0.06)
                     : Qt.alpha(T.ThemeEngine.passGreen, 0.06)
