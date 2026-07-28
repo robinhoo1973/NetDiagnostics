@@ -227,6 +227,14 @@ void TargetModel::applyBareHost(const QString& trimmed) {
     }
 }
 
+// ── Reset all structured fields to sane defaults ─────────────────────────
+// Shared by syncFieldsFromTarget and parseUrlIntoFields to avoid duplicate
+// 6-field reset blocks that drift apart when new fields are added.
+void TargetModel::clearFieldsToDefault() {
+    m_scheme = QStringLiteral("https"); m_host.clear(); m_port = -1;
+    m_username.clear(); m_password.clear(); m_path.clear();
+}
+
 // ── Parse m_target → structured fields ─────────────────────────────────
 void TargetModel::syncFieldsFromTarget() {
     if (m_assembling) return;
@@ -236,8 +244,7 @@ void TargetModel::syncFieldsFromTarget() {
         // 5WHY (round 4): parseUrlIntoFields("") sets m_scheme = "https" so
         // the scheme dropdown shows a sane default after clearing.  Align
         // syncFieldsFromTarget (reached via setTarget("")) for consistency.
-        m_scheme = QStringLiteral("https"); m_host.clear(); m_port = -1;
-        m_username.clear(); m_password.clear(); m_path.clear();
+        clearFieldsToDefault();
         return;
     }
 
@@ -264,18 +271,28 @@ void TargetModel::syncFieldsFromTarget() {
         m_username = u.userName();
         m_password = u.password();
 
+        // 5WHY: .section('@',0,0) splits on the FIRST '@', but RFC 3986
+        // separates userinfo from host at the LAST '@' in the authority.
+        // validateUrl() and extractHostname() both use lastIndexOf('@').
         if (m_username.isEmpty() && trimmed.contains('@')) {
-            QString userinfo = trimmed.section(QStringLiteral("://"), 1).section('@', 0, 0);
-            if (userinfo.contains(':')) {
-                m_username = userinfo.section(':', 0, 0);
-                m_password = userinfo.section(':', 1);
-            } else {
-                m_username = userinfo;
+            QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
+            int lastAt = afterScheme.lastIndexOf('@');
+            if (lastAt >= 0) {
+                QString userinfo = afterScheme.left(lastAt);
+                if (userinfo.contains(':')) {
+                    m_username = userinfo.section(':', 0, 0);
+                    m_password = userinfo.section(':', 1);
+                } else {
+                    m_username = userinfo;
+                }
             }
         }
         if (m_port <= 0) {
             QString authority = trimmed.section(QStringLiteral("://"), 1);
-            if (authority.contains('@')) authority = authority.section('@', 1);
+            if (authority.contains('@')) {
+                int lastAt = authority.lastIndexOf('@');
+                authority = authority.mid(lastAt + 1);
+            }
             for (auto ch : {'/', '?', '#'}) {
                 int pos = authority.indexOf(ch);
                 if (pos >= 0) authority = authority.left(pos);
@@ -304,8 +321,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
     // but parseUrlIntoFields("") returned immediately without clearing fields.
     // Clear all structured fields and emit targetChanged so QML bindings update.
     if (trimmed.isEmpty()) {
-        m_scheme = QStringLiteral("https"); m_host.clear(); m_port = -1;
-        m_username.clear(); m_password.clear(); m_path.clear();
+        clearFieldsToDefault();
         m_target.clear(); m_error.clear();
         emit targetChanged();
         return;
@@ -328,6 +344,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
             // empty host — assembleTargetUrl would return early without
             // emitting targetChanged.  Emit directly so QML bindings know
             // the structured fields changed.
+            m_target.clear();
             emit targetChanged();
         }
         return;
@@ -341,6 +358,40 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         m_port = u.port() > 0 ? u.port() : -1;
         m_username = u.userName();
         m_password = u.password();
+
+        // Userinfo fallback — handle @ in authority when QUrl misses it.
+        // Mirrors syncFieldsFromTarget's fallback for cross-path consistency.
+        if (m_username.isEmpty() && trimmed.contains('@')) {
+            QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
+            int lastAt = afterScheme.lastIndexOf('@');
+            if (lastAt >= 0) {
+                QString userinfo = afterScheme.left(lastAt);
+                if (userinfo.contains(':')) {
+                    m_username = userinfo.section(':', 0, 0);
+                    m_password = userinfo.section(':', 1);
+                } else {
+                    m_username = userinfo;
+                }
+            }
+        }
+        // Port fallback — handle explicit port when QUrl::port() returns -1.
+        // Mirrors syncFieldsFromTarget's fallback for cross-path consistency.
+        if (m_port <= 0) {
+            QString authority = trimmed.section(QStringLiteral("://"), 1);
+            if (authority.contains('@')) {
+                int lastAt = authority.lastIndexOf('@');
+                authority = authority.mid(lastAt + 1);
+            }
+            for (auto ch : {'/', '?', '#'}) {
+                int pos = authority.indexOf(ch);
+                if (pos >= 0) authority = authority.left(pos);
+            }
+            if (authority.contains(':')) {
+                bool ok = false;
+                int p = authority.section(':', -1).toInt(&ok);
+                if (ok && p > 0 && p <= 65535) m_port = p;
+            }
+        }
         QString fullPath = u.path();
         if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
         if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
@@ -360,5 +411,9 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         } else {
             setTarget(trimmed);
         }
+    } else {
+        // QUrl couldn't parse — fall through to setTarget so the raw input
+        // is stored and validated (validation error shown to user).
+        setTarget(trimmed);
     }
 }

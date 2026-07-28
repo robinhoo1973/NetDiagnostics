@@ -62,7 +62,7 @@ public:
     bool isEmpty() const { return m_target.isEmpty(); }
     bool hasUrlScheme() const { return m_target.contains("://") && !isEmpty(); }
     bool isHttpUrl() const;
-    bool isUrl() const { return hasUrlScheme() && !isEmpty(); }
+    bool isUrl() const { return hasUrlScheme(); }  // hasUrlScheme() already checks !isEmpty()
     bool isHost() const { return !isEmpty() && !hasUrlScheme(); }
     QString validationError() const { return m_error; }
 
@@ -77,6 +77,7 @@ private:
     void assembleTargetUrl();      // build m_target from structured fields
     void syncFieldsFromTarget();   // parse m_target → structured fields
     void applyBareHost(const QString& trimmed);  // split host/path from bare input (no ://)
+    void clearFieldsToDefault();   // reset all structured fields to sane defaults
 
     // Validation helpers are file-scope static functions in TargetModel.cpp
 

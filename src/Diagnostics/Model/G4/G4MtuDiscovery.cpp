@@ -94,6 +94,10 @@ DiagnosticResult mtuDiscovery(const QString& target) {
                 if (v > 0 && v > discoveredMtu && v < 10000) discoveredMtu = v;
             }
         }
+        // 5WHY (round 5): If the sysfs scan found no usable interface
+        // (container without host netns, restricted /sys), discoveredMtu
+        // stays 0.  Fall back to Ethernet standard 1500 like Windows does.
+        if (discoveredMtu == 0) discoveredMtu = 1500;
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
@@ -117,11 +121,17 @@ DiagnosticResult mtuDiscovery(const QString& target) {
             if (sock >= 0) closeSocket(sock);
             freeifaddrs(ifa);
         }
+        // 5WHY (round 5): If getifaddrs returned no usable UP interface,
+        // discoveredMtu stays 0.  Fall back to Ethernet standard 1500.
+        if (discoveredMtu == 0) discoveredMtu = 1500;
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
 #else
-        // Fallback for other platforms
+        // Fallback for other platforms — no interface scan available.
+        // Use Ethernet standard 1500 as default; scan would have found
+        // lower MTUs if present.
+        if (discoveredMtu == 0) discoveredMtu = 1500;
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));

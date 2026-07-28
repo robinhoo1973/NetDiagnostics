@@ -201,7 +201,11 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
     // Datagram ICMP socket 鈥?allowed on iOS/macOS without root (SimplePing pattern)
     int icmpSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-    if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { closeSocket(icmpSock); rttMs=0; hopIp.clear(); return -1; }
+    // 5WHY: On Linux (above), FD_SETSIZE failure sets icmpSock=-1 and
+    // falls through to the TCP fallback.  On macOS the old code returned -1
+    // immediately, skipping the TCP attempt entirely.  Now match the Linux
+    // pattern: bail out of ICMP, let the TCP fallback try instead.
+    if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { closeSocket(icmpSock); icmpSock = -1; }
     if (icmpSock < 0) {
         s_rawIcmpAvailable = false;
         // Fallback: TCP connect with TTL (used only if ICMP is somehow unavailable)
