@@ -20,6 +20,10 @@ Rectangle {
     Label {
         anchors.centerIn: parent
         text: dbtn.label
+        // 5WHY: On narrow iOS screens (iPhone SE, 375pt), translated
+        // labels like 'Premium freischalten' overflow the button width
+        // without elide.  ElideRight gracefully truncates with ellipsis.
+        elide: Text.ElideRight
         color: dbtn.filled ? T.ThemeEngine.colors.surface : dbtn.accent
         font.family: T.ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
     }

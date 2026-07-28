@@ -28,6 +28,11 @@ Rectangle {
         width: Math.min(420, parent.width * 0.92)
         implicitHeight: dlgCol.implicitHeight + 40; radius: 14
         color: T.ThemeEngine.colors.card
+        // 5WHY: Without this MouseArea, clicks on empty card space (between
+        // title text and buttons, or near-misses) propagate to the backdrop
+        // MouseArea and dismiss the dialog.  Absorb clicks so only explicit
+        // button presses or backdrop taps trigger actions.
+        MouseArea { anchors.fill: parent }
         ColumnLayout {
             id: dlgCol
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
