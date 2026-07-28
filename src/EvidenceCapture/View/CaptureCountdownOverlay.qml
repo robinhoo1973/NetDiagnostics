@@ -193,24 +193,9 @@ Rectangle {
             }
 
             // ── Cancel button ───────────────────────────────────────
-            Rectangle {
-                Layout.fillWidth: true; implicitHeight: 48; radius: 14
-                color: "transparent"
-                border { width: 1.5; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.25) }
-                scale: cancelMa.pressed ? 0.97 : 1.0
-                Behavior on scale { NumberAnimation { duration: 100 } }
-                Label {
-                    anchors.centerIn: parent
-                    text: T.Tr.captureCancelBtn
-                    
-                    font.pixelSize: 14; font.weight: Font.DemiBold
-                    color: T.ThemeEngine.textSecondary
-                }
-                MouseArea {
-                    id: cancelMa
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.stop(); root.cancelled() }
-                }
+            OutlineButton {
+                text: T.Tr.captureCancelBtn
+                onClicked: { root.stop(); root.cancelled() }
             }
         }
     }
