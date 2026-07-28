@@ -380,101 +380,18 @@ Item {
         }
     }
 
-    // ── Subscription / share-confirmation dialog ──────────────────────
-    // shareStage 1 = not subscribed → guide to subscribe.
-    // shareStage 2 = subscribed → confirm, then share. Identical on iOS/Android.
-    Rectangle {
-        id: shareDialog
-        parent: page.parent ? page.parent : page
-        anchors.fill: parent
-        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
-        visible: page.shareStage !== 0
-        z: 1100
-        MouseArea { anchors.fill: parent; onClicked: page.shareStage = 0 }
-
-        Rectangle {
-            anchors.centerIn: parent
-            // Proportional width: 92 % of container on mobile, capped at 420 px
-            width: Math.min(420, parent.width * 0.92)
-            implicitHeight: dlgCol.implicitHeight + 40
-            radius: 14; color: ThemeEngine.colors.card
-            border { width: 1.5; color: ThemeEngine.colors.borderFocused }
-
-            ColumnLayout {
-                id: dlgCol
-                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
-                spacing: 14
-
-                // Icon badge — lock/info for subscribe, report for confirm
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 60; height: 60; radius: 30
-                    color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.12)
-                    border { width: 1.5; color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.35) }
-                    AppIcon {
-                        anchors.centerIn: parent
-                        name: page.shareStage === 1 ? "badge-info" : "report"
-                        size: 28
-                        color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
-                    }
-                }
-                // Title
-                Label {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle
-                    font.family: ThemeEngine.monoFont
-                    font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary
-                    wrapMode: Text.WordWrap
-                }
-                // Body
-                Label {
-                    Layout.fillWidth: true
-                    horizontalAlignment: Text.AlignHCenter
-                    text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody
-                    font.family: ThemeEngine.monoFont
-                    font.pixelSize: 13; color: ThemeEngine.textSecondary
-                    wrapMode: Text.WordWrap; lineHeight: 1.25
-                }
-                // PRO badge (subscribe stage only)
-                Rectangle {
-                    visible: page.shareStage === 1
-                    Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: proRow.implicitWidth + 20; implicitHeight: 26; radius: 13
-                    color: Qt.alpha(ThemeEngine.warnYellow, 0.15)
-                    RowLayout {
-                        id: proRow
-                        anchors.centerIn: parent; spacing: 5
-                        AppIcon { name: "badge-check"; size: 12; color: ThemeEngine.warnYellow }
-                        Label { text: Tr.premiumBadge; color: ThemeEngine.warnYellow
-                            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
-                    }
-                }
-                // Action buttons
-                RowLayout {
-                    Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
-                    DialogBtn {
-                        Layout.fillWidth: true
-                        label: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel
-                        accent: ThemeEngine.textSecondary; filled: false
-                        onClicked: page.shareStage = 0
-                    }
-                    DialogBtn {
-                        Layout.fillWidth: true
-                        label: page.shareStage === 1 ? Tr.subscribeBtn
-                                                     : (page.isMobile ? Tr.shareBtn : Tr.emailBtn)
-                        accent: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
-                        filled: true
-                        onClicked: {
-                            if (page.shareStage === 1) appState.requestSubscription()
-                            else page.confirmShare()
-                        }
-                    }
-                }
-            }
+    // ── Share subscription dialog ───────────────────────────────────────
+    ShareSubscriptionDialog {
+        shareStage: page.shareStage; isMobile: page.isMobile
+        showProBadge: true; showIconBorder: true
+        onDismissed: page.shareStage = 0
+        onActionRequested: {
+            if (page.shareStage === 1) appState.requestSubscription()
+            else page.confirmShare()
         }
     }
 
+    // 5WHY: DialogBtn extracted to shared widget; remains here for ExportButton use.
     component DialogBtn: Rectangle {
         id: dbtn
         property string label: ""

@@ -17,6 +17,8 @@ Rectangle {
 
     required property int shareStage       // 0=none, 1=subscribe, 2=confirm
     required property bool isMobile
+    property bool showProBadge: false      // ReportScreen shows a PRO badge
+    property bool showIconBorder: false    // ReportScreen shows border on icon
     signal dismissed()
 
     MouseArea { anchors.fill: parent; onClicked: root.dismissed() }
@@ -35,6 +37,10 @@ Rectangle {
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; radius: 30
                 color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.warnYellow : T.ThemeEngine.cyan, 0.12)
+                border {
+                    visible: root.showIconBorder
+                    width: 1.5; color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.warnYellow : T.ThemeEngine.cyan, 0.35)
+                }
                 AppIcon {
                     anchors.centerIn: parent
                     name: root.shareStage === 1 ? "badge-info" : "report"; size: 28
@@ -58,44 +64,35 @@ Rectangle {
                 color: T.ThemeEngine.textSecondary; wrapMode: Text.WordWrap
             }
 
+            // PRO badge (subscribe stage, optional)
+            Rectangle {
+                visible: root.showProBadge && root.shareStage === 1
+                Layout.alignment: Qt.AlignHCenter
+                implicitWidth: proRow.implicitWidth + 20; implicitHeight: 26; radius: 13
+                color: Qt.alpha(T.ThemeEngine.warnYellow, 0.15)
+                RowLayout {
+                    id: proRow
+                    anchors.centerIn: parent; spacing: 5
+                    AppIcon { name: "badge-check"; size: 12; color: T.ThemeEngine.warnYellow }
+                    Label { text: T.Tr.premiumBadge; color: T.ThemeEngine.warnYellow
+                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
+                }
+            }
+
             // Buttons
             RowLayout {
-                Layout.fillWidth: true; spacing: 10
-
-                // Cancel / Not Now
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 42; radius: 8
-                    color: "transparent"
-                    border { width: 1; color: Qt.alpha(T.ThemeEngine.textSecondary, 0.5) }
-                    Label {
-                        anchors.centerIn: parent
-                        text: root.shareStage === 1 ? T.Tr.subscribeNotNow : T.Tr.dialogCancel
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
-                        color: T.ThemeEngine.textSecondary
-                    }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.dismissed()
-                    }
-                    Accessible.name: root.shareStage === 1 ? T.Tr.subscribeNotNow : T.Tr.dialogCancel
-                    Accessible.role: Accessible.Button
+                Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
+                DialogBtn {
+                    label: root.shareStage === 1 ? T.Tr.subscribeNotNow : T.Tr.dialogCancel
+                    accent: T.ThemeEngine.textSecondary; filled: false
+                    onClicked: root.dismissed()
                 }
-
-                // Subscribe / Share
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 42; radius: 8
-                    color: root.shareStage === 1 ? T.ThemeEngine.warnYellow : T.ThemeEngine.cyan
-                    Label {
-                        anchors.centerIn: parent
-                        text: root.shareStage === 1 ? T.Tr.subscribeBtn
-                              : (root.isMobile ? T.Tr.shareBtn : T.Tr.emailBtn)
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
-                        font.weight: Font.DemiBold; color: T.ThemeEngine.bgDark
-                    }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.actionRequested()
-                    }
+                DialogBtn {
+                    label: root.shareStage === 1 ? T.Tr.subscribeBtn
+                           : (root.isMobile ? T.Tr.shareBtn : T.Tr.emailBtn)
+                    accent: root.shareStage === 1 ? T.ThemeEngine.warnYellow : T.ThemeEngine.cyan
+                    filled: true
+                    onClicked: root.actionRequested()
                 }
             }
         }

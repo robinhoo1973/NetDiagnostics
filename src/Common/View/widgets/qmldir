@@ -18,3 +18,4 @@ StatusBadge 1.0 StatusBadge.qml
 TargetInputPanel 1.0 TargetInputPanel.qml
 OutlineButton 1.0 OutlineButton.qml
 CardTopAccent 1.0 CardTopAccent.qml
+DialogBtn 1.0 DialogBtn.qml
