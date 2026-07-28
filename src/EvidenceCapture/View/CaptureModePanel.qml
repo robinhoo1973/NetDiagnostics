@@ -220,7 +220,7 @@ Rectangle {
                                 name: "check"; size: 14
                                 // 5WHY: #0F172A on cyan background is readable on both light
                                 // and dark themes — cyan is mid-luminance, dark text always contrasts.
-                                color: root.wantsScreenshot ? "#0F172A" : "transparent"
+                                color: root.wantsScreenshot ? T.ThemeEngine.textOnAccent : "transparent"
                                 visible: root.wantsScreenshot
                             }
                         }
@@ -324,7 +324,7 @@ Rectangle {
                                 anchors.centerIn: parent
                                 name: "check"; size: 14
                                 // 5WHY: Same reasoning as screenshot card — cyan bg + dark check is universal.
-                                color: root.wantsRecording ? "#0F172A" : "transparent"
+                                color: root.wantsRecording ? T.ThemeEngine.textOnAccent : "transparent"
                                 visible: root.wantsRecording
                             }
                         }
@@ -468,13 +468,13 @@ Rectangle {
                             name: "play"; size: 16
                             // 5WHY: Dark icon/text on gradient cyan/primary button
                             // is readable on both light & dark themes.
-                            color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
+                            color: root.computedMode >= 0 ? T.ThemeEngine.textOnAccent : T.ThemeEngine.textSecondary
                         }
                         Label {
                             text: T.Tr.captureStartBtn
                             
                             font.pixelSize: 15; font.weight: Font.Bold
-                            color: root.computedMode >= 0 ? "#0F172A" : T.ThemeEngine.textSecondary
+                            color: root.computedMode >= 0 ? T.ThemeEngine.textOnAccent : T.ThemeEngine.textSecondary
                         }
                     }
                     MouseArea {

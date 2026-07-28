@@ -197,13 +197,13 @@ Rectangle {
                                     anchors.centerIn: parent; spacing: 6
                                     AppIcon { name: "check"; size: 14
                                         // 5WHY: Dark check on cyan-filled button is readable on both themes.
-                                        color: "#0F172A" }
+                                        color: T.ThemeEngine.textOnAccent }
                                     Label {
                                         text: T.Tr.captureImReady
                                         
                                         font.pixelSize: 12; font.weight: Font.Bold
                                         // 5WHY: Dark text on cyan button is readable on both themes.
-                                        color: "#0F172A"
+                                        color: T.ThemeEngine.textOnAccent
                                     }
                                 }
                                 MouseArea {

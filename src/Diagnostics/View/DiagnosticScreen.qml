@@ -484,7 +484,7 @@ Item {
                                 ? Tr.cellularContinue + " (" + cellularDialog.autoContinueCountdown + ")"
                                 : Tr.cellularContinue
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
-                            font.weight: Font.Bold; color: "#0F172A"
+                            font.weight: Font.Bold; color: ThemeEngine.textOnAccent
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor

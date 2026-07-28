@@ -326,7 +326,7 @@ Rectangle {
                         name: root.isError ? "close" : "check"
                         size: 18
                         // 5WHY: Dark text/icon on cyan-filled button is readable on both themes.
-                        color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
+                        color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.textOnAccent
                     }
                     Label {
                         // 5WHY: Show countdown on both success and error so the user
@@ -336,7 +336,7 @@ Rectangle {
                             + (root.countdown > 0 ? " (" + root.countdown + ")" : "")
                         
                         font.pixelSize: 15; font.weight: Font.Bold
-                        color: root.isError ? T.ThemeEngine.failRed : "#0F172A"
+                        color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.textOnAccent
                     }
                 }
                 MouseArea {

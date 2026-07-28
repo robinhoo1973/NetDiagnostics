@@ -38,7 +38,8 @@ QtObject {
         failRed:          "#F87171", skipGray:        "#9CA3AF",
         infoBlue:         "#A5B4FC",
         borderCard:       "#E2E8F0", borderSubtle:    "#F1F5F9",
-        borderFocused:    "#0EA5E9"
+        borderFocused:    "#0EA5E9",
+        textOnAccent:     "#0F172A"
     })
 
     // 5WHY: Dark palette accent colors (cyan, primary) were too dim for icon
@@ -60,7 +61,8 @@ QtObject {
         failRed:          "#F87171", skipGray:        "#9CA3AF",
         infoBlue:         "#A5B4FC",
         borderCard:       "#334155", borderSubtle:    "#1E293B",
-        borderFocused:    "#60C8F8"
+        borderFocused:    "#60C8F8",
+        textOnAccent:     "#0F172A"
     })
 
     // ── Active colors (direct literals — NO bindings, matching min ver) ──
@@ -86,6 +88,10 @@ QtObject {
     property string primary:         "#60C8F8"
     property string primaryContainer: "#0C4A6E"
     property string secondary:       "#818CF8"
+    // 5WHY: #0F172A appeared at 9 hardcoded sites as "dark text on cyan
+    // button — works on both themes."  Centralize as a semantic token so
+    // a palette change doesn't silently produce unreadable button text.
+    property string textOnAccent:    "#0F172A"
 
     // ── Theme switching (imperative JS — gated to skip init) ──────────
     property bool _ready: false
@@ -115,6 +121,7 @@ QtObject {
         borderCard      = p.borderCard;    borderSubtle    = p.borderSubtle
         borderFocused   = p.borderFocused; primary         = p.primary
         primaryContainer= p.primaryContainer; secondary     = p.secondary
+        textOnAccent    = p.textOnAccent
         // Rebuild colors JS object so all 152 consumers get fresh theme
         colors = ({
             surface: bgDark, card: bgCard, input: bgInput, sidebar: bgSidebar,
@@ -124,7 +131,9 @@ QtObject {
             accent: accent, cyan: cyan, passGreen: passGreen,
             warnYellow: warnYellow, failRed: failRed, skipGray: skipGray,
             infoBlue: infoBlue, borderCard: borderCard,
-            borderSubtle: borderSubtle, borderFocused: borderFocused
+            borderSubtle: borderSubtle, borderFocused: borderFocused,
+            textOnAccent: textOnAccent
+        })
         })
     }
     onModeChanged: { if (_ready) applyTheme() }

@@ -648,7 +648,7 @@ Item {
                     Label {
                         anchors.centerIn: parent
                         text: "Dismiss"; font.family: ThemeEngine.monoFont; font.pixelSize: 14
-                        font.weight: Font.Bold; color: "#0F172A"
+                        font.weight: Font.Bold; color: ThemeEngine.textOnAccent
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: loaderErrorFallback.visible = false }
