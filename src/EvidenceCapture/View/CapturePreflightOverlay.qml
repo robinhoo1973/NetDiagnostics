@@ -40,11 +40,7 @@ Rectangle {
         clip: true
 
         // Top accent — 2px refined
-        Rectangle {
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 2; radius: 2
-            color: T.ThemeEngine.warnYellow
-        }
+        CardTopAccent { color: T.ThemeEngine.warnYellow }
 
         Flickable {
             id: cardFlick

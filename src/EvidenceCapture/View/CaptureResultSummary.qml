@@ -86,11 +86,7 @@ Rectangle {
         clip: true
 
         // Top accent — 2px refined, red for error, green for success
-        Rectangle {
-            anchors { top: parent.top; left: parent.left; right: parent.right }
-            height: 2; radius: 2
-            color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.passGreen
-        }
+        CardTopAccent { color: root.isError ? T.ThemeEngine.failRed : T.ThemeEngine.passGreen }
 
         MouseArea { anchors.fill: parent }
 
