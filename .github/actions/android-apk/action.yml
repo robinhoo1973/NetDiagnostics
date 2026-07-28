@@ -47,23 +47,27 @@ runs:
         test -d "$ANDROID_SDK_ROOT/platforms/android-33" || { echo "ERROR: android-33 platform not installed"; exit 1; }
 
         # 5WHY: The Android debug keystore is required by androiddeployqt/Gradle
-        # to sign the APK.  If ~/.android/debug.keystore does not exist (fresh CI
-        # runner, ephemeral container), androiddeployqt's auto-generation may fail
-        # if 'keytool' is not in PATH or the JDK is not configured.  Pre-generate
-        # it so the APK is always signed with a valid debug certificate.
+        # to sign the APK.  Pre-generate it so the APK is always signed with a
+        # valid debug certificate.
+        # 5WHY (round 2): keytool -genkey fails with FileNotFoundException if
+        # ~/.android/ does not exist — keytool does NOT auto-create parent
+        # directories.  The error message was also misleading: the stderr
+        # suppression (2>/dev/null) hid the real FileNotFoundException and
+        # the else-branch printed "keytool not available" even though keytool
+        # was present and running.  Fix: mkdir -p the directory first, and
+        # capture stderr for accurate error reporting.
         if [ ! -f ~/.android/debug.keystore ]; then
           echo "Generating Android debug keystore..."
+          mkdir -p ~/.android
           if keytool -genkey -v \
             -keystore ~/.android/debug.keystore \
             -storepass android -alias androiddebugkey -keypass android \
             -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null; then
+            -dname "CN=Android Debug,O=Android,C=US" 2>/tmp/keytool-err.log; then
             echo "Debug keystore created: $(ls -la ~/.android/debug.keystore)"
           else
-            # 5WHY: If keytool is unavailable, androiddeployqt will also be
-            # unable to auto-generate the keystore.  Fail fast with a clear
-            # message so the CI operator can install a JDK that includes keytool.
-            echo "ERROR: keytool not available — cannot generate debug keystore"
+            echo "ERROR: keytool failed (exit $?) — cannot generate debug keystore"
+            echo "keytool stderr:"; cat /tmp/keytool-err.log
             echo "Install a JDK that provides keytool (e.g. temurin-17) before building."
             exit 1
           fi
