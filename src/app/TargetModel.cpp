@@ -311,7 +311,7 @@ void TargetModel::parseAuthorityFields(const QString& trimmed) {
             if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
                 bool ok = false;
                 int p = hostPort.mid(closing + 2).toInt(&ok);
-                if (ok && p > 0 && p <= 65535) m_port = p;
+                if (ok && p >= 0 && p <= 65535) m_port = p;
             }
         // 5WHY: !looksLikeIPv6(hostPort) was always false because
         // looksLikeIPv6 is host.contains(':').  The expression reduced
@@ -323,7 +323,7 @@ void TargetModel::parseAuthorityFields(const QString& trimmed) {
             // string looks like a bare IPv6 address.
             bool ok = false;
             int p = hostPort.section(':', -1).toInt(&ok);
-            if (ok && p > 0 && p <= 65535) m_port = p;
+            if (ok && p >= 0 && p <= 65535) m_port = p;
         }
     }
 }
@@ -377,7 +377,18 @@ void TargetModel::syncFieldsFromTarget() {
         if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();
         m_path = fullPath;
     } else {
-        m_host = trimmed;
+        // 5WHY: When QUrl cannot parse the input, setting only m_host = trimmed
+        // (the full URL string) while leaving m_scheme/m_port/m_username/m_password/
+        // m_path at their previous values creates inconsistent internal state.
+        // Reset all fields to defaults so callers (QML bindings reading host(),
+        // assembleTargetUrl reconstructing from fields) see a clean empty host
+        // rather than a URL fragment where a hostname belongs.
+        m_scheme = QStringLiteral("https");
+        m_host.clear();
+        m_port = -1;
+        m_username.clear();
+        m_password.clear();
+        m_path.clear();
     }
 }
 

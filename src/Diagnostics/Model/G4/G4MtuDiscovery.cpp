@@ -33,9 +33,9 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         // duplicated pattern that was copy-pasted across 5 sites.
         int sock = createNonBlockingSocket(AF_INET);
         if (sock >= 0) {
-        struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
-        addr.sin_addr.s_addr = htonl(resolvedIp);
+            struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
+            addr.sin_addr.s_addr = htonl(resolvedIp);
             QElapsedTimer t; t.start();
             ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
             fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
