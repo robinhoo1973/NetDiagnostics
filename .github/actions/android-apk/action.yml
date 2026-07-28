@@ -46,6 +46,28 @@ runs:
         yes 2>/dev/null | "$SDKMANAGER" "platforms;android-33" "build-tools;33.0.2" >/dev/null || true
         test -d "$ANDROID_SDK_ROOT/platforms/android-33" || { echo "ERROR: android-33 platform not installed"; exit 1; }
 
+        # 5WHY: The Android debug keystore is required by androiddeployqt/Gradle
+        # to sign the APK.  If ~/.android/debug.keystore does not exist (fresh CI
+        # runner, ephemeral container), androiddeployqt's auto-generation may fail
+        # if 'keytool' is not in PATH or the JDK is not configured.  Pre-generate
+        # it so the APK is always signed with a valid debug certificate.
+        if [ ! -f ~/.android/debug.keystore ]; then
+          echo "Generating Android debug keystore..."
+          keytool -genkey -v \
+            -keystore ~/.android/debug.keystore \
+            -storepass android -alias androiddebugkey -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || {
+            # Fallback: if keytool is unavailable, create a minimal keystore dir
+            # so androiddeployqt can generate it internally
+            mkdir -p ~/.android
+            echo "keytool unavailable — relying on androiddeployqt autogen"
+          }
+          echo "Debug keystore ready: $(ls -la ~/.android/debug.keystore 2>/dev/null || echo 'will be auto-generated')"
+        else
+          echo "Debug keystore exists: $(ls -la ~/.android/debug.keystore)"
+        fi
+
         shopt -s nullglob
         for p in "$ANDROID_SDK_ROOT"/platforms/*; do
           [ "$(basename "$p")" = "android-33" ] && continue
