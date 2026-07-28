@@ -77,7 +77,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 #if defined(_WIN32)
         discoveredMtu = 1500;
         out.append(QStringLiteral("PMTU TCP probe failed — using default MTU."));
-        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
 #else
         discoveredMtu = 0; // reset so interface scan finds MTUs < 1500

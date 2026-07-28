@@ -181,7 +181,18 @@ void TargetModel::setTarget(const QString& t) {
 // ── Build m_target from structured fields ───────────────────────────────
 void TargetModel::assembleTargetUrl() {
     if (m_assembling) return;
-    if (m_host.isEmpty()) return;
+    // 5WHY: When host becomes empty (e.g. QML writes targetHost=""),
+    // the old code returned early without emitting targetChanged,
+    // leaving QML bindings stale.  Clear the canonical target and
+    // notify so consumers see the empty state.
+    if (m_host.isEmpty()) {
+        if (!m_target.isEmpty()) {
+            m_target.clear();
+            m_error.clear();
+            emit targetChanged();
+        }
+        return;
+    }
 
     const QString sch = m_scheme.isEmpty() ? QStringLiteral("https") : m_scheme;
     const int defPort = G5WebsiteUrl::defaultPortForScheme(sch);
@@ -265,7 +276,12 @@ void TargetModel::syncFieldsFromTarget() {
 
     QUrl u(trimmed, QUrl::TolerantMode);
     if (u.isValid() && !u.scheme().isEmpty()) {
-        m_scheme = u.scheme().toLower();
+        const QString sch = u.scheme().toLower();
+        // 5WHY: syncFieldsFromTarget set m_scheme directly from QUrl without
+        // the supportedSchemes gate that parseUrlIntoFields has.  An unsupported
+        // scheme was stored in m_scheme (inconsistent internal state) even though
+        // validateUrl() in setTarget() would correctly flag the error.
+        m_scheme = ::supportedSchemes().contains(sch) ? sch : QStringLiteral("https");
         m_host = u.host();
         m_port = u.port() > 0 ? u.port() : -1;
         m_username = u.userName();
