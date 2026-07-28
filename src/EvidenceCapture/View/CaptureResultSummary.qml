@@ -249,12 +249,24 @@ Rectangle {
             // ── Session path (success only) ─────────────────────────
             Label {
                 Layout.fillWidth: true; visible: !root.isError
-                text: root.sessionPath
+                // 5WHY: Full session paths like /home/user/.local/share/...
+                // are illegible when wrapped at 10px font.  Show only the
+                // last 2 path segments (session timestamp + filename).
+                // On platforms without String.split, fall back to full path.
+                text: {
+                    var p = root.sessionPath
+                    if (typeof p === "string" && p.indexOf("/") >= 0) {
+                        var parts = p.split("/")
+                        return parts.length > 2
+                            ? ".../" + parts.slice(-2).join("/")
+                            : p
+                    }
+                    return p
+                }
                 font.pixelSize: 10
                 color: Qt.alpha(T.ThemeEngine.textSecondary, 0.6)
-                // 5WHY: elide:Text.ElideMiddle is dead when wrapMode is set —
-                // Qt docs: elide only takes effect with NoWrap or maximumLineCount:1.
-                wrapMode: Text.WrapAnywhere
+                elide: Text.ElideMiddle
+                maximumLineCount: 1
             }
 
             // ── Focus mode reminder ─────────────────────────────────

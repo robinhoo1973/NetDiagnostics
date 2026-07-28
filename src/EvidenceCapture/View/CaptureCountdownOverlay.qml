@@ -129,8 +129,11 @@ Rectangle {
                         width: 3
                         color: T.ThemeEngine.cyan
                     }
-                    // Static accent ring framing the countdown number
-                    opacity: 0.6
+                    // 5WHY: At 60% opacity, cyan (#06B6D4) on white card
+                    // produces ~3.2:1 contrast — below WCAG AA 4.5:1 for
+                    // decorative borders.  On dark theme, 60% is fine.
+                    // Use theme-aware opacity: 80% on light, 60% on dark.
+                    opacity: T.ThemeEngine.isDark ? 0.6 : 0.8
                 }
 
                 // Countdown number

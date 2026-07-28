@@ -240,6 +240,13 @@ Item {
                 console.warn("CaptureOrchestrator: Loader failed to load",
                               captureOverlay.source,
                               "- check QML imports and QRC paths")
+                // 5WHY: The Loader cannot show its own error — it failed
+                // to incubate.  Activate the sibling error fallback (a plain
+                // QML Rectangle that needs no incubation) so the user sees
+                // a visible error instead of a blank screen with no feedback.
+                loaderErrorFallback.visible = true
+            } else {
+                loaderErrorFallback.visible = false
             }
         }
 
@@ -590,6 +597,57 @@ Item {
                 }
             }
             return null
+        }
+    }
+
+    // ── Loader error fallback — visible when capture overlay fails to load ──
+    // 5WHY: When the Loader enters Error state (QML import failure on iOS
+    // static builds, QRC corruption, platform-specific incompatibility),
+    // the onStatusChanged handler only logs console.warn — invisible on
+    // mobile.  This plain Rectangle (no Loader incubation needed) provides
+    // a user-visible error card so the user knows something went wrong
+    // and can dismiss it to continue using the app.
+    Rectangle {
+        id: loaderErrorFallback
+        anchors.fill: parent
+        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
+        visible: false
+        z: 2200
+        MouseArea { anchors.fill: parent; onClicked: loaderErrorFallback.visible = false }
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(380, parent.width * 0.85)
+            implicitHeight: errCol.implicitHeight + 48
+            radius: 20; color: ThemeEngine.colors.card
+            border { width: 1; color: Qt.alpha(ThemeEngine.failRed, 0.3) }
+            ColumnLayout {
+                id: errCol
+                anchors { fill: parent; margins: 24 }
+                spacing: 12
+                AppIcon { Layout.alignment: Qt.AlignHCenter; name: "error"; size: 40; color: ThemeEngine.failRed }
+                Label {
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                    text: "Capture Overlay Load Error"
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold
+                    color: ThemeEngine.textPrimary
+                }
+                Label {
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                    text: "The capture panel could not be loaded.\nCheck QML imports and resource paths."
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                    color: ThemeEngine.textSecondary
+                }
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 44; radius: 12; color: ThemeEngine.cyan
+                    Label {
+                        anchors.centerIn: parent
+                        text: "Dismiss"; font.family: ThemeEngine.monoFont; font.pixelSize: 14
+                        font.weight: Font.Bold; color: "#0F172A"
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: loaderErrorFallback.visible = false }
+                }
+            }
         }
     }
 
