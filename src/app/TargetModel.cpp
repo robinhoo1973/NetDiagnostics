@@ -171,7 +171,21 @@ void TargetModel::setTarget(const QString& t) {
             if (trimmed.contains("://")) {
                 m_error = validateUrl(trimmed);
             } else {
-                if (!isValidHostname(m_host)) {
+                // 5WHY: looksLikeIPv6 now correctly uses count(':')>1,
+                // so bare "host:port" (single colon) is no longer
+                // mistaken for IPv6 and reaches hostname-label validation
+                // where ':' fails.  Strip userinfo and port before
+                // validation — matching what extractHostname() does in
+                // G4Common.h so validation stays aligned with the
+                // diagnostic engine's capabilities.
+                QString hostCheck = m_host;
+                int atPos = hostCheck.lastIndexOf('@');
+                if (atPos >= 0) hostCheck = hostCheck.mid(atPos + 1);
+                if (hostCheck.count(':') == 1) {
+                    int colPos = hostCheck.lastIndexOf(':');
+                    hostCheck = hostCheck.left(colPos);
+                }
+                if (!isValidHostname(hostCheck)) {
                     m_error = m_host.contains("..")
                         ? QStringLiteral("Invalid hostname: consecutive dots")
                         : QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
