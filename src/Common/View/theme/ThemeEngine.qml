@@ -134,7 +134,6 @@ QtObject {
             borderSubtle: borderSubtle, borderFocused: borderFocused,
             textOnAccent: textOnAccent
         })
-        })
     }
     onModeChanged: { if (_ready) applyTheme() }
 

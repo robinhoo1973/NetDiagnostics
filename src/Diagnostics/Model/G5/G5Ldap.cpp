@@ -7,12 +7,12 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
     if (scheme != "ldap" && scheme != "ldaps")
         return skipped(DiagId::G5Ldap, "Not LDAP(S)");
     int port = portForUrl(u);
-        auto probe = NetworkProbe::tcpProbe(u.host(), port, 5000, 3000);
-
-
-    if (!probe.connected)
-        return result(DiagId::Ldap, "Connection failed", DiagStatus::Fail,
-                      {}, probe.elapsedMs);
+    QElapsedTimer t; t.start();
+    QTcpSocket sock;
+    sock.connectToHost(u.host(), port);
+    if (!sock.waitForConnected(5000))
+        return result(DiagId::G5Ldap, "Connection failed", DiagStatus::Fail,
+                      {}, t.elapsed());
     // LDAP BindRequest: 0x30 [len] 0x02 0x01 0x03 0x04 [len] [DN] 0x80 [len] [pw]
     // Minimal anonymous bind: { messageID:1, protocolOp:bindRequest(0x60),
     //   version:3, name:"", authentication:simple("") }
@@ -33,8 +33,9 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
     ldapMsg.append('\x00'); // length 0 (empty password)
     sock.write(ldapMsg);
     sock.waitForBytesWritten(2000);
+    sock.waitForReadyRead(3000);
     QByteArray resp = sock.readAll();
-
+    sock.disconnectFromHost();
     if (resp.isEmpty())
         return result(DiagId::G5Ldap, "No response", DiagStatus::Warning,
                       {}, t.elapsed());
