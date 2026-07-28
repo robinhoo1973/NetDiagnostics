@@ -43,8 +43,13 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; radius: 30
                 color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan, 0.12)
                 border {
-                    visible: root.showIconBorder
-                    width: 1.5; color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan, 0.35)
+                    // 5WHY: border.visible does not exist in Qt Quick Rectangle —
+                    // Border has only width/color properties.  Setting an
+                    // undeclared property causes "Cannot assign to non-existent
+                    // property" fatal error at QML load time.  Use width: 0 to
+                    // hide the border instead.
+                    width: root.showIconBorder ? 1.5 : 0
+                    color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan, 0.35)
                 }
                 AppIcon {
                     anchors.centerIn: parent
