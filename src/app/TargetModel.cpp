@@ -270,6 +270,16 @@ void TargetModel::clearFieldsToDefault() {
     m_error.clear();
 }
 
+// Full reset + notify - shared by parseUrlIntoFields exit paths
+// 5WHY: The 3-step sequence (clearFieldsToDefault + m_target.clear + emit)
+// was duplicated in two branches.  Extracted so adding a field only needs
+// to update clearFieldsToDefault, not both branches individually.
+void TargetModel::resetAndNotify() {
+    clearFieldsToDefault();
+    m_target.clear();
+    emit targetChanged();
+}
+
 // ── Shared: extract authority and parse userinfo/port fallback ───────────
 // 5WHY: The authority extraction + userinfo fallback + port fallback block
 // (~50 lines) was duplicated verbatim in syncFieldsFromTarget and
@@ -400,9 +410,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
     // but parseUrlIntoFields("") returned immediately without clearing fields.
     // Clear all structured fields and emit targetChanged so QML bindings update.
     if (trimmed.isEmpty()) {
-        clearFieldsToDefault();
-        m_target.clear();
-        emit targetChanged();
+        resetAndNotify();
         return;
     }
 
@@ -427,9 +435,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
             // leaving m_path='/path', m_scheme, m_port, etc. with stale
             // values from the previous URL.  Call clearFieldsToDefault()
             // to reset all fields — matching the empty-input path above.
-            clearFieldsToDefault();
-            m_target.clear();
-            emit targetChanged();
+            resetAndNotify();
         }
         return;
     }
