@@ -187,14 +187,15 @@ Rectangle {
                             Label {
                                 Layout.fillWidth: true
                                 text: T.Tr.captureScreenshotsDesc
-
+                                // 5WHY: These are instructional SENTENCES
+                                // (40-50 chars in German/Russian), not
+                                // single-word labels.  ElideRight truncates
+                                // them on narrow cards.  WordWrap with 2
+                                // lines keeps the description readable.
+                                wrapMode: Text.WordWrap
+                                maximumLineCount: 2
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
-                                // 5WHY: Long translated strings overflow the card
-                                // boundary when the Label has no width constraint
-                                // inside a ColumnLayout→RowLayout hierarchy.
-                                elide: Text.ElideRight
-                                maximumLineCount: 1
                             }
                         }
 
@@ -294,14 +295,13 @@ Rectangle {
                             Label {
                                 Layout.fillWidth: true
                                 text: T.Tr.captureRecordingDesc
-
+                                // 5WHY: Same rationale as screenshot description —
+                                // instructional sentence needs 2-line WordWrap
+                                // for non-English translations.
+                                wrapMode: Text.WordWrap
+                                maximumLineCount: 2
                                 font.pixelSize: 11
                                 color: T.ThemeEngine.textSecondary
-                                // 5WHY: Same overflow risk as screenshot description
-                                // — long translated strings need explicit width
-                                // constraint inside the card's RowLayout.
-                                elide: Text.ElideRight
-                                maximumLineCount: 1
                             }
                         }
 
