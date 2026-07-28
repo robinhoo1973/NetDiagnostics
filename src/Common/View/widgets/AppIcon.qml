@@ -47,8 +47,12 @@ Item {
     // prevents alpha loss during texture downsampling.  The 55%-opacity
     // Rectangle overlay is retained as the universal colorization fallback
     // for platforms without QtQuick.Effects/MultiEffect.
+    // 5WHY (round 2): layer.samples: 4 enabled MSAA on the FBO.  On Mali/Adreno
+    // embedded GPUs, the multisample resolve step does NOT preserve the alpha
+    // channel — transparent SVG regions become semi-opaque, producing the
+    // "foggy square box" artifact around every icon.  Removing the samples
+    // keeps the single-sample FBO which correctly preserves alpha on all GPUs.
     layer.enabled: true
-    layer.samples: 4
 
     Image {
         id: iconImg
@@ -63,12 +67,26 @@ Item {
         // semi-opaque, creating a visible rectangular haze around icons.
         mipmap: false
     }
+    // 5WHY: Badge icons (badge-check, badge-info, badge-warning, badge-error,
+    // badge-close, badge-skip, badge-refresh) use native colored circle fills
+    // (#4ADE80 green, #A5B4FC purple, #FBBF24 yellow, #F87171 red, #9CA3AF
+    // gray, #06B6D4 cyan).  Applying the 55%-opacity overlay over these fills
+    // produces muddy mixed colors — the native fill bleeds through and mixes
+    // with the overlay color.  Auto-detect by naming convention so the icons
+    // render with their designer-intended palette without any code change at
+    // the 40+ call sites.
+    readonly property bool _nativeColored: name.indexOf("badge-") === 0
+        || name.indexOf("app-icon") === 0
+
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it
     // reliable on iOS static builds where the Effects module is unavailable.
+    // Hidden for self-colored icons (badge-*, app-icon) whose native fills
+    // provide the intended visual identity.
     Rectangle {
         anchors.fill: parent
         color: root.color
         opacity: 0.55
+        visible: !root._nativeColored
     }
 }

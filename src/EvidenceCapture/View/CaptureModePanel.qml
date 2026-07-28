@@ -411,7 +411,7 @@ Rectangle {
                             // users should enter their own diagnostic target.
                             Text {
                                 anchors.fill: parent
-                                text: "Enter diagnostic URL..."
+                                text: T.Tr.capturePlaceholderUrl
                                 font.pixelSize: 13
                                 color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.4)
                                 visible: !urlInput.text && !urlInput.activeFocus

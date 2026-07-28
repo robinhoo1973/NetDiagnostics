@@ -633,13 +633,13 @@ Item {
                 AppIcon { Layout.alignment: Qt.AlignHCenter; name: "error"; size: 40; color: ThemeEngine.colors.failRed }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: "Capture Overlay Load Error"
+                    text: Tr.captureLoadErrorTitle
                     font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold
                     color: ThemeEngine.colors.textPrimary
                 }
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
-                    text: "The capture panel could not be loaded.\nCheck QML imports and resource paths."
+                    text: Tr.captureLoadErrorMsg
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     color: ThemeEngine.colors.textSecondary
                 }
@@ -647,7 +647,7 @@ Item {
                     Layout.fillWidth: true; implicitHeight: 44; radius: 12; color: ThemeEngine.colors.cyan
                     Label {
                         anchors.centerIn: parent
-                        text: "Dismiss"; font.family: ThemeEngine.monoFont; font.pixelSize: 14
+                        text: Tr.captureDismiss; font.family: ThemeEngine.monoFont; font.pixelSize: 14
                         font.weight: Font.Bold; color: ThemeEngine.colors.textOnAccent
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor

@@ -326,7 +326,41 @@ Item {
     readonly property string captureEstTime: t("Estimated duration: ~45 seconds", "Durée estimée : ~45 secondes", "Geschätzte Dauer: ~45 Sekunden", "Примерная длительность: ~45 секунд", "Durata stimata: ~45 secondi", "预计耗时：约45秒", "預計耗時：約45秒", "Duración estimada: ~45 segundos", "Duração estimada: ~45 segundos")
     readonly property string captureCancelBtn: t("Cancel Capture", "Annuler la capture", "Aufnahme abbrechen", "Отменить захват", "Annulla cattura", "取消采集", "取消採集", "Cancelar captura", "Cancelar captura")
     readonly property string captureComplete: t("Capture Complete", "Capture terminée", "Aufnahme abgeschlossen", "Захват завершен", "Cattura completata", "采集完成", "採集完成", "Captura completada", "Captura concluída")
-    readonly property string captureFailed: t("Capture Failed", "Échec de la capture", "Aufnahme fehlgeschlagen", "Ошибка захвата", "Cattura fallita", "采集失败", "採集失敗", "Captura fallida", "Captura falhou")
+    readonly property string captureFailed: t("Capture Failed", "Echec de la capture", "Aufnahme fehlgeschlagen", "Ошибка захвата", "Cattura fallita", "采集失败", "採集失敗", "Captura fallida", "Captura falhou")
+    // ── Capture overlay load error (shown when Loader enters Error state) ──
+    readonly property string captureLoadErrorTitle: t(
+        "Capture Overlay Load Error",
+        "Erreur de chargement de la capture",
+        "Fehler beim Laden der Aufnahme",
+        "Ошибка загрузки захвата",
+        "Errore di caricamento della cattura",
+        "采集面板加载错误",
+        "採集面板載入錯誤",
+        "Error al cargar la captura",
+        "Erro ao carregar a captura"
+    )
+    readonly property string captureLoadErrorMsg: t(
+        "The capture panel could not be loaded.\nCheck QML imports and resource paths.",
+        "Le panneau de capture n'a pas pu être chargé.\nVérifiez les imports QML et les chemins de ressources.",
+        "Das Aufnahme-Panel konnte nicht geladen werden.\nÜberprüfen Sie QML-Imports und Ressourcenpfade.",
+        "Панель захвата не может быть загружена.\nПроверьте импорты QML и пути к ресурсам.",
+        "Il pannello di cattura non può essere caricato.\nControllare gli import QML e i percorsi delle risorse.",
+        "无法加载采集面板。\n请检查 QML 导入和资源路径。",
+        "無法載入採集面板。\n請檢查 QML 導入和資源路徑。",
+        "No se pudo cargar el panel de captura.\nVerifique las importaciones QML y las rutas de recursos.",
+        "O painel de captura não pôde ser carregado.\nVerifique as importações QML e os caminhos de recursos."
+    )
+    readonly property string capturePlaceholderUrl: t(
+        "Enter diagnostic URL...",
+        "Entrez l'URL de diagnostic...",
+        "Diagnose-URL eingeben...",
+        "Введите URL диагностики...",
+        "Inserisci URL diagnostica...",
+        "输入诊断网址...",
+        "輸入診斷網址...",
+        "Ingrese URL de diagnóstico...",
+        "Insira URL de diagnóstico..."
+    )
     readonly property string captureDone: t("Done", "Terminé", "Fertig", "Готово", "Fatto", "完成", "完成", "Hecho", "Concluído")
     readonly property string captureDismiss: t("Dismiss", "Fermer", "Schließen", "Закрыть", "Chiudi", "关闭", "關閉", "Cerrar", "Fechar")
 
