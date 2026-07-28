@@ -131,7 +131,11 @@ public:
     Q_INVOKABLE bool isCellularData() const;  // true if active connection is cellular
     Q_PROPERTY(bool cellularWarnVisible READ cellularWarnVisible WRITE setCellularWarnVisible NOTIFY cellularWarnVisibleChanged)
     bool cellularWarnVisible() const { return _cellularWarnVisible; }
-    void setCellularWarnVisible(bool v) { if (v != _cellularWarnVisible) { _cellularWarnVisible = v; emit cellularWarnVisibleChanged(); } }
+    // 5WHY: AGENTS.md §Q_PROPERTY setters requires unconditional NOTIFY
+    // emission so QML bindings re-evaluate even when the value is unchanged.
+    // The old code guarded the emit behind if (v != _cellularWarnVisible),
+    // which silently dropped the signal on same-value sets.
+    void setCellularWarnVisible(bool v) { _cellularWarnVisible = v; emit cellularWarnVisibleChanged(); }
     Q_INVOKABLE void continueAfterCellularWarn();
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();

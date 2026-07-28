@@ -242,23 +242,39 @@ ColumnLayout {
 
             // ── Clear button ────────────────────────────────────────────
             Item { width: 4; visible: hostField.text !== "" && appState.runStatus !== 1 }
-            AppIcon {
-                name: "close"; size: 10; color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
+            // 5WHY: AppIcon size:10 gave a 10x10pt touch target — far below
+            // the 44pt Apple HIG / 48dp MD3 minimum.  Wrap in a 44x44 Item
+            // with the icon centered, matching the DiagnosticToolbar pattern.
+            Item {
+                width: 44; height: 44
                 visible: hostField.text !== "" && appState.runStatus !== 1
+                AppIcon {
+                    anchors.centerIn: parent
+                    name: "close"; size: 10; color: Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                }
                 MouseArea {
                     anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: { hostField.text = ""; appState.targetHost = ""; appState.targetPath = "" }
                 }
             }
 
             // ── Advanced toggle (gear) ──────────────────────────────────
             Item { width: 2; visible: appState.runStatus !== 1 }
-            AppIcon {
-                name: "tune"; size: 12
-                color: root.advancedExpanded ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.textSecondary, 0.5)
+            // 5WHY: Same touch-target issue as clear button — AppIcon size:12
+            // gave a 12x12pt hit area.  Wrap in 44x44 Item matching the
+            // DiagnosticToolbar pattern for accessibility compliance.
+            Item {
+                width: 44; height: 44
                 visible: appState.runStatus !== 1
+                AppIcon {
+                    anchors.centerIn: parent
+                    name: "tune"; size: 12
+                    color: root.advancedExpanded ? ThemeEngine.accentBlue : Qt.alpha(ThemeEngine.textSecondary, 0.5)
+                }
                 MouseArea {
                     anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
                     onClicked: root.advancedExpanded = !root.advancedExpanded
                 }
             }
