@@ -59,9 +59,12 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         closeSocket(sock);
     }
     if (discoveredMtu == 0) {
-        // Fallback: probe with interface MTU (Windows ping -f -l style)
-        discoveredMtu = 1500;
-        out.append(QStringLiteral("PMTU TCP probe failed 鈥?using interface MTU."));
+        // 5WHY: discoveredMtu was hardcoded to 1500 BEFORE the interface
+        // MTU scan below.  The scan checks `v > discoveredMtu` so any
+        // interface with MTU < 1500 (VPN tunnels, PPPoE) was silently
+        // skipped.  Start at 0 so the scan finds the true max interface MTU.
+        discoveredMtu = 0;
+        out.append(QStringLiteral("PMTU TCP probe failed — using interface MTU."));
 #if defined(_WIN32)
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
