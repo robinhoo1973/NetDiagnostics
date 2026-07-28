@@ -245,7 +245,8 @@ Item {
                 visible: appState.totalCompleted === 0 && appState.runStatus !== 1
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter
                     name: appState.runStatus === 4 ? "badge-error" : "diagnostics"
-                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
+                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1)
+                    nativeColor: false }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: appState.runStatus === 4 ? Tr.errorCheck : Tr.runDiag
@@ -545,7 +546,7 @@ Item {
             // click. Without this, clicking inside the card to select text or
             // scroll also dismisses the overlay. This empty MouseArea absorbs
             // clicks within the card so only clicks OUTSIDE the card dismiss.
-            MouseArea { anchors.fill: parent }
+            MouseArea { anchors.fill: parent; onClicked: {} }
 
             // 5WHY: Close button previously used failRed at rest — red signals
             // danger/destructive action, causing hesitation ("will this delete
@@ -580,8 +581,14 @@ Item {
                 ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
                 Column {
                     id: detailCol; spacing: 8
+                    // 5WHY: width = max(parent.width, implicitWidth) means the
+                    // Column always expands to fit its widest child (typically
+                    // dtOutput's terminal lines).  In that case, Labels are never
+                    // width-constrained — elide: Text.ElideRight is dead code.
+                    // The Flickable provides horizontal scrolling for overflow;
+                    // elide is removed to avoid misleading future developers.
                     width: Math.max(parent.width, implicitWidth)
-                    Label { id: dtTitle; objectName: "dtTitle"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
+                    Label { id: dtTitle; objectName: "dtTitle"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
                     Label { id: dtStatus; objectName: "dtStatus"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
                     Label { id: dtSummary; objectName: "dtSummary"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
@@ -593,7 +600,7 @@ Item {
                             Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; elide:Text.ElideRight; visible:text!=="" }
+                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

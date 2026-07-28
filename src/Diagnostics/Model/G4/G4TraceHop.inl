@@ -154,7 +154,9 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     addr.sin_port = htons(80);
     addr.sin_addr.s_addr = htonl(targetIp);
 
-    setNonblockWin(sock);
+    // 5WHY: If setNonblockWin (→ setSocketNonBlocking) fails, the socket
+    // stays blocking and ::connect() hangs for the OS TCP timeout (75-120s).
+    if (setNonblockWin(sock) != 0) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
     QElapsedTimer tm; tm.start();
     ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
 
@@ -209,7 +211,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         struct sockaddr_in addr; memset(&addr,0,sizeof(addr));
         addr.sin_family=AF_INET; addr.sin_port=htons(80);
         addr.sin_addr.s_addr=htonl(targetIp);
-        setNonblockWin(sock);
+        if (setNonblockWin(sock) != 0) { closeSocket(sock); rttMs = 0; hopIp.clear(); return -1; }
         QElapsedTimer tm; tm.start();
         ::connect(sock,reinterpret_cast<struct sockaddr*>(&addr),sizeof(addr));
         fd_set wfds; FD_ZERO(&wfds); FD_SET(sock,&wfds);

@@ -35,7 +35,6 @@ typedef SSIZE_T ssize_t;
 #endif
 #define socklen_t int
 #define SHUT_RDWR SD_BOTH
-inline int setNonblockWin(int sock) { u_long mode=1; return ioctlsocket(sock, FIONBIO, &mode); }
 inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return setsockopt(sock,SOL_SOCKET,SO_RCVTIMEO,reinterpret_cast<const char*>(&t),sizeof(t)); }
 #define fcntl dont_use_fcntl_on_windows
 #else
@@ -56,13 +55,15 @@ inline int setSockOptRcvTimeout(int sock, int sec) { int t=sec*1000; return sets
 #if !defined(C_IN)
 #define C_IN ns_c_in
 #endif
-inline int setNonblockWin(int sock) {
-    int flags = fcntl(sock, F_GETFL, 0);
-    if (flags < 0) return -1;
-    return fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-}
 inline int setSockOptRcvTimeout(int, int) { return 0; }
 #endif
+
+// 5WHY: setNonblockWin duplicated the fcntl/ioctlsocket logic that now lives in
+// NetUtil.h's setSocketNonBlocking().  The return value was silently ignored at
+// all 3 call sites — if fcntl/ioctlsocket fails, the socket stays blocking and
+// ::connect() hangs for the OS TCP timeout (75-120s), freezing the diagnostic
+// thread.  Replace with a delegation to the shared, return-value-checked utility.
+inline int setNonblockWin(int sock) { return setSocketNonBlocking(sock) ? 0 : -1; }
 
 namespace G4RemoteHost {
 

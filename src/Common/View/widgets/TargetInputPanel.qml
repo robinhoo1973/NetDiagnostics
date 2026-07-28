@@ -220,21 +220,11 @@ ColumnLayout {
                 background: Item {}
 
                 onTextChanged: {
-                    var t = text.trim()
-                    // Detect pasted URL (contains ://) — parse into fields
-                    if (t.indexOf("://") >= 0) {
-                        appState.parseUrlIntoFields(t)
-                        return
-                    }
-                    // Split host from path at first /
-                    var slash = t.indexOf("/")
-                    if (slash >= 0) {
-                        appState.targetHost = t.substring(0, slash)
-                        appState.targetPath = t.substring(slash)
-                    } else {
-                        appState.targetHost = t
-                        appState.targetPath = ""
-                    }
+                    // 5WHY: Host/path splitting was duplicated here and in
+                    // DiagnosticToolbar.qml.  Folded into parseUrlIntoFields
+                    // (TargetModel.cpp) which now handles ""example.com/path""
+                    // without ""://"" by splitting at the first '/'.
+                    appState.parseUrlIntoFields(text.trim())
                 }
             }
 

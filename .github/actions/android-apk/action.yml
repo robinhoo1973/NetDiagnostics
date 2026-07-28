@@ -53,17 +53,20 @@ runs:
         # it so the APK is always signed with a valid debug certificate.
         if [ ! -f ~/.android/debug.keystore ]; then
           echo "Generating Android debug keystore..."
-          keytool -genkey -v \
+          if keytool -genkey -v \
             -keystore ~/.android/debug.keystore \
             -storepass android -alias androiddebugkey -keypass android \
             -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || {
-            # Fallback: if keytool is unavailable, create a minimal keystore dir
-            # so androiddeployqt can generate it internally
-            mkdir -p ~/.android
-            echo "keytool unavailable — relying on androiddeployqt autogen"
-          }
-          echo "Debug keystore ready: $(ls -la ~/.android/debug.keystore 2>/dev/null || echo 'will be auto-generated')"
+            -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null; then
+            echo "Debug keystore created: $(ls -la ~/.android/debug.keystore)"
+          else
+            # 5WHY: If keytool is unavailable, androiddeployqt will also be
+            # unable to auto-generate the keystore.  Fail fast with a clear
+            # message so the CI operator can install a JDK that includes keytool.
+            echo "ERROR: keytool not available — cannot generate debug keystore"
+            echo "Install a JDK that provides keytool (e.g. temurin-17) before building."
+            exit 1
+          fi
         else
           echo "Debug keystore exists: $(ls -la ~/.android/debug.keystore)"
         fi

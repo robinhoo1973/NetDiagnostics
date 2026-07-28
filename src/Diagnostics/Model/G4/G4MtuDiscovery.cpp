@@ -26,8 +26,12 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
         addr.sin_addr.s_addr = htonl(resolvedIp);
-        setNonblockWin(sock);
+        // 5WHY: setNonblockWin delegates to setSocketNonBlocking().  If the
+        // fcntl/ioctlsocket call fails, the socket stays blocking and
+        // ::connect() hangs for the OS TCP timeout (75-120s).
+        if (setNonblockWin(sock) != 0) { closeSocket(sock); sock = -1; }
         QElapsedTimer t; t.start();
+        if (sock >= 0) {
         ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
         fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
         struct timeval tv = {3, 0};
@@ -47,6 +51,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
                     discoveredMtu = ipMtu;
 #endif
             }
+        }
         }
         int rtt = (int)t.elapsed();
         if (mss > 0) {

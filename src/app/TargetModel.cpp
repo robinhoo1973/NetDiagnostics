@@ -262,7 +262,18 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
 
     const QString trimmed = urlString.trimmed();
     if (!trimmed.contains(QStringLiteral("://"))) {
-        m_host = trimmed;
+        // 5WHY: Two QML TextInput handlers (TargetInputPanel, DiagnosticToolbar)
+        // duplicated host/path splitting here.  Moving the split into the C++
+        // method eliminates the duplication.  Without this, typing "example.com/path"
+        // sets the ENTIRE string as host, which fails DNS resolution.
+        int slash = trimmed.indexOf(QLatin1Char('/'));
+        if (slash >= 0) {
+            m_host = trimmed.left(slash);
+            m_path = trimmed.mid(slash);
+        } else {
+            m_host = trimmed;
+            m_path.clear();
+        }
         assembleTargetUrl(); // setTarget() emits targetChanged
         return;
     }

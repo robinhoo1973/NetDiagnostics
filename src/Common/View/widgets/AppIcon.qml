@@ -72,26 +72,34 @@ Item {
     // (#4ADE80 green, #A5B4FC purple, #FBBF24 yellow, #F87171 red, #9CA3AF
     // gray, #06B6D4 cyan).  Applying the 55%-opacity overlay over these fills
     // produces muddy mixed colors — the native fill bleeds through and mixes
-    // with the overlay color.  Auto-detect by naming convention so the icons
-    // render with their designer-intended palette without any code change at
-    // the 40+ call sites.
-    // 5WHY: badge-circle.svg has NO native colored fill — it renders as
-    // a white stroke circle.  Hiding the overlay makes it pure white,
-    // silently ignoring the caller's explicit color.  Exclude it so the
-    // overlay still tints it.  The other 7 badge icons DO have native
-    // circle fills (#4ADE80, #A5B4FC, #FBBF24, etc.).
-    readonly property bool _nativeColored: name.indexOf("badge-") === 0
+    // with the overlay color.
+    //
+    // 5WHY (round 2): Auto-detecting by naming convention was too aggressive —
+    // callers that explicitly set `color` (e.g. warnYellow on badge-check for a
+    // PRO badge, cyan on badge-info for the both-mode hint, textMuted for a
+    // disabled toggle) expect their color to work.  Silently suppressing the
+    // overlay broke the API contract that `color` controls icon tint.
+    //
+    // Fix: nativeColor defaults to the naming-convention heuristic but is
+    // writable.  Callers that want their explicit color applied set
+    // nativeColor: false.  Callers that are happy with the native fill
+    // (status-mapped badge colors, default-white placeholder) need no change.
+    //
+    // badge-circle.svg has NO native colored fill — it renders as a white
+    // stroke circle, so hiding the overlay makes it pure white and silently
+    // ignores the caller's explicit color.  Exclude it from the default.
+    property bool nativeColor: name.indexOf("badge-") === 0
         && name !== "badge-circle"
 
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it
     // reliable on iOS static builds where the Effects module is unavailable.
-    // Hidden for self-colored badge icons whose native fills
-    // provide the intended visual identity.
+    // Hidden when nativeColor is true (badge icons rendering with their
+    // designer-intended palette).
     Rectangle {
         anchors.fill: parent
         color: root.color
         opacity: 0.55
-        visible: !root._nativeColored
+        visible: !root.nativeColor
     }
 }

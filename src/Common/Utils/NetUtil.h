@@ -59,7 +59,11 @@ inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
 #endif
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
-    setSocketNonBlocking(sock);
+    // 5WHY: setSocketNonBlocking returns false if fcntl/ioctlsocket fails.
+    // If the socket stays blocking, ::connect() blocks for the OS TCP
+    // timeout (75-120s) — the timeoutMs parameter is defeated and the
+    // diagnostic thread hangs.  Close the socket and return -1 on failure.
+    if (!setSocketNonBlocking(sock)) { closeSocket(sock); return -1; }
     ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
@@ -99,7 +103,9 @@ inline int tcpConnect6(const QString& host, int port, int timeoutMs = 3000) {
 #endif
     struct sockaddr_in6 addr;
     if (!hostToAddr6(host, port, addr)) { closeSocket(sock); return -1; }
-    setSocketNonBlocking(sock);
+    // 5WHY: Same rationale as tcpConnect — if setSocketNonBlocking fails,
+    // the socket stays blocking and ::connect() hangs the diagnostic thread.
+    if (!setSocketNonBlocking(sock)) { closeSocket(sock); return -1; }
     ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};

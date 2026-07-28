@@ -23,10 +23,6 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     Component.onCompleted: { scale = 1.0; opacity = 1.0 }
 
-    // 5WHY: Absorb backdrop clicks so the user cannot accidentally
-    // interact with UI behind the overlay.
-    MouseArea { anchors.fill: parent; onClicked: {} }
-
     property string sessionPath: ""
     property int totalScreenshots: 0
     property string recordingFile: ""
@@ -65,6 +61,7 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         onClicked: {
+            countdownTimer.stop()
             if (!root._dismissed) {
                 root._dismissed = true
                 root.dismissed()

@@ -37,10 +37,6 @@ Rectangle {
     Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
     Component.onCompleted: { scale = 1.0; opacity = 1.0 }
 
-    // 5WHY: Absorb backdrop clicks so the user cannot accidentally
-    // interact with the nav bar or diagnostic UI behind the glass overlay.
-    MouseArea { anchors.fill: parent; onClicked: {} }
-
     // ── State ───────────────────────────────────────────────────────
     property bool wantsScreenshot: true
     property bool wantsRecording: captureOrchestrator ? captureOrchestrator.supportsBothModes : false
@@ -359,7 +355,7 @@ Rectangle {
                 RowLayout {
                     anchors.centerIn: parent
                     spacing: 6
-                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.colors.cyan }
+                    AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.colors.cyan; nativeColor: false }
                     Label {
                         // 5WHY: Without Layout.fillWidth, this Label gets
                         // its implicitWidth (full text width), making

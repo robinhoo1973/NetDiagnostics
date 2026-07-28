@@ -229,11 +229,11 @@ Rectangle {
                         enabled: appState.runStatus !== 1
                         verticalAlignment: TextInput.AlignVCenter; background: Item {}
                         onTextChanged: {
-                            var t = text.trim()
-                            if (t.indexOf("://") >= 0) { appState.parseUrlIntoFields(t); return }
-                            var slash = t.indexOf("/")
-                            if (slash >= 0) { appState.targetHost = t.substring(0,slash); appState.targetPath = t.substring(slash) }
-                            else { appState.targetHost = t; appState.targetPath = "" }
+                            // 5WHY: Host/path splitting was duplicated here and in
+                            // TargetInputPanel.qml.  Folded into parseUrlIntoFields
+                            // (TargetModel.cpp) which now handles "example.com/path"
+                            // without "://" by splitting at the first '/'.
+                            appState.parseUrlIntoFields(text.trim())
                         }
                     }
                 }

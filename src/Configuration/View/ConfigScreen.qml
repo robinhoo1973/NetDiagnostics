@@ -109,7 +109,7 @@ Item {
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
-                    AppIcon { anchors.centerIn: parent; name: "badge-check"; size: 20; color: enabled ? ThemeEngine.colors.passGreen : ThemeEngine.colors.textMuted }
+                    AppIcon { anchors.centerIn: parent; name: "badge-check"; size: 20; color: enabled ? ThemeEngine.colors.passGreen : ThemeEngine.colors.textMuted; nativeColor: false }
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled
@@ -131,7 +131,7 @@ Item {
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
-                    AppIcon { anchors.centerIn: parent; name: "badge-close"; size: 20; color: enabled ? ThemeEngine.colors.failRed : ThemeEngine.colors.textMuted }
+                    AppIcon { anchors.centerIn: parent; name: "badge-close"; size: 20; color: enabled ? ThemeEngine.colors.failRed : ThemeEngine.colors.textMuted; nativeColor: false }
                     MouseArea {
                         anchors.fill: parent
                         enabled: parent.enabled

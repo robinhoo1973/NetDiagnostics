@@ -215,7 +215,7 @@ Item {
                 RowLayout {
                     id: statusRow
                     anchors.centerIn: parent
-                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.colors.textPrimary }
+                    AppIcon { name: page.isRunning ? "spinner" : (hasResults ? "badge-check" : "badge-info"); size: 12; color: ThemeEngine.colors.textPrimary; nativeColor: false }
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
@@ -252,7 +252,7 @@ Item {
             radius: page.isMobile ? 0 : 12; color: ThemeEngine.colors.card
             // Absorb clicks inside the card so they don't reach the background
             // MouseArea and dismiss the overlay
-            MouseArea { anchors.fill: parent }
+            MouseArea { anchors.fill: parent; onClicked: {} }
             clip: true
             border { width: page.isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
 

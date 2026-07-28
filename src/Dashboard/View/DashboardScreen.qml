@@ -285,7 +285,7 @@ Item {
         MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false }
         Rectangle {
             anchors { fill: parent; margins: isMobile ? 0 : 8 }
-            MouseArea { anchors.fill: parent }  // absorb clicks inside card
+            MouseArea { anchors.fill: parent; onClicked: {} }  // absorb clicks inside card
             radius: isMobile ? 0 : 12; color: ThemeEngine.colors.card; clip: true
             border { width: isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
             ColumnLayout {
