@@ -205,7 +205,7 @@ void TargetModel::assembleTargetUrl() {
         authority += QLatin1Char('@');
     }
     authority += m_host;
-    if (m_port > 0 && m_port != defPort)
+    if (m_port >= 0 && m_port != defPort)
         authority += QLatin1Char(':') + QString::number(m_port);
 
     const QString url = sch + QStringLiteral("://") + authority + m_path;
@@ -289,7 +289,7 @@ void TargetModel::syncFieldsFromTarget() {
         // validateUrl() in setTarget() would correctly flag the error.
         m_scheme = ::supportedSchemes().contains(sch) ? sch : QStringLiteral("https");
         m_host = u.host();
-        m_port = u.port() > 0 ? u.port() : -1;
+        m_port = u.port() >= 0 ? u.port() : -1;
         m_username = u.userName();
         m_password = u.password();
 
@@ -325,7 +325,7 @@ void TargetModel::syncFieldsFromTarget() {
         }
 
         // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
-        if (m_port <= 0) {
+        if (m_port < 0) {
             // Use the already-extracted authority, strip userinfo if present
             QString hostPort = authority;
             if (hostPort.contains('@')) {
@@ -340,7 +340,12 @@ void TargetModel::syncFieldsFromTarget() {
                     int p = hostPort.mid(closing + 2).toInt(&ok);
                     if (ok && p > 0 && p <= 65535) m_port = p;
                 }
-            } else if (hostPort.contains(':')) {
+            } else if (hostPort.contains(':') && !looksLikeIPv6(hostPort)) {
+                // 5WHY (round 8 sweep): Bare IPv6 addresses (e.g. ::1) contain
+                // colons as part of the address, not as a port separator.
+                // hostPort.section(':', -1) would incorrectly parse the last
+                // segment as a port number.  Skip the fallback when the
+                // string looks like a bare IPv6 address.
                 bool ok = false;
                 int p = hostPort.section(':', -1).toInt(&ok);
                 if (ok && p > 0 && p <= 65535) m_port = p;
@@ -365,7 +370,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
     // Clear all structured fields and emit targetChanged so QML bindings update.
     if (trimmed.isEmpty()) {
         clearFieldsToDefault();
-        m_target.clear(); m_error.clear();
+        m_target.clear();
         emit targetChanged();
         return;
     }
@@ -403,7 +408,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         const QString sch = u.scheme().toLower();
         m_scheme = ::supportedSchemes().contains(sch) ? sch : QStringLiteral("https");
         m_host = u.host();
-        m_port = u.port() > 0 ? u.port() : -1;
+        m_port = u.port() >= 0 ? u.port() : -1;
         m_username = u.userName();
         m_password = u.password();
 
@@ -432,7 +437,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         }
 
         // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
-        if (m_port <= 0) {
+        if (m_port < 0) {
             QString hostPort = authority;
             if (hostPort.contains('@')) {
                 int lastAt = hostPort.lastIndexOf('@');
@@ -445,7 +450,10 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
                     int p = hostPort.mid(closing + 2).toInt(&ok);
                     if (ok && p > 0 && p <= 65535) m_port = p;
                 }
-            } else if (hostPort.contains(':')) {
+            } else if (hostPort.contains(':') && !looksLikeIPv6(hostPort)) {
+                // 5WHY (round 8 sweep): Bare IPv6 addresses (e.g. ::1) contain
+                // colons as part of the address, not as a port separator.
+                // See identical fix in syncFieldsFromTarget above.
                 bool ok = false;
                 int p = hostPort.section(':', -1).toInt(&ok);
                 if (ok && p > 0 && p <= 65535) m_port = p;
