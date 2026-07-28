@@ -207,16 +207,24 @@ void TargetModel::assembleTargetUrl() {
 // ── Shared helper: split bare host input (no ://) into m_host / m_path ──
 // Called by both syncFieldsFromTarget (setTarget path) and parseUrlIntoFields
 // (QML direct-call path) to ensure consistent host/path splitting.
+//
+// 5WHY (round 5): applyBareHost was also resetting m_scheme to "https",
+// m_port to -1, and clearing m_username/m_password unconditionally.  When
+// parseUrlIntoFields is re-entered via the QML TextField binding round-trip
+// (e.g. user typed "http://example.com:8080/path" → binding produces
+// "example.com/path" → parseUrlIntoFields treats it as fresh bare input),
+// the scheme, port, and credentials from the original URL were silently
+// destroyed.  Now applyBareHost only splits host/path; callers apply
+// their own defaults for scheme/port/credentials.
 void TargetModel::applyBareHost(const QString& trimmed) {
     int slash = trimmed.indexOf(QLatin1Char('/'));
     if (slash >= 0) {
-        m_scheme = QStringLiteral("https"); m_host = trimmed.left(slash);
-        m_path = trimmed.mid(slash); m_port = -1;
+        m_host = trimmed.left(slash);
+        m_path = trimmed.mid(slash);
     } else {
-        m_scheme = QStringLiteral("https"); m_host = trimmed; m_port = -1;
+        m_host = trimmed;
         m_path.clear();
     }
-    m_username.clear(); m_password.clear();
 }
 
 // ── Parse m_target → structured fields ─────────────────────────────────
@@ -238,6 +246,13 @@ void TargetModel::syncFieldsFromTarget() {
         // parseUrlIntoFields does, otherwise setTarget("host/path") lumps
         // the path into m_host and DNS resolution fails.
         applyBareHost(trimmed);
+        // 5WHY (round 5): applyBareHost no longer resets scheme/port/creds.
+        // syncFieldsFromTarget processes fresh input from setTarget(), so
+        // apply the defaults here: scheme=https, port=-1, no credentials.
+        m_scheme = QStringLiteral("https");
+        m_port = -1;
+        m_username.clear();
+        m_password.clear();
         return;
     }
 
@@ -301,8 +316,20 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // clearing m_scheme/m_port/m_username/m_password.  If the user previously
         // parsed a URL with credentials and then types a bare host/path, stale
         // credentials from the previous URL are silently preserved.
+        // 5WHY (round 5): applyBareHost no longer resets scheme/port/creds.
+        // This is correct for parseUrlIntoFields — the QML binding round-trip
+        // produces bare host+path text, and we must preserve the scheme/port
+        // that the user originally specified via a full URL paste.
         applyBareHost(trimmed);
-        assembleTargetUrl(); // setTarget() emits targetChanged
+        if (!m_host.isEmpty()) {
+            assembleTargetUrl(); // setTarget() emits targetChanged
+        } else {
+            // 5WHY (round 5): path-only input (e.g. "/path") produces an
+            // empty host — assembleTargetUrl would return early without
+            // emitting targetChanged.  Emit directly so QML bindings know
+            // the structured fields changed.
+            emit targetChanged();
+        }
         return;
     }
 
