@@ -3,6 +3,7 @@ import "../theme"
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
+import "../dialogs"
 
 // ── DashboardScreen with built-in Report Preview ──
 Item {

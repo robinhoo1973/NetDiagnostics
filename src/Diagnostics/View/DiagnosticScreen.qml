@@ -2,6 +2,7 @@
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
+import "../dialogs"
 import "../theme"
 
 // ── Single-column layout — toolbar + results ──────────────────────────

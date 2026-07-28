@@ -3,6 +3,7 @@ import "../theme"
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
+import "../dialogs"
 
 // ── Flutter ReportPreviewScreen 1:1 — with AppBar ─────────────────────
 Item {
