@@ -402,6 +402,17 @@ Rectangle {
                             text: root.diagUrl
                             font.pixelSize: 13
                             color: T.ThemeEngine.textPrimary
+                            // 5WHY: Without placeholder text, users don't know
+                            // what URL format is expected.  Show a hint — the
+                            // default is https://httpbin.org for testing but
+                            // users should enter their own diagnostic target.
+                            Text {
+                                anchors.fill: parent
+                                text: "Enter diagnostic URL..."
+                                font.pixelSize: 13
+                                color: Qt.alpha(T.ThemeEngine.textSecondary, 0.4)
+                                visible: !urlInput.text && !urlInput.activeFocus
+                            }
                             clip: true
                             selectByMouse: true
                             onTextChanged: root.diagUrl = text
