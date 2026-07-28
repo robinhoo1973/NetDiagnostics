@@ -287,35 +287,56 @@ void TargetModel::syncFieldsFromTarget() {
         m_username = u.userName();
         m_password = u.password();
 
-        // 5WHY: .section('@',0,0) splits on the FIRST '@', but RFC 3986
-        // separates userinfo from host at the LAST '@' in the authority.
-        // validateUrl() and extractHostname() both use lastIndexOf('@').
-        if (m_username.isEmpty() && trimmed.contains('@')) {
-            QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
-            int lastAt = afterScheme.lastIndexOf('@');
-            if (lastAt >= 0) {
-                QString userinfo = afterScheme.left(lastAt);
-                if (userinfo.contains(':')) {
-                    m_username = userinfo.section(':', 0, 0);
-                    m_password = userinfo.section(':', 1);
-                } else {
-                    m_username = userinfo;
-                }
+        // ── Extract authority from after-scheme (strip path/query/fragment) ──
+        // 5WHY (round 7): The @ search was performed on the full afterScheme
+        // (including path/query/fragment).  An @ in a query parameter
+        // (e.g. ?email=user@domain.com) or fragment was incorrectly treated
+        // as the userinfo@host separator, corrupting the structured fields.
+        // validateUrl() correctly strips to authority before @ search (lines
+        // 62-72); extractHostname() strips path before lastIndexOf('@').
+        // Now extract the authority first, then parse userinfo and port from
+        // it — matching the validateUrl pattern.
+        QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
+        int authorityEnd = afterScheme.size();
+        for (auto ch : {'/', '?', '#'}) {
+            int pos = afterScheme.indexOf(ch);
+            if (pos >= 0 && pos < authorityEnd) authorityEnd = pos;
+        }
+        QString authority = afterScheme.left(authorityEnd);
+
+        // ── Userinfo fallback — handle @ in authority when QUrl misses it ──
+        // 5WHY: RFC 3986 separates userinfo from host at the LAST '@' in the
+        // authority. validateUrl() and extractHostname() both use lastIndexOf('@').
+        if (m_username.isEmpty() && authority.contains('@')) {
+            int lastAt = authority.lastIndexOf('@');
+            QString userinfo = authority.left(lastAt);
+            if (userinfo.contains(':')) {
+                m_username = userinfo.section(':', 0, 0);
+                m_password = userinfo.section(':', 1);
+            } else {
+                m_username = userinfo;
             }
         }
+
+        // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
         if (m_port <= 0) {
-            QString authority = trimmed.section(QStringLiteral("://"), 1);
-            if (authority.contains('@')) {
-                int lastAt = authority.lastIndexOf('@');
-                authority = authority.mid(lastAt + 1);
+            // Use the already-extracted authority, strip userinfo if present
+            QString hostPort = authority;
+            if (hostPort.contains('@')) {
+                int lastAt = hostPort.lastIndexOf('@');
+                hostPort = hostPort.mid(lastAt + 1);
             }
-            for (auto ch : {'/', '?', '#'}) {
-                int pos = authority.indexOf(ch);
-                if (pos >= 0) authority = authority.left(pos);
-            }
-            if (authority.contains(':')) {
+            // IPv6 bracket notation: port follows the closing bracket
+            if (hostPort.startsWith('[')) {
+                int closing = hostPort.indexOf(']');
+                if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
+                    bool ok = false;
+                    int p = hostPort.mid(closing + 2).toInt(&ok);
+                    if (ok && p > 0 && p <= 65535) m_port = p;
+                }
+            } else if (hostPort.contains(':')) {
                 bool ok = false;
-                int p = authority.section(':', -1).toInt(&ok);
+                int p = hostPort.section(':', -1).toInt(&ok);
                 if (ok && p > 0 && p <= 65535) m_port = p;
             }
         }
@@ -375,36 +396,47 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         m_username = u.userName();
         m_password = u.password();
 
-        // Userinfo fallback — handle @ in authority when QUrl misses it.
-        // Mirrors syncFieldsFromTarget's fallback for cross-path consistency.
-        if (m_username.isEmpty() && trimmed.contains('@')) {
-            QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
-            int lastAt = afterScheme.lastIndexOf('@');
-            if (lastAt >= 0) {
-                QString userinfo = afterScheme.left(lastAt);
-                if (userinfo.contains(':')) {
-                    m_username = userinfo.section(':', 0, 0);
-                    m_password = userinfo.section(':', 1);
-                } else {
-                    m_username = userinfo;
-                }
+        // ── Extract authority from after-scheme (strip path/query/fragment) ──
+        // 5WHY (round 7): Same @-in-query bug as syncFieldsFromTarget —
+        // the @ search was performed on the full afterScheme.  Strip to
+        // authority first, then parse userinfo and port from it.
+        QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
+        int authorityEnd = afterScheme.size();
+        for (auto ch : {'/', '?', '#'}) {
+            int pos = afterScheme.indexOf(ch);
+            if (pos >= 0 && pos < authorityEnd) authorityEnd = pos;
+        }
+        QString authority = afterScheme.left(authorityEnd);
+
+        // ── Userinfo fallback — handle @ in authority when QUrl misses it ──
+        if (m_username.isEmpty() && authority.contains('@')) {
+            int lastAt = authority.lastIndexOf('@');
+            QString userinfo = authority.left(lastAt);
+            if (userinfo.contains(':')) {
+                m_username = userinfo.section(':', 0, 0);
+                m_password = userinfo.section(':', 1);
+            } else {
+                m_username = userinfo;
             }
         }
-        // Port fallback — handle explicit port when QUrl::port() returns -1.
-        // Mirrors syncFieldsFromTarget's fallback for cross-path consistency.
+
+        // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
         if (m_port <= 0) {
-            QString authority = trimmed.section(QStringLiteral("://"), 1);
-            if (authority.contains('@')) {
-                int lastAt = authority.lastIndexOf('@');
-                authority = authority.mid(lastAt + 1);
+            QString hostPort = authority;
+            if (hostPort.contains('@')) {
+                int lastAt = hostPort.lastIndexOf('@');
+                hostPort = hostPort.mid(lastAt + 1);
             }
-            for (auto ch : {'/', '?', '#'}) {
-                int pos = authority.indexOf(ch);
-                if (pos >= 0) authority = authority.left(pos);
-            }
-            if (authority.contains(':')) {
+            if (hostPort.startsWith('[')) {
+                int closing = hostPort.indexOf(']');
+                if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
+                    bool ok = false;
+                    int p = hostPort.mid(closing + 2).toInt(&ok);
+                    if (ok && p > 0 && p <= 65535) m_port = p;
+                }
+            } else if (hostPort.contains(':')) {
                 bool ok = false;
-                int p = authority.section(':', -1).toInt(&ok);
+                int p = hostPort.section(':', -1).toInt(&ok);
                 if (ok && p > 0 && p <= 65535) m_port = p;
             }
         }

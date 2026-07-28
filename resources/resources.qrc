@@ -103,6 +103,7 @@
         <file>qtquickcontrols2.conf</file>
 
         <!-- Evidence Capture overlays -->
+        <file alias="qml/capture/qmldir">../src/EvidenceCapture/View/qmldir</file>
         <file alias="qml/capture/CaptureModePanel.qml">../src/EvidenceCapture/View/CaptureModePanel.qml</file>
         <file alias="qml/capture/CapturePreflightOverlay.qml">../src/EvidenceCapture/View/CapturePreflightOverlay.qml</file>
         <file alias="qml/capture/CaptureCountdownOverlay.qml">../src/EvidenceCapture/View/CaptureCountdownOverlay.qml</file>
