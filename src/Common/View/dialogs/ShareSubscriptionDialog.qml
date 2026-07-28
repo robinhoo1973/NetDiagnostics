@@ -6,7 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../../theme" as T
+import "../theme" as T
 import "../widgets"
 
 Rectangle {
