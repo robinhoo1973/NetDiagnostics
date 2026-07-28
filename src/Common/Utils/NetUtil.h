@@ -37,6 +37,31 @@ inline bool setSocketNonBlocking(int sock) {
 #endif
 }
 
+// ── Create non-blocking TCP socket ────────────────────────────────────
+// 5WHY: The 5-line pattern (socket + FD_SETSIZE guard + setSocketNonBlocking
+// check) was duplicated verbatim across tcpConnect, tcpConnect6,
+// G4MtuDiscovery::mtuDiscovery, and G4TraceHop.inl (Linux + macOS TCP
+// fallbacks).  Each copy had slightly different error handling but identical
+// socket-setup logic.  If the guard or non-blocking check ever needs to
+// change (e.g. switching to poll() to eliminate FD_SETSIZE), a single
+// decision point replaces 5 fragile copies.
+static inline int createNonBlockingSocket(int domain = AF_INET) {
+    int sock = socket(domain, SOCK_STREAM, 0);
+    if (sock < 0) return -1;
+    // 5WHY: FD_SET writes past the fd_set array if sock >= FD_SETSIZE
+    // (1024 default on Linux).  Windows: SOCKET handles are opaque values
+    // (not array indices); FD_SETSIZE is 64 but SOCKET values >= 64 are
+    // common and valid — the guard would incorrectly reject valid sockets.
+#ifndef _WIN32
+    if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
+#endif
+    // 5WHY: If setSocketNonBlocking fails, the socket stays blocking and
+    // ::connect() hangs for the OS TCP timeout (75-120s), defeating the
+    // timeoutMs parameter and freezing the diagnostic thread.
+    if (!setSocketNonBlocking(sock)) { closeSocket(sock); return -1; }
+    return sock;
+}
+
 // ── hostToAddr — forward declaration (defined below, used by tcpConnect) ──
 static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in& addr);
 
@@ -46,24 +71,10 @@ static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in&
 // Replaces identical blocks in G4RemoteHost::tcpRttMs, G4RemoteHost::tcpTraceHop,
 // SystemDiagnostics::httpDownload, tcpPingMs, httpTtfb.
 static inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    int sock = createNonBlockingSocket(AF_INET);
     if (sock < 0) return -1;
-    // 5WHY: FD_SET writes past the fd_set array if sock >= FD_SETSIZE
-    // (1024 default on Linux).  The ICMP echo code in G4Common.h has
-    // this guard; tcpConnect/tcpConnect6 were missing it.
-    // Windows: SOCKET handles are opaque values (not array indices).
-    // FD_SETSIZE is 64 on Windows but SOCKET values >= 64 are common
-    // and valid — the guard would incorrectly reject valid sockets.
-#ifndef _WIN32
-    if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
-#endif
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
-    // 5WHY: setSocketNonBlocking returns false if fcntl/ioctlsocket fails.
-    // If the socket stays blocking, ::connect() blocks for the OS TCP
-    // timeout (75-120s) — the timeoutMs parameter is defeated and the
-    // diagnostic thread hangs.  Close the socket and return -1 on failure.
-    if (!setSocketNonBlocking(sock)) { closeSocket(sock); return -1; }
     ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
@@ -96,16 +107,10 @@ static inline bool hostToAddr6(const QString& host, int port, struct sockaddr_in
 }
 
 static inline int tcpConnect6(const QString& host, int port, int timeoutMs = 3000) {
-    int sock = socket(AF_INET6, SOCK_STREAM, 0);
+    int sock = createNonBlockingSocket(AF_INET6);
     if (sock < 0) return -1;
-#ifndef _WIN32
-    if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
-#endif
     struct sockaddr_in6 addr;
     if (!hostToAddr6(host, port, addr)) { closeSocket(sock); return -1; }
-    // 5WHY: Same rationale as tcpConnect — if setSocketNonBlocking fails,
-    // the socket stays blocking and ::connect() hangs the diagnostic thread.
-    if (!setSocketNonBlocking(sock)) { closeSocket(sock); return -1; }
     ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
     struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};

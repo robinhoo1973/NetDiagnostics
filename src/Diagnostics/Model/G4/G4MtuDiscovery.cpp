@@ -24,23 +24,14 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     // immediately closed — wasted kernel work (fd allocation + socket state
     // init + teardown).  Only allocate an fd when we can actually use it.
     if (resolvedIp) {
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    // fd_set overflow guard: FD_SET with fd >= FD_SETSIZE corrupts the stack.
-    // 5WHY: FD_SETSIZE is 64 on Windows but SOCKET values >= 64 are common
-    // and valid — the guard would incorrectly reject valid sockets.  Skip
-    // on Windows; on Unix, fd_set is a fixed-size bitmap and overflow is
-    // undefined behavior.
-#ifndef _WIN32
-    if (sock >= 0 && sock >= FD_SETSIZE) { closeSocket(sock); sock = -1; }
-#endif
-    if (sock >= 0) {
+        // 5WHY: createNonBlockingSocket() encapsulates socket() + FD_SETSIZE
+        // guard + setSocketNonBlocking check — eliminating the 10-line
+        // duplicated pattern that was copy-pasted across 5 sites.
+        int sock = createNonBlockingSocket(AF_INET);
+        if (sock >= 0) {
         struct sockaddr_in addr; memset(&addr, 0, sizeof(addr));
         addr.sin_family = AF_INET; addr.sin_port = htons(probePort);
         addr.sin_addr.s_addr = htonl(resolvedIp);
-        // 5WHY: If setSocketNonBlocking() fails, the socket stays blocking
-        // and ::connect() hangs for the OS TCP timeout (75-120s).
-        if (!setSocketNonBlocking(sock)) { closeSocket(sock); sock = -1; }
-        if (sock >= 0) {
             QElapsedTimer t; t.start();
             ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
             fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
@@ -72,7 +63,6 @@ DiagnosticResult mtuDiscovery(const QString& target) {
             }
             closeSocket(sock);
         }
-    }
     }
     if (discoveredMtu == 0) {
         // 5WHY: discoveredMtu was hardcoded to 1500 BEFORE the interface
