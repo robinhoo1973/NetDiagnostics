@@ -124,7 +124,7 @@ QStringList TargetModel::supportedSchemes() const { return ::supportedSchemes();
 int TargetModel::defaultPort() const { return G5WebsiteUrl::defaultPortForScheme(m_scheme); }
 
 bool TargetModel::isHttpUrl() const {
-    const QString t = m_target.trimmed();
+    const QString t = m_target; // pre-trimmed in setTarget()
     if (!t.contains("://")) return false;
     const QString sch = t.section("://", 0, 0).toLower();
     return (sch == "http" || sch == "https") && !isEmpty();
@@ -152,21 +152,21 @@ void TargetModel::setPath(const QString& p) {
 
 // ── Canonical target ────────────────────────────────────────────────────
 void TargetModel::setTarget(const QString& t) {
-    if (m_target != t) {
-        m_target = t;
+    // 5WHY: m_target was stored untrimmed, forcing 7 Q_PROPERTY readers
+    // (isEmpty, hasUrlScheme, isUrl, isHost, isHttpUrl, syncFieldsFromTarget,
+    // and the validation block below) to each call m_target.trimmed() on every
+    // targetChanged signal — up to 7 redundant QString allocations per keystroke.
+    // Trim once here so all consumers use the pre-trimmed canonical value.
+    const QString trimmed = t.trimmed();
+    if (m_target != trimmed) {
+        m_target = trimmed;
         m_error.clear();
         syncFieldsFromTarget();
 
-        const QString trimmed = m_target.trimmed();
         if (!trimmed.isEmpty()) {
             if (trimmed.contains("://")) {
                 m_error = validateUrl(trimmed);
             } else {
-                // 5WHY (round 3): syncFieldsFromTarget already split host/path
-                // for bare inputs (no ://).  Validate m_host (the parsed
-                // hostname) instead of trimmed (which may still contain the
-                // path).  Validating trimmed on "host/path" incorrectly rejects
-                // the '/' inside the path with a misleading hostname error.
                 if (!isValidHostname(m_host)) {
                     m_error = m_host.contains("..")
                         ? QStringLiteral("Invalid hostname: consecutive dots")
@@ -231,7 +231,7 @@ void TargetModel::applyBareHost(const QString& trimmed) {
 void TargetModel::syncFieldsFromTarget() {
     if (m_assembling) return;
 
-    const QString trimmed = m_target.trimmed();
+    const QString trimmed = m_target; // pre-trimmed in setTarget()
     if (trimmed.isEmpty()) {
         // 5WHY (round 4): parseUrlIntoFields("") sets m_scheme = "https" so
         // the scheme dropdown shows a sane default after clearing.  Align

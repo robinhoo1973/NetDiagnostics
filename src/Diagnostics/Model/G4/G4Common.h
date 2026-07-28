@@ -63,7 +63,13 @@ namespace G4RemoteHost {
 
 // Set to false when raw ICMP socket creation fails (no CAP_NET_RAW / root).
 // Used by traceroute()/pathPing() to display a helpful fix hint.
-static std::atomic<bool> s_rawIcmpAvailable{true};
+// 5WHY: 'static' at namespace scope gives internal linkage — each translation
+// unit that includes this header gets its own independent copy.  G4TraceHop.inl
+// sets this to false when raw ICMP fails, but other TUs (UI, diagnostics) would
+// still read true from their own copy, never showing the 'run with CAP_NET_RAW'
+// hint.  'inline' (C++17) gives external linkage with linker deduplication,
+// so all TUs share the same atomic instance.  Project requires C++17 per CMake.
+inline std::atomic<bool> s_rawIcmpAvailable{true};
 
 // Thread-safe IPv4 formatting (inet_ntoa uses a shared static buffer and is
 // unsafe in the concurrent diagnostic thread pool).

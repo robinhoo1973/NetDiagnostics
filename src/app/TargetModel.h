@@ -59,7 +59,7 @@ public:
     int defaultPort() const;
 
     // ── Derived state ───────────────────────────────────────────────────
-    bool isEmpty() const { return m_target.trimmed().isEmpty(); }
+    bool isEmpty() const { return m_target.isEmpty(); }
     bool hasUrlScheme() const { return m_target.contains("://") && !isEmpty(); }
     bool isHttpUrl() const;
     bool isUrl() const { return hasUrlScheme() && !isEmpty(); }
