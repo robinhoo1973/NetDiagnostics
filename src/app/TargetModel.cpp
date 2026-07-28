@@ -28,8 +28,12 @@ static bool isValidIPv4(const QString& host) {
     return true;
 }
 
+// 5WHY: looksLikeIPv6 used host.contains(':') which matches ANY string
+// with a colon — including "host:8080" and "user:pass".  Use count(':')>1
+// so a single colon (indicating host:port or user:pass) is NOT treated as
+// IPv6, while multiple colons (::1, 2001:db8::1, fe80::1) correctly are.
 static bool looksLikeIPv6(const QString& host) {
-    return host.contains(':');
+    return host.count(':') > 1;
 }
 
 static bool isValidHostname(const QString& host) {
@@ -252,6 +256,64 @@ void TargetModel::clearFieldsToDefault() {
     m_error.clear();
 }
 
+// ── Shared: extract authority and parse userinfo/port fallback ───────────
+// 5WHY: The authority extraction + userinfo fallback + port fallback block
+// (~50 lines) was duplicated verbatim in syncFieldsFromTarget and
+// parseUrlIntoFields.  Extract it so fixes apply once.
+// Called after QUrl has already set m_host/m_port/m_username/m_password
+// from its own parsing; only fills in what QUrl missed.
+void TargetModel::parseAuthorityFields(const QString& trimmed) {
+    // ── Extract authority from after-scheme (strip path/query/fragment) ──
+    QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
+    int authorityEnd = afterScheme.size();
+    for (auto ch : {'/', '?', '#'}) {
+        int pos = afterScheme.indexOf(ch);
+        if (pos >= 0 && pos < authorityEnd) authorityEnd = pos;
+    }
+    QString authority = afterScheme.left(authorityEnd);
+
+    // ── Userinfo fallback — handle @ in authority when QUrl misses it ──
+    if (m_username.isEmpty() && authority.contains('@')) {
+        int lastAt = authority.lastIndexOf('@');
+        QString userinfo = authority.left(lastAt);
+        if (userinfo.contains(':')) {
+            m_username = userinfo.section(':', 0, 0);
+            m_password = userinfo.section(':', 1);
+        } else {
+            m_username = userinfo;
+        }
+    }
+
+    // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
+    if (m_port < 0) {
+        QString hostPort = authority;
+        if (hostPort.contains('@')) {
+            int lastAt = hostPort.lastIndexOf('@');
+            hostPort = hostPort.mid(lastAt + 1);
+        }
+        // IPv6 bracket notation: port follows the closing bracket
+        if (hostPort.startsWith('[')) {
+            int closing = hostPort.indexOf(']');
+            if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
+                bool ok = false;
+                int p = hostPort.mid(closing + 2).toInt(&ok);
+                if (ok && p > 0 && p <= 65535) m_port = p;
+            }
+        // 5WHY: !looksLikeIPv6(hostPort) was always false because
+        // looksLikeIPv6 is host.contains(':').  The expression reduced
+        // to contains(':') && !contains(':') — dead code.  Use count(':')
+        // instead: 1 colon = host:port, >1 colons = bare IPv6 address.
+        } else if (hostPort.count(':') == 1) {
+            // Bare IPv6 addresses (e.g. ::1) contain colons as part of the
+            // address, not as a port separator.  Skip the fallback when the
+            // string looks like a bare IPv6 address.
+            bool ok = false;
+            int p = hostPort.section(':', -1).toInt(&ok);
+            if (ok && p > 0 && p <= 65535) m_port = p;
+        }
+    }
+}
+
 // ── Parse m_target → structured fields ─────────────────────────────────
 void TargetModel::syncFieldsFromTarget() {
     if (m_assembling) return;
@@ -293,64 +355,8 @@ void TargetModel::syncFieldsFromTarget() {
         m_username = u.userName();
         m_password = u.password();
 
-        // ── Extract authority from after-scheme (strip path/query/fragment) ──
-        // 5WHY (round 7): The @ search was performed on the full afterScheme
-        // (including path/query/fragment).  An @ in a query parameter
-        // (e.g. ?email=user@domain.com) or fragment was incorrectly treated
-        // as the userinfo@host separator, corrupting the structured fields.
-        // validateUrl() correctly strips to authority before @ search (lines
-        // 62-72); extractHostname() strips path before lastIndexOf('@').
-        // Now extract the authority first, then parse userinfo and port from
-        // it — matching the validateUrl pattern.
-        QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
-        int authorityEnd = afterScheme.size();
-        for (auto ch : {'/', '?', '#'}) {
-            int pos = afterScheme.indexOf(ch);
-            if (pos >= 0 && pos < authorityEnd) authorityEnd = pos;
-        }
-        QString authority = afterScheme.left(authorityEnd);
-
-        // ── Userinfo fallback — handle @ in authority when QUrl misses it ──
-        // 5WHY: RFC 3986 separates userinfo from host at the LAST '@' in the
-        // authority. validateUrl() and extractHostname() both use lastIndexOf('@').
-        if (m_username.isEmpty() && authority.contains('@')) {
-            int lastAt = authority.lastIndexOf('@');
-            QString userinfo = authority.left(lastAt);
-            if (userinfo.contains(':')) {
-                m_username = userinfo.section(':', 0, 0);
-                m_password = userinfo.section(':', 1);
-            } else {
-                m_username = userinfo;
-            }
-        }
-
-        // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
-        if (m_port < 0) {
-            // Use the already-extracted authority, strip userinfo if present
-            QString hostPort = authority;
-            if (hostPort.contains('@')) {
-                int lastAt = hostPort.lastIndexOf('@');
-                hostPort = hostPort.mid(lastAt + 1);
-            }
-            // IPv6 bracket notation: port follows the closing bracket
-            if (hostPort.startsWith('[')) {
-                int closing = hostPort.indexOf(']');
-                if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
-                    bool ok = false;
-                    int p = hostPort.mid(closing + 2).toInt(&ok);
-                    if (ok && p > 0 && p <= 65535) m_port = p;
-                }
-            } else if (hostPort.contains(':') && !looksLikeIPv6(hostPort)) {
-                // 5WHY (round 8 sweep): Bare IPv6 addresses (e.g. ::1) contain
-                // colons as part of the address, not as a port separator.
-                // hostPort.section(':', -1) would incorrectly parse the last
-                // segment as a port number.  Skip the fallback when the
-                // string looks like a bare IPv6 address.
-                bool ok = false;
-                int p = hostPort.section(':', -1).toInt(&ok);
-                if (ok && p > 0 && p <= 65535) m_port = p;
-            }
-        }
+        // ── Authority + userinfo fallback + port fallback (shared helper) ──
+        parseAuthorityFields(trimmed);
 
         QString fullPath = u.path();
         if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
@@ -412,53 +418,9 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         m_username = u.userName();
         m_password = u.password();
 
-        // ── Extract authority from after-scheme (strip path/query/fragment) ──
-        // 5WHY (round 7): Same @-in-query bug as syncFieldsFromTarget —
-        // the @ search was performed on the full afterScheme.  Strip to
-        // authority first, then parse userinfo and port from it.
-        QString afterScheme = trimmed.section(QStringLiteral("://"), 1);
-        int authorityEnd = afterScheme.size();
-        for (auto ch : {'/', '?', '#'}) {
-            int pos = afterScheme.indexOf(ch);
-            if (pos >= 0 && pos < authorityEnd) authorityEnd = pos;
-        }
-        QString authority = afterScheme.left(authorityEnd);
+        // ── Authority + userinfo fallback + port fallback (shared helper) ──
+        parseAuthorityFields(trimmed);
 
-        // ── Userinfo fallback — handle @ in authority when QUrl misses it ──
-        if (m_username.isEmpty() && authority.contains('@')) {
-            int lastAt = authority.lastIndexOf('@');
-            QString userinfo = authority.left(lastAt);
-            if (userinfo.contains(':')) {
-                m_username = userinfo.section(':', 0, 0);
-                m_password = userinfo.section(':', 1);
-            } else {
-                m_username = userinfo;
-            }
-        }
-
-        // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
-        if (m_port < 0) {
-            QString hostPort = authority;
-            if (hostPort.contains('@')) {
-                int lastAt = hostPort.lastIndexOf('@');
-                hostPort = hostPort.mid(lastAt + 1);
-            }
-            if (hostPort.startsWith('[')) {
-                int closing = hostPort.indexOf(']');
-                if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
-                    bool ok = false;
-                    int p = hostPort.mid(closing + 2).toInt(&ok);
-                    if (ok && p > 0 && p <= 65535) m_port = p;
-                }
-            } else if (hostPort.contains(':') && !looksLikeIPv6(hostPort)) {
-                // 5WHY (round 8 sweep): Bare IPv6 addresses (e.g. ::1) contain
-                // colons as part of the address, not as a port separator.
-                // See identical fix in syncFieldsFromTarget above.
-                bool ok = false;
-                int p = hostPort.section(':', -1).toInt(&ok);
-                if (ok && p > 0 && p <= 65535) m_port = p;
-            }
-        }
         QString fullPath = u.path();
         if (u.hasQuery()) fullPath += QLatin1Char('?') + u.query();
         if (u.hasFragment()) fullPath += QLatin1Char('#') + u.fragment();

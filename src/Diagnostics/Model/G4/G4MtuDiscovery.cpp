@@ -9,12 +9,16 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     quint32 resolvedIp = resolveIPv4(host);
     QString ipStr;
     if (resolvedIp) { struct in_addr a; a.s_addr = htonl(resolvedIp); ipStr = ip4ToStr(a); }
+    // 5WHY: displayAddr was repeated 6 times across
+    // platform-specific output branches.  Compute once so all branches
+    // use the same display address.
+    const QString displayAddr = ipStr.isEmpty() ? host : ipStr;
     QStringList out;
 
     // 鈹€鈹€ Windows ping -f -l style MTU discovery 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
     out.append(QString());
     out.append(QStringLiteral("Path MTU Discovery for %1 [%2] (probe TCP port %3)")
-        .arg(host, ipStr.isEmpty() ? host : ipStr).arg(probePort));
+        .arg(host, displayAddr).arg(probePort));
     out.append(QString());
 
     // Try TCP connect and get MSS 鈫?derive path MTU
@@ -77,7 +81,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
 #if defined(_WIN32)
         discoveredMtu = 1500;
         out.append(QStringLiteral("PMTU TCP probe failed — using default MTU."));
-        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(discoveredMtu - 28));
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, displayAddr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
 #else
         discoveredMtu = 0; // reset so interface scan finds MTUs < 1500
@@ -99,7 +103,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         // stays 0.  Fall back to Ethernet standard 1500 like Windows does.
         if (discoveredMtu == 0) discoveredMtu = 1500;
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
-        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, displayAddr).arg(payload));
         out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
 #else
 #if defined(__APPLE__)
@@ -125,7 +129,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         // discoveredMtu stays 0.  Fall back to Ethernet standard 1500.
         if (discoveredMtu == 0) discoveredMtu = 1500;
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
-        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, displayAddr).arg(payload));
         out.append(QStringLiteral("Reply from local interface: MTU=%1 bytes").arg(discoveredMtu));
 #else
         // Fallback for other platforms — no interface scan available.
@@ -133,7 +137,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         // lower MTUs if present.
         if (discoveredMtu == 0) discoveredMtu = 1500;
         int payload = discoveredMtu > 28 ? discoveredMtu - 28 : discoveredMtu;
-        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr.isEmpty() ? host : ipStr).arg(payload));
+        out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, displayAddr).arg(payload));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
 #endif
 #endif  // close converted #elif
@@ -141,7 +145,7 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     }
 
     out.append(QString());
-    out.append(QStringLiteral("Ping statistics for %1:").arg(ipStr.isEmpty() ? host : ipStr));
+    out.append(QStringLiteral("Ping statistics for %1:").arg(displayAddr));
     out.append(QStringLiteral("    Maximum MTU: %1 bytes").arg(discoveredMtu));
     out.append(QStringLiteral("    Effective MSS: %1 bytes").arg(discoveredMtu > 40 ? discoveredMtu - 40 : 0));
 

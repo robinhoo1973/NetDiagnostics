@@ -34,9 +34,16 @@ Item {
     // badge icons by name prefix and skip colorization for them.
     // badge-circle has no native fill (white stroke only), so it should
     // still be colorized when the caller sets an explicit color.
+    // 5WHY: badge icons have designer-intended native colored fills
+    // (green check, red X, yellow warning, purple info, etc.).
+    // Image.color replaces ALL colors with a single tint, which would
+    // destroy the native palette.  Skip colorization for ALL badge
+    // icons so their native fills render — regardless of the caller's
+    // color property (which may carry a theme color from the parent).
+    // badge-circle has no native fill (white stroke only), so it
+    // should still be colorized when the caller sets an explicit color.
     readonly property bool _nativeColored: name.indexOf("badge-") === 0
         && name !== "badge-circle"
-        && Qt.colorEqual(root.color, "white")
 
     Image {
         id: iconImg

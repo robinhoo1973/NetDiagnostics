@@ -78,6 +78,7 @@ private:
     void syncFieldsFromTarget();   // parse m_target → structured fields
     void applyBareHost(const QString& trimmed);  // split host/path from bare input (no ://)
     void clearFieldsToDefault();   // reset all structured fields to sane defaults
+    void parseAuthorityFields(const QString& trimmed); // extract authority + userinfo/port fallback
 
     // Validation helpers are file-scope static functions in TargetModel.cpp
 
