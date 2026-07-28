@@ -6,15 +6,11 @@ DiagnosticResult mysqlDiagnostics(const QString& target) {
     if (u.scheme() != "mysql")
         return skipped(DiagId::G5Mysql, "Not MySQL");
     int port = portForUrl(u);
-    QElapsedTimer t; t.start();
-    QTcpSocket sock;
-    sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
+    auto probe = NetworkProbe::tcpProbe(u.host(), port, 5000, 2000);
+    if (!probe.connected)
         return result(DiagId::G5Mysql, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
-    sock.waitForReadyRead(2000);
-    QByteArray data = sock.readAll();
-    sock.disconnectFromHost();
+                      {}, probe.elapsedMs);
+    QByteArray data = probe.data;
     if (data.size() < 5)
         return result(DiagId::G5Mysql, "No handshake packet", DiagStatus::Warning,
                       {}, t.elapsed());

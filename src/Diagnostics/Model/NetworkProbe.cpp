@@ -88,6 +88,27 @@ TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int tim
     return result;
 }
 
+TcpProbeResult NetworkProbe::tcpProbe(const QString& host, int port,
+                                       int connectTimeoutMs, int readTimeoutMs,
+                                       const QByteArray& sendData) {
+    TcpProbeResult r;
+    QElapsedTimer t; t.start();
+    QTcpSocket sock;
+    sock.connectToHost(host, port);
+    if (!sock.waitForConnected(connectTimeoutMs)) {
+        r.elapsedMs = t.elapsed();
+        return r;
+    }
+    r.connected = true;
+    if (!sendData.isEmpty())
+        sock.write(sendData);
+    sock.waitForReadyRead(readTimeoutMs);
+    r.data = sock.readAll();
+    sock.disconnectFromHost();
+    r.elapsedMs = t.elapsed();
+    return r;
+}
+
 // =============================================================================
 // SSL Certificate Info (used by G5SslCertificate)
 // =============================================================================
