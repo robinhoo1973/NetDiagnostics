@@ -326,7 +326,7 @@ Item {
     readonly property string captureEstTime: t("Estimated duration: ~45 seconds", "Durée estimée : ~45 secondes", "Geschätzte Dauer: ~45 Sekunden", "Примерная длительность: ~45 секунд", "Durata stimata: ~45 secondi", "预计耗时：约45秒", "預計耗時：約45秒", "Duración estimada: ~45 segundos", "Duração estimada: ~45 segundos")
     readonly property string captureCancelBtn: t("Cancel Capture", "Annuler la capture", "Aufnahme abbrechen", "Отменить захват", "Annulla cattura", "取消采集", "取消採集", "Cancelar captura", "Cancelar captura")
     readonly property string captureComplete: t("Capture Complete", "Capture terminée", "Aufnahme abgeschlossen", "Захват завершен", "Cattura completata", "采集完成", "採集完成", "Captura completada", "Captura concluída")
-    readonly property string captureFailed: t("Capture Failed", "Echec de la capture", "Aufnahme fehlgeschlagen", "Ошибка захвата", "Cattura fallita", "采集失败", "採集失敗", "Captura fallida", "Captura falhou")
+    readonly property string captureFailed: t("Capture Failed", "Échec de la capture", "Aufnahme fehlgeschlagen", "Ошибка захвата", "Cattura fallita", "采集失败", "採集失敗", "Captura fallida", "Captura falhou")
     // ── Capture overlay load error (shown when Loader enters Error state) ──
     readonly property string captureLoadErrorTitle: t(
         "Capture Overlay Load Error",
