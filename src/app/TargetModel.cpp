@@ -127,7 +127,7 @@ bool TargetModel::isHttpUrl() const {
     const QString t = m_target; // pre-trimmed in setTarget()
     if (!t.contains("://")) return false;
     const QString sch = t.section("://", 0, 0).toLower();
-    return (sch == "http" || sch == "https") && !isEmpty();
+    return (sch == "http" || sch == "https");  // !isEmpty() redundant: empty target returns at line 128
 }
 
 // ── Structured field setters ────────────────────────────────────────────
