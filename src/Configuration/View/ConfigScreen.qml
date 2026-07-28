@@ -53,7 +53,10 @@ Item {
                                     border { width: 1; color: { let _ = configPollVersion; return appState.isGroupActive(index) ? ThemeEngine.passGreen : ThemeEngine.textMuted } }
                                     MouseArea {
                                         anchors.fill: parent
-                                        anchors.margins: -4  // expand hit area for touch
+                                        // 5WHY: Visually small dot (14dp) needs a large touch
+                                        // target (48dp Material Design 3 minimum).  Expand
+                                        // the hit area without changing the visual size.
+                                        anchors.margins: -17  // 14 + 17*2 = 48dp touch target
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             let _ = configPollVersion
@@ -102,7 +105,7 @@ Item {
                 // 40×40dp dense icon button, 20dp icon, tooltip via Accessible.name
                 Rectangle {
                     id: selectAllBtn
-                    implicitWidth: 40; implicitHeight: 40; radius: 8; color: "transparent"
+                    implicitWidth: 48; implicitHeight: 48; radius: 8; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return !appState.isGroupAllEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
@@ -124,7 +127,7 @@ Item {
                 // Deselect All — icon-only (badge-close = multi-clear)
                 Rectangle {
                     id: deselectAllBtn
-                    implicitWidth: 40; implicitHeight: 40; radius: 8; color: "transparent"
+                    implicitWidth: 48; implicitHeight: 48; radius: 8; color: "transparent"
                     border { width: 1; color: ThemeEngine.colors.borderCard }
                     enabled: { let _ = configPollVersion; return appState.isGroupAnyEnabled(currentGroup) }
                     opacity: enabled ? 1.0 : 0.4
@@ -148,6 +151,7 @@ Item {
         // ── Test list — Flutter: ListView.separated with SwitchListTile ─
         ListView {
             Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+            ScrollBar.vertical: ScrollBar { }
             model: appState.allDiagIdsForGroup(currentGroup)
             delegate: ItemDelegate {
                 id: tile

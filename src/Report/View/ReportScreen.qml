@@ -39,16 +39,23 @@ Item {
 
     function openPreview() {
         if (!canReport) return
-        var darkBg = ThemeEngine.isDark
         // 5WHY: QtWebView has no loadHtml() on iOS/Android, QtPdf is
         // unreliable, NativePdf requires CGPDFDocument.  Use the ONE
         // approach that works everywhere: QTextDocument→QImage rendering.
         // The rendered image looks identical to the real report, supports
         // pinch-to-zoom via PinchHandler, and needs zero platform deps.
-        var html = appState.buildReportHtml(true, darkBg)
-        var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
-        previewImagePath = imgPath || ""
+        //
+        // 5WHY: buildReportHtml() + renderPreviewImage() are synchronous
+        // calls that freeze the UI.  Show the overlay immediately with a
+        // blank image, then defer the heavy work via Qt.callLater.
         previewVisible = true
+        previewImagePath = ""
+        Qt.callLater(function() {
+            var darkBg = ThemeEngine.isDark
+            var html = appState.buildReportHtml(true, darkBg)
+            var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
+            previewImagePath = imgPath || ""
+        })
     }
     function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }
     // Share button entry: check subscription. Not subscribed → guide to subscribe;

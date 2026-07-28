@@ -25,11 +25,20 @@ Item {
     property string pendingShareFormat: ""
 
     function openPreview() {
-        var darkBg = ThemeEngine.isDark
-        var html = appState.buildReportHtml(true, darkBg)
-        var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
-        previewImagePath = imgPath || ""
+        if (!canReport) return
+        // 5WHY: buildReportHtml() + renderPreviewImage() are synchronous
+        // Q_INVOKABLE calls that iterate over all diagnostic results and
+        // render HTML→image.  On 20+ completed tests this blocks the UI
+        // thread for 500ms-2s — a visible freeze.  Show the overlay
+        // immediately with a blank image, then defer the heavy work.
         previewVisible = true
+        previewImagePath = ""
+        Qt.callLater(function() {
+            var darkBg = ThemeEngine.isDark
+            var html = appState.buildReportHtml(true, darkBg)
+            var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
+            previewImagePath = imgPath || ""
+        })
     }
     function doShare(fmt) {
         pendingShareFormat = fmt
@@ -260,14 +269,22 @@ Item {
                         Item { width: 8 }
                         Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.textPrimary }
                         Rectangle {
+                            id: closeBtn
                             // 5WHY: close button was 36dp — below MD3 48dp minimum
                             // touch target. Now matches ReportScreen pattern: 48dp
-                            // mobile, 34dp desktop.
+                            // mobile, 34dp desktop.  Hover feedback added to match
+                            // ReportScreen close button visual style.
                             readonly property int _btnSz: isMobile ? 48 : 34
-                            implicitWidth: _btnSz; implicitHeight: _btnSz; radius: _btnSz / 2; color: "transparent"
-                            border { width: 1; color: ThemeEngine.colors.borderCard }
+                            implicitWidth: _btnSz; implicitHeight: _btnSz; radius: _btnSz / 2
+                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.failRed, 0.35)
+                                                            : Qt.alpha(ThemeEngine.failRed, 0.15)
                             AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.failRed }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.previewVisible = false }
+                            MouseArea {
+                                id: closeMouse
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                hoverEnabled: true
+                                onClicked: page.previewVisible = false
+                            }
                         }
                     }
                 }

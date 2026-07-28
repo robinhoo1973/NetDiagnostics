@@ -37,6 +37,7 @@ Item {
     Flickable {
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true
+        ScrollBar.vertical: ScrollBar { }
         contentHeight: setCol.implicitHeight
 
         ColumnLayout {
@@ -142,7 +143,7 @@ Item {
                         id: langCombo
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
-                        // Displayed in UTF-8 (code-point) order; idx = internal language
+                        // Displayed in alphabetical order by language name; idx = internal language index
                         // index (0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT).
                         readonly property var langItems: [
                             { name: "Deutsch",   idx: 2 },
@@ -162,7 +163,16 @@ Item {
                                 if (langItems[i].idx === appState.languageIndex) return i
                             return 0
                         }
-                        onActivated: function(index) { if (appState) appState.setLanguage(langItems[index].idx) }
+                        // 5WHY: Language switch was immediate with no feedback.
+                        // If the user taps the wrong language, the entire UI
+                        // changes to an unfamiliar language with no way to
+                        // know what happened.  Show a toast with the selected
+                        // language name for 3 seconds.
+                        onActivated: function(index) {
+                            if (appState) appState.setLanguage(langItems[index].idx)
+                            languageToastText = langItems[index].name + "  ✓"
+                            languageToastTimer.restart()
+                        }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13
                         background: Rectangle {
                             radius: 6; color: ThemeEngine.bgInput; border { width: 1; color: ThemeEngine.colors.borderCard }
@@ -285,6 +295,19 @@ Item {
                 }
             }
             Timer { id: captureToastTimer; interval: 3000 }
+
+            // 5WHY: Language switch was previously silent — users got no
+            // confirmation after selecting a language.  This toast shows
+            // the selected language name for 3 seconds after switching.
+            property string languageToastText: ""
+            Timer { id: languageToastTimer; interval: 3000 }
+            Label {
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                Layout.topMargin: languageToastTimer.running ? 4 : 0
+                visible: languageToastTimer.running
+                text: languageToastText
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.passGreen
+            }
 
             // ── About Section ──────────────────────────────────────────
             SectionHeader { iconName: "info"; title: Tr.aboutSection }
