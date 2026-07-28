@@ -170,6 +170,12 @@ Item {
         // blank path, 0s elapsed).  Only clear the pending flag and Timer;
         // onLoaded calls clearPendingCompletion() AFTER applying the data.
         function showResultSummary() {
+            // 5WHY: If the Loader is already showing the ResultSummary
+            // (redundant Timer tick, or showResultSummary called twice),
+            // re-setting active=true and source triggers re-incubation,
+            // causing a visual flicker and resetting the auto-dismiss
+            // countdown.  Guard against double-load.
+            if (active && source === "qrc:/qml/capture/CaptureResultSummary.qml") return
             resetDelayTimer()
             active = true
             source = "qrc:/qml/capture/CaptureResultSummary.qml"

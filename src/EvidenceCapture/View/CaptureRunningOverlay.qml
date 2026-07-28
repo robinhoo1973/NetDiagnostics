@@ -71,7 +71,9 @@ Rectangle {
     // places the floating pill behind status bar icons (signal, battery).
     // On iOS, the status bar icons float over content, so 12px is fine.
     // Use platform-aware top margin: 36px on Android, 12px elsewhere.
-    anchors.topMargin: Qt.platform.os === "android" ? 36 : 12
+    // 5WHY: String() coercion ensures the comparison works on Qt 5.x
+    // where Qt.platform.os returned a QStringList, not a string.
+    anchors.topMargin: String(Qt.platform.os) === "android" ? 36 : 12
     anchors.rightMargin: 12
     // 5WHY: On narrow screens (<320px) with both screenshot+recording mode
     // active, the RowLayout's implicitWidth can exceed the parent width,
