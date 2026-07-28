@@ -162,7 +162,7 @@ Item {
 
     // placeholderMsg removed — SMTP feature deprecated
 
-    // ── Test names (45 entries, ids 0-44) ──
+    // ── Test names (46 entries, ids 0-45) ──
     function diagName(id) {
         if (lang <= 0) return ""  // English uses C++ names directly
         var names = {
@@ -215,7 +215,7 @@ Item {
         }
         return typeof names[id] === 'string' ? names[id] : ""
     }
-    // ── Test descriptions (45 entries, ids 0-44) ──
+    // ── Test descriptions (46 entries, ids 0-45) ──
     function diagDesc(id) {
         if (lang <= 0) return ""  // English: use C++ descriptions
         var descs = {

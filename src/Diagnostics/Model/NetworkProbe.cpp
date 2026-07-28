@@ -37,7 +37,11 @@ TcpConnectResult NetworkProbe::tcpConnect(const QString& host, int port, int tim
     return result;
 }
 
-TcpProbeResult NetworkProbe::tcpProbe(const QString& host, int port,
+// 5WHY: iOS Clang (strict C++17) requires the fully-qualified return type
+// when defining a member function outside the class body.  Desktop GCC/Clang
+// resolve TcpProbeResult unqualified via the class scope, but Apple Clang
+// for arm64 iOS does not.
+NetworkProbe::TcpProbeResult NetworkProbe::tcpProbe(const QString& host, int port,
                                        int connectTimeoutMs, int readTimeoutMs,
                                        const QByteArray& sendData) {
     TcpProbeResult r;

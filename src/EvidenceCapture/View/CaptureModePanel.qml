@@ -24,14 +24,12 @@ Rectangle {
     // the font explicitly on the root Rectangle so ALL child Labels
     // inherit the correct monospace font regardless of Qt version.
     font.family: T.ThemeEngine.monoFont
-    // 5WHY: No explicit font.family on individual Labels.  Loader-loaded QML
-    // components run in an isolated context where "JetBrains Mono" (the
-    // ThemeEngine.monoFont value) may not resolve on embedded Linux ARM
-    // with minimal fontconfig.  Removing the override lets Labels inherit
-    // "DejaVu Sans Mono" from the ApplicationWindow → AppContent → Loader
-    // → this panel — DejaVu Sans Mono is FontLoader-proven to work
-    // everywhere, has 128 box-drawing glyphs + symbols that JetBrains
-    // lacks, and is already the default across all main screens.
+    // 5WHY: No explicit font.family on individual Labels.  All child Labels
+    // inherit the mono font from the root Rectangle above.  On embedded
+    // Linux ARM where JetBrains Mono may not resolve through fontconfig,
+    // Qt falls back to the system monospace default (typically DejaVu Sans
+    // Mono) — the same font FontLoader proves works everywhere with full
+    // box-drawing glyph and symbol coverage.
 
     // ── Scale-in animation ──────────────────────────────────────────
     scale: 0.92; opacity: 0
