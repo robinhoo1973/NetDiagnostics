@@ -205,6 +205,10 @@ Item {
                             return appState.isDiagEnabled(modelData)
                         }
                         onToggled: appState.setDiagEnabled(modelData, checked)
+                        // 5WHY: Without Accessible.name, screen readers
+                        // announce just "Switch, on/off" — users don't
+                        // know which diagnostic is being toggled.
+                        Accessible.name: getDisplayName(modelData) + " diagnostic"
                     }
                 }
             }

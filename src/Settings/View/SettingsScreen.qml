@@ -77,11 +77,21 @@ Item {
                                 // Increased for accessible touch interaction.
                                 // 48pt mobile (MD3 + HIG compliant), 40pt desktop.
                                 implicitHeight: ThemeEngine.isMobile ? 48 : 40; radius: ThemeEngine.radius.md
-                                color: isActive ? ThemeEngine.colors.primaryContainer : "transparent"
+                                // 5WHY: No hover feedback meant users got zero
+                                // interactive affordance — the button looked
+                                // like a static label.  Show a subtle tint on
+                                // hover to indicate clickability.
+                                color: isActive ? ThemeEngine.colors.primaryContainer
+                                     : themeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.colors.primary, 0.06)
+                                     : "transparent"
+                                Behavior on color { ColorAnimation { duration: 150 } }
                                 border {
                                     width: 1
-                                    color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.borderCard
+                                    color: isActive ? ThemeEngine.colors.primary
+                                         : themeBtnArea.containsMouse ? Qt.alpha(ThemeEngine.colors.primary, 0.3)
+                                         : ThemeEngine.colors.borderCard
                                 }
+                                Behavior on border.color { ColorAnimation { duration: 150 } }
                                 ColumnLayout {
                                     anchors.centerIn: parent
                                     spacing: 2
@@ -106,6 +116,7 @@ Item {
                                     id: themeBtnArea
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
+                                    hoverEnabled: true
                                     onClicked: {
                                         appState.themeMode = modelData.mode
                                         ThemeEngine.mode = modelData.mode
