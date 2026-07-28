@@ -11,6 +11,11 @@ Item {
     property int _runStatus: appState.runStatus
     property int _totalCompleted: appState.totalCompleted
     property bool hasData: _totalCompleted > 0
+    // 5WHY: canReport was missing — openPreview() guarded on it but it
+    // was never declared, resolving to undefined → !undefined === true
+    // → the function always returned early.  Declare it matching
+    // ReportScreen's hasResults && !isRunning pattern.
+    readonly property bool canReport: hasData && _runStatus !== 1
     readonly property var allStats: appState.allGroupStats || []
     readonly property bool isMobile: ThemeEngine.isMobile
     readonly property alias overlayVisible: previewOverlay.visible
