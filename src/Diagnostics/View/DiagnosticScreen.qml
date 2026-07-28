@@ -500,40 +500,12 @@ Item {
     }
 
     // ── Share subscription dialog ─────────────────────────────────────
-    Rectangle {
-        id: shareDialog
-        parent: page.parent ? page.parent : page; anchors.fill: parent
-        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
-        visible: page.shareStage !== 0; z: 1100
-        MouseArea { anchors.fill: parent; onClicked: page.shareStage = 0 }
-        Rectangle {
-            anchors.centerIn: parent
-            width: Math.min(420, parent.width * 0.92)
-            implicitHeight: dlgCol.implicitHeight + 40; radius: 14; color: ThemeEngine.colors.card
-            ColumnLayout {
-                id: dlgCol
-                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 } spacing: 14
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; radius: 30
-                    color: Qt.alpha(page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan, 0.12)
-                    AppIcon { anchors.centerIn: parent; name: page.shareStage === 1 ? "badge-info" : "report"; size: 28; color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan }
-                }
-                Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: page.shareStage === 1 ? Tr.subscribeTitle : Tr.confirmShareTitle; font.family: ThemeEngine.monoFont; font.pixelSize: 17; font.weight: Font.Bold; color: ThemeEngine.textPrimary; wrapMode: Text.WordWrap }
-                Label { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; text: page.shareStage === 1 ? Tr.subscribeBody : Tr.confirmShareBody; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary; wrapMode: Text.WordWrap }
-                RowLayout { Layout.fillWidth: true; spacing: 10
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 42; radius: 8; color: "transparent"; border { width: 1; color: Qt.alpha(ThemeEngine.textSecondary, 0.5) }
-                        Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.textSecondary }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.shareStage = 0 }
-                        Accessible.name: page.shareStage === 1 ? Tr.subscribeNotNow : Tr.dialogCancel
-                        Accessible.role: Accessible.Button
-                    }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 42; radius: 8
-                        color: page.shareStage === 1 ? ThemeEngine.warnYellow : ThemeEngine.cyan
-                        Label { anchors.centerIn: parent; text: page.shareStage === 1 ? Tr.subscribeBtn : (page.isMobile ? Tr.shareBtn : Tr.emailBtn); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.bgDark }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (page.shareStage === 1) appState.requestSubscription(); else page.confirmShare() } }
-                    }
-                }
-            }
+    ShareSubscriptionDialog {
+        shareStage: page.shareStage; isMobile: page.isMobile
+        onDismissed: page.shareStage = 0
+        onActionRequested: {
+            if (page.shareStage === 1) appState.requestSubscription()
+            else page.confirmShare()
         }
     }
 
