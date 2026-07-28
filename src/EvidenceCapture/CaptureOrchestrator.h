@@ -268,10 +268,12 @@ private:
     QString       m_diagUrl;
     QString       m_currentAction;
     QString       m_sessionDir;
-    // 5WHY: m_recording is read on the ReplayKit/MediaProjection callback thread
-    // via platformIsRecording() and written on the main thread.  Plain bool is a
-    // C++ data race (UB).  std::atomic guarantees tear-free reads/writes and
-    // prevents compiler reordering across the atomic access.
+    // 5WHY: m_recording is read/written ONLY on the main thread
+    // (platformIsRecording() reads the file-scope s_recording atomic,
+    // NOT this member).  It is kept as std::atomic for consistency with
+    // m_sessionGen (which IS cross-thread) and to prevent any future
+    // cross-thread access from silently corrupting state if a callback
+    // dispatch path is missed.
     std::atomic<bool> m_recording{false};
     // 5WHY: m_sessionGen is snapshotted on the main thread and compared on the
     // platform callback thread inside isCallbackValid().  Plain int across

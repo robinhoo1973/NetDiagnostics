@@ -454,7 +454,17 @@ void platformStopRecording(RecordingCallback callback) {
         if (tornDown) {
             s_recording = false;
             s_stopping = false;
-            if (callback) callback(false, tearDownMsg);
+            // 5WHY: The tornDown path is the ONLY remaining callback in
+            // stopCaptureWithHandler that fires directly on ReplayKit's
+            // queue without dispatch_async(main).  All other callback
+            // invocations in this file correctly wrap with dispatch_async.
+            // Without this, the C++ callback (CaptureOrchestrator) accesses
+            // QObject state (m_stateMachine, m_sessionGen) from a non-main
+            // thread — undefined behavior.
+            if (callback) {
+                auto cb = callback; auto msg = tearDownMsg;
+                dispatch_async(dispatch_get_main_queue(), ^{ cb(false, msg); });
+            }
             return;
         }
 

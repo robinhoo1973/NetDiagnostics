@@ -356,6 +356,11 @@ Rectangle {
                     spacing: 6
                     AppIcon { name: "badge-info"; size: 14; color: T.ThemeEngine.cyan }
                     Label {
+                        // 5WHY: Without Layout.fillWidth, this Label gets
+                        // its implicitWidth (full text width), making
+                        // ElideRight a no-op — elide only triggers when
+                        // the text exceeds the available width.
+                        Layout.fillWidth: true
                         text: T.Tr.captureBothHint
                         font.pixelSize: 11
                         color: T.ThemeEngine.cyan; elide: Text.ElideRight; maximumLineCount: 1
