@@ -1,5 +1,5 @@
 // =============================================================================
-// NetworkProbe.h — Raw socket wrappers for G4/G5 tests
+// NetworkProbe.h — High-level Qt socket wrappers for G4/G5 tests (QTcpSocket/QSslSocket)
 // =============================================================================
 #pragma once
 
