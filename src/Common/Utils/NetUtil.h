@@ -48,6 +48,10 @@ static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in&
 inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) return -1;
+    // 5WHY: FD_SET writes past the fd_set array if sock >= FD_SETSIZE
+    // (1024 default on Linux).  The ICMP echo code in G4Common.h has
+    // this guard; tcpConnect/tcpConnect6 were missing it.
+    if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
     setSocketNonBlocking(sock);
@@ -85,6 +89,7 @@ static inline bool hostToAddr6(const QString& host, int port, struct sockaddr_in
 inline int tcpConnect6(const QString& host, int port, int timeoutMs = 3000) {
     int sock = socket(AF_INET6, SOCK_STREAM, 0);
     if (sock < 0) return -1;
+    if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
     struct sockaddr_in6 addr;
     if (!hostToAddr6(host, port, addr)) { closeSocket(sock); return -1; }
     setSocketNonBlocking(sock);
