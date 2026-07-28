@@ -78,12 +78,19 @@ DiagnosticResult mtuDiscovery(const QString& target) {
         // MTU scan below.  The scan checks `v > discoveredMtu` so any
         // interface with MTU < 1500 (VPN tunnels, PPPoE) was silently
         // skipped.  Start at 0 so the scan finds the true max interface MTU.
-        discoveredMtu = 0;
-        out.append(QStringLiteral("PMTU TCP probe failed — using interface MTU."));
+        // 5WHY (round 4): discoveredMtu = 0 regressed on Windows — there
+        // is no interface scan on that platform, so 0 stays 0 and the
+        // message reports "-28 bytes" / "MTU: 0".  Keep a 1500 default
+        // on Windows (Ethernet standard); Linux/macOS set it to 0 next
+        // so their interface scans can find lower MTUs (VPN/PPPoE).
 #if defined(_WIN32)
+        discoveredMtu = 1500;
+        out.append(QStringLiteral("PMTU TCP probe failed — using default MTU."));
         out.append(QStringLiteral("Pinging %1 [%2] with %3 bytes of data:").arg(host, ipStr).arg(discoveredMtu - 28));
         out.append(QStringLiteral("Using default MTU: %1").arg(discoveredMtu));
 #else
+        discoveredMtu = 0; // reset so interface scan finds MTUs < 1500
+        out.append(QStringLiteral("PMTU TCP probe failed — using interface MTU."));
 #if defined(__linux__)
         // Linux: read MTU from sysfs, skipping loopback (lo has MTU 65536)
         QDir netDir(QStringLiteral("/sys/class/net"));

@@ -54,7 +54,9 @@ typedef SSIZE_T ssize_t;
 #if !defined(C_IN)
 #define C_IN ns_c_in
 #endif
-inline int setSockOptRcvTimeout(int, int) { return 0; }
+// 5WHY: setSockOptRcvTimeout is dead code — no callers remain after the
+// setNonblockWin → setSocketNonBlocking migration (NetUtil.h).  Removed
+// the Windows variant in round 1; remove the leftover Unix stub here.
 #endif
 
 namespace G4RemoteHost {

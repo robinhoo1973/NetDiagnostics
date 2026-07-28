@@ -222,8 +222,8 @@ ColumnLayout {
                 onTextChanged: {
                     // 5WHY: Host/path splitting was duplicated here and in
                     // DiagnosticToolbar.qml.  Folded into parseUrlIntoFields
-                    // (TargetModel.cpp) which now handles ""example.com/path""
-                    // without ""://"" by splitting at the first '/'.
+                    // (TargetModel.cpp) which now handles "example.com/path"
+                    // without "://" by splitting at the first '/'.
                     appState.parseUrlIntoFields(text.trim())
                 }
             }

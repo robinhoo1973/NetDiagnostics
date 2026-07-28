@@ -76,6 +76,7 @@ signals:
 private:
     void assembleTargetUrl();      // build m_target from structured fields
     void syncFieldsFromTarget();   // parse m_target → structured fields
+    void applyBareHost(const QString& trimmed);  // split host/path from bare input (no ://)
 
     // Validation helpers are file-scope static functions in TargetModel.cpp
 

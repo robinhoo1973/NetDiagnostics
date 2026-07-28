@@ -204,13 +204,31 @@ void TargetModel::assembleTargetUrl() {
     m_assembling = false;
 }
 
+// ── Shared helper: split bare host input (no ://) into m_host / m_path ──
+// Called by both syncFieldsFromTarget (setTarget path) and parseUrlIntoFields
+// (QML direct-call path) to ensure consistent host/path splitting.
+void TargetModel::applyBareHost(const QString& trimmed) {
+    int slash = trimmed.indexOf(QLatin1Char('/'));
+    if (slash >= 0) {
+        m_scheme = QStringLiteral("https"); m_host = trimmed.left(slash);
+        m_path = trimmed.mid(slash); m_port = -1;
+    } else {
+        m_scheme = QStringLiteral("https"); m_host = trimmed; m_port = -1;
+        m_path.clear();
+    }
+    m_username.clear(); m_password.clear();
+}
+
 // ── Parse m_target → structured fields ─────────────────────────────────
 void TargetModel::syncFieldsFromTarget() {
     if (m_assembling) return;
 
     const QString trimmed = m_target.trimmed();
     if (trimmed.isEmpty()) {
-        m_scheme.clear(); m_host.clear(); m_port = -1;
+        // 5WHY (round 4): parseUrlIntoFields("") sets m_scheme = "https" so
+        // the scheme dropdown shows a sane default after clearing.  Align
+        // syncFieldsFromTarget (reached via setTarget("")) for consistency.
+        m_scheme = QStringLiteral("https"); m_host.clear(); m_port = -1;
         m_username.clear(); m_password.clear(); m_path.clear();
         return;
     }
@@ -219,15 +237,7 @@ void TargetModel::syncFieldsFromTarget() {
         // 5WHY: syncFieldsFromTarget must split host/path the same way
         // parseUrlIntoFields does, otherwise setTarget("host/path") lumps
         // the path into m_host and DNS resolution fails.
-        int slash = trimmed.indexOf(QLatin1Char('/'));
-        if (slash >= 0) {
-            m_scheme = QStringLiteral("https"); m_host = trimmed.left(slash);
-            m_path = trimmed.mid(slash); m_port = -1;
-        } else {
-            m_scheme = QStringLiteral("https"); m_host = trimmed; m_port = -1;
-            m_path.clear();
-        }
-        m_username.clear(); m_password.clear();
+        applyBareHost(trimmed);
         return;
     }
 
@@ -291,16 +301,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // clearing m_scheme/m_port/m_username/m_password.  If the user previously
         // parsed a URL with credentials and then types a bare host/path, stale
         // credentials from the previous URL are silently preserved.
-        int slash = trimmed.indexOf(QLatin1Char('/'));
-        if (slash >= 0) {
-            m_host = trimmed.left(slash);
-            m_path = trimmed.mid(slash);
-        } else {
-            m_host = trimmed;
-            m_path.clear();
-        }
-        m_scheme = QStringLiteral("https"); m_port = -1;
-        m_username.clear(); m_password.clear();
+        applyBareHost(trimmed);
         assembleTargetUrl(); // setTarget() emits targetChanged
         return;
     }
@@ -323,6 +324,14 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // was silently defeated and QUrl was constructed twice per keystroke.
         // Use assembleTargetUrl() which sets m_assembling=true before calling
         // setTarget(), so syncFieldsFromTarget returns immediately.
-        assembleTargetUrl(); // sets m_assembling → syncFieldsFromTarget is skipped
+        // 5WHY (round 4): If QUrl returns an empty host (e.g. "http:///path"),
+        // assembleTargetUrl() returns early at its isEmpty guard — no
+        // targetChanged is emitted and m_target is never updated.  Fall
+        // through to setTarget() so the raw input is stored and validated.
+        if (!m_host.isEmpty()) {
+            assembleTargetUrl(); // sets m_assembling → syncFieldsFromTarget is skipped
+        } else {
+            setTarget(trimmed);
+        }
     }
 }
