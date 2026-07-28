@@ -269,7 +269,7 @@ Item {
                             font.pixelSize: 11; color: ThemeEngine.warnYellow
                             Layout.topMargin: restoreToast.visible ? 8 : 0
                         }
-                        Timer { id: restoreToastTimer; interval: 3000 }
+                        Timer { id: restoreToastTimer; interval: 3500 }
                     }
                 }
                 Item { Layout.preferredHeight: 32 }
@@ -294,13 +294,13 @@ Item {
                     font.pixelSize: 11; color: ThemeEngine.cyan
                 }
             }
-            Timer { id: captureToastTimer; interval: 3000 }
+            Timer { id: captureToastTimer; interval: 3500 }
 
             // 5WHY: Language switch was previously silent — users got no
             // confirmation after selecting a language.  This toast shows
             // the selected language name for 3 seconds after switching.
             property string languageToastText: ""
-            Timer { id: languageToastTimer; interval: 3000 }
+            Timer { id: languageToastTimer; interval: 3500 }
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 Layout.topMargin: languageToastTimer.running ? 4 : 0
