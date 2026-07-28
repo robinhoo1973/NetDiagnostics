@@ -56,11 +56,11 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     // reached target. This is a kernel limitation, not a code bug.
     int icmpSock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (icmpSock < 0) s_rawIcmpAvailable = false;
-    if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { close(icmpSock); icmpSock = -1; s_rawIcmpAvailable = false; }
+    if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { closeSocket(icmpSock); icmpSock = -1; s_rawIcmpAvailable = false; }
     if (icmpSock >= 0) {
         // 鈹€鈹€ Raw ICMP method (traceroute -I) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
         quint32 targetIp = resolveIPv4(host);
-        if (!targetIp) { close(icmpSock); rttMs = 0; hopIp.clear(); return -2; }
+        if (!targetIp) { closeSocket(icmpSock); rttMs = 0; hopIp.clear(); return -2; }
 
         struct sockaddr_in addr;
         memset(&addr, 0, sizeof(addr));
@@ -87,7 +87,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
         QElapsedTimer tm; tm.start();
         ssize_t nsent = ::sendto(icmpSock, packet, sizeof(packet), 0, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-        if (nsent < 0) { close(icmpSock); rttMs=0; hopIp.clear(); return -2; }
+        if (nsent < 0) { closeSocket(icmpSock); rttMs=0; hopIp.clear(); return -2; }
 
         // Wait for reply (up to 2 s)
         unsigned char recvBuf[1024];
@@ -114,7 +114,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
                 // Echo Reply 鈥?reached target
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
-                close(icmpSock);
+                closeSocket(icmpSock);
                 return 0;
             } else if (icmpType == 11 && icmpCode == 0) {
                 // Time Exceeded 鈥?intermediate router
@@ -122,19 +122,19 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
                 // from which we extract the router's IP from the `from` address.
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
-                close(icmpSock);
+                closeSocket(icmpSock);
                 return 1;
             } else if (icmpType == 3) {
                 // Destination Unreachable 鈥?terminal, no further hops
                 // Code 3 = Port Unreachable (reached target)
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
-                close(icmpSock);
+                closeSocket(icmpSock);
                 return (icmpCode == 3) ? 0 : -1;
             }
             // Other ICMP: ignore, try again
         }
-        close(icmpSock);
+        closeSocket(icmpSock);
         rttMs = 0; hopIp.clear();
         return -1; // Timeout
     }
@@ -255,7 +255,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 
     QElapsedTimer tm; tm.start();
     if (::sendto(icmpSock, packet, sizeof(packet), 0, reinterpret_cast<struct sockaddr*>(&dst), sizeof(dst)) < 0) {
-        close(icmpSock); rttMs=0; hopIp.clear(); return -2;
+        closeSocket(icmpSock); rttMs=0; hopIp.clear(); return -2;
     }
 
     // Listen for the matching ICMP response from either the target or a router.
@@ -279,10 +279,10 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         struct in_addr tgt; tgt.s_addr = htonl(targetIp);
         const bool fromTarget = (srcIp == ip4ToStr(tgt));
         if(type==0){ // Echo Reply 鈥?only the destination answers Echo 鈫?reached
-            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 0;
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); closeSocket(icmpSock); return 0;
         }
         if(type==11){ // Time Exceeded 鈥?an intermediate router on the path
-            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock); return 1;
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); closeSocket(icmpSock); return 1;
         }
         if(type==3){ // Destination Unreachable. Only the TARGET saying "unreachable"
                      // (port/proto closed) counts as reached; a middle router/firewall
@@ -290,11 +290,11 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
                      // blocks the path. Treating every type-3 as "reached" stopped the
                      // trace at the first filtering router and mislabelled it as the
                      // destination (the "only first + last hop" symptom).
-            hopIp=srcIp; rttMs=(int)tm.elapsed(); close(icmpSock);
+            hopIp=srcIp; rttMs=(int)tm.elapsed(); closeSocket(icmpSock);
             return fromTarget ? 0 : 2;
         }
     }
-    close(icmpSock); rttMs=0; hopIp.clear(); return -1;
+    closeSocket(icmpSock); rttMs=0; hopIp.clear(); return -1;
 }
 #endif
 #endif  // close converted #elif
