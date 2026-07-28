@@ -17,13 +17,15 @@ Rectangle {
     color: dbtn.filled ? dbtn.accent : "transparent"
     border { width: 1; color: dbtn.filled ? "transparent" : Qt.alpha(dbtn.accent, 0.5) }
 
+    // 5WHY: ElideRight only engages when the Label has a constrained width.
+    // anchors.centerIn lets the Label grow to its full implicitWidth — elide
+    // never triggers.  Use left+right anchors instead to constrain to the
+    // parent Rectangle, with horizontalAlignment to keep text centered.
     Label {
-        anchors.centerIn: parent
+        anchors { left: parent.left; right: parent.right; leftMargin: 8; rightMargin: 8; verticalCenter: parent.verticalCenter }
         text: dbtn.label
-        // 5WHY: On narrow iOS screens (iPhone SE, 375pt), translated
-        // labels like 'Premium freischalten' overflow the button width
-        // without elide.  ElideRight gracefully truncates with ellipsis.
         elide: Text.ElideRight
+        horizontalAlignment: Text.AlignHCenter
         color: dbtn.filled ? T.ThemeEngine.colors.surface : dbtn.accent
         font.family: T.ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
     }

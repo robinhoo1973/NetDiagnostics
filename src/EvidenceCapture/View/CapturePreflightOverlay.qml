@@ -7,8 +7,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../theme" as T
-import "../widgets"
+import "qrc:/qml/theme" as T
+import "qrc:/qml/widgets"
 
 Rectangle {
     id: root

@@ -32,7 +32,11 @@ Rectangle {
         // title text and buttons, or near-misses) propagate to the backdrop
         // MouseArea and dismiss the dialog.  Absorb clicks so only explicit
         // button presses or backdrop taps trigger actions.
-        MouseArea { anchors.fill: parent }
+        // 5WHY: QML MouseArea only consumes mouse/touch events when it has
+        // at least one signal handler connected.  Without a handler, it is
+        // click-transparent — events propagate to the backdrop MouseArea
+        // and dismiss the dialog on accidental card taps.
+        MouseArea { anchors.fill: parent; onClicked: {} }
         ColumnLayout {
             id: dlgCol
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }

@@ -75,8 +75,13 @@ Item {
     // with the overlay color.  Auto-detect by naming convention so the icons
     // render with their designer-intended palette without any code change at
     // the 40+ call sites.
+    // 5WHY: badge-circle.svg has NO native colored fill — it renders as
+    // a white stroke circle.  Hiding the overlay makes it pure white,
+    // silently ignoring the caller's explicit color.  Exclude it so the
+    // overlay still tints it.  The other 7 badge icons DO have native
+    // circle fills (#4ADE80, #A5B4FC, #FBBF24, etc.).
     readonly property bool _nativeColored: name.indexOf("badge-") === 0
-        || name.indexOf("app-icon") === 0
+        && name !== "badge-circle"
 
     // Universal colorization fallback — semi-transparent color overlay.
     // Works without QtQuick.Effects (MultiEffect/ColorOverlay), making it
