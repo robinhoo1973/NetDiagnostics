@@ -242,8 +242,14 @@ void TargetModel::applyBareHost(const QString& trimmed) {
 // Shared by syncFieldsFromTarget and parseUrlIntoFields to avoid duplicate
 // 6-field reset blocks that drift apart when new fields are added.
 void TargetModel::clearFieldsToDefault() {
+    // 5WHY (round 8): m_error was not cleared here, relying on callers to
+    // do it (setTarget clears it before calling syncFieldsFromTarget, and
+    // parseUrlIntoFields clears it after).  If a new code path ever calls
+    // clearFieldsToDefault() without a separate m_error.clear(), a stale
+    // validation error would survive the reset.  Make the function self-sufficient.
     m_scheme = QStringLiteral("https"); m_host.clear(); m_port = -1;
     m_username.clear(); m_password.clear(); m_path.clear();
+    m_error.clear();
 }
 
 // ── Parse m_target → structured fields ─────────────────────────────────
@@ -381,7 +387,12 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
             // empty host — assembleTargetUrl would return early without
             // emitting targetChanged.  Emit directly so QML bindings know
             // the structured fields changed.
+            // 5WHY (round 8): m_error.clear() was missing here — if a
+            // previous URL had a validation error, it persisted in the UI
+            // alongside the new path-only text.  Match the empty-input path
+            // at line 362 which correctly clears both m_target and m_error.
             m_target.clear();
+            m_error.clear();
             emit targetChanged();
         }
         return;
