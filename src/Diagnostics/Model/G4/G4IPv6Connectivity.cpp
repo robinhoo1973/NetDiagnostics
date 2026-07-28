@@ -7,7 +7,6 @@
 // DnsResolver::resolve6() and NetUtil::tcpConnect6() helpers.
 // =============================================================================
 #include "Diagnostics/Model/G4/G4Common.h"
-#include "Common/Utils/NetUtil.h"
 
 DiagnosticResult ipv6Connectivity(const QString& target) {
     DiagnosticResult r;
