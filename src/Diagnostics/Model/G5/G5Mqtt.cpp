@@ -7,12 +7,12 @@ DiagnosticResult mqttDiagnostics(const QString& target) {
     if (scheme != "mqtt" && scheme != "mqtts")
         return skipped(DiagId::G5Mqtt, "Not MQTT(S)");
     int port = portForUrl(u);
-    QElapsedTimer t; t.start();
-    QTcpSocket sock;
-    sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return result(DiagId::G5Mqtt, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
+        auto probe = NetworkProbe::tcpProbe(u.host(), port, 5000, 3000);
+
+
+    if (!probe.connected)
+        return result(DiagId::Mqtt, "Connection failed", DiagStatus::Fail,
+                      {}, probe.elapsedMs);
     // MQTT 3.1.1 CONNECT packet:
     // Fixed header: 0x10 [remaining length]
     // Protocol name: "MQTT" (4 bytes) + protocol level 4
@@ -30,9 +30,8 @@ DiagnosticResult mqttDiagnostics(const QString& target) {
     connect.append('\x00'); connect.append('\x00'); // client ID length = 0
     sock.write(connect);
     sock.waitForBytesWritten(2000);
-    sock.waitForReadyRead(3000);
     QByteArray resp = sock.readAll();
-    sock.disconnectFromHost();
+
     if (resp.size() < 2)
         return result(DiagId::G5Mqtt, "No CONNACK", DiagStatus::Warning,
                       {}, t.elapsed());

@@ -6,12 +6,12 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
     if (u.scheme() != "postgresql")
         return skipped(DiagId::G5Postgres, "Not PostgreSQL");
     int port = portForUrl(u);
-    QElapsedTimer t; t.start();
-    QTcpSocket sock;
-    sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return result(DiagId::G5Postgres, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
+        auto probe = NetworkProbe::tcpProbe(u.host(), port, 5000, 3000);
+
+
+    if (!probe.connected)
+        return result(DiagId::Postgres, "Connection failed", DiagStatus::Fail,
+                      {}, probe.elapsedMs);
     // Send a minimal StartupMessage (protocol 3.0, user "diagnostic", no DB)
     // Format: [4-byte length][4-byte protocol 3.0]
     // + [string "user\0diagnostic\0\0"] (terminator byte)
@@ -40,9 +40,8 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
     packet.append(startup);
     sock.write(packet);
     sock.waitForBytesWritten(2000);
-    sock.waitForReadyRead(3000);
     QByteArray resp = sock.readAll();
-    sock.disconnectFromHost();
+
     if (resp.isEmpty())
         return result(DiagId::G5Postgres, "No response", DiagStatus::Warning,
                       {}, t.elapsed());

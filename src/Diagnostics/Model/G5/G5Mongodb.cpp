@@ -6,12 +6,12 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     if (u.scheme() != "mongodb")
         return skipped(DiagId::G5Mongodb, "Not MongoDB");
     int port = portForUrl(u);
-    QElapsedTimer t; t.start();
-    QTcpSocket sock;
-    sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return result(DiagId::G5Mongodb, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
+        auto probe = NetworkProbe::tcpProbe(u.host(), port, 5000, 3000);
+
+
+    if (!probe.connected)
+        return result(DiagId::Mongodb, "Connection failed", DiagStatus::Fail,
+                      {}, probe.elapsedMs);
     // MongoDB wire protocol: send isMaster command
     // Simple OP_QUERY: { isMaster: 1 } on admin.$cmd
     QByteArray msg;
@@ -45,9 +45,8 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     header.append('\x07', 3);
     sock.write(header + msg + bson);
     sock.waitForBytesWritten(2000);
-    sock.waitForReadyRead(3000);
     QByteArray resp = sock.readAll();
-    sock.disconnectFromHost();
+
     if (resp.size() < 36) // MongoDB header is 16 bytes + doc
         return result(DiagId::G5Mongodb, "No response", DiagStatus::Warning,
                       {}, t.elapsed());
