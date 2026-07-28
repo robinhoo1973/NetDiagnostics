@@ -59,63 +59,11 @@ QtObject {
         textOnAccent:     "#0F172A"
     })
 
-    // ═══════════════════════════════════════════════════════════════════
-    // LEGACY DIRECT PROPERTIES — @deprecated since Cycle 16
-    //
-    // 5WHY: These direct QML properties exist alongside the canonical
-    // `colors` JS object.  They were the original access pattern before
-    // the property-count limit forced consolidation into `colors`.
-    // Each is now a read-only alias that delegates to colors.xxx.
-    //
-    // USE ThemeEngine.colors.xxx INSTEAD.
-    // ═══════════════════════════════════════════════════════════════════
-
-    // @deprecated — use ThemeEngine.colors.surface
-    readonly property string bgDark:          colors.surface
-    // @deprecated — use ThemeEngine.colors.sidebar
-    readonly property string bgSidebar:       colors.sidebar
-    // @deprecated — use ThemeEngine.colors.card
-    readonly property string bgCard:          colors.card
-    // @deprecated — use ThemeEngine.colors.input
-    readonly property string bgInput:         colors.input
-    // @deprecated — use ThemeEngine.colors.navBar
-    readonly property string navBar:          colors.navBar
-    // @deprecated — use ThemeEngine.colors.textPrimary
-    readonly property string textPrimary:     colors.textPrimary
-    // @deprecated — use ThemeEngine.colors.textSecondary
-    readonly property string textSecondary:   colors.textSecondary
-    // @deprecated — use ThemeEngine.colors.textMuted
-    readonly property string textMuted:       colors.textMuted
-    // @deprecated — use ThemeEngine.colors.accent
-    readonly property string accent:          colors.accent
-    // @deprecated — use ThemeEngine.colors.secondary
-    readonly property string accentBlue:      colors.secondary
-    // @deprecated — use ThemeEngine.colors.cyan
-    readonly property string cyan:            colors.cyan
-    // @deprecated — use ThemeEngine.colors.passGreen
-    readonly property string passGreen:       colors.passGreen
-    // @deprecated — use ThemeEngine.colors.warnYellow
-    readonly property string warnYellow:      colors.warnYellow
-    // @deprecated — use ThemeEngine.colors.failRed
-    readonly property string failRed:         colors.failRed
-    // @deprecated — use ThemeEngine.colors.skipGray
-    readonly property string skipGray:        colors.skipGray
-    // @deprecated — use ThemeEngine.colors.infoBlue
-    readonly property string infoBlue:        colors.infoBlue
-    // @deprecated — use ThemeEngine.colors.borderCard
-    readonly property string borderCard:      colors.borderCard
-    // @deprecated — use ThemeEngine.colors.borderSubtle
-    readonly property string borderSubtle:    colors.borderSubtle
-    // @deprecated — use ThemeEngine.colors.borderFocused
-    readonly property string borderFocused:   colors.borderFocused
-    // @deprecated — use ThemeEngine.colors.primary
-    readonly property string primary:         colors.primary
-    // @deprecated — use ThemeEngine.colors.primaryContainer
-    readonly property string primaryContainer: colors.primaryContainer
-    // @deprecated — use ThemeEngine.colors.secondary
-    readonly property string secondary:       colors.secondary
-    // @deprecated — use ThemeEngine.colors.textOnAccent
-    readonly property string textOnAccent:    colors.textOnAccent
+    // 5WHY: All 23 deprecated readonly alias properties were removed in
+    // Cycle 28.  Every consumer (607 references) now uses the canonical
+    // ThemeEngine.colors.xxx pattern.  Removing these reduces the QML
+    // property count from ~85 to ~62 — safer against the ~97-property
+    // crash threshold in static/cross-compiled builds.
 
     // ── Theme switching (imperative JS — gated to skip init) ──────────
     property bool _ready: false

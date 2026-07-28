@@ -945,7 +945,6 @@ void AppState::loadSettings() {
     }
 
     s.endGroup();
-    s.sync();
 }
 
 void AppState::saveSettings() {
@@ -957,6 +956,5 @@ void AppState::saveSettings() {
     s.setValue("activeGroups", ag);
 
     s.endGroup();
-    s.sync();
 }
 

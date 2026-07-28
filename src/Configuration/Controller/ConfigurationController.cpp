@@ -49,7 +49,6 @@ void ConfigurationController::loadSettings() {
         }
     }
     s.endGroup();
-    s.sync();
 }
 
 void ConfigurationController::saveSettings() {
@@ -60,5 +59,4 @@ void ConfigurationController::saveSettings() {
         enabledStrs.append(QString::number(static_cast<int>(id)));
     s.setValue("enabledDiags", enabledStrs);
     s.endGroup();
-    s.sync();
 }

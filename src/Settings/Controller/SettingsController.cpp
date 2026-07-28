@@ -140,7 +140,6 @@ void SettingsController::loadSettings() {
         emit themeChanged();
     }
     s.endGroup();
-    s.sync();
 }
 
 void SettingsController::saveSettings() {
@@ -149,6 +148,5 @@ void SettingsController::saveSettings() {
     s.setValue("language", m_languageIndex);
     s.setValue("themeMode", m_themeMode);
     s.endGroup();
-    s.sync();
 }
 
