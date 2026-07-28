@@ -28,7 +28,7 @@ DiagnosticResult mysqlDiagnostics(const QString& target) {
         version.isEmpty() ? "MySQL (version unknown)" : QString("MySQL %1").arg(version),
         version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass,
         QString::fromUtf8(data.toHex(' ')), t.elapsed());
+}
 
 // ── PostgreSQL (port 5432) — read StartupMessage response ─────────────
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

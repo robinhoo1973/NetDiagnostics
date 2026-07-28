@@ -59,7 +59,7 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
         QString("PostgreSQL: %1").arg(info),
         (type == 'R') ? DiagStatus::Pass : DiagStatus::Warning,
         QString::fromUtf8(resp.toHex(' ')), t.elapsed());
+}
 
 // ── Redis (port 6379) — PING/PONG ─────────────────────────────────────
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

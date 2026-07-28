@@ -75,33 +75,4 @@ DiagnosticResult ping(const QString& target) {
     return r;
 }
 
-// ── TCP Traceroute Hop Probe ──────────────────────────────────────────────
-// Returns:  0 = reached target,  1 = intermediate hop,  -1 = timeout,  -2 = error
-//
-// Linux: uses IP_RECVERR + MSG_ERRQUEUE to capture ICMP Time Exceeded from
-// intermediate routers — same technique as tracepath / traceroute -T, no root.
-// Windows: uses IcmpSendEcho API (no admin required).
-#if defined(_WIN32)
-#else
-#if defined(__linux__)
-#else
-// macOS/iOS/BSD: ICMP Echo TTL probing via a datagram ICMP socket (no root).
-// SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root privileges
-// and WITHOUT any special entitlement — it is the same mechanism Apple's
-// SimplePing sample code uses. We send ICMP Echo Requests with an increasing
-// IP_TTL on THIS socket and read the resulting ICMP Time Exceeded (type 11),
-// Echo Reply (type 0) or Destination Unreachable (type 3) on the SAME socket.
-// The kernel correlates the returning error to our echo request by identifier,
-// so a raw socket (which iOS forbids) is never required.
-//
-// IMPORTANT: a previous implementation sent UDP probes on a separate socket and
-// listened on the ICMP socket. On Darwin a datagram ICMP socket does NOT receive
-// ICMP errors triggered by unrelated UDP datagrams, so every hop timed out and
-// traceroute produced an all-"*" result. Sending ICMP Echo on the ICMP socket
-// itself is the reliable, permission-safe approach on iOS/macOS.
-// (icmpEchoChecksum() is defined once, above, near ping().)
-#endif
-#endif
-
-// ── Traceroute (TCP TTL probing, cross-platform) — Windows tracert format ───
-}
+} // namespace G4RemoteHost

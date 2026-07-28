@@ -46,7 +46,7 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
                     : QString::fromUtf8(resp).left(200),
         hasBindResp ? DiagStatus::Pass : DiagStatus::Warning,
         QString::fromUtf8(resp.toHex(' ')), t.elapsed());
+}
 
 // ── MQTT (port 1883) / MQTTS (port 8883) — CONNECT/CONNACK ───────────
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

@@ -65,7 +65,7 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
         version.isEmpty() ? "MongoDB (responded)" : QString("MongoDB %1").arg(version).left(200),
         DiagStatus::Pass,
         raw.left(500), t.elapsed());
+}
 
 // ── LDAP (port 389) / LDAPS (port 636) — bind request ─────────────────
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl

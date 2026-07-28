@@ -23,7 +23,7 @@ DiagnosticResult redisDiagnostics(const QString& target) {
         pong ? "Redis: PONG" : (resp.isEmpty() ? "No response" : QString::fromUtf8(resp).trimmed().left(200)),
         pong ? DiagStatus::Pass : DiagStatus::Warning,
         resp.isEmpty() ? QString() : QString::fromUtf8(resp), t.elapsed());
+}
 
 // ── MongoDB (port 27017) — isMaster handshake ─────────────────────────
-} // namespace G5WebsiteUrl
 } // namespace G5WebsiteUrl
