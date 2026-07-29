@@ -128,10 +128,10 @@ QStringList TargetModel::supportedSchemes() const { return ::supportedSchemes();
 int TargetModel::defaultPort() const { return G5WebsiteUrl::defaultPortForScheme(m_scheme); }
 
 bool TargetModel::isHttpUrl() const {
-    const QString t = m_target; // pre-trimmed in setTarget()
-    if (!t.contains("://")) return false;
-    const QString sch = t.section("://", 0, 0).toLower();
-    return (sch == "http" || sch == "https");  // !isEmpty() redundant: empty target returns at line 128
+    // m_target is pre-trimmed in setTarget() — no copy needed
+    if (!m_target.contains("://")) return false;
+    const QString sch = m_target.section("://", 0, 0).toLower();
+    return (sch == "http" || sch == "https");  // !isEmpty() redundant: empty target returns above
 }
 
 // ── Structured field setters ────────────────────────────────────────────
@@ -223,7 +223,7 @@ void TargetModel::assembleTargetUrl() {
         authority += QLatin1Char('@');
     }
     authority += m_host;
-    if (m_port >= 0 && m_port != defPort)
+    if (m_port > 0 && m_port != defPort)
         authority += QLatin1Char(':') + QString::number(m_port);
 
     const QString url = sch + QStringLiteral("://") + authority + m_path;
@@ -321,7 +321,7 @@ void TargetModel::parseAuthorityFields(const QString& trimmed) {
             if (closing > 0 && closing + 1 < hostPort.size() && hostPort[closing + 1] == ':') {
                 bool ok = false;
                 int p = hostPort.mid(closing + 2).toInt(&ok);
-                if (ok && p >= 0 && p <= 65535) m_port = p;
+                if (ok && p > 0 && p <= 65535) m_port = p;
             }
         // 5WHY: !looksLikeIPv6(hostPort) was always false because
         // looksLikeIPv6 is host.contains(':').  The expression reduced
@@ -333,7 +333,7 @@ void TargetModel::parseAuthorityFields(const QString& trimmed) {
             // string looks like a bare IPv6 address.
             bool ok = false;
             int p = hostPort.section(':', -1).toInt(&ok);
-            if (ok && p >= 0 && p <= 65535) m_port = p;
+            if (ok && p > 0 && p <= 65535) m_port = p;
         }
     }
 }
@@ -375,7 +375,7 @@ void TargetModel::syncFieldsFromTarget() {
         // validateUrl() in setTarget() would correctly flag the error.
         m_scheme = ::supportedSchemes().contains(sch) ? sch : QStringLiteral("https");
         m_host = u.host();
-        m_port = u.port() >= 0 ? u.port() : -1;
+        m_port = u.port() > 0 ? u.port() : -1;
         m_username = u.userName();
         m_password = u.password();
 
@@ -419,6 +419,23 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // produces bare host+path text, and we must preserve the scheme/port
         // that the user originally specified via a full URL paste.
         applyBareHost(trimmed);
+        // 5WHY (fix): When the bare input contains an embedded port
+        // (e.g. "host:9090"), applyBareHost stores the port as part of
+        // m_host.  If m_port is preserved from a previous URL, the old
+        // port is appended again in assembleTargetUrl(), producing a
+        // double-port URL like "http://host:9090:8080".  Detect and
+        // extract the embedded port, updating m_port and stripping the
+        // port suffix from m_host so assembleTargetUrl() produces the
+        // correct single-port URL.
+        int portSep = m_host.lastIndexOf(QLatin1Char(':'));
+        if (portSep > 0 && m_host.count(QLatin1Char(':')) == 1) {
+            bool ok = false;
+            int p = m_host.mid(portSep + 1).toInt(&ok);
+            if (ok && p > 0 && p <= 65535) {
+                m_port = p;
+                m_host = m_host.left(portSep);
+            }
+        }
         if (!m_host.isEmpty()) {
             assembleTargetUrl(); // setTarget() emits targetChanged
         } else {
@@ -440,7 +457,7 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         const QString sch = u.scheme().toLower();
         m_scheme = ::supportedSchemes().contains(sch) ? sch : QStringLiteral("https");
         m_host = u.host();
-        m_port = u.port() >= 0 ? u.port() : -1;
+        m_port = u.port() > 0 ? u.port() : -1;
         m_username = u.userName();
         m_password = u.password();
 
