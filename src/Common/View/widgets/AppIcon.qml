@@ -109,6 +109,15 @@ Item {
             // Badge icon with designer palette, or no icon loaded —
             // skip ALL colorization and release the FBO if active.
             root._useOverlay = false
+            // 5WHY: The old static binding `color: _nativeColored ? "transparent" : root.color`
+            // reset Image.color to transparent when a badge icon was detected, restoring
+            // native SVG fills.  The dynamic approach only disables the overlay but does NOT
+            // clear iconImg.color — so transitioning from a colorized icon ("spinner" with
+            // white tint) to a badge icon ("badge-check") leaves Image.color at the previous
+            // value, destroying the badge's designer-intended palette.
+            // Reset to transparent so native SVG fills render.  On iOS static builds where
+            // Image.color doesn't exist, the assignment is a silent no-op.
+            iconImg.color = "transparent"
             return
         }
         // Attempt native Image.color assignment
@@ -116,7 +125,13 @@ Item {
         // If Image.color doesn't exist on this platform, the assignment
         // above is a silent no-op and reading it back yields a different
         // value (undefined or default transparent) → enable overlay.
-        root._useOverlay = (iconImg.color != root.color)
+        // 5WHY: QML's != operator on color type may not compare RGBA values
+        // correctly — Qt documentation says "the == and != operators should
+        // not be used directly. Use Qt.colorEqual() instead."  On iOS,
+        // iconImg.color reads as undefined (property does not exist), and
+        // Qt.colorEqual(undefined, root.color) reliably returns false,
+        // correctly enabling the overlay.
+        root._useOverlay = !Qt.colorEqual(iconImg.color, root.color)
     }
 
     Component.onCompleted: {

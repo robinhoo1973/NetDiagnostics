@@ -371,10 +371,68 @@ void TargetModel::syncFieldsFromTarget() {
         // 5WHY (round 5): applyBareHost no longer resets scheme/port/creds.
         // syncFieldsFromTarget processes fresh input from setTarget(), so
         // apply the defaults here: scheme=https, port=-1, no credentials.
+        // 5WHY (fix): When setTarget receives bare input like "[::1]:8080"
+        // or "host:9090", applyBareHost stores the port as part of m_host.
+        // Setting m_port=-1 without extracting the embedded port leaves
+        // m_host with the port suffix while the structured port field is
+        // reset — the QML host field shows "[::1]:8080" instead of "::1",
+        // and assembleTargetUrl would later append a second port separator.
+        // Extract embedded port and userinfo from m_host (same logic as
+        // the parseUrlIntoFields bare-input path) before finalizing.
         m_scheme = QStringLiteral("https");
         m_port = -1;
         m_username.clear();
         m_password.clear();
+
+        // Extract embedded port from m_host (bracket-aware, userinfo-stripped)
+        {
+            QString hostPart = m_host;
+            int atPos = hostPart.lastIndexOf(QLatin1Char('@'));
+            if (atPos >= 0) hostPart = hostPart.mid(atPos + 1);
+
+            if (hostPart.startsWith(QLatin1Char('['))) {
+                int closing = hostPart.indexOf(QLatin1Char(']'));
+                if (closing > 0 && closing + 1 < hostPart.size()
+                    && hostPart[closing + 1] == QLatin1Char(':')) {
+                    bool ok = false;
+                    int p = hostPart.mid(closing + 2).toInt(&ok);
+                    if (ok && p > 0 && p <= 65535) {
+                        m_port = p;
+                        int bracketPos = atPos >= 0 ? atPos + 1 : 0;
+                        m_host = m_host.left(bracketPos + closing + 1);
+                    }
+                }
+            } else if (hostPart.count(QLatin1Char(':')) == 1) {
+                int portSep = hostPart.lastIndexOf(QLatin1Char(':'));
+                if (portSep > 0) {
+                    bool ok = false;
+                    int p = hostPart.mid(portSep + 1).toInt(&ok);
+                    if (ok && p > 0 && p <= 65535) {
+                        m_port = p;
+                        int portInHost = m_host.lastIndexOf(QLatin1Char(':'));
+                        if (portInHost > 0) m_host = m_host.left(portInHost);
+                    }
+                }
+            }
+        }
+        // Extract userinfo from m_host (may have been left behind by
+        // applyBareHost in bare input like "user:pass@host:9090")
+        {
+            int atPos = m_host.lastIndexOf(QLatin1Char('@'));
+            if (atPos >= 0) {
+                const QString userinfo = m_host.left(atPos);
+                const int colonPos = userinfo.indexOf(QLatin1Char(':'));
+                if (colonPos >= 0) {
+                    m_username = userinfo.left(colonPos);
+                    m_password = userinfo.mid(colonPos + 1);
+                } else {
+                    m_username = userinfo;
+                    // No colon in userinfo — m_password stays cleared
+                    // (fresh input from setTarget, no prior password to preserve)
+                }
+                m_host = m_host.mid(atPos + 1);
+            }
+        }
         return;
     }
 
@@ -502,9 +560,12 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
                     m_password = userinfo.mid(colonPos + 1);
                 } else {
                     m_username = userinfo;
-                    // m_password intentionally preserved — matches
-                    // parseAuthorityFields behaviour when userinfo
-                    // has no colon (username-only).
+                    // 5WHY: The comment previously claimed "intentionally preserved
+                    // matches parseAuthorityFields" but parseAuthorityFields guards
+                    // with m_username.isEmpty() — QUrl already cleared m_password
+                    // before that block runs.  Here, no QUrl has run, so a stale
+                    // password from a previous URL would silently leak.
+                    m_password.clear();
                 }
                 m_host = m_host.mid(atPos + 1);
             }
