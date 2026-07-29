@@ -1,0 +1,50 @@
+[
+  {
+    "file": "src/app/TargetModel.cpp",
+    "line": 181,
+    "summary": "setTarget() hostname validation (lines 181-199) reimplements extractHostname() from G4Common.h inline. The diff's own comment at line 178-180 acknowledges this equivalence but reimplements userinfo stripping, bracket-port stripping, and host:port stripping instead of calling the existing utility.",
+    "failure_scenario": "Call extractHostname(m_host) from G4Common.h instead of the 18-line inline block. Requires adding '#include \"Diagnostics/Model/G4/G4Common.h\"' to TargetModel.cpp. If extractHostname() is later enhanced (e.g., IDN, percent-encoded brackets), the inline copy falls out of sync and validation diverges from what the diagnostic engine resolves."
+  },
+  {
+    "file": "src/app/TargetModel.cpp",
+    "line": 369,
+    "summary": "extractEmbeddedPortAndUserinfo() bracket-port extraction (lines 369-380) structurally duplicates parseAuthorityFields() bracket-port extraction (lines 334-340). Both use the same startsWith('[') → indexOf(']') → check ':' after → toInt pattern. This diff consolidated two copies into extractEmbeddedPortAndUserinfo(), but the result is still a near-clone of parseAuthorityFields().",
+    "failure_scenario": "Extract a private static helper (e.g. static int tryParsePortFromHost(const QString&, int& outPort)) used by both methods. Without consolidation, a fix to one (e.g. handling port 0 as valid) must be manually propagated to the other."
+  },
+  {
+    "file": "src/app/TargetModel.cpp",
+    "line": 397,
+    "summary": "extractEmbeddedPortAndUserinfo() userinfo extraction (lines 396-415) is near-identical to parseAuthorityFields() userinfo extraction (lines 312-323). Both find '@', split on ':' into username/password, and both now have the m_password.clear() defense-in-depth. Key difference: one uses indexOf(':')+left/mid, the other uses contains(':')+section; and the new block also strips userinfo from m_host.",
+    "failure_scenario": "Share a private method (e.g. parseUserinfo(const QString&, QString& username, QString& password, bool clearPassword)) used by both. The inconsistent String API choice (indexOf vs section) makes it harder to reason about equivalence during code review."
+  },
+  {
+    "file": "src/app/TargetModel.cpp",
+    "line": 381,
+    "summary": "extractEmbeddedPortAndUserinfo() bare host:port parsing (lines 381-391) structurally duplicates parseAuthorityFields() bare host:port parsing (lines 345-352). Both guard on count(':')==1, extract port via toInt(), and validate range 1-65535. The diff consolidated the two call-site copies into this helper, but the same logic still exists independently in parseAuthorityFields().",
+    "failure_scenario": "Combine with the bracket-port extraction into a single shared helper. Port validation constants (1, 65535) are hardcoded in both blocks; if the port range changes, one copy will be missed."
+  },
+  {
+    "file": "src/Diagnostics/Model/G4/G4Common.h",
+    "line": 165,
+    "summary": "The diff upgraded extractHostname() bare host:port parsing (lines 129-133) from count(':')==1 to an efficient double-indexOf early-exit pattern. extractProbePort() at line 165 still uses the old count(':')==1 + section() approach, creating inconsistent host:port parsing between the two sibling utilities in the same file.",
+    "failure_scenario": "Apply the same double-indexOf optimization to extractProbePort() line 165, replacing the count+section combo. The current count(':')==1 approach also still fails for bare IPv6 bracket notation passed to extractProbePort() — the same bug that was just fixed in extractHostname()."
+  },
+  {
+    "file": "src/Diagnostics/Model/G4/G4Common.h",
+    "line": 119,
+    "summary": "extractHostname() contains two nearly identical bracket-parsing blocks: one for the URL-path branch (lines 98-101) and one for the bare-path branch (lines 119-127, added in this diff). Both use startsWith('[') → indexOf(']') → extract content, but the bare-path version adds explicit port-stripping while the URL-path version implicitly discards the port via the mid() range.",
+    "failure_scenario": "Extract a small inline lambda or static helper for bracket hostname extraction within extractHostname(). The two branches have the same semantics but different implementation shapes, making it easy to fix one and forget the other."
+  },
+  {
+    "file": "src/Diagnostics/Model/G4/G4Common.h",
+    "line": 159,
+    "summary": "extractProbePort() bracket parsing (lines 159-164) is structurally identical to extractHostname() bracket parsing (lines 119-127) — both check startsWith('['), find ']', check for ':' after closing bracket, extract port number. Same function, same file, three separate implementations (two in extractHostname, one in extractProbePort).",
+    "failure_scenario": "Call a shared inline helper for bracket-port detection from both functions. Currently, a parsing edge case fixed in one (e.g., IPv6 zone IDs like '[fe80::1%eth0]:8080') would silently persist in the other two copies."
+  },
+  {
+    "file": "src/app/TargetModel.cpp",
+    "line": 87,
+    "summary": "validateUrl() bracket-port parsing (lines 87-94, pre-existing) adds a 6th copy of the bracket-port pattern (startsWith('[') → indexOf(']') → check ':' after) across the codebase. The diff consolidated two copies in syncFieldsFromTarget/parseUrlIntoFields via extractEmbeddedPortAndUserinfo(), but validateUrl() and parseAuthorityFields() retain their own independent implementations.",
+    "failure_scenario": "The codebase now has 5+ implementations of the same bracket-port parsing logic (validateUrl, parseAuthorityFields, extractEmbeddedPortAndUserinfo, extractHostname x2, extractProbePort). A single shared utility in a common header would eliminate all divergence risk."
+  }
+]

@@ -189,13 +189,22 @@ void TargetModel::setTarget(const QString& t) {
                 // to bare host:port for non-bracket hosts.
                 if (hostCheck.startsWith(QLatin1Char('['))) {
                     int closing = hostCheck.indexOf(QLatin1Char(']'));
-                    if (closing > 0 && closing + 1 < hostCheck.size()
-                        && hostCheck[closing + 1] == QLatin1Char(':')) {
-                        hostCheck = hostCheck.left(closing + 1);
+                    if (closing > 0) {
+                        if (closing + 1 < hostCheck.size()
+                            && hostCheck[closing + 1] == QLatin1Char(':')) {
+                            hostCheck = hostCheck.left(closing + 1);
+                        }
+                        // Strip brackets to align with extractHostname:
+                        // "[::1]" → "::1"
+                        hostCheck = hostCheck.mid(1, closing - 1);
                     }
-                } else if (hostCheck.count(':') == 1) {
-                    int colPos = hostCheck.lastIndexOf(':');
-                    hostCheck = hostCheck.left(colPos);
+                } else {
+                    // Single-colon = host:port.  Use dual-indexOf for
+                    // early exit (~1.5x scan) instead of count+lastIndexOf
+                    // (two full scans) — consistent with extractHostname.
+                    auto colon = hostCheck.indexOf(QLatin1Char(':'));
+                    if (colon > 0 && hostCheck.indexOf(QLatin1Char(':'), colon + 1) == -1)
+                        hostCheck = hostCheck.left(colon);
                 }
                 if (!isValidHostname(hostCheck)) {
                     m_error = m_host.contains("..")
@@ -375,12 +384,21 @@ void TargetModel::extractEmbeddedPortAndUserinfo() {
                 if (ok && p > 0 && p <= 65535) {
                     m_port = p;
                     int bracketPos = atPos >= 0 ? atPos + 1 : 0;
+                    // 5WHY: Keeps bracket notation in m_host (e.g. "[::1]"
+                    // instead of "::1").  assembleTargetUrl has no IPv6
+                    // bracket-wrapping logic, so brackets must survive in
+                    // m_host for RFC 3986 URL assembly.  extractHostname
+                    // strips brackets for raw socket use — the two roles
+                    // are intentionally different.
                     m_host = m_host.left(bracketPos + closing + 1);
                 }
             }
-        } else if (hostPart.count(QLatin1Char(':')) == 1) {
-            int portSep = hostPart.lastIndexOf(QLatin1Char(':'));
-            if (portSep > 0) {
+        } else {
+            // Single-colon = host:port.  Use dual-indexOf for early
+            // exit (~1.5x scan) instead of count+lastIndexOf
+            // (two full scans) — consistent with extractHostname.
+            auto portSep = hostPart.indexOf(QLatin1Char(':'));
+            if (portSep > 0 && hostPart.indexOf(QLatin1Char(':'), portSep + 1) == -1) {
                 bool ok = false;
                 int p = hostPart.mid(portSep + 1).toInt(&ok);
                 if (ok && p > 0 && p <= 65535) {
