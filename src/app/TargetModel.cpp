@@ -222,13 +222,6 @@ void TargetModel::setTarget(const QString& t) {
                         // Strip brackets to align with extractHostname:
                         // "[::1]" → "::1"
                         hostCheck = hostCheck.mid(1, closing - 1);
-                    } else {
-                        // 5WHY: Unbalanced bracket (e.g. "[::1" without
-                        // closing ']') — looksLikeIPv6("[::1") returns
-                        // true (host.count(':')>1), bypassing label
-                        // validation.  Clear hostCheck so isValidHostname
-                        // rejects it via the isEmpty() gate.
-                        hostCheck.clear();
                     }
                 } else {
                     // Single-colon = host:port → strip port suffix.
