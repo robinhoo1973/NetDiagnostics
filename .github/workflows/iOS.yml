@@ -73,6 +73,7 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DAPPLE_TEAM_ID="${{ secrets.IOS_TEAM_ID }}" \
             -B build -S .
 
       - name: Build (Ninja)
@@ -98,6 +99,7 @@ jobs:
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -DAPPLE_TEAM_ID="${{ secrets.IOS_TEAM_ID }}" \
             -B build-xcode -S .
           XCODEBUILD_LOG=$(mktemp)
           set +e
@@ -341,7 +343,7 @@ jobs:
             -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=ios -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
-            -DCMAKE_OSX_SYSROOT="$SDKROOT" -B build-ios -S .
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" -DAPPLE_TEAM_ID="${{ secrets.IOS_TEAM_ID }}" -B build-ios -S .
 
       - name: Build and archive iOS
         if: steps.last-sha.outputs.last != github.sha
