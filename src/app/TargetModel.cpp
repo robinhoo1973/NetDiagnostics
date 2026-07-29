@@ -317,10 +317,13 @@ void TargetModel::parseAuthorityFields(const QString& trimmed) {
             m_password = userinfo.section(':', 1);
         } else {
             m_username = userinfo;
+            // 5WHY: extractEmbeddedPortAndUserinfo() clears m_password in the
+            // same scenario — keep both userinfo-fallback paths consistent.
+            m_password.clear();
         }
     }
 
-    // ── Port fallback — handle explicit port when QUrl::port() returns -1 ──
+    // Port fallback — handle explicit port when QUrl::port() returns -1
     if (m_port < 0) {
         QString hostPort = authority;
         if (hostPort.contains('@')) {
