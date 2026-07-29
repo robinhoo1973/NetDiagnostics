@@ -465,6 +465,32 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
                 }
             }
         }
+
+        // 5WHY (fix): The port-extraction block above strips userinfo
+        // for port detection only — it does not extract it into
+        // m_username / m_password.  When bare input contains userinfo
+        // (e.g. "user:pass@host:9090") the userinfo remains embedded in
+        // m_host, so the QML host field displays "user:pass@host"
+        // instead of "host" while username/password fields stay empty.
+        // Extract userinfo from m_host so the structured fields
+        // accurately reflect the bare input.
+        {
+            int atPos = m_host.lastIndexOf(QLatin1Char('@'));
+            if (atPos >= 0) {
+                const QString userinfo = m_host.left(atPos);
+                const int colonPos = userinfo.indexOf(QLatin1Char(':'));
+                if (colonPos >= 0) {
+                    m_username = userinfo.left(colonPos);
+                    m_password = userinfo.mid(colonPos + 1);
+                } else {
+                    m_username = userinfo;
+                    // m_password intentionally preserved — matches
+                    // parseAuthorityFields behaviour when userinfo
+                    // has no colon (username-only).
+                }
+                m_host = m_host.mid(atPos + 1);
+            }
+        }
         if (!m_host.isEmpty()) {
             assembleTargetUrl(); // setTarget() emits targetChanged
         } else {

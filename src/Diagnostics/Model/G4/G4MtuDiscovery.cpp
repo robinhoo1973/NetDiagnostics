@@ -62,10 +62,10 @@ DiagnosticResult mtuDiscovery(const QString& target) {
                 // Now inside sel>0 so output only prints when connect completed.
                 int rtt = (int)t.elapsed();
                 if (mss > 0) {
-                    out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, ipStr).arg(mss));
-                    out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(ipStr).arg(mss).arg(rtt).arg(discoveredMtu));
+                    out.append(QStringLiteral("Pinging %1 [%2] with MSS=%3 bytes of data:").arg(host, displayAddr).arg(mss));
+                    out.append(QStringLiteral("Reply from %1: MSS=%2 time=%3ms PMTU=%4").arg(displayAddr).arg(mss).arg(rtt).arg(discoveredMtu));
                 } else {
-                    out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, ipStr));
+                    out.append(QStringLiteral("Pinging %1 [%2] MTU probe:").arg(host, displayAddr));
                     out.append(QStringLiteral("TCP connect succeeded but MSS not available."));
                 }
             }
