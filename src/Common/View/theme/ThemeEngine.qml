@@ -16,6 +16,7 @@
 // =============================================================================
 pragma Singleton
 import QtQuick
+import "Palette.js" as Palette
 
 QtObject {
     readonly property int litMode: 1
@@ -24,45 +25,13 @@ QtObject {
     readonly property bool isDark: mode !== litMode
     readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
-    // ── Palettes as JS objects (2 properties — NOT 46 QML properties) ──
-    readonly property var lightPalette: ({
-        surface:          "#F8FAFC", sidebar:    "#FFFFFF",
-        card:             "#FFFFFF", input:      "#F1F5F9",
-        navBar:           "#FFFFFF",
-        primary:          "#0EA5E9", primaryContainer: "#E0F2FE",
-        secondary:        "#6366F1",
-        textPrimary:      "#0F172A", textSecondary:   "#475569",
-        textMuted:        "#64748B",
-        accent:           "#F43F5E", cyan:            "#06B6D4",
-        // 5WHY: Light-mode status colors must have sufficient contrast
-        // against #F8FAFC surface.  Dark-mode values (#4ADE80, #FBBF24,
-        // etc.) fail WCAG 3:1 minimum for graphical objects on light
-        // backgrounds.  These darker values meet 3:1+, making status
-        // icons recognizable in light theme.
-        passGreen:        "#059669", warnYellow:      "#EA580C",
-        failRed:          "#DC2626", skipGray:        "#6B7280",
-        infoBlue:         "#2563EB",
-        borderCard:       "#E2E8F0", borderSubtle:    "#F1F5F9",
-        borderFocused:    "#0EA5E9",
-        textOnAccent:     "#0F172A"
-    })
+    // ── Palettes reference the canonical Palette.js constants ──────────
+    // All hex color values live in Palette.js (single source of truth
+    // for QML).  When adding/changing colors, update Palette.js first,
+    // then AppColors.h for the C++ mirror.
+    readonly property var lightPalette: Palette.Light
 
-    readonly property var darkPalette: ({
-        surface:          "#0F172A", sidebar:    "#0F172A",
-        card:             "#1E293B", input:      "#334155",
-        navBar:           "#0F172A",
-        primary:          "#60C8F8", primaryContainer: "#0C4A6E",
-        secondary:        "#818CF8",
-        textPrimary:      "#F1F5F9", textSecondary:   "#94A3B8",
-        textMuted:        "#94A3B8",
-        accent:           "#FB7185", cyan:            "#68E5F4",
-        passGreen:        "#4ADE80", warnYellow:      "#FBBF24",
-        failRed:          "#F87171", skipGray:        "#9CA3AF",
-        infoBlue:         "#A5B4FC",
-        borderCard:       "#334155", borderSubtle:    "#1E293B",
-        borderFocused:    "#60C8F8",
-        textOnAccent:     "#0F172A"
-    })
+    readonly property var darkPalette: Palette.Dark
 
     // 5WHY: All 23 deprecated readonly alias properties were removed in
     // Cycle 28.  Every consumer (607 references) now uses the canonical
@@ -111,21 +80,9 @@ QtObject {
     // 5WHY: colors was initialized as empty {} — the deprecated readonly
     // aliases (bgDark: colors.surface) resolved to undefined between
     // singleton construction and Component.onCompleted→applyTheme().
-    // Initializing with the dark palette default values ensures all
-    // color properties are valid from t=0.
-    property var colors: ({
-        surface:          "#0F172A", sidebar:    "#0F172A",
-        card:             "#1E293B", input:      "#334155",
-        navBar:           "#0F172A", primary:    "#60C8F8",
-        primaryContainer: "#0C4A6E", secondary:  "#818CF8",
-        textPrimary:      "#F1F5F9", textSecondary: "#94A3B8",
-        textMuted:        "#94A3B8", accent:     "#FB7185",
-        cyan:             "#68E5F4", passGreen:  "#4ADE80",
-        warnYellow:       "#FBBF24", failRed:    "#F87171",
-        skipGray:         "#9CA3AF", infoBlue:   "#A5B4FC",
-        borderCard:       "#334155", borderSubtle: "#1E293B",
-        borderFocused:    "#60C8F8", textOnAccent: "#0F172A"
-    })
+    // Initializing with Palette.Dark ensures all color properties are
+    // valid from t=0.
+    property var colors: Palette.Dark
 
     // 5WHY: Centralized status color array shared by DiagResultItem,
     // DashboardScreen, and any QML widget mapping DiagStatus values

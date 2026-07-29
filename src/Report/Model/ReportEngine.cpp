@@ -2,6 +2,7 @@
 // ReportEngine.cpp — extracted from AppState.cpp (~300 lines)
 // =============================================================================
 #include "Report/Model/ReportEngine.h"
+#include "Common/Utils/AppColors.h"
 #include "Common/Utils/Logger.h"
 
 #include <QDateTime>
@@ -36,13 +37,13 @@ QString normalizeReportPath(const QString& p) {
 
 QString reportStatusColor(DiagStatus s) {
     switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("#4ADE80");
-        case DiagStatus::Warning: return QStringLiteral("#FBBF24");
-        case DiagStatus::Fail:    return QStringLiteral("#F87171");
-        case DiagStatus::Error:   return QStringLiteral("#F87171");
-        case DiagStatus::Skipped: return QStringLiteral("#9CA3AF");
-        case DiagStatus::Info:    return QStringLiteral("#A5B4FC");
-        default:                  return QStringLiteral("#A5B4FC");
+        case DiagStatus::Pass:    return QStringLiteral(APPC_PASS_GREEN_DARK);
+        case DiagStatus::Warning: return QStringLiteral(APPC_WARN_YELLOW_DARK);
+        case DiagStatus::Fail:    return QStringLiteral(APPC_FAIL_RED_DARK);
+        case DiagStatus::Error:   return QStringLiteral(APPC_FAIL_RED_DARK);
+        case DiagStatus::Skipped: return QStringLiteral(APPC_SKIP_GRAY_DARK);
+        case DiagStatus::Info:    return QStringLiteral(APPC_INFO_BLUE_DARK);
+        default:                  return QStringLiteral(APPC_INFO_BLUE_DARK);
     }
 }
 
@@ -60,12 +61,12 @@ QImage renderStatusIcon(DiagStatus s, int size) {
     // Colors match resources/icons/badge-*.svg
     QColor bg;
     switch (s) {
-        case DiagStatus::Pass:    bg = QColor(0x16, 0xA3, 0x4A); break;
-        case DiagStatus::Warning: bg = QColor(0xF5, 0x9E, 0x0B); break;
+        case DiagStatus::Pass:    bg = QColor(APPC_PASS_GREEN_RGB); break;
+        case DiagStatus::Warning: bg = QColor(APPC_WARN_YELLOW_RGB); break;
         case DiagStatus::Fail:    // fallthrough — Error uses same red as Fail
-        case DiagStatus::Error:   bg = QColor(0xDC, 0x26, 0x26); break;
-        case DiagStatus::Skipped: bg = QColor(0x6B, 0x72, 0x80); break;
-        default:                  bg = QColor(0x25, 0x63, 0xEB); break; // Info
+        case DiagStatus::Error:   bg = QColor(APPC_FAIL_RED_RGB); break;
+        case DiagStatus::Skipped: bg = QColor(APPC_SKIP_GRAY_RGB); break;
+        default:                  bg = QColor(APPC_INFO_BLUE_RGB); break; // Info
     }
     const float margin = size * 0.08f;
     p.setBrush(bg);
@@ -147,13 +148,13 @@ QString reportStatusClass(DiagStatus s) {
 // Extracted to a shared struct so both methods use the same palette and
 // theme changes only need one update point.
 struct ReportColors {
-    // Status colors (theme-independent)
-    QString pass    = QStringLiteral("#4ADE80");
-    QString warn    = QStringLiteral("#FBBF24");
-    QString fail    = QStringLiteral("#F87171");
-    QString skip    = QStringLiteral("#9CA3AF");
-    QString info    = QStringLiteral("#38BDF8");
-    QString cyan    = QStringLiteral("#22D3EE");
+    // Status colors (theme-independent — use dark palette for reports)
+    QString pass    = QStringLiteral(APPC_PASS_GREEN_DARK);
+    QString warn    = QStringLiteral(APPC_WARN_YELLOW_DARK);
+    QString fail    = QStringLiteral(APPC_FAIL_RED_DARK);
+    QString skip    = QStringLiteral(APPC_SKIP_GRAY_DARK);
+    QString info    = QStringLiteral(APPC_INFO_BLUE_DARK);
+    QString cyan    = QStringLiteral(APPC_CYAN_DARK);
     // Theme-aware colors
     QString textPrimary, textSecondary, textMuted;
     QString bgHeader, bgSection, bgRowAlt, bgRow;
@@ -162,41 +163,41 @@ struct ReportColors {
 
     explicit ReportColors(bool dark) {
         if (dark) {
-            textPrimary  = QStringLiteral("#F1F5F9");
-            textSecondary= QStringLiteral("#94A3B8");
-            textMuted    = QStringLiteral("#64748B");
-            bgHeader     = QStringLiteral("#0C4A6E");
-            bgSection    = QStringLiteral("#1E293B");
-            bgRowAlt     = QStringLiteral("#1E293B");
-            bgRow        = QStringLiteral("#0F172A");
-            bgCardPass   = QStringLiteral("#16281b");
-            bgCardInfo   = QStringLiteral("#141f33");
-            bgCardWarn   = QStringLiteral("#2b2810");
-            bgCardFail   = QStringLiteral("#2b1616");
-            bgCardSkip   = QStringLiteral("#1e1e2e");
-            borderColor  = QStringLiteral("#334155");
-            codeBlockBg  = QStringLiteral("#0a0a14");
-            codeBlockFg  = QStringLiteral("#c0c0d0");
-            detailBg     = QStringLiteral("#0f1629");
-            footerColor  = QStringLiteral("#5a5a72");
+            textPrimary  = QStringLiteral(APPC_TEXT_PRIMARY_DARK);
+            textSecondary= QStringLiteral(APPC_TEXT_SECONDARY_DARK);
+            textMuted    = QStringLiteral(APPC_TEXT_MUTED_LIGHT);  // #64748B — light muted has better contrast on dark report bg
+            bgHeader     = QStringLiteral(APPC_REPORT_DARK_BG_HEADER);
+            bgSection    = QStringLiteral(APPC_REPORT_DARK_BG_SECTION);
+            bgRowAlt     = QStringLiteral(APPC_REPORT_DARK_BG_ROW_ALT);
+            bgRow        = QStringLiteral(APPC_REPORT_DARK_BG_ROW);
+            bgCardPass   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_PASS);
+            bgCardInfo   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_INFO);
+            bgCardWarn   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_WARN);
+            bgCardFail   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_FAIL);
+            bgCardSkip   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_SKIP);
+            borderColor  = QStringLiteral(APPC_REPORT_DARK_BORDER);
+            codeBlockBg  = QStringLiteral(APPC_REPORT_DARK_CODE_BG);
+            codeBlockFg  = QStringLiteral(APPC_REPORT_DARK_CODE_FG);
+            detailBg     = QStringLiteral(APPC_REPORT_DARK_DETAIL_BG);
+            footerColor  = QStringLiteral(APPC_REPORT_DARK_FOOTER);
         } else {
-            textPrimary  = QStringLiteral("#1E293B");
-            textSecondary= QStringLiteral("#475569");
-            textMuted    = QStringLiteral("#94A3B8");
-            bgHeader     = QStringLiteral("#0F172A");
-            bgSection    = QStringLiteral("#0F172A");
-            bgRowAlt     = QStringLiteral("#F8FAFC");
-            bgRow        = QStringLiteral("#FFFFFF");
-            bgCardPass   = QStringLiteral("#ECFDF5");
-            bgCardInfo   = QStringLiteral("#EFF6FF");
-            bgCardWarn   = QStringLiteral("#FFFBEB");
-            bgCardFail   = QStringLiteral("#FEF2F2");
-            bgCardSkip   = QStringLiteral("#F1F5F9");
-            borderColor  = QStringLiteral("#E2E8F0");
-            codeBlockBg  = QStringLiteral("#0F172A");
-            codeBlockFg  = QStringLiteral("#E2E8F0");
-            detailBg     = QStringLiteral("#F8FAFC");
-            footerColor  = QStringLiteral("#94A3B8");
+            textPrimary  = QStringLiteral(APPC_TEXT_PRIMARY_LIGHT);
+            textSecondary= QStringLiteral(APPC_TEXT_SECONDARY_LIGHT);
+            textMuted    = QStringLiteral(APPC_TEXT_MUTED_LIGHT);
+            bgHeader     = QStringLiteral(APPC_REPORT_LIGHT_BG_HEADER);
+            bgSection    = QStringLiteral(APPC_REPORT_LIGHT_BG_SECTION);
+            bgRowAlt     = QStringLiteral(APPC_REPORT_LIGHT_BG_ROW_ALT);
+            bgRow        = QStringLiteral(APPC_REPORT_LIGHT_BG_ROW);
+            bgCardPass   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_PASS);
+            bgCardInfo   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_INFO);
+            bgCardWarn   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_WARN);
+            bgCardFail   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_FAIL);
+            bgCardSkip   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_SKIP);
+            borderColor  = QStringLiteral(APPC_REPORT_LIGHT_BORDER);
+            codeBlockBg  = QStringLiteral(APPC_REPORT_LIGHT_CODE_BG);
+            codeBlockFg  = QStringLiteral(APPC_REPORT_LIGHT_CODE_FG);
+            detailBg     = QStringLiteral(APPC_REPORT_LIGHT_DETAIL_BG);
+            footerColor  = QStringLiteral(APPC_REPORT_LIGHT_FOOTER);
         }
     }
 };
@@ -241,8 +242,8 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
     // ── Header band with gradient-style dark background ─────────────────
     // Header text colours — always light-on-dark for the header band
-    const QString headerTargetColor = QStringLiteral("#E2E8F0");
-    const QString headerMetaColor   = QStringLiteral("#94A3B8");
+    const QString headerTargetColor = QStringLiteral(APPC_REPORT_DARK_HEADER_TARGET);
+    const QString headerMetaColor   = QStringLiteral(APPC_REPORT_DARK_HEADER_META);
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"20\" cellspacing=\"0\" style=\"border-radius:8px\"><tr>"
         "<td bgcolor=\"%1\">"
@@ -257,10 +258,10 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 
     // ── Pass-rate progress bar ─────────────────────────────────────────
     int passPercent = tTotal > 0 ? (tPass * 100 / tTotal) : 0;
-    const QString barColor = passPercent >= 90 ? QStringLiteral("#4ADE80")
-                           : passPercent >= 70 ? QStringLiteral("#FBBF24")
-                           : QStringLiteral("#F87171");
-    const QString barBg = QStringLiteral("#1E293B");  // progress bar track — always dark
+    const QString barColor = passPercent >= 90 ? QStringLiteral(APPC_PASS_GREEN_DARK)
+                           : passPercent >= 70 ? QStringLiteral(APPC_WARN_YELLOW_DARK)
+                           : QStringLiteral(APPC_FAIL_RED_DARK);
+    const QString barBg = QStringLiteral(APPC_PROGRESS_BAR_BG);
     h += QStringLiteral(
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\">"
         "<tr><td style=\"padding:4px 0\">"
@@ -543,39 +544,39 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         "img,svg,pre,code{max-width:100%;height:auto}"
         "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:24px}"
         ".wrap{max-width:960px;margin:0 auto}"
-        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,#1E293B,#0C4A6E);border-radius:14px;margin-bottom:26px}"
-        ".header h1{font-size:26px;color:#22D3EE;margin-bottom:10px;letter-spacing:.5px}"
-        ".header p{font-size:13px;color:#94A3B8;margin:3px 0}"
-        "h2{font-size:18px;color:#22D3EE;margin:26px 0 14px}"
-        "h3{font-size:15px;color:#60A5FA;margin:20px 0 10px}"
+        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg," APPC_CARD_DARK "," APPC_PRIMARY_CONTAINER_DARK ");border-radius:14px;margin-bottom:26px}"
+        ".header h1{font-size:26px;color:" APPC_CYAN_DARK ";margin-bottom:10px;letter-spacing:.5px}"
+        ".header p{font-size:13px;color:" APPC_TEXT_SECONDARY_DARK ";margin:3px 0}"
+        "h2{font-size:18px;color:" APPC_CYAN_DARK ";margin:26px 0 14px}"
+        "h3{font-size:15px;color:" APPC_INFO_BLUE_DARK ";margin:20px 0 10px}"
         ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
         ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
         ".card .icon{display:block;font-size:18px;margin-bottom:2px}"
         ".card .count{display:block;font-size:30px;font-weight:700}"
         ".card .label{font-size:11px;color:var(--fg2);margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
-        ".card.pass{background:var(--card-pass-bg);border:1px solid var(--border-card-pass)}.card.pass .count{color:#4ADE80}"
-        ".card.warn{background:var(--card-warn-bg);border:1px solid var(--border-card-warn)}.card.warn .count{color:#FBBF24}"
-        ".card.fail{background:var(--card-fail-bg);border:1px solid var(--border-card-fail)}.card.fail .count{color:#F87171}"
-        ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:#9CA3AF}"
-        ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:#60A5FA}"
-        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:#F87171}"
+        ".card.pass{background:var(--card-pass-bg);border:1px solid var(--border-card-pass)}.card.pass .count{color:" APPC_PASS_GREEN_DARK "}"
+        ".card.warn{background:var(--card-warn-bg);border:1px solid var(--border-card-warn)}.card.warn .count{color:" APPC_WARN_YELLOW_DARK "}"
+        ".card.fail{background:var(--card-fail-bg);border:1px solid var(--border-card-fail)}.card.fail .count{color:" APPC_FAIL_RED_DARK "}"
+        ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:" APPC_SKIP_GRAY_DARK "}"
+        ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:" APPC_INFO_BLUE_DARK "}"
+        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:" APPC_FAIL_RED_DARK "}"
         ".wrap table{table-layout:fixed;width:100%}"
         "table.grid{border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
         "table.grid th{text-align:left;padding:11px 12px;background:var(--card-bg);color:var(--fg2);font-weight:600}"
         "table.grid td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}"
-        "tr.sec td{background:var(--sec-row-bg);color:#60A5FA;font-weight:700}"
+        "tr.sec td{background:var(--sec-row-bg);color:" APPC_INFO_BLUE_DARK ";font-weight:700}"
         ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
-        ".badge.pass{background:var(--badge-pass-bg);color:#4ADE80}.badge.warn{background:var(--badge-warn-bg);color:#FBBF24}"
-        ".badge.fail{background:var(--badge-fail-bg);color:#F87171}.badge.skip{background:var(--badge-skip-bg);color:#9CA3AF}"
-        ".badge.info{background:var(--badge-info-bg);color:#60A5FA}"
+        ".badge.pass{background:var(--badge-pass-bg);color:" APPC_PASS_GREEN_DARK "}.badge.warn{background:var(--badge-warn-bg);color:" APPC_WARN_YELLOW_DARK "}"
+        ".badge.fail{background:var(--badge-fail-bg);color:" APPC_FAIL_RED_DARK "}.badge.skip{background:var(--badge-skip-bg);color:" APPC_SKIP_GRAY_DARK "}"
+        ".badge.info{background:var(--badge-info-bg);color:" APPC_INFO_BLUE_DARK "}"
         "details.test{background:var(--card-bg);border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
-        "details.test.pass>summary{border-left:4px solid #4ADE80}details.test.warn>summary{border-left:4px solid #FBBF24}"
-        "details.test.fail>summary{border-left:4px solid #F87171}details.test.skip>summary{border-left:4px solid #9CA3AF}"
-        "details.test.info>summary{border-left:4px solid #60A5FA}"
-        ".body{padding:14px 16px 18px;border-top:1px solid #334155}"
-        ".analysis{background:#0f1629;color:#c0c0d0;border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
-        ".raw{background:#0a0a14;padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:#c0c0d0;max-height:420px;overflow:auto}"
+        "details.test.pass>summary{border-left:4px solid " APPC_PASS_GREEN_DARK "}details.test.warn>summary{border-left:4px solid " APPC_WARN_YELLOW_DARK "}"
+        "details.test.fail>summary{border-left:4px solid " APPC_FAIL_RED_DARK "}details.test.skip>summary{border-left:4px solid " APPC_SKIP_GRAY_DARK "}"
+        "details.test.info>summary{border-left:4px solid " APPC_INFO_BLUE_DARK "}"
+        ".body{padding:14px 16px 18px;border-top:1px solid " APPC_BORDER_CARD_DARK "}"
+        ".analysis{background:" APPC_REPORT_DARK_DETAIL_BG ";color:" APPC_REPORT_DARK_CODE_FG ";border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
+        ".raw{background:" APPC_REPORT_DARK_CODE_BG ";padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:" APPC_REPORT_DARK_CODE_FG ";max-height:420px;overflow:auto}"
         ".meta{color:#8890a6;font-size:11px;font-weight:400}"
         ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}");
 
