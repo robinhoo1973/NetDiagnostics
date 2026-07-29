@@ -390,15 +390,10 @@ void TargetModel::syncFieldsFromTarget() {
         // 5WHY: When QUrl cannot parse the input, setting only m_host = trimmed
         // (the full URL string) while leaving m_scheme/m_port/m_username/m_password/
         // m_path at their previous values creates inconsistent internal state.
-        // Reset all fields to defaults so callers (QML bindings reading host(),
-        // assembleTargetUrl reconstructing from fields) see a clean empty host
-        // rather than a URL fragment where a hostname belongs.
-        m_scheme = QStringLiteral("https");
-        m_host.clear();
-        m_port = -1;
-        m_username.clear();
-        m_password.clear();
-        m_path.clear();
+        // 5WHY: Use clearFieldsToDefault() instead of manually resetting
+        // the same 6 fields — the shared helper is self-sufficient and
+        // ensures consistency when new fields are added.
+        clearFieldsToDefault();
     }
 }
 
