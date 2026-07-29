@@ -125,9 +125,13 @@ inline QString extractHostname(const QString& target) {
             // Strip brackets: "[::1]" → "::1"
             t = t.mid(1, closing - 1);
         }
-    } else if (t.contains(':')) {
-        auto colon = t.lastIndexOf(':');
-        if (t.count(':') == 1) t = t.left(colon);
+    } else {
+        // Single-colon = host:port.  Use double-indexOf for early
+        // exit (one ~1.5x scan) instead of contains+lastIndexOf+count
+        // (three full scans).
+        auto colon = t.indexOf(':');
+        if (colon > 0 && t.indexOf(':', colon + 1) == -1)
+            t = t.left(colon);
     }
     return t;
 }

@@ -134,28 +134,21 @@ Item {
         root._useOverlay = !Qt.colorEqual(iconImg.color, root.color)
     }
 
-    // True after Component.onCompleted has run _tryNativeColorization once.
-    // During construction, onNameChanged / onColorChanged may fire before
-    // onCompleted (declarative property assignments trigger change signals
-    // in Qt 6) — skip them to avoid redundant double-initialization work
-    // (color comparison + property assignment) for every AppIcon instance.
-    property bool _colorInitDone: false
 
     Component.onCompleted: {
         _tryNativeColorization()
-        _colorInitDone = true
     }
 
     // When the caller's color binding re-evaluates at runtime (e.g. theme
     // switch), re-run the platform-detection + color-application logic.
     onColorChanged: {
-        if (_colorInitDone) _tryNativeColorization()
+        _tryNativeColorization()
     }
 
     // When the icon name changes (e.g. "spinner" → "badge-check" in
     // progress indicators), re-evaluate _nativeColored and re-apply the
     // correct colorization strategy for the new icon type.
     onNameChanged: {
-        if (_colorInitDone) _tryNativeColorization()
+        _tryNativeColorization()
     }
 }
