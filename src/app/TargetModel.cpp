@@ -53,6 +53,20 @@ static const QStringList& supportedSchemes() {
     return s;
 }
 
+// Shared dual-indexOf port-separator check: returns true and strips the
+// port suffix from s when s contains exactly one colon (host:port pattern).
+// Returns false (no-op) for zero colons or multiple colons (IPv6).
+// Eliminates the count+lastIndexOf / contains+lastIndexOf+count patterns
+// (2-3 full scans) in favour of one ~1.5x scan.
+static bool stripSingleColonPort(QString& s) {
+    auto colon = s.indexOf(QLatin1Char(':'));
+    if (colon > 0 && s.indexOf(QLatin1Char(':'), colon + 1) == -1) {
+        s = s.left(colon);
+        return true;
+    }
+    return false;
+}
+
 static QString validateUrl(const QString& trimmed) {
     auto schemeEnd = trimmed.indexOf("://");
     if (schemeEnd < 0) return QString();
@@ -189,6 +203,17 @@ void TargetModel::setTarget(const QString& t) {
                 // to bare host:port for non-bracket hosts.
                 if (hostCheck.startsWith(QLatin1Char('['))) {
                     int closing = hostCheck.indexOf(QLatin1Char(']'));
+                    // 5WHY: When closing < 0 (no ']' found), the old code
+                    // silently fell through with the raw "[..." string, and
+                    // looksLikeIPv6 accepted it because count(':')>1.
+                    // e.g. "[::1" (unbalanced bracket) was treated as a
+                    // valid IPv6 address.  validateUrl in the URL path
+                    // already rejects this, so align the bare-input path.
+                    if (closing < 0) {
+                        m_error = QStringLiteral("Invalid IPv6 bracket notation: missing closing ']'");
+                        emit targetChanged();
+                        return;
+                    }
                     if (closing > 0) {
                         if (closing + 1 < hostCheck.size()
                             && hostCheck[closing + 1] == QLatin1Char(':')) {
@@ -197,17 +222,20 @@ void TargetModel::setTarget(const QString& t) {
                         // Strip brackets to align with extractHostname:
                         // "[::1]" → "::1"
                         hostCheck = hostCheck.mid(1, closing - 1);
+                    } else {
+                        // 5WHY: Unbalanced bracket (e.g. "[::1" without
+                        // closing ']') — looksLikeIPv6("[::1") returns
+                        // true (host.count(':')>1), bypassing label
+                        // validation.  Clear hostCheck so isValidHostname
+                        // rejects it via the isEmpty() gate.
+                        hostCheck.clear();
                     }
                 } else {
-                    // Single-colon = host:port.  Use dual-indexOf for
-                    // early exit (~1.5x scan) instead of count+lastIndexOf
-                    // (two full scans) — consistent with extractHostname.
-                    auto colon = hostCheck.indexOf(QLatin1Char(':'));
-                    if (colon > 0 && hostCheck.indexOf(QLatin1Char(':'), colon + 1) == -1)
-                        hostCheck = hostCheck.left(colon);
+                    // Single-colon = host:port → strip port suffix.
+                    stripSingleColonPort(hostCheck);
                 }
                 if (!isValidHostname(hostCheck)) {
-                    m_error = m_host.contains("..")
+                    m_error = hostCheck.contains("..")
                         ? QStringLiteral("Invalid hostname: consecutive dots")
                         : QStringLiteral("Hostname label must be 1-63 alphanumeric chars (a-z, 0-9, -) and cannot start/end with hyphen");
                 }
@@ -532,13 +560,27 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // This is correct for parseUrlIntoFields — the QML binding round-trip
         // produces bare host+path text, and we must preserve the scheme/port
         // that the user originally specified via a full URL paste.
+        // 5WHY: Credentials must NOT be preserved through bare-input round-
+        // trips.  If the previous URL had userinfo (e.g. "user:pass@host")
+        // and the QML binding produces bare "host/path", stale credentials
+        // would silently leak into the reassembled URL.  Clear credentials
+        // before extractEmbeddedPortAndUserinfo so the helper only sets
+        // them when the bare input itself contains userinfo syntax.
         applyBareHost(trimmed);
+        m_username.clear();
+        m_password.clear();
         // 5WHY (fix): When the bare input contains an embedded port or
         // userinfo (e.g. "[::1]:8080", "host:9090", "user:pass@host"),
         // applyBareHost stores them as part of m_host.  Delegate to the
         // shared helper (also used by syncFieldsFromTarget) to extract
         // port and userinfo, update structured fields, and strip suffixes
         // from m_host.  Both code paths stay in sync by construction.
+        // 5WHY: Clear credentials before extraction so a bare input with
+        // no embedded userinfo doesn't leak stale m_username/m_password
+        // from a previous full-URL parse (syncFieldsFromTarget already
+        // does this at lines 477-478; parseUrlIntoFields must match).
+        m_username.clear();
+        m_password.clear();
         extractEmbeddedPortAndUserinfo();
         if (!m_host.isEmpty()) {
             assembleTargetUrl(); // setTarget() emits targetChanged

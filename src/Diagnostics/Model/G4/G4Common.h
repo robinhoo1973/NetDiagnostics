@@ -162,9 +162,15 @@ static int extractProbePort(const QString& target) {
             int p = rest.mid(closing + 2).toInt();
             if (p > 0) return p;
         }
-    } else if (rest.count(':') == 1) {          // host:port
-        int p = rest.section(':', 1, 1).toInt();
-        if (p > 0) return p;
+    } else {
+        // Single-colon = host:port.  Use dual-indexOf for early
+        // exit (~1.5x scan) instead of count — consistent with
+        // extractHostname() and TargetModel.
+        auto colon = rest.indexOf(':');
+        if (colon > 0 && rest.indexOf(':', colon + 1) == -1) {
+            int p = rest.mid(colon + 1).toInt();
+            if (p > 0) return p;
+        }
     }
     if (scheme == QLatin1String("https")) return 443;
     if (scheme == QLatin1String("http"))  return 80;
