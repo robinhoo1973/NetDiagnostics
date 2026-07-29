@@ -181,7 +181,19 @@ void TargetModel::setTarget(const QString& t) {
                 QString hostCheck = m_host;
                 int atPos = hostCheck.lastIndexOf('@');
                 if (atPos >= 0) hostCheck = hostCheck.mid(atPos + 1);
-                if (hostCheck.count(':') == 1) {
+                // 5WHY (fix): The original count(':')==1 only strips
+                // "host:port" (single colon).  IPv6 bracket notation
+                // "[::1]:8080" has 3 colons — the port separator is
+                // after the closing bracket, not caught by count(':')==1.
+                // Strip port from bracket notation first, then fall back
+                // to bare host:port for non-bracket hosts.
+                if (hostCheck.startsWith(QLatin1Char('['))) {
+                    int closing = hostCheck.indexOf(QLatin1Char(']'));
+                    if (closing > 0 && closing + 1 < hostCheck.size()
+                        && hostCheck[closing + 1] == QLatin1Char(':')) {
+                        hostCheck = hostCheck.left(closing + 1);
+                    }
+                } else if (hostCheck.count(':') == 1) {
                     int colPos = hostCheck.lastIndexOf(':');
                     hostCheck = hostCheck.left(colPos);
                 }

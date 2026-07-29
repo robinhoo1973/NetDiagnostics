@@ -102,8 +102,12 @@ Item {
     // assignment silently fails, the read-back won't match, and
     // _useOverlay is set true to show the Rectangle fallback.
     function _tryNativeColorization() {
-        if (root._nativeColored) {
-            // Badge icon with designer palette — skip ALL colorization
+        // 5WHY: Hidden icons (name="") don't need colorization — skipping
+        // avoids allocating a wasted FBO via layer.enabled on iOS when
+        // the icon will never be visible.
+        if (root._nativeColored || root.name === "") {
+            // Badge icon with designer palette, or no icon loaded —
+            // skip ALL colorization and release the FBO if active.
             root._useOverlay = false
             return
         }
