@@ -47,6 +47,7 @@ jobs:
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DND_GIT_HASH=${{ github.sha }} \
+            -DAPPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}" \
             -DAPP_EDITION=macos-arm64 \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
             -B build -S .
@@ -207,6 +208,17 @@ jobs:
           secondary_cert_password: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
           allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
 
+      - name: Generate entitlements
+        if: steps.last-sha.outputs.last != github.sha
+        run: |
+          # 5WHY: The Apple Team ID was hardcoded in resources/macos.entitlements.
+          # Generate it from the template at deploy time so the secret never
+          # appears in a tracked file.  CMake also does this during the build job,
+          # but the deploy-testflight job signs independently.
+          sed "s/@APPLE_TEAM_ID@/${{ secrets.APPLE_TEAM_ID }}/g" \
+            resources/macos.entitlements.in > macos.entitlements
+          echo "[OK] macos.entitlements generated"
+
       - name: Sign .app and package as .pkg
         if: steps.last-sha.outputs.last != github.sha
         run: |
@@ -278,7 +290,7 @@ jobs:
           if [ -f "$BIN" ]; then
             echo "  [sign] main binary"
             codesign --force --options runtime --timestamp \
-              --entitlements resources/macos.entitlements \
+              --entitlements macos.entitlements \
               --sign "$CODE_ID" --keychain "$KCHAIN" "$BIN" \
               || { echo "[FAIL] codesign main binary $BIN"; exit 1; }
           fi
@@ -286,7 +298,7 @@ jobs:
           # ── Phase 5: Sign main .app bundle ────────────────────────
           echo "  [sign] .app bundle"
           codesign --force --options runtime --timestamp \
-            --entitlements resources/macos.entitlements \
+            --entitlements macos.entitlements \
             --sign "$CODE_ID" --keychain "$KCHAIN" "$APP" \
             || { echo "[FAIL] codesign .app $APP"; exit 1; }
 
