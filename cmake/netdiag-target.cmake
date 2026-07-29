@@ -278,7 +278,7 @@ function(setup_platform_bundle TARGET)
         # substitution — left as forward-compat scaffolding if a placeholder is
         # ever added back for non-App-Store signing flows).
         if(NOT DEFINED APPLE_TEAM_ID)
-            set(APPLE_TEAM_ID "0000000000")  // dormant — template has no @VAR@
+            set(APPLE_TEAM_ID "0000000000")  # dormant — template has no @VAR@
         endif()
         configure_file(
             "${CMAKE_SOURCE_DIR}/resources/apple/macos.entitlements.in"
