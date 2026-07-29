@@ -448,7 +448,13 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
                     int p = hostPart.mid(closing + 2).toInt(&ok);
                     if (ok && p > 0 && p <= 65535) {
                         m_port = p;
-                        m_host = m_host.left(m_host.indexOf(QLatin1Char('[')) + closing + 1);
+                        // Since hostPart.startsWith('['), the opening bracket
+                        // in m_host is at position atPos+1 (or 0 if no '@').
+                        // Using m_host.indexOf('[') would find a bracket in
+                        // userinfo (e.g. "user[1]@[::1]:8080"), truncating
+                        // the IPv6 address incorrectly.
+                        int bracketPos = atPos >= 0 ? atPos + 1 : 0;
+                        m_host = m_host.left(bracketPos + closing + 1);
                     }
                 }
             } else {

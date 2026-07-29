@@ -43,7 +43,12 @@ Item {
     // transparent SVG regions.  The FBO properly composites alpha so the
     // overlay only affects actual SVG stroke pixels.  No layer.samples
     // (MSAA resolve loses alpha on Mali/Adreno GPUs).
-    layer.enabled: true
+    //
+    // Only enable the FBO when the overlay fallback is actually active
+    // (iOS platform, non-badge icon).  On platforms with native Image.color
+    // the overlay is hidden and the FBO is wasted GPU memory — every
+    // AppIcon instance allocates an offscreen buffer sized width×height×4.
+    layer.enabled: _useOverlay && !_nativeColored
 
     // 5WHY: Badge icons (badge-check, badge-info, badge-warning, etc.)
     // have designer-intended native colored fills.  Image.color replaces
@@ -117,6 +122,13 @@ Item {
     // When the caller's color binding re-evaluates at runtime (e.g. theme
     // switch), re-run the platform-detection + color-application logic.
     onColorChanged: {
+        _tryNativeColorization()
+    }
+
+    // When the icon name changes (e.g. "spinner" → "badge-check" in
+    // progress indicators), re-evaluate _nativeColored and re-apply the
+    // correct colorization strategy for the new icon type.
+    onNameChanged: {
         _tryNativeColorization()
     }
 }
