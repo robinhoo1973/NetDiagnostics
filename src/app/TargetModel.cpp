@@ -427,13 +427,42 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // extract the embedded port, updating m_port and stripping the
         // port suffix from m_host so assembleTargetUrl() produces the
         // correct single-port URL.
-        int portSep = m_host.lastIndexOf(QLatin1Char(':'));
-        if (portSep > 0 && m_host.count(QLatin1Char(':')) == 1) {
-            bool ok = false;
-            int p = m_host.mid(portSep + 1).toInt(&ok);
-            if (ok && p > 0 && p <= 65535) {
-                m_port = p;
-                m_host = m_host.left(portSep);
+        //
+        // 5WHY (fix): The original count(':')==1 check misses two cases:
+        // (a) IPv6 bracket notation "[::1]:8080" where the IPv6 address
+        //     contributes extra colons, and (b) userinfo with colon
+        //     "user:pass@host:8080".  Strip userinfo first, then handle
+        //     bracket notation and bare host:port separately.
+        {
+            // Strip userinfo before checking for embedded port
+            QString hostPart = m_host;
+            int atPos = hostPart.lastIndexOf(QLatin1Char('@'));
+            if (atPos >= 0) hostPart = hostPart.mid(atPos + 1);
+
+            if (hostPart.startsWith(QLatin1Char('['))) {
+                // IPv6 bracket notation: [::1]:8080
+                int closing = hostPart.indexOf(QLatin1Char(']'));
+                if (closing > 0 && closing + 1 < hostPart.size()
+                    && hostPart[closing + 1] == QLatin1Char(':')) {
+                    bool ok = false;
+                    int p = hostPart.mid(closing + 2).toInt(&ok);
+                    if (ok && p > 0 && p <= 65535) {
+                        m_port = p;
+                        m_host = m_host.left(m_host.indexOf(QLatin1Char('[')) + closing + 1);
+                    }
+                }
+            } else {
+                int portSep = hostPart.lastIndexOf(QLatin1Char(':'));
+                if (portSep > 0 && hostPart.count(QLatin1Char(':')) == 1) {
+                    bool ok = false;
+                    int p = hostPart.mid(portSep + 1).toInt(&ok);
+                    if (ok && p > 0 && p <= 65535) {
+                        m_port = p;
+                        // Strip port suffix from original m_host (preserving userinfo)
+                        int portInHost = m_host.lastIndexOf(QLatin1Char(':'));
+                        if (portInHost > 0) m_host = m_host.left(portInHost);
+                    }
+                }
             }
         }
         if (!m_host.isEmpty()) {
