@@ -137,12 +137,15 @@
 #define APPC_REPORT_LIGHT_HEADER_META  "#94A3B8"
 
 // ── Status icon (renderStatusIcon) — QColor RGB integer components ────────────
-// These match the light-palette hex colors above, expressed as 0xRRGGBB.
-#define APPC_PASS_GREEN_RGB          0x059669
-#define APPC_WARN_YELLOW_RGB         0xEA580C
-#define APPC_FAIL_RED_RGB            0xDC2626
-#define APPC_SKIP_GRAY_RGB           0x6B7280
-#define APPC_INFO_BLUE_RGB           0x2563EB
+// 5WHY: QColor(QRgb) expects 0xAARRGGBB format — the top byte is alpha.
+// Without the 0xFF prefix, alpha=0x00 making QColor fully transparent,
+// which would render status icons invisible in HTML reports.
+// These match the light-palette hex colors above, expressed as 0xAARRGGBB.
+#define APPC_PASS_GREEN_RGB          0xFF059669
+#define APPC_WARN_YELLOW_RGB         0xFFEA580C
+#define APPC_FAIL_RED_RGB            0xFFDC2626
+#define APPC_SKIP_GRAY_RGB           0xFF6B7280
+#define APPC_INFO_BLUE_RGB           0xFF2563EB
 
 // ── Progress bar thresholds ───────────────────────────────────────────────────
 #define APPC_PROGRESS_BAR_BG         "#1E293B"  // track — always dark
