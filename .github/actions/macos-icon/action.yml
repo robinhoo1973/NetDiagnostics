@@ -2,7 +2,7 @@
 # macOS .icns Icon Generator
 # ═══════════════════════════════════════════════════════════════════════════
 # 5WHY: Icon generation (sips x6 + iconutil) was copy-pasted across
-# build.yml and apple.yml. Extracted here so icon format changes
+# build.yml and macOS.yml. Extracted here so icon format changes
 # propagate everywhere. Callers need a PNG at resources/icons/netanalysis.png.
 # ═══════════════════════════════════════════════════════════════════════════
 name: Generate macOS App Icon

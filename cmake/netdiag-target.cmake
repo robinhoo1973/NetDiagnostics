@@ -33,6 +33,14 @@ function(configure_netdiag_target TARGET)
     endif()
     if(DEFINED ND_BUILD_NUMBER)
         target_compile_definitions(${TARGET} PRIVATE ND_BUILD_NUMBER="${ND_BUILD_NUMBER}")
+    else()
+        # 5WHY: Local developer builds don't pass -DND_BUILD_NUMBER.
+        # Fall back to "0" so the app still compiles and runs.
+        set(ND_BUILD_NUMBER "0")
+        target_compile_definitions(${TARGET} PRIVATE ND_BUILD_NUMBER="${ND_BUILD_NUMBER}")
+    endif()
+    if(DEFINED ND_GIT_HASH)
+        target_compile_definitions(${TARGET} PRIVATE ND_GIT_HASH="${ND_GIT_HASH}")
     endif()
 
     # ── Windows GUI subsystem ────────────────────────────────────────
@@ -243,7 +251,7 @@ function(setup_platform_bundle TARGET)
         set_target_properties(${TARGET} PROPERTIES
             MACOSX_BUNDLE TRUE
             MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
-            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_BUNDLE_VERSION "${ND_BUILD_NUMBER}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info-macos.plist"
             XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "26.0"
@@ -274,7 +282,7 @@ function(setup_platform_bundle TARGET)
             MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
             MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
             MACOSX_BUNDLE_BUNDLE_NAME "NetDiagnostics"
-            MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+            MACOSX_BUNDLE_BUNDLE_VERSION "${ND_BUILD_NUMBER}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
             MACOSX_BUNDLE_COPYRIGHT "Copyright © Robin Hu. All rights reserved."
             XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "com.netdiagnostic.app"

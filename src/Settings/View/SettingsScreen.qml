@@ -394,6 +394,7 @@ Item {
                                 text: "Version " + appState.appVersion
                                       + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
                                       + (appState.buildNumber.length > 0 ? " Build " + appState.buildNumber : "")
+                                      + (appState.gitHash.length > 0 ? " (" + appState.gitHash + ")" : "")
                                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
                                 wrapMode: Text.WordWrap
                             }

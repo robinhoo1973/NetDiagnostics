@@ -13,10 +13,35 @@ Item {
     implicitHeight: visible ? 28 : 0
     signal detailClicked(var data)
 
-    // 5WHY: icon size 12 → 16 (M3 iconSm) for better status
-    // recognition at a glance.  Switched from static property var
-    // snapshot to dynamic switch functions — static snapshots don't
-    // update when ThemeEngine.applyTheme() changes palette colors.
+    // 5WHY: Switched from static property var snapshot to dynamic
+    // switch functions — static snapshots don't update when
+    // ThemeEngine.applyTheme() changes palette colors.
+    // However, JS functions called from QML bindings mask dependency
+    // tracking: the QML binding engine cannot trace into JavaScript
+    // function bodies, so color: _statusColor(itemData.status) only
+    // re-evaluates when itemData.status changes — NEVER when the
+    // user switches themes.  The icon name stays correct but the
+    // color is stale.
+    //
+    // Fix: _statusColors is a property var array whose binding
+    // EXPRESSION directly references ThemeEngine.colors.xxx — QML
+    // CAN track these dependencies, so the entire array is rebuilt
+    // on every theme switch.  The color binding then reads
+    // _statusColors[status], which depends on both the array AND
+    // the index, guaranteeing re-evaluation on theme switches.
+    //
+    // _statusIcon is a JS function (not a tracked property) because
+    // icon names are static — they do not depend on theme colors.
+    // The function only maps status code → icon name, so it does
+    // not need theme reactivity.
+    readonly property var _statusColors: [
+        ThemeEngine.colors.passGreen,   // 0: Pass
+        ThemeEngine.colors.warnYellow,  // 1: Warning
+        ThemeEngine.colors.failRed,     // 2: Fail
+        ThemeEngine.colors.skipGray,    // 3: Skipped
+        ThemeEngine.colors.failRed,     // 4: Error
+        ThemeEngine.colors.infoBlue     // 5: Info
+    ]
     function _statusIcon(s) {
         switch (s) {
             case 0: return "badge-check";
@@ -26,17 +51,6 @@ Item {
             case 4: return "badge-error";
             case 5: return "badge-info";
             default: return "badge-skip";
-        }
-    }
-    function _statusColor(s) {
-        switch (s) {
-            case 0: return ThemeEngine.colors.passGreen;
-            case 1: return ThemeEngine.colors.warnYellow;
-            case 2: return ThemeEngine.colors.failRed;
-            case 3: return ThemeEngine.colors.skipGray;
-            case 4: return ThemeEngine.colors.failRed;
-            case 5: return ThemeEngine.colors.infoBlue;
-            default: return ThemeEngine.colors.skipGray;
         }
     }
 
@@ -73,9 +87,12 @@ Item {
         // Now Error→failRed, Info(5)→infoBlue, Skipped(3)→skipGray.
         // Icon size 12 → 16 per M3 iconSm — doubles the visible area (64→256 px²)
         // for significantly better status recognition at a glance.
+        // 5WHY: color: _statusColors[status] uses the tracked property var
+        // array above — QML can detect when ThemeEngine.colors changes
+        // and re-evaluate the binding, fixing theme-switch color updates.
         AppIcon {
             name: _statusIcon(itemData.status); size: 16
-            color: _statusColor(itemData.status)
+            color: _statusColors[itemData.status] || ThemeEngine.colors.skipGray
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)

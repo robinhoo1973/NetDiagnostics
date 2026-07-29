@@ -77,7 +77,24 @@ Item {
     // Skipped(3), defaulting all other statuses to "badge-info"/accentBlue.
     // DiagStatus::Error(4) and DiagStatus::Info(5) are distinct states that
     // need separate visual treatment (Error→failRed, Info→infoBlue).  Now
-    // matches DiagResultItem._statusIcon/_statusColor exactly.
+    // matches DiagResultItem status mappings exactly.
+    //
+    // 5WHY (theme reactivity): statusColor() was a JavaScript function called
+    // from QML bindings.  The QML binding engine cannot trace into JS function
+    // bodies to discover that ThemeEngine.colors.xxx is read — so color
+    // bindings using statusColor(s) only re-evaluate when `s` changes, never
+    // when the user switches themes.  Fixed by replacing the function with a
+    // property var array whose binding expression directly references
+    // ThemeEngine.colors.xxx — QML CAN track these dependencies, so the array
+    // is rebuilt on every theme switch and downstream color bindings re-evaluate.
+    readonly property var _statusColors: [
+        ThemeEngine.colors.passGreen,   // 0: Pass
+        ThemeEngine.colors.warnYellow,  // 1: Warning
+        ThemeEngine.colors.failRed,     // 2: Fail
+        ThemeEngine.colors.skipGray,    // 3: Skipped
+        ThemeEngine.colors.failRed,     // 4: Error
+        ThemeEngine.colors.infoBlue     // 5: Info
+    ]
     function statusIcon(s) {
         switch(s) {
             case 0: return "badge-check";
@@ -87,17 +104,6 @@ Item {
             case 4: return "badge-error";
             case 5: return "badge-info";
             default: return "badge-skip";
-        }
-    }
-    function statusColor(s) {
-        switch(s) {
-            case 0: return ThemeEngine.colors.passGreen;
-            case 1: return ThemeEngine.colors.warnYellow;
-            case 2: return ThemeEngine.colors.failRed;
-            case 3: return ThemeEngine.colors.skipGray;
-            case 4: return ThemeEngine.colors.failRed;
-            case 5: return ThemeEngine.colors.infoBlue;
-            default: return ThemeEngine.colors.skipGray;
         }
     }
     function fmtDur(ms) {
@@ -425,7 +431,7 @@ Item {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
-                    AppIcon { name: page.statusIcon(modelData.status); size: 14; color: page.statusColor(modelData.status) }
+                    AppIcon { name: page.statusIcon(modelData.status); size: 14; color: page._statusColors[modelData.status] || ThemeEngine.colors.skipGray }
                     Item { width: 6 }
                     Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6) }

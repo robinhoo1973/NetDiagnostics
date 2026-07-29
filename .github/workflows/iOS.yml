@@ -67,6 +67,7 @@ jobs:
             -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=ios \
             -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
@@ -91,6 +92,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=ios \
             -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" \
@@ -323,9 +325,11 @@ jobs:
           echo "profile_uuid=" >> "$GITHUB_OUTPUT"; echo "[INFO] Falling back to Xcode automatic signing"
 
       - name: Set build number
+        if: steps.last-sha.outputs.last != github.sha
         run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
 
       - name: Configure CMake (Xcode)
+        if: steps.last-sha.outputs.last != github.sha
         run: |
           export IOS_TEAM_ID="${{ secrets.IOS_TEAM_ID }}"
           export ND_WIFI_ENTITLEMENT=1
@@ -334,11 +338,13 @@ jobs:
             -G Xcode -DCMAKE_BUILD_TYPE=Release \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=ios -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
             -DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
             -DCMAKE_OSX_SYSROOT="$SDKROOT" -B build-ios -S .
 
       - name: Build and archive iOS
+        if: steps.last-sha.outputs.last != github.sha
         run: |
           set -euo pipefail
           # 5WHY: same pipefail issue as Verify Xcode build — the
@@ -378,6 +384,7 @@ jobs:
           echo "[OK] iOS archive created"
 
       - name: Package iOS IPA
+        if: steps.last-sha.outputs.last != github.sha
         run: |
           set -euo pipefail
           # 5WHY: the xcarchive Products directory uses the Xcode PRODUCT_NAME

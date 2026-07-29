@@ -78,6 +78,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=linux-x86_64 \
             -B build-debug -S .
       - name: Build (debug)
@@ -88,6 +89,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=linux-x86_64 \
             -B build -S .
 
@@ -198,6 +200,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=linux-arm64 \
             -B build -S .
 
@@ -456,6 +459,7 @@ jobs:
             -G Ninja -DCMAKE_BUILD_TYPE=Release
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}"
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
+            "-DND_GIT_HASH=${{ github.sha }}"
             -DAPP_EDITION=static
             -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
             -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"
@@ -571,6 +575,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=dynamic \
             -B build -S .
           ninja -C build net_diagnostics
@@ -610,57 +615,7 @@ jobs:
             dist/NetDiagnostics-Windows-x86_64.exe
           if-no-files-found: error
 
-  # ===================================================================
-  # macOS arm64 — Apple Silicon native build + DMG
-  # ===================================================================
-  macos-arm64:
-    name: macOS arm64
-    needs: [version]
-    runs-on: macos-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: brew install cmake ninja qt@6
-
-      - uses: ./.github/actions/macos-icon
-
-      - name: Configure (production)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
-            -B build -S .
-
-      - name: Build (production)
-        run: ninja -C build net_diagnostics
-
-      - name: Package DMG (production)
-        run: |
-          if [ -d build/net_diagnostics.app ]; then
-            echo "Packaging .app into DMG..."
-            hdiutil create -volname "NetDiagnostics" -srcfolder build/net_diagnostics.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
-            ls -lh NetDiagnostics-macOS-arm64.dmg
-          else
-            echo "No .app bundle found; falling back to binary packaging"
-            mkdir -p pkg/NetDiagnostic.app/Contents/MacOS
-            cp build/net_diagnostics pkg/NetDiagnostic.app/Contents/MacOS/
-            hdiutil create -volname "NetDiagnostics" -srcfolder pkg/NetDiagnostic.app -ov -format UDZO NetDiagnostics-macOS-arm64.dmg || true
-          fi
-        continue-on-error: true
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-macOS-arm64
-          path: |
-            *.dmg
-          if-no-files-found: error
-
-  # iOS build in .github/workflows/apple.yml
+  # iOS build in .github/workflows/iOS.yml
 
   # ===================================================================
   # Android x86_64 - cross-compile via aqtinstall + NDK
@@ -680,7 +635,7 @@ jobs:
             build-essential cmake ninja-build
           # 5WHY: pip install without --break-system-packages fails on
           # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
-          # Use a venv for isolation, same pattern as apple.yml.
+          # Use a venv for isolation, same pattern as macOS.yml/iOS.yml.
           python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
           echo "/tmp/venv/bin" >> "$GITHUB_PATH"
 
@@ -720,6 +675,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=android-x86_64 \
             -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
             -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
@@ -766,7 +722,7 @@ jobs:
             build-essential cmake ninja-build
           # 5WHY: pip install without --break-system-packages fails on
           # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
-          # Use a venv for isolation, same pattern as apple.yml.
+          # Use a venv for isolation, same pattern as macOS.yml/iOS.yml.
           python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
           echo "/tmp/venv/bin" >> "$GITHUB_PATH"
 
@@ -806,6 +762,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=android-arm64 \
             -DCMAKE_PREFIX_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
             -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
@@ -834,8 +791,8 @@ jobs:
             NetDiagnostics-Android-arm64.apk
           if-no-files-found: error
 
-  # iOS build moved to .github/workflows/apple.yml
-  # (combined macOS + iOS build with TestFlight deploy)
+  # iOS build in .github/workflows/iOS.yml
+  # macOS build + TestFlight deploy in .github/workflows/macOS.yml
 
   # ===================================================================
   # Release — auto-bump version, create tag, and publish GitHub Release
@@ -848,7 +805,6 @@ jobs:
       - linux-arm64
       - windows-x86_64-static
       - windows-x86_64-dynamic
-      - macos-arm64
       - android-x86_64
       - android-arm64
     # 5WHY: on pull_request the release job would create/overwrite real GitHub
@@ -898,14 +854,8 @@ jobs:
                 os="linux"; arch="x86_64" ;;
               *linux-arm64*|*linux*arm*)
                 os="linux"; arch="arm64" ;;
-              *macos*)
-                os="macos"; arch="arm64" ;;
-              *android-x86_64*|*android*x86*)
-                os="android"; arch="x86_64" ;;
-              *android-arm64*|*android*arm*)
-                os="android"; arch="arm64" ;;
-              *ios*)
-                os="ios"; arch="arm64" ;;
+              *macos*|*ios*)
+                echo "Skipping Apple artifact (handled by macOS.yml/iOS.yml): $dir"; continue ;;
               *)
                 echo "Skipping unknown: $dir"; continue ;;
             esac
@@ -919,8 +869,6 @@ jobs:
                 *.appimage) name="netdiagnostics-${os}-${arch}.${normalized_ext}" ;;
                 *.deb)      name="netdiagnostics-${os}-${arch}.deb" ;;
                 *.rpm)      name="netdiagnostics-${os}-${arch}.rpm" ;;
-                *.dmg)      name="netdiagnostics-${os}-${arch}.dmg" ;;
-                *.ipa)      name="netdiagnostics-${os}-${arch}.ipa" ;;
                 *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
 
                 *netdiagnostics-*.exe)

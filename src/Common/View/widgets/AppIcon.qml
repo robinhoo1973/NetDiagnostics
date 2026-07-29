@@ -21,9 +21,20 @@
 // haze on transparent SVG regions is an acceptable trade-off for not
 // crashing.
 //
-// Badge icons (badge-check, badge-warning, etc.) have native colored fills
-// designed by the icon artist.  _nativeColored detects badge icons and skips
-// ALL colorization, rendering the SVG with its original fills on all platforms.
+// 5WHY (2026-07-29 _nativeColored removal): Commit fc0cc6b redesigned all
+// 53 icons as "bold stroke-only line-art SVG (2.5px)" — every SVG now uses
+// fill="none" stroke="#FFFFFF".  No icon has native colored fills.  The
+// _nativeColored logic assumed badge icons had designer-intended fills but
+// this was invalidated by the icon redesign.  It caused badge icons with
+// the default "white" color to render transparent (white stroke on light
+// backgrounds = invisible) and prevented colorization from being applied
+// to any badge icon during initialization.
+//
+// Fix: ALL icons are now treated uniformly — the caller's color is always
+// applied.  There are no special cases.  If a caller sets color=white on a
+// badge icon, it renders white (the caller's choice).  If they want status
+// colors, they set the color explicitly (which every existing call site
+// already does: passGreen, failRed, warnYellow, etc.).
 // =============================================================================
 import QtQuick
 
@@ -36,32 +47,22 @@ Item {
     width: size; height: size
     visible: name !== ""
 
-    // 5WHY: layer.enabled forces Qt to composite the entire icon subtree
-    // (Image + optional Rectangle overlay) into an alpha-aware Frame Buffer
-    // Object.  Without this, the overlay fallback on iOS would produce
-    // "foggy square box" artifacts around every icon — the overlay tints
-    // transparent SVG regions.  The FBO properly composites alpha so the
-    // overlay only affects actual SVG stroke pixels.  No layer.samples
-    // (MSAA resolve loses alpha on Mali/Adreno GPUs).
-    //
-    // Only enable the FBO when the overlay fallback is actually active
-    // (iOS platform, non-badge icon).  On platforms with native Image.color
-    // the overlay is hidden and the FBO is wasted GPU memory — every
-    // AppIcon instance allocates an offscreen buffer sized width×height×4.
-    layer.enabled: _useOverlay && !_nativeColored
+    // 5WHY (2026-07-29 _nativeColored removed): Formerly guarded FBO
+    // allocation to only activate when the overlay fallback was active
+    // AND the icon wasn't a "native-colored" badge.  Since all 53 icons
+    // are now monochrome (fill="none" stroke="#FFFFFF" per fc0cc6b),
+    // ALL icons should use the FBO when the overlay is active.  No
+    // special cases remain.
+    layer.enabled: _useOverlay
 
-    // 5WHY: Badge icons (badge-check, badge-info, badge-warning, etc.)
-    // have designer-intended native colored fills.  Image.color replaces
-    // ALL source colors with a single tint, which would destroy the native
-    // palette.  When the caller has NOT set an explicit color (default
-    // "white"), skip colorization so the native fills render.  When the
-    // caller HAS set an explicit non-white color, respect it — the caller
-    // intentionally wants a monochrome badge in that color.
-    // badge-circle has no native fill (white stroke only), so it should
-    // always be colorized according to the caller's color property.
-    readonly property bool _nativeColored: name.indexOf("badge-") === 0
-        && name !== "badge-circle"
-        && Qt.colorEqual(root.color, "white")
+    // 5WHY (2026-07-29): _nativeColored REMOVED.  All 53 SVG icons were
+    // redesigned as monochrome line-art (fill="none" stroke="#FFFFFF")
+    // in commit fc0cc6b.  The old assumption that badge icons had native
+    // colored fills no longer holds — every icon is structurally identical.
+    // Applying the caller's color to ALL icons is now the correct behavior.
+    // Callers that want status-specific colors already set them explicitly
+    // (passGreen, failRed, etc.); callers using default "white" get a white
+    // icon (their choice — matches the SVG's native stroke).
 
     // True when native Image.color is unavailable on this platform
     // (iOS static Qt builds) — Rectangle overlay is active instead.
@@ -86,14 +87,13 @@ Item {
     }
 
     // Fallback: semi-transparent colored Rectangle over the white SVG icon.
-    // Visible only when native Image.color is unavailable AND the icon is
-    // not a native-colored badge (which needs its designer palette intact).
+    // Visible only when native Image.color is unavailable.
     Rectangle {
         id: colorOverlay
         anchors.fill: parent
         color: root.color
         opacity: 0.55
-        visible: root._useOverlay && !root._nativeColored
+        visible: root._useOverlay
     }
 
     // Attempt Qt 6.5+ native SVG colorization.  On platforms where
@@ -101,23 +101,19 @@ Item {
     // hidden.  On platforms where it doesn't (iOS static builds), the
     // assignment silently fails, the read-back won't match, and
     // _useOverlay is set true to show the Rectangle fallback.
+    //
+    // 5WHY (2026-07-29 _nativeColored removed): The old code had a special
+    // path for badge icons that set iconImg.color = "transparent" and
+    // skipped colorization entirely, relying on the SVG's native fills.
+    // Since all 53 icons are now monochrome stroke-only (fc0cc6b), every
+    // icon should be colorized uniformly by the caller's color.  The only
+    // early-exit is for icons with no name (not loaded).
     function _tryNativeColorization() {
-        // 5WHY: Hidden icons (name="") don't need colorization — skipping
+        // Hidden icons (name="") don't need colorization — skipping
         // avoids allocating a wasted FBO via layer.enabled on iOS when
         // the icon will never be visible.
-        if (root._nativeColored || root.name === "") {
-            // Badge icon with designer palette, or no icon loaded —
-            // skip ALL colorization and release the FBO if active.
+        if (root.name === "") {
             root._useOverlay = false
-            // 5WHY: The old static binding `color: _nativeColored ? "transparent" : root.color`
-            // reset Image.color to transparent when a badge icon was detected, restoring
-            // native SVG fills.  The dynamic approach only disables the overlay but does NOT
-            // clear iconImg.color — so transitioning from a colorized icon ("spinner" with
-            // white tint) to a badge icon ("badge-check") leaves Image.color at the previous
-            // value, destroying the badge's designer-intended palette.
-            // Reset to transparent so native SVG fills render.  On iOS static builds where
-            // Image.color doesn't exist, the assignment is a silent no-op.
-            iconImg.color = "transparent"
             return
         }
         // Attempt native Image.color assignment
@@ -146,8 +142,8 @@ Item {
     }
 
     // When the icon name changes (e.g. "spinner" → "badge-check" in
-    // progress indicators), re-evaluate _nativeColored and re-apply the
-    // correct colorization strategy for the new icon type.
+    // progress indicators), re-apply the correct colorization strategy
+    // for the new icon type.
     onNameChanged: {
         _tryNativeColorization()
     }

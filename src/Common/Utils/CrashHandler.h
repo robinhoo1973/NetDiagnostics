@@ -145,6 +145,9 @@ static void writeCrashReport(const char* signalName, int signalNum) {
 #if defined(ND_BUILD_NUMBER)
     ts << "Build:     " << ND_BUILD_NUMBER << "\n";
 #endif
+#if defined(ND_GIT_HASH)
+    ts << "Git:       " << ND_GIT_HASH << "\n";
+#endif
 #if defined(APP_EDITION)
     ts << "Edition:   " << APP_EDITION << "\n";
 #endif
@@ -192,6 +195,9 @@ static void writeMessageCrashReport(const char* kind, const QString& text) {
 #endif
 #if defined(ND_BUILD_NUMBER)
     ts << "Build:     " << ND_BUILD_NUMBER << "\n";
+#endif
+#if defined(ND_GIT_HASH)
+    ts << "Git:       " << ND_GIT_HASH << "\n";
 #endif
 #if defined(APP_EDITION)
     ts << "Edition:   " << APP_EDITION << "\n";

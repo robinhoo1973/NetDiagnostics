@@ -166,6 +166,14 @@ QString AppState::buildNumber() const {
 #endif
 }
 
+QString AppState::gitHash() const {
+#if defined(ND_GIT_HASH)
+    return QStringLiteral(ND_GIT_HASH);
+#else
+    return QString();
+#endif
+}
+
 // ── State version — called at end of every mutation method ──────────────
 void AppState::bumpVersion() {
     m_stateGeneration.fetch_add(1, std::memory_order_release);
@@ -691,6 +699,7 @@ ReportData AppState::buildReportData() const {
     d.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     d.appVersion = appVersion();
     d.buildNumber = buildNumber();
+    d.gitHash = gitHash();
     d.groupLabels = groupLabels();
     d.results = m_results;
     d.diagDisplayName = &AppState::staticDiagDisplayName;

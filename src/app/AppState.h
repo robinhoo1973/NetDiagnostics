@@ -62,6 +62,7 @@ class AppState : public QObject {
     Q_PROPERTY(QString appVersion READ appVersion CONSTANT)
     Q_PROPERTY(QString appEdition READ appEdition CONSTANT)
     Q_PROPERTY(QString buildNumber READ buildNumber CONSTANT)
+    Q_PROPERTY(QString gitHash READ gitHash CONSTANT)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
     Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
     // Crash report from the previous run (detected at startup). QML can show a
@@ -93,6 +94,7 @@ public:
     QString appVersion() const;
     QString appEdition() const;
     QString buildNumber() const;
+    QString gitHash() const;
 
     // ── Target (delegated to TargetModel) ────────────────────────────────
     QString target() const { return m_targetModel->target(); }

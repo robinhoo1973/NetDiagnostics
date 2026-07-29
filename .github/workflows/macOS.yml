@@ -37,7 +37,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: brew install cmake ninja qt@6
+        run: brew install cmake ninja qt
 
       - uses: ./.github/actions/macos-icon
 
@@ -46,8 +46,9 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=macos-arm64 \
-            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" \
             -B build -S .
 
       - name: Build (production)
@@ -60,7 +61,7 @@ jobs:
           # command's exit code.  Without it, "cmd 2>&1 | tail" masks
           # failures because tail always exits 0.
           if [ -d build/net_diagnostics.app ]; then
-            QT_PREFIX="$(brew --prefix qt@6)"
+            QT_PREFIX="$(brew --prefix qt)"
             MACDEPLOY_LOG=$(mktemp)
             set +e
             "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
@@ -170,6 +171,7 @@ jobs:
           echo "Extraction OK"
 
       - name: Inject Info.plist keys
+        if: steps.last-sha.outputs.last != github.sha
         run: |
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           [ -z "$APP" ] && { echo "ERROR: No .app found"; exit 1; }
@@ -178,8 +180,14 @@ jobs:
             /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 26.0" "$PLIST"
           /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.utilities" "$PLIST" 2>/dev/null || \
             /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType public.app-category.utilities" "$PLIST"
+          # 5WHY: The .app was built with MACOSX_BUNDLE_BUNDLE_VERSION=PROJECT_VERSION
+          # (e.g. "0.0.1") before the netdiag-target.cmake fix.  Override CFBundleVersion
+          # with the GitHub run number so TestFlight sees a unique, monotonically
+          # increasing build number.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" "$PLIST"
 
       - name: Install provisioning profile
+        if: steps.last-sha.outputs.last != github.sha
         run: |
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           if [ -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
@@ -200,6 +208,7 @@ jobs:
           allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
 
       - name: Sign .app and package as .pkg
+        if: steps.last-sha.outputs.last != github.sha
         run: |
           # ── Inside-out code signing ─────────────────────────────────
           # Apple requires signing from deepest nested content outward:

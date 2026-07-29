@@ -1,8 +1,8 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Reusable Version Detection Workflow
 # ═══════════════════════════════════════════════════════════════════════════
-# 5WHY: Version detection was copy-pasted across build.yml, apple.yml, and
-# test.yml (3 identical copies).  Centralizing it here ensures consistent
+# 5WHY: Version detection was copy-pasted across build.yml, macOS.yml, iOS.yml,
+# and test.yml (4 identical copies).  Centralizing it here ensures consistent
 # semver tag → CMake version mapping across all pipelines, and a fix here
 # propagates everywhere.  Callers reference this via:
 #   jobs:
@@ -37,7 +37,11 @@ jobs:
           fetch-tags: true
       - id: v
         run: |
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
+          # 5WHY: git tag --list finds tags globally across all branches.
+          # A tag on a feature branch with a higher version would be incorrectly
+          # selected.  --merged HEAD restricts to tags reachable from the current
+          # commit, ensuring the detected version matches the actual branch.
+          LATEST=$(git tag --merged HEAD --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname | grep -v '[-]' | head -1)
           VER="${LATEST#v}"
           echo "pkg_version=${VER:-0.0.1}" >> "$GITHUB_OUTPUT"
           echo "Version: ${VER:-0.0.1}"

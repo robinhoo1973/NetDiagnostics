@@ -142,8 +142,13 @@ int main(int argc, char *argv[])
     STARTUP_LOG("QQmlApplicationEngine constructed OK");
 
 #if defined(ND_BUILD_NUMBER)
+#  if defined(ND_GIT_HASH)
+    STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s, build=%s, git=%s",
+                qVersion(), APP_EDITION, ND_BUILD_NUMBER, ND_GIT_HASH);
+#  else
     STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s, build=%s",
                 qVersion(), APP_EDITION, ND_BUILD_NUMBER);
+#  endif
 #else
     STARTUP_LOG("NetDiagnostics starting, Qt %s, edition=%s",
                 qVersion(), APP_EDITION);
