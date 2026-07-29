@@ -243,7 +243,16 @@ void TargetModel::assembleTargetUrl() {
             authority += QLatin1Char(':') + QString::fromUtf8(QUrl::toPercentEncoding(m_password));
         authority += QLatin1Char('@');
     }
-    authority += m_host;
+    // 5WHY: QUrl::host() strips brackets from IPv6 addresses (e.g. "[::1]" → "::1").
+    // assembleTargetUrl must re-wrap bare IPv6 addresses so the reconstructed URL
+    // is RFC 3986 compliant.  extractEmbeddedPortAndUserinfo preserves brackets in
+    // m_host for the bare-input path, so the startsWith('[') guard prevents
+    // double-wrapping.  Use looksLikeIPv6() (file-scope, host.count(':') > 1) for
+    // a self-documenting check rather than an inline count.
+    if (looksLikeIPv6(m_host) && !m_host.startsWith(QLatin1Char('[')))
+        authority += QLatin1Char('[') + m_host + QLatin1Char(']');
+    else
+        authority += m_host;
     if (m_port > 0 && m_port != defPort)
         authority += QLatin1Char(':') + QString::number(m_port);
 
@@ -384,12 +393,13 @@ void TargetModel::extractEmbeddedPortAndUserinfo() {
                 if (ok && p > 0 && p <= 65535) {
                     m_port = p;
                     int bracketPos = atPos >= 0 ? atPos + 1 : 0;
-                    // 5WHY: Keeps bracket notation in m_host (e.g. "[::1]"
-                    // instead of "::1").  assembleTargetUrl has no IPv6
-                    // bracket-wrapping logic, so brackets must survive in
-                    // m_host for RFC 3986 URL assembly.  extractHostname
-                    // strips brackets for raw socket use — the two roles
-                    // are intentionally different.
+                    // Keeps bracket notation in m_host (e.g. "[::1]"
+                    // instead of "::1") so assembleTargetUrl's bracket-
+                    // wrapping guard (looksLikeIPv6 && !startsWith('['))
+                    // sees the brackets and skips re-wrapping — prevents
+                    // double-wrapped "[[]:1]".  extractHostname strips
+                    // brackets for raw socket use — the two roles are
+                    // intentionally different.
                     m_host = m_host.left(bracketPos + closing + 1);
                 }
             }
