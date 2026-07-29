@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Entitlements for framework-internal helper processes
+	  (e.g. QtWebEngineProcess.app inside QtWebEngineCore.framework).
+
+	  Key difference from macos.entitlements (main app):
+	  - No com.apple.application-identifier — the helper inherits the
+	    parent app's identity; declaring its own triggers ITMS-90885
+	    ("missing provisioning profile but has application identifier").
+	  - No com.apple.developer.team-identifier — auto-resolved from
+	    the signing certificate.
+	  - Keeps sandbox + network to match the parent app's capability set.
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.network.server</key>
+	<true/>
+</dict>
+</plist>

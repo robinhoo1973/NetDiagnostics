@@ -201,44 +201,96 @@ jobs:
 
       - name: Sign .app and package as .pkg
         run: |
+          # ── Inside-out code signing ─────────────────────────────────
+          # Apple requires signing from deepest nested content outward:
+          # helper .app → framework → dylib → main binary → main .app
+          #
+          # The previous breadth-first order (all frameworks → all .apps)
+          # caused ITMS-90238: signing QtWebEngineProcess.app AFTER its
+          # parent QtWebEngineCore.framework invalidated the framework's
+          # seal.  This depth-first order fixes that.
+          # ─────────────────────────────────────────────────────────────
           set -euo pipefail
           APP=$(find macos-artifact -name "*.app" -type d | head -1)
           KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
           CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
           PKG_ID="${{ steps.mac-keychain.outputs.installer_identity }}"
           [ -z "$CODE_ID" ] && { echo "ERROR: No signing identity"; exit 1; }
-          # Sign dylibs
-          find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
-            case "$dylib" in */Contents/Frameworks/*.framework/*) continue ;; esac
-            codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib" \
-              || { echo "[FAIL] codesign dylib $dylib"; exit 1; }
-          done
-          # Sign frameworks
+
+          # ── Phase 1: Sign helper .apps inside frameworks ──────────
+          # QtWebEngineCore.framework contains QtWebEngineProcess.app.
+          # Sign the helper .app BEFORE its parent framework so the
+          # framework seal covers the already-signed nested content.
+          # Use macos-helper.entitlements (no application-identifier)
+          # to avoid ITMS-90885 ("nested executable has app identifier
+          # but no provisioning profile").
           if [ -d "$APP/Contents/Frameworks" ]; then
+            find "$APP/Contents/Frameworks" -name "*.app" -type d | while read helper; do
+              echo "  [sign] helper .app: ${helper#$APP/Contents/Frameworks/}"
+              HELPER_MACOS="$helper/Contents/MacOS"
+              if [ -d "$HELPER_MACOS" ]; then
+                find "$HELPER_MACOS" -type f -perm +111 | while read exe; do
+                  codesign --force --options runtime --timestamp \
+                    --entitlements resources/macos-helper.entitlements \
+                    --sign "$CODE_ID" --keychain "$KCHAIN" "$exe" \
+                    || { echo "[FAIL] codesign helper exe $exe"; exit 1; }
+                done
+              fi
+              codesign --force --options runtime --timestamp \
+                --entitlements resources/macos-helper.entitlements \
+                --sign "$CODE_ID" --keychain "$KCHAIN" "$helper" \
+                || { echo "[FAIL] codesign helper $helper"; exit 1; }
+            done
+
+            # ── Phase 2: Sign frameworks ────────────────────────────
+            # Now that all nested .apps are signed, sign the framework
+            # bundle itself.  The framework seal covers everything inside.
             find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
-              codesign --force --options runtime --timestamp --sign "$CODE_ID" --keychain "$KCHAIN" "$fw" \
+              echo "  [sign] framework: ${fw#$APP/Contents/Frameworks/}"
+              codesign --force --options runtime --timestamp \
+                --sign "$CODE_ID" --keychain "$KCHAIN" "$fw" \
                 || { echo "[FAIL] codesign framework $fw"; exit 1; }
             done
           fi
-          # Sign nested .apps
-          find "$APP/Contents" -name "*.app" -type d | while read nested; do
-            NESTED_BIN="$nested/Contents/MacOS"
-            if [ -d "$NESTED_BIN" ]; then
-              find "$NESTED_BIN" -type f -perm +111 | while read exe; do
-                codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$exe" \
-                  || { echo "[FAIL] codesign nested exe $exe"; exit 1; }
-              done
-            fi
-            codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$nested" \
-              || { echo "[FAIL] codesign nested app $nested"; exit 1; }
+
+          # ── Phase 3: Sign standalone dylibs ───────────────────────
+          # Skip dylibs inside frameworks — the framework signature
+          # already covers them.
+          find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
+            case "$dylib" in */Contents/Frameworks/*.framework/*) continue ;; esac
+            echo "  [sign] dylib: ${dylib#$APP/Contents/}"
+            codesign --force --options runtime --timestamp \
+              --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib" \
+              || { echo "[FAIL] codesign dylib $dylib"; exit 1; }
           done
-          # Sign binary
+
+          # ── Phase 4: Sign main binary ─────────────────────────────
           BIN="$APP/Contents/MacOS/net_diagnostics"
-          [ -f "$BIN" ] && codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$BIN"
-          # Sign .app
-          codesign --force --options runtime --timestamp --entitlements resources/macos.entitlements --sign "$CODE_ID" --keychain "$KCHAIN" "$APP"
-          # Package
-          productbuild --component "$APP" /Applications --sign "$PKG_ID" --keychain "$KCHAIN" NetDiagnostics-macOS.pkg
+          if [ -f "$BIN" ]; then
+            echo "  [sign] main binary"
+            codesign --force --options runtime --timestamp \
+              --entitlements resources/macos.entitlements \
+              --sign "$CODE_ID" --keychain "$KCHAIN" "$BIN" \
+              || { echo "[FAIL] codesign main binary $BIN"; exit 1; }
+          fi
+
+          # ── Phase 5: Sign main .app bundle ────────────────────────
+          echo "  [sign] .app bundle"
+          codesign --force --options runtime --timestamp \
+            --entitlements resources/macos.entitlements \
+            --sign "$CODE_ID" --keychain "$KCHAIN" "$APP" \
+            || { echo "[FAIL] codesign .app $APP"; exit 1; }
+
+          # ── Phase 6: Verify signature integrity ───────────────────
+          # Catch any remaining inside-out violations before upload.
+          echo "  [verify] checking signature chain..."
+          codesign --verify --deep --strict --verbose=4 "$APP" \
+            || { echo "[FAIL] Signature verification failed"; exit 1; }
+          echo "  [OK] signature verified"
+
+          # ── Package ──────────────────────────────────────────────
+          productbuild --component "$APP" /Applications \
+            --sign "$PKG_ID" --keychain "$KCHAIN" NetDiagnostics-macOS.pkg
           ls -lh NetDiagnostics-macOS.pkg
 
       - name: Write ASC key
