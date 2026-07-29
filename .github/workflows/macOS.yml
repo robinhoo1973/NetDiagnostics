@@ -47,7 +47,6 @@ jobs:
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DND_GIT_HASH=${{ github.sha }} \
-            -DAPPLE_TEAM_ID="${{ secrets.APPLE_TEAM_ID }}" \
             -DAPP_EDITION=macos-arm64 \
             -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
             -B build -S .
@@ -211,12 +210,11 @@ jobs:
       - name: Generate entitlements
         if: steps.last-sha.outputs.last != github.sha
         run: |
-          # 5WHY: The Apple Team ID was hardcoded in resources/apple/macos.entitlements.
-          # Generate it from the template at deploy time so the secret never
-          # appears in a tracked file.  CMake also does this during the build job,
-          # but the deploy-testflight job signs independently.
-          sed "s/@APPLE_TEAM_ID@/${{ secrets.APPLE_TEAM_ID }}/g" \
-            resources/apple/macos.entitlements.in > macos.entitlements
+          # 5WHY: com.apple.application-identifier and com.apple.developer.team-identifier
+          # are DERIVED entitlements auto-injected by codesign from the signing certificate
+          # and provisioning profile.  The template intentionally omits them.  The deploy
+          # job copies the template verbatim — no sed/configure_file substitution needed.
+          cp resources/apple/macos.entitlements.in macos.entitlements
           echo "[OK] macos.entitlements generated"
 
       - name: Sign .app and package as .pkg

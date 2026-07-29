@@ -52,27 +52,13 @@ QtObject {
     function applyTheme() {
         var p = (mode === litMode) ? lightPalette : darkPalette
 
-        // 5WHY: Previously set 23 individual QML properties via direct
-        // assignment (bgDark = p.surface, passGreen = p.passGreen, ...).
-        // Now the direct properties are readonly aliases (colors.xxx), so
-        // only the `colors` object needs updating.  This eliminates 23
-        // property assignments per theme switch and makes the `colors`
-        // object the single source of truth.
-        colors = ({
-            surface: p.surface,           sidebar: p.sidebar,
-            card: p.card,                 input: p.input,
-            navBar: p.navBar,             primary: p.primary,
-            primaryContainer: p.primaryContainer,
-            secondary: p.secondary,
-            textPrimary: p.textPrimary,   textSecondary: p.textSecondary,
-            textMuted: p.textMuted,       accent: p.accent,
-            cyan: p.cyan,                 passGreen: p.passGreen,
-            warnYellow: p.warnYellow,     failRed: p.failRed,
-            skipGray: p.skipGray,         infoBlue: p.infoBlue,
-            borderCard: p.borderCard,     borderSubtle: p.borderSubtle,
-            borderFocused: p.borderFocused,
-            textOnAccent: p.textOnAccent
-        })
+        // 5WHY: Object.assign({}, p) creates a new object with all palette
+        // properties copied — QML's binding engine detects the reference
+        // change and re-evaluates all ThemeEngine.colors.xxx bindings.
+        // This replaces the old 23-line manual enumeration which was a
+        // maintenance burden: adding a color to Palette.js required also
+        // adding it here, with no compile-time check for omissions.
+        colors = Object.assign({}, p)
     }
     onModeChanged: { if (_ready) applyTheme() }
 
@@ -89,13 +75,21 @@ QtObject {
     // (Pass=0, Warning=1, Fail=2, Skipped=3, Error=4, Info=5) to colors.
     // Binding expression directly references colors.xxx so QML tracking
     // detects theme switches and re-evaluates the array automatically.
+    // 5WHY: Centralized status mappings — single source of truth for
+    // DiagStatus (Pass=0, Warning=1, Fail=2, Skipped=3, Error=4, Info=5)
+    // → color and icon name.  Previously duplicated across DiagResultItem,
+    // DashboardScreen, and DiagId.h.
     readonly property var statusColors: [
-        colors.passGreen,   // 0: Pass
-        colors.warnYellow,  // 1: Warning
-        colors.failRed,     // 2: Fail
-        colors.skipGray,    // 3: Skipped
-        colors.failRed,     // 4: Error
-        colors.infoBlue     // 5: Info
+        colors.passGreen,   colors.warnYellow,  colors.failRed,
+        colors.skipGray,    colors.failRed,     colors.infoBlue
+    ]
+    readonly property var statusIconNames: [
+        "badge-check",      // 0: Pass
+        "badge-warning",    // 1: Warning
+        "badge-close",      // 2: Fail
+        "badge-skip",       // 3: Skipped
+        "badge-error",      // 4: Error
+        "badge-info"        // 5: Info
     ]
 
     readonly property int toastDurationMs: 3500

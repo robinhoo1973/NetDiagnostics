@@ -87,19 +87,8 @@ Item {
     // property var array whose binding expression directly references
     // ThemeEngine.colors.xxx — QML CAN track these dependencies, so the array
     // is rebuilt on every theme switch and downstream color bindings re-evaluate.
-    // 5WHY: _statusColors replaced by centralized ThemeEngine.statusColors
-    // to avoid duplicate array definitions across QML files.
-    function statusIcon(s) {
-        switch(s) {
-            case 0: return "badge-check";
-            case 1: return "badge-warning";
-            case 2: return "badge-close";
-            case 3: return "badge-skip";
-            case 4: return "badge-error";
-            case 5: return "badge-info";
-            default: return "badge-skip";
-        }
-    }
+    // 5WHY: Both _statusColors and statusIcon() replaced by centralized
+    // ThemeEngine.statusColors[] and statusIconNames[] arrays.
     function fmtDur(ms) {
         if (ms < 1000) return ms + "ms"
         if (ms < 60000) return (ms/1000).toFixed(1) + "s"
@@ -425,7 +414,7 @@ Item {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
-                    AppIcon { name: page.statusIcon(modelData.status); size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
+                    AppIcon { name: ThemeEngine.statusIconNames[modelData.status] || "badge-skip"; size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
                     Item { width: 6 }
                     Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6) }

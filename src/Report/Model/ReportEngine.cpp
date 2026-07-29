@@ -575,9 +575,9 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         "details.test.fail>summary{border-left:4px solid " APPC_FAIL_RED_DARK "}details.test.skip>summary{border-left:4px solid " APPC_SKIP_GRAY_DARK "}"
         "details.test.info>summary{border-left:4px solid " APPC_INFO_BLUE_DARK "}"
         ".body{padding:14px 16px 18px;border-top:1px solid " APPC_BORDER_CARD_DARK "}"
-        ".analysis{background:" APPC_REPORT_DARK_DETAIL_BG ";color:" APPC_REPORT_DARK_CODE_FG ";border-left:3px solid #00bcd4;padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
+        ".analysis{background:" APPC_REPORT_DARK_DETAIL_BG ";color:" APPC_REPORT_DARK_CODE_FG ";border-left:3px solid " APPC_CSS_TEAL_ACCENT ";padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:" APPC_REPORT_DARK_CODE_BG ";padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:" APPC_REPORT_DARK_CODE_FG ";max-height:420px;overflow:auto}"
-        ".meta{color:#8890a6;font-size:11px;font-weight:400}"
+        ".meta{color:" APPC_CSS_TEXT_DIM ";font-size:11px;font-weight:400}"
         ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}");
 
     // 5WHY: Unicode icons replaced with inline SVG <img> tags using base64
@@ -601,7 +601,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     h += QStringLiteral(
         "<div class=\"header\"><h1>Network Diagnostic Report</h1>"
         "<p>Generated: %1</p>"
-        "<p>Target: <b style=\"color:#e0e0e0\">%2</b></p>"
+        "<p>Target: <b style=\"color:" APPC_CSS_TEXT_BRIGHT "\">%2</b></p>"
         "<p>NetDiagnostics v%3 (build %4%5)</p></div>\n")
         .arg(data.timestamp, data.target, data.appVersion, data.buildNumber,
              data.gitHash.isEmpty() ? QString() : QStringLiteral(" - ") + data.gitHash);

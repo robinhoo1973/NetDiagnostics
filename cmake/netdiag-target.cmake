@@ -271,13 +271,14 @@ function(setup_platform_bundle TARGET)
         else()
             message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
         endif()
-        # 5WHY: The Apple Developer Team ID was hardcoded in
-        # resources/apple/macos.entitlements.in (NPGD43U8P4), which broke forks
-        # and made the team ID visible in the public repo.
-        # configure_file() substitutes @APPLE_TEAM_ID@ from the CMake
-        # variable, so CI passes it via -DAPPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}.
+        # 5WHY: com.apple.application-identifier and com.apple.developer.team-identifier
+        # are DERIVED entitlements auto-injected by codesign.  The template
+        # intentionally omits them — no @APPLE_TEAM_ID@ placeholder needed.
+        # configure_file() copies the template to the build dir (dormant @ONLY
+        # substitution — left as forward-compat scaffolding if a placeholder is
+        # ever added back for non-App-Store signing flows).
         if(NOT DEFINED APPLE_TEAM_ID)
-            set(APPLE_TEAM_ID "0000000000")
+            set(APPLE_TEAM_ID "0000000000")  // dormant — template has no @VAR@
         endif()
         configure_file(
             "${CMAKE_SOURCE_DIR}/resources/apple/macos.entitlements.in"

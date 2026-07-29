@@ -81,3 +81,10 @@ var Light = {
     skipGray:         "#6B7280",
     infoBlue:         "#2563EB"
 };
+
+// 5WHY: Freeze both palette objects to prevent accidental mutation.
+// Palette.Dark and Palette.Light are shared singletons via .pragma library.
+// Without freeze(), any QML file could write Palette.Light.passGreen = "red"
+// and corrupt the canonical palette globally for the app lifetime.
+Object.freeze(Dark);
+Object.freeze(Light);

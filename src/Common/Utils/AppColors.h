@@ -136,6 +136,11 @@
 #define APPC_REPORT_LIGHT_HEADER_TARGET "#E2E8F0"
 #define APPC_REPORT_LIGHT_HEADER_META  "#94A3B8"
 
+// ── CSS/report accent colors (not mirrored in Palette.js — C++ report only) ─────
+#define APPC_CSS_TEAL_ACCENT         "#00bcd4"  // .analysis left-border
+#define APPC_CSS_TEXT_DIM            "#8890a6"  // .meta text
+#define APPC_CSS_TEXT_BRIGHT         "#e0e0e0"  // header target name
+
 // ── Status icon (renderStatusIcon) — QColor RGB integer components ────────────
 // 5WHY: QColor(QRgb) expects 0xAARRGGBB format — the top byte is alpha.
 // Without the 0xFF prefix, alpha=0x00 making QColor fully transparent,

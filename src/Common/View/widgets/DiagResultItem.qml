@@ -32,21 +32,9 @@ Item {
     //
     // _statusIcon is a JS function (not a tracked property) because
     // icon names are static — they do not depend on theme colors.
-    // The function only maps status code → icon name, so it does
-    // not need theme reactivity.
-    // 5WHY: _statusColors replaced by centralized ThemeEngine.statusColors
-    // to avoid duplicate array definitions across QML files.
-    function _statusIcon(s) {
-        switch (s) {
-            case 0: return "badge-check";
-            case 1: return "badge-warning";
-            case 2: return "badge-close";
-            case 3: return "badge-skip";
-            case 4: return "badge-error";
-            case 5: return "badge-info";
-            default: return "badge-skip";
-        }
-    }
+    // 5WHY: Both _statusColors and _statusIcon() were replaced by
+    // centralized ThemeEngine.statusColors[] and statusIconNames[].
+    // Adding a 7th status now only needs one edit site (ThemeEngine.qml).
 
     // ── Pending item ──────────────────────────────────────────────────
     RowLayout {
@@ -85,7 +73,7 @@ Item {
         // array above — QML can detect when ThemeEngine.colors changes
         // and re-evaluate the binding, fixing theme-switch color updates.
         AppIcon {
-            name: _statusIcon(itemData.status); size: 16
+            name: ThemeEngine.statusIconNames[itemData.status] || "badge-skip"; size: 16
             color: ThemeEngine.statusColors[itemData.status] || ThemeEngine.colors.skipGray
         }
         Label {
