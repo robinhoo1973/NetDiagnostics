@@ -326,7 +326,7 @@ jobs:
 
       - name: Set build number
         if: steps.last-sha.outputs.last != github.sha
-        run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/Info.plist
+        run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" resources/apple/Info.plist
 
       - name: Configure CMake (Xcode)
         if: steps.last-sha.outputs.last != github.sha

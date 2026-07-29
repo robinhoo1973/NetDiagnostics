@@ -16,7 +16,7 @@ legacy_backup/
 resources/cert/
 
 # Generated from .in template by CMake / CI — team ID injected at build time
-resources/macos.entitlements
+resources/apple/macos.entitlements
 
 # Temp / review files
 review/

@@ -253,7 +253,7 @@ function(setup_platform_bundle TARGET)
             MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
             MACOSX_BUNDLE_BUNDLE_VERSION "${ND_BUILD_NUMBER}"
             MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
-            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info-macos.plist"
+            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/apple/Info-macos.plist"
             XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET "26.0"
             XCODE_ATTRIBUTE_LSMinimumSystemVersion "26.0"
             XCODE_ATTRIBUTE_LSApplicationCategoryType "public.app-category.utilities"
@@ -272,7 +272,7 @@ function(setup_platform_bundle TARGET)
             message(WARNING "netanalysis.icns not found — macOS app will lack an icon. Run the icon generation step first (see apple.yml).")
         endif()
         # 5WHY: The Apple Developer Team ID was hardcoded in
-        # resources/macos.entitlements (NPGD43U8P4), which broke forks
+        # resources/apple/macos.entitlements.in (NPGD43U8P4), which broke forks
         # and made the team ID visible in the public repo.
         # configure_file() substitutes @APPLE_TEAM_ID@ from the CMake
         # variable, so CI passes it via -DAPPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}.
@@ -280,7 +280,7 @@ function(setup_platform_bundle TARGET)
             set(APPLE_TEAM_ID "0000000000")
         endif()
         configure_file(
-            "${CMAKE_SOURCE_DIR}/resources/macos.entitlements.in"
+            "${CMAKE_SOURCE_DIR}/resources/apple/macos.entitlements.in"
             "${CMAKE_BINARY_DIR}/macos.entitlements"
             @ONLY
         )
@@ -292,7 +292,7 @@ function(setup_platform_bundle TARGET)
     if(IOS)
         set_target_properties(${TARGET} PROPERTIES
             MACOSX_BUNDLE TRUE
-            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/Info.plist"
+            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/resources/apple/Info.plist"
             MACOSX_BUNDLE_GUI_IDENTIFIER "com.netdiagnostic.app"
             MACOSX_BUNDLE_BUNDLE_NAME "NetDiagnostics"
             MACOSX_BUNDLE_BUNDLE_VERSION "${ND_BUILD_NUMBER}"
@@ -322,7 +322,7 @@ function(setup_platform_bundle TARGET)
         endif()
         if(DEFINED ENV{ND_WIFI_ENTITLEMENT})
             set_target_properties(${TARGET} PROPERTIES
-                XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/resources/netdiagnostic.entitlements"
+                XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS "${CMAKE_SOURCE_DIR}/resources/apple/netdiagnostic.entitlements"
             )
         endif()
     endif()

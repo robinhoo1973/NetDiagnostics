@@ -87,14 +87,8 @@ Item {
     // property var array whose binding expression directly references
     // ThemeEngine.colors.xxx — QML CAN track these dependencies, so the array
     // is rebuilt on every theme switch and downstream color bindings re-evaluate.
-    readonly property var _statusColors: [
-        ThemeEngine.colors.passGreen,   // 0: Pass
-        ThemeEngine.colors.warnYellow,  // 1: Warning
-        ThemeEngine.colors.failRed,     // 2: Fail
-        ThemeEngine.colors.skipGray,    // 3: Skipped
-        ThemeEngine.colors.failRed,     // 4: Error
-        ThemeEngine.colors.infoBlue     // 5: Info
-    ]
+    // 5WHY: _statusColors replaced by centralized ThemeEngine.statusColors
+    // to avoid duplicate array definitions across QML files.
     function statusIcon(s) {
         switch(s) {
             case 0: return "badge-check";
@@ -431,7 +425,7 @@ Item {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
-                    AppIcon { name: page.statusIcon(modelData.status); size: 14; color: page._statusColors[modelData.status] || ThemeEngine.colors.skipGray }
+                    AppIcon { name: page.statusIcon(modelData.status); size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
                     Item { width: 6 }
                     Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6) }

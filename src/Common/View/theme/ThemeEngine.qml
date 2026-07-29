@@ -34,9 +34,14 @@ QtObject {
         textPrimary:      "#0F172A", textSecondary:   "#475569",
         textMuted:        "#64748B",
         accent:           "#F43F5E", cyan:            "#06B6D4",
-        passGreen:        "#4ADE80", warnYellow:      "#FBBF24",
-        failRed:          "#F87171", skipGray:        "#9CA3AF",
-        infoBlue:         "#A5B4FC",
+        // 5WHY: Light-mode status colors must have sufficient contrast
+        // against #F8FAFC surface.  Dark-mode values (#4ADE80, #FBBF24,
+        // etc.) fail WCAG 3:1 minimum for graphical objects on light
+        // backgrounds.  These darker values meet 3:1+, making status
+        // icons recognizable in light theme.
+        passGreen:        "#059669", warnYellow:      "#EA580C",
+        failRed:          "#DC2626", skipGray:        "#6B7280",
+        infoBlue:         "#2563EB",
         borderCard:       "#E2E8F0", borderSubtle:    "#F1F5F9",
         borderFocused:    "#0EA5E9",
         textOnAccent:     "#0F172A"
@@ -121,6 +126,20 @@ QtObject {
         borderCard:       "#334155", borderSubtle: "#1E293B",
         borderFocused:    "#60C8F8", textOnAccent: "#0F172A"
     })
+
+    // 5WHY: Centralized status color array shared by DiagResultItem,
+    // DashboardScreen, and any QML widget mapping DiagStatus values
+    // (Pass=0, Warning=1, Fail=2, Skipped=3, Error=4, Info=5) to colors.
+    // Binding expression directly references colors.xxx so QML tracking
+    // detects theme switches and re-evaluates the array automatically.
+    readonly property var statusColors: [
+        colors.passGreen,   // 0: Pass
+        colors.warnYellow,  // 1: Warning
+        colors.failRed,     // 2: Fail
+        colors.skipGray,    // 3: Skipped
+        colors.failRed,     // 4: Error
+        colors.infoBlue     // 5: Info
+    ]
 
     readonly property int toastDurationMs: 3500
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })

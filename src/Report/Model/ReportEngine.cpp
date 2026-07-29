@@ -41,7 +41,8 @@ QString reportStatusColor(DiagStatus s) {
         case DiagStatus::Fail:    return QStringLiteral("#F87171");
         case DiagStatus::Error:   return QStringLiteral("#F87171");
         case DiagStatus::Skipped: return QStringLiteral("#9CA3AF");
-        default:                  return QStringLiteral("#60A5FA");
+        case DiagStatus::Info:    return QStringLiteral("#A5B4FC");
+        default:                  return QStringLiteral("#A5B4FC");
     }
 }
 
@@ -247,11 +248,12 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         "<td bgcolor=\"%1\">"
         "<p style=\"margin:0 0 6px 0\"><span style=\"font-size:22px;color:%5\"><b>Network Diagnostic Report</b></span></p>"
         "<p style=\"margin:0 0 2px 0\"><span style=\"font-size:14px;color:%6\">%2</span></p>"
-        "<p style=\"margin:0\"><span style=\"font-size:11px;color:%7\">%3 &middot; v%4 (build %8)</span></p>"
+        "<p style=\"margin:0\"><span style=\"font-size:11px;color:%7\">%3 &middot; v%4 (build %8%9)</span></p>"
         "</td></tr></table>"
         "<table width=\"100%\" cellpadding=\"0\" cellspacing=\"0\"><tr><td height=\"12\"></td></tr></table>")
         .arg(bgHeader, data.target, data.timestamp, data.appVersion, colorCyan,
-             headerTargetColor, headerMetaColor, data.buildNumber);
+             headerTargetColor, headerMetaColor, data.buildNumber,
+             data.gitHash.isEmpty() ? QString() : QStringLiteral(" - ") + data.gitHash);
 
     // ── Pass-rate progress bar ─────────────────────────────────────────
     int passPercent = tTotal > 0 ? (tPass * 100 / tTotal) : 0;
@@ -599,8 +601,9 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         "<div class=\"header\"><h1>Network Diagnostic Report</h1>"
         "<p>Generated: %1</p>"
         "<p>Target: <b style=\"color:#e0e0e0\">%2</b></p>"
-        "<p>NetDiagnostics v%3 (build %4)</p></div>\n")
-        .arg(data.timestamp, data.target, data.appVersion, data.buildNumber);
+        "<p>NetDiagnostics v%3 (build %4%5)</p></div>\n")
+        .arg(data.timestamp, data.target, data.appVersion, data.buildNumber,
+             data.gitHash.isEmpty() ? QString() : QStringLiteral(" - ") + data.gitHash);
 
     // 5WHY: Unicode card icons (&#10003; etc.) render inconsistently across
     // fonts. Base64-encoded SVG images match the app's QML icon set exactly.

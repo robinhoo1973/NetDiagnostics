@@ -34,14 +34,8 @@ Item {
     // icon names are static — they do not depend on theme colors.
     // The function only maps status code → icon name, so it does
     // not need theme reactivity.
-    readonly property var _statusColors: [
-        ThemeEngine.colors.passGreen,   // 0: Pass
-        ThemeEngine.colors.warnYellow,  // 1: Warning
-        ThemeEngine.colors.failRed,     // 2: Fail
-        ThemeEngine.colors.skipGray,    // 3: Skipped
-        ThemeEngine.colors.failRed,     // 4: Error
-        ThemeEngine.colors.infoBlue     // 5: Info
-    ]
+    // 5WHY: _statusColors replaced by centralized ThemeEngine.statusColors
+    // to avoid duplicate array definitions across QML files.
     function _statusIcon(s) {
         switch (s) {
             case 0: return "badge-check";
@@ -92,7 +86,7 @@ Item {
         // and re-evaluate the binding, fixing theme-switch color updates.
         AppIcon {
             name: _statusIcon(itemData.status); size: 16
-            color: _statusColors[itemData.status] || ThemeEngine.colors.skipGray
+            color: ThemeEngine.statusColors[itemData.status] || ThemeEngine.colors.skipGray
         }
         Label {
             text: itemData.displayName || ("#" + itemData.diagId)
