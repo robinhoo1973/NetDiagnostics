@@ -350,6 +350,68 @@ void TargetModel::parseAuthorityFields(const QString& trimmed) {
     }
 }
 
+// ── Shared: extract embedded port + userinfo from bare-input m_host ─────
+// 5WHY: The bracket-aware port extraction and userinfo extraction blocks
+// (~45 lines total) were copy-pasted verbatim in both syncFieldsFromTarget
+// and parseUrlIntoFields.  Extracting them into a shared helper eliminates
+// the divergence risk — a fix to one copy was a latent bug in the other.
+// Called after applyBareHost() to finalize structured fields for bare input.
+void TargetModel::extractEmbeddedPortAndUserinfo() {
+    // Extract embedded port from m_host (bracket-aware, userinfo-stripped)
+    {
+        QString hostPart = m_host;
+        int atPos = hostPart.lastIndexOf(QLatin1Char('@'));
+        if (atPos >= 0) hostPart = hostPart.mid(atPos + 1);
+
+        if (hostPart.startsWith(QLatin1Char('['))) {
+            int closing = hostPart.indexOf(QLatin1Char(']'));
+            if (closing > 0 && closing + 1 < hostPart.size()
+                && hostPart[closing + 1] == QLatin1Char(':')) {
+                bool ok = false;
+                int p = hostPart.mid(closing + 2).toInt(&ok);
+                if (ok && p > 0 && p <= 65535) {
+                    m_port = p;
+                    int bracketPos = atPos >= 0 ? atPos + 1 : 0;
+                    m_host = m_host.left(bracketPos + closing + 1);
+                }
+            }
+        } else if (hostPart.count(QLatin1Char(':')) == 1) {
+            int portSep = hostPart.lastIndexOf(QLatin1Char(':'));
+            if (portSep > 0) {
+                bool ok = false;
+                int p = hostPart.mid(portSep + 1).toInt(&ok);
+                if (ok && p > 0 && p <= 65535) {
+                    m_port = p;
+                    int portInHost = m_host.lastIndexOf(QLatin1Char(':'));
+                    if (portInHost > 0) m_host = m_host.left(portInHost);
+                }
+            }
+        }
+    }
+    // Extract userinfo from m_host (may have been left behind by
+    // applyBareHost in bare input like "user:pass@host:9090")
+    {
+        int atPos = m_host.lastIndexOf(QLatin1Char('@'));
+        if (atPos >= 0) {
+            const QString userinfo = m_host.left(atPos);
+            const int colonPos = userinfo.indexOf(QLatin1Char(':'));
+            if (colonPos >= 0) {
+                m_username = userinfo.left(colonPos);
+                m_password = userinfo.mid(colonPos + 1);
+            } else {
+                m_username = userinfo;
+                // 5WHY: m_password.clear() is defense-in-depth.  In
+                // syncFieldsFromTarget, m_password was already cleared
+                // (fresh input), so this is a no-op.  In parseUrlIntoFields,
+                // a stale password from a previous URL would otherwise
+                // silently leak when bare input has no password.
+                m_password.clear();
+            }
+            m_host = m_host.mid(atPos + 1);
+        }
+    }
+}
+
 // ── Parse m_target → structured fields ─────────────────────────────────
 void TargetModel::syncFieldsFromTarget() {
     if (m_assembling) return;
@@ -377,62 +439,13 @@ void TargetModel::syncFieldsFromTarget() {
         // m_host with the port suffix while the structured port field is
         // reset — the QML host field shows "[::1]:8080" instead of "::1",
         // and assembleTargetUrl would later append a second port separator.
-        // Extract embedded port and userinfo from m_host (same logic as
-        // the parseUrlIntoFields bare-input path) before finalizing.
+        // Delegate to shared helper (also used by parseUrlIntoFields) so
+        // both bare-input code paths stay in sync by construction.
         m_scheme = QStringLiteral("https");
         m_port = -1;
         m_username.clear();
         m_password.clear();
-
-        // Extract embedded port from m_host (bracket-aware, userinfo-stripped)
-        {
-            QString hostPart = m_host;
-            int atPos = hostPart.lastIndexOf(QLatin1Char('@'));
-            if (atPos >= 0) hostPart = hostPart.mid(atPos + 1);
-
-            if (hostPart.startsWith(QLatin1Char('['))) {
-                int closing = hostPart.indexOf(QLatin1Char(']'));
-                if (closing > 0 && closing + 1 < hostPart.size()
-                    && hostPart[closing + 1] == QLatin1Char(':')) {
-                    bool ok = false;
-                    int p = hostPart.mid(closing + 2).toInt(&ok);
-                    if (ok && p > 0 && p <= 65535) {
-                        m_port = p;
-                        int bracketPos = atPos >= 0 ? atPos + 1 : 0;
-                        m_host = m_host.left(bracketPos + closing + 1);
-                    }
-                }
-            } else if (hostPart.count(QLatin1Char(':')) == 1) {
-                int portSep = hostPart.lastIndexOf(QLatin1Char(':'));
-                if (portSep > 0) {
-                    bool ok = false;
-                    int p = hostPart.mid(portSep + 1).toInt(&ok);
-                    if (ok && p > 0 && p <= 65535) {
-                        m_port = p;
-                        int portInHost = m_host.lastIndexOf(QLatin1Char(':'));
-                        if (portInHost > 0) m_host = m_host.left(portInHost);
-                    }
-                }
-            }
-        }
-        // Extract userinfo from m_host (may have been left behind by
-        // applyBareHost in bare input like "user:pass@host:9090")
-        {
-            int atPos = m_host.lastIndexOf(QLatin1Char('@'));
-            if (atPos >= 0) {
-                const QString userinfo = m_host.left(atPos);
-                const int colonPos = userinfo.indexOf(QLatin1Char(':'));
-                if (colonPos >= 0) {
-                    m_username = userinfo.left(colonPos);
-                    m_password = userinfo.mid(colonPos + 1);
-                } else {
-                    m_username = userinfo;
-                    // No colon in userinfo — m_password stays cleared
-                    // (fresh input from setTarget, no prior password to preserve)
-                }
-                m_host = m_host.mid(atPos + 1);
-            }
-        }
+        extractEmbeddedPortAndUserinfo();
         return;
     }
 
@@ -489,87 +502,13 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // produces bare host+path text, and we must preserve the scheme/port
         // that the user originally specified via a full URL paste.
         applyBareHost(trimmed);
-        // 5WHY (fix): When the bare input contains an embedded port
-        // (e.g. "host:9090"), applyBareHost stores the port as part of
-        // m_host.  If m_port is preserved from a previous URL, the old
-        // port is appended again in assembleTargetUrl(), producing a
-        // double-port URL like "http://host:9090:8080".  Detect and
-        // extract the embedded port, updating m_port and stripping the
-        // port suffix from m_host so assembleTargetUrl() produces the
-        // correct single-port URL.
-        //
-        // 5WHY (fix): The original count(':')==1 check misses two cases:
-        // (a) IPv6 bracket notation "[::1]:8080" where the IPv6 address
-        //     contributes extra colons, and (b) userinfo with colon
-        //     "user:pass@host:8080".  Strip userinfo first, then handle
-        //     bracket notation and bare host:port separately.
-        {
-            // Strip userinfo before checking for embedded port
-            QString hostPart = m_host;
-            int atPos = hostPart.lastIndexOf(QLatin1Char('@'));
-            if (atPos >= 0) hostPart = hostPart.mid(atPos + 1);
-
-            if (hostPart.startsWith(QLatin1Char('['))) {
-                // IPv6 bracket notation: [::1]:8080
-                int closing = hostPart.indexOf(QLatin1Char(']'));
-                if (closing > 0 && closing + 1 < hostPart.size()
-                    && hostPart[closing + 1] == QLatin1Char(':')) {
-                    bool ok = false;
-                    int p = hostPart.mid(closing + 2).toInt(&ok);
-                    if (ok && p > 0 && p <= 65535) {
-                        m_port = p;
-                        // Since hostPart.startsWith('['), the opening bracket
-                        // in m_host is at position atPos+1 (or 0 if no '@').
-                        // Using m_host.indexOf('[') would find a bracket in
-                        // userinfo (e.g. "user[1]@[::1]:8080"), truncating
-                        // the IPv6 address incorrectly.
-                        int bracketPos = atPos >= 0 ? atPos + 1 : 0;
-                        m_host = m_host.left(bracketPos + closing + 1);
-                    }
-                }
-            } else {
-                int portSep = hostPart.lastIndexOf(QLatin1Char(':'));
-                if (portSep > 0 && hostPart.count(QLatin1Char(':')) == 1) {
-                    bool ok = false;
-                    int p = hostPart.mid(portSep + 1).toInt(&ok);
-                    if (ok && p > 0 && p <= 65535) {
-                        m_port = p;
-                        // Strip port suffix from original m_host (preserving userinfo)
-                        int portInHost = m_host.lastIndexOf(QLatin1Char(':'));
-                        if (portInHost > 0) m_host = m_host.left(portInHost);
-                    }
-                }
-            }
-        }
-
-        // 5WHY (fix): The port-extraction block above strips userinfo
-        // for port detection only — it does not extract it into
-        // m_username / m_password.  When bare input contains userinfo
-        // (e.g. "user:pass@host:9090") the userinfo remains embedded in
-        // m_host, so the QML host field displays "user:pass@host"
-        // instead of "host" while username/password fields stay empty.
-        // Extract userinfo from m_host so the structured fields
-        // accurately reflect the bare input.
-        {
-            int atPos = m_host.lastIndexOf(QLatin1Char('@'));
-            if (atPos >= 0) {
-                const QString userinfo = m_host.left(atPos);
-                const int colonPos = userinfo.indexOf(QLatin1Char(':'));
-                if (colonPos >= 0) {
-                    m_username = userinfo.left(colonPos);
-                    m_password = userinfo.mid(colonPos + 1);
-                } else {
-                    m_username = userinfo;
-                    // 5WHY: The comment previously claimed "intentionally preserved
-                    // matches parseAuthorityFields" but parseAuthorityFields guards
-                    // with m_username.isEmpty() — QUrl already cleared m_password
-                    // before that block runs.  Here, no QUrl has run, so a stale
-                    // password from a previous URL would silently leak.
-                    m_password.clear();
-                }
-                m_host = m_host.mid(atPos + 1);
-            }
-        }
+        // 5WHY (fix): When the bare input contains an embedded port or
+        // userinfo (e.g. "[::1]:8080", "host:9090", "user:pass@host"),
+        // applyBareHost stores them as part of m_host.  Delegate to the
+        // shared helper (also used by syncFieldsFromTarget) to extract
+        // port and userinfo, update structured fields, and strip suffixes
+        // from m_host.  Both code paths stay in sync by construction.
+        extractEmbeddedPortAndUserinfo();
         if (!m_host.isEmpty()) {
             assembleTargetUrl(); // setTarget() emits targetChanged
         } else {

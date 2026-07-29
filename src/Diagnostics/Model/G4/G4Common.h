@@ -109,10 +109,23 @@ inline QString extractHostname(const QString& target) {
         }
         return afterScheme;
     }
-    // Plain hostname — strip @-prefix and port if present
+    // Plain hostname — strip @-prefix, bracket notation, and port if present
     auto atIdx = t.lastIndexOf('@');
     if (atIdx >= 0) t = t.mid(atIdx + 1);
-    if (t.contains(':')) {
+    // 5WHY: The original t.count(':')==1 only strips "host:port" (single colon).
+    // Bare IPv6 bracket notation "[::1]:8080" has 3 colons — the port separator
+    // is after the closing bracket, not caught by count(':')==1.  Handle bracket
+    // notation first, then fall back to bare host:port for non-bracket hosts.
+    if (t.startsWith('[')) {
+        auto closing = t.indexOf(']');
+        if (closing > 0) {
+            // Strip port suffix if present: "[::1]:8080" → "[::1]"
+            if (closing + 1 < t.size() && t[closing + 1] == ':')
+                t = t.left(closing + 1);
+            // Strip brackets: "[::1]" → "::1"
+            t = t.mid(1, closing - 1);
+        }
+    } else if (t.contains(':')) {
         auto colon = t.lastIndexOf(':');
         if (t.count(':') == 1) t = t.left(colon);
     }
