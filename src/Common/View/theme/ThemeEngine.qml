@@ -51,19 +51,19 @@ QtObject {
     // mode stays at default drkMode even if QSettings stored light mode (1).
     // The user sees a dark UI despite having saved light-theme preference.
     //
-    // Fix: fire a zero-interval Timer — after the event loop starts, C++
-    // context properties are guaranteed registered.  If the saved theme
-    // differs from the default, mode assignment triggers onModeChanged →
-    // applyTheme() (guarded by _ready=true) to correct the palette.
-    Timer {
-        interval: 0; running: true; repeat: false
-        onTriggered: {
+    // Fix: Qt.callLater() defers execution until after the event loop is
+    // running and C++ context properties are guaranteed registered — same
+    // semantics as a zero-interval Timer but without creating a child
+    // QObject.  Timer as a direct child of QtObject fails in static/
+    // cross-compiled builds (iOS) because QtObject has no default property.
+    Component.onCompleted: {
+        Qt.callLater(function() {
             if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
                 if (mode !== appState.themeMode) {
                     mode = appState.themeMode
                 }
             }
-        }
+        })
     }
 
     function applyTheme() {
