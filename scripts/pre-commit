@@ -3,8 +3,8 @@
 # pre-commit — 提交前自动检查已知问题模式
 #
 # 检查规则来自:
-#   docs/review/ios-startup-crash-5why-analysis.md — iOS 启动闪退 5WHY 分析（全局默认检查）
-#   docs/review/ios-ci-known-issues.md — iOS CI/build 已知问题模式
+#   review/ios-startup-crash-5why-analysis.md — iOS 启动闪退 5WHY 分析（全局默认检查）
+#   review/ios-ci-known-issues.md — iOS CI/build 已知问题模式
 # 任何检查失败 → 提交中止，修复后重试。
 # =============================================================================
 set -euo pipefail
@@ -232,7 +232,7 @@ fi
 	    for f in $QML_FILES; do
 	        # Rectangle.shadow — does not exist on Qt Quick Rectangle
 	        if git show ":$f" | grep -nE 'shadow\.' > /tmp/precommit-qml-shadow.log 2>/dev/null; then
-	            fail "$f: Rectangle.shadow is not a valid Qt Quick property (see docs/review/ios-startup-crash-5why-analysis.md#a2)"
+	            fail "$f: Rectangle.shadow is not a valid Qt Quick property (see review/ios-startup-crash-5why-analysis.md#a2)"
 	            cat /tmp/precommit-qml-shadow.log | while read line; do
 	                echo "       $line"
 	            done
@@ -241,7 +241,7 @@ fi
 	        fi
 	        # border.visible — does not exist
 	        if git show ":$f" | grep -nE 'border\.visible' > /tmp/precommit-qml-border.log 2>/dev/null; then
-	            fail "$f: border.visible is not a valid Qt Quick Border property (see docs/review/ios-startup-crash-5why-analysis.md#a3)"
+	            fail "$f: border.visible is not a valid Qt Quick Border property (see review/ios-startup-crash-5why-analysis.md#a3)"
 	            cat /tmp/precommit-qml-border.log | while read line; do
 	                echo "       $line"
 	            done
@@ -250,7 +250,7 @@ fi
 	        fi
 	        # ScaleTransform — deprecated, use Scale
 	        if git show ":$f" | grep -nE 'ScaleTransform' > /tmp/precommit-qml-scale.log 2>/dev/null; then
-	            fail "$f: ScaleTransform is deprecated — use Scale (QtQuick) (see docs/review/ios-startup-crash-5why-analysis.md#a4)"
+	            fail "$f: ScaleTransform is deprecated — use Scale (QtQuick) (see review/ios-startup-crash-5why-analysis.md#a4)"
 	            cat /tmp/precommit-qml-scale.log | while read line; do
 	                echo "       $line"
 	            done
@@ -259,7 +259,7 @@ fi
 	        fi
 	        # compact:true — not a standard property
 	        if git show ":$f" | grep -nE 'compact:\s*true' > /tmp/precommit-qml-compact.log 2>/dev/null; then
-	            fail "$f: compact:true is not a standard Qt Quick property (see docs/review/ios-startup-crash-5why-analysis.md#a5)"
+	            fail "$f: compact:true is not a standard Qt Quick property (see review/ios-startup-crash-5why-analysis.md#a5)"
 	            cat /tmp/precommit-qml-compact.log | while read line; do
 	                echo "       $line"
 	            done
@@ -268,7 +268,7 @@ fi
 	        fi
 	        # font.family with CSS fallback list (comma-separated)
 	        if git show ":$f" | grep -nE "font\.family:.*\",\"" > /tmp/precommit-qml-font.log 2>/dev/null; then
-	            fail "$f: font.family with comma-separated list — Qt QML takes single family name (see docs/review/ios-startup-crash-5why-analysis.md#a6)"
+	            fail "$f: font.family with comma-separated list — Qt QML takes single family name (see review/ios-startup-crash-5why-analysis.md#a6)"
 	            cat /tmp/precommit-qml-font.log | while read line; do
 	                echo "       $line"
 	            done
@@ -289,7 +289,7 @@ fi
 	        # Properties inside function bodies / object literals are at 2+ tabs.
 	        # Filter out 1-tab root-level, flag 2+ tab (potentially nested).
 	        if git show ":$f" | grep -n 'readonly property' | grep '^\t\t' > /tmp/precommit-qml-ro.log 2>/dev/null; then
-	            fail "$f: readonly property may be inside function/object literal — must be at QML root level (see docs/review/ios-startup-crash-5why-analysis.md#b2)"
+	            fail "$f: readonly property may be inside function/object literal — must be at QML root level (see review/ios-startup-crash-5why-analysis.md#b2)"
 	            cat /tmp/precommit-qml-ro.log | while read line; do
 	                echo "       $line"
 	            done
@@ -310,7 +310,7 @@ fi
 	        # Heuristic: file contains QtObject { AND indented child-object opening braces
 	        if git show ":$f" | grep -q 'QtObject\s*{'; then
 	            if git show ":$f" | grep -nE '^\s+Timer\s*\{|^\s+Item\s*\{|^\s+Rectangle\s*\{|^\s+Connections\s*\{|^\s+Binding\s*\{' > /tmp/precommit-qtobject-child.log 2>/dev/null; then
-	                warn "$f: child elements in QtObject file — QtObject has NO default property. Use Qt.callLater() instead of Timer. See docs/review/ios-startup-crash-5why-analysis.md#i1"
+	                warn "$f: child elements in QtObject file — QtObject has NO default property. Use Qt.callLater() instead of Timer. See review/ios-startup-crash-5why-analysis.md#i1"
 	                cat /tmp/precommit-qtobject-child.log | while read line; do
 	                    echo "       $line"
 	                done
@@ -332,7 +332,7 @@ fi
 	if [ -n "$HEADER_FILES" ]; then
 	    for f in $HEADER_FILES; do
 	        if git show ":$f" | grep -nE 'static const (QMap|QHash|QVector|QList|QStringList|std::map|std::vector|std::unordered_map)' > /tmp/precommit-siof.log 2>/dev/null; then
-	            fail "$f: static const non-trivial object in header — SIOF risk, use Meyers Singleton (see docs/review/ios-startup-crash-5why-analysis.md#d2)"
+	            fail "$f: static const non-trivial object in header — SIOF risk, use Meyers Singleton (see review/ios-startup-crash-5why-analysis.md#d2)"
 	            cat /tmp/precommit-siof.log | while read line; do
 	                echo "       $line"
 	            done
@@ -353,8 +353,8 @@ fi
 	    exit 0
 	else
 	    echo -e "${RED}  Pre-commit checks FAILED — fix above issues before committing${NC}"
-	    echo "  See: docs/review/ios-startup-crash-5why-analysis.md for iOS crash analysis"
-	    echo "  See: docs/review/ios-ci-known-issues.md for CI/build known issues"
+	    echo "  See: review/ios-startup-crash-5why-analysis.md for iOS crash analysis"
+	    echo "  See: review/ios-ci-known-issues.md for CI/build known issues"
 	    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	    exit 1
 	fi

@@ -8,8 +8,8 @@
 # If the EXE crashes, check: notepad $env:TEMP\NetDiagnostics_startup.log
 #
 # See also:
-#   docs/review/ios-startup-crash-5why-analysis.md — iOS startup crash 5WHY analysis
-#   docs/review/ios-ci-known-issues.md — CI/build known issue patterns
+#   review/ios-startup-crash-5why-analysis.md — iOS startup crash 5WHY analysis
+#   review/ios-ci-known-issues.md — CI/build known issue patterns
 # =============================================================================
 
 param([switch]$Debug)

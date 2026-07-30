@@ -8,8 +8,8 @@
 
 | Document | Purpose |
 |----------|---------|
-| [docs/review/ios-startup-crash-5why-analysis.md](docs/review/ios-startup-crash-5why-analysis.md) | **iOS startup crash 5WHY root cause analysis + prevention checklist** — THE authoritative reference for all crash patterns |
-| [docs/review/ios-ci-known-issues.md](docs/review/ios-ci-known-issues.md) | iOS CI / build / link / entitlement / QColor / CMake known issue patterns |
+| [review/ios-startup-crash-5why-analysis.md](review/ios-startup-crash-5why-analysis.md) | **iOS startup crash 5WHY root cause analysis + prevention checklist** — THE authoritative reference for all crash patterns |
+| [review/ios-ci-known-issues.md](review/ios-ci-known-issues.md) | iOS CI / build / link / entitlement / QColor / CMake known issue patterns |
 | [review/app_startup_crash_analysis.md](review/app_startup_crash_analysis.md) | Detailed startup flow analysis for all platforms |
 
 ### Pre-commit Hook
@@ -72,7 +72,7 @@ bash scripts/build-release.sh all
 Any single QML/C++ error → engine.load() fails → rootObjects empty → return -1 → instant quit
 ```
 **iOS static Qt is unforgiving.** What works on desktop dynamic Qt WILL crash on iOS.
-See: [docs/review/ios-startup-crash-5why-analysis.md#1-core-finding](docs/review/ios-startup-crash-5why-analysis.md#1-core-finding)
+See: [review/ios-startup-crash-5why-analysis.md#1-core-finding](review/ios-startup-crash-5why-analysis.md#1-core-finding)
 
 ### 2. QML Eager Compilation
 ```

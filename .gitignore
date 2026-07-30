@@ -18,9 +18,11 @@ resources/cert/
 # Generated from .in template by CMake / CI — team ID injected at build time
 resources/apple/macos.entitlements
 
-# Temp / review files
-review/
-review/*
+# Docs — only privacy-policy.html is public
+docs/*
+!docs/privacy-policy.html
+
+# Temp files
 crashes/
 commit_msg.txt
 AGENTS.md
