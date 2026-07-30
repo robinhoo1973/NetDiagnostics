@@ -221,19 +221,46 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static -Wl,--gc-sections" \
-            -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-            -DBUILD_SIMULATOR=OFF -DBUILD_TESTS=OFF \
-            -B build -S .
-          ninja -C build net_diagnostic
-          strip build/net_diagnostic.exe
-          cp build/net_diagnostic.exe dist/netdiag-win-x86_64.exe
-          
-          # Verify no non-system DLLs
-          echo "=== DLL dependencies ==="
-          objdump -p dist/netdiag-win-x86_64.exe 2>/dev/null | grep "DLL Name" || echo "(static ✅)"
+          set -euxo pipefail
+          # 5WHY: /ucrt64/lib/libstdc++.a and libwinpthread.a are DLL import
+          # libraries in MSYS2.  Even with -Wl,-Bstatic, they produce DLL
+          # references in the PE header (MSYS2/MINGW-packages issue #6163).
+          # The TRUE static archives live in the GCC versioned directory at
+          # /ucrt64/lib/gcc/x86_64-w64-mingw32/<version>/.
+          # Use g++ -print-file-name to find them and link with ABSOLUTE PATHS.
+          # Absolute paths bypass library search entirely — the linker uses
+          # the exact file specified, no import lib / DLL resolution.
+          #
+          # 5WHY (2026-07-30): g++ -print-file-name=libstdc++.a resolves to
+          # /ucrt64/lib/libstdc++.a (the import lib), NOT the GCC versioned
+          # directory.  This is because the GCC driver's library search path
+          # rewrites libstdc++.a through ../../../../lib/.  However, the GCC
+          # versioned directory DOES contain a true static libstdc++.a
+          # alongside libgcc.a.  Fix: derive the GCC version dir from
+          # libgcc.a (which correctly resolves), then find libstdc++.a and
+          # libwinpthread.a in that same directory.
+          GCC_TRUE_LIBGCC=$(g++ -print-file-name=libgcc.a)
+          GCC_VERSION_DIR=$(dirname "${GCC_TRUE_LIBGCC}")
+          GCC_TRUE_LIBSTDCXX="${GCC_VERSION_DIR}/libstdc++.a"
+          GCC_TRUE_LIBGCC_EH="${GCC_VERSION_DIR}/libgcc_eh.a"
+          GCC_TRUE_LIBPTHREAD="${GCC_VERSION_DIR}/libwinpthread.a"
+          # ── Verify files exist; fall back to -print-file-name if missing ──
+          for lib in GCC_TRUE_LIBSTDCXX GCC_TRUE_LIBPTHREAD; do
+            eval "libpath=\$$lib"
+            if [ ! -f "$libpath" ]; then
+              echo "[WARN] ${lib}=${libpath} not found — falling back to g++ -print-file-name"
+              case "$lib" in
+                GCC_TRUE_LIBSTDCXX)  eval "$lib=$(g++ -print-file-name=libstdc++.a)" ;;
+                GCC_TRUE_LIBPTHREAD) eval "$lib=$(g++ -print-file-name=libwinpthread.a)" ;;
+              esac
+              eval "echo \"[WARN] ${lib} fallback: \$$lib\""
+            fi
+          done
+
+          echo "GCC true static libstdc++: ${GCC_TRUE_LIBSTDCXX}"
+          echo "GCC true static libgcc:    ${GCC_TRUE_LIBGCC}"
+          echo "GCC true static libgcc_eh: ${GCC_TRUE_LIBGCC_EH}"
+          echo "GCC true static pthread:  ${GCC_TRUE_LIBPTHREAD}"
 
       - name: Build Simulator (static)
         shell: msys2 {0}
