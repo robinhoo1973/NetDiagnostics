@@ -168,7 +168,9 @@ QString AppState::buildNumber() const {
 
 QString AppState::gitHash() const {
 #if defined(ND_GIT_HASH)
-    return QStringLiteral(ND_GIT_HASH);
+    // 5WHY: Full 40-char SHA1 overflows the version label on narrow screens.
+    // Truncate to 7 chars — standard Git abbreviated hash, unique within repo.
+    return QStringLiteral(ND_GIT_HASH).left(7);
 #else
     return QString();
 #endif
