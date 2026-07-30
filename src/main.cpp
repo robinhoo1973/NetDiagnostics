@@ -103,12 +103,15 @@ int main(int argc, char *argv[])
             // duplicated QLockFile's built-in PID storage.  getLockInfo()
             // reads the PID directly from the lock file.
             qint64 pid = -1;
-            lockFile.getLockInfo(&pid, nullptr, nullptr);
+            bool gotInfo = lockFile.getLockInfo(&pid, nullptr, nullptr);
 #if !defined(NO_CURL)
             curl_global_cleanup();
 #endif
             // Log instead of dialog — QMessageBox requires QApplication which isn't created yet
-            fprintf(stderr, "NetDiagnostics is already running (PID: %lld)\n", pid);
+            if (gotInfo && pid > 0)
+                fprintf(stderr, "NetDiagnostics is already running (PID: %lld)\n", pid);
+            else
+                fprintf(stderr, "NetDiagnostics is already running (PID unknown)\n");
             return 0;
         }
 #endif

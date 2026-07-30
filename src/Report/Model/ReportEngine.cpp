@@ -512,7 +512,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     const QString cssThemeBlock = darkBackground
         ? QStringLiteral(
             ":root{"
-            "--bg:" APPC_SURFACE_DARK ";--fg:" APPC_TEXT_PRIMARY_DARK ";--fg2:" APPC_TEXT_SECONDARY_DARK ";--fg3:#64748B;"
+            "--bg:" APPC_SURFACE_DARK ";--fg:" APPC_TEXT_PRIMARY_DARK ";--fg2:" APPC_TEXT_SECONDARY_DARK ";"
             "--card-bg:" APPC_CARD_DARK ";"
             "--header-bg1:" APPC_CARD_DARK ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
             "--border:" APPC_BORDER_CARD_DARK ";--footer-fg:#5a5a72;--footer-border:#23233a;"
@@ -524,6 +524,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--border-card-warn:#5a5020;--border-card-fail:#5a2d2d;--border-card-skip:#333;"
             "--border-card-error:#5a2020;"
             "--h1-color:" APPC_CYAN_DARK ";--h2-color:" APPC_CYAN_DARK ";--h3-color:" APPC_INFO_BLUE_DARK ";"
+"--header-p-color:" APPC_CSS_TEXT_BRIGHT ";"
             "--card-pass-fg:" APPC_PASS_GREEN_DARK ";--card-warn-fg:" APPC_WARN_YELLOW_DARK ";"
             "--card-fail-fg:" APPC_FAIL_RED_DARK ";--card-skip-fg:" APPC_SKIP_GRAY_DARK ";"
             "--card-info-fg:" APPC_INFO_BLUE_DARK ";"
@@ -542,7 +543,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "}")
         : QStringLiteral(
             ":root{"
-            "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_TEXT_PRIMARY_LIGHT ";--fg2:" APPC_TEXT_SECONDARY_LIGHT ";--fg3:" APPC_TEXT_MUTED_LIGHT ";"
+            "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_TEXT_PRIMARY_LIGHT ";--fg2:" APPC_TEXT_SECONDARY_LIGHT ";"
             "--card-bg:" APPC_CARD_LIGHT ";"
             "--header-bg1:#0F172A;--header-bg2:#0F172A;"
             "--border:" APPC_BORDER_CARD_LIGHT ";--footer-fg:" APPC_TEXT_MUTED_LIGHT ";--footer-border:" APPC_BORDER_CARD_LIGHT ";"
@@ -554,6 +555,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--border-card-warn:#FDE68A;--border-card-fail:#FECACA;--border-card-skip:#CBD5E1;"
             "--border-card-error:#FECACA;"
             "--h1-color:" APPC_CYAN_LIGHT ";--h2-color:" APPC_CYAN_LIGHT ";--h3-color:" APPC_INFO_BLUE_LIGHT ";"
+"--header-p-color:" APPC_CSS_TEXT_BRIGHT ";"
             "--card-pass-fg:" APPC_PASS_GREEN_LIGHT ";--card-warn-fg:" APPC_WARN_YELLOW_LIGHT ";"
             "--card-fail-fg:" APPC_FAIL_RED_LIGHT ";--card-skip-fg:" APPC_SKIP_GRAY_LIGHT ";"
             "--card-info-fg:" APPC_INFO_BLUE_LIGHT ";"
@@ -562,7 +564,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--badge-info-fg:" APPC_INFO_BLUE_LIGHT ";"
             "--sec-row-fg:" APPC_INFO_BLUE_LIGHT ";"
             "--body-border:" APPC_BORDER_CARD_LIGHT ";"
-            "--analysis-bg:" APPC_REPORT_LIGHT_DETAIL_BG ";--analysis-fg:" APPC_REPORT_LIGHT_CODE_FG ";"
+            "--analysis-bg:" APPC_REPORT_LIGHT_DETAIL_BG ";--analysis-fg:" APPC_TEXT_SECONDARY_LIGHT ";"
             "--analysis-border:" APPC_CSS_TEAL_ACCENT ";"
             "--raw-bg:" APPC_REPORT_LIGHT_CODE_BG ";--raw-fg:" APPC_REPORT_LIGHT_CODE_FG ";"
             "--meta-fg:" APPC_CSS_TEXT_DIM ";"
@@ -582,7 +584,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".wrap{max-width:960px;margin:0 auto}"
         ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,var(--header-bg1),var(--header-bg2));border-radius:14px;margin-bottom:26px}"
         ".header h1{font-size:26px;color:var(--h1-color);margin-bottom:10px;letter-spacing:.5px}"
-        ".header p{font-size:13px;color:var(--fg2);margin:3px 0}"
+        ".header p{font-size:13px;color:var(--header-p-color);margin:3px 0}"
         "h2{font-size:18px;color:var(--h2-color);margin:26px 0 14px}"
         "h3{font-size:15px;color:var(--h3-color);margin:20px 0 10px}"
         ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
