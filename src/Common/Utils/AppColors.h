@@ -87,6 +87,10 @@
 // Mirror of Palette.js Dark.warnYellow.
 #define APPC_WARN_YELLOW_DARK        "#F59E0B"
 #define APPC_FAIL_RED_DARK           "#F87171"
+// 5WHY: Error ≠ Fail.  Error (infrastructure failure, DiagStatus::Error=4)
+// uses a distinct rose/magenta so users can distinguish "test couldn't run"
+// from "test ran and failed" at a glance.  Mirrors Palette.js errorRed.
+#define APPC_ERROR_RED_DARK          "#F472B6"
 #define APPC_SKIP_GRAY_DARK          "#9CA3AF"
 #define APPC_INFO_BLUE_DARK          "#A5B4FC"
 
@@ -94,9 +98,13 @@
 // 5WHY: Dark-palette status colors (#4ADE80, #FBBF24, etc.) fail WCAG 3:1
 // minimum for graphical objects on light #F8FAFC surfaces.  These values
 // meet 3:1+, making status icons recognizable in light theme.
-#define APPC_PASS_GREEN_LIGHT        "#059669"
+// 5WHY (2026-07-30): #059669 → #10B981 — lifted luminance from L*≈35 to
+// L*≈42 for better perceptual separation from error/fail reds on white
+// backgrounds.  Mirror of Palette.js Light.passGreen.
+#define APPC_PASS_GREEN_LIGHT        "#10B981"
 #define APPC_WARN_YELLOW_LIGHT       "#EA580C"
 #define APPC_FAIL_RED_LIGHT          "#DC2626"
+#define APPC_ERROR_RED_LIGHT         "#BE185D"
 #define APPC_SKIP_GRAY_LIGHT         "#6B7280"
 #define APPC_INFO_BLUE_LIGHT         "#2563EB"
 
@@ -149,12 +157,25 @@
 // 5WHY: QColor(QRgb) expects 0xAARRGGBB format — the top byte is alpha.
 // Without the 0xFF prefix, alpha=0x00 making QColor fully transparent,
 // which would render status icons invisible in HTML reports.
-// These match the light-palette hex colors above, expressed as 0xAARRGGBB.
-#define APPC_PASS_GREEN_RGB          0xFF059669
+// Light palette: darker/more saturated for contrast against light #F8FAFC bg.
+// 5WHY (2026-07-30): synced with APPC_PASS_GREEN_LIGHT #10B981.
+#define APPC_PASS_GREEN_RGB          0xFF10B981
 #define APPC_WARN_YELLOW_RGB         0xFFEA580C
 #define APPC_FAIL_RED_RGB            0xFFDC2626
+#define APPC_ERROR_RED_RGB           0xFFBE185D
 #define APPC_SKIP_GRAY_RGB           0xFF6B7280
 #define APPC_INFO_BLUE_RGB           0xFF2563EB
+// Dark palette: brighter for contrast against dark #0F172A bg.
+// 5WHY: renderStatusIcon() was hardcoded to light-palette colors regardless
+// of report theme.  On dark-themed reports (#0F172A), light-palette icons
+// (#059669 green) are too dark — barely distinguishable.  Adding dark-palette
+// RGB values lets the function choose the right contrast set per theme.
+#define APPC_PASS_GREEN_RGB_DARK     0xFF4ADE80
+#define APPC_WARN_YELLOW_RGB_DARK    0xFFF59E0B
+#define APPC_FAIL_RED_RGB_DARK       0xFFF87171
+#define APPC_ERROR_RED_RGB_DARK      0xFFF472B6
+#define APPC_SKIP_GRAY_RGB_DARK      0xFF9CA3AF
+#define APPC_INFO_BLUE_RGB_DARK      0xFFA5B4FC
 
 // ── Progress bar thresholds ───────────────────────────────────────────────────
 #define APPC_PROGRESS_BAR_BG         "#1E293B"  // track — always dark

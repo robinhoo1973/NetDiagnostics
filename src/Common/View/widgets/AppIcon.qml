@@ -1,23 +1,34 @@
 // =============================================================================
-// AppIcon.qml — SVG icon with cross-platform colorization via Rectangle overlay
+// AppIcon.qml — SVG icon with alpha-preserving colorization via MultiEffect
 // =============================================================================
-// 5WHY (2026-07-30 ARM64 light-mode invisible): Image.color exists as a JS
-// property on Qt 6.8.2 ARM64 (so Qt.colorEqual returns true), but the SVG
-// renderer does not actually apply the colorization at the rendering level.
-// Result: _useOverlay stays false, the overlay is hidden, icons render with
-// native stroke="#FFFFFF" → invisible on light backgrounds.
+// 5WHY (2026-07-30 foggy-square v2): The inline ShaderEffect with texture2D()
+// may fail to compile on ARM64 OpenGL ES 3.0+ backends where texture2D is
+// deprecated and Qt's QSB fallback fails to transpile.  When the shader
+// doesn't compile, layer.effect is a silent no-op — the white SVG renders
+// as-is, invisible on light themes.
 //
-// Fix: Eliminate Image.color dependency entirely.  Always use the Rectangle
-// overlay as the PRIMARY colorization mechanism.  The overlay is a solid
-// colored Rectangle with opacity 0.80 drawn OVER the white SVG.  With
-// layer.enabled FBO compositing, the SVG strokes show through as properly
-// tinted, and transparent areas remain mostly transparent (slight haze is
-// an acceptable cross-platform tradeoff).
+// Fix: Replace inline ShaderEffect with QtQuick.Effects.MultiEffect.
+// MultiEffect uses QSB-precompiled shaders, works on all Qt 6 platforms
+// (including ARM64), and its colorization pipeline is tested by the Qt CI.
 //
-// Platforms: works identically on iOS (static Qt), Android, Windows, macOS,
-// Linux (ARM64 + x86_64).  No platform detection needed.
+// How it works:
+//   1. SVG Image renders white strokes on transparent background
+//   2. ShaderEffectSource explicitly captures the Image into an FBO texture
+//      — robust on all Qt 6 versions (visible:false Image may not generate
+//      a texture in Qt 6.2.x when used as a direct MultiEffect source)
+//   3. MultiEffect reads the captured texture, applies colorizationColor tint
+//   4. Alpha channel is preserved — transparent areas stay transparent
+//   5. Result: vivid icon on perfectly transparent background, no fog
+//
+// Theme switching: colorizationColor is bound to root.color which is
+// bound to ThemeEngine.colors.xxx → updates automatically.
+//
+// DPR adaptation: sourceSize uses Screen.devicePixelRatio (not hardcoded 2x)
+// so icons render crisply at 1x, 2x, and 3x pixel densities.
 // =============================================================================
 import QtQuick
+import QtQuick.Window
+import QtQuick.Effects
 
 Item {
     id: root
@@ -25,41 +36,47 @@ Item {
     property color color: "white"
     property int size: 20
 
+    implicitWidth: size; implicitHeight: size
     width: size; height: size
+
+    // Defense-in-depth: empty-name icons are always invisible
     visible: name !== ""
+    opacity: name !== "" ? 1.0 : 0.0
 
-    // 5WHY: FBO compositing required so the colored overlay Rectangle blends
-    // correctly with the white SVG strokes beneath it.  Without layer.enabled,
-    // the overlay is just a solid Rectangle on top — the icon shape is lost.
-    // Gate on name !== "" to avoid allocating FBOs for invisible placeholder
-    // icons — Qt Quick allocates the offscreen texture even when visible=false.
-    layer.enabled: name !== ""
-
-    // White SVG icon — renders with native stroke="#FFFFFF".
-    // This is the shape layer; the colorOverlay Rectangle on top provides the tint.
+    // White SVG — hidden; rendered only through ShaderEffectSource → MultiEffect.
+    // fill="none" stroke="#FFFFFF" — only strokes are opaque, fill is transparent.
+    // sourceSize uses dynamic DPR to avoid blur on 3x screens and wasted VRAM on 1x.
     Image {
         id: iconImg
+        visible: false
         anchors.fill: parent
         source: name ? "qrc:/icons/" + name + ".svg" : ""
-        sourceSize.width: size * 2
-        sourceSize.height: size * 2
+        sourceSize.width: size * Screen.devicePixelRatio
+        sourceSize.height: size * Screen.devicePixelRatio
         fillMode: Image.PreserveAspectFit
         smooth: true
         mipmap: false
     }
 
-    // Primary colorization: semi-transparent colored Rectangle over the SVG.
-    // 5WHY: Opacity 0.80 was chosen empirically — 0.55 was too faint on light
-    // backgrounds (white strokes barely visible), 0.95 lost too much icon detail.
-    // 0.80 gives good color saturation while preserving stroke clarity.
-    Rectangle {
-        id: colorOverlay
+    // 5WHY (2026-07-30 texture-capture): MultiEffect reading a visible:false
+    // Image directly as `source` may fail on Qt 6.2.x where the Item's render
+    // texture is not generated for invisible items.  ShaderEffectSource
+    // explicitly captures sourceItem into an FBO — this is guaranteed to work
+    // regardless of sourceItem visibility across all Qt 6 versions.
+    ShaderEffectSource {
+        id: iconSource
+        sourceItem: iconImg
         anchors.fill: parent
-        color: root.color
-        opacity: 0.80
+        visible: false
     }
 
-    // When the caller's color changes (e.g. theme switch re-evaluates
-    // ThemeEngine.colors.xxx binding), the overlay automatically updates
-    // because its `color: root.color` binding is live.
+    // QSB-precompiled colorization effect.  Replaces white pixels with
+    // colorizationColor while preserving alpha — transparent SVG regions
+    // remain perfectly transparent (no fog, no haze, no tinted square).
+    MultiEffect {
+        source: iconSource
+        colorizationColor: root.color
+        colorization: 1.0
+        anchors.fill: parent
+    }
 }

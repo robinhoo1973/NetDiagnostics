@@ -78,11 +78,11 @@ Rectangle {
                 Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
                 // Badges inline — desktop only (wide enough to fit)
                 RowLayout { spacing: 4; visible: !compact
-                    StatusBadge { accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   count: groupPass }
-                    StatusBadge { accent: ThemeEngine.colors.infoBlue; iconName: "badge-info";    count: groupInfo }
-                    StatusBadge { accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; count: groupWarn }
-                    StatusBadge { accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   count: groupFail }
-                    StatusBadge { accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    count: groupSkip }
+                    StatusBadge { statusCode: 0; count: groupPass }
+                    StatusBadge { statusCode: 5; count: groupInfo }
+                    StatusBadge { statusCode: 1; count: groupWarn }
+                    StatusBadge { statusCode: 2; count: groupFail }
+                    StatusBadge { statusCode: 3; count: groupSkip }
                 }
                 // 5WHY: Replaced ▼/▶ Unicode arrows with chevron SVG icons
                 // for consistent iconography across the app.
@@ -94,11 +94,11 @@ Rectangle {
                 spacing: 4; visible: compact
                 // Indent to align with group name (accent bar 3px + spacing 8px = 11px)
                 Item { width: 11 }
-                StatusBadge { accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   count: groupPass }
-                StatusBadge { accent: ThemeEngine.colors.infoBlue; iconName: "badge-info";    count: groupInfo }
-                StatusBadge { accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; count: groupWarn }
-                StatusBadge { accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   count: groupFail }
-                StatusBadge { accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    count: groupSkip }
+                StatusBadge { statusCode: 0; count: groupPass }
+                StatusBadge { statusCode: 5; count: groupInfo }
+                StatusBadge { statusCode: 1; count: groupWarn }
+                StatusBadge { statusCode: 2; count: groupFail }
+                StatusBadge { statusCode: 3; count: groupSkip }
             }
         }
 

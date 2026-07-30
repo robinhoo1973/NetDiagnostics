@@ -35,17 +35,36 @@ QString normalizeReportPath(const QString& p) {
     return p.startsWith(QStringLiteral("file:")) ? QUrl(p).toLocalFile() : p;
 }
 
-QString reportStatusColor(DiagStatus s) {
+// 5WHY: The original code had 4 structurally identical switch blocks (dark/light
+// in reportStatusColor + dark/light in renderStatusIcon) — same 6 cases, only
+// the _DARK vs _LIGHT macro suffix varied. Adding a 7th DiagStatus meant touching
+// 4 places; missing one produced a silent default-to-Info fallback.
+//
+// Fix: extract the status enum → palette offset into a single function. Each
+// consumer indexes into the correct array for its color domain (string vs RGB,
+// dark vs light). Adding a new status now requires one new case in statusIndex().
+static int statusIndex(DiagStatus s) {
     switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral(APPC_PASS_GREEN_DARK);
-        case DiagStatus::Warning: return QStringLiteral(APPC_WARN_YELLOW_DARK);
-        case DiagStatus::Fail:    return QStringLiteral(APPC_FAIL_RED_DARK);
-        case DiagStatus::Error:   return QStringLiteral(APPC_FAIL_RED_DARK);
-        case DiagStatus::Skipped: return QStringLiteral(APPC_SKIP_GRAY_DARK);
-        case DiagStatus::Info:    return QStringLiteral(APPC_INFO_BLUE_DARK);
-        default:                  return QStringLiteral(APPC_INFO_BLUE_DARK);
+        case DiagStatus::Pass:    return 0;
+        case DiagStatus::Warning: return 1;
+        case DiagStatus::Fail:    return 2;
+        case DiagStatus::Error:   return 3;
+        case DiagStatus::Skipped: return 4;
+        case DiagStatus::Info:
+        default:                  return 5;
     }
 }
+
+QString reportStatusColor(DiagStatus s, bool darkBackground) {
+    static const QString hexColors[] = {
+        QStringLiteral(APPC_PASS_GREEN_DARK),  QStringLiteral(APPC_WARN_YELLOW_DARK),
+        QStringLiteral(APPC_FAIL_RED_DARK),    QStringLiteral(APPC_ERROR_RED_DARK),
+        QStringLiteral(APPC_SKIP_GRAY_DARK),   QStringLiteral(APPC_INFO_BLUE_DARK),
+        QStringLiteral(APPC_PASS_GREEN_LIGHT), QStringLiteral(APPC_WARN_YELLOW_LIGHT),
+        QStringLiteral(APPC_FAIL_RED_LIGHT),   QStringLiteral(APPC_ERROR_RED_LIGHT),
+        QStringLiteral(APPC_SKIP_GRAY_LIGHT),  QStringLiteral(APPC_INFO_BLUE_LIGHT),
+    };
+    return hexColors[statusIndex(s) + (darkBackground ? 0 : 6)];
 
 // 5WHY: Reports used colored dots or Unicode glyphs instead of proper
 // graphic icons. Unicode characters render inconsistently across fonts
@@ -53,21 +72,20 @@ QString reportStatusColor(DiagStatus s) {
 // data URIs without QtSvg (not linked). Instead, render the icons
 // programmatically with QPainter → PNG → base64 data URI. This works
 // in both QTextDocument (preview + PDF) and browser WebView (rich HTML).
-QImage renderStatusIcon(DiagStatus s, int size) {
+QImage renderStatusIcon(DiagStatus s, int size, bool darkBackground) {
+    static const QRgb rgbColors[] = {
+        APPC_PASS_GREEN_RGB_DARK,  APPC_WARN_YELLOW_RGB_DARK,
+        APPC_FAIL_RED_RGB_DARK,    APPC_ERROR_RED_RGB_DARK,
+        APPC_SKIP_GRAY_RGB_DARK,   APPC_INFO_BLUE_RGB_DARK,
+        APPC_PASS_GREEN_RGB,       APPC_WARN_YELLOW_RGB,
+        APPC_FAIL_RED_RGB,         APPC_ERROR_RED_RGB,
+        APPC_SKIP_GRAY_RGB,        APPC_INFO_BLUE_RGB,
+    };
     QImage img(size, size, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
     QPainter p(&img);
     p.setRenderHint(QPainter::Antialiasing);
-    // Colors match resources/icons/badge-*.svg
-    QColor bg;
-    switch (s) {
-        case DiagStatus::Pass:    bg = QColor(APPC_PASS_GREEN_RGB); break;
-        case DiagStatus::Warning: bg = QColor(APPC_WARN_YELLOW_RGB); break;
-        case DiagStatus::Fail:    // fallthrough — Error uses same red as Fail
-        case DiagStatus::Error:   bg = QColor(APPC_FAIL_RED_RGB); break;
-        case DiagStatus::Skipped: bg = QColor(APPC_SKIP_GRAY_RGB); break;
-        default:                  bg = QColor(APPC_INFO_BLUE_RGB); break; // Info
-    }
+    QColor bg = QColor::fromRgba(rgbColors[statusIndex(s) + (darkBackground ? 0 : 6)]);
     const float margin = size * 0.08f;
     p.setBrush(bg);
     p.setPen(Qt::NoPen);
@@ -106,8 +124,8 @@ QImage renderStatusIcon(DiagStatus s, int size) {
 // 5WHY: SVG data URIs needed QtSvg (not linked) for QTextDocument rendering.
 // QPainter→PNG→base64 works universally: QTextDocument preview, PDF export,
 // and browser WebView all support PNG data URIs natively.
-QString reportStatusIconImg(DiagStatus s, int size) {
-    QImage img = renderStatusIcon(s, size);
+QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
+    QImage img = renderStatusIcon(s, size, darkBackground);
     QByteArray pngData;
     QBuffer buf(&pngData);
     buf.open(QIODevice::WriteOnly);
@@ -298,11 +316,11 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         return td;
     };
     h += QStringLiteral("<table width=\"100%\" cellpadding=\"0\" cellspacing=\"4\"><tr>");
-    h += card(bgCardPass, colorPass, tPass, QStringLiteral("Pass"), reportStatusIconImg(DiagStatus::Pass, 24));
-    h += card(bgCardInfo, colorInfo, tInfo, QStringLiteral("Info"), reportStatusIconImg(DiagStatus::Info, 24));
-    h += card(bgCardWarn, colorWarn, tWarn, QStringLiteral("Warning"), reportStatusIconImg(DiagStatus::Warning, 24));
-    h += card(bgCardFail, colorFail, tFail, QStringLiteral("Fail"), reportStatusIconImg(DiagStatus::Fail, 24));
-    h += card(bgCardSkip, colorSkip, tSkip, QStringLiteral("Skipped"), reportStatusIconImg(DiagStatus::Skipped, 24));
+    h += card(bgCardPass, colorPass, tPass, QStringLiteral("Pass"), reportStatusIconImg(DiagStatus::Pass, 24, darkBackground));
+    h += card(bgCardInfo, colorInfo, tInfo, QStringLiteral("Info"), reportStatusIconImg(DiagStatus::Info, 24, darkBackground));
+    h += card(bgCardWarn, colorWarn, tWarn, QStringLiteral("Warning"), reportStatusIconImg(DiagStatus::Warning, 24, darkBackground));
+    h += card(bgCardFail, colorFail, tFail, QStringLiteral("Fail"), reportStatusIconImg(DiagStatus::Fail, 24, darkBackground));
+    h += card(bgCardSkip, colorSkip, tSkip, QStringLiteral("Skipped"), reportStatusIconImg(DiagStatus::Skipped, 24, darkBackground));
     h += QStringLiteral("</tr></table>");
     h += QStringLiteral("<p align=\"center\" style=\"margin:10px 0 18px 0\"><span style=\"font-size:12px;color:%1\">%2 tests total</span></p>")
         .arg(textMuted).arg(tTotal);
@@ -358,19 +376,19 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                 // render identically across browsers, mail clients, and
                 // QTextDocument. Direct concatenation avoids .arg() eating
                 // base64 percent-encoded characters.
-                const QString iconImg = reportStatusIconImg(r.status, 18);
+                const QString iconImg = reportStatusIconImg(r.status, 18, darkBackground);
                 h += QStringLiteral(
                     "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid %6\">"
                     "<td style=\"padding:10px 9px\"><span style=\"font-size:13px;color:%2\"><b>%3</b></span></td>"
                     "<td style=\"padding:10px 9px\">")
                     .arg(rowBg, textPrimary, name)
-                    .arg(reportStatusColor(r.status), reportStatusText(r.status))
+                    .arg(reportStatusColor(r.status, darkBackground), reportStatusText(r.status))
                     .arg(borderColor);
                 h += iconImg;
                 h += QStringLiteral(
                     "&nbsp;<span style=\"font-size:12px;color:%1\"><b>%2</b></span></td>"
                     "<td style=\"padding:10px 9px\"><span style=\"font-size:12px;color:%3\">%4</span></td></tr>")
-                    .arg(reportStatusColor(r.status), reportStatusText(r.status),
+                    .arg(reportStatusColor(r.status, darkBackground), reportStatusText(r.status),
                          textSecondary,
                          r.summary.isEmpty() ? QStringLiteral("&mdash;") : r.summary.toHtmlEscaped());
                 alt = !alt;
@@ -396,7 +414,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                     const auto& r = data.results[id];
                     const QString name = (r.displayName.isEmpty() ? data.displayNames.value(id, QStringLiteral("Unknown"))
                                                                   : r.displayName).toHtmlEscaped();
-                    const QString sc = reportStatusColor(r.status);
+                    const QString sc = reportStatusColor(r.status, darkBackground);
                     // 5WHY: A single page-break-inside:avoid wrapping a
                     // nested-table header AND a potentially-tall code-block
                     // table is unreliable in QTextDocument — Qt Rich Text
@@ -523,7 +541,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--card-fail-bg:" APPC_REPORT_DARK_BG_CARD_FAIL ";"
             "--card-skip-bg:" APPC_REPORT_DARK_BG_CARD_SKIP ";--card-error-bg:#2b1111;"
             "--badge-pass-bg:#16281b;--badge-info-bg:#141f33;--badge-warn-bg:#2b2810;"
-            "--badge-fail-bg:#2b1616;--badge-skip-bg:#26262e;"
+            "--badge-fail-bg:#2b1616;--badge-skip-bg:#26262e;--badge-error-bg:#2b1111;"
             "--sec-row-bg:#1a2840;--border-card-pass:#2d5a2d;--border-card-info:#24406a;"
             "--border-card-warn:#5a5020;--border-card-fail:#5a2d2d;--border-card-skip:#333;"
             "--border-card-error:#5a2020;"
@@ -535,6 +553,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--badge-pass-fg:" APPC_PASS_GREEN_DARK ";--badge-warn-fg:" APPC_WARN_YELLOW_DARK ";"
             "--badge-fail-fg:" APPC_FAIL_RED_DARK ";--badge-skip-fg:" APPC_SKIP_GRAY_DARK ";"
             "--badge-info-fg:" APPC_INFO_BLUE_DARK ";"
+            "--badge-error-fg:" APPC_ERROR_RED_DARK ";"
             "--sec-row-fg:" APPC_INFO_BLUE_DARK ";"
             "--body-border:" APPC_BORDER_CARD_DARK ";"
             "--analysis-bg:" APPC_REPORT_DARK_DETAIL_BG ";--analysis-fg:" APPC_REPORT_DARK_CODE_FG ";"
@@ -544,6 +563,8 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--detail-pass:" APPC_PASS_GREEN_DARK ";--detail-warn:" APPC_WARN_YELLOW_DARK ";"
             "--detail-fail:" APPC_FAIL_RED_DARK ";--detail-skip:" APPC_SKIP_GRAY_DARK ";"
             "--detail-info:" APPC_INFO_BLUE_DARK ";"
+            "--detail-error:" APPC_ERROR_RED_DARK ";"
+            "--card-error-fg:" APPC_ERROR_RED_DARK ";"
             "}")
         : QStringLiteral(
             ":root{"
@@ -561,7 +582,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--card-fail-bg:" APPC_REPORT_LIGHT_BG_CARD_FAIL ";"
             "--card-skip-bg:" APPC_REPORT_LIGHT_BG_CARD_SKIP ";--card-error-bg:#FEF2F2;"
             "--badge-pass-bg:#DCFCE7;--badge-info-bg:#DBEAFE;--badge-warn-bg:#FEF3C7;"
-            "--badge-fail-bg:#FEE2E2;--badge-skip-bg:#E2E8F0;"
+            "--badge-fail-bg:#FEE2E2;--badge-skip-bg:#E2E8F0;--badge-error-bg:#FEE2E2;"
             "--sec-row-bg:#E0F2FE;--border-card-pass:#BBF7D0;--border-card-info:#BFDBFE;"
             "--border-card-warn:#FDE68A;--border-card-fail:#FECACA;--border-card-skip:#CBD5E1;"
             "--border-card-error:#FECACA;"
@@ -573,6 +594,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--badge-pass-fg:" APPC_PASS_GREEN_LIGHT ";--badge-warn-fg:" APPC_WARN_YELLOW_LIGHT ";"
             "--badge-fail-fg:" APPC_FAIL_RED_LIGHT ";--badge-skip-fg:" APPC_SKIP_GRAY_LIGHT ";"
             "--badge-info-fg:" APPC_INFO_BLUE_LIGHT ";"
+            "--badge-error-fg:" APPC_ERROR_RED_LIGHT ";"
             "--sec-row-fg:" APPC_INFO_BLUE_LIGHT ";"
             "--body-border:" APPC_BORDER_CARD_LIGHT ";"
             "--analysis-bg:" APPC_REPORT_LIGHT_DETAIL_BG ";--analysis-fg:" APPC_TEXT_SECONDARY_LIGHT ";"
@@ -582,6 +604,8 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--detail-pass:" APPC_PASS_GREEN_LIGHT ";--detail-warn:" APPC_WARN_YELLOW_LIGHT ";"
             "--detail-fail:" APPC_FAIL_RED_LIGHT ";--detail-skip:" APPC_SKIP_GRAY_LIGHT ";"
             "--detail-info:" APPC_INFO_BLUE_LIGHT ";"
+            "--detail-error:" APPC_ERROR_RED_LIGHT ";"
+            "--card-error-fg:" APPC_ERROR_RED_LIGHT ";"
             "}");
     // 5WHY: All theme-dependent colors (surface, text, status, detail borders)
     // use CSS var(--xxx) references resolved by cssThemeBlock above, which
@@ -611,7 +635,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".card.fail{background:var(--card-fail-bg);border:1px solid var(--border-card-fail)}.card.fail .count{color:var(--card-fail-fg)}"
         ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:var(--card-skip-fg)}"
         ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:var(--card-info-fg)}"
-        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:var(--card-fail-fg)}"
+        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:var(--card-error-fg)}"
         ".wrap table{table-layout:fixed;width:100%}"
         "table.grid{border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
         "table.grid th{text-align:left;padding:11px 12px;background:var(--card-bg);color:var(--fg2);font-weight:600}"
@@ -621,12 +645,13 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         ".badge.pass{background:var(--badge-pass-bg);color:var(--badge-pass-fg)}.badge.warn{background:var(--badge-warn-bg);color:var(--badge-warn-fg)}"
         ".badge.fail{background:var(--badge-fail-bg);color:var(--badge-fail-fg)}.badge.skip{background:var(--badge-skip-bg);color:var(--badge-skip-fg)}"
         ".badge.info{background:var(--badge-info-bg);color:var(--badge-info-fg)}"
+        ".badge.error{background:var(--badge-error-bg);color:var(--badge-error-fg)}"
         "details.test{background:var(--card-bg);border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
         "details.test.pass>summary{border-left:4px solid var(--detail-pass)}details.test.warn>summary{border-left:4px solid var(--detail-warn)}"
         "details.test.fail>summary{border-left:4px solid var(--detail-fail)}details.test.skip>summary{border-left:4px solid var(--detail-skip)}"
         "details.test.info>summary{border-left:4px solid var(--detail-info)}"
-        "details.test.error>summary{border-left:4px solid var(--detail-fail)}"
+        "details.test.error>summary{border-left:4px solid var(--detail-error)}"
         ".body{padding:14px 16px 18px;border-top:1px solid var(--body-border)}"
         ".analysis{background:var(--analysis-bg);color:var(--analysis-fg);border-left:3px solid var(--analysis-border);padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
         ".raw{background:var(--raw-bg);padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:var(--raw-fg);max-height:420px;overflow:auto}"
@@ -662,11 +687,11 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     // 5WHY: Unicode card icons (&#10003; etc.) render inconsistently across
     // fonts. Base64-encoded SVG images match the app's QML icon set exactly.
     h += QStringLiteral("<div class=\"cards\">");
-    h += card(QStringLiteral("pass"), reportStatusIconImg(DiagStatus::Pass, 32), tPass, QStringLiteral("Pass"));
-    h += card(QStringLiteral("info"), reportStatusIconImg(DiagStatus::Info, 32), tInfo, QStringLiteral("Info"));
-    h += card(QStringLiteral("warn"), reportStatusIconImg(DiagStatus::Warning, 32), tWarn, QStringLiteral("Warning"));
-    h += card(QStringLiteral("fail"), reportStatusIconImg(DiagStatus::Fail, 32), tFail, QStringLiteral("Fail"));
-    h += card(QStringLiteral("skip"), reportStatusIconImg(DiagStatus::Skipped, 32), tSkip, QStringLiteral("Skipped"));
+    h += card(QStringLiteral("pass"), reportStatusIconImg(DiagStatus::Pass, 32, darkBackground), tPass, QStringLiteral("Pass"));
+    h += card(QStringLiteral("info"), reportStatusIconImg(DiagStatus::Info, 32, darkBackground), tInfo, QStringLiteral("Info"));
+    h += card(QStringLiteral("warn"), reportStatusIconImg(DiagStatus::Warning, 32, darkBackground), tWarn, QStringLiteral("Warning"));
+    h += card(QStringLiteral("fail"), reportStatusIconImg(DiagStatus::Fail, 32, darkBackground), tFail, QStringLiteral("Fail"));
+    h += card(QStringLiteral("skip"), reportStatusIconImg(DiagStatus::Skipped, 32, darkBackground), tSkip, QStringLiteral("Skipped"));
     h += QStringLiteral("</div>\n");
 
     // Summary table
@@ -690,7 +715,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
                 ++idx;
                 // 5WHY: Unicode icons → SVG data URI for consistent rendering.
                 // Direct concatenation avoids .arg() consuming base64 % escapes.
-                const QString iconImg = reportStatusIconImg(r.status, 18);
+                const QString iconImg = reportStatusIconImg(r.status, 18, darkBackground);
                 h += QStringLiteral("<tr><td>%1</td><td>%2</td><td>")
                     .arg(idx).arg(name);
                 h += iconImg;

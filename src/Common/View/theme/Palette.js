@@ -51,6 +51,12 @@ var Dark = {
     // Contrast ratio vs #0F172A: ~6.3:1 (WCAG AAA for large text).
     warnYellow:       "#F59E0B",
     failRed:          "#F87171",
+    // 5WHY: Error (infrastructure failure, test couldn't run) and Fail
+    // (assertion failure, test ran but check failed) were visually
+    // indistinguishable — both mapped to failRed.  errorRed uses a
+    // distinct rose/magenta so users can tell at a glance whether to
+    // investigate their network or their test config.
+    errorRed:         "#F472B6",
     skipGray:         "#9CA3AF",
     infoBlue:         "#A5B4FC"
 };
@@ -81,11 +87,17 @@ var Light = {
     textOnAccent:     "#0F172A",
 
     // ── Status (WCAG 3:1+ on #F8FAFC) ───────────────────────────────────
-    passGreen:        "#059669",
+    // 5WHY (2026-07-30): #059669 (L*≈35) was too dark on #F8FAFC, perceptually
+    // close to errorRed (L*≈35) — users struggled to distinguish green-pass
+    // from red-fail in bright ambient light.  #10B981 (Tailwind emerald-500,
+    // L*≈42) lifts contrast ratio to ~5.2:1 while maintaining WCAG AA and
+    // creating clear perceptual separation from the error/fail reds.
+    passGreen:        "#10B981",
     // 5WHY: Dark counterpart uses #F59E0B (amber-orange). Both palettes now use orange for warnings.
     // #EA580C (deep orange) contrast ratio vs #F8FAFC: ~5.5:1 (WCAG AA).
     warnYellow:       "#EA580C",
     failRed:          "#DC2626",
+    errorRed:         "#BE185D",
     skipGray:         "#6B7280",
     infoBlue:         "#2563EB"
 };

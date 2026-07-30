@@ -1,4 +1,4 @@
-﻿import QtQuick
+import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../widgets"
@@ -191,7 +191,7 @@ Item {
                                   appState.runStatus === 3 ? Tr.cancelled :
                                   appState.runStatus === 4 ? Tr.errorStatus : Tr.results
                             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
-                            color: appState.runStatus === 4 ? ThemeEngine.colors.failRed : ThemeEngine.colors.textPrimary
+                            color: appState.runStatus === 4 ? ThemeEngine.colors.errorRed : ThemeEngine.colors.textPrimary
                         }
                         Label {
                             visible: appState.runStatus === 1 && appState.totalDiags > 0
@@ -205,11 +205,11 @@ Item {
                     RowLayout {
                         spacing: 4; visible: _showBadges
                         Item { width: 11 }
-                        StatusBadge { accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   count: __agg.pass }
-                        StatusBadge { accent: ThemeEngine.colors.infoBlue; iconName: "badge-info";    count: __agg.info }
-                        StatusBadge { accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; count: __agg.warn }
-                        StatusBadge { accent: ThemeEngine.colors.failRed;    iconName: "badge-close";   count: __agg.fail }
-                        StatusBadge { accent: ThemeEngine.colors.skipGray;   iconName: "badge-skip";    count: __agg.skip }
+                        StatusBadge { statusCode: 0; count: __agg.pass }
+                        StatusBadge { statusCode: 5; count: __agg.info }
+                        StatusBadge { statusCode: 1; count: __agg.warn }
+                        StatusBadge { statusCode: 2; count: __agg.fail }
+                        StatusBadge { statusCode: 3; count: __agg.skip }
                     }
                 }
                 // 5WHY: Share buttons moved from AppBar to results header.
@@ -245,12 +245,12 @@ Item {
                 visible: appState.totalCompleted === 0 && appState.runStatus !== 1
                 AppIcon { anchors.horizontalCenter: parent.horizontalCenter
                     name: appState.runStatus === 4 ? "badge-error" : "diagnostics"
-                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.failRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
+                    size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.errorRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: appState.runStatus === 4 ? Tr.errorCheck : Tr.runDiag
                     font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
-                    color: appState.runStatus === 4 ? ThemeEngine.colors.failRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
+                    color: appState.runStatus === 4 ? ThemeEngine.colors.errorRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
                 // PM: Actionable error recovery guidance — uses Tr.* for i18n
                 Label {

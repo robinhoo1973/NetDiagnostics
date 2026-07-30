@@ -25,13 +25,10 @@ QtObject {
     readonly property bool isDark: mode !== litMode
     readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
 
-    // ── Palettes reference the canonical Palette.js constants ──────────
-    // All hex color values live in Palette.js (single source of truth
-    // for QML).  When adding/changing colors, update Palette.js first,
-    // then AppColors.h for the C++ mirror.
-    readonly property var lightPalette: Palette.Light
-
-    readonly property var darkPalette: Palette.Dark
+    // ── Palette reference (via Palette.js singleton, inlined to reduce
+    // property count — ThemeEngine's own header warns ~97 props can crash
+    // the QML engine in static builds.  Every non-essential property adds
+    // to this count; two single-use routing properties don't justify the risk.)
 
     // 5WHY: All 23 deprecated readonly alias properties were removed in
     // Cycle 28.  Every consumer (607 references) now uses the canonical
@@ -49,16 +46,45 @@ QtObject {
         applyTheme()
     }
 
-    function applyTheme() {
-        var p = (mode === litMode) ? lightPalette : darkPalette
+    // 5WHY: QML singletons can construct before C++ context properties are
+    // registered.  If appState wasn't available at Component.onCompleted,
+    // mode stays at default drkMode even if QSettings stored light mode (1).
+    // The user sees a dark UI despite having saved light-theme preference.
+    //
+    // Fix: fire a zero-interval Timer — after the event loop starts, C++
+    // context properties are guaranteed registered.  If the saved theme
+    // differs from the default, mode assignment triggers onModeChanged →
+    // applyTheme() (guarded by _ready=true) to correct the palette.
+    Timer {
+        interval: 0; running: true; repeat: false
+        onTriggered: {
+            if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
+                if (mode !== appState.themeMode) {
+                    mode = appState.themeMode
+                }
+            }
+        }
+    }
 
-        // 5WHY: Object.assign({}, p) creates a new object with all palette
-        // properties copied — QML's binding engine detects the reference
-        // change and re-evaluates all ThemeEngine.colors.xxx bindings.
-        // This replaces the old 23-line manual enumeration which was a
-        // maintenance burden: adding a color to Palette.js required also
-        // adding it here, with no compile-time check for omissions.
-        colors = Object.assign({}, p)
+    function applyTheme() {
+        var p = (mode === litMode) ? Palette.Light : Palette.Dark
+
+        // 5WHY: identity guard — Palette.Dark and Palette.Light are frozen
+        // via Object.freeze() (Palette.js:97-98), so `colors === p` is a
+        // fast reference-identity check.  Without this guard, every startup
+        // (and every no-op theme re-selection in SettingsScreen) creates a
+        // redundant Object.assign copy and triggers a full binding-graph
+        // re-evaluation cascade (~600 ThemeEngine.colors.xxx consumers +
+        // statusColors array rebuild) for zero net color change.
+        if (colors !== p) {
+            // Object.assign({}, p) creates a new object with all palette
+            // properties copied — QML's binding engine detects the reference
+            // change and re-evaluates all ThemeEngine.colors.xxx bindings.
+            // This replaces the old 23-line manual enumeration which was a
+            // maintenance burden: adding a color to Palette.js required also
+            // adding it here, with no compile-time check for omissions.
+            colors = Object.assign({}, p)
+        }
     }
     onModeChanged: { if (_ready) applyTheme() }
 
@@ -79,9 +105,12 @@ QtObject {
     // DiagStatus (Pass=0, Warning=1, Fail=2, Skipped=3, Error=4, Info=5)
     // → color and icon name.  Previously duplicated across DiagResultItem,
     // DashboardScreen, and DiagId.h.
+    // 5WHY: Error(4) shared failRed with Fail(2) — visually indistinguishable.
+    // Now uses dedicated colors.errorRed (rose/magenta) so users can tell
+    // infrastructure failure (Error) from assertion failure (Fail) at a glance.
     readonly property var statusColors: [
         colors.passGreen,   colors.warnYellow,  colors.failRed,
-        colors.skipGray,    colors.failRed,     colors.infoBlue
+        colors.skipGray,    colors.errorRed,    colors.infoBlue
     ]
     readonly property var statusIconNames: [
         "badge-check",      // 0: Pass

@@ -76,7 +76,7 @@ Item {
     // 5WHY: Status mapping was incomplete — only handled Pass(0) through
     // Skipped(3), defaulting all other statuses to "badge-info"/accentBlue.
     // DiagStatus::Error(4) and DiagStatus::Info(5) are distinct states that
-    // need separate visual treatment (Error→failRed, Info→infoBlue).  Now
+    // need separate visual treatment (Error→errorRed, Info→infoBlue).  Now
     // matches DiagResultItem status mappings exactly.
     //
     // 5WHY (theme reactivity): statusColor() was a JavaScript function called

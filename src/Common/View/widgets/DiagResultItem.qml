@@ -66,7 +66,7 @@ Item {
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
         visible: !itemData.isPending; spacing: 8
         // 5WHY: Error(4) showed infoBlue (same as Info), not visually distinct.
-        // Now Error→failRed, Info(5)→infoBlue, Skipped(3)→skipGray.
+        // Now Error→errorRed, Info(5)→infoBlue, Skipped(3)→skipGray.
         // Icon size 12 → 16 per M3 iconSm — doubles the visible area (64→256 px²)
         // for significantly better status recognition at a glance.
         // 5WHY: color: _statusColors[status] uses the tracked property var
