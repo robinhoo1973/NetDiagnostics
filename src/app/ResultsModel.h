@@ -56,7 +56,18 @@ public:
     // ── Raw result access (for AppState / non-QML consumers) ──────────────
     bool hasResult(DiagId id) const { return m_results.contains(id); }
     DiagnosticResult diagnosticResult(DiagId id) const { return m_results.value(id); }
-    const DiagnosticResult& diagnosticResultRef(DiagId id) const { return m_results[id]; }
+    // 5WHY: m_results[id] on const QMap returns T by value (Qt 6 const operator[]
+    // calls value(key) internally). Returning const& to that temporary creates a
+    // dangling reference — UB. Fix: constFind() returns a real const_iterator
+    // that dereferences to an element actually stored in the map. On miss,
+    // fall back to a static default (safe const ref, same semantics as value()).
+    const DiagnosticResult& diagnosticResultRef(DiagId id) const {
+        auto it = m_results.constFind(id);
+        if (it != m_results.constEnd())
+            return it.value();
+        static const DiagnosticResult s_default{};
+        return s_default;
+    }
     const QMap<DiagId, DiagnosticResult>& allResults() const { return m_results; }
 
 signals:

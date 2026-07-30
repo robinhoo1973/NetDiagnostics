@@ -549,7 +549,10 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             ":root{"
             "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_TEXT_PRIMARY_LIGHT ";--fg2:" APPC_TEXT_SECONDARY_LIGHT ";"
             "--card-bg:" APPC_CARD_LIGHT ";"
-            "--header-bg1:" APPC_REPORT_LIGHT_BG_HEADER ";--header-bg2:" APPC_PRIMARY_CONTAINER_LIGHT ";"
+            "--header-bg1:" APPC_REPORT_LIGHT_BG_HEADER ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
+            // 5WHY: Header is always dark with light text — --header-bg2
+            // must stay dark for WCAG contrast.  #0F172A→#0C4A6E
+            // gradient keeps white header text legible (~13:1)."
             "--border:" APPC_BORDER_CARD_LIGHT ";"
             "--footer-fg:" APPC_REPORT_LIGHT_FOOTER ";--footer-border:" APPC_BORDER_CARD_LIGHT ";"
             "--card-pass-bg:" APPC_REPORT_LIGHT_BG_CARD_PASS ";"
