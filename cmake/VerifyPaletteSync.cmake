@@ -8,26 +8,58 @@
 # other produces a silent visual inconsistency: C++ reports render one
 # color, QML UI renders another.  No compiler/linter catches this.
 #
-# Triggered by the `verify-palette-sync` CMake target.
+# Triggered at cmake configure time via include() in CMakeLists.txt.
 # =============================================================================
 
 set(_APP_COLORS   "${CMAKE_SOURCE_DIR}/src/Common/Utils/AppColors.h")
 set(_PALETTE_JS   "${CMAKE_SOURCE_DIR}/src/Common/View/theme/Palette.js")
 
 # ── Helper: extract the hex value from an AppColors.h #define ──────────
+# 5WHY: The original regex required at least 2 spaces between the macro
+# name and value (the "  *" token).  Using " +" (one or more spaces)
+# tolerates single-space formatting without breaking existing aligned
+# definitions that use many spaces for column alignment.
 function(_palette_check pair_name macro js_key)
     # Extract C++ value: #define MACRO "value"
-    file(STRINGS "${_APP_COLORS}" _cpp_line REGEX "^#define ${macro}  *\"#")
-    if(NOT _cpp_line MATCHES "${macro}  *\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+    file(STRINGS "${_APP_COLORS}" _cpp_line REGEX "^#define ${macro} +\"#")
+    if(NOT _cpp_line MATCHES "${macro} +\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
         message(FATAL_ERROR "Palette sync FAIL: macro ${macro} not matched in AppColors.h")
     endif()
     set(_cpp_val "${CMAKE_MATCH_1}")
 
-    # Extract JS value: key: "value" (whole-word match with word boundary)
-    file(STRINGS "${_PALETTE_JS}" _js_lines REGEX "${js_key}: *\"#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f]\"")
+    # ── Extract JS value from the correct theme block ──────────────────
+    # 5WHY: The original code searched the ENTIRE Palette.js file for
+    # matching key names.  Since both Dark and Light object blocks use
+    # the same key names (e.g. "surface" exists in both Dark and Light),
+    # a simple full-file grep could produce a FALSE POSITIVE: if a
+    # developer accidentally swapped a dark/light value pair, the check
+    # would still find the hex value in the wrong theme's block and
+    # report OK.
+    #
+    # Fix: read all lines sequentially and track which block we are in
+    # (Dark or Light).  Only match keys inside the correct block.
+
+    # Determine which JS object block to search
+    if(pair_name MATCHES "dark")
+        set(_block_pattern "^var Dark = \\{")
+    else()
+        set(_block_pattern "^var Light = \\{")
+    endif()
+
+    file(STRINGS "${_PALETTE_JS}" _all_lines)
+    set(_in_block FALSE)
     set(_js_ok FALSE)
-    foreach(_l ${_js_lines})
-        if(_l MATCHES "${js_key}: *\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+    set(_js_val_found "")
+    foreach(_l ${_all_lines})
+        # Entering the correct block?
+        if(_l MATCHES "${_block_pattern}")
+            set(_in_block TRUE)
+        # Leaving any block?  Both Dark and Light blocks end with "};"
+        elseif(_in_block AND _l MATCHES "^\\};")
+            set(_in_block FALSE)
+        # Inside the correct block — does this line define our key?
+        elseif(_in_block AND _l MATCHES "${js_key}: *\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+            set(_js_val_found "${CMAKE_MATCH_1}")
             string(TOLOWER "${CMAKE_MATCH_1}" _js_try)
             string(TOLOWER "${_cpp_val}" _cpp_lower)
             if(_js_try STREQUAL _cpp_lower)
@@ -37,11 +69,19 @@ function(_palette_check pair_name macro js_key)
         endif()
     endforeach()
     if(NOT _js_ok)
-        message(FATAL_ERROR
-            "Palette sync FAIL: ${pair_name}\n"
-            "  AppColors.h  ${macro}: ${_cpp_val}\n"
-            "  Palette.js   ${js_key}: not found or value mismatch\n"
-            "  → Update BOTH files to keep them in sync.")
+        if(_js_val_found)
+            message(FATAL_ERROR
+                "Palette sync FAIL: ${pair_name}\n"
+                "  AppColors.h  ${macro}: ${_cpp_val}\n"
+                "  Palette.js   ${js_key}: ${_js_val_found} (value mismatch)\n"
+                "  → Update BOTH files to keep them in sync.")
+        else()
+            message(FATAL_ERROR
+                "Palette sync FAIL: ${pair_name}\n"
+                "  AppColors.h  ${macro}: ${_cpp_val}\n"
+                "  Palette.js   ${js_key}: not found in correct theme block\n"
+                "  → Update BOTH files to keep them in sync.")
+        endif()
     endif()
     message(STATUS "  [OK] ${pair_name} → ${_cpp_val}")
 endfunction()
