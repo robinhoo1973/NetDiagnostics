@@ -29,6 +29,14 @@ struct ReportData {
     // Defaults to "Unknown" to prevent std::bad_function_call if unset.
     // Callers should override with a real display-name function (e.g. AppState::staticDiagDisplayName).
     std::function<QString(DiagId)> diagDisplayName = [](DiagId) { return QStringLiteral("Unknown"); };
+
+    // Language index (0=EN, 5=ZH_CN, etc.) — set by AppState::buildReportData().
+    int languageIndex = 0;
+
+    // Pre-translated display names keyed by DiagId.  Populated by AppState at
+    // snapshot time so that ReportEngine never depends on the active locale.
+    // Prefer this over diagDisplayName for multi-language report output.
+    QMap<DiagId, QString> displayNames;
     QMap<DiagGroup, QList<DiagId>> diagIdsInGroup;   // group → ordered diag IDs
 };
 

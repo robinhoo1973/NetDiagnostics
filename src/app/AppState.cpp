@@ -419,10 +419,20 @@ void AppState::runDiagnostics() {
             if (gt.group == DiagGroup::G4 && !hasTarget) continue;
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
             // G5: filter by scheme — only schedule tests matching the target's protocol
+            // Tests that don't match are recorded as Skipped so they appear in
+            // results/stats instead of silently disappearing from the UI
             if (gt.group == DiagGroup::G5 && hasTarget) {
                 QString scheme = m_targetModel->scheme().isEmpty()
                     ? QStringLiteral("https") : m_targetModel->scheme().toLower();
-                if (!g5DiagMatchesScheme(id, scheme)) continue;
+                if (!g5DiagMatchesScheme(id, scheme)) {
+                    auto skippedResult = DiagnosticResult::skipped(id,
+                        QStringLiteral("Skipped: target scheme does not match"));
+                    m_results[id] = skippedResult;
+                    m_resultsModel->addResult(id, skippedResult);
+                    m_totalPerGroup[gt.group]++;
+                    m_totalDiags++;
+                    continue;
+                }
             }
             gt.diagIds.append(id);
             m_totalPerGroup[gt.group]++;
@@ -703,6 +713,12 @@ ReportData AppState::buildReportData() const {
     d.groupLabels = groupLabels();
     d.results = m_results;
     d.diagDisplayName = &AppState::staticDiagDisplayName;
+    d.languageIndex = languageIndex();
+    // Pre-translate all diagnostic display names at snapshot time so
+    // ReportEngine never depends on the active locale or QML context.
+    for (auto id : ::allDiagIds()) {
+        d.displayNames[id] = ::diagDisplayName(id);
+    }
     for (int g = 0; g < 5; ++g) {
         d.groupStats[g] = groupStats(g);
         d.diagIdsInGroup[static_cast<DiagGroup>(g)] =

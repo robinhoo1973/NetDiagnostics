@@ -350,7 +350,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
             for (auto id : *dgIt) {
                 if (!data.results.contains(id)) continue;
                 const auto& r = data.results[id];
-                const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
+                const QString name = (r.displayName.isEmpty() ? data.displayNames.value(id, QStringLiteral("Unknown"))
                                                               : r.displayName).toHtmlEscaped();
                 const QString rowBg = alt ? bgRowAlt : bgRow;
                 // 5WHY: Reports used Unicode glyphs that render as tofu (□)
@@ -394,7 +394,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                 for (auto id : *dgIt) {
                     if (!data.results.contains(id)) continue;
                     const auto& r = data.results[id];
-                    const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
+                    const QString name = (r.displayName.isEmpty() ? data.displayNames.value(id, QStringLiteral("Unknown"))
                                                                   : r.displayName).toHtmlEscaped();
                     const QString sc = reportStatusColor(r.status);
                     // 5WHY: A single page-break-inside:avoid wrapping a
@@ -632,7 +632,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             for (auto id : *dgIt) {
                 if (!data.results.contains(id)) continue;
                 const auto& r = data.results[id];
-                const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
+                const QString name = (r.displayName.isEmpty() ? data.displayNames.value(id, QStringLiteral("Unknown"))
                                                               : r.displayName).toHtmlEscaped();
                 ++idx;
                 // 5WHY: Unicode icons → SVG data URI for consistent rendering.
@@ -663,7 +663,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             for (auto id : *dgIt) {
                 if (!data.results.contains(id)) continue;
                 const auto& r = data.results[id];
-                const QString name = (r.displayName.isEmpty() ? data.diagDisplayName(id)
+                const QString name = (r.displayName.isEmpty() ? data.displayNames.value(id, QStringLiteral("Unknown"))
                                                               : r.displayName).toHtmlEscaped();
                 const QString cls = reportStatusClass(r.status);
                 h += QStringLiteral("<details class=\"test %1\"><summary>"
