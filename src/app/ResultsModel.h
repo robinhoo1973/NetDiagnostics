@@ -53,6 +53,11 @@ public:
     QVariantList allGroupStats() const;
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const;
 
+    // ── Raw result access (for AppState / non-QML consumers) ──────────────
+    bool hasResult(DiagId id) const { return m_results.contains(id); }
+    DiagnosticResult diagnosticResult(DiagId id) const { return m_results.value(id); }
+    QMap<DiagId, DiagnosticResult> allResults() const { return m_results; }
+
 signals:
     void progressChanged();
 

@@ -163,6 +163,8 @@ public:
     QVariantList allGroupStats() const { return m_resultsModel->allGroupStats(); }
     Q_INVOKABLE void showDetailDialog(int diagIdInt);
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const { return m_resultsModel->getDetailResult(diagIdInt); }
+    DiagnosticResult resultForId(DiagId id) const { return m_resultsModel->diagnosticResult(id); }
+    ReportData buildReportData() const;  // snapshot for ReportEngine
 
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
     int resultsVersion() const { return m_resultsModel->resultsVersion(); }
@@ -207,6 +209,7 @@ public:
     Q_INVOKABLE void shareReport(const QString& format);
     Q_INVOKABLE void shareExistingReport(const QString& filePath, const QString& format);
     Q_INVOKABLE void deleteFile(const QString& filePath);  // cleanup preview files
+    Q_INVOKABLE void emailReportDesktop(const QString& path);
 
     // ── Crash report (from previous run) ───────────────────────────────────
     // Populated at startup by main.cpp when a leftover crash log is found.
@@ -259,11 +262,6 @@ private slots:
     void onDiagFinished(DiagId id, const DiagnosticResult& result);
 
 private:
-    friend class SettingsController;  // needs access to emailReportDesktop, buildReportData
-    friend class ConfigurationController;
-    friend class DashboardController;
-    friend class ReportController;
-
     void reset();                       // internal: clears state before each run
     void startNextGroup();
     void runDiagInGroup(int groupIdx, int diagIdx);
@@ -274,10 +272,6 @@ private:
     // because staticDiagDisplayName() is also private.
     static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties);
     void bumpVersion();
-
-    // ── Internal helpers (used by Controllers) ──────────────────────────────
-    void emailReportDesktop(const QString& path);
-    ReportData buildReportData() const;  // snapshot for ReportEngine
 
     // Target URL parsing → extracted to TargetModel
     TargetModel* m_targetModel = nullptr;
@@ -313,7 +307,6 @@ private:
     CaptureOrchestrator* m_captureOrch = nullptr;
 #endif
 
-    QMap<DiagId, DiagnosticResult> m_results;
     QMap<DiagGroup, int> m_totalPerGroup;
 
     // Group-sequential execution

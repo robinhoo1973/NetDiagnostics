@@ -29,12 +29,6 @@ struct DiagnosticResult {
     bool isSkipped() const { return status == DiagStatus::Skipped; }
     bool isError()   const { return status == DiagStatus::Error; }
     bool isInfo()    const { return status == DiagStatus::Info; }
-    // 5WHY: isDone() returned false for Skipped — a skipped test IS "done"
-    // (no further work will occur). The name was misleading. Replaced with
-    // wasExecuted() which correctly expresses the semantic: "did this test
-    // actually run?" vs "is this test finished?"
-    [[deprecated("Use wasExecuted() instead — isDone() returns false for Skipped which is misleading")]]
-    bool isDone()    const { return status != DiagStatus::Skipped; }
     bool wasExecuted() const { return status != DiagStatus::Skipped; }
     QString statusIcon() const { return diagStatusIcon(status); }
 

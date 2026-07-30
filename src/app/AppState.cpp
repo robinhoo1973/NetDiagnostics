@@ -389,7 +389,6 @@ void AppState::runDiagnostics() {
     m_runGeneration.fetch_add(1, std::memory_order_release); // invalidate stale callbacks
     TRACE(" status=Running generation=%d, building pending tests\n", (int)m_runGeneration.load());
     m_totalDiags = 0;
-    m_results.clear();
     m_totalPerGroup.clear();
     m_currentDiagName.clear();
     m_currentGroup.clear();
@@ -427,7 +426,6 @@ void AppState::runDiagnostics() {
                 if (!g5DiagMatchesScheme(id, scheme)) {
                     auto skippedResult = DiagnosticResult::skipped(id,
                         QStringLiteral("Skipped: target scheme does not match"));
-                    m_results[id] = skippedResult;
                     m_resultsModel->addResult(id, skippedResult);
                     m_totalPerGroup[gt.group]++;
                     m_totalDiags++;
@@ -585,7 +583,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     connect(task.get(), &DiagnosticTask::finished, this,
         [this, id, groupIdx, runGen](const DiagnosticResult& result) {
             if (m_runGeneration.load(std::memory_order_acquire) != runGen) return;
-            if (m_results.contains(id)) return;
+            if (m_resultsModel->hasResult(id)) return;
             onDiagFinished(id, result);
             int done = m_activeGroupDone.fetch_add(1) + 1;
             auto& gt = m_pendingGroups[groupIdx];
@@ -608,15 +606,10 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
     task.release(); // only release ownership after start() succeeds
 }
 
-// 5WHY: DiagnosticResult parameter was passed by value (copy into parameter +
-// copy into map = double copy).  const& avoids the parameter-copy overhead;
-// m_results[id]=result still does one copy into the QMap.  DiagnosticResult
-// contains QString/QDateTime/QVector — each copy is a heap allocation.
 void AppState::onDiagFinished(DiagId id, const DiagnosticResult& result) {
     TRACE(" onDiagFinished id=%d status=%d\n", (int)id, (int)result.status);
     if (m_runStatus != RunStatus::Running) return;
-    if (m_results.contains(id)) return;
-    m_results[id] = result;
+    if (m_resultsModel->hasResult(id)) return;
     m_resultsModel->addResult(id, result);
 
     emit progressChanged();
@@ -670,7 +663,6 @@ void AppState::reset() {
     m_runGeneration.fetch_add(1, std::memory_order_release);
     m_runStatus = RunStatus::Idle;
     m_totalDiags = 0;
-    m_results.clear();
     m_totalPerGroup.clear();
     m_errorMessage.clear();
     m_pendingGroups.clear();
@@ -711,8 +703,7 @@ ReportData AppState::buildReportData() const {
     d.buildNumber = buildNumber();
     d.gitHash = gitHash();
     d.groupLabels = groupLabels();
-    d.results = m_results;
-    d.diagDisplayName = &AppState::staticDiagDisplayName;
+    d.results = m_resultsModel->allResults();
     d.languageIndex = languageIndex();
     // Pre-translate all diagnostic display names at snapshot time so
     // ReportEngine never depends on the active locale or QML context.
@@ -873,9 +864,9 @@ void AppState::emailReportDesktop(const QString& path) {
 void AppState::showDetailDialog(int diagIdInt) {
     if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return;
     auto id = static_cast<DiagId>(diagIdInt);
-    if (!m_results.contains(id)) return;
+    if (!m_resultsModel->hasResult(id)) return;
     
-    const auto& r = m_results[id];
+    DiagnosticResult r = resultForId(id);
     
 #if !defined(PLATFORM_MOBILE)
     // Use heap-allocated dialog with show() instead of exec()
