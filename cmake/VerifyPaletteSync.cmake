@@ -14,18 +14,32 @@
 set(_APP_COLORS   "${CMAKE_SOURCE_DIR}/src/Common/Utils/AppColors.h")
 set(_PALETTE_JS   "${CMAKE_SOURCE_DIR}/src/Common/View/theme/Palette.js")
 
+# ── Pre-load both files once (avoid 22 re-reads inside _palette_check) ──
+# 5WHY: Originally file(STRINGS) was called inside _palette_check(), which
+# is invoked 22 times (once per color pair). Each invocation read Palette.js
+# in full to track Dark/Light block state — 44 file reads at configure time.
+# Fix: read AppColors.h lines once; read Palette.js lines once at top level.
+# The function receives the pre-loaded lines as arguments.
+file(STRINGS "${_APP_COLORS}" _PALETTE_CPP_LINES)
+file(STRINGS "${_PALETTE_JS}" _PALETTE_JS_LINES)
+
 # ── Helper: extract the hex value from an AppColors.h #define ──────────
 # 5WHY: The original regex required at least 2 spaces between the macro
 # name and value (the "  *" token).  Using " +" (one or more spaces)
 # tolerates single-space formatting without breaking existing aligned
 # definitions that use many spaces for column alignment.
 function(_palette_check pair_name macro js_key)
-    # Extract C++ value: #define MACRO "value"
-    file(STRINGS "${_APP_COLORS}" _cpp_line REGEX "^#define ${macro} +\"#")
-    if(NOT _cpp_line MATCHES "${macro} +\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+    # Extract C++ value: match against pre-loaded cpp lines
+    set(_cpp_val "")
+    foreach(_l ${_PALETTE_CPP_LINES})
+        if(_l MATCHES "^#define ${macro} +\"(#[0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f][0-9A-Fa-f])\"")
+            set(_cpp_val "${CMAKE_MATCH_1}")
+            break()
+        endif()
+    endforeach()
+    if(_cpp_val STREQUAL "")
         message(FATAL_ERROR "Palette sync FAIL: macro ${macro} not matched in AppColors.h")
     endif()
-    set(_cpp_val "${CMAKE_MATCH_1}")
 
     # ── Extract JS value from the correct theme block ──────────────────
     # 5WHY: The original code searched the ENTIRE Palette.js file for
@@ -46,11 +60,14 @@ function(_palette_check pair_name macro js_key)
         set(_block_pattern "^var Light = \\{")
     endif()
 
-    file(STRINGS "${_PALETTE_JS}" _all_lines)
+    # Use pre-loaded JS lines (read once at top level, not 22 times here)
+    # 5WHY: _PALETTE_JS_LINES is a top-level variable accessible in function
+    # scope via CMake's dynamic scoping. foreach iterates over the semicolon-
+    # separated list produced by file(STRINGS ...).
     set(_in_block FALSE)
     set(_js_ok FALSE)
     set(_js_val_found "")
-    foreach(_l ${_all_lines})
+    foreach(_l ${_PALETTE_JS_LINES})
         # Entering the correct block?
         if(_l MATCHES "${_block_pattern}")
             set(_in_block TRUE)

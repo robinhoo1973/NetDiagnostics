@@ -868,7 +868,7 @@ void AppState::showDetailDialog(int diagIdInt) {
     auto id = static_cast<DiagId>(diagIdInt);
     if (!m_resultsModel->hasResult(id)) return;
     
-    DiagnosticResult r = resultForId(id);
+    const DiagnosticResult& r = resultForId(id);
     
 #if !defined(PLATFORM_MOBILE)
     // Use heap-allocated dialog with show() instead of exec()

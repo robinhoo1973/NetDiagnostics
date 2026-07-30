@@ -549,7 +549,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             ":root{"
             "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_TEXT_PRIMARY_LIGHT ";--fg2:" APPC_TEXT_SECONDARY_LIGHT ";"
             "--card-bg:" APPC_CARD_LIGHT ";"
-            "--header-bg1:" APPC_REPORT_LIGHT_BG_HEADER ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
+            "--header-bg1:" APPC_REPORT_LIGHT_BG_HEADER ";--header-bg2:" APPC_PRIMARY_CONTAINER_LIGHT ";"
             "--border:" APPC_BORDER_CARD_LIGHT ";"
             "--footer-fg:" APPC_REPORT_LIGHT_FOOTER ";--footer-border:" APPC_BORDER_CARD_LIGHT ";"
             "--card-pass-bg:" APPC_REPORT_LIGHT_BG_CARD_PASS ";"
@@ -580,8 +580,11 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
             "--detail-fail:" APPC_FAIL_RED_LIGHT ";--detail-skip:" APPC_SKIP_GRAY_LIGHT ";"
             "--detail-info:" APPC_INFO_BLUE_LIGHT ";"
             "}");
-    // 5WHY: All colors use CSS var(--xxx) references resolved by
-    // cssThemeBlock above — no APPC_* macros.  darkBackground controls
+    // 5WHY: All theme-dependent colors (surface, text, status, detail borders)
+    // use CSS var(--xxx) references resolved by cssThemeBlock above, which
+    // references APPC_* macros. Badge backgrounds, card-border accents, and
+    // sec-row backgrounds are still hardcoded hex — they are CSS-only and
+    // have no Palette.js counterpart (no sync risk).  darkBackground controls
     // every color via a single :root block swap.
     const QString kCss = cssThemeBlock
         + QStringLiteral(

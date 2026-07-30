@@ -163,7 +163,7 @@ public:
     QVariantList allGroupStats() const { return m_resultsModel->allGroupStats(); }
     Q_INVOKABLE void showDetailDialog(int diagIdInt);
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const { return m_resultsModel->getDetailResult(diagIdInt); }
-    DiagnosticResult resultForId(DiagId id) const { return m_resultsModel->diagnosticResult(id); }
+    const DiagnosticResult& resultForId(DiagId id) const { return m_resultsModel->diagnosticResultRef(id); }
     ReportData buildReportData() const;  // snapshot for ReportEngine
 
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
