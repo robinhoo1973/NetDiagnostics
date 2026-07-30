@@ -1,9 +1,0 @@
-diff a/src/app/AppState.cpp b/src/app/AppState.cpp	(rejected hunks)
-@@ -712,7 +712,6 @@ ReportData AppState::buildReportData() const {
-     d.gitHash = gitHash();
-     d.groupLabels = groupLabels();
-     d.results = m_results;
--    d.diagDisplayName = &AppState::staticDiagDisplayName;
-     d.languageIndex = languageIndex();
-     // Pre-translate all diagnostic display names at snapshot time so
-     // ReportEngine never depends on the active locale or QML context.
