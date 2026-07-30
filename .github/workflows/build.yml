@@ -854,6 +854,10 @@ jobs:
                 os="linux"; arch="x86_64" ;;
               *linux-arm64*|*linux*arm*)
                 os="linux"; arch="arm64" ;;
+              *android-x86_64*|*android*x86*)
+                os="android"; arch="x86_64" ;;
+              *android-arm64*|*android*arm*)
+                os="android"; arch="arm64" ;;
               *macos*|*ios*)
                 echo "Skipping Apple artifact (handled by macOS.yml/iOS.yml): $dir"; continue ;;
               *)

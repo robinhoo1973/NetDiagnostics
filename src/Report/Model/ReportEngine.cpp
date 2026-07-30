@@ -504,39 +504,75 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         tTotal += it->value(QStringLiteral("total")).toInt();
     }
 
-    // 5WHY: Rich HTML CSS was hardcoded dark — HTML preview + export always
-    // dark regardless of app theme. Prepend a CSS custom-property theme block
-    // so a single color swap at the :root level applies the entire theme.
-    // 5WHY: Card/badge backgrounds were hardcoded dark — light mode showed
-    // dark cards on a light page. Add CSS variables for both themes.
+    // 5WHY: CSS custom properties define the complete visual theme so
+    // buildRichDocument() respects darkBackground.  Every color used in
+    // the kCss stylesheet is a var(--xxx) reference — no hardcoded
+    // APPC_*_DARK macros.  Adding a color variable here auto-applies
+    // to both themes.
     const QString cssThemeBlock = darkBackground
-        ? QStringLiteral(":root{--bg:#0F172A;--fg:#F1F5F9;--fg2:#94A3B8;--fg3:#64748B;"
-            "--card-bg:#1E293B;--header-bg1:#1E293B;--header-bg2:#0C4A6E;"
-            "--border:#334155;--footer-fg:#5a5a72;--footer-border:#23233a;"
+        ? QStringLiteral(
+            ":root{"
+            "--bg:" APPC_SURFACE_DARK ";--fg:" APPC_TEXT_PRIMARY_DARK ";--fg2:" APPC_TEXT_SECONDARY_DARK ";--fg3:#64748B;"
+            "--card-bg:" APPC_CARD_DARK ";"
+            "--header-bg1:" APPC_CARD_DARK ";--header-bg2:" APPC_PRIMARY_CONTAINER_DARK ";"
+            "--border:" APPC_BORDER_CARD_DARK ";--footer-fg:#5a5a72;--footer-border:#23233a;"
             "--card-pass-bg:#16281b;--card-info-bg:#141f33;--card-warn-bg:#2b2810;"
             "--card-fail-bg:#2b1616;--card-skip-bg:#1e1e2e;--card-error-bg:#2b1111;"
             "--badge-pass-bg:#16281b;--badge-info-bg:#141f33;--badge-warn-bg:#2b2810;"
             "--badge-fail-bg:#2b1616;--badge-skip-bg:#26262e;"
             "--sec-row-bg:#1a2840;--border-card-pass:#2d5a2d;--border-card-info:#24406a;"
             "--border-card-warn:#5a5020;--border-card-fail:#5a2d2d;--border-card-skip:#333;"
-            "--border-card-error:#5a2020}")
-        : QStringLiteral(":root{--bg:#F8FAFC;--fg:#0F172A;--fg2:#475569;--fg3:#94A3B8;"
-            "--card-bg:#FFFFFF;--header-bg1:#E0F2FE;--header-bg2:#BAE6FD;"
-            "--border:#E2E8F0;--footer-fg:#94A3B8;--footer-border:#E2E8F0;"
+            "--border-card-error:#5a2020;"
+            "--h1-color:" APPC_CYAN_DARK ";--h2-color:" APPC_CYAN_DARK ";--h3-color:" APPC_INFO_BLUE_DARK ";"
+            "--card-pass-fg:" APPC_PASS_GREEN_DARK ";--card-warn-fg:" APPC_WARN_YELLOW_DARK ";"
+            "--card-fail-fg:" APPC_FAIL_RED_DARK ";--card-skip-fg:" APPC_SKIP_GRAY_DARK ";"
+            "--card-info-fg:" APPC_INFO_BLUE_DARK ";"
+            "--badge-pass-fg:" APPC_PASS_GREEN_DARK ";--badge-warn-fg:" APPC_WARN_YELLOW_DARK ";"
+            "--badge-fail-fg:" APPC_FAIL_RED_DARK ";--badge-skip-fg:" APPC_SKIP_GRAY_DARK ";"
+            "--badge-info-fg:" APPC_INFO_BLUE_DARK ";"
+            "--sec-row-fg:" APPC_INFO_BLUE_DARK ";"
+            "--body-border:" APPC_BORDER_CARD_DARK ";"
+            "--analysis-bg:" APPC_REPORT_DARK_DETAIL_BG ";--analysis-fg:" APPC_REPORT_DARK_CODE_FG ";"
+            "--analysis-border:" APPC_CSS_TEAL_ACCENT ";"
+            "--raw-bg:" APPC_REPORT_DARK_CODE_BG ";--raw-fg:" APPC_REPORT_DARK_CODE_FG ";"
+            "--meta-fg:" APPC_CSS_TEXT_DIM ";"
+            "--detail-pass:" APPC_PASS_GREEN_DARK ";--detail-warn:" APPC_WARN_YELLOW_DARK ";"
+            "--detail-fail:" APPC_FAIL_RED_DARK ";--detail-skip:" APPC_SKIP_GRAY_DARK ";"
+            "--detail-info:" APPC_INFO_BLUE_DARK ";"
+            "}")
+        : QStringLiteral(
+            ":root{"
+            "--bg:" APPC_SURFACE_LIGHT ";--fg:" APPC_TEXT_PRIMARY_LIGHT ";--fg2:" APPC_TEXT_SECONDARY_LIGHT ";--fg3:" APPC_TEXT_MUTED_LIGHT ";"
+            "--card-bg:" APPC_CARD_LIGHT ";"
+            "--header-bg1:#0F172A;--header-bg2:#0F172A;"
+            "--border:" APPC_BORDER_CARD_LIGHT ";--footer-fg:" APPC_TEXT_MUTED_LIGHT ";--footer-border:" APPC_BORDER_CARD_LIGHT ";"
             "--card-pass-bg:#ECFDF5;--card-info-bg:#EFF6FF;--card-warn-bg:#FFFBEB;"
             "--card-fail-bg:#FEF2F2;--card-skip-bg:#F1F5F9;--card-error-bg:#FEF2F2;"
             "--badge-pass-bg:#DCFCE7;--badge-info-bg:#DBEAFE;--badge-warn-bg:#FEF3C7;"
             "--badge-fail-bg:#FEE2E2;--badge-skip-bg:#E2E8F0;"
             "--sec-row-bg:#E0F2FE;--border-card-pass:#BBF7D0;--border-card-info:#BFDBFE;"
             "--border-card-warn:#FDE68A;--border-card-fail:#FECACA;--border-card-skip:#CBD5E1;"
-            "--border-card-error:#FECACA}");
-    // 5WHY: html/body width constraints + overflow-wrap were only in
-    // QML's injectViewportCss(). Moving them into the generated CSS
-    // keeps all report styling in one authoritative location.
-    // NOTE: table{display:block} was NOT ported — it breaks the table
-    // formatting model (border-collapse, th/td column alignment are
-    // undefined on block elements). Rely on .wrap {max-width:960px}
-    // to constrain table width instead.
+            "--border-card-error:#FECACA;"
+            "--h1-color:" APPC_CYAN_LIGHT ";--h2-color:" APPC_CYAN_LIGHT ";--h3-color:" APPC_INFO_BLUE_LIGHT ";"
+            "--card-pass-fg:" APPC_PASS_GREEN_LIGHT ";--card-warn-fg:" APPC_WARN_YELLOW_LIGHT ";"
+            "--card-fail-fg:" APPC_FAIL_RED_LIGHT ";--card-skip-fg:" APPC_SKIP_GRAY_LIGHT ";"
+            "--card-info-fg:" APPC_INFO_BLUE_LIGHT ";"
+            "--badge-pass-fg:" APPC_PASS_GREEN_LIGHT ";--badge-warn-fg:" APPC_WARN_YELLOW_LIGHT ";"
+            "--badge-fail-fg:" APPC_FAIL_RED_LIGHT ";--badge-skip-fg:" APPC_SKIP_GRAY_LIGHT ";"
+            "--badge-info-fg:" APPC_INFO_BLUE_LIGHT ";"
+            "--sec-row-fg:" APPC_INFO_BLUE_LIGHT ";"
+            "--body-border:" APPC_BORDER_CARD_LIGHT ";"
+            "--analysis-bg:" APPC_REPORT_LIGHT_DETAIL_BG ";--analysis-fg:" APPC_REPORT_LIGHT_CODE_FG ";"
+            "--analysis-border:" APPC_CSS_TEAL_ACCENT ";"
+            "--raw-bg:" APPC_REPORT_LIGHT_CODE_BG ";--raw-fg:" APPC_REPORT_LIGHT_CODE_FG ";"
+            "--meta-fg:" APPC_CSS_TEXT_DIM ";"
+            "--detail-pass:" APPC_PASS_GREEN_LIGHT ";--detail-warn:" APPC_WARN_YELLOW_LIGHT ";"
+            "--detail-fail:" APPC_FAIL_RED_LIGHT ";--detail-skip:" APPC_SKIP_GRAY_LIGHT ";"
+            "--detail-info:" APPC_INFO_BLUE_LIGHT ";"
+            "}");
+    // 5WHY: All colors use CSS var(--xxx) references resolved by
+    // cssThemeBlock above — no APPC_* macros.  darkBackground controls
+    // every color via a single :root block swap.
     const QString kCss = cssThemeBlock
         + QStringLiteral(
         "*{margin:0;padding:0;box-sizing:border-box}"
@@ -544,40 +580,40 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         "img,svg,pre,code{max-width:100%;height:auto}"
         "body{font-family:'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg);padding:24px}"
         ".wrap{max-width:960px;margin:0 auto}"
-        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg," APPC_CARD_DARK "," APPC_PRIMARY_CONTAINER_DARK ");border-radius:14px;margin-bottom:26px}"
-        ".header h1{font-size:26px;color:" APPC_CYAN_DARK ";margin-bottom:10px;letter-spacing:.5px}"
-        ".header p{font-size:13px;color:" APPC_TEXT_SECONDARY_DARK ";margin:3px 0}"
-        "h2{font-size:18px;color:" APPC_CYAN_DARK ";margin:26px 0 14px}"
-        "h3{font-size:15px;color:" APPC_INFO_BLUE_DARK ";margin:20px 0 10px}"
+        ".header{text-align:center;padding:34px 24px;background:linear-gradient(135deg,var(--header-bg1),var(--header-bg2));border-radius:14px;margin-bottom:26px}"
+        ".header h1{font-size:26px;color:var(--h1-color);margin-bottom:10px;letter-spacing:.5px}"
+        ".header p{font-size:13px;color:var(--fg2);margin:3px 0}"
+        "h2{font-size:18px;color:var(--h2-color);margin:26px 0 14px}"
+        "h3{font-size:15px;color:var(--h3-color);margin:20px 0 10px}"
         ".cards{display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap}"
         ".card{flex:1;min-width:110px;text-align:center;padding:18px 10px;border-radius:12px}"
         ".card .icon{display:block;font-size:18px;margin-bottom:2px}"
         ".card .count{display:block;font-size:30px;font-weight:700}"
         ".card .label{font-size:11px;color:var(--fg2);margin-top:6px;letter-spacing:1px;text-transform:uppercase}"
-        ".card.pass{background:var(--card-pass-bg);border:1px solid var(--border-card-pass)}.card.pass .count{color:" APPC_PASS_GREEN_DARK "}"
-        ".card.warn{background:var(--card-warn-bg);border:1px solid var(--border-card-warn)}.card.warn .count{color:" APPC_WARN_YELLOW_DARK "}"
-        ".card.fail{background:var(--card-fail-bg);border:1px solid var(--border-card-fail)}.card.fail .count{color:" APPC_FAIL_RED_DARK "}"
-        ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:" APPC_SKIP_GRAY_DARK "}"
-        ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:" APPC_INFO_BLUE_DARK "}"
-        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:" APPC_FAIL_RED_DARK "}"
+        ".card.pass{background:var(--card-pass-bg);border:1px solid var(--border-card-pass)}.card.pass .count{color:var(--card-pass-fg)}"
+        ".card.warn{background:var(--card-warn-bg);border:1px solid var(--border-card-warn)}.card.warn .count{color:var(--card-warn-fg)}"
+        ".card.fail{background:var(--card-fail-bg);border:1px solid var(--border-card-fail)}.card.fail .count{color:var(--card-fail-fg)}"
+        ".card.skip{background:var(--card-skip-bg);border:1px solid var(--border-card-skip)}.card.skip .count{color:var(--card-skip-fg)}"
+        ".card.info{background:var(--card-info-bg);border:1px solid var(--border-card-info)}.card.info .count{color:var(--card-info-fg)}"
+        ".card.error{background:var(--card-error-bg);border:1px solid var(--border-card-error)}.card.error .count{color:var(--card-fail-fg)}"
         ".wrap table{table-layout:fixed;width:100%}"
         "table.grid{border-collapse:collapse;font-size:13px;border-radius:10px;overflow:hidden}"
         "table.grid th{text-align:left;padding:11px 12px;background:var(--card-bg);color:var(--fg2);font-weight:600}"
         "table.grid td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}"
-        "tr.sec td{background:var(--sec-row-bg);color:" APPC_INFO_BLUE_DARK ";font-weight:700}"
+        "tr.sec td{background:var(--sec-row-bg);color:var(--sec-row-fg);font-weight:700}"
         ".badge{display:inline-block;padding:2px 11px;border-radius:12px;font-size:11px;font-weight:700}"
-        ".badge.pass{background:var(--badge-pass-bg);color:" APPC_PASS_GREEN_DARK "}.badge.warn{background:var(--badge-warn-bg);color:" APPC_WARN_YELLOW_DARK "}"
-        ".badge.fail{background:var(--badge-fail-bg);color:" APPC_FAIL_RED_DARK "}.badge.skip{background:var(--badge-skip-bg);color:" APPC_SKIP_GRAY_DARK "}"
-        ".badge.info{background:var(--badge-info-bg);color:" APPC_INFO_BLUE_DARK "}"
+        ".badge.pass{background:var(--badge-pass-bg);color:var(--badge-pass-fg)}.badge.warn{background:var(--badge-warn-bg);color:var(--badge-warn-fg)}"
+        ".badge.fail{background:var(--badge-fail-bg);color:var(--badge-fail-fg)}.badge.skip{background:var(--badge-skip-bg);color:var(--badge-skip-fg)}"
+        ".badge.info{background:var(--badge-info-bg);color:var(--badge-info-fg)}"
         "details.test{background:var(--card-bg);border-radius:10px;margin-bottom:12px;overflow:hidden}"
         "details.test>summary{padding:13px 16px;cursor:pointer;font-weight:600;font-size:14px}"
-        "details.test.pass>summary{border-left:4px solid " APPC_PASS_GREEN_DARK "}details.test.warn>summary{border-left:4px solid " APPC_WARN_YELLOW_DARK "}"
-        "details.test.fail>summary{border-left:4px solid " APPC_FAIL_RED_DARK "}details.test.skip>summary{border-left:4px solid " APPC_SKIP_GRAY_DARK "}"
-        "details.test.info>summary{border-left:4px solid " APPC_INFO_BLUE_DARK "}"
-        ".body{padding:14px 16px 18px;border-top:1px solid " APPC_BORDER_CARD_DARK "}"
-        ".analysis{background:" APPC_REPORT_DARK_DETAIL_BG ";color:" APPC_REPORT_DARK_CODE_FG ";border-left:3px solid " APPC_CSS_TEAL_ACCENT ";padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
-        ".raw{background:" APPC_REPORT_DARK_CODE_BG ";padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:" APPC_REPORT_DARK_CODE_FG ";max-height:420px;overflow:auto}"
-        ".meta{color:" APPC_CSS_TEXT_DIM ";font-size:11px;font-weight:400}"
+        "details.test.pass>summary{border-left:4px solid var(--detail-pass)}details.test.warn>summary{border-left:4px solid var(--detail-warn)}"
+        "details.test.fail>summary{border-left:4px solid var(--detail-fail)}details.test.skip>summary{border-left:4px solid var(--detail-skip)}"
+        "details.test.info>summary{border-left:4px solid var(--detail-info)}"
+        ".body{padding:14px 16px 18px;border-top:1px solid var(--body-border)}"
+        ".analysis{background:var(--analysis-bg);color:var(--analysis-fg);border-left:3px solid var(--analysis-border);padding:11px 13px;border-radius:6px;margin-bottom:12px;font-size:13px;line-height:1.6}"
+        ".raw{background:var(--raw-bg);padding:13px;border-radius:6px;font-family:'Consolas','Courier New',monospace;font-size:12px;white-space:pre-wrap;line-height:1.5;color:var(--raw-fg);max-height:420px;overflow:auto}"
+        ".meta{color:var(--meta-fg);font-size:11px;font-weight:400}"
         ".footer{text-align:center;padding:20px;color:var(--footer-fg);font-size:11px;margin-top:28px;border-top:1px solid var(--footer-border)}");
 
     // 5WHY: Unicode icons replaced with inline SVG <img> tags using base64

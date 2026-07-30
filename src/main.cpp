@@ -93,30 +93,23 @@ int main(int argc, char *argv[])
     }
         // hMutex is owned by this process; auto-released on exit
 #else
-        // Linux/macOS: QLockFile with PID fallback
+        // Linux/macOS: QLockFile (Qt 5.10+ stores PID/hostname/appname
+        // in the lock file — no separate .pid sidecar needed)
         QString lockPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + QStringLiteral("/netdiagnostic.lock");
         QLockFile lockFile(lockPath);
         lockFile.setStaleLockTime(5000);
         if (!lockFile.tryLock(100)) {
-            // Read PID from lock file
+            // 5WHY: Previously used a manual .pid sidecar file that
+            // duplicated QLockFile's built-in PID storage.  getLockInfo()
+            // reads the PID directly from the lock file.
             qint64 pid = -1;
-            QFile pidFile(lockPath + QStringLiteral(".pid"));
-            if (pidFile.open(QIODevice::ReadOnly)) {
-                pid = pidFile.readAll().trimmed().toLongLong();
-                pidFile.close();
-            }
+            lockFile.getLockInfo(&pid, nullptr, nullptr);
 #if !defined(NO_CURL)
             curl_global_cleanup();
 #endif
             // Log instead of dialog — QMessageBox requires QApplication which isn't created yet
             fprintf(stderr, "NetDiagnostics is already running (PID: %lld)\n", pid);
             return 0;
-        }
-        // Write PID for future instances
-        QFile pidFile(lockPath + QStringLiteral(".pid"));
-        if (pidFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            pidFile.write(QByteArray::number(QCoreApplication::applicationPid()));
-            pidFile.close();
         }
 #endif
 #endif

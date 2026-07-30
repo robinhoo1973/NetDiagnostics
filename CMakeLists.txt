@@ -240,6 +240,15 @@ setup_platform_bundle(net_diagnostics)
 configure_netdiag_target(net_diagnostics)
 
 
+# ── Palette sync check ──────────────────────────────────────────────────
+# 5WHY: AppColors.h and Palette.js are MIRROR FILES with identical color
+# values in different toolchains (C++ preprocessor vs QML JS).  Without a
+# configure-time check, a developer changing one file but not the other
+# produces a silent visual inconsistency — C++ reports render one color,
+# QML UI renders another.  This check runs at cmake configure time and
+# fails the build if the files drift.
+include("${CMAKE_SOURCE_DIR}/cmake/VerifyPaletteSync.cmake")
+
 # ── Tests ──────────────────────────────────────────────────────────────
 option(BUILD_TESTS "Build test suite" OFF)
 if(BUILD_TESTS)
