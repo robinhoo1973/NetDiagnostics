@@ -239,6 +239,17 @@ qt_add_executable(net_diagnostics WIN32 MANUAL_FINALIZATION ${SOURCES} ${QML_RES
 setup_platform_bundle(net_diagnostics)
 configure_netdiag_target(net_diagnostics)
 
+# ── Copy qtquickcontrols2.conf to build dir (dev runtime fallback) ────────
+# 5WHY: Qt loads qtquickcontrols2.conf from three locations in order:
+#   1. :/qtquickcontrols2.conf in QRC (works in CI/deployed builds)
+#   2. <executable_dir>/qtquickcontrols2.conf (dev build target)
+#   3. <working_dir>/qtquickcontrols2.conf (dev convenience)
+# The QRC-bundled copy in resources/ covers CI.  For local dev builds,
+# copying it to CMAKE_BINARY_DIR ensures the executable finds it without
+# requiring a duplicate in the repo root.  Single source of truth in
+# resources/qtquickcontrols2.conf.
+file(COPY "${CMAKE_SOURCE_DIR}/resources/qtquickcontrols2.conf"
+     DESTINATION "${CMAKE_BINARY_DIR}")
 
 # ── Palette sync check ──────────────────────────────────────────────────
 # 5WHY: AppColors.h and Palette.js are MIRROR FILES with identical color
