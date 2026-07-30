@@ -92,7 +92,11 @@ Item {
         id: colorOverlay
         anchors.fill: parent
         color: root.color
-        opacity: 0.55
+        // 5WHY: Opacity 0.55 was too low — on light backgrounds the
+        // tinted white SVG strokes were nearly invisible.  0.80 gives
+        // sufficient color saturation while still allowing the SVG
+        // line-art details to show through.
+        opacity: 0.80
         visible: root._useOverlay
     }
 
@@ -130,6 +134,16 @@ Item {
         root._useOverlay = !Qt.colorEqual(iconImg.color, root.color)
     }
 
+
+    // 5WHY: On ARM64 Linux with Qt 6.8, var-property Object.assign
+    // may not reliably trigger nested color binding re-evaluation.
+    // ThemeEngine._colorsVersion is a plain int property — watching it
+    // guarantees re-colorization on every theme switch regardless of
+    // the QML engine's var-property tracking quirks.
+    Connections {
+        target: ThemeEngine
+        function on_colorsVersionChanged() { _tryNativeColorization() }
+    }
 
     Component.onCompleted: {
         _tryNativeColorization()
