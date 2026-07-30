@@ -31,7 +31,9 @@ Item {
     // 5WHY: FBO compositing required so the colored overlay Rectangle blends
     // correctly with the white SVG strokes beneath it.  Without layer.enabled,
     // the overlay is just a solid Rectangle on top — the icon shape is lost.
-    layer.enabled: true
+    // Gate on name !== "" to avoid allocating FBOs for invisible placeholder
+    // icons — Qt Quick allocates the offscreen texture even when visible=false.
+    layer.enabled: name !== ""
 
     // White SVG icon — renders with native stroke="#FFFFFF".
     // This is the shape layer; the colorOverlay Rectangle on top provides the tint.
