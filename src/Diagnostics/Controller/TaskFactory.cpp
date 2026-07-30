@@ -137,11 +137,6 @@ static FactoryFn makeT3(Impl impl, int custTmo = -1) {
 // ── Platform-specific factory builders ─────────────────────────────────────
 
 #if defined(PLATFORM_IOS)
-static FactoryFn g1DhcpStatusFactory() {
-    return makeT3([](DiagId id, const QString& target) {
-        return iosGatewayDhcpRouting(id, target);
-    });
-}
 static FactoryFn g3DnsServersFactory() {
     return makeT3([](DiagId id, const QString& target) {
         return iosDnsResolve(id, target);
@@ -192,24 +187,44 @@ struct TaskEntry {
 
 static const TaskEntry kTaskTable[] = {
     // ── G1: System & Adapters (8) ───────────────────────────────────────
-    { DiagId::G1NetworkAdapters,  makeT1(SystemDiagnostics::networkAdapters) },
+    { DiagId::G1NetworkAdapters,  makeT1(SystemDiagnostics::networkAdapters, 15000) },
     { DiagId::G1NicAdvanced,      makeT1(SystemDiagnostics::nicAdvanced) },
+#if defined(PLATFORM_ANDROID)
+    { DiagId::G1WifiDiagnostics,  makeT1(androidWifiDiag) },
+#else
     { DiagId::G1WifiDiagnostics,  makeT1(SystemDiagnostics::wifiDiagnostics) },
+#endif
     { DiagId::G1WiredDiagnostics, makeT1(SystemDiagnostics::wiredDiagnostics) },
 #if defined(PLATFORM_IOS)
-    { DiagId::G1DhcpStatus,       g1DhcpStatusFactory() },
+    { DiagId::G1DhcpStatus,       makeT1(iosDhcpDiag) },
+#elif defined(PLATFORM_ANDROID)
+    { DiagId::G1DhcpStatus,       makeT1(androidDhcpDiag) },
 #else
     { DiagId::G1DhcpStatus,       makeT1(SystemDiagnostics::dhcpStatus) },
 #endif
     { DiagId::G1IpConfiguration,   makeT1(SystemDiagnostics::ipConfiguration) },
     { DiagId::G1ActiveConnections, makeT1(SystemDiagnostics::activeConnections) },
+#if defined(PLATFORM_ANDROID)
+    { DiagId::G1CellularInfo,      makeT1(androidCellularDiag) },
+#else
     { DiagId::G1CellularInfo,      makeT1(SystemDiagnostics::cellularInfo) },
+#endif
 
     // ── G2: Connectivity & Security (6) ──────────────────────────────────
     { DiagId::G2NetworkProfile,  makeT1(SystemDiagnostics::networkProfile) },
     { DiagId::G2TcpSettings,     makeT1(SystemDiagnostics::tcpSettings) },
+#if defined(PLATFORM_IOS)
+    { DiagId::G2DefaultGateway,  makeT1(iosDefaultGatewayDiag) },
+#elif defined(PLATFORM_ANDROID)
+    { DiagId::G2DefaultGateway,  makeT1(androidGatewayDiag) },
+#else
     { DiagId::G2DefaultGateway,  makeT1(SystemDiagnostics::defaultGateway) },
+#endif
+#if defined(PLATFORM_IOS)
+    { DiagId::G2RoutingTable,    makeT1(iosRoutingTableDiag) },
+#else
     { DiagId::G2RoutingTable,    makeT1(SystemDiagnostics::routingTable) },
+#endif
     { DiagId::G2ArpTable,        makeT1(SystemDiagnostics::arpTable) },
     { DiagId::G2ProxySettings,   makeT1(SystemDiagnostics::proxySettings) },
 
