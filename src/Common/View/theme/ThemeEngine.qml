@@ -49,6 +49,8 @@ QtObject {
         applyTheme()
     }
 
+    property int _colorsVersion: 0
+
     function applyTheme() {
         var p = (mode === litMode) ? lightPalette : darkPalette
 
@@ -59,6 +61,7 @@ QtObject {
         // maintenance burden: adding a color to Palette.js required also
         // adding it here, with no compile-time check for omissions.
         colors = Object.assign({}, p)
+        _colorsVersion++
     }
     onModeChanged: { if (_ready) applyTheme() }
 
