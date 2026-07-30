@@ -80,11 +80,15 @@ int main(int argc, char *argv[])
     HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetDiagnostic_SingleInstance");
     if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
         if (hMutex) CloseHandle(hMutex);
+        // Try to find and activate existing window
+        HWND hwnd = FindWindowW(nullptr, L"NetDiagnostics");
+        if (hwnd) {
+            SetForegroundWindow(hwnd);
+            ShowWindow(hwnd, SW_RESTORE);
+        }
 #if !defined(NO_CURL)
         curl_global_cleanup();
 #endif
-        QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics"),
-            QStringLiteral("NetDiagnostics is already running."));
         return 0;
     }
         // hMutex is owned by this process; auto-released on exit
@@ -94,12 +98,25 @@ int main(int argc, char *argv[])
         QLockFile lockFile(lockPath);
         lockFile.setStaleLockTime(5000);
         if (!lockFile.tryLock(100)) {
+            // Read PID from lock file
+            qint64 pid = -1;
+            QFile pidFile(lockPath + QStringLiteral(".pid"));
+            if (pidFile.open(QIODevice::ReadOnly)) {
+                pid = pidFile.readAll().trimmed().toLongLong();
+                pidFile.close();
+            }
 #if !defined(NO_CURL)
-                curl_global_cleanup();
+            curl_global_cleanup();
 #endif
-                QMessageBox::information(nullptr, QStringLiteral("NetDiagnostics"),
-                        QStringLiteral("NetDiagnostics is already running."));
-                return 0;
+            // Log instead of dialog — QMessageBox requires QApplication which isn't created yet
+            fprintf(stderr, "NetDiagnostics is already running (PID: %lld)\n", pid);
+            return 0;
+        }
+        // Write PID for future instances
+        QFile pidFile(lockPath + QStringLiteral(".pid"));
+        if (pidFile.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            pidFile.write(QByteArray::number(QCoreApplication::applicationPid()));
+            pidFile.close();
         }
 #endif
 #endif

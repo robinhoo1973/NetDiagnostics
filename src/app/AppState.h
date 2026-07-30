@@ -263,7 +263,6 @@ private:
     friend class ConfigurationController;
     friend class DashboardController;
     friend class ReportController;
-    friend class DiagnosticsController;
 
     void reset();                       // internal: clears state before each run
     void startNextGroup();
