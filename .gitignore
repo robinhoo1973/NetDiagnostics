@@ -24,6 +24,7 @@ review/*
 crashes/
 commit_msg.txt
 AGENTS.md
+CLAUDE.md
 **/.codewhale/*
 !**/.codewhale/constitution.json
 

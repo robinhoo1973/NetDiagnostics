@@ -614,11 +614,88 @@ endif()
 
 ---
 
+## Category I：QtObject 无 default property — 子元素导致崩溃
+
+> **1 次修复**。这是 iOS 静态构建独有的严格语法检查问题。
+
+### I.1 Timer {} 作为 QtObject 子元素
+
+- **提交**: (当前修复) — `fix(ios): replace Timer child with Qt.callLater() in ThemeEngine.qml QtObject — 5WHY`
+- **崩溃日志**: `crashes/20260730/NetDiagnostics_startup(5).log`
+- **构建版本**: build 193, commit `d6042b9`
+
+**5WHY 分析**:
+
+| Why | 回答 |
+|-----|------|
+| 1. 应用为什么闪退？ | `engine.rootObjects().isEmpty()` → `return -1` 在 `app.exec()` 之前退出 |
+| 2. 为什么 rootObjects 为空？ | `engine.load(main.qml)` 失败 — QML 编译期报致命错误 |
+| 3. 为什么 main.qml 加载失败？ | 级联类型解析失败: AppContent → DiagnosticScreen → AppBar → **ThemeEngine** |
+| 4. 为什么 ThemeEngine 编译失败？ | `ThemeEngine.qml:58:5: Cannot assign to non-existent default property` |
+| 5. 为什么会有不存在的 default property 赋值？ | **`QtObject` 类型没有 default property，但代码在 `QtObject {}` 内部放置了 `Timer {}` 子元素。`Timer { ... }` 写在 `Foo { }` 内部 = 赋值给 `Foo` 的 default property。iOS 静态 Qt 构建严格拒绝此语法，而桌面动态 Qt 对此容忍度更高。** |
+
+**根本区别**:
+
+```qml
+// ✅ Item 有 default property (data) → 可以放子元素
+Item {
+    Timer { interval: 0; running: true; onTriggered: { ... } }  // ← OK
+}
+
+// ❌ QtObject 无 default property → 子元素是语法错误
+QtObject {
+    Timer { interval: 0; running: true; onTriggered: { ... } }  // ← CRASH!
+    //     ↑ QML 引擎不知道把 Timer 赋给哪个属性 → 编译失败
+}
+```
+
+**修复**: 用 `Qt.callLater()` 替代 `Timer` 作为延迟执行机制。`Qt.callLater()` 在 `Component.onCompleted` 内部是纯 JS 函数调用，不创建子 QObject。
+
+```qml
+// ✅ 正确 — Qt.callLater() 不是子元素
+QtObject {
+    Component.onCompleted: {
+        // 立即执行
+        _ready = true
+        applyTheme()
+
+        // 延迟执行 — 事件循环启动后回调
+        Qt.callLater(function() {
+            if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
+                if (mode !== appState.themeMode) {
+                    mode = appState.themeMode
+                }
+            }
+        })
+    }
+}
+```
+
+**规则**: **`QtObject` 不能包含任何子元素（Timer、Item、Rectangle 等）。需要延迟执行时用 `Qt.callLater()` 放在 `Component.onCompleted` 中。需要子元素时改用 `Item` 作为容器。**
+
+**检测方法**: `grep -n 'QtObject {' *.qml` 找到所有 QtObject，然后检查其直接子元素（缩进内的 `Timer {`、`Item {` 等）。
+
+### I.2 QtObject 安全清单
+
+| 可以放在 QtObject 中的 | 不可以放在 QtObject 中的 |
+|------------------------|--------------------------|
+| `property ...` | `Timer { ... }` |
+| `function ...` | `Item { ... }` |
+| `Component.onCompleted: { ... }` | `Rectangle { ... }` |
+| `readonly property ...` | 任何类型的子对象 `TypeName { ... }` |
+| `signal ...` | `Connections { ... }` (也是一个 QObject) |
+| Qt.callLater() 调用 | `Binding { ... }` |
+
+---
+
 ## 10. 提交前自检清单（完整版）
 
 > **每次 `git commit` 前必须逐项检查。任何 FAIL 必须修复后才能提交。**
 
 ### 🔴 P0 — 阻止级（不通过则必然有平台崩溃）
+
+#### QML 容器类型
+- [ ] **`QtObject` 内部无子元素**: `QtObject` 无 default property — 不能包含 `Timer {}`、`Item {}`、`Rectangle {}` 等子对象。用 `Qt.callLater()` 替代 `Timer`；需要子元素时改用 `Item`
 
 #### QML 属性正确性
 - [ ] **无不存在属性**: 不使用 `Image.color`（静态）、`Rectangle.shadow`、`border.visible`、`ScaleTransform`、`compact:true` 等 iOS 静态构建中不存在的属性

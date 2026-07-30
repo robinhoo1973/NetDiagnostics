@@ -285,7 +285,10 @@ fi
 	echo "── 13. QML readonly property placement ──"
 	if [ -n "$QML_FILES" ]; then
 	    for f in $QML_FILES; do
-	        if git show ":$f" | grep -n 'readonly property' | grep -v '^\s\{0,4\}readonly' > /tmp/precommit-qml-ro.log 2>/dev/null; then
+	        # Root-level QML properties are indented 1 tab (inside QtObject/Item).
+	        # Properties inside function bodies / object literals are at 2+ tabs.
+	        # Filter out 1-tab root-level, flag 2+ tab (potentially nested).
+	        if git show ":$f" | grep -n 'readonly property' | grep '^\t\t' > /tmp/precommit-qml-ro.log 2>/dev/null; then
 	            fail "$f: readonly property may be inside function/object literal — must be at QML root level (see docs/review/ios-startup-crash-5why-analysis.md#b2)"
 	            cat /tmp/precommit-qml-ro.log | while read line; do
 	                echo "       $line"
@@ -298,9 +301,33 @@ fi
 	    pass "no staged QML files"
 	fi
 
-	# ── 14. C++: static const non-trivial object in header ────────────────────
+	# ── 14. QML: QtObject child elements (no default property) ───────────────
 	echo ""
-	echo "── 14. C++ static const in header (SIOF check) ──"
+	echo "── 14. QML QtObject child elements (no default property) ──"
+	if [ -n "$QML_FILES" ]; then
+	    for f in $QML_FILES; do
+	        # Check for Timer/Item/Rectangle/Connections/Binding as direct child of QtObject
+	        # Heuristic: file contains QtObject { AND indented child-object opening braces
+	        if git show ":$f" | grep -q 'QtObject\s*{'; then
+	            if git show ":$f" | grep -nE '^\s+Timer\s*\{|^\s+Item\s*\{|^\s+Rectangle\s*\{|^\s+Connections\s*\{|^\s+Binding\s*\{' > /tmp/precommit-qtobject-child.log 2>/dev/null; then
+	                warn "$f: child elements in QtObject file — QtObject has NO default property. Use Qt.callLater() instead of Timer. See docs/review/ios-startup-crash-5why-analysis.md#i1"
+	                cat /tmp/precommit-qtobject-child.log | while read line; do
+	                    echo "       $line"
+	                done
+	            else
+	                pass "$f"
+	            fi
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged QML files"
+	fi
+
+	# ── 15. C++: static const non-trivial object in header ────────────────────
+	echo ""
+	echo "── 15. C++ static const in header (SIOF check) ──"
 	HEADER_FILES=$(echo "$STAGED" | grep -E '\.h$|\.hpp$' || true)
 	if [ -n "$HEADER_FILES" ]; then
 	    for f in $HEADER_FILES; do

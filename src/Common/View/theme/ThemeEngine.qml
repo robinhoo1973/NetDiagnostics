@@ -37,26 +37,31 @@ QtObject {
     // crash threshold in static/cross-compiled builds.
 
     // ── Theme switching (imperative JS — gated to skip init) ──────────
+    // 5WHY (crash): Timer {} inside QtObject {} crashes iOS static builds.
+    // QtObject has NO default property — cannot accept child elements.
+    // A Timer child causes "Cannot assign to non-existent default property"
+    // → ThemeEngine unavailable → AppBar → DiagnosticScreen → AppContent
+    // → main.qml load fails → rootObjects empty → return -1 → flash quit.
+    //
+    // Fix: use Qt.callLater() to defer the C++ context-property check until
+    // after the event loop starts.  Same semantics as a zero-interval Timer
+    // but without creating a child QObject — safe for QtObject containers.
+    //
+    // Why TWO checks?  (1) At Component.onCompleted time, if appState IS
+    // available, set mode immediately to avoid a visible dark→light flicker.
+    // (2) Via Qt.callLater(), re-check after event-loop start — if the
+    // singleton constructed BEFORE C++ context props were registered, this
+    // corrects mode from the saved QSettings value.
     property bool _ready: false
     Component.onCompleted: {
+        // Check 1: immediate — if appState is already available
         if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
             mode = appState.themeMode
         }
         _ready = true
         applyTheme()
-    }
 
-    // 5WHY: QML singletons can construct before C++ context properties are
-    // registered.  If appState wasn't available at Component.onCompleted,
-    // mode stays at default drkMode even if QSettings stored light mode (1).
-    // The user sees a dark UI despite having saved light-theme preference.
-    //
-    // Fix: Qt.callLater() defers execution until after the event loop is
-    // running and C++ context properties are guaranteed registered — same
-    // semantics as a zero-interval Timer but without creating a child
-    // QObject.  Timer as a direct child of QtObject fails in static/
-    // cross-compiled builds (iOS) because QtObject has no default property.
-    Component.onCompleted: {
+        // Check 2: deferred — safe fallback for early singleton construction
         Qt.callLater(function() {
             if (typeof appState !== 'undefined' && appState && appState.themeMode !== undefined) {
                 if (mode !== appState.themeMode) {
