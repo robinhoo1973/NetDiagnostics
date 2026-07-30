@@ -15,10 +15,21 @@ ProbeExecutor::ProbeExecutor(ProbeDatabase* db, QObject* parent)
 ProbeExecutor::~ProbeExecutor() { requestStop(); }
 
 void ProbeExecutor::requestStop() {
+    // 5WHY: Do NOT call terminate() here. terminate() forcibly kills the
+    // thread without unwinding the stack or releasing any locks (e.g.,
+    // ProbeDatabase::m_mutex). If the worker thread is mid-write inside
+    // m_db->writeResults(), the mutex stays locked forever, causing a
+    // permanent deadlock on any subsequent ProbeDatabase access — including
+    // the next diagnostic run or even app shutdown. Instead, we extend the
+    // graceful wait to 15 s (worst-case: 8 s network timeout × 2 rounds
+    // plus scheduling overhead) and log a warning if the thread still
+    // hasn't cooperated, accepting a one-time resource leak over a
+    // guaranteed deadlock.
     m_stopRequested.store(true);
     if (isRunning()) {
-        wait(5000);
-        if (isRunning()) terminate();
+        if (!wait(15000)) {
+            qWarning("ProbeExecutor: thread did not stop within 15s, leaking");
+        }
     }
 }
 

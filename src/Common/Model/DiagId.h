@@ -158,7 +158,7 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G5Mqtt:
             return DiagGroup::G5;
     }
-    return DiagGroup::G1;
+    return {}; // triggers compiler warning for new DiagId values
 }
 
 // ── Utility: all test IDs ───────────────────────────────────────────────────

@@ -7,7 +7,6 @@
 // =============================================================================
 #pragma once
 
-#include <QObject>
 #include <QString>
 #include <QStringList>
 #include <QVariantMap>
@@ -33,11 +32,8 @@ struct ReportData {
     QMap<DiagGroup, QList<DiagId>> diagIdsInGroup;   // group → ordered diag IDs
 };
 
-class ReportEngine : public QObject {
-    Q_OBJECT
+class ReportEngine {
 public:
-    explicit ReportEngine(QObject* parent = nullptr) : QObject(parent) {}
-
     // ── HTML generation ────────────────────────────────────────────
     // Qt Rich Text subset (for QML preview / QPdfWriter). fullDetail=false = summary.
     // darkBackground=true uses dark theme colors (QML preview); false = light (PDF printing).
@@ -63,9 +59,6 @@ public:
 
     // ── Desktop email handoff ─────────────────────────────────────
     static void emailReportDesktop(const QString& path);
-
-signals:
-    void savePathPicked(const QString& format, const QString& path);
 
 private:
     static QString buildHeaderBand(const ReportData& data);

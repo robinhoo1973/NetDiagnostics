@@ -304,8 +304,6 @@ private:
     SettingsController* m_settingsCtrl = nullptr;
 
     // DiagnosticConfig now owned by ConfigurationController (m_configCtrl)
-    // ReportEngine handles HTML/PDF generation + file dialogs
-    ReportEngine m_reportEngine;
 
     // CaptureService: automated screenshot capture during diagnostics.
     // Owned by AppState; exposed to QML via captureService() accessor.

@@ -224,7 +224,7 @@ Rectangle {
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: ThemeEngine.colors.textPrimary
                         placeholderText: "example.com/path"
-                        placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                        placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         text: { var h=appState.targetHost; var p=appState.targetPath; return (!h&&!p)?"": h+p }
                         enabled: appState.runStatus !== 1
                         verticalAlignment: TextInput.AlignVCenter; background: Item {}
@@ -382,7 +382,7 @@ Rectangle {
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: appState.defaultPortForScheme > 0 ? ""+appState.defaultPortForScheme : "Port"
-                    placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                    placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPort > 0 ? ""+appState.targetPort : ""
                     enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: { var v = parseInt(text); appState.targetPort = isNaN(v) ? -1 : v }
@@ -399,7 +399,7 @@ Rectangle {
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: Tr.usernameLabel
-                    placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                    placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: appState.targetUsername = text.trim()
@@ -416,7 +416,7 @@ Rectangle {
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: Tr.passwordLabel
-                    placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                    placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     onTextChanged: appState.targetPassword = text.trim()

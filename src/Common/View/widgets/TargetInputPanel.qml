@@ -207,7 +207,7 @@ ColumnLayout {
                 Layout.fillWidth: true; Layout.fillHeight: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary
                 placeholderText: "example.com/path"
-                placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: {
                     // Combine host + path for display
                     var h = appState.targetHost
@@ -285,7 +285,7 @@ ColumnLayout {
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                 placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : "Port"
-                placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: appState.targetPort > 0 ? "" + appState.targetPort : ""
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
@@ -306,7 +306,7 @@ ColumnLayout {
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                 placeholderText: Tr.usernameLabel
-                placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: appState.targetUsername
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
@@ -327,7 +327,7 @@ ColumnLayout {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
                     placeholderText: Tr.passwordLabel
-                    placeholderTextColor: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4)
+                    placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword
                     echoMode: passField._showPass ? TextInput.Normal : TextInput.Password
                     enabled: appState.runStatus !== 1
