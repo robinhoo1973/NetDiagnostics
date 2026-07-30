@@ -1,4 +1,5 @@
 ﻿#include "Diagnostics/Model/G5/G5Common.h"
+namespace G5WebsiteUrl {
 DiagnosticResult emailDiagnostics(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5EmailDiagnostics, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);

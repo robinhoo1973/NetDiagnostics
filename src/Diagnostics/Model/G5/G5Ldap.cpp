@@ -1,4 +1,5 @@
 ﻿#include "Diagnostics/Model/G5/G5Common.h"
+namespace G5WebsiteUrl {
 DiagnosticResult ldapDiagnostics(const QString& target) {
     if (target.isEmpty())
         return skipped(DiagId::G5Ldap, "No target");

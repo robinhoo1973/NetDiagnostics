@@ -8,22 +8,16 @@
 #include "Diagnostics/Model/G4/G4RemoteHost.h"
 #include "Diagnostics/Model/NetworkProbe.h"
 #include "Common/Utils/Logger.h"
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
-// 5WHY: G5Common.h opens namespace G5WebsiteUrl { without closing it (it
-// provides inline helper definitions used by multiple .cpp files). Each
-// includer MUST close the namespace immediately to prevent leakage into
-// subsequent code. The } below is NOT a stray brace 鈥?it balances the
-// namespace opened by G5Common.h.
-// 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺?
+// 5WHY: G5Common.h is now self-contained (closes its own namespace).
 #if defined(PLATFORM_IOS)
 #include "Diagnostics/Model/G5/G5Common.h"
-} // namespace G5WebsiteUrl 鈫?closes G5Common.h's unclosed namespace
+
 #include "Diagnostics/Model/G3/Platform/IOS/DnsResolve.h"
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
 #endif
 #if defined(PLATFORM_ANDROID)
 #include "Diagnostics/Model/G5/G5Common.h"
-} // namespace G5WebsiteUrl — closes G5Common.h's unclosed namespace
+
 #include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
 #endif
 // Always included 鈥?contains only declarations + inline helpers. The #if

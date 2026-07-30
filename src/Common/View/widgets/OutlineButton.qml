@@ -32,4 +32,15 @@ Rectangle {
         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
         onClicked: root.clicked()
     }
+
+    // 5WHY: OutlineButton was the only button component without keyboard
+    // or screen-reader support. Used as Cancel/Dismiss in capture overlays.
+    activeFocusOnTab: true
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.clicked(); event.accepted = true
+        }
+    }
+    Accessible.name: root.text
+    Accessible.role: Accessible.Button
 }

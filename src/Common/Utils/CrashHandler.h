@@ -63,10 +63,10 @@ static constexpr const char* kCrashFileName = "NetDiagnostics_crash.log";
 
 // 5WHY: Set once a qFatal/qCritical/terminate crash report has been written,
 // so the trailing abort()→SIGABRT does not overwrite the real root cause.
-static bool g_messageCrashWritten = false;
+inline bool g_messageCrashWritten = false;
 
 // ── Helper: crash log path ─────────────────────────────────────────────
-static QString crashLogPath() {
+inline QString crashLogPath() {
     // 5WHY: On iOS the temp dir is sandboxed and invisible to the user.
     // Write the crash log to Documents so it is retrievable via Files.app
     // (requires UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace).
@@ -80,7 +80,7 @@ static QString crashLogPath() {
 }
 
 // ── Helper: write backtrace to file ────────────────────────────────────
-static void writeBacktrace(QTextStream& ts) {
+inline void writeBacktrace(QTextStream& ts) {
 #if defined(_WIN32)
     void* stack[64];
     USHORT frames = CaptureStackBackTrace(0, 64, stack, nullptr);
@@ -110,7 +110,7 @@ static void writeBacktrace(QTextStream& ts) {
 }
 
 // ── Helper: write crash report ─────────────────────────────────────────
-static void writeCrashReport(const char* signalName, int signalNum) {
+inline void writeCrashReport(const char* signalName, int signalNum) {
     QString path = crashLogPath();
     // 5WHY: If a qFatal/qCritical/terminate report was already written for
     // this crash, the ensuing abort() → SIGABRT must NOT overwrite it with a
@@ -180,7 +180,7 @@ static void writeCrashReport(const char* signalName, int signalNum) {
 // A pure signal handler only sees the resulting SIGABRT with a useless
 // backtrace (abort → pthread_kill).  Capturing the Qt message / exception
 // text BEFORE abort() runs preserves the real root cause for upload.
-static void writeMessageCrashReport(const char* kind, const QString& text) {
+inline void writeMessageCrashReport(const char* kind, const QString& text) {
     QString path = crashLogPath();
     QFile f(path);
     f.remove();
@@ -239,9 +239,9 @@ static void writeMessageCrashReport(const char* kind, const QString& text) {
 // all qDebug/qWarning/qCritical console output is silently suppressed.
 // When there is no previous handler we replicate the default by writing the
 // formatted message to stderr, preserving normal logging.
-static QtMessageHandler g_prevMsgHandler = nullptr;
+inline QtMessageHandler g_prevMsgHandler = nullptr;
 
-static void qtMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
+inline void qtMessageHandler(QtMsgType type, const QMessageLogContext& ctx, const QString& msg) {
     if (type == QtFatalMsg) {
         writeMessageCrashReport("qFatal", msg);
     }
@@ -262,9 +262,9 @@ static void qtMessageHandler(QtMsgType type, const QMessageLogContext& ctx, cons
 // handler runs, the stack is unwound and the exception type is lost.  This
 // terminate handler runs while the exception is still active, so it records
 // the exception's demangled type name and what() text for the crash report.
-static std::terminate_handler g_prevTerminate = nullptr;
+inline std::terminate_handler g_prevTerminate = nullptr;
 
-static void terminateHandler() {
+inline void terminateHandler() {
     QString detail = QStringLiteral("Unhandled C++ exception (std::terminate)");
     if (std::exception_ptr ep = std::current_exception()) {
         try {
@@ -295,14 +295,14 @@ static void terminateHandler() {
 
 // ── Install error-capture handlers (message + terminate) ───────────────
 // Called from both the Windows and POSIX install() paths.
-static void installErrorCapture() {
+inline void installErrorCapture() {
     g_prevMsgHandler = qInstallMessageHandler(qtMessageHandler);
     g_prevTerminate  = std::set_terminate(terminateHandler);
 }
 
 #if defined(_WIN32)
 
-static LONG WINAPI windowsExceptionHandler(EXCEPTION_POINTERS* exInfo) {
+inline LONG WINAPI windowsExceptionHandler(EXCEPTION_POINTERS* exInfo) {
     DWORD code = exInfo->ExceptionRecord->ExceptionCode;
     const char* name = "UNKNOWN";
     switch (code) {
@@ -316,14 +316,14 @@ static LONG WINAPI windowsExceptionHandler(EXCEPTION_POINTERS* exInfo) {
     return EXCEPTION_EXECUTE_HANDLER; // Let OS handler run
 }
 
-static void install() {
+inline void install() {
     installErrorCapture();
     SetUnhandledExceptionFilter(windowsExceptionHandler);
 }
 
 #else // POSIX
 
-static void posixSignalHandler(int sig) {
+inline void posixSignalHandler(int sig) {
     const char* name = "UNKNOWN";
     switch (sig) {
         case SIGSEGV: name = "SIGSEGV"; break;
@@ -339,7 +339,7 @@ static void posixSignalHandler(int sig) {
     raise(sig);
 }
 
-static void install() {
+inline void install() {
     installErrorCapture();
     struct sigaction sa;
     sa.sa_handler = posixSignalHandler;
@@ -357,7 +357,7 @@ static void install() {
 // ── Crash report recovery ──────────────────────────────────────────────
 // Returns true if a previous crash log was found (and content written to
 // startup_log if STARTUP_LOG is available).  Call once at startup.
-static bool checkForPreviousCrash() {
+inline bool checkForPreviousCrash() {
     QString path = crashLogPath();
     if (!QFile::exists(path))
         return false;
@@ -393,7 +393,7 @@ static bool checkForPreviousCrash() {
 }
 
 // ── Get crash log path for user-facing display ─────────────────────────
-static QString crashReportPath() {
+inline QString crashReportPath() {
     QString path = crashLogPath();
     return QFile::exists(path) ? path : QString();
 }

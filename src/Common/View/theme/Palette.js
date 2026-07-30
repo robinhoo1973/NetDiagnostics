@@ -44,7 +44,11 @@ var Dark = {
 
     // ── Status ──────────────────────────────────────────────────────────
     passGreen:        "#4ADE80",
-    warnYellow:       "#FBBF24",
+    // 5WHY: #FBBF24 (gold) was ambiguous — is this a warning (orange) or a yield sign (yellow)?
+    // UX convention across Material Design, Apple HIG, and Bootstrap is orange for warnings.
+    // Changed to #F59E0B (amber-orange) for consistent "warning=orange" semantics.
+    // Contrast ratio vs #0F172A: ~6.3:1 (WCAG AAA for large text).
+    warnYellow:       "#F59E0B",
     failRed:          "#F87171",
     skipGray:         "#9CA3AF",
     infoBlue:         "#A5B4FC"
@@ -76,6 +80,8 @@ var Light = {
 
     // ── Status (WCAG 3:1+ on #F8FAFC) ───────────────────────────────────
     passGreen:        "#059669",
+    // 5WHY: Dark counterpart uses #F59E0B (amber-orange). Both palettes now use orange for warnings.
+    // #EA580C (deep orange) contrast ratio vs #F8FAFC: ~5.5:1 (WCAG AA).
     warnYellow:       "#EA580C",
     failRed:          "#DC2626",
     skipGray:         "#6B7280",

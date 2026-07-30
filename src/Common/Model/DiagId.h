@@ -146,8 +146,6 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G5HttpRedirect:
         case DiagId::G5HttpCompression:
         case DiagId::G5HttpTiming:
-            return DiagGroup::G5;
-        // G5 — Per-scheme protocol diagnostics (FTP, SSH, DB, etc.)
         case DiagId::G5FtpDiagnostics:
         case DiagId::G5SshDiagnostics:
         case DiagId::G5EmailDiagnostics:

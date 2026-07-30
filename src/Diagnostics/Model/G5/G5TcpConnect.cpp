@@ -1,4 +1,5 @@
 ﻿#include "Diagnostics/Model/G5/G5Common.h"
+namespace G5WebsiteUrl {
 DiagnosticResult tcpConnect(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5TcpConnect, "No target", DiagStatus::Skipped);
     QUrl u = validate(target);

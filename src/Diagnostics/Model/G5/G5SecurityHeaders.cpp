@@ -1,4 +1,5 @@
 ﻿#include "Diagnostics/Model/G5/G5Common.h"
+namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult securityHeaders(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SecurityHeaders, "No target", DiagStatus::Skipped);

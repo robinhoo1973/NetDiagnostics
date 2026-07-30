@@ -81,7 +81,9 @@
 
 // ── Dark palette (used in dark-theme UI + HTML report dark mode) ──────────────
 #define APPC_PASS_GREEN_DARK         "#4ADE80"
-#define APPC_WARN_YELLOW_DARK        "#FBBF24"
+// 5WHY: #FBBF24 changed to #F59E0B (amber-orange) — consistent warning=orange UX.
+// Mirror of Palette.js Dark.warnYellow.
+#define APPC_WARN_YELLOW_DARK        "#F59E0B"
 #define APPC_FAIL_RED_DARK           "#F87171"
 #define APPC_SKIP_GRAY_DARK          "#9CA3AF"
 #define APPC_INFO_BLUE_DARK          "#A5B4FC"

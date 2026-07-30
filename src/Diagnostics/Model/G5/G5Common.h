@@ -187,3 +187,5 @@ static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect =
     return cr;                                       // all 5 attempts failed
 }
 #endif // NO_CURL
+
+} // namespace G5WebsiteUrl
