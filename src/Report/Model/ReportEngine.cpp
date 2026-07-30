@@ -65,6 +65,7 @@ QString reportStatusColor(DiagStatus s, bool darkBackground) {
         QStringLiteral(APPC_SKIP_GRAY_LIGHT),  QStringLiteral(APPC_INFO_BLUE_LIGHT),
     };
     return hexColors[statusIndex(s) + (darkBackground ? 0 : 6)];
+}
 
 // 5WHY: Reports used colored dots or Unicode glyphs instead of proper
 // graphic icons. Unicode characters render inconsistently across fonts
