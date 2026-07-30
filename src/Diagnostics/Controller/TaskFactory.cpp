@@ -187,6 +187,10 @@ struct TaskEntry {
 
 static const TaskEntry kTaskTable[] = {
     // ── G1: System & Adapters (8) ───────────────────────────────────────
+    // 5WHY: Network adapter enumeration calls platform APIs (Win32 SetupDi,
+    // sysfs on Linux, IOKit on macOS) that respond within 2-3 s. The 15 s
+    // cap catches hung enumeration without blocking the pipeline for the
+    // full default 60 s — a stuck NIC shouldn't stall the entire diagnostic.
     { DiagId::G1NetworkAdapters,  makeT1(SystemDiagnostics::networkAdapters, 15000) },
     { DiagId::G1NicAdvanced,      makeT1(SystemDiagnostics::nicAdvanced) },
 #if defined(PLATFORM_ANDROID)

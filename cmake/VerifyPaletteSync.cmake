@@ -19,7 +19,7 @@ set(_PALETTE_JS   "${CMAKE_SOURCE_DIR}/src/Common/View/theme/Palette.js")
 # is invoked 22 times (once per color pair). Each invocation read Palette.js
 # in full to track Dark/Light block state — 44 file reads at configure time.
 # Fix: read AppColors.h lines once; read Palette.js lines once at top level.
-# The function receives the pre-loaded lines as arguments.
+# The function accesses the pre-loaded lines via CMake's dynamic scoping.
 file(STRINGS "${_APP_COLORS}" _PALETTE_CPP_LINES)
 file(STRINGS "${_PALETTE_JS}" _PALETTE_JS_LINES)
 
