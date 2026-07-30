@@ -6,6 +6,10 @@
 #
 # Debug mode: enables ND_DEBUG=ON → startup log written to %%TEMP%%
 # If the EXE crashes, check: notepad $env:TEMP\NetDiagnostics_startup.log
+#
+# See also:
+#   docs/review/ios-startup-crash-5why-analysis.md — iOS startup crash 5WHY analysis
+#   docs/review/ios-ci-known-issues.md — CI/build known issue patterns
 # =============================================================================
 
 param([switch]$Debug)

@@ -2,7 +2,9 @@
 # =============================================================================
 # pre-commit — 提交前自动检查已知问题模式
 #
-# 检查规则来自 review/ios-ci-known-issues.md
+# 检查规则来自:
+#   docs/review/ios-startup-crash-5why-analysis.md — iOS 启动闪退 5WHY 分析（全局默认检查）
+#   docs/review/ios-ci-known-issues.md — iOS CI/build 已知问题模式
 # 任何检查失败 → 提交中止，修复后重试。
 # =============================================================================
 set -euo pipefail
@@ -221,16 +223,111 @@ else
     pass "no staged C/C++ files"
 fi
 
-# ── Summary ────────────────────────────────────────────────────────────────
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-if [ $EXIT -eq 0 ]; then
-    echo -e "${GREEN}  All pre-commit checks passed ✓${NC}"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    exit 0
-else
-    echo -e "${RED}  Pre-commit checks FAILED — fix above issues before committing${NC}"
-    echo "  See: review/ios-ci-known-issues.md for details"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    exit 1
-fi
+
+	# ── 12. QML: non-existent properties (iOS static Qt crash) ─────────────────
+	echo ""
+	echo "── 12. QML non-existent properties (iOS startup crash prevention) ──"
+	QML_FILES=$(echo "$STAGED" | grep -E '\.qml$' || true)
+	if [ -n "$QML_FILES" ]; then
+	    for f in $QML_FILES; do
+	        # Rectangle.shadow — does not exist on Qt Quick Rectangle
+	        if git show ":$f" | grep -nE 'shadow\.' > /tmp/precommit-qml-shadow.log 2>/dev/null; then
+	            fail "$f: Rectangle.shadow is not a valid Qt Quick property (see docs/review/ios-startup-crash-5why-analysis.md#a2)"
+	            cat /tmp/precommit-qml-shadow.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	        # border.visible — does not exist
+	        if git show ":$f" | grep -nE 'border\.visible' > /tmp/precommit-qml-border.log 2>/dev/null; then
+	            fail "$f: border.visible is not a valid Qt Quick Border property (see docs/review/ios-startup-crash-5why-analysis.md#a3)"
+	            cat /tmp/precommit-qml-border.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	        # ScaleTransform — deprecated, use Scale
+	        if git show ":$f" | grep -nE 'ScaleTransform' > /tmp/precommit-qml-scale.log 2>/dev/null; then
+	            fail "$f: ScaleTransform is deprecated — use Scale (QtQuick) (see docs/review/ios-startup-crash-5why-analysis.md#a4)"
+	            cat /tmp/precommit-qml-scale.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	        # compact:true — not a standard property
+	        if git show ":$f" | grep -nE 'compact:\s*true' > /tmp/precommit-qml-compact.log 2>/dev/null; then
+	            fail "$f: compact:true is not a standard Qt Quick property (see docs/review/ios-startup-crash-5why-analysis.md#a5)"
+	            cat /tmp/precommit-qml-compact.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	        # font.family with CSS fallback list (comma-separated)
+	        if git show ":$f" | grep -nE "font\.family:.*\",\"" > /tmp/precommit-qml-font.log 2>/dev/null; then
+	            fail "$f: font.family with comma-separated list — Qt QML takes single family name (see docs/review/ios-startup-crash-5why-analysis.md#a6)"
+	            cat /tmp/precommit-qml-font.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged QML files"
+	fi
+
+	# ── 13. QML: readonly property inside object literal ───────────────────────
+	echo ""
+	echo "── 13. QML readonly property placement ──"
+	if [ -n "$QML_FILES" ]; then
+	    for f in $QML_FILES; do
+	        if git show ":$f" | grep -n 'readonly property' | grep -v '^\s\{0,4\}readonly' > /tmp/precommit-qml-ro.log 2>/dev/null; then
+	            fail "$f: readonly property may be inside function/object literal — must be at QML root level (see docs/review/ios-startup-crash-5why-analysis.md#b2)"
+	            cat /tmp/precommit-qml-ro.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged QML files"
+	fi
+
+	# ── 14. C++: static const non-trivial object in header ────────────────────
+	echo ""
+	echo "── 14. C++ static const in header (SIOF check) ──"
+	HEADER_FILES=$(echo "$STAGED" | grep -E '\.h$|\.hpp$' || true)
+	if [ -n "$HEADER_FILES" ]; then
+	    for f in $HEADER_FILES; do
+	        if git show ":$f" | grep -nE 'static const (QMap|QHash|QVector|QList|QStringList|std::map|std::vector|std::unordered_map)' > /tmp/precommit-siof.log 2>/dev/null; then
+	            fail "$f: static const non-trivial object in header — SIOF risk, use Meyers Singleton (see docs/review/ios-startup-crash-5why-analysis.md#d2)"
+	            cat /tmp/precommit-siof.log | while read line; do
+	                echo "       $line"
+	            done
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged header files"
+	fi
+
+	# ── Summary ────────────────────────────────────────────────────────────────
+	echo ""
+	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	if [ $EXIT -eq 0 ]; then
+	    echo -e "${GREEN}  All pre-commit checks passed ✓${NC}"
+	    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	    exit 0
+	else
+	    echo -e "${RED}  Pre-commit checks FAILED — fix above issues before committing${NC}"
+	    echo "  See: docs/review/ios-startup-crash-5why-analysis.md for iOS crash analysis"
+	    echo "  See: docs/review/ios-ci-known-issues.md for CI/build known issues"
+	    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	    exit 1
+	fi
