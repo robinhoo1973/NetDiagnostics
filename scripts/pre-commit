@@ -165,6 +165,62 @@ else
     pass "no CI workflow files staged"
 fi
 
+# ── 9. QColor(QRgb) alpha byte — 6-digit hex macros (missing alpha) ───────
+echo ""
+echo "── 9. QColor(QRgb) alpha byte (6-digit hex macro check) ──"
+if [ -n "$CPP_FILES" ]; then
+    for f in $CPP_FILES; do
+        if git show ":$f" | grep -nE '#define.*0x[0-9A-Fa-f]{6}[^0-9A-Fa-f]' \
+            | grep -v '0xFF' > /tmp/precommit-rgb.log 2>/dev/null; then
+            fail "$f: 6-digit hex macro without alpha — QColor(QRgb) will be transparent"
+            cat /tmp/precommit-rgb.log | while read line; do
+                echo "       $line"
+            done
+        else
+            pass "$f"
+        fi
+    done
+else
+    pass "no staged C/C++ files"
+fi
+
+# ── 10. Apple SDK reserved words — Clean, check, verify, signals ──────────
+echo ""
+echo "── 10. Apple SDK reserved words in enums ──"
+if [ -n "$CPP_FILES" ]; then
+    for f in $CPP_FILES; do
+        if git show ":$f" | grep -nE '\b(Clean|Check|Verify)\b' \
+            | grep -v '//\|#define\|"' > /tmp/precommit-apple-words.log 2>/dev/null; then
+            warn "$f: possible Apple SDK reserved words (Clean/Check/Verify) — may break iOS build"
+            cat /tmp/precommit-apple-words.log | while read line; do
+                echo "       $line"
+            done
+        else
+            pass "$f"
+        fi
+    done
+else
+    pass "no staged C/C++ files"
+fi
+
+# ── 11. std::thread join() without joinable() guard ───────────────────────
+echo ""
+echo "── 11. std::thread join() safety check ──"
+if [ -n "$CPP_FILES" ]; then
+    for f in $CPP_FILES; do
+        if git show ":$f" | grep -n '\.join()' | grep -v 'joinable' > /tmp/precommit-join.log 2>/dev/null; then
+            warn "$f: .join() found — verify joinable() guard is present (destructor safety)"
+            cat /tmp/precommit-join.log | while read line; do
+                echo "       $line"
+            done
+        else
+            pass "$f"
+        fi
+    done
+else
+    pass "no staged C/C++ files"
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
