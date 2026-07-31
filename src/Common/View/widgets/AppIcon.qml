@@ -6,12 +6,19 @@
 //     reliably parses "none" keyword, desktop QtSvg needs numeric opacity
 //     (QTBUG-4145).  Losing either attribute → invisible or foggy icons.
 //  2. ShaderEffectSource captures iconImg into FBO with hideSource:true +
-//     visible:false — hideSource hides the Image from the scene; visible:false
-//     hides the ShaderEffectSource's own white-texture rendering.  ShaderEffect
-//     reads the FBO via the `source` property, unaffected by visibility.
+//     visible:false.  ShaderEffect reads FBO via `source` property.
 //  3. Use ONLY QtQuick (no QtQuick.Effects) — Qt6QuickEffects not in iOS aqt.
-//  4. tint.rgb * tex.a in the fragment shader colorizes only opaque pixels
-//     (SVG strokes at alpha=1) while keeping transparent regions clear.
+//  4. tint.rgb * tex.a → stroke color; tint.a * tex.a → preserves caller alpha.
+//
+// 5WHY (2026-07-31 live-race): live:false was a premature optimization that
+// broke iOS icon rendering.  ShaderEffectSource with live:false captures FBO
+// exactly ONCE at creation time.  On iOS, SVG decoding is asynchronous — the
+// Image may not have rendered its first frame when the initial capture occurs,
+// producing a blank FBO forever.  The statusChanged→scheduleUpdate() fallback
+// has a race: if the SVG decodes before Component.onCompleted connects the
+// signal, scheduleUpdate() is never called.  live:true (default) re-captures
+// every frame — ~50 small-icon FBO passes cost <1ms total, negligible vs the
+// cost of invisible icons.
 // =============================================================================
 import QtQuick
 import QtQuick.Window
@@ -26,8 +33,6 @@ Item {
     width: size; height: size
     visible: name !== ""
 
-    // White SVG — rendered as texture source for the ShaderEffectSource FBO.
-    // Visible (default) to guarantee GPU texture allocation on Metal.
     Image {
         id: iconImg
         anchors.fill: parent
@@ -39,20 +44,14 @@ Item {
         mipmap: false
     }
 
-    // hideSource:true  — hides iconImg from the scene, keeps FBO capture
-    // visible:false   — hides this item's own white-texture rendering
-    // live:false      — SVGs are static; scheduleUpdate() on name/size change
     ShaderEffectSource {
         id: iconSource
         sourceItem: iconImg
         anchors.fill: parent
         hideSource: true
         visible: false
-        live: false
     }
 
-    // Inline ShaderEffect — colorizes opaque SVG strokes, keeps bg transparent.
-    // tint.rgb * tex.a → stroke pixels (alpha=1) = full tint; bg (alpha=0) = clear.
     ShaderEffect {
         anchors.fill: parent
         property color tint: root.color
@@ -67,13 +66,4 @@ Item {
             }
         "
     }
-
-    // Re-capture FBO when icon name or size changes (SVG content is static).
-    Component.onCompleted: {
-        iconImg.statusChanged.connect(function() {
-            if (iconImg.status === Image.Ready) iconSource.scheduleUpdate()
-        })
-    }
-    onNameChanged: iconSource.scheduleUpdate()
-    onSizeChanged: iconSource.scheduleUpdate()
 }
