@@ -344,6 +344,46 @@ fi
 	    pass "no staged header files"
 	fi
 
+	# ── 16. SVG icons: fill="none" fill-opacity="0" format check ─────────────
+	echo ""
+	echo "── 16. SVG icon format (fill=none + fill-opacity=0) ──"
+	SVG_FILES=$(echo "$STAGED" | grep -E 'icons/.*\.svg$' || true)
+	if [ -n "$SVG_FILES" ]; then
+	    for f in $SVG_FILES; do
+	        content=$(git show ":$f" 2>/dev/null)
+	        if echo "$content" | head -1 | grep -q '<svg'; then
+	            has_none=$(echo "$content" | head -1 | grep -c 'fill="none"' || true)
+	            has_opacity=$(echo "$content" | head -1 | grep -c 'fill-opacity="0"' || true)
+	            if [ "$has_none" -eq 0 ] || [ "$has_opacity" -eq 0 ]; then
+	                fail "$f: SVG root must have BOTH fill=\"none\" AND fill-opacity=\"0\" (iOS/desktop cross-platform requirement)"
+	            else
+	                pass "$f"
+	            fi
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged icon SVGs"
+	fi
+
+	# ── 17. SVG icons: must be registered in resources.qrc ──────────────────
+	echo ""
+	echo "── 17. SVG icon QRC registration ──"
+	if [ -n "$SVG_FILES" ]; then
+	    for f in $SVG_FILES; do
+	        basename=$(basename "$f")
+	        if ! grep -q "$basename" "$ROOT/resources/resources.qrc"; then
+	            fail "$f: icon not registered in resources/resources.qrc"
+	        else
+	            pass "$f"
+	        fi
+	    done
+	else
+	    pass "no staged icon SVGs"
+	fi
+
+	# ── Summary ────────────────────────────────────────────────────────────────
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
