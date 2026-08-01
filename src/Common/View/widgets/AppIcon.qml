@@ -1,25 +1,22 @@
 // =============================================================================
 // AppIcon.qml — SVG icon with cross-platform colorization
 // =============================================================================
-// 5WHY (2026-07-31 Qt6-Metal-inline-GLSL): After 60 fix attempts across 5
-// sessions, the root cause is architectural: Qt 6 ShaderEffect NO LONGER
-// SUPPORTS inline GLSL fragmentShader strings on Metal/Vulkan/D3D11 backends.
-// iOS statically forces the Metal backend — inline GLSL silently fails to
-// compile, producing no shader output.  Desktop "works" only because the
-// OpenGL backend still accepts legacy inline GLSL as a compatibility path.
+// ARCHITECTURE: Visible Image + Rectangle overlay with layer.enabled FBO.
+// This is the Phase 2 architecture (pre-ShaderEffect, post-MultiEffect) that
+// was the last known-working approach on all platforms.
 //
-// Fix: eliminate the ShaderEffect pipeline entirely.  Use the simple,
-// proven approach: visible SVG Image + semi-transparent Rectangle overlay.
-// The overlay produces a slight haze on transparent SVG regions (the
-// "foggy square" artifact) which is an acceptable visual trade-off vs.
-// completely invisible icons.  opacity 0.55 balances color visibility
-// against background bleed.
+// 5WHY (2026-08-01): After 6 failed ShaderEffect-based fixes, we restored the
+// proven Phase 2 design.  The ShaderEffect pipeline (inline GLSL fragmentShader)
+// is NOT supported on Qt 6 Metal backend — Qt 6 docs: "ShaderEffect No Longer
+// Supports Inline GLSL Shader Strings."  MultiEffect (Phase 1) requires
+// QtQuick.Effects which is not in iOS aqt.  Rectangle overlay is the only
+// approach using solely QtQuick core types available on all platforms.
 //
-// This is the same architecture that shipped and worked on iOS before the
-// ShaderEffect migration (commit d6042b94).
+// Trade-off (iOS only): the semi-transparent overlay tints transparent SVG
+// regions, producing a slight colored haze.  On desktop, _useOverlay=false
+// (Image.color native tinting) — no overlay, no haze, ideal rendering.
 // =============================================================================
 import QtQuick
-import QtQuick.Window
 
 Item {
     id: root
@@ -27,9 +24,18 @@ Item {
     property color color: "white"
     property int size: 20
 
-    implicitWidth: size; implicitHeight: size
     width: size; height: size
+    implicitWidth: size; implicitHeight: size
     visible: name !== ""
+
+    // layer.enabled: true creates an FBO for the entire Item subtree.
+    // Required for the Rectangle overlay to composite correctly over
+    // the SVG Image on all platforms including iOS Metal.
+    layer.enabled: _useOverlay
+
+    // True when native Image.color is unavailable (iOS static builds).
+    // When true, the Rectangle overlay provides colorization instead.
+    property bool _useOverlay: false
 
     Image {
         id: iconImg
@@ -42,12 +48,34 @@ Item {
         mipmap: false
     }
 
-    // Colorization overlay — visible when a non-white color is set.
-    // Works on all Qt 6 platforms without shader dependencies.
+    // Colorization overlay — active when Image.color is unavailable.
     Rectangle {
+        id: colorOverlay
         anchors.fill: parent
         color: root.color
-        opacity: 0.55
-        visible: root.color !== "white" && root.color.a > 0
+        opacity: 0.80  // 5WHY: 0.55 too low — strokes nearly invisible on light bg
+        visible: root._useOverlay
     }
+
+    // Detect whether native Image.color is available on this platform.
+    // iOS static Qt 6.8.3: Image.color does NOT exist → overlay required.
+    // Desktop: Image.color exists → native tinting (no overlay, no haze).
+    // Belt-and-suspenders: Qt.platform.os check guards against Qt versions
+    // where the JS probe might accidentally create a dynamic color property.
+    function _tryNativeColorization() {
+        if (root.name === "") {
+            root._useOverlay = false
+            return
+        }
+        if (Qt.platform.os === "ios") {
+            root._useOverlay = true
+            return
+        }
+        iconImg.color = root.color
+        root._useOverlay = !Qt.colorEqual(iconImg.color, root.color)
+    }
+
+    Component.onCompleted: _tryNativeColorization()
+    onColorChanged: _tryNativeColorization()
+    onNameChanged: _tryNativeColorization()
 }
