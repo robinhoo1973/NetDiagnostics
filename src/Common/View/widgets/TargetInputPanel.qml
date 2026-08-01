@@ -44,7 +44,7 @@ ColumnLayout {
     }
 
     RowLayout {
-        AppIcon { name: "target"; size: 13; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
+        AppIcon { name: "monitor"; size: 13; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
         Item { width: 5 }
         Label { text: Tr.target; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
     }
@@ -126,9 +126,20 @@ ColumnLayout {
                     }
 
                     // Group icon — only for headers (not per-scheme)
+                    // 5WHY: schemeGroup 5 = LDAP/LDAPS ("Directory" service),
+                    // unrelated to the "target host" concept. It previously
+                    // rode along with the blanket target→monitor icon rename
+                    // (which was meant only for "target host machine" sites);
+                    // using "monitor" here would incorrectly imply a server/
+                    // computer meaning. Falls back to the map's own neutral
+                    // default ("circle") instead.
+                    // 5WHY: schemeGroup 3 = Database group previously used
+                    // the "config" (settings-slider) icon, an unrelated
+                    // leftover from an earlier bulk edit — added a dedicated
+                    // "database" (cylinder-stack) icon for correct semantics.
                     readonly property string groupIcon: ({
-                        0:"globe",1:"portscan",2:"mail",3:"config",
-                        4:"wifi",5:"target",6:"timer"
+                        0:"globe",1:"file-transfer",2:"mail",3:"database",
+                        4:"wifi",5:"circle",6:"timer"
                     }[schemeGroup] || "circle")
 
                     // Group label — i18n via schemeGroup name lookup
@@ -257,7 +268,10 @@ ColumnLayout {
                 visible: appState.runStatus !== 1
                 AppIcon {
                     anchors.centerIn: parent
-                    name: "tune"; size: 12
+                    // 5WHY: tune.svg was a byte-identical duplicate of config.svg
+                    // (same slider glyph) — consolidated onto "config" to remove
+                    // the redundant master/generated-icon file set.
+                    name: "config"; size: 12
                     color: root.advancedExpanded ? ThemeEngine.colors.secondary : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
                 MouseArea {

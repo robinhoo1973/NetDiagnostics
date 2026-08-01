@@ -124,7 +124,11 @@ Rectangle {
                 model: root._modelVersion >= 0 ? root.itemsModel : []
                 delegate: Item {
                     Layout.fillWidth: true
-                    implicitHeight: testItem.implicitHeight
+                    // 5WHY: Must mirror testItem's own visible-based collapse
+                    // (DiagResultItem.implicitHeight: visible ? 32 : 0) — otherwise
+                    // a hidden (skipped) row still reserves 2px and renders a
+                    // stray tree-connector tick even though nothing is visible.
+                    implicitHeight: testItem.visible ? testItem.implicitHeight + 2 : 0
                     // TreeView connector: vertical line + horizontal stub
                     Rectangle {
                         anchors { top:parent.top; bottom:parent.bottom; left:parent.left; leftMargin:6 }

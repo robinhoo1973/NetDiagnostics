@@ -1,9 +1,17 @@
-<!-- 5WHY: fc0cc6b redesign removed the "PDF" text label, making this icon
-     indistinguishable from the HTML icon.  Restore pre-fc0cc6b style with
-     distinctive "PDF" text so users can tell file types apart in share buttons.
-     White source preserves full colorization range via Image.color. -->
+<!-- 5WHY: Qt's QSvgRenderer does not reliably render <text> elements (font
+     resolution is platform-dependent and often silently skipped), so the
+     previous "PDF" text label never appeared at runtime.  The letters are
+     now drawn as pure vector stroke paths - guaranteed to render on every
+     platform.  White strokes preserve colorization by generate-colored-icons.py. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" fill-opacity="0" stroke="#6366F1" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
   <polyline points="14 2 14 8 20 8"/>
-  <text x="7" y="17" font-size="5" font-weight="bold" fill="#6366F1" stroke="none">PDF</text>
+  <!-- "PDF" letters as stroke paths (Qt-safe, no <text>), horizontally
+       centered in the document body (span 6.6-17.4, center x=12) with a
+       uniform 1.5-unit inter-letter gap -->
+  <g stroke-width="1.2">
+    <path d="M6.6 17.5 V12.5 h1.0 a1.3 1.3 0 0 1 0 2.6 H6.6"/>
+    <path d="M10.4 12.5 V17.5 h0.8 a2.5 2.5 0 0 0 0 -5 z"/>
+    <path d="M15.2 17.5 V12.5 h2.2 M15.2 14.9 h1.8"/>
+  </g>
 </svg>

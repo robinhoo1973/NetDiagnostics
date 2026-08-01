@@ -139,7 +139,7 @@ Item {
                     ColumnLayout { spacing: 4
                         Label { text: Tr.diagRunComplete; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                         RowLayout { spacing: 4
-                            AppIcon { name: "target"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
+                            AppIcon { name: "monitor"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
                             Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                         RowLayout { spacing: 4
@@ -199,8 +199,22 @@ Item {
                         }
                         delegate: RowLayout {
                             visible: hasData
-                            Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 2; color: ThemeEngine.colors.secondary }
-                            Item { width: 10 }
+                            // 5WHY: replaced generic dot bullet with a per-layer
+                            // semantic icon (G1..G5 map to the diagnostic groups'
+                            // actual subject matter) so each row is identifiable
+                            // at a glance instead of all rows looking identical.
+                            // Dedicated icons (not reused from elsewhere in the
+                            // app) so this list has its own distinct visual set:
+                            // cpu=system hardware/adapters, shield=security,
+                            // dns-lookup=DNS/internet name resolution (globe +
+                            // magnifier, distinct from plain "cloud" which reads
+                            // as generic cloud-storage rather than DNS lookup),
+                            // terminal=remote host access, layers=protocol stack.
+                            AppIcon {
+                                name: ({0:"cpu",1:"shield",2:"dns-lookup",3:"terminal",4:"layers"}[modelData] || "circle")
+                                size: 14; color: ThemeEngine.colors.secondary
+                            }
+                            Item { width: 8 }
                             Label { Layout.fillWidth: true; text: Tr.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
                             Label { text: calcLayerTiming(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
@@ -389,7 +403,7 @@ Item {
         Layout.bottomMargin: 8
         color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
         ColumnLayout {
-            id: grpCol; anchors { fill: parent; margins: 14 } spacing: 0
+            id: grpCol; anchors { fill: parent; margins: 14 } spacing: 4
             RowLayout {
                 Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.colors.secondary }
                 Item { width: 10 }
@@ -409,15 +423,17 @@ Item {
                     color: _stat.fail > 0 ? ThemeEngine.colors.warnYellow : ThemeEngine.colors.passGreen
                 }
             }
-            Item { Layout.preferredHeight: 8 }
+            Item { Layout.preferredHeight: 10 }
             Repeater {
                 id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 28
+                    spacing: 8
                     AppIcon { name: ThemeEngine.statusIconNames[modelData.status] || "badge-skip"; size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
-                    Item { width: 6 }
-                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight }
-                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6) }
+                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
                 }
             }
         }

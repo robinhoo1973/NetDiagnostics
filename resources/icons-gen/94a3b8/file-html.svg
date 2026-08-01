@@ -1,9 +1,18 @@
-<!-- 5WHY: fc0cc6b redesign removed the "HTML" text label, making this icon
-     indistinguishable from the PDF icon.  Restore pre-fc0cc6b style with
-     distinctive "HTML" text so users can tell file types apart in share buttons.
-     White source preserves full colorization range via Image.color. -->
+<!-- 5WHY: Qt's QSvgRenderer does not reliably render <text> elements (font
+     resolution is platform-dependent and often silently skipped), so the
+     previous "HTML" text label never appeared at runtime.  The letters are
+     now drawn as pure vector stroke paths - guaranteed to render on every
+     platform.  White strokes preserve colorization by generate-colored-icons.py. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" fill-opacity="0" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
   <polyline points="14 2 14 8 20 8"/>
-  <text x="12" y="17" font-size="4.7" font-weight="bold" text-anchor="middle" fill="#94A3B8" stroke="none">HTML</text>
+  <!-- "HTML" letters as stroke paths (Qt-safe, no <text>), horizontally
+       centered (span 6.65-17.35, center x=12) with a uniform 1.2-unit
+       inter-letter gap to avoid crowding -->
+  <g stroke-width="1.0">
+    <path d="M6.65 13.2 V17.2 M8.25 13.2 V17.2 M6.65 15.2 H8.25"/>
+    <path d="M9.45 13.2 h1.8 M10.35 13.2 V17.2"/>
+    <path d="M12.45 17.2 V13.2 l1.1 1.7 1.1 -1.7 V17.2"/>
+    <path d="M15.85 13.2 V17.2 h1.5"/>
+  </g>
 </svg>

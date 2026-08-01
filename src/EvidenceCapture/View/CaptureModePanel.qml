@@ -401,7 +401,7 @@ Rectangle {
                     RowLayout {
                         anchors { fill: parent; margins: 12 }
                         spacing: 8
-                        AppIcon { name: "target"; size: 16; color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.5) }
+                        AppIcon { name: "monitor"; size: 16; color: Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.5) }
                         TextInput {
                             id: urlInput
                             Layout.fillWidth: true

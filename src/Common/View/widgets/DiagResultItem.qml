@@ -10,7 +10,7 @@ Item {
     // Hide skipped tests — they provide no actionable information.
     // Pending items (status == -1) are always visible.
     visible: itemData.isPending || (itemData.status !== 3)
-    implicitHeight: visible ? 28 : 0
+    implicitHeight: visible ? 32 : 0
     signal detailClicked(var data)
 
     // 5WHY: Switched from static property var snapshot to dynamic
@@ -38,11 +38,11 @@ Item {
 
     // ── Pending item ──────────────────────────────────────────────────
     RowLayout {
-        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
+        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
         visible: itemData.isPending; spacing: 8
         AppIcon {
             id: pendingSpinner
-            name: itemData.isRunning ? "spinner" : "badge-skip"; size: 12
+            name: itemData.isRunning ? "spinner" : "badge-skip"; size: 16
             color: itemData.isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.textMuted
             RotationAnimation on rotation {
                 running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite
@@ -63,7 +63,7 @@ Item {
 
     // ── Completed row ─────────────────────────────────────────────────
     RowLayout {
-        anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
+        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
         visible: !itemData.isPending; spacing: 8
         // 5WHY: Error(4) showed infoBlue (same as Info), not visually distinct.
         // Now Error→errorRed, Info(5)→infoBlue, Skipped(3)→skipGray.

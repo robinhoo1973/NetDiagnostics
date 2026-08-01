@@ -64,7 +64,9 @@ Rectangle {
                     color: root._advancedVisible ? Qt.alpha(ThemeEngine.colors.secondary, 0.15) : "transparent"
                     AppIcon {
                         anchors.centerIn: parent
-                        name: "tune"; size: 18
+                        // 5WHY: tune.svg was a byte-identical duplicate of
+                        // config.svg — consolidated onto "config".
+                        name: "config"; size: 18
                         color: root._advancedVisible ? ThemeEngine.colors.secondary : ThemeEngine.colors.textMuted
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root._advancedVisible = !root._advancedVisible }
@@ -146,8 +148,11 @@ Rectangle {
                             return !prev || prev.schemeGroup !== _sm.get(model.index).schemeGroup
                         }
                         readonly property string groupIcon: ({
-                            0:"globe",1:"portscan",2:"mail",3:"config",
-                            4:"wifi",5:"target",6:"timer"
+                            // 5WHY: schemeGroup 3 = Database group previously
+                            // used "config" (settings-slider icon) — unrelated
+                            // leftover; switched to the dedicated "database" icon.
+                            0:"globe",1:"file-transfer",2:"mail",3:"database",
+                            4:"wifi",5:"circle",6:"timer"
                         }[schemeGroup] || "circle")
                         readonly property string groupLabel: ({
                             0:Tr.schemeGroupWeb,1:Tr.schemeGroupFile,
