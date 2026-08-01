@@ -1,22 +1,17 @@
 // =============================================================================
-// AppIcon.qml — SVG icon with cross-platform colorization
+// AppIcon.qml - statically pre-colored SVG icon (NO runtime colorization)
 // =============================================================================
-// ARCHITECTURE: Visible Image + Rectangle overlay with layer.enabled FBO.
-// This is the Phase 2 architecture (pre-ShaderEffect, post-MultiEffect) that
-// was the last known-working approach on all platforms.
-//
-// 5WHY (2026-08-01): After 6 failed ShaderEffect-based fixes, we restored the
-// proven Phase 2 design.  The ShaderEffect pipeline (inline GLSL fragmentShader)
-// is NOT supported on Qt 6 Metal backend — Qt 6 docs: "ShaderEffect No Longer
-// Supports Inline GLSL Shader Strings."  MultiEffect (Phase 1) requires
-// QtQuick.Effects which is not in iOS aqt.  Rectangle overlay is the only
-// approach using solely QtQuick core types available on all platforms.
-//
-// Trade-off (iOS only): the semi-transparent overlay tints transparent SVG
-// regions, producing a slight colored haze.  On desktop, _useOverlay=false
-// (Image.color native tinting) — no overlay, no haze, ideal rendering.
+// 5WHY (2026-08-01): Every runtime colorization mechanism failed on at least
+// one platform (ShaderEffect inline GLSL: no Metal support; MultiEffect:
+// QtQuick.Effects absent from iOS aqt; Image.color: property never existed;
+// Rectangle overlay: unmasked foggy square).  Icons are now pre-generated per
+// palette color by scripts/generate-colored-icons.py into qrc:/icons-gen/.
+// This component only SELECTS the nearest pre-generated color variant and
+// expresses alpha via Image.opacity.  Zero shaders, zero effects, zero
+// overlays - identical rendering on every platform.
 // =============================================================================
 import QtQuick
+import "IconColors.js" as IconColors
 
 Item {
     id: root
@@ -26,56 +21,42 @@ Item {
 
     width: size; height: size
     implicitWidth: size; implicitHeight: size
+    // 5WHY: visible must NOT depend on color.a — Layouts skip invisible
+    // items, so "transparent" callers (CaptureModePanel check icons) would
+    // cause layout shift.  Alpha-hiding is handled by Image.opacity below,
+    // which preserves layout geometry.
     visible: name !== ""
 
-    // layer.enabled: true creates an FBO for the entire Item subtree.
-    // Required for the Rectangle overlay to composite correctly over
-    // the SVG Image on all platforms including iOS Metal.
-    layer.enabled: _useOverlay
-
-    // True when native Image.color is unavailable (iOS static builds).
-    // When true, the Rectangle overlay provides colorization instead.
-    property bool _useOverlay: false
+    // Nearest pre-generated palette color (RGB distance).  Callers pass
+    // palette colors so this is normally an exact match; Qt.lighter()/
+    // arbitrary colors snap to the closest generated variant.
+    readonly property string _hex: {
+        var best = "#FFFFFF"
+        var bd = 1e9
+        for (var i = 0; i < IconColors.hexes.length; i++) {
+            var h = IconColors.hexes[i]
+            var r = parseInt(h.substr(1, 2), 16) / 255.0
+            var g = parseInt(h.substr(3, 2), 16) / 255.0
+            var b = parseInt(h.substr(5, 2), 16) / 255.0
+            var d = (r - color.r) * (r - color.r)
+                  + (g - color.g) * (g - color.g)
+                  + (b - color.b) * (b - color.b)
+            if (d < bd) { bd = d; best = h }
+        }
+        return best
+    }
 
     Image {
-        id: iconImg
         anchors.fill: parent
-        source: name ? "qrc:/icons/" + name + ".svg" : ""
-        sourceSize.width: size * Screen.devicePixelRatio
-        sourceSize.height: size * Screen.devicePixelRatio
+        source: root.name
+                ? "qrc:/icons-gen/" + root._hex.substr(1).toLowerCase()
+                  + "/" + root.name + ".svg"
+                : ""
+        sourceSize.width: root.size * Screen.devicePixelRatio
+        sourceSize.height: root.size * Screen.devicePixelRatio
         fillMode: Image.PreserveAspectFit
         smooth: true
-        mipmap: false
+        // Alpha (Qt.alpha() callers) via opacity - not colorization.
+        opacity: root.color.a
     }
-
-    // Colorization overlay — active when Image.color is unavailable.
-    Rectangle {
-        id: colorOverlay
-        anchors.fill: parent
-        color: root.color
-        opacity: 0.80  // 5WHY: 0.55 too low — strokes nearly invisible on light bg
-        visible: root._useOverlay
-    }
-
-    // Detect whether native Image.color is available on this platform.
-    // iOS static Qt 6.8.3: Image.color does NOT exist → overlay required.
-    // Desktop: Image.color exists → native tinting (no overlay, no haze).
-    // Belt-and-suspenders: Qt.platform.os check guards against Qt versions
-    // where the JS probe might accidentally create a dynamic color property.
-    function _tryNativeColorization() {
-        if (root.name === "") {
-            root._useOverlay = false
-            return
-        }
-        if (Qt.platform.os === "ios") {
-            root._useOverlay = true
-            return
-        }
-        iconImg.color = root.color
-        root._useOverlay = !Qt.colorEqual(iconImg.color, root.color)
-    }
-
-    Component.onCompleted: _tryNativeColorization()
-    onColorChanged: _tryNativeColorization()
-    onNameChanged: _tryNativeColorization()
 }

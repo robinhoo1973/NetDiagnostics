@@ -347,7 +347,10 @@ fi
 	# ── 16. SVG icons: fill="none" fill-opacity="0" format check ─────────────
 	echo ""
 	echo "── 16. SVG icon format (fill=none + fill-opacity=0) ──"
-	SVG_FILES=$(echo "$STAGED" | grep -E 'icons/.*\.svg$' || true)
+	# Masters live in resources/icons-master/ (build input, not shipped).
+	# Generated variants (resources/icons-gen/) are derived from masters and
+	# inherit their format — only masters need checking.
+	SVG_FILES=$(echo "$STAGED" | grep -E 'icons-master/.*\.svg$' || true)
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        content=$(git show ":$f" 2>/dev/null)
@@ -367,14 +370,14 @@ fi
 	    pass "no staged icon SVGs"
 	fi
 
-	# ── 17. SVG icons: must be registered in resources.qrc ──────────────────
+	# ── 17. SVG icons: generated variants must be registered in QRC ────────
 	echo ""
-	echo "── 17. SVG icon QRC registration ──"
+	echo "── 17. SVG icon QRC registration (resources_icons_gen.qrc) ──"
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        basename=$(basename "$f")
-	        if ! grep -q "$basename" "$ROOT/resources/resources.qrc"; then
-	            fail "$f: icon not registered in resources/resources.qrc"
+	        if ! grep -q "$basename" "$ROOT/resources/resources_icons_gen.qrc"; then
+	            fail "$f: no generated variants in resources/resources_icons_gen.qrc — run: python scripts/generate-colored-icons.py"
 	        else
 	            pass "$f"
 	        fi
@@ -383,7 +386,25 @@ fi
 	    pass "no staged icon SVGs"
 	fi
 
-	# ── Summary ────────────────────────────────────────────────────────────────
+	# ── 18. Pre-generated colored icons: staleness check ────────────────────
+	# 5WHY: AppIcon selects from pre-generated qrc:/icons-gen/ variants
+	# (scripts/generate-colored-icons.py).  If Palette.js or a master icon
+	# changes without regeneration, nearest-color matching silently snaps
+	# to stale colors.
+	echo ""
+	echo "── 18. Pre-generated icon staleness (icons-gen vs Palette.js) ──"
+	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons-master/[^/]+\.svg)$' || true)
+	if [ -n "$GEN_INPUTS" ]; then
+	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons-gen/|resources_icons_gen\.qrc)' || true)
+	    if [ -z "$GEN_OUTPUTS" ]; then
+	        fail "Palette.js or master icons changed but icons-gen not regenerated — run: python scripts/generate-colored-icons.py"
+	    else
+	        pass "icons-gen regenerated alongside inputs"
+	    fi
+	else
+	    pass "generator inputs unchanged"
+	fi
+
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

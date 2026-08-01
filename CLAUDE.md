@@ -22,7 +22,7 @@ bash scripts/install-hooks
 bash scripts/pre-commit
 ```
 
-The hook runs **17 checks** covering:
+The hook runs **18 checks** covering:
 1. CMake comment syntax (`#` not `//`)
 2. CMake regex `{n}` quantifier
 3. Preprocessor `#if(defined(X))` style (no `#ifdef`/`#ifndef`)
@@ -40,6 +40,7 @@ The hook runs **17 checks** covering:
 15. **QML: `Qt.styleHints` static binding** (static Qt init order risk)
 16. **QML: inline Component with `sourceComponent`** (eager compilation risk for platform-specific types)
 17. **C++: `.join()` without `joinable()` guard in destructor context**
+18. **Icons: pre-generated icons-gen staleness** (Palette.js / icons-master SVG changed → must re-run `scripts/generate-colored-icons.py`)
 
 ### Commit Message Format
 

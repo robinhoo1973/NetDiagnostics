@@ -1,0 +1,9 @@
+<!-- 5WHY: fc0cc6b redesign removed the "PDF" text label, making this icon
+     indistinguishable from the HTML icon.  Restore pre-fc0cc6b style with
+     distinctive "PDF" text so users can tell file types apart in share buttons.
+     White source preserves full colorization range via Image.color. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" fill-opacity="0" stroke="#334155" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+  <polyline points="14 2 14 8 20 8"/>
+  <text x="7" y="17" font-size="5" font-weight="bold" fill="#334155" stroke="none">PDF</text>
+</svg>

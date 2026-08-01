@@ -1,4 +1,4 @@
-﻿<RCC>
+<RCC>
     <qresource prefix="/">
         <!-- Root views -->
         <file alias="qml/main.qml">../src/Common/View/main.qml</file>
@@ -34,6 +34,7 @@
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
         <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
+        <file alias="qml/widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
         <file alias="qml/widgets/ShadowIcon.qml">../src/Common/View/widgets/ShadowIcon.qml</file>
         <file alias="qml/widgets/ShadowSeparator.qml">../src/Common/View/widgets/ShadowSeparator.qml</file>
         <file alias="qml/widgets/ShadowText.qml">../src/Common/View/widgets/ShadowText.qml</file>
@@ -48,51 +49,6 @@
         <!-- NativePdfPageView   → resources_nativepdf.qrc (conditional) -->
 
         <!-- Icons (stay in resources/) -->
-        <file>icons/camera.svg</file>
-        <file>icons/chart.svg</file>
-        <file>icons/check.svg</file>
-        <file>icons/chevron-down.svg</file>
-        <file>icons/chevron-right.svg</file>
-        <file>icons/circle.svg</file>
-        <file>icons/close.svg</file>
-        <file>icons/config.svg</file>
-        <file>icons/dashboard.svg</file>
-        <file>icons/diagnostics.svg</file>
-        <file>icons/error.svg</file>
-        <file>icons/file-html.svg</file>
-        <file>icons/file-pdf.svg</file>
-        <file>icons/gear.svg</file>
-        <file>icons/globe.svg</file>
-        <file>icons/translate.svg</file>
-        <file>icons/info.svg</file>
-        <file>icons/play.svg</file>
-        <file>icons/portscan.svg</file>
-        <file>icons/refresh.svg</file>
-        <file>icons/report.svg</file>
-        <file>icons/skip.svg</file>
-        <file>icons/stop.svg</file>
-        <file>icons/target.svg</file>
-        <file>icons/timer.svg</file>
-        <file>icons/tune.svg</file>
-        <file>icons/warning.svg</file>
-        <file>icons/wifi.svg</file>
-        <file>icons/list-checks.svg</file>
-        <file>icons/mail.svg</file>
-        <file>icons/monitor.svg</file>
-        <file>icons/badge-check.svg</file>
-        <file>icons/badge-close.svg</file>
-        <file>icons/badge-warning.svg</file>
-        <file>icons/badge-info.svg</file>
-        <file>icons/badge-skip.svg</file>
-        <file>icons/badge-error.svg</file>
-        <file>icons/badge-circle.svg</file>
-        <file>icons/badge-refresh.svg</file>
-        <file>icons/brightness.svg</file>
-        <file>icons/moon.svg</file>
-        <file>icons/spinner.svg</file>
-        <file>icons/sun.svg</file>
-        <file>icons/video.svg</file>
-        <file>icons/zap.svg</file>
         <file>icons/netanalysis.ico</file>
 
         <!-- Fonts (stay in resources/) -->
