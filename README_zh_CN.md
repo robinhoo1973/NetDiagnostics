@@ -124,9 +124,10 @@ cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
-# 通过 androiddeployqt/Gradle 生成已使用 debug 证书签名、可安装的 APK。
+# Qt 生成 release APK。CI 会使用 apksigner 对其对齐并签名；本地 release
+# 构建必须先使用自己的 keystore 签名后才能安装。
 cmake --build build/android --target apk
-# 请安装生成的 debug APK，不要安装任何 *-unsigned.apk 产物。
+# 不要安装任何 *-unsigned.apk 产物。
 ```
 
 ### 调试构建（启动崩溃诊断）

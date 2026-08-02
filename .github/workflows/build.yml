@@ -329,9 +329,12 @@ jobs:
           g++ -std=c++17 -O2 -static -static-libgcc -static-libstdc++ -pthread \
             /tmp/netdiag-static-runtime.cpp -o /tmp/netdiag-static-runtime.exe
 
-          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|msvcrt|ucrtbase|api-ms-win|ext-ms-win"
+          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|WTSAPI32|RUNTIMEOBJECT|MSCMS|UUID|WINSPool|msvcrt|ucrtbase"
           mapfile -t DEPS < <(objdump -p /tmp/netdiag-static-runtime.exe | awk '/DLL Name/ {print $3}' | tr -d '\r' | sort -fu)
           for dll in "${DEPS[@]}"; do
+            case "${dll,,}" in
+              api-ms-win-*.dll|ext-ms-win-*.dll) continue ;;
+            esac
             if ! echo "$dll" | grep -qiE "^(${SYSTEM_DLLS})\.dll$"; then
               echo "ERROR: GCC static-runtime probe imports a non-Windows DLL: $dll"
               exit 1
@@ -495,9 +498,12 @@ jobs:
           # The whitelist is intentionally restricted to Windows OS APIs and
           # API-set forwarders. GCC, Qt, curl, and all other third-party DLLs
           # must never appear in a strict static artifact.
-          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|WTSAPI32|RUNTIMEOBJECT|MSCMS|UUID|WINSPool|msvcrt|ucrtbase|api-ms-win|ext-ms-win"
+          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|WTSAPI32|RUNTIMEOBJECT|MSCMS|UUID|WINSPool|msvcrt|ucrtbase"
           mapfile -t DEPS < <(objdump -p "$EXE" | awk '/DLL Name/ {print $3}' | tr -d '\r' | sort -fu)
           for dll in "${DEPS[@]}"; do
+            case "${dll,,}" in
+              api-ms-win-*.dll|ext-ms-win-*.dll) continue ;;
+            esac
             if ! echo "$dll" | grep -qiE "^($SYSTEM_DLLS)\.(dll|drv)$"; then
               echo "ERROR: strict static executable imports a non-Windows DLL: $dll"
               exit 1

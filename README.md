@@ -124,9 +124,10 @@ cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
-# Builds a debug-signed, installable APK through androiddeployqt/Gradle.
+# Qt generates the release APK. CI aligns and signs it with apksigner; local
+# release builds require signing with your own keystore before installation.
 cmake --build build/android --target apk
-# Install the generated debug APK; do not install any *-unsigned.apk artifact.
+# Do not install any *-unsigned.apk artifact.
 ```
 
 ### Debug Build (startup crash diagnostics)

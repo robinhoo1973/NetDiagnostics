@@ -218,13 +218,11 @@ function(setup_platform_bundle TARGET)
     if(ANDROID)
         set_target_properties(${TARGET} PROPERTIES
             QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/resources/android"
-            # 5WHY: Android APK was built unsigned — installation fails with
-            # "package has no certificate."  QT_ANDROID_SIGN_APK must be
-            # explicitly TRUE for Qt to configure Gradle signing via
-            # androiddeployqt.  Without it, the Gradle build produces an
-            # unsigned APK that Android refuses to install.
-            QT_ANDROID_SIGN_APK TRUE
         )
+        # androiddeployqt's generated Gradle release task emits an unsigned
+        # APK for this Qt 6.5.3 build. The CI action signs it explicitly with
+        # zipalign + apksigner after packaging, keeping signing credentials
+        # outside CMake and the generated Gradle project.
     endif()
 
     # macOS desktop .app bundle
