@@ -42,10 +42,8 @@ Item {
     property color _snapIconColor: _snapTargetError !== "" ? ThemeEngine.colors.warnYellow : ThemeEngine.colors.infoBlue
     property int _snapVersion: 0
 
-    // 5WHY: NavigationAdapter.openDiagnosticDetail() used findChild by
-    // objectName string to set properties on internal QML labels — brittle
-    // coupling. This function encapsulates the overlay population so the
-    // NavigationAdapter only needs to call one well-known function.
+    // Keep detail-overlay population behind one function so every caller
+    // updates the title, status, summary, and detail text consistently.
     function showDetailOverlay(detail) {
         dtTitle.text = detail.displayName || ""
         var statusNames = ["Pass","Warning","Fail","Skipped","Error","Info"]
@@ -57,18 +55,14 @@ Item {
         detailOverlay.visible = true
     }
 
-    // 5WHY: NavigationAdapter opens multiple detail popups sequentially
-    // during automated capture.  Without a dismiss function, the previous
-    // overlay remains visible when the next OpenDetail fires, causing QML
-    // state confusion (stale data, visual flicker).  This function gives
-    // the NavigationAdapter a clean entry to close any existing overlay
-    // before calling showDetailOverlay() with new data.
+    // Close any existing detail before showing another one so stale data
+    // cannot remain visible during rapid user navigation.
     function dismissDetailOverlay() {
         detailOverlay.visible = false
     }
 
     function takeSnapshot() {
-        _snapTargetError = appState.targetValidationError()
+        _snapTargetError = appState.targetValidationErrorText
         _snapVersion++
     }
     function syncState() {
@@ -80,7 +74,7 @@ Item {
         if (!_runActive) takeSnapshot()
     }
     Connections { target: appState; function onStateVersionChanged() { syncState() } }
-    Component.onCompleted: { takeSnapshot(); console.warn("[DiagnosticScreen] loaded — DiagnosticToolbar should be visible") }
+    Component.onCompleted: takeSnapshot()
 
     // Aggregate badge counts — refreshed on each completed test.
     // 5WHY: was 5 independent properties each calling groupStats(-1)
@@ -109,31 +103,11 @@ Item {
         // AppBar (matches Dashboard/Settings — 48px Material compact.
         // ConfigScreen is 84px because its TabBar lives in a separate block.)
         // 5WHY: Share buttons moved to results header to avoid competing for
-        // horizontal space with the title.  The capture indicator badge sits
-        // in the AppBar's default content slot between title and spacer.
+        // horizontal space with the title.
         AppBar {
             Layout.fillWidth: true
             iconName: "diagnostics"
             title: Tr.diagnostics
-            // ── Capture indicator — shows when automated screenshots are active ──
-            Rectangle {
-                visible: appState.captureFeatureEnabled && captureService !== null && captureService.active
-                implicitWidth: captureRow.implicitWidth + 16; implicitHeight: 28; radius: 14
-                color: Qt.alpha(ThemeEngine.colors.cyan, 0.15)
-                border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.4) }
-                RowLayout {
-                    id: captureRow
-                    anchors.centerIn: parent
-                    spacing: 4
-                    // 5WHY: Replaced 📸 emoji with camera SVG for consistent iconography.
-                    AppIcon { name: "camera"; size: 12; color: ThemeEngine.colors.cyan }
-                    Label {
-                        text: captureService !== null ? captureService.captureCount : ""
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 11
-                        color: ThemeEngine.colors.cyan
-                    }
-                }
-            }
             Item { width: 8 }
             Item { Layout.fillWidth: true }
         }
@@ -256,7 +230,11 @@ Item {
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
                     visible: appState.runStatus === 4
-                    text: Tr.errorRecoveryHint
+                    // 5WHY: AppState already exposes the specific reason when
+                    // no runnable tests exist, but this screen discarded it
+                    // for a generic checklist. Show the concrete reason first
+                    // so users can correct configuration without guessing.
+                    text: appState.errorMessage !== "" ? appState.errorMessage : Tr.errorRecoveryHint
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                     horizontalAlignment: Text.AlignHCenter
@@ -322,95 +300,10 @@ Item {
         color: Qt.alpha(ThemeEngine.colors.surface, 0.82)
         visible: appState.cellularWarnVisible; z: 1150
 
-        // 5WHY: During automated capture, the cellular warning dialog
-        // blocks the diagnostic at the G2→G3 boundary — no one clicks
-        // "Continue".  Auto-dismiss after 3 seconds to simulate the
-        // user reading the warning and tapping Continue, so the capture
-        // doesn't stall for 120s waiting for WaitDiagComplete timeout.
-        property int autoContinueCountdown: 0
-        // 5WHY: Q_INVOKABLE return values cannot be tracked by QML's binding
-        // engine — there is no Q_PROPERTY NOTIFY signal.  A readonly property
-        // binding evaluates once at component creation and caches the stale
-        // value forever.  Use a function so isRunning() is evaluated FRESH
-        // every time onVisibleChanged or the Timer tick needs it.
-        function isCaptureRunning() {
-            return typeof captureOrchestrator !== "undefined"
-                && captureOrchestrator && captureOrchestrator.isRunning()
-        }
-
-        // 5WHY: Stopping the auto-continue Timer and resetting the countdown
-        // is a 2-step pair repeated at 4 sites (backdrop tap, Cancel button,
-        // Continue button, onVisibleChanged → hidden).  A missing stop() call
-        // at any site would leave the Timer ticking in the background.  Extract
-        // once so the invariant is enforced at every call site by construction.
-        function stopAutoContinue() {
-            autoContinueTimer.stop()
-            autoContinueCountdown = 0
-        }
-
-        Timer {
-            id: autoContinueTimer
-            interval: 1000; repeat: true
-            onTriggered: {
-                // 5WHY: If capture finishes or is cancelled while the cellular
-                // warning is visible, isRunning() changes to false but the
-                // Timer keeps ticking.  Without this guard, continueAfterCellularWarn()
-                // would call startNextGroup() on a cancelled/stopped capture,
-                // resuming the diagnostic run after the user already cancelled.
-                if (!isCaptureRunning()) {
-                    stopAutoContinue()
-                    appState.cellularWarnVisible = false
-                    return
-                }
-                cellularDialog.autoContinueCountdown--
-                if (cellularDialog.autoContinueCountdown <= 0) {
-                    stop()
-                    appState.continueAfterCellularWarn()
-                }
-            }
-        }
-        onVisibleChanged: {
-            // 5WHY: Call isCaptureRunning() fresh every time the dialog
-            // becomes visible — not via a cached property binding that
-            // never re-evaluates (Q_INVOKABLE has no NOTIFY signal).
-            if (visible && isCaptureRunning()) {
-                autoContinueCountdown = 5
-                autoContinueTimer.restart()
-            } else if (!visible) {
-                stopAutoContinue()
-            }
-        }
-        // 5WHY: onVisibleChanged only fires when `visible` transitions.
-        // If the cellular warning dialog is ALREADY visible when capture
-        // starts (e.g. from a prior cancelled diagnostic), visible stays
-        // true and onVisibleChanged never fires — the auto-dismiss Timer
-        // never starts.  Listen for capture-orchestrator signals that
-        // indicate capture has become active, and start the countdown if
-        // the dialog is already visible.
-        Connections {
-            target: typeof captureOrchestrator !== "undefined" && captureOrchestrator
-                ? captureOrchestrator : null
-            // 5WHY: captureModeChanged fires before the FSM transitions
-            // out of Idle, so isRunning() returns false at this point.
-            // Remove the isCaptureRunning() guard — the Timer's own
-            // onTriggered handler checks isCaptureRunning() on every tick
-            // and will cancel itself if the capture hasn't actually started
-            // or has already finished.  The first tick is 1s after restart(),
-            // by which time the FSM will have transitioned.
-            function onCaptureModeChanged() {
-                if (cellularDialog.visible
-                    && autoContinueCountdown <= 0) {
-                    autoContinueCountdown = 5
-                    autoContinueTimer.restart()
-                }
-            }
-        }
-
         // Backdrop: tap to dismiss → cancel entire diagnostic run
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                stopAutoContinue()
                 appState.cellularWarnVisible = false; appState.cancel()
             }
         }
@@ -470,27 +363,23 @@ Item {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                cellularDialog.stopAutoContinue()
                                 appState.cellularWarnVisible = false; appState.cancel()
                             }
                         }
                     }
-                    // Continue — prominent filled; shows auto-dismiss countdown during capture
+                    // Continue — prominent filled action
                     Rectangle {
                         Layout.fillWidth: true; implicitHeight: 44; radius: 12
                         color: ThemeEngine.colors.cyan
                         Label {
                             anchors.centerIn: parent
-                            text: cellularDialog.autoContinueCountdown > 0
-                                ? Tr.cellularContinue + " (" + cellularDialog.autoContinueCountdown + ")"
-                                : Tr.cellularContinue
+                            text: Tr.cellularContinue
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
                             font.weight: Font.Bold; color: ThemeEngine.colors.textOnAccent
                         }
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                cellularDialog.stopAutoContinue()
                                 appState.continueAfterCellularWarn()
                             }
                         }

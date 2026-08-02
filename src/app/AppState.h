@@ -29,8 +29,6 @@ class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
-class CaptureService;
-class CaptureOrchestrator;
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {
@@ -44,6 +42,10 @@ class AppState : public QObject {
     Q_PROPERTY(QString currentDiagLabel READ currentDiagLabel NOTIFY currentDiagChanged)
     Q_PROPERTY(QString currentGroup READ currentGroup NOTIFY groupChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY runStatusChanged)
+    // 5WHY: QML cannot track changes made through targetValidationError()
+    // Q_INVOKABLE calls. Expose the same source through a notified property
+    // so field borders and inline validation update with targetChanged.
+    Q_PROPERTY(QString targetValidationErrorText READ targetValidationError NOTIFY targetChanged)
     Q_PROPERTY(QStringList groupLabels READ groupLabels CONSTANT)
     Q_PROPERTY(QVariantList allGroupStats READ allGroupStats NOTIFY progressChanged)
     // ── Structured target fields (derived from / assembled into m_target) ──
@@ -68,9 +70,6 @@ class AppState : public QObject {
     // Crash report from the previous run (detected at startup). QML can show a
     // banner offering to share/upload the report when hasCrashReport is true.
     Q_PROPERTY(bool hasCrashReport READ hasCrashReport NOTIFY crashReportChanged)
-    // Hidden capture feature (screenshot/recording) — activated by double-clicking
-    // the app icon in Settings > About. Persisted via CaptureFeatureGate/QSettings.
-    Q_PROPERTY(bool captureFeatureEnabled READ isCaptureFeatureEnabled NOTIFY captureFeatureChanged)
 
 public:
     explicit AppState(QObject* parent = nullptr);
@@ -84,11 +83,6 @@ public:
     SettingsController* settingsController() const { return m_settingsCtrl; }
     TargetModel* targetModel() const { return m_targetModel; }
     ResultsModel* resultsModel() const { return m_resultsModel; }
-    // 5WHY: accessors always declared so QML context properties are never
-    // undefined on any platform. On desktop they return nullptr — QML
-    // guards check for falsy values instead of typeof.
-    class CaptureService* captureService() const;
-    class CaptureOrchestrator* captureOrchestrator() const;
 
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
@@ -192,13 +186,6 @@ public:
     Q_INVOKABLE QString generatePreviewPdf() const;
     Q_INVOKABLE void requestSavePath(const QString& format);
 
-    // ── Hidden capture feature (screenshot/recording) ─────────────────────
-    // Activated by double-clicking the app icon in Settings > About.
-    // Gate stored in QSettings("capture/featureEnabled"), default false.
-    Q_INVOKABLE bool isCaptureFeatureEnabled() const;
-    Q_INVOKABLE void enableCaptureFeature();   // toggles the gate ON
-    Q_INVOKABLE void disableCaptureFeature();  // toggles the gate OFF
-
     // ── Premium / sharing ──────────────────────────────────────────────────
     bool isPremium() const;
     Q_INVOKABLE void setPremium(bool v);
@@ -256,7 +243,6 @@ signals:
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
     void crashReportChanged();
-    void captureFeatureChanged();
 
 private slots:
     void onDiagFinished(DiagId id, const DiagnosticResult& result);
@@ -297,15 +283,6 @@ private:
     SettingsController* m_settingsCtrl = nullptr;
 
     // DiagnosticConfig now owned by ConfigurationController (m_configCtrl)
-
-    // CaptureService: automated screenshot capture during diagnostics.
-    // Owned by AppState; exposed to QML via captureService() accessor.
-#if defined(PLATFORM_MOBILE)
-    CaptureService* m_captureService = nullptr;
-    // CaptureOrchestrator: full automated capture workflow (navigation + diag + scroll).
-    // Owned by AppState; exposed to QML via captureOrchestrator() accessor.
-    CaptureOrchestrator* m_captureOrch = nullptr;
-#endif
 
     QMap<DiagGroup, int> m_totalPerGroup;
 

@@ -8,6 +8,7 @@
 #include "app/AppState.h"
 #include "Configuration/Model/DiagnosticConfig.h"
 #include "Common/Model/DiagId.h"
+#include "Common/Utils/TargetRedaction.h"
 #include <QVariantMap>
 
 #include <QCoreApplication>
@@ -94,7 +95,12 @@ void TestHarness::simSetPort(int port) {
 }
 
 void TestHarness::simSetUsername(const QString& user) {
-    logStep("Enter username: " + user, "", "");
+    // 5WHY: Headless logs are often uploaded as CI artifacts. Usernames are
+    // personal data and targets can embed credentials, so test telemetry must
+    // follow the same redaction boundary as production reports and TRACE logs.
+    logStep(QStringLiteral("Enter username: ")
+                + (user.isEmpty() ? QStringLiteral("(empty)") : QStringLiteral("(provided)")),
+            "", "");
 }
 
 void TestHarness::simSetPassword(const QString& pass) {
@@ -130,7 +136,7 @@ void TestHarness::runTestCase(const TestCase& tc) {
     else
         target = QStringLiteral("%1://%2").arg(tc.scheme, tc.host);
 
-    logInfo("Target: " + target);
+    logInfo(QStringLiteral("Target: ") + TargetRedaction::forDisplay(target));
 
     // Headless: directly set AppState target and run diagnostics
     if (!m_appState) {
@@ -243,7 +249,7 @@ void TestHarness::takeScreenshot(const QString& label) {
         ts << "Time: " << now() << "\n\n";
         if (m_appState) {
             ts << "--- AppState ---\n";
-            ts << "  target:       " << m_appState->target() << "\n";
+            ts << "  target:       " << TargetRedaction::forDisplay(m_appState->target()) << "\n";
             ts << "  targetScheme: " << m_appState->targetScheme() << "\n";
             ts << "  targetHost:   " << m_appState->targetHost() << "\n";
             ts << "  targetPort:   " << m_appState->targetPort() << "\n";

@@ -1,9 +1,0 @@
-# Capture directory qmldir — required for QRC directory enumeration on static builds.
-# 5WHY: Without this qmldir, iOS static Qt builds cannot enumerate QML types
-# in the capture/ directory, causing Loader failures and "capture overlay
-# load error" at runtime.
-CaptureModePanel 1.0 CaptureModePanel.qml
-CapturePreflightOverlay 1.0 CapturePreflightOverlay.qml
-CaptureCountdownOverlay 1.0 CaptureCountdownOverlay.qml
-CaptureRunningOverlay 1.0 CaptureRunningOverlay.qml
-CaptureResultSummary 1.0 CaptureResultSummary.qml

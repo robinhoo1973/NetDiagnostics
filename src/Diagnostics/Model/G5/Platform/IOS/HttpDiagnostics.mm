@@ -12,6 +12,7 @@
 
 #include "Common/Services/DiagnosticTask.h"
 #include "Common/Model/DiagId.h"
+#include "Common/Utils/TargetRedaction.h"
 #include <QUrl>
 #include <QElapsedTimer>
 #include <QStringList>
@@ -224,7 +225,7 @@ static DiagnosticResult iosSecurityHeaders(DiagId id, const QString& target) {
         QStringLiteral("permissions-policy")};
     QStringList missing;
     QStringList lines;
-    lines << QStringLiteral("Security header audit for %1").arg(target) << QString();
+    lines << QStringLiteral("Security header audit for %1").arg(TargetRedaction::forDisplay(target)) << QString();
     for (const auto& h : required) {
         bool ok = found.contains(h);
         if (!ok) missing << h;
@@ -287,7 +288,7 @@ static DiagnosticResult iosHttpCompression(DiagId id, const QString& target) {
         dr.summary = compressed ? QStringLiteral("Compressed: %1").arg(ctx->encoding)
                                 : QStringLiteral("Uncompressed");
         dr.rawOutput = QStringLiteral("HTTP compression check for %1\n\n  Content-Encoding: %2\n  Body bytes: %3")
-            .arg(target, compressed ? ctx->encoding : QStringLiteral("(none)"))
+            .arg(TargetRedaction::forDisplay(target), compressed ? ctx->encoding : QStringLiteral("(none)"))
             .arg(ctx->bytes);
     } else if (waited == 0 && ctx->status == 2) {
         dr.status = DiagStatus::Fail; dr.summary = ctx->err;
@@ -358,7 +359,7 @@ static DiagnosticResult iosHttpTiming(DiagId id, const QString& target) {
            tls = (qint64)delegate.tlsMs, ttfb = (qint64)delegate.ttfbMs;
     qint64 total = delegate.totalMs > 0 ? (qint64)delegate.totalMs : wallMs;
     QStringList lines;
-    lines << QStringLiteral("HTTP timing for %1 (HTTP %2)").arg(target).arg(statusCode) << QString();
+    lines << QStringLiteral("HTTP timing for %1 (HTTP %2)").arg(TargetRedaction::forDisplay(target)).arg(statusCode) << QString();
     lines << QStringLiteral("  DNS lookup        : %1 ms").arg(dns);
     lines << QStringLiteral("  TCP connect       : %1 ms").arg(conn);
     lines << QStringLiteral("  TLS handshake     : %1 ms").arg(tls);

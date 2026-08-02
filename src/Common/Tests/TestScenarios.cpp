@@ -231,11 +231,11 @@ QVector<TestCase> uiSimulation() {
     // Test 3: Scheme change triggers field visibility
     TestCase t3 = make("UI: Schema fields", "https", "example.com");
     t3.steps.append({"Open advanced", "", "gear clicked"});
-    t3.steps.append({"Only port visible (https)", "_showUser=false _showPass=false", ""});
+    t3.steps.append({"Only port visible (https)", "supportsUsername=false supportsPassword=false", ""});
     t3.steps.append({"Switch to ftp", "https", "ftp"});
-    t3.steps.append({"User+Pass+Port visible (ftp)", "_showUser=true _showPass=true", ""});
+    t3.steps.append({"User+Pass+Port visible (ftp)", "supportsUsername=true supportsPassword=true", ""});
     t3.steps.append({"Switch to ssh", "ftp", "ssh"});
-    t3.steps.append({"User visible, Pass hidden (ssh)", "_showUser=true _showPass=false", ""});
+    t3.steps.append({"User visible, Pass hidden (ssh)", "supportsUsername=true supportsPassword=false", ""});
     tests << t3;
 
     // Test 4: Port default changes with scheme

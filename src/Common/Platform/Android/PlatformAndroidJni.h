@@ -1,10 +1,8 @@
 // =============================================================================
 // PlatformAndroidJni.h — Shared JNI helpers for Android platform modules
 // =============================================================================
-// 5WHY: getQtActivity() was defined identically in both PlatformFocus.cpp
-// and PlatformRecording.cpp (as getActivity()).  Duplication means a fix
-// in one copy (Qt version migration, new QtNative class name) would be
-// missed in the other.  Extract once to a shared inline header.
+// 5WHY: Android platform modules need the same Qt Activity lookup. Keep it
+// in one inline helper so QtNative API migrations are updated consistently.
 // =============================================================================
 #pragma once
 

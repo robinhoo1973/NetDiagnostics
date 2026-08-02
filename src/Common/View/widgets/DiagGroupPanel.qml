@@ -16,7 +16,12 @@ Rectangle {
     height: cardColumn.implicitHeight + 16
     radius: 10
     color: ThemeEngine.colors.card
-    border { width: 1; color: isRunning ? Qt.alpha(ThemeEngine.colors.cyan, 0.4) : ThemeEngine.colors.borderCard }
+    border {
+        width: activeFocus ? 2 : 1
+        color: activeFocus ? ThemeEngine.colors.borderFocused
+              : isRunning ? Qt.alpha(ThemeEngine.colors.cyan, 0.4)
+              : ThemeEngine.colors.borderCard
+    }
 
     // ── Computed state — single C++ call, shared JS object (was 7 calls) ──
     property var _gstat: { var _v=_modelVersion; var s=appState.groupStats(groupIndex)
@@ -72,7 +77,15 @@ Rectangle {
                 Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.colors.cyan:ThemeEngine.colors.infoBlue }
                 ColumnLayout { spacing:1
                     Label { Layout.fillWidth:true; text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
-                    Label { visible:isRunning; text:"Running: "+(appState.currentDiagLabel||"")+"..."; font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.colors.cyan; elide:Text.ElideRight }
+                    Label {
+                        visible: isRunning
+                        text: "Running: "+(appState.currentDiagLabel||"")+"..."
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.italic: true
+                        color: ThemeEngine.colors.cyan; elide: Text.ElideRight
+                        Accessible.name: "Running: " + (appState.currentDiagLabel || "")
+                        ToolTip.visible: headerTapArea.containsMouse && isRunning
+                        ToolTip.text: appState.currentDiagLabel || ""
+                    }
                 }
                 Item { Layout.fillWidth:true }
                 Label { visible:isRunning||completedCount>0; text:completedCount+"/"+enabledCount; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.Medium; color:ThemeEngine.colors.textSecondary }
@@ -148,9 +161,11 @@ Rectangle {
     // 5WHY: group header had no keyboard access or screen-reader label.
     // Keyboard-only users could not expand/collapse diagnostic groups.
     MouseArea {
+        id: headerTapArea
         anchors { top:parent.top; left:parent.left; right:parent.right }
         height: 40
         cursorShape: Qt.PointingHandCursor
+        hoverEnabled: true
         onClicked: { _userToggled=true; expanded=!expanded }
     }
     activeFocusOnTab: true

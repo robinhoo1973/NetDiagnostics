@@ -15,14 +15,20 @@ ConfigurationController::ConfigurationController(AppState* appState, QObject* pa
 
 bool ConfigurationController::isDiagEnabled(int diagIdInt) const { return m_config.isDiagEnabled(diagIdInt); }
 
-void ConfigurationController::setDiagEnabled(int diagIdInt, bool enabled) {
-    m_config.setDiagEnabled(diagIdInt, enabled);
+bool ConfigurationController::setDiagEnabled(int diagIdInt, bool enabled) {
+    if (!m_config.setDiagEnabled(diagIdInt, enabled)) return false;
     saveSettings();
+    return true;
 }
 
-void ConfigurationController::setGroupEnabled(int groupInt, bool enabled) {
-    m_config.setGroupEnabled(groupInt, enabled);
+bool ConfigurationController::setGroupEnabled(int groupInt, bool enabled) {
+    if (!m_config.setGroupEnabled(groupInt, enabled)) return false;
     saveSettings();
+    return true;
+}
+
+bool ConfigurationController::setAutomaticGroupEnabled(int groupInt, bool enabled) {
+    return m_config.setGroupEnabled(groupInt, enabled);
 }
 
 bool ConfigurationController::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }

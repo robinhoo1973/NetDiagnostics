@@ -17,12 +17,8 @@ Item {
     property string lastPath: ""
     property bool lastFailed: false
     readonly property bool isMobile: ThemeEngine.isMobile
-    // 5WHY: DashboardScreen exports overlayVisible (aliased to previewOverlay.visible)
-    // so AppContent.navBlocked can detect when a preview is open and prevent nav taps
-    // during automated capture.  ReportScreen had no such alias — a nav tap during a
-    // pending capture completion would switch tabs, the Timer would fire on the wrong
-    // screen, and the ResultSummary would appear in an unexpected context.
-    // Export the same alias so navBlocked sees ReportScreen previews as blocking.
+    // Export preview visibility so AppContent can block navigation while the
+    // modal report preview is open.
     readonly property alias overlayVisible: previewOverlay.visible
 
     // Built-in preview overlay state

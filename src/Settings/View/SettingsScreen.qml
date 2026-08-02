@@ -285,27 +285,6 @@ Item {
                 Item { Layout.preferredHeight: 32 }
             }
 
-            // 5WHY: captureToast + captureToastTimer were inside the
-            // restoreSection ColumnLayout (visible only on mobile).
-            // On desktop the toast was never rendered — the user got no
-            // visual confirmation after double-clicking the app icon.
-            // Move them to the main setCol so they are always visible.
-            // Capture feature activation toast — now with SVG icon.
-            RowLayout {
-                id: captureToast
-                visible: captureToastTimer.running
-                spacing: 6
-                Layout.topMargin: captureToast.visible ? 8 : 0
-                AppIcon { name: "camera"; size: 14; color: ThemeEngine.colors.cyan }
-                Label {
-                    id: captureToastLabel
-                    Layout.fillWidth: true
-                    font.family: ThemeEngine.monoFont
-                    font.pixelSize: 11; color: ThemeEngine.colors.cyan
-                }
-            }
-            Timer { id: captureToastTimer; interval: ThemeEngine.toastDurationMs }
-
             // 5WHY: Language switch was previously silent — users got no
             // confirmation after selecting a language.  This toast shows
             // the selected language name for 3 seconds after switching.
@@ -329,62 +308,16 @@ Item {
                     id: aboutCol
                     anchors { fill: parent; margins: 16 } spacing: 0
                     // App icon + name
-                    // ── Hidden capture feature: double-click the app icon to toggle ──
-                    // Enables automatic screenshot/recording during diagnostics.
-                    // Design ref: review/06_Capture_Architecture_Design.md §2.1-2.2
                     RowLayout {
                         Rectangle {
-                            id: appIconRect
                             implicitWidth: 48; implicitHeight: 48; radius: 12
-                            // Subtle glow when capture feature is enabled
-                            color: appState.captureFeatureEnabled
-                                   ? Qt.alpha(ThemeEngine.colors.cyan, 0.25)
-                                   : Qt.alpha(ThemeEngine.colors.secondary, 0.15)
-                            border {
-                                width: appState.captureFeatureEnabled ? 1.5 : 0
-                                color: appState.captureFeatureEnabled ? ThemeEngine.colors.cyan : "transparent"
-                            }
+                            color: Qt.alpha(ThemeEngine.colors.secondary, 0.15)
                             AppIcon {
                                 anchors.centerIn: parent
-                                name: appState.captureFeatureEnabled ? "diagnostics" : "wifi"
+                                name: "wifi"
                                 size: 28
-                                color: appState.captureFeatureEnabled ? ThemeEngine.colors.cyan : ThemeEngine.colors.secondary
+                                color: ThemeEngine.colors.secondary
                             }
-                            // Double-click to toggle the hidden capture feature
-                            MouseArea {
-                                id: appIconMouseArea
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                // 5WHY: Custom clickCount+Timer double-click detection was fragile.
-                                // The QML function(mouse) form may not resolve scope correctly in
-                                // some Qt versions.  Use the native onDoubleClicked handler which
-                                // uses the system's platform-aware double-click interval and avoids
-                                // QML scope-resolution pitfalls.
-                                onDoubleClicked: {
-                                    // 5WHY: was just toggling a boolean — now opens the
-                                    // CaptureModePanel so the user can choose mode + URL.
-                                    if (appState.captureFeatureEnabled) {
-                                        appState.disableCaptureFeature()
-                                        captureToastLabel.text = Tr.captureDisabledToast
-                                        captureToastTimer.restart()
-                                    } else {
-                                        // Enable gate + request mode selection panel
-                                        if (captureOrchestrator !== null) {
-                                            captureOrchestrator.requestModeSelection()
-                                        }
-                                        captureToastLabel.text = Tr.captureEnabledToast
-                                        captureToastTimer.restart()
-                                    }
-                                }
-                            }
-                        }
-                        // Small indicator dot when capture is enabled
-                        Rectangle {
-                            visible: appState.captureFeatureEnabled
-                            width: 8; height: 8; radius: 4
-                            color: ThemeEngine.colors.cyan
-                            Layout.alignment: Qt.AlignTop
-                            Layout.leftMargin: -8; Layout.topMargin: 2
                         }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true

@@ -9,32 +9,6 @@ Rectangle {
     property bool wide: true
     property bool _advancedVisible: false
 
-    // ── Schema-aware field visibility ────────────────────────────────────
-    // Port: always shown in advanced (every protocol has a port)
-    // User: protocols that commonly use authentication
-    readonly property bool _showUser: {
-        var s = appState.targetScheme
-        return s === "ftp" || s === "ftps" || s === "ssh" || s === "sftp" || s === "scp"
-            || s === "telnet" || s === "rdp"
-            || s === "mysql" || s === "postgresql" || s === "redis" || s === "mongodb" || s === "mssql"
-            || s === "smtp" || s === "smtps" || s === "imap" || s === "imaps"
-            || s === "pop3" || s === "pop3s"
-            || s === "ldap" || s === "ldaps"
-            || s === "mqtt" || s === "mqtts"
-    }
-    // Pass: subset that routinely uses password auth (not SSH key-based)
-    readonly property bool _showPass: {
-        var s = appState.targetScheme
-        return s === "ftp" || s === "ftps"
-            || s === "telnet" || s === "rdp"
-            || s === "mysql" || s === "postgresql" || s === "redis" || s === "mongodb" || s === "mssql"
-            || s === "smtp" || s === "smtps" || s === "imap" || s === "imaps"
-            || s === "pop3" || s === "pop3s"
-            || s === "ldap" || s === "ldaps"
-            || s === "mqtt" || s === "mqtts"
-    }
-    // Port shown for all protocols — always visible in advanced
-
     implicitHeight: tbCol.implicitHeight + 8
     clip: true
 
@@ -81,137 +55,14 @@ Rectangle {
                     Accessible.role: Accessible.Button
                 }
 
-                // Scheme combo
-                ComboBox {
+                // Uses the same catalogue, popup and AppState synchronization
+                // as TargetInputPanel so the two entry points cannot drift.
+                SchemeSelector {
                     id: schemeCombo
                     Layout.preferredWidth: root.wide ? 88 : 72
                     Layout.preferredHeight: 30; flat: true
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     enabled: appState.runStatus !== 1
-                    displayText: currentText + "://"
-
-                    contentItem: Label {
-                        text: schemeCombo.displayText; font: schemeCombo.font
-                        color: ThemeEngine.colors.textPrimary; verticalAlignment: Text.AlignVCenter
-                    }
-                    textRole: "scheme"
-                    model: ListModel {
-                        id: _sm
-                        Component.onCompleted: {
-                            var schemes = appState.supportedSchemes
-                            var groups = [
-                                {schemes:["https","http"]},
-                                {schemes:["ftp","ftps","ssh","sftp","scp"]},
-                                {schemes:["smtp","smtps","imap","imaps","pop3","pop3s"]},
-                                {schemes:["mysql","postgresql","redis","mongodb","mssql"]},
-                                {schemes:["telnet","rdp"]},
-                                {schemes:["ldap","ldaps"]},
-                                {schemes:["mqtt","mqtts"]}
-                            ]
-                            for (var gi = 0; gi < groups.length; gi++)
-                                for (var si = 0; si < groups[gi].schemes.length; si++) {
-                                    var s = groups[gi].schemes[si]
-                                    if (schemes.indexOf(s) >= 0) _sm.append({scheme:s, schemeGroup:gi})
-                                }
-                            for (var i = 0; i < _sm.count; i++)
-                                if (_sm.get(i).scheme === "https") { schemeCombo.currentIndex = i; break }
-                        }
-                    }
-
-                    popup: Popup {
-                        y: schemeCombo.height; width: 222; padding: 6
-                        // Clamp popup height at 320px so it never overflows the screen on
-                        // short / phone displays; taller content scrolls via the ListView.
-                        // Uses a constant max-height instead of Window.height arithmetic to
-                        // avoid depending on the Window attached property (which can be null
-                        // during component initialization in some Qt configurations).
-                        height: Math.min(implicitHeight, 320)
-                        background: Rectangle {
-                            color: ThemeEngine.colors.card
-                            border { width: 1; color: ThemeEngine.colors.borderCard }
-                            radius: 10
-                        }
-                        contentItem: ListView {
-                            clip: true; implicitHeight: contentHeight
-                            model: schemeCombo.popup.visible ? schemeCombo.delegateModel : null
-                            ScrollIndicator.vertical: ScrollIndicator {}
-                        }
-                    }
-                    delegate: ItemDelegate {
-                        width: ListView.view ? ListView.view.width : 222
-                        hoverEnabled: true
-                        padding: 0; leftPadding: 0; rightPadding: 0
-                        height: isFirst ? 64 : 36
-                        // ── Computed delegate properties ─────────────────
-                        readonly property bool isFirst: {
-                            var prev = model.index > 0 ? _sm.get(model.index - 1) : null
-                            return !prev || prev.schemeGroup !== _sm.get(model.index).schemeGroup
-                        }
-                        readonly property string groupIcon: ({
-                            // 5WHY: schemeGroup 3 = Database group previously
-                            // used "config" (settings-slider icon) — unrelated
-                            // leftover; switched to the dedicated "database" icon.
-                            0:"globe",1:"file-transfer",2:"mail",3:"database",
-                            4:"wifi",5:"circle",6:"timer"
-                        }[schemeGroup] || "circle")
-                        readonly property string groupLabel: ({
-                            0:Tr.schemeGroupWeb,1:Tr.schemeGroupFile,
-                            2:Tr.schemeGroupEmail,3:Tr.schemeGroupDb,
-                            4:Tr.schemeGroupRemote,5:Tr.schemeGroupDir,
-                            6:Tr.schemeGroupMsg
-                        }[schemeGroup] || "")
-                        highlighted: scheme === schemeCombo.currentText
-                        background: Rectangle {
-                            color: highlighted
-                                ? Qt.alpha(ThemeEngine.colors.primary, 0.12)
-                                : (hovered ? Qt.alpha(ThemeEngine.colors.primary, 0.05) : "transparent")
-                            radius: 6
-                        }
-                        contentItem: ColumnLayout {
-                            spacing: 0
-                            // ── Group header: separator + icon + label ───
-                            Item {
-                                Layout.fillWidth: true
-                                implicitHeight: isFirst ? 26 : 0; visible: isFirst
-                                // Separator — thin line with generous margins
-                                Rectangle {
-                                    anchors { left: parent.left; right: parent.right; top: parent.top
-                                              leftMargin: 10; rightMargin: 10; topMargin: 4 }
-                                    height: 1; color: Qt.alpha(ThemeEngine.colors.borderCard, 0.6)
-                                }
-                                // Icon (12px) + label (10px) — 10px gap
-                                Row {
-                                    anchors { left: parent.left; leftMargin: 16; bottom: parent.bottom; bottomMargin: 3 }
-                                    spacing: 10
-                                    AppIcon {
-                                        name: groupIcon; size: 12; color: ThemeEngine.colors.primary
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                    Label {
-                                        text: groupLabel.toUpperCase()
-                                        font.family: ThemeEngine.monoFont; font.pixelSize: 10
-                                        font.weight: Font.Bold
-                                        color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.65)
-                                        anchors.verticalCenter: parent.verticalCenter
-                                    }
-                                }
-                            }
-                            // ── Scheme item row: padded, with :// suffix ──
-                            Label {
-                                Layout.fillWidth: true; Layout.fillHeight: true
-                                text: scheme + "://"
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 13
-                                font.weight: highlighted ? Font.DemiBold : Font.Normal
-                                color: highlighted ? ThemeEngine.colors.primary : ThemeEngine.colors.textPrimary
-                                verticalAlignment: Text.AlignVCenter
-                                leftPadding: 28
-                            }
-                        }
-                    }
-                    onCurrentTextChanged: {
-                        if (currentText && appState.targetScheme !== currentText)
-                            appState.targetScheme = currentText
-                    }
                 }
 
                 // Host field
@@ -219,9 +70,9 @@ Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 30; radius: 6
                     color: ThemeEngine.colors.input
                     border {
-                        width: hostField.activeFocus ? 1.5 : 1
-                        color: appState.targetValidationError() !== "" ? ThemeEngine.colors.failRed
-                               : hostField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard
+                        width: hostField.activeFocus ? 2 : 1
+                        color: appState.targetValidationErrorText !== "" ? ThemeEngine.colors.failRed
+                               : hostField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard
                     }
                     TextField {
                         id: hostField
@@ -381,7 +232,7 @@ Rectangle {
             Rectangle {
                 Layout.preferredWidth: 80; implicitHeight: 30; radius: 6
                 color: ThemeEngine.colors.input
-                border { width: 1; color: portField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
+                border { width: portField.activeFocus ? 2 : 1; color: portField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
                 TextField {
                     id: portField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -396,9 +247,9 @@ Rectangle {
 
             // Username
             Rectangle {
-                visible: root._showUser; Layout.fillWidth: true; implicitHeight: 30; radius: 6
+                visible: schemeCombo.supportsUsername; Layout.fillWidth: true; implicitHeight: 30; radius: 6
                 color: ThemeEngine.colors.input
-                border { width: 1; color: userField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
+                border { width: userField.activeFocus ? 2 : 1; color: userField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
                 TextField {
                     id: userField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -407,15 +258,15 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
-                    onTextChanged: appState.targetUsername = text.trim()
+                    onTextChanged: appState.targetUsername = text
                 }
             }
 
             // Password
             Rectangle {
-                visible: root._showPass; Layout.fillWidth: true; implicitHeight: 30; radius: 6
+                visible: schemeCombo.supportsPassword; Layout.fillWidth: true; implicitHeight: 30; radius: 6
                 color: ThemeEngine.colors.input
-                border { width: 1; color: passField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
+                border { width: passField.activeFocus ? 2 : 1; color: passField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
                 TextField {
                     id: passField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -424,7 +275,7 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
-                    onTextChanged: appState.targetPassword = text.trim()
+                    onTextChanged: appState.targetPassword = text
                 }
             }
         }

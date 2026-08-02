@@ -1,4 +1,4 @@
-﻿#ifdef PLATFORM_MOBILE
+﻿#if defined(PLATFORM_MOBILE)
 #include <QGuiApplication>
 #else
 #include <QApplication>
@@ -28,12 +28,6 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
-// 5WHY: includes must remain unconditional — static_cast<QObject*>(appState.captureOrchestrator())
-// on lines 164-165 requires the full class definition to verify QObject inheritance, even on
-// desktop where the return value is always nullptr.  The CMakeLists.txt already excludes the
-// .cpp files from desktop builds, so there is no link-time dependency.
-#include "EvidenceCapture/CaptureService.h"
-#include "EvidenceCapture/CaptureOrchestrator.h"
 #include "Dashboard/Controller/DashboardController.h"
 #include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
@@ -69,7 +63,7 @@ int main(int argc, char *argv[])
     bool hadCrash = CrashHandler::checkForPreviousCrash();
 
     qputenv("QSG_RENDER_LOOP", "basic");
-#ifdef PLATFORM_MOBILE
+#if defined(PLATFORM_MOBILE)
     QGuiApplication app(argc, argv);
 #else
     QApplication app(argc, argv);
@@ -178,32 +172,6 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
-    // Automated capture service (screenshots during diagnostics).
-    // Capture context properties: always registered so QML null guards
-    // work on all platforms.  The desktop accessors return nullptr,
-    // which is falsy in QML.  On desktop, these files are not compiled,
-    // so the #if guards prevent linker errors for CaptureOrchestrator
-    // member functions while keeping context properties defined.
-#if defined(PLATFORM_MOBILE)
-    engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(appState.captureService())));
-    engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(appState.captureOrchestrator())));
-    // 5WHY: On iOS static builds, the linker may strip QML type
-    // registrations for C++ types only exposed via Q_PROPERTY pointers.
-    // CaptureSessionDisplay is never instantiated in QML — it's created
-    // in C++ and passed through captureOrchestrator.sessionDisplay.
-    // Without this registration, the QML engine cannot resolve
-    // d.stepDisplay / d.elapsedDisplay / d.showRecordingDot etc.,
-    // and the compact floating status bar silently renders with all
-    // fallback defaults (zeros, hidden elements).
-    qmlRegisterUncreatableType<CaptureSessionDisplay>(
-        "NetDiagnostics.Capture", 1, 0, "CaptureSessionDisplay",
-        QStringLiteral("Cannot create CaptureSessionDisplay from QML"));
-#else
-    // 5WHY: QVariant() produces undefined in QML, which breaks !== null guards.
-    // QVariant::fromValue((QObject*)nullptr) produces null — falsy and safe.
-    engine.rootContext()->setContextProperty("captureService", QVariant::fromValue(static_cast<QObject*>(nullptr)));
-    engine.rootContext()->setContextProperty("captureOrchestrator", QVariant::fromValue(static_cast<QObject*>(nullptr)));
-#endif
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)
@@ -350,26 +318,6 @@ int main(int argc, char *argv[])
     STARTUP_LOG("QML loaded successfully. Showing window.");
     STARTUP_TRACE("QML loaded OK, rootObjects=%d", engine.rootObjects().size());
 
-    // ── Wire AppContent to CaptureOrchestrator for automated navigation ──
-#if defined(PLATFORM_MOBILE)
-    if (auto* orch = appState.captureOrchestrator()) {
-        QObject* appContent = engine.rootObjects().first()
-            ? engine.rootObjects().first()->findChild<QObject*>(QStringLiteral("appContent"))
-            : nullptr;
-        if (appContent) {
-            orch->setAppContent(appContent);
-            STARTUP_TRACE("CaptureOrchestrator: AppContent wired for automated navigation");
-        } else {
-            // 5WHY: If findChild("appContent") returns null, the orchestrator
-            // will silently fail ALL navigation steps — tab switches, detail
-            // opens, report preview — without any diagnostic.  The capture
-            // will complete with screenshots of whatever page the user was on.
-            STARTUP_LOG("CaptureOrchestrator: FAILED to wire AppContent — "
-                        "findChild(\"appContent\") returned null. "
-                        "Automated capture navigation will not work.");
-        }
-    }
-#endif
     // 5WHY: The startup log exists only to diagnose launch crashes.
     // Once QML loads + window shows, the app started successfully —
     // delete the log so stale crash-debug logs don't accumulate.

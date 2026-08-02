@@ -41,13 +41,14 @@ RowLayout {
     readonly property int _btnHeight: mode === "compact" ? 36 :
                                       mode === "wide"    ? 48 : 40
     readonly property int _btnRadius: mode === "wide"    ? 10 : 8
+    readonly property Component _buttonComponent: mode === "compact" ? compactBtn
+                                                   : mode === "bare" ? bareBtn : labeledBtn
 
     // ── PDF button ──────────────────────────────────────────────────────────
     Loader {
         id: pdfLoader
         Layout.fillWidth: shareRoot.mode !== "compact" && shareRoot.mode !== "bare"
-        sourceComponent: shareRoot.mode === "compact" ? compactBtn
-                       : shareRoot.mode === "bare"    ? bareBtn : labeledBtn
+        sourceComponent: shareRoot._buttonComponent
         onLoaded: {
             item.iconName = "file-pdf"
             item.locked = Qt.binding(function() { return shareRoot.locked })
@@ -60,8 +61,7 @@ RowLayout {
     Loader {
         id: htmlLoader
         Layout.fillWidth: shareRoot.mode !== "compact" && shareRoot.mode !== "bare"
-        sourceComponent: shareRoot.mode === "compact" ? compactBtn
-                       : shareRoot.mode === "bare"    ? bareBtn : labeledBtn
+        sourceComponent: shareRoot._buttonComponent
         onLoaded: {
             item.iconName = "file-html"
             item.locked = Qt.binding(function() { return shareRoot.locked })

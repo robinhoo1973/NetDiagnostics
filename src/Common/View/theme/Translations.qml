@@ -1,4 +1,4 @@
-﻿// ── Translation singleton — accessed as Tr.* in any QML file ──────────
+// ── Translation singleton — accessed as Tr.* in any QML file ──────────
 pragma Singleton
 import QtQuick
 
@@ -292,101 +292,6 @@ Item {
     readonly property string themeLabel: t("Theme", "Thème", "Design", "Тема", "Tema", "主题", "主題", "Tema", "Tema")
     readonly property string languageSection: t("Language", "Langue", "Sprache", "Язык", "Lingua", "语言", "語言", "Idioma", "Idioma")
     readonly property string aboutSection: t("About", "À propos", "Über", "О программе", "Informazioni", "关于", "關於", "Acerca de", "Sobre")
-    // ── Hidden capture feature toasts ──
-    // 5WHY: Removed 📸 emoji prefix — toast rendering code should add AppIcon instead.
-    readonly property string captureEnabledToast: t("Screen capture enabled", "Capture d'écran activée", "Bildschirmaufnahme aktiviert", "Захват экрана включен", "Cattura schermo abilitata", "录屏截屏已启用", "錄屏截屏已啟用", "Captura de pantalla habilitada", "Captura de tela habilitada")
-    readonly property string captureDisabledToast: t("Screen capture disabled", "Capture d'écran désactivée", "Bildschirmaufnahme deaktiviert", "Захват экрана выключен", "Cattura schermo disabilitata", "录屏截屏已禁用", "錄屏截屏已禁用", "Captura de pantalla deshabilitada", "Captura de tela desabilitada")
-    // ── Capture overlay labels ──────────────────────────────────────
-    readonly property string captureTitle: t("Capture Mode", "Mode capture", "Aufnahmemodus", "Режим захвата", "Modalità cattura", "采集模式", "採集模式", "Modo captura", "Modo captura")
-    readonly property string captureDesc: t("Choose how you'd like to capture evidence during diagnostics.", "Choisissez comment capturer des preuves pendant le diagnostic.", "Wählen Sie, wie Sie Nachweise während der Diagnose erfassen möchten.", "Выберите способ сбора данных во время диагностики.", "Scegli come acquisire le prove durante la diagnostica.", "选择在诊断期间采集证据的方式。", "選擇在診斷期間採集證據的方式。", "Elija cómo capturar pruebas durante el diagnóstico.", "Escolha como capturar evidências durante o diagnóstico.")
-    readonly property string captureScreenshotsLabel: t("Screenshots", "Captures d'écran", "Screenshots", "Скриншоты", "Screenshot", "截图", "截圖", "Capturas", "Capturas")
-    readonly property string captureScreenshotsDesc: t("Capture each diagnostic page as images", "Capturer chaque page de diagnostic comme image", "Jede Diagnoseseite als Bild erfassen", "Захват каждой страницы диагностики как изображения", "Cattura ogni pagina diagnostica come immagine", "将每个诊断页面截取为图像", "將每個診斷頁面截取為圖像", "Capturar cada página de diagnóstico como imagen", "Capturar cada página de diagnóstico como imagem")
-    readonly property string captureRecordingLabel: t("Screen Recording", "Enregistrement d'écran", "Bildschirmaufnahme", "Запись экрана", "Registrazione schermo", "屏幕录制", "螢幕錄製", "Grabación de pantalla", "Gravação de tela")
-    readonly property string captureRecordingDesc: t("Record video of the automated diagnostic flow", "Enregistrer une vidéo du flux de diagnostic automatisé", "Video des automatischen Diagnoseablaufs aufnehmen", "Запись видео автоматического процесса диагностики", "Registra un video del flusso diagnostico automatizzato", "录制自动化诊断流程的视频", "錄製自動化診斷流程的影片", "Grabar video del flujo de diagnóstico automatizado", "Gravar vídeo do fluxo de diagnóstico automatizado")
-    readonly property string captureBothHint: t("Both modes — complete evidence capture", "Les deux modes — capture complète des preuves", "Beide Modi — vollständige Beweiserfassung", "Оба режима — полный сбор данных", "Entrambe le modalità — acquisizione completa delle prove", "双模式 — 完整证据采集", "雙模式 — 完整證據採集", "Ambos modos — captura completa de pruebas", "Ambos modos — captura completa de evidências")
-    readonly property string capturePreflightTitle: t("A few things to check before we begin.", "Quelques vérifications avant de commencer.", "Einige Dinge, die vor dem Start zu prüfen sind.", "Несколько вещей, которые нужно проверить перед началом.", "Alcune cose da verificare prima di iniziare.", "开始前需要确认的几件事。", "開始前需要確認的幾件事。", "Algunas cosas que verificar antes de comenzar.", "Algumas coisas para verificar antes de começar.")
-    readonly property string captureDndRequired: t("Focus / Do Not Disturb must be enabled", "Le mode Focus / Ne pas déranger doit être activé", "Fokus / Nicht stören muss aktiviert sein", "Режим «Фокусировка / Не беспокоить» должен быть включен", "Focus / Non disturbare deve essere abilitato", "必须开启专注模式 / 勿扰模式", "必須開啟專注模式 / 勿擾模式", "Focus / No molestar debe estar activado", "Foco / Não perturbe deve estar ativado")
-    readonly property string captureDndInstructions: t("This device requires manual setup before notifications can be suppressed.\n\n1. Open Settings below\n2. Enable Focus / DND (or grant notification access)\n3. Return here and tap \"I'm Ready\"", "Cet appareil nécessite une configuration manuelle avant de pouvoir supprimer les notifications.\n\n1. Ouvrez Réglages ci-dessous\n2. Activez Focus / NPD (ou autorisez l'accès aux notifications)\n3. Revenez ici et appuyez sur « Je suis prêt »", "Dieses Gerät erfordert eine manuelle Einrichtung, bevor Benachrichtigungen unterdrückt werden können.\n\n1. Öffnen Sie die Einstellungen unten\n2. Aktivieren Sie Fokus / Nicht stören (oder erteilen Sie Benachrichtigungszugriff)\n3. Kehren Sie hierher zurück und tippen Sie auf „Ich bin bereit\"", "Это устройство требует ручной настройки перед подавлением уведомлений.\n\n1. Откройте Настройки ниже\n2. Включите Фокусировку / НБ (или предоставьте доступ к уведомлениям)\n3. Вернитесь сюда и нажмите «Я готов»", "Questo dispositivo richiede una configurazione manuale prima di poter sopprimere le notifiche.\n\n1. Apri Impostazioni qui sotto\n2. Attiva Focus / Non disturbare (o concedi l'accesso alle notifiche)\n3. Torna qui e tocca \"Sono pronto\"", "此设备需要手动设置才能屏蔽通知。\n\n1. 点击下方打开设置\n2. 开启专注模式 / 勿扰模式（或授予通知权限）\n3. 返回此处并点击「我准备好了」", "此裝置需要手動設定才能屏蔽通知。\n\n1. 點擊下方打開設定\n2. 開啟專注模式 / 勿擾模式（或授予通知權限）\n3. 返回此處並點擊「我準備好了」", "Este dispositivo requiere configuración manual antes de poder suprimir las notificaciones.\n\n1. Abra Ajustes abajo\n2. Active Focus / No molestar (o conceda acceso a notificaciones)\n3. Regrese aquí y toque \"Estoy listo\"", "Este dispositivo requer configuração manual antes que as notificações possam ser suprimidas.\n\n1. Abra Configurações abaixo\n2. Ative Foco / Não perturbe (ou conceda acesso às notificações)\n3. Volte aqui e toque em \"Estou pronto\"")
-    readonly property string captureOpenSettings: t("Open Settings", "Ouvrir Réglages", "Einstellungen öffnen", "Открыть настройки", "Apri Impostazioni", "打开设置", "開啟設定", "Abrir Ajustes", "Abrir Configurações")
-    readonly property string captureImReady: t("I'm Ready", "Je suis prêt", "Ich bin bereit", "Я готов", "Sono pronto", "我准备好了", "我準備好了", "Estoy listo", "Estou pronto")
-    readonly property string captureStartingIn: t("Starting capture in", "Démarrage de la capture dans", "Aufnahme startet in", "Захват начнется через", "Avvio cattura tra", "采集将在", "採集將在", "Inicio de captura en", "Início da captura em")
-    readonly property string captureScreenshotsCount: t("Screenshots captured", "Captures d'écran prises", "Screenshots aufgenommen", "Скриншотов сделано", "Screenshot acquisiti", "截图数量", "截圖數量", "Capturas realizadas", "Capturas feitas")
-    // 5WHY: Key renamed from captureRecordingSaved — the label text is "Screen
-    // recording" (a stat row title), not "Recording saved" (the badge text).
-    readonly property string captureRecordingLabel2: t("Screen recording", "Enregistrement d'écran", "Bildschirmaufnahme", "Запись экрана", "Registrazione schermo", "屏幕录制", "螢幕錄製", "Grabación de pantalla", "Gravação de tela")
-    readonly property string captureSavedBadge: t("Saved", "Enregistré", "Gespeichert", "Сохранено", "Salvato", "已保存", "已儲存", "Guardado", "Salvo")
-    readonly property string captureTotalDuration: t("Total duration", "Durée totale", "Gesamtdauer", "Общая длительность", "Durata totale", "总耗时", "總耗時", "Duración total", "Duração total")
-    readonly property string captureCancelShort: t("Cancel", "Annuler", "Abbrechen", "Отмена", "Annulla", "取消", "取消", "Cancelar", "Cancelar")
-    // ── Legacy capture keys (kept for backward compat) ──────────────
-    readonly property string captureDiagUrl: t("Diagnostic URL", "URL de diagnostic", "Diagnose-URL", "URL диагностики", "URL diagnostica", "诊断网址", "診斷網址", "URL de diagnóstico", "URL de diagnóstico")
-    readonly property string captureStartBtn: t("Start Capture", "Démarrer", "Aufnahme starten", "Начать захват", "Avvia cattura", "开始采集", "開始採集", "Iniciar captura", "Iniciar captura")
-    readonly property string capturePrepare: t("Prepare to Capture", "Préparez-vous", "Aufnahme vorbereiten", "Подготовка к захвату", "Preparati alla cattura", "准备采集", "準備採集", "Preparar captura", "Preparar captura")
-    readonly property string captureDoNotTouch: t("Please do not touch the device during capture", "Veuillez ne pas toucher l'appareil pendant la capture", "Bitte Gerät während der Aufnahme nicht berühren", "Пожалуйста, не трогайте устройство во время захвата", "Si prega di non toccare il dispositivo durante la cattura", "采集期间请勿触碰设备", "採集期間請勿觸碰設備", "No toque el dispositivo durante la captura", "Não toque no dispositivo durante a captura")
-    readonly property string captureScreenAwake: t("Screen will stay awake during the session", "L'écran restera allumé pendant la session", "Bildschirm bleibt während der Sitzung an", "Экран не погаснет во время сеанса", "Lo schermo resterà acceso durante la sessione", "屏幕将在会话期间保持常亮", "螢幕將在工作階段期間保持常亮", "La pantalla permanecerá encendida durante la sesión", "A tela permanecerá ligada durante a sessão")
-    readonly property string captureEstTime: t("Estimated duration: ~45 seconds", "Durée estimée : ~45 secondes", "Geschätzte Dauer: ~45 Sekunden", "Примерная длительность: ~45 секунд", "Durata stimata: ~45 secondi", "预计耗时：约45秒", "預計耗時：約45秒", "Duración estimada: ~45 segundos", "Duração estimada: ~45 segundos")
-    readonly property string captureCancelBtn: t("Cancel Capture", "Annuler la capture", "Aufnahme abbrechen", "Отменить захват", "Annulla cattura", "取消采集", "取消採集", "Cancelar captura", "Cancelar captura")
-    readonly property string captureComplete: t("Capture Complete", "Capture terminée", "Aufnahme abgeschlossen", "Захват завершен", "Cattura completata", "采集完成", "採集完成", "Captura completada", "Captura concluída")
-    readonly property string captureFailed: t("Capture Failed", "Échec de la capture", "Aufnahme fehlgeschlagen", "Ошибка захвата", "Cattura fallita", "采集失败", "採集失敗", "Captura fallida", "Captura falhou")
-    // ── Capture overlay load error (shown when Loader enters Error state) ──
-    readonly property string captureLoadErrorTitle: t(
-        "Capture Overlay Load Error",
-        "Erreur de chargement de la capture",
-        "Fehler beim Laden der Aufnahme",
-        "Ошибка загрузки захвата",
-        "Errore di caricamento della cattura",
-        "采集面板加载错误",
-        "採集面板載入錯誤",
-        "Error al cargar la captura",
-        "Erro ao carregar a captura"
-    )
-    readonly property string captureLoadErrorMsg: t(
-        "The capture panel could not be loaded.\nCheck QML imports and resource paths.",
-        "Le panneau de capture n'a pas pu être chargé.\nVérifiez les imports QML et les chemins de ressources.",
-        "Das Aufnahme-Panel konnte nicht geladen werden.\nÜberprüfen Sie QML-Imports und Ressourcenpfade.",
-        "Панель захвата не может быть загружена.\nПроверьте импорты QML и пути к ресурсам.",
-        "Il pannello di cattura non può essere caricato.\nControllare gli import QML e i percorsi delle risorse.",
-        "无法加载采集面板。\n请检查 QML 导入和资源路径。",
-        "無法載入採集面板。\n請檢查 QML 導入和資源路徑。",
-        "No se pudo cargar el panel de captura.\nVerifique las importaciones QML y las rutas de recursos.",
-        "O painel de captura não pôde ser carregado.\nVerifique as importações QML e os caminhos de recursos."
-    )
-    readonly property string capturePlaceholderUrl: t(
-        "Enter diagnostic URL...",
-        "Entrez l'URL de diagnostic...",
-        "Diagnose-URL eingeben...",
-        "Введите URL диагностики...",
-        "Inserisci URL diagnostica...",
-        "输入诊断网址...",
-        "輸入診斷網址...",
-        "Ingrese URL de diagnóstico...",
-        "Insira URL de diagnóstico..."
-    )
-    readonly property string captureDone: t("Done", "Terminé", "Fertig", "Готово", "Fatto", "完成", "完成", "Hecho", "Concluído")
-    readonly property string captureDismiss: t("Dismiss", "Fermer", "Schließen", "Закрыть", "Chiudi", "关闭", "關閉", "Cerrar", "Fechar")
-
-    // 5WHY: Removed ⚠/✓ emoji prefix — CaptureResultSummary already renders
-    // a warning/check AppIcon next to this text.  Duplicating the icon as
-    // Unicode in the text string creates a double-icon visual artifact.
-    readonly property string captureDndIosMsg: t(
-        "Focus/DND was enabled — tap here to open Settings and disable it",
-        "Le mode Focus/NPD était activé — appuyez ici pour ouvrir Réglages et le désactiver",
-        "Fokus/Nicht-stören war aktiviert — tippen Sie hier, um die Einstellungen zu öffnen",
-        "Был включен режим фокусировки/НБ — нажмите здесь, чтобы открыть Настройки",
-        "Focus/Non disturbare era attivo — tocca qui per aprire Impostazioni",
-        "专注模式/勿扰模式已开启 — 点击此处前往设置中关闭",
-        "專注模式/勿擾模式已開啟 — 點此前往設定中關閉",
-        "Focus/No molestar estaba activado — pulse aquí para abrir Ajustes",
-        "Foco/Não perturbe estava ativo — toque aqui para abrir Configurações")
-    readonly property string captureDndAndroidMsg: t(
-        "Focus/DND has been automatically disabled",
-        "Le mode Focus/NPD a été automatiquement désactivé",
-        "Fokus/Nicht-stören wurde automatisch deaktiviert",
-        "Режим фокусировки/НБ был автоматически отключен",
-        "Focus/Non disturbare è stato disattivato automaticamente",
-        "专注模式/勿扰模式已自动关闭",
-        "專注模式/勿擾模式已自動關閉",
-        "Focus/No molestar se ha desactivado automáticamente",
-        "Foco/Não perturbe foi desativado automaticamente")
     readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")

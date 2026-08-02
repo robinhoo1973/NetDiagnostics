@@ -43,21 +43,26 @@ bool DiagnosticConfig::isDiagEnabled(int diagIdInt) const {
     return m_enabledDiags.contains(static_cast<DiagId>(diagIdInt));
 }
 
-void DiagnosticConfig::setDiagEnabled(int diagIdInt, bool enabled) {
-    if (!isValidDiagId(diagIdInt)) return;
+bool DiagnosticConfig::setDiagEnabled(int diagIdInt, bool enabled) {
+    if (!isValidDiagId(diagIdInt)) return false;
     auto id = static_cast<DiagId>(diagIdInt);
+    if (m_enabledDiags.contains(id) == enabled) return false;
     if (enabled) m_enabledDiags.insert(id);
     else m_enabledDiags.remove(id);
+    return true;
 }
 
 // ── Group enable/disable ──────────────────────────────────────────────
-void DiagnosticConfig::setGroupEnabled(int groupInt, bool enabled) {
-    if (!isValidGroup(groupInt)) return;
+bool DiagnosticConfig::setGroupEnabled(int groupInt, bool enabled) {
+    if (!isValidGroup(groupInt)) return false;
     auto g = static_cast<DiagGroup>(groupInt);
+    if (enabled ? isGroupAllEnabled(groupInt) : !isGroupAnyEnabled(groupInt))
+        return false;
     for (auto id : diagIdsForGroup(g)) {
         if (enabled) m_enabledDiags.insert(id);
         else m_enabledDiags.remove(id);
     }
+    return true;
 }
 
 bool DiagnosticConfig::isGroupAllEnabled(int groupInt) const {

@@ -24,17 +24,17 @@ public:
 
     // ── Diag enable/disable ──────────────────────────────────────────
     bool isDiagEnabled(int diagIdInt) const;
-    void setDiagEnabled(int diagIdInt, bool enabled);
+    bool setDiagEnabled(int diagIdInt, bool enabled);
 
     // ── Group enable/disable ─────────────────────────────────────────
-    void setGroupEnabled(int groupInt, bool enabled);
+    bool setGroupEnabled(int groupInt, bool enabled);
     bool isGroupAllEnabled(int groupInt) const;
     bool isGroupAnyEnabled(int groupInt) const;
 
     // ── Group queries ────────────────────────────────────────────────
     static QStringList groupLabels();
-    static const QVector<DiagId>& allDiagIds();
-    static const QVector<DiagId>& diagIdsForGroup(DiagGroup group);
+    static QVector<DiagId> const& allDiagIds();
+    static QVector<DiagId> const& diagIdsForGroup(DiagGroup group);
     static DiagGroup diagGroup(DiagId id);
 
     // ── Group stats (read from results) ──────────────────────────────

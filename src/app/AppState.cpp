@@ -4,13 +4,10 @@
 #include "app/AppState.h"
 #if defined(PLATFORM_IOS)
 #include <ifaddrs.h>
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
 #include <QJniObject>
 #endif
-#include "Common/Model/CaptureFeatureGate.h"
-#if defined(PLATFORM_MOBILE)
-#include "EvidenceCapture/CaptureService.h"
-#include "EvidenceCapture/CaptureOrchestrator.h"
 #endif
 #include "Common/Model/DiagNames.h"
 #include "Common/Services/DnsResolver.h"
@@ -18,6 +15,7 @@
 #include "Diagnostics/Controller/TaskFactory.h"
 #include "Common/Utils/DebugSwitch.h"
 #include "Common/Utils/Logger.h"
+#include "Common/Utils/TargetRedaction.h"
 #include <QtConcurrent/QtConcurrent>
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/G3/G3Diagnostics.h"
@@ -68,12 +66,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_reportCtrl = new ReportController(this, this);
     m_settingsCtrl = new SettingsController(this, this);
 
-    // ── Automated capture service (screenshots during diagnostics) ──────────
-#if defined(PLATFORM_MOBILE)
-    m_captureService = new CaptureService(this);
-    m_captureOrch = new CaptureOrchestrator(this, this);
-#endif
-
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.
     // 5WHY (2nd): the lambda handled G4/G5 auto-management but never
@@ -83,8 +75,13 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     connect(m_targetModel, &TargetModel::targetChanged, this, [this]() {
         bool has = !m_targetModel->isEmpty();
         bool isUrl = m_targetModel->isUrl();
-        setGroupEnabled(3, has);
-        setGroupEnabled(4, has && isUrl);
+        // 5WHY: Every target keystroke previously called AppState's public
+        // setGroupEnabled() twice. That always persisted QSettings and bumped
+        // stateVersion, even when G4/G5 availability was unchanged. Target
+        // availability is transient runtime state, not a user preference;
+        // update it directly through the controller without persistence.
+        m_configCtrl->setAutomaticGroupEnabled(3, has);
+        m_configCtrl->setAutomaticGroupEnabled(4, has && isUrl);
         bool had3 = m_activeGroups.contains(3);
         bool had4 = m_activeGroups.contains(4);
         if (has) { m_activeGroups.insert(3); if (isUrl) m_activeGroups.insert(4); }
@@ -95,6 +92,9 @@ AppState::AppState(QObject* parent) : QObject(parent) {
         m_resultsModel->setSchemeFilter(m_targetModel->scheme(), isUrl);
         // Forward to QML so bindings on target/targetScheme/etc. re-evaluate
         emit targetChanged();
+        // One target mutation now produces one global refresh after all
+        // derived state has settled, including structured-field setters.
+        bumpVersion();
     });
 
     // Forward ReportController signals
@@ -114,9 +114,6 @@ AppState::AppState(QObject* parent) : QObject(parent) {
             this, &AppState::languageChanged);
     connect(m_settingsCtrl, &SettingsController::themeChanged,
             this, &AppState::themeChanged);
-
-    // Enable G1-G3 by default; G4/G5 are auto-managed based on target
-    m_configCtrl->config().enableDefaultGroups();
 
     // Restore persisted settings (language/theme/diags handled by Controllers)
     // 5WHY: null check was dead code — m_settingsCtrl initialized in ctor, never cleared.
@@ -188,36 +185,6 @@ int AppState::themeMode() const { return m_settingsCtrl->themeMode(); }
 bool AppState::isPremium() const { return m_settingsCtrl->isPremium(); }
 bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInProgress(); }
 
-// ── Hidden capture feature gate ──────────────────────────────────────
-bool AppState::isCaptureFeatureEnabled() const {
-    return CaptureFeatureGate::isFeatureEnabled();
-}
-
-// 5WHY: accessors always declared so QML context properties are never
-// undefined on any platform. On desktop they return nullptr.
-CaptureService* AppState::captureService() const {
-#if defined(PLATFORM_MOBILE)
-    return m_captureService;
-#else
-    return nullptr;
-#endif
-}
-CaptureOrchestrator* AppState::captureOrchestrator() const {
-#if defined(PLATFORM_MOBILE)
-    return m_captureOrch;
-#else
-    return nullptr;
-#endif
-}
-void AppState::enableCaptureFeature() {
-    CaptureFeatureGate::setFeatureEnabled(true);
-    emit captureFeatureChanged();
-}
-void AppState::disableCaptureFeature() {
-    CaptureFeatureGate::setFeatureEnabled(false);
-    emit captureFeatureChanged();
-}
-
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {
     m_settingsCtrl->setLanguageIndex(index);
@@ -241,9 +208,8 @@ void AppState::setTargetPath(const QString& p)      { m_targetModel->setPath(p);
 // ── Target (delegated to TargetModel — G4/G5 managed via signal connection) ─
 void AppState::setTarget(const QString& t) {
     m_targetModel->setTarget(t);
-    // TargetModel emits targetChanged → AppState lambda handles G4/G5
-    emit targetChanged();
-    bumpVersion();
+    // TargetModel emits targetChanged → AppState lambda handles G4/G5 and
+    // performs the single post-mutation stateVersion bump.
 }
 
 // ── Group labels ───────────────────────────────────────────────────────────
@@ -257,8 +223,12 @@ bool AppState::isDiagEnabled(int diagIdInt) const { return m_configCtrl->config(
 // on app restart.  Now routes through the controller, which persists
 // enabledDiags to QSettings on every change.  AppState::saveSettings()
 // only stores activeGroups and is not needed here.
-void AppState::setDiagEnabled(int diagIdInt, bool enabled) { m_configCtrl->setDiagEnabled(diagIdInt, enabled); bumpVersion(); }
-void AppState::setGroupEnabled(int groupInt, bool enabled) { m_configCtrl->setGroupEnabled(groupInt, enabled); bumpVersion(); }
+void AppState::setDiagEnabled(int diagIdInt, bool enabled) {
+    if (m_configCtrl->setDiagEnabled(diagIdInt, enabled)) bumpVersion();
+}
+void AppState::setGroupEnabled(int groupInt, bool enabled) {
+    if (m_configCtrl->setGroupEnabled(groupInt, enabled)) bumpVersion();
+}
 bool AppState::isGroupAllEnabled(int groupInt) const { return m_configCtrl->config().isGroupAllEnabled(groupInt); }
 bool AppState::isGroupAnyEnabled(int groupInt) const { return m_configCtrl->config().isGroupAnyEnabled(groupInt); }
 
@@ -306,7 +276,8 @@ bool AppState::isCellularData() const {
     }
     freeifaddrs(ifs);
     return hasCellular && !hasWiFi;  // only warn if cellular is the sole connection
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
     // Android: use ConnectivityManager via JNI to check active transports.
     // Returns true only when TRANSPORT_CELLULAR is active AND TRANSPORT_WIFI
     // is NOT active — same logic as iOS (warn only on cellular-only).
@@ -332,6 +303,7 @@ bool AppState::isCellularData() const {
     return hasCell && !hasWiFi;
 #else
     return false;  // desktop — not applicable
+#endif
 #endif
 }
 
@@ -364,7 +336,22 @@ void AppState::runDiagnostics() {
         m_runGeneration.fetch_add(1, std::memory_order_release);
     }
 
-    TRACE(" runDiagnostics start target='%s'\n", m_targetModel->target().toUtf8().constData());
+    TRACE(" runDiagnostics start target='%s'\n", TargetRedaction::forDisplay(m_targetModel->target()).toUtf8().constData());
+
+    // 5WHY: Both QML run buttons block invalid targets, but automated capture,
+    // tests, and future native entry points call this method directly. Without
+    // the same guard here, malformed targets could still schedule G4/G5 work
+    // and produce misleading network errors. AppState is the execution
+    // boundary, so it must enforce the invariant independently of the UI.
+    const QString validationError = m_targetModel->validationError();
+    if (!m_targetModel->isEmpty() && !validationError.isEmpty()) {
+        m_errorMessage = validationError;
+        m_runStatus = RunStatus::Error;
+        Logger::instance().event(QStringLiteral("Diagnostic run blocked by invalid target"));
+        emit runStatusChanged();
+        bumpVersion();
+        return;
+    }
 
     // Clear probe cache before each diagnostic run
     GeoProbe::instance().clear();
@@ -477,18 +464,6 @@ void AppState::runDiagnostics() {
     Logger::instance().event(QStringLiteral("Starting diagnostic run: %1 tests in %2 groups")
                               .arg(m_totalDiags).arg(m_pendingGroups.size()));
 
-    // ── Automated capture: start session if feature is enabled ──────────
-    // 5WHY: When CaptureOrchestrator triggers a diagnostic via its own
-    // RunDiagnostic step, CaptureService::startSession() would start a
-    // second, competing capture session.  Skip auto-capture when the
-    // orchestrator is already driving the flow — it manages its own captures.
-#if defined(PLATFORM_MOBILE)
-    if (CaptureFeatureGate::isFeatureEnabled()
-        && !(m_captureOrch && m_captureOrch->isRunning())) {
-        m_captureService->startSession();
-    }
-#endif
-
     startNextGroup();
 }
 
@@ -505,25 +480,8 @@ void AppState::startNextGroup() {
         bumpVersion();
         Logger::instance().event(QStringLiteral("Diagnostic run complete"));
 
-        // ── Automated capture: end session on diagnostic complete ──────────
-        // 5WHY: endSession() already captures "99_session_end" with the
-        // final screen state. The separate "99_run_complete" capture was
-        // redundant — it would produce two near-identical screenshots.
-#if defined(PLATFORM_MOBILE)
-        if (CaptureFeatureGate::isFeatureEnabled()) {
-            m_captureService->endSession();
-        }
-#endif
         return;
     }
-
-    // ── Automated capture: screenshot at group boundary (G{N}_complete) ──
-#if defined(PLATFORM_MOBILE)
-    if (CaptureFeatureGate::isFeatureEnabled() && m_currentGroupIdx > 0) {
-        int prevGroup = m_currentGroupIdx;  // 1-indexed: G1→1, G2→2, etc.
-        m_captureService->capture(QStringLiteral("G%1_complete").arg(prevGroup));
-    }
-#endif
 
     auto& gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
@@ -570,7 +528,7 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
         // Now includes the DiagId value and target to help diagnose Config/enum mismatches.
         onDiagFinished(id, DiagnosticResult::error(id,
             QStringLiteral("Unknown DiagId %1 (target: %2) — check Config/diagIdsForGroup for unregistered tests")
-            .arg(static_cast<int>(id)).arg(m_targetModel->target())));
+            .arg(static_cast<int>(id)).arg(TargetRedaction::forDisplay(m_targetModel->target()))));
         // 5WHY: The null-task path bypasses the connect() lambda's
         // m_activeGroupDone counter. Increment it here to prevent group deadlock.
         int done = m_activeGroupDone.fetch_add(1) + 1;
@@ -625,16 +583,6 @@ void AppState::cancel() {
     if (m_runStatus != RunStatus::Running) return;
     m_runStatus = RunStatus::Cancelled;
     m_currentDiagName.clear();
-
-    // 5WHY: AppState::cancel() never cleaned up the auto-capture session,
-    // leaving m_captureService->m_active=true.  Subsequent diagnostic runs
-    // silently skipped capture because startSession() returned early when
-    // m_active was already set.  Always end the capture session on cancel.
-#if defined(PLATFORM_MOBILE)
-    if (m_captureService && m_captureService->isActive()) {
-        m_captureService->cancelSession();
-    }
-#endif
 
     // 5WHY: _cellularWarnVisible was cleared by QML callers (Cancel button,
     // backdrop tap, nav dismiss) before calling cancel(), but cancel() itself
@@ -699,7 +647,7 @@ QString AppState::staticDiagDisplayName(DiagId id) {
 
 ReportData AppState::buildReportData() const {
     ReportData d;
-    d.target = m_targetModel->isEmpty() ? QStringLiteral("(none)") : m_targetModel->target().toHtmlEscaped();
+    d.target = TargetRedaction::forDisplay(m_targetModel->target()).toHtmlEscaped();
     d.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
     d.appVersion = appVersion();
     d.buildNumber = buildNumber();

@@ -8,40 +8,15 @@ ColumnLayout {
     spacing: 0
     // ── Advanced (Port / User / Pass) toggle ──────────────────────────────
     property bool advancedExpanded: false
-    // ── Scheme model — populated once in Component.onCompleted ─────────────
-    property ListModel schemeModel: ListModel { id: _schemeModel }
-    // ── _syncing removed — dead code. QML's binding engine already prevents
-    // re-entrant property updates (value unchanged → no NOTIFY signal emitted).
-
-    Component.onCompleted: {
-        // ── Populate scheme model BEFORE ComboBox renders ──────────────
-        var schemes = appState.supportedSchemes
-        var groups = [
-            {schemes: ["https","http"]},
-            {schemes: ["ftp","ftps","ssh","sftp","scp"]},
-            {schemes: ["smtp","smtps","imap","imaps","pop3","pop3s"]},
-            {schemes: ["mysql","postgresql","redis","mongodb","mssql"]},
-            {schemes: ["telnet","rdp"]},
-            {schemes: ["ldap","ldaps"]},
-            {schemes: ["mqtt","mqtts"]}
-        ]
-        for (var gi = 0; gi < groups.length; gi++) {
-            var g = groups[gi]
-            for (var si = 0; si < g.schemes.length; si++) {
-                var s = g.schemes[si]
-                if (schemes.indexOf(s) >= 0) {
-                    _schemeModel.append({scheme: s, schemeGroup: gi})
-                }
-            }
-        }
-        // Select https by default in ComboBox
-        for (var i = 0; i < _schemeModel.count; i++) {
-            if (_schemeModel.get(i).scheme === "https") {
-                schemeCombo.currentIndex = i
-                break
-            }
-        }
-    }
+    // 5WHY: This reusable widget read `page._snap…` from an implicit parent
+    // ID. It could only work beneath one specific DiagnosticScreen instance
+    // and failed when loaded independently. Keep validation state explicit
+    // and self-contained; a future host can override validationError if it
+    // needs a snapshot rather than this live default.
+    property string validationError: appState.targetValidationErrorText
+    readonly property string validationIconName: validationError !== "" ? "badge-warning" : "badge-info"
+    readonly property color validationIconColor: validationError !== "" ? ThemeEngine.colors.warnYellow
+                                                                          : ThemeEngine.colors.infoBlue
 
     RowLayout {
         AppIcon { name: "monitor"; size: 13; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
@@ -54,162 +29,27 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true; implicitHeight: 40; radius: 8
         color: ThemeEngine.colors.input
-        border { width: hostField.activeFocus || schemeCombo.activeFocus ? 1.5 : 1
-                 color: page._snapTargetError !== "" ? ThemeEngine.colors.failRed
-                        : (hostField.activeFocus || schemeCombo.activeFocus) ? ThemeEngine.colors.secondary
+        border { width: hostField.activeFocus || schemeCombo.activeFocus ? 2 : 1
+               color: root.validationError !== "" ? ThemeEngine.colors.failRed
+                        : (hostField.activeFocus || schemeCombo.activeFocus) ? ThemeEngine.colors.borderFocused
                         : ThemeEngine.colors.borderCard }
 
         RowLayout {
             anchors { fill: parent; leftMargin: 6; rightMargin: 4 }
             AppIcon {
-                name: page._snapIconName; size: 12; color: page._snapIconColor
+                name: root.validationIconName; size: 12; color: root.validationIconColor
             }
             Item { width: 2 }
 
-            // ── Scheme ComboBox (grouped, with icons) ─────────────────────
-            ComboBox {
+            // Shared scheme catalogue / popup keeps every target-entry
+            // surface semantically and visually synchronized.
+            SchemeSelector {
                 id: schemeCombo
                 Layout.preferredWidth: Math.min(105, parent.width * 0.28)
                 Layout.fillHeight: true
                 flat: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11
                 enabled: appState.runStatus !== 1
-
-                displayText: currentText + "://"
-
-                // Theme-colored display text
-                contentItem: Label {
-                    text: schemeCombo.displayText
-                    font: schemeCombo.font
-                    color: ThemeEngine.colors.textPrimary
-                    verticalAlignment: Text.AlignVCenter
-                    leftPadding: 0
-                }
-
-                textRole: "scheme"
-                model: root.schemeModel
-
-                // ── Themed popup ──────────────────────────────────────────
-                popup: Popup {
-                    y: schemeCombo.height
-                    width: 210
-                    height: Math.min(implicitHeight, 280)
-                    padding: 4
-                    background: Rectangle {
-                        color: ThemeEngine.colors.card
-                        border { width: 1; color: ThemeEngine.colors.borderCard }
-                        radius: 8
-                    }
-
-                    contentItem: ListView {
-                        clip: true
-                        implicitHeight: contentHeight
-                        model: schemeCombo.popup.visible ? schemeCombo.delegateModel : null
-                        ScrollIndicator.vertical: ScrollIndicator {}
-                    }
-                }
-
-                delegate: ItemDelegate {
-                    width: 210
-                    height: {
-                        var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
-                        var cur  = root.schemeModel.get(model.index)
-                        if (!prev || prev.schemeGroup !== cur.schemeGroup) return 48
-                        return 32
-                    }
-                    padding: 6; leftPadding: 12
-
-                    readonly property bool isFirst: {
-                        var prev = model.index > 0 ? root.schemeModel.get(model.index - 1) : null
-                        var cur  = root.schemeModel.get(model.index)
-                        return !prev || prev.schemeGroup !== cur.schemeGroup
-                    }
-
-                    // Group icon — only for headers (not per-scheme)
-                    // 5WHY: schemeGroup 5 = LDAP/LDAPS ("Directory" service),
-                    // unrelated to the "target host" concept. It previously
-                    // rode along with the blanket target→monitor icon rename
-                    // (which was meant only for "target host machine" sites);
-                    // using "monitor" here would incorrectly imply a server/
-                    // computer meaning. Falls back to the map's own neutral
-                    // default ("circle") instead.
-                    // 5WHY: schemeGroup 3 = Database group previously used
-                    // the "config" (settings-slider) icon, an unrelated
-                    // leftover from an earlier bulk edit — added a dedicated
-                    // "database" (cylinder-stack) icon for correct semantics.
-                    readonly property string groupIcon: ({
-                        0:"globe",1:"file-transfer",2:"mail",3:"database",
-                        4:"wifi",5:"circle",6:"timer"
-                    }[schemeGroup] || "circle")
-
-                    // Group label — i18n via schemeGroup name lookup
-                    readonly property string groupLabel: ({
-                        0:Tr.schemeGroupWeb, 1:Tr.schemeGroupFile,
-                        2:Tr.schemeGroupEmail, 3:Tr.schemeGroupDb,
-                        4:Tr.schemeGroupRemote, 5:Tr.schemeGroupDir,
-                        6:Tr.schemeGroupMsg
-                    }[schemeGroup] || "")
-
-                    contentItem: ColumnLayout {
-                        spacing: 0
-                        // ── Group header (icon + label + separator) ─────
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: isFirst ? 20 : 0
-                            color: "transparent"
-                            visible: isFirst
-                            // Separator line
-                            Rectangle {
-                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                                height: 1; color: ThemeEngine.colors.borderCard
-                            }
-                            // Label pill (left-aligned with icon)
-                            RowLayout {
-                                anchors { left: parent.left; leftMargin: 0; verticalCenter: parent.verticalCenter }
-                                spacing: 6
-                                AppIcon {
-                                    name: groupIcon; size: 12
-                                    color: ThemeEngine.colors.primary
-                                }
-                                Label {
-                                    text: groupLabel
-                                    font.family: ThemeEngine.monoFont; font.pixelSize: 8
-                                    font.weight: Font.Bold; color: ThemeEngine.colors.textMuted
-                                    background: Rectangle {
-                                        color: ThemeEngine.colors.card
-                                        anchors.fill: parent
-                                        anchors.leftMargin: -2
-                                        anchors.rightMargin: -4
-                                    }
-                                }
-                            }
-                        }
-                        // ── Scheme row (left-indented, no icon) ─────────
-                        Label {
-                            Layout.fillWidth: true; Layout.fillHeight: true
-                            text: scheme + "://"
-                            font.family: ThemeEngine.monoFont; font.pixelSize: 12
-                            color: ThemeEngine.colors.textPrimary
-                            verticalAlignment: Text.AlignVCenter
-                            leftPadding: 2
-                        }
-                    }
-
-                    highlighted: model.scheme === schemeCombo.currentText
-                    background: Rectangle {
-                        color: highlighted ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
-                        radius: 4
-                    }
-                }
-
-                // ── Scheme change handler ─────────────────────────────────
-                // 5WHY: _syncing guard removed — dead code. QML binding engine
-                // prevents re-entrant updates (value unchanged → no NOTIFY emitted).
-                onCurrentTextChanged: {
-                    if (currentText && appState.targetScheme !== currentText) {
-                        appState.targetScheme = currentText
-                    }
-                }
             }
 
             // ── Host / Path field ────────────────────────────────────────
@@ -293,7 +133,7 @@ ColumnLayout {
             Layout.preferredWidth: Math.min(80, parent.width * 0.22)
             implicitHeight: 32; radius: 6
             color: Qt.alpha(ThemeEngine.colors.surface, 0.4)
-            border { width: 1; color: portField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
+            border { width: portField.activeFocus ? 2 : 1; color: portField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
             TextField {
                 id: portField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -314,7 +154,7 @@ ColumnLayout {
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 32; radius: 6
             color: Qt.alpha(ThemeEngine.colors.surface, 0.4)
-            border { width: 1; color: userField.activeFocus ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
+            border { width: userField.activeFocus ? 2 : 1; color: userField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
             TextField {
                 id: userField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
@@ -325,14 +165,18 @@ ColumnLayout {
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
                 background: Item {}
-                onTextChanged: appState.targetUsername = text.trim()
+                onTextChanged: appState.targetUsername = text
             }
         }
         // Password
         Rectangle {
             Layout.fillWidth: true; implicitHeight: 32; radius: 6
             color: Qt.alpha(ThemeEngine.colors.surface, 0.4)
-            border { width: 1; color: passField.activeFocus || passVisBtn.containsMouse ? ThemeEngine.colors.secondary : ThemeEngine.colors.borderCard }
+            border {
+                width: passField.activeFocus || passToggle.activeFocus ? 2 : 1
+                color: passField.activeFocus || passToggle.activeFocus || passVisBtn.containsMouse
+                       ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard
+            }
             RowLayout {
                 anchors { fill: parent; leftMargin: 8; rightMargin: 2 }
                 spacing: 0
@@ -347,7 +191,7 @@ ColumnLayout {
                     enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter
                     background: Item {}
-                    onTextChanged: appState.targetPassword = text.trim()
+                    onTextChanged: appState.targetPassword = text
                     // 5WHY: Password visibility toggle — users enter credentials for
                     // MySQL, PostgreSQL, LDAP, etc. A typo in a hidden field produces
                     // silent auth failures with no feedback. Show/hide toggle reduces
@@ -359,9 +203,15 @@ ColumnLayout {
                 // 5WHY: Touch target was 36×28 despite Apple HIG requiring 44pt
                 // minimum in the comment.  Now matches the documented minimum.
                 Item {
+                    id: passToggle
                     implicitWidth: 44; implicitHeight: 44
                     visible: passField.text !== ""
                     Accessible.name: passField._showPass ? "Hide password" : "Show password"
+                    Accessible.role: Accessible.Button
+                    activeFocusOnTab: true
+                    function toggleVisibility() {
+                        passField._showPass = !passField._showPass
+                    }
                     AppIcon {
                         anchors.centerIn: parent
                         name: passField._showPass ? "check" : "close"
@@ -373,8 +223,15 @@ ColumnLayout {
                         id: passVisBtn
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: passField._showPass = !passField._showPass
+                        onClicked: passToggle.toggleVisibility()
                         hoverEnabled: true
+                    }
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                            || event.key === Qt.Key_Space) {
+                            passToggle.toggleVisibility()
+                            event.accepted = true
+                        }
                     }
                 }
             }
@@ -383,12 +240,12 @@ ColumnLayout {
 
     // ── Validation error ────────────────────────────────────────────────
     RowLayout {
-        visible: page._snapTargetError !== ""
+        visible: root.validationError !== ""
         spacing: 4
         AppIcon { name: "warning"; size: 12; color: ThemeEngine.colors.failRed }
         Label {
             Layout.fillWidth: true
-            text: page._snapTargetError || ""
+            text: root.validationError || ""
             font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.failRed
             wrapMode: Text.WordWrap
         }

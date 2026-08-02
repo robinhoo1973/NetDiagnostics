@@ -25,7 +25,6 @@ include(netdiag-target)    # configure_netdiag_target() + platform bundles
 set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
-    src/Common/Model/CaptureFeatureGate.cpp
     src/Common/Utils/Logger.cpp
     src/Common/Services/DnsResolver.cpp
     src/Common/Services/ServerDbUpdater.cpp
@@ -99,38 +98,6 @@ set(SOURCES
     src/Diagnostics/Model/G5/G5Mqtt.cpp
 )
 
-# ── Desktop-only platform sources (QProcess not available on iOS/Android) ──
-# 5WHY: PlatformRecording + PlatformKeepAwake use QProcess which doesn't
-# exist on iOS/Android. Guarding them here instead of with #ifdef stubs
-# avoids the need for QProcess headers at all on mobile platforms.
-# 5WHY: PlatformRecording + PlatformKeepAwake use QProcess (ffmpeg) on
-# desktop.  iOS/Android have separate native implementations in their
-# respective platform sections below — no stubs needed.
-if(NOT IOS AND NOT ANDROID)
-    list(APPEND SOURCES
-        src/Common/Platform/PlatformCapture.cpp
-        src/Common/Platform/PlatformKeepAwake.cpp
-        src/Common/Platform/PlatformRecording.cpp
-        src/Common/Platform/Desktop/PlatformFocus.cpp
-    )
-endif()
-
-# ── Evidence capture (iOS/Android only — no desktop support) ──────────────
-# 5WHY: Capture feature uses mobile-native APIs (ReplayKit, MediaProjection,
-# UIApplication idleTimerDisabled, etc.) that have no desktop equivalent.
-# Excluding from desktop builds avoids QProcess dependency and dead code.
-if(IOS OR ANDROID)
-    list(APPEND SOURCES
-
-        src/EvidenceCapture/CaptureService.cpp
-        src/EvidenceCapture/CaptureStateMachine.cpp
-        src/EvidenceCapture/NavigationAdapter.cpp
-        src/EvidenceCapture/ScrollController.cpp
-        src/EvidenceCapture/CaptureOrchestrator.cpp
-        src/EvidenceCapture/CaptureSessionDisplay.cpp
-    )
-endif()
-
 # ── Automated testing harness (ND_TESTING) ──────────────────────────────
 if(ND_TESTING)
     list(APPEND SOURCES
@@ -152,12 +119,6 @@ if(IOS)
         src/Common/Platform/Apple/IOS/PlatformShare.mm
         src/Common/Platform/Apple/IOS/PlatformStore.mm
         src/Common/Platform/Apple/IOS/PlatformPdfRenderer.mm
-        # Native capture implementations (replaces desktop ffmpeg stubs)
-        src/Common/Platform/Apple/IOS/PlatformCapture.mm
-        src/Common/Platform/Apple/IOS/PlatformKeepAwake.mm
-        src/Common/Platform/Apple/IOS/PlatformRecording.mm
-        # Programmatic focus / DND mode
-        src/Common/Platform/Apple/IOS/PlatformFocus.mm
 	)
 endif()
 if(ANDROID)
@@ -165,12 +126,6 @@ if(ANDROID)
         src/Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.cpp
         src/Common/Platform/Android/PlatformShare.cpp
         src/Common/Platform/Android/PlatformPdfRenderer.cpp
-        # Native capture implementations (replaces desktop ffmpeg stubs)
-        src/Common/Platform/Android/PlatformCapture.cpp
-        src/Common/Platform/Android/PlatformRecording.cpp
-        src/Common/Platform/Android/PlatformKeepAwake.cpp
-        # Programmatic focus / DND mode
-        src/Common/Platform/Android/PlatformFocus.cpp
 	)
 endif()
 	# ---- Native PDF renderer --- available on all platforms --------------

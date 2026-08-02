@@ -87,11 +87,11 @@ QVariantList ResultsModel::resultsForGroup(int groupInt) const {
     if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        if (m_results.contains(id)) {
-            const auto& r = m_results[id];
-            if (r.status == DiagStatus::Skipped) continue;
-            list.append(resultToVariantMap(r, false));
-        }
+        const auto resultIt = m_results.constFind(id);
+        if (resultIt == m_results.constEnd()) continue;
+        const auto& result = resultIt.value();
+        if (result.status == DiagStatus::Skipped) continue;
+        list.append(resultToVariantMap(result, false));
     }
     return list;
 }
@@ -102,13 +102,18 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
     auto g = static_cast<DiagGroup>(groupInt);
 
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
+        // 5WHY: contains() followed by const operator[] performs two tree
+        // searches and copies DiagnosticResult for every row during progress
+        // refresh. Keep one iterator for G5 filtering and result formatting.
+        const auto resultIt = m_results.constFind(id);
         // G5: hide pending tests that don't match the current URL scheme
-        if (g == DiagGroup::G5 && m_hasUrlScheme && !m_results.contains(id)) {
+        if (g == DiagGroup::G5 && m_hasUrlScheme && resultIt == m_results.constEnd()) {
             if (!g5DiagMatchesScheme(id, m_schemeFilter)) continue;
         }
-        if (m_results.contains(id)) {
-            if (m_results[id].status == DiagStatus::Skipped) continue;
-            list.append(resultToVariantMap(m_results[id], true));
+        if (resultIt != m_results.constEnd()) {
+            const auto& result = resultIt.value();
+            if (result.status == DiagStatus::Skipped) continue;
+            list.append(resultToVariantMap(result, true));
         } else if (!m_enabledDiags.isEmpty() && !m_enabledDiags.contains(static_cast<int>(id))) {
             // Disabled in config — show as pending with skip icon, not spinning
             QVariantMap m;
@@ -194,9 +199,10 @@ QVariantMap ResultsModel::groupStats(int groupInt) const {
     int total = m_totalPerGroup.value(g, 0);
     int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, completed = 0;
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
-        if (!m_results.contains(id)) continue;
+        const auto resultIt = m_results.constFind(id);
+        if (resultIt == m_results.constEnd()) continue;
         completed++;
-        switch (m_results[id].status) {
+        switch (resultIt.value().status) {
             case DiagStatus::Pass:    pass++; break;
             case DiagStatus::Warning: warn++; break;
             case DiagStatus::Fail:    fail++; break;
@@ -227,9 +233,10 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     QVariantMap m;
     if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return m;
     auto id = static_cast<DiagId>(diagIdInt);
-    if (!m_results.contains(id)) return m;
+    const auto resultIt = m_results.constFind(id);
+    if (resultIt == m_results.constEnd()) return m;
 
-    const auto& r = m_results[id];
+    const auto& r = resultIt.value();
     m["displayName"] = r.displayName;
     m["status"] = static_cast<int>(r.status);
     m["summary"] = r.summary;
