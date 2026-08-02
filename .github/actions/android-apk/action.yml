@@ -88,9 +88,26 @@ runs:
         # builds a debug-signed, zipaligned, installable APK via Gradle.
         cmake --build build --target apk
 
-        APK=$(find build -path '*outputs/apk/*' -name '*.apk' | head -1)
-        if [ -z "$APK" ]; then
-          echo "ERROR: no APK produced by the 'apk' target"; exit 1
+        # 5WHY: `find … | head -1` can select Gradle's
+        # `*-unsigned.apk` when both signed and unsigned variants exist.
+        # That artifact installs with "package has no certificates". Verify
+        # every non-unsigned candidate and publish exactly one signed APK.
+        APKSIGNER="$ANDROID_SDK_ROOT/build-tools/33.0.2/apksigner"
+        test -x "$APKSIGNER" || { echo "ERROR: apksigner not found: $APKSIGNER"; exit 1; }
+        mapfile -t CANDIDATES < <(find build -path '*outputs/apk/*' -name '*.apk' ! -name '*unsigned*.apk' | sort)
+        SIGNED_APKS=()
+        for candidate in "${CANDIDATES[@]}"; do
+          if "$APKSIGNER" verify --verbose "$candidate" >/dev/null 2>&1; then
+            SIGNED_APKS+=("$candidate")
+          fi
+        done
+        if [ "${#SIGNED_APKS[@]}" -ne 1 ]; then
+          echo "ERROR: expected exactly one signed APK, found ${#SIGNED_APKS[@]}"
+          echo "Candidates:"
+          printf '  %s\n' "${CANDIDATES[@]:-<none>}"
+          exit 1
         fi
+        APK="${SIGNED_APKS[0]}"
+        "$APKSIGNER" verify --verbose --print-certs "$APK"
         cp "$APK" "${{ inputs.output_name }}"
         ls -lh "${{ inputs.output_name }}"

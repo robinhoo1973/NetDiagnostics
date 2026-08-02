@@ -124,7 +124,9 @@ cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
-ninja -C build/android net_diagnostics
+# Builds a debug-signed, installable APK through androiddeployqt/Gradle.
+cmake --build build/android --target apk
+# Install the generated debug APK; do not install any *-unsigned.apk artifact.
 ```
 
 ### Debug Build (startup crash diagnostics)
@@ -148,8 +150,8 @@ ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostics
 cmake -G Ninja -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
       -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -B build -S .
 ninja -C build net_diagnostics
-# verify zero non-OS DLLs:
-objdump -p build/net_diagnostics.exe | grep "DLL Name"
+# The GitHub Actions static artifact is a portable ZIP: extract it and keep
+# NetDiagnostics.exe with its bundled GCC runtime DLLs.
 ```
 
 ## CI/CD

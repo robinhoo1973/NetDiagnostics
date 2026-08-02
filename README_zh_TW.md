@@ -124,7 +124,9 @@ cmake -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE=/path/to/qt6/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
   -B build/android
-ninja -C build/android net_diagnostics
+# 透過 androiddeployqt/Gradle 產生已使用 debug 憑證簽署、可安裝的 APK。
+cmake --build build/android --target apk
+# 請安裝產生的 debug APK，不要安裝任何 *-unsigned.apk 產物。
 ```
 
 ### 除錯建置（啟動崩潰診斷）
@@ -148,8 +150,8 @@ ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostics
 cmake -G Ninja -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
       -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -B build -S .
 ninja -C build net_diagnostics
-# 驗證零非系統 DLL：
-objdump -p build/net_diagnostics.exe | grep "DLL Name"
+# GitHub Actions 的靜態產物為可攜 ZIP：解壓後請將 NetDiagnostics.exe
+# 與隨附的 GCC 執行階段 DLL 保持在同一目錄。
 ```
 
 ## CI/CD
