@@ -1,0 +1,43 @@
+name: History Purge (one-time)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Install git-filter-repo
+        run: pip install git-filter-repo
+
+      - name: Rewrite history
+        run: |
+          set -euxo pipefail
+          cat > /tmp/redact.txt <<'EOF'
+          Aa8211642!==>[REDACTED]
+          EOF
+          git filter-repo --force \
+            --invert-paths \
+            --path resources/cert/mac_dist.p12 \
+            --path-regex '.*\\.*' \
+            --replace-message /tmp/redact.txt
+          echo "=== verify ==="
+          git log --all --oneline --grep='Aa8211642' | tee /tmp/check1
+          test ! -s /tmp/check1
+          git rev-list --all --objects | grep -c 'mac_dist.p12' && exit 1 || true
+          git log --oneline -3
+
+      - name: Force push rewritten master
+        run: |
+          set -euxo pipefail
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git push origin master --force
