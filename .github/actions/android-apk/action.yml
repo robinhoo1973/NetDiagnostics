@@ -114,8 +114,13 @@ runs:
         ALIGNED_APK="${UNSIGNED_APK%.apk}-aligned.apk"
         SIGNED_APK="${UNSIGNED_APK%.apk}-signed.apk"
         rm -f "$ALIGNED_APK" "$SIGNED_APK" "${{ inputs.output_name }}"
-        "$ZIPALIGN" -P 16 -f -v 4 "$UNSIGNED_APK" "$ALIGNED_APK"
-        "$ZIPALIGN" -c -P 16 -v 4 "$ALIGNED_APK"
+        # 5WHY (round 2): zipalign in build-tools 33.0.2 has no -P option
+        # (16 KB page alignment arrived in build-tools 35).  Passing -P 16
+        # made zipalign exit 2 before alignment even started.  minSdk 26
+        # with AGP 7.4.1 only needs classic 4-byte alignment, so use the
+        # supported flag set for this pinned build-tools version.
+        "$ZIPALIGN" -f -v 4 "$UNSIGNED_APK" "$ALIGNED_APK"
+        "$ZIPALIGN" -c -v 4 "$ALIGNED_APK"
         "$APKSIGNER" sign \
           --ks "$HOME/.android/debug.keystore" \
           --ks-key-alias androiddebugkey \
