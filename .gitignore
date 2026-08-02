@@ -14,6 +14,25 @@ legacy_backup/
 
 # Certificates & signing (sensitive)
 resources/cert/
+!resources/cert/README.md
+
+# Global sensitive-file patterns — never commit signing material or secrets
+*.p12
+*.pfx
+*.key
+*.pem
+*.p8
+*.jks
+*.keystore
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.csr
+.env
+.env.*
+*.secret
+*_rsa
+*_ed25519
 
 # Generated from .in template by CMake / CI — team ID injected at build time
 resources/apple/macos.entitlements
@@ -26,7 +45,7 @@ docs/*
 crashes/
 commit_msg.txt
 AGENTS.md
-CLAUDE.md
+# NOTE: CLAUDE.md is intentionally tracked (project defaults & review checklist)
 **/.codewhale/*
 !**/.codewhale/constitution.json
 

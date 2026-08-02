@@ -405,6 +405,29 @@ fi
 	    pass "generator inputs unchanged"
 	fi
 
+	# ── 19. Secrets & signing material (leak prevention) ────────────────────
+	# 5WHY: mac_dist.p12 and its password were once committed (history has
+	# been purged with filter-repo).  Block any staged signing material and
+	# obvious secrets before they ever reach the object database.
+	echo ""
+	echo "── 19. Secrets & signing material (leak prevention) ──"
+	SECRET_FILES=$(echo "$STAGED" | grep -iE '\.(p12|pfx|key|pem|p8|jks|keystore|mobileprovision|provisionprofile|cer|csr)$|(^|/)\.env(\.|$)' || true)
+	if [ -n "$SECRET_FILES" ]; then
+	    fail "signing material or secret file staged — remove from index:"
+	    echo "$SECRET_FILES" | while read -r line; do echo "       $line"; done
+	else
+	    pass "no signing material staged"
+	fi
+	for f in $STAGED; do
+	    case "$f" in
+	        *.png|*.jpg|*.jpeg|*.gif|*.ico|*.icns|*.ttf|*.otf|*.pdf) continue ;;
+	    esac
+	    if git show ":$f" 2>/dev/null | grep -nE 'BEGIN (RSA |EC |OPENSSH |)PRIVATE KEY|storepass +[^ $]|keypass +[^ $]' | grep -vE 'storepass android|keypass android' > /tmp/precommit-secrets.log 2>/dev/null; then
+	        fail "$f: embedded private key or hardcoded keystore password"
+	        cat /tmp/precommit-secrets.log | while read -r line; do echo "       $line"; done
+	    fi
+	done
+
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
