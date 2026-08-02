@@ -148,10 +148,11 @@ ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostics
 ```bash
 # Requires MSYS2 with mingw-w64-ucrt-x86_64-qt6-static
 cmake -G Ninja -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-      -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -B build -S .
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF \
+  -DND_STATIC_QT=ON -DND_STRICT_STATIC_WINDOWS=ON -B build -S .
 ninja -C build net_diagnostics
-# The GitHub Actions static artifact is a portable ZIP: extract it and keep
-# NetDiagnostics.exe with its bundled GCC runtime DLLs.
+# The GitHub Actions static artifact is one EXE. Its PE imports are limited
+# to Windows system APIs; GCC, Qt, curl, and other third-party DLLs are static.
 ```
 
 ## CI/CD

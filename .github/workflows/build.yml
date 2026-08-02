@@ -311,6 +311,34 @@ jobs:
             mingw-w64-ucrt-x86_64-libiconv
             mingw-w64-ucrt-x86_64-curl
 
+      # - Verify the compiler can statically absorb its own runtime -
+      - name: Verify true-static GCC runtime
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          cat > /tmp/netdiag-static-runtime.cpp <<'CPP'
+          #include <thread>
+
+          int main()
+          {
+              std::thread worker([] {});
+              worker.join();
+              return 0;
+          }
+          CPP
+          g++ -std=c++17 -O2 -static -static-libgcc -static-libstdc++ -pthread \
+            /tmp/netdiag-static-runtime.cpp -o /tmp/netdiag-static-runtime.exe
+
+          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|msvcrt|ucrtbase|api-ms-win|ext-ms-win"
+          mapfile -t DEPS < <(objdump -p /tmp/netdiag-static-runtime.exe | awk '/DLL Name/ {print $3}' | tr -d '\r' | sort -fu)
+          for dll in "${DEPS[@]}"; do
+            if ! echo "$dll" | grep -qiE "^(${SYSTEM_DLLS})\.dll$"; then
+              echo "ERROR: GCC static-runtime probe imports a non-Windows DLL: $dll"
+              exit 1
+            fi
+          done
+          printf 'Verified GCC runtime imports:\n%s\n' "${DEPS[@]}"
+
       # - Cache C: curl true-static build (libcurl.a without DLL dependency) -
       # 5WHY: MSYS2's mingw-w64-ucrt-x86_64-curl package ships libcurl.a as
       # a DLL import library (equivalent to libcurl.dll.a).  Even with
@@ -323,7 +351,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\opt\curl-static
-          key: curl-static-ucrt-8.9.1-v2
+          key: curl-static-ucrt-8.9.1-v3
 
       - name: Build curl from source (true static)
         if: steps.cache-curl-static.outputs.cache-hit != 'true'
@@ -352,7 +380,8 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/c/opt/curl-static \
             -DBUILD_CURL_EXE=OFF \
             -DBUILD_TESTING=OFF \
-            -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
+            -DCMAKE_C_FLAGS="-static -static-libgcc -pthread -O2" \
+            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a \
             -DCMAKE_PREFIX_PATH=/ucrt64
           echo ">>> Building curl..."
           cmake --build build --parallel 4
@@ -391,7 +420,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\opt\qt6-install
-          key: qt6-build-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v2
+          key: qt6-build-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v3
 
       - name: Build Qt from source
         if: steps.cache-qt-build.outputs.cache-hit != 'true'
@@ -403,9 +432,10 @@ jobs:
           cmake -G Ninja -B build -S . \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-install \
-            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++ -static" \
-            -DCMAKE_C_FLAGS="-static -static-libgcc -O2" \
+            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -pthread -O2" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -pthread" \
+            -DCMAKE_C_FLAGS="-static -static-libgcc -pthread -O2" \
+            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a \
             -DFEATURE_static=ON -DFEATURE_shared=OFF \
             -DBUILD_SHARED_LIBS=OFF \
             -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
@@ -429,54 +459,9 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
-          # 5WHY: /ucrt64/lib/libstdc++.a and libwinpthread.a are DLL import
-          # libraries in MSYS2.  Even with -Wl,-Bstatic, they produce DLL
-          # references in the PE header (MSYS2/MINGW-packages issue #6163).
-          # The TRUE static archives live in the GCC versioned directory at
-          # /ucrt64/lib/gcc/x86_64-w64-mingw32/<version>/.
-          # Use g++ -print-file-name to find them and link with ABSOLUTE PATHS.
-          # Absolute paths bypass library search entirely — the linker uses
-          # the exact file specified, no import lib / DLL resolution.
-          #
-          # 5WHY (2026-07-30): g++ -print-file-name=libstdc++.a resolves to
-          # /ucrt64/lib/libstdc++.a (the import lib), NOT the GCC versioned
-          # directory.  This is because the GCC driver's library search path
-          # rewrites libstdc++.a through ../../../../lib/.  However, the GCC
-          # versioned directory DOES contain a true static libstdc++.a
-          # alongside libgcc.a.  Fix: derive the GCC version dir from
-          # libgcc.a (which correctly resolves), then find libstdc++.a and
-          # libwinpthread.a in that same directory.
-          GCC_TRUE_LIBGCC=$(g++ -print-file-name=libgcc.a)
-          GCC_VERSION_DIR=$(dirname "${GCC_TRUE_LIBGCC}")
-          GCC_TRUE_LIBSTDCXX="${GCC_VERSION_DIR}/libstdc++.a"
-          GCC_TRUE_LIBGCC_EH="${GCC_VERSION_DIR}/libgcc_eh.a"
-          GCC_TRUE_LIBPTHREAD="${GCC_VERSION_DIR}/libwinpthread.a"
-          # ── Verify files exist; fall back to -print-file-name if missing ──
-          for lib in GCC_TRUE_LIBSTDCXX GCC_TRUE_LIBPTHREAD; do
-            eval "libpath=\$$lib"
-            if [ ! -f "$libpath" ]; then
-              echo "[WARN] ${lib}=${libpath} not found — falling back to g++ -print-file-name"
-              case "$lib" in
-                GCC_TRUE_LIBSTDCXX)  eval "$lib=$(g++ -print-file-name=libstdc++.a)" ;;
-                GCC_TRUE_LIBPTHREAD) eval "$lib=$(g++ -print-file-name=libwinpthread.a)" ;;
-              esac
-              eval "echo \"[WARN] ${lib} fallback: \$$lib\""
-            fi
-          done
-
-          echo "GCC true static libstdc++: ${GCC_TRUE_LIBSTDCXX}"
-          echo "GCC true static libgcc:    ${GCC_TRUE_LIBGCC}"
-          echo "GCC true static libgcc_eh: ${GCC_TRUE_LIBGCC_EH}"
-          echo "GCC true static pthread:  ${GCC_TRUE_LIBPTHREAD}"
-
-          # ── Fully static link — true static archives via absolute paths ──
-          # Strategy: absolute .a paths bypass all -L search order issues.
-          # libstdc++.a, libgcc.a, libgcc_eh.a, libwinpthread.a are the
-          # GCC-internal TRUE static archives, NOT the /ucrt64/lib/ import libs.
-          # libcurl is fully absorbed via the true-static source build at
-          # /c/opt/curl-static.  All other third-party DLLs (libssl, libcrypto,
-          # libiconv, zlib, libzstd, libbrotli, libidn2, libpsl, libssh2,
-          # libnghttp2, libunistring) are absorbed by -Wl,-Bstatic sandwich.
+          # -static plus strict CMake archive selection ensures that Qt, curl,
+          # GCC, Winpthreads, and curl's transitive dependencies are linked
+          # from .a archives. Windows API DLLs remain the only PE imports.
 
           CMAKE_COMMON=(
             -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -484,82 +469,70 @@ jobs:
             "-DND_BUILD_NUMBER=${{ github.run_number }}"
             "-DND_GIT_HASH=${{ github.sha }}"
             -DAPP_EDITION=static
-            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -Wl,--gc-sections"
+            -DND_STATIC_QT=ON
+            -DND_STRICT_STATIC_WINDOWS=ON
+            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -pthread -O2"
+            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -pthread -Wl,--gc-sections"
+            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a
             -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
             -DBUILD_TESTS=OFF
             -DCURL_STATICLIB=ON
             -DCURL_LIBRARY=/c/opt/curl-static/lib/libcurl.a
             -DCURL_INCLUDE_DIR=/c/opt/curl-static/include
-            "-DGCC_TRUE_LIBSTDCXX=${GCC_TRUE_LIBSTDCXX}"
-            "-DGCC_TRUE_LIBGCC=${GCC_TRUE_LIBGCC}"
-            "-DGCC_TRUE_LIBGCC_EH=${GCC_TRUE_LIBGCC_EH}"
-            "-DGCC_TRUE_LIBPTHREAD=${GCC_TRUE_LIBPTHREAD}"
           )
 
           cmake "${CMAKE_COMMON[@]}" -B build -S .
           ninja -C build net_diagnostics
-
-          # ── Post-process into a portable runtime bundle ───────────────
-          # Qt/curl and third-party libraries must remain statically linked.
-          # MSYS2's GCC runtime archives may still resolve to runtime DLLs,
-          # which are bundled beside the executable below.
           strip build/net_diagnostics.exe
-          BUNDLE=dist/netdiag-win-x86_64-standalone
-          mkdir -p "$BUNDLE"
-          cp build/net_diagnostics.exe "$BUNDLE/NetDiagnostics.exe"
+          cp build/net_diagnostics.exe dist/NetDiagnostics-Windows-x86_64-Static.exe
 
-      # - Verify and package all non-OS DLL dependencies -
-      - name: Verify portable Windows bundle
+      # - Reject every non-Windows PE import -
+      - name: Verify zero non-Windows DLL imports
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          BUNDLE=dist/netdiag-win-x86_64-standalone
-          EXE="$BUNDLE/NetDiagnostics.exe"
-          # Windows OS DLLs are supplied by the operating system.
-          SYSTEM_DLLS="KERNEL32|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|D3D9|D3D11|D3D12|DXGI|DWRITE|WTSAPI32|api-ms-win|ext-ms-win"
-          RUNTIME_DLLS="libstdc++-6.dll|libgcc_s_seh-1.dll|libwinpthread-1.dll"
-          mapfile -t DEPS < <(objdump -p "$EXE" | grep "DLL Name" | awk '{print $3}' | tr -d '\r' | sort -fu)
+          EXE=dist/NetDiagnostics-Windows-x86_64-Static.exe
+          # The whitelist is intentionally restricted to Windows OS APIs and
+          # API-set forwarders. GCC, Qt, curl, and all other third-party DLLs
+          # must never appear in a strict static artifact.
+          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|WTSAPI32|RUNTIMEOBJECT|MSCMS|UUID|WINSPool|msvcrt|ucrtbase|api-ms-win|ext-ms-win"
+          mapfile -t DEPS < <(objdump -p "$EXE" | awk '/DLL Name/ {print $3}' | tr -d '\r' | sort -fu)
           for dll in "${DEPS[@]}"; do
-            if echo "$dll" | grep -qiE "^($SYSTEM_DLLS)\.dll$"; then
-              continue
+            if ! echo "$dll" | grep -qiE "^($SYSTEM_DLLS)\.(dll|drv)$"; then
+              echo "ERROR: strict static executable imports a non-Windows DLL: $dll"
+              exit 1
             fi
-            if echo "$dll" | grep -qiE "^($RUNTIME_DLLS)$"; then
-              source_dll="/ucrt64/bin/$dll"
-              test -f "$source_dll" || { echo "ERROR: required runtime DLL is missing: $source_dll"; exit 1; }
-              cp "$source_dll" "$BUNDLE/$dll"
-              continue
-            fi
-            echo "ERROR: unexpected non-OS DLL dependency: $dll"
-            exit 1
           done
-          printf '%s\n' \
-            'Keep NetDiagnostics.exe and all DLL files in this folder together.' \
-            'The included MSYS2 GCC runtime DLLs are required by the current UCRT64 toolchain.' \
-            > "$BUNDLE/README.txt"
-          powershell.exe -NoProfile -NonInteractive -Command "Compress-Archive -Path 'dist\netdiag-win-x86_64-standalone\*' -DestinationPath 'dist\netdiagnostics-windows-x86_64-static.zip' -Force"
-          echo "Portable bundle contents:"
-          find "$BUNDLE" -maxdepth 1 -type f -printf '  %f\n' | sort
+          printf 'Verified static executable imports:\n%s\n' "${DEPS[@]}"
 
-      # - Runtime smoke test: catches missing DLL loader failures -
-      - name: Smoke test portable Windows bundle
+      # - Runtime smoke test with MSYS2 removed from PATH -
+      - name: Smoke test standalone static executable
         shell: powershell
         run: |
-          $bundle = Resolve-Path "dist\netdiag-win-x86_64-standalone"
-          $exe = Join-Path $bundle "NetDiagnostics.exe"
-          $proc = Start-Process -FilePath $exe -WorkingDirectory $bundle -PassThru -WindowStyle Minimized
-          Start-Sleep -Seconds 5
-          if ($proc.HasExited) {
-            throw "Portable bundle exited early (exit code $($proc.ExitCode)); inspect missing-DLL loader output."
+          $outputDirectory = (Resolve-Path "dist").Path
+          $exe = Join-Path $outputDirectory "NetDiagnostics-Windows-x86_64-Static.exe"
+          $originalPath = $env:PATH
+          try {
+            $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+            $proc = Start-Process -FilePath $exe -WorkingDirectory $outputDirectory -PassThru -WindowStyle Minimized
+            Start-Sleep -Seconds 5
+            if ($proc.HasExited) {
+              throw "Static executable exited early (exit code $($proc.ExitCode)); inspect loader or startup diagnostics."
+            }
           }
-          Stop-Process -Id $proc.Id -Force
+          finally {
+            if ($null -ne $proc -and -not $proc.HasExited) {
+              Stop-Process -Id $proc.Id -Force
+            }
+            $env:PATH = $originalPath
+          }
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: NetDiagnostics-Windows-x86_64-Static
           path: |
-            dist/netdiagnostics-windows-x86_64-static.zip
+            dist/NetDiagnostics-Windows-x86_64-Static.exe
           if-no-files-found: error
 
   # ===================================================================
@@ -895,7 +868,11 @@ jobs:
                 *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
 
                 *netdiagnostics-*.exe)
-                  name="netdiagnostics-${os}-${arch}${suffix}-setup.exe" ;;
+                  if [ "$suffix" = "-dynamic" ]; then
+                    name="netdiagnostics-${os}-${arch}${suffix}-setup.exe"
+                  else
+                    name="netdiagnostics-${os}-${arch}${suffix}.exe"
+                  fi ;;
                 *.exe)
                   name="netdiagnostics-${os}-${arch}${suffix}.exe" ;;
                 *)          name="$base" ;;

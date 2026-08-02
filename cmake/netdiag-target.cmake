@@ -19,10 +19,11 @@ function(configure_netdiag_target TARGET)
             # The static Windows platform plugin library is needed for
             # QWindowsIntegrationPlugin to initialize.  Without this, Qt
             # reports "no Qt platform plugin could be initialized".
-            find_library(QT_WINDOWS_PLUGIN Qt6::QWindowsIntegrationPlugin QUIET)
-            if(QT_WINDOWS_PLUGIN)
-                target_link_libraries(${TARGET} PRIVATE ${QT_WINDOWS_PLUGIN})
+            if(NOT TARGET Qt6::QWindowsIntegrationPlugin)
+                message(FATAL_ERROR
+                    "ND_STATIC_QT requires Qt6::QWindowsIntegrationPlugin from the static Qt installation.")
             endif()
+            target_link_libraries(${TARGET} PRIVATE Qt6::QWindowsIntegrationPlugin)
         endif()
     endif()
     if(ND_DEBUG)
@@ -98,9 +99,11 @@ function(configure_netdiag_target TARGET)
                 nghttp2 ngtcp2_crypto_ossl ngtcp2 nghttp3 psl
                 unistring iconv
             )
-            target_link_libraries(${TARGET} PRIVATE
-                "-Wl,-Bdynamic"
-            )
+            if(NOT ND_STRICT_STATIC_WINDOWS)
+                target_link_libraries(${TARGET} PRIVATE
+                    "-Wl,-Bdynamic"
+                )
+            endif()
         endif()
     endif()
 
@@ -204,28 +207,6 @@ function(configure_netdiag_target TARGET)
         qt6_finalize_executable(${TARGET})
     elseif(COMMAND qt_finalize_executable)
         qt_finalize_executable(${TARGET})
-    endif()
-
-    # ── True-static GCC runtimes via absolute paths (AFTER Qt finalize) ─
-    # 5WHY: /ucrt64/lib/libstdc++.a and libwinpthread.a are DLL import
-    # libraries in MSYS2 (MINGW-packages issue #6163).  Even with
-    # -static-libstdc++ and -Wl,-Bstatic, the import lib produces a
-    # DLL reference in the PE header.  The TRUE static archives are
-    # inside the GCC versioned directory (e.g. lib/gcc/x86_64-w64-
-    # mingw32/16.1.0/).  build.yml resolves these paths via
-    # g++ -print-file-name and passes them as CMake variables.
-    # Linking with ABSOLUTE PATHS bypasses all library search and
-    # import lib resolution — the linker uses the exact true-static
-    # .a file, eliminating libstdc++-6.dll and libwinpthread-1.dll.
-    if(WIN32 AND DEFINED GCC_TRUE_LIBSTDCXX)
-        target_link_libraries(${TARGET} PRIVATE
-            "-Wl,-Bstatic"
-            "${GCC_TRUE_LIBSTDCXX}"
-            "${GCC_TRUE_LIBGCC}"
-            "${GCC_TRUE_LIBGCC_EH}"
-            "${GCC_TRUE_LIBPTHREAD}"
-            "-Wl,-Bdynamic"
-        )
     endif()
 endfunction()
 

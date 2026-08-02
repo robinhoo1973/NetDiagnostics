@@ -6,6 +6,8 @@ project(NetDiagnostic VERSION ${PROJECT_VERSION} LANGUAGES CXX)
 
 option(ND_DEBUG "Enable crash diagnostic startup logging" OFF)
 option(ND_TESTING "Enable automated headless testing harness" OFF)
+option(ND_STATIC_QT "Import static Qt platform plugins" OFF)
+option(ND_STRICT_STATIC_WINDOWS "Require a Windows executable with no non-Windows DLL imports" OFF)
 
 if(NOT DEFINED APP_EDITION)
     set(APP_EDITION "")
@@ -15,6 +17,18 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+
+# A strict static Windows build may import Windows API DLLs, but must absorb
+# every non-Windows dependency into the executable. Restrict CMake discovery
+# to real static archives and keep the MinGW runtime link mode static.
+if(ND_STRICT_STATIC_WINDOWS)
+    if(NOT WIN32 OR NOT MINGW)
+        message(FATAL_ERROR "ND_STRICT_STATIC_WINDOWS requires a MinGW Windows toolchain.")
+    endif()
+    set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" CACHE STRING
+        "Library suffixes permitted by strict static Windows builds" FORCE)
+    add_link_options(-static -static-libgcc -static-libstdc++ -pthread)
+endif()
 
 # ── CMake modules ──────────────────────────────────────────────────────
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")

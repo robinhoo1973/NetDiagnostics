@@ -148,10 +148,11 @@ ND_MAX_TESTS=2 ND_AUTORUN=1 QT_QPA_PLATFORM=offscreen ./build/net_diagnostics
 ```bash
 # 需要安裝 MSYS2 和 mingw-w64-ucrt-x86_64-qt6-static
 cmake -G Ninja -DCMAKE_PREFIX_PATH=/ucrt64/qt6-static \
-      -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -B build -S .
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF \
+  -DND_STATIC_QT=ON -DND_STRICT_STATIC_WINDOWS=ON -B build -S .
 ninja -C build net_diagnostics
-# GitHub Actions 的靜態產物為可攜 ZIP：解壓後請將 NetDiagnostics.exe
-# 與隨附的 GCC 執行階段 DLL 保持在同一目錄。
+# GitHub Actions 的靜態產物為單一 EXE。其 PE 匯入僅限 Windows 系統 API；
+# GCC、Qt、curl 和其他第三方 DLL 均會靜態連結。
 ```
 
 ## CI/CD
