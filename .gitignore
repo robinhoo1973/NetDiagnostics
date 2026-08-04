@@ -45,6 +45,8 @@ docs/*
 crashes/
 commit_msg.txt
 AGENTS.md
+CLAUDE.md
+scripts/
 # NOTE: CLAUDE.md is intentionally tracked (project defaults & review checklist)
 **/.codewhale/*
 !**/.codewhale/constitution.json
@@ -53,3 +55,4 @@ AGENTS.md
 mockups/
 # Internal test profiles and policies  
 profiles/
+review/
