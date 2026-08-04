@@ -187,6 +187,19 @@ function ScreenHash {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     return ([BitConverter]::ToString($sha.ComputeHash($ms.ToArray()))).Replace("-", "")
 }
+function ClickUntilChanged([int]$x, [int]$y, [string]$label, [int]$timeoutSec = 10) {
+    $before = ScreenHash
+    Click $x $y $label
+    for ($i = 0; $i -lt $timeoutSec; $i++) {
+        Start-Sleep -Seconds 1
+        if ($before -ne (ScreenHash)) {
+            Log "state change detected after $label ($($i+1)s)"
+            return $true
+        }
+    }
+    Warn "$label : no state change within ${timeoutSec}s"
+    return $false
+}
 function WaitStable([int]$maxSec = 60) {
     $t = 0; $a = ""; $b = ""
     while ($t -lt $maxSec) {
@@ -226,7 +239,7 @@ Capture "4-detail"
 Click $DetailCloseCx $DetailCloseCy "detail-close"
 
 # -- Stage 5: Dashboard ----------------------------------------------------
-NavTo $NavDashCx "dashboard"
+ClickUntilChanged $NavDashCx $NavY "nav-dashboard"
 Capture "5-dashboard"
 
 # -- Stage 6: Report preview -----------------------------------------------

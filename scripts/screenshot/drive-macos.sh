@@ -125,6 +125,29 @@ capture() { # capture <stage>
         warn "capture failed for $stage"
     fi
 }
+frame_hash() {
+    local f; f="$(mktemp -t ndframe).png"
+    screencapture -x "$f" 2>/dev/null || true
+    md5 -q "$f" 2>/dev/null || md5sum "$f" 2>/dev/null | cut -d' ' -f1
+    rm -f "$f"
+}
+click_until_changed() { # click_until_changed <label> <x> <y> [timeout_secs]
+    local label="$1" x="$2" y="$3" timeout="${4:-10}"
+    local before
+    before="$(frame_hash)"
+    click "$x" "$y" "$label"
+    local t=0
+    while [ "$t" -lt "$timeout" ]; do
+        sleep 1
+        if [ "$before" != "$(frame_hash)" ]; then
+            log "state change detected after $label ($((t+1))s)"
+            return 0
+        fi
+        t=$((t + 1))
+    done
+    warn "$label: no state change within ${timeout}s"
+    return 1
+}
 wait_stable() { # wait_stable <max-seconds>
     local max="${1:-150}" t=0 a b
     while [ "$t" -lt "$max" ]; do
@@ -194,7 +217,7 @@ click "$RUN_CX" "$TOOLBAR_CY" "run-button"
 sleep 2
 capture 2-running
 
-# ── Stage 3: Complete ────────────────────────────────────────────────────
+# ── Stage 3: Complete — wait for screen to stop changing (diagnostic done) ──
 wait_stable 60
 capture 3-complete
 
@@ -216,7 +239,7 @@ capture 4-detail
 click "$DETAIL_CLOSE_CX" "$DETAIL_CLOSE_CY" "detail-close"
 
 # ── Stage 5: Dashboard ───────────────────────────────────────────────────
-nav_to "$NAV_DASH_CX" "dashboard"
+click_until_changed "nav-dashboard" "$NAV_DASH_CX" "$NAV_Y"
 capture 5-dashboard
 
 # ── Stage 6: Report preview ──────────────────────────────────────────────

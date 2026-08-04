@@ -26,14 +26,21 @@
 
 ### iOS
 
-| 階段 | 6.1″ | 6.3″ | 6.5″ | 6.9″ | iPad 13″ |
-|---|---|---|---|---|---|
-| **儀表板** | <img src="resources/doc/screenshot/ios/phone/6.1/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/5-dashboard.png" width="120"/> |
-| **執行中** | <img src="resources/doc/screenshot/ios/phone/6.1/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/2-running.png" width="120"/> |
-| **結果** | <img src="resources/doc/screenshot/ios/phone/6.1/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/3-complete.png" width="120"/> |
-| **報告** | <img src="resources/doc/screenshot/ios/phone/6.1/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/6-report.png" width="120"/> |
+> iOS 截圖在 macOS CI 上使用生產二進位並設定 `ND_MOBILE=1` 生成——應用渲染真實的行動端佈局。其他尺寸（6.1″、6.3″、6.9″、iPad 13″）透過 `scripts/generate-screenshots.py` 縮放用於 App Store Connect。
+
+| 階段 | 6.5″（標準） |
+|---|---|
+| **Idle** | <img src="resources/doc/screenshot/ios/phone/6.5/1-idle.png" width="160"/> |
+| **執行中** | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="160"/> |
+| **結果** | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="160"/> |
+| **詳情** | <img src="resources/doc/screenshot/ios/phone/6.5/4-detail.png" width="160"/> |
+| **報告** | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="160"/> |
+| **配置** | <img src="resources/doc/screenshot/ios/phone/6.5/7-config.png" width="160"/> |
+| **設定** | <img src="resources/doc/screenshot/ios/phone/6.5/8-settings.png" width="160"/> |
 
 ### Android
+
+> ⚠️ Android 截圖需要 CI 模擬器（GitHub 託管執行器無 KVM——僅軟體模擬）。透過 `workflow_dispatch` 手動觸發。
 
 | 階段 | 手機 | 平板 |
 |---|---|---|

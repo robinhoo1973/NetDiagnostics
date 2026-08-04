@@ -29,14 +29,25 @@ automatically by the [screenshot CI pipeline](.github/workflows/screenshots-desk
 
 ### iOS
 
-| Stage | 6.1″ | 6.3″ | 6.5″ | 6.9″ | iPad 13″ |
-|---|---|---|---|---|---|
-| **Dashboard** | <img src="resources/doc/screenshot/ios/phone/6.1/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/5-dashboard.png" width="120"/> |
-| **Running** | <img src="resources/doc/screenshot/ios/phone/6.1/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/2-running.png" width="120"/> |
-| **Results** | <img src="resources/doc/screenshot/ios/phone/6.1/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/3-complete.png" width="120"/> |
-| **Report** | <img src="resources/doc/screenshot/ios/phone/6.1/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/6-report.png" width="120"/> |
+> iOS screenshots are generated on a macOS CI runner using the production
+> binary with `ND_MOBILE=1` — the app renders its authentic mobile layout
+> at iPhone proportions. Additional sizes (6.1″, 6.3″, 6.9″, iPad 13″)
+> are scaled for App Store Connect via `scripts/generate-screenshots.py`.
+
+| Stage | 6.5″ (canonical) |
+|---|---|
+| **Idle** | <img src="resources/doc/screenshot/ios/phone/6.5/1-idle.png" width="160"/> |
+| **Running** | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="160"/> |
+| **Results** | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="160"/> |
+| **Detail** | <img src="resources/doc/screenshot/ios/phone/6.5/4-detail.png" width="160"/> |
+| **Report** | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="160"/> |
+| **Config** | <img src="resources/doc/screenshot/ios/phone/6.5/7-config.png" width="160"/> |
+| **Settings** | <img src="resources/doc/screenshot/ios/phone/6.5/8-settings.png" width="160"/> |
 
 ### Android
+
+> ⚠️ Android screenshots require a CI emulator (no KVM on GitHub-hosted
+> runners — software emulation only). Generated on `workflow_dispatch`.
 
 | Stage | Phone | Tablet |
 |---|---|---|

@@ -162,7 +162,9 @@ jobs:
       - name: Generate screenshots
         run: |
           set -euo pipefail
-          bash scripts/screenshot/drive-macos.sh \
+          # 5WHY: macOS CI display may sleep/lock — caffeinate keeps the
+          # session alive so screencapture gets real frames, not black.
+          caffeinate -d -i -s bash scripts/screenshot/drive-macos.sh \
             ./build/net_diagnostics resources/doc/screenshot/macos
 
       - name: Upload screenshots (debug)

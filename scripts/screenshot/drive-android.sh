@@ -82,7 +82,7 @@ adb_cmd shell settings put global policy_control immersive.full=* >/dev/null 2>&
 sleep 1
 
 # ── Mobile-layout coordinates (logical dp × DPR = physical px) ──────────
-nav_y=$(python3 -c "print(int(($H - 24) * $DPR))")
+nav_y=$(python3 -c "print(int($H - 24 * $DPR))")
 nav_dash_x=$(python3 -c "print(int($W * 1 / 8))")
 nav_diag_x=$(python3 -c "print(int($W * 3 / 8))")
 nav_cfg_x=$(python3 -c "print(int($W * 5 / 8))")
@@ -98,7 +98,7 @@ detail_close_y=$(python3 -c "print(int($card_y0 + 30*$DPR))")
 result_row_x=$(python3 -c "print(int($W / 2))")
 result_row_y=$(python3 -c "print(int(${RESULT_ROW_Y:-220} * $DPR))")
 report_btn_x=$(python3 -c "print(int($W / 2))")
-report_btn_y=$(python3 -c "print(int(($H - 56) * $DPR))")
+report_btn_y=$(python3 -c "print(int($H - 56 * $DPR))")
 
 log "nav_y=$nav_y input_y=$input_y run=$run_x,$run_y report=$report_btn_x,$report_btn_y"
 

@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
 
 env:
   BUILD_TYPE: Release
@@ -57,7 +57,9 @@ jobs:
       - name: Capture screenshots (mobile layout)
         run: |
           set -euo pipefail
-          bash scripts/screenshot/drive-ios-alt.sh \
+          # 5WHY: macOS CI display may sleep/lock — caffeinate keeps the
+          # session alive so screencapture gets real frames, not black.
+          caffeinate -d -i -s bash scripts/screenshot/drive-ios-alt.sh \
             ./build/net_diagnostics \
             resources/doc/screenshot/ios/phone/6.5
         env:
@@ -71,3 +73,24 @@ jobs:
           name: screenshots-ios
           path: resources/doc/screenshot/ios/**
           if-no-files-found: error
+
+      - name: Commit screenshots back to master
+        if: success()
+        run: |
+          set -euo pipefail
+          # Map artifact layout back to repo paths
+          mkdir -p resources/doc/screenshot/ios
+          cp -r resources/doc/screenshot/ios resources/doc/screenshot/ios.bak 2>/dev/null || true
+          # Screenshots are already at resources/doc/screenshot/ios/ from capture
+          git add resources/doc/screenshot/ios README.md README_zh_CN.md README_zh_TW.md
+          if git diff --cached --quiet; then
+            echo "No screenshot changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: refresh iOS screenshots via screenshot CI"
+          git pull --rebase origin master
+          git push origin master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

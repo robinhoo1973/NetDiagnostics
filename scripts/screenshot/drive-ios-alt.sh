@@ -80,6 +80,43 @@ capture() {
     screencapture -x "$OUT_DIR/$1.png" 2>/dev/null || true
     if [ -s "$OUT_DIR/$1.png" ]; then log "captured $1"; else warn "capture failed $1"; fi
 }
+frame_hash() {
+    local f; f="$(mktemp -t ndframe).png"
+    screencapture -x "$f" 2>/dev/null || true
+    md5 -q "$f" 2>/dev/null || md5sum "$f" 2>/dev/null | cut -d' ' -f1
+    rm -f "$f"
+}
+wait_stable() { # wait_stable <max-seconds> <label>
+    local max="${1:-60}" t=0 a b label="${2:-}"
+    while [ "$t" -lt "$max" ]; do
+        a="$(frame_hash)"; sleep 3; b="$(frame_hash)"
+        if [ -n "$a" ] && [ "$a" = "$b" ]; then
+            log "screen stable${label:+ ($label)} after ~$((t + 3))s"
+            sleep 2
+            return 0
+        fi
+        t=$((t + 3))
+    done
+    warn "screen not stable within ${max}s${label:+ ($label)} — proceeding anyway"
+    return 0
+}
+click_until_changed() { # click_until_changed <label> <x> <y> [timeout]
+    local label="$1" x="$2" y="$3" timeout="${4:-10}"
+    local before
+    before="$(frame_hash)"
+    tap "$x" "$y" "$label"
+    local t=0
+    while [ "$t" -lt "$timeout" ]; do
+        sleep 1
+        if [ "$before" != "$(frame_hash)" ]; then
+            log "state change detected after $label ($((t+1))s)"
+            return 0
+        fi
+        t=$((t + 1))
+    done
+    warn "$label: no state change within ${timeout}s"
+    return 1
+}
 
 # ── Slow HTTP server ──────────────────────────────────────────────────────
 SERVER_PID=""
@@ -102,7 +139,14 @@ log "starting app: $APP"
 "$APP" &
 APP_PID=$!
 sleep 4
-log "screen ${WIN_W}x${WIN_H}, no resize needed"
+
+# 5WHY: The app was never brought to the foreground — screencapture got a
+# black/locked frame because no GUI session had the app visible.  Use
+# osascript to activate the app process (same pattern as drive-macos.sh).
+osascript -e 'tell application "System Events" to set frontmost of first process whose unix id is '"$APP_PID" 2>/dev/null || true
+sleep 2
+
+log "screen ${WIN_W}x${WIN_H}, app activated"
 
 # ── Click / type helpers ─────────────────────────────────────────────────
 tap() {
@@ -126,7 +170,7 @@ type_text() {
 # PASS A — 1..6 (report overlay not dismissible; relaunch for B)
 # ══════════════════════════════════════════════════════════════════════════
 capture 1-idle
-tap "$NAV_DIAG_X" "$NAV_Y"; log "tapped nav-diagnostics ($NAV_DIAG_X,$NAV_Y)"
+click_until_changed "nav-diagnostics" "$NAV_DIAG_X" "$NAV_Y"
 
 tap "$((WIN_W/2))" "$INPUT_Y"; log "tapped target-input"
 type_text "$TARGET"; log "typed $TARGET"
@@ -134,7 +178,9 @@ tap "$RUN_X" "$RUN_Y"; log "tapped run-button ($RUN_X,$RUN_Y)"
 sleep 2
 capture 2-running
 
-sleep 30
+# 5WHY: blind sleep 30 was unreliable — the run might finish in 5s or 45s.
+# Use wait_stable to detect when the progress animation stops.
+wait_stable 60 "diagnostic-complete"
 capture 3-complete
 
 tap "$RESULT_ROW_X" "$RESULT_ROW_Y"; log "tapped result-row"
@@ -143,7 +189,7 @@ capture 4-detail
 tap "$DETAIL_CLOSE_X" "$DETAIL_CLOSE_Y"; log "tapped detail-close"
 sleep 1
 
-tap "$NAV_DASH_X" "$NAV_Y"; log "tapped nav-dashboard"
+click_until_changed "nav-dashboard" "$NAV_DASH_X" "$NAV_Y"
 sleep 1
 capture 5-dashboard
 
