@@ -111,7 +111,7 @@ jobs:
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Phone — Pixel-profile AVD, API 30, x86_64
+  # Phone — reactivecircus default AVD (API 30, x86_64)
   # ═══════════════════════════════════════════════════════════════════════
   phone:
     name: Android Phone
@@ -126,6 +126,9 @@ jobs:
         with:
           name: apk-x86_64
 
+      # The no-KVM emulator is inherently fragile — custom AVD recreation
+      # inside the script block causes timeout/kill races.  Keep it simple:
+      # boot the default AVD, install APK, drive, capture.
       - name: Boot emulator + capture
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -134,19 +137,13 @@ jobs:
           target: google_apis
           avd-name: phone
           force-avd-creation: true
-          # 5WHY: disable-animations/disable-spellchecker made the action run
-          # 'settings put ...' immediately after boot, which failed on the
-          # no-KVM software emulator ('cmd: Can't find service: settings') and
-          # aborted the job.  Device config now happens inside drive-android.sh
-          # with a settings-service wait/retry loop.
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           boot-timeout: 900000
           script: |
-            # reactivecircus runs this block with /usr/bin/sh (dash) — no
-            # pipefail, no source.  The driver scripts use bash internally.
+            # reactivecircus runs this with /usr/bin/sh (dash) — no pipefail.
             set -eu
             adb install "${{ env.APK }}"
-            adb shell input keyevent 82 || true   # dismiss keyguard
+            adb shell input keyevent 82 || true
             bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/phone
 
       - name: Upload screenshots
@@ -154,70 +151,4 @@ jobs:
         with:
           name: screenshots-android-phone
           path: resources/doc/screenshot/android/phone/*.png
-          if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Tablet — custom pixel_tablet AVD (pre-created, then booted by the runner)
-  # ═══════════════════════════════════════════════════════════════════════
-  tablet:
-    name: Android Tablet
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download APK
-        uses: actions/download-artifact@v4
-        with:
-          name: apk-x86_64
-
-      # The reactivecircus action downloads the system image, creates a
-      # DEFAULT-profile AVD, and boots it.  Inside its script: block we
-      # kill that default emulator, recreate the AVD with a tablet device
-      # profile (pixel_tablet), and boot the tablet ourselves.
-      - name: Boot tablet emulator + capture
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 30
-          arch: x86_64
-          target: google_apis
-          avd-name: tablet
-          force-avd-creation: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
-          boot-timeout: 600000
-          script: |
-            # reactivecircus runs this with /usr/bin/sh (dash) — no pipefail.
-            # The driver scripts use bash internally with their own set -euo.
-            set -eu
-
-            echo "[TABLET] killing default emulator the action started..."
-            adb emu kill 2>/dev/null || true
-            sleep 5
-
-            echo "[TABLET] recreating AVD with tablet profile..."
-            IMG="system-images;android-30;google_apis;x86_64"
-            AVDMAN="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
-            if echo no | "$AVDMAN" create avd -n tablet -k "$IMG" -d pixel_tablet -f 2>/dev/null; then
-              echo "[TABLET] pixel_tablet AVD created"
-            else
-              echo "[TABLET] pixel_tablet missing; fallback to 10.1in WXGA (Tablet)"
-              echo no | "$AVDMAN" create avd -n tablet -k "$IMG" -d "10.1in WXGA (Tablet)" -f
-            fi
-
-            echo "[TABLET] booting tablet emulator..."
-            nohup "$ANDROID_HOME/emulator/emulator" -avd tablet -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel off > /tmp/emulator-tablet.log 2>&1 &
-            adb wait-for-device
-            until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 10; done
-            echo "[TABLET] booted"
-
-            adb shell input keyevent 82 || true
-            adb install "${{ env.APK }}"
-            bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/tablet
-
-      - name: Upload screenshots
-        uses: actions/upload-artifact@v4
-        with:
-          name: screenshots-android-tablet
-          path: resources/doc/screenshot/android/tablet/*.png
           if-no-files-found: error
