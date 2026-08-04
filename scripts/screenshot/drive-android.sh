@@ -61,8 +61,24 @@ DPI="$(adb_cmd shell wm density 2>/dev/null | grep -oE '[0-9]+' | head -1 || ech
 DPR=$(python3 -c "print($DPI/160.0)" 2>/dev/null || awk "BEGIN{print $DPI/160}")
 log "device ${W}x${H} density=${DPI}dpi dpr=$DPR"
 
-# ── Immersive full screen: app window == full screen → 1:1 coordinate map ─
-adb_cmd shell settings put global policy_control immersive.full=* 2>/dev/null || true
+# ── Device config: animations off + immersive full screen ───────────────
+# On no-KVM software emulators, sys.boot_completed becomes 1 while the
+# settings service is still starting; retry until it responds (the
+# android-emulator-runner action's own settings steps failed here with
+# "cmd: Can't find service: settings" — so we configure the device
+# ourselves, patiently).
+for _ in $(seq 1 30); do
+    if adb_cmd shell settings put global window_animation_scale 0 >/dev/null 2>&1; then
+        adb_cmd shell settings put global transition_animation_scale 0 >/dev/null 2>&1 || true
+        adb_cmd shell settings put global animator_duration_scale 0 >/dev/null 2>&1 || true
+        adb_cmd shell settings put system screen_off_timeout 2147483647 >/dev/null 2>&1 || true
+        log "animations disabled, settings service ready"
+        break
+    fi
+    sleep 5
+done
+# Immersive full screen: app window == full screen → 1:1 coordinate map
+adb_cmd shell settings put global policy_control immersive.full=* >/dev/null 2>&1 || true
 sleep 1
 
 # ── Mobile-layout coordinates (logical dp × DPR = physical px) ──────────

@@ -73,13 +73,23 @@ endif()
 
 # ── iOS SDK detection ───────────────────────────────────────────────────
 if(IOS)
-    execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
-        OUTPUT_VARIABLE IOS_SDK_PATH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE XCRUN_RESULT
-        ERROR_VARIABLE XCRUN_ERROR)
-    if(NOT XCRUN_RESULT EQUAL 0 OR IOS_SDK_PATH STREQUAL "")
-        message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}\n  iOS builds require Xcode with the iPhoneOS SDK installed.")
+    # 5WHY: this block hardcoded `xcrun --sdk iphoneos` so IOS_FRAMEWORKS_DIR
+    # always pointed at the DEVICE SDK frameworks, even when building for the
+    # SIMULATOR.  The link then failed with 'building for iOS-simulator, but
+    # linking in object file built for iOS'.  Fix: honour CMAKE_OSX_SYSROOT
+    # when the caller sets it (device and simulator builds both set it); fall
+    # back to the device SDK otherwise.
+    if(DEFINED CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT STREQUAL "")
+        set(IOS_SDK_PATH "${CMAKE_OSX_SYSROOT}")
+    else()
+        execute_process(COMMAND xcrun --sdk iphoneos --show-sdk-path
+            OUTPUT_VARIABLE IOS_SDK_PATH
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE XCRUN_RESULT
+            ERROR_VARIABLE XCRUN_ERROR)
+        if(NOT XCRUN_RESULT EQUAL 0 OR IOS_SDK_PATH STREQUAL "")
+            message(FATAL_ERROR "xcrun --sdk iphoneos --show-sdk-path failed (exit ${XCRUN_RESULT}): ${XCRUN_ERROR}\n  iOS builds require Xcode with the iPhoneOS SDK installed.")
+        endif()
     endif()
     set(IOS_FRAMEWORKS_DIR "${IOS_SDK_PATH}/System/Library/Frameworks")
     if(NOT EXISTS "${IOS_FRAMEWORKS_DIR}")

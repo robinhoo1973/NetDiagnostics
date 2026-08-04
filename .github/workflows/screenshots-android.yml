@@ -134,8 +134,11 @@ jobs:
           target: google_apis
           avd-name: phone
           force-avd-creation: true
-          disable-animations: true
-          disable-spellchecker: true
+          # 5WHY: disable-animations/disable-spellchecker made the action run
+          # 'settings put ...' immediately after boot, which failed on the
+          # no-KVM software emulator ('cmd: Can't find service: settings') and
+          # aborted the job.  Device config now happens inside drive-android.sh
+          # with a settings-service wait/retry loop.
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           boot-timeout: 900000
           script: |
@@ -188,8 +191,11 @@ jobs:
           target: google_apis
           avd-name: tablet
           force-avd-creation: false
-          disable-animations: true
-          disable-spellchecker: true
+          # 5WHY: disable-animations/disable-spellchecker made the action run
+          # 'settings put ...' immediately after boot, which failed on the
+          # no-KVM software emulator ('cmd: Can't find service: settings') and
+          # aborted the job.  Device config now happens inside drive-android.sh
+          # with a settings-service wait/retry loop.
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           boot-timeout: 900000
           script: |

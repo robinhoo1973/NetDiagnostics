@@ -106,9 +106,14 @@ ComboBox {
 
     Connections {
         target: appState
-        function onTargetChanged() {
-            root.synchronizeCurrentScheme()
-        }
+        // 5WHY: 'function onTargetChanged()' uses the Qt 6.8 function-based
+        // handler syntax, which collides with Connections' OWN target
+        // property's targetChanged signal.  Qt 6.6 (Ubuntu 24.04 apt) rejects
+        // it as 'Duplicate method name: invalid override of property change
+        // signal' and the whole component chain fails to load.  The classic
+        // binding form routes to the CONNECTED object's signal and works on
+        // every Qt 6.x.
+        onTargetChanged: root.synchronizeCurrentScheme()
     }
 
     onCurrentTextChanged: {
