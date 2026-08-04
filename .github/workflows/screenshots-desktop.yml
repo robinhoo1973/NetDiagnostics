@@ -1,0 +1,191 @@
+name: Screenshots (Desktop)
+
+# =============================================================================
+# Real OS-level screenshots of the production binary at each runtime stage,
+# captured entirely from the CI build environment — ZERO app source changes.
+#
+# Stage sequence (all platforms): 1-idle → 2-running → 3-complete → 4-detail
+#   → 5-dashboard → 6-report → 7-config → 8-settings
+#
+# Triggers:
+#   - workflow_dispatch (manual)
+#   - schedule: weekly Sunday 02:20 UTC (nightly screenshots refresh)
+#   - push to master touching this workflow or the screenshot scripts (test)
+#
+# Output:
+#   - resources/doc/screenshot/{linux,windows,macos}/*.png (committed back)
+#   - debug artifacts per platform (uploaded, downloadable from the run)
+# =============================================================================
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 2 * * 0'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/screenshots-desktop.yml'
+      - 'scripts/screenshot/**'
+
+concurrency:
+  group: screenshots-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.8.3
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Linux x86_64 — xvfb + xdotool + ImageMagick
+  # ═══════════════════════════════════════════════════════════════════════
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-declarative-dev libqt6quickcontrols2-6 \
+            qt6-tools-dev qt6-tools-dev-tools libcurl4-openssl-dev \
+            libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 \
+            libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 \
+            libxrandr2 libgl1 libegl1 \
+            xvfb x11-utils xdotool imagemagick wmctrl openbox
+
+      - name: Configure
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
+
+      - name: Build
+        run: ninja -C build net_diagnostics
+
+      - name: Generate screenshots (xvfb)
+        run: |
+          xvfb-run -a -s "-screen 0 1280x800x24" \
+            bash scripts/screenshot/drive-linux.sh \
+            ./build/net_diagnostics resources/doc/screenshot/linux
+
+      - name: Upload screenshots (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-linux
+          path: resources/doc/screenshot/linux/*.png
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Windows x86_64 — dynamic Qt6 (fast MSYS2 pacman) + PowerShell driver
+  # ═══════════════════════════════════════════════════════════════════════
+  windows:
+    name: Windows x86_64
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-curl
+            mingw-w64-ucrt-x86_64-qt6-base
+            mingw-w64-ucrt-x86_64-qt6-declarative
+            mingw-w64-ucrt-x86_64-qt6-tools
+            mingw-w64-ucrt-x86_64-qt6-translations
+            mingw-w64-ucrt-x86_64-python
+
+      - name: Build (dynamic)
+        shell: msys2 {0}
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
+          ninja -C build net_diagnostics
+
+      - name: Generate screenshots
+        # Run the PowerShell driver with Qt DLLs on PATH (inherited by the
+        # app process) so the dynamic build can find its runtime libraries.
+        shell: msys2 {0}
+        run: |
+          export PATH="/ucrt64/bin:$PATH"
+          powershell -ExecutionPolicy Bypass -File \
+            scripts/screenshot/drive-windows.ps1 \
+            -AppPath build/net_diagnostics.exe \
+            -OutDir resources/doc/screenshot/windows
+
+      - name: Upload screenshots (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-windows
+          path: resources/doc/screenshot/windows/*.png
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # macOS arm64 — Homebrew Qt6 + cliclick + screencapture
+  # ═══════════════════════════════════════════════════════════════════════
+  macos:
+    name: macOS arm64
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja curl qt@6
+          brew install cliclick || true   # GUI input injection (best-effort)
+
+      - name: Configure
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" -B build -S .
+
+      - name: Build
+        run: ninja -C build net_diagnostics
+
+      - name: Generate screenshots
+        run: |
+          bash scripts/screenshot/drive-macos.sh \
+            ./build/net_diagnostics resources/doc/screenshot/macos
+
+      - name: Upload screenshots (debug)
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-macos
+          path: resources/doc/screenshot/macos/*.png
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Commit — collect screenshots + push back to master (single-branch flow)
+  # Runs on any non-cancelled outcome; commit-screenshots.sh skips when there
+  # are no new PNGs, so a fully-failed run never produces an empty commit.
+  # ═══════════════════════════════════════════════════════════════════════
+  commit:
+    name: Commit screenshots
+    needs: [linux, windows, macos]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Commit back to master
+        env:
+          GIT_AUTHOR_NAME: robinhoo1973
+          GIT_AUTHOR_EMAIL: robinhoo1973@users.noreply.github.com
+          GIT_COMMITTER_NAME: robinhoo1973
+          GIT_COMMITTER_EMAIL: robinhoo1973@users.noreply.github.com
+        run: |
+          bash scripts/screenshot/commit-screenshots.sh artifacts
