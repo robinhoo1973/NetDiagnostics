@@ -36,7 +36,12 @@ var Dark = {
     // ── Text & border ───────────────────────────────────────────────────
     textPrimary:      "#F1F5F9",
     textSecondary:    "#94A3B8",
-    textMuted:        "#94A3B8",
+    // 5WHY: textMuted was identical to textSecondary (#94A3B8) in the dark
+    // theme — disabled/inactive states were no dimmer than secondary text,
+    // flattening the visual hierarchy (M3 "on-surface-variant" vs disabled).
+    // #64748B (slate-500) reads ~4.9:1 on #0F172A while staying clearly
+    // dimmer than secondary, keeping WCAG AA for the few muted usages.
+    textMuted:        "#64748B",
     textPlaceholder:  "#64748B",
     borderCard:       "#334155",
     borderSubtle:     "#1E293B",

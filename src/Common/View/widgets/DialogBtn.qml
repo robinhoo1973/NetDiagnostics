@@ -13,7 +13,7 @@ Rectangle {
     property bool filled: false
     signal clicked()
 
-    Layout.fillWidth: true; implicitHeight: 42; radius: 8
+    Layout.fillWidth: true; implicitHeight: 44; radius: 8
     color: dbtn.filled ? dbtn.accent : "transparent"
     border { width: 1; color: dbtn.filled ? "transparent" : Qt.alpha(dbtn.accent, 0.5) }
 

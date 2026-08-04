@@ -121,6 +121,9 @@ Item {
     Flickable {
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
         clip: true; visible: hasData
+        // 5WHY: no scrollbar — inconsistent with Settings/Report/Config and
+        // gave no drag-position feedback on long dashboards. Added for parity.
+        ScrollBar.vertical: ScrollBar { }
         contentHeight: dashBody.implicitHeight + 24
 
         ColumnLayout {

@@ -144,7 +144,9 @@ Item {
                     anchors.centerIn: parent
                     text: "1:1"
                     font.family: ThemeEngine.monoFont
-                    font.pixelSize: root.isMobile ? 11 : 9
+                    // 5WHY: 9px was below readable minimum; 11px keeps the
+                    // compact control readable (M3 label-medium is 12sp).
+                    font.pixelSize: root.isMobile ? 12 : 11
                     font.weight: Font.Bold
                     color: ThemeEngine.colors.textSecondary
                 }

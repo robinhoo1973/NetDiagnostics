@@ -127,8 +127,15 @@ Item {
                                 text: navBtn.labelText
                             }
                             background: Rectangle {
-                                color: navBtn.active ? Qt.alpha(ThemeEngine.colors.primary, 0.12) : "transparent"
+                                // 5WHY: no hover feedback on nav items — desktop
+                                // users got zero affordance that tabs are clickable.
+                                // Subtle primary tint on hover (M3 state-layer 6%),
+                                // stronger for active. Animated for polish.
+                                color: navBtn.active ? Qt.alpha(ThemeEngine.colors.primary, 0.12)
+                                     : navBtn.hovered ? Qt.alpha(ThemeEngine.colors.primary, 0.07)
+                                     : "transparent"
                                 radius: ThemeEngine.radius.md
+                                Behavior on color { ColorAnimation { duration: 120 } }
                             }
                             contentItem: Item {
                                 // Compact (mobile): M3 24dp icon, 48dp touch target

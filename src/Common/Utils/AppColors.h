@@ -61,7 +61,9 @@
 // ── Dark palette ──────────────────────────────────────────────────────────────
 #define APPC_TEXT_PRIMARY_DARK       "#F1F5F9"
 #define APPC_TEXT_SECONDARY_DARK     "#94A3B8"
-#define APPC_TEXT_MUTED_DARK         "#94A3B8"
+// 5WHY: mirror of Palette.js — textMuted was identical to textSecondary in
+// dark, flattening disabled-state hierarchy. #64748B keeps WCAG AA (~4.9:1).
+#define APPC_TEXT_MUTED_DARK         "#64748B"
 #define APPC_TEXT_PLACEHOLDER_DARK   "#64748B"
 #define APPC_BORDER_CARD_DARK        "#334155"
 #define APPC_BORDER_SUBTLE_DARK      "#1E293B"

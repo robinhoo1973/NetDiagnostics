@@ -80,7 +80,7 @@ Rectangle {
                     Label {
                         visible: isRunning
                         text: Tr.runningPrefix + (appState.currentDiagLabel||"") + "..."
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.italic: true
+                        font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true
                         color: ThemeEngine.colors.cyan; elide: Text.ElideRight
                         Accessible.name: Tr.runningPrefix + (appState.currentDiagLabel || "")
                         ToolTip.visible: headerTapArea.containsMouse && isRunning

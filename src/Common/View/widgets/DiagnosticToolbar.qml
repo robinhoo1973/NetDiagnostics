@@ -60,14 +60,17 @@ Rectangle {
                 SchemeSelector {
                     id: schemeCombo
                     Layout.preferredWidth: root.wide ? 88 : 72
-                    Layout.preferredHeight: 30; flat: true
+                    // 5WHY: 30px fields sat beside 44px buttons — visually
+                    // unbalanced and a cramped tap/click surface. 36px is the
+                    // dense-toolbar standard (matches browser/IDE toolbars).
+                    Layout.preferredHeight: 36; flat: true
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     enabled: appState.runStatus !== 1
                 }
 
                 // Host field
                 Rectangle {
-                    Layout.fillWidth: true; Layout.preferredHeight: 30; radius: 6
+                    Layout.fillWidth: true; Layout.preferredHeight: 36; radius: 6
                     color: ThemeEngine.colors.input
                     border {
                         width: hostField.activeFocus ? 2 : 1
@@ -230,7 +233,7 @@ Rectangle {
 
             // Port
             Rectangle {
-                Layout.preferredWidth: 80; implicitHeight: 30; radius: 6
+                Layout.preferredWidth: 80; implicitHeight: 36; radius: 6
                 color: ThemeEngine.colors.input
                 border { width: portField.activeFocus ? 2 : 1; color: portField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
                 TextField {
@@ -247,7 +250,7 @@ Rectangle {
 
             // Username
             Rectangle {
-                visible: schemeCombo.supportsUsername; Layout.fillWidth: true; implicitHeight: 30; radius: 6
+                visible: schemeCombo.supportsUsername; Layout.fillWidth: true; implicitHeight: 36; radius: 6
                 color: ThemeEngine.colors.input
                 border { width: userField.activeFocus ? 2 : 1; color: userField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
                 TextField {
@@ -264,7 +267,7 @@ Rectangle {
 
             // Password
             Rectangle {
-                visible: schemeCombo.supportsPassword; Layout.fillWidth: true; implicitHeight: 30; radius: 6
+                visible: schemeCombo.supportsPassword; Layout.fillWidth: true; implicitHeight: 36; radius: 6
                 color: ThemeEngine.colors.input
                 border { width: passField.activeFocus ? 2 : 1; color: passField.activeFocus ? ThemeEngine.colors.borderFocused : ThemeEngine.colors.borderCard }
                 TextField {
