@@ -46,10 +46,15 @@ jobs:
         run: |
           set -euo pipefail
           brew install cmake ninja python3
-          # 5WHY: 'brew install idb-companion' failed ("No available formula")
-          # — idb-companion is NOT in homebrew-core; it ships from the
-          # facebook/fb tap.  Tap it first, then install the companion.
+          # 5WHY (1): 'brew install idb-companion' failed ("No available
+          # formula") — idb-companion is NOT in homebrew-core; it ships from
+          # the facebook/fb tap, so tap it first.
+          # 5WHY (2): after tapping, brew refused to load the formula from an
+          # UNTRUSTED tap ("Refusing to load formula ... untrusted tap") —
+          # newer Homebrew requires `brew trust` before installing from
+          # third-party taps.
           brew tap facebook/fb
+          brew trust facebook/fb 2>/dev/null || true
           brew install idb-companion
           python3 -m venv /tmp/venv && source /tmp/venv/bin/activate
           pip install aqtinstall fb-idb
