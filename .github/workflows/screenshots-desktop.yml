@@ -46,6 +46,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build \
@@ -64,7 +65,8 @@ jobs:
 
       - name: Generate screenshots (xvfb)
         run: |
-          xvfb-run -a -s "-screen 0 1280x800x24" \
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1440x1100x24" \
             bash scripts/screenshot/drive-linux.sh \
             ./build/net_diagnostics resources/doc/screenshot/linux
 
@@ -103,6 +105,7 @@ jobs:
       - name: Build (dynamic)
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B build -S .
           ninja -C build net_diagnostics
 
@@ -111,6 +114,7 @@ jobs:
         # app process) so the dynamic build can find its runtime libraries.
         shell: msys2 {0}
         run: |
+          set -euo pipefail
           export PATH="/ucrt64/bin:$PATH"
           powershell -ExecutionPolicy Bypass -File \
             scripts/screenshot/drive-windows.ps1 \
@@ -136,6 +140,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           brew install cmake ninja curl qt@6
           brew install cliclick || true   # GUI input injection (best-effort)
 
@@ -148,6 +153,7 @@ jobs:
 
       - name: Generate screenshots
         run: |
+          set -euo pipefail
           bash scripts/screenshot/drive-macos.sh \
             ./build/net_diagnostics resources/doc/screenshot/macos
 
@@ -188,4 +194,5 @@ jobs:
           GIT_COMMITTER_NAME: robinhoo1973
           GIT_COMMITTER_EMAIL: robinhoo1973@users.noreply.github.com
         run: |
+          set -euo pipefail
           bash scripts/screenshot/commit-screenshots.sh artifacts
