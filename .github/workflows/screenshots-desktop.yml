@@ -48,21 +48,18 @@ jobs:
         run: |
           set -euo pipefail
           sudo apt-get update -qq
-          # 5WHY: the first run failed at app startup with
-          # 'module "QtQuick.Controls" is not installed' — qt6-declarative-dev
-          # ships the C++ libs/headers but NOT the QML runtime modules.  Those
-          # live in the qml6-module-* packages; install all of them so every
-          # import (Controls, Workerscript, Layouts, Dialogs, ...) resolves.
+          # 5WHY: run 1 crashed at startup with 'module "QtQuick.Controls" is
+          # not installed' — qt6-declarative-dev ships C++ libs/headers but NOT
+          # the QML runtime modules (they live in qml6-module-*).  Run 2 failed
+          # because literal package names (qml6-module-qtquick-effects,
+          # qml6-module-qtlabs-platform) don't exist on Ubuntu 24.04 and apt
+          # aborts the whole install (exit 100).  Fix: let apt expand the glob
+          # qml6-module-'*' so only packages that actually exist are installed.
           sudo apt-get install -y --no-install-recommends \
             build-essential cmake ninja-build \
             qt6-base-dev qt6-declarative-dev libqt6quickcontrols2-6 \
             qt6-tools-dev qt6-tools-dev-tools libcurl4-openssl-dev \
-            qml6-module-qtquick qml6-module-qtquick-controls \
-            qml6-module-qtquick-templates qml6-module-qtquick-layouts \
-            qml6-module-qtquick-window qml6-module-qtqml \
-            qml6-module-qtqml-workerscript qml6-module-qtqml-models \
-            qml6-module-qtquick-dialogs qml6-module-qtquick-shapes \
-            qml6-module-qtquick-effects qml6-module-qtlabs-platform \
+            'qml6-module-*' \
             libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 \
             libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 \
             libxrandr2 libgl1 libegl1 \

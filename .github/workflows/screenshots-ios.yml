@@ -45,7 +45,12 @@ jobs:
       - name: Install dependencies
         run: |
           set -euo pipefail
-          brew install cmake ninja python3 idb-companion
+          brew install cmake ninja python3
+          # 5WHY: 'brew install idb-companion' failed ("No available formula")
+          # — idb-companion is NOT in homebrew-core; it ships from the
+          # facebook/fb tap.  Tap it first, then install the companion.
+          brew tap facebook/fb
+          brew install idb-companion
           python3 -m venv /tmp/venv && source /tmp/venv/bin/activate
           pip install aqtinstall fb-idb
           echo "/tmp/venv/bin" >> "$GITHUB_PATH"
