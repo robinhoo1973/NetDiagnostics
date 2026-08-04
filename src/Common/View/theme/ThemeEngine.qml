@@ -23,7 +23,7 @@ QtObject {
     readonly property int drkMode: 2
     property int mode: drkMode
     readonly property bool isDark: mode !== litMode
-    readonly property bool isMobile: Qt.platform.os === "ios" || Qt.platform.os === "android"
+    readonly property bool isMobile: appState.isMobile
 
     // ── Palette reference (via Palette.js singleton, inlined to reduce
     // property count — ThemeEngine's own header warns ~97 props can crash

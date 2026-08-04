@@ -67,6 +67,10 @@ class AppState : public QObject {
     Q_PROPERTY(QString gitHash READ gitHash CONSTANT)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
     Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
+    // isMobile is normally true on iOS/Android; the ND_MOBILE=1 env var
+    // forces it to true on desktop so the mobile layout can be tested and
+    // screenshotted without a device / simulator.
+    Q_PROPERTY(bool isMobile READ isMobile CONSTANT)
     // Crash report from the previous run (detected at startup). QML can show a
     // banner offering to share/upload the report when hasCrashReport is true.
     Q_PROPERTY(bool hasCrashReport READ hasCrashReport NOTIFY crashReportChanged)
@@ -188,6 +192,7 @@ public:
 
     // ── Premium / sharing ──────────────────────────────────────────────────
     bool isPremium() const;
+    bool isMobile() const;
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
@@ -296,5 +301,6 @@ private:
     std::atomic<int> m_runGeneration{0};
     // m_languageIndex, m_themeMode, m_premium → now owned by SettingsController
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
+    bool m_isMobile = false;  // computed in ctor: platform env OR ND_MOBILE=1 override
 
 };

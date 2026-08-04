@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AppState.cpp
 // =============================================================================
 #include "app/AppState.h"
@@ -118,6 +118,18 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // Restore persisted settings (language/theme/diags handled by Controllers)
     // 5WHY: null check was dead code — m_settingsCtrl initialized in ctor, never cleared.
     m_settingsCtrl->loadSettings();
+
+    // Detect or override the mobile-layout flag.
+    // ND_MOBILE=1 forces the mobile layout on desktop so the screenshot CI
+    // can capture authentic mobile screenshots without a device or simulator.
+    if (qEnvironmentVariableIntValue("ND_MOBILE") == 1)
+        m_isMobile = true;
+    else
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+        m_isMobile = true;
+#else
+        m_isMobile = false;
+#endif
     m_configCtrl->loadSettings();
     loadSettings();
 }
@@ -183,6 +195,7 @@ void AppState::bumpVersion() {
 int AppState::languageIndex() const { return m_settingsCtrl->languageIndex(); }
 int AppState::themeMode() const { return m_settingsCtrl->themeMode(); }
 bool AppState::isPremium() const { return m_settingsCtrl->isPremium(); }
+bool AppState::isMobile() const { return m_isMobile; }
 bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInProgress(); }
 
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT

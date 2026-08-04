@@ -142,7 +142,9 @@ jobs:
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           boot-timeout: 900000
           script: |
-            set -euo pipefail
+            # reactivecircus runs this block with /usr/bin/sh (dash) — no
+            # pipefail, no source.  The driver scripts use bash internally.
+            set -eu
             adb install "${{ env.APK }}"
             adb shell input keyevent 82 || true   # dismiss keyguard
             bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/phone
@@ -170,38 +172,47 @@ jobs:
         with:
           name: apk-x86_64
 
-      # Pre-create the tablet AVD so the emulator-runner boots THIS profile.
-      # force-avd-creation: false → the action reuses our AVD.
-      - name: Create tablet AVD
-        run: |
-          set -euo pipefail
-          IMG="system-images;android-30;google_apis;x86_64"
-          if echo no | avdmanager create avd -n tablet -k "$IMG" -d pixel_tablet -f 2>/tmp/avd.err; then
-            echo "[OK] tablet AVD (pixel_tablet) created"
-          else
-            echo "[WARN] pixel_tablet profile failed; retrying with 10.1in WXGA (Tablet)"
-            echo no | avdmanager create avd -n tablet -k "$IMG" -d "10.1in WXGA (Tablet)" -f
-          fi
-
-      - name: Boot emulator + capture
+      # The reactivecircus action downloads the system image, creates a
+      # DEFAULT-profile AVD, and boots it.  Inside its script: block we
+      # kill that default emulator, recreate the AVD with a tablet device
+      # profile (pixel_tablet), and boot the tablet ourselves.
+      - name: Boot tablet emulator + capture
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 30
           arch: x86_64
           target: google_apis
           avd-name: tablet
-          force-avd-creation: false
-          # 5WHY: disable-animations/disable-spellchecker made the action run
-          # 'settings put ...' immediately after boot, which failed on the
-          # no-KVM software emulator ('cmd: Can't find service: settings') and
-          # aborted the job.  Device config now happens inside drive-android.sh
-          # with a settings-service wait/retry loop.
+          force-avd-creation: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
-          boot-timeout: 900000
+          boot-timeout: 600000
           script: |
-            set -euo pipefail
+            # reactivecircus runs this with /usr/bin/sh (dash) — no pipefail.
+            # The driver scripts use bash internally with their own set -euo.
+            set -eu
+
+            echo "[TABLET] killing default emulator the action started..."
+            adb emu kill 2>/dev/null || true
+            sleep 5
+
+            echo "[TABLET] recreating AVD with tablet profile..."
+            IMG="system-images;android-30;google_apis;x86_64"
+            AVDMAN="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+            if echo no | "$AVDMAN" create avd -n tablet -k "$IMG" -d pixel_tablet -f 2>/dev/null; then
+              echo "[TABLET] pixel_tablet AVD created"
+            else
+              echo "[TABLET] pixel_tablet missing; fallback to 10.1in WXGA (Tablet)"
+              echo no | "$AVDMAN" create avd -n tablet -k "$IMG" -d "10.1in WXGA (Tablet)" -f
+            fi
+
+            echo "[TABLET] booting tablet emulator..."
+            nohup "$ANDROID_HOME/emulator/emulator" -avd tablet -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -accel off > /tmp/emulator-tablet.log 2>&1 &
+            adb wait-for-device
+            until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 10; done
+            echo "[TABLET] booted"
+
+            adb shell input keyevent 82 || true
             adb install "${{ env.APK }}"
-            adb shell input keyevent 82 || true   # dismiss keyguard
             bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/tablet
 
       - name: Upload screenshots
