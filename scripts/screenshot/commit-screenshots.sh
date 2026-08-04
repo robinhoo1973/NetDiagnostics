@@ -24,15 +24,23 @@ if [ ! -d "$ARTIFACTS" ]; then
 fi
 
 # Copy any new screenshots into the repo (preserve resources/... layout).
+# Artifact layout handled:
+#   resources/doc/screenshot/<platform>/<stage>.png   → as-is
+#   screenshots-<platform>/<stage>.png                → resources/doc/screenshot/<platform>/<stage>.png
+#   doc/screenshot/ios/<size>/<stage>.png             → resources/doc/screenshot/ios/<size>/<stage>.png
+# 5WHY: the first run committed nothing — upload-artifact@v4 flattens globbed
+# files to the artifact root (no resources/ prefix), so files were copied to
+# the repo ROOT and `git add resources/doc/screenshot` staged nothing.  Map
+# by artifact-name/platform instead.
 COPIED=0
 while IFS= read -r png; do
     rel="${png#$ARTIFACTS/}"
-    # Strip the leading artifact-name segment (e.g. "screenshots-linux/").
-    if [[ "$rel" == resources/* ]]; then
-        dest="$ROOT/$rel"
-    else
-        dest="$ROOT/${rel#*/}"
-    fi
+    case "$rel" in
+        resources/*)      dest="$ROOT/$rel" ;;
+        screenshots-*)    dest="$ROOT/resources/doc/screenshot/${rel#screenshots-}" ;;
+        doc/screenshot/*) dest="$ROOT/resources/$rel" ;;
+        *)                dest="$ROOT/resources/doc/screenshot/$rel" ;;
+    esac
     mkdir -p "$(dirname "$dest")"
     cp -f "$png" "$dest"
     COPIED=$((COPIED + 1))

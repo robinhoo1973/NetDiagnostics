@@ -1,12 +1,12 @@
 # =============================================================================
-# drive-windows.ps1 — External UI driver for NetDiagnostics (Windows desktop)
+# drive-windows.ps1 - External UI driver for NetDiagnostics (Windows desktop)
 # =============================================================================
 # Launches the app, drives it like a real user (mouse + SendKeys), and
 # captures OS-level screenshots per runtime stage.  ZERO app source
-# modifications — pure OS-level automation of the production binary.
+# modifications - pure OS-level automation of the production binary.
 #
-# Stage sequence (shared): 1-idle → 2-running → 3-complete → 4-detail →
-#   5-dashboard → 6-report → 7-config → 8-settings
+# Stage sequence (shared): 1-idle -> 2-running -> 3-complete -> 4-detail ->
+#   5-dashboard -> 6-report -> 7-config -> 8-settings
 #
 # Usage:
 #   powershell -ExecutionPolicy Bypass -File scripts/screenshot/drive-windows.ps1 `
@@ -48,7 +48,7 @@ public class NW {
 "@
 [NW]::SetProcessDPIAware() | Out-Null
 
-# ── Config ────────────────────────────────────────────────────────────────
+# -- Config ----------------------------------------------------------------
 $TargetUrl = if ($env:ND_CAPTURE_TARGET) { $env:ND_CAPTURE_TARGET } else { "http://localhost:8899" }
 $MaxTests = if ($env:ND_CAPTURE_MAX_TESTS) { [int]$env:ND_CAPTURE_MAX_TESTS } else { 4 }
 $ResultRowY = if ($env:ND_RESULT_ROW_Y) { [int]$env:ND_RESULT_ROW_Y } else { 0 }
@@ -62,7 +62,7 @@ function Die([string]$m) { Write-Error $m; exit 1 }
 
 if (-not (Test-Path $AppPath)) { Die "app not found: $AppPath" }
 
-# ── Slow deterministic HTTP server (keeps the run alive for the Running shot) ─
+# -- Slow deterministic HTTP server (keeps the run alive for the Running shot) -
 $ServerProc = $null
 $serverPy = Join-Path (Get-Location) "scripts\screenshot\slow-http-server.py"
 if (Test-Path $serverPy) {
@@ -77,7 +77,7 @@ $hwnd = [IntPtr]::Zero
 
 function Launch-App {
     param([string]$AppPath)
-    # Fresh QSettings → deterministic default config (all tests enabled).
+    # Fresh QSettings -> deterministic default config (all tests enabled).
     Remove-Item -Path "HKCU:\Software\robinhoo1973\NetDiagnostics" -Recurse -Force -ErrorAction SilentlyContinue
     $env:ND_MAX_TESTS = "$MaxTests"   # existing runtime cap (no source change)
 
@@ -90,7 +90,7 @@ function Launch-App {
         Start-Sleep -Milliseconds 500
         $script:hwnd = [NW]::FindWindow($null, "NetDiagnostics")
     }
-    if ($script:hwnd -eq [IntPtr]::Zero) { Warn "window not found after 30s — continuing (captures may be blank)" }
+    if ($script:hwnd -eq [IntPtr]::Zero) { Warn "window not found after 30s - continuing (captures may be blank)" }
 
     if ($script:hwnd -ne [IntPtr]::Zero) {
         [NW]::ShowWindow($script:hwnd, 9) | Out-Null          # SW_RESTORE
@@ -109,7 +109,7 @@ function Stop-App {
 
 Launch-App $AppPath
 
-# ── Window rect → coordinates (fixed internal layout) ────────────────────
+# -- Window rect -> coordinates (fixed internal layout) --------------------
 $rect = New-Object NW+RECT
 [NW]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
 $W = $rect.Right - $rect.Left; $H = $rect.Bottom - $rect.Top
@@ -135,7 +135,7 @@ $ResultRowX = $WX + 400
 
 Log "layout ${W}x${H} toolbar_y=$ToolbarCy host_x=$HostCx run_x=$RunCx nav_y=$NavY target=$TargetUrl"
 
-# ── Helpers ───────────────────────────────────────────────────────────────
+# -- Helpers ---------------------------------------------------------------
 function Click([int]$x, [int]$y, [string]$label) {
     [NW]::SetCursorPos($x, $y) | Out-Null
     [NW]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)   # left down
@@ -183,29 +183,29 @@ function WaitStable([int]$maxSec = 60) {
         if ($a -eq $b) { Log "screen stable after ~$($t + 4)s"; Start-Sleep -Seconds 2; return }
         $t += 4
     }
-    Warn "screen not stable within ${maxSec}s — proceeding"
+    Warn "screen not stable within ${maxSec}s - proceeding"
 }
 
-# ══════════════════════════════════════════════════════════════════════════
-# PASS A — 1..6 (report preview is the last stage; its overlay cannot be
+# ==========================================================================
+# PASS A - 1..6 (report preview is the last stage; its overlay cannot be
 # dismissed reliably (the window's own close button stacks above it), so we
 # relaunch for the remaining screens).
-# ══════════════════════════════════════════════════════════════════════════
+# ==========================================================================
 Start-Sleep -Seconds 2
 Capture "1-idle"
 
-# ── Stage 2: Running ──────────────────────────────────────────────────────
+# -- Stage 2: Running ------------------------------------------------------
 Click $HostCx $ToolbarCy "host-field"
 TypeUrl
 Click $RunCx $ToolbarCy "run-button"
 Start-Sleep -Seconds 2
 Capture "2-running"
 
-# ── Stage 3: Complete ─────────────────────────────────────────────────────
+# -- Stage 3: Complete -----------------------------------------------------
 WaitStable 60
 Capture "3-complete"
 
-# ── Stage 4: Detail (keyboard: Tab Tab Enter — focus is on the run button
+# -- Stage 4: Detail (keyboard: Tab Tab Enter - focus is on the run button
 # after clicking Run; result rows are activeFocusOnTab and Enter opens detail)
 $wshell4 = New-Object -ComObject WScript.Shell
 $wshell4.SendKeys("{TAB}"); Start-Sleep -Milliseconds 300
@@ -214,19 +214,19 @@ $wshell4.SendKeys("{ENTER}"); Start-Sleep -Seconds 2
 Capture "4-detail"
 Click $DetailCloseCx $DetailCloseCy "detail-close"
 
-# ── Stage 5: Dashboard ────────────────────────────────────────────────────
+# -- Stage 5: Dashboard ----------------------------------------------------
 NavTo $NavDashCx "dashboard"
 Capture "5-dashboard"
 
-# ── Stage 6: Report preview ───────────────────────────────────────────────
+# -- Stage 6: Report preview -----------------------------------------------
 Click $ReportBtnX $ReportBtnY "review-report"
 Start-Sleep -Seconds 3
 Capture "6-report"
 Stop-App
 
-# ══════════════════════════════════════════════════════════════════════════
-# PASS B — 7-config → 8-settings (fresh launch)
-# ══════════════════════════════════════════════════════════════════════════
+# ==========================================================================
+# PASS B - 7-config -> 8-settings (fresh launch)
+# ==========================================================================
 Launch-App $AppPath
 NavTo $NavCfgCx "config"
 Capture "7-config"
@@ -235,6 +235,6 @@ NavTo $NavSetCx "settings"
 Capture "8-settings"
 
 Stop-App
-Log "done — screenshots in $OutDirAbs"
+Log "done - screenshots in $OutDirAbs"
 if ($ServerProc -and -not $ServerProc.HasExited) { Stop-Process -Id $ServerProc.Id -Force -ErrorAction SilentlyContinue }
 exit 0

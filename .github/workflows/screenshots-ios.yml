@@ -1,0 +1,109 @@
+name: Screenshots (iOS Simulator)
+
+# Phase 2 of the screenshot pipeline: builds the app for the iOS Simulator,
+# boots 5 devices (4 phones + 1 tablet), drives each like a user with idb
+# (tap/swipe/text), captures OS-level screenshots with `simctl io screenshot`,
+# and uploads them as an artifact.  ZERO app source changes — the app is
+# driven entirely from outside.
+#
+# Screenshots land under resources/doc/screenshot/ios/:
+#   phone/6.1  ← iPhone SE (3rd generation)
+#   phone/6.3  ← iPhone 16 Pro
+#   phone/6.5  ← iPhone 16
+#   phone/6.9  ← iPhone 16 Pro Max
+#   tablet/13  ← iPad Pro 13-inch (M4) (falls back to 12.9" 6th gen)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 2 * * 0'
+
+concurrency:
+  group: screenshots-ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: 6.8.3
+  BUNDLE_ID: "com.netdiagnostic.app"
+  QT_INSTALL_DIR: "/Users/runner/qt-ios"
+  QT_HOST_DIR: "/Users/runner/qt-desktop"
+
+jobs:
+  ios:
+    name: iOS Simulator
+    runs-on: macos-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/select-xcode
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          brew install cmake ninja python3 idb-companion
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate
+          pip install aqtinstall fb-idb
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-sim-desktop
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios-sim
+
+      - name: Configure (simulator SDK)
+        run: |
+          set -euo pipefail
+          SDKROOT=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION=0.0.1 \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
+            -DAPP_EDITION=ios-simulator \
+            -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+            -B build -S .
+
+      - name: Build (simulator)
+        run: ninja -C build net_diagnostics
+
+      - name: Verify app bundle
+        run: |
+          set -euo pipefail
+          [ -d build/net_diagnostics.app ] || { echo "ERROR: no .app bundle"; exit 1; }
+          BID=$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" build/net_diagnostics.app/Info.plist 2>/dev/null || true)
+          echo "bundle id: $BID"
+          [ "$BID" = "${{ env.BUNDLE_ID }}" ] || echo "WARN: expected ${{ env.BUNDLE_ID }}"
+
+      - name: Capture screenshots (5 devices)
+        run: |
+          set -euo pipefail
+          bash scripts/screenshot/ci-ios-capture.sh "build/net_diagnostics.app" "${{ env.BUNDLE_ID }}"
+        env:
+          ND_MAX_TESTS: "4"
+          ND_CAPTURE_TARGET: "http://localhost:8899"
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-ios
+          path: resources/doc/screenshot/ios/**
+          if-no-files-found: error
