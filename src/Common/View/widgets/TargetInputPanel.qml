@@ -245,7 +245,9 @@ ColumnLayout {
         AppIcon { name: "warning"; size: 12; color: ThemeEngine.colors.failRed }
         Label {
             Layout.fillWidth: true
-            text: root.validationError || ""
+            // 5WHY: validationError is a C++ message — route through Tr.trMsg()
+            // so it translates on language switch.
+            text: Tr.trMsg(root.validationError)
             font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.failRed
             wrapMode: Text.WordWrap
         }

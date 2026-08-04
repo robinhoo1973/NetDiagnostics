@@ -106,7 +106,7 @@ Item {
                         if (root.currentPage > 0) root.currentPage--
                     }
                 }
-                Accessible.name: "Previous page"
+                Accessible.name: Tr.accPrevPage
                 Accessible.role: Accessible.Button
             }
 
@@ -134,7 +134,7 @@ Item {
                         if (root.currentPage < root.pageCount - 1) root.currentPage++
                     }
                 }
-                Accessible.name: "Next page"
+                Accessible.name: Tr.accNextPage
                 Accessible.role: Accessible.Button
             }
         }
