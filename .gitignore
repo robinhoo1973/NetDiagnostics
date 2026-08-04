@@ -47,6 +47,11 @@ commit_msg.txt
 AGENTS.md
 CLAUDE.md
 scripts/
+# Screenshot CI drivers MUST be tracked (the CI pipelines call them at runtime).
+!scripts/screenshot/
+!scripts/pre-commit
+!scripts/ci-http-server.py
+!scripts/install-hooks
 review/
 
 # CodeWhale config — only constitution.json is shared
