@@ -58,7 +58,7 @@ Rectangle {
             Item { width: 6 }
             Label {
                 text: Tr.targetAnalysis
-                font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                font.family: ThemeEngine.monoFont; font.pixelSize: 12
                 font.weight: Font.DemiBold; color: ThemeEngine.colors.secondary
             }
         }
@@ -66,18 +66,18 @@ Rectangle {
 
         // Type
         RowLayout {
-            Label { text: Tr.targetTypeLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+            Label { text: Tr.targetTypeLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
                 text: isUrl ? Tr.targetTypeUrl : (isIp ? Tr.targetTypeIp : (target !== "" ? Tr.targetTypeHostname : ""))
-                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
             }
         }
         // Host
         RowLayout {
-            Label { text: Tr.hostLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+            Label { text: Tr.hostLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
                 text: host
-                font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary
+                font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
             }
         }
         // IP Classification
@@ -85,7 +85,7 @@ Rectangle {
             visible: isIp
             leftPadding: 70
             text: classifyIp(host)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
         }
 
         // URL component breakdown
@@ -101,13 +101,13 @@ Rectangle {
                     var lines = [];
                     try {
                         var u = new URL(target);
-                        lines.push(["Scheme", u.protocol.replace(":","")]);
-                        if (u.username) lines.push(["User", u.username]);
-                        lines.push(["Host", u.hostname]);
-                        if (u.port && u.port !== "80" && u.port !== "443") lines.push(["Port", u.port]);
-                        if (u.pathname && u.pathname !== "/") lines.push(["Path", u.pathname]);
-                        if (u.search) lines.push(["Query", u.search.substring(1)]);
-                        if (u.hash) lines.push(["Fragment", u.hash.substring(1)]);
+                        lines.push([Tr.urlSchemeLabel, u.protocol.replace(":","")]);
+                        if (u.username) lines.push([Tr.urlUserLabel, u.username]);
+                        lines.push([Tr.urlHostLabel, u.hostname]);
+                        if (u.port && u.port !== "80" && u.port !== "443") lines.push([Tr.urlPortLabel, u.port]);
+                        if (u.pathname && u.pathname !== "/") lines.push([Tr.urlPathLabel, u.pathname]);
+                        if (u.search) lines.push([Tr.urlQueryLabel, u.search.substring(1)]);
+                        if (u.hash) lines.push([Tr.urlFragmentLabel, u.hash.substring(1)]);
                     } catch(e) {
                         lines.push([Tr.errorStatus, Tr.malformedUrlLabel]);
                     }
@@ -115,8 +115,11 @@ Rectangle {
                 }
                 delegate: RowLayout {
                     property var pair: modelData
-                    Label { text: (pair[0] + "       ").substring(0,8) + ":"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
-                    Label { text: pair[1] || ""; font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary }
+                    // 5WHY: label column padded to 10 chars — translated labels
+                    // (e.g. CJK "查询参数") are wider than the old 8-char English
+                    // ones; truncating them would corrupt the displayed word.
+                    Label { text: (pair[0] + "          ").substring(0,10) + ":"; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+                    Label { text: pair[1] || ""; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary }
                 }
             }
         }
@@ -125,7 +128,7 @@ Rectangle {
         // Known Port Reference
         Label {
             text: Tr.knownPortRef
-            font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.colors.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
         }
         Item { Layout.preferredHeight: 2 }
         Repeater {
@@ -136,13 +139,13 @@ Rectangle {
                 property var b: (idx + 1 < portRef.length) ? portRef[idx + 1] : null
                 Label {
                     text: ("     " + a[0]).slice(-5) + " " + a[1]
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.colors.cyan
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.cyan
                     Layout.preferredWidth: 110
                 }
                 Label {
                     visible: b !== null
                     text: ("     " + b[0]).slice(-5) + " " + b[1]
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 9; color: ThemeEngine.colors.textSecondary
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
                     Layout.preferredWidth: 110
                 }
             }

@@ -27,7 +27,10 @@ Item {
     Rectangle {
         id: tabBar
         anchors { left: parent.left; right: parent.right; top: appBar.bottom; topMargin: -1 }
-        implicitHeight: 38; color: ThemeEngine.colors.navBar
+        // 5WHY: 38px was below the M3 48dp / Apple 44pt minimum touch target.
+        // 44px keeps the bar compact while making each G1-G5 tab comfortably
+        // tappable and giving the active-tab underline more breathing room.
+        implicitHeight: 44; color: ThemeEngine.colors.navBar
         border { width: 1; color: ThemeEngine.colors.borderCard }
         RowLayout {
             anchors.fill: parent; spacing: 0
@@ -219,57 +222,10 @@ Item {
     // 5WHY: _enNames duplicated AppState::staticDiagDisplayName() (C++).
     // Removed the parallel array; getDisplayName() now calls the Q_INVOKABLE
     // appState.diagDisplayName(diagId) directly — single source of truth.
-    // 5WHY: _enDescs was missing the CellularInfo entry at index 7, causing
-    // an off-by-one shift for ALL subsequent entries (index 7-43 showed the
-    // wrong diagnostic's description).  The GeoIPLoc entry was a copy-paste
-    // duplicate of InternetConnectivity.  LDAP/MQTT (indices 44-45) were
-    // also missing.  Now all 46 entries (0-45) match DiagId enum order exactly.
-    property var _enDescs: ["List all network adapters and their operational state",
-        "Driver version, hardware info, and negotiated link speed",
-        "Signal strength, SSID, channel, and link quality",
-        "Ethernet link status, speed, and duplex mode",
-        "DHCP lease info, server address, and expiration",
-        "IP addresses, subnet mask, default gateway, DNS servers",
-        "TCP/UDP connections: ESTABLISHED, LISTENING, etc.",
-        "Cellular network type, signal strength, carrier, and radio access technology",
-        "Active network profile type (Domain/Private/Public)",
-        "TCP/IP stack parameters and configurations",
-        "Default gateway reachability and response time",
-        "IPv4 and IPv6 routing table entries",
-        "ARP cache entries for local network discovery",
-        "System proxy configuration and auto-detection",
-        "Netskope client status and connection health",
-        "Configured DNS servers and their responsiveness",
-        "DNS resolver cache entries and statistics",
-        "Check for DNS hijacking or spoofing indicators",
-        "IP Geolocation: finds physical location via server latency + detects VPN",
-        "Connectivity check + Speedtest.net bandwidth test",
-        "Resolve target hostname to IP address(es)",
-        "Ping round-trip time and packet loss statistics",
-        "Route path and per-hop latency to target",
-        "Combined traceroute and ping with per-hop loss",
-        "Path MTU discovery to target host",
-        "IPv6 DNS (AAAA) resolution and TCP connectivity",
-        "Parse and validate the target URL components",
-        "TCP connectivity check to the URL host on default port",
-        "Service banner detection for text-based protocols",
-        "HTTP request/response headers and timing",
-        "HTTP response headers from the target server",
-        "Security-related HTTP headers (HSTS, CSP, etc.)",
-        "SSL/TLS certificate chain and validity check",
-        "HTTP redirect chain and final destination",
-        "Supported compression methods and encoding",
-        "HTTP request timing breakdown (DNS, connect, SSL, etc.)",
-        "FTP service reachability and banner detection",
-        "SSH version and key exchange detection",
-        "SMTP/IMAP/POP3 service detection and banner",
-        "Telnet service reachability and login banner",
-        "MySQL server reachability and version detection",
-        "PostgreSQL server reachability and version detection",
-        "Redis server reachability and INFO command",
-        "MongoDB server reachability and build info",
-        "LDAP server reachability and root DSE",
-        "MQTT broker reachability and CONNECT response"]
+    // 5WHY: _enDescs was a 46-entry English duplicate of Tr.diagDesc()'s EN
+    // column — a DRY violation that could drift.  Tr.diagDesc() now serves
+    // English too (t() returns the EN argument when lang<=0), so this array
+    // was removed; getDiagDescription() has a single canonical source.
     function getDisplayName(diagId) {
         // Use translated name when available (non-EN), fallback to C++ static array
         var tr = Tr.diagName(diagId)
@@ -279,9 +235,7 @@ Item {
         return appState.diagDisplayName(diagId)
     }
     function getDiagDescription(diagId) {
-        var tr = Tr.diagDesc(diagId)
-        if (tr !== "") return tr
-        return (diagId >= 0 && diagId < _enDescs.length) ? _enDescs[diagId] : ""
+        return Tr.diagDesc(diagId)
     }
     function getDiagCountForGroup(groupIdx) {
         return appState.allDiagIdsForGroup(groupIdx).length

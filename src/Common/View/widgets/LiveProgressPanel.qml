@@ -31,21 +31,23 @@ ColumnLayout {
         Label {
             visible: status === 1
             text: appState.currentDiagLabel || ""
-            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true; color: ThemeEngine.colors.cyan
+            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.italic: true; color: ThemeEngine.colors.cyan
             elide: Text.ElideRight; Layout.maximumWidth: 300
         }
         Label {
             visible: appState.totalDiags > 0
             text: appState.totalCompleted + " / " + appState.totalDiags
-            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary
+            font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary
         }
     }
 
     Label {
         visible: appState.errorMessage !== ""
         Layout.fillWidth: true; Layout.topMargin: 6
-        text: Tr.errorPrefix + (appState.errorMessage || "")
-        font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: Qt.alpha(ThemeEngine.colors.errorRed, 0.8)
+        // 5WHY: errorMessage is a C++ message — route through Tr.trMsg() so it
+        // translates on language switch.
+        text: Tr.errorPrefix + Tr.trMsg(appState.errorMessage || "")
+        font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: Qt.alpha(ThemeEngine.colors.errorRed, 0.8)
         maximumLineCount: 2; elide: Text.ElideRight
     }
 }

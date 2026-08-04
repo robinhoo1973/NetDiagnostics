@@ -234,8 +234,10 @@ Item {
                     // no runnable tests exist, but this screen discarded it
                     // for a generic checklist. Show the concrete reason first
                     // so users can correct configuration without guessing.
-                    text: appState.errorMessage !== "" ? appState.errorMessage : Tr.errorRecoveryHint
-                    font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                    // 5WHY: errorMessage is a C++ message — route through
+                    // Tr.trMsg() so it translates on language switch.
+                    text: appState.errorMessage !== "" ? Tr.trMsg(appState.errorMessage) : Tr.errorRecoveryHint
+                    font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -249,6 +251,10 @@ Item {
                 anchors { fill: parent; margins: 4 }
                 visible: appState.totalCompleted > 0 || appState.runStatus === 1
                 clip: true
+                // 5WHY: results pane had no scrollbar — on desktop with many
+                // groups there was no affordance or drag position feedback.
+                // Consistent with Settings/Report/Config which all show one.
+                ScrollBar.vertical: ScrollBar { }
                 contentWidth: width; contentHeight: treeColumn.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
                 Column {
@@ -468,7 +474,7 @@ Item {
                 contentHeight: detailCol.implicitHeight
                 ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
                 Column {
-                    id: detailCol; spacing: 8
+                    id: detailCol; spacing: 10
                     // 5WHY: width = max(parent.width, implicitWidth) means the
                     // Column always expands to fit its widest child (typically
                     // dtOutput's terminal lines).  In that case, Labels are never
@@ -478,17 +484,21 @@ Item {
                     width: Math.max(parent.width, implicitWidth)
                     Label { id: dtTitle; objectName: "dtTitle"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:16; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary }
                     Label { id: dtStatus; objectName: "dtStatus"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textSecondary }
-                    Label { id: dtSummary; objectName: "dtSummary"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
+                    // 5WHY: 10px summary/output were below comfortable reading
+                    // size for a detail pane (the primary place users read
+                    // prose). Bumped: summary 10→12, output 10→11 (data lines
+                    // keep slight density), property rows 11→12.
+                    Label { id: dtSummary; objectName: "dtSummary"; text: ""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                     Rectangle { width: parent.width; height: 1; color: ThemeEngine.colors.borderCard }
                     Repeater {
                         model: currentDetail.properties || []
                         delegate: Row {
                             spacing: 4
-                            Label { text: (modelData["label"]||"?")+":"; font.family:ThemeEngine.monoFont; font.pixelSize:11; font.weight:Font.DemiBold; color:ThemeEngine.colors.textSecondary; width:120 }
-                            Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
+                            Label { text: (modelData["label"]||"?")+":"; font.family:ThemeEngine.monoFont; font.pixelSize:12; font.weight:Font.DemiBold; color:ThemeEngine.colors.textSecondary; width:120 }
+                            Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:10; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }
