@@ -10,13 +10,41 @@
 
 ## Screenshots
 
-<p align="center">
-  <img src="resources/doc/screenshot/ios/phone/6.5/dashboard.png" width="18%" alt="Dashboard" />
-  <img src="resources/doc/screenshot/ios/phone/6.5/diagnostics.png" width="18%" alt="Diagnostics" />
-  <img src="resources/doc/screenshot/ios/phone/6.5/config.png" width="18%" alt="Config" />
-  <img src="resources/doc/screenshot/ios/phone/6.5/report.png" width="18%" alt="Report" />
-  <img src="resources/doc/screenshot/ios/phone/6.5/settings.png" width="18%" alt="Settings" />
-</p>
+Real OS-level captures of the production binary at each runtime stage, generated
+automatically by the [screenshot CI pipeline](.github/workflows/screenshots-desktop.yml)
+(desktop) / [iOS](.github/workflows/screenshots-ios.yml) / [Android](.github/workflows/screenshots-android.yml)
+— no mockups, no app modifications.
+
+### Desktop
+
+| Stage | Linux | Windows | macOS |
+|---|---|---|---|
+| **Dashboard** | <img src="resources/doc/screenshot/linux/5-dashboard.png" width="200"/> | <img src="resources/doc/screenshot/windows/5-dashboard.png" width="200"/> | <img src="resources/doc/screenshot/macos/5-dashboard.png" width="200"/> |
+| **Running** | <img src="resources/doc/screenshot/linux/2-running.png" width="200"/> | <img src="resources/doc/screenshot/windows/2-running.png" width="200"/> | <img src="resources/doc/screenshot/macos/2-running.png" width="200"/> |
+| **Results** | <img src="resources/doc/screenshot/linux/3-complete.png" width="200"/> | <img src="resources/doc/screenshot/windows/3-complete.png" width="200"/> | <img src="resources/doc/screenshot/macos/3-complete.png" width="200"/> |
+| **Detail** | <img src="resources/doc/screenshot/linux/4-detail.png" width="200"/> | <img src="resources/doc/screenshot/windows/4-detail.png" width="200"/> | <img src="resources/doc/screenshot/macos/4-detail.png" width="200"/> |
+| **Report** | <img src="resources/doc/screenshot/linux/6-report.png" width="200"/> | <img src="resources/doc/screenshot/windows/6-report.png" width="200"/> | <img src="resources/doc/screenshot/macos/6-report.png" width="200"/> |
+| **Config** | <img src="resources/doc/screenshot/linux/7-config.png" width="200"/> | <img src="resources/doc/screenshot/windows/7-config.png" width="200"/> | <img src="resources/doc/screenshot/macos/7-config.png" width="200"/> |
+| **Settings** | <img src="resources/doc/screenshot/linux/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/windows/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/macos/8-settings.png" width="200"/> |
+
+### iOS
+
+| Stage | 6.1″ | 6.3″ | 6.5″ | 6.9″ | iPad 13″ |
+|---|---|---|---|---|---|
+| **Dashboard** | <img src="resources/doc/screenshot/ios/phone/6.1/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/5-dashboard.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/5-dashboard.png" width="120"/> |
+| **Running** | <img src="resources/doc/screenshot/ios/phone/6.1/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/2-running.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/2-running.png" width="120"/> |
+| **Results** | <img src="resources/doc/screenshot/ios/phone/6.1/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/3-complete.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/3-complete.png" width="120"/> |
+| **Report** | <img src="resources/doc/screenshot/ios/phone/6.1/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.3/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/phone/6.9/6-report.png" width="120"/> | <img src="resources/doc/screenshot/ios/tablet/13/6-report.png" width="120"/> |
+
+### Android
+
+| Stage | Phone | Tablet |
+|---|---|---|
+| **Dashboard** | <img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/5-dashboard.png" width="220"/> |
+| **Running** | <img src="resources/doc/screenshot/android/phone/2-running.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/2-running.png" width="220"/> |
+| **Results** | <img src="resources/doc/screenshot/android/phone/3-complete.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/3-complete.png" width="220"/> |
+| **Report** | <img src="resources/doc/screenshot/android/phone/6-report.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/6-report.png" width="220"/> |
+| **Config** | <img src="resources/doc/screenshot/android/phone/7-config.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/7-config.png" width="220"/> |
 
 ## Features
 
