@@ -5,7 +5,7 @@ import "widgets"
 
 ApplicationWindow {
     id: root
-    title: "NetDiagnostics"
+    title: Tr.appName
     visible: true
     flags: Qt.FramelessWindowHint
     color: ThemeEngine.colors.surface
@@ -83,7 +83,7 @@ ApplicationWindow {
             hoverEnabled: true
             onClicked: root.close()
         }
-        Accessible.name: "Close window"
+        Accessible.name: Tr.accCloseWindow
         Accessible.role: Accessible.Button
     }
 }

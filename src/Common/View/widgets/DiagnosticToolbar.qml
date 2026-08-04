@@ -51,7 +51,7 @@ Rectangle {
                             event.accepted = true
                         }
                     }
-                    Accessible.name: root._advancedVisible ? "Hide advanced options" : "Show advanced options"
+                    Accessible.name: root._advancedVisible ? Tr.accHideAdvanced : Tr.accShowAdvanced
                     Accessible.role: Accessible.Button
                 }
 
@@ -79,7 +79,7 @@ Rectangle {
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: ThemeEngine.colors.textPrimary
-                        placeholderText: "example.com/path"
+                        placeholderText: Tr.placeholderHost
                         placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         text: { var h=appState.targetHost; var p=appState.targetPath; return (!h&&!p)?"": h+p }
                         enabled: appState.runStatus !== 1
@@ -164,7 +164,7 @@ Rectangle {
                             event.accepted = true
                         }
                     }
-                    Accessible.name: appState.runStatus === 1 ? "Stop diagnostics" : "Run diagnostics"
+                    Accessible.name: appState.runStatus === 1 ? Tr.accStopDiag : Tr.accRunDiag
                     Accessible.role: Accessible.Button
                 }
             }  // end Zone 2
@@ -218,7 +218,7 @@ Rectangle {
                         event.accepted = true  // always consume to prevent propagation
                     }
                 }
-                Accessible.name: "Clear target input"
+                Accessible.name: Tr.accClearTarget
                 Accessible.role: Accessible.Button
             }
         }  // end ROW 1
@@ -237,7 +237,7 @@ Rectangle {
                     id: portField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                    placeholderText: appState.defaultPortForScheme > 0 ? ""+appState.defaultPortForScheme : "Port"
+                    placeholderText: appState.defaultPortForScheme > 0 ? ""+appState.defaultPortForScheme : Tr.placeholderPort
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPort > 0 ? ""+appState.targetPort : ""
                     enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}

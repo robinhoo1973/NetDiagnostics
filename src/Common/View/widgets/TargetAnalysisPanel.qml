@@ -31,11 +31,11 @@ Rectangle {
     readonly property var _cgnatRegex: /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./
 
     function classifyIp(ip) {
-        if (_privateRegex.test(ip)) return "RFC1918 Private";
-        if (_cgnatRegex.test(ip)) return "CGNAT (RFC6598)";
-        if (ip.startsWith("169.254.")) return "APIPA Link-Local";
-        if (ip.startsWith("127.")) return "Loopback";
-        return "Public Routable";
+        if (_privateRegex.test(ip)) return Tr.ipClassPrivate;
+        if (_cgnatRegex.test(ip)) return Tr.ipClassCgnat;
+        if (ip.startsWith("169.254.")) return Tr.ipClassApipa;
+        if (ip.startsWith("127.")) return Tr.ipClassLoopback;
+        return Tr.ipClassPublic;
     }
 
     readonly property var portRef: [
@@ -74,7 +74,7 @@ Rectangle {
         }
         // Host
         RowLayout {
-            Label { text: "Host    :"; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+            Label { text: Tr.hostLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
                 text: host
                 font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.textPrimary
@@ -109,7 +109,7 @@ Rectangle {
                         if (u.search) lines.push(["Query", u.search.substring(1)]);
                         if (u.hash) lines.push(["Fragment", u.hash.substring(1)]);
                     } catch(e) {
-                        lines.push(["Error", "Malformed URL"]);
+                        lines.push([Tr.errorStatus, Tr.malformedUrlLabel]);
                     }
                     return lines;
                 }

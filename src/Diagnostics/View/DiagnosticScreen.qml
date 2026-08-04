@@ -46,10 +46,10 @@ Item {
     // updates the title, status, summary, and detail text consistently.
     function showDetailOverlay(detail) {
         dtTitle.text = detail.displayName || ""
-        var statusNames = ["Pass","Warning","Fail","Skipped","Error","Info"]
+        var statusNames = [Tr.summaryPass, Tr.summaryWarning, Tr.summaryFail, Tr.summarySkipped, Tr.errorStatus, Tr.summaryInfo]
         var s = detail.status !== undefined ? detail.status : 0
-        dtStatus.text = "Status: " + (statusNames[s] || "Unknown")
-            + "    Duration: " + (detail.durationMs !== undefined ? detail.durationMs : 0) + "ms"
+        dtStatus.text = Tr.detailStatusLabel + (statusNames[s] || Tr.detailUnknownStatus)
+            + "    " + Tr.detailDurationLabel + (detail.durationMs !== undefined ? detail.durationMs : 0) + "ms"
         dtSummary.text = detail.summary || ""
         dtOutput.text = detail.details || ""
         detailOverlay.visible = true
@@ -265,7 +265,7 @@ Item {
                                 var tid = data.diagId
                                 var d = appState.getDetailResult(tid)
                                 showDetailOverlay({
-                                    displayName: (d && d.displayName) ? d.displayName : (data.displayName || "Test #" + tid),
+                                    displayName: (d && d.displayName) ? d.displayName : (data.displayName || Tr.testIdPrefix + tid),
                                     status: (d && d.status !== undefined) ? d.status : 0,
                                     // 5WHY: falsy-zero bug — a test that took 0ms has
                                     // d.durationMs===0 which is falsy, falling to the
@@ -457,7 +457,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: detailOverlay.visible = false
                 }
-                Accessible.name: "Close details"
+                Accessible.name: Tr.accCloseDetails
                 Accessible.role: Accessible.Button
             }
 

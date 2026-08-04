@@ -121,7 +121,7 @@ Item {
     readonly property string errorPrefix: t("Error: ", "Erreur : ", "Fehler: ", "Ошибка: ", "Errore: ", "错误: ", "錯誤: ", "Error: ", "Erro: ")
     readonly property string runningStatus: t("Running", "En cours", "Läuft", "Выполняется", "In corso", "运行中", "運行中", "En ejecución", "Em execução")
     readonly property string completeStatus: t("Complete", "Terminé", "Abgeschlossen", "Завершено", "Completato", "完成", "完成", "Completado", "Concluído")
-    readonly property string cancelledStatus: t("Cancelled", "Annulé", "Abgebrochen", "Отменено", "Annullato", "已取消", "已取消", "Cancelado", "Cancelado")
+    readonly property string cancelledStatus: cancelled  // alias — DRY, single canonical definition
     readonly property string errorStatus: t("Error", "Erreur", "Fehler", "Ошибка", "Errore", "错误", "錯誤", "Error", "Erro")
     readonly property string readyStatus: t("Ready", "Prêt", "Bereit", "Готов", "Pronto", "就绪", "就緒", "Listo", "Pronto")
     // PM: Actionable error recovery hints shown when diagnostics fail
@@ -240,7 +240,7 @@ Item {
             18: t("IP Geolocation: finds physical location via server latency + detects VPN", "Géolocalisation IP : position physique via latence + détection VPN", "IP-Geolokalisierung: physischer Standort via Latenz + VPN-Erkennung", "IP Геолокация: определение местоположения через задержку + обнаружение VPN", "Geolocalizzazione IP: posizione fisica via latenza + rilevamento VPN", "IP地理定位: 通过服务器延迟确定物理位置 + 检测VPN", "IP地理定位: 通過伺服器延遲確定物理位置 + 檢測VPN", "Geolocalización IP: ubicación física por latencia + detección VPN", "Geolocalização IP: localização física via latência + detecção VPN"),
             19: t("Connectivity check + Speedtest.net bandwidth test", "Test de connectivité + bande passante Speedtest.net", "Konnektivitätsprüfung + Speedtest.net-Bandbreitentest", "Проверка соединения + тест скорости Speedtest.net", "Controllo connettività + test larghezza di banda Speedtest.net", "连接检查+Speedtest.net带宽测试", "連線檢查+Speedtest.net頻寬測試", "Comprobación de conectividad + prueba de ancho de banda de Speedtest.net", "Verificação de conectividade + teste de largura de banda do Speedtest.net"),
             20: t("Resolve target hostname to IP address(es)", "Résoudre le nom d'hôte cible en adresse(s) IP", "Zielhostname in IP-Adresse(n) auflösen", "Разрешить имя хоста цели в IP адрес(а)", "Risolvi hostname target in indirizzo/i IP", "将目标主机名解析为IP地址", "將目標主機名稱解析為IP位址", "Resolver el nombre de host objetivo a dirección(es) IP", "Resolver o nome de host alvo para endereço(s) IP"),
-            21: t("TCP connect round-trip time and packet loss", "Temps aller-retour de connexion TCP et perte de paquets", "TCP-Verbindungsumlaufzeit und Paketverlust", "Время кругового обхода TCP соединения и потеря пакетов", "Tempo andata/ritorno connessione TCP e perdita pacchetti", "TCP连接往返时间和丢包率", "TCP連線往返時間和丟包率", "Tiempo de ida y vuelta de conexión TCP y pérdida de paquetes", "Tempo de ida e volta da conexão TCP e perda de pacotes"),
+            21: t("Ping round-trip time and packet loss statistics", "Temps aller-retour de ping et statistiques de perte de paquets", "Ping-Umlaufzeit und Paketverluststatistik", "Время кругового обхода пинга и статистика потери пакетов", "Tempo andata/ritorno ping e statistiche perdita pacchetti", "Ping往返时间和丢包率统计", "Ping往返時間和丟包率統計", "Tiempo de ida y vuelta de ping y estadísticas de pérdida de paquetes", "Tempo de ida e volta do ping e estatísticas de perda de pacotes"),
             22: t("Route path and per-hop latency to target", "Chemin de route et latence par saut vers la cible", "Routenpfad und Hop-Latenz zum Ziel", "Путь маршрута и задержка на каждом хопе до цели", "Percorso di route e latenza per hop verso target", "到目标的路由路径和每跳延迟", "到目標的路由路徑和每跳延遲", "Ruta y latencia por salto hasta el objetivo", "Caminho da rota e latência por salto até o alvo"),
             23: t("Combined traceroute and ping with per-hop loss", "Traceroute et ping combinés avec perte par saut", "Kombinierter Traceroute und Ping mit Hop-Verlust", "Комбинированная трассировка и пинг с потерей на хопе", "Traceroute e ping combinati con perdita per hop", "组合路由追踪和ping及每跳丢包", "組合路由追蹤和ping及每跳丟包", "Traceroute y ping combinados con pérdida por salto", "Traceroute e ping combinados com perda por salto"),
             24: t("Path MTU discovery to target host", "Découverte du MTU du chemin vers l'hôte cible", "Pfad-MTU-Erkennung zum Zielhost", "Обнаружение MTU пути к целевому хосту", "Scoperta MTU percorso verso host target", "到目标主机的路径MTU发现", "到目標主機的路徑MTU發現", "Descubrimiento de MTU de ruta hasta el host objetivo", "Descoberta de MTU de caminho até o host alvo"),
@@ -295,4 +295,71 @@ Item {
     readonly property string usernameLabel: t("Username", "Nom d'utilisateur", "Benutzername", "Имя пользователя", "Nome utente", "用户名", "使用者名稱", "Usuario", "Usuário")
     readonly property string passwordLabel: t("Password", "Mot de passe", "Passwort", "Пароль", "Password", "密码", "密碼", "Contraseña", "Senha")
     readonly property string fromAddrLabel: t("From Address", "Adresse d'expédition", "Absenderadresse", "Адрес отправителя", "Indirizzo mittente", "发件地址", "發件地址", "Dirección de remitente", "Endereço do remetente")
+
+    // ── TargetInput / placeholder texts ──
+    readonly property string placeholderHost: t("example.com/path", "exemple.com/chemin", "beispiel.de/pfad", "пример.рф/путь", "esempio.com/percorso", "example.com/path", "example.com/path", "ejemplo.com/ruta", "exemplo.com/caminho")
+    readonly property string placeholderPort: t("Port", "Port", "Port", "Порт", "Porta", "端口", "連接埠", "Puerto", "Porta")
+
+    // ── Detail overlay labels ──
+    readonly property string detailStatusLabel: t("Status: ", "Statut : ", "Status: ", "Статус: ", "Stato: ", "状态: ", "狀態: ", "Estado: ", "Status: ")
+    readonly property string detailDurationLabel: t("Duration: ", "Durée : ", "Dauer: ", "Длительность: ", "Durata: ", "持续时间: ", "持續時間: ", "Duración: ", "Duração: ")
+    readonly property string detailUnknownStatus: t("Unknown", "Inconnu", "Unbekannt", "Неизвестно", "Sconosciuto", "未知", "未知", "Desconocido", "Desconhecido")
+
+    // ── Running prefix (DiagGroupPanel live status) ──
+    readonly property string runningPrefix: t("Running: ", "En cours : ", "Läuft: ", "Выполняется: ", "In corso: ", "运行中: ", "執行中: ", "Ejecutando: ", "Executando: ")
+
+    // ── Accessibility labels ──
+    readonly property string accCloseWindow: t("Close window", "Fermer la fenêtre", "Fenster schließen", "Закрыть окно", "Chiudi finestra", "关闭窗口", "關閉視窗", "Cerrar ventana", "Fechar janela")
+    readonly property string accCloseDetails: t("Close details", "Fermer les détails", "Details schließen", "Закрыть детали", "Chiudi dettagli", "关闭详情", "關閉詳情", "Cerrar detalles", "Fechar detalhes")
+    readonly property string accHidePassword: t("Hide password", "Masquer le mot de passe", "Passwort verbergen", "Скрыть пароль", "Nascondi password", "隐藏密码", "隱藏密碼", "Ocultar contraseña", "Ocultar senha")
+    readonly property string accShowPassword: t("Show password", "Afficher le mot de passe", "Passwort anzeigen", "Показать пароль", "Mostra password", "显示密码", "顯示密碼", "Mostrar contraseña", "Mostrar senha")
+    readonly property string accExpanded: t(" — expanded", " — déroulé", " — ausgeklappt", " — развёрнуто", " — espanso", " — 已展开", " — 已展開", " — expandido", " — expandido")
+    readonly property string accCollapsed: t(" — collapsed", " — replié", " — eingeklappt", " — свёрнуто", " — compresso", " — 已折叠", " — 已折疊", " — colapsado", " — recolhido")
+    readonly property string accActiveTheme: t("Active theme", "Thème actif", "Aktives Design", "Активная тема", "Tema attivo", "当前主题", "目前主題", "Tema activo", "Tema ativo")
+    readonly property string accSwitchTheme: t("Switch to this theme", "Basculer vers ce thème", "Zu diesem Design wechseln", "Переключиться на эту тему", "Passa a questo tema", "切换到此主题", "切換到此主題", "Cambiar a este tema", "Mudar para este tema")
+    readonly property string accDiagnosticSuffix: t(" diagnostic", " diagnostic", " Diagnose", " диагностика", " diagnostica", " 诊断", " 診斷", " diagnóstico", " diagnóstico")
+
+    // ── Purchase / progress indicators ──
+    readonly property string purchaseInProgress: t("Processing...", "Traitement...", "Verarbeitung...", "Обработка...", "Elaborazione...", "处理中...", "處理中...", "Procesando...", "Processando...")
+
+    // ── Common fallback / technical labels ──
+    readonly property string testIdPrefix: t("Test #", "Test n°", "Test Nr.", "Тест №", "Test n.", "测试 #", "測試 #", "Prueba n.°", "Teste n.º")
+    readonly property string versionLabel: t("Version", "Version", "Version", "Версия", "Versione", "版本", "版本", "Versión", "Versão")
+    readonly property string buildLabel: t("Build", "Build", "Build", "Сборка", "Build", "构建", "構建", "Build", "Build")
+
+    // ── Host label (TargetAnalysisPanel) ──
+    readonly property string hostLabel: t("Host    :", "Hôte    :", "Host    :", "Хост    :", "Host    :", "主机    :", "主機    :", "Host    :", "Host    :")
+
+    // ── IP classification labels (TargetAnalysisPanel) ──
+    readonly property string ipClassPrivate: t("Private (RFC 1918)", "Privée (RFC 1918)", "Privat (RFC 1918)", "Частная (RFC 1918)", "Privata (RFC 1918)", "专用 (RFC 1918)", "私人 (RFC 1918)", "Privada (RFC 1918)", "Privada (RFC 1918)")
+    readonly property string ipClassCgnat: t("CGNAT (RFC 6598)", "CGNAT (RFC 6598)", "CGNAT (RFC 6598)", "CGNAT (RFC 6598)", "CGNAT (RFC 6598)", "运营商NAT (RFC 6598)", "電信商NAT (RFC 6598)", "CGNAT (RFC 6598)", "CGNAT (RFC 6598)")
+    readonly property string ipClassApipa: t("Link-Local (APIPA)", "Lien local (APIPA)", "Link-Lokal (APIPA)", "Локальная (APIPA)", "Collegamento locale (APIPA)", "链路本地 (APIPA)", "連結本地 (APIPA)", "Enlace local (APIPA)", "Link local (APIPA)")
+    readonly property string ipClassLoopback: t("Loopback", "Boucle locale", "Lokale Schleife", "Петля", "Loopback", "环回", "環回", "Bucle local", "Loopback")
+    readonly property string ipClassPublic: t("Public Routable", "Publique routable", "Öffentlich routbar", "Публичная маршрутизируемая", "Pubblica routabile", "公网可路由", "公網可路由", "Pública enrutable", "Pública roteável")
+
+    // ── URL error labels ──
+    readonly property string malformedUrlLabel: t("Malformed URL", "URL mal formée", "Fehlerhafte URL", "Некорректный URL", "URL non valido", "URL格式错误", "URL格式錯誤", "URL mal formada", "URL malformada")
+
+    // ── Accessibility: PDF navigation ──
+    readonly property string accPrevPage: t("Previous page", "Page précédente", "Vorherige Seite", "Предыдущая страница", "Pagina precedente", "上一页", "上一頁", "Página anterior", "Página anterior")
+    readonly property string accNextPage: t("Next page", "Page suivante", "Nächste Seite", "Следующая страница", "Pagina successiva", "下一页", "下一頁", "Página siguiente", "Página seguinte")
+
+    // ── Accessibility: DiagnosticToolbar ──
+    readonly property string accHideAdvanced: t("Hide advanced options", "Masquer les options avancées", "Erweiterte Optionen ausblenden", "Скрыть дополнительные опции", "Nascondi opzioni avanzate", "隐藏高级选项", "隱藏進階選項", "Ocultar opciones avanzadas", "Ocultar opções avançadas")
+    readonly property string accShowAdvanced: t("Show advanced options", "Afficher les options avancées", "Erweiterte Optionen anzeigen", "Показать дополнительные опции", "Mostra opzioni avanzate", "显示高级选项", "顯示進階選項", "Mostrar opciones avanzadas", "Mostrar opções avançadas")
+    readonly property string accStopDiag: t("Stop diagnostics", "Arrêter le diagnostic", "Diagnose stoppen", "Остановить диагностику", "Ferma diagnostica", "停止诊断", "停止診斷", "Detener diagnóstico", "Parar diagnóstico")
+    readonly property string accRunDiag: t("Run diagnostics", "Lancer le diagnostic", "Diagnose starten", "Запустить диагностику", "Avvia diagnostica", "运行诊断", "運行診斷", "Ejecutar diagnóstico", "Executar diagnóstico")
+    readonly property string accClearTarget: t("Clear target input", "Effacer la cible", "Zieleingabe löschen", "Очистить ввод цели", "Cancella input target", "清除目标输入", "清除目標輸入", "Borrar entrada de objetivo", "Limpar entrada de alvo")
+
+    // ── App name (Settings/About screen) ──
+    readonly property string appName: t("NetDiagnostics", "NetDiagnostics", "NetDiagnostics", "NetDiagnostics", "NetDiagnostics", "NetDiagnostics", "NetDiagnostics", "NetDiagnostics", "NetDiagnostics")
+
+    // ── Group prefix (G1, G2, ...) ──
+    function groupPrefix(idx) {
+        var d = lang
+        var labels = [
+            t("G", "G", "G", "G", "G", "G", "G", "G", "G")
+        ]
+        return labels[0] + (idx + 1)
+    }
 }

@@ -57,7 +57,7 @@ ColumnLayout {
                 id: hostField
                 Layout.fillWidth: true; Layout.fillHeight: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary
-                placeholderText: "example.com/path"
+                placeholderText: Tr.placeholderHost
                 placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: {
                     // Combine host + path for display
@@ -138,7 +138,7 @@ ColumnLayout {
                 id: portField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : "Port"
+                placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : Tr.placeholderPort
                 placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: appState.targetPort > 0 ? "" + appState.targetPort : ""
                 enabled: appState.runStatus !== 1
@@ -206,7 +206,7 @@ ColumnLayout {
                     id: passToggle
                     implicitWidth: 44; implicitHeight: 44
                     visible: passField.text !== ""
-                    Accessible.name: passField._showPass ? "Hide password" : "Show password"
+                    Accessible.name: passField._showPass ? Tr.accHidePassword : Tr.accShowPassword
                     Accessible.role: Accessible.Button
                     activeFocusOnTab: true
                     function toggleVisibility() {

@@ -76,13 +76,13 @@ Rectangle {
                 spacing: 8
                 Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.colors.cyan:ThemeEngine.colors.infoBlue }
                 ColumnLayout { spacing:1
-                    Label { Layout.fillWidth:true; text:"G"+(groupIndex+1)+": "+(Tr.groupName(groupIndex)); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
+                    Label { Layout.fillWidth:true; text:Tr.groupPrefix(groupIndex)+": "+Tr.groupName(groupIndex); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
                     Label {
                         visible: isRunning
-                        text: "Running: "+(appState.currentDiagLabel||"")+"..."
+                        text: Tr.runningPrefix + (appState.currentDiagLabel||"") + "..."
                         font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.italic: true
                         color: ThemeEngine.colors.cyan; elide: Text.ElideRight
-                        Accessible.name: "Running: " + (appState.currentDiagLabel || "")
+                        Accessible.name: Tr.runningPrefix + (appState.currentDiagLabel || "")
                         ToolTip.visible: headerTapArea.containsMouse && isRunning
                         ToolTip.text: appState.currentDiagLabel || ""
                     }
@@ -174,7 +174,7 @@ Rectangle {
             _userToggled = true; expanded = !expanded; event.accepted = true
         }
     }
-    Accessible.name: Tr.groupName(groupIndex) + (expanded ? " — expanded" : " — collapsed")
+    Accessible.name: Tr.groupName(groupIndex) + (expanded ? Tr.accExpanded : Tr.accCollapsed)
     Accessible.role: Accessible.Button
 
     signal detailClicked(var data)

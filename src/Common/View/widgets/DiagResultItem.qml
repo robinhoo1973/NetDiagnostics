@@ -104,7 +104,7 @@ Item {
             event.accepted = true
         }
     }
-    Accessible.name: itemData.displayName || ("Test #" + itemData.diagId)
+    Accessible.name: itemData.displayName || (Tr.testIdPrefix + itemData.diagId)
     Accessible.role: Accessible.Button
 
     function _fmtDur(ms) {

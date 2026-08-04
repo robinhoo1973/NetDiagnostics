@@ -130,7 +130,7 @@ Item {
                                 }
                                 Accessible.name: modelData.label
                                 Accessible.role: Accessible.Button
-                                Accessible.description: isActive ? qsTr("Active theme") : qsTr("Switch to this theme")
+                                Accessible.description: isActive ? Tr.accActiveTheme : Tr.accSwitchTheme
                             }
                         }
                     }
@@ -260,7 +260,7 @@ Item {
                                                                                    : Qt.alpha(ThemeEngine.colors.warnYellow, 0.4) }
                             Label {
                                 anchors.centerIn: parent
-                                text: appState.purchaseInProgress ? "..." : Tr.restoreBtn
+                                text: appState.purchaseInProgress ? Tr.purchaseInProgress : Tr.restoreBtn
                                 font.family: ThemeEngine.monoFont
                                 font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.warnYellow
                             }
@@ -321,12 +321,12 @@ Item {
                         }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
-                            Label { text: "NetDiagnostics" + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
+                            Label { text: Tr.appName + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
                             Label {
                                 Layout.fillWidth: true
-                                text: "Version " + appState.appVersion
+                                text: Tr.versionLabel + " " + appState.appVersion
                                       + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
-                                      + (appState.buildNumber.length > 0 ? " Build " + appState.buildNumber : "")
+                                      + (appState.buildNumber.length > 0 ? " " + Tr.buildLabel + " " + appState.buildNumber : "")
                                       + (appState.gitHash.length > 0 ? " (" + appState.gitHash + ")" : "")
                                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
                                 wrapMode: Text.WordWrap

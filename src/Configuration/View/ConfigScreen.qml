@@ -65,7 +65,7 @@ Item {
                                     }
                                 }
                                 Label {
-                                    text: "G" + (index + 1)
+                                    text: Tr.groupPrefix(index)
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                     font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
                                     color: { let _ = configPollVersion; return appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary) : ThemeEngine.colors.textMuted }
@@ -208,7 +208,7 @@ Item {
                         // 5WHY: Without Accessible.name, screen readers
                         // announce just "Switch, on/off" — users don't
                         // know which diagnostic is being toggled.
-                        Accessible.name: getDisplayName(modelData) + " diagnostic"
+                        Accessible.name: getDisplayName(modelData) + Tr.accDiagnosticSuffix
                     }
                 }
             }
@@ -219,6 +219,11 @@ Item {
     // 5WHY: _enNames duplicated AppState::staticDiagDisplayName() (C++).
     // Removed the parallel array; getDisplayName() now calls the Q_INVOKABLE
     // appState.diagDisplayName(diagId) directly — single source of truth.
+    // 5WHY: _enDescs was missing the CellularInfo entry at index 7, causing
+    // an off-by-one shift for ALL subsequent entries (index 7-43 showed the
+    // wrong diagnostic's description).  The GeoIPLoc entry was a copy-paste
+    // duplicate of InternetConnectivity.  LDAP/MQTT (indices 44-45) were
+    // also missing.  Now all 46 entries (0-45) match DiagId enum order exactly.
     property var _enDescs: ["List all network adapters and their operational state",
         "Driver version, hardware info, and negotiated link speed",
         "Signal strength, SSID, channel, and link quality",
@@ -226,6 +231,7 @@ Item {
         "DHCP lease info, server address, and expiration",
         "IP addresses, subnet mask, default gateway, DNS servers",
         "TCP/UDP connections: ESTABLISHED, LISTENING, etc.",
+        "Cellular network type, signal strength, carrier, and radio access technology",
         "Active network profile type (Domain/Private/Public)",
         "TCP/IP stack parameters and configurations",
         "Default gateway reachability and response time",
@@ -236,13 +242,14 @@ Item {
         "Configured DNS servers and their responsiveness",
         "DNS resolver cache entries and statistics",
         "Check for DNS hijacking or spoofing indicators",
-        "Connectivity check + Speedtest.net bandwidth test",
+        "IP Geolocation: finds physical location via server latency + detects VPN",
         "Connectivity check + Speedtest.net bandwidth test",
         "Resolve target hostname to IP address(es)",
-        "TCP connect round-trip time and packet loss",
+        "Ping round-trip time and packet loss statistics",
         "Route path and per-hop latency to target",
         "Combined traceroute and ping with per-hop loss",
         "Path MTU discovery to target host",
+        "IPv6 DNS (AAAA) resolution and TCP connectivity",
         "Parse and validate the target URL components",
         "TCP connectivity check to the URL host on default port",
         "Service banner detection for text-based protocols",
@@ -256,13 +263,13 @@ Item {
         "FTP service reachability and banner detection",
         "SSH version and key exchange detection",
         "SMTP/IMAP/POP3 service detection and banner",
-        "Telnet service connectivity and banner",
-        "MySQL server connectivity and version",
-        "PostgreSQL server connectivity and version",
-        "Redis server connectivity and response",
-        "MongoDB server connectivity and status",
-        "LDAP server connectivity and schema",
-        "MQTT broker connectivity and response"]
+        "Telnet service reachability and login banner",
+        "MySQL server reachability and version detection",
+        "PostgreSQL server reachability and version detection",
+        "Redis server reachability and INFO command",
+        "MongoDB server reachability and build info",
+        "LDAP server reachability and root DSE",
+        "MQTT broker reachability and CONNECT response"]
     function getDisplayName(diagId) {
         // Use translated name when available (non-EN), fallback to C++ static array
         var tr = Tr.diagName(diagId)

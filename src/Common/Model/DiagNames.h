@@ -29,8 +29,8 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G3DnsServers:       return QStringLiteral("DNS Servers");
         case DiagId::G3DnsCache:         return QStringLiteral("DNS Cache");
         case DiagId::G3DnsIntegrity:     return QStringLiteral("DNS Integrity");
-        case DiagId::G3GeoIPLoc:         return QStringLiteral("IP Geo Location");
-        case DiagId::G3InternetConnectivity: return QStringLiteral("Internet Connectivity");
+        case DiagId::G3GeoIPLoc:         return QStringLiteral("IP Geolocation");
+        case DiagId::G3InternetConnectivity: return QStringLiteral("Internet Connectivity & Speed");
         case DiagId::G4DnsResolution:    return QStringLiteral("DNS Resolution");
         case DiagId::G4Ping:             return QStringLiteral("Ping");
         case DiagId::G4IPv6Connectivity: return QStringLiteral("IPv6 Connectivity");
@@ -47,9 +47,9 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G5HttpRedirect:     return QStringLiteral("HTTP Redirect");
         case DiagId::G5HttpCompression:  return QStringLiteral("HTTP Compression");
         case DiagId::G5HttpTiming:       return QStringLiteral("HTTP Timing");
-        case DiagId::G5FtpDiagnostics:   return QStringLiteral("FTP");
-        case DiagId::G5SshDiagnostics:   return QStringLiteral("SSH");
-        case DiagId::G5EmailDiagnostics: return QStringLiteral("Email");
+        case DiagId::G5FtpDiagnostics:   return QStringLiteral("FTP Diagnostics");
+        case DiagId::G5SshDiagnostics:   return QStringLiteral("SSH Diagnostics");
+        case DiagId::G5EmailDiagnostics: return QStringLiteral("Email Diagnostics");
         case DiagId::G5Telnet:           return QStringLiteral("Telnet");
         case DiagId::G5Mysql:            return QStringLiteral("MySQL");
         case DiagId::G5Postgres:         return QStringLiteral("PostgreSQL");
