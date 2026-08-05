@@ -30,18 +30,30 @@ jobs:
 
             # Decide which run to keep:
             #   Self:  keep the CURRENT run ($GITHUB_RUN_ID)
-            #   Other: keep the last successful run
+            #   Other: keep the last successful run.  If this workflow has
+            #          NEVER succeeded (common for pipelines still being
+            #          debugged), keep the most recent run regardless of
+            #          status so that stale failures don't accumulate forever.
+            # 5WHY: the original skip-if-no-success logic leaked 15+
+            # Android failure runs — every failing iteration remained.
             if [ "$wf_name" = "$self_name" ]; then
               keep_id="$self_run_id"
               keep_label="current run"
             else
               keep_id=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?status=success&per_page=1" \
                 --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
-              keep_label="last success"
+              if [ -n "$keep_id" ]; then
+                keep_label="last success"
+              else
+                # No successful run exists — keep the most recent run.
+                keep_id=$(gh api "repos/$REPO/actions/workflows/$wf_id/runs?per_page=1" \
+                  --jq '.workflow_runs[0].id // empty' 2>/dev/null || echo "")
+                keep_label="most recent (no successes yet)"
+              fi
             fi
 
             if [ -z "$keep_id" ]; then
-              echo "  No runs to keep — skip"
+              echo "  No runs at all — skip"
               echo "::endgroup::"
               continue
             fi
