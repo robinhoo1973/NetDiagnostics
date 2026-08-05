@@ -34,8 +34,8 @@ Item {
     readonly property string settings: t("Settings", "Paramètres", "Einstellungen", "Настройки", "Impostazioni", "设置", "設定", "Ajustes", "Configurações")
 
     // ── DiagnosticScreen ──
-    readonly property string runningDots: t("Running Diagnostics...", "Diagnostics en cours...", "Diagnose läuft...", "Диагностика...", "Diagnostica in corso...", "正在诊断...", "正在診斷...", "Ejecutando diagnósticos...", "Executando diagnósticos...")
-    readonly property string complete: t("Diagnostic Complete", "Diagnostic terminé", "Diagnose abgeschlossen", "Диагностика завершена", "Diagnostica completata", "诊断完成", "診斷完成", "Diagnóstico completado", "Diagnóstico concluído")
+    readonly property string runningDots: t("Running diagnostics...", "Diagnostics en cours...", "Diagnose läuft...", "Диагностика...", "Diagnostica in corso...", "正在诊断...", "正在診斷...", "Ejecutando diagnósticos...", "Executando diagnósticos...")
+    readonly property string complete: t("Diagnostics complete", "Diagnostic terminé", "Diagnose abgeschlossen", "Диагностика завершена", "Diagnostica completata", "诊断完成", "診斷完成", "Diagnóstico completado", "Diagnóstico concluído")
     readonly property string cancelled: t("Cancelled", "Annulé", "Abgebrochen", "Отменено", "Annullato", "已取消", "已取消", "Cancelado", "Cancelado")
     readonly property string errorCheck: t("Error — Check Target", "Erreur — Vérifier la cible", "Fehler — Ziel prüfen", "Ошибка — Проверьте цель", "Errore — Controlla target", "错误 — 检查目标", "錯誤 — 檢查目標", "Error — Verifique el objetivo", "Erro — Verifique o alvo")
     readonly property string results: t("Results", "Résultats", "Ergebnisse", "Результаты", "Risultati", "结果", "結果", "Resultados", "Resultados")
@@ -43,7 +43,7 @@ Item {
     // icon in the run/stop button.  Duplicating the icon in the label text
     // creates a double-icon visual artifact and wastes horizontal label space.
     readonly property string runDiag: t("Run Diagnostics", "Lancer diagnostic", "Diagnose starten", "Запустить", "Avvia diagnostica", "运行诊断", "運行診斷", "Ejecutar diagnósticos", "Executar diagnósticos")
-    readonly property string running: t("⏳ Running...", "⏳ En cours...", "⏳ Läuft...", "⏳ Выполняется...", "⏳ In corso...", "⏳ 运行中...", "⏳ 運行中...", "⏳ Ejecutando...", "⏳ Executando...")
+    readonly property string running: t("Running", "En cours", "Läuft", "Выполняется", "In corso", "运行中", "運行中", "Ejecutando", "Executando")
     // 5WHY: Removed ■ emoji prefix — DiagnosticToolbar renders stop SVG icon.
     readonly property string stop: t("Stop", "Arrêter", "Stopp", "Стоп", "Ferma", "停止", "停止", "Detener", "Parar")
     readonly property string target: t("Target", "Cible", "Ziel", "Цель", "Obiettivo", "目标", "目標", "Objetivo", "Alvo")
@@ -129,7 +129,7 @@ Item {
     // ── Live Progress ──
     readonly property string errorPrefix: t("Error: ", "Erreur : ", "Fehler: ", "Ошибка: ", "Errore: ", "错误: ", "錯誤: ", "Error: ", "Erro: ")
     readonly property string runningStatus: t("Running", "En cours", "Läuft", "Выполняется", "In corso", "运行中", "運行中", "En ejecución", "Em execução")
-    readonly property string completeStatus: t("Complete", "Terminé", "Abgeschlossen", "Завершено", "Completato", "完成", "完成", "Completado", "Concluído")
+    readonly property string completeStatus: t("Completed", "Terminé", "Abgeschlossen", "Завершено", "Completato", "完成", "完成", "Completado", "Concluído")
     readonly property string cancelledStatus: cancelled  // alias — DRY, single canonical definition
     readonly property string errorStatus: t("Error", "Erreur", "Fehler", "Ошибка", "Errore", "错误", "錯誤", "Error", "Erro")
     readonly property string readyStatus: t("Ready", "Prêt", "Bereit", "Готов", "Pronto", "就绪", "就緒", "Listo", "Pronto")
@@ -203,7 +203,7 @@ Item {
     }
 
     // ── Dashboard ──
-    readonly property string diagRunComplete: t("Diagnostic Run Complete", "Diagnostic terminé", "Diagnoselauf abgeschlossen", "Диагностика завершена", "Corsa diagnostica completata", "诊断运行完成", "診斷運行完成", "Ejecución de diagnóstico completada", "Execução de diagnóstico concluída")
+    readonly property string diagRunComplete: t("Diagnostics complete", "Diagnostic terminé", "Diagnoselauf abgeschlossen", "Диагностика завершена", "Corsa diagnostica completata", "诊断运行完成", "診斷運行完成", "Ejecución de diagnóstico completada", "Execução de diagnóstico concluída")
     readonly property string targetLabel: t("Target: ", "Cible : ", "Ziel: ", "Цель: ", "Obiettivo: ", "目标: ", "目標: ", "Objetivo: ", "Alvo: ")
     readonly property string naLabel: t("N/A", "N/D", "k.A.", "Н/Д", "N/D", "不适用", "不適用", "N/D", "N/D")
 
@@ -225,7 +225,7 @@ Item {
     // summaryError removed — unused
 
     // ── TestResultItem ──
-    readonly property string diagRunning: t("Running...", "En cours...", "Läuft...", "Выполняется...", "In corso...", "运行中...", "運行中...", "Ejecutando...", "Executando...")
+    readonly property string diagRunning: t("Running", "En cours", "Läuft", "Выполняется", "In corso", "运行中", "運行中", "Ejecutando", "Executando")
 
     // placeholderMsg removed — SMTP feature deprecated
 

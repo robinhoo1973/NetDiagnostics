@@ -130,17 +130,37 @@ Item {
             id: dashBody; width: parent.width - 48; x: 24; spacing: 0
             Item { Layout.preferredHeight: 24 }
 
-            // ── Run Info Header Card (Flutter: check_circle + "Diagnostic Run Complete" + target/timestamp) ──
+            // ── Run Info Header Card — conditionally shows completion or running status ──
+            // 5WHY: Previously showed "Diagnostic Run Complete" unconditionally
+            // as soon as any test completed (hasData===true), even while
+            // diagnostics were still running.  Now shows "Running Diagnostics..."
+            // with a spinner while runStatus===1, and only displays the
+            // completion card after the run finishes.
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: infoCol.implicitHeight + 32; radius: 12
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 RowLayout {
                     id: infoCol
                     anchors { fill: parent; margins: 16 }
-                    AppIcon { name: "check"; size: 28; color: ThemeEngine.colors.passGreen }
+                    AppIcon {
+                        name: appState.runStatus === 1 ? "spinner" : "check"
+                        size: 28
+                        color: appState.runStatus === 1 ? ThemeEngine.colors.cyan : ThemeEngine.colors.passGreen
+                        RotationAnimation on rotation {
+                            running: appState.runStatus === 1
+                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                            onStopped: { /* reset handled by target-property binding on name */ }
+                        }
+                    }
                     Item { width: 14 }
                     ColumnLayout { spacing: 4
-                        Label { text: Tr.diagRunComplete; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                        Label {
+                            text: appState.runStatus === 1 ? Tr.runningDots :
+                                  appState.runStatus === 2 ? Tr.diagRunComplete :
+                                  appState.runStatus === 3 ? Tr.cancelled : Tr.diagRunComplete
+                            font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold
+                            color: appState.runStatus === 3 ? ThemeEngine.colors.textSecondary : ThemeEngine.colors.textPrimary
+                        }
                         RowLayout { spacing: 4
                             AppIcon { name: "monitor"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
                             Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
@@ -435,7 +455,9 @@ Item {
                     Layout.preferredHeight: 28
                     spacing: 8
                     AppIcon { name: ThemeEngine.statusIconNames[modelData.status] || "badge-skip"; size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
-                    Label { Layout.fillWidth: true; text: modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+                    // 5WHY: modelData.displayName is always English (C++).
+                    // Route through Tr.diagName() for i18n.
+                    Label { Layout.fillWidth: true; text: Tr.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight; verticalAlignment: Text.AlignVCenter }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
                 }
             }

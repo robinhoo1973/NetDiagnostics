@@ -45,7 +45,9 @@ Item {
     // Keep detail-overlay population behind one function so every caller
     // updates the title, status, summary, and detail text consistently.
     function showDetailOverlay(detail) {
-        dtTitle.text = detail.displayName || ""
+        // 5WHY: detail.displayName is C++ (English-only).
+        // Route through Tr.diagName() for i18n.
+        dtTitle.text = Tr.diagName(detail.diagId) || detail.displayName || ""
         var statusNames = [Tr.summaryPass, Tr.summaryWarning, Tr.summaryFail, Tr.summarySkipped, Tr.errorStatus, Tr.summaryInfo]
         var s = detail.status !== undefined ? detail.status : 0
         dtStatus.text = Tr.detailStatusLabel + (statusNames[s] || Tr.detailUnknownStatus)
@@ -272,6 +274,10 @@ Item {
                                 var tid = data.diagId
                                 var d = appState.getDetailResult(tid)
                                 showDetailOverlay({
+                                    // 5WHY: Route through Tr.diagName() for i18n on
+                                    // both the detail result displayName and the
+                                    // test-item fallback displayName.
+                                    diagId: tid,
                                     displayName: (d && d.displayName) ? d.displayName : (data.displayName || Tr.testIdPrefix + tid),
                                     status: (d && d.status !== undefined) ? d.status : 0,
                                     // 5WHY: falsy-zero bug — a test that took 0ms has

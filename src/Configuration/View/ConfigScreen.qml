@@ -95,11 +95,16 @@ Item {
                 anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                 ColumnLayout { spacing: 2
                     Label {
-                        text: Tr.groupName(currentGroup)
+                        // 5WHY: configPollVersion forces re-evaluation after
+                        // language switch so Tr.groupName() picks up the new
+                        // language. Without this, QML may not track the
+                        // dependency through the JS function call on all
+                        // Qt versions.
+                        text: { let _ = configPollVersion; return Tr.groupName(currentGroup) }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                     }
                     Label {
-                        text: getDiagCountForGroup(currentGroup) + Tr.diagsSuffix
+                        text: { let _ = configPollVersion; return getDiagCountForGroup(currentGroup) + Tr.diagsSuffix }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
                     }
                 }
@@ -187,13 +192,17 @@ Item {
                         Layout.fillWidth: true; spacing: 2
                         Label {
                             Layout.fillWidth: true
-                            text: getDisplayName(modelData)
+                            // 5WHY: configPollVersion forces re-evaluation
+                            // after language switch. Tr.diagName() returns
+                            // "" for English (which falls back to C++ name),
+                            // or the translated name for other languages.
+                            text: { let _ = configPollVersion; return getDisplayName(modelData) }
                             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: ThemeEngine.colors.textPrimary
                             elide: Text.ElideRight
                         }
                         Label {
                             Layout.fillWidth: true
-                            text: getDiagDescription(modelData)
+                            text: { let _ = configPollVersion; return getDiagDescription(modelData) }
                             font.family: ThemeEngine.monoFont; font.pixelSize: 11
                             color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                             elide: Text.ElideRight; maximumLineCount: 2

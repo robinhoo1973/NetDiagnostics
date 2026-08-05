@@ -50,8 +50,12 @@ Item {
                 onStopped: pendingSpinner.rotation = 0
             }
         }
+        // 5WHY: itemData.displayName comes from C++ ::diagDisplayName()
+        // which is always English. Route through Tr.diagName() so
+        // test names follow the active language. Fall back to
+        // displayName for English (Tr.diagName returns "" when lang<=0).
         Label {
-            text: itemData.displayName || ("#" + itemData.diagId)
+            text: Tr.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
             Layout.fillWidth: true; elide: Text.ElideRight
         }
@@ -76,8 +80,10 @@ Item {
             name: ThemeEngine.statusIconNames[itemData.status] || "badge-skip"; size: 16
             color: ThemeEngine.statusColors[itemData.status] || ThemeEngine.colors.skipGray
         }
+        // 5WHY: Same translation issue as the pending row — displayName
+        // is always English from C++. Use Tr.diagName() for i18n.
         Label {
-            text: itemData.displayName || ("#" + itemData.diagId)
+            text: Tr.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
             color: { var s=itemData.status; return s===0?ThemeEngine.colors.textPrimary:(s===2?ThemeEngine.colors.failRed:ThemeEngine.colors.textSecondary) }
             Layout.fillWidth: true; elide: Text.ElideRight
@@ -104,7 +110,7 @@ Item {
             event.accepted = true
         }
     }
-    Accessible.name: itemData.displayName || (Tr.testIdPrefix + itemData.diagId)
+    Accessible.name: Tr.diagName(itemData.diagId) || itemData.displayName || (Tr.testIdPrefix + itemData.diagId)
     Accessible.role: Accessible.Button
 
     function _fmtDur(ms) {
