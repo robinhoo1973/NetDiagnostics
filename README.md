@@ -10,106 +10,124 @@
 
 ## Screenshots
 
-Desktop screenshots are real OS-level captures. iOS screenshots are captured
-manually from a real device with light &amp; dark theme variants. Android
-screenshots are captured from an emulator or physical device.
+Real OS-level captures &middot; Dark theme &middot; No mockups, no app modifications.
 
 ### Desktop
 
-| Stage | Linux | Windows | macOS |
-|---|---|---|---|
-| **Dashboard** | <img src="resources/doc/screenshot/linux/5-dashboard.png" width="200"/> | <img src="resources/doc/screenshot/windows/5-dashboard.png" width="200"/> | <img src="resources/doc/screenshot/macos/5-dashboard.png" width="200"/> |
-| **Running** | <img src="resources/doc/screenshot/linux/2-running.png" width="200"/> | <img src="resources/doc/screenshot/windows/2-running.png" width="200"/> | <img src="resources/doc/screenshot/macos/2-running.png" width="200"/> |
-| **Results** | <img src="resources/doc/screenshot/linux/3-complete.png" width="200"/> | <img src="resources/doc/screenshot/windows/3-complete.png" width="200"/> | <img src="resources/doc/screenshot/macos/3-complete.png" width="200"/> |
-| **Detail** | <img src="resources/doc/screenshot/linux/4-detail.png" width="200"/> | <img src="resources/doc/screenshot/windows/4-detail.png" width="200"/> | <img src="resources/doc/screenshot/macos/4-detail.png" width="200"/> |
-| **Report** | <img src="resources/doc/screenshot/linux/6-report.png" width="200"/> | <img src="resources/doc/screenshot/windows/6-report.png" width="200"/> | <img src="resources/doc/screenshot/macos/6-report.png" width="200"/> |
-| **Config** | <img src="resources/doc/screenshot/linux/7-config.png" width="200"/> | <img src="resources/doc/screenshot/windows/7-config.png" width="200"/> | <img src="resources/doc/screenshot/macos/7-config.png" width="200"/> |
-| **Settings** | <img src="resources/doc/screenshot/linux/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/windows/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/macos/8-settings.png" width="200"/> |
+<p align="center"><sub>Windows 11 · Dark theme</sub></p>
 
-### iOS — Real Device Screenshots
+<table>
+<tr>
+  <td align="center" width="33%"><b>Diagnostics — Idle</b></td>
+  <td align="center" width="33%"><b>Diagnostics — Running</b></td>
+  <td align="center" width="33%"><b>Dashboard — Idle</b></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-idle-dark.png" width="100%" alt="Desktop diagnostics idle"></td>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-running-dark.png" width="100%" alt="Desktop diagnostics running"></td>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-idle-dark.png" width="100%" alt="Desktop dashboard idle"></td>
+</tr>
+</table>
 
-<p align="center">
-  <sub>Captured on iPhone &nbsp;·&nbsp; Light &amp; Dark theme &nbsp;·&nbsp; Auto-matching via <code>&lt;picture&gt;</code> media queries</sub>
-</p>
+<table>
+<tr>
+  <td align="center" width="33%"><b>Dashboard — Complete</b></td>
+  <td align="center" width="33%"><b>Config</b></td>
+  <td align="center" width="33%"><b>Settings</b></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-complete-dark.png" width="100%" alt="Desktop dashboard complete"></td>
+  <td><img src="resources/doc/screenshot/desktop/config-dark.png" width="100%" alt="Desktop config"></td>
+  <td><img src="resources/doc/screenshot/desktop/settings-dark.png" width="100%" alt="Desktop settings"></td>
+</tr>
+</table>
 
-#### Diagnostic Flow
+### Phone
+
+<p align="center"><sub>iPhone (real device) &nbsp;·&nbsp; Android (CI-generated) &nbsp;·&nbsp; iOS uses <code>&lt;picture&gt;</code> for light/dark auto-matching</sub></p>
+
+<table>
+<tr>
+  <td align="center" width="16%"><b>Idle</b></td>
+  <td align="center" width="16%"><b>Running</b></td>
+  <td align="center" width="16%"><b>Dashboard</b></td>
+  <td align="center" width="16%"><b>Config</b></td>
+  <td align="center" width="16%"><b>Settings</b></td>
+  <td align="center" width="16%"><b>Report</b></td>
+</tr>
+<tr>
+  <!-- iOS row -->
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="iPhone idle">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="iPhone running">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="iPhone dashboard">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="iPhone config">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="iPhone settings">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="iPhone report">
+  </picture></td>
+</tr>
+<tr>
+  <td align="center" colspan="6"><sub>iOS</sub></td>
+</tr>
+<tr>
+  <!-- Android row -->
+  <td><img src="resources/doc/screenshot/android/phone/1-idle.png" width="100%" alt="Android idle"></td>
+  <td><img src="resources/doc/screenshot/android/phone/2-running.png" width="100%" alt="Android running"></td>
+  <td><img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="100%" alt="Android dashboard"></td>
+  <td><img src="resources/doc/screenshot/android/phone/7-config.png" width="100%" alt="Android config"></td>
+  <td><img src="resources/doc/screenshot/android/phone/8-settings.png" width="100%" alt="Android settings"></td>
+  <td><img src="resources/doc/screenshot/android/phone/6-report.png" width="100%" alt="Android report"></td>
+</tr>
+<tr>
+  <td align="center" colspan="6"><sub>Android</sub></td>
+</tr>
+</table>
+
+### Pad
+
+> iPad screenshots coming soon.
 
 <table>
 <tr>
   <td align="center" width="33%"><b>Idle</b></td>
   <td align="center" width="33%"><b>Running</b></td>
-  <td align="center" width="33%"><b>Results</b></td>
+  <td align="center" width="33%"><b>Complete</b></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="Diagnostics — idle state">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="Diagnostics — running">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-complete-light.jpg" width="100%" alt="Diagnostics — results">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad idle — placeholder"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad running — placeholder"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad complete — placeholder"></td>
 </tr>
 </table>
-
-#### Dashboard &amp; Report
 
 <table>
 <tr>
   <td align="center" width="33%"><b>Dashboard</b></td>
-  <td align="center" width="33%"><b>Summary</b></td>
-  <td align="center" width="33%"><b>Report</b></td>
+  <td align="center" width="33%"><b>Config</b></td>
+  <td align="center" width="33%"><b>Settings</b></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard with results">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-summary-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-summary-light.jpg" width="100%" alt="Dashboard summary cards">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="Diagnostic report preview">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad dashboard — placeholder"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad config — placeholder"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad settings — placeholder"></td>
 </tr>
 </table>
-
-#### Configuration &amp; Settings
-
-<table>
-<tr>
-  <td align="center" width="50%"><b>Config</b></td>
-  <td align="center" width="50%"><b>Settings</b></td>
-</tr>
-<tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Diagnostic group configuration">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="App settings and about">
-  </picture></td>
-</tr>
-</table>
-
-### Android
-
-> Android screenshots are captured from an emulator or physical device.
-
-| Stage | Phone | Tablet |
-|---|---|---|
-| **Dashboard** | <img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/5-dashboard.png" width="220"/> |
-| **Running** | <img src="resources/doc/screenshot/android/phone/2-running.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/2-running.png" width="220"/> |
-| **Results** | <img src="resources/doc/screenshot/android/phone/3-complete.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/3-complete.png" width="220"/> |
-| **Report** | <img src="resources/doc/screenshot/android/phone/6-report.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/6-report.png" width="220"/> |
-| **Config** | <img src="resources/doc/screenshot/android/phone/7-config.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/7-config.png" width="220"/> |
 
 ## Themes
 

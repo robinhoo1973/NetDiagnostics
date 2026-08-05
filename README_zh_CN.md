@@ -10,104 +10,122 @@
 
 ## 屏幕截图
 
-桌面截图为真实系统级截图。iOS 截图从真机手动截取，含浅色/深色双主题。Android 截图从模拟器或真机截取。
+真实系统级截图 &middot; 深色主题 &middot; 非 mockup，未修改应用代码。
 
-### 桌面端
+### 桌面
 
-| 阶段 | Linux | Windows | macOS |
-|---|---|---|---|
-| **仪表盘** | <img src="resources/doc/screenshot/linux/5-dashboard.png" width="200"/> | <img src="resources/doc/screenshot/windows/5-dashboard.png" width="200"/> | <img src="resources/doc/screenshot/macos/5-dashboard.png" width="200"/> |
-| **运行中** | <img src="resources/doc/screenshot/linux/2-running.png" width="200"/> | <img src="resources/doc/screenshot/windows/2-running.png" width="200"/> | <img src="resources/doc/screenshot/macos/2-running.png" width="200"/> |
-| **结果** | <img src="resources/doc/screenshot/linux/3-complete.png" width="200"/> | <img src="resources/doc/screenshot/windows/3-complete.png" width="200"/> | <img src="resources/doc/screenshot/macos/3-complete.png" width="200"/> |
-| **详情** | <img src="resources/doc/screenshot/linux/4-detail.png" width="200"/> | <img src="resources/doc/screenshot/windows/4-detail.png" width="200"/> | <img src="resources/doc/screenshot/macos/4-detail.png" width="200"/> |
-| **报告** | <img src="resources/doc/screenshot/linux/6-report.png" width="200"/> | <img src="resources/doc/screenshot/windows/6-report.png" width="200"/> | <img src="resources/doc/screenshot/macos/6-report.png" width="200"/> |
-| **配置** | <img src="resources/doc/screenshot/linux/7-config.png" width="200"/> | <img src="resources/doc/screenshot/windows/7-config.png" width="200"/> | <img src="resources/doc/screenshot/macos/7-config.png" width="200"/> |
-| **设置** | <img src="resources/doc/screenshot/linux/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/windows/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/macos/8-settings.png" width="200"/> |
+<p align="center"><sub>Windows 11 · 深色主题</sub></p>
 
-### iOS — 真机截图
+<table>
+<tr>
+  <td align="center" width="33%"><b>诊断 — 空闲</b></td>
+  <td align="center" width="33%"><b>诊断 — 运行中</b></td>
+  <td align="center" width="33%"><b>仪表盘 — 空闲</b></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-idle-dark.png" width="100%" alt="桌面诊断空闲"></td>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-running-dark.png" width="100%" alt="桌面诊断运行中"></td>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-idle-dark.png" width="100%" alt="桌面仪表盘空闲"></td>
+</tr>
+</table>
 
-<p align="center">
-  <sub>iPhone 真机截取 &nbsp;·&nbsp; 浅色/深色双主题 &nbsp;·&nbsp; 通过 <code>&lt;picture&gt;</code> 媒体查询自动匹配</sub>
-</p>
+<table>
+<tr>
+  <td align="center" width="33%"><b>仪表盘 — 完成</b></td>
+  <td align="center" width="33%"><b>配置</b></td>
+  <td align="center" width="33%"><b>设置</b></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-complete-dark.png" width="100%" alt="桌面仪表盘完成"></td>
+  <td><img src="resources/doc/screenshot/desktop/config-dark.png" width="100%" alt="桌面配置"></td>
+  <td><img src="resources/doc/screenshot/desktop/settings-dark.png" width="100%" alt="桌面设置"></td>
+</tr>
+</table>
 
-#### 诊断流程
+### 手机
+
+<p align="center"><sub>iPhone（真机）&nbsp;·&nbsp; Android（CI 生成）&nbsp;·&nbsp; iOS 使用 <code>&lt;picture&gt;</code> 自动匹配浅色/深色主题</sub></p>
+
+<table>
+<tr>
+  <td align="center" width="16%"><b>空闲</b></td>
+  <td align="center" width="16%"><b>运行中</b></td>
+  <td align="center" width="16%"><b>仪表盘</b></td>
+  <td align="center" width="16%"><b>配置</b></td>
+  <td align="center" width="16%"><b>设置</b></td>
+  <td align="center" width="16%"><b>报告</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="iPhone 空闲">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="iPhone 运行中">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="iPhone 仪表盘">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="iPhone 配置">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="iPhone 设置">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="iPhone 报告">
+  </picture></td>
+</tr>
+<tr>
+  <td align="center" colspan="6"><sub>iOS</sub></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/android/phone/1-idle.png" width="100%" alt="Android 空闲"></td>
+  <td><img src="resources/doc/screenshot/android/phone/2-running.png" width="100%" alt="Android 运行中"></td>
+  <td><img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="100%" alt="Android 仪表盘"></td>
+  <td><img src="resources/doc/screenshot/android/phone/7-config.png" width="100%" alt="Android 配置"></td>
+  <td><img src="resources/doc/screenshot/android/phone/8-settings.png" width="100%" alt="Android 设置"></td>
+  <td><img src="resources/doc/screenshot/android/phone/6-report.png" width="100%" alt="Android 报告"></td>
+</tr>
+<tr>
+  <td align="center" colspan="6"><sub>Android</sub></td>
+</tr>
+</table>
+
+### 平板
+
+> iPad 截图即将提供。
 
 <table>
 <tr>
   <td align="center" width="33%"><b>空闲</b></td>
   <td align="center" width="33%"><b>运行中</b></td>
-  <td align="center" width="33%"><b>结果</b></td>
+  <td align="center" width="33%"><b>完成</b></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="诊断 — 空闲状态">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="诊断 — 运行中">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-complete-light.jpg" width="100%" alt="诊断 — 结果">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板空闲 — 占位"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板运行中 — 占位"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板完成 — 占位"></td>
 </tr>
 </table>
-
-#### 仪表盘与报告
 
 <table>
 <tr>
   <td align="center" width="33%"><b>仪表盘</b></td>
-  <td align="center" width="33%"><b>摘要</b></td>
-  <td align="center" width="33%"><b>报告</b></td>
+  <td align="center" width="33%"><b>配置</b></td>
+  <td align="center" width="33%"><b>设置</b></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="仪表盘含结果">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-summary-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-summary-light.jpg" width="100%" alt="仪表盘摘要卡片">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="诊断报告预览">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板仪表盘 — 占位"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板配置 — 占位"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板设置 — 占位"></td>
 </tr>
 </table>
-
-#### 配置与设置
-
-<table>
-<tr>
-  <td align="center" width="50%"><b>配置</b></td>
-  <td align="center" width="50%"><b>设置</b></td>
-</tr>
-<tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="诊断组配置">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="应用设置与关于">
-  </picture></td>
-</tr>
-</table>
-
-### Android
-
-> Android 截图从模拟器或真机截取。
-
-| 阶段 | 手机 | 平板 |
-|---|---|---|
-| **仪表盘** | <img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/5-dashboard.png" width="220"/> |
-| **运行中** | <img src="resources/doc/screenshot/android/phone/2-running.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/2-running.png" width="220"/> |
-| **结果** | <img src="resources/doc/screenshot/android/phone/3-complete.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/3-complete.png" width="220"/> |
-| **报告** | <img src="resources/doc/screenshot/android/phone/6-report.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/6-report.png" width="220"/> |
-| **配置** | <img src="resources/doc/screenshot/android/phone/7-config.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/7-config.png" width="220"/> |
 
 ## 主题
 
