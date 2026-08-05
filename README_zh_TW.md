@@ -14,8 +14,6 @@
 
 ### 桌面
 
-<p align="center"><sub>Windows 11 · 深色主題</sub></p>
-
 <table>
 <tr>
   <td align="center" width="33%"><b>診斷 — 空閒</b></td>
@@ -23,9 +21,9 @@
   <td align="center" width="33%"><b>儀表板 — 空閒</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/desktop/diagnostics-idle-dark.png" width="100%" alt="桌面診斷空閒"></td>
-  <td><img src="resources/doc/screenshot/desktop/diagnostics-running-dark.png" width="100%" alt="桌面診斷執行中"></td>
-  <td><img src="resources/doc/screenshot/desktop/dashboard-idle-dark.png" width="100%" alt="桌面儀表板空閒"></td>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-idle-dark.png" width="100%" alt="診斷空閒"></td>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-running-dark.png" width="100%" alt="診斷執行中"></td>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-idle-dark.png" width="100%" alt="儀表板空閒"></td>
 </tr>
 </table>
 
@@ -36,15 +34,13 @@
   <td align="center" width="33%"><b>設定</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/desktop/dashboard-complete-dark.png" width="100%" alt="桌面儀表板完成"></td>
-  <td><img src="resources/doc/screenshot/desktop/config-dark.png" width="100%" alt="桌面配置"></td>
-  <td><img src="resources/doc/screenshot/desktop/settings-dark.png" width="100%" alt="桌面設定"></td>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-complete-dark.png" width="100%" alt="儀表板完成"></td>
+  <td><img src="resources/doc/screenshot/desktop/config-dark.png" width="100%" alt="配置"></td>
+  <td><img src="resources/doc/screenshot/desktop/settings-dark.png" width="100%" alt="設定"></td>
 </tr>
 </table>
 
 ### 手機
-
-<p align="center"><sub>iPhone（真機）&nbsp;·&nbsp; Android（CI 生成）&nbsp;·&nbsp; iOS 使用 <code>&lt;picture&gt;</code> 自動匹配淺色/深色主題</sub></p>
 
 <table>
 <tr>
@@ -58,48 +54,34 @@
 <tr>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="iPhone 空閒">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="空閒">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="iPhone 執行中">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="執行中">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="iPhone 儀表板">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="儀表板">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="iPhone 配置">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="iPhone 設定">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="設定">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="iPhone 報告">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="報告">
   </picture></td>
-</tr>
-<tr>
-  <td align="center" colspan="6"><sub>iOS</sub></td>
-</tr>
-<tr>
-  <td><img src="resources/doc/screenshot/android/phone/1-idle.png" width="100%" alt="Android 空閒"></td>
-  <td><img src="resources/doc/screenshot/android/phone/2-running.png" width="100%" alt="Android 執行中"></td>
-  <td><img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="100%" alt="Android 儀表板"></td>
-  <td><img src="resources/doc/screenshot/android/phone/7-config.png" width="100%" alt="Android 配置"></td>
-  <td><img src="resources/doc/screenshot/android/phone/8-settings.png" width="100%" alt="Android 設定"></td>
-  <td><img src="resources/doc/screenshot/android/phone/6-report.png" width="100%" alt="Android 報告"></td>
-</tr>
-<tr>
-  <td align="center" colspan="6"><sub>Android</sub></td>
 </tr>
 </table>
 
 ### 平板
 
-> iPad 截圖即將提供。
+> 即將提供。
 
 <table>
 <tr>
@@ -108,9 +90,9 @@
   <td align="center" width="33%"><b>完成</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板空閒 — 佔位"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板執行中 — 佔位"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板完成 — 佔位"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板空閒"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板執行中"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板完成"></td>
 </tr>
 </table>
 
@@ -121,9 +103,9 @@
   <td align="center" width="33%"><b>設定</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板儀表板 — 佔位"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板配置 — 佔位"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板設定 — 佔位"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板儀表板"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板配置"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板設定"></td>
 </tr>
 </table>
 

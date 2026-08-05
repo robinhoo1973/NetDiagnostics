@@ -14,8 +14,6 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
 
 ### Desktop
 
-<p align="center"><sub>Windows 11 · Dark theme</sub></p>
-
 <table>
 <tr>
   <td align="center" width="33%"><b>Diagnostics — Idle</b></td>
@@ -23,9 +21,9 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
   <td align="center" width="33%"><b>Dashboard — Idle</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/desktop/diagnostics-idle-dark.png" width="100%" alt="Desktop diagnostics idle"></td>
-  <td><img src="resources/doc/screenshot/desktop/diagnostics-running-dark.png" width="100%" alt="Desktop diagnostics running"></td>
-  <td><img src="resources/doc/screenshot/desktop/dashboard-idle-dark.png" width="100%" alt="Desktop dashboard idle"></td>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-idle-dark.png" width="100%" alt="Diagnostics idle"></td>
+  <td><img src="resources/doc/screenshot/desktop/diagnostics-running-dark.png" width="100%" alt="Diagnostics running"></td>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-idle-dark.png" width="100%" alt="Dashboard idle"></td>
 </tr>
 </table>
 
@@ -36,15 +34,13 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
   <td align="center" width="33%"><b>Settings</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/desktop/dashboard-complete-dark.png" width="100%" alt="Desktop dashboard complete"></td>
-  <td><img src="resources/doc/screenshot/desktop/config-dark.png" width="100%" alt="Desktop config"></td>
-  <td><img src="resources/doc/screenshot/desktop/settings-dark.png" width="100%" alt="Desktop settings"></td>
+  <td><img src="resources/doc/screenshot/desktop/dashboard-complete-dark.png" width="100%" alt="Dashboard complete"></td>
+  <td><img src="resources/doc/screenshot/desktop/config-dark.png" width="100%" alt="Config"></td>
+  <td><img src="resources/doc/screenshot/desktop/settings-dark.png" width="100%" alt="Settings"></td>
 </tr>
 </table>
 
 ### Phone
-
-<p align="center"><sub>iPhone (real device) &nbsp;·&nbsp; Android (CI-generated) &nbsp;·&nbsp; iOS uses <code>&lt;picture&gt;</code> for light/dark auto-matching</sub></p>
 
 <table>
 <tr>
@@ -56,52 +52,36 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
   <td align="center" width="16%"><b>Report</b></td>
 </tr>
 <tr>
-  <!-- iOS row -->
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="iPhone idle">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="Idle">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="iPhone running">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="Running">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="iPhone dashboard">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="iPhone config">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Config">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="iPhone settings">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="Settings">
   </picture></td>
   <td><picture>
     <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="iPhone report">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="Report">
   </picture></td>
-</tr>
-<tr>
-  <td align="center" colspan="6"><sub>iOS</sub></td>
-</tr>
-<tr>
-  <!-- Android row -->
-  <td><img src="resources/doc/screenshot/android/phone/1-idle.png" width="100%" alt="Android idle"></td>
-  <td><img src="resources/doc/screenshot/android/phone/2-running.png" width="100%" alt="Android running"></td>
-  <td><img src="resources/doc/screenshot/android/phone/5-dashboard.png" width="100%" alt="Android dashboard"></td>
-  <td><img src="resources/doc/screenshot/android/phone/7-config.png" width="100%" alt="Android config"></td>
-  <td><img src="resources/doc/screenshot/android/phone/8-settings.png" width="100%" alt="Android settings"></td>
-  <td><img src="resources/doc/screenshot/android/phone/6-report.png" width="100%" alt="Android report"></td>
-</tr>
-<tr>
-  <td align="center" colspan="6"><sub>Android</sub></td>
 </tr>
 </table>
 
 ### Pad
 
-> iPad screenshots coming soon.
+> Coming soon.
 
 <table>
 <tr>
@@ -110,9 +90,9 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
   <td align="center" width="33%"><b>Complete</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad idle — placeholder"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad running — placeholder"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad complete — placeholder"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad idle"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad running"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad complete"></td>
 </tr>
 </table>
 
@@ -123,9 +103,9 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
   <td align="center" width="33%"><b>Settings</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad dashboard — placeholder"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad config — placeholder"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad settings — placeholder"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad dashboard"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad config"></td>
+  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad settings"></td>
 </tr>
 </table>
 
