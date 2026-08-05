@@ -137,48 +137,39 @@ NetDiagnostics 开箱即支持 **9 种语言**。打开设置，从下拉框中�
 3. 选择语言——toast 确认你的选择（"Français ✓"）
 4. 整个应用立即以新语言渲染
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="300" alt="设置 — 语言选择下拉框">
-  </picture>
-  <br/><sub><b>设置 → 语言</b> &nbsp;·&nbsp; 9 种语言按字母排列 &nbsp;·&nbsp; 切换时 toast 确认</sub>
-</p>
+### 对比：英文 vs 简体中文
 
-### 每个页面，完整翻译
+同一个页面，两种语言。每个标签、按钮、分组名称和描述都完整翻译——无硬编码字符串，无英文回退。
 
-无论你的用户在哪个页面，每一处可见文字都会被翻译。下方的截图展示了**诊断**、**仪表板**、**配置**和**报告**页面——切换语言后，每个页面都完全本地化。
+#### 设置
 
 <table>
 <tr>
-  <td align="center" width="25%"><b>诊断</b></td>
-  <td align="center" width="25%"><b>仪表板</b></td>
-  <td align="center" width="25%"><b>配置</b></td>
-  <td align="center" width="25%"><b>报告</b></td>
+  <td align="center" width="50%"><b>English</b><br/><sub>深色主题</sub></td>
+  <td align="center" width="50%"><b>简体中文</b><br/><sub>浅色主题</sub></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="诊断页面">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="仪表板页面">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置页面">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="报告页面">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="设置 — English"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="设置 — 简体中文"></td>
 </tr>
 <tr>
-  <td valign="top"><sub>导航标签、目标输入框、运行/停止按钮、测试名称、状态徽章、进度消息、分组标题</sub></td>
-  <td valign="top"><sub>摘要卡片、分组通过/失败计数、总诊断计数器、耗时、"暂无数据"占位提示</sub></td>
-  <td valign="top"><sub>5 个诊断组名称、46 个独立测试开关、全选/取消全选按钮</sub></td>
-  <td valign="top"><sub>报告章节标题、分组明细表、详细诊断输出、分享按钮标签</sub></td>
+  <td valign="top" colspan="2"><sub><b>此页面翻译内容：</b> 导航标签（仪表板、诊断、配置、报告、设置），章节标题（语言、主题、关于），主题切换标签，语言下拉框选项，版本信息</sub></td>
+</tr>
+</table>
+
+#### 配置
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>English</b><br/><sub>深色主题</sub></td>
+  <td align="center" width="50%"><b>简体中文</b><br/><sub>浅色主题</sub></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/ios/phone/config-dark.jpg" width="100%" alt="配置 — English"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置 — 简体中文"></td>
+</tr>
+<tr>
+  <td valign="top" colspan="2"><sub><b>此页面翻译内容：</b> 5 个诊断组名称（System &amp; Adapters → 系统和适配器，Connectivity &amp; Security → 连接与安全，Internet &amp; DNS → 互联网与DNS，Remote Host → 远程主机，Protocol → 协议），46 个独立测试开关标签，全选/取消全选按钮</sub></td>
 </tr>
 </table>
 

@@ -137,48 +137,39 @@ NetDiagnostics 開箱即支援 **9 種語言**。開啟設定，從下拉框中�
 3. 選擇語言——toast 確認你的選擇（"Français ✓"）
 4. 整個應用程式立即以新語言渲染
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="300" alt="設定 — 語言選擇下拉框">
-  </picture>
-  <br/><sub><b>設定 → 語言</b> &nbsp;·&nbsp; 9 種語言按字母排列 &nbsp;·&nbsp; 切換時 toast 確認</sub>
-</p>
+### 對比：英文 vs 簡體中文
 
-### 每個頁面，完整翻譯
+同一個頁面，兩種語言。每個標籤、按鈕、群組名稱和描述都完整翻譯——無硬編碼字串，無英文回退。
 
-無論你的使用者在哪個頁面，每一處可見文字都會被翻譯。下方的螢幕截圖展示了**診斷**、**儀表板**、**配置**和**報告**頁面——切換語言後，每個頁面都完全在地化。
+#### 設定
 
 <table>
 <tr>
-  <td align="center" width="25%"><b>診斷</b></td>
-  <td align="center" width="25%"><b>儀表板</b></td>
-  <td align="center" width="25%"><b>配置</b></td>
-  <td align="center" width="25%"><b>報告</b></td>
+  <td align="center" width="50%"><b>English</b><br/><sub>深色主題</sub></td>
+  <td align="center" width="50%"><b>简体中文</b><br/><sub>淺色主題</sub></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="診斷頁面">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="儀表板頁面">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置頁面">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="報告頁面">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="設定 — English"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="設定 — 简体中文"></td>
 </tr>
 <tr>
-  <td valign="top"><sub>導航標籤、目標輸入框、執行/停止按鈕、測試名稱、狀態徽章、進度訊息、群組標題</sub></td>
-  <td valign="top"><sub>摘要卡片、群組通過/失敗計數、總診斷計數器、耗時、「暫無數據」佔位提示</sub></td>
-  <td valign="top"><sub>5 個診斷群組名稱、46 個獨立測試開關、全選/取消全選按鈕</sub></td>
-  <td valign="top"><sub>報告章節標題、群組明細表、詳細診斷輸出、分享按鈕標籤</sub></td>
+  <td valign="top" colspan="2"><sub><b>此頁面翻譯內容：</b> 導航標籤（儀表板、診斷、配置、報告、設定），章節標題（語言、主題、關於），主題切換標籤，語言下拉框選項，版本資訊</sub></td>
+</tr>
+</table>
+
+#### 配置
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>English</b><br/><sub>深色主題</sub></td>
+  <td align="center" width="50%"><b>简体中文</b><br/><sub>淺色主題</sub></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/ios/phone/config-dark.jpg" width="100%" alt="配置 — English"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置 — 简体中文"></td>
+</tr>
+<tr>
+  <td valign="top" colspan="2"><sub><b>此頁面翻譯內容：</b> 5 個診斷群組名稱（System &amp; Adapters → 系統和適配器，Connectivity &amp; Security → 連線與安全，Internet &amp; DNS → 網際網路與DNS，Remote Host → 遠端主機，Protocol → 協定），46 個獨立測試開關標籤，全選/取消全選按鈕</sub></td>
 </tr>
 </table>
 

@@ -144,50 +144,40 @@ No partial translations.
 3. Select a language — a toast confirms your choice ("Français ✓")
 4. The whole app immediately renders in the new language
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="300" alt="Settings — language selector dropdown">
-  </picture>
-  <br/><sub><b>Settings → Language</b> &nbsp;·&nbsp; 9 languages listed alphabetically &nbsp;·&nbsp; Toast confirmation on switch</sub>
-</p>
+### Side-by-Side: English vs 简体中文
 
-### Every Screen, Fully Translated
+The same screens, two languages. Every label, button, group name, and
+description is fully translated — no hardcoded strings, no fallback to English.
 
-No matter which screen your users are on, every visible string is translated.
-The screenshots below show the **Diagnostics**, **Dashboard**, **Config**, and
-**Report** screens — each one is fully localised when you switch languages.
+#### Settings
 
 <table>
 <tr>
-  <td align="center" width="25%"><b>Diagnostics</b></td>
-  <td align="center" width="25%"><b>Dashboard</b></td>
-  <td align="center" width="25%"><b>Config</b></td>
-  <td align="center" width="25%"><b>Report</b></td>
+  <td align="center" width="50%"><b>English</b><br/><sub>Dark theme</sub></td>
+  <td align="center" width="50%"><b>简体中文</b><br/><sub>Light theme</sub></td>
 </tr>
 <tr>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="Diagnostics screen">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard screen">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Config screen">
-  </picture></td>
-  <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="Report screen">
-  </picture></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="Settings — English"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="Settings — 简体中文"></td>
 </tr>
 <tr>
-  <td valign="top"><sub>Navigation tabs, target input, run/stop button, test names, status badges, progress messages, group headers</sub></td>
-  <td valign="top"><sub>Summary cards, per-group pass/fail counts, total diagnostics counter, elapsed time, "no data" placeholder</sub></td>
-  <td valign="top"><sub>5 diagnostic group names, 46 individual test toggles, select-all / deselect-all buttons</sub></td>
-  <td valign="top"><sub>Report section headers, per-group breakdown tables, detailed diagnostic output, share button label</sub></td>
+  <td valign="top" colspan="2"><sub><b>Translated on this screen:</b> navigation tabs (Dashboard, Diagnostics, Config, Report, Settings), section headers (Language, Theme, About), theme toggle labels, language dropdown entries, version info</sub></td>
+</tr>
+</table>
+
+#### Config
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>English</b><br/><sub>Dark theme</sub></td>
+  <td align="center" width="50%"><b>简体中文</b><br/><sub>Light theme</sub></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/ios/phone/config-dark.jpg" width="100%" alt="Config — English"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Config — 简体中文"></td>
+</tr>
+<tr>
+  <td valign="top" colspan="2"><sub><b>Translated on this screen:</b> 5 diagnostic group names (System &amp; Adapters → 系统和适配器, Connectivity &amp; Security → 连接与安全, Internet &amp; DNS → 互联网与DNS, Remote Host → 远程主机, Protocol → 协议), 46 individual test toggle labels, select-all / deselect-all buttons</sub></td>
 </tr>
 </table>
 
