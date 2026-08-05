@@ -173,27 +173,29 @@ NetDiagnostics 开箱即支持 **15 种语言**。打开设置，从下拉框中
 
 ### 可用语言
 
-<table>
-<tr>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/cn.png" width="16" height="12" style="vertical-align:middle">&nbsp;简体中文</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/hk.png" width="16" height="12" style="vertical-align:middle">&nbsp;繁體中文</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/jp.png" width="16" height="12" style="vertical-align:middle">&nbsp;日本語</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/kr.png" width="16" height="12" style="vertical-align:middle">&nbsp;한국어</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/vn.png" width="16" height="12" style="vertical-align:middle">&nbsp;Tiếng Việt</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/in.png" width="16" height="12" style="vertical-align:middle">&nbsp;हिन्दी</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/tr.png" width="16" height="12" style="vertical-align:middle">&nbsp;Türkçe</td>
-  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/us.png" width="16" height="12" style="vertical-align:middle">&nbsp;English</td>
-</tr>
-<tr>
-  <td align="center"><img src="https://flagcdn.com/16x12/fr.png" width="16" height="12" style="vertical-align:middle">&nbsp;Français</td>
-  <td align="center"><img src="https://flagcdn.com/16x12/de.png" width="16" height="12" style="vertical-align:middle">&nbsp;Deutsch</td>
-  <td align="center"><img src="https://flagcdn.com/16x12/ru.png" width="16" height="12" style="vertical-align:middle">&nbsp;Русский</td>
-  <td align="center"><img src="https://flagcdn.com/16x12/it.png" width="16" height="12" style="vertical-align:middle">&nbsp;Italiano</td>
-  <td align="center"><img src="https://flagcdn.com/16x12/es.png" width="16" height="12" style="vertical-align:middle">&nbsp;Español</td>
-  <td align="center"><img src="https://flagcdn.com/16x12/br.png" width="16" height="12" style="vertical-align:middle">&nbsp;Português</td>
-  <td align="center" colspan="2"><img src="https://flagcdn.com/16x12/sa.png" width="16" height="12" style="vertical-align:middle">&nbsp;العربية</td>
-</tr>
-</table>
+<p align="center">
+  <img src="https://flagcdn.com/24x18/cn.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;简体中文&emsp;
+  <img src="https://flagcdn.com/24x18/hk.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;繁體中文&emsp;
+  <img src="https://flagcdn.com/24x18/jp.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;日本語&emsp;
+  <img src="https://flagcdn.com/24x18/kr.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;한국어
+</p>
+<p align="center">
+  <img src="https://flagcdn.com/24x18/vn.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Tiếng Việt&emsp;
+  <img src="https://flagcdn.com/24x18/in.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;हिन्दी&emsp;
+  <img src="https://flagcdn.com/24x18/tr.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Türkçe&emsp;
+  <img src="https://flagcdn.com/24x18/sa.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;العربية
+</p>
+<p align="center">
+  <img src="https://flagcdn.com/24x18/us.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;English&emsp;
+  <img src="https://flagcdn.com/24x18/fr.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Français&emsp;
+  <img src="https://flagcdn.com/24x18/de.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Deutsch&emsp;
+  <img src="https://flagcdn.com/24x18/ru.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Русский
+</p>
+<p align="center">
+  <img src="https://flagcdn.com/24x18/it.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Italiano&emsp;
+  <img src="https://flagcdn.com/24x18/es.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Español&emsp;
+  <img src="https://flagcdn.com/24x18/br.png" width="20" height="15" style="vertical-align:middle; margin:0 2px">&thinsp;Português
+</p>
 
 > **提示：** 语言选择会自动保存。用户重启应用后无需重新选择。如果不小心点错语言，toast 会显示新语言名称，方便立即切换回来。
 
