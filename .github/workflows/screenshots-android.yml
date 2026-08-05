@@ -180,7 +180,7 @@ jobs:
           GIT_COMMITTER_EMAIL: robinhoo1973@users.noreply.github.com
         run: |
           set -euo pipefail
-          git add resources/doc/screenshot/android README.md README_zh_CN.md README_zh_TW.md
+          git add resources/doc/screenshot/android README.md README_zh_CN.md README_zh_HK.md
           if git diff --cached --quiet; then
             echo "No screenshot changes to commit"
             exit 0

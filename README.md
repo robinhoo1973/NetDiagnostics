@@ -6,7 +6,7 @@
   <sub>iOS &middot; Android &middot; Windows &middot; macOS &middot; Linux</sub>
 </p>
 
-[English](README.md) | [简体中文](README_zh_CN.md) | [繁體中文](README_zh_TW.md)
+[English](README.md) | [简体中文](README_zh_CN.md) | [繁體中文](README_zh_HK.md)
 
 ## Screenshots
 
