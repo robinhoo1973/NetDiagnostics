@@ -10,7 +10,8 @@
 
 ## 屏幕截图
 
-生产二进制的真实系统级截图，覆盖各个运行阶段，由[截屏 CI 流水线](.github/workflows/screenshots-desktop.yml)（桌面）/ [iOS](.github/workflows/screenshots-ios.yml) / [Android](.github/workflows/screenshots-android.yml)自动生成——非 mockup，也未修改应用代码。
+桌面截图由 [CI 流水线](.github/workflows/screenshots-desktop.yml)自动生成。iOS 截图从真机手动截取，含浅色/深色双主题。
+[Android](.github/workflows/screenshots-android.yml) 截图需要 CI 模拟器（仅 workflow_dispatch）。
 
 ### 桌面端
 
@@ -24,19 +25,78 @@
 | **配置** | <img src="resources/doc/screenshot/linux/7-config.png" width="200"/> | <img src="resources/doc/screenshot/windows/7-config.png" width="200"/> | <img src="resources/doc/screenshot/macos/7-config.png" width="200"/> |
 | **设置** | <img src="resources/doc/screenshot/linux/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/windows/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/macos/8-settings.png" width="200"/> |
 
-### iOS
+### iOS — 真机截图
 
-> iOS 截图在 macOS CI 上使用生产二进制并设置 `ND_MOBILE=1` 生成——应用渲染真实的移动端布局。其他尺寸（6.1″、6.3″、6.9″、iPad 13″）通过 `scripts/generate-screenshots.py` 缩放用于 App Store Connect。
+<p align="center">
+  <sub>iPhone 真机截取 &nbsp;·&nbsp; 浅色/深色双主题 &nbsp;·&nbsp; 通过 <code>&lt;picture&gt;</code> 媒体查询自动匹配</sub>
+</p>
 
-| 阶段 | 6.5″（标准） |
-|---|---|
-| **Idle** | <img src="resources/doc/screenshot/ios/phone/6.5/1-idle.png" width="160"/> |
-| **运行中** | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="160"/> |
-| **结果** | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="160"/> |
-| **详情** | <img src="resources/doc/screenshot/ios/phone/6.5/4-detail.png" width="160"/> |
-| **报告** | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="160"/> |
-| **配置** | <img src="resources/doc/screenshot/ios/phone/6.5/7-config.png" width="160"/> |
-| **设置** | <img src="resources/doc/screenshot/ios/phone/6.5/8-settings.png" width="160"/> |
+#### 诊断流程
+
+<table>
+<tr>
+  <td align="center" width="33%"><b>空闲</b></td>
+  <td align="center" width="33%"><b>运行中</b></td>
+  <td align="center" width="33%"><b>结果</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="诊断 — 空闲状态">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="诊断 — 运行中">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-complete-light.jpg" width="100%" alt="诊断 — 结果">
+  </picture></td>
+</tr>
+</table>
+
+#### 仪表盘与报告
+
+<table>
+<tr>
+  <td align="center" width="33%"><b>仪表盘</b></td>
+  <td align="center" width="33%"><b>摘要</b></td>
+  <td align="center" width="33%"><b>报告</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="仪表盘含结果">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-summary-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-summary-light.jpg" width="100%" alt="仪表盘摘要卡片">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="诊断报告预览">
+  </picture></td>
+</tr>
+</table>
+
+#### 配置与设置
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>配置</b></td>
+  <td align="center" width="50%"><b>设置</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="诊断组配置">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="应用设置与关于">
+  </picture></td>
+</tr>
+</table>
 
 ### Android
 

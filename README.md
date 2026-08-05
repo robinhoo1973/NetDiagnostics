@@ -10,10 +10,11 @@
 
 ## Screenshots
 
-Real OS-level captures of the production binary at each runtime stage, generated
-automatically by the [screenshot CI pipeline](.github/workflows/screenshots-desktop.yml)
-(desktop) / [iOS](.github/workflows/screenshots-ios.yml) / [Android](.github/workflows/screenshots-android.yml)
-— no mockups, no app modifications.
+Desktop screenshots are real OS-level captures generated automatically by the
+[screenshot CI pipeline](.github/workflows/screenshots-desktop.yml). iOS
+screenshots are captured manually from a real device with light &amp; dark
+theme variants. [Android](.github/workflows/screenshots-android.yml)
+screenshots require a CI emulator (workflow_dispatch only).
 
 ### Desktop
 
@@ -27,22 +28,78 @@ automatically by the [screenshot CI pipeline](.github/workflows/screenshots-desk
 | **Config** | <img src="resources/doc/screenshot/linux/7-config.png" width="200"/> | <img src="resources/doc/screenshot/windows/7-config.png" width="200"/> | <img src="resources/doc/screenshot/macos/7-config.png" width="200"/> |
 | **Settings** | <img src="resources/doc/screenshot/linux/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/windows/8-settings.png" width="200"/> | <img src="resources/doc/screenshot/macos/8-settings.png" width="200"/> |
 
-### iOS
+### iOS — Real Device Screenshots
 
-> iOS screenshots are generated on a macOS CI runner using the production
-> binary with `ND_MOBILE=1` — the app renders its authentic mobile layout
-> at iPhone proportions. Additional sizes (6.1″, 6.3″, 6.9″, iPad 13″)
-> are scaled for App Store Connect via `scripts/generate-screenshots.py`.
+<p align="center">
+  <sub>Captured on iPhone &nbsp;·&nbsp; Light &amp; Dark theme &nbsp;·&nbsp; Auto-matching via <code>&lt;picture&gt;</code> media queries</sub>
+</p>
 
-| Stage | 6.5″ (canonical) |
-|---|---|
-| **Idle** | <img src="resources/doc/screenshot/ios/phone/6.5/1-idle.png" width="160"/> |
-| **Running** | <img src="resources/doc/screenshot/ios/phone/6.5/2-running.png" width="160"/> |
-| **Results** | <img src="resources/doc/screenshot/ios/phone/6.5/3-complete.png" width="160"/> |
-| **Detail** | <img src="resources/doc/screenshot/ios/phone/6.5/4-detail.png" width="160"/> |
-| **Report** | <img src="resources/doc/screenshot/ios/phone/6.5/6-report.png" width="160"/> |
-| **Config** | <img src="resources/doc/screenshot/ios/phone/6.5/7-config.png" width="160"/> |
-| **Settings** | <img src="resources/doc/screenshot/ios/phone/6.5/8-settings.png" width="160"/> |
+#### Diagnostic Flow
+
+<table>
+<tr>
+  <td align="center" width="33%"><b>Idle</b></td>
+  <td align="center" width="33%"><b>Running</b></td>
+  <td align="center" width="33%"><b>Results</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="Diagnostics — idle state">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="Diagnostics — running">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-complete-light.jpg" width="100%" alt="Diagnostics — results">
+  </picture></td>
+</tr>
+</table>
+
+#### Dashboard &amp; Report
+
+<table>
+<tr>
+  <td align="center" width="33%"><b>Dashboard</b></td>
+  <td align="center" width="33%"><b>Summary</b></td>
+  <td align="center" width="33%"><b>Report</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard with results">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-summary-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-summary-light.jpg" width="100%" alt="Dashboard summary cards">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="Diagnostic report preview">
+  </picture></td>
+</tr>
+</table>
+
+#### Configuration &amp; Settings
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>Config</b></td>
+  <td align="center" width="50%"><b>Settings</b></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Diagnostic group configuration">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="App settings and about">
+  </picture></td>
+</tr>
+</table>
 
 ### Android
 
