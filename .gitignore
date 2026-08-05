@@ -71,3 +71,13 @@ review/
 mockups/
 # Internal test profiles and policies
 profiles/
+# Internal documentation (not for public)
+resources/doc/PROJECT_CHANGES.md
+resources/doc/app-store-localization.txt
+resources/doc/app-store-submission-checklist.txt
+resources/doc/design-spec.html
+resources/doc/design-tokens.json
+resources/doc/figma/
+
+# Stale CI screenshots (pipeline removed)
+resources/doc/screenshot/android/
