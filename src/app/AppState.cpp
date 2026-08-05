@@ -143,13 +143,16 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_configCtrl->loadSettings();
     loadSettings();
 
-    // ND_AUTORUN triggers a diagnostic run shortly after startup — used by
-    // the screenshot CI to enter the running/complete states without
-    // relying on GUI automation to click buttons and type URLs.
+    // ND_AUTORUN triggers a diagnostic run after startup — used by the
+    // screenshot CI to enter the running/complete states without relying
+    // on GUI automation to click buttons and type URLs.
+    // ND_AUTORUN_DELAY_MS sets the delay (default 4000ms).
     if (qEnvironmentVariableIntValue("ND_AUTORUN") == 1) {
-        QTimer::singleShot(4000, this, [this]() {
+        int delayMs = qEnvironmentVariableIntValue("ND_AUTORUN_DELAY_MS");
+        if (delayMs <= 0) delayMs = 4000;
+        QTimer::singleShot(delayMs, this, [this]() {
             if (m_runStatus == RunStatus::Idle && !m_targetModel->isEmpty()) {
-                TRACE("ND_AUTORUN firing");
+                TRACE("ND_AUTORUN firing (delay=%dms)", delayMs);
                 runDiagnostics();
             }
         });

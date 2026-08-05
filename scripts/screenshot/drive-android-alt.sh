@@ -146,6 +146,29 @@ kill_app() {
     sleep 1
 }
 
+# ── Android status bar overlay ────────────────────────────────────────────
+# Adds a 24px dark strip at the top with Android-style indicators (time,
+# signal, battery) so screenshots are clearly identifiable as Android.
+STATUS_H=24
+add_android_status_bar() {
+    local f="$1"
+    local w h
+    read w h <<< "$(identify -format '%w %h' "$f" 2>/dev/null || echo '0 0')"
+    [ "$w" -le 0 ] && return
+
+    # Dark status bar background
+    convert "$f" \
+        -fill "#1A1A2E" -draw "rectangle 0,0 $w,$STATUS_H" \
+        -fill white -font Helvetica -pointsize 10 \
+        -draw "text $((w - 80)),$((STATUS_H - 8)) '12:30'" \
+        -fill "#4CAF50" -draw "rectangle $((w - 170)),$((STATUS_H - 15)) $((w - 150)),$((STATUS_H - 5))" \
+        -fill "#4CAF50" -draw "rectangle $((w - 145)),$((STATUS_H - 15)) $((w - 125)),$((STATUS_H - 8))" \
+        -fill "#4CAF50" -draw "rectangle $((w - 120)),$((STATUS_H - 15)) $((w - 100)),$((STATUS_H - 11))" \
+        -fill "#4CAF50" -draw "rectangle $((w - 95)),$((STATUS_H - 15)) $((w - 75)),$((STATUS_H - 2))" \
+        -fill white -pointsize 8 -draw "text $((w - 200)),$((STATUS_H - 7)) 'Android'" \
+        "$f" 2>/dev/null || true
+}
+
 # ── Helpers ──────────────────────────────────────────────────────────────
 check_alive() {
     if ! kill -0 "$APP_PID" 2>/dev/null; then
@@ -159,6 +182,7 @@ capture() {
     check_alive
     import -window root "$f" 2>/dev/null || true
     if [ -s "$f" ]; then
+        add_android_status_bar "$f"
         log "captured $stage"
     else
         warn "capture failed for $stage"
