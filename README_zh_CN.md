@@ -173,17 +173,17 @@ NetDiagnostics 开箱即支持 **9 种语言**。打开设置，从下拉框中�
 
 ### 可用语言
 
-| 语言 | UI 中的标签 |
-|----------|------------|
-| English | English |
-| Français | Français |
-| Deutsch | Deutsch |
-| Русский | Русский |
-| Italiano | Italiano |
-| 简体中文 | 简体中文 |
-| 繁體中文 | 繁體中文 |
-| Español | Español |
-| Português | Português |
+| | 语言 | UI 标签 |
+|---|----------|----------|
+| 🇺🇸 | English | English |
+| 🇫🇷 | Français | Français |
+| 🇩🇪 | Deutsch | Deutsch |
+| 🇷🇺 | Русский | Русский |
+| 🇮🇹 | Italiano | Italiano |
+| 🇨🇳 | 简体中文 | 简体中文 |
+| 🇭🇰 | 繁體中文 | 繁體中文 |
+| 🇪🇸 | Español | Español |
+| 🇧🇷 | Português | Português |
 
 > **提示：** 语言选择会自动保存。用户重启应用后无需重新选择。如果不小心点错语言，toast 会显示新语言名称，方便立即切换回来。
 

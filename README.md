@@ -179,17 +179,17 @@ description is fully translated — no hardcoded strings, no fallback to English
 
 ### Available Languages
 
-| Language | Label in UI |
-|----------|------------|
-| English | English |
-| Français | Français |
-| Deutsch | Deutsch |
-| Русский | Русский |
-| Italiano | Italiano |
-| 简体中文 | 简体中文 |
-| 繁體中文 | 繁體中文 |
-| Español | Español |
-| Português | Português |
+| | Language | UI Label |
+|---|----------|----------|
+| 🇺🇸 | English | English |
+| 🇫🇷 | Français | Français |
+| 🇩🇪 | Deutsch | Deutsch |
+| 🇷🇺 | Русский | Русский |
+| 🇮🇹 | Italiano | Italiano |
+| 🇨🇳 | 简体中文 | 简体中文 |
+| 🇭🇰 | 繁體中文 | 繁體中文 |
+| 🇪🇸 | Español | Español |
+| 🇧🇷 | Português | Português |
 
 > **Tip:** The language choice is saved automatically. Your users won't need to
 > re-select it after restarting the app. And if they accidentally tap the wrong

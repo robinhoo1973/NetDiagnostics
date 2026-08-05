@@ -173,17 +173,17 @@ NetDiagnostics 開箱即支援 **9 種語言**。開啟設定，從下拉框中�
 
 ### 可用語言
 
-| 語言 | UI 中的標籤 |
-|----------|------------|
-| English | English |
-| Français | Français |
-| Deutsch | Deutsch |
-| Русский | Русский |
-| Italiano | Italiano |
-| 简体中文 | 简体中文 |
-| 繁體中文 | 繁體中文 |
-| Español | Español |
-| Português | Português |
+| | 語言 | UI 標籤 |
+|---|----------|----------|
+| 🇺🇸 | English | English |
+| 🇫🇷 | Français | Français |
+| 🇩🇪 | Deutsch | Deutsch |
+| 🇷🇺 | Русский | Русский |
+| 🇮🇹 | Italiano | Italiano |
+| 🇨🇳 | 简体中文 | 简体中文 |
+| 🇭🇰 | 繁體中文 | 繁體中文 |
+| 🇪🇸 | Español | Español |
+| 🇧🇷 | Português | Português |
 
 > **提示：** 語言選擇會自動儲存。使用者重啟應用程式後無需重新選擇。如果不小心點錯語言，toast 會顯示新語言名稱，方便立即切換回來。
 
