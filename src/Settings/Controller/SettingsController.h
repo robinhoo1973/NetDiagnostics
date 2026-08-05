@@ -23,7 +23,7 @@ class SettingsController : public QObject {
 public:
     explicit SettingsController(AppState* appState, QObject* parent = nullptr);
 
-    // Language (0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT)
+    // Language (0=ZH_CN,1=ZH_TW,2=JA,3=KO,4=HI,5=VI,6=TR,7=EN,8=FR,9=DE,10=RU,11=IT,12=ES,13=PT,14=AR)
     int languageIndex() const { return m_languageIndex; }
     Q_INVOKABLE void setLanguageIndex(int idx);
 

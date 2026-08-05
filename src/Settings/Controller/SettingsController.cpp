@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // SettingsController.cpp — Settings page controller implementation
 // =============================================================================
 #include "Settings/Controller/SettingsController.h"
@@ -127,7 +127,7 @@ void SettingsController::loadSettings() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
     int lang = s.value("language", 0).toInt();
-    if (lang >= 0 && lang <= 8) {
+    if (lang >= 0 && lang <= 14) {
         m_languageIndex = lang;
         emit languageChanged();
     }

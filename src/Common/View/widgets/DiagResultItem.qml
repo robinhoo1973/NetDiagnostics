@@ -52,8 +52,10 @@ Item {
         }
         // 5WHY: itemData.displayName comes from C++ ::diagDisplayName()
         // which is always English. Route through Tr.diagName() so
-        // test names follow the active language. Fall back to
-        // displayName or numeric ID if diagName returns empty.
+        // test names follow the active language. diagName() always
+        // returns a non-empty string for valid diagIds (0-45) — the
+        // t() function provides English fallback for any language.
+        // The || fallback is a safety net for out-of-range IDs only.
         Label {
             text: Tr.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
