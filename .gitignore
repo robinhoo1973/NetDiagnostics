@@ -3,8 +3,6 @@ build/
 build-*/
 dist/
 *.log
-*.bak
-legacy_backup/
 
 # IDE / tools
 .claude/
@@ -43,15 +41,11 @@ docs/*
 
 # Temp files
 crashes/
-commit_msg.txt
 AGENTS.md
 CLAUDE.md
 scripts/
-# Screenshot CI drivers MUST be tracked (the CI pipelines call them at runtime).
 !scripts/screenshot/
-# iOS CI deploy-testflight scripts MUST be tracked (JWT signing, ASC API calls).
 !scripts/ios/
-# Windows NSIS installer scripts MUST be tracked (makensis build step).
 !scripts/installer/
 !scripts/pre-commit
 !scripts/ci-http-server.py
@@ -67,17 +61,12 @@ review/
 **/.codewhale/*
 !**/.codewhale/constitution.json
 
-# UI mockups (planned features, not for public)
-mockups/
-# Internal test profiles and policies
-profiles/
 # Internal documentation (not for public)
 resources/doc/PROJECT_CHANGES.md
 resources/doc/app-store-localization.txt
 resources/doc/app-store-submission-checklist.txt
 resources/doc/design-spec.html
 resources/doc/design-tokens.json
-resources/doc/figma/
 
 # Stale CI screenshots (pipeline removed)
 resources/doc/screenshot/android/
