@@ -34,8 +34,8 @@ Item {
     readonly property string settings: t("Settings", "Paramètres", "Einstellungen", "Настройки", "Impostazioni", "设置", "設定", "Ajustes", "Configurações")
 
     // ── DiagnosticScreen ──
-    readonly property string runningDots: t("Running diagnostics...", "Diagnostics en cours...", "Diagnose läuft...", "Диагностика...", "Diagnostica in corso...", "正在诊断...", "正在診斷...", "Ejecutando diagnósticos...", "Executando diagnósticos...")
-    readonly property string complete: t("Diagnostics complete", "Diagnostic terminé", "Diagnose abgeschlossen", "Диагностика завершена", "Diagnostica completata", "诊断完成", "診斷完成", "Diagnóstico completado", "Diagnóstico concluído")
+    readonly property string runningDots: t("Running Diagnostics...", "Diagnostics en cours...", "Diagnose läuft...", "Диагностика...", "Diagnostica in corso...", "正在诊断...", "正在診斷...", "Ejecutando diagnósticos...", "Executando diagnósticos...")
+    readonly property string complete: t("Diagnostics Complete", "Diagnostic terminé", "Diagnose abgeschlossen", "Диагностика завершена", "Diagnostica completata", "诊断完成", "診斷完成", "Diagnóstico completado", "Diagnóstico concluído")
     readonly property string cancelled: t("Cancelled", "Annulé", "Abgebrochen", "Отменено", "Annullato", "已取消", "已取消", "Cancelado", "Cancelado")
     readonly property string errorCheck: t("Error — Check Target", "Erreur — Vérifier la cible", "Fehler — Ziel prüfen", "Ошибка — Проверьте цель", "Errore — Controlla target", "错误 — 检查目标", "錯誤 — 檢查目標", "Error — Verifique el objetivo", "Erro — Verifique o alvo")
     readonly property string results: t("Results", "Résultats", "Ergebnisse", "Результаты", "Risultati", "结果", "結果", "Resultados", "Resultados")
@@ -52,7 +52,7 @@ Item {
     readonly property string deselectAll: t("Deselect All", "Tout désélectionner", "Alle abwählen", "Отменить все", "Deseleziona tutto", "取消全选", "取消全選", "Deseleccionar todo", "Desmarcar tudo")
 
     // ── DashboardScreen ──
-    readonly property string noData: t("No diagnostic data yet", "Aucune donnée de diagnostic", "Noch keine Diagnosedaten", "Нет данных диагностики", "Nessun dato diagnostico", "暂无诊断数据", "暫無診斷數據", "Aún no hay datos de diagnóstico", "Ainda não há dados de diagnóstico")
+    readonly property string noData: t("No Diagnostic Data Yet", "Aucune donnée de diagnostic", "Noch keine Diagnosedaten", "Нет данных диагностики", "Nessun dato diagnostico", "暂无诊断数据", "暫無診斷數據", "Aún no hay datos de diagnóstico", "Ainda não há dados de diagnóstico")
     readonly property string runFromDiag: t("Run a diagnostic from the Diagnostics screen\nto see results here.", "Exécutez un diagnostic depuis l'écran Diagnostics\npour voir les résultats ici.", "Führen Sie eine Diagnose vom Diagnosebildschirm aus,\num die Ergebnisse hier zu sehen.", "Запустите диагностику на экране диагностики,\nчтобы увидеть результаты здесь.", "Esegui una diagnostica dalla schermata Diagnostica\nper vedere i risultati qui.", "从诊断屏幕运行诊断\n以在此处查看结果。", "從診斷畫面運行診斷\n以在此處查看結果。", "Ejecute un diagnóstico desde la pantalla de Diagnósticos\npara ver los resultados aquí.", "Execute um diagnóstico na tela de Diagnósticos\npara ver os resultados aqui.")
     readonly property string perGroup: t("Results by Group", "Résultats par groupe", "Ergebnisse pro Gruppe", "Результаты по группам", "Risultati per gruppo", "分组结果", "分組結果", "Resultados por grupo", "Resultados por grupo")
     readonly property string summary: t("Summary", "Résumé", "Zusammenfassung", "Сводка", "Riepilogo", "摘要", "摘要", "Resumen", "Resumo")
@@ -203,7 +203,7 @@ Item {
     }
 
     // ── Dashboard ──
-    readonly property string diagRunComplete: t("Diagnostics complete", "Diagnostic terminé", "Diagnoselauf abgeschlossen", "Диагностика завершена", "Corsa diagnostica completata", "诊断运行完成", "診斷運行完成", "Ejecución de diagnóstico completada", "Execução de diagnóstico concluída")
+    readonly property string diagRunComplete: t("Diagnostics Complete", "Diagnostic terminé", "Diagnoselauf abgeschlossen", "Диагностика завершена", "Corsa diagnostica completata", "诊断运行完成", "診斷運行完成", "Ejecución de diagnóstico completada", "Execução de diagnóstico concluída")
     readonly property string targetLabel: t("Target: ", "Cible : ", "Ziel: ", "Цель: ", "Obiettivo: ", "目标: ", "目標: ", "Objetivo: ", "Alvo: ")
     readonly property string naLabel: t("N/A", "N/D", "k.A.", "Н/Д", "N/D", "不适用", "不適用", "N/D", "N/D")
 
