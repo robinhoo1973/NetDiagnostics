@@ -128,52 +128,75 @@ NetDiagnostics 內建自訂主題引擎，支援**深色**和**淺色**兩種主
 
 ## 多語言
 
-NetDiagnostics 內建完整的 **9 語言國際化系統**，由自訂 `Tr.*` QML 單例驅動。所有 UI 字串——導航標籤、診斷狀態訊息、報告章節標題、群組名稱和設定描述——均透過統一的 `t()` 函式在執行階段翻譯，該函式同時接受 9 種語言變體。
+NetDiagnostics 開箱即支援 **9 種語言**。開啟設定，從下拉框中選擇你的語言，整個應用程式即刻切換——每個按鈕、每條標籤、每個狀態訊息、每個報告標題。無需重啟。無死角。無遺漏。
 
-語言選擇器位於 **設定 → 語言**，以 ComboBox 下拉框形式呈現，按字母順序列出所有語言。切換後顯示 3 秒 toast 確認，防止誤觸後迷失在不熟悉的語言介面中。
+### 如何切換
 
-### 支援的語言
+1. 從底部導航列開啟 **設定**
+2. 點選 **語言** 下拉框——全部 9 種語言按字母順序排列
+3. 選擇語言——toast 確認你的選擇（"Français ✓"）
+4. 整個應用程式立即以新語言渲染
 
-| # | 語言 | 內部索引 | UI 標籤 |
-|---|----------|:---:|----------|
-| 1 | English | `0` | English |
-| 2 | Français | `1` | Français |
-| 3 | Deutsch | `2` | Deutsch |
-| 4 | Русский | `3` | Русский |
-| 5 | Italiano | `4` | Italiano |
-| 6 | 简体中文 | `5` | 简体中文 |
-| 7 | 繁體中文 | `6` | 繁體中文 |
-| 8 | Español | `7` | Español |
-| 9 | Português | `8` | Português |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="300" alt="設定 — 語言選擇下拉框">
+  </picture>
+  <br/><sub><b>設定 → 語言</b> &nbsp;·&nbsp; 9 種語言按字母排列 &nbsp;·&nbsp; 切換時 toast 確認</sub>
+</p>
 
-### 語言選擇器
+### 每個頁面，完整翻譯
+
+無論你的使用者在哪個頁面，每一處可見文字都會被翻譯。下方的螢幕截圖展示了**診斷**、**儀表板**、**配置**和**報告**頁面——切換語言後，每個頁面都完全在地化。
 
 <table>
 <tr>
-  <td align="center"><b>設定 — 語言下拉框</b><br/><sub>ComboBox 按字母順序列出全部 9 種語言；切換時顯示 toast 提示。</sub></td>
+  <td align="center" width="25%"><b>診斷</b></td>
+  <td align="center" width="25%"><b>儀表板</b></td>
+  <td align="center" width="25%"><b>配置</b></td>
+  <td align="center" width="25%"><b>報告</b></td>
 </tr>
 <tr>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="320" alt="設定頁面顯示語言選擇下拉框">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="診斷頁面">
   </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="儀表板頁面">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置頁面">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="報告頁面">
+  </picture></td>
+</tr>
+<tr>
+  <td valign="top"><sub>導航標籤、目標輸入框、執行/停止按鈕、測試名稱、狀態徽章、進度訊息、群組標題</sub></td>
+  <td valign="top"><sub>摘要卡片、群組通過/失敗計數、總診斷計數器、耗時、「暫無數據」佔位提示</sub></td>
+  <td valign="top"><sub>5 個診斷群組名稱、46 個獨立測試開關、全選/取消全選按鈕</sub></td>
+  <td valign="top"><sub>報告章節標題、群組明細表、詳細診斷輸出、分享按鈕標籤</sub></td>
 </tr>
 </table>
 
-### 國際化架構
+### 可用語言
 
-```
-QML: Tr.dashboard  →  Translations.qml (pragma Singleton)
-                    →  t("Dashboard", "Tableau de bord", "Dashboard", ...)
-                    →  lang index 來自 appState.languageIndex (C++)
-                    →  即時、零延遲的 UI 重新渲染
-```
+| 語言 | UI 中的標籤 |
+|----------|------------|
+| English | English |
+| Français | Français |
+| Deutsch | Deutsch |
+| Русский | Русский |
+| Italiano | Italiano |
+| 简体中文 | 简体中文 |
+| 繁體中文 | 繁體中文 |
+| Español | Español |
+| Português | Português |
 
-> **關鍵設計決策：**
-> - **單一來源 `t()` 函式** — 一條字串的所有 9 種翻譯集中在一行；新增語言只需在程式碼庫中增加一個參數位置。
-> - **按字母順序排序** — ComboBox 模型按顯示名稱排序，使用者可預測地找到自己的語言，與內部索引無關。
-> - **持久化儲存** — `appState.setLanguage(idx)` 寫入 QSettings；選擇在應用程式重啟後依然生效。
-> - **Toast 回饋** — 防止「誤觸後迷失」的 UX 缺陷：誤觸後 toast 顯示所選語言名稱，使用者可立即切換回來。
+> **提示：** 語言選擇會自動儲存。使用者重啟應用程式後無需重新選擇。如果不小心點錯語言，toast 會顯示新語言名稱，方便立即切換回來。
 
 ## 功能特性
 

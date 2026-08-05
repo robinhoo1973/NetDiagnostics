@@ -132,65 +132,83 @@ GitHub theme automatically.
 
 ## Multi-Language
 
-NetDiagnostics features a complete **9-language i18n system** driven by a custom
-`Tr.*` QML singleton. Every UI string — navigation labels, diagnostic status
-messages, report section headers, group names, and settings descriptions — is
-translated at runtime through a single `t()` function that accepts all 9
-language variants simultaneously.
+NetDiagnostics speaks **9 languages** out of the box. Open Settings, pick your
+language from the dropdown, and the entire app instantly switches — every
+button, label, status message, and report heading. No restart. No gaps.
+No partial translations.
 
-The language selector lives in **Settings → Language** as a ComboBox dropdown,
-listing languages in alphabetical order. A confirmation toast displays the
-selected language name for 3 seconds after switching, preventing disorientation
-if the wrong language is tapped.
+### How to Switch
 
-### Supported Languages
+1. Open **Settings** from the bottom navigation bar
+2. Tap the **Language** dropdown — all 9 languages appear, sorted alphabetically
+3. Select a language — a toast confirms your choice ("Français ✓")
+4. The whole app immediately renders in the new language
 
-| # | Language | Internal Index | UI Label |
-|---|----------|:---:|----------|
-| 1 | English | `0` | English |
-| 2 | Français | `1` | Français |
-| 3 | Deutsch | `2` | Deutsch |
-| 4 | Русский | `3` | Русский |
-| 5 | Italiano | `4` | Italiano |
-| 6 | 简体中文 | `5` | 简体中文 |
-| 7 | 繁體中文 | `6` | 繁體中文 |
-| 8 | Español | `7` | Español |
-| 9 | Português | `8` | Português |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="300" alt="Settings — language selector dropdown">
+  </picture>
+  <br/><sub><b>Settings → Language</b> &nbsp;·&nbsp; 9 languages listed alphabetically &nbsp;·&nbsp; Toast confirmation on switch</sub>
+</p>
 
-### Language Selector
+### Every Screen, Fully Translated
+
+No matter which screen your users are on, every visible string is translated.
+The screenshots below show the **Diagnostics**, **Dashboard**, **Config**, and
+**Report** screens — each one is fully localised when you switch languages.
 
 <table>
 <tr>
-  <td align="center"><b>Settings — Language dropdown</b><br/><sub>The ComboBox lists all 9 languages alphabetically; switching triggers a toast.</sub></td>
+  <td align="center" width="25%"><b>Diagnostics</b></td>
+  <td align="center" width="25%"><b>Dashboard</b></td>
+  <td align="center" width="25%"><b>Config</b></td>
+  <td align="center" width="25%"><b>Report</b></td>
 </tr>
 <tr>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="320" alt="Settings screen showing language selector dropdown">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="Diagnostics screen">
   </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard screen">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Config screen">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="Report screen">
+  </picture></td>
+</tr>
+<tr>
+  <td valign="top"><sub>Navigation tabs, target input, run/stop button, test names, status badges, progress messages, group headers</sub></td>
+  <td valign="top"><sub>Summary cards, per-group pass/fail counts, total diagnostics counter, elapsed time, "no data" placeholder</sub></td>
+  <td valign="top"><sub>5 diagnostic group names, 46 individual test toggles, select-all / deselect-all buttons</sub></td>
+  <td valign="top"><sub>Report section headers, per-group breakdown tables, detailed diagnostic output, share button label</sub></td>
 </tr>
 </table>
 
-### i18n Architecture
+### Available Languages
 
-```
-QML: Tr.dashboard  →  Translations.qml (pragma Singleton)
-                    →  t("Dashboard", "Tableau de bord", "Dashboard", ...)
-                    →  lang index from appState.languageIndex (C++)
-                    →  Instant, zero-latency UI re-render
-```
+| Language | Label in UI |
+|----------|------------|
+| English | English |
+| Français | Français |
+| Deutsch | Deutsch |
+| Русский | Русский |
+| Italiano | Italiano |
+| 简体中文 | 简体中文 |
+| 繁體中文 | 繁體中文 |
+| Español | Español |
+| Português | Português |
 
-> **Key design decisions:**
-> - **Single-source `t()` function** — all 9 translations for a string live on
->   one line; adding a language means adding one parameter position across the
->   codebase.
-> - **Alphabetical ordering** — the ComboBox model is sorted by display name so
->   users find their language predictably, regardless of internal index.
-> - **Persistence** — `appState.setLanguage(idx)` writes to QSettings; the
->   selection survives app restarts.
-> - **Toast feedback** — prevents the "trapped in wrong language" UX failure:
->   if the user mis-taps, the toast shows the selected language name and they
->   can immediately switch back.
+> **Tip:** The language choice is saved automatically. Your users won't need to
+> re-select it after restarting the app. And if they accidentally tap the wrong
+> language, the toast shows the new language name so they can switch back
+> immediately.
 
 ## Features
 

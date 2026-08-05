@@ -128,52 +128,75 @@ NetDiagnostics 内置自定义主题引擎，支持**深色**和**浅色**两种
 
 ## 多语言
 
-NetDiagnostics 内置完整的 **9 语言国际化系统**，由自定义 `Tr.*` QML 单例驱动。所有 UI 字符串——导航标签、诊断状态消息、报告章节标题、分组名称和设置描述——均通过统一的 `t()` 函数在运行时翻译，该函数同时接受 9 种语言变体。
+NetDiagnostics 开箱即支持 **9 种语言**。打开设置，从下拉框中选择你的语言，整个应用即刻切换——每个按钮、每条标签、每个状态消息、每个报告标题。无需重启。无死角。无遗漏。
 
-语言选择器位于 **设置 → 语言**，以 ComboBox 下拉框形式呈现，按字母顺序列出所有语言。切换后显示 3 秒 toast 确认，防止误触后迷失在不熟悉的语言界面中。
+### 如何切换
 
-### 支持的语言
+1. 从底部导航栏打开 **设置**
+2. 点击 **语言** 下拉框——全部 9 种语言按字母顺序排列
+3. 选择语言——toast 确认你的选择（"Français ✓"）
+4. 整个应用立即以新语言渲染
 
-| # | 语言 | 内部索引 | UI 标签 |
-|---|----------|:---:|----------|
-| 1 | English | `0` | English |
-| 2 | Français | `1` | Français |
-| 3 | Deutsch | `2` | Deutsch |
-| 4 | Русский | `3` | Русский |
-| 5 | Italiano | `4` | Italiano |
-| 6 | 简体中文 | `5` | 简体中文 |
-| 7 | 繁體中文 | `6` | 繁體中文 |
-| 8 | Español | `7` | Español |
-| 9 | Português | `8` | Português |
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="300" alt="设置 — 语言选择下拉框">
+  </picture>
+  <br/><sub><b>设置 → 语言</b> &nbsp;·&nbsp; 9 种语言按字母排列 &nbsp;·&nbsp; 切换时 toast 确认</sub>
+</p>
 
-### 语言选择器
+### 每个页面，完整翻译
+
+无论你的用户在哪个页面，每一处可见文字都会被翻译。下方的截图展示了**诊断**、**仪表板**、**配置**和**报告**页面——切换语言后，每个页面都完全本地化。
 
 <table>
 <tr>
-  <td align="center"><b>设置 — 语言下拉框</b><br/><sub>ComboBox 按字母顺序列出全部 9 种语言；切换时显示 toast 提示。</sub></td>
+  <td align="center" width="25%"><b>诊断</b></td>
+  <td align="center" width="25%"><b>仪表板</b></td>
+  <td align="center" width="25%"><b>配置</b></td>
+  <td align="center" width="25%"><b>报告</b></td>
 </tr>
 <tr>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="320" alt="设置页面显示语言选择下拉框">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="诊断页面">
   </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="仪表板页面">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置页面">
+  </picture></td>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="报告页面">
+  </picture></td>
+</tr>
+<tr>
+  <td valign="top"><sub>导航标签、目标输入框、运行/停止按钮、测试名称、状态徽章、进度消息、分组标题</sub></td>
+  <td valign="top"><sub>摘要卡片、分组通过/失败计数、总诊断计数器、耗时、"暂无数据"占位提示</sub></td>
+  <td valign="top"><sub>5 个诊断组名称、46 个独立测试开关、全选/取消全选按钮</sub></td>
+  <td valign="top"><sub>报告章节标题、分组明细表、详细诊断输出、分享按钮标签</sub></td>
 </tr>
 </table>
 
-### 国际化架构
+### 可用语言
 
-```
-QML: Tr.dashboard  →  Translations.qml (pragma Singleton)
-                    →  t("Dashboard", "Tableau de bord", "Dashboard", ...)
-                    →  lang index 来自 appState.languageIndex (C++)
-                    →  即时、零延迟的 UI 重新渲染
-```
+| 语言 | UI 中的标签 |
+|----------|------------|
+| English | English |
+| Français | Français |
+| Deutsch | Deutsch |
+| Русский | Русский |
+| Italiano | Italiano |
+| 简体中文 | 简体中文 |
+| 繁體中文 | 繁體中文 |
+| Español | Español |
+| Português | Português |
 
-> **关键设计决策：**
-> - **单一来源 `t()` 函数** — 一条字符串的所有 9 种翻译集中在一行；添加新语言只需在代码库中增加一个参数位置。
-> - **按字母顺序排序** — ComboBox 模型按显示名称排序，用户可预测地找到自己的语言，与内部索引无关。
-> - **持久化存储** — `appState.setLanguage(idx)` 写入 QSettings；选择在应用重启后依然生效。
-> - **Toast 反馈** — 防止"误触后迷失"的 UX 缺陷：误触后 toast 显示所选语言名称，用户可立即切换回来。
+> **提示：** 语言选择会自动保存。用户重启应用后无需重新选择。如果不小心点错语言，toast 会显示新语言名称，方便立即切换回来。
 
 ## 功能特性
 
