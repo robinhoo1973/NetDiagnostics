@@ -199,7 +199,7 @@ ColumnLayout {
                     property bool _showPass: false
                 }
                 // Visibility toggle — TODO: replace check/close with eye/eye-off
-                // SVG icons once added to resources/icons-master/.
+                // SVG icons are in resources/icons/src/.
                 // 5WHY: Touch target was 36×28 despite Apple HIG requiring 44pt
                 // minimum in the comment.  Now matches the documented minimum.
                 Item {

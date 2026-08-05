@@ -301,9 +301,39 @@ fi
 	    pass "no staged QML files"
 	fi
 
-	# ── 14. QML: QtObject child elements (no default property) ───────────────
+	# ── 14. QML: document structure validation (5WHY — catch raw data masquerading as QML) ──
+	# 5WHY: Translations.qml was replaced with bare t() call data, losing the
+	# pragma Singleton + import QtQuick + Item {} envelope. The QML parser hit
+	# 't(' at position 1:2 and expected '{', triggering the universal crash chain.
+	# This check verifies every staged .qml file starts with a valid QML construct
+	# (pragma, import, or // comment) — raw data that hits this check would have
+	# been an instant iOS startup crash.  See CRASH-2026-08-05.
 	echo ""
-	echo "── 14. QML QtObject child elements (no default property) ──"
+	echo "── 14. QML document structure (pragma/import envelope) ──"
+	if [ -n "$QML_FILES" ]; then
+	    for f in $QML_FILES; do
+	        # Skip empty files
+	        if [ ! -s "$f" ]; then
+	            pass "$f (empty)"
+	            continue
+	        fi
+	        # A valid QML document starts with //, /*, pragma, import, or a known root type.
+	        # Common root types: Item, Rectangle, ApplicationWindow, Window, QtObject,
+	        # AbstractButton, Button, Pane, Frame, Control, Label, Text, etc.
+	        FIRSTLINE=$(git show ":$f" | head -1 | sed 's/^[[:space:]]*//')
+	        if echo "$FIRSTLINE" | grep -qE '^(//|/\*|pragma |import |Item\b|Rectangle\b|ApplicationWindow\b|Window\b|QtObject\b|AbstractButton\b|Button\b|Pane\b|Frame\b|Control\b|Label\b|Text\b|Column\b|Row\b|Grid\b|Flow\b|ListView\b|GridView\b|Repeater\b|Loader\b|Flickable\b|ScrollView\b|StackView\b|SwipeView\b|TabBar\b|Drawer\b|Dialog\b|Popup\b|Menu\b|ToolBar\b|Header\b|Footer\b|Page\b|SwipeDelegate\b)'; then
+	            pass "$f"
+	        else
+	            fail "$f: first non-blank line '$FIRSTLINE' is not a valid QML construct — missing pragma/import/root-type. This would cause an iOS startup crash. See review/ios-startup-crash-5why-analysis.md"
+	        fi
+	    done
+	else
+	    pass "no staged QML files"
+	fi
+
+	# ── 15. QML: QtObject child elements (no default property) ───────────────
+	echo ""
+	echo "── 15. QML QtObject child elements (no default property) ──"
 	if [ -n "$QML_FILES" ]; then
 	    for f in $QML_FILES; do
 	        # Check for Timer/Item/Rectangle/Connections/Binding as direct child of QtObject
@@ -325,9 +355,9 @@ fi
 	    pass "no staged QML files"
 	fi
 
-	# ── 15. C++: static const non-trivial object in header ────────────────────
+	# ── 16. C++: static const non-trivial object in header ────────────────────
 	echo ""
-	echo "── 15. C++ static const in header (SIOF check) ──"
+	echo "── 16. C++ static const in header (SIOF check) ──"
 	HEADER_FILES=$(echo "$STAGED" | grep -E '\.h$|\.hpp$' || true)
 	if [ -n "$HEADER_FILES" ]; then
 	    for f in $HEADER_FILES; do
@@ -344,13 +374,13 @@ fi
 	    pass "no staged header files"
 	fi
 
-	# ── 16. SVG icons: fill="none" fill-opacity="0" format check ─────────────
+	# ── 17. SVG icons: fill="none" fill-opacity="0" format check ─────────────
 	echo ""
-	echo "── 16. SVG icon format (fill=none + fill-opacity=0) ──"
-	# Masters live in resources/icons-master/ (build input, not shipped).
-	# Generated variants (resources/icons-gen/) are derived from masters and
+	echo "── 17. SVG icon format (fill=none + fill-opacity=0) ──"
+	# Masters live in resources/icons/src/ (build input, not shipped).
+	# Generated variants (resources/icons/gen/) are derived from masters and
 	# inherit their format — only masters need checking.
-	SVG_FILES=$(echo "$STAGED" | grep -E 'icons-master/.*\.svg$' || true)
+	SVG_FILES=$(echo "$STAGED" | grep -E 'icons/src/.*\.svg$' || true)
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        content=$(git show ":$f" 2>/dev/null)
@@ -370,14 +400,14 @@ fi
 	    pass "no staged icon SVGs"
 	fi
 
-	# ── 17. SVG icons: generated variants must be registered in QRC ────────
+	# ── 18. SVG icons: generated variants must be registered in QRC ────────
 	echo ""
-	echo "── 17. SVG icon QRC registration (resources_icons_gen.qrc) ──"
+	echo "── 18. SVG icon QRC registration (resources_icons.qrc) ──"
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        basename=$(basename "$f")
-	        if ! grep -q "$basename" "$ROOT/resources/resources_icons_gen.qrc"; then
-	            fail "$f: no generated variants in resources/resources_icons_gen.qrc — run: python scripts/generate-colored-icons.py"
+	        if ! grep -q "$basename" "$ROOT/resources/resources_icons.qrc"; then
+	            fail "$f: no generated variants in resources/resources_icons.qrc — run: python scripts/generate-colored-icons.py"
 	        else
 	            pass "$f"
 	        fi
@@ -386,31 +416,31 @@ fi
 	    pass "no staged icon SVGs"
 	fi
 
-	# ── 18. Pre-generated colored icons: staleness check ────────────────────
-	# 5WHY: AppIcon selects from pre-generated qrc:/icons-gen/ variants
+	# ── 19. Pre-generated colored icons: staleness check ────────────────────
+	# 5WHY: AppIcon selects from pre-generated qrc:/icons/gen/ variants
 	# (scripts/generate-colored-icons.py).  If Palette.js or a master icon
 	# changes without regeneration, nearest-color matching silently snaps
 	# to stale colors.
 	echo ""
-	echo "── 18. Pre-generated icon staleness (icons-gen vs Palette.js) ──"
-	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons-master/[^/]+\.svg)$' || true)
+	echo "── 19. Pre-generated icon staleness (icons/gen vs Palette.js) ──"
+	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/src/[^/]+\.svg)$' || true)
 	if [ -n "$GEN_INPUTS" ]; then
-	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons-gen/|resources_icons_gen\.qrc)' || true)
+	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/gen/|resources_icons\.qrc)' || true)
 	    if [ -z "$GEN_OUTPUTS" ]; then
-	        fail "Palette.js or master icons changed but icons-gen not regenerated — run: python scripts/generate-colored-icons.py"
+	        fail "Palette.js or master icons changed but icons/gen not regenerated — run: python scripts/generate-colored-icons.py"
 	    else
-	        pass "icons-gen regenerated alongside inputs"
+	        pass "icons/gen regenerated alongside inputs"
 	    fi
 	else
 	    pass "generator inputs unchanged"
 	fi
 
-	# ── 19. Secrets & signing material (leak prevention) ────────────────────
+	# ── 20. Secrets & signing material (leak prevention) ────────────────────
 	# 5WHY: mac_dist.p12 and its password were once committed (history has
 	# been purged with filter-repo).  Block any staged signing material and
 	# obvious secrets before they ever reach the object database.
 	echo ""
-	echo "── 19. Secrets & signing material (leak prevention) ──"
+	echo "── 20. Secrets & signing material (leak prevention) ──"
 	SECRET_FILES=$(echo "$STAGED" | grep -iE '\.(p12|pfx|key|pem|p8|jks|keystore|mobileprovision|provisionprofile|cer|csr)$|(^|/)\.env(\.|$)' || true)
 	if [ -n "$SECRET_FILES" ]; then
 	    fail "signing material or secret file staged — remove from index:"

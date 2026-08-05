@@ -15,7 +15,6 @@ Item {
 
     // ── Group names (index 0-4 → G1-G5) ──
     function groupName(idx) {
-        var d = lang
         var names = [
             t("系统和适配器", "系統和適配器", "システムとアダプター", "시스템 및 어댑터", "", "", "", "System & Adapters", "Système et adaptateurs", "System & Adapter", "Система и адаптеры", "Sistema e schede", "Sistema y adaptadores", "Sistema e adaptadores", "النظام والمحولات")),
             t("连接与安全", "連線與安全", "接続とセキュリティ", "연결 및 보안", "", "", "", "Connectivity & Security", "Connectivité et sécurité", "Konnektivität & Sicherheit", "Подключение и безопасность", "Connettività e sicurezza", "Conectividad y seguridad", "Conectividade e segurança", "الاتصال والأمان")),
@@ -406,7 +405,6 @@ Item {
 
     // ── Group prefix (G1, G2, ...) ──
     function groupPrefix(idx) {
-        var d = lang
         var labels = [
             t("G", "G", "", "", "", "", "", "G", "G", "G", "G", "G", "G", "G", ""))
         ]

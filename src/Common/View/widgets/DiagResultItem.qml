@@ -53,7 +53,7 @@ Item {
         // 5WHY: itemData.displayName comes from C++ ::diagDisplayName()
         // which is always English. Route through Tr.diagName() so
         // test names follow the active language. Fall back to
-        // displayName for English (Tr.diagName returns "" when lang<=0).
+        // displayName or numeric ID if diagName returns empty.
         Label {
             text: Tr.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
