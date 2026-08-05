@@ -143,13 +143,19 @@ jobs:
           avd-name: phone
           force-avd-creation: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
-          boot-timeout: 900000
+          emulator-boot-timeout: 900000
           disable-animations: true
+          disable-linux-hw-accel: true
           script: |
             set -eu
+            echo "=== Waiting for device ==="
+            adb wait-for-device
+            echo "=== Device connected, waiting for boot ==="
+            adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
+            echo "=== Boot complete ==="
             adb install "${{ env.APK }}"
             adb shell input keyevent 3 2>/dev/null || true
-            sleep 2
+            sleep 3
             bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/phone
 
       - name: Upload screenshots
@@ -184,13 +190,19 @@ jobs:
           avd-name: tablet
           force-avd-creation: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -skin 800x1280
-          boot-timeout: 900000
+          emulator-boot-timeout: 900000
           disable-animations: true
+          disable-linux-hw-accel: true
           script: |
             set -eu
+            echo "=== Waiting for device ==="
+            adb wait-for-device
+            echo "=== Device connected, waiting for boot ==="
+            adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
+            echo "=== Boot complete ==="
             adb install "${{ env.APK }}"
             adb shell input keyevent 3 2>/dev/null || true
-            sleep 2
+            sleep 3
             bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/tablet
 
       - name: Upload screenshots
