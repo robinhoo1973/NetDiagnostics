@@ -128,7 +128,7 @@ GitHub theme automatically.
 
 ## Multi-Language
 
-NetDiagnostics speaks **12 languages** out of the box. Open Settings, pick your
+NetDiagnostics speaks **15 languages** out of the box. Open Settings, pick your
 language from the dropdown, and the entire app instantly switches — every
 button, label, status message, and report heading. No restart. No gaps.
 No partial translations.
@@ -136,7 +136,7 @@ No partial translations.
 ### How to Switch
 
 1. Open **Settings** from the bottom navigation bar
-2. Tap the **Language** dropdown — all 12 languages appear, sorted alphabetically
+2. Tap the **Language** dropdown — all 15 languages appear, sorted alphabetically
 3. Select a language — a toast confirms your choice ("Français ✓")
 4. The whole app immediately renders in the new language
 
@@ -183,15 +183,18 @@ description is fully translated — no hardcoded strings, no fallback to English
   <img src="https://flagcdn.com/16x12/cn.png" width="16" height="12"> 简体中文 &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/hk.png" width="16" height="12"> 繁體中文 &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/jp.png" width="16" height="12"> 日本語 &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/kr.png" width="16" height="12"> 한국어
+  <img src="https://flagcdn.com/16x12/kr.png" width="16" height="12"> 한국어 &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/vn.png" width="16" height="12"> Tiếng Việt
 </p>
 <p align="center">
+  <img src="https://flagcdn.com/16x12/in.png" width="16" height="12"> हिन्दी &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/tr.png" width="16" height="12"> Türkçe &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/us.png" width="16" height="12"> English &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/fr.png" width="16" height="12"> Français &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/de.png" width="16" height="12"> Deutsch &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/ru.png" width="16" height="12"> Русский
+  <img src="https://flagcdn.com/16x12/de.png" width="16" height="12"> Deutsch
 </p>
 <p align="center">
+  <img src="https://flagcdn.com/16x12/ru.png" width="16" height="12"> Русский &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/it.png" width="16" height="12"> Italiano &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/es.png" width="16" height="12"> Español &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/br.png" width="16" height="12"> Português &nbsp;·&nbsp;
@@ -220,7 +223,7 @@ description is fully translated — no hardcoded strings, no fallback to English
 - **Cross-platform** — single C++/QML codebase targeting iOS, Android, Windows, macOS, Linux
 - **Real-time diagnostics** — results stream live as each test completes, with progress indicators and status badges
 - **Dark &amp; Light themes** — custom theme engine with cyan accent palette, toggled in Settings
-- **12-language UI** — 简体中文, 繁體中文, 日本語, 한국어, English, Français, Deutsch, Русский, Italiano, Español, Português, العربية
+- **15-language UI** — 简体中文, 繁體中文, 日本語, 한국어, Tiếng Việt, हिन्दी, Türkçe, English, Français, Deutsch, Русский, Italiano, Español, Português, العربية
 - **Report export** — PDF and HTML reports with summary cards, per-group breakdowns, and detailed diagnostic output
 - **Group configuration** — enable/disable individual tests or entire groups per diagnostic run
 - **G5 protocol suite** — raw TCP socket diagnostics for MySQL, PostgreSQL, Redis, MongoDB, LDAP, MQTT plus banner detection for FTP, SSH, SMTP/IMAP/POP3, Telnet
@@ -243,7 +246,7 @@ description is fully translated — no hardcoded strings, no fallback to English
 | Layer | Technology |
 |-------|-----------|
 | Framework | Qt 6 (C++17) — Core, Concurrent, Quick, QuickControls2, Network, Widgets |
-| UI | QML with custom ThemeEngine, 12-language i18n via `Tr.*` singleton |
+| UI | QML with custom ThemeEngine, 15-language i18n via `Tr.*` singleton |
 | HTTP/HTTPS | libcurl (desktop), NSURLSession (iOS), HttpURLConnection (Android) |
 | TCP / SSL | QTcpSocket, QSslSocket with X.509 chain inspection |
 | Platform APIs | WLAN API + IP Helper (Windows), NetworkExtension + CoreTelephony (iOS), ConnectivityManager + WifiManager via JNI (Android), SystemConfiguration + CoreWLAN (macOS) |

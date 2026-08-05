@@ -157,20 +157,23 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
                         // Alphabetical by display name; idx = internal language index
-                        // 0=ZH_CN,1=ZH_TW,2=JA,3=KO,4=EN,5=FR,6=DE,7=RU,8=IT,9=ES,10=PT,11=AR
+                        // 0=ZH_CN,1=ZH_TW,2=JA,3=KO,4=HI,5=VI,6=TR,7=EN,8=FR,9=DE,10=RU,11=IT,12=ES,13=PT,14=AR
                         readonly property var langItems: [
-                            { name: "العربية",   idx: 11 },
-                            { name: "Deutsch",   idx: 6 },
-                            { name: "English",   idx: 4 },
-                            { name: "Español",   idx: 9 },
-                            { name: "Français",  idx: 5 },
-                            { name: "Italiano",  idx: 8 },
-                            { name: "日本語",     idx: 2 },
-                            { name: "한국어",     idx: 3 },
-                            { name: "Português", idx: 10 },
-                            { name: "Русский",   idx: 7 },
-                            { name: "简体中文",   idx: 0 },
-                            { name: "繁體中文",   idx: 1 }
+                            { name: "العربية",    idx: 14 },
+                            { name: "Deutsch",    idx: 9 },
+                            { name: "English",    idx: 7 },
+                            { name: "Español",    idx: 12 },
+                            { name: "Français",   idx: 8 },
+                            { name: "हिन्दी",       idx: 4 },
+                            { name: "Italiano",   idx: 11 },
+                            { name: "日本語",      idx: 2 },
+                            { name: "한국어",      idx: 3 },
+                            { name: "Português",  idx: 13 },
+                            { name: "Русский",    idx: 10 },
+                            { name: "Tiếng Việt", idx: 5 },
+                            { name: "Türkçe",     idx: 6 },
+                            { name: "简体中文",    idx: 0 },
+                            { name: "繁體中文",    idx: 1 }
                         ]
                         model: langItems.map(function(e) { return e.name })
                         currentIndex: {

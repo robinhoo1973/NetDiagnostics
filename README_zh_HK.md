@@ -126,12 +126,12 @@ NetDiagnostics 內建自訂主題引擎，支援**深色**和**淺色**兩種主
 
 ## 多語言
 
-NetDiagnostics 開箱即支援 **12 種語言**。開啟設定，從下拉框中選擇你的語言，整個應用程式即刻切換——每個按鈕、每條標籤、每個狀態訊息、每個報告標題。無需重啟。無死角。無遺漏。
+NetDiagnostics 開箱即支援 **15 種語言**。開啟設定，從下拉框中選擇你的語言，整個應用程式即刻切換——每個按鈕、每條標籤、每個狀態訊息、每個報告標題。無需重啟。無死角。無遺漏。
 
 ### 如何切換
 
 1. 從底部導航列開啟 **設定**
-2. 點選 **語言** 下拉框——全部 12 種語言按字母順序排列
+2. 點選 **語言** 下拉框——全部 15 種語言按字母順序排列
 3. 選擇語言——toast 確認你的選擇（"Français ✓"）
 4. 整個應用程式立即以新語言渲染
 
@@ -177,15 +177,18 @@ NetDiagnostics 開箱即支援 **12 種語言**。開啟設定，從下拉框中
   <img src="https://flagcdn.com/16x12/cn.png" width="16" height="12"> 简体中文 &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/hk.png" width="16" height="12"> 繁體中文 &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/jp.png" width="16" height="12"> 日本語 &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/kr.png" width="16" height="12"> 한국어
+  <img src="https://flagcdn.com/16x12/kr.png" width="16" height="12"> 한국어 &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/vn.png" width="16" height="12"> Tiếng Việt
 </p>
 <p align="center">
+  <img src="https://flagcdn.com/16x12/in.png" width="16" height="12"> हिन्दी &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/tr.png" width="16" height="12"> Türkçe &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/us.png" width="16" height="12"> English &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/fr.png" width="16" height="12"> Français &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/de.png" width="16" height="12"> Deutsch &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/ru.png" width="16" height="12"> Русский
+  <img src="https://flagcdn.com/16x12/de.png" width="16" height="12"> Deutsch
 </p>
 <p align="center">
+  <img src="https://flagcdn.com/16x12/ru.png" width="16" height="12"> Русский &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/it.png" width="16" height="12"> Italiano &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/es.png" width="16" height="12"> Español &nbsp;·&nbsp;
   <img src="https://flagcdn.com/16x12/br.png" width="16" height="12"> Português &nbsp;·&nbsp;
@@ -211,7 +214,7 @@ NetDiagnostics 開箱即支援 **12 種語言**。開啟設定，從下拉框中
 - **跨平台** — 單一 C++/QML 程式碼庫涵蓋 iOS、Android、Windows、macOS、Linux
 - **即時診斷** — 每項測試完成後即時推送結果，含進度指示器和狀態徽章
 - **深色/淺色雙主題** — 自訂主題引擎，青色強調色調，可在設定中切換
-- **12 語言介面** — 简体中文、繁體中文、日本語、한국어、English、Français、Deutsch、Русский、Italiano、Español、Português、العربية
+- **15 語言介面** — 简体中文、繁體中文、日本語、한국어、English、Français、Deutsch、Русский、Italiano、Español、Português、العربية
 - **報告匯出** — PDF 和 HTML 報告，含摘要卡片、分組統計和詳細診斷輸出
 - **分組配置** — 每次診斷執行可按群組或逐項啟用/停用測試
 - **G5 協定套件** — 原始 TCP 通訊端診斷：MySQL、PostgreSQL、Redis、MongoDB、LDAP、MQTT，以及 FTP、SSH、SMTP/IMAP/POP3、Telnet 橫幅偵測
@@ -234,7 +237,7 @@ NetDiagnostics 開箱即支援 **12 種語言**。開啟設定，從下拉框中
 | 層級 | 技術 |
 |-------|-----------|
 | 框架 | Qt 6 (C++17) — Core、Concurrent、Quick、QuickControls2、Network、Widgets |
-| UI | QML + 自訂 ThemeEngine，12 語言國際化（`Tr.*` 單例） |
+| UI | QML + 自訂 ThemeEngine，15 語言國際化（`Tr.*` 單例） |
 | HTTP/HTTPS | libcurl（桌面端）、NSURLSession（iOS）、HttpURLConnection（Android） |
 | TCP / SSL | QTcpSocket、QSslSocket，含 X.509 憑證鏈檢查 |
 | 平台 API | WLAN API + IP Helper（Windows）、NetworkExtension + CoreTelephony（iOS）、ConnectivityManager + WifiManager via JNI（Android）、SystemConfiguration + CoreWLAN（macOS） |
