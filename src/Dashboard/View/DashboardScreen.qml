@@ -68,8 +68,8 @@ Item {
             if (page.previewVisible && appState.runStatus !== 1) page.openPreview()
         }
         function onSavePathPicked(format, path) { appState.exportPdf(path) }
-        function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
-        function onReportShared(ok) { page.toast = ok ? Tr.reportShareOk : Tr.reportShareFail; toastTimer.restart() }
+        function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
+        function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }
 
@@ -106,7 +106,7 @@ Item {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "dashboard"
-        title: Tr.dashboard
+        title: T.tr("dashboard")
         Item { Layout.fillWidth: true }
     }
 
@@ -114,8 +114,8 @@ Item {
     Column {
         anchors.centerIn: parent; spacing: 16; visible: !hasData
         AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.15) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.noData; font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: Tr.runFromDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
+        Label { anchors.horizontalCenter: parent.horizontalCenter; text: T.tr("noData"); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6) }
+        Label { anchors.horizontalCenter: parent.horizontalCenter; text: T.tr("runFromDiag"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
     }
 
     Flickable {
@@ -155,15 +155,15 @@ Item {
                     Item { width: 14 }
                     ColumnLayout { spacing: 4
                         Label {
-                            text: appState.runStatus === 1 ? Tr.runningDots :
-                                  appState.runStatus === 2 ? Tr.diagRunComplete :
-                                  appState.runStatus === 3 ? Tr.cancelled : Tr.diagRunComplete
+                            text: appState.runStatus === 1 ? T.tr("runningDots") :
+                                  appState.runStatus === 2 ? T.tr("diagRunComplete") :
+                                  appState.runStatus === 3 ? T.tr("cancelled") : T.tr("diagRunComplete")
                             font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold
                             color: appState.runStatus === 3 ? ThemeEngine.colors.textSecondary : ThemeEngine.colors.textPrimary
                         }
                         RowLayout { spacing: 4
                             AppIcon { name: "monitor"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
-                            Label { text: Tr.targetLabel + (appState.target || Tr.naLabel); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
+                            Label { text: T.tr("targetLabel") + (appState.target || T.tr("naLabel")); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                         RowLayout { spacing: 4
                             AppIcon { name: "timer"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
@@ -178,7 +178,7 @@ Item {
             Item { Layout.preferredHeight: 32 }
 
             // ── Per-Group Results header ────────────────────────────────
-            Label { text: Tr.perGroup; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+            Label { text: T.tr("perGroup"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
             Item { Layout.preferredHeight: 12 }
 
             Repeater {
@@ -199,17 +199,17 @@ Item {
                 Layout.fillWidth: true; implicitHeight: sumCol.implicitHeight + 32; radius: 12
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout { id: sumCol; anchors { fill: parent; margins: 16 }
-                    Label { text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                    Label { text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     ColumnLayout {
                     Layout.fillWidth: true; spacing: 10
-                    SummaryStat { appIcon: "config"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: Tr.totalDiagsLabel }
-                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: calcTotalTime(); lbl: Tr.totalTimeLabel }
-                    SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: Tr.completedLabel }
+                    SummaryStat { appIcon: "config"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: T.tr("totalDiagsLabel") }
+                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: calcTotalTime(); lbl: T.tr("totalTimeLabel") }
+                    SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: T.tr("completedLabel") }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 12; visible: _totalCompleted > 0 }
-                    Label { text: Tr.layerTimings; font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary; visible: _totalCompleted > 0 }
+                    Label { text: T.tr("layerTimings"); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
                     Repeater {
                         model: {
@@ -238,7 +238,7 @@ Item {
                                 size: 14; color: ThemeEngine.colors.secondary
                             }
                             Item { width: 8 }
-                            Label { Layout.fillWidth: true; text: Tr.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
+                            Label { Layout.fillWidth: true; text: T.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
                             Label { text: calcLayerTiming(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
@@ -254,8 +254,8 @@ Item {
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
-                    Label { text: Tr.report; font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-                    Label { text: Tr.reportExportHint; font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    Label { text: T.tr("report"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                    Label { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     // Review Report button
                     Rectangle {
                         id: reviewBtn
@@ -266,7 +266,7 @@ Item {
                             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                             AppIcon { name: "report"; size: 18; color: ThemeEngine.colors.cyan }
                             Item { width: 12 }
-                            Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
+                            Label { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
                     }
@@ -324,7 +324,7 @@ Item {
                         anchors { fill: parent; margins: 8 }
                         AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.cyan }
                         Item { width: 8 }
-                        Label { Layout.fillWidth: true; text: Tr.reportReviewBtn; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
+                        Label { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
                         Rectangle {
                             id: closeBtn
                             // 5WHY: close button was 36dp — below MD3 48dp minimum
@@ -430,7 +430,7 @@ Item {
             RowLayout {
                 Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.colors.secondary }
                 Item { width: 10 }
-                Label { Layout.fillWidth: true; text: Tr.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                Label { Layout.fillWidth: true; text: T.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                 DashboardBadge { accent: ThemeEngine.colors.passGreen;  v: _stat.pass }
                 DashboardBadge { accent: ThemeEngine.colors.warnYellow; v: _stat.warn }
                 DashboardBadge { accent: ThemeEngine.colors.failRed;   v: _stat.fail }
@@ -456,8 +456,8 @@ Item {
                     spacing: 8
                     AppIcon { name: ThemeEngine.statusIconNames[modelData.status] || "badge-skip"; size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
                     // 5WHY: modelData.displayName is always English (C++).
-                    // Route through Tr.diagName() for i18n.
-                    Label { Layout.fillWidth: true; text: Tr.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+                    // Route through T.diagName() for i18n.
+                    Label { Layout.fillWidth: true; text: T.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight; verticalAlignment: Text.AlignVCenter }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
                 }
             }

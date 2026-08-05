@@ -17,11 +17,11 @@ Item {
         target: appState
         function onRestoreCompleted(restoredAny, isError) {
             if (isError) {
-                restoreToast.text = Tr.restoreError
+                restoreToast.text = T.tr("restoreError")
             } else if (restoredAny) {
-                restoreToast.text = Tr.restoreOk
+                restoreToast.text = T.tr("restoreOk")
             } else {
-                restoreToast.text = Tr.restoreFail
+                restoreToast.text = T.tr("restoreFail")
             }
             restoreToastTimer.restart()
         }
@@ -32,7 +32,7 @@ Item {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "gear"
-        title: Tr.settings
+        title: T.tr("settings")
         Item { Layout.fillWidth: true }
     }
 
@@ -48,7 +48,7 @@ Item {
             Item { Layout.preferredHeight: 24 }
 
             // ── Appearance Section ────────────────────────────────────
-            SectionHeader { iconName: "brightness"; title: Tr.appearanceSection }
+            SectionHeader { iconName: "brightness"; title: T.tr("appearanceSection") }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: themeCol.implicitHeight + 32; radius: 12
@@ -57,7 +57,7 @@ Item {
                     id: themeCol
                     anchors { fill: parent; margins: 16 } spacing: 0
                     Label {
-                        text: Tr.themeLabel
+                        text: T.tr("themeLabel")
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textPrimary
                         Layout.bottomMargin: 12
                     }
@@ -65,8 +65,8 @@ Item {
                         spacing: 6
                         Repeater {
                             model: [
-                                { label: Tr.themeLight,  mode: ThemeEngine.litMode, icon: "brightness" },
-                                { label: Tr.themeDark,   mode: ThemeEngine.drkMode, icon: "moon" }
+                                { label: T.tr("themeLight"),  mode: ThemeEngine.litMode, icon: "brightness" },
+                                { label: T.tr("themeDark"),   mode: ThemeEngine.drkMode, icon: "moon" }
                             ]
                             delegate: Rectangle {
                                 // 5WHY: Cache ThemeEngine.mode comparison — evaluated 6 times
@@ -133,7 +133,7 @@ Item {
                                 }
                                 Accessible.name: modelData.label
                                 Accessible.role: Accessible.Button
-                                Accessible.description: isActive ? Tr.accActiveTheme : Tr.accSwitchTheme
+                                Accessible.description: isActive ? T.tr("accActiveTheme") : T.tr("accSwitchTheme")
                             }
                         }
                     }
@@ -143,7 +143,7 @@ Item {
             Item { Layout.preferredHeight: 24 }
 
             // ── Language Section ───────────────────────────────────────
-            SectionHeader { iconName: "translate"; title: Tr.languageSection }
+            SectionHeader { iconName: "translate"; title: T.tr("languageSection") }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: langCol.implicitHeight + 32; radius: 12
@@ -244,7 +244,7 @@ Item {
                 id: restoreSection
                 visible: ThemeEngine.isMobile
                 Layout.fillWidth: true; spacing: 0
-                SectionHeader { iconName: "check"; title: Tr.subscribeTitle }
+                SectionHeader { iconName: "check"; title: T.tr("subscribeTitle") }
                 Item { Layout.preferredHeight: 12 }
                 Rectangle {
                     Layout.fillWidth: true; implicitHeight: restoreBtnCol.implicitHeight + 32; radius: 12
@@ -254,7 +254,7 @@ Item {
                         anchors { fill: parent; margins: 16 } spacing: 0
                         Label {
                             Layout.fillWidth: true
-                            text: appState.isPremium ? Tr.premiumUnlocked : Tr.premiumRequiredMsg
+                            text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumRequiredMsg")
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: 12; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.4
                         }
@@ -269,7 +269,7 @@ Item {
                                                                                    : Qt.alpha(ThemeEngine.colors.warnYellow, 0.4) }
                             Label {
                                 anchors.centerIn: parent
-                                text: appState.purchaseInProgress ? Tr.purchaseInProgress : Tr.restoreBtn
+                                text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("restoreBtn")
                                 font.family: ThemeEngine.monoFont
                                 font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.warnYellow
                             }
@@ -307,7 +307,7 @@ Item {
             }
 
             // ── About Section ──────────────────────────────────────────
-            SectionHeader { iconName: "info"; title: Tr.aboutSection }
+            SectionHeader { iconName: "info"; title: T.tr("aboutSection") }
             Item { Layout.preferredHeight: 12 }
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: aboutCol.implicitHeight + 32; radius: 12
@@ -329,12 +329,12 @@ Item {
                         }
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
-                            Label { text: Tr.appName + (appState.isPremium ? "  " + Tr.premiumBadge : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
+                            Label { text: T.tr("appName") + (appState.isPremium ? "  " + T.tr("premiumBadge") : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
                             Label {
                                 Layout.fillWidth: true
-                                text: Tr.versionLabel + " " + appState.appVersion
+                                text: T.tr("versionLabel") + " " + appState.appVersion
                                       + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
-                                      + (appState.buildNumber.length > 0 ? " " + Tr.buildLabel + " " + appState.buildNumber : "")
+                                      + (appState.buildNumber.length > 0 ? " " + T.tr("buildLabel") + " " + appState.buildNumber : "")
                                       + (appState.gitHash.length > 0 ? " (" + appState.gitHash + ")" : "")
                                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
                                 wrapMode: Text.WordWrap
@@ -344,16 +344,16 @@ Item {
                     Item { Layout.preferredHeight: 16 }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard }
                     Item { Layout.preferredHeight: 12 }
-                    Label { Layout.fillWidth: true; text: Tr.aboutDesc
+                    Label { Layout.fillWidth: true; text: T.tr("aboutDesc")
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5 }
                     Item { Layout.preferredHeight: 16 }
-                    AboutRow { aboutIcon: "monitor"; aboutText: Tr.crossPlat }
+                    AboutRow { aboutIcon: "monitor"; aboutText: T.tr("crossPlat") }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "zap"; aboutText: Tr.realtimeDiag }
+                    AboutRow { aboutIcon: "zap"; aboutText: T.tr("realtimeDiag") }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "chart"; aboutText: Tr.detailedReport }
+                    AboutRow { aboutIcon: "chart"; aboutText: T.tr("detailedReport") }
                     Item { Layout.preferredHeight: 8 }
-                    AboutRow { aboutIcon: "moon"; aboutText: Tr.darkTheme }
+                    AboutRow { aboutIcon: "moon"; aboutText: T.tr("darkTheme") }
                     Item { Layout.preferredHeight: 8 }
 
                 }

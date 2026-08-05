@@ -2,7 +2,7 @@
 // Eliminates 5x duplication of style: Text.Raised + styleColor: "#80000000".
 // Light-source convention: light from top-left, shadow to bottom-right.
 import QtQuick
-import "../theme" as T
+import "../theme" as Th
 
 Text {
     style: Text.Raised
@@ -13,5 +13,5 @@ Text {
     // explicit font.family or it renders in the system proportional default.
     // Use ThemeEngine.monoFont (the centralized monospace font configuration)
     // so a font change updates ALL components uniformly.
-    font.family: T.ThemeEngine.monoFont
+    font.family: Th.ThemeEngine.monoFont
 }

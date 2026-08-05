@@ -107,8 +107,8 @@ Item {
             page.lastFailed = (saved === "")
             page.lastPath = saved
         }
-        function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
-        function onReportShared(ok) { page.toast = ok ? Tr.reportShareOk : Tr.reportShareFail; toastTimer.restart() }
+        function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
+        function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         // Subscription just succeeded while the prompt was open → advance to the
         // confirmation step so the flow continues seamlessly (subscribe → confirm → share).
         function onPremiumChanged() {
@@ -121,7 +121,7 @@ Item {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "report"
-        title: Tr.reportPreview
+        title: T.tr("reportPreview")
         Item { Layout.fillWidth: true }
     }
 
@@ -167,7 +167,7 @@ Item {
             Label {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
-                text: Tr.reportPreview
+                text: T.tr("reportPreview")
                 font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                 elide: Text.ElideRight; maximumLineCount: 1
             }
@@ -177,8 +177,8 @@ Item {
             Label {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
-                text: page.isRunning ? Tr.runningDots
-                      : (page.hasResults ? Tr.reportExportHint : Tr.reportRunFirst)
+                text: page.isRunning ? T.tr("runningDots")
+                      : (page.hasResults ? T.tr("reportExportHint") : T.tr("reportRunFirst"))
                 font.family: ThemeEngine.monoFont; font.pixelSize: 14; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                 horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5
                 wrapMode: Text.WordWrap
@@ -187,12 +187,12 @@ Item {
 
             // Single "Review Report" button — opens unified image preview
             ColumnLayout { spacing: 10; Layout.fillWidth: true
-                ExportButton { iconName: "report"; label: Tr.reportReviewBtn; accent: ThemeEngine.colors.cyan; onClicked: page.openPreview() }
+                ExportButton { iconName: "report"; label: T.tr("reportReviewBtn"); accent: ThemeEngine.colors.cyan; onClicked: page.openPreview() }
                 Label {
                     visible: page.toast !== "" || page.lastPath !== "" || page.lastFailed
                     Layout.fillWidth: true; Layout.topMargin: 4
                     text: page.toast !== "" ? page.toast
-                          : (page.lastFailed ? Tr.reportExportFailed : (Tr.reportSavedTo + " " + page.lastPath))
+                          : (page.lastFailed ? T.tr("reportExportFailed") : (T.tr("reportSavedTo") + " " + page.lastPath))
                     color: page.lastFailed ? ThemeEngine.colors.failRed : (page.toast !== "" ? ThemeEngine.colors.cyan : ThemeEngine.colors.passGreen)
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11
                     wrapMode: Text.WrapAnywhere; horizontalAlignment: Text.AlignHCenter
@@ -215,8 +215,8 @@ Item {
                     Item { width: 8 }
                     Label {
                         Layout.fillWidth: true
-                        text: page.isRunning ? Tr.runningStatus
-                              : (hasResults ? appState.totalCompleted + Tr.reportResultsAvailable : Tr.reportNoResults)
+                        text: page.isRunning ? T.tr("runningStatus")
+                              : (hasResults ? appState.totalCompleted + T.tr("reportResultsAvailable") : T.tr("reportNoResults"))
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: page.isRunning ? ThemeEngine.colors.cyan : (hasResults ? ThemeEngine.colors.passGreen : ThemeEngine.colors.warnYellow)
                         elide: Text.ElideRight
@@ -267,7 +267,7 @@ Item {
                         Item { width: 8 }
                         Label {
                             Layout.fillWidth: true
-                            text: Tr.reportReviewBtn
+                            text: T.tr("reportReviewBtn")
                             font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary
                             elide: Text.ElideRight
                         }

@@ -6,13 +6,13 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../theme" as T
+import "../theme" as Th
 import "../widgets"
 
 Rectangle {
     id: root
     anchors.fill: parent
-    color: Qt.alpha(T.ThemeEngine.colors.surface, 0.85)
+    color: Qt.alpha(Th.ThemeEngine.colors.surface, 0.85)
     visible: shareStage !== 0; z: 1100
 
     required property int shareStage       // 0=none, 1=subscribe, 2=confirm
@@ -27,7 +27,7 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(420, parent.width * 0.92)
         implicitHeight: dlgCol.implicitHeight + 40; radius: 14
-        color: T.ThemeEngine.colors.card
+        color: Th.ThemeEngine.colors.card
         // 5WHY: Without this MouseArea, clicks on empty card space (between
         // title text and buttons, or near-misses) propagate to the backdrop
         // MouseArea and dismiss the dialog.  Absorb clicks so only explicit
@@ -45,7 +45,7 @@ Rectangle {
             // Icon badge
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; radius: 30
-                color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan, 0.12)
+                color: Qt.alpha(root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan, 0.12)
                 border {
                     // 5WHY: border.visible does not exist in Qt Quick Rectangle —
                     // Border has only width/color properties.  Setting an
@@ -53,29 +53,29 @@ Rectangle {
                     // property" fatal error at QML load time.  Use width: 0 to
                     // hide the border instead.
                     width: root.showIconBorder ? 1.5 : 0
-                    color: Qt.alpha(root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan, 0.35)
+                    color: Qt.alpha(root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan, 0.35)
                 }
                 AppIcon {
                     anchors.centerIn: parent
                     name: root.shareStage === 1 ? "badge-info" : "report"; size: 28
-                    color: root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan
+                    color: root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan
                 }
             }
 
             // Title
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.shareStage === 1 ? T.Tr.subscribeTitle : T.Tr.confirmShareTitle
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 17
-                font.weight: Font.Bold; color: T.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+                text: root.shareStage === 1 ? T.tr("subscribeTitle") : T.tr("confirmShareTitle")
+                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 17
+                font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
             }
 
             // Body
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.shareStage === 1 ? T.Tr.subscribeBody : T.Tr.confirmShareBody
-                font.family: T.ThemeEngine.monoFont; font.pixelSize: 13
-                color: T.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
+                text: root.shareStage === 1 ? T.tr("subscribeBody") : T.tr("confirmShareBody")
+                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 13
+                color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
             }
 
             // PRO badge (subscribe stage, optional)
@@ -83,13 +83,13 @@ Rectangle {
                 visible: root.showProBadge && root.shareStage === 1
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: proRow.implicitWidth + 20; implicitHeight: 26; radius: 13
-                color: Qt.alpha(T.ThemeEngine.colors.warnYellow, 0.15)
+                color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.15)
                 RowLayout {
                     id: proRow
                     anchors.centerIn: parent; spacing: 5
-                    AppIcon { name: "badge-check"; size: 12; color: T.ThemeEngine.colors.warnYellow }
-                    Label { text: T.Tr.premiumBadge; color: T.ThemeEngine.colors.warnYellow
-                        font.family: T.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
+                    AppIcon { name: "badge-check"; size: 12; color: Th.ThemeEngine.colors.warnYellow }
+                    Label { text: T.tr("premiumBadge"); color: Th.ThemeEngine.colors.warnYellow
+                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
                 }
             }
 
@@ -97,14 +97,14 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
                 DialogBtn {
-                    label: root.shareStage === 1 ? T.Tr.subscribeNotNow : T.Tr.dialogCancel
-                    accent: T.ThemeEngine.colors.textSecondary; filled: false
+                    label: root.shareStage === 1 ? T.tr("subscribeNotNow") : T.tr("dialogCancel")
+                    accent: Th.ThemeEngine.colors.textSecondary; filled: false
                     onClicked: root.dismissed()
                 }
                 DialogBtn {
-                    label: root.shareStage === 1 ? T.Tr.subscribeBtn
-                           : (root.isMobile ? T.Tr.shareBtn : T.Tr.emailBtn)
-                    accent: root.shareStage === 1 ? T.ThemeEngine.colors.warnYellow : T.ThemeEngine.colors.cyan
+                    label: root.shareStage === 1 ? T.tr("subscribeBtn")
+                           : (root.isMobile ? T.tr("shareBtn") : T.tr("emailBtn"))
+                    accent: root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan
                     filled: true
                     onClicked: root.actionRequested()
                 }

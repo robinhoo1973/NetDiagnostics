@@ -22,7 +22,7 @@ ColumnLayout {
             }
         }
         Label {
-            text: status === 1 ? Tr.runningStatus : status === 2 ? Tr.completeStatus : status === 3 ? Tr.cancelledStatus : status === 4 ? Tr.errorStatus : Tr.readyStatus
+            text: status === 1 ? T.tr("runningStatus") : status === 2 ? T.tr("completeStatus") : status === 3 ? T.tr("cancelledStatus") : status === 4 ? T.tr("errorStatus") : T.tr("readyStatus")
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
             color: status === 1 ? ThemeEngine.colors.cyan : status === 2 ? ThemeEngine.colors.passGreen : status === 3 ? ThemeEngine.colors.warnYellow : status === 4 ? ThemeEngine.colors.errorRed : ThemeEngine.colors.textSecondary
         }
@@ -44,9 +44,9 @@ ColumnLayout {
     Label {
         visible: appState.errorMessage !== ""
         Layout.fillWidth: true; Layout.topMargin: 6
-        // 5WHY: errorMessage is a C++ message — route through Tr.trMsg() so it
+        // 5WHY: errorMessage is a C++ message — route through T.trMsg() so it
         // translates on language switch.
-        text: Tr.errorPrefix + Tr.trMsg(appState.errorMessage || "")
+        text: T.tr("errorPrefix") + T.trMsg(appState.errorMessage || "")
         font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: Qt.alpha(ThemeEngine.colors.errorRed, 0.8)
         maximumLineCount: 2; elide: Text.ElideRight
     }

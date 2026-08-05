@@ -5,7 +5,7 @@ import "widgets"
 
 ApplicationWindow {
     id: root
-    title: Tr.appName
+    title: T.tr("appName")
     visible: true
     flags: Qt.FramelessWindowHint
     color: ThemeEngine.colors.surface
@@ -83,7 +83,7 @@ ApplicationWindow {
             hoverEnabled: true
             onClicked: root.close()
         }
-        Accessible.name: Tr.accCloseWindow
+        Accessible.name: T.tr("accCloseWindow")
         Accessible.role: Accessible.Button
     }
 }

@@ -54,10 +54,10 @@ ComboBox {
 
     function groupLabel(group) {
         return ({
-            0: Tr.schemeGroupWeb, 1: Tr.schemeGroupFile,
-            2: Tr.schemeGroupEmail, 3: Tr.schemeGroupDb,
-            4: Tr.schemeGroupRemote, 5: Tr.schemeGroupDir,
-            6: Tr.schemeGroupMsg
+            0: T.tr("schemeGroupWeb"), 1: T.tr("schemeGroupFile"),
+            2: T.tr("schemeGroupEmail"), 3: T.tr("schemeGroupDb"),
+            4: T.tr("schemeGroupRemote"), 5: T.tr("schemeGroupDir"),
+            6: T.tr("schemeGroupMsg")
         }[group] || "")
     }
 

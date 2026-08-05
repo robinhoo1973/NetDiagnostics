@@ -88,6 +88,9 @@ public:
     TargetModel* targetModel() const { return m_targetModel; }
     ResultsModel* resultsModel() const { return m_resultsModel; }
 
+    class Translator;
+    Translator* translator() const { return m_translator; }
+
     // ── App version / build ────────────────────────────────────────────────
     QString appVersion() const;
     QString appEdition() const;
@@ -286,6 +289,7 @@ private:
     ConfigurationController* m_configCtrl = nullptr;
     ReportController* m_reportCtrl = nullptr;
     SettingsController* m_settingsCtrl = nullptr;
+    Translator* m_translator = nullptr;
 
     // DiagnosticConfig now owned by ConfigurationController (m_configCtrl)
 

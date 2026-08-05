@@ -46,7 +46,7 @@ Item {
     // ── Single source of truth for tab definitions ───────────────────
     readonly property var tabScreens: ["dashboard","diagnostic","config","settings"]
     readonly property var tabComponents: [dashboardComp, diagnosticComp, configComp, settingsComp]
-    readonly property var tabLabels: [Tr.dashboard, Tr.diagnostics, Tr.config, Tr.settings]
+    readonly property var tabLabels: [T.tr("dashboard"), T.tr("diagnostics"), T.tr("config"), T.tr("settings")]
 
     function switchToTab(idx) {
         if (idx < 0 || idx >= tabScreens.length) return
@@ -113,7 +113,7 @@ Item {
                             id: navBtn
                             property bool active: stackView.currentItem && stackView.currentItem.objectName === modelData.screen
                             property string labelText: {
-                                Tr.lang // force re-evaluation on language change
+                                T.lang // force re-evaluation on language change
                                 return content.tabLabels[index] || modelData.screen
                             }
                             // M3: icon 24dp + gap 8dp + text + padding 12dp each side

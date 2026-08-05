@@ -21,7 +21,7 @@ ColumnLayout {
     RowLayout {
         AppIcon { name: "monitor"; size: 13; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
         Item { width: 5 }
-        Label { text: Tr.target; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+        Label { text: T.tr("target"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
@@ -57,7 +57,7 @@ ColumnLayout {
                 id: hostField
                 Layout.fillWidth: true; Layout.fillHeight: true
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary
-                placeholderText: Tr.placeholderHost
+                placeholderText: T.tr("placeholderHost")
                 placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: {
                     // Combine host + path for display
@@ -138,7 +138,7 @@ ColumnLayout {
                 id: portField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : Tr.placeholderPort
+                placeholderText: appState.defaultPortForScheme > 0 ? "" + appState.defaultPortForScheme : T.tr("placeholderPort")
                 placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: appState.targetPort > 0 ? "" + appState.targetPort : ""
                 enabled: appState.runStatus !== 1
@@ -159,7 +159,7 @@ ColumnLayout {
                 id: userField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                placeholderText: Tr.usernameLabel
+                placeholderText: T.tr("usernameLabel")
                 placeholderTextColor: ThemeEngine.colors.textPlaceholder
                 text: appState.targetUsername
                 enabled: appState.runStatus !== 1
@@ -184,7 +184,7 @@ ColumnLayout {
                     id: passField
                     Layout.fillWidth: true; Layout.fillHeight: true
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                    placeholderText: Tr.passwordLabel
+                    placeholderText: T.tr("passwordLabel")
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword
                     echoMode: passField._showPass ? TextInput.Normal : TextInput.Password
@@ -206,7 +206,7 @@ ColumnLayout {
                     id: passToggle
                     implicitWidth: 44; implicitHeight: 44
                     visible: passField.text !== ""
-                    Accessible.name: passField._showPass ? Tr.accHidePassword : Tr.accShowPassword
+                    Accessible.name: passField._showPass ? T.tr("accHidePassword") : T.tr("accShowPassword")
                     Accessible.role: Accessible.Button
                     activeFocusOnTab: true
                     function toggleVisibility() {
@@ -245,9 +245,9 @@ ColumnLayout {
         AppIcon { name: "warning"; size: 12; color: ThemeEngine.colors.failRed }
         Label {
             Layout.fillWidth: true
-            // 5WHY: validationError is a C++ message — route through Tr.trMsg()
+            // 5WHY: validationError is a C++ message — route through T.trMsg()
             // so it translates on language switch.
-            text: Tr.trMsg(root.validationError)
+            text: T.trMsg(root.validationError)
             font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.failRed
             wrapMode: Text.WordWrap
         }
@@ -266,7 +266,7 @@ ColumnLayout {
             // Use ThemeEngine.colors.surface for enabled, textPrimary for disabled.
             Label {
                 anchors.centerIn: parent
-                text: appState.runStatus === 1 ? Tr.running : Tr.runDiag
+                text: appState.runStatus === 1 ? T.tr("running") : T.tr("runDiag")
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
                 color: (appState.canRun() || appState.runStatus === 1) ? ThemeEngine.colors.surface : Qt.alpha(ThemeEngine.colors.textPrimary, 0.4)
             }
@@ -326,7 +326,7 @@ ColumnLayout {
                 anchors.centerIn: parent
                 spacing: 6
                 AppIcon { name: "stop"; size: 12; color: ThemeEngine.colors.failRed }
-                Label { text: Tr.stop; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.failRed }
+                Label { text: T.tr("stop"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.failRed }
             }
             MouseArea {
                 id: stopBtnArea

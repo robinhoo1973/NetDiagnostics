@@ -27,8 +27,8 @@ Item {
 
     Connections {
         target: appState
-        function onPremiumRequired() { page.toast = Tr.premiumRequiredMsg; toastTimer.restart() }
-        function onReportShared(ok) { page.toast = ok ? Tr.reportShareOk : Tr.reportShareFail; toastTimer.restart() }
+        function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
+        function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }
 
@@ -46,12 +46,12 @@ Item {
     // updates the title, status, summary, and detail text consistently.
     function showDetailOverlay(detail) {
         // 5WHY: detail.displayName is C++ (English-only).
-        // Route through Tr.diagName() for i18n.
-        dtTitle.text = Tr.diagName(detail.diagId) || detail.displayName || ""
-        var statusNames = [Tr.summaryPass, Tr.summaryWarning, Tr.summaryFail, Tr.summarySkipped, Tr.errorStatus, Tr.summaryInfo]
+        // Route through T.diagName() for i18n.
+        dtTitle.text = T.diagName(detail.diagId) || detail.displayName || ""
+        var statusNames = [T.tr("summaryPass"), T.tr("summaryWarning"), T.tr("summaryFail"), T.tr("summarySkipped"), T.tr("errorStatus"), T.tr("summaryInfo")]
         var s = detail.status !== undefined ? detail.status : 0
-        dtStatus.text = Tr.detailStatusLabel + (statusNames[s] || Tr.detailUnknownStatus)
-            + "    " + Tr.detailDurationLabel + (detail.durationMs !== undefined ? detail.durationMs : 0) + "ms"
+        dtStatus.text = T.tr("detailStatusLabel") + (statusNames[s] || T.tr("detailUnknownStatus"))
+            + "    " + T.tr("detailDurationLabel") + (detail.durationMs !== undefined ? detail.durationMs : 0) + "ms"
         dtSummary.text = detail.summary || ""
         dtOutput.text = detail.details || ""
         detailOverlay.visible = true
@@ -109,7 +109,7 @@ Item {
         AppBar {
             Layout.fillWidth: true
             iconName: "diagnostics"
-            title: Tr.diagnostics
+            title: T.tr("diagnostics")
             Item { width: 8 }
             Item { Layout.fillWidth: true }
         }
@@ -163,10 +163,10 @@ Item {
                         }
                         Item { width: 4 }
                         Label {
-                            text: appState.runStatus === 1 ? Tr.runningDots :
-                                  appState.runStatus === 2 ? Tr.complete :
-                                  appState.runStatus === 3 ? Tr.cancelled :
-                                  appState.runStatus === 4 ? Tr.errorStatus : Tr.results
+                            text: appState.runStatus === 1 ? T.tr("runningDots") :
+                                  appState.runStatus === 2 ? T.tr("complete") :
+                                  appState.runStatus === 3 ? T.tr("cancelled") :
+                                  appState.runStatus === 4 ? T.tr("errorStatus") : T.tr("results")
                             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
                             color: appState.runStatus === 4 ? ThemeEngine.colors.errorRed : ThemeEngine.colors.textPrimary
                         }
@@ -225,7 +225,7 @@ Item {
                     size: 80; color: appState.runStatus === 4 ? Qt.alpha(ThemeEngine.colors.errorRed, 0.3) : Qt.alpha(ThemeEngine.colors.textPrimary, 0.1) }
                 Label {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: appState.runStatus === 4 ? Tr.errorCheck : Tr.runDiag
+                    text: appState.runStatus === 4 ? T.tr("errorCheck") : T.tr("runDiag")
                     font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.Medium
                     color: appState.runStatus === 4 ? ThemeEngine.colors.errorRed : Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
                 }
@@ -238,8 +238,8 @@ Item {
                     // for a generic checklist. Show the concrete reason first
                     // so users can correct configuration without guessing.
                     // 5WHY: errorMessage is a C++ message — route through
-                    // Tr.trMsg() so it translates on language switch.
-                    text: appState.errorMessage !== "" ? Tr.trMsg(appState.errorMessage) : Tr.errorRecoveryHint
+                    // T.trMsg() so it translates on language switch.
+                    text: appState.errorMessage !== "" ? T.trMsg(appState.errorMessage) : T.tr("errorRecoveryHint")
                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                     color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
                     horizontalAlignment: Text.AlignHCenter
@@ -274,11 +274,11 @@ Item {
                                 var tid = data.diagId
                                 var d = appState.getDetailResult(tid)
                                 showDetailOverlay({
-                                    // 5WHY: Route through Tr.diagName() for i18n on
+                                    // 5WHY: Route through T.diagName() for i18n on
                                     // both the detail result displayName and the
                                     // test-item fallback displayName.
                                     diagId: tid,
-                                    displayName: (d && d.displayName) ? d.displayName : (data.displayName || Tr.testIdPrefix + tid),
+                                    displayName: (d && d.displayName) ? d.displayName : (data.displayName || T.tr("testIdPrefix") + tid),
                                     status: (d && d.status !== undefined) ? d.status : 0,
                                     // 5WHY: falsy-zero bug — a test that took 0ms has
                                     // d.durationMs===0 which is falsy, falling to the
@@ -347,14 +347,14 @@ Item {
                 // Title
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: Tr.cellularWarnTitle
+                    text: T.tr("cellularWarnTitle")
                     font.family: ThemeEngine.monoFont; font.pixelSize: 18
                     font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary
                 }
                 // Body — context-aware: mentions G3 tests are next
                 Label {
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                    text: Tr.cellularWarnBody
+                    text: T.tr("cellularWarnBody")
                     font.family: ThemeEngine.monoFont; font.pixelSize: 13
                     color: ThemeEngine.colors.textSecondary; lineHeight: 1.5; wrapMode: Text.WordWrap
                 }
@@ -369,7 +369,7 @@ Item {
                         border { width: 1.5; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.30) }
                         Label {
                             anchors.centerIn: parent
-                            text: Tr.cellularCancel
+                            text: T.tr("cellularCancel")
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
                             font.weight: Font.Medium; color: ThemeEngine.colors.textSecondary
                         }
@@ -386,7 +386,7 @@ Item {
                         color: ThemeEngine.colors.cyan
                         Label {
                             anchors.centerIn: parent
-                            text: Tr.cellularContinue
+                            text: T.tr("cellularContinue")
                             font.family: ThemeEngine.monoFont; font.pixelSize: 14
                             font.weight: Font.Bold; color: ThemeEngine.colors.textOnAccent
                         }
@@ -470,7 +470,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: detailOverlay.visible = false
                 }
-                Accessible.name: Tr.accCloseDetails
+                Accessible.name: T.tr("accCloseDetails")
                 Accessible.role: Accessible.Button
             }
 

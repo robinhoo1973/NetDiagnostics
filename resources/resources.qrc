@@ -9,8 +9,8 @@
 
         <!-- Theme -->
         <file alias="qml/theme/ThemeEngine.qml">../src/Common/View/theme/ThemeEngine.qml</file>
+        <file alias="translations.json">translations.json</file>
         <file alias="qml/theme/Palette.js">../src/Common/View/theme/Palette.js</file>
-        <file alias="qml/theme/Translations.qml">../src/Common/View/theme/Translations.qml</file>
         <file alias="qml/theme/qmldir">../src/Common/View/theme/qmldir</file>
 
         <!-- Screens (page-specific) -->

@@ -106,7 +106,7 @@ Item {
                         if (root.currentPage > 0) root.currentPage--
                     }
                 }
-                Accessible.name: Tr.accPrevPage
+                Accessible.name: T.tr("accPrevPage")
                 Accessible.role: Accessible.Button
             }
 
@@ -134,7 +134,7 @@ Item {
                         if (root.currentPage < root.pageCount - 1) root.currentPage++
                     }
                 }
-                Accessible.name: Tr.accNextPage
+                Accessible.name: T.tr("accNextPage")
                 Accessible.role: Accessible.Button
             }
         }
@@ -148,7 +148,7 @@ Item {
         visible: pdfDoc.status === PdfDocument.Loading || pdfDoc.status === PdfDocument.Null
         Label {
             anchors.centerIn: parent
-            text: Tr.pdfLoading
+            text: T.tr("pdfLoading")
             font.family: ThemeEngine.monoFont; font.pixelSize: 12
             color: ThemeEngine.colors.textSecondary
         }
@@ -161,7 +161,7 @@ Item {
         visible: pdfDoc.status === PdfDocument.Error
         Label {
             anchors.centerIn: parent
-            text: Tr.pdfLoadFailed
+            text: T.tr("pdfLoadFailed")
             font.family: ThemeEngine.monoFont; font.pixelSize: 12
             color: ThemeEngine.colors.failRed
         }

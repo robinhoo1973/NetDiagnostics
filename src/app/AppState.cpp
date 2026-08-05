@@ -24,6 +24,7 @@
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Report/Controller/ReportController.h"
 #include "Settings/Controller/SettingsController.h"
+#include "Common/Utils/Translator.h"
 #include <QTimer>
 #include <QUrl>
 #include <QCoreApplication>
@@ -65,6 +66,8 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_configCtrl = new ConfigurationController(this, this);
     m_reportCtrl = new ReportController(this, this);
     m_settingsCtrl = new SettingsController(this, this);
+    m_translator = new Translator(this);
+    m_translator->initialize(this);
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.

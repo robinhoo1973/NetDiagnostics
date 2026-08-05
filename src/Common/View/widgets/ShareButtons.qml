@@ -53,7 +53,7 @@ RowLayout {
             item.iconName = "file-pdf"
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "pdf"
-            item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.sharePdfBtn : Tr.emailPdfBtn })
+            item.labelText = Qt.binding(function() { return shareRoot._isMobile ? T.tr("sharePdfBtn") : T.tr("emailPdfBtn") })
         }
     }
 
@@ -66,7 +66,7 @@ RowLayout {
             item.iconName = "file-html"
             item.locked = Qt.binding(function() { return shareRoot.locked })
             item.formatTag = "html"
-            item.labelText = Qt.binding(function() { return shareRoot._isMobile ? Tr.shareHtmlBtn : Tr.emailHtmlBtn })
+            item.labelText = Qt.binding(function() { return shareRoot._isMobile ? T.tr("shareHtmlBtn") : T.tr("emailHtmlBtn") })
         }
     }
 
@@ -185,7 +185,7 @@ RowLayout {
                     color: labeledRect.accent
                 }
                 Label {
-                    text: labeledRect.labelText + (labeledRect.locked ? "  " + Tr.premiumBadge : "")
+                    text: labeledRect.labelText + (labeledRect.locked ? "  " + T.tr("premiumBadge") : "")
                     color: ThemeEngine.colors.textPrimary
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: 12

@@ -31,11 +31,11 @@ Rectangle {
     readonly property var _cgnatRegex: /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./
 
     function classifyIp(ip) {
-        if (_privateRegex.test(ip)) return Tr.ipClassPrivate;
-        if (_cgnatRegex.test(ip)) return Tr.ipClassCgnat;
-        if (ip.startsWith("169.254.")) return Tr.ipClassApipa;
-        if (ip.startsWith("127.")) return Tr.ipClassLoopback;
-        return Tr.ipClassPublic;
+        if (_privateRegex.test(ip)) return T.tr("ipClassPrivate");
+        if (_cgnatRegex.test(ip)) return T.tr("ipClassCgnat");
+        if (ip.startsWith("169.254.")) return T.tr("ipClassApipa");
+        if (ip.startsWith("127.")) return T.tr("ipClassLoopback");
+        return T.tr("ipClassPublic");
     }
 
     readonly property var portRef: [
@@ -57,7 +57,7 @@ Rectangle {
             AppIcon { name: "info"; size: 14; color: ThemeEngine.colors.secondary }
             Item { width: 6 }
             Label {
-                text: Tr.targetAnalysis
+                text: T.tr("targetAnalysis")
                 font.family: ThemeEngine.monoFont; font.pixelSize: 12
                 font.weight: Font.DemiBold; color: ThemeEngine.colors.secondary
             }
@@ -66,15 +66,15 @@ Rectangle {
 
         // Type
         RowLayout {
-            Label { text: Tr.targetTypeLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+            Label { text: T.tr("targetTypeLabel"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
-                text: isUrl ? Tr.targetTypeUrl : (isIp ? Tr.targetTypeIp : (target !== "" ? Tr.targetTypeHostname : ""))
+                text: isUrl ? T.tr("targetTypeUrl") : (isIp ? T.tr("targetTypeIp") : (target !== "" ? T.tr("targetTypeHostname") : ""))
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
             }
         }
         // Host
         RowLayout {
-            Label { text: Tr.hostLabel; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+            Label { text: T.tr("hostLabel"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
             Label {
                 text: host
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
@@ -101,15 +101,15 @@ Rectangle {
                     var lines = [];
                     try {
                         var u = new URL(target);
-                        lines.push([Tr.urlSchemeLabel, u.protocol.replace(":","")]);
-                        if (u.username) lines.push([Tr.urlUserLabel, u.username]);
-                        lines.push([Tr.urlHostLabel, u.hostname]);
-                        if (u.port && u.port !== "80" && u.port !== "443") lines.push([Tr.urlPortLabel, u.port]);
-                        if (u.pathname && u.pathname !== "/") lines.push([Tr.urlPathLabel, u.pathname]);
-                        if (u.search) lines.push([Tr.urlQueryLabel, u.search.substring(1)]);
-                        if (u.hash) lines.push([Tr.urlFragmentLabel, u.hash.substring(1)]);
+                        lines.push([T.tr("urlSchemeLabel"), u.protocol.replace(":","")]);
+                        if (u.username) lines.push([T.tr("urlUserLabel"), u.username]);
+                        lines.push([T.tr("urlHostLabel"), u.hostname]);
+                        if (u.port && u.port !== "80" && u.port !== "443") lines.push([T.tr("urlPortLabel"), u.port]);
+                        if (u.pathname && u.pathname !== "/") lines.push([T.tr("urlPathLabel"), u.pathname]);
+                        if (u.search) lines.push([T.tr("urlQueryLabel"), u.search.substring(1)]);
+                        if (u.hash) lines.push([T.tr("urlFragmentLabel"), u.hash.substring(1)]);
                     } catch(e) {
-                        lines.push([Tr.errorStatus, Tr.malformedUrlLabel]);
+                        lines.push([T.tr("errorStatus"), T.tr("malformedUrlLabel")]);
                     }
                     return lines;
                 }
@@ -127,7 +127,7 @@ Rectangle {
         Item { Layout.preferredHeight: 4 }
         // Known Port Reference
         Label {
-            text: Tr.knownPortRef
+            text: T.tr("knownPortRef")
             font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
         }
         Item { Layout.preferredHeight: 2 }

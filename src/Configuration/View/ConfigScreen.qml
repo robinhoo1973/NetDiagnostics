@@ -20,7 +20,7 @@ Item {
         id: appBar
         anchors { left: parent.left; right: parent.right; top: parent.top }
         iconName: "config"
-        title: Tr.config
+        title: T.tr("config")
         Item { Layout.fillWidth: true }
     }
     // TabBar — Flutter: G1..G5 tabs
@@ -68,7 +68,7 @@ Item {
                                     }
                                 }
                                 Label {
-                                    text: Tr.groupPrefix(index)
+                                    text: T.groupPrefix(index)
                                     font.family: ThemeEngine.monoFont; font.pixelSize: 12
                                     font.weight: index === currentGroup ? Font.DemiBold : Font.Normal
                                     color: { let _ = configPollVersion; return appState.isGroupActive(index) ? (index === currentGroup ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary) : ThemeEngine.colors.textMuted }
@@ -96,15 +96,15 @@ Item {
                 ColumnLayout { spacing: 2
                     Label {
                         // 5WHY: configPollVersion forces re-evaluation after
-                        // language switch so Tr.groupName() picks up the new
+                        // language switch so T.groupName() picks up the new
                         // language. Without this, QML may not track the
                         // dependency through the JS function call on all
                         // Qt versions.
-                        text: { let _ = configPollVersion; return Tr.groupName(currentGroup) }
+                        text: { let _ = configPollVersion; return T.groupName(currentGroup) }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                     }
                     Label {
-                        text: { let _ = configPollVersion; return getDiagCountForGroup(currentGroup) + Tr.diagsSuffix }
+                        text: { let _ = configPollVersion; return getDiagCountForGroup(currentGroup) + T.tr("diagsSuffix") }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
                     }
                 }
@@ -129,7 +129,7 @@ Item {
                         if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && selectAllBtn.enabled)
                             appState.setGroupEnabled(currentGroup, true)
                     }
-                    Accessible.name: Tr.selectAll
+                    Accessible.name: T.tr("selectAll")
                 }
                 Item { width: 6 }
                 // Deselect All — icon-only (badge-close = multi-clear)
@@ -151,7 +151,7 @@ Item {
                         if ((event.key === Qt.Key_Return || event.key === Qt.Key_Space) && deselectAllBtn.enabled)
                             appState.setGroupEnabled(currentGroup, false)
                     }
-                    Accessible.name: Tr.deselectAll
+                    Accessible.name: T.tr("deselectAll")
                 }
             }
         }
@@ -193,7 +193,7 @@ Item {
                         Label {
                             Layout.fillWidth: true
                             // 5WHY: configPollVersion forces re-evaluation
-                            // after language switch. Tr.diagName() returns
+                            // after language switch. T.diagName() returns
                             // "" for English (which falls back to C++ name),
                             // or the translated name for other languages.
                             text: { let _ = configPollVersion; return getDisplayName(modelData) }
@@ -220,31 +220,31 @@ Item {
                         // 5WHY: Without Accessible.name, screen readers
                         // announce just "Switch, on/off" — users don't
                         // know which diagnostic is being toggled.
-                        Accessible.name: getDisplayName(modelData) + Tr.accDiagnosticSuffix
+                        Accessible.name: getDisplayName(modelData) + T.tr("accDiagnosticSuffix")
                     }
                 }
             }
         }
     }
 
-    // ── Display names + descriptions — routed through Tr.diagName/diagDesc ──
+    // ── Display names + descriptions — routed through T.diagName/diagDesc ──
     // 5WHY: _enNames duplicated AppState::staticDiagDisplayName() (C++).
     // Removed the parallel array; getDisplayName() now calls the Q_INVOKABLE
     // appState.diagDisplayName(diagId) directly — single source of truth.
-    // 5WHY: _enDescs was a 46-entry English duplicate of Tr.diagDesc()'s EN
-    // column — a DRY violation that could drift.  Tr.diagDesc() now serves
+    // 5WHY: _enDescs was a 46-entry English duplicate of T.diagDesc()'s EN
+    // column — a DRY violation that could drift.  T.diagDesc() now serves
     // English too (t() returns the EN argument when lang<=0), so this array
     // was removed; getDiagDescription() has a single canonical source.
     function getDisplayName(diagId) {
         // Use translated name when available (non-EN), fallback to C++ static array
-        var tr = Tr.diagName(diagId)
+        var tr = T.diagName(diagId)
         if (tr !== "") return tr
         // 5WHY: _enNames was a stale duplicate of staticDiagDisplayName().
         // Call the Q_INVOKABLE directly for a single source of truth.
         return appState.diagDisplayName(diagId)
     }
     function getDiagDescription(diagId) {
-        return Tr.diagDesc(diagId)
+        return T.diagDesc(diagId)
     }
     function getDiagCountForGroup(groupIdx) {
         return appState.allDiagIdsForGroup(groupIdx).length

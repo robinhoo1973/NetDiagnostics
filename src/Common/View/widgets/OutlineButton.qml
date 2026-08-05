@@ -6,7 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../theme" as T
+import "../theme" as Th
 
 Rectangle {
     id: root
@@ -18,8 +18,8 @@ Rectangle {
     color: "transparent"
     border {
         width: activeFocus ? 2 : 1.5
-        color: activeFocus ? T.ThemeEngine.colors.borderFocused
-              : Qt.alpha(T.ThemeEngine.colors.textSecondary, 0.25)
+        color: activeFocus ? Th.ThemeEngine.colors.borderFocused
+              : Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.25)
     }
     scale: btnMouse.pressed ? 0.97 : 1.0
     Behavior on scale { NumberAnimation { duration: 100 } }
@@ -27,9 +27,9 @@ Rectangle {
     Label {
         anchors.centerIn: parent
         text: root.text
-        font.family: T.ThemeEngine.monoFont
+        font.family: Th.ThemeEngine.monoFont
         font.pixelSize: 14; font.weight: Font.DemiBold
-        color: T.ThemeEngine.colors.textSecondary
+        color: Th.ThemeEngine.colors.textSecondary
     }
     MouseArea {
         id: btnMouse

@@ -51,7 +51,7 @@ Rectangle {
                             event.accepted = true
                         }
                     }
-                    Accessible.name: root._advancedVisible ? Tr.accHideAdvanced : Tr.accShowAdvanced
+                    Accessible.name: root._advancedVisible ? T.tr("accHideAdvanced") : T.tr("accShowAdvanced")
                     Accessible.role: Accessible.Button
                 }
 
@@ -82,7 +82,7 @@ Rectangle {
                         anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: ThemeEngine.colors.textPrimary
-                        placeholderText: Tr.placeholderHost
+                        placeholderText: T.tr("placeholderHost")
                         placeholderTextColor: ThemeEngine.colors.textPlaceholder
                         text: { var h=appState.targetHost; var p=appState.targetPath; return (!h&&!p)?"": h+p }
                         enabled: appState.runStatus !== 1
@@ -167,7 +167,7 @@ Rectangle {
                             event.accepted = true
                         }
                     }
-                    Accessible.name: appState.runStatus === 1 ? Tr.accStopDiag : Tr.accRunDiag
+                    Accessible.name: appState.runStatus === 1 ? T.tr("accStopDiag") : T.tr("accRunDiag")
                     Accessible.role: Accessible.Button
                 }
             }  // end Zone 2
@@ -221,7 +221,7 @@ Rectangle {
                         event.accepted = true  // always consume to prevent propagation
                     }
                 }
-                Accessible.name: Tr.accClearTarget
+                Accessible.name: T.tr("accClearTarget")
                 Accessible.role: Accessible.Button
             }
         }  // end ROW 1
@@ -240,7 +240,7 @@ Rectangle {
                     id: portField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                    placeholderText: appState.defaultPortForScheme > 0 ? ""+appState.defaultPortForScheme : Tr.placeholderPort
+                    placeholderText: appState.defaultPortForScheme > 0 ? ""+appState.defaultPortForScheme : T.tr("placeholderPort")
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPort > 0 ? ""+appState.targetPort : ""
                     enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}
@@ -257,7 +257,7 @@ Rectangle {
                     id: userField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                    placeholderText: Tr.usernameLabel
+                    placeholderText: T.tr("usernameLabel")
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
@@ -274,7 +274,7 @@ Rectangle {
                     id: passField
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
                     font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textPrimary
-                    placeholderText: Tr.passwordLabel
+                    placeholderText: T.tr("passwordLabel")
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}

@@ -11,8 +11,8 @@ ColumnLayout {
 
     // Header: "Summary" + "Total: N"
     RowLayout {
-        Label { Layout.fillWidth: true; text: Tr.summary; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
-        Label { text: Tr.totalDiagsLabel + ": " + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
+        Label { Layout.fillWidth: true; text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+        Label { text: T.tr("totalDiagsLabel") + ": " + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
 
@@ -21,16 +21,16 @@ ColumnLayout {
     Label {
         Layout.fillWidth: true; Layout.topMargin: 4
         visible: (pass+warn+fail+skip+info) === 0
-        text: Tr.runDiag; font.family: ThemeEngine.monoFont; font.pixelSize: 11
+        text: T.tr("runDiag"); font.family: ThemeEngine.monoFont; font.pixelSize: 11
         color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.5)
         horizontalAlignment: Text.AlignHCenter
     }
     // 5 result types — each with colored icon + badge count
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   label: Tr.summaryPass;    count: summaryRoot.pass;  visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.infoBlue;iconName: "badge-info";    label: Tr.summaryInfo;    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; label: Tr.summaryWarning; count: summaryRoot.warn;   visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.failRed;   iconName: "badge-close";   label: Tr.summaryFail;    count: summaryRoot.fail;   visible: (pass+warn+fail+skip+info) > 0 }
-    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.skipGray;  iconName: "badge-skip";    label: Tr.summarySkipped; count: summaryRoot.skip;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.passGreen;  iconName: "badge-check";   label: T.tr("summaryPass");    count: summaryRoot.pass;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.infoBlue;iconName: "badge-info";    label: T.tr("summaryInfo");    count: summaryRoot.info;  visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.warnYellow; iconName: "badge-warning"; label: T.tr("summaryWarning"); count: summaryRoot.warn;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.failRed;   iconName: "badge-close";   label: T.tr("summaryFail");    count: summaryRoot.fail;   visible: (pass+warn+fail+skip+info) > 0 }
+    SummaryCard { Layout.fillWidth: true; accent: ThemeEngine.colors.skipGray;  iconName: "badge-skip";    label: T.tr("summarySkipped"); count: summaryRoot.skip;   visible: (pass+warn+fail+skip+info) > 0 }
 
     Connections {
         target: appState

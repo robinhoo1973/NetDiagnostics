@@ -40,6 +40,7 @@ set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
     src/Common/Utils/Logger.cpp
+    src/Common/Utils/Translator.cpp
     src/Common/Services/DnsResolver.cpp
     src/Common/Services/ServerDbUpdater.cpp
     src/Diagnostics/View/DiagnosticFormatter.cpp

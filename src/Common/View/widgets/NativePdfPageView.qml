@@ -179,7 +179,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor; hoverEnabled: true
                     onClicked: { if (root.currentPage > 0) root.currentPage-- }
                 }
-                Accessible.name: Tr.accPrevPage
+                Accessible.name: T.tr("accPrevPage")
                 Accessible.role: Accessible.Button
             }
 
@@ -206,7 +206,7 @@ Item {
                             root.currentPage++
                     }
                 }
-                Accessible.name: Tr.accNextPage
+                Accessible.name: T.tr("accNextPage")
                 Accessible.role: Accessible.Button
             }
         }
@@ -229,7 +229,7 @@ Item {
             spacing: 6
             Label {
                 anchors.horizontalCenter: parent.horizontalCenter
-                text: root._loadError ? Tr.pdfLoadFailed : Tr.pdfLoading
+                text: root._loadError ? T.tr("pdfLoadFailed") : T.tr("pdfLoading")
                 font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Bold
                 color: root._loadError ? ThemeEngine.colors.failRed : ThemeEngine.colors.textSecondary
             }

@@ -1,4 +1,4 @@
-﻿#if defined(PLATFORM_MOBILE)
+#if defined(PLATFORM_MOBILE)
 #include <QGuiApplication>
 #else
 #include <QApplication>
@@ -13,6 +13,7 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QLockFile>
+#include "Common/Utils/Translator.h"
 #include <csignal>
 #if defined(_WIN32)
 #include <windows.h>
@@ -172,6 +173,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
+    engine.rootContext()->setContextProperty("T", appState.translator());
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)

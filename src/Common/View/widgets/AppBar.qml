@@ -7,8 +7,8 @@
 //   AppBar {                     AppBar {
 //     anchors { left: ...          Layout.fillWidth: true
 //       right: ... top: ... }      iconName: "gear"
-//     iconName: "gear"             title: Tr.settings
-//     title: Tr.settings         }
+//     iconName: "gear"             title: T.tr("settings")
+//     title: T.tr("settings")         }
 //   }
 //
 // 5WHY: The AppBar pattern (Rectangle + RowLayout + AppIcon + Label + spacer)
@@ -17,7 +17,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../theme" as T
+import "../theme" as Th
 
 Rectangle {
     id: root
@@ -26,8 +26,8 @@ Rectangle {
     property string title: ""
 
     implicitHeight: 48
-    color: T.ThemeEngine.colors.navBar
-    border { width: 1; color: T.ThemeEngine.colors.borderCard }
+    color: Th.ThemeEngine.colors.navBar
+    border { width: 1; color: Th.ThemeEngine.colors.borderCard }
 
     // Caller-provided children appear after title, before fillWidth spacer.
     // DiagnosticScreen uses this for the capture indicator badge.
@@ -38,14 +38,14 @@ Rectangle {
         anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
         AppIcon {
             name: root.iconName; size: 20
-            color: T.ThemeEngine.colors.cyan
+            color: Th.ThemeEngine.colors.cyan
         }
         Item { width: 10 }
         Label {
             text: root.title
-            font.family: T.ThemeEngine.monoFont; font.pixelSize: 15
+            font.family: Th.ThemeEngine.monoFont; font.pixelSize: 15
             font.weight: Font.DemiBold
-            color: T.ThemeEngine.colors.textPrimary
+            color: Th.ThemeEngine.colors.textPrimary
         }
         // Caller's children inserted here by default property alias.
         //

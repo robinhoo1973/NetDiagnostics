@@ -4,12 +4,12 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../theme" as T
+import "../theme" as Th
 
 Rectangle {
     id: dbtn
     property string label: ""
-    property color accent: T.ThemeEngine.colors.cyan
+    property color accent: Th.ThemeEngine.colors.cyan
     property bool filled: false
     signal clicked()
 
@@ -26,8 +26,8 @@ Rectangle {
         text: dbtn.label
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
-        color: dbtn.filled ? T.ThemeEngine.colors.surface : dbtn.accent
-        font.family: T.ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+        color: dbtn.filled ? Th.ThemeEngine.colors.surface : dbtn.accent
+        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
     }
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
 }
