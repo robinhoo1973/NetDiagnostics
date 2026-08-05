@@ -124,6 +124,7 @@ Item {
         // horizontal space with the title.  Here they sit next to "Diagnostic
         // Complete" — the natural place for export actions.
         Rectangle {
+            id: resultsHeader
             Layout.fillWidth: true
             readonly property bool _showBadges: appState.totalCompleted > 0
             // 5WHY: Use fixed 36px minimum instead of binding Layout.minimumHeight
@@ -177,7 +178,7 @@ Item {
                     }
                     // Row 2 — status badges, LEFT-aligned on all platforms
                     RowLayout {
-                        spacing: 4; visible: _showBadges
+                        spacing: 4; visible: resultsHeader._showBadges
                         Item { width: 11 }
                         StatusBadge { statusCode: 0; count: __agg.pass }
                         StatusBadge { statusCode: 5; count: __agg.info }
