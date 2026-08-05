@@ -158,7 +158,7 @@ endif()
 		# Windows / Linux -- stub renderer (QtPdf or image fallback)
 endif()
 
-set(QML_RESOURCES resources/resources.qrc resources/resources_icons_gen.qrc)
+set(QML_RESOURCES resources/resources.qrc resources/resources_icons.qrc)
 
 # ── QtWebView QRC ??only included when QtWebView module is available ──
 # 5WHY: HtmlPreviewWebView.qml contains import QtWebView. If this file
