@@ -179,27 +179,27 @@ description is fully translated — no hardcoded strings, no fallback to English
 
 ### Available Languages
 
-<p align="center">
-  <img src="https://flagcdn.com/16x12/cn.png" width="16" height="12"> 简体中文 &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/hk.png" width="16" height="12"> 繁體中文 &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/jp.png" width="16" height="12"> 日本語 &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/kr.png" width="16" height="12"> 한국어 &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/vn.png" width="16" height="12"> Tiếng Việt
-</p>
-<p align="center">
-  <img src="https://flagcdn.com/16x12/in.png" width="16" height="12"> हिन्दी &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/tr.png" width="16" height="12"> Türkçe &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/us.png" width="16" height="12"> English &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/fr.png" width="16" height="12"> Français &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/de.png" width="16" height="12"> Deutsch
-</p>
-<p align="center">
-  <img src="https://flagcdn.com/16x12/ru.png" width="16" height="12"> Русский &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/it.png" width="16" height="12"> Italiano &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/es.png" width="16" height="12"> Español &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/br.png" width="16" height="12"> Português &nbsp;·&nbsp;
-  <img src="https://flagcdn.com/16x12/sa.png" width="16" height="12"> العربية
-</p>
+<table>
+<tr>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/cn.png" width="16" height="12" style="vertical-align:middle">&nbsp;简体中文</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/hk.png" width="16" height="12" style="vertical-align:middle">&nbsp;繁體中文</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/jp.png" width="16" height="12" style="vertical-align:middle">&nbsp;日本語</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/kr.png" width="16" height="12" style="vertical-align:middle">&nbsp;한국어</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/vn.png" width="16" height="12" style="vertical-align:middle">&nbsp;Tiếng Việt</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/in.png" width="16" height="12" style="vertical-align:middle">&nbsp;हिन्दी</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/tr.png" width="16" height="12" style="vertical-align:middle">&nbsp;Türkçe</td>
+  <td align="center" width="12.5%"><img src="https://flagcdn.com/16x12/us.png" width="16" height="12" style="vertical-align:middle">&nbsp;English</td>
+</tr>
+<tr>
+  <td align="center"><img src="https://flagcdn.com/16x12/fr.png" width="16" height="12" style="vertical-align:middle">&nbsp;Français</td>
+  <td align="center"><img src="https://flagcdn.com/16x12/de.png" width="16" height="12" style="vertical-align:middle">&nbsp;Deutsch</td>
+  <td align="center"><img src="https://flagcdn.com/16x12/ru.png" width="16" height="12" style="vertical-align:middle">&nbsp;Русский</td>
+  <td align="center"><img src="https://flagcdn.com/16x12/it.png" width="16" height="12" style="vertical-align:middle">&nbsp;Italiano</td>
+  <td align="center"><img src="https://flagcdn.com/16x12/es.png" width="16" height="12" style="vertical-align:middle">&nbsp;Español</td>
+  <td align="center"><img src="https://flagcdn.com/16x12/br.png" width="16" height="12" style="vertical-align:middle">&nbsp;Português</td>
+  <td align="center" colspan="2"><img src="https://flagcdn.com/16x12/sa.png" width="16" height="12" style="vertical-align:middle">&nbsp;العربية</td>
+</tr>
+</table>
 
 > **Tip:** The language choice is saved automatically. Your users won't need to
 > re-select it after restarting the app. And if they accidentally tap the wrong
