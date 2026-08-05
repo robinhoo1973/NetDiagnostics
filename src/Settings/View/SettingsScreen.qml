@@ -156,18 +156,21 @@ Item {
                         id: langCombo
                         Layout.fillWidth: true
                         Layout.preferredHeight: 44
-                        // Displayed in alphabetical order by language name; idx = internal language index
-                        // index (0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT).
+                        // Alphabetical by display name; idx = internal language index
+                        // 0=ZH_CN,1=ZH_TW,2=JA,3=KO,4=EN,5=FR,6=DE,7=RU,8=IT,9=ES,10=PT,11=AR
                         readonly property var langItems: [
-                            { name: "Deutsch",   idx: 2 },
-                            { name: "English",   idx: 0 },
-                            { name: "Español",   idx: 7 },
-                            { name: "Français",  idx: 1 },
-                            { name: "Italiano",  idx: 4 },
-                            { name: "Português", idx: 8 },
-                            { name: "Русский",   idx: 3 },
-                            { name: "简体中文",   idx: 5 },
-                            { name: "繁體中文",   idx: 6 }
+                            { name: "العربية",   idx: 11 },
+                            { name: "Deutsch",   idx: 6 },
+                            { name: "English",   idx: 4 },
+                            { name: "Español",   idx: 9 },
+                            { name: "Français",  idx: 5 },
+                            { name: "Italiano",  idx: 8 },
+                            { name: "日本語",     idx: 2 },
+                            { name: "한국어",     idx: 3 },
+                            { name: "Português", idx: 10 },
+                            { name: "Русский",   idx: 7 },
+                            { name: "简体中文",   idx: 0 },
+                            { name: "繁體中文",   idx: 1 }
                         ]
                         model: langItems.map(function(e) { return e.name })
                         currentIndex: {
