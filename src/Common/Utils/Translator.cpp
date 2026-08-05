@@ -144,7 +144,19 @@ bool Translator::loadJson(const QString& path)
 
 QString Translator::select(const QJsonArray& arr) const
 {
-    return selectAt(arr, m_lang);
+    // 5WHY: Reading m_lang directly bypasses the QML binding engine's
+    // property-dependency interceptor.  Bindings containing T.tr(),
+    // T.diagName(), T.groupName(), etc. were never invalidated on
+    // language change — the UI showed stale translations until the
+    // component was re-created or the app restarted.
+    // Fix: read lang through the meta-object property system so the
+    // QML engine can intercept the read and add langChanged as a
+    // dependency of the enclosing binding expression.
+    // Use the cached property index to avoid QByteArray/string lookup
+    // on every translation lookup (called hundreds of times per frame).
+    static const int kLangPropIdx =
+        Translator::staticMetaObject.indexOfProperty("lang");
+    return selectAt(arr, property(kLangPropIdx).toInt());
 }
 
 QString Translator::selectAt(const QJsonArray& arr, int langIdx)
