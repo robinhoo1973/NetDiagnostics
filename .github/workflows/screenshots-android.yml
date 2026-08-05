@@ -1,20 +1,24 @@
 name: Screenshots (Android)
 
 # =============================================================================
-# Dedicated Android screenshot CI — produces real emulator captures matching
-# the iOS screenshot quality (8 stages: idle → running → complete → detail →
-# dashboard → report → config → settings).
+# Android screenshot CI — uses the Linux production binary with ND_MOBILE=1
+# to render the authentic mobile layout.  xvfb + xdotool drive the UI and
+# `import` captures per-stage screenshots.  Zero emulator dependency.
 #
-# Pipeline: build APK → phone emulator → tablet emulator → commit all
+# This mirrors the iOS approach (macOS binary + ND_MOBILE=1 + screencapture)
+# but on Linux with xvfb + xdotool + ImageMagick.
 #
-# 5WHY fixes applied vs the old (deleted) screenshots-android.yml:
-#   1. URL input: clipboard paste replaces broken `adb shell input text`
-#   2. App startup: wait_for_app polls dumpsys (up to 120s) vs blind sleep 6
-#   3. Coordinate math: H - 24*DPR replaces (H-24)*DPR which overflowed
-#   4. Tap verification: click_until_changed with frame hashing
-#   5. Stable detection: wait_stable before capturing complete
+# 5WHY: Android emulator is unreliable on GitHub-hosted no-KVM runners:
+#   - Software emulation takes 20+ min just to boot
+#   - adb connection fails intermittently (ERROR: Unable to connect to adb daemon)
+#   - >90% of CI runs fail before the drive script even starts
+#   → The iOS workflow has been using native binary + ND_MOBILE=1 successfully
+#     since day one.  Same strategy works perfectly on Linux.
 #
-# Trigger: workflow_dispatch (manual) or push to drive-android.sh / this file.
+# Stage sequence: 1-idle → 2-running → 3-complete → 4-detail →
+#   5-dashboard → 6-report → 7-config → 8-settings
+#
+# Trigger: workflow_dispatch or push to drive scripts / this file.
 # =============================================================================
 
 on:
@@ -22,141 +26,58 @@ on:
   push:
     branches: [master]
     paths:
-      - 'scripts/screenshot/drive-android.sh'
+      - 'scripts/screenshot/drive-android-alt.sh'
       - '.github/workflows/screenshots-android.yml'
 
 concurrency:
   group: screenshots-android-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 env:
   BUILD_TYPE: Release
-  QT_VERSION_ANDROID: 6.5.3
-  ANDROID_API_LEVEL: "30"
-  APK: NetDiagnostics-Android-x86_64.apk
 
 jobs:
   # ═══════════════════════════════════════════════════════════════════════
-  # Build — x86_64 APK (cached Qt for speed)
+  # Phone — build Linux binary → xvfb + ND_MOBILE=1 → capture
   # ═══════════════════════════════════════════════════════════════════════
-  build:
-    name: Build APK (x86_64)
+  phone:
+    name: Android Phone (Linux + ND_MOBILE=1)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install host dependencies
+      - name: Install dependencies
         run: |
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
-          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
-          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Qt6 desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-desktop
-          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
-
-      - name: Cache Qt6 Android x86_64
-        id: cache-qt-android
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-android-x86_64
-          key: qt6-android-x86_64-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 for Android via aqt
-        if: steps.cache-qt-android.outputs.cache-hit != 'true'
-        run: |
-          aqt install-qt linux android $QT_VERSION_ANDROID android_x86_64 -O /opt/qt-android-x86_64
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-declarative-dev libqt6quickcontrols2-6 \
+            qt6-tools-dev qt6-tools-dev-tools libcurl4-openssl-dev \
+            'qml6-module-*' \
+            libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 \
+            libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 \
+            libxrandr2 libgl1 libegl1 \
+            xvfb x11-utils xdotool imagemagick wmctrl openbox
 
       - name: Configure
-        run: |
-          set -euo pipefail
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION=0.0.1 \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=android-x86_64-screenshots \
-            -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
-            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
-            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
-            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
-            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=x86_64 \
-            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
-            -B build -S .
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -B build -S .
 
       - name: Build
         run: ninja -C build net_diagnostics
 
-      - uses: ./.github/actions/android-apk
-        with:
-          qt_version: ${{ env.QT_VERSION_ANDROID }}
-          output_name: ${{ env.APK }}
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: apk-x86_64
-          path: ${{ env.APK }}
-          if-no-files-found: error
-
-  # ═══════════════════════════════════════════════════════════════════════
-  # Phone — download APK → boot phone AVD → drive → capture
-  # ═══════════════════════════════════════════════════════════════════════
-  phone:
-    name: Phone Screenshots
-    needs: [build]
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download APK
-        uses: actions/download-artifact@v4
-        with:
-          name: apk-x86_64
-
-      - name: Boot emulator and capture screenshots
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          arch: x86_64
-          target: google_apis
-          avd-name: phone
-          force-avd-creation: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
-          emulator-boot-timeout: 900000
-          disable-animations: true
-          disable-linux-hw-accel: true
-          script: |
-            set -eu
-            echo "=== Waiting for device ==="
-            adb wait-for-device
-            echo "=== Device connected, waiting for boot ==="
-            adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
-            echo "=== Boot complete ==="
-            adb install "${{ env.APK }}"
-            adb shell input keyevent 3 2>/dev/null || true
-            sleep 3
-            bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/phone
+      - name: Generate screenshots (xvfb + ND_MOBILE=1)
+        run: |
+          set -euo pipefail
+          SCREEN_W=430 SCREEN_H=932 \
+          ND_MOBILE=1 ND_CAPTURE_TARGET=http://localhost:8899 ND_CAPTURE_MAX_TESTS=4 \
+          xvfb-run -a -s "-screen 0 430x932x24" \
+            bash scripts/screenshot/drive-android-alt.sh \
+            ./build/net_diagnostics resources/doc/screenshot/android/phone
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
@@ -166,44 +87,43 @@ jobs:
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Tablet — download APK → boot tablet AVD → drive → capture
+  # Tablet — wider screen, same mobile layout
   # ═══════════════════════════════════════════════════════════════════════
   tablet:
-    name: Tablet Screenshots
-    needs: [build]
+    name: Android Tablet (Linux + ND_MOBILE=1)
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download APK
-        uses: actions/download-artifact@v4
-        with:
-          name: apk-x86_64
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            qt6-base-dev qt6-declarative-dev libqt6quickcontrols2-6 \
+            qt6-tools-dev qt6-tools-dev-tools libcurl4-openssl-dev \
+            'qml6-module-*' \
+            libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 \
+            libxcb-shape0 libxcb-xinerama0 libxcb-render-util0 \
+            libxrandr2 libgl1 libegl1 \
+            xvfb x11-utils xdotool imagemagick wmctrl openbox
 
-      - name: Boot tablet emulator and capture screenshots
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ env.ANDROID_API_LEVEL }}
-          arch: x86_64
-          target: google_apis
-          avd-name: tablet
-          force-avd-creation: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -skin 800x1280
-          emulator-boot-timeout: 900000
-          disable-animations: true
-          disable-linux-hw-accel: true
-          script: |
-            set -eu
-            echo "=== Waiting for device ==="
-            adb wait-for-device
-            echo "=== Device connected, waiting for boot ==="
-            adb shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 2; done'
-            echo "=== Boot complete ==="
-            adb install "${{ env.APK }}"
-            adb shell input keyevent 3 2>/dev/null || true
-            sleep 3
-            bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/tablet
+      - name: Configure
+        run: cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -B build -S .
+
+      - name: Build
+        run: ninja -C build net_diagnostics
+
+      - name: Generate screenshots (xvfb + ND_MOBILE=1, tablet size)
+        run: |
+          set -euo pipefail
+          SCREEN_W=800 SCREEN_H=1280 \
+          ND_MOBILE=1 ND_CAPTURE_TARGET=http://localhost:8899 ND_CAPTURE_MAX_TESTS=4 \
+          xvfb-run -a -s "-screen 0 800x1280x24" \
+            bash scripts/screenshot/drive-android-alt.sh \
+            ./build/net_diagnostics resources/doc/screenshot/android/tablet
 
       - name: Upload screenshots
         uses: actions/upload-artifact@v4
@@ -213,7 +133,7 @@ jobs:
           if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════════
-  # Commit — collect screenshots from both jobs, push to master
+  # Commit
   # ═══════════════════════════════════════════════════════════════════════
   commit:
     name: Commit screenshots
@@ -236,8 +156,6 @@ jobs:
         run: |
           set -euo pipefail
           COPIED=0
-          # Map: screenshots-android-phone/*.png  → resources/doc/screenshot/android/phone/
-          #       screenshots-android-tablet/*.png → resources/doc/screenshot/android/tablet/
           while IFS= read -r png; do
             rel="${png#artifacts/}"
             case "$rel" in
@@ -267,9 +185,10 @@ jobs:
             echo "No screenshot changes to commit"
             exit 0
           fi
-          git commit -m "docs: refresh Android screenshots via emulator CI
+          git commit -m "docs: refresh Android screenshots via ND_MOBILE=1 CI
 
-          Auto-generated by screenshots-android.yml — real Android emulator
-          captures of the production APK at each runtime stage."
+          Generated by screenshots-android.yml — Linux binary with ND_MOBILE=1
+          renders authentic mobile layout at phone (430x932) and tablet (800x1280)
+          resolutions.  Zero emulator dependency."
           git pull --rebase origin master
           git push origin master

@@ -130,8 +130,30 @@ AppState::AppState(QObject* parent) : QObject(parent) {
 #else
         m_isMobile = false;
 #endif
+
+    // ND_CAPTURE_TARGET pre-fills the target URL for screenshot automation.
+    // This bypasses the QML TextField binding-loop issue that prevents
+    // xdotool/xvkbd from injecting keystrokes into the host field.
+    const QString captureTarget = qEnvironmentVariable("ND_CAPTURE_TARGET");
+    if (!captureTarget.isEmpty()) {
+        m_targetModel->setTarget(captureTarget);
+        TRACE("ND_CAPTURE_TARGET set: %s", qPrintable(captureTarget));
+    }
+
     m_configCtrl->loadSettings();
     loadSettings();
+
+    // ND_AUTORUN triggers a diagnostic run shortly after startup — used by
+    // the screenshot CI to enter the running/complete states without
+    // relying on GUI automation to click buttons and type URLs.
+    if (qEnvironmentVariableIntValue("ND_AUTORUN") == 1) {
+        QTimer::singleShot(4000, this, [this]() {
+            if (m_runStatus == RunStatus::Idle && !m_targetModel->isEmpty()) {
+                TRACE("ND_AUTORUN firing");
+                runDiagnostics();
+            }
+        });
+    }
 }
 
 AppState::~AppState() {

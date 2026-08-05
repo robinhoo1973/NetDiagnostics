@@ -9,6 +9,9 @@ Item {
     id: page
     objectName: "settings"
 
+    // Language toast — shared across the page (scoped to root so all children can access)
+    property string languageToastText: ""
+
     // Listen for restore-purchases result
     Connections {
         target: appState
@@ -180,7 +183,7 @@ Item {
                         // language name for 3 seconds.
                         onActivated: function(index) {
                             if (appState) appState.setLanguage(langItems[index].idx)
-                            languageToastText = langItems[index].name + "  ✓"
+                            page.languageToastText = langItems[index].name + "  ✓"
                             languageToastTimer.restart()
                         }
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13
@@ -288,13 +291,12 @@ Item {
             // 5WHY: Language switch was previously silent — users got no
             // confirmation after selecting a language.  This toast shows
             // the selected language name for 3 seconds after switching.
-            property string languageToastText: ""
             Timer { id: languageToastTimer; interval: ThemeEngine.toastDurationMs }
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 Layout.topMargin: languageToastTimer.running ? 4 : 0
                 visible: languageToastTimer.running
-                text: languageToastText
+                text: page.languageToastText
                 font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.passGreen
             }
 
