@@ -109,6 +109,23 @@
 | **报告** | <img src="resources/doc/screenshot/android/phone/6-report.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/6-report.png" width="220"/> |
 | **配置** | <img src="resources/doc/screenshot/android/phone/7-config.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/7-config.png" width="220"/> |
 
+## 主题
+
+NetDiagnostics 内置自定义主题引擎，支持**深色**和**浅色**两种主题，可在设置中切换。截图使用 `<picture>` 媒体查询自动匹配你的 GitHub 主题。
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>深色</b></td>
+  <td align="center" width="50%"><b>浅色</b></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="设置 — 深色主题"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="设置 — 浅色主题"></td>
+</tr>
+</table>
+
+> **强调色：** 青色 (`#22D3EE`) &nbsp;|&nbsp; **背景：** `#0F172A`（深色）/ `#FFFFFF`（浅色） &nbsp;|&nbsp; **卡片：** 双主题均采用细边框 + 圆角设计。
+
 ## 功能特性
 
 ### 诊断引擎 — 46 项测试，5 个分组

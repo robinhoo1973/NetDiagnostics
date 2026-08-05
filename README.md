@@ -111,6 +111,25 @@ screenshots are captured from an emulator or physical device.
 | **Report** | <img src="resources/doc/screenshot/android/phone/6-report.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/6-report.png" width="220"/> |
 | **Config** | <img src="resources/doc/screenshot/android/phone/7-config.png" width="140"/> | <img src="resources/doc/screenshot/android/tablet/7-config.png" width="220"/> |
 
+## Themes
+
+NetDiagnostics includes a custom theme engine with **Dark** and **Light** variants,
+toggleable in Settings. Screenshots use `<picture>` media queries to match your
+GitHub theme automatically.
+
+<table>
+<tr>
+  <td align="center" width="50%"><b>Dark</b></td>
+  <td align="center" width="50%"><b>Light</b></td>
+</tr>
+<tr>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="Settings — Dark theme"></td>
+  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="Settings — Light theme"></td>
+</tr>
+</table>
+
+> **Accent colour:** Cyan (`#22D3EE`) &nbsp;|&nbsp; **Background:** `#0F172A` (dark) / `#FFFFFF` (light) &nbsp;|&nbsp; **Surface cards:** subtle border + rounded corners on both themes.
+
 ## Features
 
 ### Diagnostic Engine — 46 tests in 5 groups
