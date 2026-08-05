@@ -174,7 +174,15 @@ NetDiagnostics 開箱即支援 **9 種語言**。開啟設定，從下拉框中�
 ### 可用語言
 
 <p align="center">
-  <sub>🇺🇸 English &nbsp;·&nbsp; 🇫🇷 Français &nbsp;·&nbsp; 🇩🇪 Deutsch &nbsp;·&nbsp; 🇷🇺 Русский &nbsp;·&nbsp; 🇮🇹 Italiano &nbsp;·&nbsp; 🇨🇳 简体中文 &nbsp;·&nbsp; 🇭🇰 繁體中文 &nbsp;·&nbsp; 🇪🇸 Español &nbsp;·&nbsp; 🇧🇷 Português</sub>
+  <img src="https://flagcdn.com/16x12/us.png" width="16" height="12" alt="EN"> English &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/fr.png" width="16" height="12" alt="FR"> Français &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/de.png" width="16" height="12" alt="DE"> Deutsch &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/ru.png" width="16" height="12" alt="RU"> Русский &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/it.png" width="16" height="12" alt="IT"> Italiano &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/cn.png" width="16" height="12" alt="CN"> 简体中文 &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/hk.png" width="16" height="12" alt="HK"> 繁體中文 &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/es.png" width="16" height="12" alt="ES"> Español &nbsp;·&nbsp;
+  <img src="https://flagcdn.com/16x12/br.png" width="16" height="12" alt="BR"> Português
 </p>
 
 > **提示：** 語言選擇會自動儲存。使用者重啟應用程式後無需重新選擇。如果不小心點錯語言，toast 會顯示新語言名稱，方便立即切換回來。
