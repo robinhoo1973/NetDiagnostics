@@ -1,0 +1,263 @@
+name: Screenshots (Android)
+
+# =============================================================================
+# Dedicated Android screenshot CI — produces real emulator captures matching
+# the iOS screenshot quality (8 stages: idle → running → complete → detail →
+# dashboard → report → config → settings).
+#
+# Pipeline: build APK → phone emulator → tablet emulator → commit all
+#
+# 5WHY fixes applied vs the old (deleted) screenshots-android.yml:
+#   1. URL input: clipboard paste replaces broken `adb shell input text`
+#   2. App startup: wait_for_app polls dumpsys (up to 120s) vs blind sleep 6
+#   3. Coordinate math: H - 24*DPR replaces (H-24)*DPR which overflowed
+#   4. Tap verification: click_until_changed with frame hashing
+#   5. Stable detection: wait_stable before capturing complete
+#
+# Trigger: workflow_dispatch (manual) or push to drive-android.sh / this file.
+# =============================================================================
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - 'scripts/screenshot/drive-android.sh'
+      - '.github/workflows/screenshots-android.yml'
+
+concurrency:
+  group: screenshots-android-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION_ANDROID: 6.5.3
+  ANDROID_API_LEVEL: "30"
+  APK: NetDiagnostics-Android-x86_64.apk
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # Build — x86_64 APK (cached Qt for speed)
+  # ═══════════════════════════════════════════════════════════════════════
+  build:
+    name: Build APK (x86_64)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Qt6 desktop (host tools)
+        id: cache-qt-desktop
+        uses: actions/cache@v4
+        with:
+          path: /opt/qt-desktop
+          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
+
+      - name: Install Qt6 desktop via aqt
+        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
+        run: |
+          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
+
+      - name: Cache Qt6 Android x86_64
+        id: cache-qt-android
+        uses: actions/cache@v4
+        with:
+          path: /opt/qt-android-x86_64
+          key: qt6-android-x86_64-${{ env.QT_VERSION_ANDROID }}-v1
+
+      - name: Install Qt6 for Android via aqt
+        if: steps.cache-qt-android.outputs.cache-hit != 'true'
+        run: |
+          aqt install-qt linux android $QT_VERSION_ANDROID android_x86_64 -O /opt/qt-android-x86_64
+
+      - name: Configure
+        run: |
+          set -euo pipefail
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION=0.0.1 \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
+            -DAPP_EDITION=android-x86_64-screenshots \
+            -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
+            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
+            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
+            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
+            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=x86_64 \
+            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
+            -B build -S .
+
+      - name: Build
+        run: ninja -C build net_diagnostics
+
+      - uses: ./.github/actions/android-apk
+        with:
+          qt_version: ${{ env.QT_VERSION_ANDROID }}
+          output_name: ${{ env.APK }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-x86_64
+          path: ${{ env.APK }}
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Phone — download APK → boot phone AVD → drive → capture
+  # ═══════════════════════════════════════════════════════════════════════
+  phone:
+    name: Phone Screenshots
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-x86_64
+
+      - name: Boot emulator and capture screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          arch: x86_64
+          target: google_apis
+          avd-name: phone
+          force-avd-creation: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          boot-timeout: 900000
+          disable-animations: true
+          script: |
+            set -eu
+            adb install "${{ env.APK }}"
+            adb shell input keyevent 3 2>/dev/null || true
+            sleep 2
+            bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/phone
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-android-phone
+          path: resources/doc/screenshot/android/phone/*.png
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Tablet — download APK → boot tablet AVD → drive → capture
+  # ═══════════════════════════════════════════════════════════════════════
+  tablet:
+    name: Tablet Screenshots
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download APK
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-x86_64
+
+      - name: Boot tablet emulator and capture screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ env.ANDROID_API_LEVEL }}
+          arch: x86_64
+          target: google_apis
+          avd-name: tablet
+          force-avd-creation: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -skin 800x1280
+          boot-timeout: 900000
+          disable-animations: true
+          script: |
+            set -eu
+            adb install "${{ env.APK }}"
+            adb shell input keyevent 3 2>/dev/null || true
+            sleep 2
+            bash scripts/screenshot/drive-android.sh resources/doc/screenshot/android/tablet
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-android-tablet
+          path: resources/doc/screenshot/android/tablet/*.png
+          if-no-files-found: error
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # Commit — collect screenshots from both jobs, push to master
+  # ═══════════════════════════════════════════════════════════════════════
+  commit:
+    name: Commit screenshots
+    needs: [phone, tablet]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy screenshots to repo
+        run: |
+          set -euo pipefail
+          COPIED=0
+          # Map: screenshots-android-phone/*.png  → resources/doc/screenshot/android/phone/
+          #       screenshots-android-tablet/*.png → resources/doc/screenshot/android/tablet/
+          while IFS= read -r png; do
+            rel="${png#artifacts/}"
+            case "$rel" in
+              screenshots-android-phone/*)
+                dest="resources/doc/screenshot/android/phone/${rel#screenshots-android-phone/}" ;;
+              screenshots-android-tablet/*)
+                dest="resources/doc/screenshot/android/tablet/${rel#screenshots-android-tablet/}" ;;
+              *) continue ;;
+            esac
+            mkdir -p "$(dirname "$dest")"
+            cp -f "$png" "$dest"
+            COPIED=$((COPIED + 1))
+            echo "  → $dest"
+          done < <(find artifacts -name '*.png' -type f 2>/dev/null || true)
+          echo "Copied $COPIED screenshot(s)"
+
+      - name: Commit and push
+        env:
+          GIT_AUTHOR_NAME: robinhoo1973
+          GIT_AUTHOR_EMAIL: robinhoo1973@users.noreply.github.com
+          GIT_COMMITTER_NAME: robinhoo1973
+          GIT_COMMITTER_EMAIL: robinhoo1973@users.noreply.github.com
+        run: |
+          set -euo pipefail
+          git add resources/doc/screenshot/android README.md README_zh_CN.md README_zh_TW.md
+          if git diff --cached --quiet; then
+            echo "No screenshot changes to commit"
+            exit 0
+          fi
+          git commit -m "docs: refresh Android screenshots via emulator CI
+
+          Auto-generated by screenshots-android.yml — real Android emulator
+          captures of the production APK at each runtime stage."
+          git pull --rebase origin master
+          git push origin master
