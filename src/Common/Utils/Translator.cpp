@@ -149,14 +149,13 @@ QString Translator::select(const QJsonArray& arr) const
     // T.diagName(), T.groupName(), etc. were never invalidated on
     // language change — the UI showed stale translations until the
     // component was re-created or the app restarted.
-    // Fix: read lang through the meta-object property system so the
+    // Fix: read lang through QObject::property("lang") so the
     // QML engine can intercept the read and add langChanged as a
     // dependency of the enclosing binding expression.
-    // Use the cached property index to avoid QByteArray/string lookup
-    // on every translation lookup (called hundreds of times per frame).
-    static const int kLangPropIdx =
-        Translator::staticMetaObject.indexOfProperty("lang");
-    return selectAt(arr, property(kLangPropIdx).toInt());
+    // The const-char* lookup is fast enough — Qt's meta-object system
+    // uses binary search on interned strings (~O(log n) microsecond cost),
+    // negligible compared to the QJsonArray indexing that follows.
+    return selectAt(arr, property("lang").toInt());
 }
 
 QString Translator::selectAt(const QJsonArray& arr, int langIdx)
