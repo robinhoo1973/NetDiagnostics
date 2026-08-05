@@ -53,28 +53,28 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
 </tr>
 <tr>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="Idle">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/phone/diagnostics-idle-light.jpg" width="100%" alt="Idle">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="Running">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/diagnostics-running-dark.jpg">
+    <img src="resources/doc/screenshot/phone/diagnostics-running-light.jpg" width="100%" alt="Running">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/phone/dashboard-complete-light.jpg" width="100%" alt="Dashboard">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Config">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/config-dark.png">
+    <img src="resources/doc/screenshot/phone/config-light.png" width="100%" alt="Config">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="Settings">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/phone/settings-light.jpg" width="100%" alt="Settings">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="Report">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/phone/report-light.jpg" width="100%" alt="Report">
   </picture></td>
 </tr>
 </table>
@@ -119,8 +119,8 @@ GitHub theme automatically.
   <td align="center" width="50%"><b>Light</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="Settings — Dark theme"></td>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="Settings — Light theme"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-dark.jpg" width="100%" alt="Settings — Dark theme"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-light.jpg" width="100%" alt="Settings — Light theme"></td>
 </tr>
 </table>
 
@@ -153,8 +153,8 @@ description is fully translated — no hardcoded strings, no fallback to English
   <td align="center" width="50%"><b>简体中文</b><br/><sub>Light theme</sub></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="Settings — English"></td>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="Settings — 简体中文"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-dark.jpg" width="100%" alt="Settings — English"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-light.jpg" width="100%" alt="Settings — 简体中文"></td>
 </tr>
 <tr>
   <td valign="top" colspan="2"><sub><b>Translated on this screen:</b> navigation tabs (Dashboard, Diagnostics, Config, Report, Settings), section headers (Language, Theme, About), theme toggle labels, language dropdown entries, version info</sub></td>
@@ -169,8 +169,8 @@ description is fully translated — no hardcoded strings, no fallback to English
   <td align="center" width="50%"><b>简体中文</b><br/><sub>Light theme</sub></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/ios/phone/config-dark.jpg" width="100%" alt="Config — English"></td>
-  <td><img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="Config — 简体中文"></td>
+  <td><img src="resources/doc/screenshot/phone/config-dark.png" width="100%" alt="Config — English"></td>
+  <td><img src="resources/doc/screenshot/phone/config-light.png" width="100%" alt="Config — 简体中文"></td>
 </tr>
 <tr>
   <td valign="top" colspan="2"><sub><b>Translated on this screen:</b> 5 diagnostic group names (System &amp; Adapters → 系统和适配器, Connectivity &amp; Security → 连接与安全, Internet &amp; DNS → 互联网与DNS, Remote Host → 远程主机, Protocol → 协议), 46 individual test toggle labels, select-all / deselect-all buttons</sub></td>

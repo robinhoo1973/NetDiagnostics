@@ -53,28 +53,28 @@
 </tr>
 <tr>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-idle-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-idle-light.jpg" width="100%" alt="空闲">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/diagnostics-idle-dark.jpg">
+    <img src="resources/doc/screenshot/phone/diagnostics-idle-light.jpg" width="100%" alt="空闲">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/diagnostics-running-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/diagnostics-running-light.jpg" width="100%" alt="运行中">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/diagnostics-running-dark.jpg">
+    <img src="resources/doc/screenshot/phone/diagnostics-running-light.jpg" width="100%" alt="运行中">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/dashboard-complete-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/dashboard-complete-light.jpg" width="100%" alt="仪表盘">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/dashboard-complete-dark.jpg">
+    <img src="resources/doc/screenshot/phone/dashboard-complete-light.jpg" width="100%" alt="仪表盘">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/config-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/config-dark.png">
+    <img src="resources/doc/screenshot/phone/config-light.png" width="100%" alt="配置">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="设置">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/phone/settings-light.jpg" width="100%" alt="设置">
   </picture></td>
   <td><picture>
-    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/report-dark.jpg">
-    <img src="resources/doc/screenshot/ios/phone/report-light.jpg" width="100%" alt="报告">
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/phone/report-dark.jpg">
+    <img src="resources/doc/screenshot/phone/report-light.jpg" width="100%" alt="报告">
   </picture></td>
 </tr>
 </table>
@@ -117,8 +117,8 @@ NetDiagnostics 内置自定义主题引擎，支持**深色**和**浅色**两种
   <td align="center" width="50%"><b>浅色</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="设置 — 深色主题"></td>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="设置 — 浅色主题"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-dark.jpg" width="100%" alt="设置 — 深色主题"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-light.jpg" width="100%" alt="设置 — 浅色主题"></td>
 </tr>
 </table>
 
@@ -147,8 +147,8 @@ NetDiagnostics 开箱即支持 **9 种语言**。打开设置，从下拉框中�
   <td align="center" width="50%"><b>简体中文</b><br/><sub>浅色主题</sub></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-dark.jpg" width="100%" alt="设置 — English"></td>
-  <td><img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="100%" alt="设置 — 简体中文"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-dark.jpg" width="100%" alt="设置 — English"></td>
+  <td><img src="resources/doc/screenshot/phone/settings-light.jpg" width="100%" alt="设置 — 简体中文"></td>
 </tr>
 <tr>
   <td valign="top" colspan="2"><sub><b>此页面翻译内容：</b> 导航标签（仪表板、诊断、配置、报告、设置），章节标题（语言、主题、关于），主题切换标签，语言下拉框选项，版本信息</sub></td>
@@ -163,8 +163,8 @@ NetDiagnostics 开箱即支持 **9 种语言**。打开设置，从下拉框中�
   <td align="center" width="50%"><b>简体中文</b><br/><sub>浅色主题</sub></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/ios/phone/config-dark.jpg" width="100%" alt="配置 — English"></td>
-  <td><img src="resources/doc/screenshot/ios/phone/config-light.jpg" width="100%" alt="配置 — 简体中文"></td>
+  <td><img src="resources/doc/screenshot/phone/config-dark.png" width="100%" alt="配置 — English"></td>
+  <td><img src="resources/doc/screenshot/phone/config-light.png" width="100%" alt="配置 — 简体中文"></td>
 </tr>
 <tr>
   <td valign="top" colspan="2"><sub><b>此页面翻译内容：</b> 5 个诊断组名称（System &amp; Adapters → 系统和适配器，Connectivity &amp; Security → 连接与安全，Internet &amp; DNS → 互联网与DNS，Remote Host → 远程主机，Protocol → 协议），46 个独立测试开关标签，全选/取消全选按钮</sub></td>
