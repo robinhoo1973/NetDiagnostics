@@ -267,6 +267,7 @@ jobs:
           JWT="${{ steps.jwt.outputs.jwt }}"
           BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
           asc_bundle_capability_enable "$JWT" "$BID" ACCESS_WIFI_INFORMATION
+          asc_bundle_capability_enable "$JWT" "$BID" IN_APP_PURCHASE
           echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
 
       - name: Ensure App Store Connect app

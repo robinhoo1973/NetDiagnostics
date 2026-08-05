@@ -10,5 +10,7 @@
 	     Info.plist (they are already declared there) — not here. -->
 	<key>com.apple.developer.networking.wifi-info</key>
 	<true/>
+	<key>com.apple.developer.in-app-purchases</key>
+	<true/>
 </dict>
 </plist>
