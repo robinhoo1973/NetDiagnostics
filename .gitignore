@@ -49,6 +49,8 @@ CLAUDE.md
 scripts/
 # Screenshot CI drivers MUST be tracked (the CI pipelines call them at runtime).
 !scripts/screenshot/
+# iOS CI deploy-testflight scripts MUST be tracked (JWT signing, ASC API calls).
+!scripts/ios/
 !scripts/pre-commit
 !scripts/ci-http-server.py
 !scripts/install-hooks
