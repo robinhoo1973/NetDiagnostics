@@ -10,6 +10,30 @@
 #include <QSettings>
 
 static constexpr const char* kSettingsGroup = "AppSettings";
+static constexpr int kLanguageSchemaVersion = 2;
+
+// 5WHY: Language indices were reordered when expanding from 8 to 15 languages.
+// Old ordering: 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
+// New ordering: 0=ZH_CN,1=ZH_TW,2=JA,3=KO,4=HI,5=VI,6=TR,7=EN,8=FR,
+//               9=DE,10=RU,11=IT,12=ES,13=PT,14=AR
+// Users upgrading from the 8-language version have old indices saved.
+// We migrate on first load when languageSchemaVersion < 2.
+static int migrateLanguageIndex(int oldIndex) {
+    // Old → New index mapping for the 9 original languages (0-8).
+    // Indices 9+ did not exist in the old schema; left unchanged.
+    switch (oldIndex) {
+    case 0: return 7;   // EN
+    case 1: return 8;   // FR
+    case 2: return 9;   // DE
+    case 3: return 10;  // RU
+    case 4: return 11;  // IT
+    case 5: return 0;   // ZH_CN
+    case 6: return 1;   // ZH_TW
+    case 7: return 12;  // ES
+    case 8: return 13;  // PT
+    default: return oldIndex;
+    }
+}
 
 
 SettingsController::SettingsController(AppState* appState, QObject* parent)
@@ -27,7 +51,8 @@ SettingsController::SettingsController(AppState* appState, QObject* parent)
 }
 
 void SettingsController::setLanguageIndex(int index) {
-    if (index < 0 || index > 8) return;
+    // 15 languages: 0=ZH_CN…7=EN…14=AR
+    if (index < 0 || index > 14) return;
     m_languageIndex = index;
     emit languageChanged();
     saveSettings();
@@ -126,11 +151,21 @@ void SettingsController::shareExistingReport(const QString& filePath, const QStr
 void SettingsController::loadSettings() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
-    int lang = s.value("language", 0).toInt();
-    if (lang >= 0 && lang <= 14) {
+
+    // ── Language migration ────────────────────────────────────────────
+    int schemaVer = s.value("languageSchemaVersion", 1).toInt();
+    int lang = s.value("language", 7).toInt();  // default 7 = English
+    if (schemaVer < kLanguageSchemaVersion) {
+        lang = migrateLanguageIndex(lang);
+        s.setValue("language", lang);
+        s.setValue("languageSchemaVersion", kLanguageSchemaVersion);
+    }
+    if (lang >= 0 && lang <= 14 && lang != m_languageIndex) {
         m_languageIndex = lang;
         emit languageChanged();
     }
+
+    // ── Theme migration ───────────────────────────────────────────────
     int theme = s.value("themeMode", 2).toInt();
     // Migrate legacy mode=0 (system theme) to dark to prevent
     // UX deadlock where neither light/dark button appears selected.
@@ -146,6 +181,7 @@ void SettingsController::saveSettings() {
     QSettings s;
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
     s.setValue("language", m_languageIndex);
+    s.setValue("languageSchemaVersion", kLanguageSchemaVersion);
     s.setValue("themeMode", m_themeMode);
     s.endGroup();
 }

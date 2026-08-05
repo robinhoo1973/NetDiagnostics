@@ -59,6 +59,6 @@ signals:
 private:
     AppState* m_appState;
     PremiumStore m_premium;
-    int m_languageIndex = 0;
+    int m_languageIndex = 7; // English default (was 0=ZH_CN pre-migration)
     int m_themeMode = 2; // dark default
 };

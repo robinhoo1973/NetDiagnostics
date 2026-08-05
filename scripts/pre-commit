@@ -458,6 +458,40 @@ fi
 	    fi
 	done
 
+	# ── 21. QML syntax validation (qmllint + structural check) ─────────────────
+	echo ""
+	echo "── 21. QML syntax (qmllint + document structure) ──"
+	QML_FILES=$(echo "$STAGED" | grep -E '\.qml$' || true)
+	if [ -n "$QML_FILES" ]; then
+	    QMLLINT=""
+	    for candidate in /usr/lib/qt6/bin/qmllint /usr/libexec/qt6/bin/qmllint \
+	                    /usr/bin/qmllint /opt/homebrew/bin/qmllint \
+	                    "$(which qmllint 2>/dev/null || true)"; do
+	        if [ -x "$candidate" ]; then QMLLINT="$candidate"; break; fi
+	    done
+	    if [ -n "$QMLLINT" ]; then
+	        for f in $QML_FILES; do
+	            if "$QMLLINT" "$ROOT/$f" > /tmp/precommit-qmllint.log 2>&1; then
+	                pass "$f (qmllint OK)"
+	            else
+	                fail "$f: qmllint found issues:"
+	                cat /tmp/precommit-qmllint.log | while read -r line; do echo "       $line"; done
+	            fi
+	        done
+	    else
+	        for f in $QML_FILES; do
+	            FIRST_LINE=$(git show ":$f" | head -1)
+	            if echo "$FIRST_LINE" | grep -qE '^(//|/\*|pragma Singleton|import |Item \{|ApplicationWindow \{|Window \{|Rectangle \{|QtObject \{|Dialog \{|Popup \{|Pane \{|SwipeView \{|StackView \{|ColumnLayout \{|RowLayout \{|GridLayout \{|Frame \{|Control \{|ScrollView \{|SplitView \{|Page \{)'; then
+	                pass "$f (structure OK)"
+	            else
+	                fail "$f: first line does not start with a valid QML construct. Got: '$FIRST_LINE'"
+	            fi
+	        done
+	    fi
+	else
+	    echo "  (no staged QML files)"
+	fi
+
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
