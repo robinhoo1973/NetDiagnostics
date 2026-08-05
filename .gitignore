@@ -56,6 +56,10 @@ scripts/
 !scripts/generate-ipad-screenshots.py
 !scripts/generate-colored-icons.py
 review/
+!review/ios-startup-crash-5why-analysis.md
+!review/ios-ci-known-issues.md
+!review/app_startup_crash_analysis.md
+!review/common-bug-patterns.md
 
 # CodeWhale config — only constitution.json is shared
 **/.codewhale/*
