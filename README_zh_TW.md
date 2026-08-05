@@ -81,31 +81,29 @@
 
 ### 平板
 
-> 即將提供。
-
 <table>
 <tr>
-  <td align="center" width="33%"><b>空閒</b></td>
-  <td align="center" width="33%"><b>執行中</b></td>
-  <td align="center" width="33%"><b>完成</b></td>
+  <td align="center" width="33%"><b>診斷 — 空閒</b></td>
+  <td align="center" width="33%"><b>診斷 — 執行中</b></td>
+  <td align="center" width="33%"><b>診斷 — 完成</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板空閒"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板執行中"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板完成"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-idle-dark.png" width="100%" alt="診斷空閒"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-running-dark.png" width="100%" alt="診斷執行中"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-complete-dark.png" width="100%" alt="診斷完成"></td>
 </tr>
 </table>
 
 <table>
 <tr>
-  <td align="center" width="33%"><b>儀表板</b></td>
+  <td align="center" width="33%"><b>儀表板 — 完成</b></td>
   <td align="center" width="33%"><b>配置</b></td>
   <td align="center" width="33%"><b>設定</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板儀表板"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板配置"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板設定"></td>
+  <td><img src="resources/doc/screenshot/pad/dashboard-complete-dark.png" width="100%" alt="儀表板完成"></td>
+  <td><img src="resources/doc/screenshot/pad/config-dark.png" width="100%" alt="配置"></td>
+  <td><img src="resources/doc/screenshot/pad/settings-dark.png" width="100%" alt="設定"></td>
 </tr>
 </table>
 

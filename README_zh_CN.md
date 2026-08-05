@@ -81,31 +81,29 @@
 
 ### 平板
 
-> 即将提供。
-
 <table>
 <tr>
-  <td align="center" width="33%"><b>空闲</b></td>
-  <td align="center" width="33%"><b>运行中</b></td>
-  <td align="center" width="33%"><b>完成</b></td>
+  <td align="center" width="33%"><b>诊断 — 空闲</b></td>
+  <td align="center" width="33%"><b>诊断 — 运行中</b></td>
+  <td align="center" width="33%"><b>诊断 — 完成</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板空闲"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板运行中"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板完成"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-idle-dark.png" width="100%" alt="诊断空闲"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-running-dark.png" width="100%" alt="诊断运行中"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-complete-dark.png" width="100%" alt="诊断完成"></td>
 </tr>
 </table>
 
 <table>
 <tr>
-  <td align="center" width="33%"><b>仪表盘</b></td>
+  <td align="center" width="33%"><b>仪表盘 — 完成</b></td>
   <td align="center" width="33%"><b>配置</b></td>
   <td align="center" width="33%"><b>设置</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板仪表盘"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板配置"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="平板设置"></td>
+  <td><img src="resources/doc/screenshot/pad/dashboard-complete-dark.png" width="100%" alt="仪表盘完成"></td>
+  <td><img src="resources/doc/screenshot/pad/config-dark.png" width="100%" alt="配置"></td>
+  <td><img src="resources/doc/screenshot/pad/settings-dark.png" width="100%" alt="设置"></td>
 </tr>
 </table>
 

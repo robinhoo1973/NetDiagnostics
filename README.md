@@ -81,31 +81,29 @@ Real OS-level captures &middot; Dark theme &middot; No mockups, no app modificat
 
 ### Pad
 
-> Coming soon.
-
 <table>
 <tr>
-  <td align="center" width="33%"><b>Idle</b></td>
-  <td align="center" width="33%"><b>Running</b></td>
-  <td align="center" width="33%"><b>Complete</b></td>
+  <td align="center" width="33%"><b>Diagnostics — Idle</b></td>
+  <td align="center" width="33%"><b>Diagnostics — Running</b></td>
+  <td align="center" width="33%"><b>Diagnostics — Complete</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad idle"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad running"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad complete"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-idle-dark.png" width="100%" alt="Diagnostics idle"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-running-dark.png" width="100%" alt="Diagnostics running"></td>
+  <td><img src="resources/doc/screenshot/pad/diagnostics-complete-dark.png" width="100%" alt="Diagnostics complete"></td>
 </tr>
 </table>
 
 <table>
 <tr>
-  <td align="center" width="33%"><b>Dashboard</b></td>
+  <td align="center" width="33%"><b>Dashboard — Complete</b></td>
   <td align="center" width="33%"><b>Config</b></td>
   <td align="center" width="33%"><b>Settings</b></td>
 </tr>
 <tr>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad dashboard"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad config"></td>
-  <td><img src="resources/doc/screenshot/pad/placeholder.png" width="100%" alt="Pad settings"></td>
+  <td><img src="resources/doc/screenshot/pad/dashboard-complete-dark.png" width="100%" alt="Dashboard complete"></td>
+  <td><img src="resources/doc/screenshot/pad/config-dark.png" width="100%" alt="Config"></td>
+  <td><img src="resources/doc/screenshot/pad/settings-dark.png" width="100%" alt="Settings"></td>
 </tr>
 </table>
 
