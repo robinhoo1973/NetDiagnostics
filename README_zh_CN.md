@@ -126,6 +126,55 @@ NetDiagnostics 内置自定义主题引擎，支持**深色**和**浅色**两种
 
 > **强调色：** 青色 (`#22D3EE`) &nbsp;|&nbsp; **背景：** `#0F172A`（深色）/ `#FFFFFF`（浅色） &nbsp;|&nbsp; **卡片：** 双主题均采用细边框 + 圆角设计。
 
+## 多语言
+
+NetDiagnostics 内置完整的 **9 语言国际化系统**，由自定义 `Tr.*` QML 单例驱动。所有 UI 字符串——导航标签、诊断状态消息、报告章节标题、分组名称和设置描述——均通过统一的 `t()` 函数在运行时翻译，该函数同时接受 9 种语言变体。
+
+语言选择器位于 **设置 → 语言**，以 ComboBox 下拉框形式呈现，按字母顺序列出所有语言。切换后显示 3 秒 toast 确认，防止误触后迷失在不熟悉的语言界面中。
+
+### 支持的语言
+
+| # | 语言 | 内部索引 | UI 标签 |
+|---|----------|:---:|----------|
+| 1 | English | `0` | English |
+| 2 | Français | `1` | Français |
+| 3 | Deutsch | `2` | Deutsch |
+| 4 | Русский | `3` | Русский |
+| 5 | Italiano | `4` | Italiano |
+| 6 | 简体中文 | `5` | 简体中文 |
+| 7 | 繁體中文 | `6` | 繁體中文 |
+| 8 | Español | `7` | Español |
+| 9 | Português | `8` | Português |
+
+### 语言选择器
+
+<table>
+<tr>
+  <td align="center"><b>设置 — 语言下拉框</b><br/><sub>ComboBox 按字母顺序列出全部 9 种语言；切换时显示 toast 提示。</sub></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="320" alt="设置页面显示语言选择下拉框">
+  </picture></td>
+</tr>
+</table>
+
+### 国际化架构
+
+```
+QML: Tr.dashboard  →  Translations.qml (pragma Singleton)
+                    →  t("Dashboard", "Tableau de bord", "Dashboard", ...)
+                    →  lang index 来自 appState.languageIndex (C++)
+                    →  即时、零延迟的 UI 重新渲染
+```
+
+> **关键设计决策：**
+> - **单一来源 `t()` 函数** — 一条字符串的所有 9 种翻译集中在一行；添加新语言只需在代码库中增加一个参数位置。
+> - **按字母顺序排序** — ComboBox 模型按显示名称排序，用户可预测地找到自己的语言，与内部索引无关。
+> - **持久化存储** — `appState.setLanguage(idx)` 写入 QSettings；选择在应用重启后依然生效。
+> - **Toast 反馈** — 防止"误触后迷失"的 UX 缺陷：误触后 toast 显示所选语言名称，用户可立即切换回来。
+
 ## 功能特性
 
 ### 诊断引擎 — 46 项测试，5 个分组

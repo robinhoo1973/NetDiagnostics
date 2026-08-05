@@ -130,6 +130,68 @@ GitHub theme automatically.
 
 > **Accent colour:** Cyan (`#22D3EE`) &nbsp;|&nbsp; **Background:** `#0F172A` (dark) / `#FFFFFF` (light) &nbsp;|&nbsp; **Surface cards:** subtle border + rounded corners on both themes.
 
+## Multi-Language
+
+NetDiagnostics features a complete **9-language i18n system** driven by a custom
+`Tr.*` QML singleton. Every UI string — navigation labels, diagnostic status
+messages, report section headers, group names, and settings descriptions — is
+translated at runtime through a single `t()` function that accepts all 9
+language variants simultaneously.
+
+The language selector lives in **Settings → Language** as a ComboBox dropdown,
+listing languages in alphabetical order. A confirmation toast displays the
+selected language name for 3 seconds after switching, preventing disorientation
+if the wrong language is tapped.
+
+### Supported Languages
+
+| # | Language | Internal Index | UI Label |
+|---|----------|:---:|----------|
+| 1 | English | `0` | English |
+| 2 | Français | `1` | Français |
+| 3 | Deutsch | `2` | Deutsch |
+| 4 | Русский | `3` | Русский |
+| 5 | Italiano | `4` | Italiano |
+| 6 | 简体中文 | `5` | 简体中文 |
+| 7 | 繁體中文 | `6` | 繁體中文 |
+| 8 | Español | `7` | Español |
+| 9 | Português | `8` | Português |
+
+### Language Selector
+
+<table>
+<tr>
+  <td align="center"><b>Settings — Language dropdown</b><br/><sub>The ComboBox lists all 9 languages alphabetically; switching triggers a toast.</sub></td>
+</tr>
+<tr>
+  <td><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="resources/doc/screenshot/ios/phone/settings-dark.jpg">
+    <img src="resources/doc/screenshot/ios/phone/settings-light.jpg" width="320" alt="Settings screen showing language selector dropdown">
+  </picture></td>
+</tr>
+</table>
+
+### i18n Architecture
+
+```
+QML: Tr.dashboard  →  Translations.qml (pragma Singleton)
+                    →  t("Dashboard", "Tableau de bord", "Dashboard", ...)
+                    →  lang index from appState.languageIndex (C++)
+                    →  Instant, zero-latency UI re-render
+```
+
+> **Key design decisions:**
+> - **Single-source `t()` function** — all 9 translations for a string live on
+>   one line; adding a language means adding one parameter position across the
+>   codebase.
+> - **Alphabetical ordering** — the ComboBox model is sorted by display name so
+>   users find their language predictably, regardless of internal index.
+> - **Persistence** — `appState.setLanguage(idx)` writes to QSettings; the
+>   selection survives app restarts.
+> - **Toast feedback** — prevents the "trapped in wrong language" UX failure:
+>   if the user mis-taps, the toast shows the selected language name and they
+>   can immediately switch back.
+
 ## Features
 
 ### Diagnostic Engine — 46 tests in 5 groups
