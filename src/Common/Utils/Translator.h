@@ -24,6 +24,11 @@ class Translator : public QObject {
     Q_PROPERTY(int lang READ lang NOTIFY langChanged)
 
 public:
+    // Language count and indexing constants — used by parseLangArray() and
+    // by SettingsController for range checks.
+    static constexpr int kEnglishIndex = 7;
+    static constexpr int kMaxLanguages = 15;
+
     explicit Translator(QObject* parent = nullptr);
 
     // Must be called after AppState is available.
@@ -87,7 +92,4 @@ private:
     // trMsg parameterized templates
     QJsonArray m_tplUnsupportedProtocol;  // %1=scheme, %2=schemeList
     QJsonArray m_tplPortRange;            // %1=port
-
-    static constexpr int kEnglishIndex = 7;
-    static constexpr int kMaxLanguages = 15;
 };

@@ -7,6 +7,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QSet>
 #include <QDebug>
 
 Translator::Translator(QObject* parent)
@@ -40,8 +41,17 @@ void Translator::initialize(AppState* appState)
 static QJsonArray parseLangArray(const QJsonValue& val)
 {
     QJsonArray arr = val.toArray();
-    // Ensure exactly 15 entries; pad with empty strings if short
-    while (arr.size() < 15)
+    // Ensure exactly kMaxLanguages entries; pad with empty strings if short.
+    // If the JSON has more entries than the C++ code expects, truncate with
+    // a warning so the mismatch is visible when a language is being added.
+    if (arr.size() > Translator::kMaxLanguages) {
+        qWarning() << "Translator: language array has" << arr.size()
+                    << "entries, but kMaxLanguages is" << Translator::kMaxLanguages
+                    << "— extra entries will be ignored";
+        while (arr.size() > Translator::kMaxLanguages)
+            arr.removeLast();
+    }
+    while (arr.size() < Translator::kMaxLanguages)
         arr.append(QString());
     return arr;
 }
@@ -108,7 +118,6 @@ bool Translator::loadJson(const QString& path)
         m_errorMessages[it.key()] = parseLangArray(it.value());
     qDebug() << "Translator: loaded" << m_errorMessages.size() << "trMsg exact entries";
 
-    QJsonObject tmpl = trmsg.value("templates").toObject();
     // JSON arrays store templates in order; the extraction script writes
     // them as a JSON array — check what we got
     QJsonValue tplVal = trmsg.value("templates");

@@ -155,7 +155,10 @@ void SettingsController::loadSettings() {
     // ── Language migration ────────────────────────────────────────────
     int schemaVer = s.value("languageSchemaVersion", 1).toInt();
     int lang = s.value("language", 7).toInt();  // default 7 = English
-    if (schemaVer < kLanguageSchemaVersion) {
+    // Only migrate if the user has a saved language preference from the
+    // old 8-language ordering.  On fresh install, s.contains("language")
+    // is false and the default index 7 (English) is already correct.
+    if (schemaVer < kLanguageSchemaVersion && s.contains("language")) {
         lang = migrateLanguageIndex(lang);
         s.setValue("language", lang);
         s.setValue("languageSchemaVersion", kLanguageSchemaVersion);

@@ -29,6 +29,7 @@ class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
+class Translator;
 enum class RunStatus { Idle, Running, Completed, Cancelled, Error };
 
 class AppState : public QObject {
@@ -88,7 +89,6 @@ public:
     TargetModel* targetModel() const { return m_targetModel; }
     ResultsModel* resultsModel() const { return m_resultsModel; }
 
-    class Translator;
     Translator* translator() const { return m_translator; }
 
     // ── App version / build ────────────────────────────────────────────────
