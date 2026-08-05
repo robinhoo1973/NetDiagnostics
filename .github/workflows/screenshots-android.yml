@@ -74,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           SCREEN_W=430 SCREEN_H=932 \
-          ND_MOBILE=1 ND_CAPTURE_TARGET=http://localhost:8899 ND_CAPTURE_MAX_TESTS=4 \
+          ND_MOBILE=1 ND_AUTORUN=1 ND_CAPTURE_TARGET=http://localhost:8899 ND_CAPTURE_MAX_TESTS=4 \
           xvfb-run -a -s "-screen 0 430x932x24" \
             bash scripts/screenshot/drive-android-alt.sh \
             ./build/net_diagnostics resources/doc/screenshot/android/phone
@@ -120,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           SCREEN_W=800 SCREEN_H=1280 \
-          ND_MOBILE=1 ND_CAPTURE_TARGET=http://localhost:8899 ND_CAPTURE_MAX_TESTS=4 \
+          ND_MOBILE=1 ND_AUTORUN=1 ND_CAPTURE_TARGET=http://localhost:8899 ND_CAPTURE_MAX_TESTS=4 \
           xvfb-run -a -s "-screen 0 800x1280x24" \
             bash scripts/screenshot/drive-android-alt.sh \
             ./build/net_diagnostics resources/doc/screenshot/android/tablet
