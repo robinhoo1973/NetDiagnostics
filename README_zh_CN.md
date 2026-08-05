@@ -10,8 +10,7 @@
 
 ## 屏幕截图
 
-桌面截图由 [CI 流水线](.github/workflows/screenshots-desktop.yml)自动生成。iOS 截图从真机手动截取，含浅色/深色双主题。
-[Android](.github/workflows/screenshots-android.yml) 截图需要 CI 模拟器（仅 workflow_dispatch）。
+桌面截图为真实系统级截图。iOS 截图从真机手动截取，含浅色/深色双主题。Android 截图从模拟器或真机截取。
 
 ### 桌面端
 

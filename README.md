@@ -10,11 +10,9 @@
 
 ## Screenshots
 
-Desktop screenshots are real OS-level captures generated automatically by the
-[screenshot CI pipeline](.github/workflows/screenshots-desktop.yml). iOS
-screenshots are captured manually from a real device with light &amp; dark
-theme variants. [Android](.github/workflows/screenshots-android.yml)
-screenshots require a CI emulator (workflow_dispatch only).
+Desktop screenshots are real OS-level captures. iOS screenshots are captured
+manually from a real device with light &amp; dark theme variants. Android
+screenshots are captured from an emulator or physical device.
 
 ### Desktop
 
