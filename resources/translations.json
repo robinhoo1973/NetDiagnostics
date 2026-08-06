@@ -2692,11 +2692,6 @@
   "groupPrefix": [
     "G",
     "G",
-    "",
-    "",
-    "",
-    "",
-    "",
     "G",
     "G",
     "G",
@@ -2704,7 +2699,12 @@
     "G",
     "G",
     "G",
-    ""
+    "G",
+    "G",
+    "G",
+    "G",
+    "G",
+    "G"
   ],
   "diagName": {
     "0": [
@@ -2722,7 +2722,7 @@
       "Schede di rete",
       "Adaptadores de red",
       "Adaptadores de rede",
-      ""
+      "محولات الشبكة"
     ],
     "1": [
       "网卡高级信息",
@@ -2739,7 +2739,7 @@
       "NIC avanzata",
       "NIC avanzada",
       "NIC avançada",
-      ""
+      "NIC متقدم"
     ],
     "2": [
       "WiFi信息",
@@ -2756,7 +2756,7 @@
       "Informazioni WiFi",
       "Información WiFi",
       "Informações WiFi",
-      ""
+      "معلومات WiFi"
     ],
     "3": [
       "有线信息",
@@ -2773,7 +2773,7 @@
       "Informazioni cablate",
       "Información por cable",
       "Informações com fio",
-      ""
+      "معلومات الشبكة السلكية"
     ],
     "4": [
       "DHCP状态",
@@ -2790,7 +2790,7 @@
       "Stato DHCP",
       "Estado DHCP",
       "Estado DHCP",
-      ""
+      "حالة DHCP"
     ],
     "5": [
       "IP配置",
@@ -2807,7 +2807,7 @@
       "Configurazione IP",
       "Configuración IP",
       "Configuração IP",
-      ""
+      "تكوين IP"
     ],
     "6": [
       "活动连接",
@@ -2824,7 +2824,7 @@
       "Connessioni attive",
       "Conexiones activas",
       "Conexões ativas",
-      ""
+      "الاتصالات النشطة"
     ],
     "7": [
       "蜂窝信息",
@@ -2841,7 +2841,7 @@
       "Informazioni cellulari",
       "Información celular",
       "Informações celulares",
-      ""
+      "معلومات الخلوي"
     ],
     "8": [
       "网络配置文件",
@@ -2858,7 +2858,7 @@
       "Profilo di rete",
       "Perfil de red",
       "Perfil de rede",
-      ""
+      "ملف تعريف الشبكة"
     ],
     "9": [
       "TCP设置",
@@ -2875,7 +2875,7 @@
       "Impostazioni TCP",
       "Configuración TCP",
       "Configurações TCP",
-      ""
+      "إعدادات TCP"
     ],
     "10": [
       "默认网关",
@@ -2892,7 +2892,7 @@
       "Gateway predefinito",
       "Puerta de enlace predeterminada",
       "Gateway padrão",
-      ""
+      "البوابة الافتراضية"
     ],
     "11": [
       "路由表",
@@ -2909,7 +2909,7 @@
       "Tabella di routing",
       "Tabla de enrutamiento",
       "Tabela de roteamento",
-      ""
+      "جدول التوجيه"
     ],
     "12": [
       "ARP表",
@@ -2926,7 +2926,7 @@
       "Tabella ARP",
       "Tabla ARP",
       "Tabela ARP",
-      ""
+      "جدول ARP"
     ],
     "13": [
       "代理设置",
@@ -2943,7 +2943,7 @@
       "Impostazioni proxy",
       "Configuración de proxy",
       "Configurações de proxy",
-      ""
+      "إعدادات البروكسي"
     ],
     "14": [
       "Netskope状态",
@@ -2960,7 +2960,7 @@
       "Stato Netskope",
       "Estado de Netskope",
       "Estado do Netskope",
-      ""
+      "حالة Netskope"
     ],
     "15": [
       "DNS服务器",
@@ -2977,7 +2977,7 @@
       "Server DNS",
       "Servidores DNS",
       "Servidores DNS",
-      ""
+      "خوادم DNS"
     ],
     "16": [
       "DNS缓存",
@@ -2994,7 +2994,7 @@
       "Cache DNS",
       "Caché DNS",
       "Cache DNS",
-      ""
+      "ذاكرة DNS المؤقتة"
     ],
     "17": [
       "DNS完整性",
@@ -3011,7 +3011,7 @@
       "Integrità DNS",
       "Integridad DNS",
       "Integridade DNS",
-      ""
+      "سلامة DNS"
     ],
     "18": [
       "IP地理定位",
@@ -3028,7 +3028,7 @@
       "Geolocalizzazione IP",
       "Geolocalización IP",
       "Geolocalização IP",
-      ""
+      "تحديد الموقع الجغرافي عبر IP"
     ],
     "19": [
       "互联网连接与速度",
@@ -3045,7 +3045,7 @@
       "Connettività e velocità",
       "Conectividad y velocidad de Internet",
       "Conectividade e velocidade da Internet",
-      ""
+      "الاتصال بالإنترنت وسرعته"
     ],
     "20": [
       "DNS解析",
@@ -3062,7 +3062,7 @@
       "Risoluzione DNS",
       "Resolución DNS",
       "Resolução DNS",
-      ""
+      "تحليل DNS"
     ],
     "21": [
       "Ping",
@@ -3079,7 +3079,7 @@
       "Ping",
       "Ping",
       "Ping",
-      ""
+      "Ping"
     ],
     "22": [
       "路由追踪",
@@ -3096,7 +3096,7 @@
       "Traceroute",
       "Traceroute",
       "Traceroute",
-      ""
+      "Traceroute"
     ],
     "23": [
       "路径Ping",
@@ -3113,7 +3113,7 @@
       "PathPing",
       "PathPing",
       "PathPing",
-      ""
+      "PathPing"
     ],
     "24": [
       "MTU发现",
@@ -3130,7 +3130,7 @@
       "Scoperta MTU",
       "Descubrimiento de MTU",
       "Descoberta de MTU",
-      ""
+      "اكتشاف MTU"
     ],
     "25": [
       "IPv6连接",
@@ -3147,7 +3147,7 @@
       "Connettività IPv6",
       "Conectividad IPv6",
       "Conectividade IPv6",
-      ""
+      "اتصال IPv6"
     ],
     "26": [
       "URL解析",
@@ -3164,7 +3164,7 @@
       "Analisi URL",
       "Análisis de URL",
       "Análise de URL",
-      ""
+      "تحليل URL"
     ],
     "27": [
       "TCP连接",
@@ -3181,7 +3181,7 @@
       "Connessione TCP",
       "Conexión TCP",
       "Conexão TCP",
-      ""
+      "اتصال TCP"
     ],
     "28": [
       "服务标识",
@@ -3198,7 +3198,7 @@
       "Banner del servizio",
       "Banner de servicio",
       "Banner de serviço",
-      ""
+      "لافتة الخدمة"
     ],
     "29": [
       "HTTP请求",
@@ -3215,7 +3215,7 @@
       "Richiesta HTTP",
       "Solicitud HTTP",
       "Requisição HTTP",
-      ""
+      "طلب HTTP"
     ],
     "30": [
       "HTTP头",
@@ -3232,7 +3232,7 @@
       "Intestazioni HTTP",
       "Encabezados HTTP",
       "Cabeçalhos HTTP",
-      ""
+      "رؤوس HTTP"
     ],
     "31": [
       "安全头",
@@ -3249,7 +3249,7 @@
       "Intestazioni sicurezza",
       "Encabezados de seguridad",
       "Cabeçalhos de segurança",
-      ""
+      "رؤوس الأمان"
     ],
     "32": [
       "SSL证书",
@@ -3266,7 +3266,7 @@
       "Certificato SSL",
       "Certificado SSL",
       "Certificado SSL",
-      ""
+      "شهادة SSL"
     ],
     "33": [
       "HTTP重定向",
@@ -3283,7 +3283,7 @@
       "Reindirizzamento HTTP",
       "Redirección HTTP",
       "Redirecionamento HTTP",
-      ""
+      "إعادة توجيه HTTP"
     ],
     "34": [
       "HTTP压缩",
@@ -3300,7 +3300,7 @@
       "Compressione HTTP",
       "Compresión HTTP",
       "Compressão HTTP",
-      ""
+      "ضغط HTTP"
     ],
     "35": [
       "HTTP计时",
@@ -3317,7 +3317,7 @@
       "Temporizzazione HTTP",
       "Tiempos HTTP",
       "Tempos HTTP",
-      ""
+      "توقيت HTTP"
     ],
     "36": [
       "FTP诊断",
@@ -3334,7 +3334,7 @@
       "Diagnostica FTP",
       "Diagnóstico FTP",
       "Diagnóstico FTP",
-      ""
+      "تشخيص FTP"
     ],
     "37": [
       "SSH诊断",
@@ -3351,7 +3351,7 @@
       "Diagnostica SSH",
       "Diagnóstico SSH",
       "Diagnóstico SSH",
-      ""
+      "تشخيص SSH"
     ],
     "38": [
       "电子邮件诊断",
@@ -3368,7 +3368,7 @@
       "Diagnostica email",
       "Diagnóstico de correo",
       "Diagnóstico de e-mail",
-      ""
+      "تشخيص البريد الإلكتروني"
     ],
     "39": [
       "Telnet",
@@ -3385,7 +3385,7 @@
       "Telnet",
       "Telnet",
       "Telnet",
-      ""
+      "Telnet"
     ],
     "40": [
       "MySQL",
@@ -3402,7 +3402,7 @@
       "MySQL",
       "MySQL",
       "MySQL",
-      ""
+      "MySQL"
     ],
     "41": [
       "PostgreSQL",
@@ -3419,7 +3419,7 @@
       "PostgreSQL",
       "PostgreSQL",
       "PostgreSQL",
-      ""
+      "PostgreSQL"
     ],
     "42": [
       "Redis",
@@ -3436,7 +3436,7 @@
       "Redis",
       "Redis",
       "Redis",
-      ""
+      "Redis"
     ],
     "43": [
       "MongoDB",
@@ -3453,7 +3453,7 @@
       "MongoDB",
       "MongoDB",
       "MongoDB",
-      ""
+      "MongoDB"
     ],
     "44": [
       "LDAP",
@@ -3470,7 +3470,7 @@
       "LDAP",
       "LDAP",
       "LDAP",
-      ""
+      "LDAP"
     ],
     "45": [
       "MQTT",
@@ -3487,7 +3487,7 @@
       "MQTT",
       "MQTT",
       "MQTT",
-      ""
+      "MQTT"
     ]
   },
   "diagDesc": {
@@ -3506,7 +3506,7 @@
       "Elenca tutte le schede di rete e il loro stato",
       "Enumera todos los adaptadores de red y su estado operativo",
       "Lista todos os adaptadores de rede e seu estado operacional",
-      ""
+      "سرد جميع محولات الشبكة وحالتها التشغيلية"
     ],
     "1": [
       "驱动程序版本、硬件信息和协商链路速度",
@@ -3523,7 +3523,7 @@
       "Versione driver, info hardware e velocità di collegamento",
       "Versión del controlador, información de hardware y velocidad de enlace negociada",
       "Versão do driver, informações de hardware e velocidade de link negociada",
-      ""
+      "إصدار المشغل ومعلومات الأجهزة وسرعة الارتباط المتفاوض عليها"
     ],
     "2": [
       "信号强度、SSID、信道和链路质量",
@@ -3540,7 +3540,7 @@
       "Potenza segnale, SSID, canale e qualità collegamento",
       "Intensidad de señal, SSID, canal y calidad del enlace",
       "Intensidade do sinal, SSID, canal e qualidade do link",
-      ""
+      "قوة الإشارة وSSID والقناة وجودة الارتباط"
     ],
     "3": [
       "以太网链路状态、速度和双工模式",
@@ -3557,7 +3557,7 @@
       "Stato collegamento Ethernet, velocità e modalità duplex",
       "Estado del enlace Ethernet, velocidad y modo dúplex",
       "Estado do link Ethernet, velocidade e modo duplex",
-      ""
+      "حالة ارتباط Ethernet والسرعة والوضع المزدوج"
     ],
     "4": [
       "DHCP租约信息、服务器地址和过期时间",
@@ -3574,7 +3574,7 @@
       "Info lease DHCP, indirizzo server e scadenza",
       "Información de concesión DHCP, dirección del servidor y expiración",
       "Informações de concessão DHCP, endereço do servidor e expiração",
-      ""
+      "معلومات تأجير DHCP وعنوان الخادم وانتهاء الصلاحية"
     ],
     "5": [
       "IP地址、子网掩码、默认网关、DNS服务器",
@@ -3591,7 +3591,7 @@
       "Indirizzi IP, subnet mask, gateway predefinito, server DNS",
       "Direcciones IP, máscara de subred, puerta de enlace predeterminada, servidores DNS",
       "Endereços IP, máscara de sub-rede, gateway padrão, servidores DNS",
-      ""
+      "عناوين IP وقناع الشبكة الفرعية والبوابة الافتراضية وخوادم DNS"
     ],
     "6": [
       "TCP/UDP连接：已建立、监听等",
@@ -3608,7 +3608,7 @@
       "Connessioni TCP/UDP: STABILITE, IN ASCOLTO, ecc.",
       "Conexiones TCP/UDP: ESTABLECIDA, ESCUCHANDO, etc.",
       "Conexões TCP/UDP: ESTABELECIDA, ESCUTANDO, etc.",
-      ""
+      "اتصالات TCP/UDP: قائمة ومنشأة ومنتظرة"
     ],
     "7": [
       "蜂窝网络类型、信号强度、运营商和无线接入技术",
@@ -3625,7 +3625,7 @@
       "Tipo di rete cellulare, potenza del segnale, operatore e tecnologia di accesso radio",
       "Tipo de red celular, intensidad de señal, operador y tecnología de acceso radio",
       "Tipo de rede celular, intensidade do sinal, operadora e tecnologia de acesso via rádio",
-      ""
+      "نوع الشبكة الخلوية وقوة الإشارة والناقل وتقنية الوصول"
     ],
     "8": [
       "活动网络配置文件类型（域/专用/公用）",
@@ -3642,7 +3642,7 @@
       "Tipo profilo rete attivo (Dominio/Privato/Pubblico)",
       "Tipo de perfil de red activo (Dominio/Privado/Público)",
       "Tipo de perfil de rede ativo (Domínio/Privado/Público)",
-      ""
+      "نوع ملف تعريف الشبكة النشط (مجال/خاص/عام)"
     ],
     "9": [
       "TCP/IP堆栈参数和配置",
@@ -3659,7 +3659,7 @@
       "Parametri e configurazione stack TCP/IP",
       "Parámetros y configuraciones de la pila TCP/IP",
       "Parâmetros e configurações da pilha TCP/IP",
-      ""
+      "معلمات وتكوين مكدس TCP/IP"
     ],
     "10": [
       "默认网关可达性和响应时间",
@@ -3676,7 +3676,7 @@
       "Raggiungibilità e tempo risposta gateway predefinito",
       "Accesibilidad y tiempo de respuesta de la puerta de enlace predeterminada",
       "Acessibilidade e tempo de resposta do gateway padrão",
-      ""
+      "إمكانية الوصول إلى البوابة الافتراضية ووقت الاستجابة"
     ],
     "11": [
       "IPv4和IPv6路由表条目",
@@ -3693,7 +3693,7 @@
       "Voci tabella routing IPv4 e IPv6",
       "Entradas de la tabla de enrutamiento IPv4 e IPv6",
       "Entradas da tabela de roteamento IPv4 e IPv6",
-      ""
+      "إدخالات جدول التوجيه IPv4 وIPv6"
     ],
     "12": [
       "ARP缓存条目用于本地网络发现",
@@ -3710,7 +3710,7 @@
       "Voci cache ARP per rilevamento rete locale",
       "Entradas de caché ARP para el descubrimiento de la red local",
       "Entradas de cache ARP para descoberta da rede local",
-      ""
+      "إدخالات ذاكرة ARP المؤقتة لاكتشاف الشبكة المحلية"
     ],
     "13": [
       "系统代理配置和自动检测",
@@ -3727,7 +3727,7 @@
       "Configurazione proxy di sistema e rilevamento automatico",
       "Configuración del proxy del sistema y detección automática",
       "Configuração de proxy do sistema e detecção automática",
-      ""
+      "تكوين البروكسي للنظام والكشف التلقائي"
     ],
     "14": [
       "Netskope客户端状态和连接健康",
@@ -3744,7 +3744,7 @@
       "Stato client Netskope e salute connessione",
       "Estado del cliente Netskope y salud de la conexión",
       "Estado do cliente Netskope e integridade da conexão",
-      ""
+      "حالة عميل Netskope وصحة الاتصال"
     ],
     "15": [
       "配置的DNS服务器及其响应性",
@@ -3761,7 +3761,7 @@
       "Server DNS configurati e loro reattività",
       "Servidores DNS configurados y su capacidad de respuesta",
       "Servidores DNS configurados e sua capacidade de resposta",
-      ""
+      "خوادم DNS المكونة واستجابتها"
     ],
     "16": [
       "DNS解析器缓存条目和统计",
@@ -3778,7 +3778,7 @@
       "Voci e statistiche cache resolver DNS",
       "Entradas y estadísticas de la caché del resolvedor DNS",
       "Entradas e estatísticas do cache do resolvedor DNS",
-      ""
+      "إدخالات وإحصائيات ذاكرة محلل DNS المؤقتة"
     ],
     "17": [
       "检查DNS劫持或欺骗指标",
@@ -3795,7 +3795,7 @@
       "Controllo indicatori dirottamento DNS",
       "Comprobar indicadores de secuestro o suplantación de DNS",
       "Verificar indicadores de sequestro ou falsificação de DNS",
-      ""
+      "التحقق من مؤشرات اختطاف أو انتحال DNS"
     ],
     "18": [
       "IP地理定位: 通过服务器延迟确定物理位置 + 检测VPN",
@@ -3812,7 +3812,7 @@
       "Geolocalizzazione IP: posizione fisica via latenza + rilevamento VPN",
       "Geolocalización IP: ubicación física por latencia + detección VPN",
       "Geolocalização IP: localização física via latência + detecção VPN",
-      ""
+      "الموقع الفعلي عبر زمن انتقال الخادم + كشف VPN"
     ],
     "19": [
       "连接检查+Speedtest.net带宽测试",
@@ -3829,7 +3829,7 @@
       "Controllo connettività + test larghezza di banda Speedtest.net",
       "Comprobación de conectividad + prueba de ancho de banda de Speedtest.net",
       "Verificação de conectividade + teste de largura de banda do Speedtest.net",
-      ""
+      "فحص الاتصال + اختبار نطاق ترددي Speedtest.net"
     ],
     "20": [
       "将目标主机名解析为IP地址",
@@ -3846,7 +3846,7 @@
       "Risolvi hostname target in indirizzo/i IP",
       "Resolver el nombre de host objetivo a dirección(es) IP",
       "Resolver o nome de host alvo para endereço(s) IP",
-      ""
+      "تحليل اسم المضيف المستهدف إلى عنوان IP"
     ],
     "21": [
       "Ping往返时间和丢包率统计",
@@ -3863,7 +3863,7 @@
       "Tempo andata/ritorno ping e statistiche perdita pacchetti",
       "Tiempo de ida y vuelta de ping y estadísticas de pérdida de paquetes",
       "Tempo de ida e volta do ping e estatísticas de perda de pacotes",
-      ""
+      "زمن الرحلة ذهاباً وإياباً وإحصائيات فقدان الحزم"
     ],
     "22": [
       "到目标的路由路径和每跳延迟",
@@ -3880,7 +3880,7 @@
       "Percorso di route e latenza per hop verso target",
       "Ruta y latencia por salto hasta el objetivo",
       "Caminho da rota e latência por salto até o alvo",
-      ""
+      "مسار التوجيه وزمن الانتقال لكل قفزة إلى الهدف"
     ],
     "23": [
       "组合路由追踪和ping及每跳丢包",
@@ -3897,7 +3897,7 @@
       "Traceroute e ping combinati con perdita per hop",
       "Traceroute y ping combinados con pérdida por salto",
       "Traceroute e ping combinados com perda por salto",
-      ""
+      "Traceroute وPing مدمجان مع فقدان لكل قفزة"
     ],
     "24": [
       "到目标主机的路径MTU发现",
@@ -3914,7 +3914,7 @@
       "Scoperta MTU percorso verso host target",
       "Descubrimiento de MTU de ruta hasta el host objetivo",
       "Descoberta de MTU de caminho até o host alvo",
-      ""
+      "اكتشاف MTU للمسار إلى المضيف المستهدف"
     ],
     "25": [
       "IPv6 DNS (AAAA)解析和TCP连接",
@@ -3931,7 +3931,7 @@
       "Risoluzione DNS IPv6 (AAAA) e connettività TCP",
       "Resolución DNS IPv6 (AAAA) y conectividad TCP",
       "Resolução DNS IPv6 (AAAA) e conectividade TCP",
-      ""
+      "تحليل DNS IPv6 (AAAA) واتصال TCP"
     ],
     "26": [
       "解析和验证目标URL组件",
@@ -3948,7 +3948,7 @@
       "Analizza e convalida i componenti URL target",
       "Analizar y validar los componentes de la URL objetivo",
       "Analisar e validar os componentes da URL alvo",
-      ""
+      "تحليل والتحقق من مكونات URL المستهدفة"
     ],
     "27": [
       "对URL主机的默认端口进行TCP连接检查",
@@ -3965,7 +3965,7 @@
       "Controllo connettività TCP all'host URL su porta predefinita",
       "Comprobación de conectividad TCP al host de la URL en el puerto predeterminado",
       "Verificação de conectividade TCP ao host da URL na porta padrão",
-      ""
+      "فحص اتصال TCP بمضيف URL على المنفذ الافتراضي"
     ],
     "28": [
       "基于文本协议的服务标识检测",
@@ -3982,7 +3982,7 @@
       "Rilevamento banner servizio per protocolli testuali",
       "Detección de banner de servicio para protocolos basados en texto",
       "Detecção de banner de serviço para protocolos baseados em texto",
-      ""
+      "كشف لافتة الخدمة للبروتوكولات النصية"
     ],
     "29": [
       "HTTP请求/响应头和计时",
@@ -3999,7 +3999,7 @@
       "Intestazioni e temporizzazione richiesta/risposta HTTP",
       "Encabezados y tiempos de solicitud/respuesta HTTP",
       "Cabeçalhos e tempos de requisição/resposta HTTP",
-      ""
+      "رؤوس وتوقيت طلب/استجابة HTTP"
     ],
     "30": [
       "来自目标服务器的HTTP响应头",
@@ -4016,7 +4016,7 @@
       "Intestazioni risposta HTTP dal server target",
       "Encabezados de respuesta HTTP del servidor objetivo",
       "Cabeçalhos de resposta HTTP do servidor alvo",
-      ""
+      "رؤوس استجابة HTTP من الخادم المستهدف"
     ],
     "31": [
       "安全相关的HTTP头（HSTS、CSP等）",
@@ -4033,7 +4033,7 @@
       "Intestazioni HTTP di sicurezza (HSTS, CSP, ecc.)",
       "Encabezados HTTP de seguridad (HSTS, CSP, etc.)",
       "Cabeçalhos HTTP de segurança (HSTS, CSP, etc.)",
-      ""
+      "رؤوس HTTP المتعلقة بالأمان (HSTS وCSP وغيرها)"
     ],
     "32": [
       "SSL/TLS证书链和有效性检查",
@@ -4050,7 +4050,7 @@
       "Catena certificati SSL/TLS e controllo validità",
       "Cadena de certificados SSL/TLS y comprobación de validez",
       "Cadeia de certificados SSL/TLS e verificação de validade",
-      ""
+      "سلسلة شهادة SSL/TLS والتحقق من الصلاحية"
     ],
     "33": [
       "HTTP重定向链和最终目的地",
@@ -4067,7 +4067,7 @@
       "Catena reindirizzamento HTTP e destinazione finale",
       "Cadena de redirección HTTP y destino final",
       "Cadeia de redirecionamento HTTP e destino final",
-      ""
+      "سلسلة إعادة توجيه HTTP والوجهة النهائية"
     ],
     "34": [
       "支持的压缩方法和编码",
@@ -4084,7 +4084,7 @@
       "Metodi compressione e codifica supportati",
       "Métodos de compresión y codificación admitidos",
       "Métodos de compressão e codificação suportados",
-      ""
+      "طرق الضغط والتشفير المدعومة"
     ],
     "35": [
       "HTTP请求时间分解（DNS、连接、SSL等）",
@@ -4101,7 +4101,7 @@
       "Scomposizione temporizzazione richiesta HTTP (DNS, connessione, SSL, ecc.)",
       "Desglose de tiempos de solicitud HTTP (DNS, conexión, SSL, etc.)",
       "Detalhamento dos tempos de requisição HTTP (DNS, conexão, SSL, etc.)",
-      ""
+      "تحليل توقيت طلب HTTP (DNS واتصال وSSL وغيرها)"
     ],
     "36": [
       "FTP服务可达性和横幅检测",
@@ -4118,7 +4118,7 @@
       "Raggiungibilità servizio FTP e rilevamento banner",
       "Accesibilidad del servicio FTP y detección de banner",
       "Acessibilidade do serviço FTP e detecção de banner",
-      ""
+      "إمكانية الوصول إلى خدمة FTP وكشف اللافتة"
     ],
     "37": [
       "SSH版本和密钥交换检测",
@@ -4135,7 +4135,7 @@
       "Versione SSH e rilevamento scambio chiavi",
       "Detección de versión SSH e intercambio de claves",
       "Detecção de versão SSH e troca de chaves",
-      ""
+      "كشف إصدار SSH وتبادل المفاتيح"
     ],
     "38": [
       "SMTP/IMAP/POP3服务检测和横幅",
@@ -4152,7 +4152,7 @@
       "Rilevamento servizio SMTP/IMAP/POP3 e banner",
       "Detección de servicio SMTP/IMAP/POP3 y banner",
       "Detecção de serviço SMTP/IMAP/POP3 e banner",
-      ""
+      "كشف خدمة SMTP/IMAP/POP3 واللافتة"
     ],
     "39": [
       "Telnet服务可达性和登录横幅",
@@ -4169,7 +4169,7 @@
       "Raggiungibilità servizio Telnet e banner login",
       "Accesibilidad del servicio Telnet y banner de inicio de sesión",
       "Acessibilidade do serviço Telnet e banner de login",
-      ""
+      "إمكانية الوصول إلى خدمة Telnet ولافتة تسجيل الدخول"
     ],
     "40": [
       "MySQL服务器可达性和版本检测",
@@ -4186,7 +4186,7 @@
       "Raggiungibilità server MySQL e rilevamento versione",
       "Accesibilidad del servidor MySQL y detección de versión",
       "Acessibilidade do servidor MySQL e detecção de versão",
-      ""
+      "إمكانية الوصول إلى خادم MySQL وكشف الإصدار"
     ],
     "41": [
       "PostgreSQL服务器可达性和版本检测",
@@ -4203,7 +4203,7 @@
       "Raggiungibilità server PostgreSQL e rilevamento versione",
       "Accesibilidad del servidor PostgreSQL y detección de versión",
       "Acessibilidade do servidor PostgreSQL e detecção de versão",
-      ""
+      "إمكانية الوصول إلى خادم PostgreSQL وكشف الإصدار"
     ],
     "42": [
       "Redis服务器可达性和INFO命令",
@@ -4220,7 +4220,7 @@
       "Raggiungibilità server Redis e comando INFO",
       "Accesibilidad del servidor Redis y comando INFO",
       "Acessibilidade do servidor Redis e comando INFO",
-      ""
+      "إمكانية الوصول إلى خادم Redis وأمر INFO"
     ],
     "43": [
       "MongoDB服务器可达性和构建信息",
@@ -4237,7 +4237,7 @@
       "Raggiungibilità server MongoDB e info build",
       "Accesibilidad del servidor MongoDB e información de compilación",
       "Acessibilidade do servidor MongoDB e informações de build",
-      ""
+      "إمكانية الوصول إلى خادم MongoDB ومعلومات البناء"
     ],
     "44": [
       "LDAP服务器可达性和根DSE",
@@ -4254,7 +4254,7 @@
       "Raggiungibilità server LDAP e DSE root",
       "Accesibilidad del servidor LDAP y DSE raíz",
       "Acessibilidade do servidor LDAP e DSE raiz",
-      ""
+      "إمكانية الوصول إلى خادم LDAP وRoot DSE"
     ],
     "45": [
       "MQTT代理可达性和CONNECT响应",
@@ -4271,7 +4271,7 @@
       "Raggiungibilità broker MQTT e risposta CONNECT",
       "Accesibilidad del broker MQTT y respuesta CONNECT",
       "Acessibilidade do broker MQTT e resposta CONNECT",
-      ""
+      "إمكانية الوصول إلى وسيط MQTT واستجابة CONNECT"
     ]
   },
   "trMsg": {
