@@ -9,6 +9,7 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QDebug>
+#include <QQmlProperty>
 
 Translator::Translator(QObject* parent)
     : QObject(parent)
@@ -149,13 +150,26 @@ QString Translator::select(const QJsonArray& arr) const
     // T.diagName(), T.groupName(), etc. were never invalidated on
     // language change — the UI showed stale translations until the
     // component was re-created or the app restarted.
-    // Fix: read lang through QObject::property("lang") so the
-    // QML engine can intercept the read and add langChanged as a
-    // dependency of the enclosing binding expression.
-    // The const-char* lookup is fast enough — Qt's meta-object system
-    // uses binary search on interned strings (~O(log n) microsecond cost),
-    // negligible compared to the QJsonArray indexing that follows.
-    return selectAt(arr, property("lang").toInt());
+    //
+    // Why 1 (original): QObject::property("lang") appeared to work in
+    // isolated tests because some Qt versions' QQmlVMEMetaObject::metaCall()
+    // intercepts QMetaProperty::read() and registers with QQmlPropertyCapture.
+    // However, this is an internal Qt implementation detail — not guaranteed
+    // across all Qt 6.x versions or platforms.
+    //
+    // Why 2: Evidence from the codebase itself: AppContent.qml line 116
+    // has an explicit "T.lang // force re-evaluation on language change"
+    // dummy read, and ConfigScreen.qml uses configPollVersion as a polled
+    // anchor. Both workarounds exist precisely because property("lang")
+    // did NOT reliably trigger binding re-evaluation at runtime.
+    //
+    // Fix: QQmlProperty::read() explicitly checks QQmlPropertyCapture::capture
+    // and registers the lang property as a dependency of the enclosing QML
+    // binding expression.  This is the documented, supported mechanism for
+    // making C++ property reads visible to the QML binding engine.
+    // When no capture is active (signal handler, Component.onCompleted, etc.),
+    // QQmlProperty::read() simply reads the value without side effects.
+    return selectAt(arr, QQmlProperty::read(this, "lang").toInt());
 }
 
 QString Translator::selectAt(const QJsonArray& arr, int langIdx)

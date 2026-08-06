@@ -52,7 +52,13 @@ SettingsController::SettingsController(AppState* appState, QObject* parent)
 
 void SettingsController::setLanguageIndex(int index) {
     // 15 languages: 0=ZH_CN…7=EN…14=AR
+    // 5WHY: Missing same-value guard caused unnecessary QSettings writes
+    // and signal cascade (languageChanged → stateVersionChanged) when the
+    // user selects the already-active language in the Settings ComboBox.
+    // This caused disk I/O and full QML binding re-evaluation for a no-op.
+    // Compare with setThemeMode() which correctly guards against no-ops.
     if (index < 0 || index > 14) return;
+    if (m_languageIndex == index) return;
     m_languageIndex = index;
     emit languageChanged();
     saveSettings();

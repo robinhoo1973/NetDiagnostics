@@ -228,6 +228,7 @@ bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInPro
 
 // 0=EN,1=FR,2=DE,3=RU,4=IT,5=ZH_CN,6=ZH_TW,7=ES,8=PT
 void AppState::setLanguage(int index) {
+    if (m_settingsCtrl->languageIndex() == index) return;
     m_settingsCtrl->setLanguageIndex(index);
     bumpVersion();
 }

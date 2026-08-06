@@ -32,6 +32,20 @@ Item {
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }
 
+    // 5WHY: showDetailOverlay() assigns translated text to overlay fields
+    // imperatively (dtTitle.text = T.diagName(...)).  If the user has the
+    // detail overlay open when they switch languages, the overlay text
+    // freezes in the old language.  Watch T.langChanged and re-populate
+    // the overlay with fresh translations when the language changes.
+    Connections {
+        target: T
+        function onLangChanged() {
+            if (detailOverlay.visible && page.currentDetail) {
+                showDetailOverlay(page.currentDetail)
+            }
+        }
+    }
+
     // ── Run state ─────────────────────────────────────────────────────
     property bool _runActive: false
     property int _cachedGen: -1
