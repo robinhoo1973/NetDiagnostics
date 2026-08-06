@@ -40,16 +40,24 @@ import QtQml
 QtObject {
     id: root
 
+    // ── Language index constants — keep in sync with translations.json ──
+    // ordering: 0=ZH_CN,1=ZH_TW,2=JA,3=KO,4=HI,5=VI,6=TR,7=EN,8=FR,9=DE,
+    // 10=RU,11=IT,12=ES,13=PT,14=AR.
+    readonly property int kLangEnglish: 7
+    readonly property int kLangArabic: 14
+
     // Reactive language index — bound to AppState (NOTIFY languageChanged).
     // Every translation function reads root.lang so calling bindings
     // re-evaluate when this changes.
-    property int lang: appState ? appState.languageIndex : 7
+    property int lang: appState ? appState.languageIndex : root.kLangEnglish
 
     // ── Right-to-left (RTL) support ────────────────────────────────────
-    // Currently only Arabic (index 14) uses a right-to-left script.  Screens
-    // enable LayoutMirroring from this flag and use the alignment/elide
-    // helpers below so full-width labels render from the correct edge.
-    property bool isRtl: root.lang === 14
+    // Languages whose script reads right-to-left.  Only Arabic (14) today;
+    // adding Hebrew/Persian later is a one-line change here.  Screens enable
+    // LayoutMirroring from this flag and use the alignment/elide helpers
+    // below so full-width labels render from the correct edge.
+    readonly property var _rtlLanguages: [root.kLangArabic]
+    property bool isRtl: root._rtlLanguages.indexOf(root.lang) !== -1
 
     // "Start"/"End" text alignment & elide for the active script direction.
     // LTR: start=left, end=right, elide at right.
@@ -87,11 +95,12 @@ QtObject {
         root._loaded = true
     }
 
-    // Pick arr[lang], falling back to arr[7] (English), then "".
+    // Pick arr[lang], falling back to English, then "".
     function _pick(arr) {
         var a = arr || []
         if (a[root.lang] !== undefined && a[root.lang] !== "") return a[root.lang]
-        if (a[7] !== undefined && a[7] !== "") return a[7]
+        var en = a[root.kLangEnglish]
+        if (en !== undefined && en !== "") return en
         return ""
     }
 

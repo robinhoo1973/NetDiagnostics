@@ -163,12 +163,17 @@ Item {
             }
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
-            // Title — fill column width so long translations fit
+            // Title — fill column width so long translations fit.
+            // 5WHY: Hero heading — must match the centered icon above and the
+            // centered subtitle below.  Layout.alignment: Qt.AlignHCenter is a
+            // no-op on a Layout.fillWidth item, so set horizontalAlignment
+            // explicitly (this also overrides AppLabel's start-edge default).
+            // Centered is script-neutral: correct for both LTR and RTL.
             AppLabel {
                 Layout.fillWidth: true
-                Layout.alignment: Qt.AlignHCenter
                 text: T.tr("reportPreview")
                 font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
+                horizontalAlignment: Text.AlignHCenter
                 elide: T.textElideStart; maximumLineCount: 1
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }

@@ -99,7 +99,15 @@ Rectangle {
                 }
                 // 5WHY: Replaced ▼/▶ Unicode arrows with chevron SVG icons
                 // for consistent iconography across the app.
-                AppIcon { name: expanded ? "chevron-down" : "chevron-right"; size: 14; color: ThemeEngine.colors.textSecondary }
+                // 5WHY: In RTL (Arabic) the collapsed chevron must point LEFT
+                // along the reading direction.  AppIcon.mirror flips the glyph
+                // horizontally; chevron-down (expanded) is vertical and
+                // direction-neutral so it never needs mirroring.
+                AppIcon {
+                    name: expanded ? "chevron-down" : "chevron-right"
+                    mirror: !expanded && T.isRtl
+                    size: 14; color: ThemeEngine.colors.textSecondary
+                }
             }
 
             // Row 2 — result badges on their own line (phone portrait only)

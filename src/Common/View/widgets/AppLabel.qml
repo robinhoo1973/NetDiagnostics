@@ -11,7 +11,6 @@
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
-import "../theme"
 
 Label {
     horizontalAlignment: T.textAlignStart

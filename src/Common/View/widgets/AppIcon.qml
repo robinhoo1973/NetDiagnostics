@@ -18,6 +18,12 @@ Item {
     property string name: ""
     property color color: "white"
     property int size: 20
+    // 5WHY: Directional glyphs (chevron-right etc.) are baked into static SVGs
+    // and do NOT flip under LayoutMirroring — layout order mirrors but the
+    // glyph stays LTR.  Callers set mirror: T.isRtl on directional icons so
+    // the arrow points along the reading direction (e.g. collapse chevron →
+    // left in Arabic).  Horizontal flip via Scale — no shader, no new assets.
+    property bool mirror: false
 
     width: size; height: size
     implicitWidth: size; implicitHeight: size
@@ -58,5 +64,12 @@ Item {
         smooth: true
         // Alpha (Qt.alpha() callers) via opacity - not colorization.
         opacity: root.color.a
+        // 5WHY: horizontal flip for RTL directional glyphs (see root.mirror).
+        // origin.x = half width mirrors around the glyph center, preserving
+        // the Image's layout box (anchors.fill) exactly.
+        transform: Scale {
+            origin.x: parent.width / 2
+            xScale: root.mirror ? -1 : 1
+        }
     }
 }
