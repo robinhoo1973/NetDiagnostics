@@ -156,7 +156,7 @@
 
 ### 2.3 更新界面语言数量
 - [ ] 所有描述中「9 种界面语言」或「7 种界面语言」→ 统一改为「15 种界面语言」
-- [ ] `resources/doc/app-store-submission-checklist.txt` 中已自动更新
+- [ ] `resources/doc/app-store-submission-checklist.txt` 中需手动更新（仅英文部分已更新为 15）
 
 
 ## 三、沙盒测试（必须在物理设备上进行）

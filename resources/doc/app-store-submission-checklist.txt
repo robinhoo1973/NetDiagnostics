@@ -109,7 +109,7 @@ network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
 - 实时诊断引擎，结果即时显示
 - PDF和HTML报告导出与分享
 - 自定义端口扫描(1-65535)
-- 深色主题界面，9种语言
+- 深色主题界面，15种语言
 - 一次性购买解锁报告分享功能
 - 支持离线本地诊断
 - 不收集任何数据，网络数据仅保留在设备上
@@ -144,7 +144,7 @@ network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
 - 即時診斷引擎，結果即時顯示
 - PDF和HTML報告匯出與分享
 - 自訂埠掃描(1-65535)
-- 深色主題介面，9種語言
+- 深色主題介面，15種語言
 - 一次性購買解鎖報告分享功能
 - 支援離線本機診斷
 - 不收集任何資料，網路資料僅保留在裝置上
@@ -179,7 +179,7 @@ FONCTIONNALITES PRINCIPALES:
 - Moteur de diagnostic en temps reel avec affichage instantane des resultats
 - Rapports PDF et HTML avec exportation et partage
 - Analyse de ports personnalisable (ports courants ou 1-65535)
-- Interface sombre, 9 langues
+- Interface sombre, 15 langues
 - Achat unique Premium debloquant le partage des rapports
 - Fonctionne hors ligne pour les diagnostics locaux
 - Aucune collecte de donnees : vos donnees reseau restent sur votre appareil
@@ -214,7 +214,7 @@ HAUPTMERKMALE:
 - Echtzeit-Diagnose-Engine mit Live-Ergebnisanzeige
 - PDF- und HTML-Berichte mit Export und Freigabe
 - Anpassbarer Port-Scan (gangige Ports oder 1-65535)
-- Dunkles Design, 9 Sprachen
+- Dunkles Design, 15 Sprachen
 - Einmaliger Premium-Kauf fur Berichtsfreigabe
 - Funktioniert offline fur lokale Diagnosen
 - Keine Datenerfassung: Ihre Netzwerkdaten bleiben auf Ihrem Gerat
@@ -249,7 +249,7 @@ NetDiagnostics — это профессиональный инструмент 
 - Диагностический движок реального времени с отображением результатов
 - Отчеты в формате PDF и HTML с экспортом и возможностью поделиться
 - Настраиваемое сканирование портов (стандартные или 1-65535)
-- Темная тема оформления, 9 языков
+- Темная тема оформления, 15 языков
 - Разовая Premium-покупка для отправки отчетов
 - Работает офлайн для локальной диагностики
 - Без сбора данных: ваши сетевые данные остаются на устройстве
@@ -284,7 +284,7 @@ FUNZIONALITA PRINCIPALI:
 - Motore diagnostico in tempo reale con risultati in diretta
 - Rapporti PDF e HTML con esportazione e condivisione
 - Scansione porte personalizzabile (porte comuni o 1-65535)
-- Interfaccia a tema scuro, 9 lingue
+- Interfaccia a tema scuro, 15 lingue
 - Acquisto Premium una tantum per la condivisione dei rapporti
 - Funziona offline per la diagnostica locale
 - Nessuna raccolta dati: i tuoi dati di rete rimangono sul tuo dispositivo
@@ -319,7 +319,7 @@ CARACTERISTICAS PRINCIPALES:
 - Motor de diagnostico en tiempo real con resultados en vivo
 - Informes en PDF y HTML con exportacion y uso compartido
 - Escaneo de puertos personalizable (puertos comunes o 1-65535)
-- Interfaz con tema oscuro, 9 idiomas
+- Interfaz con tema oscuro, 15 idiomas
 - Compra Premium unica para compartir informes
 - Funciona sin conexion para diagnosticos locales
 - Sin recopilacion de datos: sus datos de red permanecen en su dispositivo
@@ -354,7 +354,7 @@ PRINCIPAIS RECURSOS:
 - Mecanismo de diagnostico em tempo real com resultados ao vivo
 - Relatorios em PDF e HTML com exportacao e compartilhamento
 - Verificacao de portas personalizavel (portas comuns ou 1-65535)
-- Interface com tema escuro, 9 idiomas
+- Interface com tema escuro, 15 idiomas
 - Compra Premium unica para compartilhamento de relatorios
 - Funciona offline para diagnosticos locais
 - Sem coleta de dados: seus dados de rede permanecem no seu dispositivo

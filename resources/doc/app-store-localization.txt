@@ -33,7 +33,7 @@ description = """NetDiagnostic is a professional cross-platform network diagnost
 ✓ Custom port scanning (common presets or 1–65535)
 ✓ Optimized for IT workflow with one-tap re-run
 ✓ Dark theme UI — easy on the eyes
-✓ 7 interface languages: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15 interface languages: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ Works offline for local diagnostics
 ✓ No data collection — your network data stays on your device
 
@@ -73,7 +73,7 @@ description = """网络诊断(NetDiagnostic)是一款专业的跨平台网络诊
 ✓ 自定义端口扫描（常用端口预设或1–65535）
 ✓ 针对IT工作流优化，支持一键复诊
 ✓ 深色主题界面 — 护眼舒适
-✓ 7种界面语言：English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15种界面语言：English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ 本地诊断支持离线使用
 ✓ 不收集任何数据 — 您的网络数据仅保留在设备上
 
@@ -113,7 +113,7 @@ description = """網路診斷(NetDiagnostic)是一款專業的跨平台網路診
 ✓ 自訂埠掃描（常用埠預設或1–65535）
 ✓ 針對IT工作流程最佳化，支援一鍵重新診斷
 ✓ 深色主題介面 — 護眼舒適
-✓ 7種介面語言：English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15種介面語言：English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ 本機診斷支援離線使用
 ✓ 不收集任何資料 — 您的網路資料僅保留在裝置上
 
@@ -153,7 +153,7 @@ description = """NetDiagnostic est un outil de diagnostic réseau professionnel 
 ✓ Scan de ports personnalisable (préréglages courants ou 1–65535)
 ✓ Optimisé pour le flux de travail IT avec relance en un clic
 ✓ Interface thème sombre — reposante pour les yeux
-✓ 7 langues d'interface : English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15 langues d'interface : English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ Fonctionne hors ligne pour les diagnostics locaux
 ✓ Aucune collecte de données — vos données réseau restent sur votre appareil
 
@@ -193,7 +193,7 @@ description = """NetDiagnostic ist ein professionelles plattformübergreifendes 
 ✓ Anpassbarer Port-Scan (gängige Voreinstellungen oder 1–65535)
 ✓ Optimiert für IT-Workflows mit One-Tap-Neustart
 ✓ Dunkles Design — augenschonend
-✓ 7 Oberflächensprachen: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15 Oberflächensprachen: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ Funktioniert offline für lokale Diagnosen
 ✓ Keine Datenerfassung — Ihre Netzwerkdaten bleiben auf Ihrem Gerät
 
@@ -233,7 +233,7 @@ description = """NetDiagnostic — это профессиональный кр�
 ✓ Настраиваемое сканирование портов (типовые наборы или 1–65535)
 ✓ Оптимизировано для IT-рабочих процессов с повторным запуском в одно касание
 ✓ Тёмная тема оформления — комфортно для глаз
-✓ 7 языков интерфейса: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15 языков интерфейса: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ Работает офлайн для локальной диагностики
 ✓ Без сбора данных — ваши сетевые данные остаются на устройстве
 
@@ -273,7 +273,7 @@ description = """NetDiagnostic è un toolkit professionale di diagnostica di ret
 ✓ Scansione porte personalizzabile (preimpostazioni comuni o 1–65535)
 ✓ Ottimizzato per flussi di lavoro IT con riesecuzione a tocco singolo
 ✓ Interfaccia a tema scuro — riposante per gli occhi
-✓ 7 lingue dell'interfaccia: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文
+✓ 15 lingue dell'interfaccia: English, Français, Deutsch, Русский, Italiano, 简体中文, 繁體中文, 日本語, 한국어, العربية, हिन्दी, Tiếng Việt, Türkçe, Español, Português
 ✓ Funziona offline per la diagnostica locale
 ✓ Nessuna raccolta dati — i dati di rete rimangono sul tuo dispositivo
 
