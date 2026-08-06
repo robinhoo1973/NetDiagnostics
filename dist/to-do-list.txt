@@ -13,7 +13,7 @@
 - [ ] 确认所有 175 个国家/地区的价格自动生成正确
 - [ ] 点击「存储」
 
-### 1.2 补齐缺失的 IAP 语言本地化（3 种语言）
+### 1.2 补齐缺失的 IAP 语言本地化（6 种语言）
 
 在 App Store Connect → IAP 产品页面 → 「App Store 本地化」部分，
 点击「添加本地化」，分别添加以下语言：
@@ -35,6 +35,24 @@
 |------|------|
 | Display Name | فتح الميزات المتقدمة |
 | Description | تقارير PDF وHTML. مشاركة عبر أي تطبيق. شراء لمرة واحدة. |
+
+#### हिन्दी (Hindi / HI)
+| 字段 | 内容 |
+|------|------|
+| Display Name | प्रीमियम अनलॉक |
+| Description | PDF और HTML रिपोर्ट। कहीं भी साझा करें। हमेशा के लिए। |
+
+#### Tiếng Việt (Vietnamese / VI)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Mở khóa Premium |
+| Description | Báo cáo PDF & HTML. Chia sẻ mọi nơi. Mua một lần, mãi. |
+
+#### Türkçe (Turkish / TR)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Premium Kilidini Aç |
+| Description | PDF & HTML raporları. Her yerde paylaşın. Tek seferlik. |
 
 ### 1.3 更新现有 9 种语言的 IAP 本地化（提升专业度）
 
@@ -185,7 +203,7 @@ Apple 明确要求提供屏幕录像，必须包含以下内容：
 - [x] 添加 IAP 授权（netdiagnostic.entitlements）
 - [x] 验证产品 ID `com.netdiagnostic.app.premium` 代码与 App Store Connect 一致
 - [x] 应用描述改写：从 OS 列表到统一桌面/移动/平板体验
-- [x] IAP 本地化补齐 3 种语言并提升 9 种现有语言专业度
+- [x] IAP 本地化补齐 6 种语言并提升 9 种现有语言专业度
 
 ### 4.2 提交顺序（重要！）
 - [ ] 首先提交 IAP 产品审核（App Store Connect → 获利 → App 内购买项目 → 添加至审核）
@@ -207,7 +225,7 @@ We have resolved both issues:
    capability has been enabled on the App ID and the corresponding
    entitlement has been added to the app binary. The IAP product
    (com.netdiagnostic.app.premium) has been fully configured with
-   localizations in 12 languages, sandbox-tested on a physical device,
+   localizations in 15 languages, sandbox-tested on a physical device,
    and submitted for review alongside this app version.
 
 A screen recording demonstrating the complete purchase flow has been
@@ -220,7 +238,7 @@ attached to the App Review Information.
 - [ ] 0 处 Android 引用残留（所有 App Store 描述中）
 - [ ] 0 处「跨平台」措辞（改为「统一体验」）
 - [ ] 15 种界面语言（描述中已更新数量）
-- [ ] 12 种 IAP 本地化（新增 JA/KO/AR）
+- [ ] 15 种 IAP 本地化（新增 JA/KO/AR/HI/VI/TR）
 - [ ] 所有 IAP 描述体现付费价值（专业报告、永久使用、一次性购买）
 - [ ] 沙盒购买测试通过
 - [ ] 恢复购买测试通过
