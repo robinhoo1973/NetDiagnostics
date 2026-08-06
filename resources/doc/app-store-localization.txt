@@ -10,7 +10,7 @@
 name = NetDiagnostic
 subtitle = Network Diagnostics & Reports
 keywords = network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
-promo_text = Professional toolkit for iPhone, iPad, Windows, macOS and Linux.
+promo_text = Unified network diagnostics across desktop, mobile, and tablet. Professional PDF & HTML reports.
 
 description = """NetDiagnostic is a professional cross-platform network diagnostic toolkit that helps IT professionals, developers, and power users quickly identify and resolve network issues.
 
@@ -50,7 +50,7 @@ NetDiagnostic is built for anyone who needs to understand what's happening on th
 name = 网络诊断
 subtitle = 专业网络诊断与报告工具
 keywords = 网络,诊断,Ping,路由追踪,DNS,端口扫描,WiFi,IP,工具包,检测
-promo_text = 实时网络诊断，支持导出PDF/HTML报告。跨平台 — iOS、Windows、macOS、Linux 全支持。
+promo_text = 桌面端、移动端、平板端统一界面。专业网络诊断，支持PDF/HTML报告导出。
 
 description = """网络诊断(NetDiagnostic)是一款专业的跨平台网络诊断工具，帮助IT运维人员、开发者和高级用户快速定位和解决网络问题。
 
@@ -90,7 +90,7 @@ description = """网络诊断(NetDiagnostic)是一款专业的跨平台网络诊
 name = 網路診斷
 subtitle = 專業網路診斷與報告工具
 keywords = 網路,診斷,Ping,路由追蹤,DNS,埠掃描,WiFi,IP,工具包,檢測
-promo_text = 即時網路診斷，支援匯出PDF/HTML報告。跨平台 — iOS、Windows、macOS、Linux 全支援。
+promo_text = 桌面端、行動端、平板端統一界面。專業網路診斷，支援PDF/HTML報告匯出。
 
 description = """網路診斷(NetDiagnostic)是一款專業的跨平台網路診斷工具，幫助IT維運人員、開發者和進階使用者快速定位並解決網路問題。
 
@@ -130,7 +130,7 @@ description = """網路診斷(NetDiagnostic)是一款專業的跨平台網路診
 name = NetDiagnostic
 subtitle = Diagnostic réseau & rapports
 keywords = réseau,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,outil
-promo_text = Diagnostic réseau en temps réel avec rapports PDF/HTML. Multiplateforme — iOS, Windows, macOS et Linux.
+promo_text = Diagnostic réseau unifié sur ordinateur, mobile et tablette. Rapports PDF/HTML professionnels.
 
 description = """NetDiagnostic est un outil de diagnostic réseau professionnel multiplateforme qui aide les professionnels IT, les développeurs et les utilisateurs avancés à identifier et résoudre rapidement les problèmes réseau.
 
@@ -170,7 +170,7 @@ NetDiagnostic est conçu pour tous ceux qui ont besoin de comprendre ce qui se p
 name = NetDiagnostic
 subtitle = Netzwerkdiagnose & Berichte
 keywords = Netzwerk,Diagnose,Ping,Traceroute,DNS,Port,Scan,WLAN,IP,Tool
-promo_text = Echtzeit-Netzwerkdiagnose mit PDF/HTML-Berichten. Plattformübergreifend — iOS, Windows, macOS und Linux.
+promo_text = Einheitliche Netzwerkdiagnose auf Desktop, Mobilgerät und Tablet. Professionelle PDF/HTML-Berichte.
 
 description = """NetDiagnostic ist ein professionelles plattformübergreifendes Netzwerkdiagnose-Toolkit, das IT-Experten, Entwicklern und Power-Usern hilft, Netzwerkprobleme schnell zu identifizieren und zu beheben.
 
@@ -210,7 +210,7 @@ NetDiagnostic wurde für alle entwickelt, die verstehen möchten, was in ihrem N
 name = NetDiagnostic
 subtitle = Диагностика сети и отчёты
 keywords = сеть,диагностика,ping,трассировка,DNS,порт,сканирование,WiFi,IP,утилита
-promo_text = Диагностика сети в реальном времени с отчётами PDF/HTML. Кроссплатформенный — iOS, Windows, macOS и Linux.
+promo_text = Единая диагностика сети на компьютере, смартфоне и планшете. Профессиональные отчёты PDF/HTML.
 
 description = """NetDiagnostic — это профессиональный кроссплатформенный набор инструментов для сетевой диагностики, помогающий IT-специалистам, разработчикам и продвинутым пользователям быстро выявлять и устранять сетевые проблемы.
 
@@ -250,7 +250,7 @@ NetDiagnostic создан для всех, кому необходимо пон
 name = NetDiagnostic
 subtitle = Diagnostica di rete e report
 keywords = rete,diagnostica,ping,traceroute,DNS,porta,scansione,wifi,IP,strumento
-promo_text = Diagnostica di rete in tempo reale con report PDF/HTML. Multipiattaforma — iOS, Windows, macOS e Linux.
+promo_text = Diagnostica di rete unificata su desktop, mobile e tablet. Report professionali PDF/HTML.
 
 description = """NetDiagnostic è un toolkit professionale di diagnostica di rete multipiattaforma che aiuta professionisti IT, sviluppatori e utenti esperti a identificare e risolvere rapidamente i problemi di rete.
 

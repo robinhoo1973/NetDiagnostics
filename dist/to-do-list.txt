@@ -1,0 +1,229 @@
+# ============================================================================
+# Apple App Store 重新提交 — 手动操作任务清单
+# 最后更新：2026-08-06
+# ============================================================================
+
+## 一、App Store Connect — App 内购买项目（IAP）修复
+
+### 1.1 修复价格表
+- [ ] 登录 App Store Connect → 我的 App → NetDiagnostics → 获利 → App 内购买项目
+- [ ] 点击产品 ID `com.netdiagnostic.app.premium`
+- [ ] 进入「价格与销售范围」→ 当前显示 "An error has occurred"
+- [ ] 选择一个价格档位（建议：非消耗型项目定价 $1.99-$3.99）
+- [ ] 确认所有 175 个国家/地区的价格自动生成正确
+- [ ] 点击「存储」
+
+### 1.2 补齐缺失的 IAP 语言本地化（3 种语言）
+
+在 App Store Connect → IAP 产品页面 → 「App Store 本地化」部分，
+点击「添加本地化」，分别添加以下语言：
+
+#### 日本語 (Japanese / JA)
+| 字段 | 内容 |
+|------|------|
+| Display Name | プレミアム版 |
+| Description | プロフェッショナルなPDF/HTMLレポートを作成。メール、AirDrop、あらゆるアプリで共有可能。一度きりの購入で永久にご利用いただけます。 |
+
+#### 한국어 (Korean / KO)
+| 字段 | 内容 |
+|------|------|
+| Display Name | 프리미엄 잠금 해제 |
+| Description | 전문적인 PDF 및 HTML 보고서를 내보내고 이메일, AirDrop 또는 모든 앱을 통해 공유하세요. 일회성 구매로 영구적으로 이용할 수 있습니다. |
+
+#### العربية (Arabic / AR)
+| 字段 | 内容 |
+|------|------|
+| Display Name | فتح الميزات المتقدمة |
+| Description | تصدير تقارير PDF و HTML احترافية. مشاركة عبر البريد الإلكتروني أو AirDrop أو أي تطبيق. شراء لمرة واحدة، ملك لك إلى الأبد. |
+
+### 1.3 更新现有 9 种语言的 IAP 本地化（提升专业度）
+
+以下内容替换原有较平淡的文字，体现专业价值，让用户愿意付费：
+
+#### English (U.S.)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Premium Unlock |
+| Description | Export professional PDF & HTML reports. Share via email, AirDrop, or any app. One-time purchase — yours forever. |
+
+#### 简体中文 (Simplified Chinese)
+| 字段 | 内容 |
+|------|------|
+| Display Name | 高级版解锁 |
+| Description | 导出专业PDF和HTML报告，通过邮件、隔空投送或任意应用分享。一次购买，永久使用。 |
+
+#### 繁體中文 (Traditional Chinese)
+| 字段 | 内容 |
+|------|------|
+| Display Name | 進階版解鎖 |
+| Description | 匯出專業PDF和HTML報告，透過郵件、AirDrop或任何應用程式分享。一次購買，永久使用。 |
+
+#### Français (French)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Déblocage Premium |
+| Description | Exportez des rapports PDF et HTML professionnels. Partagez par email, AirDrop ou toute autre application. Achat unique, accès permanent. |
+
+#### Deutsch (German)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Premium-Freischaltung |
+| Description | Professionelle PDF- und HTML-Berichte exportieren. Per E-Mail, AirDrop oder beliebige App teilen. Einmaliger Kauf, dauerhafte Nutzung. |
+
+#### Русский (Russian)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Премиум-доступ |
+| Description | Экспорт профессиональных отчётов в PDF и HTML. Отправка по email, через AirDrop или любое приложение. Разовая покупка — доступ навсегда. |
+
+#### Italiano (Italian)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Sblocco Premium |
+| Description | Esporta report professionali in PDF e HTML. Condividi via email, AirDrop o qualsiasi app. Acquisto una tantum, tuo per sempre. |
+
+#### Español (Spanish)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Desbloqueo Premium |
+| Description | Exporta informes profesionales en PDF y HTML. Comparte por email, AirDrop o cualquier app. Compra única, acceso permanente. |
+
+#### Português (Portuguese)
+| 字段 | 内容 |
+|------|------|
+| Display Name | Desbloqueio Premium |
+| Description | Exporte relatórios profissionais em PDF e HTML. Compartilhe por email, AirDrop ou qualquer app. Compra única, acesso permanente. |
+
+### 1.4 上传 IAP 审核截图
+- [ ] 在 Xcode 模拟器或物理 iOS 设备上运行应用
+- [ ] 进入「设置」→ Premium 区域，截取购买界面的屏幕截图
+- [ ] 上传到 IAP 产品页面的「审核信息」→ Screenshot 字段
+
+### 1.5 填写 IAP 审核备注
+- [ ] 在「审核信息」→ Review Notes 中填写（英文）：
+  ```
+  Premium is a one-time non-consumable IAP that unlocks report sharing.
+  Purchase flow: Settings tab → scroll to Premium section → tap "Unlock
+  Premium" → native StoreKit payment sheet appears → user confirms with
+  Face ID / Touch ID / password → premium unlocked immediately.
+  Restore flow: Settings → Premium → tap "Restore Purchases" →
+  StoreKit restore dialog → previous purchase restored.
+  ```
+
+### 1.6 提交 IAP 产品审核
+- [ ] 确认以上所有步骤完成
+- [ ] 点击右上角「存储」
+- [ ] 点击「添加至审核」按钮
+- [ ] 状态应从 "Developer Rejected" 变为 "Waiting for Review"
+
+
+## 二、App Store Connect — 应用元数据更新
+
+### 2.1 更新应用描述（移除 Android 引用，强调统一体验）
+
+已修改的文本存储在 `resources/doc/app-store-submission-checklist.txt` 中，
+逐语言复制到 App Store Connect：
+
+- [ ] App Store Connect → 我的 App → NetDiagnostics → App 信息 → 描述
+- [ ] 逐语言复制更新后的描述文本（共 9 种语言）
+- [ ] 重点修改：将 "支持 iOS, Windows, macOS, Linux" 改为
+      "在桌面端、移动端和平板端提供统一操作体验"
+
+### 2.2 更新宣传文本（Promo Text）
+
+已修改的文本存储在 `resources/doc/app-store-localization.txt` 中：
+
+- [ ] App Store Connect → 每个语言本地化 → Promo Text 字段
+- [ ] 替换为新的宣传文本（共 7 种语言）
+
+### 2.3 更新界面语言数量
+- [ ] 所有描述中「9 种界面语言」或「7 种界面语言」→ 统一改为「15 种界面语言」
+- [ ] `resources/doc/app-store-submission-checklist.txt` 中已自动更新
+
+
+## 三、沙盒测试（必须在物理设备上进行）
+
+### 3.1 创建沙盒测试员
+- [ ] App Store Connect → 用户和访问 → 沙盒技术测试员
+- [ ] 点击「+」创建新的测试员
+- [ ] 使用专用测试邮箱（如 `sandbox-netdiagnostic@example.com`），不要使用真实 Apple ID
+- [ ] 选择所在地区
+
+### 3.2 在物理设备上测试购买流程
+- [ ] 在 iPhone 或 iPad 上：
+      设置 → App Store → 退出当前 Apple ID
+- [ ] 使用沙盒测试员账号登录（不要登录 iCloud，只登录 App Store）
+- [ ] 通过 TestFlight 或 Xcode 安装最新构建
+- [ ] 打开应用 → 设置 → Premium 区域
+- [ ] 点击「Unlock Premium」
+- [ ] 确认弹出 StoreKit 沙盒支付界面（标有 "Sandbox" 字样）
+- [ ] 输入沙盒测试密码，确认购买
+- [ ] 验证购买成功：Premium 状态变为已解锁
+- [ ] 测试恢复购买流程：退出登录 → 新沙盒账号登录 → 点击「恢复购买」
+
+### 3.3 录制购买演示视频
+
+Apple 明确要求提供屏幕录像，必须包含以下内容：
+
+- [ ] 从主屏幕（Home Screen）开始录制
+- [ ] 点击应用图标启动 NetDiagnostics
+- [ ] 演示应用的核心功能流程（浏览五大诊断组）
+- [ ] 进入设置 → Premium → 点击「Unlock Premium」
+- [ ] 完整的沙盒购买流程（StoreKit 支付界面 → 确认 → 成功）
+- [ ] 演示恢复购买流程
+- [ ] 停止录制
+
+- [ ] 将视频文件附在 App Store Connect → App 审核信息 → 备注 中
+- [ ] 视频建议在 .mp4 格式，清晰展示每一步操作
+
+
+## 四、重新提交
+
+### 4.1 确认代码侧已完成
+- [x] 移除 App Store 元数据中的 Android 引用（commit d0461d81）
+- [x] 启用 IN_APP_PURCHASE 能力（iOS CI 工作流）
+- [x] 添加 IAP 授权（netdiagnostic.entitlements）
+- [x] 验证产品 ID `com.netdiagnostic.app.premium` 代码与 App Store Connect 一致
+- [x] 应用描述改写：从 OS 列表到统一桌面/移动/平板体验
+- [x] IAP 本地化补齐 3 种语言并提升 9 种现有语言专业度
+
+### 4.2 提交顺序（重要！）
+- [ ] 首先提交 IAP 产品审核（App Store Connect → 获利 → App 内购买项目 → 添加至审核）
+- [ ] 确认 IAP 状态变为 "Waiting for Review"
+- [ ] 然后提交应用版本审核
+- [ ] 在提交时选择关联 IAP 产品 `com.netdiagnostic.app.premium`
+
+### 4.3 回复 App Review
+在 App Store Connect 中回复审核消息：
+```
+We have resolved both issues:
+
+1. Guideline 2.3.10 (Android references): All app descriptions have been
+   rewritten to focus on the unified desktop/mobile/tablet experience
+   provided by NetDiagnostics. All references to third-party platforms
+   have been removed.
+
+2. Guideline 2.1(b) (IAP not found in binary): The IN_APP_PURCHASE
+   capability has been enabled on the App ID and the corresponding
+   entitlement has been added to the app binary. The IAP product
+   (com.netdiagnostic.app.premium) has been fully configured with
+   localizations in 12 languages, sandbox-tested on a physical device,
+   and submitted for review alongside this app version.
+
+A screen recording demonstrating the complete purchase flow has been
+attached to the App Review Information.
+```
+
+
+## 五、验证清单
+
+- [ ] 0 处 Android 引用残留（所有 App Store 描述中）
+- [ ] 0 处「跨平台」措辞（改为「统一体验」）
+- [ ] 15 种界面语言（描述中已更新数量）
+- [ ] 12 种 IAP 本地化（新增 JA/KO/AR）
+- [ ] 所有 IAP 描述体现付费价值（专业报告、永久使用、一次性购买）
+- [ ] 沙盒购买测试通过
+- [ ] 恢复购买测试通过
+- [ ] 演示视频已录制并上传
+- [ ] IAP 产品已提交审核
+- [ ] 应用已重新提交

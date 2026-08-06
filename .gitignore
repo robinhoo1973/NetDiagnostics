@@ -2,6 +2,9 @@
 build/
 build-*/
 dist/
+!dist/to-do-list.txt
+!dist/apple-submission-reply.txt
+!dist/in-app-purchase-html2txt.txt
 *.log
 
 # IDE / tools

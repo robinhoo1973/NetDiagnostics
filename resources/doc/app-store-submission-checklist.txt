@@ -56,7 +56,7 @@ https://robinhoo1973.github.io/NetDiagnostics/privacy-policy.html
  English (U.S.) — Description (纯文本, 不含特殊字符)
 ========================================================================
 
-NetDiagnostics is a professional network diagnostic toolkit for iPhone and iPad. It runs on iOS, Windows, macOS, and Linux.
+NetDiagnostics is a professional network diagnostic toolkit with a unified experience across desktop, mobile, and tablet. Whether you're troubleshooting from your workstation or diagnosing on the go, you get the same powerful toolset — no compromises.
 
 FIVE DIAGNOSTIC GROUPS (38 tests):
 
@@ -74,7 +74,7 @@ KEY FEATURES:
 - Real-time diagnostic engine with live result streaming
 - PDF and HTML reports with export and sharing
 - Custom port scanning (common ports or 1-65535)
-- Dark theme UI, 9 interface languages
+- Dark theme UI, 15 interface languages
 - Premium one-time purchase unlocks report sharing
 - Works offline for local diagnostics
 - No data collection: your network data stays on your device
@@ -91,7 +91,7 @@ network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
  简体中文 — Description (纯文本)
 ========================================================================
 
-网络诊断(NetDiagnostics)是一款专业的跨平台网络诊断工具，适用于IT运维人员、开发者和高级用户。支持iOS、Windows、macOS和Linux。
+网络诊断(NetDiagnostics)是一款专业的网络诊断工具，在桌面端、移动端和平板端提供统一的操作体验。无论您在工作站前排查故障，还是在外出时快速诊断，都能使用同样强大的功能——无需任何妥协。
 
 五大诊断组(共38项测试):
 
@@ -126,7 +126,7 @@ network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
  繁體中文 — Description (纯文本)
 ========================================================================
 
-網路診斷(NetDiagnostics)是一款專業的跨平台網路診斷工具，適用於IT維運人員、開發者和進階使用者。支援iOS、Windows、macOS和Linux。
+網路診斷(NetDiagnostics)是一款專業的網路診斷工具，在桌面端、行動端和平板端提供統一的操作體驗。無論您在工作站前排查故障，還是外出時快速診斷，都能使用同樣強大的功能——無需任何妥協。
 
 五大診斷組(共38項測試):
 
@@ -161,7 +161,7 @@ network,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,toolkit
  Francais — Description (纯文本)
 ========================================================================
 
-NetDiagnostics est un outil de diagnostic reseau professionnel multiplateforme pour les professionnels IT, les developpeurs et les utilisateurs avances. Disponible sur iOS, Windows, macOS et Linux.
+NetDiagnostics est un outil de diagnostic reseau professionnel offrant une experience unifiee sur ordinateur, mobile et tablette. Que vous depanniez depuis votre poste de travail ou en deplacement, vous beneficiez du meme outil puissant — sans compromis.
 
 CINQ GROUPES DE DIAGNOSTIC (38 tests):
 
@@ -196,7 +196,7 @@ reseau,diagnostic,ping,traceroute,DNS,port,scan,wifi,IP,outil
  Deutsch — Description (纯文本)
 ========================================================================
 
-NetDiagnostics ist ein professionelles plattformubergreifendes Netzwerkdiagnose-Toolkit fur IT-Experten, Entwickler und Power-User. Es lauft auf iOS, Windows, macOS und Linux.
+NetDiagnostics ist ein professionelles Netzwerkdiagnose-Toolkit mit einer einheitlichen Erfahrung auf Desktop, Mobilgerat und Tablet. Ob Sie an Ihrem Arbeitsplatz Fehler beheben oder unterwegs diagnostizieren — Sie erhalten dieselbe leistungsstarke Werkzeugausstattung, ohne Kompromisse.
 
 FUNF DIAGNOSEGRUPPEN (38 Tests):
 
@@ -231,7 +231,7 @@ Netzwerk,Diagnose,Ping,Traceroute,DNS,Port,Scan,WLAN,IP,Tool
  Русский — Description (纯文本)
 ========================================================================
 
-NetDiagnostics — это профессиональный кроссплатформенный инструмент сетевой диагностики для IT-специалистов, разработчиков и опытных пользователей. Работает на iOS, Windows, macOS и Linux.
+NetDiagnostics — это профессиональный инструмент сетевой диагностики с единым интерфейсом на компьютере, смартфоне и планшете. Работаете ли вы за рабочим столом или диагностируете сеть на ходу — вы получаете одинаково мощный набор инструментов, без компромиссов.
 
 ПЯТЬ ДИАГНОСТИЧЕСКИХ ГРУПП (38 тестов):
 
@@ -266,7 +266,7 @@ NetDiagnostics — это профессиональный кроссплатф�
  Italiano — Description (纯文本)
 ========================================================================
 
-NetDiagnostics e un toolkit professionale di diagnostica di rete multipiattaforma per professionisti IT, sviluppatori e utenti esperti. Funziona su iOS, Windows, macOS e Linux.
+NetDiagnostics e un toolkit professionale di diagnostica di rete con un'esperienza unificata su desktop, mobile e tablet. Che tu stia risolvendo problemi dalla tua postazione di lavoro o diagnosticando in mobilita, hai a disposizione lo stesso potente set di strumenti — senza compromessi.
 
 CINQUE GRUPPI DIAGNOSTICI (38 test):
 
@@ -301,7 +301,7 @@ rete,diagnostica,ping,traceroute,DNS,porta,scansione,wifi,IP,strumento
  Espanol — Description (纯文本)
 ========================================================================
 
-NetDiagnostics es un conjunto de herramientas de diagnostico de red profesional multiplataforma para profesionales de TI, desarrolladores y usuarios avanzados. Funciona en iOS, Windows, macOS y Linux.
+NetDiagnostics es un conjunto de herramientas de diagnostico de red profesional con una experiencia unificada en escritorio, movil y tablet. Ya sea que este solucionando problemas desde su estacion de trabajo o diagnosticando sobre la marcha, obtiene el mismo potente conjunto de herramientas — sin concesiones.
 
 CINCO GRUPOS DE DIAGNOSTICO (38 pruebas):
 
@@ -336,7 +336,7 @@ red,diagnostico,ping,traceroute,DNS,puerto,escaneo,wifi,IP,herramienta
  Portugues — Description (纯文本)
 ========================================================================
 
-NetDiagnostics e um kit de ferramentas de diagnostico de rede profissional multiplataforma para profissionais de TI, desenvolvedores e usuarios avancados. Funciona em iOS, Windows, macOS e Linux.
+NetDiagnostics e um kit de ferramentas de diagnostico de rede profissional com uma experiencia unificada em desktop, dispositivos moveis e tablet. Quer esteja a resolver problemas na sua estacao de trabalho ou a diagnosticar em viagem, tem o mesmo conjunto poderoso de ferramentas — sem compromissos.
 
 CINCO GRUPOS DE DIAGNOSTICO (38 testes):
 
