@@ -6,12 +6,14 @@
 #endif
 #include <QQuickWindow>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQmlContext>
 #include <QVariantMap>
 #include <QIcon>
 #include <QTimer>
 #include <QStandardPaths>
 #include <QDir>
+#include <QFile>
 #include <QLockFile>
 #include "Common/Utils/Translator.h"
 #include <csignal>
@@ -173,7 +175,42 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
-    engine.rootContext()->setContextProperty("T", appState.translator());
+    // ── Reactive translation proxy ────────────────────────────────────
+    // 5WHY: exposing the raw C++ Translator as "T" made QML bindings call
+    // T.tr()/T.diagName()/... as plain C++ methods — the binding engine
+    // never captured a dependency on the language, so switching language
+    // left the UI frozen in the old language.  (QQmlProperty::read() does
+    // NOT register binding dependencies in Qt 6 — see TranslationsProxy.qml
+    // for the full analysis and the standalone verification.)
+    // Fix: expose a self-contained QML proxy as "T".  Its functions read
+    // root.lang (a QML binding on appState.languageIndex) so calling
+    // bindings re-evaluate on language change.  The C++ Translator stays
+    // for AppState integration (language sync, kMaxLanguages) but is no
+    // longer the QML-facing translation surface.
+    // The proxy parses the translations JSON synchronously at creation, so
+    // the raw JSON string is provided here (sync XHR on qrc:/ is blocked in
+    // Qt 6.8).
+    {
+        QFile tf(QStringLiteral(":/translations.json"));
+        QString translationsJson;
+        if (tf.open(QFile::ReadOnly))
+            translationsJson = QString::fromUtf8(tf.readAll());
+        engine.rootContext()->setContextProperty("TJson", translationsJson);
+
+        QQmlComponent proxyComp(&engine, QUrl(QStringLiteral("qrc:/qml/theme/TranslationsProxy.qml")));
+        QObject* translatorProxy = proxyComp.create();
+        if (translatorProxy) {
+            // Keep the proxy alive for the whole app lifetime (C++ ownership
+            // — context properties do not keep QML objects referenced).
+            QQmlEngine::setObjectOwnership(translatorProxy, QQmlEngine::CppOwnership);
+            engine.rootContext()->setContextProperty("T", translatorProxy);
+        } else {
+            // Fallback: bindings won't be reactive, but the app still works.
+            qWarning().noquote() << "TranslationsProxy creation failed:"
+                                 << proxyComp.errorString();
+            engine.rootContext()->setContextProperty("T", appState.translator());
+        }
+    }
     // QtWebView availability flag — QML uses this to avoid import crash
     // on platforms without the WebView module (e.g., static MSYS2 builds).
 #if defined(HAS_QTWEBVIEW)

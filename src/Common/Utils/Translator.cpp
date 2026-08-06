@@ -9,7 +9,6 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QDebug>
-#include <QQmlProperty>
 
 Translator::Translator(QObject* parent)
     : QObject(parent)
@@ -145,33 +144,19 @@ bool Translator::loadJson(const QString& path)
 
 QString Translator::select(const QJsonArray& arr) const
 {
-    // 5WHY: Reading m_lang directly bypasses the QML binding engine's
-    // property-dependency interceptor.  Bindings containing T.tr(),
-    // T.diagName(), T.groupName(), etc. were never invalidated on
-    // language change — the UI showed stale translations until the
-    // component was re-created or the app restarted.
+    // ── Language reactivity lives in TranslationsProxy.qml ─────────────
+    // 5WHY (why NOT here): making QML bindings re-evaluate on language
+    // change cannot be done from a plain C++ method.  QQmlProperty::read()
+    // does NOT register binding dependencies in Qt 6 — qqmlproperty.cpp
+    // contains zero references to QQmlPropertyCapture, so the previous
+    // "fix" here was a plain value read with no effect.
     //
-    // Why 1 (original): QObject::property("lang") appeared to work in
-    // isolated tests because some Qt versions' QQmlVMEMetaObject::metaCall()
-    // intercepts QMetaProperty::read() and registers with QQmlPropertyCapture.
-    // However, this is an internal Qt implementation detail — not guaranteed
-    // across all Qt 6.x versions or platforms.
-    //
-    // Why 2: Evidence from the codebase itself: AppContent.qml line 116
-    // has an explicit "T.lang // force re-evaluation on language change"
-    // dummy read, and ConfigScreen.qml uses configPollVersion as a polled
-    // anchor. Both workarounds exist precisely because property("lang")
-    // did NOT reliably trigger binding re-evaluation at runtime.
-    //
-    // Fix: QQmlProperty::read() explicitly checks QQmlPropertyCapture::capture
-    // and registers the lang property as a dependency of the enclosing QML
-    // binding expression.  This is the documented, supported mechanism for
-    // making C++ property reads visible to the QML binding engine.
-    // When no capture is active (signal handler, Component.onCompleted, etc.),
-    // QQmlProperty::read() simply reads the value without side effects.
-    QVariant v = QQmlProperty::read(this, "lang");
-    int idx = v.isValid() ? v.toInt() : m_lang;
-    return selectAt(arr, idx);
+    // Fix: main.cpp exposes a QML proxy ("T") instead of this object.  The
+    // proxy's `lang` is a QML binding on appState.languageIndex, and each
+    // proxy function reads root.lang so the calling QML binding captures it
+    // and re-evaluates when the language changes.  This method is now a
+    // pure data lookup using m_lang (kept in sync via setLanguage()).
+    return selectAt(arr, m_lang);
 }
 
 QString Translator::selectAt(const QJsonArray& arr, int langIdx)
@@ -233,14 +218,8 @@ QString Translator::groupPrefix(int idx) const
 
 QString Translator::trMsg(const QString& en) const
 {
-    // 5WHY: When the fallthrough at line 270 returns untranslated English,
-    // select() was never called → QQmlPropertyCapture::capture was never
-    // registered → QML bindings using T.trMsg() don't re-evaluate on
-    // language change.  A no-op read of "lang" fixes this: when a binding
-    // is active, QQmlProperty::read registers the dependency; when called
-    // from C++, it's a harmless property read.
-    (void)QQmlProperty::read(this, "lang");
-
+    // Language reactivity is handled by TranslationsProxy.qml (see select()).
+    // This is a pure data lookup.
     if (en.isEmpty())
         return en;
 
