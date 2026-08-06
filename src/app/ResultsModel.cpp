@@ -237,6 +237,12 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     if (resultIt == m_results.constEnd()) return m;
 
     const auto& r = resultIt.value();
+    // 5WHY: diagId was missing from the return map. page.currentDetail
+    // in DiagnosticScreen.qml is set to this map, and the language-change
+    // handler calls showDetailOverlay(page.currentDetail) which reads
+    // detail.diagId → T.diagName(detail.diagId).  Without diagId in the
+    // map, the read returns undefined → T.diagName(0) → wrong test name.
+    m["diagId"] = diagIdInt;
     m["displayName"] = r.displayName;
     m["status"] = static_cast<int>(r.status);
     m["summary"] = r.summary;
