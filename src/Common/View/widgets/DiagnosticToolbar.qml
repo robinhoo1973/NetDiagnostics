@@ -87,6 +87,9 @@ Rectangle {
                         text: { var h=appState.targetHost; var p=appState.targetPath; return (!h&&!p)?"": h+p }
                         enabled: appState.runStatus !== 1
                         verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                        // 5WHY: Placeholder is translated — align to script start
+                        // edge in RTL so Arabic placeholders render correctly.
+                        horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                         onTextChanged: {
                             // 5WHY: Host/path splitting was duplicated here and in
                             // TargetInputPanel.qml.  Folded into parseUrlIntoFields
@@ -244,6 +247,7 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPort > 0 ? ""+appState.targetPort : ""
                     enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: { var v = parseInt(text); appState.targetPort = isNaN(v) ? -1 : v }
                 }
             }
@@ -261,6 +265,7 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: appState.targetUsername = text
                 }
             }
@@ -278,6 +283,7 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: appState.targetPassword = text
                 }
             }

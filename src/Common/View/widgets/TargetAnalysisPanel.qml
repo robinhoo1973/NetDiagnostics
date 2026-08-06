@@ -83,7 +83,10 @@ Rectangle {
         // IP Classification
         Label {
             visible: isIp
-            leftPadding: 70
+            // 5WHY: hardcoded leftPadding was LTR-only — indent the value under
+            // the "Host" label on the start edge for both scripts.
+            leftPadding: T.isRtl ? 0 : 70
+            rightPadding: T.isRtl ? 70 : 0
             text: classifyIp(host)
             font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary
         }

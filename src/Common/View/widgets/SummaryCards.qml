@@ -11,7 +11,7 @@ ColumnLayout {
 
     // Header: "Summary" + "Total: N"
     RowLayout {
-        Label { Layout.fillWidth: true; text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+        AppLabel { Layout.fillWidth: true; text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
         Label { text: T.tr("totalDiagsLabel") + ": " + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }
@@ -76,7 +76,9 @@ ColumnLayout {
             Label {
                 text: ThemeEngine.pad2(count)
                 font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: accent
-                horizontalAlignment: Text.AlignRight
+                // 5WHY: was hard-coded AlignRight; the row mirrors under RTL so
+                // the count must hug the "end" edge instead (left in RTL).
+                horizontalAlignment: T.textAlignEnd
             }
         }
     }

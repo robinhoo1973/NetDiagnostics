@@ -190,7 +190,7 @@ Item {
                     // Title + subtitle
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 2
-                        Label {
+                        AppLabel {
                             Layout.fillWidth: true
                             // 5WHY: configPollVersion forces re-evaluation
                             // after language switch. T.diagName() returns
@@ -198,14 +198,14 @@ Item {
                             // or the translated name for other languages.
                             text: { let _ = configPollVersion; return getDisplayName(modelData) }
                             font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium; color: ThemeEngine.colors.textPrimary
-                            elide: Text.ElideRight
+                            elide: T.textElideStart
                         }
-                        Label {
+                        AppLabel {
                             Layout.fillWidth: true
                             text: { let _ = configPollVersion; return getDiagDescription(modelData) }
                             font.family: ThemeEngine.monoFont; font.pixelSize: 11
                             color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6)
-                            elide: Text.ElideRight; maximumLineCount: 2
+                            elide: T.textElideStart; maximumLineCount: 2
                             visible: text !== ""
                         }
                     }

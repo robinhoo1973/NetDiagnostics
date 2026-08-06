@@ -36,6 +36,7 @@
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
         <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
+        <file alias="qml/widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
         <file alias="qml/widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
         <file alias="qml/widgets/ShadowIcon.qml">../src/Common/View/widgets/ShadowIcon.qml</file>
         <file alias="qml/widgets/ShadowSeparator.qml">../src/Common/View/widgets/ShadowSeparator.qml</file>

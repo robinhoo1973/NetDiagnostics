@@ -76,12 +76,12 @@ Rectangle {
                 spacing: 8
                 Rectangle { width:3; height:24; radius:2; color:isRunning?ThemeEngine.colors.cyan:ThemeEngine.colors.infoBlue }
                 ColumnLayout { spacing:1
-                    Label { Layout.fillWidth:true; text:T.groupPrefix(groupIndex)+": "+T.groupName(groupIndex); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:Text.ElideRight }
-                    Label {
+                    AppLabel { Layout.fillWidth:true; text:T.groupPrefix(groupIndex)+": "+T.groupName(groupIndex); font.family:ThemeEngine.monoFont; font.pixelSize:13; font.weight:Font.DemiBold; color:ThemeEngine.colors.textPrimary; elide:T.textElideStart }
+                    AppLabel {
                         visible: isRunning
                         text: T.tr("runningPrefix") + (appState.currentDiagLabel||"") + "..."
                         font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true
-                        color: ThemeEngine.colors.cyan; elide: Text.ElideRight
+                        color: ThemeEngine.colors.cyan; elide: T.textElideStart
                         Accessible.name: T.tr("runningPrefix") + (appState.currentDiagLabel || "")
                         ToolTip.visible: headerTapArea.containsMouse && isRunning
                         ToolTip.text: appState.currentDiagLabel || ""

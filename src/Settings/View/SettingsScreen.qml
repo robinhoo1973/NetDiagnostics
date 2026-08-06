@@ -199,7 +199,13 @@ Item {
                         contentItem: Label {
                             text: langCombo.displayText
                             font: langCombo.font; color: ThemeEngine.colors.textPrimary
-                            verticalAlignment: Text.AlignVCenter; leftPadding: 12
+                            verticalAlignment: Text.AlignVCenter
+                            // 5WHY: ComboBox text was hardcoded left-aligned with
+                            // leftPadding — in RTL (Arabic) the selected language
+                            // must hug the start edge with padding on the right.
+                            horizontalAlignment: T.textAlignStart
+                            leftPadding: T.isRtl ? 0 : 12
+                            rightPadding: T.isRtl ? 12 : 0
                         }
                         indicator: Rectangle {
                             width: 24; height: 24; radius: 4; color: "transparent"
@@ -215,7 +221,12 @@ Item {
                             contentItem: Label {
                                 text: modelData; font.family: ThemeEngine.monoFont; font.pixelSize: 13
                                 color: highlighted ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary
-                                verticalAlignment: Text.AlignVCenter; leftPadding: 12
+                                verticalAlignment: Text.AlignVCenter
+                                // 5WHY: Same RTL fix as the combo contentItem —
+                                // dropdown items align to the start edge.
+                                horizontalAlignment: T.textAlignStart
+                                leftPadding: T.isRtl ? 0 : 12
+                                rightPadding: T.isRtl ? 12 : 0
                             }
                             background: Rectangle { color: highlighted ? Qt.alpha(ThemeEngine.colors.cyan, 0.1) : "transparent" }
                         }
@@ -252,7 +263,7 @@ Item {
                     ColumnLayout {
                         id: restoreBtnCol
                         anchors { fill: parent; margins: 16 } spacing: 0
-                        Label {
+                        AppLabel {
                             Layout.fillWidth: true
                             text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumRequiredMsg")
                             font.family: ThemeEngine.monoFont
@@ -280,7 +291,7 @@ Item {
                             }
                         }
                         // Restore result toast
-                        Label {
+                        AppLabel {
                             id: restoreToast
                             Layout.fillWidth: true
                             visible: restoreToastTimer.running
@@ -330,7 +341,7 @@ Item {
                         Item { width: 14 }
                         ColumnLayout { spacing: 2; Layout.fillWidth: true
                             Label { text: T.tr("appName") + (appState.isPremium ? "  " + T.tr("premiumBadge") : ""); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
-                            Label {
+                            AppLabel {
                                 Layout.fillWidth: true
                                 text: T.tr("versionLabel") + " " + appState.appVersion
                                       + (appState.appEdition.length > 0 ? " (" + appState.appEdition + ")" : "")
@@ -344,7 +355,7 @@ Item {
                     Item { Layout.preferredHeight: 16 }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard }
                     Item { Layout.preferredHeight: 12 }
-                    Label { Layout.fillWidth: true; text: T.tr("aboutDesc")
+                    AppLabel { Layout.fillWidth: true; text: T.tr("aboutDesc")
                         font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5 }
                     Item { Layout.preferredHeight: 16 }
                     AboutRow { aboutIcon: "monitor"; aboutText: T.tr("crossPlat") }
@@ -384,6 +395,6 @@ Item {
         // 5WHY: Replaced emoji Label with AppIcon for consistent SVG iconography.
         AppIcon { name: aboutIcon; size: 16; color: ThemeEngine.colors.textSecondary; Layout.alignment: Qt.AlignTop }
         Item { width: 10 }
-        Label { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.8) }
+        AppLabel { Layout.fillWidth: true; text: aboutText; wrapMode: Text.WordWrap; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.8) }
     }
 }

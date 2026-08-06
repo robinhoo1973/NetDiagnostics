@@ -28,11 +28,11 @@ ColumnLayout {
         }
         AppIcon { visible: appState.errorMessage !== ""; name: "warning"; size: 14; color: ThemeEngine.colors.errorRed }
         Item { Layout.fillWidth: true }
-        Label {
+        AppLabel {
             visible: status === 1
             text: appState.currentDiagLabel || ""
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.italic: true; color: ThemeEngine.colors.cyan
-            elide: Text.ElideRight; Layout.maximumWidth: 300
+            elide: T.textElideStart; Layout.maximumWidth: 300
         }
         Label {
             visible: appState.totalDiags > 0
@@ -41,13 +41,13 @@ ColumnLayout {
         }
     }
 
-    Label {
+    AppLabel {
         visible: appState.errorMessage !== ""
         Layout.fillWidth: true; Layout.topMargin: 6
         // 5WHY: errorMessage is a C++ message — route through T.trMsg() so it
         // translates on language switch.
         text: T.tr("errorPrefix") + T.trMsg(appState.errorMessage || "")
         font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: Qt.alpha(ThemeEngine.colors.errorRed, 0.8)
-        maximumLineCount: 2; elide: Text.ElideRight
+        maximumLineCount: 2; elide: T.textElideStart
     }
 }

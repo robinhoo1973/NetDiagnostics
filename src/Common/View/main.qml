@@ -10,6 +10,14 @@ ApplicationWindow {
     flags: Qt.FramelessWindowHint
     color: ThemeEngine.colors.surface
 
+    // ── Right-to-left (RTL) mirroring ─────────────────────────────────
+    // When the active language is RTL (Arabic), mirror every child layout:
+    // positioners/layouts reorder (tabs, action bars, list rows, dock nav)
+    // and left/right anchors swap — so the whole UI reads right-to-left.
+    // Text elements additionally use T.textAlignStart / T.textElideStart.
+    LayoutMirroring.enabled: T.isRtl
+    LayoutMirroring.childrenInherit: true
+
     // Window maximization is handled by C++ showMaximized() in main.cpp —
     // it maps the window in maximized state from the first frame, avoiding
     // the QML property-order race where visibility: Window.Maximized can be

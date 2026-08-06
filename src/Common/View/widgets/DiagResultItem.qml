@@ -56,10 +56,10 @@ Item {
         // returns a non-empty string for valid diagIds (0-45) — the
         // t() function provides English fallback for any language.
         // The || fallback is a safety net for out-of-range IDs only.
-        Label {
+        AppLabel {
             text: T.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
-            Layout.fillWidth: true; elide: Text.ElideRight
+            Layout.fillWidth: true; elide: T.textElideStart
         }
         Label {
             visible: itemData.isRunning; text: T.tr("diagRunning")
@@ -84,11 +84,11 @@ Item {
         }
         // 5WHY: Same translation issue as the pending row — displayName
         // is always English from C++. Use T.diagName() for i18n.
-        Label {
+        AppLabel {
             text: T.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
             font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Medium
             color: { var s=itemData.status; return s===0?ThemeEngine.colors.textPrimary:(s===2?ThemeEngine.colors.failRed:ThemeEngine.colors.textSecondary) }
-            Layout.fillWidth: true; elide: Text.ElideRight
+            Layout.fillWidth: true; elide: T.textElideStart
         }
         Rectangle {
             visible: (itemData.durationMs||0)>0; implicitWidth:durText.implicitWidth+12; implicitHeight:20; radius:4

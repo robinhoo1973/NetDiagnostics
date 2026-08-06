@@ -34,6 +34,7 @@
 // the new language.  Verified with standalone harnesses against the real
 // translations.json (EN → 简体中文 → 日本語 all update correctly).
 // =============================================================================
+import QtQuick
 import QtQml
 
 QtObject {
@@ -43,6 +44,19 @@ QtObject {
     // Every translation function reads root.lang so calling bindings
     // re-evaluate when this changes.
     property int lang: appState ? appState.languageIndex : 7
+
+    // ── Right-to-left (RTL) support ────────────────────────────────────
+    // Currently only Arabic (index 14) uses a right-to-left script.  Screens
+    // enable LayoutMirroring from this flag and use the alignment/elide
+    // helpers below so full-width labels render from the correct edge.
+    property bool isRtl: root.lang === 14
+
+    // "Start"/"End" text alignment & elide for the active script direction.
+    // LTR: start=left, end=right, elide at right.
+    // RTL: start=right, end=left, elide at left.
+    property int textAlignStart: root.isRtl ? Text.AlignRight : Text.AlignLeft
+    property int textAlignEnd:   root.isRtl ? Text.AlignLeft  : Text.AlignRight
+    property int textElideStart: root.isRtl ? Text.ElideLeft  : Text.ElideRight
 
     // ── Translation tables (loaded from translations.json) ──────────────
     property var _props: ({})       // properties: key -> [15 langs]

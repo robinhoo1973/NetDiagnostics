@@ -238,7 +238,7 @@ Item {
                                 size: 14; color: ThemeEngine.colors.secondary
                             }
                             Item { width: 8 }
-                            Label { Layout.fillWidth: true; text: T.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
+                            AppLabel { Layout.fillWidth: true; text: T.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
                             Label { text: calcLayerTiming(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
@@ -255,7 +255,7 @@ Item {
                 ColumnLayout {
                     id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
                     Label { text: T.tr("report"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-                    Label { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                    AppLabel { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     // Review Report button
                     Rectangle {
                         id: reviewBtn
@@ -266,7 +266,7 @@ Item {
                             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
                             AppIcon { name: "report"; size: 18; color: ThemeEngine.colors.cyan }
                             Item { width: 12 }
-                            Label { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
+                            AppLabel { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
                         }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
                     }
@@ -324,7 +324,7 @@ Item {
                         anchors { fill: parent; margins: 8 }
                         AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.cyan }
                         Item { width: 8 }
-                        Label { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
+                        AppLabel { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
                         Rectangle {
                             id: closeBtn
                             // 5WHY: close button was 36dp — below MD3 48dp minimum
@@ -430,7 +430,7 @@ Item {
             RowLayout {
                 Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.colors.secondary }
                 Item { width: 10 }
-                Label { Layout.fillWidth: true; text: T.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                AppLabel { Layout.fillWidth: true; text: T.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                 DashboardBadge { accent: ThemeEngine.colors.passGreen;  v: _stat.pass }
                 DashboardBadge { accent: ThemeEngine.colors.warnYellow; v: _stat.warn }
                 DashboardBadge { accent: ThemeEngine.colors.failRed;   v: _stat.fail }
@@ -457,7 +457,7 @@ Item {
                     AppIcon { name: ThemeEngine.statusIconNames[modelData.status] || "badge-skip"; size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
                     // 5WHY: modelData.displayName is always English (C++).
                     // Route through T.diagName() for i18n.
-                    Label { Layout.fillWidth: true; text: T.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+                    AppLabel { Layout.fillWidth: true; text: T.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:T.textElideStart; verticalAlignment: Text.AlignVCenter }
                     Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
                 }
             }
@@ -478,11 +478,14 @@ Item {
         Label {
             Layout.fillWidth: true
             text: lbl; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
-            elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter
+            // 5WHY: elide/hAlign were hard-coded for LTR; under RTL the label
+            // mirrors to the right and text must hug the start edge + elide
+            // at the start (left for RTL).
+            elide: T.textElideStart; horizontalAlignment: T.textAlignStart; verticalAlignment: Text.AlignVCenter
         }
         Label {
             text: val; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: clr
-            horizontalAlignment: Text.AlignRight; verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: T.textAlignEnd; verticalAlignment: Text.AlignVCenter
         }
     }
 }

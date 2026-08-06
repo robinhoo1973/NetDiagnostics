@@ -164,12 +164,12 @@ Item {
             Item { Layout.preferredHeight: page.isMobile ? 14 : 24 }
 
             // Title — fill column width so long translations fit
-            Label {
+            AppLabel {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
                 text: T.tr("reportPreview")
                 font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
-                elide: Text.ElideRight; maximumLineCount: 1
+                elide: T.textElideStart; maximumLineCount: 1
             }
             Item { Layout.preferredHeight: page.isMobile ? 8 : 12 }
 
@@ -219,7 +219,7 @@ Item {
                               : (hasResults ? appState.totalCompleted + T.tr("reportResultsAvailable") : T.tr("reportNoResults"))
                         font.family: ThemeEngine.monoFont; font.pixelSize: 12
                         color: page.isRunning ? ThemeEngine.colors.cyan : (hasResults ? ThemeEngine.colors.passGreen : ThemeEngine.colors.warnYellow)
-                        elide: Text.ElideRight
+                        elide: T.textElideStart
                     }
                 }
             }
@@ -265,11 +265,11 @@ Item {
                         anchors { fill: parent; margins: 8 }
                         AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.cyan }
                         Item { width: 8 }
-                        Label {
+                        AppLabel {
                             Layout.fillWidth: true
                             text: T.tr("reportReviewBtn")
                             font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary
-                            elide: Text.ElideRight
+                            elide: T.textElideStart
                         }
                         Rectangle {
                             id: closeBtn
@@ -427,8 +427,8 @@ Item {
             anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
             AppIcon { name: btn.iconName; size: 18; color: btn.accent }
             Item { width: 12 }
-            Label { Layout.fillWidth: true; text: btn.label; color: ThemeEngine.colors.textPrimary
-                elide: Text.ElideRight; maximumLineCount: 1
+            AppLabel { Layout.fillWidth: true; text: btn.label; color: ThemeEngine.colors.textPrimary
+                elide: T.textElideStart; maximumLineCount: 1
                 font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
         }
         MouseArea { anchors.fill: parent; enabled: page.canReport

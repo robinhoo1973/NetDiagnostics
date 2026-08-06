@@ -68,6 +68,10 @@ ColumnLayout {
                 }
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
+                // 5WHY: Placeholder is translated (Arabic placeholder in RTL) —
+                // align the field to the script start edge.  URL content stays
+                // LTR internally (Latin script renders left-to-right regardless).
+                horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                 background: Item {}
 
                 onTextChanged: {
@@ -143,6 +147,7 @@ ColumnLayout {
                 text: appState.targetPort > 0 ? "" + appState.targetPort : ""
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
+                horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                 background: Item {}
                 onTextChanged: {
                     var v = parseInt(text)
@@ -164,6 +169,7 @@ ColumnLayout {
                 text: appState.targetUsername
                 enabled: appState.runStatus !== 1
                 verticalAlignment: TextInput.AlignVCenter
+                horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                 background: Item {}
                 onTextChanged: appState.targetUsername = text
             }
@@ -190,6 +196,7 @@ ColumnLayout {
                     echoMode: passField._showPass ? TextInput.Normal : TextInput.Password
                     enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter
+                    horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     background: Item {}
                     onTextChanged: appState.targetPassword = text
                     // 5WHY: Password visibility toggle — users enter credentials for
@@ -243,7 +250,7 @@ ColumnLayout {
         visible: root.validationError !== ""
         spacing: 4
         AppIcon { name: "warning"; size: 12; color: ThemeEngine.colors.failRed }
-        Label {
+        AppLabel {
             Layout.fillWidth: true
             // 5WHY: validationError is a C++ message — route through T.trMsg()
             // so it translates on language switch.
