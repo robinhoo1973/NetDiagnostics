@@ -5,6 +5,7 @@
 #include "app/AppState.h"
 #include "Common/Platform/PlatformShare.h"
 #include "Common/Utils/DebugSwitch.h"
+#include "Common/Utils/Translator.h"
 #include <QDir>
 #include <QStandardPaths>
 #include <QSettings>
@@ -57,7 +58,7 @@ void SettingsController::setLanguageIndex(int index) {
     // user selects the already-active language in the Settings ComboBox.
     // This caused disk I/O and full QML binding re-evaluation for a no-op.
     // Compare with setThemeMode() which correctly guards against no-ops.
-    if (index < 0 || index > 14) return;
+    if (index < 0 || index >= Translator::kMaxLanguages) return;
     if (m_languageIndex == index) return;
     m_languageIndex = index;
     emit languageChanged();
@@ -169,7 +170,7 @@ void SettingsController::loadSettings() {
         s.setValue("language", lang);
         s.setValue("languageSchemaVersion", kLanguageSchemaVersion);
     }
-    if (lang >= 0 && lang <= 14 && lang != m_languageIndex) {
+    if (lang >= 0 && lang < Translator::kMaxLanguages && lang != m_languageIndex) {
         m_languageIndex = lang;
         emit languageChanged();
     }

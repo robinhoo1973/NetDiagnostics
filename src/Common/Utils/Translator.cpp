@@ -169,7 +169,9 @@ QString Translator::select(const QJsonArray& arr) const
     // making C++ property reads visible to the QML binding engine.
     // When no capture is active (signal handler, Component.onCompleted, etc.),
     // QQmlProperty::read() simply reads the value without side effects.
-    return selectAt(arr, QQmlProperty::read(this, "lang").toInt());
+    QVariant v = QQmlProperty::read(this, "lang");
+    int idx = v.isValid() ? v.toInt() : m_lang;
+    return selectAt(arr, idx);
 }
 
 QString Translator::selectAt(const QJsonArray& arr, int langIdx)
@@ -231,6 +233,14 @@ QString Translator::groupPrefix(int idx) const
 
 QString Translator::trMsg(const QString& en) const
 {
+    // 5WHY: When the fallthrough at line 270 returns untranslated English,
+    // select() was never called → QQmlPropertyCapture::capture was never
+    // registered → QML bindings using T.trMsg() don't re-evaluate on
+    // language change.  A no-op read of "lang" fixes this: when a binding
+    // is active, QQmlProperty::read registers the dependency; when called
+    // from C++, it's a harmless property read.
+    (void)QQmlProperty::read(this, "lang");
+
     if (en.isEmpty())
         return en;
 

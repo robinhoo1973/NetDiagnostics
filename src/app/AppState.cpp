@@ -235,6 +235,7 @@ void AppState::setLanguage(int index) {
 
 // ── Theme mode persistence ─────────────────────────────────────────────
 void AppState::setThemeMode(int mode) {
+    if (m_settingsCtrl->themeMode() == mode) return;
     m_settingsCtrl->setThemeMode(mode);
     bumpVersion();
 }
