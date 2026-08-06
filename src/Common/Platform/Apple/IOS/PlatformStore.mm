@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // PlatformStore_ios.mm — iOS StoreKit in-app purchase (ARC)
 // =============================================================================
 // Links against StoreKit.framework on iOS. Provides two functions:
@@ -32,14 +32,21 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 /// Fired when a purchase started via platformStartPurchase completes.
 /// YES = purchased, NO = cancelled / failed. Consumed on first fire.
 @property (copy) void(^onPurchaseDone)(BOOL success);
-/// Fired when the purchase goes into CAsk to BuyC (parent approval pending).
-/// AppState should clear the progress spinner. onPurchaseDone is kept alive
+/// Fired when the purchase goes into "Ask to Buy" (parent approval pending).
+/// The C++ side clears the progress spinner; onPurchaseDone is kept alive
 /// so the deferred transaction can grant premium when approved later.
 @property (copy) void(^onPurchaseDeferred)(void);
 /// Fired when restoreCompletedTransactions finishes (or fails).
 /// restoredAny=YES means ≥1 previous purchase was restored.
 /// isError=YES means the restore operation itself failed (network, etc.).
 @property (copy) void(^onRestoreDone)(BOOL restoredAny, BOOL isError);
+/// Fired (once per session) when a purchased transaction for the Premium
+/// product arrives while no purchase dialog is active — an "Ask to Buy"
+/// approved while the app was closed, or a promoted purchase.  Installed by
+/// platformInitStore at app startup.
+@property (copy) void(^onUnattendedGrant)(void);
+@property (assign) BOOL didGrantUnattended;  // guard: unattended grant fires once
+@property (assign) BOOL hasRequestCompleted; // disarms the products-request watchdog
 @property (assign) BOOL isRestoring;    // guard against concurrent restore
 @property (assign) BOOL hasRestored;    // set when ≥1 .restored txn arrives
 - (void)ensureObserving;
@@ -75,6 +82,22 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
         return;
     }
 
+    // ── Watchdog: if the products request neither responds nor fails within
+    //    30s (e.g. no connectivity), fail the purchase so the UI is never
+    //    stuck in "Processing…" forever.  Disarmed once the request returns
+    //    (payment sheet presented) — long-running states after that point are
+    //    handled by their own callbacks (deferred/success/failure). ──────
+    self.hasRequestCompleted = NO;
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        typeof(self) strongSelf = weakSelf;
+        if (strongSelf && !strongSelf.hasRequestCompleted && strongSelf.onPurchaseDone) {
+            strongSelf.onPurchaseDone(NO);
+            strongSelf.onPurchaseDone = nil;
+        }
+    });
+
     // ── Fetch the product so the payment sheet shows the localized price ─
     NSSet* productIDs = [NSSet setWithObject:kPremiumProductID];
     SKProductsRequest* req = [[SKProductsRequest alloc] initWithProductIdentifiers:productIDs];
@@ -93,6 +116,7 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 - (void)productsRequest:(SKProductsRequest *)request
      didReceiveResponse:(SKProductsResponse *)response
 {
+    self.hasRequestCompleted = YES;  // disarm the products-request watchdog
     SKProduct* product = response.products.firstObject;
     if (!product) {
         // Product not found in App Store Connect — invalid Product ID.
@@ -108,13 +132,32 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 }
 
 - (void)request:(SKRequest *)request didFailWithError:(NSError *)error {
+    self.hasRequestCompleted = YES;  // disarm the products-request watchdog
     if (self.onPurchaseDone) {
         self.onPurchaseDone(NO);
         self.onPurchaseDone = nil;
     }
 }
 
+// ── Promoted purchases (App Store product-page "Buy" button) ───────────
+// Return YES so the payment flows through the normal observer path; the
+// resulting .purchased transaction grants premium via the unattended path.
+- (BOOL)paymentQueue:(SKPaymentQueue *)queue
+shouldAddStorePayment:(SKPayment *)payment
+             forProduct:(SKProduct *)product
+{
+    return YES;
+}
+
 // ── SKPaymentTransactionObserver ─────────────────────────────────────────
+
+// Only the Premium product unlocks the feature.  Transactions for any other
+// product ID are finished to keep the queue clean but never touch callbacks
+// or grant state — otherwise adding a second IAP product would accidentally
+// unlock Premium for a different purchase.
+static BOOL isPremiumTxn(SKPaymentTransaction* txn) {
+    return [txn.payment.productIdentifier isEqualToString:kPremiumProductID];
+}
 
 - (void)paymentQueue:(SKPaymentQueue *)queue
  updatedTransactions:(NSArray<SKPaymentTransaction*>*)transactions
@@ -127,6 +170,17 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
     BOOL hasFailed    = NO;
 
     for (SKPaymentTransaction* txn in transactions) {
+        if (!isPremiumTxn(txn)) {
+            // Foreign / unrelated transaction — finish and ignore it so the
+            // payment queue never blocks on stale transactions.
+            if (txn.transactionState == SKPaymentTransactionStatePurchased ||
+                txn.transactionState == SKPaymentTransactionStateFailed ||
+                txn.transactionState == SKPaymentTransactionStateRestored) {
+                [queue finishTransaction:txn];
+            }
+            continue;
+        }
+
         switch (txn.transactionState) {
 
             case SKPaymentTransactionStatePurchasing:
@@ -146,8 +200,8 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
                 break;
 
             case SKPaymentTransactionStateDeferred:
-                // CAsk to BuyC — parent approval pending.
-                // Notify AppState to clear the progress spinner but keep
+                // "Ask to Buy" — parent approval pending.
+                // Notify the C++ side to clear the progress spinner but keep
                 // onPurchaseDone alive so the deferred transaction will
                 // grant premium when the parent approves later.
                 if (self.onPurchaseDeferred) {
@@ -159,16 +213,31 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 
     // ── Batch outcome: .purchased wins over .failed ────────────────────
     if (hasPurchased || hasFailed) {
-        // Finish ALL purchasing/failed/purchased transactions.
+        // Finish ALL premium purchasing/failed/purchased transactions.
         for (SKPaymentTransaction* txn in transactions) {
-            if (txn.transactionState == SKPaymentTransactionStatePurchased ||
-                txn.transactionState == SKPaymentTransactionStateFailed) {
+            if (isPremiumTxn(txn) &&
+                (txn.transactionState == SKPaymentTransactionStatePurchased ||
+                 txn.transactionState == SKPaymentTransactionStateFailed)) {
                 [queue finishTransaction:txn];
             }
         }
 
-        if (self.onPurchaseDone) {
-            self.onPurchaseDone(hasPurchased);
+        if (hasPurchased && self.onPurchaseDone) {
+            // Active purchase flow resolved successfully.
+            self.onPurchaseDone(YES);
+            self.onPurchaseDone = nil;
+        } else if (hasPurchased && !self.onPurchaseDone && !self.didGrantUnattended) {
+            // No active purchase dialog (deferred txn approved after relaunch,
+            // or a promoted purchase) — grant through the startup-installed
+            // unattended path, once per session.
+            self.didGrantUnattended = YES;
+            if (self.onUnattendedGrant) {
+                self.onUnattendedGrant();
+            }
+        }
+
+        if (hasFailed && self.onPurchaseDone) {
+            self.onPurchaseDone(NO);
             self.onPurchaseDone = nil;
         }
     }
@@ -198,7 +267,24 @@ restoreCompletedTransactionsFailedWithError:(NSError *)error
 // C++ bridge — called from AppState on the Qt (main) thread
 // =========================================================================
 
-void platformStartPurchase(StoreCallback callback) {
+void platformInitStore(GrantCallback unattendedGrant) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
+        [obs ensureObserving];
+
+        // 5WHY: The observer was only installed lazily when a purchase/restore
+        // started, so a deferred ("Ask to Buy") transaction approved while the
+        // app was closed was never delivered on relaunch — the user had paid
+        // but Premium stayed locked until they manually bought/restored again.
+        // Installing at startup + this unattended grant covers that case.
+        auto grant = std::make_shared<GrantCallback>(std::move(unattendedGrant));
+        obs.onUnattendedGrant = ^{
+            (*grant)();
+        };
+    });
+}
+
+void platformStartPurchase(StoreCallback callback, DeferredCallback deferred) {
     dispatch_async(dispatch_get_main_queue(), ^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
 
@@ -215,16 +301,16 @@ void platformStartPurchase(StoreCallback callback) {
         [obs ensureObserving];
 
         auto cb = std::make_shared<StoreCallback>(std::move(callback));
+        auto dcb = std::make_shared<DeferredCallback>(std::move(deferred));
         obs.onPurchaseDone = ^(BOOL success) {
             (*cb)(success);
         };
 
-        // Wire the deferred notification — AppState clears the spinner
-        // while the transaction waits for parent approval.
+        // Wire the deferred notification — the C++ side clears the spinner
+        // and informs the user; onPurchaseDone stays alive so the deferred
+        // transaction grants premium when the parent approves later.
         obs.onPurchaseDeferred = ^{
-            // The C++ callback is NOT consumed — we keep onPurchaseDone
-            // alive.  AppState will reset purchaseInProgress externally
-            // via the success/failure path when the deferred txn resolves.
+            (*dcb)();
         };
 
         [obs startPurchase];

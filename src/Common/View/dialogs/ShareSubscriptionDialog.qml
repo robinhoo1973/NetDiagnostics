@@ -47,8 +47,8 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter; width: 60; height: 60; radius: 30
                 color: Qt.alpha(root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan, 0.12)
                 border {
-                    // 5WHY: border.visible does not exist in Qt Quick Rectangle —
-                    // Border has only width/color properties.  Setting an
+                    // 5WHY: Qt Quick Rectangle borders expose only width/color —
+                    // there is no visible flag on the border.  Setting an
                     // undeclared property causes "Cannot assign to non-existent
                     // property" fatal error at QML load time.  Use width: 0 to
                     // hide the border instead.
@@ -73,7 +73,12 @@ Rectangle {
             // Body
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.shareStage === 1 ? T.tr("subscribeBody") : T.tr("confirmShareBody")
+                // 5WHY: On Android/desktop there is no store backend, so a
+                // "Subscribe" CTA would dead-end.  Show an honest notice and
+                // hide the Subscribe button (below) on those platforms.
+                text: root.shareStage === 1
+                      ? (appState.platformSupportsIap ? T.tr("subscribeBody") : T.tr("iapNotAvailable"))
+                      : T.tr("confirmShareBody")
                 font.family: Th.ThemeEngine.monoFont; font.pixelSize: 13
                 color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
             }
@@ -102,6 +107,7 @@ Rectangle {
                     onClicked: root.dismissed()
                 }
                 DialogBtn {
+                    visible: root.shareStage !== 1 || appState.platformSupportsIap
                     label: root.shareStage === 1 ? T.tr("subscribeBtn")
                            : (root.isMobile ? T.tr("shareBtn") : T.tr("emailBtn"))
                     accent: root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan

@@ -69,6 +69,7 @@ Item {
         }
         function onSavePathPicked(format, path) { appState.exportPdf(path) }
         function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
+        function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }

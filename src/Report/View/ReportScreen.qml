@@ -108,6 +108,7 @@ Item {
             page.lastPath = saved
         }
         function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
+        function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         // Subscription just succeeded while the prompt was open → advance to the
         // confirmation step so the flow continues seamlessly (subscribe → confirm → share).

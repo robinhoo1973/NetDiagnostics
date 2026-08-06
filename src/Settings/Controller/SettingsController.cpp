@@ -47,6 +47,8 @@ SettingsController::SettingsController(AppState* appState, QObject* parent)
             this, &SettingsController::purchaseInProgressChanged);
     connect(&m_premium, &PremiumStore::premiumRequired,
             this, &SettingsController::premiumRequired);
+    connect(&m_premium, &PremiumStore::purchaseDeferred,
+            this, &SettingsController::purchaseDeferred);
     connect(&m_premium, &PremiumStore::restoreCompleted,
             this, &SettingsController::restoreCompleted);
 }

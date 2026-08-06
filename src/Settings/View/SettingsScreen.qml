@@ -25,6 +25,12 @@ Item {
             }
             restoreToastTimer.restart()
         }
+        // 5WHY: "Ask to Buy" defers the purchase — show a notice instead of
+        // leaving the user staring at a stuck "Processing…" state.
+        function onPurchaseDeferred() {
+            restoreToast.text = T.tr("purchaseDeferred")
+            restoreToastTimer.restart()
+        }
     }
 
     // AppBar

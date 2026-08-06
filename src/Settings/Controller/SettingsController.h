@@ -36,6 +36,7 @@ public:
     // Premium / IAP
     bool isPremium() const { return m_premium.isPremium(); }
     bool purchaseInProgress() const { return m_premium.purchaseInProgress(); }
+    bool supportsIap() const { return m_premium.supportsIap(); }
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
@@ -54,6 +55,7 @@ signals:
     void premiumChanged();
     void premiumRequired();
     void purchaseInProgressChanged();
+    void purchaseDeferred();
     void restoreCompleted(bool restoredAny, bool isError);
 
 private:
