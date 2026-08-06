@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
 typedef SSIZE_T ssize_t;
@@ -203,12 +203,17 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
         uint32_t ttl = ns_rr_ttl(rr);
         int rtype = ns_rr_type(rr);
         const unsigned char* rd = ns_rr_rdata(rr);
+        // 5WHY: rdlen bounds were only checked in the SOA branch.  A truncated
+        // or malicious DNS response could drive memcpy/reads past the message
+        // buffer in the A/AAAA/MX/TXT branches (OOB read).  Guard every branch
+        // with ns_rr_rdlen() before touching rdata.
+        const int rdlen = ns_rr_rdlen(rr);
 
-        if (rtype == ns_t_a) {
+        if (rtype == ns_t_a && rdlen >= 4) {
             struct in_addr a; memcpy(&a, rd, 4);
             out.append(QStringLiteral("%1.  %2  IN  A  %3")
                 .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(ip4ToStr(a)));
-        } else if (rtype == ns_t_aaaa) {
+        } else if (rtype == ns_t_aaaa && rdlen >= 16) {
             char ip6[INET6_ADDRSTRLEN];
             inet_ntop(AF_INET6, rd, ip6, sizeof(ip6));
             out.append(QStringLiteral("%1.  %2  IN  AAAA  %3")
@@ -219,7 +224,7 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
             out.append(QStringLiteral("%1.  %2  IN  CNAME  %3")
                 .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(QString::fromLatin1(cname)));
             gotCname = true; cnameTarget = QString::fromLatin1(cname);
-        } else if (rtype == ns_t_mx) {
+        } else if (rtype == ns_t_mx && rdlen >= 2) {
             uint16_t pref = (rd[0] << 8) | rd[1];
             char mx[256];
             ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), rd + 2, mx, sizeof(mx));
@@ -252,11 +257,14 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
             out.append(QStringLiteral("        (serial %1  refresh %2  retry %3  expire %4  minimum %5)")
                 .arg(serial).arg(refresh).arg(retry).arg(expire).arg(minimum));
         } else if (rtype == ns_t_txt) {
-            // TXT records: rd[0] = length, rd[1..] = data
-            int len = rd[0];
-            QByteArray txtData((const char*)(rd + 1), len);
-            out.append(QStringLiteral("%1.  %2  IN  TXT  \"%3\"")
-                .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(QString::fromLatin1(txtData)));
+            // TXT records: rd[0] = length, rd[1..] = data.  Bound len against
+            // rdlen so a malformed length byte cannot read past rdata.
+            int len = (rdlen >= 1) ? rd[0] : 0;
+            if (len > 0 && len <= rdlen - 1) {
+                QByteArray txtData((const char*)(rd + 1), len);
+                out.append(QStringLiteral("%1.  %2  IN  TXT  \"%3\"")
+                    .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(QString::fromLatin1(txtData)));
+            }
         } else {
             out.append(QStringLiteral("%1.  %2  IN  %3  (type %4)")
                 .arg(QString::fromLatin1(ownBuf), -30).arg(ttl, 6).arg(QStringLiteral("UNKNOWN")).arg(rtype));

@@ -55,8 +55,24 @@ NetworkProbe::TcpProbeResult NetworkProbe::tcpProbe(const QString& host, int por
     r.connected = true;
     if (!sendData.isEmpty())
         sock.write(sendData);
-    sock.waitForReadyRead(readTimeoutMs);
-    r.data = sock.readAll();
+    // 5WHY: a single waitForReadyRead + readAll returned partial frames on
+    // slow/segmented connections — protocol tests (MySQL handshake, MQTT
+    // CONNACK, service banners) misread them as truncated/failed.  Accumulate
+    // until the read deadline expires or the peer pauses 300ms after sending
+    // data, so a response delivered in multiple TCP segments is captured whole.
+    QElapsedTimer read; read.start();
+    qint64 idleSince = -1;
+    while (read.elapsed() < readTimeoutMs) {
+        qint64 remaining = qMax<qint64>(1, readTimeoutMs - read.elapsed());
+        if (!sock.waitForReadyRead(remaining)) break;
+        qint64 before = r.data.size();
+        r.data.append(sock.readAll());
+        if (r.data.size() > before) {
+            idleSince = read.elapsed();
+        } else if (idleSince >= 0 && read.elapsed() - idleSince >= 300) {
+            break;  // idle gap after a partial response → frame is complete
+        }
+    }
     sock.disconnectFromHost();
     r.elapsedMs = t.elapsed();
     return r;

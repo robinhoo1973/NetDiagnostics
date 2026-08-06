@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult proxySettings(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
@@ -17,9 +17,15 @@ DiagnosticResult proxySettings(DiagId id) {
 #if defined(_WIN32)
     WINHTTP_CURRENT_USER_IE_PROXY_CONFIG cfg = {};
     if (WinHttpGetIEProxyConfigForCurrentUser(&cfg)) {
+        if (cfg.lpszAutoConfigUrl) proxyRows.append({QStringLiteral("Auto Config URL"), QString::fromWCharArray(cfg.lpszAutoConfigUrl)});
         if (cfg.lpszProxy) proxyRows.append({QStringLiteral("HTTP Proxy"), QString::fromWCharArray(cfg.lpszProxy)});
         if (cfg.lpszProxyBypass) proxyRows.append({QStringLiteral("Bypass"), QString::fromWCharArray(cfg.lpszProxyBypass)});
-        GlobalFree(cfg.lpszProxy); GlobalFree(cfg.lpszProxyBypass);
+        // 5WHY: WinHTTP docs require freeing ALL three pointers returned by
+        // WinHttpGetIEProxyConfigForCurrentUser.  lpszAutoConfigUrl was leaked
+        // on every run — a small but persistent Win32 heap leak.
+        if (cfg.lpszAutoConfigUrl) GlobalFree(cfg.lpszAutoConfigUrl);
+        if (cfg.lpszProxy) GlobalFree(cfg.lpszProxy);
+        if (cfg.lpszProxyBypass) GlobalFree(cfg.lpszProxyBypass);
     }
 #else
     const char* vars[] = {"HTTP_PROXY","HTTPS_PROXY","FTP_PROXY","NO_PROXY","http_proxy","https_proxy","no_proxy"};

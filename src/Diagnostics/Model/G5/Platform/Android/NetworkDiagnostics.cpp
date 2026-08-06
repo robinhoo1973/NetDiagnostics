@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // AndroidNetworkInfo.cpp — Native Android WiFi/Cellular diagnostics via JNI
 //
 // Uses Qt's QJniObject to call Android Java APIs directly from C++.
@@ -13,6 +13,7 @@
 #include <QVariantMap>
 #include <QDateTime>
 #include <QElapsedTimer>
+#include <QThread>
 #include <QUrl>
 #include <QtConcurrent/QtConcurrent>
 #include "Common/Model/DiagnosticResult.h"
@@ -348,7 +349,7 @@ DiagnosticResult androidGatewayDiag(DiagId id) {
 // 5WHY: timeoutMs parameter was completely ignored — getByName() is a
 // synchronous blocking JNI call with no built-in timeout. On unreachable
 // DNS servers this blocks the calling thread indefinitely.  Wrap in
-// QtConcurrent so waitForFinished(timeoutMs) can enforce the timeout.
+// QtConcurrent so a deadline can enforce the timeout.
 QString androidDnsResolve(const QString& host, int timeoutMs) {
     QFuture<QString> future = QtConcurrent::run([host]() -> QString {
         QJniObject hostStr = QJniObject::fromString(host);
@@ -360,24 +361,21 @@ QString androidDnsResolve(const QString& host, int timeoutMs) {
         QJniObject ipStr = inetAddr.callObjectMethod("getHostAddress", "()Ljava/lang/String;");
         return ipStr.isValid() ? ipStr.toString() : QString();
     });
-    // 5WHY: Qt 6.5.3 QFuture::waitForFinished() takes 0 args (void).
-    // Qt 6.6+ added waitForFinished(int timeoutMs) → bool.
-    // Android cross-compile uses Qt 6.5.3 (pinned for AGP/compileSdk 33),
-    // so the timeout-capable API is unavailable.  Use a version guard so
-    // the code compiles on both Qt 6.5 and Qt 6.6+.
-#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
-    if (future.waitForFinished(timeoutMs > 0 ? timeoutMs : 3000))
-        return future.result();
-    // Timeout: the JNI thread is still blocking inside getByName() and
-    // cannot be cancelled.  It will eventually complete and clean itself
-    // up, but this invocation returns empty to avoid blocking the caller.
-    return QString();
-#else
-    // Qt 6.5: no timeout parameter — Android native DNS via JNI is fast
-    // enough that indefinite blocking is unlikely in practice.
-    future.waitForFinished();
+    // 5WHY: Android is pinned to Qt 6.5.3, whose QFuture::waitForFinished()
+    // has NO timeout overload (added in Qt 6.6).  The old Qt-6.5 branch
+    // called waitForFinished() unconditionally — an unreachable resolver
+    // blocks InetAddress.getByName() for 30-120s, hanging the diagnostic
+    // thread and leaking it past the task watchdog.  Poll isFinished()
+    // against a wall-clock deadline: works on every Qt version and bounds
+    // the caller's wait.  On timeout the JNI thread stays blocked but is
+    // detached — the caller returns empty instead of hanging.
+    const int budget = timeoutMs > 0 ? timeoutMs : 3000;
+    QElapsedTimer timer; timer.start();
+    while (!future.isFinished()) {
+        if (timer.elapsed() >= budget) return QString();
+        QThread::msleep(20);
+    }
     return future.result();
-#endif
 }
 
 DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
@@ -549,16 +547,20 @@ DiagnosticResult androidHttpDiag(DiagId id, const QString& target) {
             break;
         }
         case DiagId::G5SslCertificate: {
-            // Try to get cert via HttpsURLConnection
-            QJniObject httpsConn("javax/net/ssl/HttpsURLConnection");
-            QJniObject serverCerts;
-            if (httpConn.callMethod<jboolean>("isInstanceOf",
-                    "(Ljava/lang/Class;)Z",
-                    httpsConn.callObjectMethod("getClass", "()Ljava/lang/Class;").object())) {
-                serverCerts = httpConn.callObjectMethod("getServerCertificates",
-                    "()[Ljava/security/cert/Certificate;");
-            }
-            if (serverCerts.isValid()) {
+            // 5WHY: the old code called httpConn.callMethod<jboolean>
+            // ("isInstanceOf", "(Ljava/lang/Class;)Z", ...) — isInstanceOf is
+            // Class.isInstance(Object), it does NOT exist on HttpURLConnection,
+            // so every call threw a NoSuchMethodError JNI exception that was
+            // never cleared.  G5SslCertificate always reported "no cert
+            // details" and the pending exception could poison subsequent JNI
+            // calls on this thread.  getServerCertificates() IS declared on
+            // HttpsURLConnection — which is exactly what openConnection()
+            // returns for https:// URLs — so call it directly and clear any
+            // exception if the runtime object is not HTTPS.
+            QJniEnvironment sslEnv;
+            QJniObject serverCerts = httpConn.callObjectMethod("getServerCertificates",
+                "()[Ljava/security/cert/Certificate;");
+            if (!clearJniException(sslEnv) && serverCerts.isValid()) {
                 QJniObject certArray = serverCerts; // Certificate[]
                 jint certCount = certArray.callMethod<jint>("length");
                 QString certInfo = QStringLiteral("Server certificates: %1\n").arg(certCount);

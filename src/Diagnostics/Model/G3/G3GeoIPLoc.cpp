@@ -9,11 +9,11 @@
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include <algorithm>
 #include <cmath>
+#include <thread>
+#include <vector>
 #include <QMap>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QFuture>
-#include <QtConcurrent/QtConcurrent>
 
 namespace SystemDiagnostics {
 
@@ -77,18 +77,32 @@ QString detectCountry(int timeoutMs) {
     // blocks up to effectiveTimeout (3000ms).  Since they are independent
     // (different servers), parallelizing cuts worst case from 9s to 3s.
     // First-run only: subsequent calls hit the static sCached.
+    // 5WHY (round 2): QtConcurrent::run + .result() here ran INSIDE a
+    // QtConcurrent pool thread (DiagnosticTask runs every diagnostic via
+    // QtConcurrent::run).  Nesting blocks pool threads in .result() — on a
+    // 4-core device with 6 concurrent G3 tests that saturates the global
+    // pool and deadlocks the whole group.  Use std::thread (like
+    // dohQueryFull) so workers come from the OS, not the saturated pool.
     static const int kProvCount = sizeof(providers) / sizeof(providers[0]);
-    QFuture<QPair<int,QByteArray>> futures[kProvCount];
+    QPair<int,QByteArray> results[kProvCount];
+    std::vector<std::thread> threads;
+    threads.reserve(kProvCount);
     for (int i = 0; i < kProvCount; ++i) {
-        futures[i] = QtConcurrent::run([i, url = QString::fromUtf8(providers[i].url),
-                                         timeout = effectiveTimeout]()
-            -> QPair<int,QByteArray> {
-            return qMakePair(i, SystemDiagnostics::httpsGet(url, timeout));
-        });
+        try {
+            threads.emplace_back([i, url = QString::fromUtf8(providers[i].url),
+                                  timeout = effectiveTimeout, &results]() {
+                results[i] = qMakePair(i, SystemDiagnostics::httpsGet(url, timeout));
+            });
+        } catch (const std::system_error&) {
+            break;  // thread creation exhausted — join what we have
+        }
+    }
+    for (auto& th : threads) {
+        try { if (th.joinable()) th.join(); } catch (...) {}
     }
 
     for (int i = 0; i < kProvCount; ++i) {
-        QPair<int,QByteArray> r = futures[i].result();
+        const auto& r = results[i];
         const auto& p = providers[r.first];
         QByteArray body = r.second;
         if (body.isEmpty()) continue;

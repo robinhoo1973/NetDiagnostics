@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G4/G4Common.h"
+#include "Diagnostics/Model/G4/G4Common.h"
 DiagnosticResult mtuDiscovery(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4MtuDiscovery; r.group = DiagGroup::G4;
@@ -7,6 +7,11 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     QString host = extractHostname(target);
     int probePort = extractProbePort(target);
     quint32 resolvedIp = resolveIPv4(host);
+    // 5WHY: when the target host fails DNS resolution, the TCP probe never runs
+    // and only the LOCAL interface MTU is reported.  Marking that as Pass
+    // "MTU 1500 (Standard)" implied a successful path-MTU measurement to the
+    // target.  Track whether the target resolved so the final status is honest.
+    const bool targetResolved = (resolvedIp != 0);
     QString ipStr;
     if (resolvedIp) { struct in_addr a; a.s_addr = htonl(resolvedIp); ipStr = ip4ToStr(a); }
     // 5WHY: displayAddr was repeated 6 times across
@@ -159,7 +164,12 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     r.properties.append(prop("Host", host));
     r.properties.append(prop("MtuValue", QString::number(discoveredMtu)));
     r.properties.append(prop("MssValue", QString::number(mss)));
-    if (discoveredMtu >= 1500) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("MTU %1 (Standard)").arg(discoveredMtu); }
+    if (!targetResolved) {
+        // Host did not resolve — we only know the local interface MTU, not the
+        // path MTU to the target.  Honest Warning instead of a false Pass.
+        r.status = DiagStatus::Warning;
+        r.summary = QStringLiteral("Target unresolved — local MTU %1").arg(discoveredMtu);
+    } else if (discoveredMtu >= 1500) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("MTU %1 (Standard)").arg(discoveredMtu); }
     else if (discoveredMtu >= 1280) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("MTU %1 (Below 1500)").arg(discoveredMtu); }
     else { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Low MTU: %1").arg(discoveredMtu); }
     return r;

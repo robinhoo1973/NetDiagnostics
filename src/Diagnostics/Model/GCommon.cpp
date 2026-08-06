@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 #include "Common/Utils/NetUtil.h"
 #include <QMutex>
 #include <QMutexLocker>
@@ -188,7 +188,11 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     qint64 elapsedNs = t.nsecsElapsed() - startNs;
     if (elapsedNs <= 0) elapsedNs = 1;
     r.bytes = static_cast<int>(body.size());
-    r.durationMs = (int)(elapsedNs / 1000000);
+    // 5WHY: elapsedNs was floored to 1 NANOSECOND, so a fast localhost/LAN
+    // download (headers + body in one recv) still produced durationMs=0 →
+    // "Transfer Duration Too Short" despite a complete transfer.  Floor the
+    // millisecond value at 1 so any received bytes are never misreported.
+    r.durationMs = qMax<qint64>(1, elapsedNs / 1000000);
     // 5WHY: httpOk was too strict — CN speed-test servers on port 8080 may
     // respond with non-standard HTTP (302, chunked), custom binary protocol,
     // or just raw data without HTTP headers (\r\n\r\n never found).
@@ -290,7 +294,9 @@ SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs) {
     qint64 elapsedNs = t.nsecsElapsed() - startNs;
     if (elapsedNs <= 0) elapsedNs = 1;
     r.bytes = targetBytes;  // we count bytes sent
-    r.durationMs = (int)(elapsedNs / 1000000);
+    // 5WHY: same sub-millisecond floor as httpDownload — a fast upload must
+    // never be misreported as "No Upload Response" via durationMs=0.
+    r.durationMs = qMax<qint64>(1, elapsedNs / 1000000);
 
     if (r.durationMs > 0 && !respBuf.isEmpty()) {
         // Check for HTTP 200

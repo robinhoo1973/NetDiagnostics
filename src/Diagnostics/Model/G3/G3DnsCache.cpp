@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 #include <QProcess>
 
 namespace SystemDiagnostics {
@@ -43,16 +43,25 @@ DiagnosticResult dnsCache(DiagId id) {
     out.append(QStringLiteral("DNS Cache Information"));
     out.append(QString());
     // 闁冲厜鍋撻柍鍏夊亾 Try systemd-resolved cache (most common on modern Linux) 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
-    QFile cache(QStringLiteral("/run/systemd/resolve/cache"));
-    if (cache.open(QIODevice::ReadOnly)) {
-        QByteArray data = cache.readAll();
+    // 5WHY: /run/systemd/resolve/cache is a BINARY mmap'd database, not text.
+    // Reading it as lines produced garbage entries and a spurious "Cache
+    // Active" Pass.  Query systemd's official CLI and feed its text output
+    // through the shared line-display logic below instead.
+    QProcess proc;
+    proc.start(QStringLiteral("resolvectl"), QStringList() << QStringLiteral("statistics"));
+    if (!proc.waitForFinished(5000)) {
+        proc.start(QStringLiteral("systemd-resolve"), QStringList() << QStringLiteral("--statistics"));
+        proc.waitForFinished(5000);
+    }
+    QByteArray data = proc.readAllStandardOutput();
+    if (!data.trimmed().isEmpty()) {
         hasCache = true;
-        out.append(QStringLiteral("systemd-resolved DNS Cache"));
+        out.append(QStringLiteral("systemd-resolved Cache Statistics"));
         out.append(QStringLiteral("=============================================="));
         out.append(QString());
         if (data.size() > 0) {
-            // Parse cache entries: each entry is separated by blank line
-            // Format: "example.com IN A 93.184.216.34" or similar
+            // resolvectl statistics lines are shown verbatim below (the old
+            // code misparsed the BINARY cache file as text).
             QString text = QString::fromLatin1(data);
             QStringList entries = text.split('\n');
             for (const auto& line : entries) {
@@ -150,7 +159,10 @@ DiagnosticResult dnsCache(DiagId id) {
     r.details = r.rawOutput;
     r.status = hasCache ? DiagStatus::Pass : DiagStatus::Info;
     if (hasCache)
-        r.summary = QStringLiteral("Cache Active — %1 Cached DNS Entries").arg(cacheEntries);
+        // 5WHY: cacheEntries counted the old (broken) binary-file "IN" lines;
+        // resolvectl statistics lines no longer set it.  Report honestly that
+        // the stats were collected rather than a fabricated entry count.
+        r.summary = QStringLiteral("Cache Active — see statistics above");
     else
         r.summary = QStringLiteral("No Local DNS Cache Detected");
     r.durationMs = (int)t.elapsed();

@@ -44,7 +44,12 @@ void ProbeExecutor::run() {
     }
 
     while (!m_stopRequested.load()) {
-        QVector<ProbeDatabase::Task> batch = m_db->fetchWaiting(512);
+        // 5WHY: fetchWaiting(512) spawned up to 512 std::threads per batch,
+        // each holding a socket for 3-8s — on mobile (low fd limits, small
+        // stacks) this risks fd/thread exhaustion.  Cap the batch so no more
+        // than 64 concurrent probes run; GeoProbe's ~138 servers then take
+        // 2-3 bounded waves instead of one oversized burst.
+        QVector<ProbeDatabase::Task> batch = m_db->fetchWaiting(64);
         if (batch.isEmpty()) {
             QThread::msleep(100);  // idle: brief yield before re-check
             continue;
@@ -52,8 +57,8 @@ void ProbeExecutor::run() {
 
         // Pre-built QHash is read-only during the parallel loop — thread-safe.
         const auto& lookup = metaByHost;
-        // All 138 threads block mostly on recv(), so context-switch overhead is
-        // negligible compared to 3-8s network wait per server.
+        // All 64 threads block mostly on recv(), so context-switch overhead is
+        // negligible compared to the 3-8s network wait per server.
         std::vector<std::thread> threads;
         threads.reserve(batch.size());
 

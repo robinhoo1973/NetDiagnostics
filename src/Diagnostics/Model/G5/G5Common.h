@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // =============================================================================
 // G5Common.h — curl-style raw-socket HTTP diagnostics
 // =============================================================================
@@ -132,12 +132,18 @@ static CurlResult curlHttp(const QUrl& url, int timeoutMs, bool followRedirect =
             cr.statusCode = (int)httpCode;
             cr.ok = true;
 
-            curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME_T, &cr.dnsMs);    cr.dnsMs *= 1000;
-            curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME_T, &cr.connectMs);    cr.connectMs *= 1000;
-            curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME_T, &cr.appConnectMs); cr.appConnectMs *= 1000;
-            curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME_T, &cr.preTransferMs); cr.preTransferMs *= 1000;
-            curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME_T, &cr.firstByteMs); cr.firstByteMs *= 1000;
-            curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME_T, &cr.totalMs);      cr.totalMs *= 1000;
+            // 5WHY: CURLINFO_*_TIME_T requires a curl_off_t* (64-bit int) output
+            // argument, but the struct fields are double. Passing &double let
+            // curl write an integer bit-pattern into the double — garbage timing
+            // values (huge/denormal) after the *1000 scaling. Use curl_off_t
+            // temporaries, then convert to double (seconds → ms).
+            curl_off_t tDns = 0, tConn = 0, tAppConn = 0, tPre = 0, tFirst = 0, tTotal = 0;
+            curl_easy_getinfo(curl, CURLINFO_NAMELOOKUP_TIME_T, &tDns);      cr.dnsMs       = (double)tDns * 1000.0;
+            curl_easy_getinfo(curl, CURLINFO_CONNECT_TIME_T,   &tConn);      cr.connectMs   = (double)tConn * 1000.0;
+            curl_easy_getinfo(curl, CURLINFO_APPCONNECT_TIME_T,&tAppConn);   cr.appConnectMs= (double)tAppConn * 1000.0;
+            curl_easy_getinfo(curl, CURLINFO_PRETRANSFER_TIME_T,&tPre);      cr.preTransferMs= (double)tPre * 1000.0;
+            curl_easy_getinfo(curl, CURLINFO_STARTTRANSFER_TIME_T,&tFirst);  cr.firstByteMs = (double)tFirst * 1000.0;
+            curl_easy_getinfo(curl, CURLINFO_TOTAL_TIME_T,     &tTotal);     cr.totalMs     = (double)tTotal * 1000.0;
 
             char* redirectUrl = nullptr;
             curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &redirectUrl);

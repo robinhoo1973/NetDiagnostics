@@ -21,17 +21,19 @@ DiagnosticResult ping(const QString& target) {
 
     QElapsedTimer t; t.start();
     int sent=0, rcvd=0; double sumMs=0, minMs=1e9, maxMs=0;
+    // 5WHY: worst case (ICMP 2s + 5 TCP ports × up to 6s each = 32s per
+    // iteration × 4) dwarfed the 30s task watchdog — the worker kept running
+    // up to ~2 minutes after the timeout was reported, pinning a pool thread
+    // and delaying the rest of G4.  Self-limit to 22s: with a worst single
+    // probe overrun of ~6s (DNS + connect), ping() still lands inside its
+    // 30s watchdog budget.
+    const int kPingBudgetMs = 22000;
     // 5WHY: On Linux, raw ICMP sockets require CAP_NET_RAW (root), so we
     // always fall back to TCP connect.  Users see "ping" output but the
-    // measurement is TCP handshake RTT, not ICMP echo -- significantly
-    // different latency characteristics (TCP has 3-way handshake overhead).
-    // Flag this so the output clearly distinguishes TCP pings from real ICMP.
-    // 5WHY: On Linux and Android, raw ICMP requires CAP_NET_RAW (root),
-    // so we always fall back to TCP connect.  Android's NDK defines both
-    // __ANDROID__ and __linux__, but icmpEchoRttMs() is only compiled for
-    // non-Linux platforms (Apple/BSD).  Including Android here avoids both
-    // a compile error and a misleading "0% loss" summary without the (TCP)
-    // qualifier when ICMP inevitably fails at runtime.
+    // measurement is TCP handshake RTT, not ICMP echo — flag it so the
+    // output clearly distinguishes TCP pings from real ICMP.  Android's NDK
+    // defines both __ANDROID__ and __linux__, but icmpEchoRttMs() is only
+    // compiled for non-Linux platforms, so Android is included here too.
     bool tcpFallback = false;
 #if defined(__linux__) || defined(__ANDROID__)
     tcpFallback = true;
@@ -40,6 +42,7 @@ DiagnosticResult ping(const QString& target) {
     // Windows: IcmpSendEcho (no admin required). Apple: datagram ICMP socket.
     // Linux: TCP connect only (raw ICMP needs CAP_NET_RAW).
     for (int i=0; i<4; ++i) {
+        if (t.elapsed() >= kPingBudgetMs) break;
         ++sent;
         int ms = -1;
 #if defined(_WIN32)
@@ -56,7 +59,10 @@ DiagnosticResult ping(const QString& target) {
 #endif
         if (ms < 0) {
             int ports[] = {443, 80, 22, 8080, 8443};
-            for (int p : ports) { ms = tcpRttMs(host, p); if (ms >= 0) break; }
+            for (int p : ports) {
+                if (t.elapsed() >= kPingBudgetMs) break;
+                ms = tcpRttMs(host, p); if (ms >= 0) break;
+            }
             if (ms >= 0 && !tcpFallback)
                 tcpFallback = true; // ICMP failed but TCP worked
         }

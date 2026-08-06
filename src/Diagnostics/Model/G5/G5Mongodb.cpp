@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult mongodbDiagnostics(const QString& target) {
     if (target.isEmpty())
@@ -31,41 +31,69 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     bson.append('\0');
     bson.append('\x01'); bson.append('\0', 3);         // value 1
     bson.append('\0');                                 // terminator
-    // Full OP_QUERY header
+    // Full OP_QUERY header — MongoDB wire protocol is LITTLE-endian for all
+    // header int32 fields. 5WHY: the old header appended messageLength twice
+    // (once big-endian byte-by-byte, then again host-order via
+    // reinterpret_cast) and built opCode as "\xd4\x07\x07\x07" — so the
+    // declared length (16+bson) never matched the bytes sent and the opcode
+    // was 0x070707d4 instead of 2004. Servers misparse the frame and the
+    // handshake never succeeds. Build exactly 16 bytes with a single LE writer.
     QByteArray header;
-    quint32 msgLen = 16 + bson.size();
-    // Big-endian 4-byte message length
-    header.append(static_cast<char>((msgLen >> 24) & 0xFF));
-    header.append(static_cast<char>((msgLen >> 16) & 0xFF));
-    header.append(static_cast<char>((msgLen >> 8) & 0xFF));
-    header.append(static_cast<char>(msgLen & 0xFF));
-    header.append(reinterpret_cast<const char*>(&msgLen), 4);
-    header.append('\0', 4);    // requestID
-    header.append('\0', 4);    // responseTo
-    header.append('\xd4', 1);  // OP_QUERY (2004) little-endian
-    header.append('\x07', 3);
+    const quint32 kMsgLen = 16 + bson.size();
+    auto appendLE32 = [&header](quint32 v) {
+        header.append(static_cast<char>(v & 0xFF));
+        header.append(static_cast<char>((v >> 8) & 0xFF));
+        header.append(static_cast<char>((v >> 16) & 0xFF));
+        header.append(static_cast<char>((v >> 24) & 0xFF));
+    };
+    appendLE32(kMsgLen);   // messageLength
+    appendLE32(1);         // requestID
+    appendLE32(0);         // responseTo
+    appendLE32(2004);      // OP_QUERY
     sock.write(header + msg + bson);
     sock.waitForBytesWritten(2000);
-    sock.waitForReadyRead(3000);
-    QByteArray resp = sock.readAll();
+    // 5WHY: single waitForReadyRead can return a partial frame on slow links —
+    // read until the full response body (16-byte header + declared length) is
+    // available or the deadline expires.
+    QByteArray resp;
+    QElapsedTimer readTimer; readTimer.start();
+    while (readTimer.elapsed() < 3000) {
+        if (!sock.waitForReadyRead(3000 - (int)readTimer.elapsed())) break;
+        resp.append(sock.readAll());
+        if (resp.size() >= 16) {
+            quint32 declared = (quint32)(unsigned char)resp[0]
+                             | ((quint32)(unsigned char)resp[1] << 8)
+                             | ((quint32)(unsigned char)resp[2] << 16)
+                             | ((quint32)(unsigned char)resp[3] << 24);
+            if (resp.size() >= (int)declared) break;  // full frame received
+        }
+    }
     sock.disconnectFromHost();
-    if (resp.size() < 36) // MongoDB header is 16 bytes + doc
+    if (resp.size() < 16) // MongoDB header is 16 bytes + doc
         return result(DiagId::G5Mongodb, "No response", DiagStatus::Warning,
                       {}, t.elapsed());
-    // Look for version string in response (BSON document)
-    QString raw = QString::fromUtf8(resp);
-    // Extract "version" field if present
-    int vidx = raw.indexOf("version");
+    // Look for version string in response (BSON document — binary, not text).
+    // 5WHY: QString::fromUtf8(resp) + searching for "version" then quote
+    // delimiters never matched because BSON stores strings as <len>\0x02\0
+    // <key>\0 <strlen><utf8>\0, not JSON quotes.  Scan the BSON bytes for a
+    // "\x02version\x00" element and read its length-prefixed UTF-8 value.
     QString version;
+    int vidx = resp.indexOf("\x02version\x00", 0);
     if (vidx >= 0) {
-        int vstart = raw.indexOf('"', vidx + 10);
-        int vend = vstart >= 0 ? raw.indexOf('"', vstart + 1) : -1;
-        if (vend > vstart) version = raw.mid(vstart + 1, vend - vstart - 1);
+        int lenPos = vidx + 1 + 8;  // type byte + "version\0"
+        if (lenPos + 4 <= resp.size()) {
+            quint32 slen = (quint32)(unsigned char)resp[lenPos]
+                         | ((quint32)(unsigned char)resp[lenPos + 1] << 8)
+                         | ((quint32)(unsigned char)resp[lenPos + 2] << 16)
+                         | ((quint32)(unsigned char)resp[lenPos + 3] << 24);
+            if (slen > 0 && slen < 256 && lenPos + 4 + (int)slen <= resp.size())
+                version = QString::fromUtf8(resp.mid(lenPos + 4, (int)slen - 1));
+        }
     }
     return result(DiagId::G5Mongodb,
         version.isEmpty() ? "MongoDB (responded)" : QString("MongoDB %1").arg(version).left(200),
         DiagStatus::Pass,
-        raw.left(500), t.elapsed());
+        resp.left(500), t.elapsed());
 }
 
 // ── LDAP (port 389) / LDAPS (port 636) — bind request ─────────────────

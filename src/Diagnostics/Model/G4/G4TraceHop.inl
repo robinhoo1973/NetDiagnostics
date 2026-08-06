@@ -110,6 +110,30 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
             int icmpType = icmp[0];
             int icmpCode = icmp[1];
 
+            // 5WHY: the receive loop accepted ANY ICMP packet on the raw
+            // socket — replies to OTHER processes' pings/traceroutes on the
+            // same host (all raw ICMP sockets share the kernel receive path)
+            // were treated as our hop, producing bogus/fabricated traceroute
+            // hops.  Validate the echoed identifier (our PID) before accepting.
+            const uint16_t ourId = static_cast<uint16_t>(getpid() & 0xFFFF);
+            bool idMatch = false;
+            if (icmpType == 0) {
+                // Echo Reply: identifier lives at [4:6] of the reply header.
+                idMatch = (((icmp[4] << 8) | icmp[5]) == ourId);
+            } else if (icmpType == 11 || icmpType == 3) {
+                // Time Exceeded / Unreachable: the ICMP payload carries the
+                // original IP header + first 8 bytes of our echo request
+                // (which includes our identifier at [4:6]).
+                int pay = ipHdrLen + 8;              // 8-byte ICMP header
+                if (pay + 8 <= n) {
+                    int echoIpHdr = (recvBuf[pay] & 0x0f) * 4;
+                    int echoIc = pay + echoIpHdr;
+                    if (echoIc + 8 <= n)
+                        idMatch = (((recvBuf[echoIc + 4] << 8) | recvBuf[echoIc + 5]) == ourId);
+                }
+            }
+            if (!idMatch) continue;  // not our probe — ignore, keep waiting
+
             if (icmpType == 0) {
                 // Echo Reply 鈥?reached target
                 hopIp = ip4ToStr(from.sin_addr);

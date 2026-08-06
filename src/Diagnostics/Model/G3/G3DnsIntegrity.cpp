@@ -18,10 +18,10 @@
 #include <QCryptographicHash>
 #include <QSslSocket>
 #include <QSslCertificate>
-#include <QFuture>
+#include <thread>
+#include <vector>
 #include <QMutex>
 #include <QMutexLocker>
-#include <QtConcurrent/QtConcurrent>
 
 namespace SystemDiagnostics {
 
@@ -281,10 +281,17 @@ DiagnosticResult dnsIntegrity(DiagId id) {
 
     // 5WHY: 5 test domains were analyzed SEQUENTIALLY — each domain's
     // DoH query + local DNS + scoring is fully independent (different
-    // hosts, no shared state).  Parallelizing with QtConcurrent cuts
-    // Phase 2 worst case from 5×max(per-domain) to max(per-domain).
+    // hosts, no shared state).  Parallelizing cuts Phase 2 worst case
+    // from 5×max(per-domain) to max(per-domain).
     // With parallel DoH (#3) each domain completes in ~4s worst case,
     // so all 5 finish in ~4s instead of ~20s.
+    // 5WHY (round 2): this used QtConcurrent::run + .result() INSIDE a
+    // QtConcurrent pool thread (DiagnosticTask runs every diagnostic via
+    // QtConcurrent::run).  Nesting blocks pool threads in .result() — on a
+    // 4-core device with 6 concurrent G3 tests that saturates the global
+    // pool and deadlocks the whole group permanently.  Use std::thread
+    // (the same pattern dohQueryFull already uses) so the workers come
+    // from the OS, not the saturated pool.
     static const int kDomCount = sizeof(kTestDomains) / sizeof(kTestDomains[0]);
     struct DomainResult {
         QStringList lines;
@@ -295,46 +302,55 @@ DiagnosticResult dnsIntegrity(DiagId id) {
         QString localUdpIp;
         QString domain;
     };
-    QFuture<DomainResult> domFutures[kDomCount];
+    DomainResult domResults[kDomCount];
+    std::vector<std::thread> domThreads;
+    domThreads.reserve(kDomCount);
     for (int i = 0; i < kDomCount; ++i) {
-        domFutures[i] = QtConcurrent::run([td = kTestDomains[i]]() -> DomainResult {
-            DomainResult dr;
-            dr.domain = QString::fromUtf8(td.domain);
-            DohDnsFullResult doh = dohQueryFull(dr.domain);
-            QElapsedTimer probe; probe.start();
-            QString localUdpIp = DnsResolver::instance().resolve(dr.domain, 3000);
-            int localMs = static_cast<int>(probe.elapsed());
-            dr.localUdpIp = localUdpIp;
+        try {
+            domThreads.emplace_back([i, td = kTestDomains[i], &domResults]() {
+                DomainResult dr;
+                dr.domain = QString::fromUtf8(td.domain);
+                DohDnsFullResult doh = dohQueryFull(dr.domain);
+                QElapsedTimer probe; probe.start();
+                QString localUdpIp = DnsResolver::instance().resolve(dr.domain, 3000);
+                int localMs = static_cast<int>(probe.elapsed());
+                dr.localUdpIp = localUdpIp;
 
-            if (doh.aRecords.isEmpty()) {
-                dr.lines.append(QStringLiteral("  %1 (%2) — DoH Query Failed, Skipped")
-                    .arg(td.domain, td.description));
-                dr.tag = DomainResult::Error;
-            } else if (localUdpIp.isEmpty()) {
-                dr.lines.append(QStringLiteral("  %1 (%2) — Local DNS Failed, Skipped")
-                    .arg(td.domain, td.description));
-                dr.tag = DomainResult::Error;
-            } else if (isPrivateIp(localUdpIp)) {
-                dr.lines.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (Private IP)")
-                    .arg(td.domain, td.description, localUdpIp));
-                dr.tag = DomainResult::PrivateIp;
-            } else {
-                DnsIntegrityResult ir = scoreDnsIntegrity(
-                    dr.domain, QString::fromUtf8(td.description),
-                    doh, localUdpIp, localMs);
-                dr.lines = ir.output;
-                dr.verdict = ir.verdict;
-                dr.scorePercent = ir.scorePercent;
-                dr.dohIps = ir.dohIps.join(',');
-                dr.tag = DomainResult::Scored;
-            }
-            dr.lines.append(QString());
-            return dr;
-        });
+                if (doh.aRecords.isEmpty()) {
+                    dr.lines.append(QStringLiteral("  %1 (%2) — DoH Query Failed, Skipped")
+                        .arg(td.domain, td.description));
+                    dr.tag = DomainResult::Error;
+                } else if (localUdpIp.isEmpty()) {
+                    dr.lines.append(QStringLiteral("  %1 (%2) — Local DNS Failed, Skipped")
+                        .arg(td.domain, td.description));
+                    dr.tag = DomainResult::Error;
+                } else if (isPrivateIp(localUdpIp)) {
+                    dr.lines.append(QStringLiteral("  %1 (%2) — Local=%3 → HIJACKED (Private IP)")
+                        .arg(td.domain, td.description, localUdpIp));
+                    dr.tag = DomainResult::PrivateIp;
+                } else {
+                    DnsIntegrityResult ir = scoreDnsIntegrity(
+                        dr.domain, QString::fromUtf8(td.description),
+                        doh, localUdpIp, localMs);
+                    dr.lines = ir.output;
+                    dr.verdict = ir.verdict;
+                    dr.scorePercent = ir.scorePercent;
+                    dr.dohIps = ir.dohIps.join(',');
+                    dr.tag = DomainResult::Scored;
+                }
+                dr.lines.append(QString());
+                domResults[i] = dr;
+            });
+        } catch (const std::system_error&) {
+            break;  // thread creation exhausted — join what we have
+        }
+    }
+    for (auto& th : domThreads) {
+        try { if (th.joinable()) th.join(); } catch (...) {}
     }
 
     for (int i = 0; i < kDomCount; ++i) {
-        DomainResult dr = domFutures[i].result();
+        const DomainResult& dr = domResults[i];
         for (const auto& line : dr.lines)
             out.append(line);
 
