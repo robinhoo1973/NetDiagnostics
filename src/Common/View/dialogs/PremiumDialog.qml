@@ -178,8 +178,10 @@ Rectangle {
                     Rectangle {
                         visible: appState.isPremium
                         Layout.fillWidth: true; implicitHeight: 44; radius: 10
-                        color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.12)
-                        border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.35) }
+                        // 5WHY (dark-mode audit): alpha=0.12 passGreen on dark card
+                        // yields ~1.14:1 contrast — invisible.  Bumped to 0.20.
+                        color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.20)
+                        border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.45) }
                         RowLayout {
                             anchors.centerIn: parent; spacing: 8
                             AppIcon { name: "badge-check"; size: 18; color: Th.ThemeEngine.colors.passGreen }
@@ -201,8 +203,10 @@ Rectangle {
                         delegate: Rectangle {
                             Layout.fillWidth: true
                             implicitHeight: featureRow.implicitHeight + 14; radius: 10
-                            color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
-                            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.15) }
+                            // 5WHY (same dark-mode audit as PremiumCard.qml): alpha=0.06
+                            // primary on card yields ~1.12:1 contrast — invisible in dark.
+                            color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.12)
+                            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.35) }
                             RowLayout {
                                 id: featureRow
                                 anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }

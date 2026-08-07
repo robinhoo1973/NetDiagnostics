@@ -138,8 +138,10 @@ Rectangle {
                 delegate: Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: featureRow.implicitHeight + 12; radius: 8
-                    color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.06)
-                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.15) }
+                    // 5WHY (dark-mode audit same as PremiumCard.qml): alpha=0.06
+                    // warnYellow on card is invisible in dark (~1.13:1 contrast).
+                    color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.12)
+                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.35) }
                     RowLayout {
                         id: featureRow
                         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }

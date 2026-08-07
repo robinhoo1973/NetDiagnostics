@@ -1,12 +1,12 @@
 // =============================================================================
-// PremiumCard.qml — Modern Premium (IAP) entry card for SettingsScreen
+// PremiumCard.qml — Premium (IAP) entry card for SettingsScreen
 //
-// Modern card design: brand gradient hero band + one-time/lifetime messaging +
-// feature chips (PDF / HTML / lifetime) + primary purchase CTA + restore.
+// Compact card design: indigo hero band + icon + title/subtitle +
+// two flat feature rows (no background chips) + divider + action buttons.
 //
 // Emits purchaseRequested() so the page can open the full PremiumDialog, and
 // restoreRequested() for a direct restore tap.  When premium is already
-// unlocked the card switches to an "owned" state (green banner + restore).
+// unlocked the card switches to an "owned" state (green checkmarks, no CTA).
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -21,7 +21,7 @@ Rectangle {
     // Layout), so its content does NOT contribute to the root implicit height.
     // Without this the card collapses to height 0 inside SettingsScreen's
     // ColumnLayout and never renders.
-    implicitHeight: cardBody.implicitHeight + hero.height
+    implicitHeight: hero.height + cardBody.implicitHeight
     radius: Th.ThemeEngine.radius.lg
     color: Th.ThemeEngine.colors.card
     border { width: 1; color: Th.ThemeEngine.colors.borderCard }
@@ -35,22 +35,16 @@ Rectangle {
     LayoutMirroring.enabled: T.isRtl
     LayoutMirroring.childrenInherit: true
 
-    // ── Hero band — solid brand color + subtle decoration ────────────
+    // ── Hero band — solid indigo + icon + title + subtitle ─────────────
     Rectangle {
         id: hero
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        // 5WHY: card.isMobile was referenced but never declared — qmllint
-        // flagged it (missing-property).  Use the ThemeEngine singleton, the
-        // canonical platform layout flag, instead of an undeclared property.
         implicitHeight: heroCol.implicitHeight + (ThemeEngine.isMobile ? 22 : 26)
         // 5WHY (iOS screenshots 136/137): the Gradient hero band did NOT render
-        // in Light theme — Gradient/GradientStop bound to the ThemeEngine.colors
-        // JS object is not reliably re-evaluated by the iOS static QML engine,
-        // leaving white-on-white invisible text.  A solid color (built-in
-        // property binding, battle-tested app-wide) replaces the gradient;
-        // decoration adds depth without any gradient dependency.
+        // in Light theme on iOS static QML.  Solid secondary (indigo) replaces
+        // the gradient; decoration adds depth without gradient dependency.
         color: Th.ThemeEngine.colors.secondary
-        // Decorative corner circle (modern depth, no gradient)
+        // Decorative corner circle (modern depth)
         Rectangle {
             anchors { right: parent.right; bottom: parent.bottom; rightMargin: -34; bottomMargin: -34 }
             width: 132; height: 132; radius: 66
@@ -62,62 +56,39 @@ Rectangle {
             height: 2
             color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.45)
         }
-        ColumnLayout {
+
+        RowLayout {
             id: heroCol
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: Th.ThemeEngine.spacing.lg }
-            spacing: 6
-            RowLayout {
-                Layout.fillWidth: true; spacing: 12
-                // Icon tile — rounded square (44pt, modern), not a circle
-                Rectangle {
-                    implicitWidth: 44; implicitHeight: 44; radius: 14
-                    color: Qt.alpha("#FFFFFF", 0.16)
-                    border { width: 1; color: Qt.alpha("#FFFFFF", 0.35) }
-                    AppIcon {
-                        anchors.centerIn: parent
-                        name: appState.isPremium ? "badge-check" : "zap"
-                        size: 22; color: "#FFFFFF"
-                    }
+            spacing: 12
+            // Icon tile — rounded square
+            Rectangle {
+                implicitWidth: 44; implicitHeight: 44; radius: 14
+                color: Qt.alpha("#FFFFFF", 0.16)
+                border { width: 1; color: Qt.alpha("#FFFFFF", 0.35) }
+                AppIcon {
+                    anchors.centerIn: parent
+                    name: appState.isPremium ? "badge-check" : "zap"
+                    size: 22; color: "#FFFFFF"
                 }
-                // Title + subtitle — subtitle WRAPS (never elides) so long
-                // translations (German/Russian/Arabic) never lose the story.
-                ColumnLayout {
-                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
-                    Label {
-                        Layout.fillWidth: true
-                        text: T.tr("premiumHero")
-                        // 5WHY (font-metric audit, scripts/text_metrics.cpp):
-                        // "NetDiagnostics PRO" measures 160px @17px but the hero
-                        // text column is only 146px on iPhone SE (320pt) — it
-                        // elided there.  Shrink responsively to 15px (≈141px,
-                        // +5px slack) when the column is narrow; elide remains
-                        // as a belt-and-braces fallback.
-                        font.family: Th.ThemeEngine.fontUi
-                        font.pixelSize: (card.width - 148) < 162 ? 15 : 17
-                        font.weight: Font.Bold
-                        color: "#FFFFFF"; elide: T.textElideStart; maximumLineCount: 1
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumOneTime")
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
-                        color: Qt.alpha("#FFFFFF", 0.92); wrapMode: Text.WordWrap; lineHeight: 1.3
-                    }
+            }
+            // Title + subtitle — subtitle WRAPS (never elides) so long
+            // translations (German/Russian/Arabic) never lose the story.
+            ColumnLayout {
+                Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
+                Label {
+                    Layout.fillWidth: true
+                    text: T.tr("premiumHero")
+                    font.family: Th.ThemeEngine.fontUi
+                    font.pixelSize: (card.width - 148) < 162 ? 15 : 17
+                    font.weight: Font.Bold
+                    color: "#FFFFFF"; elide: T.textElideStart; maximumLineCount: 1
                 }
-                // PRO pill (top-aligned, never stretches)
-                Rectangle {
-                    Layout.alignment: Qt.AlignTop
-                    implicitWidth: proPill.implicitWidth + 16; implicitHeight: 24; radius: 12
-                    color: appState.isPremium ? Qt.alpha("#FFFFFF", 0.24) : Qt.alpha("#FFFFFF", 0.14)
-                    RowLayout {
-                        id: proPill
-                        anchors.centerIn: parent; spacing: 4
-                        AppIcon { name: "badge-check"; size: 11; color: "#FFFFFF" }
-                        Label {
-                            text: T.tr("premiumBadge")
-                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 10; font.weight: Font.DemiBold; color: "#FFFFFF"
-                        }
-                    }
+                Label {
+                    Layout.fillWidth: true
+                    text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumOneTime")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
+                    color: Qt.alpha("#FFFFFF", 0.92); wrapMode: Text.WordWrap; lineHeight: 1.3
                 }
             }
         }
@@ -127,70 +98,55 @@ Rectangle {
     ColumnLayout {
         id: cardBody
         anchors { left: parent.left; right: parent.right; top: hero.bottom; margins: Th.ThemeEngine.spacing.lg }
-        spacing: Th.ThemeEngine.spacing.md
+        spacing: Th.ThemeEngine.spacing.sm
 
-        // Feature list — VERTICAL rows shown in BOTH states: locked (blue
-        // icons = what you get) and unlocked (green checks = owned benefits).
-        // 5WHY (iOS screenshot): the old unlocked state showed a separate
-        // "Premium Unlocked · One-time…" banner that duplicated the hero
-        // subtitle and clipped on narrow screens.  Removed — the hero
-        // subtitle already states the state; the green rows confirm the
-        // owned benefits (App Store subscription-management pattern).
+        // Feature rows — flat icon+text rows (no background chips).
+        // Locked: layers + badge-check with primary icons.
+        // Unlocked: both become green checkmarks.
         Repeater {
             model: [
-                // PDF + HTML merged — 'layers' icon represents both formats
                 { icon: "layers",          key: "premiumFeaturePdf" },
                 { icon: "badge-check",     key: "premiumFeatureLifetime" }
             ]
-            delegate: Rectangle {
+            delegate: RowLayout {
                 Layout.fillWidth: true
-                implicitHeight: featRow.implicitHeight + 16; radius: 10
-                color: appState.isPremium ? Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.08)
-                                          : Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
-                border { width: 1; color: appState.isPremium ? Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.3)
-                                                             : Qt.alpha(Th.ThemeEngine.colors.primary, 0.16) }
-                RowLayout {
-                    id: featRow
-                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                    spacing: 10
-                    AppIcon {
-                        name: appState.isPremium ? "badge-check" : modelData.icon
-                        size: 18
-                        color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.primary
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: T.tr(modelData.key)
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
-                        color: appState.isPremium ? Th.ThemeEngine.colors.textSecondary : Th.ThemeEngine.colors.textPrimary
-                        wrapMode: Text.WordWrap; lineHeight: 1.35
-                    }
+                spacing: 10
+                AppIcon {
+                    name: appState.isPremium ? "badge-check" : modelData.icon
+                    size: 18
+                    color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.primary
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: T.tr(modelData.key)
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
+                    color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
                 }
             }
         }
 
-        // Unavailable notice — premium platform without a store backend
-        // (Android/macOS today): honest copy instead of a dead-end CTA.
-        // 5WHY: supportsIap() is iOS-only; Android/macOS are premium platforms
-        // but have no purchase backend yet, so a Buy button would dead-end
-        // (Apple/Google review policy forbids that).
+        // ── Divider ──────────────────────────────────────────────────
         Rectangle {
-            visible: !appState.isPremium && !appState.platformSupportsIap
-            Layout.fillWidth: true; implicitHeight: 44; radius: 10
-            color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.08)
-            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.3) }
-            Label {
-                anchors { fill: parent; margins: 8 }
-                text: T.tr("iapNotAvailable")
-                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
-                color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
-            }
+            Layout.fillWidth: true
+            implicitHeight: 1
+            // 5WHY (dark-mode audit): Qt.alpha(borderCard, 0.6) on dark card
+            // (#334155·0.6≈#232A37 vs #1E293B → 1.07:1) was invisible.  Full
+            // borderCard (#334155) yields 1.41:1 — low but acceptable for a
+            // decorative divider (M3 outlineVariant range is 1.2–1.5:1).
+            color: Th.ThemeEngine.colors.borderCard
         }
 
         // ── Actions ──────────────────────────────────────────────────
-        // Primary CTA — solid primary + hover (the hero carries the gradient;
-        // a second gradient would compete for visual focus).
+        // Locked: primary CTA + restore outline
+        // Unlocked: restore outline only
+        // 5WHY (iOS screenshots 136/137 dark-mode audit): feature rows
+        // were previously wrapped in background chips with alpha=0.06
+        // primary on card — invisible in dark mode (~1.12:1 contrast).
+        // Removed the chip backgrounds entirely; flat rows with visible
+        // icons + text are cleaner and never disappear in either theme
+        // (Apple App Store / Spotify subscription-card pattern).
+
+        // Primary CTA — solid primary + hover
         Rectangle {
             visible: !appState.isPremium && appState.platformSupportsIap
             Layout.fillWidth: true; implicitHeight: 48; radius: 12
@@ -224,11 +180,12 @@ Rectangle {
             Accessible.role: Accessible.Button
         }
 
-        // Restore — secondary outline
+        // Restore — secondary outline (always visible, both states)
         Rectangle {
             visible: !appState.purchaseInProgress && appState.platformSupportsIap
             Layout.fillWidth: true; implicitHeight: 42; radius: 10
-            color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.08) : "transparent"
+            // 5WHY: hover feedback alpha=0.08 was invisible in dark (~1.06:1).
+            color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.12) : "transparent"
             border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.4) }
             Behavior on color { ColorAnimation { duration: 150 } }
             RowLayout {
