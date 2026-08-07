@@ -46,7 +46,14 @@ Rectangle {
         id: card
         anchors.centerIn: parent
         width: Math.min(400, parent.width * 0.92)
-        implicitHeight: cardCol.implicitHeight + hero.height; radius: Th.ThemeEngine.radius.xl
+        // 5WHY (scripts/text_metrics.cpp vertical audit): on iPhone SE
+        // (320x568) the dialog measured ~755px vs ~408px usable — it overflowed
+        // the screen and clipped the action buttons.  Cap the height to the
+        // viewport; the middle (feature/body) area scrolls while the hero and
+        // the action buttons stay fixed.
+        height: Math.min(bodyCol.implicitHeight + hero.height,
+                         Math.max(360, parent.height * 0.9))
+        radius: Th.ThemeEngine.radius.xl
         color: Th.ThemeEngine.colors.card
         border { width: 1; color: Th.ThemeEngine.colors.borderCard }
         clip: true
@@ -132,76 +139,94 @@ Rectangle {
             }
         }
 
-        // ── Body ──────────────────────────────────────────────────────
+        // ── Body (scrollable content + fixed action row) ──────────────
         ColumnLayout {
-            id: cardCol
-            anchors { left: parent.left; right: parent.right; top: hero.bottom; margins: Th.ThemeEngine.spacing.xl }
+            id: bodyCol
+            anchors { left: parent.left; right: parent.right; top: hero.bottom; bottom: parent.bottom; margins: Th.ThemeEngine.spacing.xl }
             spacing: 12
 
-            // Unlocked state banner
-            Rectangle {
-                visible: appState.isPremium
-                Layout.fillWidth: true; implicitHeight: 44; radius: 10
-                color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.12)
-                border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.35) }
-                RowLayout {
-                    anchors.centerIn: parent; spacing: 8
-                    AppIcon { name: "badge-check"; size: 18; color: Th.ThemeEngine.colors.passGreen }
-                    Label {
-                        text: T.tr("premiumUnlocked")
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
-                        color: Th.ThemeEngine.colors.passGreen
-                    }
-                }
-            }
+            // Scrollable content — only scrolls when the card hits the height
+            // cap (small phones).  preferredHeight must equal the content so
+            // bodyCol.implicitHeight reflects the real unclipped height.
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredHeight: scrollCol.implicitHeight
+                clip: true
+                contentHeight: scrollCol.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                ColumnLayout {
+                    id: scrollCol
+                    width: parent.width
+                    spacing: 12
 
-            // Feature rows (locked only)
-            Repeater {
-                visible: !appState.isPremium
-                model: [
-                    { icon: "file-pdf",    key: "premiumFeaturePdf" },
-                    { icon: "file-html",   key: "premiumFeatureHtml" },
-                    { icon: "badge-check", key: "premiumFeatureLifetime" }
-                ]
-                delegate: Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: featureRow.implicitHeight + 14; radius: 10
-                    color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
-                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.15) }
-                    RowLayout {
-                        id: featureRow
-                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                        spacing: 10
-                        AppIcon { name: modelData.icon; size: 18; color: Th.ThemeEngine.colors.primary }
-                        Label {
-                            Layout.fillWidth: true
-                            text: T.tr(modelData.key)
-                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
-                            color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+                    // Unlocked state banner
+                    Rectangle {
+                        visible: appState.isPremium
+                        Layout.fillWidth: true; implicitHeight: 44; radius: 10
+                        color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.12)
+                        border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.35) }
+                        RowLayout {
+                            anchors.centerIn: parent; spacing: 8
+                            AppIcon { name: "badge-check"; size: 18; color: Th.ThemeEngine.colors.passGreen }
+                            Label {
+                                text: T.tr("premiumUnlocked")
+                                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
+                                color: Th.ThemeEngine.colors.passGreen
+                            }
                         }
                     }
+
+                    // Feature rows (locked only)
+                    Repeater {
+                        visible: !appState.isPremium
+                        model: [
+                            { icon: "file-pdf",    key: "premiumFeaturePdf" },
+                            { icon: "file-html",   key: "premiumFeatureHtml" },
+                            { icon: "badge-check", key: "premiumFeatureLifetime" }
+                        ]
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: featureRow.implicitHeight + 14; radius: 10
+                            color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
+                            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.15) }
+                            RowLayout {
+                                id: featureRow
+                                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                                spacing: 10
+                                AppIcon { name: modelData.icon; size: 18; color: Th.ThemeEngine.colors.primary }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: T.tr(modelData.key)
+                                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
+                                    color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+                                }
+                            }
+                        }
+                    }
+
+                    // Body copy (locked)
+                    Label {
+                        visible: !appState.isPremium
+                        Layout.fillWidth: true
+                        text: appState.platformSupportsIap ? T.tr("subscribeBody") : T.tr("iapNotAvailable")
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
+                        color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5
+                    }
+
+                    // Transient status (deferred / restore result) — UI font, not mono
+                    Label {
+                        visible: root.statusText !== ""
+                        Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                        text: root.statusText
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
+                        color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
+                    }
                 }
             }
 
-            // Body copy (locked)
-            Label {
-                visible: !appState.isPremium
-                Layout.fillWidth: true
-                text: appState.platformSupportsIap ? T.tr("subscribeBody") : T.tr("iapNotAvailable")
-                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
-                color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5
-            }
-
-            // Transient status (deferred / restore result) — UI font, not mono
-            Label {
-                visible: root.statusText !== ""
-                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.statusText
-                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
-                color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
-            }
-
-            // ── Actions (locked) ──────────────────────────────────────
+            // ── Actions (fixed bottom, never clipped) ─────────────────
             ColumnLayout {
                 visible: !appState.isPremium
                 Layout.fillWidth: true; spacing: 10

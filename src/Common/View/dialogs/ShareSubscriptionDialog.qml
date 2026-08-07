@@ -57,6 +57,12 @@ Rectangle {
             Flickable {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                // 5WHY: without preferredHeight the Flickable reports an
+                // implicitHeight of 0, so contentCol.implicitHeight collapsed
+                // to ~button height and the whole dialog shrank to a thin bar
+                // (icon/title/features invisible).  preferredHeight must equal
+                // the content height so the cap formula sees the real height.
+                Layout.preferredHeight: dlgCol.implicitHeight
                 clip: true
                 contentHeight: dlgCol.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
