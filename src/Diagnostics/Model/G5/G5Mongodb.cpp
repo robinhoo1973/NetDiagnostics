@@ -21,7 +21,11 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     msg.append('\0', 4);   // namespace "$cmd" prefix
     msg.append("admin.$cmd");
     msg.append('\0');
-    msg.append('\x01', 4); // numberToSkip=1, numberToReturn=1
+    // 5WHY: numberToSkip was 1 — for an OP_QUERY against admin.$cmd the skip
+    // field must be 0 (commands never skip).  Servers tolerate it, but the
+    // field as written (skip=1, return=1) is not the canonical command query.
+    msg.append('\0', 4); // numberToSkip=0
+    msg.append('\x01', 4); // numberToReturn=1
     // BSON: { isMaster: 1 } → \x13\x00\x00\x00\x10 isMaster\0\x01\x00\x00\x00\0
     QByteArray bson;
     bson.append('\x13', 1);                           // total size

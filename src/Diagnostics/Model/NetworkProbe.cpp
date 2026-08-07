@@ -69,8 +69,13 @@ NetworkProbe::TcpProbeResult NetworkProbe::tcpProbe(const QString& host, int por
         r.data.append(sock.readAll());
         if (r.data.size() > before) {
             idleSince = read.elapsed();
-        } else if (idleSince >= 0 && read.elapsed() - idleSince >= 300) {
-            break;  // idle gap after a partial response → frame is complete
+        } else {
+            // 5WHY: after the peer sends its response and closes, waitForReadyRead
+            // returns true immediately (disconnect is "readable") and readAll()
+            // yields nothing — the loop would busy-spin until the 300ms idle
+            // threshold.  Break as soon as the socket is closed with no new data.
+            if (sock.state() == QAbstractSocket::UnconnectedState) break;
+            if (idleSince >= 0 && read.elapsed() - idleSince >= 300) break;
         }
     }
     sock.disconnectFromHost();

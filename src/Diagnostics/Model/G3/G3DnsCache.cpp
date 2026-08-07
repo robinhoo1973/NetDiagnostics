@@ -42,11 +42,18 @@ DiagnosticResult dnsCache(DiagId id) {
 #else
     out.append(QStringLiteral("DNS Cache Information"));
     out.append(QString());
-    // 闁冲厜鍋撻柍鍏夊亾 Try systemd-resolved cache (most common on modern Linux) 闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾闁冲厜鍋撻柍鍏夊亾
     // 5WHY: /run/systemd/resolve/cache is a BINARY mmap'd database, not text.
     // Reading it as lines produced garbage entries and a spurious "Cache
     // Active" Pass.  Query systemd's official CLI and feed its text output
     // through the shared line-display logic below instead.
+    // 5WHY (iOS CI failure 31132720900): resolvectl is a LINUX-ONLY (systemd)
+    // command.  Guarding the QProcess use with __linux__ both avoids spawning a
+    // nonexistent binary on macOS/iOS AND keeps the QProcess instantiation out
+    // of the iOS compile — the iOS toolchain's transitive include chain failed
+    // to declare QProcess here ("unknown type name"), even though the header was
+    // included.  macOS/iOS now fall straight through to the resolver-config
+    // branch, which is the correct behaviour (no systemd-resolved there).
+#if defined(__linux__)
     QProcess proc;
     proc.start(QStringLiteral("resolvectl"), QStringList() << QStringLiteral("statistics"));
     if (!proc.waitForFinished(5000)) {
@@ -54,6 +61,11 @@ DiagnosticResult dnsCache(DiagId id) {
         proc.waitForFinished(5000);
     }
     QByteArray data = proc.readAllStandardOutput();
+#else
+    // macOS / iOS / other non-Linux: no systemd-resolved exists — leave data
+    // empty so the else branch below shows the resolver configuration.
+    QByteArray data;
+#endif
     if (!data.trimmed().isEmpty()) {
         hasCache = true;
         out.append(QStringLiteral("systemd-resolved Cache Statistics"));
