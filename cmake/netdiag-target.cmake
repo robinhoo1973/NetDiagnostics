@@ -1,4 +1,4 @@
-﻿# ── netdiag-target.cmake ────────────────────────────────────────────────
+# ── netdiag-target.cmake ────────────────────────────────────────────────
 # Shared target configuration for net_diagnostics.
 #
 # Usage: configure_netdiag_target(target_name)
