@@ -3,11 +3,22 @@ name: Cleanup CI Runs
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7 16 * * *'  # daily 16:07 UTC
+    # 5WHY: Run 31120799157 failed with "The job was not acquired by Runner of
+    # type hosted even after multiple attempts" — GitHub could not schedule the
+    # job because build/iOS/macOS workflows were hogging the concurrent runner
+    # quota at 16:07 UTC.  Runner assignment happens BEFORE the job starts, so
+    # no in-job guard can help; the only lever is to schedule OUTSIDE build
+    # hours.  UTC 22:07 = 06:07 Beijing — the quietest window for manual
+    # builds/pushes.  Cron is idempotent, so a rare missed run self-heals on
+    # the next day.
+    - cron: '7 22 * * *'  # daily 22:07 UTC (06:07 Beijing)
 
 jobs:
   cleanup:
     runs-on: ubuntu-latest
+    # 5WHY: bound the job explicitly; the default is 360 min.  20 min is ample
+    # for the delete loop and fails fast if the API is slow.
+    timeout-minutes: 20
     permissions:
       actions: write
     steps:
@@ -16,7 +27,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          set -e
+          set -euo pipefail
 
           workflows=$(gh api "repos/$REPO/actions/workflows" --jq '.workflows[].id')
           total_deleted=0
