@@ -25,6 +25,15 @@ public:
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
+    // 5WHY (iOS b21294): PremiumDialog.openDialog() auto-probes the store for
+    // a previous purchase.  It previously reused restorePurchases(), which
+    // sets m_purchaseInProgress=true — while the probe was in flight, tapping
+    // Buy or Restore hit `if (m_purchaseInProgress) return;` and did NOTHING
+    // (buttons appeared dead).  probeRestore() is the SAME StoreKit call but
+    // WITHOUT touching m_purchaseInProgress, so the Buy/Restore buttons stay
+    // live while the probe runs.  It still emits restoreCompleted so the UI
+    // can confirm a restored purchase.
+    Q_INVOKABLE void probeRestore();
 
     // True on platforms that SELL Premium: iOS/Android/macOS.  Sharing is
     // gated behind Premium only here; on Windows/Linux it is free.

@@ -43,8 +43,13 @@ Rectangle {
         // the IAP window opens — if the account already owns Premium, restore
         // it and confirm ("Purchases Restored"); otherwise the guided buy flow
         // stays visible.  Only on platforms with a real store backend.
+        // 5WHY (iOS b21294): use probeRestore(), NOT restorePurchases() —
+        // the latter sets purchaseInProgress=true, which makes the Buy and
+        // Restore buttons below silently dead (`if (m_purchaseInProgress)
+        // return;` in PremiumStore) while the probe is in flight.  probeRestore
+        // runs the same StoreKit restore WITHOUT blocking the buttons.
         if (!appState.isPremium && appState.platformSupportsIap)
-            Qt.callLater(function() { appState.restorePurchases() })
+            Qt.callLater(function() { appState.probeRestore() })
     }
     function closeDialog() { root.open = false; root.dismissed() }
 

@@ -8,6 +8,10 @@
 #include <QTextStream>
 #include <QStandardPaths>
 
+#if defined(PLATFORM_ANDROID)
+#include "Common/Platform/Android/AndroidLogPaths.h"
+#endif
+
 Logger::Logger() {
     QString logDir;
 #if defined(PLATFORM_IOS)
@@ -15,10 +19,19 @@ Logger::Logger() {
     // Route the runtime log to Documents so it is retrievable via Files.app
     // (requires UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace).
     logDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/NetDiagnostics";
-#elif defined(Q_OS_WIN)
+#else
+#if defined(PLATFORM_ANDROID)
+    // 5WHY (Android b21294): /tmp is not writable on Android, and the private
+    // cache dir is invisible to the user.  Use the app-scoped external dir
+    // (Android/data/<pkg>/files, no permission needed, USB/MTP-visible).
+    logDir = androidUserVisibleLogDir();
+#else
+#if defined(Q_OS_WIN)
     logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/NetDiagnostics";
 #else
     logDir = QStringLiteral("/tmp/NetDiagnostics");
+#endif
+#endif
 #endif
     QDir().mkpath(logDir);
     m_file.setFileName(logDir + "/debug.log");

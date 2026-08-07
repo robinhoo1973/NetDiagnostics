@@ -146,3 +146,23 @@ void PremiumStore::restorePurchases() {
     emit restoreCompleted(false, false);
 #endif
 }
+
+void PremiumStore::probeRestore() {
+    if (m_isPremium) return;
+    if (m_purchaseInProgress) return;  // user is actively buying — don't probe
+    if (m_purchaseDeferred) return;
+
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
+    // 5WHY (iOS b21294): Unlike restorePurchases(), this does NOT set
+    // m_purchaseInProgress — the Buy/Restore buttons stay enabled while the
+    // store is probed.  The 30s watchdog in PlatformStore.mm still bounds the
+    // call, and the result is surfaced via restoreCompleted so the UI can
+    // confirm ("Purchases Restored") when a previous purchase is found.
+    platformRestorePurchases([this](bool restoredAny, bool isError) {
+        if (restoredAny) setPremium(true);
+        emit restoreCompleted(restoredAny, isError);
+    });
+#else
+    emit restoreCompleted(false, false);
+#endif
+}

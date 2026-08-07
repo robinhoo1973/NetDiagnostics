@@ -95,6 +95,10 @@ void SettingsController::restorePurchases() {
     m_premium.restorePurchases();
 }
 
+void SettingsController::probeRestore() {
+    m_premium.probeRestore();
+}
+
 void SettingsController::shareReport(const QString& format) {
     // 5WHY: Premium is sold only on iOS/Android/macOS.  On Windows/Linux the
     // OS send/mail API (emailReportDesktop → QDesktopServices mailto) is free —

@@ -35,18 +35,30 @@
 #include <windows.h>
 #endif
 
-static void startup_log(const char* file, int line, const char* fmt, ...) {
-    // 5WHY: On iOS the temp dir is inside the sandbox and not visible to the
-    // user.  Write to the app's Documents directory instead — with
-    // UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace in Info.plist,
-    // this file is directly accessible in Files.app / Finder, so users can
-    // retrieve the startup log without Xcode or a Mac.
-#if defined(PLATFORM_IOS)
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-#else
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+#if defined(PLATFORM_ANDROID)
+#include "Common/Platform/Android/AndroidLogPaths.h"
 #endif
-    QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
+
+// 5WHY: Choose a log directory the user can actually retrieve.
+//   iOS      → Documents (Files.app, UIFileSharingEnabled) — user-visible
+//   Android  → getExternalFilesDir (Android/data/<pkg>/files) — user-visible
+//              via USB/MTP or file managers, no permission needed (5WHY in
+//              AndroidLogPaths.h)
+//   Desktop  → TempLocation (OS temp)
+static QString startupLogDir() {
+#if defined(PLATFORM_IOS)
+    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+#else
+#if defined(PLATFORM_ANDROID)
+    return androidUserVisibleLogDir();
+#else
+    return QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+#endif
+#endif
+}
+
+static void startup_log(const char* file, int line, const char* fmt, ...) {
+    QString path = QDir(startupLogDir()).filePath("NetDiagnostics_startup.log");
 
     QFile f(path);
     // 5WHY: QFile::open() is [[nodiscard]] in Qt 6 — ignoring the return
@@ -86,12 +98,7 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
 // from the previous run is stale.  Delete it so stale crash-debug logs
 // don't accumulate across successful launches.
 static inline void startup_log_cleanup() {
-#if defined(PLATFORM_IOS)
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-#else
-    QString dir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
-#endif
-    QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
+    QString path = QDir(startupLogDir()).filePath("NetDiagnostics_startup.log");
     QFile::remove(path);
 }
 #define STARTUP_CLEANUP() startup_log_cleanup()

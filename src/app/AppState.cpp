@@ -825,6 +825,10 @@ void AppState::restorePurchases() {
     m_settingsCtrl->restorePurchases();
 }
 
+void AppState::probeRestore() {
+    m_settingsCtrl->probeRestore();
+}
+
 void AppState::shareReport(const QString& format) {
     m_settingsCtrl->shareReport(format);
 }

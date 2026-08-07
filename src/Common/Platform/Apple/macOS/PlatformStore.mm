@@ -45,6 +45,11 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 /// restoredAny=YES means ≥1 previous purchase was restored.
 /// isError=YES means the restore operation itself failed (network, etc.).
 @property (copy) void(^onRestoreDone)(BOOL restoredAny, BOOL isError);
+// 5WHY (iOS/macOS b21294): a second restore request arriving while one is
+// already in flight (auto-probe + a manual tap) was previously answered
+// immediately with callback(false,false) — a false "no purchase found".
+// Queue the new callback here and resolve it with the CURRENT restore result.
+@property (copy) void(^pendingRestoreDone)(BOOL restoredAny, BOOL isError);
 /// Fired (once per session) when a purchased transaction for the Premium
 /// product arrives while no purchase dialog is active — an "Ask to Buy"
 /// approved while the app was closed, or a promoted purchase.  Installed by
@@ -113,6 +118,22 @@ static NSString* const kPremiumProductID = @"com.netdiagnostic.app.premium";
 - (void)startRestore {
     self.isRestoring  = YES;
     self.hasRestored  = NO;
+    // 5WHY (iOS/macOS b21294): restoreCompletedTransactions may never call
+    // back if the store is unreachable — neither the Finished nor the
+    // FailedWithError delegate fires.  Without a watchdog the C++ side's
+    // m_purchaseInProgress stays true forever, silently disabling BOTH the
+    // Buy and Restore buttons.  Mirror the purchase watchdog: fail after 30s
+    // so the UI recovers and the user can retry.
+    __weak typeof(self) weakSelf = self;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(30 * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        typeof(self) strongSelf = weakSelf;
+        if (strongSelf && strongSelf.isRestoring) {
+            // Resolve both the active and any queued restore callback so no
+            // button stays stuck in "Processing…" after a silent timeout.
+            [strongSelf resolveRestoreWithResult:NO isError:YES];
+        }
+    });
     [[SKPaymentQueue defaultQueue] restoreCompletedTransactions];
 }
 
@@ -248,10 +269,24 @@ static BOOL isPremiumTxn(SKPaymentTransaction* txn) {
     }
 }
 
-- (void)paymentQueueRestoreCompletedTransactionsFinished:(SKPaymentQueue *)queue {
+// ── Helper: resolve the current restore + any queued restore request ────
+// 5WHY (iOS/macOS b21294): auto-probe + manual tap can overlap.  Resolve both
+// the active onRestoreDone and any pendingRestoreDone with the same result so
+// a queued manual tap never gets a spurious "no purchase found".
+- (void)resolveRestoreWithResult:(BOOL)restoredAny isError:(BOOL)isError {
     self.isRestoring = NO;
     if (self.onRestoreDone) {
-        self.onRestoreDone(self.hasRestored, /*isError=*/NO);
+        self.onRestoreDone(restoredAny, isError);
+        self.onRestoreDone = nil;
+    }
+    if (self.pendingRestoreDone) {
+        self.pendingRestoreDone(restoredAny, isError);
+        self.pendingRestoreDone = nil;
+    }
+}
+
+- (void)paymentQueueRestoreCompletedTransactionsFinished:(SKPaymentQueue *)queue {
+    [self resolveRestoreWithResult:self.hasRestored isError:NO];
         self.onRestoreDone = nil;
     }
 }
@@ -259,11 +294,7 @@ static BOOL isPremiumTxn(SKPaymentTransaction* txn) {
 - (void)paymentQueue:(SKPaymentQueue *)queue
 restoreCompletedTransactionsFailedWithError:(NSError *)error
 {
-    self.isRestoring = NO;
-    if (self.onRestoreDone) {
-        self.onRestoreDone(/*restoredAny=*/NO, /*isError=*/YES);
-        self.onRestoreDone = nil;
-    }
+    [self resolveRestoreWithResult:NO isError:YES];
 }
 
 @end
@@ -326,12 +357,20 @@ void platformRestorePurchases(RestoreCallback callback) {
     dispatch_async(dispatch_get_main_queue(), ^{
         NetDiagStoreObserver* obs = [NetDiagStoreObserver shared];
 
-        // Prevent overlapping operations
-        if (obs.onPurchaseDone != nil) {
-            callback(false, /*isError=*/false);
+        // 5WHY (iOS/macOS b21294): a restore already in flight (auto-probe
+        // from PremiumDialog, or a prior manual tap) must NOT abort the new
+        // request with a spurious callback(false,false).  Queue it and resolve
+        // with the current restore's outcome (see resolveRestoreWithResult).
+        if (obs.isRestoring) {
+            auto cb = std::make_shared<RestoreCallback>(std::move(callback));
+            obs.pendingRestoreDone = ^(BOOL restoredAny, BOOL isError) {
+                (*cb)(restoredAny, isError);
+            };
             return;
         }
-        if (obs.isRestoring) {
+
+        // Prevent overlapping with an active PURCHASE (payment sheet up).
+        if (obs.onPurchaseDone != nil) {
             callback(false, /*isError=*/false);
             return;
         }

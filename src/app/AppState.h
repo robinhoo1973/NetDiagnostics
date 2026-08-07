@@ -209,6 +209,8 @@ public:
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
+    // 5WHY (iOS b21294): non-blocking auto-probe — see PremiumStore::probeRestore().
+    Q_INVOKABLE void probeRestore();
     bool purchaseInProgress() const;
     // Premium-gated. Mobile: OS share sheet; desktop: default mail client.
     Q_INVOKABLE void shareReport(const QString& format);

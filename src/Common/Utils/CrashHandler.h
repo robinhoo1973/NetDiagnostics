@@ -28,6 +28,10 @@
 #include <cstdlib>
 #include <csignal>
 #include <exception>
+
+#if defined(PLATFORM_ANDROID)
+#include "Common/Platform/Android/AndroidLogPaths.h"
+#endif
 #include <typeinfo>
 
 #if defined(_WIN32)
@@ -70,12 +74,20 @@ inline QString crashLogPath() {
     // 5WHY: On iOS the temp dir is sandboxed and invisible to the user.
     // Write the crash log to Documents so it is retrievable via Files.app
     // (requires UIFileSharingEnabled + LSSupportsOpeningDocumentsInPlace).
+    // 5WHY (Android b21294): same user-visibility requirement — route to
+    // getExternalFilesDir (Android/data/<pkg>/files, no permission needed)
+    // instead of the private TempLocation cache dir.
 #if defined(PLATFORM_IOS)
     return QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
         .filePath(QString::fromLatin1(kCrashFileName));
 #else
+#if defined(PLATFORM_ANDROID)
+    return QDir(androidUserVisibleLogDir())
+        .filePath(QString::fromLatin1(kCrashFileName));
+#else
     return QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
         .filePath(QString::fromLatin1(kCrashFileName));
+#endif
 #endif
 }
 
@@ -88,7 +100,8 @@ inline void writeBacktrace(QTextStream& ts) {
     for (USHORT i = 0; i < frames; ++i) {
         ts << "    [" << i << "] " << reinterpret_cast<uintptr_t>(stack[i]) << "\n";
     }
-#elif (defined(__APPLE__) || defined(__linux__)) && !defined(__ANDROID__)
+#else
+#if (defined(__APPLE__) || defined(__linux__)) && !defined(__ANDROID__)
     // 5WHY: Android IS Linux (__linux__ is defined), but Bionic libc
     // lacks backtrace()/backtrace_symbols() (glibc extensions).
     // Explicitly exclude __ANDROID__ so we don't call these on Android.
@@ -106,6 +119,7 @@ inline void writeBacktrace(QTextStream& ts) {
         ts << "\n";
     }
     if (symbols) free(symbols);
+#endif
 #endif
 }
 
@@ -158,14 +172,22 @@ inline void writeCrashReport(const char* signalName, int signalNum) {
     // without it the macro is undefined and iOS would be mislabelled macOS.
 #if defined(_WIN32)
     ts << "Platform:  Windows\n";
-#elif defined(PLATFORM_IOS)
+#else
+#if defined(PLATFORM_IOS)
     ts << "Platform:  iOS\n";
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
     ts << "Platform:  macOS\n";
-#elif defined(__ANDROID__)
+#else
+#if defined(__ANDROID__)
     ts << "Platform:  Android\n";
-#elif defined(__linux__)
+#else
+#if defined(__linux__)
     ts << "Platform:  Linux\n";
+#endif
+#endif
+#endif
+#endif
 #endif
 
     writeBacktrace(ts);
@@ -204,14 +226,22 @@ inline void writeMessageCrashReport(const char* kind, const QString& text) {
 #endif
 #if defined(_WIN32)
     ts << "Platform:  Windows\n";
-#elif defined(PLATFORM_IOS)
+#else
+#if defined(PLATFORM_IOS)
     ts << "Platform:  iOS\n";
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
     ts << "Platform:  macOS\n";
-#elif defined(__ANDROID__)
+#else
+#if defined(__ANDROID__)
     ts << "Platform:  Android\n";
-#elif defined(__linux__)
+#else
+#if defined(__linux__)
     ts << "Platform:  Linux\n";
+#endif
+#endif
+#endif
+#endif
 #endif
     ts << "Message:\n" << text << "\n";
     writeBacktrace(ts);

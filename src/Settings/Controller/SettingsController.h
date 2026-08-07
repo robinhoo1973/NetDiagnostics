@@ -48,6 +48,9 @@ public:
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
+    // 5WHY (iOS b21294): non-blocking auto-probe for a previous purchase —
+    // see PremiumStore::probeRestore().  Used by PremiumDialog.openDialog().
+    Q_INVOKABLE void probeRestore();
     Q_INVOKABLE void shareReport(const QString& format);
     // Share an already-generated report file (no regeneration).
     // Caller manages file lifecycle — SettingsController does NOT delete it.

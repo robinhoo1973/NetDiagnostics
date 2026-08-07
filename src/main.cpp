@@ -39,6 +39,9 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #if defined(__APPLE__) || defined(PLATFORM_ANDROID)
 #include "Common/Platform/NativePdfDocument.h"
 #endif
+#if defined(PLATFORM_ANDROID)
+#include "Common/Platform/Android/AndroidLogPaths.h"
+#endif
 #if defined(PLATFORM_IOS)
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
 #endif
@@ -323,11 +326,17 @@ int main(int argc, char *argv[])
         // StartupLog file, enabling support to diagnose missing QML plugins,
         // corrupted QRC resources, or platform-specific module gaps.
         // 5WHY: On iOS the startup log is written to the Documents directory
-        // (retrievable via Files.app); on Android it stays in TempLocation.
+        // (retrievable via Files.app); on Android it now goes to the
+        // app-scoped external dir (Android/data/<pkg>/files, USB/MTP-visible)
+        // instead of the invisible private TempLocation cache dir.
 #if defined(PLATFORM_IOS)
         const QString logDir = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
 #else
+#if defined(PLATFORM_ANDROID)
+        const QString logDir = androidUserVisibleLogDir();
+#else
         const QString logDir = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+#endif
 #endif
         qCritical(
             "NetDiagnostics — Startup Error\n\n"
