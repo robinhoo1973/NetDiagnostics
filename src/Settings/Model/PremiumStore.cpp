@@ -68,7 +68,7 @@ bool PremiumStore::supportsIap() const {
     // would dead-end the user (Apple/Google review policy forbids UI for
     // purchases that cannot complete).  Buy/Restore buttons must gate on
     // this, while isPremiumPlatform() gates the share lock.
-#if 1 // TEMP-VERIFY: simulate iOS backend on desktop for UI screenshots
+#if defined(PLATFORM_IOS)
     return true;
 #else
     return false;
