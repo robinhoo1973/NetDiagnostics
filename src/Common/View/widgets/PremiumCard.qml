@@ -138,9 +138,9 @@ Rectangle {
         // owned benefits (App Store subscription-management pattern).
         Repeater {
             model: [
-                { icon: "file-pdf",    key: "premiumFeaturePdf" },
-                { icon: "file-html",   key: "premiumFeatureHtml" },
-                { icon: "badge-check", key: "premiumFeatureLifetime" }
+                // PDF + HTML merged — 'layers' icon represents both formats
+                { icon: "layers",          key: "premiumFeaturePdf" },
+                { icon: "badge-check",     key: "premiumFeatureLifetime" }
             ]
             delegate: Rectangle {
                 Layout.fillWidth: true

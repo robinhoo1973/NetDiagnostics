@@ -195,9 +195,8 @@ Rectangle {
                     Repeater {
                         visible: !appState.isPremium
                         model: [
-                            { icon: "file-pdf",    key: "premiumFeaturePdf" },
-                            { icon: "file-html",   key: "premiumFeatureHtml" },
-                            { icon: "badge-check", key: "premiumFeatureLifetime" }
+                            { icon: "layers",          key: "premiumFeaturePdf" },
+                            { icon: "badge-check",     key: "premiumFeatureLifetime" }
                         ]
                         delegate: Rectangle {
                             Layout.fillWidth: true
