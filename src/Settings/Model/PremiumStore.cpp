@@ -5,7 +5,10 @@
 #include <QSettings>
 #include <QTimer>
 
-#if defined(PLATFORM_IOS)
+// 5WHY: StoreKit is available on both iOS and macOS (same SKPaymentQueue
+// APIs); Android GPB remains future work.  The macOS build links the
+// macOS PlatformStore.mm which reuses the identical StoreKit flow.
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
 #include "Common/Platform/PlatformStore.h"
 #endif
 
@@ -14,7 +17,7 @@ PremiumStore::PremiumStore(QObject* parent) : QObject(parent) {
     QSettings s;
     m_isPremium = s.value(QStringLiteral("premium/unlocked"), false).toBool();
 
-#if defined(PLATFORM_IOS)
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
     // 5WHY: The StoreKit transaction observer was only installed lazily when
     // a purchase/restore started.  A deferred ("Ask to Buy") transaction
     // approved while the app was closed, or a promoted purchase, was never
@@ -63,12 +66,12 @@ bool PremiumStore::isPremiumPlatform() const {
 }
 
 bool PremiumStore::supportsIap() const {
-    // 5WHY: Only iOS has a real StoreKit backend today.  Android GPB and
-    // macOS StoreKit are future work — offering a Subscribe button there
-    // would dead-end the user (Apple/Google review policy forbids UI for
-    // purchases that cannot complete).  Buy/Restore buttons must gate on
-    // this, while isPremiumPlatform() gates the share lock.
-#if defined(PLATFORM_IOS)
+    // 5WHY: iOS and macOS have a real StoreKit backend (same APIs).  Android
+    // GPB is future work — offering a Subscribe button there would dead-end
+    // the user (Apple/Google review policy forbids UI for purchases that
+    // cannot complete).  Buy/Restore buttons gate on this, while
+    // isPremiumPlatform() gates the share lock.
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
     return true;
 #else
     return false;
@@ -80,7 +83,7 @@ void PremiumStore::requestSubscription() {
     if (m_purchaseInProgress) return;
     if (m_purchaseDeferred) return;  // Ask-to-Buy still pending — no duplicate payment
 
-#if defined(PLATFORM_IOS)
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
     m_purchaseInProgress = true;
     emit purchaseInProgressChanged();
 
@@ -129,7 +132,7 @@ void PremiumStore::restorePurchases() {
     if (m_purchaseInProgress) return;
     if (m_purchaseDeferred) return;  // a pending approval is still in flight
 
-#if defined(PLATFORM_IOS)
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
     m_purchaseInProgress = true;
     emit purchaseInProgressChanged();
 

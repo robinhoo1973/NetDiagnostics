@@ -19,7 +19,15 @@ Item {
     property string pendingShareFormat: ""
     property string toast: ""
     Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
-    function doShare(fmt) { pendingShareFormat = fmt; shareStage = (appState.isPremiumPlatform && !appState.isPremium) ? 1 : 2 }
+    function doShare(fmt) {
+        pendingShareFormat = fmt
+        // 5WHY: On premium platforms a non-Premium user goes straight into the
+        // IAP dialog (auto-restore probe + guided purchase).
+        if (appState.isPremiumPlatform && !appState.isPremium)
+            premiumDialog.openDialog()
+        else
+            shareStage = 2
+    }
     function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
 
     // ── Mobile data warning ──────────────────────────────────────────
@@ -31,7 +39,13 @@ Item {
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
         function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
-        function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
+        function onPremiumChanged() {
+            // Purchase/restore succeeded → close the IAP dialog, continue sharing.
+            if (appState.isPremium) {
+                if (premiumDialog.open) premiumDialog.closeDialog()
+                if (page.shareStage === 1) page.shareStage = 2
+            }
+        }
     }
 
     // 5WHY: showDetailOverlay() assigns translated text to overlay fields
@@ -426,6 +440,13 @@ Item {
             if (page.shareStage === 1) appState.requestSubscription()
             else page.confirmShare()
         }
+    }
+
+    // ── Premium IAP dialog — auto-restore probe + guided purchase ───────
+    PremiumDialog {
+        id: premiumDialog
+        anchors.fill: parent
+        isMobile: page.isMobile
     }
 
     // ═══════════════ DETAIL OVERLAY ═══════════════════════════════════

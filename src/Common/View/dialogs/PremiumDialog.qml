@@ -36,7 +36,16 @@ Rectangle {
     property string statusText: ""          // transient restore/deferred notices
     signal dismissed()
 
-    function openDialog() { root.open = true; root.statusText = "" }
+    function openDialog() {
+        root.open = true
+        root.statusText = ""
+        // 5WHY (UX flow): probe the store for a previous purchase the moment
+        // the IAP window opens — if the account already owns Premium, restore
+        // it and confirm ("Purchases Restored"); otherwise the guided buy flow
+        // stays visible.  Only on platforms with a real store backend.
+        if (!appState.isPremium && appState.platformSupportsIap)
+            Qt.callLater(function() { appState.restorePurchases() })
+    }
     function closeDialog() { root.open = false; root.dismissed() }
 
     // Backdrop tap dismisses

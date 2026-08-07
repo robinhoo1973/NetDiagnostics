@@ -155,6 +155,11 @@ function(configure_netdiag_target TARGET)
         # 5WHY: CoreWLAN used by WifiHelper.mm.
         find_library(COREWLAN CoreWLAN REQUIRED)
         target_link_libraries(${TARGET} PRIVATE ${COREWLAN})
+        # 5WHY: StoreKit used by PlatformStore.mm (Premium restore/purchase).
+        # ARC required for the dispatch/NS objects in the .mm bridge.
+        find_library(STOREKIT StoreKit REQUIRED)
+        target_link_libraries(${TARGET} PRIVATE ${STOREKIT})
+        target_compile_options(${TARGET} PRIVATE -fobjc-arc)
     endif()
 
     # ── curl compile definitions ─────────────────────────────────────

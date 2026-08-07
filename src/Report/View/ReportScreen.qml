@@ -59,9 +59,13 @@ Item {
     // subscribed → ask for confirmation before sharing. Same logic on iOS/Android.
     function doShare(fmt) {
         pendingShareFormat = fmt
-        // 5WHY: Premium is sold only on iOS/Android/macOS — on Windows/Linux
-        // sharing is free, so skip the subscribe prompt entirely.
-        shareStage = (appState.isPremiumPlatform && !appState.isPremium) ? 1 : 2
+        // 5WHY: On premium platforms a non-Premium user goes straight into the
+        // IAP dialog (auto-restore probe + guided purchase) instead of a bare
+        // subscribe prompt.  Windows/Linux share freely (stage 2).
+        if (appState.isPremiumPlatform && !appState.isPremium)
+            premiumDialog.openDialog()
+        else
+            shareStage = 2
     }
     // Preview uses QTextDocument→QImage (data: URI), not a file, so
     // sharing must generate the actual PDF/HTML file on demand.
@@ -116,7 +120,11 @@ Item {
         // Subscription just succeeded while the prompt was open → advance to the
         // confirmation step so the flow continues seamlessly (subscribe → confirm → share).
         function onPremiumChanged() {
-            if (page.shareStage === 1 && appState.isPremium) page.shareStage = 2
+            // Purchase/restore succeeded → close the IAP dialog, continue sharing.
+            if (appState.isPremium) {
+                if (premiumDialog.open) premiumDialog.closeDialog()
+                if (page.shareStage === 1) page.shareStage = 2
+            }
         }
     }
 
@@ -396,6 +404,13 @@ Item {
             if (page.shareStage === 1) appState.requestSubscription()
             else page.confirmShare()
         }
+    }
+
+    // ── Premium IAP dialog — auto-restore probe + guided purchase ───────
+    PremiumDialog {
+        id: premiumDialog
+        anchors.fill: parent
+        isMobile: page.isMobile
     }
 
     // 5WHY: DialogBtn extracted to shared widget; remains here for ExportButton use.

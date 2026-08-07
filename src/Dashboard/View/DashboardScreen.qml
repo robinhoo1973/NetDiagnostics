@@ -48,9 +48,13 @@ Item {
     }
     function doShare(fmt) {
         pendingShareFormat = fmt
-        // 5WHY: Premium is sold only on iOS/Android/macOS — on Windows/Linux
-        // sharing is free, so skip the subscribe prompt entirely.
-        shareStage = (appState.isPremiumPlatform && !appState.isPremium) ? 1 : 2
+        // 5WHY: On premium platforms a non-Premium user goes straight into the
+        // IAP dialog (auto-restore probe + guided purchase) instead of a bare
+        // subscribe prompt.  Windows/Linux share freely (stage 2).
+        if (appState.isPremiumPlatform && !appState.isPremium)
+            premiumDialog.openDialog()
+        else
+            shareStage = 2
     }
     function confirmShare() {
         var fmt = pendingShareFormat
@@ -74,7 +78,13 @@ Item {
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
         function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
-        function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
+        function onPremiumChanged() {
+            // Purchase/restore succeeded → close the IAP dialog, continue sharing.
+            if (appState.isPremium) {
+                if (premiumDialog.open) premiumDialog.closeDialog()
+                if (page.shareStage === 1) page.shareStage = 2
+            }
+        }
     }
 
     // 5WHY: Status mapping was incomplete — only handled Pass(0) through
@@ -417,6 +427,13 @@ Item {
             if (page.shareStage === 1) appState.requestSubscription()
             else page.confirmShare()
         }
+    }
+
+    // ── Premium IAP dialog — auto-restore probe + guided purchase ───────
+    PremiumDialog {
+        id: premiumDialog
+        anchors.fill: parent
+        isMobile: page.isMobile
     }
 
     // ── Inline components ───────────────────────────────────────────────

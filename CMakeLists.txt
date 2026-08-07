@@ -151,6 +151,9 @@ endif()
 	if(APPLE AND NOT IOS)
     list(APPEND SOURCES src/Common/Platform/Apple/macOS/PlatformPdfRenderer.mm)
     list(APPEND SOURCES src/Common/Platform/Apple/macOS/WifiHelper.mm)
+    # 5WHY: Premium restore/place-purchase must work on macOS too — the
+    # identical StoreKit flow is reused (see Apple/macOS/PlatformStore.mm).
+    list(APPEND SOURCES src/Common/Platform/Apple/macOS/PlatformStore.mm)
 	elseif(IOS)
 		# PlatformPdfRenderer_ios.mm already in if(IOS) block above
 	elseif(ANDROID)
