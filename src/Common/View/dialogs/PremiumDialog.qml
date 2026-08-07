@@ -62,7 +62,7 @@ Rectangle {
         // QML MouseArea only consumes events when it has a handler attached.
         MouseArea { anchors.fill: parent; onClicked: {} }
 
-        // ── Hero band — brand gradient (indigo → sky) ─────────────────
+        // ── Hero band — solid brand color + subtle decoration ─────────
         Rectangle {
             id: hero
             anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -70,9 +70,22 @@ Rectangle {
             // one-time text) inside clip:true.  Height is now implicit so the
             // hero grows with its content in every language.
             implicitHeight: heroCol.implicitHeight + (root.isMobile ? 30 : 34)
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
-                GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+            // 5WHY (iOS screenshots 136/137): the Gradient hero band did NOT
+            // render in Light theme (JS-object-bound GradientStop not re-evaluated
+            // on iOS static QML) leaving white-on-white text invisible.  Solid
+            // color + decoration replaces the gradient — same fix as the card.
+            color: Th.ThemeEngine.colors.secondary
+            // Decorative corner circle (modern depth, no gradient)
+            Rectangle {
+                anchors { right: parent.right; bottom: parent.bottom; rightMargin: -40; bottomMargin: -40 }
+                width: 160; height: 160; radius: 80
+                color: Qt.alpha("#FFFFFF", 0.07)
+            }
+            // Subtle primary accent line at the hero base
+            Rectangle {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                height: 2
+                color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.45)
             }
 
             // Close (top-right, on the gradient)

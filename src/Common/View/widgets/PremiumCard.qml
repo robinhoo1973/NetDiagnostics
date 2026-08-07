@@ -35,7 +35,7 @@ Rectangle {
     LayoutMirroring.enabled: T.isRtl
     LayoutMirroring.childrenInherit: true
 
-    // ── Hero band — brand gradient (indigo → sky) ────────────────────
+    // ── Hero band — solid brand color + subtle decoration ────────────
     Rectangle {
         id: hero
         anchors { left: parent.left; right: parent.right; top: parent.top }
@@ -43,9 +43,24 @@ Rectangle {
         // flagged it (missing-property).  Use the ThemeEngine singleton, the
         // canonical platform layout flag, instead of an undeclared property.
         implicitHeight: heroCol.implicitHeight + (ThemeEngine.isMobile ? 22 : 26)
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
-            GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+        // 5WHY (iOS screenshots 136/137): the Gradient hero band did NOT render
+        // in Light theme — Gradient/GradientStop bound to the ThemeEngine.colors
+        // JS object is not reliably re-evaluated by the iOS static QML engine,
+        // leaving white-on-white invisible text.  A solid color (built-in
+        // property binding, battle-tested app-wide) replaces the gradient;
+        // decoration adds depth without any gradient dependency.
+        color: Th.ThemeEngine.colors.secondary
+        // Decorative corner circle (modern depth, no gradient)
+        Rectangle {
+            anchors { right: parent.right; bottom: parent.bottom; rightMargin: -34; bottomMargin: -34 }
+            width: 132; height: 132; radius: 66
+            color: Qt.alpha("#FFFFFF", 0.07)
+        }
+        // Subtle primary accent line at the hero base
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            height: 2
+            color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.45)
         }
         ColumnLayout {
             id: heroCol
