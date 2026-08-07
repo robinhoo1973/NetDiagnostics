@@ -27,66 +27,45 @@ static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     Boolean ok = CFHostStartInfoResolution(host, kCFHostAddresses, &err);
     if (!ok) { CFRelease(host); return QString(); }
 
-    // Reference-counted semaphore ownership: both waiter and worker hold a ref (2 total).
-    // Whoever finishes last (waiter on timeout, or worker on success) releases the semaphore.
-    //
-    // CRITICAL: the resolved value is stored as a C++ QString, NEVER as an autoreleased
-    // NSString. An autoreleased NSString created inside the GCD block is owned by that
-    // block's autorelease pool and is freed when the block returns; reading it from the
-    // waiter thread afterwards is a use-after-free that crashes in objc_msgSend. We
-    // convert to QString *inside* the block (while the NSString is still valid) so no
-    // Objective-C object ever crosses the thread boundary.
-    struct dnsCtx {
-        dispatch_semaphore_t sem;
-        CFHostRef host;
-        QString result;
-        std::atomic<int> refs;
-    };
-    auto ctx = std::make_shared<dnsCtx>();
-    ctx->sem = dispatch_semaphore_create(0);
-    ctx->host = host;
-    CFRetain(ctx->host);  // for the block's reference
-    ctx->refs.store(2, std::memory_order_relaxed);  // waiter + worker
+    // 5WHY: CFHostStartInfoResolution is ASYNCHRONOUS — the addresses become
+    // available only after the host's run-loop callbacks fire.  The old code
+    // dispatched a GCD block that called CFHostGetAddressing immediately (no
+    // run-loop scheduling or pumping), so resolution NEVER completed: the
+    // result was always empty and the test reported SERVFAIL in ~1ms (see
+    // crashes/Weixin Image_20260807095048_133_1.jpg).  Correct usage:
+    // schedule the host on THIS thread's run loop, then pump that loop until
+    // resolution completes or the timeout expires.
+    CFRunLoopRef rl = CFRunLoopGetCurrent();
+    CFHostScheduleWithRunLoop(host, rl, kCFRunLoopCommonModes);
 
-    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-        @autoreleasepool {
-            Boolean resolved = false;
-            CFArrayRef addrs = CFHostGetAddressing(ctx->host, &resolved);
-            if (resolved && addrs && CFArrayGetCount(addrs) > 0) {
-                for (CFIndex i = 0; i < CFArrayGetCount(addrs); i++) {
-                    CFDataRef Data = (CFDataRef)CFArrayGetValueAtIndex(addrs, i);
-                    if (!Data) continue;
-                    struct sockaddr_in* sa = (struct sockaddr_in*)CFDataGetBytePtr(Data);
-                    if (sa->sin_family == AF_INET) {
-                        char ip[INET_ADDRSTRLEN];
-                        inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
-                        // Convert to QString HERE �� no Objective-C object escapes the block.
-                        ctx->result = QString::fromLatin1(ip);
-                        break;
-                    }
+    QElapsedTimer t; t.start();
+    QString result;
+    while (t.elapsed() < timeoutMs) {
+        Boolean resolved = false;
+        CFArrayRef addrs = CFHostGetAddressing(host, &resolved);
+        if (resolved && addrs && CFArrayGetCount(addrs) > 0) {
+            for (CFIndex i = 0; i < CFArrayGetCount(addrs); i++) {
+                CFDataRef Data = (CFDataRef)CFArrayGetValueAtIndex(addrs, i);
+                if (!Data) continue;
+                struct sockaddr_in* sa = (struct sockaddr_in*)CFDataGetBytePtr(Data);
+                if (sa->sin_family == AF_INET) {
+                    char ip[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &sa->sin_addr, ip, sizeof(ip));
+                    result = QString::fromLatin1(ip);
+                    break;
                 }
             }
-            CFRelease(ctx->host);
-            dispatch_semaphore_signal(ctx->sem);
-            // drop the worker's reference; last one out releases the semaphore.
-            if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-                // ARC manages dispatch objects — no manual dispatch_release needed.
-            }
+            if (!result.isEmpty()) break;
         }
-    });
+        // Pump the run loop so CFHost's async resolution can progress.  This
+        // helper runs on a QtConcurrent worker thread; running ITS run loop is
+        // what lets CFHost deliver the resolution callbacks.
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.05, true);
+    }
 
-    long waited = dispatch_semaphore_wait(ctx->sem, dispatch_time(DISPATCH_TIME_NOW,
-        (int64_t)timeoutMs * NSEC_PER_MSEC));
+    CFHostUnscheduleFromRunLoop(host, rl, kCFRunLoopCommonModes);
+    CFHostCancelInfoResolution(host, kCFHostAddresses);
     CFRelease(host);
-    QString result;
-    // Only read result on success; on timeout the worker may still be writing it.
-    if (waited == 0) {
-        result = ctx->result;
-    }
-    // drop the waiter's reference
-    if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-        // ARC manages dispatch objects — no manual dispatch_release needed.
-    }
     return result;
 }
 
