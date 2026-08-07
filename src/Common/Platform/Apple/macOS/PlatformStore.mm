@@ -12,7 +12,13 @@
 // compiled with -fobjc-arc.
 // =============================================================================
 
-#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
+// 5WHY (macOS CI b21294 link failure): the guard was previously
+// `defined(PLATFORM_IOS) || defined(Q_OS_MACOS)` evaluated at the TOP of the
+// file BEFORE any Qt include — Q_OS_MACOS only becomes defined after including
+// qglobal.h, so the whole file compiled to nothing and the three platform
+// functions were undefined at link time.  Use the compiler built-in __APPLE__
+// (always defined on Apple platforms, no include needed) matching WifiHelper.mm.
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
 
 #include "Common/Platform/PlatformStore.h"
 
@@ -341,4 +347,4 @@ void platformRestorePurchases(RestoreCallback callback) {
     });
 }
 
-#endif // PLATFORM_IOS || Q_OS_MACOS
+#endif // __APPLE__ && !PLATFORM_IOS
