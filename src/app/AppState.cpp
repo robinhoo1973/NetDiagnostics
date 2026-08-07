@@ -113,6 +113,8 @@ AppState::AppState(QObject* parent) : QObject(parent) {
             this, &AppState::premiumRequired);
     connect(m_settingsCtrl, &SettingsController::purchaseDeferred,
             this, &AppState::purchaseDeferred);
+    connect(m_settingsCtrl, &SettingsController::purchaseFailed,
+            this, &AppState::purchaseFailed);
     connect(m_settingsCtrl, &SettingsController::restoreCompleted,
             this, &AppState::restoreCompleted);
     connect(m_settingsCtrl, &SettingsController::languageChanged,
@@ -226,6 +228,7 @@ int AppState::languageIndex() const { return m_settingsCtrl->languageIndex(); }
 int AppState::themeMode() const { return m_settingsCtrl->themeMode(); }
 bool AppState::isPremium() const { return m_settingsCtrl->isPremium(); }
 bool AppState::isMobile() const { return m_isMobile; }
+bool AppState::isPremiumPlatform() const { return m_settingsCtrl->isPremiumPlatform(); }
 bool AppState::platformSupportsIap() const { return m_settingsCtrl->supportsIap(); }
 bool AppState::purchaseInProgress() const { return m_settingsCtrl->purchaseInProgress(); }
 

@@ -320,7 +320,7 @@ fi
 	        # A valid QML document starts with //, /*, pragma, import, or a known root type.
 	        # Common root types: Item, Rectangle, ApplicationWindow, Window, QtObject,
 	        # AbstractButton, Button, Pane, Frame, Control, Label, Text, etc.
-	        FIRSTLINE=$(git show ":$f" | head -1 | sed 's/^[[:space:]]*//')
+	        FIRSTLINE=$(git show ":$f" 2>/dev/null  | sed -n '1p' | sed 's/^[[:space:]]*//')
 	        if echo "$FIRSTLINE" | grep -qE '^(//|/\*|pragma |import |Item\b|Rectangle\b|ApplicationWindow\b|Window\b|QtObject\b|AbstractButton\b|Button\b|Pane\b|Frame\b|Control\b|Label\b|Text\b|Column\b|Row\b|Grid\b|Flow\b|ListView\b|GridView\b|Repeater\b|Loader\b|Flickable\b|ScrollView\b|StackView\b|SwipeView\b|TabBar\b|Drawer\b|Dialog\b|Popup\b|Menu\b|ToolBar\b|Header\b|Footer\b|Page\b|SwipeDelegate\b)'; then
 	            pass "$f"
 	        else
@@ -384,9 +384,9 @@ fi
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        content=$(git show ":$f" 2>/dev/null)
-	        if echo "$content" | head -1 | grep -q '<svg'; then
-	            has_none=$(echo "$content" | head -1 | grep -c 'fill="none"' || true)
-	            has_opacity=$(echo "$content" | head -1 | grep -c 'fill-opacity="0"' || true)
+        if echo "$content" | sed -n '1p' | grep -q '<svg'; then
+            has_none=$(echo "$content" | sed -n '1p' | grep -c 'fill="none"' || true)
+            has_opacity=$(echo "$content" | sed -n '1p' | grep -c 'fill-opacity="0"' || true)
 	            if [ "$has_none" -eq 0 ] || [ "$has_opacity" -eq 0 ]; then
 	                fail "$f: SVG root must have BOTH fill=\"none\" AND fill-opacity=\"0\" (iOS/desktop cross-platform requirement)"
 	            else
@@ -480,7 +480,7 @@ fi
 	        done
 	    else
 	        for f in $QML_FILES; do
-	            FIRST_LINE=$(git show ":$f" | head -1)
+	            FIRST_LINE=$(git show ":$f" 2>/dev/null  | sed -n '1p')
 	            if echo "$FIRST_LINE" | grep -qE '^(//|/\*|pragma Singleton|import |Item \{|ApplicationWindow \{|Window \{|Rectangle \{|QtObject \{|Dialog \{|Popup \{|Pane \{|SwipeView \{|StackView \{|ColumnLayout \{|RowLayout \{|GridLayout \{|Frame \{|Control \{|ScrollView \{|SplitView \{|Page \{)'; then
 	                pass "$f (structure OK)"
 	            else

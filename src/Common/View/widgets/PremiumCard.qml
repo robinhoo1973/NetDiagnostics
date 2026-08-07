@@ -39,7 +39,10 @@ Rectangle {
     Rectangle {
         id: hero
         anchors { left: parent.left; right: parent.right; top: parent.top }
-        implicitHeight: heroCol.implicitHeight + (card.isMobile ? 22 : 26)
+        // 5WHY: card.isMobile was referenced but never declared — qmllint
+        // flagged it (missing-property).  Use the ThemeEngine singleton, the
+        // canonical platform layout flag, instead of an undeclared property.
+        implicitHeight: heroCol.implicitHeight + (ThemeEngine.isMobile ? 22 : 26)
         gradient: Gradient {
             GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
             GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
@@ -147,10 +150,29 @@ Rectangle {
             }
         }
 
-        // ── Actions ──────────────────────────────────────────────────
-        // Primary CTA (locked only) — gradient button
+        // Unavailable notice — premium platform without a store backend
+        // (Android/macOS today): honest copy instead of a dead-end CTA.
+        // 5WHY: supportsIap() is iOS-only; Android/macOS are premium platforms
+        // but have no purchase backend yet, so a Buy button would dead-end
+        // (Apple/Google review policy forbids that).
         Rectangle {
-            visible: !appState.isPremium
+            visible: !appState.isPremium && !appState.platformSupportsIap
+            Layout.fillWidth: true; implicitHeight: 40; radius: 8
+            color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.08)
+            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.3) }
+            Label {
+                anchors.centerIn: parent
+                text: T.tr("iapNotAvailable")
+                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11
+                color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+        }
+
+        // ── Actions ──────────────────────────────────────────────────
+        // Primary CTA (locked + store backend only) — gradient button
+        Rectangle {
+            visible: !appState.isPremium && appState.platformSupportsIap
             Layout.fillWidth: true; implicitHeight: 46; radius: 11
             enabled: !appState.purchaseInProgress
             opacity: enabled ? 1.0 : 0.5
@@ -179,9 +201,9 @@ Rectangle {
             Accessible.role: Accessible.Button
         }
 
-        // Restore — secondary (both states; hidden during in-flight purchase)
+        // Restore — secondary (both states; store backend + not in-flight)
         Rectangle {
-            visible: !appState.purchaseInProgress
+            visible: !appState.purchaseInProgress && appState.platformSupportsIap
             Layout.fillWidth: true; implicitHeight: 42; radius: 9
             color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.08) : "transparent"
             border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.4) }

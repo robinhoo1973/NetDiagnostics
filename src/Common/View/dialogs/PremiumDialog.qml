@@ -195,8 +195,9 @@ Rectangle {
                 visible: !appState.isPremium
                 Layout.fillWidth: true; spacing: 10
 
-                // Primary CTA — gradient button
+                // Primary CTA — gradient button (store backend platforms only)
                 Rectangle {
+                    visible: appState.platformSupportsIap
                     Layout.fillWidth: true; implicitHeight: 48; radius: 12
                     enabled: !appState.purchaseInProgress
                     opacity: enabled ? 1.0 : 0.5
@@ -258,6 +259,12 @@ Rectangle {
         target: appState
         function onPurchaseDeferred() {
             root.statusText = T.tr("purchaseDeferred")
+            root.clearStatusTimer.restart()
+        }
+        function onPurchaseFailed() {
+            // 5WHY: a cancelled/failed StoreKit purchase was silent.  Give
+            // explicit feedback instead of the UI appearing to ignore the tap.
+            root.statusText = T.tr("purchaseFailed")
             root.clearStatusTimer.restart()
         }
         function onRestoreCompleted(restoredAny, isError) {

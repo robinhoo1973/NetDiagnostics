@@ -1428,6 +1428,23 @@
       "Compra aguardando aprovação — será desbloqueada automaticamente.",
       "شراء قيد الموافقة — سيُفتح تلقائيًا عند الموافقة."
     ],
+    "purchaseFailed": [
+      "购买失败或已取消。",
+      "購買失敗或已取消。",
+      "購入に失敗したか、キャンセルされました。",
+      "구매에 실패했거나 취소되었습니다.",
+      "खरीद विफल या रद्द कर दी गई।",
+      "Mua thất bại hoặc đã hủy.",
+      "Satın alma başarısız veya iptal edildi.",
+      "Purchase failed or was cancelled.",
+      "Achat échoué ou annulé.",
+      "Kauf fehlgeschlagen oder abgebrochen.",
+      "Покупка не удалась или отменена.",
+      "Acquisto non riuscito o annullato.",
+      "La compra falló o se canceló.",
+      "A compra falhou ou foi cancelada.",
+      "فشل الشراء أو تم إلغاؤه."
+    ],
     "iapNotAvailable": [
       "此设备暂不支持购买高级版。",
       "此裝置暫不支援購買高級版。",

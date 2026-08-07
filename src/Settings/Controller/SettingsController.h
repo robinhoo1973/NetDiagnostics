@@ -19,6 +19,8 @@ class SettingsController : public QObject {
     Q_PROPERTY(int themeMode READ themeMode WRITE setThemeMode NOTIFY themeChanged)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
     Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
+    // True on iOS/Android/macOS — sharing is gated on these; free elsewhere.
+    Q_PROPERTY(bool isPremiumPlatform READ isPremiumPlatform CONSTANT)
 
 public:
     explicit SettingsController(AppState* appState, QObject* parent = nullptr);
@@ -36,6 +38,12 @@ public:
     // Premium / IAP
     bool isPremium() const { return m_premium.isPremium(); }
     bool purchaseInProgress() const { return m_premium.purchaseInProgress(); }
+    // True on platforms that sell Premium (iOS/Android/macOS) — drives the
+    // share lock + Settings Premium card.
+    bool isPremiumPlatform() const { return m_premium.isPremiumPlatform(); }
+    // True only where a real store backend exists (iOS StoreKit) — drives the
+    // Buy/Restore button visibility so a platform never offers a purchase
+    // that cannot complete.
     bool supportsIap() const { return m_premium.supportsIap(); }
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
@@ -56,6 +64,7 @@ signals:
     void premiumRequired();
     void purchaseInProgressChanged();
     void purchaseDeferred();
+    void purchaseFailed();
     void restoreCompleted(bool restoredAny, bool isError);
 
 private:

@@ -19,7 +19,7 @@ Item {
     property string pendingShareFormat: ""
     property string toast: ""
     Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
-    function doShare(fmt) { pendingShareFormat = fmt; shareStage = (appState.platformSupportsIap && !appState.isPremium) ? 1 : 2 }
+    function doShare(fmt) { pendingShareFormat = fmt; shareStage = (appState.isPremiumPlatform && !appState.isPremium) ? 1 : 2 }
     function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
 
     // ── Mobile data warning ──────────────────────────────────────────
@@ -29,6 +29,7 @@ Item {
         target: appState
         function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
+        function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }

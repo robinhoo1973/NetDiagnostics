@@ -24,9 +24,10 @@ RowLayout {
 
     // ── Public API ──────────────────────────────────────────────────────────
     property string mode: "compact"           // "bare" | "compact" | "labeled" | "wide"
-    // 5WHY: Locked only on IAP platforms (iOS/Android/macOS).  On Windows/Linux
-    // sharing is FREE — buttons stay enabled and share directly via the OS.
-    property bool   locked: appState.platformSupportsIap && !appState.isPremium
+    // 5WHY: Locked only on Premium platforms (iOS/Android/macOS).  On
+    // Windows/Linux sharing is FREE — buttons stay enabled and share directly
+    // via the OS send/mail API.
+    property bool   locked: appState.isPremiumPlatform && !appState.isPremium
     property color  pdfAccent: ThemeEngine.colors.failRed
     property color  htmlAccent: ThemeEngine.colors.secondary
     signal shareRequested(string format)

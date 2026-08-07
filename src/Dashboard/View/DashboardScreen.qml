@@ -50,7 +50,7 @@ Item {
         pendingShareFormat = fmt
         // 5WHY: Premium is sold only on iOS/Android/macOS — on Windows/Linux
         // sharing is free, so skip the subscribe prompt entirely.
-        shareStage = (appState.platformSupportsIap && !appState.isPremium) ? 1 : 2
+        shareStage = (appState.isPremiumPlatform && !appState.isPremium) ? 1 : 2
     }
     function confirmShare() {
         var fmt = pendingShareFormat
@@ -72,6 +72,7 @@ Item {
         function onSavePathPicked(format, path) { appState.exportPdf(path) }
         function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
+        function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() { if (appState.isPremium && page.shareStage === 1) page.shareStage = 2 }
     }

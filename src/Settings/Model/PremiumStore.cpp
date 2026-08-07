@@ -49,12 +49,26 @@ void PremiumStore::setPremium(bool v) {
     emit premiumChanged();
 }
 
-bool PremiumStore::supportsIap() const {
-    // 5WHY: Premium is sold on iOS (StoreKit), Android (Google Play Billing —
-    // backend still future) and macOS (Mac App Store).  On Windows/Linux there
-    // is no store backend: report sharing is FREE — the UI must not lock the
-    // share buttons or offer a Subscribe CTA there.
+bool PremiumStore::isPremiumPlatform() const {
+    // 5WHY: Premium is sold on iOS (StoreKit), Android (Google Play Billing)
+    // and macOS (Mac App Store).  On Windows/Linux there is no store and no
+    // subscription model: report sharing is FREE.  This flag drives whether
+    // the share buttons are locked and whether Settings shows the Premium
+    // card — NOT whether a purchase button is shown (that is supportsIap()).
 #if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || defined(Q_OS_MACOS)
+    return true;
+#else
+    return false;
+#endif
+}
+
+bool PremiumStore::supportsIap() const {
+    // 5WHY: Only iOS has a real StoreKit backend today.  Android GPB and
+    // macOS StoreKit are future work — offering a Subscribe button there
+    // would dead-end the user (Apple/Google review policy forbids UI for
+    // purchases that cannot complete).  Buy/Restore buttons must gate on
+    // this, while isPremiumPlatform() gates the share lock.
+#if defined(PLATFORM_IOS)
     return true;
 #else
     return false;
@@ -77,6 +91,11 @@ void PremiumStore::requestSubscription() {
             m_purchaseInProgress = false;
             emit purchaseInProgressChanged();
             if (success) setPremium(true);
+            // 5WHY: A cancelled/failed purchase was silent — the user tapped
+            // "Buy", StoreKit dismissed, and nothing told them what happened.
+            // Emit an explicit signal so the UI can show "Purchase cancelled /
+            // failed" feedback instead of appearing to ignore the tap.
+            else emit purchaseFailed();
         },
         [this]() {
             // 5WHY: "Ask to Buy" defers the transaction (parent approval

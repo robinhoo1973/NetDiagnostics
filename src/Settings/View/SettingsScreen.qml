@@ -257,12 +257,12 @@ Item {
             // (Email/SMTP section removed — report sharing is handled from the
             //  Report screen's preview window via Share/Email.)
 
-            // ── Premium Section (IAP platforms only) ────────────
+            // ── Premium Section (Premium platforms only) ────────────
             ColumnLayout {
                 id: premiumSection
                 // 5WHY: Premium is sold only on iOS/Android/macOS.  On
                 // Windows/Linux sharing is free — no Premium card is shown.
-                visible: appState.platformSupportsIap
+                visible: appState.isPremiumPlatform
                 Layout.fillWidth: true; spacing: 0
                 SectionHeader { iconName: "zap"; title: T.tr("premiumHero") }
                 Item { Layout.preferredHeight: 12 }

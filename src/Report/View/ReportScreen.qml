@@ -61,7 +61,7 @@ Item {
         pendingShareFormat = fmt
         // 5WHY: Premium is sold only on iOS/Android/macOS — on Windows/Linux
         // sharing is free, so skip the subscribe prompt entirely.
-        shareStage = (appState.platformSupportsIap && !appState.isPremium) ? 1 : 2
+        shareStage = (appState.isPremiumPlatform && !appState.isPremium) ? 1 : 2
     }
     // Preview uses QTextDocument→QImage (data: URI), not a file, so
     // sharing must generate the actual PDF/HTML file on demand.
@@ -111,6 +111,7 @@ Item {
         }
         function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
+        function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         // Subscription just succeeded while the prompt was open → advance to the
         // confirmation step so the flow continues seamlessly (subscribe → confirm → share).

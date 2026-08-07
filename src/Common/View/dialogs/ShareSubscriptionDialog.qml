@@ -29,10 +29,16 @@ Rectangle {
     MouseArea { anchors.fill: parent; onClicked: root.dismissed() }
 
     Rectangle {
+        id: shareCard
         anchors.centerIn: parent
         width: Math.min(420, parent.width * 0.92)
-        implicitHeight: dlgCol.implicitHeight + 40; radius: 14
+        // 5WHY: The subscribe stage grew (badge + 3 feature rows + restore) so
+        // the dialog can exceed small phone screens.  Cap the height and scroll
+        // the body so the action buttons are never clipped off-screen.
+        height: Math.min(contentCol.implicitHeight, Math.max(360, parent.height * 0.88))
+        radius: 14
         color: Th.ThemeEngine.colors.card
+        clip: true
         // 5WHY: Without this MouseArea, clicks on empty card space (between
         // title text and buttons, or near-misses) propagate to the backdrop
         // MouseArea and dismiss the dialog.  Absorb clicks so only explicit
@@ -43,9 +49,22 @@ Rectangle {
         // and dismiss the dialog on accidental card taps.
         MouseArea { anchors.fill: parent; onClicked: {} }
         ColumnLayout {
-            id: dlgCol
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Th.ThemeEngine.spacing.xl }
+            id: contentCol
+            anchors { fill: parent; margins: Th.ThemeEngine.spacing.xl }
             spacing: 14
+
+            // Scrollable body (only scrolls when content exceeds the cap)
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentHeight: dlgCol.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                ColumnLayout {
+                    id: dlgCol
+                    width: parent.width
+                    spacing: 14
 
             // Icon badge
             Rectangle {
@@ -153,8 +172,10 @@ Rectangle {
                 Accessible.name: T.tr("restoreBtn")
                 Accessible.role: Accessible.Button
             }
+                }
+            }
 
-            // Buttons
+            // Fixed action row (never clipped)
             RowLayout {
                 Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
                 DialogBtn {

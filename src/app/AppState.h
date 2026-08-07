@@ -68,9 +68,13 @@ class AppState : public QObject {
     Q_PROPERTY(QString gitHash READ gitHash CONSTANT)
     Q_PROPERTY(bool isPremium READ isPremium NOTIFY premiumChanged)
     Q_PROPERTY(bool purchaseInProgress READ purchaseInProgress NOTIFY purchaseInProgressChanged)
+    // True on platforms that sell Premium (iOS/Android/macOS): sharing is
+    // gated here; on Windows/Linux it is free.  Drives the share lock + the
+    // Settings Premium card.
+    Q_PROPERTY(bool isPremiumPlatform READ isPremiumPlatform CONSTANT)
     // True only on platforms with a real store backend (iOS StoreKit).  The
-    // UI gates the Subscribe CTA on this so Android/desktop never offer a
-    // purchase that cannot complete.
+    // UI gates the Subscribe/restore CTA on this so Android/desktop never
+    // offer a purchase that cannot complete.
     Q_PROPERTY(bool platformSupportsIap READ platformSupportsIap CONSTANT)
     // isMobile is normally true on iOS/Android; the ND_MOBILE=1 env var
     // forces it to true on desktop so the mobile layout can be tested and
@@ -200,6 +204,7 @@ public:
     // ── Premium / sharing ──────────────────────────────────────────────────
     bool isPremium() const;
     bool isMobile() const;
+    bool isPremiumPlatform() const;
     bool platformSupportsIap() const;
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
@@ -254,6 +259,7 @@ signals:
     void reportShared(bool ok);
     void purchaseInProgressChanged();
     void purchaseDeferred();
+    void purchaseFailed();
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
     void crashReportChanged();

@@ -26,9 +26,14 @@ public:
     Q_INVOKABLE void requestSubscription();
     Q_INVOKABLE void restorePurchases();
 
-    // True when the platform has a real store backend (iOS StoreKit today).
-    // Android/desktop have no purchase path yet — the UI must not offer a
-    // Subscribe button that can never complete.
+    // True on platforms that SELL Premium: iOS/Android/macOS.  Sharing is
+    // gated behind Premium only here; on Windows/Linux it is free.
+    bool isPremiumPlatform() const;
+
+    // True only on platforms with a REAL store backend (iOS StoreKit today;
+    // Android GPB / macOS StoreKit are future).  The UI gates the Subscribe/
+    // Restore buttons on this so a platform never offers a purchase that
+    // cannot complete (Apple/Google review policy).
     bool supportsIap() const;
 
 signals:
@@ -39,6 +44,9 @@ signals:
     // pending).  The UI clears its busy indicator; the transaction still
     // grants premium when approved.
     void purchaseDeferred();
+    // Emitted when a purchase fails or is cancelled by the user — the UI
+    // should clear its busy state and show an explicit message.
+    void purchaseFailed();
     void restoreCompleted(bool restoredAny, bool isError);
 
 private:
