@@ -59,7 +59,10 @@ Rectangle {
         Rectangle {
             id: hero
             anchors { left: parent.left; right: parent.right; top: parent.top }
-            height: root.isMobile ? 140 : 152
+            // 5WHY: a FIXED height clipped long translations (German/Arabic
+            // one-time text) inside clip:true.  Height is now implicit so the
+            // hero grows with its content in every language.
+            implicitHeight: heroCol.implicitHeight + (root.isMobile ? 30 : 34)
             gradient: Gradient {
                 GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
                 GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
@@ -84,28 +87,34 @@ Rectangle {
             }
 
             ColumnLayout {
+                id: heroCol
                 anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: root.isMobile ? 16 : 20 }
-                spacing: 6
+                spacing: 8
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: 52; implicitHeight: 52; radius: 26
+                    implicitWidth: 56; implicitHeight: 56; radius: 16
                     color: Qt.alpha("#FFFFFF", 0.16)
                     border { width: 1; color: Qt.alpha("#FFFFFF", 0.35) }
                     AppIcon {
                         anchors.centerIn: parent
                         name: appState.isPremium ? "badge-check" : "zap"
-                        size: 26; color: "#FFFFFF"
+                        size: 28; color: "#FFFFFF"
                     }
                 }
                 Label {
                     Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
                     text: T.tr("premiumHero")
                     font.family: Th.ThemeEngine.fontUi; font.pixelSize: 19; font.weight: Font.Bold
-                    color: "#FFFFFF"
+                    color: "#FFFFFF"; elide: T.textElideStart; maximumLineCount: 1
+                    horizontalAlignment: Text.AlignHCenter
                 }
+                // One-time badge — width-capped so long translations wrap
+                // instead of overflowing the card.
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    implicitWidth: oneTimeRow.implicitWidth + 18; implicitHeight: 26; radius: 13
+                    Layout.maximumWidth: card.width * 0.8
+                    implicitWidth: oneTimeRow.implicitWidth + 18; implicitHeight: oneTimeRow.implicitHeight + 10; radius: 13
                     color: Qt.alpha("#FFFFFF", 0.18)
                     RowLayout {
                         id: oneTimeRow
@@ -115,6 +124,8 @@ Rectangle {
                             text: T.tr("premiumOneTime")
                             color: "#FFFFFF"
                             font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
+                            wrapMode: Text.WordWrap
+                            Layout.maximumWidth: card.width * 0.68
                         }
                     }
                 }
@@ -181,12 +192,12 @@ Rectangle {
                 color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5
             }
 
-            // Transient status (deferred / restore result)
+            // Transient status (deferred / restore result) — UI font, not mono
             Label {
                 visible: root.statusText !== ""
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: root.statusText
-                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
                 color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
             }
 
@@ -195,15 +206,18 @@ Rectangle {
                 visible: !appState.isPremium
                 Layout.fillWidth: true; spacing: 10
 
-                // Primary CTA — gradient button (store backend platforms only)
+                // Primary CTA — solid primary + hover (the hero already carries
+                // the gradient; a second gradient competes for focus).
                 Rectangle {
                     visible: appState.platformSupportsIap
                     Layout.fillWidth: true; implicitHeight: 48; radius: 12
                     enabled: !appState.purchaseInProgress
                     opacity: enabled ? 1.0 : 0.5
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
-                        GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+                    color: Th.ThemeEngine.colors.primary
+                    Rectangle { // hover overlay (no Qt.lighter — static-safe)
+                        anchors.fill: parent; radius: 12
+                        visible: ctaHover.containsMouse
+                        color: Qt.alpha("#FFFFFF", 0.12)
                     }
                     RowLayout {
                         anchors.centerIn: parent; spacing: 8
@@ -214,11 +228,12 @@ Rectangle {
                         Label {
                             text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("subscribeBtn")
                             font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
-                            color: "#FFFFFF"
+                            color: "#FFFFFF"; elide: T.textElideStart
                         }
                     }
                     MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        id: ctaHover
+                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
                         enabled: !appState.purchaseInProgress
                         onClicked: appState.requestSubscription()
                     }
@@ -244,12 +259,25 @@ Rectangle {
                 }
             }
 
-            // Not now / close (always)
-            DialogBtn {
+            // Not now / close — quiet text link (tertiary action, M3 style)
+            Item {
                 visible: !appState.purchaseInProgress
-                label: appState.isPremium ? T.tr("dialogCancel") : T.tr("subscribeNotNow")
-                accent: Th.ThemeEngine.colors.textSecondary; filled: false
-                onClicked: root.closeDialog()
+                Layout.fillWidth: true; implicitHeight: 40
+                Label {
+                    anchors.centerIn: parent
+                    text: appState.isPremium ? T.tr("dialogCancel") : T.tr("subscribeNotNow")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.Medium
+                    color: notNowHover.containsMouse ? Th.ThemeEngine.colors.textPrimary
+                                                     : Th.ThemeEngine.colors.textSecondary
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+                MouseArea {
+                    id: notNowHover
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                    onClicked: root.closeDialog()
+                }
+                Accessible.name: appState.isPremium ? T.tr("dialogCancel") : T.tr("subscribeNotNow")
+                Accessible.role: Accessible.Button
             }
         }
     }

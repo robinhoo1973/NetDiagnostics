@@ -52,35 +52,39 @@ Rectangle {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: Th.ThemeEngine.spacing.lg }
             spacing: 6
             RowLayout {
-                Layout.fillWidth: true; spacing: 10
+                Layout.fillWidth: true; spacing: 12
+                // Icon tile — rounded square (44pt, modern), not a circle
                 Rectangle {
-                    implicitWidth: 40; implicitHeight: 40; radius: 20
+                    implicitWidth: 44; implicitHeight: 44; radius: 14
                     color: Qt.alpha("#FFFFFF", 0.16)
                     border { width: 1; color: Qt.alpha("#FFFFFF", 0.35) }
                     AppIcon {
                         anchors.centerIn: parent
                         name: appState.isPremium ? "badge-check" : "zap"
-                        size: 20; color: "#FFFFFF"
+                        size: 22; color: "#FFFFFF"
                     }
                 }
+                // Title + subtitle — subtitle WRAPS (never elides) so long
+                // translations (German/Russian/Arabic) never lose the story.
                 ColumnLayout {
-                    Layout.fillWidth: true; spacing: 1
+                    Layout.fillWidth: true; Layout.alignment: Qt.AlignVCenter; spacing: 2
                     Label {
                         Layout.fillWidth: true
                         text: T.tr("premiumHero")
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.Bold; color: "#FFFFFF"
-                        elide: T.textElideStart
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 17; font.weight: Font.Bold
+                        color: "#FFFFFF"; elide: T.textElideStart; maximumLineCount: 1
                     }
                     Label {
                         Layout.fillWidth: true
                         text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumOneTime")
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; color: Qt.alpha("#FFFFFF", 0.9)
-                        elide: T.textElideStart
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
+                        color: Qt.alpha("#FFFFFF", 0.92); wrapMode: Text.WordWrap; lineHeight: 1.3
                     }
                 }
-                // PRO pill (right side)
+                // PRO pill (top-aligned, never stretches)
                 Rectangle {
-                    implicitWidth: proPill.implicitWidth + 14; implicitHeight: 24; radius: 12
+                    Layout.alignment: Qt.AlignTop
+                    implicitWidth: proPill.implicitWidth + 16; implicitHeight: 24; radius: 12
                     color: appState.isPremium ? Qt.alpha("#FFFFFF", 0.24) : Qt.alpha("#FFFFFF", 0.14)
                     RowLayout {
                         id: proPill
@@ -102,32 +106,31 @@ Rectangle {
         anchors { left: parent.left; right: parent.right; top: hero.bottom; margins: Th.ThemeEngine.spacing.lg }
         spacing: Th.ThemeEngine.spacing.md
 
-        // Feature chips (compact row — PDF / HTML / lifetime)
-        RowLayout {
-            Layout.fillWidth: true; spacing: 6
-            Repeater {
-                model: [
-                    { icon: "file-pdf",    key: "premiumFeaturePdf" },
-                    { icon: "file-html",   key: "premiumFeatureHtml" },
-                    { icon: "badge-check", key: "premiumFeatureLifetime" }
-                ]
-                delegate: Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: chip.implicitHeight + 12; radius: 8
-                    color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
-                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.15) }
-                    ColumnLayout {
-                        id: chip
-                        anchors.centerIn: parent; spacing: 3
-                        AppIcon { Layout.alignment: Qt.AlignHCenter; name: modelData.icon; size: 14; color: Th.ThemeEngine.colors.primary }
-                        Label {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: T.tr(modelData.key)
-                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 10
-                            color: Th.ThemeEngine.colors.textSecondary
-                            wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
-                            Layout.maximumWidth: card.width * 0.24
-                        }
+        // Feature list — VERTICAL rows (icon + wrapping text).  Squeezed
+        // columns clip long translations; rows wrap cleanly in all 15
+        // languages (Apple App Store / Stripe pricing-card pattern).
+        Repeater {
+            visible: !appState.isPremium
+            model: [
+                { icon: "file-pdf",    key: "premiumFeaturePdf" },
+                { icon: "file-html",   key: "premiumFeatureHtml" },
+                { icon: "badge-check", key: "premiumFeatureLifetime" }
+            ]
+            delegate: Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: featRow.implicitHeight + 16; radius: 10
+                color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
+                border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.16) }
+                RowLayout {
+                    id: featRow
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                    spacing: 10
+                    AppIcon { name: modelData.icon; size: 18; color: Th.ThemeEngine.colors.primary }
+                    Label {
+                        Layout.fillWidth: true
+                        text: T.tr(modelData.key)
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
+                        color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap; lineHeight: 1.35
                     }
                 }
             }
@@ -136,16 +139,16 @@ Rectangle {
         // Unlocked notice (owned state)
         Rectangle {
             visible: appState.isPremium
-            Layout.fillWidth: true; implicitHeight: 38; radius: 8
+            Layout.fillWidth: true; implicitHeight: 42; radius: 10
             color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.1)
             border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.3) }
             RowLayout {
-                anchors.centerIn: parent; spacing: 7
-                AppIcon { name: "badge-check"; size: 15; color: Th.ThemeEngine.colors.passGreen }
+                anchors.centerIn: parent; spacing: 8
+                AppIcon { name: "badge-check"; size: 16; color: Th.ThemeEngine.colors.passGreen }
                 Label {
                     text: T.tr("premiumUnlocked") + " · " + T.tr("premiumOneTime")
-                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
-                    color: Th.ThemeEngine.colors.passGreen
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
+                    color: Th.ThemeEngine.colors.passGreen; wrapMode: Text.WordWrap
                 }
             }
         }
@@ -157,43 +160,47 @@ Rectangle {
         // (Apple/Google review policy forbids that).
         Rectangle {
             visible: !appState.isPremium && !appState.platformSupportsIap
-            Layout.fillWidth: true; implicitHeight: 40; radius: 8
+            Layout.fillWidth: true; implicitHeight: 44; radius: 10
             color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.08)
             border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.3) }
             Label {
-                anchors.centerIn: parent
+                anchors { fill: parent; margins: 8 }
                 text: T.tr("iapNotAvailable")
-                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11
+                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
                 color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
-                horizontalAlignment: Text.AlignHCenter
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
             }
         }
 
         // ── Actions ──────────────────────────────────────────────────
-        // Primary CTA (locked + store backend only) — gradient button
+        // Primary CTA — solid primary + hover (the hero carries the gradient;
+        // a second gradient would compete for visual focus).
         Rectangle {
             visible: !appState.isPremium && appState.platformSupportsIap
-            Layout.fillWidth: true; implicitHeight: 46; radius: 11
+            Layout.fillWidth: true; implicitHeight: 48; radius: 12
             enabled: !appState.purchaseInProgress
             opacity: enabled ? 1.0 : 0.5
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
-                GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+            color: Th.ThemeEngine.colors.primary
+            Rectangle { // hover overlay (no Qt.lighter — static-build-safe)
+                anchors.fill: parent; radius: 12
+                visible: ctaHover.containsMouse
+                color: Qt.alpha("#FFFFFF", 0.12)
             }
             RowLayout {
                 anchors.centerIn: parent; spacing: 8
                 AppIcon {
                     name: appState.purchaseInProgress ? "spinner" : "zap"
-                    size: 15; color: "#FFFFFF"
+                    size: 16; color: "#FFFFFF"
                 }
                 Label {
                     text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("subscribeBtn")
-                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.Bold
-                    color: "#FFFFFF"
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
+                    color: "#FFFFFF"; elide: T.textElideStart
                 }
             }
             MouseArea {
-                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                id: ctaHover
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
                 enabled: !appState.purchaseInProgress
                 onClicked: card.purchaseRequested()
             }
@@ -201,20 +208,20 @@ Rectangle {
             Accessible.role: Accessible.Button
         }
 
-        // Restore — secondary (both states; store backend + not in-flight)
+        // Restore — secondary outline
         Rectangle {
             visible: !appState.purchaseInProgress && appState.platformSupportsIap
-            Layout.fillWidth: true; implicitHeight: 42; radius: 9
+            Layout.fillWidth: true; implicitHeight: 42; radius: 10
             color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.08) : "transparent"
             border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.4) }
             Behavior on color { ColorAnimation { duration: 150 } }
             RowLayout {
-                anchors.centerIn: parent; spacing: 7
-                AppIcon { name: "badge-circle"; size: 14; color: Th.ThemeEngine.colors.textSecondary }
+                anchors.centerIn: parent; spacing: 8
+                AppIcon { name: "badge-circle"; size: 15; color: Th.ThemeEngine.colors.textSecondary }
                 Label {
                     text: T.tr("restoreBtn")
-                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
-                    color: Th.ThemeEngine.colors.textSecondary
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
+                    color: Th.ThemeEngine.colors.textSecondary; elide: T.textElideStart
                 }
             }
             MouseArea {
