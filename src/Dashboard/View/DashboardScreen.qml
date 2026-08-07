@@ -255,7 +255,7 @@ Item {
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 ColumnLayout {
                     id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
-                    Label { text: T.tr("report"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                    Label { text: T.tr("report"); font.family: ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                     AppLabel { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     // Review Report button
                     Rectangle {

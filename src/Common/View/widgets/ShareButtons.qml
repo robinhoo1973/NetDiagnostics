@@ -187,7 +187,7 @@ RowLayout {
                 Label {
                     text: labeledRect.labelText + (labeledRect.locked ? "  " + T.tr("premiumBadge") : "")
                     color: ThemeEngine.colors.textPrimary
-                    font.family: ThemeEngine.monoFont
+                    font.family: ThemeEngine.fontUi
                     font.pixelSize: 12
                     font.weight: Font.Medium
                 }

@@ -35,15 +35,17 @@ Rectangle {
 
     RowLayout {
         id: titleRow
-        anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+        anchors { fill: parent; leftMargin: Th.ThemeEngine.spacing.lg; rightMargin: Th.ThemeEngine.spacing.lg }
         AppIcon {
             name: root.iconName; size: 20
             color: Th.ThemeEngine.colors.cyan
         }
-        Item { width: 10 }
+        Item { width: Th.ThemeEngine.spacing.md }
         Label {
             text: root.title
-            font.family: Th.ThemeEngine.monoFont; font.pixelSize: 15
+            // 5WHY: AppBar title is UI chrome — proportional fontUi, 16px to
+            // match the section-header hierarchy (was mono 15px).
+            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 16
             font.weight: Font.DemiBold
             color: Th.ThemeEngine.colors.textPrimary
         }

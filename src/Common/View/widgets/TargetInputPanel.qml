@@ -274,7 +274,7 @@ ColumnLayout {
             Label {
                 anchors.centerIn: parent
                 text: appState.runStatus === 1 ? T.tr("running") : T.tr("runDiag")
-                font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold
+                font.family: ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
                 color: (appState.canRun() || appState.runStatus === 1) ? ThemeEngine.colors.surface : Qt.alpha(ThemeEngine.colors.textPrimary, 0.4)
             }
             // 5WHY: MouseArea-only controls lack keyboard accessibility.

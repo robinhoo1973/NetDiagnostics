@@ -92,7 +92,7 @@ Item {
             color: Qt.alpha(ThemeEngine.colors.card, 0.5)
             border { width: 1; color: ThemeEngine.colors.borderCard }
             RowLayout {
-                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                anchors { fill: parent; leftMargin: ThemeEngine.spacing.lg; rightMargin: ThemeEngine.spacing.lg }
                 ColumnLayout { spacing: 2
                     Label {
                         // 5WHY: configPollVersion forces re-evaluation after
@@ -101,7 +101,8 @@ Item {
                         // dependency through the JS function call on all
                         // Qt versions.
                         text: { let _ = configPollVersion; return T.groupName(currentGroup) }
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
+                        // 5WHY: group name is UI chrome — proportional fontUi.
+                        font.family: ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                     }
                     Label {
                         text: { let _ = configPollVersion; return getDiagCountForGroup(currentGroup) + T.tr("diagsSuffix") }
@@ -174,8 +175,8 @@ Item {
 
                 RowLayout {
                     id: tileCol
-                    anchors { fill: parent; leftMargin: 16; rightMargin: 16; topMargin: 8; bottomMargin: 8 }
-                    spacing: 12
+                    anchors { fill: parent; leftMargin: ThemeEngine.spacing.lg; rightMargin: ThemeEngine.spacing.lg; topMargin: 8; bottomMargin: 8 }
+                    spacing: ThemeEngine.spacing.md
 
                     // Leading icon
                     // 5WHY: isDiagEnabled binding was stale — icon didn't

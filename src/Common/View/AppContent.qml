@@ -132,7 +132,7 @@ Item {
                             implicitHeight: compact ? 48 : 44
                             TextMetrics {
                                 id: labelMetrics
-                                font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                                font.family: ThemeEngine.fontUi; font.pixelSize: 12
                                 text: navBtn.labelText
                             }
                             background: Rectangle {
@@ -166,7 +166,8 @@ Item {
                                     }
                                     Label {
                                         text: navBtn.labelText
-                                        font.family: ThemeEngine.monoFont; font.pixelSize: 12
+                                        // 5WHY: nav labels are UI chrome — proportional fontUi.
+                                        font.family: ThemeEngine.fontUi; font.pixelSize: 12
                                         font.weight: navBtn.active ? Font.DemiBold : Font.Normal
                                         color: navBtn.active ? ThemeEngine.colors.primary
                                                               : ThemeEngine.colors.textSecondary

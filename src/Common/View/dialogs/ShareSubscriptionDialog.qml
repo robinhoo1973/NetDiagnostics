@@ -39,7 +39,7 @@ Rectangle {
         MouseArea { anchors.fill: parent; onClicked: {} }
         ColumnLayout {
             id: dlgCol
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 20 }
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Th.ThemeEngine.spacing.xl }
             spacing: 14
 
             // Icon badge
@@ -66,7 +66,7 @@ Rectangle {
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
                 text: root.shareStage === 1 ? T.tr("subscribeTitle") : T.tr("confirmShareTitle")
-                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 17
+                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 17
                 font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
             }
 
@@ -79,7 +79,7 @@ Rectangle {
                 text: root.shareStage === 1
                       ? (appState.platformSupportsIap ? T.tr("subscribeBody") : T.tr("iapNotAvailable"))
                       : T.tr("confirmShareBody")
-                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 13
+                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
                 color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
             }
 
@@ -94,7 +94,7 @@ Rectangle {
                     anchors.centerIn: parent; spacing: 5
                     AppIcon { name: "badge-check"; size: 12; color: Th.ThemeEngine.colors.warnYellow }
                     Label { text: T.tr("premiumBadge"); color: Th.ThemeEngine.colors.warnYellow
-                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold }
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.Bold }
                 }
             }
 

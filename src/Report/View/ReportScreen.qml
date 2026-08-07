@@ -173,7 +173,8 @@ Item {
             AppLabel {
                 Layout.fillWidth: true
                 text: T.tr("reportPreview")
-                font.family: ThemeEngine.monoFont; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
+                // 5WHY: hero heading is UI chrome — proportional fontUi.
+                font.family: ThemeEngine.fontUi; font.pixelSize: page.isMobile ? 19 : 22; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary
                 horizontalAlignment: Text.AlignHCenter
                 elide: T.textElideStart; maximumLineCount: 1
             }
@@ -435,7 +436,7 @@ Item {
             Item { width: 12 }
             AppLabel { Layout.fillWidth: true; text: btn.label; color: ThemeEngine.colors.textPrimary
                 elide: T.textElideStart; maximumLineCount: 1
-                font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
+                font.family: ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.Medium }
         }
         MouseArea { anchors.fill: parent; enabled: page.canReport
             cursorShape: Qt.PointingHandCursor; onClicked: btn.clicked() }

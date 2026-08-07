@@ -128,6 +128,16 @@ QtObject {
 
     readonly property int toastDurationMs: 3500
     readonly property var radius: ({ xs: 4, sm: 6, md: 8, lg: 12, xl: 16, full: 9999 })
+    // ── Typography & spacing design tokens ──────────────────────────────
+    // fontUi: the platform's proportional UI font (Qt.application.font is the
+    // app default — "Sans Serif" on Linux, SF Pro on macOS, Segoe UI on
+    // Windows).  Best practice: UI chrome (titles, nav labels, buttons,
+    // section headers) uses a proportional face; monoFont stays reserved for
+    // diagnostic data output/tables where column alignment matters.  CJK and
+    // Arabic glyphs merge automatically via Qt font merging.
+    readonly property string fontUi: Qt.application.font.family
+    // spacing: Material-3 style 4/8/12/16/24 rhythm for element gaps/margins.
+    readonly property var spacing: ({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24 })
     readonly property string fontMono: "JetBrains Mono"
     readonly property string monoFont: fontMono
 

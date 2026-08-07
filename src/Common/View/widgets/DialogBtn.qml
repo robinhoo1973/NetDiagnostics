@@ -22,7 +22,7 @@ Rectangle {
     // never triggers.  Use left+right anchors instead to constrain to the
     // parent Rectangle, with horizontalAlignment to keep text centered.
     Label {
-        anchors { left: parent.left; right: parent.right; leftMargin: 8; rightMargin: 8; verticalCenter: parent.verticalCenter }
+        anchors { left: parent.left; right: parent.right; leftMargin: Th.ThemeEngine.spacing.sm; rightMargin: Th.ThemeEngine.spacing.sm; verticalCenter: parent.verticalCenter }
         text: dbtn.label
         // 5WHY: ElideRight only engages when the Label has a constrained width.
         // anchors.centerIn lets the Label grow to its full implicitWidth — elide
@@ -32,7 +32,7 @@ Rectangle {
         elide: T.isRtl ? Text.ElideLeft : Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
         color: dbtn.filled ? Th.ThemeEngine.colors.surface : dbtn.accent
-        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold
+        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
     }
     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: dbtn.clicked() }
 }

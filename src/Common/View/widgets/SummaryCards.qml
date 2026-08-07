@@ -11,7 +11,7 @@ ColumnLayout {
 
     // Header: "Summary" + "Total: N"
     RowLayout {
-        AppLabel { Layout.fillWidth: true; text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
+        AppLabel { Layout.fillWidth: true; text: T.tr("summary"); font.family: ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary }
         Label { text: T.tr("totalDiagsLabel") + ": " + (pass+warn+fail+skip+info); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
     }
     Item { Layout.preferredHeight: 6 }

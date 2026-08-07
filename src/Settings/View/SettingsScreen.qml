@@ -111,7 +111,7 @@ Item {
                                     Label {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: modelData.label
-                                        font.family: ThemeEngine.monoFont; font.pixelSize: 11
+                                        font.family: ThemeEngine.fontUi; font.pixelSize: 11
                                         font.weight: isActive ? Font.DemiBold : Font.Normal
                                         color: isActive ? ThemeEngine.colors.primary : ThemeEngine.colors.textSecondary
                                     }
@@ -198,7 +198,7 @@ Item {
                             page.languageToastText = langItems[index].name + "  ✓"
                             languageToastTimer.restart()
                         }
-                        font.family: ThemeEngine.monoFont; font.pixelSize: 13
+                        font.family: ThemeEngine.fontUi; font.pixelSize: 13
                         background: Rectangle {
                             radius: 6; color: ThemeEngine.colors.input; border { width: 1; color: ThemeEngine.colors.borderCard }
                         }
@@ -225,7 +225,7 @@ Item {
                         delegate: ItemDelegate {
                             width: langCombo.width
                             contentItem: Label {
-                                text: modelData; font.family: ThemeEngine.monoFont; font.pixelSize: 13
+                                text: modelData; font.family: ThemeEngine.fontUi; font.pixelSize: 13
                                 color: highlighted ? ThemeEngine.colors.cyan : ThemeEngine.colors.textPrimary
                                 verticalAlignment: Text.AlignVCenter
                                 // 5WHY: Same RTL fix as the combo contentItem —
@@ -384,8 +384,8 @@ Item {
         property string iconName: ""; property string title: ""
         Rectangle { implicitWidth: 30; implicitHeight: 30; radius: 8; color: Qt.alpha(ThemeEngine.colors.primary, 0.1)
             AppIcon { anchors.centerIn: parent; name: iconName; size: 18; color: ThemeEngine.colors.textPrimary } }
-        Item { width: 12 }
-        Label { text: title; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+        Item { width: ThemeEngine.spacing.md }
+        Label { text: title; font.family: ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
     }
 
     // 5WHY: LangBtn and SmtpField were defined but never instantiated — dead code.
