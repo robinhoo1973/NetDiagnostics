@@ -20,3 +20,4 @@ SchemeSelector 1.0 SchemeSelector.qml
 OutlineButton 1.0 OutlineButton.qml
 CardTopAccent 1.0 CardTopAccent.qml
 DialogBtn 1.0 DialogBtn.qml
+PremiumCard 1.0 PremiumCard.qml

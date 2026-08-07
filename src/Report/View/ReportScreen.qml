@@ -59,7 +59,9 @@ Item {
     // subscribed → ask for confirmation before sharing. Same logic on iOS/Android.
     function doShare(fmt) {
         pendingShareFormat = fmt
-        shareStage = appState.isPremium ? 2 : 1
+        // 5WHY: Premium is sold only on iOS/Android/macOS — on Windows/Linux
+        // sharing is free, so skip the subscribe prompt entirely.
+        shareStage = (appState.platformSupportsIap && !appState.isPremium) ? 1 : 2
     }
     // Preview uses QTextDocument→QImage (data: URI), not a file, so
     // sharing must generate the actual PDF/HTML file on demand.

@@ -1,0 +1,277 @@
+// =============================================================================
+// PremiumDialog.qml — Modern "one-time purchase" intro + purchase + restore
+//
+// Full-featured IAP portal.  Opened from SettingsScreen's PremiumCard entry
+// (and reusable anywhere a "learn more / buy / restore" entry exists).
+//
+// Story told before any purchase: one-time payment → lifetime access →
+// unlimited PDF/HTML report sharing.  Same copy keys (premiumHero /
+// premiumOneTime / premiumFeaturePdf / premiumFeatureHtml /
+// premiumFeatureLifetime) are used by ShareSubscriptionDialog so the
+// product story is consistent at every purchase entry point.
+//
+// States: locked (intro + CTA + restore) | in-progress (spinner) |
+//         deferred (Ask-to-Buy) | unlocked (owned, auto-close).
+// =============================================================================
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import "../theme" as Th
+import "../widgets"
+
+Rectangle {
+    id: root
+    anchors.fill: parent
+    color: Qt.alpha(Th.ThemeEngine.colors.surface, 0.85)
+    visible: root.open
+    z: 1200
+
+    // 5WHY: RTL (Arabic) — the feature RowLayouts must mirror so icons hug
+    // the start edge of the reading direction instead of the wrong side.
+    LayoutMirroring.enabled: T.isRtl
+    LayoutMirroring.childrenInherit: true
+
+    property bool open: false
+    property bool isMobile: false
+    property string statusText: ""          // transient restore/deferred notices
+    signal dismissed()
+
+    function openDialog() { root.open = true; root.statusText = "" }
+    function closeDialog() { root.open = false; root.dismissed() }
+
+    // Backdrop tap dismisses
+    MouseArea { anchors.fill: parent; onClicked: root.closeDialog() }
+
+    Rectangle {
+        id: card
+        anchors.centerIn: parent
+        width: Math.min(400, parent.width * 0.92)
+        implicitHeight: cardCol.implicitHeight + hero.height; radius: Th.ThemeEngine.radius.xl
+        color: Th.ThemeEngine.colors.card
+        border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+        clip: true
+        // 5WHY: Without this MouseArea, near-miss clicks on empty card space
+        // propagate to the backdrop MouseArea and dismiss the dialog.
+        // QML MouseArea only consumes events when it has a handler attached.
+        MouseArea { anchors.fill: parent; onClicked: {} }
+
+        // ── Hero band — brand gradient (indigo → sky) ─────────────────
+        Rectangle {
+            id: hero
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: root.isMobile ? 140 : 152
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
+                GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+            }
+
+            // Close (top-right, on the gradient)
+            Rectangle {
+                id: closeBtn
+                anchors { top: parent.top; right: parent.right; topMargin: 8; rightMargin: 8 }
+                // 5WHY: 44pt mobile touch target (Apple HIG / MD3), 34pt desktop.
+                readonly property int btnSize: root.isMobile ? 44 : 34
+                implicitWidth: btnSize; implicitHeight: btnSize; radius: btnSize / 2
+                color: closeMouse.containsMouse ? Qt.alpha("#FFFFFF", 0.28) : Qt.alpha("#FFFFFF", 0.12)
+                AppIcon { anchors.centerIn: parent; name: "close"; size: root.isMobile ? 20 : 15; color: "#FFFFFF" }
+                MouseArea {
+                    id: closeMouse
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                    onClicked: root.closeDialog()
+                }
+                Accessible.name: T.tr("dialogCancel")
+                Accessible.role: Accessible.Button
+            }
+
+            ColumnLayout {
+                anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: root.isMobile ? 16 : 20 }
+                spacing: 6
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: 52; implicitHeight: 52; radius: 26
+                    color: Qt.alpha("#FFFFFF", 0.16)
+                    border { width: 1; color: Qt.alpha("#FFFFFF", 0.35) }
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: appState.isPremium ? "badge-check" : "zap"
+                        size: 26; color: "#FFFFFF"
+                    }
+                }
+                Label {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: T.tr("premiumHero")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 19; font.weight: Font.Bold
+                    color: "#FFFFFF"
+                }
+                Rectangle {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: oneTimeRow.implicitWidth + 18; implicitHeight: 26; radius: 13
+                    color: Qt.alpha("#FFFFFF", 0.18)
+                    RowLayout {
+                        id: oneTimeRow
+                        anchors.centerIn: parent; spacing: 5
+                        AppIcon { name: "badge-check"; size: 12; color: "#FFFFFF" }
+                        Label {
+                            text: T.tr("premiumOneTime")
+                            color: "#FFFFFF"
+                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Body ──────────────────────────────────────────────────────
+        ColumnLayout {
+            id: cardCol
+            anchors { left: parent.left; right: parent.right; top: hero.bottom; margins: Th.ThemeEngine.spacing.xl }
+            spacing: 12
+
+            // Unlocked state banner
+            Rectangle {
+                visible: appState.isPremium
+                Layout.fillWidth: true; implicitHeight: 44; radius: 10
+                color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.12)
+                border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.35) }
+                RowLayout {
+                    anchors.centerIn: parent; spacing: 8
+                    AppIcon { name: "badge-check"; size: 18; color: Th.ThemeEngine.colors.passGreen }
+                    Label {
+                        text: T.tr("premiumUnlocked")
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
+                        color: Th.ThemeEngine.colors.passGreen
+                    }
+                }
+            }
+
+            // Feature rows (locked only)
+            Repeater {
+                visible: !appState.isPremium
+                model: [
+                    { icon: "file-pdf",    key: "premiumFeaturePdf" },
+                    { icon: "file-html",   key: "premiumFeatureHtml" },
+                    { icon: "badge-check", key: "premiumFeatureLifetime" }
+                ]
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: featureRow.implicitHeight + 14; radius: 10
+                    color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
+                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.15) }
+                    RowLayout {
+                        id: featureRow
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                        spacing: 10
+                        AppIcon { name: modelData.icon; size: 18; color: Th.ThemeEngine.colors.primary }
+                        Label {
+                            Layout.fillWidth: true
+                            text: T.tr(modelData.key)
+                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
+                            color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+            }
+
+            // Body copy (locked)
+            Label {
+                visible: !appState.isPremium
+                Layout.fillWidth: true
+                text: appState.platformSupportsIap ? T.tr("subscribeBody") : T.tr("iapNotAvailable")
+                font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
+                color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.5
+            }
+
+            // Transient status (deferred / restore result)
+            Label {
+                visible: root.statusText !== ""
+                Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                text: root.statusText
+                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                color: Th.ThemeEngine.colors.warnYellow; wrapMode: Text.WordWrap
+            }
+
+            // ── Actions (locked) ──────────────────────────────────────
+            ColumnLayout {
+                visible: !appState.isPremium
+                Layout.fillWidth: true; spacing: 10
+
+                // Primary CTA — gradient button
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 12
+                    enabled: !appState.purchaseInProgress
+                    opacity: enabled ? 1.0 : 0.5
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
+                        GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+                    }
+                    RowLayout {
+                        anchors.centerIn: parent; spacing: 8
+                        AppIcon {
+                            name: appState.purchaseInProgress ? "spinner" : "zap"
+                            size: 16; color: "#FFFFFF"
+                        }
+                        Label {
+                            text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("subscribeBtn")
+                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
+                            color: "#FFFFFF"
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        enabled: !appState.purchaseInProgress
+                        onClicked: appState.requestSubscription()
+                    }
+                    Accessible.name: T.tr("subscribeBtn")
+                    Accessible.role: Accessible.Button
+                }
+
+                // Restore — secondary
+                DialogBtn {
+                    visible: appState.platformSupportsIap
+                    label: T.tr("restoreBtn")
+                    accent: Th.ThemeEngine.colors.textSecondary; filled: false
+                    onClicked: appState.restorePurchases()
+                }
+
+                // Restore hint (locked, not in-flight)
+                Label {
+                    visible: appState.platformSupportsIap && !appState.purchaseInProgress
+                    Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
+                    text: T.tr("premiumRestoreNote")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11
+                    color: Th.ThemeEngine.colors.textMuted; wrapMode: Text.WordWrap
+                }
+            }
+
+            // Not now / close (always)
+            DialogBtn {
+                visible: !appState.purchaseInProgress
+                label: appState.isPremium ? T.tr("dialogCancel") : T.tr("subscribeNotNow")
+                accent: Th.ThemeEngine.colors.textSecondary; filled: false
+                onClicked: root.closeDialog()
+            }
+        }
+    }
+
+    // ── AppState wiring ────────────────────────────────────────────────
+    Connections {
+        target: appState
+        function onPurchaseDeferred() {
+            root.statusText = T.tr("purchaseDeferred")
+            root.clearStatusTimer.restart()
+        }
+        function onRestoreCompleted(restoredAny, isError) {
+            if (isError) root.statusText = T.tr("restoreError")
+            else if (restoredAny) root.statusText = T.tr("restoreOk")
+            else root.statusText = T.tr("restoreFail")
+            root.clearStatusTimer.restart()
+        }
+        function onPremiumChanged() {
+            // Purchase succeeded while the dialog was open → show the unlocked
+            // banner briefly, then auto-close so the flow feels seamless.
+            if (root.open && appState.isPremium) root.closeAfterUnlock.restart()
+        }
+    }
+    Timer { id: closeAfterUnlock; interval: 1400; onTriggered: { if (root.open) root.closeDialog() } }
+    Timer { id: clearStatusTimer; interval: Th.ThemeEngine.toastDurationMs; onTriggered: root.statusText = "" }
+}

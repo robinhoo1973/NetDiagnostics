@@ -15,6 +15,11 @@ Rectangle {
     color: Qt.alpha(Th.ThemeEngine.colors.surface, 0.85)
     visible: shareStage !== 0; z: 1100
 
+    // 5WHY: RTL (Arabic) — feature RowLayouts must mirror so icons hug the
+    // start edge of the reading direction.
+    LayoutMirroring.enabled: T.isRtl
+    LayoutMirroring.childrenInherit: true
+
     required property int shareStage       // 0=none, 1=subscribe, 2=confirm
     required property bool isMobile
     property bool showProBadge: false      // ReportScreen shows a PRO badge
@@ -57,7 +62,7 @@ Rectangle {
                 }
                 AppIcon {
                     anchors.centerIn: parent
-                    name: root.shareStage === 1 ? "badge-info" : "report"; size: 28
+                    name: root.shareStage === 1 ? "zap" : "report"; size: 28
                     color: root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan
                 }
             }
@@ -65,7 +70,7 @@ Rectangle {
             // Title
             Label {
                 Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
-                text: root.shareStage === 1 ? T.tr("subscribeTitle") : T.tr("confirmShareTitle")
+                text: root.shareStage === 1 ? T.tr("premiumHero") : T.tr("confirmShareTitle")
                 font.family: Th.ThemeEngine.fontUi; font.pixelSize: 17
                 font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
             }
@@ -83,9 +88,9 @@ Rectangle {
                 color: Th.ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap
             }
 
-            // PRO badge (subscribe stage, optional)
+            // PRO badge (subscribe stage) — one-time + lifetime story
             Rectangle {
-                visible: root.showProBadge && root.shareStage === 1
+                visible: root.shareStage === 1
                 Layout.alignment: Qt.AlignHCenter
                 implicitWidth: proRow.implicitWidth + 20; implicitHeight: 26; radius: 13
                 color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.15)
@@ -93,25 +98,81 @@ Rectangle {
                     id: proRow
                     anchors.centerIn: parent; spacing: 5
                     AppIcon { name: "badge-check"; size: 12; color: Th.ThemeEngine.colors.warnYellow }
-                    Label { text: T.tr("premiumBadge"); color: Th.ThemeEngine.colors.warnYellow
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.Bold }
+                    Label { text: T.tr("premiumOneTime"); color: Th.ThemeEngine.colors.warnYellow
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold }
                 }
+            }
+
+            // Feature rows (subscribe stage) — PDF / HTML / lifetime
+            Repeater {
+                visible: root.shareStage === 1
+                model: [
+                    { icon: "file-pdf",    key: "premiumFeaturePdf" },
+                    { icon: "file-html",   key: "premiumFeatureHtml" },
+                    { icon: "badge-check", key: "premiumFeatureLifetime" }
+                ]
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: featureRow.implicitHeight + 12; radius: 8
+                    color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.06)
+                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.warnYellow, 0.15) }
+                    RowLayout {
+                        id: featureRow
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }
+                        spacing: 8
+                        AppIcon { name: modelData.icon; size: 15; color: Th.ThemeEngine.colors.warnYellow }
+                        Label {
+                            Layout.fillWidth: true
+                            text: T.tr(modelData.key)
+                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12
+                            color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap
+                        }
+                    }
+                }
+            }
+
+            // Restore (subscribe stage only, not in-flight)
+            Rectangle {
+                visible: root.shareStage === 1 && appState.platformSupportsIap && !appState.purchaseInProgress
+                Layout.fillWidth: true; implicitHeight: 36; radius: 8
+                color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.07) : "transparent"
+                RowLayout {
+                    anchors.centerIn: parent; spacing: 6
+                    AppIcon { name: "badge-circle"; size: 13; color: Th.ThemeEngine.colors.textSecondary }
+                    Label {
+                        text: T.tr("restoreBtn")
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
+                        color: Th.ThemeEngine.colors.textSecondary
+                    }
+                }
+                MouseArea {
+                    id: restoreArea
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                    onClicked: appState.restorePurchases()
+                }
+                Accessible.name: T.tr("restoreBtn")
+                Accessible.role: Accessible.Button
             }
 
             // Buttons
             RowLayout {
                 Layout.fillWidth: true; Layout.topMargin: 4; spacing: 10
                 DialogBtn {
+                    visible: !appState.purchaseInProgress
                     label: root.shareStage === 1 ? T.tr("subscribeNotNow") : T.tr("dialogCancel")
                     accent: Th.ThemeEngine.colors.textSecondary; filled: false
                     onClicked: root.dismissed()
                 }
                 DialogBtn {
                     visible: root.shareStage !== 1 || appState.platformSupportsIap
-                    label: root.shareStage === 1 ? T.tr("subscribeBtn")
+                    label: root.shareStage === 1
+                           ? (appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("subscribeBtn"))
                            : (root.isMobile ? T.tr("shareBtn") : T.tr("emailBtn"))
                     accent: root.shareStage === 1 ? Th.ThemeEngine.colors.warnYellow : Th.ThemeEngine.colors.cyan
                     filled: true
+                    // 5WHY: Prevent duplicate StoreKit dialogs while a purchase
+                    // is already in flight.
+                    enabled: !appState.purchaseInProgress
                     onClicked: root.actionRequested()
                 }
             }

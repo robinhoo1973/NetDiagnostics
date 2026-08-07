@@ -94,7 +94,10 @@ void SettingsController::restorePurchases() {
 }
 
 void SettingsController::shareReport(const QString& format) {
-    if (!m_premium.isPremium()) { emit premiumRequired(); return; }
+    // 5WHY: Premium is sold only on iOS/Android/macOS.  On Windows/Linux the
+    // OS send/mail API (emailReportDesktop → QDesktopServices mailto) is free —
+    // do NOT gate it behind Premium there.
+    if (m_premium.supportsIap() && !m_premium.isPremium()) { emit premiumRequired(); return; }
     const QString ext = (format == QLatin1String("pdf")) ? QStringLiteral("pdf")
                                                           : QStringLiteral("html");
 #if defined(PLATFORM_MOBILE)
@@ -140,7 +143,8 @@ void SettingsController::shareReport(const QString& format) {
 // no timer-based cleanup.  The caller (ReportScreen.qml) owns the file
 // lifecycle and deletes it when the preview is dismissed.
 void SettingsController::shareExistingReport(const QString& filePath, const QString& format) {
-    if (!m_premium.isPremium()) { emit premiumRequired(); return; }
+    // 5WHY: same free-share rule as shareReport() — only IAP platforms pay.
+    if (m_premium.supportsIap() && !m_premium.isPremium()) { emit premiumRequired(); return; }
     if (!QFile::exists(filePath)) {
         // Fall back to generating a fresh file if the preview file is missing
         shareReport(format);

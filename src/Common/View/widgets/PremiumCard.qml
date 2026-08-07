@@ -1,0 +1,207 @@
+// =============================================================================
+// PremiumCard.qml — Modern Premium (IAP) entry card for SettingsScreen
+//
+// Modern card design: brand gradient hero band + one-time/lifetime messaging +
+// feature chips (PDF / HTML / lifetime) + primary purchase CTA + restore.
+//
+// Emits purchaseRequested() so the page can open the full PremiumDialog, and
+// restoreRequested() for a direct restore tap.  When premium is already
+// unlocked the card switches to an "owned" state (green banner + restore).
+// =============================================================================
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import "../theme" as Th
+import "../widgets"
+
+Rectangle {
+    id: card
+    Layout.fillWidth: true
+    // 5WHY: implicitHeight must be explicit — the body uses anchors (not a
+    // Layout), so its content does NOT contribute to the root implicit height.
+    // Without this the card collapses to height 0 inside SettingsScreen's
+    // ColumnLayout and never renders.
+    implicitHeight: cardBody.implicitHeight + hero.height
+    radius: Th.ThemeEngine.radius.lg
+    color: Th.ThemeEngine.colors.card
+    border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+    clip: true
+
+    signal purchaseRequested()
+    signal restoreRequested()
+
+    // 5WHY: RTL (Arabic) — RowLayouts must mirror so icons hug the start edge
+    // of the reading direction.
+    LayoutMirroring.enabled: T.isRtl
+    LayoutMirroring.childrenInherit: true
+
+    // ── Hero band — brand gradient (indigo → sky) ────────────────────
+    Rectangle {
+        id: hero
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        implicitHeight: heroCol.implicitHeight + (card.isMobile ? 22 : 26)
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
+            GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+        }
+        ColumnLayout {
+            id: heroCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Th.ThemeEngine.spacing.lg }
+            spacing: 6
+            RowLayout {
+                Layout.fillWidth: true; spacing: 10
+                Rectangle {
+                    implicitWidth: 40; implicitHeight: 40; radius: 20
+                    color: Qt.alpha("#FFFFFF", 0.16)
+                    border { width: 1; color: Qt.alpha("#FFFFFF", 0.35) }
+                    AppIcon {
+                        anchors.centerIn: parent
+                        name: appState.isPremium ? "badge-check" : "zap"
+                        size: 20; color: "#FFFFFF"
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true; spacing: 1
+                    Label {
+                        Layout.fillWidth: true
+                        text: T.tr("premiumHero")
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.Bold; color: "#FFFFFF"
+                        elide: T.textElideStart
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumOneTime")
+                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; color: Qt.alpha("#FFFFFF", 0.9)
+                        elide: T.textElideStart
+                    }
+                }
+                // PRO pill (right side)
+                Rectangle {
+                    implicitWidth: proPill.implicitWidth + 14; implicitHeight: 24; radius: 12
+                    color: appState.isPremium ? Qt.alpha("#FFFFFF", 0.24) : Qt.alpha("#FFFFFF", 0.14)
+                    RowLayout {
+                        id: proPill
+                        anchors.centerIn: parent; spacing: 4
+                        AppIcon { name: "badge-check"; size: 11; color: "#FFFFFF" }
+                        Label {
+                            text: T.tr("premiumBadge")
+                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 10; font.weight: Font.DemiBold; color: "#FFFFFF"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Body ─────────────────────────────────────────────────────────
+    ColumnLayout {
+        id: cardBody
+        anchors { left: parent.left; right: parent.right; top: hero.bottom; margins: Th.ThemeEngine.spacing.lg }
+        spacing: Th.ThemeEngine.spacing.md
+
+        // Feature chips (compact row — PDF / HTML / lifetime)
+        RowLayout {
+            Layout.fillWidth: true; spacing: 6
+            Repeater {
+                model: [
+                    { icon: "file-pdf",    key: "premiumFeaturePdf" },
+                    { icon: "file-html",   key: "premiumFeatureHtml" },
+                    { icon: "badge-check", key: "premiumFeatureLifetime" }
+                ]
+                delegate: Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: chip.implicitHeight + 12; radius: 8
+                    color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
+                    border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.15) }
+                    ColumnLayout {
+                        id: chip
+                        anchors.centerIn: parent; spacing: 3
+                        AppIcon { Layout.alignment: Qt.AlignHCenter; name: modelData.icon; size: 14; color: Th.ThemeEngine.colors.primary }
+                        Label {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: T.tr(modelData.key)
+                            font.family: Th.ThemeEngine.fontUi; font.pixelSize: 10
+                            color: Th.ThemeEngine.colors.textSecondary
+                            wrapMode: Text.WordWrap; horizontalAlignment: Text.AlignHCenter
+                            Layout.maximumWidth: card.width * 0.24
+                        }
+                    }
+                }
+            }
+        }
+
+        // Unlocked notice (owned state)
+        Rectangle {
+            visible: appState.isPremium
+            Layout.fillWidth: true; implicitHeight: 38; radius: 8
+            color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.1)
+            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.3) }
+            RowLayout {
+                anchors.centerIn: parent; spacing: 7
+                AppIcon { name: "badge-check"; size: 15; color: Th.ThemeEngine.colors.passGreen }
+                Label {
+                    text: T.tr("premiumUnlocked") + " · " + T.tr("premiumOneTime")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 11; font.weight: Font.DemiBold
+                    color: Th.ThemeEngine.colors.passGreen
+                }
+            }
+        }
+
+        // ── Actions ──────────────────────────────────────────────────
+        // Primary CTA (locked only) — gradient button
+        Rectangle {
+            visible: !appState.isPremium
+            Layout.fillWidth: true; implicitHeight: 46; radius: 11
+            enabled: !appState.purchaseInProgress
+            opacity: enabled ? 1.0 : 0.5
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Th.ThemeEngine.colors.secondary }
+                GradientStop { position: 1.0; color: Th.ThemeEngine.colors.primary }
+            }
+            RowLayout {
+                anchors.centerIn: parent; spacing: 8
+                AppIcon {
+                    name: appState.purchaseInProgress ? "spinner" : "zap"
+                    size: 15; color: "#FFFFFF"
+                }
+                Label {
+                    text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("subscribeBtn")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.Bold
+                    color: "#FFFFFF"
+                }
+            }
+            MouseArea {
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                enabled: !appState.purchaseInProgress
+                onClicked: card.purchaseRequested()
+            }
+            Accessible.name: T.tr("subscribeBtn")
+            Accessible.role: Accessible.Button
+        }
+
+        // Restore — secondary (both states; hidden during in-flight purchase)
+        Rectangle {
+            visible: !appState.purchaseInProgress
+            Layout.fillWidth: true; implicitHeight: 42; radius: 9
+            color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.08) : "transparent"
+            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.4) }
+            Behavior on color { ColorAnimation { duration: 150 } }
+            RowLayout {
+                anchors.centerIn: parent; spacing: 7
+                AppIcon { name: "badge-circle"; size: 14; color: Th.ThemeEngine.colors.textSecondary }
+                Label {
+                    text: T.tr("restoreBtn")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
+                    color: Th.ThemeEngine.colors.textSecondary
+                }
+            }
+            MouseArea {
+                id: restoreArea
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                onClicked: card.restoreRequested()
+            }
+            Accessible.name: T.tr("restoreBtn")
+            Accessible.role: Accessible.Button
+        }
+    }
+}

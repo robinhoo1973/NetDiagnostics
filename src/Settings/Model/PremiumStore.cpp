@@ -50,7 +50,11 @@ void PremiumStore::setPremium(bool v) {
 }
 
 bool PremiumStore::supportsIap() const {
-#if defined(PLATFORM_IOS)
+    // 5WHY: Premium is sold on iOS (StoreKit), Android (Google Play Billing —
+    // backend still future) and macOS (Mac App Store).  On Windows/Linux there
+    // is no store backend: report sharing is FREE — the UI must not lock the
+    // share buttons or offer a Subscribe CTA there.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || defined(Q_OS_MACOS)
     return true;
 #else
     return false;

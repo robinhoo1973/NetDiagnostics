@@ -48,7 +48,9 @@ Item {
     }
     function doShare(fmt) {
         pendingShareFormat = fmt
-        shareStage = appState.isPremium ? 2 : 1
+        // 5WHY: Premium is sold only on iOS/Android/macOS — on Windows/Linux
+        // sharing is free, so skip the subscribe prompt entirely.
+        shareStage = (appState.platformSupportsIap && !appState.isPremium) ? 1 : 2
     }
     function confirmShare() {
         var fmt = pendingShareFormat

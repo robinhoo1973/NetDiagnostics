@@ -24,6 +24,7 @@
         <!-- HtmlPreviewWebView → resources_webview.qrc (conditional) -->
         <file alias="qml/dialogs/qmldir">../src/Common/View/dialogs/qmldir</file>
         <file alias="qml/dialogs/ShareSubscriptionDialog.qml">../src/Common/View/dialogs/ShareSubscriptionDialog.qml</file>
+        <file alias="qml/dialogs/PremiumDialog.qml">../src/Common/View/dialogs/PremiumDialog.qml</file>
 
         <!-- Shared widgets -->
         <file alias="qml/widgets/qmldir">../src/Common/View/widgets/qmldir</file>
@@ -32,6 +33,7 @@
         <file alias="qml/widgets/OutlineButton.qml">../src/Common/View/widgets/OutlineButton.qml</file>
         <file alias="qml/widgets/CardTopAccent.qml">../src/Common/View/widgets/CardTopAccent.qml</file>
         <file alias="qml/widgets/DialogBtn.qml">../src/Common/View/widgets/DialogBtn.qml</file>
+        <file alias="qml/widgets/PremiumCard.qml">../src/Common/View/widgets/PremiumCard.qml</file>
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
         <file alias="qml/widgets/AppBar.qml">../src/Common/View/widgets/AppBar.qml</file>

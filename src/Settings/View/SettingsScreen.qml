@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme"
 import "../widgets"
+import "../dialogs"
 
 // ── Flutter SettingsScreen 1:1 — with AppBar ───────────────────────────
 Item {
@@ -256,59 +257,34 @@ Item {
             // (Email/SMTP section removed — report sharing is handled from the
             //  Report screen's preview window via Share/Email.)
 
-            // ── Premium Section (mobile only) ────────────
+            // ── Premium Section (IAP platforms only) ────────────
             ColumnLayout {
-                id: restoreSection
-                visible: ThemeEngine.isMobile
+                id: premiumSection
+                // 5WHY: Premium is sold only on iOS/Android/macOS.  On
+                // Windows/Linux sharing is free — no Premium card is shown.
+                visible: appState.platformSupportsIap
                 Layout.fillWidth: true; spacing: 0
-                SectionHeader { iconName: "check"; title: T.tr("subscribeTitle") }
+                SectionHeader { iconName: "zap"; title: T.tr("premiumHero") }
                 Item { Layout.preferredHeight: 12 }
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: restoreBtnCol.implicitHeight + 32; radius: 12
-                    color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
-                    ColumnLayout {
-                        id: restoreBtnCol
-                        anchors { fill: parent; margins: 16 } spacing: 0
-                        AppLabel {
-                            Layout.fillWidth: true
-                            text: appState.isPremium ? T.tr("premiumUnlocked") : T.tr("premiumRequiredMsg")
-                            font.family: ThemeEngine.monoFont
-                            font.pixelSize: 12; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; lineHeight: 1.4
-                        }
-                        Item { Layout.preferredHeight: 12 }
-                        // Restore button — hidden when already premium
-                        Rectangle {
-                            visible: !appState.isPremium
-                            Layout.fillWidth: true; implicitHeight: 42; radius: 8
-                            color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.colors.warnYellow, 0.08)
-                                                               : Qt.alpha(ThemeEngine.colors.warnYellow, 0.12)
-                            border { width: 1; color: appState.purchaseInProgress ? Qt.alpha(ThemeEngine.colors.warnYellow, 0.3)
-                                                                                   : Qt.alpha(ThemeEngine.colors.warnYellow, 0.4) }
-                            Label {
-                                anchors.centerIn: parent
-                                text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("restoreBtn")
-                                font.family: ThemeEngine.monoFont
-                                font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.warnYellow
-                            }
-                            MouseArea {
-                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                enabled: !appState.purchaseInProgress
-                                onClicked: appState.restorePurchases()
-                            }
-                        }
-                        // Restore result toast
-                        AppLabel {
-                            id: restoreToast
-                            Layout.fillWidth: true
-                            visible: restoreToastTimer.running
-                            font.family: ThemeEngine.monoFont
-                            font.pixelSize: 11; color: ThemeEngine.colors.warnYellow
-                            Layout.topMargin: restoreToast.visible ? 8 : 0
-                        }
-                        Timer { id: restoreToastTimer; interval: ThemeEngine.toastDurationMs }
-                    }
+                // Modern Premium entry card — one-time purchase intro, buy CTA,
+                // and restore.  Purchase opens the full PremiumDialog (intro +
+                // one-time/lifetime story + restore), so the user always sees
+                // the value proposition before spending.
+                PremiumCard {
+                    onPurchaseRequested: premiumDialog.openDialog()
+                    onRestoreRequested: appState.restorePurchases()
                 }
-                Item { Layout.preferredHeight: 32 }
+                // Restore result toast
+                AppLabel {
+                    id: restoreToast
+                    Layout.fillWidth: true
+                    visible: restoreToastTimer.running
+                    font.family: ThemeEngine.monoFont
+                    font.pixelSize: 11; color: ThemeEngine.colors.warnYellow
+                    Layout.topMargin: restoreToast.visible ? 8 : 0
+                }
+                Timer { id: restoreToastTimer; interval: ThemeEngine.toastDurationMs }
+                Item { Layout.preferredHeight: 24 }
             }
 
             // 5WHY: Language switch was previously silent — users got no
@@ -377,6 +353,13 @@ Item {
             }
             Item { Layout.preferredHeight: 24 }
         }
+    }
+
+    // ── Premium dialog overlay (full intro + buy + restore) ──────────
+    PremiumDialog {
+        id: premiumDialog
+        anchors.fill: parent
+        isMobile: ThemeEngine.isMobile
     }
 
     // ── Subcomponents ──────────────────────────────────────────────────
