@@ -2770,6 +2770,40 @@
       "VPN posible",
       "VPN possível",
       "VPN محتمل"
+    ],
+    "premiumCardTitle": [
+      "高级版订阅",
+      "高級版訂閱",
+      "プレミアムサブスクリプション",
+      "프리미엄 구독",
+      "प्रीमियम सदस्यता",
+      "Đăng ký Premium",
+      "Premium Aboneliği",
+      "Premium Subscription",
+      "Abonnement Premium",
+      "Premium-Abo",
+      "Премиум-подписка",
+      "Abbonamento Premium",
+      "Suscripción Premium",
+      "Assinatura Premium",
+      "اشتراك بريميوم"
+    ],
+    "premiumUnlockedBtn": [
+      "高级版已解锁",
+      "高級版已解鎖",
+      "プレミアムプロ解除済み",
+      "프리미엄 프로 잠금 해제됨",
+      "प्रीमियम प्रो अनलॉक हो गया",
+      "Premium Pro đã mở khóa",
+      "Premium Pro Kilidi Açıldı",
+      "Premium Pro Unlocked",
+      "Premium Pro déverrouillé",
+      "Premium Pro freigeschaltet",
+      "Premium Pro разблокирован",
+      "Premium Pro sbloccato",
+      "Premium Pro desbloqueado",
+      "Premium Pro desbloqueado",
+      "تم فتح Premium Pro"
     ]
   },
   "groupNames": [

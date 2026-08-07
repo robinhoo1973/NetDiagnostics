@@ -274,9 +274,16 @@ Item {
                 // and restore.  Purchase opens the full PremiumDialog (intro +
                 // one-time/lifetime story + restore), so the user always sees
                 // the value proposition before spending.
+                // 5WHY (iOS restore no-op): the old card had a separate
+                // "Restore or Purchase" button whose click routed to
+                // restorePurchases() — but that method returns early when
+                // premium is already owned (`if (m_isPremium) return;`), so on
+                // an unlocked device the tap silently did nothing.  The card
+                // now shows a single locked CTA that opens the full
+                // PremiumDialog (auto probe-restore + buy + restore), and a
+                // non-interactive "Premium Pro Unlocked" status when owned.
                 PremiumCard {
                     onPurchaseRequested: premiumDialog.openDialog()
-                    onRestoreRequested: appState.restorePurchases()
                 }
                 // Restore result toast
                 AppLabel {
