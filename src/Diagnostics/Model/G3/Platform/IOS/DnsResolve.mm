@@ -79,7 +79,18 @@ DiagnosticResult __attribute__((used)) iosDnsResolve(DiagId id, const QString& t
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 
-    QString host = G4RemoteHost::extractHostname(target);
+    QString host = G4RemoteHost::extractHostname(target).trimmed();
+    if (host.isEmpty()) {
+        // 5WHY: defensive guard — iosDnsResolve() resolves a HOSTNAME; callers with
+        // no target (G3 tests) used to hit this with an empty host, producing a
+        // meaningless SERVFAIL.  Report clearly instead of resolving an empty name.
+        r.durationMs = t.elapsed();
+        r.status = DiagStatus::Fail;
+        r.summary = QStringLiteral("DNS Resolution Failed for empty host (test requires a target)");
+        r.rawOutput = QStringLiteral(";; ERROR: empty hostname — this test requires a target.");
+        r.details = r.rawOutput;
+        return r;
+    }
     QString ip;
     // This runs on a QtConcurrent worker thread which has NO autorelease pool of its
     // own. Any Foundation call here (host.toNSString(), CFHost bridging) creates

@@ -137,11 +137,6 @@ static FactoryFn makeT3(Impl impl, int custTmo = -1) {
 // ── Platform-specific factory builders ─────────────────────────────────────
 
 #if defined(PLATFORM_IOS)
-static FactoryFn g3DnsServersFactory() {
-    return makeT3([](DiagId id, const QString& target) {
-        return iosDnsResolve(id, target);
-    });
-}
 static FactoryFn g4DnsResolutionFactory() {
     return makeT3([](DiagId id, const QString& target) {
         return iosDnsResolve(id, target, 3000);
@@ -201,10 +196,12 @@ static const TaskEntry kTaskTable[] = {
     { DiagId::G1WiredDiagnostics, makeT1(SystemDiagnostics::wiredDiagnostics) },
 #if defined(PLATFORM_IOS)
     { DiagId::G1DhcpStatus,       makeT1(iosDhcpDiag) },
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
     { DiagId::G1DhcpStatus,       makeT1(androidDhcpDiag) },
 #else
     { DiagId::G1DhcpStatus,       makeT1(SystemDiagnostics::dhcpStatus) },
+#endif
 #endif
     { DiagId::G1IpConfiguration,   makeT1(SystemDiagnostics::ipConfiguration) },
     { DiagId::G1ActiveConnections, makeT1(SystemDiagnostics::activeConnections) },
@@ -219,10 +216,12 @@ static const TaskEntry kTaskTable[] = {
     { DiagId::G2TcpSettings,     makeT1(SystemDiagnostics::tcpSettings) },
 #if defined(PLATFORM_IOS)
     { DiagId::G2DefaultGateway,  makeT1(iosDefaultGatewayDiag) },
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
     { DiagId::G2DefaultGateway,  makeT1(androidGatewayDiag) },
 #else
     { DiagId::G2DefaultGateway,  makeT1(SystemDiagnostics::defaultGateway) },
+#endif
 #endif
 #if defined(PLATFORM_IOS)
     { DiagId::G2RoutingTable,    makeT1(iosRoutingTableDiag) },
@@ -234,11 +233,12 @@ static const TaskEntry kTaskTable[] = {
 
     // ── G3: Internet & DNS (6) ───────────────────────────────────────────
     { DiagId::G3NetskopeStatus,        makeT1(SystemDiagnostics::netskopeStatus) },
-#if defined(PLATFORM_IOS)
-    { DiagId::G3DnsServers,            g3DnsServersFactory() },
-#else
+    // 5WHY: iOS G3DnsServers was routed to g3DnsServersFactory() → iosDnsResolve(),
+    // which resolves a HOSTNAME.  G3 tests have no target (makeT1 pattern), so it
+    // resolved an empty host → always SERVFAIL "DNS Resolution Failed for"
+    // (crashes/Weixin Image_20260807095048_133_1.jpg).  SystemDiagnostics::dnsServers()
+    // already enumerates real system DNS servers on iOS via res_ninit — use it everywhere.
     { DiagId::G3DnsServers,            makeT1(SystemDiagnostics::dnsServers) },
-#endif
     { DiagId::G3DnsCache,              makeT1(SystemDiagnostics::dnsCache) },
     { DiagId::G3DnsIntegrity,          makeT1(SystemDiagnostics::dnsIntegrity) },
     { DiagId::G3GeoIPLoc,              makeT1(SystemDiagnostics::geoIPLoc) },
@@ -284,7 +284,8 @@ static const TaskEntry kTaskTable[] = {
     { DiagId::G5SecurityHeaders,  g5HttpFactory() },
     { DiagId::G5HttpCompression,  g5HttpFactory() },
     { DiagId::G5HttpTiming,       g5HttpFactory() },
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
     // Android: curl-dependent HTTP via HttpURLConnection JNI
     { DiagId::G5CurlVerbose,      g5HttpFactory() },
     { DiagId::G5HttpHeaders,      g5HttpFactory() },
@@ -313,7 +314,8 @@ static const TaskEntry kTaskTable[] = {
     { DiagId::G5HttpCompression,  g5NoCurlFactory() },
     { DiagId::G5HttpTiming,       g5NoCurlFactory() },
 #endif // !NO_CURL
-#endif // PLATFORM_IOS / PLATFORM_ANDROID / Desktop
+#endif // PLATFORM_ANDROID
+#endif // PLATFORM_IOS / Desktop
 };
 
 // ── createTask — lookup table, call factory, apply timeout ──────────────────
