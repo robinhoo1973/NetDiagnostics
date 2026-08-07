@@ -264,7 +264,11 @@ Item {
                 // Windows/Linux sharing is free — no Premium card is shown.
                 visible: appState.isPremiumPlatform
                 Layout.fillWidth: true; spacing: 0
-                SectionHeader { iconName: "zap"; title: T.tr("premiumHero") }
+                // 5WHY (iOS screenshot): the section header repeated the card's
+                // brand title "NetDiagnostics PRO" — two identical headings in
+                // a row.  Use the neutral section name instead; the brand lives
+                // inside the card hero only.
+                SectionHeader { iconName: "zap"; title: T.tr("premiumSection") }
                 Item { Layout.preferredHeight: 12 }
                 // Modern Premium entry card — one-time purchase intro, buy CTA,
                 // and restore.  Purchase opens the full PremiumDialog (intro +

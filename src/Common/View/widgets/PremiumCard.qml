@@ -114,11 +114,14 @@ Rectangle {
         anchors { left: parent.left; right: parent.right; top: hero.bottom; margins: Th.ThemeEngine.spacing.lg }
         spacing: Th.ThemeEngine.spacing.md
 
-        // Feature list — VERTICAL rows (icon + wrapping text).  Squeezed
-        // columns clip long translations; rows wrap cleanly in all 15
-        // languages (Apple App Store / Stripe pricing-card pattern).
+        // Feature list — VERTICAL rows shown in BOTH states: locked (blue
+        // icons = what you get) and unlocked (green checks = owned benefits).
+        // 5WHY (iOS screenshot): the old unlocked state showed a separate
+        // "Premium Unlocked · One-time…" banner that duplicated the hero
+        // subtitle and clipped on narrow screens.  Removed — the hero
+        // subtitle already states the state; the green rows confirm the
+        // owned benefits (App Store subscription-management pattern).
         Repeater {
-            visible: !appState.isPremium
             model: [
                 { icon: "file-pdf",    key: "premiumFeaturePdf" },
                 { icon: "file-html",   key: "premiumFeatureHtml" },
@@ -127,36 +130,26 @@ Rectangle {
             delegate: Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: featRow.implicitHeight + 16; radius: 10
-                color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
-                border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.primary, 0.16) }
+                color: appState.isPremium ? Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.08)
+                                          : Qt.alpha(Th.ThemeEngine.colors.primary, 0.06)
+                border { width: 1; color: appState.isPremium ? Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.3)
+                                                             : Qt.alpha(Th.ThemeEngine.colors.primary, 0.16) }
                 RowLayout {
                     id: featRow
                     anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
                     spacing: 10
-                    AppIcon { name: modelData.icon; size: 18; color: Th.ThemeEngine.colors.primary }
+                    AppIcon {
+                        name: appState.isPremium ? "badge-check" : modelData.icon
+                        size: 18
+                        color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.primary
+                    }
                     Label {
                         Layout.fillWidth: true
                         text: T.tr(modelData.key)
                         font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
-                        color: Th.ThemeEngine.colors.textPrimary; wrapMode: Text.WordWrap; lineHeight: 1.35
+                        color: appState.isPremium ? Th.ThemeEngine.colors.textSecondary : Th.ThemeEngine.colors.textPrimary
+                        wrapMode: Text.WordWrap; lineHeight: 1.35
                     }
-                }
-            }
-        }
-
-        // Unlocked notice (owned state)
-        Rectangle {
-            visible: appState.isPremium
-            Layout.fillWidth: true; implicitHeight: 42; radius: 10
-            color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.1)
-            border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.passGreen, 0.3) }
-            RowLayout {
-                anchors.centerIn: parent; spacing: 8
-                AppIcon { name: "badge-check"; size: 16; color: Th.ThemeEngine.colors.passGreen }
-                Label {
-                    text: T.tr("premiumUnlocked") + " · " + T.tr("premiumOneTime")
-                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
-                    color: Th.ThemeEngine.colors.passGreen; wrapMode: Text.WordWrap
                 }
             }
         }
