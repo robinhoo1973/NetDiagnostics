@@ -71,7 +71,15 @@ Rectangle {
                     Label {
                         Layout.fillWidth: true
                         text: T.tr("premiumHero")
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 17; font.weight: Font.Bold
+                        // 5WHY (font-metric audit, scripts/text_metrics.cpp):
+                        // "NetDiagnostics PRO" measures 160px @17px but the hero
+                        // text column is only 146px on iPhone SE (320pt) — it
+                        // elided there.  Shrink responsively to 15px (≈141px,
+                        // +5px slack) when the column is narrow; elide remains
+                        // as a belt-and-braces fallback.
+                        font.family: Th.ThemeEngine.fontUi
+                        font.pixelSize: (card.width - 148) < 162 ? 15 : 17
+                        font.weight: Font.Bold
                         color: "#FFFFFF"; elide: T.textElideStart; maximumLineCount: 1
                     }
                     Label {

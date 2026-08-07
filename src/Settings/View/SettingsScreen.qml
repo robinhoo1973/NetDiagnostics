@@ -262,7 +262,7 @@ Item {
                 id: premiumSection
                 // 5WHY: Premium is sold only on iOS/Android/macOS.  On
                 // Windows/Linux sharing is free — no Premium card is shown.
-                visible: appState.isPremiumPlatform
+                visible: true // TEMP-VERIFY
                 Layout.fillWidth: true; spacing: 0
                 SectionHeader { iconName: "zap"; title: T.tr("premiumHero") }
                 Item { Layout.preferredHeight: 12 }
