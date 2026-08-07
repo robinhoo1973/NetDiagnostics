@@ -459,7 +459,7 @@ Item {
                     // 5WHY: modelData.displayName is always English (C++).
                     // Route through T.diagName() for i18n.
                     AppLabel { Layout.fillWidth: true; text: T.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:T.textElideStart; verticalAlignment: Text.AlignVCenter }
-                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
+                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
                 }
             }
         }
@@ -468,7 +468,7 @@ Item {
     component DashboardBadge: Rectangle {
         property color accent: ThemeEngine.colors.passGreen; property int v: 0
         visible: v > 0; implicitWidth: 22; implicitHeight: 16; radius: 4; color: Qt.alpha(accent, 0.15)
-        Label { anchors.centerIn: parent; text: v; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Bold; color: accent }
+        Label { anchors.centerIn: parent; text: v; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold; color: accent }
     }
 
     component SummaryStat: RowLayout {

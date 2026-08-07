@@ -255,7 +255,7 @@ ColumnLayout {
             // 5WHY: validationError is a C++ message — route through T.trMsg()
             // so it translates on language switch.
             text: T.trMsg(root.validationError)
-            font.family: ThemeEngine.monoFont; font.pixelSize: 10; color: ThemeEngine.colors.failRed
+            font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.failRed
             wrapMode: Text.WordWrap
         }
     }

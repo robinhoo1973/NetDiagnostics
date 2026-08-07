@@ -63,7 +63,7 @@ Item {
         }
         Label {
             visible: itemData.isRunning; text: T.tr("diagRunning")
-            font.family:ThemeEngine.monoFont; font.pixelSize:10; font.italic:true; color:ThemeEngine.colors.primary
+            font.family:ThemeEngine.monoFont; font.pixelSize:11; font.italic:true; color:ThemeEngine.colors.primary
         }
     }
 
@@ -93,7 +93,7 @@ Item {
         Rectangle {
             visible: (itemData.durationMs||0)>0; implicitWidth:durText.implicitWidth+12; implicitHeight:20; radius:4
             color: ThemeEngine.colors.borderCard
-            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:ThemeEngine.monoFont; font.pixelSize:10; color:ThemeEngine.colors.textSecondary }
+            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary }
         }
     }
 

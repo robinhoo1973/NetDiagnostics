@@ -69,7 +69,7 @@ ColumnLayout {
             }
             Item { Layout.fillWidth: true }
             Label {
-                text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 10; font.weight: Font.Medium
+                text: label; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Medium
                 color: ThemeEngine.colors.textSecondary
             }
             Item { width: 8 }

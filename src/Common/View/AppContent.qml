@@ -82,6 +82,15 @@ Item {
             // M3: 80dp full, 56dp compact desktop.  Apple HIG: 44-48pt mobile.
             implicitHeight: compact ? 48 : 56
             color: ThemeEngine.colors.navBar
+            // 5WHY: LayoutMirroring from main.qml mirrored the whole dock in RTL
+            // (Arabic), reversing nav-button order to Settings…Dashboard.  Bottom
+            // navigation is a fixed-position chrome element: Apple HIG keeps tab
+            // order constant across localizations, and reversing it breaks the
+            // user's spatial muscle memory on every language switch.  Keep
+            // Dashboard→Diagnostics→Config→Settings left-to-right in ALL
+            // languages; only the dock's content (labels) stays LTR-styled.
+            LayoutMirroring.enabled: false
+            LayoutMirroring.childrenInherit: false
             // Drag handle for frameless window (Qt.FramelessWindowHint)
             MouseArea {
                 anchors.fill: parent
