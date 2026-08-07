@@ -78,7 +78,12 @@ Rectangle {
             // 5WHY: a FIXED height clipped long translations (German/Arabic
             // one-time text) inside clip:true.  Height is now implicit so the
             // hero grows with its content in every language.
-            implicitHeight: heroCol.implicitHeight + (root.isMobile ? 30 : 34)
+            // 5WHY (iOS b21294): same implicitHeight-collapse guard as
+            // PremiumCard — on iOS static QML an anchors-positioned Layout's
+            // implicitHeight does not propagate reliably.  Math.max floors the
+            // hero height so the band (and its text) can never vanish or
+            // overlap the body.
+            implicitHeight: Math.max(150, heroCol.implicitHeight + (root.isMobile ? 30 : 34))
             // 5WHY (iOS screenshots 136/137): the Gradient hero band did NOT
             // render in Light theme (JS-object-bound GradientStop not re-evaluated
             // on iOS static QML) leaving white-on-white text invisible.  Solid
