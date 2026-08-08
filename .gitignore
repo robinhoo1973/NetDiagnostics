@@ -57,6 +57,7 @@ scripts/
 !scripts/generate-screenshots.sh
 !scripts/generate-screenshots-sips.sh
 !scripts/generate-ipad-screenshots.py
+!scripts/generate-phone-screenshots.py
 !scripts/generate-colored-icons.py
 review/
 !review/ios-startup-crash-5why-analysis.md
