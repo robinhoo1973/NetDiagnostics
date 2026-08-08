@@ -674,6 +674,7 @@ jobs:
           echo "[Android x86_64] Configuring..."
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_PRERELEASE="${{ needs.version.outputs.pkg_prerelease }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=android-x86_64 \
@@ -772,6 +773,7 @@ jobs:
           echo "[Android arm64] Configuring..."
           cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_PRERELEASE="${{ needs.version.outputs.pkg_prerelease }}" \
             -DND_BUILD_NUMBER=${{ github.run_number }} \
             -DND_GIT_HASH=${{ github.sha }} \
             -DAPP_EDITION=android-arm64 \

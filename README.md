@@ -251,7 +251,7 @@ description is fully translated — no hardcoded strings, no fallback to English
 
 ## Android Release Builds
 
-- **Versioning**: the APK's `versionName` comes from the latest `v*.*.*` git tag (e.g. `v0.0.3` → `0.0.3`) and `versionCode` is derived from it (`major*1_000_000 + minor*1_000 + patch`). Both are injected by CMake from `resources/android/AndroidManifest.xml.in` — never edit a checked-out `AndroidManifest.xml`.
+- **Versioning**: the APK's `versionName` comes from the latest `v*.*.*` git tag (e.g. `v0.0.3` → `0.0.3`); pre-release tags (`v0.0.4-rc1`) report `0.0.4-rc1` and get a `versionCode` one step BELOW the final release so `v0.0.4` can upgrade over its own RCs. The scheme is `(major*1_000_000 + minor*1_000 + patch)*10 + (1 if pre-release else 2)`. Both are injected by CMake from `resources/android/AndroidManifest.xml.in` — never edit a checked-out `AndroidManifest.xml`.
 - **Signing**: release APKs must always be signed with **one persistent key**. CI signs with the keystore provided via repo secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASS`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASS`); without it, every build gets a different random debug key and updating an existing install fails with *"update package signature does not match the installed app"* (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
 - Set up the keystore once: `bash scripts/android-setup-release-keystore.sh`, then add the printed secrets in *Settings → Secrets and variables → Actions*. Keep the keystore file safe and never commit it.
 

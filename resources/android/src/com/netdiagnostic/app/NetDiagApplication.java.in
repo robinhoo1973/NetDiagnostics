@@ -1,5 +1,6 @@
 // =============================================================================
-// NetDiagApplication.java — earliest Java startup hook for NetDiagnostics
+// NetDiagApplication.java (GENERATED from NetDiagApplication.java.in by CMake)
+// — earliest Java startup hook for NetDiagnostics
 // =============================================================================
 // 5WHY (Android no-log bug / startup crash): crashes that happen before the
 // native library runs produced no log at all.  Android instantiates the
@@ -11,17 +12,18 @@
 //
 // The manifest must declare this class:
 //   <application android:name="com.netdiagnostic.app.NetDiagApplication" ...>
-// =============================================================================
-// 5WHY (Android startup crash): the bindings are in package
-// org.qtproject.qt.android.bindings — Qt kept the Qt5-era Java package name
-// in Qt 6.5 (verified from the qtbase 6.5.3 package: QtApplication.java
-// declares `package org.qtproject.qt.android.bindings;`).  The manifest used
-// to reference org.qtproject.qt6.android.bindings.*, which does NOT exist in
-// the APK → ClassNotFoundException on launch → instant crash with no log.
-// Both the manifest and this import must use the `qt` (not `qt6`) package.
+//
+// 5WHY (Qt version upgrade): the Qt Android Java binding package is NOT
+// stable across Qt versions — Qt 6.5.x ships org.qtproject.qt.android.
+// bindings (Qt5-era name), while a newer Qt may move to org.qtproject.qt6.
+// android.bindings.  cmake/netdiag-target.cmake DETECTS the package from the
+// actual Qt install and substitutes it for @ND_QT_BINDINGS_PACKAGE@ here and
+// in AndroidManifest.xml.in, so an upgrade either adapts automatically or
+// fails fast at configure time (instead of an APK that crashes at launch with
+// ClassNotFoundException).  Do NOT hand-edit this file — edit the .in source.
 package com.netdiagnostic.app;
 
-import org.qtproject.qt.android.bindings.QtApplication;
+import @ND_QT_BINDINGS_PACKAGE@.QtApplication;
 
 public class NetDiagApplication extends QtApplication {
 

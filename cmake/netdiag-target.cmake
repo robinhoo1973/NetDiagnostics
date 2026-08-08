@@ -245,27 +245,65 @@ function(setup_platform_bundle TARGET)
         # what Android uses to decide whether an install is an upgrade.  Both
         # must track PROJECT_VERSION or the APK always reports a stale version.
         #
-        # Derive a monotonically increasing versionCode from semver
-        # (major*1_000_000 + minor*1_000 + patch):
-        #   0.0.3 -> 3, 0.1.0 -> 1000, 1.2.3 -> 1002003.
+        # versionCode scheme (pre-release aware):
+        #   base = M*1_000_000 + m*1_000 + p            (0.0.4 -> 4)
+        #   code = base*10 + (1 if pre-release else 2)  (0.0.4-rc1 -> 41, 0.0.4 -> 42)
+        # 5WHY: a plain base code collides between a pre-release (v0.0.4-rc1)
+        # and its final release (v0.0.4) — Android refuses to install the
+        # final over the RC (versionCode must be strictly increasing).  The
+        # *10 discriminator keeps every pre-release BELOW its own final, while
+        # later M.m.p builds remain strictly greater.
         set(ANDROID_VERSION_CODE 1)
         if(PROJECT_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
-            math(EXPR ANDROID_VERSION_CODE
+            math(EXPR _ND_VERSION_BASE
                 "${CMAKE_MATCH_1} * 1000000 + ${CMAKE_MATCH_2} * 1000 + ${CMAKE_MATCH_3}")
+            if(ND_PRERELEASE)
+                math(EXPR ANDROID_VERSION_CODE "${_ND_VERSION_BASE} * 10 + 1")
+            else()
+                math(EXPR ANDROID_VERSION_CODE "${_ND_VERSION_BASE} * 10 + 2")
+            endif()
         endif()
         set(ANDROID_VERSION_NAME "${PROJECT_VERSION}")
+        if(ND_PRERELEASE)
+            string(APPEND ANDROID_VERSION_NAME "-${ND_PRERELEASE}")
+        endif()
+
+        # ── Qt Android bindings Java package ─────────────────────────────
+        # 5WHY (Qt version upgrade): Qt 6.5.x ships the Java bindings in
+        # package org.qtproject.qt.android.bindings (Qt5-era name); a newer Qt
+        # may move them to org.qtproject.qt6.android.bindings.  Detect the
+        # package from the ACTUAL Qt install and inject it into the manifest
+        # + generated NetDiagApplication.java instead of hardcoding, so an
+        # upgrade either adapts automatically or fails fast with a clear
+        # message (rather than shipping an APK that crashes at launch with
+        # ClassNotFoundException).
+        set(ND_QT_BINDINGS_PACKAGE "org.qtproject.qt.android.bindings")
+        if(EXISTS "${QT6_INSTALL_PREFIX}/src/android/java/src/org/qtproject/qt6/android/bindings/QtApplication.java")
+            set(ND_QT_BINDINGS_PACKAGE "org.qtproject.qt6.android.bindings")
+        endif()
+        if(NOT EXISTS "${QT6_INSTALL_PREFIX}/src/android/java/src/org/qtproject/qt/android/bindings/QtApplication.java"
+           AND NOT EXISTS "${QT6_INSTALL_PREFIX}/src/android/java/src/org/qtproject/qt6/android/bindings/QtApplication.java")
+            message(FATAL_ERROR
+                "Qt Android Java bindings (QtApplication.java) not found under "
+                "${QT6_INSTALL_PREFIX}/src/android/java — the APK would crash at "
+                "startup.  Verify the Qt for Android installation.")
+        endif()
 
         # 5WHY: QT_ANDROID_PACKAGE_SOURCE_DIR pointed at the source tree, so
         # the manifest could not be generated without dirtying the checkout.
         # Copy the Android package scaffolding (res/, xml/) into the build dir
-        # and generate the versioned manifest there; androiddeployqt reads it
-        # from this directory at `--target apk` time.
+        # and generate the versioned manifest + Application subclass there;
+        # androiddeployqt reads it from this directory at `--target apk` time.
         set(ANDROID_PKG_DIR "${CMAKE_BINARY_DIR}/android")
         file(COPY "${CMAKE_SOURCE_DIR}/resources/android/"
              DESTINATION "${ANDROID_PKG_DIR}")
         configure_file(
             "${CMAKE_SOURCE_DIR}/resources/android/AndroidManifest.xml.in"
             "${ANDROID_PKG_DIR}/AndroidManifest.xml"
+            @ONLY)
+        configure_file(
+            "${CMAKE_SOURCE_DIR}/resources/android/src/com/netdiagnostic/app/NetDiagApplication.java.in"
+            "${ANDROID_PKG_DIR}/src/com/netdiagnostic/app/NetDiagApplication.java"
             @ONLY)
         # 5WHY: file(COPY) is a one-shot CONFIGURE-time copy with NO dependency
         # tracking — a developer editing a Java/res source under
