@@ -23,7 +23,6 @@
         <file alias="qml/screens/SettingsScreen.qml">../src/Settings/View/SettingsScreen.qml</file>
         <!-- HtmlPreviewWebView → resources_webview.qrc (conditional) -->
         <file alias="qml/dialogs/qmldir">../src/Common/View/dialogs/qmldir</file>
-        <file alias="qml/dialogs/ShareSubscriptionDialog.qml">../src/Common/View/dialogs/ShareSubscriptionDialog.qml</file>
         <file alias="qml/dialogs/PremiumDialog.qml">../src/Common/View/dialogs/PremiumDialog.qml</file>
 
         <!-- Shared widgets -->

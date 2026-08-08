@@ -15,20 +15,23 @@ Item {
     readonly property bool isMobile: ThemeEngine.isMobile
 
     // ── Share flow state ───────────────────────────────────────────────
-    property int shareStage: 0
     property string pendingShareFormat: ""
     property string toast: ""
     Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
+    // 5WHY (share flow): every share entry point must first check the Premium
+    // Pro Unlocked state.  Locked → show the Premium Subscription card
+    // (PremiumDialog — the exact same IAP component the Settings page uses) to
+    // guide the purchase.  Unlocked → skip ALL intermediate pages and jump
+    // straight to the OS share sheet.  The old ShareSubscriptionDialog
+    // "confirm share" stage was removed: it made unlocked users tap through an
+    // extra page before sharing.
     function doShare(fmt) {
         pendingShareFormat = fmt
-        // 5WHY: On premium platforms a non-Premium user goes straight into the
-        // IAP dialog (auto-restore probe + guided purchase).
         if (appState.isPremiumPlatform && !appState.isPremium)
             premiumDialog.openDialog()
         else
-            shareStage = 2
+            appState.shareReport(fmt)
     }
-    function confirmShare() { shareStage = 0; appState.shareReport(pendingShareFormat) }
 
     // ── Mobile data warning ──────────────────────────────────────────
     // Cancel = just hide the dialog (cellularWarnVisible=false via QML binding)
@@ -40,10 +43,14 @@ Item {
         function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() {
-            // Purchase/restore succeeded → close the IAP dialog, continue sharing.
+            // Purchase/restore succeeded → close the IAP dialog, then continue
+            // straight to the OS share sheet (no intermediate confirm page).
             if (appState.isPremium) {
                 if (premiumDialog.open) premiumDialog.closeDialog()
-                if (page.shareStage === 1) page.shareStage = 2
+                if (page.pendingShareFormat !== "") {
+                    appState.shareReport(page.pendingShareFormat)
+                    page.pendingShareFormat = ""
+                }
             }
         }
     }
@@ -429,16 +436,6 @@ Item {
                     }
                 }
             }
-        }
-    }
-
-    // ── Share subscription dialog ─────────────────────────────────────
-    ShareSubscriptionDialog {
-        shareStage: page.shareStage; isMobile: page.isMobile
-        onDismissed: page.shareStage = 0
-        onActionRequested: {
-            if (page.shareStage === 1) appState.requestSubscription()
-            else page.confirmShare()
         }
     }
 

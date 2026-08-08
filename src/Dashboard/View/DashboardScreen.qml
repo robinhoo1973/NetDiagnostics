@@ -26,8 +26,7 @@ Item {
     property bool previewVisible: false
     property string toast: ""
 
-    // Share/subscription flow
-    property int shareStage: 0
+    // Share flow
     property string pendingShareFormat: ""
 
     function openPreview() {
@@ -46,20 +45,18 @@ Item {
             previewImagePath = imgPath || ""
         })
     }
+    // 5WHY (share flow): every share entry point must first check the Premium
+    // Pro Unlocked state.  Locked → show the Premium Subscription card
+    // (PremiumDialog — the exact same IAP component the Settings page uses).
+    // Unlocked → skip ALL intermediate pages and jump straight to the OS share
+    // sheet.  The old ShareSubscriptionDialog "confirm share" stage was
+    // removed: it made unlocked users tap through an extra page.
     function doShare(fmt) {
         pendingShareFormat = fmt
-        // 5WHY: On premium platforms a non-Premium user goes straight into the
-        // IAP dialog (auto-restore probe + guided purchase) instead of a bare
-        // subscribe prompt.  Windows/Linux share freely (stage 2).
         if (appState.isPremiumPlatform && !appState.isPremium)
             premiumDialog.openDialog()
         else
-            shareStage = 2
-    }
-    function confirmShare() {
-        var fmt = pendingShareFormat
-        shareStage = 0
-        appState.shareReport(fmt)
+            appState.shareReport(fmt)
     }
 
     Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
@@ -79,10 +76,14 @@ Item {
         function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
         function onPremiumChanged() {
-            // Purchase/restore succeeded → close the IAP dialog, continue sharing.
+            // Purchase/restore succeeded → close the IAP dialog, then continue
+            // straight to the OS share sheet (no intermediate confirm page).
             if (appState.isPremium) {
                 if (premiumDialog.open) premiumDialog.closeDialog()
-                if (page.shareStage === 1) page.shareStage = 2
+                if (page.pendingShareFormat !== "") {
+                    appState.shareReport(page.pendingShareFormat)
+                    page.pendingShareFormat = ""
+                }
             }
         }
     }
@@ -417,16 +418,6 @@ Item {
         color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
         border { width: 1; color: ThemeEngine.colors.borderFocused }
         Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
-    }
-
-    // ── Share subscription dialog ───────────────────────────────────────
-    ShareSubscriptionDialog {
-        shareStage: page.shareStage; isMobile: page.isMobile
-        onDismissed: page.shareStage = 0
-        onActionRequested: {
-            if (page.shareStage === 1) appState.requestSubscription()
-            else page.confirmShare()
-        }
     }
 
     // ── Premium IAP dialog — auto-restore probe + guided purchase ───────

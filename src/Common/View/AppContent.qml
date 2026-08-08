@@ -34,8 +34,6 @@ Item {
         if (item.detailOverlay && item.detailOverlay.visible) item.detailOverlay.visible = false
         // Close preview overlay (ReportScreen / DashboardScreen)
         if (typeof item.previewVisible !== 'undefined' && item.previewVisible) item.previewVisible = false
-        // Close share dialog
-        if (typeof item.shareStage !== 'undefined' && item.shareStage !== 0) item.shareStage = 0
         // 5WHY: Dismissing the cellular warning via nav tap left the run
         // paused at the G2->G3 boundary with no way to resume.  The dialog's
         // own Cancel button calls appState.cancel(); match that behaviour so

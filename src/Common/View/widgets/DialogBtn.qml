@@ -1,6 +1,6 @@
 // DialogBtn.qml — Shared dialog action button (outlined or filled)
 // 5WHY: This component was inline in ReportScreen.qml as `component DialogBtn`.
-// Extract so it can be reused by ShareSubscriptionDialog and any future dialog.
+// Extract so it can be reused by any dialog (PremiumDialog, export dialogs…).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts

@@ -2,13 +2,14 @@
 // PremiumDialog.qml — Modern "one-time purchase" intro + purchase + restore
 //
 // Full-featured IAP portal.  Opened from SettingsScreen's PremiumCard entry
-// (and reusable anywhere a "learn more / buy / restore" entry exists).
+// and from every share entry point (Diagnostic/Dashboard/Report) when the
+// user is not Premium Pro Unlocked — so the subscription story is identical
+// wherever the user hits a premium gate.
 //
 // Story told before any purchase: one-time payment → lifetime access →
 // unlimited PDF/HTML report sharing.  Same copy keys (premiumHero /
 // premiumOneTime / premiumFeaturePdf / premiumFeatureHtml /
-// premiumFeatureLifetime) are used by ShareSubscriptionDialog so the
-// product story is consistent at every purchase entry point.
+// premiumFeatureLifetime) keep the product story consistent at every entry.
 //
 // States: locked (intro + CTA + restore) | in-progress (spinner) |
 //         deferred (Ask-to-Buy) | unlocked (owned, auto-close).

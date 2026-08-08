@@ -26,9 +26,7 @@ Item {
     property bool previewVisible: false
     property string toast: ""             // transient status message
 
-    // Share/subscription flow state:
-    //   0 = no dialog, 1 = subscription prompt (not premium), 2 = confirm share (premium)
-    property int shareStage: 0
+    // Share flow state
     property string pendingShareFormat: ""
 
     // 5WHY: darkBackground was hardcoded to true — preview never reflected
@@ -55,24 +53,16 @@ Item {
         })
     }
     function requestExport(fmt) { if (canReport) appState.requestSavePath(fmt) }
-    // Share button entry: check subscription. Not subscribed → guide to subscribe;
-    // subscribed → ask for confirmation before sharing. Same logic on iOS/Android.
+    // Share button entry: first check the Premium Pro Unlocked state.  Not
+    // unlocked → show the Premium Subscription card (PremiumDialog, the same
+    // IAP component the Settings page uses) to guide the purchase.  Unlocked →
+    // jump straight to the OS share sheet — no intermediate confirm page.
     function doShare(fmt) {
         pendingShareFormat = fmt
-        // 5WHY: On premium platforms a non-Premium user goes straight into the
-        // IAP dialog (auto-restore probe + guided purchase) instead of a bare
-        // subscribe prompt.  Windows/Linux share freely (stage 2).
         if (appState.isPremiumPlatform && !appState.isPremium)
             premiumDialog.openDialog()
         else
-            shareStage = 2
-    }
-    // Preview uses QTextDocument→QImage (data: URI), not a file, so
-    // sharing must generate the actual PDF/HTML file on demand.
-    function confirmShare() {
-        var fmt = pendingShareFormat
-        shareStage = 0
-        appState.shareReport(fmt)
+            appState.shareReport(fmt)
     }
 
     onPreviewVisibleChanged: {
@@ -117,13 +107,16 @@ Item {
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
         function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
         function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
-        // Subscription just succeeded while the prompt was open → advance to the
-        // confirmation step so the flow continues seamlessly (subscribe → confirm → share).
+        // Subscription just succeeded while the prompt was open → continue
+        // straight to the OS share sheet (no intermediate confirm page).
         function onPremiumChanged() {
             // Purchase/restore succeeded → close the IAP dialog, continue sharing.
             if (appState.isPremium) {
                 if (premiumDialog.open) premiumDialog.closeDialog()
-                if (page.shareStage === 1) page.shareStage = 2
+                if (page.pendingShareFormat !== "") {
+                    appState.shareReport(page.pendingShareFormat)
+                    page.pendingShareFormat = ""
+                }
             }
         }
     }
@@ -392,17 +385,6 @@ Item {
                     onShareRequested: function(fmt) { page.doShare(fmt) }
                 }
 }
-        }
-    }
-
-    // ── Share subscription dialog ───────────────────────────────────────
-    ShareSubscriptionDialog {
-        shareStage: page.shareStage; isMobile: page.isMobile
-        showProBadge: true; showIconBorder: true
-        onDismissed: page.shareStage = 0
-        onActionRequested: {
-            if (page.shareStage === 1) appState.requestSubscription()
-            else page.confirmShare()
         }
     }
 
