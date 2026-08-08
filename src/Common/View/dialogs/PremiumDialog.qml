@@ -34,15 +34,21 @@ Rectangle {
     property bool open: false
     property bool isMobile: false
     property string statusText: ""          // transient restore/deferred notices
+    // 5WHY (UX flow): distinguishes "previous subscription restored" from a
+    // fresh purchase — both end with isPremium=true, but the confirmation
+    // banner copy differs (premiumRestored vs premiumUnlocked).
+    property bool restoreGranted: false
     signal dismissed()
 
     function openDialog() {
         root.open = true
         root.statusText = ""
+        root.restoreGranted = false
         // 5WHY (UX flow): probe the store for a previous purchase the moment
         // the IAP window opens — if the account already owns Premium, restore
-        // it and confirm ("Purchases Restored"); otherwise the guided buy flow
-        // stays visible.  Only on platforms with a real store backend.
+        // it and confirm ("Previous Subscription Restored"); otherwise the
+        // guided buy flow stays visible.  Only on platforms with a real store
+        // backend.
         // 5WHY (iOS b21294): use probeRestore(), NOT restorePurchases() —
         // the latter sets purchaseInProgress=true, which makes the Buy and
         // Restore buttons below silently dead (`if (m_purchaseInProgress)
@@ -210,6 +216,9 @@ Rectangle {
                     spacing: 12
 
                     // Unlocked state banner
+                    // 5WHY (UX flow): a restored previous subscription shows
+                    // premiumRestored ("Previous Subscription Restored"); a
+                    // fresh purchase shows premiumUnlocked ("Premium Unlocked").
                     Rectangle {
                         visible: appState.isPremium
                         Layout.fillWidth: true; implicitHeight: 44; radius: 10
@@ -221,7 +230,7 @@ Rectangle {
                             anchors.centerIn: parent; spacing: 8
                             AppIcon { name: "badge-check"; size: 18; color: Th.ThemeEngine.colors.passGreen }
                             Label {
-                                text: T.tr("premiumUnlocked")
+                                text: root.restoreGranted ? T.tr("premiumRestored") : T.tr("premiumUnlocked")
                                 font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.DemiBold
                                 color: Th.ThemeEngine.colors.passGreen
                             }
@@ -317,15 +326,13 @@ Rectangle {
                     Accessible.role: Accessible.Button
                 }
 
-                // Restore — secondary
-                DialogBtn {
-                    visible: appState.platformSupportsIap
-                    label: T.tr("restoreBtn")
-                    accent: Th.ThemeEngine.colors.textSecondary; filled: false
-                    onClicked: appState.restorePurchases()
-                }
-
                 // Restore hint (locked, not in-flight)
+                // 5WHY (UX flow): the standalone "Restore or Purchase" button
+                // was removed — the dialog now auto-probes for a previous
+                // subscription on open (openDialog → probeRestore).  If one is
+                // found it is restored with a "Previous Subscription Restored"
+                // confirmation; otherwise the buy flow is shown.  A separate
+                // restore action would only duplicate the automatic check.
                 Label {
                     visible: appState.platformSupportsIap && !appState.purchaseInProgress
                     Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter
@@ -394,8 +401,15 @@ Rectangle {
             root.clearStatusTimer.restart()
         }
         function onRestoreCompleted(restoredAny, isError) {
+            // 5WHY (UX flow): the dialog auto-probes on open.  If a previous
+            // subscription is found, probeRestore() already grants premium
+            // (setPremium(true)); this handler flags restoreGranted so the
+            // unlocked-state banner shows "Previous Subscription Restored",
+            // then closeAfterUnlock dismisses the dialog.  A failed restore
+            // or "nothing to restore" keeps a quieter status notice and the
+            // buy flow stays visible.
             if (isError) root.statusText = T.tr("restoreError")
-            else if (restoredAny) root.statusText = T.tr("restoreOk")
+            else if (restoredAny) root.restoreGranted = true
             else root.statusText = T.tr("restoreFail")
             root.clearStatusTimer.restart()
         }

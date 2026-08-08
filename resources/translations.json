@@ -2821,6 +2821,23 @@
       "OK",
       "OK",
       "حسنًا"
+    ],
+    "premiumRestored": [
+      "已恢复购买",
+      "已恢復購買",
+      "購入を復元しました",
+      "구매가 복원되었습니다",
+      "खरीदारी पुनर्स्थापित हुई",
+      "Đã khôi phục giao dịch mua",
+      "Satın alma geri yüklendi",
+      "Purchase Restored",
+      "Achat restauré",
+      "Kauf wiederhergestellt",
+      "Покупка восстановлена",
+      "Acquisto ripristinato",
+      "Compra restaurada",
+      "Compra restaurada",
+      "تمت استعادة الشراء"
     ]
   },
   "groupNames": [

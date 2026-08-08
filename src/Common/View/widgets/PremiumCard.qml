@@ -7,13 +7,14 @@
 //   (i) Share Unlimited PDF / HTML Reports    ← feature row (info/check icon)
 //   (i) One-Time Purchase, Valid Forever      ← feature row (info/check icon)
 //   ─────────────────────────────────────     ← divider
-//   [ Restore or Purchase ]                   ← locked: primary CTA
+//   [ Unlock Premium ]                        ← locked: primary CTA
 //   [ Premium Pro Unlocked ]                  ← unlocked: green status
 //
-// Locked state shows ONE action button "Restore or Purchase" that opens the
-// full PremiumDialog (intro + buy + restore).  Unlocked state shows a green
-// "Premium Pro Unlocked" status button (non-interactive) — so a tapped
-// restore can never silently no-op on an already-unlocked device.
+// Locked state shows ONE action button "Unlock Premium" that opens the full
+// PremiumDialog (which auto-probes for a previous subscription and restores
+// it with a confirmation, else presents the buy flow).  Unlocked state shows
+// a green "Premium Pro Unlocked" status button (non-interactive) — so a tap
+// can never silently no-op on an already-unlocked device.
 //
 // Same layout in dark & light — only the palette colors (ThemeEngine.colors)
 // differ, per spec.
@@ -37,8 +38,8 @@ Rectangle {
     border { width: 1; color: Th.ThemeEngine.colors.borderCard }
     clip: true
 
-    // Emitted by the locked "Restore or Purchase" button; the page opens the
-    // full PremiumDialog (which auto-probes restore + offers buy/restore).
+    // Emitted by the locked "Unlock Premium" button; the page opens the full
+    // PremiumDialog (which auto-probes restore + offers the buy flow).
     signal purchaseRequested()
 
     // 5WHY: RTL (Arabic) — RowLayouts must mirror so icons hug the start edge
@@ -116,8 +117,8 @@ Rectangle {
         }
 
         // ── Single action button ─────────────────────────────────────
-        // Locked: solid primary "Restore or Purchase" → opens PremiumDialog
-        // (full restore-or-purchase flow).  Unlocked: green "Premium Pro
+        // Locked: solid primary "Unlock Premium" → opens PremiumDialog
+        // (auto probe-restore + buy flow).  Unlocked: green "Premium Pro
         // Unlocked" status — non-interactive so a tap can never silently
         // no-op (PremiumStore::restorePurchases() returns early when premium
         // is already owned).
@@ -144,7 +145,7 @@ Rectangle {
                     color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : "#FFFFFF"
                 }
                 Label {
-                    text: appState.isPremium ? T.tr("premiumUnlockedBtn") : T.tr("restoreBtn")
+                    text: appState.isPremium ? T.tr("premiumUnlockedBtn") : T.tr("subscribeBtn")
                     font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
                     color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : "#FFFFFF"
                     elide: T.textElideStart
@@ -156,7 +157,7 @@ Rectangle {
                 enabled: !appState.isPremium
                 onClicked: card.purchaseRequested()
             }
-            Accessible.name: appState.isPremium ? T.tr("premiumUnlockedBtn") : T.tr("restoreBtn")
+            Accessible.name: appState.isPremium ? T.tr("premiumUnlockedBtn") : T.tr("subscribeBtn")
             Accessible.role: Accessible.Button
         }
     }

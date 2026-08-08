@@ -158,27 +158,15 @@ Rectangle {
             }
 
             // Restore (subscribe stage only, not in-flight)
-            Rectangle {
-                visible: root.shareStage === 1 && appState.platformSupportsIap && !appState.purchaseInProgress
-                Layout.fillWidth: true; implicitHeight: 36; radius: 8
-                color: restoreArea.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.textSecondary, 0.07) : "transparent"
-                RowLayout {
-                    anchors.centerIn: parent; spacing: 6
-                    AppIcon { name: "badge-circle"; size: 13; color: Th.ThemeEngine.colors.textSecondary }
-                    Label {
-                        text: T.tr("restoreBtn")
-                        font.family: Th.ThemeEngine.fontUi; font.pixelSize: 12; font.weight: Font.DemiBold
-                        color: Th.ThemeEngine.colors.textSecondary
-                    }
-                }
-                MouseArea {
-                    id: restoreArea
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                    onClicked: appState.restorePurchases()
-                }
-                Accessible.name: T.tr("restoreBtn")
-                Accessible.role: Accessible.Button
-            }
+            // 5WHY (UX flow): the standalone "Restore or Purchase" button was
+            // removed everywhere — PremiumDialog auto-probes for a previous
+            // subscription on open (probeRestore) and restores it with a
+            // "Purchase Restored" confirmation, else shows the buy flow.  A
+            // separate restore action would only duplicate the automatic check.
+            // Note: shareStage=1 (subscribe) is currently unreachable from the
+            // pages (doShare() routes premium platforms through PremiumDialog),
+            // so this block is defensive dead-code cleanup for consistency.
+            Item { Layout.fillWidth: true; implicitHeight: 0 }
                 }
             }
 
