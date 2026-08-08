@@ -31,6 +31,9 @@ public class NetDiagApplication extends QtApplication {
     public void onCreate() {
         // MUST log BEFORE super.onCreate(): super loads the Qt native
         // libraries, which is where early startup crashes happen.
+        // init() stores the app Context so native code can mirror log lines
+        // to the public Download folder via EarlyLog.appendToDownloads().
+        EarlyLog.init(this);
         EarlyLog.write(this, "Java Application.onCreate — BEFORE Qt native libs load");
         try {
             super.onCreate();

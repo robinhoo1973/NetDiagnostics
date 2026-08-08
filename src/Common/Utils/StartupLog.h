@@ -37,6 +37,7 @@
 
 #if defined(PLATFORM_ANDROID)
 #include "Common/Platform/Android/AndroidLogPaths.h"
+#include "Common/Platform/Android/AndroidDownloadLog.h"
 #include <android/log.h>
 #endif
 
@@ -78,7 +79,6 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     QTextStream ts(&f);
 
     QString tsStr = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz");
-    ts << "[" << tsStr << "] ";
 
     char buf[2048];
     va_list args;
@@ -86,10 +86,18 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     vsnprintf(buf, sizeof(buf), fmt, args);
     va_end(args);
 
-    ts << QString::fromUtf8(buf);
+    // 5WHY: build the FULL formatted line once and reuse it for every sink
+    // (app-scoped file, logcat, public Download mirror) so all three always
+    // carry identical content.
+    QString fullLine = QStringLiteral("[") + tsStr + QStringLiteral("] ")
+                     + QString::fromUtf8(buf);
     if (file && line > 0)
-        ts << "  (" << file << ":" << line << ")";
-    ts << "\n";
+        fullLine += QStringLiteral("  (") + QString::fromUtf8(file)
+                  + QStringLiteral(":") + QString::number(line)
+                  + QStringLiteral(")");
+    fullLine += QLatin1Char('\n');
+
+    ts << fullLine;
     ts.flush();
     f.close();
 
@@ -98,6 +106,10 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     // available via `adb logcat -s NetDiagnostics` even when the file write
     // fails (e.g. external storage unavailable) or for CI/developer devices.
     __android_log_print(ANDROID_LOG_INFO, "NetDiagnostics", "%s", buf);
+    // 5WHY (Android 11+): also mirror to the PUBLIC Download folder so a
+    // non-technical user can find the log without USB/adb (see
+    // AndroidDownloadLog.h).  No-ops pre-QGuiApplication and on API < 30.
+    androidMirrorLineToDownloads(fullLine);
 #endif
 
 #if defined(_WIN32)
