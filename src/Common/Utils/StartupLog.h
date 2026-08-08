@@ -37,6 +37,7 @@
 
 #if defined(PLATFORM_ANDROID)
 #include "Common/Platform/Android/AndroidLogPaths.h"
+#include <android/log.h>
 #endif
 
 // 5WHY: Choose a log directory the user can actually retrieve.
@@ -58,7 +59,15 @@ static QString startupLogDir() {
 }
 
 static void startup_log(const char* file, int line, const char* fmt, ...) {
-    QString path = QDir(startupLogDir()).filePath("NetDiagnostics_startup.log");
+    QString dir = startupLogDir();
+    // 5WHY (Android no-log bug): the NetDiagnostics/ subdirectory is never
+    // created by the platform, and on a FRESH install (or after clear-data)
+    // it does not exist yet.  QFile::open() below then fails and returns
+    // silently — so the very first launch, which is exactly when a startup
+    // crash is being diagnosed, produced NO log at all.  Create the dir
+    // before every write.
+    QDir().mkpath(dir);
+    QString path = QDir(dir).filePath("NetDiagnostics_startup.log");
 
     QFile f(path);
     // 5WHY: QFile::open() is [[nodiscard]] in Qt 6 — ignoring the return
@@ -83,6 +92,13 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     ts << "\n";
     ts.flush();
     f.close();
+
+#if defined(PLATFORM_ANDROID)
+    // 5WHY (Android): mirror every startup event to logcat so the trail is
+    // available via `adb logcat -s NetDiagnostics` even when the file write
+    // fails (e.g. external storage unavailable) or for CI/developer devices.
+    __android_log_print(ANDROID_LOG_INFO, "NetDiagnostics", "%s", buf);
+#endif
 
 #if defined(_WIN32)
     OutputDebugStringA(buf);

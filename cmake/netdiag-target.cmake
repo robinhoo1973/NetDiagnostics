@@ -143,6 +143,23 @@ function(configure_netdiag_target TARGET)
         target_compile_definitions(${TARGET} PRIVATE PLATFORM_ANDROID PLATFORM_MOBILE)
         # jnigraphics: AndroidBitmap_* functions used by PlatformPdfRenderer_android.cpp
         target_link_libraries(${TARGET} PRIVATE jnigraphics)
+        # liblog: __android_log_print() used by StartupLog.h (logcat mirror)
+        target_link_libraries(${TARGET} PRIVATE log)
+        # ND_ANDROID_PACKAGE — single source of truth from the manifest template.
+        # 5WHY (Android no-log bug): AndroidLogPaths.h needs the package name
+        # to build the user-visible external log dir WITHOUT JNI, so even the
+        # earliest native STARTUP_LOG (pre-QGuiApplication) lands in
+        # /storage/emulated/0/Android/data/<pkg>/files instead of the private
+        # cache.  Extract it from AndroidManifest.xml.in so it never drifts
+        # from the manifest's package attribute.
+        file(READ "${CMAKE_SOURCE_DIR}/resources/android/AndroidManifest.xml.in" _ND_MANIFEST_TXT)
+        if(_ND_MANIFEST_TXT MATCHES "package=\"([A-Za-z0-9_.]+)\"")
+            set(_ND_ANDROID_PACKAGE "${CMAKE_MATCH_1}")
+        else()
+            set(_ND_ANDROID_PACKAGE "com.netdiagnostic.app")
+        endif()
+        target_compile_definitions(${TARGET} PRIVATE
+            ND_ANDROID_PACKAGE="${_ND_ANDROID_PACKAGE}")
     endif()
 
     # ── macOS PDFKit framework ───────────────────────────────────────
@@ -221,8 +238,38 @@ endfunction()
 function(setup_platform_bundle TARGET)
     # Android APK
     if(ANDROID)
+        # ── Version injection ────────────────────────────────────────────
+        # 5WHY: resources/android/AndroidManifest.xml hardcoded versionCode=1 /
+        # versionName=0.0.1, so every APK reported 0.0.1 regardless of the
+        # release tag (v0.0.3).  versionName is what users see; versionCode is
+        # what Android uses to decide whether an install is an upgrade.  Both
+        # must track PROJECT_VERSION or the APK always reports a stale version.
+        #
+        # Derive a monotonically increasing versionCode from semver
+        # (major*1_000_000 + minor*1_000 + patch):
+        #   0.0.3 -> 3, 0.1.0 -> 1000, 1.2.3 -> 1002003.
+        set(ANDROID_VERSION_CODE 1)
+        if(PROJECT_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)")
+            math(EXPR ANDROID_VERSION_CODE
+                "${CMAKE_MATCH_1} * 1000000 + ${CMAKE_MATCH_2} * 1000 + ${CMAKE_MATCH_3}")
+        endif()
+        set(ANDROID_VERSION_NAME "${PROJECT_VERSION}")
+
+        # 5WHY: QT_ANDROID_PACKAGE_SOURCE_DIR pointed at the source tree, so
+        # the manifest could not be generated without dirtying the checkout.
+        # Copy the Android package scaffolding (res/, xml/) into the build dir
+        # and generate the versioned manifest there; androiddeployqt reads it
+        # from this directory at `--target apk` time.
+        set(ANDROID_PKG_DIR "${CMAKE_BINARY_DIR}/android")
+        file(COPY "${CMAKE_SOURCE_DIR}/resources/android/"
+             DESTINATION "${ANDROID_PKG_DIR}")
+        configure_file(
+            "${CMAKE_SOURCE_DIR}/resources/android/AndroidManifest.xml.in"
+            "${ANDROID_PKG_DIR}/AndroidManifest.xml"
+            @ONLY)
+
         set_target_properties(${TARGET} PROPERTIES
-            QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_SOURCE_DIR}/resources/android"
+            QT_ANDROID_PACKAGE_SOURCE_DIR "${ANDROID_PKG_DIR}"
         )
         # androiddeployqt's generated Gradle release task emits an unsigned
         # APK for this Qt 6.5.3 build. The CI action signs it explicitly with

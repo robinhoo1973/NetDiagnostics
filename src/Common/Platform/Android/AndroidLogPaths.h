@@ -66,20 +66,34 @@ static inline QString androidExternalFilesDir() {
 }
 
 // User-visible base directory for NetDiagnostics logs on Android.
-// Returns "<externalFiles>/NetDiagnostics" or falls back to AppDataLocation.
+// Returns "<externalFiles>/NetDiagnostics" or a deterministic fallback.
 // 5WHY (Android launch crash): this is called from CrashHandler even when the
 // crash happens BEFORE QGuiApplication is constructed (e.g. app ctor crash).
 // JNI (QNativeInterface::QAndroidApplication::context) requires the Qt Android
 // platform plugin, which is only loaded by QGuiApplication — calling it before
 // that would crash inside the crash handler (masking the real SIGSEGV).  Guard:
-// before the app object exists, fall back to the pure-Qt TempLocation path.
+// before the app object exists (and whenever the JNI call fails), fall back to
+// the deterministic app-scoped external dir built from the package name
+// (ND_ANDROID_PACKAGE, injected by CMake from AndroidManifest.xml.in).  It is
+// user-visible via USB/MTP and needs no storage permission — unlike the old
+// TempLocation fallback (private cache, invisible), which silently hid every
+// early native startup log.
 static inline QString androidUserVisibleLogDir() {
-    if (QCoreApplication::instance() == nullptr)
-        return QStandardPaths::writableLocation(QStandardPaths::TempLocation)
-               + QStringLiteral("/NetDiagnostics");
+    if (QCoreApplication::instance() == nullptr) {
+        // Pre-Qt crash path: no JNI available.  The app-scoped external dir is
+        // deterministic from the package name and writable without JNI.
+        return QStringLiteral("/storage/emulated/0/Android/data/")
+               + QStringLiteral(ND_ANDROID_PACKAGE)
+               + QStringLiteral("/files/NetDiagnostics");
+    }
     QString base = androidExternalFilesDir();
-    if (base.isEmpty())
-        base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (base.isEmpty()) {
+        // JNI lookup failed even though the app exists — last-resort fallback
+        // to the same deterministic user-visible path.
+        base = QStringLiteral("/storage/emulated/0/Android/data/")
+               + QStringLiteral(ND_ANDROID_PACKAGE)
+               + QStringLiteral("/files");
+    }
     return QDir(base).filePath(QStringLiteral("NetDiagnostics"));
 }
 

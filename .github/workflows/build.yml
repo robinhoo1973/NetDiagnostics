@@ -695,6 +695,14 @@ jobs:
         with:
           qt_version: ${{ env.QT_VERSION_ANDROID }}
           output_name: NetDiagnostics-Android-x86_64.apk
+          build_dir: build
+          # 5WHY: persistent release keystore from repo secrets so every
+          # release APK shares ONE signing key (upgrades install cleanly).
+          # Empty on PR/fork events -> action falls back to debug keystore.
+          keystore_b64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          keystore_pass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          key_alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          key_pass: ${{ secrets.ANDROID_KEY_PASS }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -782,6 +790,14 @@ jobs:
         with:
           qt_version: ${{ env.QT_VERSION_ANDROID }}
           output_name: NetDiagnostics-Android-arm64.apk
+          build_dir: build
+          # 5WHY: persistent release keystore from repo secrets so every
+          # release APK shares ONE signing key (upgrades install cleanly).
+          # Empty on PR/fork events -> action falls back to debug keystore.
+          keystore_b64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          keystore_pass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          key_alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          key_pass: ${{ secrets.ANDROID_KEY_PASS }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

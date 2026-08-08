@@ -19,6 +19,7 @@
 
 #include <QString>
 #include <QFile>
+#include <QFileInfo>
 #include <QTextStream>
 #include <QDateTime>
 #include <QDir>
@@ -126,6 +127,10 @@ inline void writeBacktrace(QTextStream& ts) {
 // ── Helper: write crash report ─────────────────────────────────────────
 inline void writeCrashReport(const char* signalName, int signalNum) {
     QString path = crashLogPath();
+    // 5WHY: Same fresh-install dir gap as StartupLog.h — on Android the
+    // NetDiagnostics/ subdir does not exist on the first launch, so the
+    // crash report would silently fail to persist.  Create it before writing.
+    QDir().mkpath(QFileInfo(path).absolutePath());
     // 5WHY: If a qFatal/qCritical/terminate report was already written for
     // this crash, the ensuing abort() → SIGABRT must NOT overwrite it with a
     // useless "abort → pthread_kill" backtrace.  Append the signal instead so
@@ -204,6 +209,9 @@ inline void writeCrashReport(const char* signalName, int signalNum) {
 // text BEFORE abort() runs preserves the real root cause for upload.
 inline void writeMessageCrashReport(const char* kind, const QString& text) {
     QString path = crashLogPath();
+    // 5WHY: same fresh-install dir gap — create the log dir so the crash
+    // report is actually persisted even on the very first launch.
+    QDir().mkpath(QFileInfo(path).absolutePath());
     QFile f(path);
     f.remove();
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text))

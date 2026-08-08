@@ -11,7 +11,7 @@
 # sole platform so androiddeployqt cannot pick a newer incompatible one.
 # ═══════════════════════════════════════════════════════════════════════════
 name: Build Android APK
-description: Builds an installable CI debug-signed APK via androiddeployqt, zipalign, and apksigner
+description: Builds an installable APK via androiddeployqt, zipalign, and apksigner (persistent release key when secrets are set, else debug key)
 inputs:
   qt_version:
     description: Qt version used (e.g. 6.5.3)
@@ -23,6 +23,26 @@ inputs:
     description: PNG to use as ic_launcher drawable
     required: false
     default: resources/icons/netanalysis.png
+  build_dir:
+    description: CMake build directory (defaults to build)
+    required: false
+    default: build
+  keystore_b64:
+    description: Base64-encoded persistent release keystore (secret ANDROID_KEYSTORE_B64). Empty on PRs -> debug keystore fallback.
+    required: false
+    default: ''
+  keystore_pass:
+    description: Release keystore store password (secret ANDROID_KEYSTORE_PASS)
+    required: false
+    default: ''
+  key_alias:
+    description: Release key alias (secret ANDROID_KEY_ALIAS)
+    required: false
+    default: ''
+  key_pass:
+    description: Release key password (secret ANDROID_KEY_PASS)
+    required: false
+    default: ''
 runs:
   using: composite
   steps:
@@ -31,9 +51,14 @@ runs:
       run: |
         set -euxo pipefail
 
-        # Provide @drawable/ic_launcher so aapt can resolve the resource
-        mkdir -p resources/android/res/drawable
-        cp "${{ inputs.icon_source }}" resources/android/res/drawable/ic_launcher.png
+        BUILD_DIR="${{ inputs.build_dir }}"
+        # The Android package source is regenerated into ${BUILD_DIR}/android by
+        # CMake (see cmake/netdiag-target.cmake) so the manifest can carry the
+        # real version.  androiddeployqt reads that directory, so the launcher
+        # icon must land there, not in the source tree.
+        PKG_DIR="${BUILD_DIR}/android"
+        mkdir -p "$PKG_DIR/res/drawable"
+        cp "${{ inputs.icon_source }}" "$PKG_DIR/res/drawable/ic_launcher.png"
 
         # GitHub runners ship preview/extension SDK platforms
         # (android-*-extNN) plus a stub android-37; aapt2/gradle cannot use
@@ -46,35 +71,60 @@ runs:
         yes 2>/dev/null | "$SDKMANAGER" "platforms;android-33" "build-tools;33.0.2" >/dev/null || true
         test -d "$ANDROID_SDK_ROOT/platforms/android-33" || { echo "ERROR: android-33 platform not installed"; exit 1; }
 
-        # 5WHY: The Android debug keystore is used to explicitly sign the CI
-        # artifact after Gradle produces its unsigned release APK. Keep this
-        # signing material outside the generated Gradle project so it cannot
-        # be invalidated by androiddeployqt regeneration.
-        # 5WHY (round 2): keytool -genkey fails with FileNotFoundException if
-        # ~/.android/ does not exist — keytool does NOT auto-create parent
-        # directories.  The error message was also misleading: the stderr
-        # suppression (2>/dev/null) hid the real FileNotFoundException and
-        # the else-branch printed "keytool not available" even though keytool
-        # was present and running.  Fix: mkdir -p the directory first, and
-        # capture stderr for accurate error reporting.
-        if [ ! -f ~/.android/debug.keystore ]; then
-          echo "Generating Android debug keystore..."
-          mkdir -p ~/.android
-          if keytool -genkey -v \
-            -keystore ~/.android/debug.keystore \
-            -storepass android -alias androiddebugkey -keypass android \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Android Debug,O=Android,C=US" 2>/tmp/keytool-err.log; then
-            echo "Debug keystore created: $(ls -la ~/.android/debug.keystore)"
-          else
-            echo "ERROR: keytool failed (exit $?) — cannot generate debug keystore"
-            echo "keytool stderr:"; cat /tmp/keytool-err.log
-            echo "Install a JDK that provides keytool (e.g. temurin-17) before building."
-            exit 1
-          fi
+        # 5WHY: The Android debug keystore was used to explicitly sign the CI
+        # artifact after Gradle produces its unsigned release APK.  GitHub
+        # runners are ephemeral, so every run generated a NEW random debug key
+        # -> installing a newer APK over an older one failed with
+        # "update package signature does not match installed app"
+        # (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+        #
+        # Fix: when release signing secrets are provided, decode the PERSISTENT
+        # release keystore so every build shares one key and upgrades install
+        # cleanly.  PR builds (no secrets on fork/PR events) fall back to the
+        # debug keystore because they are validation artifacts, not installs.
+        # set +x around the whole block: the keystore base64 and passwords
+        # must never appear in the trace log.
+        set +x
+        ND_RELEASE_KS_B64="${{ inputs.keystore_b64 }}"
+        if [ -n "$ND_RELEASE_KS_B64" ]; then
+          echo "Signing with persistent release keystore (alias: ${{ inputs.key_alias }})"
+          echo "$ND_RELEASE_KS_B64" | base64 -d > "$RUNNER_TEMP/netdiag-release.keystore"
+          SIGN_KS="$RUNNER_TEMP/netdiag-release.keystore"
+          SIGN_KS_ALIAS="${{ inputs.key_alias }}"
+          SIGN_KS_STOREPASS="${{ inputs.keystore_pass }}"
+          SIGN_KEY_PASS="${{ inputs.key_pass }}"
         else
-          echo "Debug keystore exists: $(ls -la ~/.android/debug.keystore)"
+          # 5WHY (round 2): keytool -genkey fails with FileNotFoundException if
+          # ~/.android/ does not exist — keytool does NOT auto-create parent
+          # directories.  The error message was also misleading: the stderr
+          # suppression (2>/dev/null) hid the real FileNotFoundException and
+          # the else-branch printed "keytool not available" even though keytool
+          # was present and running.  Fix: mkdir -p the directory first, and
+          # capture stderr for accurate error reporting.
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "Generating Android debug keystore..."
+            mkdir -p ~/.android
+            if keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US" 2>/tmp/keytool-err.log; then
+              echo "Debug keystore created: $(ls -la ~/.android/debug.keystore)"
+            else
+              echo "ERROR: keytool failed (exit $?) — cannot generate debug keystore"
+              echo "keytool stderr:"; cat /tmp/keytool-err.log
+              echo "Install a JDK that provides keytool (e.g. temurin-17) before building."
+              exit 1
+            fi
+          else
+            echo "Debug keystore exists: $(ls -la ~/.android/debug.keystore)"
+          fi
+          SIGN_KS="$HOME/.android/debug.keystore"
+          SIGN_KS_ALIAS=androiddebugkey
+          SIGN_KS_STOREPASS=android
+          SIGN_KEY_PASS=android
         fi
+        set -x
 
         shopt -s nullglob
         for p in "$ANDROID_SDK_ROOT"/platforms/*; do
@@ -87,22 +137,23 @@ runs:
         # Qt auto-generates an 'apk' target that runs androiddeployqt with the
         # generated deployment JSON, copies the app .so into the package, and
         # produces a release APK through Gradle.
-        cmake --build build --target apk
+        cmake --build "$BUILD_DIR" --target apk
 
         # 5WHY:
         # 1. CI requires an installable APK.
         # 2. Qt 6.5.3's Gradle release task emits *-release-unsigned.apk.
-        # 3. Creating ~/.android/debug.keystore alone does not configure a
-        #    Gradle release signingConfig.
+        # 3. Creating a keystore alone does not configure a Gradle release
+        #    signingConfig.
         # 4. The previous collector excluded unsigned files but never signed
         #    them, so it found zero candidates.
         # 5. Align the one generated unsigned APK, then explicitly sign and
-        #    verify the publishable artifact with the CI debug keystore.
+        #    verify the publishable artifact with the selected keystore
+        #    (persistent release key when secrets are configured, else debug).
         APKSIGNER="$ANDROID_SDK_ROOT/build-tools/33.0.2/apksigner"
         ZIPALIGN="$ANDROID_SDK_ROOT/build-tools/33.0.2/zipalign"
         test -x "$APKSIGNER" || { echo "ERROR: apksigner not found: $APKSIGNER"; exit 1; }
         test -x "$ZIPALIGN" || { echo "ERROR: zipalign not found: $ZIPALIGN"; exit 1; }
-        mapfile -t UNSIGNED_APKS < <(find build -path '*outputs/apk/*' -name '*unsigned*.apk' | sort)
+        mapfile -t UNSIGNED_APKS < <(find "$BUILD_DIR" -path '*outputs/apk/*' -name '*unsigned*.apk' | sort)
         if [ "${#UNSIGNED_APKS[@]}" -ne 1 ]; then
           echo "ERROR: expected exactly one unsigned release APK, found ${#UNSIGNED_APKS[@]}"
           echo "Unsigned APK candidates:"
@@ -121,14 +172,17 @@ runs:
         # supported flag set for this pinned build-tools version.
         "$ZIPALIGN" -f -v 4 "$UNSIGNED_APK" "$ALIGNED_APK"
         "$ZIPALIGN" -c -v 4 "$ALIGNED_APK"
+        # set +x: hide the expanded keystore password from the trace log
+        set +x
         "$APKSIGNER" sign \
-          --ks "$HOME/.android/debug.keystore" \
-          --ks-key-alias androiddebugkey \
-          --ks-pass pass:android \
-          --key-pass pass:android \
+          --ks "$SIGN_KS" \
+          --ks-key-alias "$SIGN_KS_ALIAS" \
+          --ks-pass "pass:$SIGN_KS_STOREPASS" \
+          --key-pass "pass:$SIGN_KEY_PASS" \
           --min-sdk-version 26 \
           --out "$SIGNED_APK" \
           "$ALIGNED_APK"
+        set -x
         "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 26 "$SIGNED_APK"
         cp "$SIGNED_APK" "${{ inputs.output_name }}"
         ls -lh "${{ inputs.output_name }}"

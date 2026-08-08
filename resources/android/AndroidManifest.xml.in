@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Versioned AndroidManifest TEMPLATE.
+
+    5WHY: This file used to hardcode versionCode="1" / versionName="0.0.1",
+    so every APK reported 0.0.1 no matter what release tag was built
+    (e.g. v0.0.3).  versionName is what users see; versionCode is what
+    Android uses to decide whether an install is an upgrade — both must
+    track PROJECT_VERSION.
+
+    CMake (cmake/netdiag-target.cmake) substitutes the two placeholders
+    below via configure_file() and writes the real manifest into
+    ${CMAKE_BINARY_DIR}/android/AndroidManifest.xml, which is the
+    QT_ANDROID_PACKAGE_SOURCE_DIR androiddeployqt actually consumes.
+    Do NOT edit a checked-out AndroidManifest.xml — it is generated.
+-->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.netdiagnostic.app"
-    android:versionCode="1"
-    android:versionName="0.0.1">
+    android:versionCode="@ANDROID_VERSION_CODE@"
+    android:versionName="@ANDROID_VERSION_NAME@">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="33"/>
 
@@ -11,7 +26,7 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
     <application
-        android:name="org.qtproject.qt6.android.bindings.QtApplication"
+        android:name="com.netdiagnostic.app.NetDiagApplication"
         android:label="NetDiagnostics"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher">
