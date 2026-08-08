@@ -58,6 +58,18 @@ Item {
         stackView.push(tabComponents[idx].createObject(stackView))
     }
 
+    // Index of the currently active tab (0..tabScreens.length-1), or -1 when
+    // the top screen is not a tab (e.g. the ReportScreen overlay).  Used by
+    // the touch swipe handler to resolve "left/right adjacent" pages.
+    function currentTabIndex() {
+        var cur = stackView.currentItem
+        if (!cur) return -1
+        for (var i = 0; i < tabScreens.length; i++) {
+            if (tabScreens[i] === cur.objectName) return i
+        }
+        return -1
+    }
+
     Component { id: diagnosticComp; DiagnosticScreen { objectName: "diagnostic" } }
     Component { id: dashboardComp;  DashboardScreen  { objectName: "dashboard"  } }
     Component { id: configComp;     ConfigScreen     { objectName: "config"     } }
@@ -67,11 +79,93 @@ Item {
         anchors.fill: parent; spacing: 0
 
         // ── Screen stack (fills remaining space above the dock) ──────
-        StackView {
-            id: stackView
+        Item {
             Layout.fillWidth: true; Layout.fillHeight: true
-            clip: true
-            initialItem: diagnosticComp
+
+            StackView {
+                id: stackView
+                anchors.fill: parent
+                clip: true
+                initialItem: diagnosticComp
+            }
+
+            // ── Touch-swipe page navigation (adjacent tabs) ──────────
+            // 5WHY (Android touch UX): pages were only reachable through
+            // bottom-dock taps.  On a touch screen the natural gesture for
+            // "next/previous tab" is a horizontal swipe (ViewPager pattern).
+            //
+            // Design decisions:
+            // - Touch only (PointerDevice.TouchScreen): a desktop mouse drag
+            //   must keep selecting text / dragging scrollbars, so it never
+            //   triggers page switches.
+            // - Horizontal only (yAxis.enabled: false): every screen's root
+            //   is a vertical Flickable/ListView; disabling the Y axis means
+            //   this handler never activates on vertical drags, so scrolling
+            //   is untouched.
+            // - Transparent overlay Item: the Item itself accepts no input,
+            //   so taps/clicks pass through to the page below; the DragHandler
+            //   only engages once a real horizontal drag exceeds the threshold.
+            // - Direction = ViewPager convention: swipe left → next tab
+            //   (right neighbour), swipe right → previous tab (left neighbour).
+            // - The dock tab order is intentionally NOT mirrored in RTL (see
+            //   dock 5WHY), so swipe direction maps to the fixed tab order
+            //   regardless of language.
+            // - currentTabIndex() returns -1 on the ReportScreen overlay →
+            //   swipe is a no-op there (it is not a tab).
+            // - Mirrors dock tap behaviour: when an overlay / cellular-warning
+            //   blocks navigation, a swipe dismisses it instead of switching.
+            Item {
+                anchors.fill: parent
+                DragHandler {
+                    id: pageSwipe
+                    acceptedDevices: PointerDevice.TouchScreen
+                    target: null
+                    dragThreshold: 24
+                    // Horizontal-only: never steal vertical Flickable scrolls.
+                    xAxis.enabled: true
+                    yAxis.enabled: false
+                    // May take over from plain items and other handlers
+                    // (Flickable's internal one) once a horizontal drag is
+                    // unambiguous; vertical drags never activate this handler.
+                    grabPermissions: PointerHandler.CanTakeOverFromItems
+                                   | PointerHandler.CanTakeOverFromHandlersOfDifferentType
+                    property int swipeStartIndex: -1
+                    property real swipeStartX: 0
+                    property real swipeStartY: 0
+                    property real swipeLastX: 0
+                    property real swipeLastY: 0
+                    onActiveChanged: {
+                        if (active) {
+                            swipeStartIndex = content.currentTabIndex()
+                            swipeStartX = centroid.position.x
+                            swipeStartY = centroid.position.y
+                            swipeLastX = swipeStartX
+                            swipeLastY = swipeStartY
+                        } else if (swipeStartIndex >= 0) {
+                            var dx = swipeLastX - swipeStartX
+                            var dy = swipeLastY - swipeStartY
+                            // Require a decisive horizontal swipe (min travel
+                            // + clearly horizontal) to avoid accidental ones.
+                            if (Math.abs(dx) >= 60 && Math.abs(dx) >= 1.5 * Math.abs(dy)) {
+                                if (content.navBlocked) {
+                                    content.closeCurrentOverlay()
+                                } else if (dx < 0) {
+                                    content.switchToTab(swipeStartIndex + 1) // left → next
+                                } else {
+                                    content.switchToTab(swipeStartIndex - 1) // right → prev
+                                }
+                            }
+                            swipeStartIndex = -1
+                        }
+                    }
+                    onCentroidChanged: {
+                        if (active) {
+                            swipeLastX = centroid.position.x
+                            swipeLastY = centroid.position.y
+                        }
+                    }
+                }
+            }
         }
 
         // ── Bottom dock navigation bar (Material Design 3 compliant) ──
