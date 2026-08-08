@@ -6,13 +6,26 @@
 // =============================================================================
 #pragma once
 
+#include <QCoreApplication>
 #include <QJniObject>
 
 // Returns the Qt Activity for JNI calls that require an Activity context
 // (Window operations, system-service lookups).  MUST NOT be cached across
 // calls — Android destroys/recreates the Activity on configuration changes
 // (rotation, multi-window resize, locale change).
+// 5WHY (Android launch crash): the previous implementation hardcoded the
+// Qt5-era Java class "org/qtproject/qt/android/QtNative", which is not stable
+// across Qt 6 versions (Qt 6 moved Java classes to org.qtproject.qt6.android).
+// Use the version-independent QNativeInterface::QAndroidApplication::context()
+// (Qt 6.2+) instead — same pattern as PlatformShare.cpp / AndroidLogPaths.h.
 inline QJniObject getQtActivity() {
+    // Guard: JNI requires the Qt Android platform plugin, initialized by
+    // QGuiApplication.  Before that the Activity lookup is unavailable.
+    if (QCoreApplication::instance() == nullptr)
+        return QJniObject();
+    QJniObject ctx = QNativeInterface::QAndroidApplication::context();
+    if (ctx.isValid())
+        return ctx;
     return QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative",
         "activity",

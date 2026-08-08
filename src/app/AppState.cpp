@@ -37,6 +37,9 @@
 #include <QDesktopServices>
 #include <QSettings>
 #include "Common/Platform/PlatformShare.h"
+#if defined(PLATFORM_ANDROID)
+#include "Common/Platform/Android/PlatformAndroidJni.h"
+#endif
 #if defined(PLATFORM_IOS)
 #include "Common/Platform/PlatformStore.h"
 #endif
@@ -330,9 +333,10 @@ bool AppState::isCellularData() const {
     // Android: use ConnectivityManager via JNI to check active transports.
     // Returns true only when TRANSPORT_CELLULAR is active AND TRANSPORT_WIFI
     // is NOT active — same logic as iOS (warn only on cellular-only).
-    QJniObject ctx = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    // 5WHY (Android launch crash): use getQtActivity() (version-independent
+    // QNativeInterface accessor) instead of hardcoding the Qt5-era Java class
+    // "org/qtproject/qt/android/QtNative", which is not stable in Qt 6.
+    QJniObject ctx = getQtActivity();
     if (!ctx.isValid()) return false;
     QJniObject svc = ctx.callObjectMethod(
         "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;",

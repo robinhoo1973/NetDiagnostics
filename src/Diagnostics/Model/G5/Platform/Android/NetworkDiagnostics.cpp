@@ -19,6 +19,7 @@
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
+#include "Common/Platform/Android/PlatformAndroidJni.h"
 
 // 5WHY: Functions were wrapped in namespace G5WebsiteUrl but header
 // NetworkDiagnostics.h declares them at global scope.  Removed namespace
@@ -46,9 +47,10 @@ static QString signalGlyphs(int level) {
 // SSID/BSSID. Android code had no equivalent — just called the API and
 // returned generic errors. Now mirrors iOS's actionable guidance.
 static QString androidLocationPermissionStatus() {
-    QJniObject ctx = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    // 5WHY (Android launch crash): use getQtActivity() (version-independent
+    // QNativeInterface accessor) instead of hardcoding the Qt5-era Java class
+    // "org/qtproject/qt/android/QtNative", which is not stable in Qt 6.
+    QJniObject ctx = getQtActivity();
     if (!ctx.isValid()) return QString();
 
     // ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -77,9 +79,7 @@ static QString androidWifiSsid() {
     QString permError = androidLocationPermissionStatus();
     if (!permError.isEmpty()) return permError;
 
-    QJniObject ctx = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    QJniObject ctx = getQtActivity();
     if (!ctx.isValid()) return QString();
 
     QJniObject wifiService = ctx.callObjectMethod(
@@ -105,9 +105,7 @@ static QString androidWifiSsid() {
 // 5WHY: BSSID was never retrieved despite WifiInfo.getBSSID() being
 // available with location permission. iOS retrieves BSSID via NEHotspotNetwork.
 static QString androidWifiBssid() {
-    QJniObject ctx = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    QJniObject ctx = getQtActivity();
     if (!ctx.isValid()) return QString();
 
     QJniObject wifiService = ctx.callObjectMethod(
@@ -128,9 +126,7 @@ static QString androidWifiBssid() {
 static QVariantMap androidCellularInfo() {
     QVariantMap info;
 
-    QJniObject ctx = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    QJniObject ctx = getQtActivity();
     if (!ctx.isValid()) return info;
 
     QJniObject telService = ctx.callObjectMethod(
@@ -187,9 +183,7 @@ static QVariantMap androidCellularInfo() {
 
 // ── Connectivity info via ConnectivityManager ──────────────────────────
 static QString androidConnectivityInfo() {
-    QJniObject ctx = QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative", "activity",
-        "()Landroid/app/Activity;");
+    QJniObject ctx = getQtActivity();
     if (!ctx.isValid()) return QStringLiteral("Activity unavailable");
 
     QJniObject connService = ctx.callObjectMethod(

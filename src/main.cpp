@@ -65,8 +65,6 @@ int main(int argc, char *argv[])
 
     // ── Crash handler — install BEFORE QApplication to catch ctor crashes ──
     CrashHandler::install();
-    // Check for crash report from previous run
-    bool hadCrash = CrashHandler::checkForPreviousCrash();
 
     qputenv("QSG_RENDER_LOOP", "basic");
 #if defined(PLATFORM_MOBILE)
@@ -122,6 +120,15 @@ int main(int argc, char *argv[])
     app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
     app.setOrganizationName("robinhoo1973");
     app.setWindowIcon(QIcon(":/icons/netanalysis.ico"));
+
+    // 5WHY (Android launch crash): checkForPreviousCrash() was called BEFORE
+    // QGuiApplication was constructed.  On Android crashLogPath() resolves the
+    // log dir via androidUserVisibleLogDir() → QJniObject JNI call — but the Qt
+    // Android platform plugin (which initializes the JNI environment) is only
+    // loaded by QGuiApplication.  Calling QJniObject before that crashed the
+    // app at startup, before the first STARTUP_LOG could be written.  Moved the
+    // check to AFTER app construction so JNI is always available.
+    bool hadCrash = CrashHandler::checkForPreviousCrash();
 
     // 5WHY: These early markers bracket the pre-QML init steps (AppState
     // construction, iOS WiFi auth, QML engine construction).  On iOS the log

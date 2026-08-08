@@ -20,10 +20,29 @@
 #include <QString>
 #include <QStandardPaths>
 #include <QDir>
+#include <QCoreApplication>
 #include <QJniObject>
+
+// 5WHY (Android launch crash): The old androidLogActivity() hardcoded the Qt
+// Java class "org/qtproject/qt/android/QtNative" and called it from
+// CrashHandler::checkForPreviousCrash() BEFORE QGuiApplication existed.
+// (a) The Qt Android platform plugin — which initializes the JNI environment —
+//     is only loaded when QGuiApplication is constructed; calling QJniObject
+//     earlier crashed at startup.
+// (b) Qt 6 moved the Java classes to the org.qtproject.qt6.android package,
+//     so the hardcoded Qt5-era class name is not stable across Qt versions.
+// Fix: (a) callers now invoke this only after QGuiApplication exists; (b) use
+// the version-independent QNativeInterface::QAndroidApplication::context()
+// accessor (Qt 6.2+, same pattern as PlatformShare.cpp), which resolves the
+// Activity without hardcoding a Java class name.
 
 // The Qt Android activity (never cache across calls).
 static inline QJniObject androidLogActivity() {
+    // Qt 6.2+: version-independent accessor — no hardcoded Java class name.
+    QJniObject ctx = QNativeInterface::QAndroidApplication::context();
+    if (ctx.isValid())
+        return ctx;
+    // Legacy fallback for older Qt (should not be reached on 6.5.3).
     return QJniObject::callStaticObjectMethod(
         "org/qtproject/qt/android/QtNative",
         "activity",
@@ -48,7 +67,16 @@ static inline QString androidExternalFilesDir() {
 
 // User-visible base directory for NetDiagnostics logs on Android.
 // Returns "<externalFiles>/NetDiagnostics" or falls back to AppDataLocation.
+// 5WHY (Android launch crash): this is called from CrashHandler even when the
+// crash happens BEFORE QGuiApplication is constructed (e.g. app ctor crash).
+// JNI (QNativeInterface::QAndroidApplication::context) requires the Qt Android
+// platform plugin, which is only loaded by QGuiApplication — calling it before
+// that would crash inside the crash handler (masking the real SIGSEGV).  Guard:
+// before the app object exists, fall back to the pure-Qt TempLocation path.
 static inline QString androidUserVisibleLogDir() {
+    if (QCoreApplication::instance() == nullptr)
+        return QStandardPaths::writableLocation(QStandardPaths::TempLocation)
+               + QStringLiteral("/NetDiagnostics");
     QString base = androidExternalFilesDir();
     if (base.isEmpty())
         base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
