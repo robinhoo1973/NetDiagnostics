@@ -38,6 +38,12 @@ Rectangle {
     // fresh purchase — both end with isPremium=true, but the confirmation
     // banner copy differs (premiumRestored vs premiumUnlocked).
     property bool restoreGranted: false
+    // 5WHY (P5 named-constant): the unlocked-state height floor is the sum of
+    // the fixed vertical chain — hero + bodyCol top/bottom margins (24×2) +
+    // green banner (44) + bodyCol internal spacing (12) + OK button (48).
+    // Inline arithmetic was repeated in the height formula; a named constant
+    // documents the intent and keeps the floor in sync if any element changes.
+    readonly property int unlockFloorExtra: 24 + 44 + 12 + 48 + 24
     signal dismissed()
 
     function openDialog() {
@@ -86,7 +92,7 @@ Rectangle {
         // Floor now accounts for: hero + bodyCol top/bottom margins (24×2) +
         // banner (44) + bodyCol spacing (12) + OK button (48).
         height: appState.isPremium
-            ? Math.min(hero.height + 24 + 44 + 12 + 48 + 24, Math.max(360, parent.height * 0.9))
+            ? Math.min(hero.height + root.unlockFloorExtra, Math.max(360, parent.height * 0.9))
             : Math.min(bodyCol.implicitHeight + hero.height,
                        Math.max(360, parent.height * 0.9))
         radius: Th.ThemeEngine.radius.xl
@@ -404,18 +410,27 @@ Rectangle {
             // 5WHY (UX flow): the dialog auto-probes on open.  If a previous
             // subscription is found, probeRestore() already grants premium
             // (setPremium(true)); this handler flags restoreGranted so the
-            // unlocked-state banner shows "Previous Subscription Restored",
-            // then closeAfterUnlock dismisses the dialog.  A failed restore
-            // or "nothing to restore" keeps a quieter status notice and the
-            // buy flow stays visible.
+            // unlocked-state banner shows "Previous Subscription Restored".
+            // 5WHY (P2 restore-message): probeRestore calls setPremium(true)
+            // BEFORE emitting restoreCompleted, so onPremiumChanged already
+            // started the 1400ms auto-close — the "Purchase Restored" banner
+            // would vanish before the user read it.  A restored subscription
+            // is a confirmation the user should acknowledge: stop the auto-close
+            // and let them dismiss with the OK button.  Fresh purchases (no
+            // restoreGranted) still auto-close seamlessly.
             if (isError) root.statusText = T.tr("restoreError")
-            else if (restoredAny) root.restoreGranted = true
+            else if (restoredAny) {
+                root.restoreGranted = true
+                root.closeAfterUnlock.stop()
+            }
             else root.statusText = T.tr("restoreFail")
             root.clearStatusTimer.restart()
         }
         function onPremiumChanged() {
             // Purchase succeeded while the dialog was open → show the unlocked
             // banner briefly, then auto-close so the flow feels seamless.
+            // A RESTORED subscription is handled by onRestoreCompleted which
+            // stops this timer (see P2 above) so the user can acknowledge it.
             if (root.open && appState.isPremium) root.closeAfterUnlock.restart()
         }
     }

@@ -24,6 +24,10 @@ public:
 
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
+    // RESERVED API: blocking restore that sets m_purchaseInProgress=true and
+    // blocks Buy/Restore while in flight.  No UI entry currently calls this —
+    // PremiumDialog/SettingsScreen use probeRestore() below (non-blocking
+    // auto-probe).  Kept as a Q_INVOKABLE for future explicit "Restore" UI.
     Q_INVOKABLE void restorePurchases();
     // 5WHY (iOS b21294): PremiumDialog.openDialog() auto-probes the store for
     // a previous purchase.  It previously reused restorePurchases(), which

@@ -156,17 +156,14 @@ Rectangle {
                     }
                 }
             }
-
-            // Restore (subscribe stage only, not in-flight)
             // 5WHY (UX flow): the standalone "Restore or Purchase" button was
             // removed everywhere — PremiumDialog auto-probes for a previous
             // subscription on open (probeRestore) and restores it with a
             // "Purchase Restored" confirmation, else shows the buy flow.  A
             // separate restore action would only duplicate the automatic check.
-            // Note: shareStage=1 (subscribe) is currently unreachable from the
-            // pages (doShare() routes premium platforms through PremiumDialog),
-            // so this block is defensive dead-code cleanup for consistency.
-            Item { Layout.fillWidth: true; implicitHeight: 0 }
+            // shareStage=1 (subscribe) is currently unreachable from the pages
+            // (doShare() routes premium platforms through PremiumDialog), so
+            // no restore control exists here.
                 }
             }
 

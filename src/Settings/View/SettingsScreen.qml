@@ -17,6 +17,14 @@ Item {
     Connections {
         target: appState
         function onRestoreCompleted(restoredAny, isError) {
+            // 5WHY (P1 double-feedback): PremiumDialog auto-probes the store
+            // on open (probeRestore), so its onRestoreCompleted handler shows
+            // the in-dialog "Purchase Restored" banner.  Without this guard the
+            // same signal also fired this page-level toast → the user saw TWO
+            // confirmations with different copy ("Purchases Restored" toast vs
+            // "Purchase Restored" banner).  When the dialog is open, it owns
+            // the feedback; this toast is only for dialog-less restores.
+            if (premiumDialog.open) return
             if (isError) {
                 restoreToast.text = T.tr("restoreError")
             } else if (restoredAny) {

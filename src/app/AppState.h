@@ -208,6 +208,8 @@ public:
     bool platformSupportsIap() const;
     Q_INVOKABLE void setPremium(bool v);
     Q_INVOKABLE void requestSubscription();
+    // RESERVED API: blocking restore (m_purchaseInProgress=true). No UI entry
+    // currently calls it — see PremiumStore::restorePurchases().
     Q_INVOKABLE void restorePurchases();
     // 5WHY (iOS b21294): non-blocking auto-probe — see PremiumStore::probeRestore().
     Q_INVOKABLE void probeRestore();
