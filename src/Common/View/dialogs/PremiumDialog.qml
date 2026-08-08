@@ -70,11 +70,17 @@ Rectangle {
         // text link — but bodyCol.implicitHeight shrank (actions column hides)
         // so the card compressed to ~250px and the bottom button could be
         // clipped by clip:true.  Unlocked state now gets an explicit height
-        // floor (hero + banner + OK button + margins) so the confirmation
-        // button is always fully visible, and the bottom control becomes a
-        // clear primary "OK" (premiumOk) instead of a confusing "Cancel".
+        // floor so the confirmation button is always fully visible, and the
+        // bottom control becomes a clear primary "OK" (premiumOk) instead of a
+        // confusing "Cancel".
+        // 5WHY (iOS subscribe-success round 2): the first floor (hero + banner
+        // + OK + margins) omitted bodyCol's internal spacing:12 — the banner
+        // sat inside a Flickable that was 12px too short, so its bottom edge
+        // was clipped by clip:true (user saw ~1/9 of the badge missing).
+        // Floor now accounts for: hero + bodyCol top/bottom margins (24×2) +
+        // banner (44) + bodyCol spacing (12) + OK button (48).
         height: appState.isPremium
-            ? Math.min(hero.height + 44 + 48 + 24 + 24, Math.max(360, parent.height * 0.9))
+            ? Math.min(hero.height + 24 + 44 + 12 + 48 + 24, Math.max(360, parent.height * 0.9))
             : Math.min(bodyCol.implicitHeight + hero.height,
                        Math.max(360, parent.height * 0.9))
         radius: Th.ThemeEngine.radius.xl
