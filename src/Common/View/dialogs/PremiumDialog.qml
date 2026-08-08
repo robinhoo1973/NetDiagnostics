@@ -65,8 +65,18 @@ Rectangle {
         // the screen and clipped the action buttons.  Cap the height to the
         // viewport; the middle (feature/body) area scrolls while the hero and
         // the action buttons stay fixed.
-        height: Math.min(bodyCol.implicitHeight + hero.height,
-                         Math.max(360, parent.height * 0.9))
+        // 5WHY (iOS subscribe-success): after a successful purchase the dialog
+        // switched to the unlocked state — green banner + a tertiary "Cancel"
+        // text link — but bodyCol.implicitHeight shrank (actions column hides)
+        // so the card compressed to ~250px and the bottom button could be
+        // clipped by clip:true.  Unlocked state now gets an explicit height
+        // floor (hero + banner + OK button + margins) so the confirmation
+        // button is always fully visible, and the bottom control becomes a
+        // clear primary "OK" (premiumOk) instead of a confusing "Cancel".
+        height: appState.isPremium
+            ? Math.min(hero.height + 44 + 48 + 24 + 24, Math.max(360, parent.height * 0.9))
+            : Math.min(bodyCol.implicitHeight + hero.height,
+                       Math.max(360, parent.height * 0.9))
         radius: Th.ThemeEngine.radius.xl
         color: Th.ThemeEngine.colors.card
         border { width: 1; color: Th.ThemeEngine.colors.borderCard }
@@ -320,23 +330,45 @@ Rectangle {
             }
 
             // Not now / close — quiet text link (tertiary action, M3 style)
+            // Locked: "Not Now".  Unlocked: primary "OK" confirmation — the
+            // subscribe-success state must end with an unambiguous affirmative
+            // button, not a "Cancel" (5WHY iOS subscribe-success).
             Item {
                 visible: !appState.purchaseInProgress
-                Layout.fillWidth: true; implicitHeight: 40
+                Layout.fillWidth: true
+                implicitHeight: appState.isPremium ? 48 : 40
+                // Unlocked → solid primary OK button; locked → text link.
+                Rectangle {
+                    anchors.fill: parent
+                    visible: appState.isPremium
+                    radius: 12
+                    color: okHover.containsMouse ? Qt.alpha(Th.ThemeEngine.colors.primary, 0.9)
+                                                 : Th.ThemeEngine.colors.primary
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
                 Label {
                     anchors.centerIn: parent
-                    text: appState.isPremium ? T.tr("dialogCancel") : T.tr("subscribeNotNow")
-                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13; font.weight: Font.Medium
-                    color: notNowHover.containsMouse ? Th.ThemeEngine.colors.textPrimary
-                                                     : Th.ThemeEngine.colors.textSecondary
+                    text: appState.isPremium ? T.tr("premiumOk") : T.tr("subscribeNotNow")
+                    font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
+                    font.weight: appState.isPremium ? Font.Bold : Font.Medium
+                    color: appState.isPremium ? "#FFFFFF"
+                           : (notNowHover.containsMouse ? Th.ThemeEngine.colors.textPrimary
+                                                        : Th.ThemeEngine.colors.textSecondary)
                     Behavior on color { ColorAnimation { duration: 150 } }
+                }
+                MouseArea {
+                    id: okHover
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                    visible: appState.isPremium
+                    onClicked: root.closeDialog()
                 }
                 MouseArea {
                     id: notNowHover
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                    visible: !appState.isPremium
                     onClicked: root.closeDialog()
                 }
-                Accessible.name: appState.isPremium ? T.tr("dialogCancel") : T.tr("subscribeNotNow")
+                Accessible.name: appState.isPremium ? T.tr("premiumOk") : T.tr("subscribeNotNow")
                 Accessible.role: Accessible.Button
             }
         }
