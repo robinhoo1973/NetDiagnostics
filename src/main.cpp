@@ -55,13 +55,6 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 
 int main(int argc, char *argv[])
 {
-    // 5WHY (Android no-log bug): the first STARTUP_LOG used to run only AFTER
-    // QGuiApplication, so a crash inside Qt platform-plugin init (or earlier)
-    // produced ZERO native output.  Mark main() entry as the earliest native
-    // point.  On Android this targets the user-visible external log dir even
-    // before JNI is ready (AndroidLogPaths.h package-name fallback) and is
-    // mirrored to logcat.
-    STARTUP_LOG("main() entered — native entry, pre-QGuiApplication");
 #if !defined(NO_CURL)
     curl_global_init(CURL_GLOBAL_ALL);
 #endif
@@ -72,6 +65,15 @@ int main(int argc, char *argv[])
 
     // ── Crash handler — install BEFORE QApplication to catch ctor crashes ──
     CrashHandler::install();
+
+    // 5WHY (Android no-log bug): the first STARTUP_LOG used to run only AFTER
+    // QGuiApplication, so a crash inside Qt platform-plugin init (or earlier)
+    // produced ZERO native output.  Mark main() entry as the earliest native
+    // point.  On Android this targets the user-visible external log dir even
+    // before JNI is ready (AndroidLogPaths.h package-name fallback) and is
+    // mirrored to logcat.  Placed AFTER CrashHandler::install() so a fault
+    // inside the logger itself is still captured by the signal handlers.
+    STARTUP_LOG("main() entered — native entry, pre-QGuiApplication");
 
     qputenv("QSG_RENDER_LOOP", "basic");
 #if defined(PLATFORM_MOBILE)

@@ -11,7 +11,7 @@
 # sole platform so androiddeployqt cannot pick a newer incompatible one.
 # ═══════════════════════════════════════════════════════════════════════════
 name: Build Android APK
-description: Builds an installable APK via androiddeployqt, zipalign, and apksigner (persistent release key when secrets are set, else debug key)
+description: Builds an installable APK via androiddeployqt, zipalign, and apksigner (persistent release key when ND_KEYSTORE_* env is set, else debug key)
 inputs:
   qt_version:
     description: Qt version used (e.g. 6.5.3)
@@ -27,22 +27,6 @@ inputs:
     description: CMake build directory (defaults to build)
     required: false
     default: build
-  keystore_b64:
-    description: Base64-encoded persistent release keystore (secret ANDROID_KEYSTORE_B64). Empty on PRs -> debug keystore fallback.
-    required: false
-    default: ''
-  keystore_pass:
-    description: Release keystore store password (secret ANDROID_KEYSTORE_PASS)
-    required: false
-    default: ''
-  key_alias:
-    description: Release key alias (secret ANDROID_KEY_ALIAS)
-    required: false
-    default: ''
-  key_pass:
-    description: Release key password (secret ANDROID_KEY_PASS)
-    required: false
-    default: ''
 runs:
   using: composite
   steps:
@@ -82,17 +66,28 @@ runs:
         # release keystore so every build shares one key and upgrades install
         # cleanly.  PR builds (no secrets on fork/PR events) fall back to the
         # debug keystore because they are validation artifacts, not installs.
-        # set +x around the whole block: the keystore base64 and passwords
-        # must never appear in the trace log.
+        # 5WHY: signing secrets reach this composite action via the STEP ENV
+        # (build.yml sets ND_KEYSTORE_* from repo secrets).  Secrets must not
+        # be passed through `with:` inputs: GitHub reliably masks env values
+        # derived from secrets, but composite `inputs` get inlined into the
+        # script text where masking is not guaranteed.  env also tolerates
+        # multi-line values (e.g. base64 with newlines).
         set +x
-        ND_RELEASE_KS_B64="${{ inputs.keystore_b64 }}"
+        ND_RELEASE_KS_B64="${ND_KEYSTORE_B64:-}"
         if [ -n "$ND_RELEASE_KS_B64" ]; then
-          echo "Signing with persistent release keystore (alias: ${{ inputs.key_alias }})"
-          echo "$ND_RELEASE_KS_B64" | base64 -d > "$RUNNER_TEMP/netdiag-release.keystore"
+          SIGN_KS_STOREPASS="${ND_KEYSTORE_PASS:-}"
+          if [ -z "$SIGN_KS_STOREPASS" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_PASS secret is required when ANDROID_KEYSTORE_B64 is set"
+            exit 1
+          fi
+          # alias/pass default to the setup script's conventions so partial
+          # secret configuration still signs correctly.
+          SIGN_KS_ALIAS="${ND_KEY_ALIAS:-netdiag}"
+          SIGN_KEY_PASS="${ND_KEY_PASS:-$SIGN_KS_STOREPASS}"
+          echo "Signing with persistent release keystore (alias: $SIGN_KS_ALIAS)"
+          printf '%s' "$ND_RELEASE_KS_B64" | base64 -d > "$RUNNER_TEMP/netdiag-release.keystore"
+          test -s "$RUNNER_TEMP/netdiag-release.keystore" || { echo "ERROR: keystore base64 decoded to an empty file"; exit 1; }
           SIGN_KS="$RUNNER_TEMP/netdiag-release.keystore"
-          SIGN_KS_ALIAS="${{ inputs.key_alias }}"
-          SIGN_KS_STOREPASS="${{ inputs.keystore_pass }}"
-          SIGN_KEY_PASS="${{ inputs.key_pass }}"
         else
           # 5WHY (round 2): keytool -genkey fails with FileNotFoundException if
           # ~/.android/ does not exist — keytool does NOT auto-create parent

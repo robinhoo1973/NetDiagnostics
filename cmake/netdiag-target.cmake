@@ -267,6 +267,15 @@ function(setup_platform_bundle TARGET)
             "${CMAKE_SOURCE_DIR}/resources/android/AndroidManifest.xml.in"
             "${ANDROID_PKG_DIR}/AndroidManifest.xml"
             @ONLY)
+        # 5WHY: file(COPY) is a one-shot CONFIGURE-time copy with NO dependency
+        # tracking — a developer editing a Java/res source under
+        # resources/android/ would keep building the stale copy in
+        # ${ANDROID_PKG_DIR} with no warning.  configure_file() already tracks
+        # the manifest template; this glob registers the rest of the package
+        # source tree as a re-configure trigger so edits are re-copied at the
+        # next build.
+        file(GLOB_RECURSE _ND_PKG_SOURCE_FILES CONFIGURE_DEPENDS
+             "${CMAKE_SOURCE_DIR}/resources/android/*")
 
         set_target_properties(${TARGET} PROPERTIES
             QT_ANDROID_PACKAGE_SOURCE_DIR "${ANDROID_PKG_DIR}"

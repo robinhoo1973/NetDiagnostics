@@ -696,13 +696,16 @@ jobs:
           qt_version: ${{ env.QT_VERSION_ANDROID }}
           output_name: NetDiagnostics-Android-x86_64.apk
           build_dir: build
-          # 5WHY: persistent release keystore from repo secrets so every
-          # release APK shares ONE signing key (upgrades install cleanly).
-          # Empty on PR/fork events -> action falls back to debug keystore.
-          keystore_b64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          keystore_pass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-          key_alias: ${{ secrets.ANDROID_KEY_ALIAS }}
-          key_pass: ${{ secrets.ANDROID_KEY_PASS }}
+        env:
+          # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
+          # masks env values derived from secrets; composite-action `with:`
+          # inputs are inlined into the script text where masking is not
+          # guaranteed.  Every release build shares ONE signing key so
+          # upgrades install cleanly; empty on PR/fork -> debug fallback.
+          ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -791,13 +794,16 @@ jobs:
           qt_version: ${{ env.QT_VERSION_ANDROID }}
           output_name: NetDiagnostics-Android-arm64.apk
           build_dir: build
-          # 5WHY: persistent release keystore from repo secrets so every
-          # release APK shares ONE signing key (upgrades install cleanly).
-          # Empty on PR/fork events -> action falls back to debug keystore.
-          keystore_b64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          keystore_pass: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-          key_alias: ${{ secrets.ANDROID_KEY_ALIAS }}
-          key_pass: ${{ secrets.ANDROID_KEY_PASS }}
+        env:
+          # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
+          # masks env values derived from secrets; composite-action `with:`
+          # inputs are inlined into the script text where masking is not
+          # guaranteed.  Every release build shares ONE signing key so
+          # upgrades install cleanly; empty on PR/fork -> debug fallback.
+          ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

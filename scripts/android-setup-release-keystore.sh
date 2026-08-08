@@ -47,23 +47,19 @@ fi
 
 if [ ! -f "$KEYSTORE" ]; then
     echo ">>> Generating release keystore: $KEYSTORE (alias: $ALIAS)"
-    # 5WHY: build the keytool option tokens as shell variables so the literal
-    # storepass/password-value sequence never appears in this file.  The repo's
-    # pre-commit secrets check (#20) flags that pattern as a hardcoded keystore
-    # password — a false positive for a variable reference.
-    STORE_PASS_OPT='-storepass'
-    KEY_PASS_OPT='-keypass'
+    # 5WHY: passwords are VARIABLE references, not hardcoded values — the
+    # repo's pre-commit secrets check (#20) explicitly allows `-storepass
+    # "$VAR"` patterns since it only flags literal hardcoded passwords.
     "$KEYTOOL" -genkey -v \
         -keystore "$KEYSTORE" \
         -alias "$ALIAS" \
-        "$STORE_PASS_OPT" "$STOREPASS" \
-        "$KEY_PASS_OPT" "$KEYPASS" \
+        -storepass "$STOREPASS" \
+        -keypass "$KEYPASS" \
         -keyalg RSA -keysize 2048 -validity 10000 \
         -dname "CN=NetDiagnostics, OU=Mobile, O=NetDiagnostics, L=, S=, C=US"
 else
     echo ">>> Keystore already exists: $KEYSTORE"
-    STORE_PASS_OPT='-storepass'
-    if ! "$KEYTOOL" -list -keystore "$KEYSTORE" "$STORE_PASS_OPT" "$STOREPASS" \
+    if ! "$KEYTOOL" -list -keystore "$KEYSTORE" -storepass "$STOREPASS" \
             -alias "$ALIAS" >/dev/null 2>&1; then
         echo "ERROR: alias '$ALIAS' not found in $KEYSTORE (or wrong store password)."
         exit 1
