@@ -287,8 +287,6 @@ static BOOL isPremiumTxn(SKPaymentTransaction* txn) {
 
 - (void)paymentQueueRestoreCompletedTransactionsFinished:(SKPaymentQueue *)queue {
     [self resolveRestoreWithResult:self.hasRestored isError:NO];
-        self.onRestoreDone = nil;
-    }
 }
 
 - (void)paymentQueue:(SKPaymentQueue *)queue
