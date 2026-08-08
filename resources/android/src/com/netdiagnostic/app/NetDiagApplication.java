@@ -12,9 +12,16 @@
 // The manifest must declare this class:
 //   <application android:name="com.netdiagnostic.app.NetDiagApplication" ...>
 // =============================================================================
+// 5WHY (Android startup crash): the bindings are in package
+// org.qtproject.qt.android.bindings — Qt kept the Qt5-era Java package name
+// in Qt 6.5 (verified from the qtbase 6.5.3 package: QtApplication.java
+// declares `package org.qtproject.qt.android.bindings;`).  The manifest used
+// to reference org.qtproject.qt6.android.bindings.*, which does NOT exist in
+// the APK → ClassNotFoundException on launch → instant crash with no log.
+// Both the manifest and this import must use the `qt` (not `qt6`) package.
 package com.netdiagnostic.app;
 
-import org.qtproject.qt6.android.bindings.QtApplication;
+import org.qtproject.qt.android.bindings.QtApplication;
 
 public class NetDiagApplication extends QtApplication {
 
