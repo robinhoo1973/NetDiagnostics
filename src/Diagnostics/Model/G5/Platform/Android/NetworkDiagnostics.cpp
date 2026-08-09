@@ -539,7 +539,7 @@ static AndroidProxy androidProxy() {
     QJniObject excl = pi.callObjectMethod("getExclusionList", "()[Ljava/lang/String;");
     if (excl.isValid()) {
         QJniEnvironment env;
-        JNIEnv* e = env;
+        JNIEnv* e = env.jniEnv();
         jobjectArray arr = static_cast<jobjectArray>(excl.object());
         jsize n = e->GetArrayLength(arr);
         for (jsize i = 0; i < n; ++i) {
@@ -568,7 +568,7 @@ static QStringList androidInstalledPackages() {
     if (!pkgs.isValid()) return out;
 
     QJniEnvironment env;
-    JNIEnv* e = env;
+    JNIEnv* e = env.jniEnv();
     // 5WHY: the raw GetFieldID below uses JNIEnv directly — Qt does NOT clear
     // exceptions for raw calls, so a failed lookup would poison later JNI
     // calls on this thread.  clearJniException() after each raw call.
@@ -1100,7 +1100,7 @@ DiagnosticResult androidDnsDiag(DiagId id, const QString& target) {
                 "(Ljava/lang/String;)[Ljava/net/InetAddress;", hostStr.object<jstring>());
             if (clearJniException(env)) return result;  // UnknownHostException
             if (!addrArr.isValid()) return result;
-            JNIEnv* e = env;
+            JNIEnv* e = env.jniEnv();
             jobjectArray arr = static_cast<jobjectArray>(addrArr.object());
             jsize count = e->GetArrayLength(arr);
             for (jsize i = 0; i < count; ++i) {
@@ -1222,7 +1222,7 @@ static QString readHttpBody(QJniObject& httpConn, int maxBytes) {
 // Falls back gracefully for plain-HTTP connections (NoSuchMethodError).
 static QString androidCertDetails(QJniObject& httpConn) {
     QJniEnvironment env;
-    JNIEnv* e = env;
+    JNIEnv* e = env.jniEnv();
     QString out;
 
     QJniObject cipher = httpConn.callObjectMethod("getCipherSuite", "()Ljava/lang/String;");
