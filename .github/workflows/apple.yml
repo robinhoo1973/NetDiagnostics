@@ -11,7 +11,7 @@
 #   ├─ ios.yml ─────────────────────────────► testflight.yml (platform=ios)
 #   │   (compile iOS, unsigned .ipa artifact)    (sign + archive + upload iOS)
 #   │
-#   └─ macOS.yml (mode=testflight) ─────────► testflight.yml (platform=macos)
+#   └─ macos.yml (mode=testflight) ─────────► testflight.yml (platform=macos)
 #       (build macOS .app artifact)             (sign + .pkg + upload macOS)
 #
 # The two chains run in PARALLEL.  Each upload waits for its platform's
@@ -72,7 +72,7 @@ jobs:
   macos-build:
     name: macOS Build (TestFlight)
     needs: [version]
-    uses: ./.github/workflows/macOS.yml
+    uses: ./.github/workflows/macos.yml
     with:
       mode: testflight
       pkg_version: ${{ needs.version.outputs.pkg_version }}

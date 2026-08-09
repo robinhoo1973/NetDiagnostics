@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Reusable Version Detection Workflow
 # ═══════════════════════════════════════════════════════════════════════════
-# 5WHY: Version detection was copy-pasted across build.yml, macOS.yml, iOS.yml,
+# 5WHY: Version detection was copy-pasted across build.yml, macos.yml, ios.yml,
 # and test.yml (4 identical copies).  Centralizing it here ensures consistent
 # semver tag → CMake version mapping across all pipelines, and a fix here
 # propagates everywhere.  Callers reference this via:

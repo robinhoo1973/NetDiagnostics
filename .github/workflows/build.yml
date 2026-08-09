@@ -8,7 +8,7 @@
 #   · linux.yml     (matrix: x86_64, arm64)   → AppImage / deb / rpm
 #   · windows.yml   (matrix: static, dynamic) → standalone exe / NSIS installer
 #   · android.yml   (matrix: arm64+x86_64 × apk+aab) → installable APK / Play AAB
-#   · macOS.yml     (release packaging only)  → DMG / tar.gz download format
+#   · macos.yml     (release packaging only)  → DMG / tar.gz download format
 #
 # Store uploads are deliberately OUT of this pipeline (each is a standalone,
 # parameterized workflow):
@@ -63,12 +63,12 @@ jobs:
     with:
       variant: ${{ matrix.variant }}
 
-  # ═══ macOS — macOS.yml, release download format (DMG / tar.gz) ═══
+  # ═══ macOS — macos.yml, release download format (DMG / tar.gz) ═══
   # 5WHY: build.yml only produces Release-download files.  TestFlight uploads
   # (iOS + macOS) run in apple.yml as two parallel standalone tasks.
   macos:
     name: macOS (release download)
-    uses: ./.github/workflows/macOS.yml
+    uses: ./.github/workflows/macos.yml
 
   # ═══ Android — android.yml (arch × format matrix, release downloads) ═══
   # 5WHY: build.yml only produces Release-download files (APK/AAB).  Google
@@ -156,11 +156,11 @@ jobs:
                 os="android"; arch="arm64" ;;
               # macOS: only the release-packaging artifact is collected
               # (DMG/tar.gz); the internal .app tar is consumed by the
-              # package-release/testflight jobs inside macOS.yml.
+              # package-release/testflight jobs inside macos.yml.
               *macos-release*)
                 os="macos"; arch="arm64" ;;
               *macos*|*ios*)
-                echo "Skipping Apple internal artifact (handled inside macOS.yml): $dir"; continue ;;
+                echo "Skipping Apple internal artifact (handled inside macos.yml): $dir"; continue ;;
               *)
                 echo "Skipping unknown: $dir"; continue ;;
             esac

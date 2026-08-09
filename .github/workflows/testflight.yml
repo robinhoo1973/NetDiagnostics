@@ -3,13 +3,13 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Called by apple.yml (or standalone via workflow_dispatch):
 #   platform = ios   → sign + archive the iOS .ipa and upload to TestFlight
-#   platform = macos → download the macOS .app (macOS.yml mode=testflight),
+#   platform = macos → download the macOS .app (macos.yml mode=testflight),
 #                      sign + package .pkg and upload to TestFlight
 #   platform = both  → both jobs run in parallel (standalone dispatch only)
 #
 # · iOS: re-signs/archives with the distribution cert + provisioning profile
 #        (self-contained — needs the Qt iOS toolchain to build the archive).
-# · macOS: consumes the .app artifact produced by macOS.yml (mode=testflight);
+# · macOS: consumes the .app artifact produced by macos.yml (mode=testflight);
 #        when dispatched standalone without that artifact it falls back to
 #        building the .app inline.
 #
@@ -351,7 +351,7 @@ jobs:
         run: rm -f "$ASC_KEYFILE" 2>/dev/null || true
 
   # ═══════════════════════════════════════════════════════════════════════
-  # macOS TestFlight — consume the macOS.yml (testflight) .app, sign + upload
+  # macOS TestFlight — consume the macos.yml (testflight) .app, sign + upload
   # ═══════════════════════════════════════════════════════════════════════
   macos:
     name: macOS TestFlight
@@ -402,7 +402,7 @@ jobs:
             echo "ok=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # ── Obtain the .app — from macOS.yml (testflight) artifact, or ──
+      # ── Obtain the .app — from macos.yml (testflight) artifact, or ──
       #    build it inline when dispatched standalone.
       - name: Download .app artifact
         id: download
@@ -422,7 +422,7 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Standalone fallback: no artifact from macOS.yml → build the .app
+      # Standalone fallback: no artifact from macos.yml → build the .app
       # (icon action must run BEFORE cmake so the .app bundle picks it up).
       - uses: ./.github/actions/macos-icon
         if: steps.apppath.outputs.found != 'true'
