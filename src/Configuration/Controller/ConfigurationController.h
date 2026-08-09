@@ -24,10 +24,6 @@ public:
     Q_INVOKABLE bool isDiagEnabled(int diagIdInt) const;
     Q_INVOKABLE bool setDiagEnabled(int diagIdInt, bool enabled);
     Q_INVOKABLE bool setGroupEnabled(int groupInt, bool enabled);
-    // Target presence determines whether G4/G5 are runnable. This is runtime
-    // availability, not an explicit user preference, so it must not write
-    // QSettings on every target keystroke.
-    bool setAutomaticGroupEnabled(int groupInt, bool enabled);
     Q_INVOKABLE bool isGroupAllEnabled(int groupInt) const;
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
 

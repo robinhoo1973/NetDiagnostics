@@ -45,6 +45,7 @@ private:
     int        m_timeoutMs;
     std::atomic<bool> m_cancelled{false};
     std::atomic<bool> m_finishedEmitted{false};
+    bool       m_started = false;  // guards against accidental double start()
     QFutureWatcher<DiagnosticResult>* m_watcher = nullptr;
     QTimer*    m_watchdog = nullptr;
 };

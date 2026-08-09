@@ -31,8 +31,6 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #include <curl/curl.h>
 #endif
 #include "app/AppState.h"
-#include "Dashboard/Controller/DashboardController.h"
-#include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Report/Controller/ReportController.h"
 #include "Settings/Controller/SettingsController.h"
@@ -199,8 +197,6 @@ int main(int argc, char *argv[])
     // Theme now handled by ThemeEngine.qml singleton — no C++ injection needed
     engine.rootContext()->setContextProperty("appState", &appState);
     // MVC Controllers + Models — injected for gradual QML migration
-    engine.rootContext()->setContextProperty("dashboardCtrl", QVariant::fromValue(static_cast<QObject*>(appState.dashboardController())));
-    engine.rootContext()->setContextProperty("diagCtrl", QVariant::fromValue(static_cast<QObject*>(appState.diagnosticsController())));
     engine.rootContext()->setContextProperty("configCtrl", QVariant::fromValue(static_cast<QObject*>(appState.configurationController())));
     engine.rootContext()->setContextProperty("reportCtrl", QVariant::fromValue(static_cast<QObject*>(appState.reportController())));
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
@@ -282,12 +278,17 @@ int main(int argc, char *argv[])
 
     const QUrl url("qrc:/qml/main.qml");
 
-    // Headless auto-run: if ND_AUTORUN=1, auto-set target and run all tests
-    if (qEnvironmentVariableIntValue("ND_AUTORUN")) {
-        QTimer::singleShot(3000, &app, [&appState]() {
-            appState.setTarget(QStringLiteral("localhost"));
-            appState.runDiagnostics();
-        });
+    // Headless auto-run: if ND_AUTORUN=1, seed a default target so the
+    // AppState-owned timer (ND_AUTORUN_DELAY_MS, default 4000ms) can run.
+    // 5WHY: this block previously had its OWN fixed-3000ms timer that
+    // forced "localhost" and called runDiagnostics() directly — duplicating
+    // AppState's configurable ND_AUTORUN timer (4000ms).  Two timers raced
+    // and could double-launch runs, and the fixed 3000ms ignored
+    // ND_AUTORUN_DELAY_MS.  AppState is the single owner of the timer; this
+    // block only seeds the default target when none was given (e.g. via
+    // ND_CAPTURE_TARGET).
+    if (qEnvironmentVariableIntValue("ND_AUTORUN") && appState.isTargetEmpty()) {
+        appState.setTarget(QStringLiteral("localhost"));
     }
 
     // ── Maximize the window atomically via C++ ───────────────────────────

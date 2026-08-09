@@ -14,6 +14,12 @@ DiagnosticTask::~DiagnosticTask() {
 }
 
 void DiagnosticTask::start() {
+    // 5WHY: a second start() would overwrite m_watchdog/m_watcher, leaking
+    // the previous timer and future and re-arming a duplicate watchdog.
+    // A task is single-shot (self-deletes after run()); guard against any
+    // accidental double start.
+    if (m_started) return;
+    m_started = true;
     m_cancelled.store(false, std::memory_order_release);
 
     m_watchdog = new QTimer(this);

@@ -17,10 +17,9 @@
 #include "Common/Utils/Logger.h"
 #include "Common/Utils/TargetRedaction.h"
 #include <QtConcurrent/QtConcurrent>
+#include <QThreadPool>
 #include "Diagnostics/Model/GeoProbe.h"
 #include "Diagnostics/Model/G3/G3Diagnostics.h"
-#include "Dashboard/Controller/DashboardController.h"
-#include "Diagnostics/Controller/DiagnosticsController.h"
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Report/Controller/ReportController.h"
 #include "Settings/Controller/SettingsController.h"
@@ -47,16 +46,6 @@
 #if defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
 #endif
-#if !defined(PLATFORM_MOBILE)
-#include <QDialog>
-#endif
-#if !defined(PLATFORM_MOBILE)
-#include <QVBoxLayout>
-#include <QLabel>
-#include <QDialogButtonBox>
-#include <QScrollArea>
-#include <QFileDialog>
-#endif
 
 AppState::AppState(QObject* parent) : QObject(parent) {
     // G1-G3 active by default (G4/G5 auto-managed via setTarget)
@@ -74,11 +63,7 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_targetModel  = new TargetModel(this);
     STARTUP_LOG("TargetModel OK — creating ResultsModel...");
     m_resultsModel = new ResultsModel(this);
-    STARTUP_LOG("ResultsModel OK — creating DashboardController...");
-    m_dashCtrl   = new DashboardController(this, this);
-    STARTUP_LOG("DashboardController OK — creating DiagnosticsController...");
-    m_diagCtrl   = new DiagnosticsController(this, this);
-    STARTUP_LOG("DiagnosticsController OK — creating ConfigurationController...");
+    STARTUP_LOG("ResultsModel OK — creating ConfigurationController...");
     m_configCtrl = new ConfigurationController(this, this);
     STARTUP_LOG("ConfigurationController OK — creating ReportController...");
     m_reportCtrl = new ReportController(this, this);
@@ -98,13 +83,14 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     connect(m_targetModel, &TargetModel::targetChanged, this, [this]() {
         bool has = !m_targetModel->isEmpty();
         bool isUrl = m_targetModel->isUrl();
-        // 5WHY: Every target keystroke previously called AppState's public
-        // setGroupEnabled() twice. That always persisted QSettings and bumped
-        // stateVersion, even when G4/G5 availability was unchanged. Target
-        // availability is transient runtime state, not a user preference;
-        // update it directly through the controller without persistence.
-        m_configCtrl->setAutomaticGroupEnabled(3, has);
-        m_configCtrl->setAutomaticGroupEnabled(4, has && isUrl);
+        // 5WHY: G4/G5 runtime availability is transient target state, not a
+        // user preference. It is tracked purely via m_activeGroups below — it
+        // must NOT be written into DiagnosticConfig::m_enabledDiags (the old
+        // setAutomaticGroupEnabled path): that set is the user's persisted
+        // per-test preference, and mutating it here silently overrode explicit
+        // Config-page choices and polluted QSettings on every keystroke.
+        // G4/G5 tests are enabled by default (enableDefaultGroups) and only
+        // gated by m_activeGroups at run time.
         bool had3 = m_activeGroups.contains(3);
         bool had4 = m_activeGroups.contains(4);
         if (has) { m_activeGroups.insert(3); if (isUrl) m_activeGroups.insert(4); }
@@ -432,7 +418,9 @@ void AppState::runDiagnostics() {
     // local QEventLoop, which works in any thread.  Preload the GeoIP
     // cache in a background thread so subsequent calls from diagnostics
     // return instantly from the static cache without blocking the UI.
-    QtConcurrent::run([]() {
+    // QThreadPool::start is the fire-and-forget primitive (QtConcurrent::run
+    // returns a QFuture we never use and trips -Wunused-result).
+    QThreadPool::globalInstance()->start([]() {
         SystemDiagnostics::detectCountry(5000);
     });
 
@@ -553,7 +541,13 @@ void AppState::startNextGroup() {
         return;
     }
 
-    auto& gt = m_pendingGroups[m_currentGroupIdx];
+    // 5WHY: gt was a reference into m_pendingGroups while the calls below
+    // (setCurrentGroup, bumpVersion) emit signals that QML bindings can
+    // re-enter AppState through (cancel/reset/runDiagnostics), which clears
+    // m_pendingGroups → dangling-reference UB. Copy the lightweight
+    // GroupTask (DiagGroup + QList<DiagId>) up front and never hold a
+    // reference across signal emission.
+    const GroupTask gt = m_pendingGroups[m_currentGroupIdx];
     m_currentGroup = diagGroupLabel(gt.group);
 
     // 5WHY: G3 Internet tests make real network requests (DNS, HTTP, DoH).
@@ -567,7 +561,13 @@ void AppState::startNextGroup() {
     }
 
     m_activeGroupDone.store(0);
-    m_resultsModel->setCurrentGroup(m_currentGroupIdx);  // spinner for this group
+    // 5WHY: setCurrentGroup() was passed the pending-group index while
+    // ResultsModel::isRunning compares against the DiagGroup enum value
+    // (static_cast<int>(g) == m_currentRunningGroup). When G1 was disabled,
+    // pending[0] = G2 (enum 1) but setCurrentGroup(0) made G1's spinner
+    // spin while G2's stayed still. Pass the enum value so the comparison
+    // matches.
+    m_resultsModel->setCurrentGroup(static_cast<int>(gt.group));  // spinner for this group
     bumpVersion();
     TRACE(" startGroup %s (%d tests)\n", m_currentGroup.toUtf8().constData(), (int)gt.diagIds.size());
 
@@ -669,6 +669,14 @@ void AppState::cancel() {
     // the finished() signal via the atomic cancelled flag. Tasks in-flight
     // will complete silently in the background. No explicit result marking
     // is needed — the UI shows pending tests as cancelled via runStatus.
+    // 5WHY: cancel() previously did NOT bump m_runGeneration — only reset()
+    // did. A cancelled run's in-flight watchdogs (up to 120s later) still
+    // fired finished() with the OLD generation, so their callbacks called
+    // onDiagFinished()/m_pendingGroups[..] and clobbered UI state after the
+    // run was already cancelled. Bump the generation here so every in-flight
+    // lambda sees a stale generation and returns immediately. (reset() also
+    // bumps again — harmless, just invalidates twice.)
+    m_runGeneration.fetch_add(1, std::memory_order_release);
     emit runStatusChanged();
     emit progressChanged();
     bumpVersion();
@@ -710,11 +718,6 @@ QString AppState::diagDisplayName(int diagIdInt) const {
     return ::diagDisplayName(static_cast<DiagId>(diagIdInt));
 }
 
-// staticDiagDisplayName — now delegates to shared DiagNames.h
-QString AppState::staticDiagDisplayName(DiagId id) {
-    return ::diagDisplayName(id);
-}
-
 ReportData AppState::buildReportData() const {
     ReportData d;
     d.target = TargetRedaction::forDisplay(m_targetModel->target()).toHtmlEscaped();
@@ -724,7 +727,6 @@ ReportData AppState::buildReportData() const {
     d.gitHash = gitHash();
     d.groupLabels = groupLabels();
     d.results = m_resultsModel->allResults();
-    d.languageIndex = languageIndex();
     // Pre-translate all diagnostic display names at snapshot time so
     // ReportEngine never depends on the active locale or QML context.
     for (auto id : ::allDiagIds()) {
@@ -885,99 +887,30 @@ void AppState::emailReportDesktop(const QString& path) {
     ReportEngine::emailReportDesktop(path);
 }
 
-void AppState::showDetailDialog(int diagIdInt) {
-    if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return;
-    auto id = static_cast<DiagId>(diagIdInt);
-    if (!m_resultsModel->hasResult(id)) return;
-    
-    const DiagnosticResult& r = resultForId(id);
-    
-#if !defined(PLATFORM_MOBILE)
-    // Use heap-allocated dialog with show() instead of exec()
-    // exec() creates a nested event loop that crashes QML on ARM64
-    auto* dlg = new QDialog(nullptr, Qt::Dialog | Qt::WindowCloseButtonHint);
-    dlg->setAttribute(Qt::WA_DeleteOnClose);
-    dlg->setWindowTitle(r.displayName);
-    dlg->setMinimumSize(450, 350);
-    dlg->setModal(true);
-    dlg->setStyleSheet(QStringLiteral(
-        "QDialog { background-color: #1E1E2E; }"
-        "QLabel { color: #E0E0E0; font-family: 'JetBrains Mono'; }"
-        "QPushButton { color: #E0E0E0; background-color: #252538; border: 1px solid #3A3A5A; padding: 6px 16px; border-radius: 4px; }"
-        "QPushButton:hover { background-color: #0078D4; }"
-    ));
-    
-    auto* layout = new QVBoxLayout(dlg);
-    layout->setSpacing(8);
-    
-    // Status line
-    QStringList statusNames = {"Pass", "Warning", "Fail", "Skipped", "Error", "Info"};
-    auto* statusLabel = new QLabel(QStringLiteral("Status: %1    Duration: %2ms")
-        .arg(statusNames.value(static_cast<int>(r.status), "Unknown"))
-        .arg(r.durationMs));
-    statusLabel->setStyleSheet("font-size: 13px; font-weight: bold; color: #A0A0B8; font-family: 'JetBrains Mono';");
-    layout->addWidget(statusLabel);
-    
-    // Summary
-    if (!r.summary.isEmpty()) {
-        auto* sumLabel = new QLabel(QStringLiteral("Summary: %1").arg(r.summary));
-        sumLabel->setStyleSheet("font-size: 12px; color: #E0E0E0; font-family: 'JetBrains Mono';");
-        sumLabel->setWordWrap(true);
-        layout->addWidget(sumLabel);
-    }
-    
-    // Properties
-    if (!r.properties.isEmpty()) {
-        auto* propHeader = new QLabel("Properties:");
-        propHeader->setStyleSheet("font-size: 11px; font-weight: bold; color: #A0A0B8; margin-top: 8px; font-family: 'JetBrains Mono';");
-        layout->addWidget(propHeader);
-        
-        for (const auto& p : r.properties) {
-            auto* propLabel = new QLabel(QStringLiteral("  %1: %2").arg(p.label, p.value));
-            propLabel->setStyleSheet("font-size: 11px; color: #E0E0E0; font-family: 'JetBrains Mono';");
-            propLabel->setWordWrap(true);
-            layout->addWidget(propLabel);
-        }
-    }
-    
-    // Raw output (scrollable)
-    if (!r.details.isEmpty()) {
-        auto* outHeader = new QLabel("Output:");
-        outHeader->setStyleSheet("font-size: 11px; font-weight: bold; color: #A0A0B8; margin-top: 8px; font-family: 'JetBrains Mono';");
-        layout->addWidget(outHeader);
-        
-        auto* scrollArea = new QScrollArea();
-        scrollArea->setStyleSheet("QScrollArea { background-color: #252538; border: none; border-radius: 4px; }");
-        scrollArea->setMaximumHeight(200);
-        
-        auto* detailText = new QLabel(r.details);
-        detailText->setStyleSheet("font-size: 10px; color: #A0A0B8; padding: 8px; font-family: 'JetBrains Mono';");
-        detailText->setWordWrap(true);
-        scrollArea->setWidget(detailText);
-        layout->addWidget(scrollArea);
-    }
-    
-    // Close button
-    auto* btnBox = new QDialogButtonBox(QDialogButtonBox::Close);
-    QObject::connect(btnBox, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
-    layout->addWidget(btnBox);
-    
-    dlg->show();
-#endif // !PLATFORM_MOBILE
-}
-
 // =============================================================================
 // QSettings persistence — survives app restarts
 // =============================================================================
 
-static const char* kSettingsGroup = "settings";
+static constexpr const char* kSettingsGroup = "AppSettings";
 
 void AppState::loadSettings() {
     QSettings s;
+    // 5WHY: AppState persisted under group "settings" while the Controllers
+    // use "AppSettings" — two writers to the same QSettings file used
+    // different groups. Migrate any legacy "settings/activeGroups" value
+    // into the canonical group once, then read from it.
+    s.beginGroup(QStringLiteral("settings"));
+    QVariantList legacyAg = s.value("activeGroups").toList();
+    s.endGroup();
+
     s.beginGroup(QString::fromLatin1(kSettingsGroup));
+    QVariantList ag = s.value("activeGroups").toList();
+    if (ag.isEmpty() && !legacyAg.isEmpty()) {
+        ag = legacyAg;
+        s.setValue("activeGroups", ag);
+    }
 
     // Active groups (G1-G5 shown/hidden)
-    QVariantList ag = s.value("activeGroups").toList();
     if (!ag.isEmpty()) {
         m_activeGroups.clear();
         for (const auto& v : ag)

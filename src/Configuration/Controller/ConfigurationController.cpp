@@ -10,7 +10,8 @@ static constexpr const char* kSettingsGroup = "AppSettings";
 ConfigurationController::ConfigurationController(AppState* appState, QObject* parent)
     : QObject(parent), m_appState(appState)
 {
-    m_config.enableDefaultGroups();
+    // 5WHY: enableDefaultGroups() is already invoked by DiagnosticConfig's
+    // constructor — calling it again here was a redundant double-init.
 }
 
 bool ConfigurationController::isDiagEnabled(int diagIdInt) const { return m_config.isDiagEnabled(diagIdInt); }
@@ -25,10 +26,6 @@ bool ConfigurationController::setGroupEnabled(int groupInt, bool enabled) {
     if (!m_config.setGroupEnabled(groupInt, enabled)) return false;
     saveSettings();
     return true;
-}
-
-bool ConfigurationController::setAutomaticGroupEnabled(int groupInt, bool enabled) {
-    return m_config.setGroupEnabled(groupInt, enabled);
 }
 
 bool ConfigurationController::isGroupAllEnabled(int groupInt) const { return m_config.isGroupAllEnabled(groupInt); }

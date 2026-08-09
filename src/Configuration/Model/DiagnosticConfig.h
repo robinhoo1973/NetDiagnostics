@@ -11,10 +11,7 @@
 #include <QString>
 #include <QStringList>
 #include <QSet>
-#include <QMap>
-#include <QVariantMap>
 #include "Common/Model/DiagId.h"
-#include "Common/Model/DiagnosticResult.h"
 
 class DiagnosticConfig : public QObject {
     Q_OBJECT
@@ -37,12 +34,7 @@ public:
     static QVector<DiagId> const& diagIdsForGroup(DiagGroup group);
     static DiagGroup diagGroup(DiagId id);
 
-    // ── Group stats (read from results) ──────────────────────────────
-    QVariantMap groupStats(int groupInt,
-                           const QMap<DiagId, DiagnosticResult>& results) const;
-    QVariantList allGroupStats(const QMap<DiagId, DiagnosticResult>& results) const;
-
-    // ── Auto-enable G1-G3 ───────────────────────────────────────────
+    // ── Auto-enable G1-G5 ──────────────────────────────────────────
     void enableDefaultGroups();
 
     // ── Accessor for task factory ────────────────────────────────────

@@ -3,7 +3,7 @@
 //
 // Architecture (post-God-Object refactor):
 //   AppState is a FACADE — it owns no domain logic directly.  Target parsing
-//   lives in TargetModel; diagnostic execution lives in DiagnosticsController;
+//   lives in TargetModel; diagnostic execution lives in AppState + TaskFactory;
 //   settings/premium live in SettingsController; report generation lives in
 //   ReportEngine.  QML properties delegate to these sub-objects.
 // =============================================================================
@@ -24,8 +24,6 @@
 #include "app/ResultsModel.h"
 
 // Forward declarations for MVC Controllers
-class DashboardController;
-class DiagnosticsController;
 class ConfigurationController;
 class ReportController;
 class SettingsController;
@@ -89,8 +87,6 @@ public:
     ~AppState() override;
 
     // ── MVC Controller & Model accessors (for QML context injection) ──────
-    DashboardController* dashboardController() const { return m_dashCtrl; }
-    DiagnosticsController* diagnosticsController() const { return m_diagCtrl; }
     ConfigurationController* configurationController() const { return m_configCtrl; }
     ReportController* reportController() const { return m_reportCtrl; }
     SettingsController* settingsController() const { return m_settingsCtrl; }
@@ -170,9 +166,7 @@ public:
     Q_INVOKABLE QVariantList visibleGroups() const { return m_resultsModel->visibleGroups(); }
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const { return m_resultsModel->groupStats(groupInt); }
     QVariantList allGroupStats() const { return m_resultsModel->allGroupStats(); }
-    Q_INVOKABLE void showDetailDialog(int diagIdInt);
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const { return m_resultsModel->getDetailResult(diagIdInt); }
-    const DiagnosticResult& resultForId(DiagId id) const { return m_resultsModel->diagnosticResultRef(id); }
     ReportData buildReportData() const;  // snapshot for ReportEngine
 
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
@@ -234,11 +228,19 @@ public:
     Q_INVOKABLE bool hasUrlScheme() const { return m_targetModel->hasUrlScheme(); }
     Q_INVOKABLE bool isTargetHttpUrl() const { return m_targetModel->isHttpUrl(); }
     Q_INVOKABLE bool isTargetUrl() const { return m_targetModel->isUrl(); }
-    Q_INVOKABLE bool isTargetHost() const { return m_targetModel->isHost(); }
     Q_INVOKABLE QString targetValidationError() const { return m_targetModel->validationError(); }
     Q_INVOKABLE bool canRun() const {
+        // 5WHY: canRun() only checked isGroupAnyEnabled() — it ignored
+        // m_activeGroups (deactivated groups) and the G4/G5 target
+        // requirement, so the Run button lit up even when runDiagnostics()
+        // would immediately block ("No diagnostic tests are enabled").
+        // Mirror runDiagnostics()'s exact gating so the button state and
+        // the actual run agree.
         if (m_runStatus == RunStatus::Running) return false;
+        const bool hasTarget = !m_targetModel->isEmpty();
         for (int g = 0; g < 5; ++g) {
+            if (!m_activeGroups.contains(g)) continue;      // user deactivated
+            if ((g == 3 || g == 4) && !hasTarget) continue; // G4/G5 need a target
             if (isGroupAnyEnabled(g)) return true;
         }
         return false;
@@ -276,11 +278,6 @@ private:
     void startNextGroup();
     void runDiagInGroup(int groupIdx, int diagIdx);
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
-    static QString staticDiagDisplayName(DiagId id);
-    // 5WHY: Extracted from resultsForGroup/allDiagsForGroup to prevent
-    // DRY violation.  Must stay as private static member (not file-scope)
-    // because staticDiagDisplayName() is also private.
-    static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties);
     void bumpVersion();
 
     // Target URL parsing → extracted to TargetModel
@@ -294,14 +291,11 @@ private:
     QString m_currentGroup;
     QString m_currentDiagName;
     QString m_errorMessage;
-    QString m_targetError;
     bool _cellularWarnVisible = false;
     bool _bypassCellularCheck = false;   // one-shot: suppress check for current G3 entry only
     int m_totalDiags = 0;
 
     // MVC Controllers (own page-specific logic and sub-objects)
-    DashboardController* m_dashCtrl = nullptr;
-    DiagnosticsController* m_diagCtrl = nullptr;
     ConfigurationController* m_configCtrl = nullptr;
     ReportController* m_reportCtrl = nullptr;
     SettingsController* m_settingsCtrl = nullptr;
