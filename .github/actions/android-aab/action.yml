@@ -1,0 +1,201 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Android AAB Builder (androiddeployqt + Gradle bundleRelease)
+# ═══════════════════════════════════════════════════════════════════════════
+# 5WHY: Google Play requires NEW apps to be published as Android App Bundles
+# (AAB) since August 2021 — APK uploads are rejected on the production track.
+# The existing android-apk action only produces APKs, so a separate action
+# builds + signs the publishable .aab with the SAME persistent release key
+# (ND_KEYSTORE_*), keeping every Play upload shareable across upgrades.
+#
+# Differences from android-apk:
+#   * builds the CMake 'aab' target (Gradle bundleRelease) instead of 'apk'
+#   * does NOT zipalign — an AAB must not be 4-byte aligned like an APK;
+#     Play derives per-device APKs and aligns/signs them itself.
+#   * signs with apksigner --min-sdk-version (AAB has no root manifest for
+#     apksigner to read minSdk from, so it must be passed explicitly).
+# ═══════════════════════════════════════════════════════════════════════════
+name: Build Android AAB
+description: Builds a publishable Android App Bundle (AAB) via androiddeployqt + Gradle bundleRelease, signed with the persistent release key (or debug key when ND_KEYSTORE_* is unset)
+inputs:
+  qt_version:
+    description: Qt version used (e.g. 6.5.3)
+    required: true
+  output_name:
+    description: Final AAB filename (e.g. NetDiagnostics-Android-arm64.aab)
+    required: true
+  icon_source:
+    description: PNG to use as ic_launcher drawable
+    required: false
+    default: resources/icons/netanalysis.png
+  build_dir:
+    description: CMake build directory (defaults to build)
+    required: false
+    default: build
+runs:
+  using: composite
+  steps:
+    - name: Build AAB
+      shell: bash
+      run: |
+        set -euxo pipefail
+
+        BUILD_DIR="${{ inputs.build_dir }}"
+        # The Android package source is regenerated into ${BUILD_DIR}/android by
+        # CMake (see cmake/netdiag-target.cmake) so the manifest can carry the
+        # real version.  androiddeployqt reads that directory, so the launcher
+        # icon must land there, not in the source tree.
+        PKG_DIR="${BUILD_DIR}/android"
+        mkdir -p "$PKG_DIR/res/drawable"
+        cp "${{ inputs.icon_source }}" "$PKG_DIR/res/drawable/ic_launcher.png"
+
+        # GitHub runners ship preview/extension SDK platforms
+        # (android-*-extNN) plus a stub android-37; aapt2/gradle cannot use
+        # them.  androiddeployqt defaults to the highest installed platform,
+        # so install a clean android-33 + matching build-tools and make it
+        # the ONLY platform available.
+        # Qt 6.5.3 ships AGP 7.4.1 whose bundled aapt2 only supports
+        # compileSdk ≤ 33.
+        SDKMANAGER=$(command -v sdkmanager || echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager")
+        yes 2>/dev/null | "$SDKMANAGER" "platforms;android-33" "build-tools;33.0.2" >/dev/null || true
+        test -d "$ANDROID_SDK_ROOT/platforms/android-33" || { echo "ERROR: android-33 platform not installed"; exit 1; }
+
+        # ── signing key ─────────────────────────────────────────────────────
+        # Same convention as android-apk: decode the PERSISTENT release
+        # keystore so every Play upload shares ONE upload key (with Play App
+        # Signing, Google derives the app signing key; upgrades must carry the
+        # same upload signature to be installable).  PR/fork builds (no
+        # secrets) fall back to the debug keystore — validation artifacts only.
+        # 5WHY: signing secrets reach this composite action via the STEP ENV
+        # (GooglePlay.yml sets ND_KEYSTORE_* from repo secrets), never via
+        # `with:` inputs — env values are reliably masked, composite `inputs`
+        # get inlined into the script text where masking is not guaranteed.
+        set +x
+        ND_RELEASE_KS_B64="${ND_KEYSTORE_B64:-}"
+        if [ -n "$ND_RELEASE_KS_B64" ]; then
+          SIGN_KS_STOREPASS="${ND_KEYSTORE_PASS:-}"
+          if [ -z "$SIGN_KS_STOREPASS" ]; then
+            echo "ERROR: ANDROID_KEYSTORE_PASS secret is required when ANDROID_KEYSTORE_B64 is set"
+            exit 1
+          fi
+          # alias/pass default to the setup script's conventions so partial
+          # secret configuration still signs correctly.
+          SIGN_KS_ALIAS="${ND_KEY_ALIAS:-netdiag}"
+          SIGN_KEY_PASS="${ND_KEY_PASS:-$SIGN_KS_STOREPASS}"
+          echo "Signing with persistent release keystore (alias: $SIGN_KS_ALIAS)"
+          printf '%s' "$ND_RELEASE_KS_B64" | base64 -d > "$RUNNER_TEMP/netdiag-release.keystore"
+          test -s "$RUNNER_TEMP/netdiag-release.keystore" || { echo "ERROR: keystore base64 decoded to an empty file"; exit 1; }
+          SIGN_KS="$RUNNER_TEMP/netdiag-release.keystore"
+        else
+          # 5WHY: keytool -genkey fails with FileNotFoundException if
+          # ~/.android/ does not exist — keytool does NOT auto-create parent
+          # directories.  mkdir -p first, and capture stderr for accurate
+          # error reporting.
+          if [ ! -f ~/.android/debug.keystore ]; then
+            echo "Generating Android debug keystore..."
+            mkdir -p ~/.android
+            if keytool -genkey -v \
+              -keystore ~/.android/debug.keystore \
+              -storepass android -alias androiddebugkey -keypass android \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US" 2>/tmp/keytool-err.log; then
+              echo "Debug keystore created: $(ls -la ~/.android/debug.keystore)"
+            else
+              echo "ERROR: keytool failed (exit $?) — cannot generate debug keystore"
+              echo "keytool stderr:"; cat /tmp/keytool-err.log
+              echo "Install a JDK that provides keytool (e.g. temurin-17) before building."
+              exit 1
+            fi
+          else
+            echo "Debug keystore exists: $(ls -la ~/.android/debug.keystore)"
+          fi
+          SIGN_KS="$HOME/.android/debug.keystore"
+          SIGN_KS_ALIAS=androiddebugkey
+          SIGN_KS_STOREPASS=android
+          SIGN_KEY_PASS=android
+        fi
+        set -x
+
+        shopt -s nullglob
+        for p in "$ANDROID_SDK_ROOT"/platforms/*; do
+          [ "$(basename "$p")" = "android-33" ] && continue
+          echo "Removing SDK platform: $(basename "$p")"
+          rm -rf "$p"
+        done
+        echo "Remaining platforms:"; ls "$ANDROID_SDK_ROOT/platforms"
+
+        # 5WHY (Android launch crash — missing androidx FileProvider): stage
+        # androidx.core classes.jar into the PACKAGE SOURCE dir
+        # (build/android/libs) BEFORE androiddeployqt runs, so the generated
+        # gradle project (build/android-build) — whose template uses
+        # `implementation fileTree(dir:'libs')` — packages it into the bundle.
+        # Without it, the manifest's androidx.core.content.FileProvider has no
+        # class in the APK/AAB and Android kills the process while parsing the
+        # manifest at launch (zero startup log, instant crash).
+        ANDROIDX_SRC="${{ github.workspace }}/resources/android/libs/androidx-core.jar"
+        PKG_LIBS="$BUILD_DIR/android/libs"
+        if [ -f "$ANDROIDX_SRC" ]; then
+          mkdir -p "$PKG_LIBS"
+          cp -f "$ANDROIDX_SRC" "$PKG_LIBS/androidx-core.jar"
+          echo "androidx-core.jar staged into package source $PKG_LIBS"
+        else
+          echo "ERROR: androidx-core.jar not found at $ANDROIDX_SRC"
+          exit 1
+        fi
+
+        # Qt auto-generates an 'aab' target that runs androiddeployqt with the
+        # generated deployment JSON, copies the app .so into the package, and
+        # produces the release App Bundle through Gradle's bundleRelease.
+        cmake --build "$BUILD_DIR" --target aab
+
+        # 5WHY (androidx packaging safety net): androiddeployqt copies
+        # QT_ANDROID_PACKAGE_SOURCE_DIR into build/android-build.  Depending
+        # on the Qt version it may or may not carry the libs/ subdirectory
+        # into the gradle project.  Verify the jar actually reached
+        # android-build/libs (the dir the template's fileTree scans); if not,
+        # stage it there and rebuild so the bundle always contains FileProvider.
+        GRADLE_LIBS="$BUILD_DIR/android-build/libs"
+        if [ ! -f "$GRADLE_LIBS/androidx-core.jar" ]; then
+          echo "androidx jar not in gradle libs — staging and rebuilding"
+          mkdir -p "$GRADLE_LIBS"
+          cp -f "$ANDROIDX_SRC" "$GRADLE_LIBS/androidx-core.jar"
+          cmake --build "$BUILD_DIR" --target aab
+        else
+          echo "androidx-core.jar already present in gradle libs"
+        fi
+
+        # Locate the release bundle.  Prefer the explicitly-unsigned artifact
+        # (Qt/Gradle name it *-release-unsigned.aab); fall back to any single
+        # bundle for Qt versions that emit app-release.aab directly.
+        mapfile -t AABS < <(find "$BUILD_DIR" -path '*outputs/bundle/*' -name '*unsigned*.aab' | sort)
+        if [ "${#AABS[@]}" -ne 1 ]; then
+          mapfile -t AABS < <(find "$BUILD_DIR" -path '*outputs/bundle/*' -name '*.aab' | sort)
+        fi
+        if [ "${#AABS[@]}" -ne 1 ]; then
+          echo "ERROR: expected exactly one release AAB, found ${#AABS[@]}"
+          echo "AAB candidates:"
+          printf '  %s\n' "${AABS[@]:-<none>}"
+          exit 1
+        fi
+        AAB="${AABS[0]}"
+        echo "[OK] Release bundle: $AAB"
+
+        APKSIGNER="$ANDROID_SDK_ROOT/build-tools/33.0.2/apksigner"
+        test -x "$APKSIGNER" || { echo "ERROR: apksigner not found: $APKSIGNER"; exit 1; }
+        # 5WHY: AABs must NOT be zipaligned (unlike APKs) — Play realigns the
+        # derived APKs itself and expects the bundle untouched apart from the
+        # signature.  apksigner signs the archive (as Google recommends);
+        # --min-sdk-version is required because an AAB has no root
+        # AndroidManifest for apksigner to infer it from.
+        rm -f "${{ inputs.output_name }}"
+        set +x
+        "$APKSIGNER" sign \
+          --ks "$SIGN_KS" \
+          --ks-key-alias "$SIGN_KS_ALIAS" \
+          --ks-pass "pass:$SIGN_KS_STOREPASS" \
+          --key-pass "pass:$SIGN_KEY_PASS" \
+          --min-sdk-version 26 \
+          --out "${{ inputs.output_name }}" \
+          "$AAB"
+        set -x
+        "$APKSIGNER" verify --verbose --print-certs "${{ inputs.output_name }}"
+        ls -lh "${{ inputs.output_name }}"

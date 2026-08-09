@@ -1,0 +1,262 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Google Play Build & Deploy
+# ═══════════════════════════════════════════════════════════════════════════
+# Mirrors iOS.yml: builds the Android release artifact on a tag push (v*) or
+# workflow_dispatch, then uploads it to the Google Play Console.
+#
+#   version  (reusable)      → detect M.m.p from the nearest v* tag
+#   android  (AAB build)     → cross-compile arm64-v8a, build + sign the
+#                              publishable Android App Bundle
+#   deploy-google-play       → upload the AAB to the requested Play track
+#
+# Prerequisites (see docs/google-play-publishing-guide.md):
+#   1. Play Console app "NetDiagnostics" (package com.netdiagnostic.app).
+#   2. Service account with Play Console access (Setup → API access → link a
+#      GCP service account; grant "View app information" + "Release to
+#      production, testing tracks, and pre-launch reports").
+#   3. Repo secrets (Settings → Secrets and variables → Actions):
+#        GOOGLE_PLAY_SERVICE_ACCOUNT_JSON — the service-account key JSON
+#        ANDROID_KEYSTORE_B64 / ANDROID_KEYSTORE_PASS / ANDROID_KEY_ALIAS /
+#        ANDROID_KEY_PASS                 — the SAME upload keystore that the
+#                                           android-apk action uses
+#   4. Repo environment "GooglePlay" (Settings → Environments) holding
+#      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON — mirrors the TestFlight environment.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Google Play Build & Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      track:
+        description: 'Google Play track to upload to'
+        type: choice
+        options:
+          - internal
+          - alpha
+          - beta
+          - production
+        default: internal
+      release_status:
+        description: 'Release status after upload (completed = live on track)'
+        type: choice
+        options:
+          - completed
+          - inProgress
+          - draft
+        default: completed
+
+concurrency:
+  group: google-play-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION_ANDROID: 6.5.3
+  ANDROID_API_LEVEL: "26"
+  PACKAGE_NAME: "com.netdiagnostic.app"
+  APP_NAME: "NetDiagnostics"
+  # 5WHY: Google Play requires all new apps to support arm64-v8a (Aug 2023
+  # policy).  arm64 is the Play release ABI; x86_64 stays an emulator-only
+  # validation target in build.yml.
+  ANDROID_ABI: arm64-v8a
+
+jobs:
+  # ── Version — compute once, shared by all jobs (reusable workflow) ───────
+  version:
+    name: Detect Version
+    uses: ./.github/workflows/version.yml
+
+  # ── Android AAB build ─────────────────────────────────────────────────────
+  android:
+    name: Android AAB
+    needs: [version]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build
+          # 5WHY: pip install without --break-system-packages fails on
+          # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
+          # Use a venv for isolation, same pattern as build.yml/iOS.yml.
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Qt6 desktop (host tools)
+        id: cache-qt-desktop
+        uses: actions/cache@v4
+        with:
+          path: /opt/qt-desktop
+          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
+
+      - name: Install Qt6 desktop via aqt
+        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
+        run: |
+          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
+
+      - name: Cache Qt6 Android arm64
+        id: cache-qt-android
+        uses: actions/cache@v4
+        with:
+          path: /opt/qt-android-arm64
+          key: qt6-android-arm64-${{ env.QT_VERSION_ANDROID }}-v1
+
+      - name: Install Qt6 for Android via aqt
+        if: steps.cache-qt-android.outputs.cache-hit != 'true'
+        run: |
+          aqt install-qt linux android $QT_VERSION_ANDROID android_arm64_v8a -O /opt/qt-android-arm64
+
+      - name: Configure
+        run: |
+          echo "[Android arm64] Configuring..."
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
+            -DND_PRERELEASE="${{ needs.version.outputs.pkg_prerelease }}" \
+            -DND_BUILD_NUMBER=${{ github.run_number }} \
+            -DND_GIT_HASH=${{ github.sha }} \
+            -DAPP_EDITION=android-arm64 \
+            -DCMAKE_PREFIX_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
+            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
+            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
+            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
+            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
+            -B build -S .
+
+      - name: Build
+        run: |
+          ninja -C build net_diagnostics
+
+      - uses: ./.github/actions/android-aab
+        with:
+          qt_version: ${{ env.QT_VERSION_ANDROID }}
+          output_name: NetDiagnostics-Android-arm64.aab
+          build_dir: build
+        env:
+          # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
+          # masks env values derived from secrets; composite-action `with:`
+          # inputs are inlined into the script text where masking is not
+          # guaranteed.  Every Play upload shares ONE upload key so Play App
+          # Signing upgrades install cleanly.
+          ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NetDiagnostics-Android-arm64
+          path: NetDiagnostics-Android-arm64.aab
+          if-no-files-found: error
+
+  # ── Deploy to Google Play ─────────────────────────────────────────────────
+  deploy-google-play:
+    name: Deploy Android to Google Play
+    needs: [version, android]
+    if: (!failure()) && (!cancelled())
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # 5WHY: mirror the TestFlight environment pattern — environment-scoped
+    # secrets keep the Play service account out of the default repo secret
+    # namespace and give the deploy a visible approval gate if the user adds
+    # one to the "GooglePlay" environment.
+    environment: GooglePlay
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download AAB
+        uses: actions/download-artifact@v4
+        with:
+          name: NetDiagnostics-Android-arm64
+
+      - name: Check if already uploaded
+        id: dedup
+        uses: actions/cache/restore@v4
+        with:
+          path: .googleplay-sha
+          key: google-play-${{ github.event.inputs.track || 'internal' }}-${{ runner.os }}-v1
+      - name: Read last uploaded SHA
+        id: last-sha
+        run: |
+          if [ -f .googleplay-sha/version ]; then echo "last=$(cat .googleplay-sha/version)" >> "$GITHUB_OUTPUT"
+          else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+          echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Report dedup status
+        run: |
+          if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] Same commit already uploaded"; fi
+
+      - name: Resolve track + status
+        id: track
+        run: |
+          # workflow_dispatch provides inputs; tag pushes fall back to the
+          # safe defaults (internal track, completed).
+          TRACK="${{ github.event.inputs.track || 'internal' }}"
+          STATUS="${{ github.event.inputs.release_status || 'completed' }}"
+          echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
+          echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "Play track: ${TRACK} (status: ${STATUS})"
+
+      - name: Verify Play version code
+        run: |
+          # 5WHY: mirror netdiag-target.cmake's versionCode scheme
+          # (M*1e6 + m*1e3 + p)*10 + (1 pre-release / 2 final).  Google Play
+          # rejects duplicate or decreasing versionCodes per track.  The AAB
+          # already carries this versionCode (baked in by the manifest
+          # generation); r0adkll/upload-google-play reads it from the file
+          # itself, so this step only cross-checks the expected value in the
+          # CI log and fails fast if version detection produced garbage.
+          V="${{ needs.version.outputs.pkg_version }}"
+          [ -n "$V" ] || { echo "ERROR: empty pkg_version — is there a v* tag?"; exit 1; }
+          IFS=. read -r M m p <<< "$V"
+          PRE="${{ needs.version.outputs.pkg_prerelease }}"
+          EXTRA=2
+          [ -n "$PRE" ] && EXTRA=1
+          VC=$(( (M*1000000 + m*1000 + p)*10 + EXTRA ))
+          echo "Expected Play versionCode: ${VC} (${M}.${m}.${p}${PRE:+-$PRE})"
+
+      - name: Upload to Google Play
+        if: steps.last-sha.outputs.last != github.sha
+        uses: r0adkll/upload-google-play@v1
+        with:
+          # 5WHY: r0adkll/upload-google-play is the de-facto standard action
+          # for the Play Developer API (uploads .apk/.aab to any track).
+          # serviceAccountJsonPlainText avoids writing the secret to disk;
+          # releaseFiles accepts the AAB glob; version codes are read from
+          # the AAB itself by the action.
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.PACKAGE_NAME }}
+          releaseFiles: NetDiagnostics-Android-arm64.aab
+          track: ${{ steps.track.outputs.track }}
+          status: ${{ steps.track.outputs.status }}
+          changesNotSentForReview: false
+
+      - name: Save uploaded SHA
+        if: always()
+        run: |
+          mkdir -p .googleplay-sha
+          echo "${{ github.sha }}" > .googleplay-sha/version
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: .googleplay-sha
+          key: google-play-${{ github.event.inputs.track || 'internal' }}-${{ runner.os }}-v1
