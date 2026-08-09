@@ -54,14 +54,12 @@ static inline void setAndroidJniReady(bool v) { androidJniReadyFlag = v; }
 // The Qt Android activity (never cache across calls).
 static inline QJniObject androidLogActivity() {
     // Qt 6.2+: version-independent accessor — no hardcoded Java class name.
-    QJniObject ctx = QNativeInterface::QAndroidApplication::context();
-    if (ctx.isValid())
-        return ctx;
-    // Legacy fallback for older Qt (should not be reached on 6.5.3).
-    return QJniObject::callStaticObjectMethod(
-        "org/qtproject/qt/android/QtNative",
-        "activity",
-        "()Landroid/app/Activity;");
+    // 5WHY: the legacy "org/qtproject/qt/android/QtNative" fallback was a
+    // Qt5-era package that does not exist on Qt 6.5.3 — if it ever fired it
+    // left a pending NoClassDefFoundError on the JNI stack that would abort
+    // on the NEXT JNI call (SIGABRT). context() is valid post-JNI on every
+    // Qt 6.x Android build we ship; fail empty (callers already tolerate it).
+    return QNativeInterface::QAndroidApplication::context();
 }
 
 // Returns the app-scoped EXTERNAL files dir (/storage/emulated/0/Android/data/<pkg>/files).

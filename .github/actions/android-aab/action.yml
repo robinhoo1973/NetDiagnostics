@@ -211,6 +211,17 @@ runs:
         unzip -l "${{ inputs.output_name }}" | grep -q "BundleConfig.pb" \
           || { echo "ERROR: AAB missing BundleConfig.pb"; exit 1; }
         echo "[OK] AAB archive is valid"
+        # 5WHY (Android launch crash safety net, startup-crash review 2026):
+        # same guarantee as android-apk — the published bundle's base dex MUST
+        # carry the androidx FileProvider class.  Play derives per-device APKs
+        # from this bundle; a missing ContentProvider kills the process while
+        # parsing the manifest at launch (zero startup log).  Assert here so
+        # the artifact uploaded to Play is provably crash-free on this axis.
+        if ! unzip -p "${{ inputs.output_name }}" 'base/dex/classes*.dex' | strings -a | grep -q 'Landroidx/core/content/FileProvider'; then
+          echo "ERROR: androidx FileProvider class missing from AAB base dex"
+          exit 1
+        fi
+        echo "OK: androidx FileProvider present in AAB base dex"
         # Print the signer certificate when a JAR (v1) signature block is
         # present; apksigner with minSdk>=24 may use only v2/v3, which
         # keytool cannot read — that is informational, not a failure.

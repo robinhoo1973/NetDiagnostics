@@ -226,5 +226,20 @@ runs:
           "$ALIGNED_APK"
         set -x
         "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 26 "$SIGNED_APK"
+
+        # 5WHY (Android launch crash safety net, startup-crash review 2026):
+        # all staging above is build-time bookkeeping — the only proof that
+        # matters is the FINAL signed APK actually carrying the androidx
+        # FileProvider class in its dex.  A missing ContentProvider kills the
+        # process while parsing the manifest at launch, BEFORE Application.
+        # onCreate (zero startup log).  Assert on the artifact so any
+        # regression (jar deleted, fileTree not scanned, gradle template
+        # change) fails CI instead of shipping a guaranteed launcher crash.
+        if ! unzip -p "$SIGNED_APK" 'classes*.dex' | strings -a | grep -q 'Landroidx/core/content/FileProvider'; then
+          echo "ERROR: androidx FileProvider class missing from $SIGNED_APK classes.dex"
+          exit 1
+        fi
+        echo "OK: androidx FileProvider present in APK dex"
+
         cp "$SIGNED_APK" "${{ inputs.output_name }}"
         ls -lh "${{ inputs.output_name }}"

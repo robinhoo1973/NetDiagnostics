@@ -405,7 +405,22 @@ inline void posixSignalHandler(int sig) {
         case SIGBUS:  name = "SIGBUS";  break;
         default: break;
     }
+    // 5WHY (Android signal-context JNI, startup-crash review 2026): a signal
+    // handler runs on the FAULTING thread with the JVM in an undefined state.
+    // writeCrashReport → crashLogPath() → androidUserVisibleLogDir() normally
+    // calls getExternalFilesDir via JNI — JNI from a native crash thread can
+    // second-fault and destroy the crash report (back to "zero logs", the
+    // original FileProvider investigation pain).  Force the deterministic
+    // no-JNI raw path (same /storage/emulated/0/Android/data/<pkg>/files dir,
+    // built from ND_ANDROID_PACKAGE) for the report.
+#if defined(PLATFORM_ANDROID)
+    const bool savedJniReady = androidJniReadyFlag;
+    androidJniReadyFlag = false;
+#endif
     writeCrashReport(name, sig);
+#if defined(PLATFORM_ANDROID)
+    androidJniReadyFlag = savedJniReady;
+#endif
     // Reset to default and re-raise so OS crash reporting still works
     signal(sig, SIG_DFL);
     raise(sig);
