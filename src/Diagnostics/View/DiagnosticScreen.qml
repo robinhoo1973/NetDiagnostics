@@ -335,6 +335,10 @@ Item {
 
     // ── Toast banner ──────────────────────────────────────────────────
     Rectangle {
+        // 5WHY (z-order, 2026-08-09): detailOverlay/cellularDialog are
+        // reparented to page.parent (z 1000/1150); promote the toast to the
+        // same layer (z:2000) so it is never hidden behind them.
+        parent: page.parent ? page.parent : page
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
         implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
         color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
@@ -447,8 +451,14 @@ Item {
     }
 
     // ── Premium IAP dialog — auto-restore probe + guided purchase ───────
+    // 5WHY (z-order, 2026-08-09): detailOverlay/cellularDialog are reparented
+    // to page.parent (z 1000/1150); this dialog stayed a child of the page,
+    // so its internal z:1200 only applied WITHIN the page and it rendered
+    // behind those overlays (cross-parent z-index is not comparable in QML).
+    // Promote to the same layer so its z:1200 stacks above every overlay.
     PremiumDialog {
         id: premiumDialog
+        parent: page.parent ? page.parent : page
         anchors.fill: parent
         isMobile: page.isMobile
     }

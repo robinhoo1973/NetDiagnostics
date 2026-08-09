@@ -414,6 +414,12 @@ Item {
 
     // ── Toast banner ────────────────────────────────────────────────────
     Rectangle {
+        // 5WHY (z-order, 2026-08-09): the preview overlay is reparented to
+        // page.parent (StackView layer) with z:1000, so anything left inside
+        // the page — including this toast — renders BENEATH it.  Promote the
+        // toast to the same layer with z:2000 so share-result feedback stays
+        // visible while the preview is open.
+        parent: page.parent ? page.parent : page
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
         implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
         color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
@@ -422,8 +428,15 @@ Item {
     }
 
     // ── Premium IAP dialog — auto-restore probe + guided purchase ───────
+    // 5WHY (z-order, 2026-08-09): the preview overlay is reparented to
+    // page.parent with z:1000, so this dialog — a child of the page with its
+    // internal z:1200 — was COMPLETELY HIDDEN behind the overlay when sharing
+    // from the preview (cross-parent z-index is not comparable in QML).
+    // Promote the dialog to the same layer: its root z:1200 then stacks above
+    // previewOverlay(1000), detailOverlay(1000) and cellularDialog(1150).
     PremiumDialog {
         id: premiumDialog
+        parent: page.parent ? page.parent : page
         anchors.fill: parent
         isMobile: page.isMobile
     }

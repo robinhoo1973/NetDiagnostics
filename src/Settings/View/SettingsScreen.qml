@@ -375,8 +375,12 @@ Item {
     }
 
     // ── Premium dialog overlay (full intro + buy + restore) ──────────
+    // 5WHY (z-order, 2026-08-09): promote to page.parent like Dashboard/
+    // Diagnostic so the dialog's root z:1200 always stacks above any
+    // page-level overlay on every platform (cross-parent z is not comparable).
     PremiumDialog {
         id: premiumDialog
+        parent: page.parent ? page.parent : page
         anchors.fill: parent
         isMobile: ThemeEngine.isMobile
     }
