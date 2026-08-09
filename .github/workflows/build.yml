@@ -1,3 +1,24 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Build & Release — MASTER CALLER (Release-download artifacts only)
+# ═══════════════════════════════════════════════════════════════════════════
+# This workflow builds ONLY the install files / executables that users
+# download from the GitHub Release page.  It delegates each platform to a
+# parameterized reusable workflow:
+#
+#   · linux.yml     (matrix: x86_64, arm64)   → AppImage / deb / rpm
+#   · windows.yml   (matrix: static, dynamic) → standalone exe / NSIS installer
+#   · android.yml   (matrix: arm64+x86_64 × apk+aab) → installable APK / Play AAB
+#   · macOS.yml     (release packaging only)  → DMG / tar.gz download format
+#
+# Store uploads are deliberately OUT of this pipeline (each is a standalone,
+# parameterized workflow):
+#   · Google Play upload  → android.yml (deploy=google-play)
+#   · iOS code compile    → ios.yml (standalone build + validation)
+#   · iOS/macOS TestFlight upload → testflight.yml (platform: ios | macos | both)
+#
+# Triggers: workflow_dispatch (manual), pull_request (validation), tag push
+# (release).  The release job collects every artifact into a GitHub Release.
+# ═══════════════════════════════════════════════════════════════════════════
 name: Build & Release
 
 on:
@@ -11,829 +32,80 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  BUILD_TYPE: Release
-  QT_VERSION: 6.8.3
-  # ── Qt version rationale ────────────────────────────────────────────
-  # 6.8.3 : Linux / macOS / iOS via brew, apt, or aqtinstall.
-  #         Latest stable LTS with full QML QuickControls2 support.
-  # 6.5.3 : Android cross-compile only.  Required because Qt 6.6+
-  #         bumped the Android Gradle plugin version which conflicts
-  #         with compileSdk 33 / aapt2.  Target: converge to 6.8.x
-  #         once Android SDK 34+ aapt2 compatibility is verified.
-  # 6.11.1: Windows static source build.  Built from source because
-  #         no pre-built static Qt6 packages exist for MSYS2 UCRT64.
-  #         Pinned to latest release for best static linking support.
-  # ═════════════════════════════════════════════════════════════════════
-  QT_VERSION_ANDROID: 6.5.3
-  QT_VERSION_WINDOWS_SRC: 6.11.1
-  ANDROID_API_LEVEL: "26"
-  # ── Qt version rationale — all at MAXIMUM open-source available ─────────
-  # 6.5.3 : Android cross-compile.  HIGHEST open-source 6.5.x via aqtinstall.
-  #         6.5.4+ are commercial-only.  Qt 6.6+ bumped AGP version which
-  #         conflicts with compileSdk 33 / aapt2.  6.5.x keeps AGP 7.4.1.
-  #         Target: converge to 6.8.x once Android SDK 34+ aapt2 verified.
-  # 6.8.3 : Linux / macOS / iOS via brew, apt, or aqtinstall.
-  #         HIGHEST open-source 6.8.x LTS.  6.8.4+ commercial-only.
-  # 6.11.1: Windows static source build.  HIGHEST stable 6.11.x.
-  #         Qt 6.11.2 scheduled August 2026.
-  MAINTAINER: "robinhoo1973"
+permissions:
+  contents: read
 
 jobs:
-  # ═══════════════════════════════════════════════════════════════════════
-  # Version — compute once, shared by all build jobs (reusable workflow)
-  # 5WHY: was copy-pasted across build.yml/apple.yml/test.yml; now DRY.
-  # ═══════════════════════════════════════════════════════════════════════
+  # ── Version — used by the release job only (children detect their own) ──
   version:
     name: Detect Version
     uses: ./.github/workflows/version.yml
 
-  # ===================================================================
-  # Linux x86_64 - native GCC build
-  # ===================================================================
-  linux-x86_64:
-    name: Linux x86_64
-    needs: [version]
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build \
-            qt6-base-dev \
-            qt6-declarative-dev \
-            libqt6quickcontrols2-6 \
-            qt6-tools-dev \
-            qt6-tools-dev-tools \
-            libcurl4-openssl-dev \
-            libgl1-mesa-dev libglu1-mesa-dev \
-            libxkbcommon-dev libxcb-cursor-dev \
-            libfuse2
-
-      # ── Debug build ────────────────────────────────────────────────
-      - name: Configure (debug)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=linux-x86_64 \
-            -B build-debug -S .
-      - name: Build (debug)
-        run: ninja -C build-debug net_diagnostics
-      # ── Release build ──────────────────────────────────────────────
-      - name: Configure (production)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=linux-x86_64 \
-            -B build -S .
-
-      - name: Build (production)
-        run: ninja -C build net_diagnostics
-
-
-      - name: Build AppImage (production)
-        run: |
-          wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
-          chmod +x linuxdeployqt-continuous-x86_64.AppImage
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-          cp build/net_diagnostics AppDir/usr/bin/
-          cp resources/netanalysis.desktop AppDir/usr/share/applications/
-          cp resources/icons/netanalysis.png AppDir/usr/share/icons/hicolor/256x256/apps/
-          ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/share/applications/netanalysis.desktop -appimage -no-copy-copyright-files -no-translations || true
-          mv *.AppImage NetDiagnostics-Linux-x86_64.AppImage 2>/dev/null || true
-
-      - name: Package deb
-        run: |
-          mkdir -p pkg-deb/usr/bin pkg-deb/usr/share/applications pkg-deb/usr/share/icons/hicolor/256x256/apps pkg-deb/DEBIAN
-          cp build/net_diagnostics pkg-deb/usr/bin/
-          cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
-          cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
-          cat > pkg-deb/DEBIAN/control << EOF
-          Package: netdiagnostics
-          Version: ${{ needs.version.outputs.pkg_version }}
-          Architecture: amd64
-          Maintainer: ${{ env.MAINTAINER }}
-          Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
-          Description: Cross-platform network diagnostics tool - Qt6/QML
-          EOF
-          dpkg-deb --build pkg-deb NetDiagnostics-Linux-x86_64.deb
-          ls -lh NetDiagnostics-Linux-x86_64.deb
-
-      - name: Cache fpm gem
-        id: cache-fpm
-        uses: actions/cache@v4
-        with:
-          path: /var/lib/gems
-          key: fpm-gem-${{ runner.arch }}-v1
-
-      - name: Package rpm
-        run: |
-          sudo gem install fpm 2>/dev/null || true
-          # 5WHY: fpm gem was installed every run (~30s).  Caching /var/lib/gems
-          # avoids the network fetch; gem install is a no-op when already present.
-          fpm -s dir -t rpm -n netdiagnostics -v "${{ needs.version.outputs.pkg_version }}" --architecture x86_64 \
-            --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
-            build/net_diagnostics=/usr/bin/net_diagnostics \
-            resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
-            resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostics*.rpm NetDiagnostics-Linux-x86_64.rpm 2>/dev/null || true
-          ls -lh NetDiagnostics-Linux-x86_64.rpm 2>/dev/null || echo "(rpm skipped)"
-
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-Linux-x86_64
-          path: |
-            *.AppImage
-            *.deb
-            *.rpm
-          if-no-files-found: error
-
-
-  # ===================================================================
-  # Linux arm64 - native GCC build
-  # ===================================================================
-  linux-arm64:
-    name: Linux arm64
-    needs: [version]
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        # 5WHY: ubuntu-24.04-arm runner uses ports.ubuntu.com which has
-        # intermittent IPv6/IPv4 connectivity issues.  Retry up to 5x
-        # with exponential backoff (3s → 6s → 12s → 24s → 48s).
-        run: |
-          for i in 1 2 3 4 5; do
-            echo "[attempt $i/5] apt-get update..."
-            if sudo apt-get update -o Acquire::Retries=3; then break; fi
-            if [ "$i" -eq 5 ]; then echo "ERROR: apt-get update failed after 5 retries"; exit 1; fi
-            sleep $((3 * 2 ** (i - 1)))
-          done
-          for i in 1 2 3 4 5; do
-            echo "[attempt $i/5] apt-get install..."
-            if sudo apt-get install -y --no-install-recommends \
-              build-essential cmake ninja-build \
-              qt6-base-dev \
-              qt6-declarative-dev \
-              libqt6quickcontrols2-6 \
-              qt6-tools-dev \
-              qt6-tools-dev-tools \
-              libcurl4-openssl-dev \
-              libgl1-mesa-dev libglu1-mesa-dev \
-              libxkbcommon-dev libxcb-cursor-dev; then break; fi
-            if [ "$i" -eq 5 ]; then echo "ERROR: apt-get install failed after 5 retries"; exit 1; fi
-            sleep $((3 * 2 ** (i - 1)))
-          done
-
-      - name: Configure (production)
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=linux-arm64 \
-            -B build -S .
-
-      - name: Build (production)
-        run: ninja -C build net_diagnostics
-
-
-      # linuxdeployqt does not provide an arm64 AppImage binary.
-      # Fall back to the native linuxdeployqt from apt (built for arm64).
-      - name: Build AppImage (production)
-        run: |
-          if command -v linuxdeployqt &>/dev/null || sudo apt-get install -y -qq linuxdeployqt 2>/dev/null; then
-            mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-            cp build/net_diagnostics AppDir/usr/bin/
-            cp resources/netanalysis.desktop AppDir/usr/share/applications/
-            cp resources/icons/netanalysis.png AppDir/usr/share/icons/hicolor/256x256/apps/
-            linuxdeployqt AppDir/usr/share/applications/netanalysis.desktop -appimage -no-copy-copyright-files -no-translations || true
-            mv *.AppImage NetDiagnostics-Linux-arm64.AppImage 2>/dev/null || true
-          else
-            echo "(AppImage skipped: no arm64 linuxdeployqt available)"
-          fi
-
-      - name: Package deb
-        run: |
-          mkdir -p pkg-deb/usr/bin pkg-deb/usr/share/applications pkg-deb/usr/share/icons/hicolor/256x256/apps pkg-deb/DEBIAN
-          cp build/net_diagnostics pkg-deb/usr/bin/
-          cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
-          cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
-          cat > pkg-deb/DEBIAN/control << EOF
-          Package: netdiagnostics
-          Version: ${{ needs.version.outputs.pkg_version }}
-          Architecture: arm64
-          Maintainer: ${{ env.MAINTAINER }}
-          Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
-          Description: Cross-platform network diagnostics tool - Qt6/QML
-          EOF
-          dpkg-deb --build pkg-deb NetDiagnostics-Linux-arm64.deb
-          ls -lh NetDiagnostics-Linux-arm64.deb
-
-      - name: Cache fpm gem
-        id: cache-fpm
-        uses: actions/cache@v4
-        with:
-          path: /var/lib/gems
-          key: fpm-gem-${{ runner.arch }}-v1
-
-      - name: Package rpm
-        run: |
-          sudo gem install fpm 2>/dev/null || true
-          # 5WHY: fpm gem was installed every run (~30s).  Caching /var/lib/gems
-          # avoids the network fetch; gem install is a no-op when already present.
-          fpm -s dir -t rpm -n netdiagnostics -v "${{ needs.version.outputs.pkg_version }}" --architecture aarch64 \
-            --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
-            build/net_diagnostics=/usr/bin/net_diagnostics \
-            resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
-            resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
-          mv netdiagnostics*.rpm NetDiagnostics-Linux-arm64.rpm 2>/dev/null || true
-          ls -lh NetDiagnostics-Linux-arm64.rpm 2>/dev/null || echo "(rpm skipped)"
-
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-Linux-arm64
-          path: |
-            *.AppImage
-            *.deb
-            *.rpm
-          if-no-files-found: error
-
-
-  # ===================================================================
-  # Windows x86_64 - static build (zero DLL) + NSIS installer
-  # ===================================================================
-  windows-x86_64-static:
-    name: Windows x86_64 Static
-    needs: [version]
-    runs-on: windows-2022
-    # 5WHY: 90 min was insufficient — Qt 6.11.1 source build on a 2-core
-    # GitHub runner takes ~105 min for 7400 translation units.  150 min
-    # provides safe headroom for the full pipeline (curl → Qt → app).
-    timeout-minutes: 150
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: ucrt64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-perl
-            mingw-w64-ucrt-x86_64-python
-            mingw-w64-ucrt-x86_64-pkg-config
-            mingw-w64-ucrt-x86_64-openssl
-            mingw-w64-ucrt-x86_64-zlib
-            mingw-w64-ucrt-x86_64-brotli
-            mingw-w64-ucrt-x86_64-pcre2
-            mingw-w64-ucrt-x86_64-libb2
-            mingw-w64-ucrt-x86_64-zstd
-            mingw-w64-ucrt-x86_64-libidn2
-            mingw-w64-ucrt-x86_64-libpsl
-            mingw-w64-ucrt-x86_64-libssh2
-            mingw-w64-ucrt-x86_64-nghttp2
-            mingw-w64-ucrt-x86_64-libunistring
-            mingw-w64-ucrt-x86_64-libiconv
-            mingw-w64-ucrt-x86_64-curl
-
-      # - Verify the compiler can statically absorb its own runtime -
-      - name: Verify true-static GCC runtime
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          cat > /tmp/netdiag-static-runtime.cpp <<'CPP'
-          #include <thread>
-
-          int main()
-          {
-              std::thread worker([] {});
-              worker.join();
-              return 0;
-          }
-          CPP
-          g++ -std=c++17 -O2 -static -static-libgcc -static-libstdc++ -pthread \
-            /tmp/netdiag-static-runtime.cpp -o /tmp/netdiag-static-runtime.exe
-
-          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|WTSAPI32|RUNTIMEOBJECT|MSCMS|UUID|WINSPool|msvcrt|ucrtbase"
-          mapfile -t DEPS < <(objdump -p /tmp/netdiag-static-runtime.exe | awk '/DLL Name/ {print $3}' | tr -d '\r' | sort -fu)
-          for dll in "${DEPS[@]}"; do
-            case "${dll,,}" in
-              api-ms-win-*.dll|ext-ms-win-*.dll) continue ;;
-            esac
-            if ! echo "$dll" | grep -qiE "^(${SYSTEM_DLLS})\.dll$"; then
-              echo "ERROR: GCC static-runtime probe imports a non-Windows DLL: $dll"
-              exit 1
-            fi
-          done
-          printf 'Verified GCC runtime imports:\n%s\n' "${DEPS[@]}"
-
-      # - Cache C: curl true-static build (libcurl.a without DLL dependency) -
-      # 5WHY: MSYS2's mingw-w64-ucrt-x86_64-curl package ships libcurl.a as
-      # a DLL import library (equivalent to libcurl.dll.a).  Even with
-      # -Wl,-Bstatic active, the linker uses the import lib which still
-      # references libcurl-4.dll at runtime.  Building curl from source with
-      # --disable-shared produces a true static libcurl.a that can be fully
-      # absorbed into the exe, same pattern as the Qt source build below.
-      - name: Cache curl static build
-        id: cache-curl-static
-        uses: actions/cache@v4
-        with:
-          path: C:\opt\curl-static
-          key: curl-static-ucrt-8.9.1-v3
-
-      - name: Build curl from source (true static)
-        if: steps.cache-curl-static.outputs.cache-hit != 'true'
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          CURL_VER="8.9.1"
-          echo ">>> Downloading curl ${CURL_VER} source..."
-          curl -fsSL "https://curl.se/download/curl-${CURL_VER}.tar.xz" -o /tmp/curl-src.tar.xz
-          echo ">>> Extracting..."
-          mkdir -p /tmp/curl-build
-          tar -xJf /tmp/curl-src.tar.xz -C /tmp/curl-build --strip-components=1
-          rm /tmp/curl-src.tar.xz
-          cd /tmp/curl-build
-          echo ">>> Configuring curl with CMake (static only, no shared)..."
-          # 5WHY: autotools configure+make failed with exit 127 in MSYS2
-          # (make/nproc unavailable).  CMake is already installed for Qt
-          # and has reliable cross-compilation support.  CMake curl build
-          # produces a true static libcurl.a without DLL dependency.
-          cmake -B build -S . -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DCURL_USE_OPENSSL=ON \
-            -DCURL_DISABLE_LDAP=ON \
-            -DCURL_DISABLE_LDAPS=ON \
-            -DCMAKE_INSTALL_PREFIX=/c/opt/curl-static \
-            -DBUILD_CURL_EXE=OFF \
-            -DBUILD_TESTING=OFF \
-            -DCMAKE_C_FLAGS="-static -static-libgcc -pthread -O2" \
-            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a \
-            -DCMAKE_PREFIX_PATH=/ucrt64
-          echo ">>> Building curl..."
-          cmake --build build --parallel 4
-          echo ">>> Installing curl to /c/opt/curl-static..."
-          cmake --install build
-          echo ">>> Verifying static libcurl.a..."
-          ls -lh /c/opt/curl-static/lib/libcurl.a
-          file /c/opt/curl-static/lib/libcurl.a || true
-          echo ">>> curl static build complete."
-
-      # - Cache A: Qt source code (extracted tarball) -
-      - name: Cache Qt source tarball
-        id: cache-qt-src
-        uses: actions/cache@v4
-        with:
-          path: C:\opt\qt6-src
-          key: qt6-src-${{ env.QT_VERSION_WINDOWS_SRC }}-v1
-
-      - name: Download Qt source
-        if: steps.cache-qt-src.outputs.cache-hit != 'true'
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          QT_VER="${{ env.QT_VERSION_WINDOWS_SRC }}"
-          QT_MAJMIN="${QT_VER%.*}"
-          echo ">>> Downloading Qt ${QT_VER} source..."
-          curl -fsSL "https://download.qt.io/official_releases/qt/${QT_MAJMIN}/${QT_VER}/single/qt-everywhere-src-${QT_VER}.tar.xz" -o /tmp/qt-src.tar.xz
-          echo ">>> Extracting..."
-          mkdir -p /c/opt/qt6-src
-          tar -xJf /tmp/qt-src.tar.xz -C /c/opt/qt6-src --strip-components=1
-          rm /tmp/qt-src.tar.xz
-
-      # - Cache B: Qt build artifacts (install prefix) -
-      - name: Cache Qt build artifacts
-        id: cache-qt-build
-        uses: actions/cache@v4
-        with:
-          path: C:\opt\qt6-install
-          key: qt6-build-ucrt-${{ env.QT_VERSION_WINDOWS_SRC }}-v3
-
-      - name: Build Qt from source
-        if: steps.cache-qt-build.outputs.cache-hit != 'true'
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          cd /c/opt/qt6-src
-          echo ">>> Configuring Qt (qtbase + qtshadertools + qtdeclarative + qttools only)..."
-          cmake -G Ninja -B build -S . \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/c/opt/qt6-install \
-            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -pthread -O2" \
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -pthread" \
-            -DCMAKE_C_FLAGS="-static -static-libgcc -pthread -O2" \
-            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a \
-            -DFEATURE_static=ON -DFEATURE_shared=OFF \
-            -DBUILD_SHARED_LIBS=OFF \
-            -DFEATURE_pch=OFF -DFEATURE_icu=OFF -DFEATURE_dbus=OFF \
-            -DFEATURE_system_zlib=OFF \
-            -DFEATURE_system_brotli=OFF \
-            -DFEATURE_system_pcre2=OFF \
-            -DFEATURE_system_libb2=OFF \
-            -DFEATURE_zstd=OFF \
-            -DFEATURE_brotli=OFF \
-            -DQT_BUILD_SUBMODULES="qtbase;qtshadertools;qtdeclarative;qttools" \
-            -DQT_BUILD_EXAMPLES=OFF -DQT_BUILD_TESTS=OFF
-          echo ">>> Building (4 submodules only)..."
-          cmake --build build --parallel
-          echo ">>> Installing..."
-          cmake --install build
-          echo ">>> Qt static build complete."
-
-      # - Build Production -
-      - name: Build Production (static)
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          mkdir -p dist
-          # -static plus strict CMake archive selection ensures that Qt, curl,
-          # GCC, Winpthreads, and curl's transitive dependencies are linked
-          # from .a archives. Windows API DLLs remain the only PE imports.
-
-          CMAKE_COMMON=(
-            -G Ninja -DCMAKE_BUILD_TYPE=Release
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}"
-            "-DND_BUILD_NUMBER=${{ github.run_number }}"
-            "-DND_GIT_HASH=${{ github.sha }}"
-            -DAPP_EDITION=static
-            -DND_STATIC_QT=ON
-            -DND_STRICT_STATIC_WINDOWS=ON
-            -DCMAKE_CXX_FLAGS="-static -static-libgcc -static-libstdc++ -pthread -O2"
-            -DCMAKE_EXE_LINKER_FLAGS="-static -static-libgcc -static-libstdc++ -pthread -Wl,--gc-sections"
-            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a
-            -DCMAKE_PREFIX_PATH=/c/opt/qt6-install
-            -DBUILD_TESTS=OFF
-            -DCURL_STATICLIB=ON
-            -DCURL_LIBRARY=/c/opt/curl-static/lib/libcurl.a
-            -DCURL_INCLUDE_DIR=/c/opt/curl-static/include
-          )
-
-          cmake "${CMAKE_COMMON[@]}" -B build -S .
-          ninja -C build net_diagnostics
-          strip build/net_diagnostics.exe
-          cp build/net_diagnostics.exe dist/NetDiagnostics-Windows-x86_64-Static.exe
-
-      # - Reject every non-Windows PE import -
-      - name: Verify zero non-Windows DLL imports
-        shell: msys2 {0}
-        run: |
-          set -euo pipefail
-          EXE=dist/NetDiagnostics-Windows-x86_64-Static.exe
-          # The whitelist is intentionally restricted to Windows OS APIs and
-          # API-set forwarders. GCC, Qt, curl, and all other third-party DLLs
-          # must never appear in a strict static artifact.
-          SYSTEM_DLLS="KERNEL32|KERNELBASE|USER32|GDI32|ADVAPI32|SHELL32|ole32|OLEAUT32|WS2_32|IPHLPAPI|DNSAPI|WINHTTP|WLANAPI|SETUPAPI|SHCORE|VERSION|IMM32|CRYPT32|CRYPTUI|RPCRT4|USP10|WLDAP32|NTDLL|bcrypt|ncrypt|NETAPI32|AUTHZ|UxTheme|comdlg32|comctl32|dwmapi|SHLWAPI|Secur32|USERENV|WINMM|WSOCK32|MPR|POWRPROF|PROPSYS|OLEACC|D3D9|D3D11|D3D12|DXGI|DWRITE|D2D1|OPENGL32|GLU32|WTSAPI32|RUNTIMEOBJECT|MSCMS|UUID|WINSPool|msvcrt|ucrtbase"
-          mapfile -t DEPS < <(objdump -p "$EXE" | awk '/DLL Name/ {print $3}' | tr -d '\r' | sort -fu)
-          for dll in "${DEPS[@]}"; do
-            case "${dll,,}" in
-              api-ms-win-*.dll|ext-ms-win-*.dll) continue ;;
-            esac
-            if ! echo "$dll" | grep -qiE "^($SYSTEM_DLLS)\.(dll|drv)$"; then
-              echo "ERROR: strict static executable imports a non-Windows DLL: $dll"
-              exit 1
-            fi
-          done
-          printf 'Verified static executable imports:\n%s\n' "${DEPS[@]}"
-
-      # - Runtime smoke test with MSYS2 removed from PATH -
-      - name: Smoke test standalone static executable
-        shell: powershell
-        run: |
-          $outputDirectory = (Resolve-Path "dist").Path
-          $exe = Join-Path $outputDirectory "NetDiagnostics-Windows-x86_64-Static.exe"
-          $originalPath = $env:PATH
-          try {
-            $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
-            $proc = Start-Process -FilePath $exe -WorkingDirectory $outputDirectory -PassThru -WindowStyle Minimized
-            Start-Sleep -Seconds 5
-            if ($proc.HasExited) {
-              throw "Static executable exited early (exit code $($proc.ExitCode)); inspect loader or startup diagnostics."
-            }
-          }
-          finally {
-            if ($null -ne $proc -and -not $proc.HasExited) {
-              Stop-Process -Id $proc.Id -Force
-            }
-            $env:PATH = $originalPath
-          }
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-Windows-x86_64-Static
-          path: |
-            dist/NetDiagnostics-Windows-x86_64-Static.exe
-          if-no-files-found: error
-
-  # ===================================================================
-  # Windows x86_64 - dynamic Qt6 via MSYS2 + NSIS installer
-  # ===================================================================
-  windows-x86_64-dynamic:
-    name: Windows x86_64 Dynamic
-    needs: [version]
-    runs-on: windows-2022
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: msys2/setup-msys2@v2
-        with:
-          msystem: ucrt64
-          update: true
-          install: >-
-            mingw-w64-ucrt-x86_64-gcc
-            mingw-w64-ucrt-x86_64-cmake
-            mingw-w64-ucrt-x86_64-ninja
-            mingw-w64-ucrt-x86_64-curl
-            mingw-w64-ucrt-x86_64-qt6-base
-            mingw-w64-ucrt-x86_64-qt6-declarative
-            mingw-w64-ucrt-x86_64-qt6-tools
-            mingw-w64-ucrt-x86_64-qt6-translations
-            mingw-w64-ucrt-x86_64-nsis
-
-      - name: Build
-        shell: msys2 {0}
-        run: |
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=dynamic \
-            -B build -S .
-          ninja -C build net_diagnostics
-
-      - name: Deploy Qt DLLs (windeployqt)
-        shell: msys2 {0}
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          QT_BIN=/ucrt64/bin
-          export PATH="$QT_BIN:$PATH"
-          mkdir -p dist/installer
-          cp build/net_diagnostics.exe dist/installer/
-          # Copy third-party runtime DLLs that windeployqt doesn't handle
-          for dll in libcurl-4 libssl-3-x64 libcrypto-3-x64 \
-                     libgcc_s_seh-1 libstdc++-6 libwinpthread-1; do
-            cp "$QT_BIN/${dll}.dll" dist/installer/ 2>/dev/null || true
-          done
-          echo "=== Deployed files ==="
-          ls -R dist/installer/
-
-      - name: Build NSIS installer
-        shell: msys2 {0}
-        run: |
-          cd "$GITHUB_WORKSPACE"
-          makensis -DSOURCE_DIR_WIN="$(cygpath -w "$PWD/dist/installer")" \
-                   -DICON_WIN="$(cygpath -w "$PWD/resources/icons/netanalysis.ico")" \
-                   -DOUTDIR_WIN="$(cygpath -w "$PWD/dist")" \
-                   -DPRODUCT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-                   scripts/installer/NetDiagnostic.nsi
-          ls -lh dist/NetDiagnostics-Windows-x86_64.exe
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-Windows-x86_64-Dynamic
-          path: |
-            dist/NetDiagnostics-Windows-x86_64.exe
-          if-no-files-found: error
-
-  # iOS build in .github/workflows/iOS.yml
-
-  # ===================================================================
-  # Android x86_64 - cross-compile via aqtinstall + NDK
-  # ===================================================================
-  android-x86_64:
-    name: Android x86_64
-    needs: [version]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
-          # 5WHY: pip install without --break-system-packages fails on
-          # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
-          # Use a venv for isolation, same pattern as macOS.yml/iOS.yml.
-          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
-          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Qt6 desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-desktop
-          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
-
-      - name: Cache Qt6 Android x86_64
-        id: cache-qt-android
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-android-x86_64
-          key: qt6-android-x86_64-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 for Android via aqt
-        if: steps.cache-qt-android.outputs.cache-hit != 'true'
-        run: |
-          aqt install-qt linux android $QT_VERSION_ANDROID android_x86_64 -O /opt/qt-android-x86_64
-
-      - name: Configure
-        run: |
-          echo "[Android x86_64] Configuring..."
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_PRERELEASE="${{ needs.version.outputs.pkg_prerelease }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=android-x86_64 \
-            -DCMAKE_PREFIX_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
-            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
-            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-x86_64/$QT_VERSION_ANDROID/android_x86_64" \
-            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
-            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=x86_64 \
-            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
-            -B build -S .
-
-      - name: Build
-        run: |
-          ninja -C build net_diagnostics
-
-      - uses: ./.github/actions/android-apk
-        with:
-          qt_version: ${{ env.QT_VERSION_ANDROID }}
-          output_name: NetDiagnostics-Android-x86_64.apk
-          build_dir: build
-        env:
-          # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
-          # masks env values derived from secrets; composite-action `with:`
-          # inputs are inlined into the script text where masking is not
-          # guaranteed.  Every release build shares ONE signing key so
-          # upgrades install cleanly; empty on PR/fork -> debug fallback.
-          ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-          ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-Android-x86_64
-          path: |
-            NetDiagnostics-Android-x86_64.apk
-          if-no-files-found: error
-
-  # ===================================================================
-  # Android arm64 - cross-compile via aqtinstall + NDK
-  # ===================================================================
-  android-arm64:
-    name: Android arm64
-    needs: [version]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install host dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential cmake ninja-build
-          # 5WHY: pip install without --break-system-packages fails on
-          # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
-          # Use a venv for isolation, same pattern as macOS.yml/iOS.yml.
-          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
-          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Cache Qt6 desktop (host tools)
-        id: cache-qt-desktop
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-desktop
-          key: qt6-android-desktop-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 desktop via aqt
-        if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
-        run: |
-          aqt install-qt linux desktop $QT_VERSION_ANDROID gcc_64 -O /opt/qt-desktop
-
-      - name: Cache Qt6 Android arm64
-        id: cache-qt-android
-        uses: actions/cache@v4
-        with:
-          path: /opt/qt-android-arm64
-          key: qt6-android-arm64-${{ env.QT_VERSION_ANDROID }}-v1
-
-      - name: Install Qt6 for Android via aqt
-        if: steps.cache-qt-android.outputs.cache-hit != 'true'
-        run: |
-          aqt install-qt linux android $QT_VERSION_ANDROID android_arm64_v8a -O /opt/qt-android-arm64
-
-      - name: Configure
-        run: |
-          echo "[Android arm64] Configuring..."
-          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
-            -DPROJECT_VERSION="${{ needs.version.outputs.pkg_version }}" \
-            -DND_PRERELEASE="${{ needs.version.outputs.pkg_prerelease }}" \
-            -DND_BUILD_NUMBER=${{ github.run_number }} \
-            -DND_GIT_HASH=${{ github.sha }} \
-            -DAPP_EDITION=android-arm64 \
-            -DCMAKE_PREFIX_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
-            -DQT_HOST_PATH="/opt/qt-desktop/$QT_VERSION_ANDROID/gcc_64" \
-            -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-arm64/$QT_VERSION_ANDROID/android_arm64_v8a" \
-            -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
-            -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
-            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
-            -DANDROID_ABI=arm64-v8a \
-            -DANDROID_PLATFORM=android-${{ env.ANDROID_API_LEVEL }} \
-            -B build -S .
-
-      - name: Build
-        run: |
-          ninja -C build net_diagnostics
-
-      - uses: ./.github/actions/android-apk
-        with:
-          qt_version: ${{ env.QT_VERSION_ANDROID }}
-          output_name: NetDiagnostics-Android-arm64.apk
-          build_dir: build
-        env:
-          # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
-          # masks env values derived from secrets; composite-action `with:`
-          # inputs are inlined into the script text where masking is not
-          # guaranteed.  Every release build shares ONE signing key so
-          # upgrades install cleanly; empty on PR/fork -> debug fallback.
-          ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-          ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: NetDiagnostics-Android-arm64
-          path: |
-            NetDiagnostics-Android-arm64.apk
-          if-no-files-found: error
-
-  # iOS build in .github/workflows/iOS.yml
-  # macOS build + TestFlight deploy in .github/workflows/macOS.yml
-
-  # ===================================================================
-  # Release — auto-bump version, create tag, and publish GitHub Release
-  # ===================================================================
+  # ═══ Linux — linux.yml (arch matrix) ═══
+  linux:
+    name: Linux ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+    uses: ./.github/workflows/linux.yml
+    with:
+      arch: ${{ matrix.arch }}
+
+  # ═══ Windows — windows.yml (variant matrix) ═══
+  windows:
+    name: Windows ${{ matrix.variant }}
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [static, dynamic]
+    uses: ./.github/workflows/windows.yml
+    with:
+      variant: ${{ matrix.variant }}
+
+  # ═══ macOS — macOS.yml, release download format (DMG / tar.gz) ═══
+  # 5WHY: build.yml only produces Release-download files.  TestFlight uploads
+  # (iOS + macOS) run in apple.yml as two parallel standalone tasks.
+  macos:
+    name: macOS (release download)
+    uses: ./.github/workflows/macOS.yml
+
+  # ═══ Android — android.yml (arch × format matrix, release downloads) ═══
+  # 5WHY: build.yml only produces Release-download files (APK/AAB).  Google
+  # Play uploads run standalone via android.yml (deploy=google-play).
+  android:
+    name: Android ${{ matrix.arch }} (${{ matrix.format }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: arm64, format: apk }
+          - { arch: arm64, format: aab }
+          - { arch: x86_64, format: apk }
+          - { arch: x86_64, format: aab }
+    uses: ./.github/workflows/android.yml
+    with:
+      arch: ${{ matrix.arch }}
+      format: ${{ matrix.format }}
+      deploy: none
+    secrets:
+      # Signing secrets are always forwarded so every build shares ONE key
+      # (upgrades install cleanly); the google-play deploy is a separate
+      # standalone trigger.  Empty on PR/fork → debug-keystore fallback.
+      ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+      ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+      ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
+  # ═══ Release — collect all artifacts → GitHub Release ═══
   release:
     name: Create Release
-    needs:
-      - version
-      - linux-x86_64
-      - linux-arm64
-      - windows-x86_64-static
-      - windows-x86_64-dynamic
-      - android-x86_64
-      - android-arm64
+    needs: [version, linux, windows, macos, android]
     # 5WHY: on pull_request the release job would create/overwrite real GitHub
     # Releases (e.g. v0.0.1 when no tags exist).  Gating on event_name ensures
-    # releases only fire on manual workflow_dispatch, never on PR validation.
+    # releases only fire on manual workflow_dispatch / tag push, never on PR
+    # validation.
     if: (!failure()) && (!cancelled()) && (github.event_name != 'pull_request')
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -882,8 +154,13 @@ jobs:
                 os="android"; arch="x86_64" ;;
               *android-arm64*|*android*arm*)
                 os="android"; arch="arm64" ;;
+              # macOS: only the release-packaging artifact is collected
+              # (DMG/tar.gz); the internal .app tar is consumed by the
+              # package-release/testflight jobs inside macOS.yml.
+              *macos-release*)
+                os="macos"; arch="arm64" ;;
               *macos*|*ios*)
-                echo "Skipping Apple artifact (handled by macOS.yml/iOS.yml): $dir"; continue ;;
+                echo "Skipping Apple internal artifact (handled inside macOS.yml): $dir"; continue ;;
               *)
                 echo "Skipping unknown: $dir"; continue ;;
             esac
@@ -898,7 +175,8 @@ jobs:
                 *.deb)      name="netdiagnostics-${os}-${arch}.deb" ;;
                 *.rpm)      name="netdiagnostics-${os}-${arch}.rpm" ;;
                 *.apk)      name="netdiagnostics-${os}-${arch}.apk" ;;
-
+                *.aab)      name="netdiagnostics-${os}-${arch}.aab" ;;
+                *.dmg)      name="netdiagnostics-${os}-${arch}.dmg" ;;
                 *netdiagnostics-*.exe)
                   if [ "$suffix" = "-dynamic" ]; then
                     name="netdiagnostics-${os}-${arch}${suffix}-setup.exe"

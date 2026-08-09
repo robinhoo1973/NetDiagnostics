@@ -1,0 +1,623 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# TestFlight Upload — parameterized iOS / macOS upload step
+# ═══════════════════════════════════════════════════════════════════════════
+# Called by apple.yml (or standalone via workflow_dispatch):
+#   platform = ios   → sign + archive the iOS .ipa and upload to TestFlight
+#   platform = macos → download the macOS .app (macOS.yml mode=testflight),
+#                      sign + package .pkg and upload to TestFlight
+#   platform = both  → both jobs run in parallel (standalone dispatch only)
+#
+# · iOS: re-signs/archives with the distribution cert + provisioning profile
+#        (self-contained — needs the Qt iOS toolchain to build the archive).
+# · macOS: consumes the .app artifact produced by macOS.yml (mode=testflight);
+#        when dispatched standalone without that artifact it falls back to
+#        building the .app inline.
+#
+# Version/build inputs override version.yml when provided (apple.yml passes
+# the +300 TestFlight build number).  Requires the "TestFlight" environment
+# with the Apple certs and App Store Connect API keys.
+#
+# NOTE: no top-level concurrency here — the caller owns cancellation.
+# ═══════════════════════════════════════════════════════════════════════════
+name: TestFlight Upload
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        description: Platform to upload (ios | macos)
+        type: string
+        required: true
+      pkg_version:
+        description: Release version (M.m.p) — overrides version.yml when set
+        type: string
+        required: false
+      pkg_prerelease:
+        description: Pre-release suffix (e.g. rc1)
+        type: string
+        required: false
+        default: ''
+      build_number:
+        description: TestFlight build number (official run number + 300)
+        type: string
+        required: false
+      git_hash:
+        description: Commit SHA
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to upload to TestFlight
+        type: choice
+        options:
+          - ios
+          - macos
+          - both
+        default: both
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: 6.8.3
+  BUNDLE_ID: "com.netdiagnostic.app"
+  APP_NAME: "NetDiagnostics"
+  APP_SKU: "netdiag.ios.001"
+  APP_LOCALE: "en-US"
+  PROFILE_NAME: "NetDiagnostics AppStore"
+  QT_INSTALL_DIR: "/Users/runner/qt-ios"
+  QT_HOST_DIR: "/Users/runner/qt-desktop"
+
+jobs:
+  version:
+    name: Detect Version
+    uses: ./.github/workflows/version.yml
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # iOS TestFlight — sign + archive + upload
+  # ═══════════════════════════════════════════════════════════════════════
+  ios:
+    name: iOS TestFlight
+    needs: [version]
+    if: ${{ inputs.platform == 'ios' || inputs.platform == 'both' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: TestFlight
+    env:
+      PKG_VERSION: ${{ inputs.pkg_version || needs.version.outputs.pkg_version }}
+      PKG_PRERELEASE: ${{ inputs.pkg_prerelease || needs.version.outputs.pkg_prerelease }}
+      BUILD_NUMBER: ${{ inputs.build_number || github.run_number }}
+      GIT_HASH: ${{ inputs.git_hash || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/select-xcode
+
+      - name: Install dependencies
+        run: |
+          brew install cmake ninja python3
+          python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+          echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: desktop
+          arch: clang_64
+          install_dir: ${{ env.QT_HOST_DIR }}
+          cache_key_prefix: qt6-ios-desktop
+
+      - uses: ./.github/actions/install-qt-aqt
+        with:
+          qt_version: ${{ env.QT_VERSION }}
+          target: ios
+          arch: ios
+          install_dir: ${{ env.QT_INSTALL_DIR }}
+          cache_key_prefix: qt6-ios
+
+      # ── Dedup + credential gate ───────────────────────────────────
+      - name: Check if already uploaded
+        id: dedup
+        uses: actions/cache/restore@v4
+        with:
+          path: .testflight-sha
+          key: testflight-ios-${{ runner.os }}-v1
+      - name: Read last uploaded SHA
+        id: last-sha
+        run: |
+          if [ -f .testflight-sha/ios ]; then echo "last=$(cat .testflight-sha/ios)" >> "$GITHUB_OUTPUT"
+          else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+          echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Report dedup status
+        run: |
+          if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] Same commit already uploaded"; fi
+
+      - name: Check Apple credentials
+        id: check
+        env:
+          ASC_API_KEY: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+          IOS_DIST_CERT: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+        run: |
+          if [ -n "$ASC_API_KEY" ] && [ -n "$IOS_DIST_CERT" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Apple credentials are not set — skipping iOS TestFlight upload"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Sign + archive + upload ───────────────────────────────────
+      - name: Write ASC key
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          echo -n "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
+          chmod 600 "$K"
+          echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
+
+      - name: Generate JWT
+        id: jwt
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT=$(asc_jwt "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" "$ASC_KEYFILE")
+          echo "jwt=${JWT}" >> "$GITHUB_OUTPUT"
+
+      - name: Register Bundle ID + WiFi capability
+        id: bundle
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          BID=$(asc_bundle_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID")
+          asc_bundle_capability_enable "$JWT" "$BID" ACCESS_WIFI_INFORMATION
+          asc_bundle_capability_enable "$JWT" "$BID" IN_APP_PURCHASE
+          echo "bundle_id=${BID}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure App Store Connect app
+        id: asc-app
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          APP_ID=$(asc_app_ensure "$JWT" "$APP_NAME" "$BUNDLE_ID" "$APP_SKU" "$APP_LOCALE")
+          echo "app_id=${APP_ID}" >> "$GITHUB_OUTPUT"
+
+      - uses: ./.github/actions/setup-keychain
+        id: ios-keychain
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        with:
+          primary_cert_base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          allowed_tools: "/usr/bin/codesign /usr/bin/xcodebuild"
+
+      - name: Find distribution certificate
+        id: cert-id
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          source scripts/ios/asc-app.sh
+          JWT="${{ steps.jwt.outputs.jwt }}"
+          CERT_ID=$(asc_cert_find_distribution "$JWT")
+          if [ -n "$CERT_ID" ]; then echo "cert_id=${CERT_ID}" >> "$GITHUB_OUTPUT"; echo "auto_signing=false" >> "$GITHUB_OUTPUT"
+          else echo "cert_id=" >> "$GITHUB_OUTPUT"; echo "auto_signing=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Ensure provisioning profile
+        id: profile
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          if [ -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
+            echo -n "${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+            PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+            if [ -n "$PROFILE_UUID" ]; then
+              mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+              cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
+              echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+              echo "[OK] User-provided profile (UUID: ${PROFILE_UUID})"; exit 0
+            fi
+          fi
+          if [ "${{ steps.cert-id.outputs.auto_signing }}" != "true" ]; then
+            source scripts/ios/asc-app.sh
+            JWT="${{ steps.jwt.outputs.jwt }}"; BID="${{ steps.bundle.outputs.bundle_id }}"; CID="${{ steps.cert-id.outputs.cert_id }}"
+            PROFILE_ID=$(asc_profile_ensure "$JWT" "$PROFILE_NAME" "$BID" "$CID")
+            if [ -n "$PROFILE_ID" ]; then
+              PROFILE_B64=$(asc_profile_download "$JWT" "$PROFILE_ID")
+              if [ -n "$PROFILE_B64" ]; then
+                echo -n "$PROFILE_B64" | base64 -d > "$RUNNER_TEMP/profile.mobileprovision"
+                PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision")" 2>/dev/null || echo "")
+                if [ -n "$PROFILE_UUID" ]; then
+                  mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+                  cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
+                  echo "profile_uuid=${PROFILE_UUID}" >> "$GITHUB_OUTPUT"
+                  echo "[OK] Auto-created profile"; exit 0
+                fi
+              fi
+            fi
+          fi
+          echo "profile_uuid=" >> "$GITHUB_OUTPUT"; echo "[INFO] Falling back to Xcode automatic signing"
+
+      - name: Set build number
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        # 5WHY: TestFlight requires a unique, monotonically increasing build
+        # number per app; apple.yml passes the +300 offset build number.
+        run: /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" resources/apple/Info.plist
+
+      - name: Configure CMake (Xcode, signed)
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          export IOS_TEAM_ID="${{ secrets.IOS_TEAM_ID }}"
+          export ND_WIFI_ENTITLEMENT=1
+          SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          "$QT_INSTALL_DIR/$QT_VERSION/ios/bin/qt-cmake" \
+            -G Xcode -DCMAKE_BUILD_TYPE=Release \
+            -DPROJECT_VERSION="$PKG_VERSION" \
+            -DND_BUILD_NUMBER=$BUILD_NUMBER \
+            -DND_GIT_HASH=$GIT_HASH \
+            -DAPP_EDITION=ios -DQT_HOST_PATH="$QT_HOST_DIR/$QT_VERSION/macos" \
+            -DCMAKE_OSX_ARCHITECTURES="arm64" -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+            -DCMAKE_OSX_SYSROOT="$SDKROOT" -DAPPLE_TEAM_ID="${{ secrets.IOS_TEAM_ID }}" -B build-ios -S .
+
+      - name: Build and archive iOS
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          set -euo pipefail
+          # 5WHY: same pipefail issue as Verify Xcode build — the
+          # "xcodebuild ... 2>&1 | tail -100" pattern masks non-zero
+          # exit codes from xcodebuild because tail always exits 0.
+          # Use a temp log so the full exit code is captured.
+          PROFILE_UUID="${{ steps.profile.outputs.profile_uuid }}"
+          XCB_LOG=$(mktemp)
+          set +e
+          if [ -n "$PROFILE_UUID" ]; then
+            xcodebuild archive -project build-ios/NetDiagnostic.xcodeproj -scheme net_diagnostics \
+              -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" CODE_SIGN_STYLE="Manual" \
+              PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CODE_SIGN_IDENTITY="iPhone Distribution" \
+              -verbose >"$XCB_LOG" 2>&1
+          else
+            xcodebuild archive -project build-ios/NetDiagnostic.xcodeproj -scheme net_diagnostics \
+              -sdk iphoneos -configuration Release -destination 'generic/platform=iOS' \
+              -archivePath build-ios/NetDiagnostic.xcarchive \
+              DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" CODE_SIGN_STYLE="Automatic" \
+              -allowProvisioningUpdates \
+              -authenticationKeyID "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+              -authenticationKeyIssuerID "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" \
+              -authenticationKeyPath "$ASC_KEYFILE" -verbose >"$XCB_LOG" 2>&1
+          fi
+          XCB_EXIT=$?
+          set -e
+          tail -100 "$XCB_LOG"
+          if [ $XCB_EXIT -ne 0 ]; then
+            echo "[X] Archive failed (exit $XCB_EXIT)"
+            rm -f "$XCB_LOG"
+            exit 1
+          fi
+          rm -f "$XCB_LOG"
+          [ -d build-ios/NetDiagnostic.xcarchive ] || { echo "[X] Archive failed: xcarchive not found"; exit 1; }
+          echo "[OK] iOS archive created"
+
+      - name: Package iOS IPA (signed)
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          set -euo pipefail
+          # 5WHY: the xcarchive Products directory uses the Xcode PRODUCT_NAME
+          # (set to "NetDiagnostics" via CMake XCODE_ATTRIBUTE_PRODUCT_NAME),
+          # NOT the scheme/target name ("net_diagnostics").  Using the
+          # Ninja-build name caused "[X] No .app found" after a successful
+          # archive.  Try the PRODUCT_NAME path first, fall back to scheme name.
+          XCARCHIVE="build-ios/NetDiagnostic.xcarchive"
+          # PRODUCT_NAME = NetDiagnostics (see netdiag-target.cmake line 278)
+          APP_PATH="${XCARCHIVE}/Products/Applications/NetDiagnostics.app"
+          if [ ! -d "$APP_PATH" ]; then
+            # Fallback: scheme name (older CMake configs without PRODUCT_NAME override)
+            APP_PATH="${XCARCHIVE}/Products/Applications/net_diagnostics.app"
+          fi
+          if [ ! -d "$APP_PATH" ]; then
+            # Last-resort: search (but log a warning)
+            echo "[WARN] Expected .app not found at standard paths; searching..."
+            APP_PATH=$(find "$XCARCHIVE" -name "*.app" -type d | head -1)
+          fi
+          [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ] || { echo "[X] No .app found in xcarchive"; exit 1; }
+          echo "[OK] Using: $APP_PATH"
+          mkdir -p Payload; cp -R "$APP_PATH" Payload/
+          zip -r NetDiagnostics-iOS.ipa Payload; ls -lh NetDiagnostics-iOS.ipa
+
+      - name: Upload iOS to TestFlight
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          xcrun altool --upload-app -f NetDiagnostics-iOS.ipa -t ios \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" --verbose
+          echo "[OK] iOS uploaded to TestFlight"
+
+      - name: Save uploaded SHA
+        if: always() && steps.check.outputs.ok == 'true'
+        run: |
+          mkdir -p .testflight-sha
+          if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
+            echo "${{ github.sha }}" > .testflight-sha/ios
+          else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/ios; fi
+      - uses: actions/cache/save@v4
+        if: always() && steps.check.outputs.ok == 'true'
+        with:
+          path: .testflight-sha
+          key: testflight-ios-${{ runner.os }}-v1
+
+      - name: Clean up keys
+        if: always()
+        run: rm -f "$ASC_KEYFILE" 2>/dev/null || true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # macOS TestFlight — consume the macOS.yml (testflight) .app, sign + upload
+  # ═══════════════════════════════════════════════════════════════════════
+  macos:
+    name: macOS TestFlight
+    needs: [version]
+    if: ${{ inputs.platform == 'macos' || inputs.platform == 'both' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: TestFlight
+    env:
+      PKG_VERSION: ${{ inputs.pkg_version || needs.version.outputs.pkg_version }}
+      PKG_PRERELEASE: ${{ inputs.pkg_prerelease || needs.version.outputs.pkg_prerelease }}
+      BUILD_NUMBER: ${{ inputs.build_number || github.run_number }}
+      GIT_HASH: ${{ inputs.git_hash || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      # ── Dedup + credential gate ───────────────────────────────────
+      - name: Check if already uploaded
+        id: dedup
+        uses: actions/cache/restore@v4
+        with:
+          path: .testflight-sha
+          key: testflight-macos-${{ runner.os }}-v1
+      - name: Read last uploaded SHA
+        id: last-sha
+        run: |
+          if [ -f .testflight-sha/macos ]; then echo "last=$(cat .testflight-sha/macos)" >> "$GITHUB_OUTPUT"
+          else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+          echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+      - name: Report dedup status
+        run: |
+          if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+            echo "[SKIP] Same commit already uploaded"; fi
+
+      - name: Check Apple credentials
+        id: check
+        env:
+          ASC_API_KEY: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+          INSTALLER_CERT: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+        run: |
+          if [ -n "$ASC_API_KEY" ] && [ -n "$INSTALLER_CERT" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Apple credentials are not set — skipping macOS TestFlight upload"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ── Obtain the .app — from macOS.yml (testflight) artifact, or ──
+      #    build it inline when dispatched standalone.
+      - name: Download .app artifact
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: NetDiagnostics-macOS-app
+          path: macos-artifact
+
+      - name: Resolve .app path
+        id: apppath
+        run: |
+          if [ -d macos-artifact/net_diagnostics.app ]; then
+            echo "APP=macos-artifact/net_diagnostics.app" >> "$GITHUB_ENV"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Standalone fallback: no artifact from macOS.yml → build the .app
+      # (icon action must run BEFORE cmake so the .app bundle picks it up).
+      - uses: ./.github/actions/macos-icon
+        if: steps.apppath.outputs.found != 'true'
+
+      - name: Build .app (standalone fallback)
+        if: steps.apppath.outputs.found != 'true'
+        run: |
+          set -euo pipefail
+          brew install cmake ninja qt@6
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DPROJECT_VERSION="$PKG_VERSION" \
+            -DND_BUILD_NUMBER=$BUILD_NUMBER \
+            -DND_GIT_HASH=$GIT_HASH \
+            -DAPP_EDITION=macos-arm64 \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+            -B build -S .
+          ninja -C build net_diagnostics
+          QT_PREFIX="$(brew --prefix qt@6)"
+          "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
+            -qmldir="${GITHUB_WORKSPACE}/src" -verbose=1 >/dev/null 2>&1 || true
+          echo "APP=build/net_diagnostics.app" >> "$GITHUB_ENV"
+          echo "[OK] .app built inline (standalone fallback)"
+
+      # ── Sign + .pkg + upload (gated on creds + dedup) ──────────────
+      - name: Inject Info.plist keys
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          APP="$APP"
+          PLIST="$APP/Contents/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 26.0" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 26.0" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.utilities" "$PLIST" 2>/dev/null || \
+            /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType public.app-category.utilities" "$PLIST"
+          # 5WHY: TestFlight requires a unique, monotonically increasing build
+          # number per app; apple.yml passes the +300 offset build number.
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+
+      - name: Install provisioning profile
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          APP="$APP"
+          if [ -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" ]; then
+            echo -n "${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
+            cp "$RUNNER_TEMP/mac-profile.provisionprofile" "$APP/Contents/embedded.provisionprofile"
+            echo "[OK] macOS provisioning profile embedded"
+          else
+            echo "[WARN] MACOS_PROVISIONING_PROFILE_BASE64 not set"
+          fi
+
+      - uses: ./.github/actions/setup-keychain
+        id: mac-keychain
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        with:
+          primary_cert_base64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+          primary_cert_password: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          secondary_cert_base64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          secondary_cert_password: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
+          allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
+
+      - name: Generate entitlements
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          # 5WHY: com.apple.application-identifier and com.apple.developer.team-identifier
+          # are DERIVED entitlements auto-injected by codesign from the signing certificate
+          # and provisioning profile.  The template intentionally omits them.
+          cp resources/apple/macos.entitlements.in macos.entitlements
+          echo "[OK] macos.entitlements generated"
+
+      - name: Sign .app and package as .pkg
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          # ── Inside-out code signing ─────────────────────────────────
+          # Apple requires signing from deepest nested content outward:
+          # helper .app → framework → dylib → main binary → main .app
+          #
+          # The previous breadth-first order (all frameworks → all .apps)
+          # caused ITMS-90238: signing QtWebEngineProcess.app AFTER its
+          # parent QtWebEngineCore.framework invalidated the framework's
+          # seal.  This depth-first order fixes that.
+          # ─────────────────────────────────────────────────────────────
+          set -euo pipefail
+          APP="$APP"
+          KCHAIN="${{ steps.mac-keychain.outputs.keychain_path }}"
+          CODE_ID="${{ steps.mac-keychain.outputs.code_identity }}"
+          PKG_ID="${{ steps.mac-keychain.outputs.installer_identity }}"
+          [ -z "$CODE_ID" ] && { echo "ERROR: No signing identity"; exit 1; }
+
+          # ── Phase 1: Sign helper .apps inside frameworks ──────────
+          # QtWebEngineCore.framework contains QtWebEngineProcess.app.
+          # Sign the helper .app BEFORE its parent framework so the
+          # framework seal covers the already-signed nested content.
+          # Use macos-helper.entitlements (no application-identifier)
+          # to avoid ITMS-90885 ("nested executable has app identifier
+          # but no provisioning profile").
+          if [ -d "$APP/Contents/Frameworks" ]; then
+            find "$APP/Contents/Frameworks" -name "*.app" -type d | while read helper; do
+              echo "  [sign] helper .app: ${helper#$APP/Contents/Frameworks/}"
+              HELPER_MACOS="$helper/Contents/MacOS"
+              if [ -d "$HELPER_MACOS" ]; then
+                find "$HELPER_MACOS" -type f -perm +111 | while read exe; do
+                  codesign --force --options runtime --timestamp \
+                    --entitlements resources/apple/macos-helper.entitlements \
+                    --sign "$CODE_ID" --keychain "$KCHAIN" "$exe" \
+                    || { echo "[FAIL] codesign helper exe $exe"; exit 1; }
+                done
+              fi
+              codesign --force --options runtime --timestamp \
+                --entitlements resources/apple/macos-helper.entitlements \
+                --sign "$CODE_ID" --keychain "$KCHAIN" "$helper" \
+                || { echo "[FAIL] codesign helper $helper"; exit 1; }
+            done
+
+            # ── Phase 2: Sign frameworks ────────────────────────────
+            # Now that all nested .apps are signed, sign the framework
+            # bundle itself.  The framework seal covers everything inside.
+            find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
+              echo "  [sign] framework: ${fw#$APP/Contents/Frameworks/}"
+              codesign --force --options runtime --timestamp \
+                --sign "$CODE_ID" --keychain "$KCHAIN" "$fw" \
+                || { echo "[FAIL] codesign framework $fw"; exit 1; }
+            done
+          fi
+
+          # ── Phase 3: Sign standalone dylibs ───────────────────────
+          # Skip dylibs inside frameworks — the framework signature
+          # already covers them.
+          find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
+            case "$dylib" in */Contents/Frameworks/*.framework/*) continue ;; esac
+            echo "  [sign] dylib: ${dylib#$APP/Contents/}"
+            codesign --force --options runtime --timestamp \
+              --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib" \
+              || { echo "[FAIL] codesign dylib $dylib"; exit 1; }
+          done
+
+          # ── Phase 4: Sign main binary ─────────────────────────────
+          BIN="$APP/Contents/MacOS/net_diagnostics"
+          if [ -f "$BIN" ]; then
+            echo "  [sign] main binary"
+            codesign --force --options runtime --timestamp \
+              --entitlements macos.entitlements \
+              --sign "$CODE_ID" --keychain "$KCHAIN" "$BIN" \
+              || { echo "[FAIL] codesign main binary $BIN"; exit 1; }
+          fi
+
+          # ── Phase 5: Sign main .app bundle ────────────────────────
+          echo "  [sign] .app bundle"
+          codesign --force --options runtime --timestamp \
+            --entitlements macos.entitlements \
+            --sign "$CODE_ID" --keychain "$KCHAIN" "$APP" \
+            || { echo "[FAIL] codesign .app $APP"; exit 1; }
+
+          # ── Phase 6: Verify signature integrity ───────────────────
+          echo "  [verify] checking signature chain..."
+          codesign --verify --deep --strict --verbose=4 "$APP" \
+            || { echo "[FAIL] Signature verification failed"; exit 1; }
+          echo "  [OK] signature verified"
+
+          # ── Package ──────────────────────────────────────────────
+          productbuild --component "$APP" /Applications \
+            --sign "$PKG_ID" --keychain "$KCHAIN" NetDiagnostics-macOS.pkg
+          ls -lh NetDiagnostics-macOS.pkg
+
+      - name: Write ASC key
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          K=~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_KEY_ID }}.p8
+          echo -n "${{ secrets.APPSTORE_CONNECT_API_KEY }}" > "$K"
+          chmod 600 "$K"
+          # 5WHY: ASC_KEYFILE was never exported to GITHUB_ENV, so the
+          # "Clean up keys" step below tried to rm "$ASC_KEYFILE" which
+          # resolved to an empty string — the key file was never deleted.
+          echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
+
+      - name: Upload macOS to TestFlight
+        if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+        run: |
+          xcrun altool --upload-app -f NetDiagnostics-macOS.pkg -t macos \
+            --apiKey "${{ secrets.APPSTORE_CONNECT_KEY_ID }}" \
+            --apiIssuer "${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}" --verbose
+          echo "[OK] macOS uploaded to TestFlight"
+
+      - name: Save uploaded SHA
+        if: always() && steps.check.outputs.ok == 'true'
+        run: |
+          mkdir -p .testflight-sha
+          if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
+            echo "${{ github.sha }}" > .testflight-sha/macos
+          else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/macos; fi
+      - uses: actions/cache/save@v4
+        if: always() && steps.check.outputs.ok == 'true'
+        with:
+          path: .testflight-sha
+          key: testflight-macos-${{ runner.os }}-v1
+
+      - name: Clean up keys
+        if: always()
+        run: rm -f "$ASC_KEYFILE" 2>/dev/null || true

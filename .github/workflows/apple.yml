@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Apple TestFlight Pipeline — orchestrator
+# ═══════════════════════════════════════════════════════════════════════════
+# Concurrency flow:
+#
+#   apple.yml
+#   │
+#   ├─ version.yml ──► (pkg_version / pkg_prerelease / build_number)
+#   │                   build_number = official run_number + 300 (TestFlight range)
+#   │
+#   ├─ ios.yml ─────────────────────────────► testflight.yml (platform=ios)
+#   │   (compile iOS, unsigned .ipa artifact)    (sign + archive + upload iOS)
+#   │
+#   └─ macOS.yml (mode=testflight) ─────────► testflight.yml (platform=macos)
+#       (build macOS .app artifact)             (sign + .pkg + upload macOS)
+#
+# The two chains run in PARALLEL.  Each upload waits for its platform's
+# build (needs: ios-build / macos-build).  Version + build number come from
+# version.yml; the build number is offset +300 above the official run number
+# so TestFlight never collides with App Store release build numbers.
+#
+# Triggers: tag push (v*) for automatic TestFlight uploads, or
+# workflow_dispatch.  Requires the "TestFlight" environment with the Apple
+# certs and App Store Connect API keys.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Apple TestFlight Pipeline
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+concurrency:
+  group: apple-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: 6.8.3
+
+jobs:
+  # ── Version + build number (release + TestFlight build number) ──────────
+  version:
+    name: Detect Version
+    uses: ./.github/workflows/version.yml
+
+  # ═══ Chain 1: iOS — compile then upload ═══
+  ios-build:
+    name: iOS Build (compile)
+    needs: [version]
+    uses: ./.github/workflows/ios.yml
+    with:
+      pkg_version: ${{ needs.version.outputs.pkg_version }}
+      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
+      build_number: ${{ needs.version.outputs.build_number }}
+      git_hash: ${{ github.sha }}
+
+  ios-upload:
+    name: iOS TestFlight Upload
+    needs: [version, ios-build]
+    uses: ./.github/workflows/testflight.yml
+    with:
+      platform: ios
+      pkg_version: ${{ needs.version.outputs.pkg_version }}
+      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
+      build_number: ${{ needs.version.outputs.build_number }}
+      git_hash: ${{ github.sha }}
+
+  # ═══ Chain 2: macOS — build (testflight mode) then upload ═══
+  macos-build:
+    name: macOS Build (TestFlight)
+    needs: [version]
+    uses: ./.github/workflows/macOS.yml
+    with:
+      mode: testflight
+      pkg_version: ${{ needs.version.outputs.pkg_version }}
+      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
+      build_number: ${{ needs.version.outputs.build_number }}
+      git_hash: ${{ github.sha }}
+
+  macos-upload:
+    name: macOS TestFlight Upload
+    needs: [version, macos-build]
+    uses: ./.github/workflows/testflight.yml
+    with:
+      platform: macos
+      pkg_version: ${{ needs.version.outputs.pkg_version }}
+      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
+      build_number: ${{ needs.version.outputs.build_number }}
+      git_hash: ${{ github.sha }}

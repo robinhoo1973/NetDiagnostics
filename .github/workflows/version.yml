@@ -25,6 +25,14 @@ on:
       pkg_prerelease:
         description: Pre-release suffix of the latest tag (e.g. rc1), empty for a final release
         value: ${{ jobs.version.outputs.pkg_prerelease }}
+      build_number:
+        # 5WHY (TestFlight): App Store Connect requires a monotonically
+        # increasing build number per app, and TestFlight shares the build
+        # number namespace with App Store release builds.  Offset by +300
+        # above the official GitHub run number so the TestFlight range never
+        # collides with release builds.
+        description: TestFlight build number = official run number + 300
+        value: ${{ jobs.version.outputs.build_number }}
 
 jobs:
   version:
@@ -34,6 +42,7 @@ jobs:
     outputs:
       pkg_version: ${{ steps.v.outputs.pkg_version }}
       pkg_prerelease: ${{ steps.v.outputs.pkg_prerelease }}
+      build_number: ${{ steps.v.outputs.build_number }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,19 +66,24 @@ jobs:
           if [ -z "$LATEST" ]; then
             echo "pkg_version=0.0.1" >> "$GITHUB_OUTPUT"
             echo "pkg_prerelease=" >> "$GITHUB_OUTPUT"
-            echo "Version: 0.0.1 (no version tags)"
-            exit 0
+          else
+            RAW="${LATEST#v}"
+            # Strip git describe's "<tag>-<n>-g<sha>" (HEAD past the tag): that
+            # is NOT a semver pre-release, just describe's commit-distance suffix.
+            case "$RAW" in
+              *-*-g*) RAW="${RAW%%-*-g*}" ;;
+            esac
+            # Split off a real pre-release suffix: 0.0.4-rc1 -> base=0.0.4, pre=rc1
+            BASE="${RAW%%-*}"
+            PRERELEASE="${RAW#"$BASE"}"
+            PRERELEASE="${PRERELEASE#-}"
+            echo "pkg_version=${BASE}" >> "$GITHUB_OUTPUT"
+            echo "pkg_prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
           fi
-          RAW="${LATEST#v}"
-          # Strip git describe's "<tag>-<n>-g<sha>" (HEAD past the tag): that
-          # is NOT a semver pre-release, just describe's commit-distance suffix.
-          case "$RAW" in
-            *-*-g*) RAW="${RAW%%-*-g*}" ;;
-          esac
-          # Split off a real pre-release suffix: 0.0.4-rc1 -> base=0.0.4, pre=rc1
-          BASE="${RAW%%-*}"
-          PRERELEASE="${RAW#"$BASE"}"
-          PRERELEASE="${PRERELEASE#-}"
-          echo "pkg_version=${BASE}" >> "$GITHUB_OUTPUT"
-          echo "pkg_prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
-          echo "Version: ${BASE}${PRERELEASE:+ (pre-release: ${PRERELEASE})}"
+          # 5WHY (TestFlight): App Store Connect build numbers must increase
+          # monotonically per app and are shared between TestFlight and App
+          # Store release builds.  Adding +300 to the official run number
+          # gives the TestFlight pipeline a dedicated range that never
+          # collides with release builds.
+          echo "build_number=$(( GITHUB_RUN_NUMBER + 300 ))" >> "$GITHUB_OUTPUT"
+          echo "Version: $(grep -oP 'pkg_version=\K.*' "$GITHUB_OUTPUT" | head -1)${PRERELEASE:+ (pre-release: ${PRERELEASE})} / build_number=$(( GITHUB_RUN_NUMBER + 300 ))"
