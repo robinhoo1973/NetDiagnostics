@@ -15,11 +15,6 @@
 # actions.  Version is detected once in the version job via the
 # detect-version action and passed to every build job.
 #
-# Google Play upload (optional): workflow_dispatch input deploy=google-play
-# restricts the Android matrix to the arm64 AAB cell and runs the
-# deploy-google-play job (environment: GooglePlay).  Default deploy=none keeps
-# this workflow Release-downloads-only.
-#
 # Triggers: workflow_dispatch (manual), pull_request (validation), tag push
 # (release).  The release job collects every artifact into a GitHub Release.
 # ═══════════════════════════════════════════════════════════════════════════
@@ -27,14 +22,6 @@ name: Build & Release
 
 on:
   workflow_dispatch:
-    inputs:
-      deploy:
-        description: Upload target for this run (none | google-play)
-        type: choice
-        options:
-          - none
-          - google-play
-        default: none
   pull_request:
     branches: [master]
   push:
@@ -136,13 +123,10 @@ jobs:
           git_hash: ${{ github.sha }}
 
   # ═══ Android — build-android action (arch × format matrix) ═══
-  # 5WHY: build.yml only produces Release-download files (APK/AAB) by default.
-  # deploy=google-play (workflow_dispatch) restricts the matrix to the arm64
-  # AAB cell and enables the deploy-google-play job below.
-  #
-  # 5WHY (matrix in job if): the `matrix` context is NOT available in a
-  # job-level `if` (matrix expands after if is evaluated).  The cell filter
-  # therefore lives in a step-level `if`; skipped cells are cheap no-ops.
+  # 5WHY: build.yml only produces Release-download files (APK/AAB).  Google
+  # Play uploads are intentionally NOT part of this pipeline (kept out by
+  # design — the upload lives in the standalone deploy-google-play action,
+  # run manually when a release is ready for the store).
   android:
     name: Android ${{ matrix.arch }} (${{ matrix.format }})
     needs: [version]
@@ -158,11 +142,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Skip non-Play cell
-        if: ${{ inputs.deploy == 'google-play' && !(matrix.arch == 'arm64' && matrix.format == 'aab') }}
-        run: echo "deploy=google-play — skipping non-arm64/aab cell"
       - uses: ./.github/actions/build-android
-        if: ${{ inputs.deploy != 'google-play' || (matrix.arch == 'arm64' && matrix.format == 'aab') }}
         with:
           arch: ${{ matrix.arch }}
           format: ${{ matrix.format }}
@@ -179,31 +159,6 @@ jobs:
           ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
           ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
-
-  # ═══ Google Play deploy — optional, deploy=google-play only ═══
-  # 5WHY: mirror the TestFlight environment pattern — environment-scoped
-  # secrets keep the Play service account out of the default repo secret
-  # namespace and give the deploy a visible approval gate if the user adds
-  # one to the "GooglePlay" environment.
-  deploy-google-play:
-    name: Deploy Android to Google Play
-    needs: [version, android]
-    if: inputs.deploy == 'google-play'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: GooglePlay
-    steps:
-      - uses: ./.github/actions/deploy-google-play
-        with:
-          track: internal
-          release_status: completed
-          pkg_version: ${{ needs.version.outputs.pkg_version }}
-          pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
-        env:
-          # 5WHY: the `secrets` context is unavailable inside composite
-          # actions — the caller must pass the Play service account via step
-          # env.  The job's `environment: GooglePlay` provides this secret.
-          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
 
   # ═══ Release — collect all artifacts → GitHub Release ═══
   release:
