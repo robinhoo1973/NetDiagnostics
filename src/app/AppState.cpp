@@ -616,8 +616,13 @@ void AppState::runDiagInGroup(int groupIdx, int diagIdx) {
             if (m_resultsModel->hasResult(id)) return;
             onDiagFinished(id, result);
             int done = m_activeGroupDone.fetch_add(1) + 1;
-            auto& gt = m_pendingGroups[groupIdx];
-            if (done >= gt.diagIds.size()) {
+            // 5WHY: m_pendingGroups[groupIdx] used QList::operator[] — an
+            // out-of-range index inserts an EMPTY element (silent UB). The
+            // generation check above already rejects stale runs, but a
+            // bounds check makes the group-advance decision total even for
+            // an unexpected callback order.
+            if (groupIdx < m_pendingGroups.size()
+                && done >= m_pendingGroups[groupIdx].diagIds.size()) {
                 m_currentGroupIdx++;
                 QTimer::singleShot(0, this, &AppState::startNextGroup);
             }
