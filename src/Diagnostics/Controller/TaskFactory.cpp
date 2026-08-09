@@ -3,6 +3,7 @@
 // =============================================================================
 #include "Diagnostics/Controller/TaskFactory.h"
 #include "Common/Model/DiagCapability.h"
+#include "Common/Platform/DeviceCapability.h"
 #include "Diagnostics/Model/G1/G1SystemAdapters.h"
 #include "Diagnostics/Model/G2/G2Connectivity.h"
 #include "Diagnostics/Model/G3/G3Diagnostics.h"
@@ -38,17 +39,6 @@ static int timeoutFor(DiagId id) {
         default:                        return 60000;
     }
 }
-
-#if defined(PLATFORM_MOBILE)
-// 5WHY (defensive guard): unsupported tests are normally NEVER scheduled —
-// AppState::runDiagnostics() and the Config page filter through
-// DeviceCapability::diagRunnable() (see DiagCapability.h for the manifest).
-// If an out-of-band caller (future code, harness) still creates a task for
-// one, report it as Skipped with the reason instead of empty output.
-static QString platformSkipReason(DiagId id) {
-    return DiagCapability::unsupportedReason(id);
-}
-#endif
 
 // ── Factory function type ──────────────────────────────────────────────────
 using FactoryFn = std::function<std::unique_ptr<DiagnosticTask>(DiagId, const QString&, int)>;
@@ -289,16 +279,22 @@ std::unique_ptr<DiagnosticTask> TaskFactory::createTask(
 {
     int tmo = timeoutFor(id);
 
-#if defined(PLATFORM_MOBILE)
-    // Short-circuit platform-unsupported tests: show them as Skipped with an
-    // explanation (detail page) instead of misleading empty/hardcoded output.
-    if (const QString skipReason = platformSkipReason(id); !skipReason.isEmpty()) {
+    // 5WHY (defensive guard, platform-independent): platform/device-impossible
+    // tests are filtered out BEFORE scheduling (AppState::runDiagnostics + the
+    // Config page via DeviceCapability::diagRunnable), so createTask is never
+    // called for them in the normal flow.  If ANY out-of-band caller (future
+    // code, harness) still asks for one, short-circuit to a Skipped result
+    // with the reason instead of running empty/hardcoded output.  Guarding on
+    // ALL platforms (not just PLATFORM_MOBILE) also protects desktop from
+    // device-unsupported tests such as G1CellularInfo on a modem-less machine.
+    if (!diagSupportedOnPlatform(id)
+        || !DeviceCapability::diagSupportedOnDevice(id)) {
+        const QString skipReason = unsupportedReason(id);
         return std::make_unique<GenericTask>(id, target,
             [id, skipReason](DiagId, const QString&) {
                 return DiagnosticResult::skipped(id, skipReason);
             }, tmo);
     }
-#endif
 
     // Linear scan the static table — O(n) for n=45 is acceptable
     for (const auto& entry : kTaskTable) {

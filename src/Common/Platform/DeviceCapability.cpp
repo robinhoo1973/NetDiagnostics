@@ -56,8 +56,10 @@ static void probePlatform() {
     for (auto* a = adapters; a; a = a->Next) {
         if (a->IfType == IF_TYPE_IEEE80211)           s_wifi = true;
         else if (a->IfType == IF_TYPE_ETHERNET_CSMACD) s_wired = true;
-        else if (a->IfType == IF_TYPE_WWANPP
-                 || a->IfType == IF_TYPE_WWANPP2)     s_cellular = true;
+        // 5WHY: IF_TYPE_WWANPP (243) / IF_TYPE_WWANPP2 (244) are not defined
+        // by every Windows SDK/MinGW-w64 header — use the numeric values so
+        // the MSYS2 UCRT64 CI build cannot break on a missing macro.
+        else if (a->IfType == 243 || a->IfType == 244) s_cellular = true;
     }
 }
 #else
@@ -146,9 +148,13 @@ static void probePlatform() {
             }
             typeFile.close();
         }
+        // 5WHY: do NOT match `usb*` as cellular — usb0 is usually an RNDIS /
+        // CDC-ECM USB Ethernet gadget (type 1), not a modem.  Real USB
+        // cellular modems present as cdc-wdm* / wwan* / rmnet* / ppp*.
         if (iface.startsWith(QLatin1String("wwan"))
             || iface.startsWith(QLatin1String("rmnet"))
-            || iface.startsWith(QLatin1String("ppp")))
+            || iface.startsWith(QLatin1String("ppp"))
+            || iface.startsWith(QLatin1String("cdc-wdm")))
             s_cellular = true;
     }
 }
