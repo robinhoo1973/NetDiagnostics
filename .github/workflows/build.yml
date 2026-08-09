@@ -267,3 +267,31 @@ jobs:
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Remove auto-generated source archives
+        # 5WHY: GitHub auto-attaches "Source code (zip)" and "Source code
+        # (tar.gz)" to EVERY release and they cannot be suppressed at
+        # creation time (no API/action option).  They are regular release
+        # assets, so delete them via the REST API right after the release is
+        # created — the Release then carries only the binary downloads.
+        # (The source is always reachable from the repo/tag itself.)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.next_tag }}"
+          RELEASE_ID=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id')
+          # Match GitHub's auto-generated archives ("Source code.zip" /
+          # "Source code.tar.gz" — case-insensitive).  Our own binary assets
+          # never contain "source code" in the name.
+          mapfile -t IDS < <(gh api "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets" \
+            --jq '.[] | select(.name | test("source code"; "i")) | .id')
+          if [ "${#IDS[@]}" -eq 0 ]; then
+            echo "No source archives to remove"
+          else
+            for id in "${IDS[@]}"; do
+              echo "Deleting source archive asset ${id}"
+              gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${id}"
+            done
+            echo "Removed ${#IDS[@]} source archive(s)"
+          fi
