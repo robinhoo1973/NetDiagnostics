@@ -87,6 +87,12 @@ Rectangle {
                         text: { var h=appState.targetHost; var p=appState.targetPath; return (!h&&!p)?"": h+p }
                         enabled: appState.runStatus !== 1
                         verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                        // 5WHY (Android IME): the soft keyboard can fail to open even
+                        // when the field already has focus (caret visible) — Qt's
+                        // default focus→IME path is missed on Android, notably when
+                        // the full-screen swipe DragHandler overlay competes for the
+                        // touch.  Explicitly request the input method on focus.
+                        onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
                         // 5WHY: Placeholder is translated — align to script start
                         // edge in RTL so Arabic placeholders render correctly.
                         horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
@@ -248,6 +254,8 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPort > 0 ? ""+appState.targetPort : ""
                     enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    // 5WHY (Android IME): same explicit IME request as hostField.
+                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
                     horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: { var v = parseInt(text); appState.targetPort = isNaN(v) ? -1 : v }
                 }
@@ -266,6 +274,8 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    // 5WHY (Android IME): same explicit IME request as hostField.
+                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
                     horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: appState.targetUsername = text
                 }
@@ -284,6 +294,8 @@ Rectangle {
                     placeholderTextColor: ThemeEngine.colors.textPlaceholder
                     text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
+                    // 5WHY (Android IME): same explicit IME request as hostField.
+                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
                     horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: appState.targetPassword = text
                 }

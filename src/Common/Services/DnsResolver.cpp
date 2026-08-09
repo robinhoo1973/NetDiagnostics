@@ -175,16 +175,18 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
                      // Mitigated by DNS cache -- repeated lookups hit the cache
                      // before spawning new threads.
     }
-    if (!st->done.load(std::memory_order_acquire))
-        return {}; // timeout: thread still owns st via shared_ptr, safe
-    // Cache both outcomes: success → positive entry, timeout/failure →
-    // negative entry (TTL-bounded).  The detached-thread risk noted below is
-    // therefore mitigated by the negative cache too — a wedged DNS server
-    // won't re-spawn a thread for the same host within the TTL window.
+    // 5WHY: this cache write MUST happen before the timeout early-return
+    // below. When getaddrinfo is still blocked (st->done==false, st->ip empty)
+    // we write an empty entry = NEGATIVE cache, so a wedged DNS server doesn't
+    // re-spawn a blocking thread for the same host within the 30s TTL. The
+    // Apple/GCD path already did this; the non-Apple path skipped it because
+    // the early return sat ahead of the write.
     {
         QMutexLocker locker(&m_mutex);
         m_cache[host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
     }
+    if (!st->done.load(std::memory_order_acquire))
+        return {}; // timeout: thread still owns st via shared_ptr, safe
     return st->ip;
 #endif
 }
@@ -286,11 +288,14 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     } else {
         t.detach();
     }
-    if (!st->done.load(std::memory_order_acquire)) return {};
+    // 5WHY: same as resolve() — write the (possibly negative) cache entry
+    // BEFORE the timeout early-return so a wedged DNS server hits the 30s
+    // negative entry instead of re-spawning a thread per call.
     {
         QMutexLocker l(&m_mutex);
         m_cache[QStringLiteral("v6:") + host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
     }
+    if (!st->done.load(std::memory_order_acquire)) return {};
     return st->ip;
 #endif
 }

@@ -7,7 +7,11 @@ ApplicationWindow {
     id: root
     title: T.tr("appName")
     visible: true
-    flags: Qt.FramelessWindowHint
+    // 5WHY (Android IME): Qt.FramelessWindowHint must stay desktop-only.  On
+    // Android a frameless window can suppress the soft keyboard — a TextField
+    // gains focus (caret visible) but the IME never opens.  Mobile uses native
+    // window chrome / gesture close anyway (see close button below).
+    flags: ThemeEngine.isMobile ? Qt.Window : Qt.FramelessWindowHint
     color: ThemeEngine.colors.surface
 
     // ── Right-to-left (RTL) mirroring ─────────────────────────────────

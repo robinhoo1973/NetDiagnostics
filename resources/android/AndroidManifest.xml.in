@@ -65,12 +65,16 @@
         android:allowBackup="true"
         android:usesCleartextTraffic="true"
         android:icon="@drawable/ic_launcher">
+        <!-- 5WHY (Android IME): adjustResize makes the system resize the window
+             when the soft keyboard appears (the target field stays visible above
+             it) and ensures the IME opens reliably when a text field gains focus. -->
         <activity
             android:name="@ND_QT_BINDINGS_PACKAGE@.QtActivity"
             android:configChanges="orientation|uiMode|screenLayout|screenSize|smallestScreenSize|layoutDirection|locale|fontScale|keyboard|keyboardHidden|navigation|mcc|mnc|density"
             android:label="NetDiagnostics"
             android:launchMode="singleTop"
-            android:exported="true">
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
