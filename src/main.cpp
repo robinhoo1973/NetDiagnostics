@@ -78,6 +78,14 @@ int main(int argc, char *argv[])
     qputenv("QSG_RENDER_LOOP", "basic");
 #if defined(PLATFORM_MOBILE)
     QGuiApplication app(argc, argv);
+#if defined(PLATFORM_ANDROID)
+    // 5WHY: JNI becomes available only after QGuiApplication fully constructs
+    // (Qt Android platform plugin load).  Set the explicit readiness flag NOW
+    // — QCoreApplication::instance() is already non-null but JNI is not, so
+    // crash/log paths must not enter JNI before this point (see
+    // AndroidLogPaths.h).
+    setAndroidJniReady(true);
+#endif
 #else
     QApplication app(argc, argv);
 

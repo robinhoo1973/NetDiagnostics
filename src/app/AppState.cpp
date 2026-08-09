@@ -39,11 +39,8 @@
 #include "Common/Platform/PlatformShare.h"
 #if defined(PLATFORM_ANDROID)
 #include "Common/Platform/Android/PlatformAndroidJni.h"
-#include <android/log.h>
-#define APPSTATE_ANDROID_LOG(fmt, ...) __android_log_print(ANDROID_LOG_INFO, "NetDiagnostics", "[AppState] " fmt, ##__VA_ARGS__)
-#else
-#define APPSTATE_ANDROID_LOG(fmt, ...) ((void)0)
 #endif
+#include "Common/Utils/StartupLog.h"
 #if defined(PLATFORM_IOS)
 #include "Common/Platform/PlatformStore.h"
 #endif
@@ -69,26 +66,28 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // 5WHY (Android launch crash): AppState ctor creates 7 controllers + 2 models
     // sequentially.  If ANY of these constructors crashes (e.g. missing native
     // library, JNI init failure, QSettings corruption), the app flash-quits
-    // with zero diagnostic trail.  Log each step to logcat so the LAST line
-    // visible before the crash pinpoints the failing constructor.
-    APPSTATE_ANDROID_LOG("AppState ctor: creating TargetModel...");
+    // with zero diagnostic trail.  Log each step via STARTUP_LOG (NOT a
+    // logcat-only macro) so the LAST line visible before the crash pinpoints
+    // the failing constructor in the app-scoped file AND the public Download
+    // mirror — readable by a non-technical user without adb.
+    STARTUP_LOG("AppState ctor: creating TargetModel...");
     m_targetModel  = new TargetModel(this);
-    APPSTATE_ANDROID_LOG("TargetModel OK — creating ResultsModel...");
+    STARTUP_LOG("TargetModel OK — creating ResultsModel...");
     m_resultsModel = new ResultsModel(this);
-    APPSTATE_ANDROID_LOG("ResultsModel OK — creating DashboardController...");
+    STARTUP_LOG("ResultsModel OK — creating DashboardController...");
     m_dashCtrl   = new DashboardController(this, this);
-    APPSTATE_ANDROID_LOG("DashboardController OK — creating DiagnosticsController...");
+    STARTUP_LOG("DashboardController OK — creating DiagnosticsController...");
     m_diagCtrl   = new DiagnosticsController(this, this);
-    APPSTATE_ANDROID_LOG("DiagnosticsController OK — creating ConfigurationController...");
+    STARTUP_LOG("DiagnosticsController OK — creating ConfigurationController...");
     m_configCtrl = new ConfigurationController(this, this);
-    APPSTATE_ANDROID_LOG("ConfigurationController OK — creating ReportController...");
+    STARTUP_LOG("ConfigurationController OK — creating ReportController...");
     m_reportCtrl = new ReportController(this, this);
-    APPSTATE_ANDROID_LOG("ReportController OK — creating SettingsController...");
+    STARTUP_LOG("ReportController OK — creating SettingsController...");
     m_settingsCtrl = new SettingsController(this, this);
-    APPSTATE_ANDROID_LOG("SettingsController OK — creating Translator...");
+    STARTUP_LOG("SettingsController OK — creating Translator...");
     m_translator = new Translator(this);
     m_translator->initialize(this);
-    APPSTATE_ANDROID_LOG("Translator OK — AppState ctor complete");
+    STARTUP_LOG("Translator OK — AppState ctor complete");
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.

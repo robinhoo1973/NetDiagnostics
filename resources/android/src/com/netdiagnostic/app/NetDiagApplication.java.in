@@ -25,7 +25,22 @@ package com.netdiagnostic.app;
 
 import @ND_QT_BINDINGS_PACKAGE@.QtApplication;
 
+import android.Manifest;
+import android.app.Activity;
+import android.app.Application;
+import android.content.pm.PackageManager;
+import android.os.Build;
+
 public class NetDiagApplication extends QtApplication {
+
+    // 5WHY (Android 9/10 Download mirror): the C++ raw-path fallback writes
+    // /sdcard/Download/NetDiagnostics/ on API 26-28, which requires the
+    // WRITE_EXTERNAL_STORAGE runtime grant.  Request it once, non-blocking:
+    // a denial only degrades the public Download mirror on those devices
+    // (app-scoped file + logcat still work).  API 29+ uses MediaStore and
+    // needs no permission.
+    private static final int REQ_WRITE_STORAGE = 0x2B1;
+    private boolean mStorageGrantRequested = false;
 
     @Override
     public void onCreate() {
@@ -44,5 +59,31 @@ public class NetDiagApplication extends QtApplication {
             throw t;
         }
         EarlyLog.write(this, "Java Application.onCreate — Qt native libs loaded OK");
+        requestStorageForDownloadMirror();
+    }
+
+    private void requestStorageForDownloadMirror() {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) // API 28 max
+            return;
+        if (mStorageGrantRequested)
+            return;
+        mStorageGrantRequested = true;
+        registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityResumed(Activity activity) {
+                if (activity.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    activity.requestPermissions(
+                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                            REQ_WRITE_STORAGE);
+                }
+            }
+            @Override public void onActivityCreated(Activity a, android.os.Bundle b) {}
+            @Override public void onActivityStarted(Activity a) {}
+            @Override public void onActivityPaused(Activity a) {}
+            @Override public void onActivityStopped(Activity a) {}
+            @Override public void onActivitySaveInstanceState(Activity a, android.os.Bundle b) {}
+            @Override public void onActivityDestroyed(Activity a) {}
+        });
     }
 }

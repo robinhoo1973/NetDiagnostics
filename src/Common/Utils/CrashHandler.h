@@ -92,6 +92,26 @@ inline QString crashLogPath() {
 #endif
 }
 
+#if defined(PLATFORM_ANDROID)
+// ── Helper: mirror the crash report to the PUBLIC Download folder ──────
+// 5WHY (Android Download mirror): copy the crash report to
+// /sdcard/Download/NetDiagnostics/ so a non-technical user can retrieve it
+// without adb.  Best-effort: the raw path works on API ≤28 (with the
+// WRITE_EXTERNAL_STORAGE grant) and fails silently on API 29+ scoped storage
+// (a MediaStore mirror from inside crash handlers is risky — the app-scoped
+// copy + startup-log mirror remain the canonical trails there).
+inline void mirrorCrashReportToDownload(const QString& path) {
+    QString downloadDir = QStringLiteral("/sdcard/Download/NetDiagnostics");
+    QString downloadPath = downloadDir + QLatin1Char('/')
+                           + QString::fromLatin1(kCrashFileName);
+    QDir().mkpath(downloadDir);
+    // 5WHY: QFile::copy does NOT overwrite — remove the stale previous report
+    // first so the Download copy always holds the CURRENT crash.
+    QFile::remove(downloadPath);
+    QFile::copy(path, downloadPath);
+}
+#endif // PLATFORM_ANDROID
+
 // ── Helper: write backtrace to file ────────────────────────────────────
 inline void writeBacktrace(QTextStream& ts) {
 #if defined(_WIN32)
@@ -144,6 +164,11 @@ inline void writeCrashReport(const char* signalName, int signalNum) {
             ats.flush();
             af.close();
         }
+#if defined(PLATFORM_ANDROID)
+        // Re-copy so the Download mirror also carries the subsequent-signal
+        // note (the first copy was made before abort() raised SIGABRT).
+        mirrorCrashReportToDownload(path);
+#endif
         return;
     }
     QFile f(path);
@@ -199,6 +224,12 @@ inline void writeCrashReport(const char* signalName, int signalNum) {
     ts << "====================================\n";
     ts.flush();
     f.close();
+#if defined(PLATFORM_ANDROID)
+    // 5WHY: mirror pure-signal crashes to Download too (previously only the
+    // qFatal/terminate path got a Download copy — SIGSEGV/SIGABRT reports
+    // stayed in the app-scoped dir, invisible on Android 11+).
+    mirrorCrashReportToDownload(path);
+#endif
 }
 
 // ── Append extra context to an existing crash report ───────────────────
@@ -257,13 +288,8 @@ inline void writeMessageCrashReport(const char* kind, const QString& text) {
     ts.flush();
     f.close();
     g_messageCrashWritten = true;
-#if defined(__ANDROID__) || defined(PLATFORM_ANDROID)
-    {
-        QDir().mkpath(QStringLiteral("/sdcard/Download/NetDiagnostics"));
-        QString downloadPath = QStringLiteral("/sdcard/Download/NetDiagnostics/")
-                               + QString::fromLatin1(kCrashFileName);
-        QFile::copy(path, downloadPath);
-    }
+#if defined(PLATFORM_ANDROID)
+    mirrorCrashReportToDownload(path);
 #endif
 }
 

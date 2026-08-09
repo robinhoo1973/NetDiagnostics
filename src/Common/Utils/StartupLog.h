@@ -106,9 +106,11 @@ static void startup_log(const char* file, int line, const char* fmt, ...) {
     // available via `adb logcat -s NetDiagnostics` even when the file write
     // fails (e.g. external storage unavailable) or for CI/developer devices.
     __android_log_print(ANDROID_LOG_INFO, "NetDiagnostics", "%s", buf);
-    // 5WHY (Android 11+): also mirror to the PUBLIC Download folder so a
+    // 5WHY (Android): also mirror to the PUBLIC Download folder so a
     // non-technical user can find the log without USB/adb (see
-    // AndroidDownloadLog.h).  No-ops pre-QGuiApplication and on API < 30.
+    // AndroidDownloadLog.h).  Pre-JNI lines take the raw-path fallback;
+    // post-JNI lines go via MediaStore (EarlyLog, API 29+) or the raw path
+    // with the WRITE_EXTERNAL_STORAGE grant (API ≤28).
     androidMirrorLineToDownloads(fullLine);
 #endif
 

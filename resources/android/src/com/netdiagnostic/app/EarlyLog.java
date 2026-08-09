@@ -17,9 +17,11 @@
 // 5WHY (Android 11+ invisible log): the app-scoped external dir is NOT
 // browsable by stock file managers on Android 11+ (scoped storage) — the log
 // exists but the user can't find it without USB/adb.  MediaStore.Downloads
-// (API 30+, targetSdk 29+) creates a file in the PUBLIC Download folder with
+// (API 29+, targetSdk 29+) creates a file in the PUBLIC Download folder with
 // NO storage permission.  Every line is therefore also mirrored to
 // Download/NetDiagnostics/NetDiagnostics_startup.log (see appendToDownloads()).
+// On API 26-28 the C++ raw-path fallback (AndroidDownloadLog.h) writes the
+// same Download file using the WRITE_EXTERNAL_STORAGE runtime grant.
 //
 // appendToDownloads() is PUBLIC so native code (StartupLog.h →
 // AndroidDownloadLog.h) can feed its lines into the SAME Download file —
@@ -104,9 +106,11 @@ public final class EarlyLog {
     /**
      * Append one line to the PUBLIC Download mirror
      * (Download/NetDiagnostics/NetDiagnostics_startup.log) via MediaStore.
-     * Android 11+ (API 30+) only — there it needs NO storage permission
-     * (targetSdk 29+).  On older Android this silently no-ops and the
-     * app-scoped file + logcat remain the fallback.
+     * Android 10+ (API 29+) — there an app-created MediaStore.Downloads row
+     * needs NO storage permission (targetSdk 29+).  On API 26-28 this
+     * silently no-ops and the C++ raw-path fallback
+     * (AndroidDownloadLog.h, needs the WRITE_EXTERNAL_STORAGE grant) handles
+     * the Download mirror.
      *
      * Also called from native C++ (StartupLog.h → AndroidDownloadLog.h) so the
      * native lines land in the SAME Download file.  Runs on the main thread
@@ -115,10 +119,11 @@ public final class EarlyLog {
      * Best-effort: never throws into callers.
      */
     public static void appendToDownloads(String line) {
-        // 5WHY: MediaStore.Downloads exists since API 29 but only needs no
-        // permission from API 30.  Guard before touching any MediaStore
-        // symbol so API 26-29 devices can't hit NoSuchFieldError.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R)
+        // 5WHY: MediaStore.Downloads exists since API 29 (Q); app-created
+        // rows need no permission from API 29 with targetSdk 29+.  Guard
+        // before touching any MediaStore symbol so API 26-28 devices can't
+        // hit NoSuchFieldError — they use the C++ raw-path fallback instead.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q)
             return;
         if (sAppContext == null || line == null)
             return;

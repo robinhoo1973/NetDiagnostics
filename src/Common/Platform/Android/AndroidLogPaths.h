@@ -36,6 +36,21 @@
 // accessor (Qt 6.2+, same pattern as PlatformShare.cpp), which resolves the
 // Activity without hardcoding a Java class name.
 
+// Explicit JNI-readiness flag, set by main() immediately AFTER QGuiApplication
+// constructs (see main.cpp).
+// 5WHY (Android launch crash, b21294 class): QCoreApplication::instance()
+// becomes non-null inside QGuiApplication's CONSTRUCTOR, while the Qt Android
+// platform plugin — which initializes the JNI environment — is only loaded
+// near the END of that constructor.  A crash in that window (e.g. platform
+// plugin init failure) would route the crash handler through JNI with an
+// uninitialized VM: a second fault inside the crash handler, masking the real
+// error and producing zero log.  Guard on this EXPLICIT flag instead.
+// C++17 inline variable: ONE process-global object shared by every TU that
+// includes this header (a `static inline` helper would duplicate per TU).
+inline bool androidJniReadyFlag = false;
+static inline bool androidJniReady() { return androidJniReadyFlag; }
+static inline void setAndroidJniReady(bool v) { androidJniReadyFlag = v; }
+
 // The Qt Android activity (never cache across calls).
 static inline QJniObject androidLogActivity() {
     // Qt 6.2+: version-independent accessor — no hardcoded Java class name.
@@ -68,20 +83,23 @@ static inline QString androidExternalFilesDir() {
 // User-visible base directory for NetDiagnostics logs on Android.
 // Returns "<externalFiles>/NetDiagnostics" or a deterministic fallback.
 // 5WHY (Android launch crash): this is called from CrashHandler even when the
-// crash happens BEFORE QGuiApplication is constructed (e.g. app ctor crash).
-// JNI (QNativeInterface::QAndroidApplication::context) requires the Qt Android
-// platform plugin, which is only loaded by QGuiApplication — calling it before
-// that would crash inside the crash handler (masking the real SIGSEGV).  Guard:
-// before the app object exists (and whenever the JNI call fails), fall back to
-// the deterministic app-scoped external dir built from the package name
+// crash happens BEFORE/INSIDE QGuiApplication construction (e.g. app ctor
+// crash, platform-plugin init failure).  JNI
+// (QNativeInterface::QAndroidApplication::context) requires the Qt Android
+// platform plugin, which is only loaded near the END of QGuiApplication's
+// constructor — calling it before that would crash inside the crash handler
+// (masking the real SIGSEGV).  Guard: before the explicit JNI-ready flag is
+// set (and whenever the JNI call fails), fall back to the deterministic
+// app-scoped external dir built from the package name
 // (ND_ANDROID_PACKAGE, injected by CMake from AndroidManifest.xml.in).  It is
 // user-visible via USB/MTP and needs no storage permission — unlike the old
 // TempLocation fallback (private cache, invisible), which silently hid every
 // early native startup log.
 static inline QString androidUserVisibleLogDir() {
-    if (QCoreApplication::instance() == nullptr) {
-        // Pre-Qt crash path: no JNI available.  The app-scoped external dir is
-        // deterministic from the package name and writable without JNI.
+    if (!androidJniReady()) {
+        // Pre-JNI crash path (before/inside QGuiApplication ctor): no JNI
+        // available.  The app-scoped external dir is deterministic from the
+        // package name and writable without JNI.
         return QStringLiteral("/storage/emulated/0/Android/data/")
                + QStringLiteral(ND_ANDROID_PACKAGE)
                + QStringLiteral("/files/NetDiagnostics");

@@ -24,6 +24,13 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+    <!-- 5WHY (Android 9/10 Download mirror): only the C++ raw-path fallback
+         (AndroidDownloadLog.h) writes /sdcard/Download/ on API 26-28, and it
+         needs this runtime grant.  maxSdkVersion=28: on API 29+ the
+         MediaStore path needs no permission and scoped storage ignores this
+         legacy permission anyway.  NetDiagApplication requests it once at
+         runtime on API <= 28; denial is non-fatal. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
 
     <application
         android:name="com.netdiagnostic.app.NetDiagApplication"
