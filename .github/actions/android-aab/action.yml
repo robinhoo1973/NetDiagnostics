@@ -163,12 +163,16 @@ runs:
           echo "androidx-core.jar already present in gradle libs"
         fi
 
-        # Locate the release bundle.  Prefer the explicitly-unsigned artifact
-        # (Qt/Gradle name it *-release-unsigned.aab); fall back to any single
-        # bundle for Qt versions that emit app-release.aab directly.
-        mapfile -t AABS < <(find "$BUILD_DIR" -path '*outputs/bundle/*' -name '*unsigned*.aab' | sort)
+        # Locate the release bundle — NEVER count debug bundles.  Gradle's
+        # `bundle` aggregate task emits BOTH bundleDebug and bundleRelease, so
+        # the generic `*.aab` fallback would match 2 files (debug + release)
+        # and abort with "expected exactly one release AAB, found 2".
+        # 5WHY: restrict the search to the release variant directory first,
+        # then to any *release*.aab under outputs/bundle as a fallback (covers
+        # Qt versions that emit *-release-unsigned.aab directly).
+        mapfile -t AABS < <(find "$BUILD_DIR" -path '*outputs/bundle/release/*' -name '*.aab' | sort)
         if [ "${#AABS[@]}" -ne 1 ]; then
-          mapfile -t AABS < <(find "$BUILD_DIR" -path '*outputs/bundle/*' -name '*.aab' | sort)
+          mapfile -t AABS < <(find "$BUILD_DIR" -path '*outputs/bundle/*' -name '*release*.aab' | sort)
         fi
         if [ "${#AABS[@]}" -ne 1 ]; then
           echo "ERROR: expected exactly one release AAB, found ${#AABS[@]}"
