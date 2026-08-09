@@ -377,10 +377,11 @@ fi
 	# ── 17. SVG icons: fill="none" fill-opacity="0" format check ─────────────
 	echo ""
 	echo "── 17. SVG icon format (fill=none + fill-opacity=0) ──"
-	# Masters live in resources/icons/src/ (build input, not shipped).
-	# Generated variants (resources/icons/gen/) are derived from masters and
-	# inherit their format — only masters need checking.
-	SVG_FILES=$(echo "$STAGED" | grep -E 'icons/src/.*\.svg$' || true)
+	# Masters live in resources/icons/ffffff/ (the white variant doubles as
+	# the master set).  Generated variants (resources/icons/<hex>/) are
+	# derived from masters and inherit their format — only masters need
+	# checking.
+	SVG_FILES=$(echo "$STAGED" | grep -E 'icons/ffffff/.*\.svg$' || true)
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        content=$(git show ":$f" 2>/dev/null)
@@ -417,19 +418,19 @@ fi
 	fi
 
 	# ── 19. Pre-generated colored icons: staleness check ────────────────────
-	# 5WHY: AppIcon selects from pre-generated qrc:/icons/gen/ variants
+	# 5WHY: AppIcon selects from pre-generated qrc:/icons/ variants
 	# (scripts/generate-colored-icons.py).  If Palette.js or a master icon
 	# changes without regeneration, nearest-color matching silently snaps
 	# to stale colors.
 	echo ""
-	echo "── 19. Pre-generated icon staleness (icons/gen vs Palette.js) ──"
-	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/src/[^/]+\.svg)$' || true)
+	echo "── 19. Pre-generated icon staleness (icons vs Palette.js) ──"
+	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/ffffff/[^/]+\.svg)$' || true)
 	if [ -n "$GEN_INPUTS" ]; then
-	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/gen/|resources_icons\.qrc)' || true)
+	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/[0-9a-f]{6}/|resources_icons\.qrc)' || true)
 	    if [ -z "$GEN_OUTPUTS" ]; then
-	        fail "Palette.js or master icons changed but icons/gen not regenerated — run: python scripts/generate-colored-icons.py"
+	        fail "Palette.js or master icons changed but colored icons not regenerated — run: python scripts/generate-colored-icons.py"
 	    else
-	        pass "icons/gen regenerated alongside inputs"
+	        pass "icons regenerated alongside inputs"
 	    fi
 	else
 	    pass "generator inputs unchanged"

@@ -5,7 +5,7 @@
 // one platform (ShaderEffect inline GLSL: no Metal support; MultiEffect:
 // QtQuick.Effects absent from iOS aqt; Image.color: property never existed;
 // Rectangle overlay: unmasked foggy square).  Icons are now pre-generated per
-// palette color by scripts/generate-colored-icons.py into qrc:/icons/gen/.
+// palette color by scripts/generate-colored-icons.py into qrc:/icons/.
 // This component only SELECTS the nearest pre-generated color variant and
 // expresses alpha via Image.opacity.  Zero shaders, zero effects, zero
 // overlays - identical rendering on every platform.
@@ -55,7 +55,7 @@ Item {
     Image {
         anchors.fill: parent
         source: root.name
-                ? "qrc:/icons/gen/" + root._hex.substr(1).toLowerCase()
+                ? "qrc:/icons/" + root._hex.substr(1).toLowerCase()
                   + "/" + root.name + ".svg"
                 : ""
         sourceSize.width: root.size * Screen.devicePixelRatio

@@ -11,15 +11,15 @@
 # color) and expresses alpha via Image.opacity — zero runtime colorization.
 #
 # Inputs:   src/Common/View/theme/Palette.js   (color roles, both themes)
-#           resources/icons/src/*.svg          (white-stroke master icons,
-#                                               build-time input only — NOT
-#                                               shipped in any QRC)
-# Outputs:  resources/icons/gen/<rrggbb>/<name>.svg
+#           resources/icons/ffffff/*.svg       (white-stroke master icons —
+#                                               the ffffff variant doubles as
+#                                               the white master set)
+# Outputs:  resources/icons/<rrggbb>/<name>.svg
 #           resources/resources_icons.qrc
 #           src/Common/View/widgets/IconColors.js  (list for nearest-match)
 #
 # Run:      python scripts/generate-colored-icons.py
-#           Re-run whenever Palette.js or resources/icons/src/*.svg change.
+#           Re-run whenever Palette.js or resources/icons/ffffff/*.svg change.
 #           (Enforced by scripts/pre-commit check.)
 # =============================================================================
 import re
@@ -28,8 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PALETTE = ROOT / "src/Common/View/theme/Palette.js"
-ICONS = ROOT / "resources/icons/src"
-OUT = ROOT / "resources/icons/gen"
+ICONS = ROOT / "resources/icons/ffffff"
+OUT = ROOT / "resources/icons"
 QRC = ROOT / "resources/resources_icons.qrc"
 JS = ROOT / "src/Common/View/widgets/IconColors.js"
 
@@ -49,22 +49,30 @@ def main() -> None:
     icons = [p for p in sorted(ICONS.glob("*.svg"))
              if "#FFFFFF" in p.read_text(encoding="utf-8").upper()]
     if not icons:
-        raise SystemExit("no master icons found in resources/icons/src/")
+        raise SystemExit("no master icons found in resources/icons/ffffff/")
 
-    if OUT.exists():
-        shutil.rmtree(OUT)
+    # Remove stale color-variant dirs (keep the ffffff master dir plus
+    # non-color files like netanalysis.ico / netanalysis.png / app-icon.svg).
+    for sub in sorted(OUT.iterdir()):
+        if sub.is_dir() and re.fullmatch(r"[0-9a-f]{6}", sub.name) and sub.name != "ffffff":
+            shutil.rmtree(sub)
 
     qrc_entries = []
     for hx in hexes:
-        sub = OUT / hx[1:].lower()
-        sub.mkdir(parents=True)
+        if hx == "#FFFFFF":
+            # ffffff already exists as the white-stroke master set.
+            sub = ICONS
+        else:
+            sub = OUT / hx[1:].lower()
+            sub.mkdir(parents=True)
+            for svg in icons:
+                body = svg.read_text(encoding="utf-8")
+                # Master icons are white-stroke (#FFFFFF).  Bake the target color.
+                colored = body.replace("#FFFFFF", hx).replace("#ffffff", hx)
+                out = sub / svg.name
+                out.write_text(colored, encoding="utf-8", newline="\n")
         for svg in icons:
-            body = svg.read_text(encoding="utf-8")
-            # Master icons are white-stroke (#FFFFFF).  Bake the target color.
-            colored = body.replace("#FFFFFF", hx).replace("#ffffff", hx)
-            out = sub / svg.name
-            out.write_text(colored, encoding="utf-8", newline="\n")
-            qrc_entries.append(f"icons/gen/{hx[1:].lower()}/{svg.name}")
+            qrc_entries.append(f"icons/{sub.name}/{svg.name}")
 
     qrc = ['<?xml version="1.0" encoding="utf-8"?>', "<RCC>", '    <qresource prefix="/">']
     qrc += [f"        <file>{e}</file>" for e in qrc_entries]
