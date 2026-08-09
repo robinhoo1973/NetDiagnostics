@@ -320,6 +320,14 @@ private:
     std::atomic<int> m_runGeneration{0};
     // m_languageIndex, m_themeMode, m_premium → now owned by SettingsController
     QSet<int> m_activeGroups; // G1-G3 active by default; G4/G5 auto-managed via setTarget()
+    // 5WHY: the SAME m_activeGroups is written by two actors with conflicting
+    // intent — the targetChanged lambda (runtime: "a target is present → G4/G5
+    // usable") and the Config green dot (user preference: "I deactivated this
+    // group", persisted). Without arbitration the lambda re-inserted a group
+    // the user explicitly deactivated. m_userDeactivatedGroups records the
+    // user's choice so the lambda skips those groups.
+    QSet<int> m_userDeactivatedGroups;   // groups the user green-dotted OFF this session
+    QSet<int> m_userConfiguredGroups;    // groups the user explicitly configured this session
     bool m_isMobile = false;  // computed in ctor: platform env OR ND_MOBILE=1 override
 
 };

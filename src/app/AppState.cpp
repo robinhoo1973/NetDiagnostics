@@ -154,26 +154,19 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // ND_CAPTURE_TARGET pre-fills the target URL for screenshot automation.
     // This bypasses the QML TextField binding-loop issue that prevents
     // xdotool/xvkbd from injecting keystrokes into the host field.
-    // 5WHY: this MUST run AFTER m_configCtrl->loadSettings() below — a target
-    // set before loadSettings() would make ensureGroupTestsAvailable() see the
-    // default all-enabled config (no top-up needed), then loadSettings() would
+    m_configCtrl->loadSettings();
+    loadSettings();
+
+    // 5WHY: ND_CAPTURE_TARGET must be applied AFTER loadSettings() — a target
+    // set first would make ensureGroupTestsAvailable() see the default
+    // all-enabled config (no top-up needed), then loadSettings() would
     // overwrite it with the persisted G1-G3-only list, leaving G4/G5 disabled
-    // for the whole session.
+    // for the whole session. Setting the target here runs the targetChanged
+    // handler once, against the FINAL persisted state.
     const QString captureTarget = qEnvironmentVariable("ND_CAPTURE_TARGET");
     if (!captureTarget.isEmpty()) {
         m_targetModel->setTarget(captureTarget);
         TRACE("ND_CAPTURE_TARGET set: %s", qPrintable(captureTarget));
-    }
-
-    m_configCtrl->loadSettings();
-    loadSettings();
-
-    // (re-apply after loadSettings: a stale persisted config that lacks G4/G5
-    // must still top them up when a target is already present)
-    if (!captureTarget.isEmpty() && !m_targetModel->isEmpty()) {
-        bool isUrl = m_targetModel->isUrl();
-        ensureGroupTestsAvailable(DiagGroup::G4);
-        if (isUrl) ensureGroupTestsAvailable(DiagGroup::G5);
     }
 
     // ND_AUTORUN triggers a diagnostic run after startup — used by the
@@ -299,10 +292,20 @@ bool AppState::isDiagEnabled(int diagIdInt) const { return m_configCtrl->config(
 // enabledDiags to QSettings on every change.  AppState::saveSettings()
 // only stores activeGroups and is not needed here.
 void AppState::setDiagEnabled(int diagIdInt, bool enabled) {
-    if (m_configCtrl->setDiagEnabled(diagIdInt, enabled)) bumpVersion();
+    if (m_configCtrl->setDiagEnabled(diagIdInt, enabled)) {
+        // 5WHY: record that the user explicitly configured this test's group
+        // so ensureGroupTestsAvailable() never silently re-enables a group
+        // the user chose to change (see ensureGroupTestsAvailable).
+        m_userConfiguredGroups.insert(
+            static_cast<int>(DiagnosticConfig::diagGroup(static_cast<DiagId>(diagIdInt))));
+        bumpVersion();
+    }
 }
 void AppState::setGroupEnabled(int groupInt, bool enabled) {
-    if (m_configCtrl->setGroupEnabled(groupInt, enabled)) bumpVersion();
+    if (m_configCtrl->setGroupEnabled(groupInt, enabled)) {
+        m_userConfiguredGroups.insert(groupInt);
+        bumpVersion();
+    }
 }
 bool AppState::isGroupAllEnabled(int groupInt) const { return m_configCtrl->config().isGroupAllEnabled(groupInt); }
 bool AppState::isGroupAnyEnabled(int groupInt) const { return m_configCtrl->config().isGroupAnyEnabled(groupInt); }
@@ -315,10 +318,18 @@ void AppState::setGroupActive(int groupInt, bool active) {
     // on no-change is simpler — it eliminates the temporary bool, two
     // negated expressions, and the nested if.
     if (m_activeGroups.contains(groupInt) == active) return;
-    if (active)
+    // 5WHY: record BOTH the user's intent. m_userDeactivatedGroups stops the
+    // targetChanged lambda from re-inserting a group the user deactivated via
+    // the Config green dot; m_userConfiguredGroups stops
+    // ensureGroupTestsAvailable() from topping up a group the user touched.
+    m_userConfiguredGroups.insert(groupInt);
+    if (active) {
         m_activeGroups.insert(groupInt);
-    else
+        m_userDeactivatedGroups.remove(groupInt);
+    } else {
         m_activeGroups.remove(groupInt);
+        m_userDeactivatedGroups.insert(groupInt);
+    }
     saveSettings();
     emit groupActiveChanged();
     bumpVersion();
@@ -335,15 +346,25 @@ void AppState::ensureGroupTestsAvailable(DiagGroup g) {
     for (auto id : ids) {
         if (m_configCtrl->config().isDiagEnabled(static_cast<int>(id))) ++enabled;
     }
-    Logger::instance().event(QStringLiteral("ensureGroupTestsAvailable G%1: enabled=%2/%3")
-        .arg(static_cast<int>(g) + 1).arg(enabled).arg(ids.size()));
-    // Only top-up when the WHOLE group is disabled. A group with any enabled
-    // test means the user configured it (partial intent) — leave it alone.
-    // setAutomaticGroupEnabled is memory-only (no saveSettings), so this
-    // never writes the transient target state into QSettings.
-    if (enabled == 0 && !ids.isEmpty()) {
-        m_configCtrl->setAutomaticGroupEnabled(static_cast<int>(g), true);
-        Logger::instance().event(QStringLiteral("  -> topped up G%1 (memory only)").arg(static_cast<int>(g) + 1));
+    // 5WHY: the per-call "enabled=X/Y" line must NOT go to Logger::event —
+    // this runs on every targetChanged keystroke, so it would flood debug.log
+    // (2 lines per character typed). TRACE is compiled out in release; the
+    // persistent EVENT line is written ONLY when the state actually changes
+    // (setAutomaticGroupEnabled returns true exactly when the group flips
+    // from disabled to enabled).
+    TRACE("ensureGroupTestsAvailable G%d: enabled=%d/%d", (int)g + 1, enabled, ids.size());
+    // Only top-up when the WHOLE group is disabled AND the user has not
+    // explicitly configured this group in this session (setDiagEnabled /
+    // setGroupEnabled / setGroupActive all record into m_userConfiguredGroups).
+    // A group with any enabled test means partial user intent — leave it
+    // alone. setAutomaticGroupEnabled is memory-only (no saveSettings), so
+    // this never writes the transient target state into QSettings.
+    if (enabled == 0 && !ids.isEmpty()
+        && !m_userConfiguredGroups.contains(static_cast<int>(g))) {
+        if (m_configCtrl->setAutomaticGroupEnabled(static_cast<int>(g), true)) {
+            Logger::instance().event(QStringLiteral("ensureGroupTestsAvailable: topped up G%1 (memory only)")
+                .arg(static_cast<int>(g) + 1));
+        }
     }
 }
 
