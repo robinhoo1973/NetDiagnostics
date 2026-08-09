@@ -13,6 +13,15 @@ Item {
     objectName: "appContent"
     readonly property alias stackView: stackView
     property bool compact: false // mobile: icons only, right-aligned, no close
+    // 5WHY (nav animation direction): StackView's default push/pop transitions
+    // slide in from fixed sides (pushEnter: right, popEnter: left), so a tab
+    // reached via pop() (already in the stack, e.g. dashboard) slid in from the
+    // LEFT even when the user swiped LEFT to reach it — the dashboard↔diag pair
+    // appeared to animate backwards vs every other pair.  Direction is now
+    // driven by _navDir (+1 = next tab → enter from right, -1 = prev tab →
+    // enter from left) set from the target index vs current index, so push and
+    // pop both slide the same way regardless of stack state.
+    property int _navDir: 1
     // 5WHY: navBlocked only checked item-local overlayVisible (detailOverlay /
     // previewOverlay), not the cross-cutting cellular-warning dialog.  If the
     // cellular warning was showing without a detail overlay, navBlocked was
@@ -48,6 +57,11 @@ Item {
 
     function switchToTab(idx) {
         if (idx < 0 || idx >= tabScreens.length) return
+        // Set slide direction from target vs current index so BOTH push and pop
+        // enter from the same side (ViewPager convention: next→right, prev→left).
+        var curIdx = currentTabIndex()
+        if (idx > curIdx) _navDir = 1
+        else if (idx < curIdx) _navDir = -1
         for (var i = 0; i < stackView.depth; i++) {
             var item = stackView.get(i)
             if (item && item.objectName === tabScreens[idx]) {
@@ -87,6 +101,24 @@ Item {
                 anchors.fill: parent
                 clip: true
                 initialItem: diagnosticComp
+                // 5WHY (nav animation direction): explicit transitions so the
+                // slide side follows _navDir — the ENTERING page always comes
+                // from the swipe/tap direction (+1 → from right, -1 → from
+                // left) and the LEAVING page exits the opposite way, for BOTH
+                // push and pop.  Without these, push() always entered from the
+                // right and pop() always from the left, breaking dashboard↔diag.
+                pushEnter: Transition {
+                    XAnimator { from: stackView.width * content._navDir; to: 0; duration: 220; easing.type: Easing.OutCubic }
+                }
+                pushExit: Transition {
+                    XAnimator { from: 0; to: -stackView.width * content._navDir; duration: 220; easing.type: Easing.InCubic }
+                }
+                popEnter: Transition {
+                    XAnimator { from: stackView.width * content._navDir; to: 0; duration: 220; easing.type: Easing.OutCubic }
+                }
+                popExit: Transition {
+                    XAnimator { from: 0; to: -stackView.width * content._navDir; duration: 220; easing.type: Easing.InCubic }
+                }
             }
 
             // ── Touch-swipe page navigation (adjacent tabs) ──────────
