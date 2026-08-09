@@ -54,13 +54,24 @@ DiagnosticResult dnsCache(DiagId id) {
     // included.  macOS/iOS now fall straight through to the resolver-config
     // branch, which is the correct behaviour (no systemd-resolved there).
 #if defined(__linux__)
-    QProcess proc;
-    proc.start(QStringLiteral("resolvectl"), QStringList() << QStringLiteral("statistics"));
-    if (!proc.waitForFinished(5000)) {
-        proc.start(QStringLiteral("systemd-resolve"), QStringList() << QStringLiteral("--statistics"));
-        proc.waitForFinished(5000);
+    QByteArray data;
+    // 5WHY: `resolvectl statistics` needs the systemd-resolved
+    // dump-statistics permission — on an interactive desktop a non-root user
+    // gets a polkit password prompt and the diagnostic blocks on it
+    // mid-run. ND_SKIP_RESOLVECTL=1 skips the privileged query (used by
+    // headless test/CI runs and local validation); the resolver-config
+    // branch below shows instead.
+    if (qEnvironmentVariableIsSet("ND_SKIP_RESOLVECTL")) {
+        data = QByteArray();
+    } else {
+        QProcess proc;
+        proc.start(QStringLiteral("resolvectl"), QStringList() << QStringLiteral("statistics"));
+        if (!proc.waitForFinished(5000)) {
+            proc.start(QStringLiteral("systemd-resolve"), QStringList() << QStringLiteral("--statistics"));
+            proc.waitForFinished(5000);
+        }
+        data = proc.readAllStandardOutput();
     }
-    QByteArray data = proc.readAllStandardOutput();
 #else
     // macOS / iOS / other non-Linux: no systemd-resolved exists — leave data
     // empty so the else branch below shows the resolver configuration.
