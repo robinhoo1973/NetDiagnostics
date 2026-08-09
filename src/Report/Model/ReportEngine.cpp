@@ -128,6 +128,10 @@ QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
     // UI thread. Cache by (status, size, dark) key: icons are immutable
     // once rendered, so a memoized string is safe and thread-local to
     // this anonymous-namespace function.
+    // CONTRACT: this function must be called from ONE thread (the UI/main
+    // thread). All report generation (buildHtml/buildRichDocument, preview,
+    // PDF/HTML export) runs there today. If generation ever moves to a
+    // worker thread, guard this static cache with a QMutex.
     static QHash<quint64, QString> cache;
     const quint64 key = (quint64(statusIndex(s)) << 17)
                       | (quint64(size) << 1)
@@ -806,7 +810,9 @@ QImage ReportEngine::renderHtmlToImage(const QString& html, int width) {
     // clipped in the in-app preview image (the real PDF/HTML export is
     // unaffected, it uses QPdfWriter pagination).
     constexpr int kMaxPreviewHeight = 8192;
-    int h = qMax(100, qMin((int)qCeil(docSize.height()), kMaxPreviewHeight));
+    const int naturalH = (int)qCeil(docSize.height());
+    const bool truncated = naturalH > kMaxPreviewHeight;
+    int h = qMax(100, qMin(naturalH, kMaxPreviewHeight));
 
     QImage img(width, h, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
@@ -814,6 +820,18 @@ QImage ReportEngine::renderHtmlToImage(const QString& html, int width) {
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setRenderHint(QPainter::TextAntialiasing);
     doc.drawContents(&painter, QRectF(0, 0, width, h));
+    if (truncated) {
+        // 5WHY: the Flickable would otherwise scroll to a hard cut with no
+        // explanation, making the user think the report is incomplete and
+        // re-exporting. Draw a notice band so the truncation is explicit
+        // (PDF/HTML export is never truncated — it paginates).
+        const int bandH = 26;
+        painter.fillRect(0, h - bandH, width, bandH, QColor(30, 30, 46, 235));
+        painter.setPen(QColor(160, 160, 184));
+        QFont f = painter.font(); f.setPixelSize(11); painter.setFont(f);
+        painter.drawText(QRect(0, h - bandH, width, bandH), Qt::AlignCenter,
+            QStringLiteral("\u2026 Preview truncated \u2014 export PDF/HTML for the full report"));
+    }
     painter.end();
     return img;
 }

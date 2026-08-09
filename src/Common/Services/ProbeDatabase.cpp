@@ -70,9 +70,10 @@ void ProbeDatabase::waitForCompletion(const QStringList& keys) {
     // (3 batches × 64 threads × up to 8s/round).  A 60s deadline silently
     // returned incomplete data and the feedback layer could report
     // "network unreachable" for servers that were simply still in flight.
-    // 120s covers the executor's full worst case while still bounding a
-    // wedged executor (the caller skips empty results gracefully).
-    QDeadlineTimer deadline(120'000);  // 120s timeout guard
+    // The derived constant covers the executor's full worst case while
+    // still bounding a wedged executor (the caller skips empty results
+    // gracefully).
+    QDeadlineTimer deadline(kWaitForCompletionTimeoutMs);
     while (!deadline.hasExpired()) {
         bool allDone = true;
         for (const auto& key : keys) {

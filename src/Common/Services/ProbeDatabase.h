@@ -18,6 +18,17 @@
 #include <QMutex>
 #include <QWaitCondition>
 
+// ── Probe executor worst-case completion budget ────────────────────────
+// 5WHY: waitForCompletion() used a bare 120'000 ms with no derivation, and
+// the executor's real worst case is a moving target. Derivation:
+//   • one probe round ≈ 3s connect + 8s read = 11s (ProbeExecutor uses
+//     httpTtfb(..., 3000, 8))
+//   • ProbeConfig::kDefaultRounds = 3 → ~33s per server thread
+//   • ~138 servers / 64-thread batches = 3 waves → ~99s worst case
+// Keep this ≥ 1.2 × worst case so a wedged executor times out instead of
+// returning incomplete data silently. Callers skip empty results gracefully.
+static constexpr qint64 kWaitForCompletionTimeoutMs = 120'000;
+
 // ── Database class ───────────────────────────────────────────────────
 class ProbeDatabase {
 public:
