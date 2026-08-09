@@ -810,6 +810,14 @@ QString AppState::diagDisplayName(int diagIdInt) const {
     return ::diagDisplayName(static_cast<DiagId>(diagIdInt));
 }
 
+QString AppState::diagIconName(int diagIdInt) const {
+    return ::diagIconName(static_cast<DiagId>(diagIdInt));
+}
+
+QString AppState::groupIconName(int groupInt) const {
+    return ::groupIconName(static_cast<DiagGroup>(groupInt));
+}
+
 ReportData AppState::buildReportData() const {
     ReportData d;
     d.target = TargetRedaction::forDisplay(m_targetModel->target()).toHtmlEscaped();

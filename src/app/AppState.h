@@ -290,6 +290,11 @@ private:
     // G4/G5. Does nothing if the user partially configured the group.
     void ensureGroupTestsAvailable(DiagGroup g);
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
+    // 5WHY (2026-08-09): expose the shared icon mapping to QML so group
+    // headers and test rows render their semantic icons (single source in
+    // DiagNames.h). diagIdInt is the int enum value, groupInt 0-4 (G1-G5).
+    Q_INVOKABLE QString diagIconName(int diagIdInt) const;
+    Q_INVOKABLE QString groupIconName(int groupInt) const;
     void bumpVersion();
 
     // Target URL parsing → extracted to TargetModel

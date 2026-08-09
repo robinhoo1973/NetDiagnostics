@@ -48,6 +48,13 @@ Item {
     RowLayout {
         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
         visible: root.itemData.isPending; spacing: 8
+        // 5WHY (2026-08-09): per-test semantic icon (muted, 14px — smaller
+        // than the 16px status glyph so status stays the visual anchor).
+        AppIcon {
+            name: appState.diagIconName(itemData.diagId)
+            size: 14
+            color: ThemeEngine.colors.textMuted
+        }
         AppIcon {
             id: pendingSpinner
             name: root.testRunning ? "spinner" : "badge-skip"; size: 16
@@ -79,6 +86,13 @@ Item {
     RowLayout {
         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
         visible: !itemData.isPending; spacing: 8
+        // 5WHY (2026-08-09): per-test semantic icon (14px, muted) before the
+        // status glyph so each row is identifiable at a glance.
+        AppIcon {
+            name: appState.diagIconName(itemData.diagId)
+            size: 14
+            color: ThemeEngine.colors.textMuted
+        }
         // 5WHY: Error(4) showed infoBlue (same as Info), not visually distinct.
         // Now Error→errorRed, Info(5)→infoBlue, Skipped(3)→skipGray.
         // Icon size 12 → 16 per M3 iconSm — doubles the visible area (64→256 px²)
