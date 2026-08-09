@@ -52,7 +52,7 @@ static inline int createNonBlockingSocket(int domain = AF_INET) {
     // (1024 default on Linux).  Windows: SOCKET handles are opaque values
     // (not array indices); FD_SETSIZE is 64 but SOCKET values >= 64 are
     // common and valid — the guard would incorrectly reject valid sockets.
-#ifndef _WIN32
+#if !defined(_WIN32)
     if (sock >= FD_SETSIZE) { closeSocket(sock); return -1; }
 #endif
     // 5WHY: If setSocketNonBlocking fails, the socket stays blocking and
@@ -65,6 +65,21 @@ static inline int createNonBlockingSocket(int domain = AF_INET) {
 // ── hostToAddr — forward declaration (defined below, used by tcpConnect) ──
 static inline bool hostToAddr(const QString& host, int port, struct sockaddr_in& addr);
 
+// ── Non-blocking connect + timeout + SO_ERROR check ──────────────────
+// Shared tail of tcpConnect/tcpConnect6 (7 lines each, only sockaddr type
+// differs). On any failure the socket is closed and -1 returned.
+static inline int finishConnect(int sock, const struct sockaddr* addr,
+                                socklen_t addrLen, int timeoutMs) {
+    ::connect(sock, addr, addrLen);
+    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
+    struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
+    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return -1; }
+    int err = 0; socklen_t len = sizeof(err);
+    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
+    if (err != 0) { closeSocket(sock); return -1; }
+    return sock;
+}
+
 // ── TCP connect with timeout (non-blocking) ───────────────────────────
 // Returns connected socket fd, or -1 on failure. Eliminates ~14 lines of
 // boilerplate per call site (socket, hostToAddr, nonblock, connect, select, SO_ERROR).
@@ -75,14 +90,8 @@ static inline int tcpConnect(const QString& host, int port, int timeoutMs = 3000
     if (sock < 0) return -1;
     struct sockaddr_in addr;
     if (!hostToAddr(host, port, addr)) { closeSocket(sock); return -1; }
-    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-    struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return -1; }
-    int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-    if (err != 0) { closeSocket(sock); return -1; }
-    return sock;
+    return finishConnect(sock, reinterpret_cast<const struct sockaddr*>(&addr),
+                         sizeof(addr), timeoutMs);
 }
 
 // ── hostToAddr — resolve hostname to sockaddr_in (shared by all socket functions)
@@ -111,12 +120,6 @@ static inline int tcpConnect6(const QString& host, int port, int timeoutMs = 300
     if (sock < 0) return -1;
     struct sockaddr_in6 addr;
     if (!hostToAddr6(host, port, addr)) { closeSocket(sock); return -1; }
-    ::connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
-    fd_set fdset; FD_ZERO(&fdset); FD_SET(sock, &fdset);
-    struct timeval tv = {timeoutMs / 1000, (timeoutMs % 1000) * 1000};
-    if (select(sock + 1, nullptr, &fdset, nullptr, &tv) <= 0) { closeSocket(sock); return -1; }
-    int err = 0; socklen_t len = sizeof(err);
-    getsockopt(sock, SOL_SOCKET, SO_ERROR, reinterpret_cast<char*>(&err), &len);
-    if (err != 0) { closeSocket(sock); return -1; }
-    return sock;
+    return finishConnect(sock, reinterpret_cast<const struct sockaddr*>(&addr),
+                         sizeof(addr), timeoutMs);
 }
