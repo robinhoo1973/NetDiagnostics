@@ -38,6 +38,14 @@ private:
     DnsResolver(const DnsResolver&) = delete;
     DnsResolver& operator=(const DnsResolver&) = delete;
 
-    QHash<QString, QString> m_cache;
+    // Negative TTL: a failed/timeout lookup is remembered for this long so a
+    // bad-DNS host doesn't spawn a blocking thread on every call.
+    static constexpr qint64 kNegativeTtlMs = 30'000;
+
+    struct DnsEntry {
+        QString ip;      // resolved IP; empty = failed lookup
+        qint64  ts = 0;  // cached-at time (msecs since epoch)
+    };
+    QHash<QString, DnsEntry> m_cache;
     QMutex m_mutex;
 };

@@ -10,6 +10,7 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <QDateTime>
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -51,11 +52,19 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     if (inet_pton(AF_INET, host.toUtf8().constData(), &ip4) == 1)
         return host;
 
-    // Check cache
+    // Check cache (positive + negative).  A negative entry (failed lookup)
+    // is honored for kNegativeTtlMs so a bad-DNS host doesn't spawn a
+    // blocking thread on every call — repeated lookups in one diagnostic run
+    // hit the negative entry instead. clearCache() runs before each run.
     {
         QMutexLocker locker(&m_mutex);
-        if (m_cache.contains(host))
-            return m_cache[host];
+        auto it = m_cache.constFind(host);
+        if (it != m_cache.constEnd()) {
+            if (!it->ip.isEmpty()) return it->ip;
+            const qint64 age = QDateTime::currentMSecsSinceEpoch() - it->ts;
+            if (age < DnsResolver::kNegativeTtlMs) return {};
+            // expired negative entry — fall through and re-resolve
+        }
     }
 
     QByteArray hb = host.toUtf8();
@@ -110,10 +119,13 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // Only read ctx on success — on timeout the worker may still be writing it.
     if (waitResult == 0 && ctx->resolved.load(std::memory_order_acquire)) {
         ipOut = QString::fromLatin1(ctx->ip);
-        if (!ipOut.isEmpty()) {
-            QMutexLocker locker(&m_mutex);
-            m_cache[host] = ipOut;
-        }
+    }
+    // Cache both outcomes: success → positive entry, timeout/failure →
+    // negative entry (TTL-bounded) so a wedged DNS server doesn't block
+    // every subsequent lookup for the same host.
+    {
+        QMutexLocker locker(&m_mutex);
+        m_cache[host] = {ipOut, QDateTime::currentMSecsSinceEpoch()};
     }
     // Drop the waiter's reference; last one out frees. On timeout the still-running
     // worker keeps ctx (and the semaphore) alive until it finishes — no UAF, no
@@ -165,10 +177,13 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     }
     if (!st->done.load(std::memory_order_acquire))
         return {}; // timeout: thread still owns st via shared_ptr, safe
+    // Cache both outcomes: success → positive entry, timeout/failure →
+    // negative entry (TTL-bounded).  The detached-thread risk noted below is
+    // therefore mitigated by the negative cache too — a wedged DNS server
+    // won't re-spawn a thread for the same host within the TTL window.
     {
         QMutexLocker locker(&m_mutex);
-        if (!st->ip.isEmpty())
-            m_cache[host] = st->ip;
+        m_cache[host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
     }
     return st->ip;
 #endif
@@ -178,7 +193,15 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     struct in6_addr ip6;
     if (inet_pton(AF_INET6, host.toUtf8().constData(), &ip6) == 1)
         return host;
-    { QMutexLocker l(&m_mutex); QString k = QStringLiteral("v6:") + host; if (m_cache.contains(k)) return m_cache[k]; }
+    {
+        QMutexLocker l(&m_mutex);
+        const QString k = QStringLiteral("v6:") + host;
+        auto it = m_cache.constFind(k);
+        if (it != m_cache.constEnd()) {
+            if (!it->ip.isEmpty()) return it->ip;
+            if (QDateTime::currentMSecsSinceEpoch() - it->ts < DnsResolver::kNegativeTtlMs) return {};
+        }
+    }
 
 #if defined(__APPLE__)
     // 5WHY: resolve() uses GCD (dispatch_async_f) on Apple platforms because
@@ -224,10 +247,10 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     QString ipOut;
     if (waitResult == 0 && ctx->resolved.load(std::memory_order_acquire)) {
         ipOut = QString::fromLatin1(ctx->ip);
-        if (!ipOut.isEmpty()) {
-            QMutexLocker locker(&m_mutex);
-            m_cache[QStringLiteral("v6:") + host] = ipOut;
-        }
+    }
+    {
+        QMutexLocker locker(&m_mutex);
+        m_cache[QStringLiteral("v6:") + host] = {ipOut, QDateTime::currentMSecsSinceEpoch()};
     }
     if (ctx->refs.fetch_sub(1, std::memory_order_acq_rel) == 1) {
         dispatch_release(ctx->sem);
@@ -264,7 +287,10 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
         t.detach();
     }
     if (!st->done.load(std::memory_order_acquire)) return {};
-    { QMutexLocker l(&m_mutex); if (!st->ip.isEmpty()) m_cache[QStringLiteral("v6:")+host]=st->ip; }
+    {
+        QMutexLocker l(&m_mutex);
+        m_cache[QStringLiteral("v6:") + host] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
+    }
     return st->ip;
 #endif
 }

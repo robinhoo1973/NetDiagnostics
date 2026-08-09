@@ -54,6 +54,19 @@ Logger& Logger::instance() {
 void Logger::write(const QString& level, const QString& msg) {
     QMutexLocker lock(&m_mutex);
     if (!m_file.isOpen()) return;
+    // 5WHY: debug.log was Append-only with no rotation — a long session or a
+    // crash loop could grow it to hundreds of MB on storage-constrained
+    // devices. Rotate at 1MB: keep one previous file (debug.log.1) for
+    // post-mortem, then start a fresh debug.log. Runs under m_mutex so no
+    // writer races the rename.
+    if (m_file.size() > 1024 * 1024) {
+        m_file.close();
+        QFile::remove(m_file.fileName() + QLatin1String(".1"));
+        QFile::rename(m_file.fileName(), m_file.fileName() + QLatin1String(".1"));
+        if (!m_file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+            qWarning() << "NetDiagnostics: Cannot reopen log file after rotation:" << m_file.fileName();
+        }
+    }
     QTextStream ts(&m_file);
     ts << QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm:ss.zzz")
        << " [" << level << "] " << msg << "\n";
