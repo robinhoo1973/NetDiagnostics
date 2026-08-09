@@ -7,6 +7,14 @@ import QtQuick.Layouts
 Item {
     id: root
     property var itemData: ({})
+    // 5WHY: spinner must NOT read itemData.isRunning — itemData is a JS object
+    // snapshot from appState.allDiagsForGroup(); the QML binding engine cannot
+    // track changes to a JS object's properties, so isRunning was frozen at
+    // delegate-creation time. On iOS (different reload timing) the row showed
+    // a static spinner that never spun. testRunning is a REACTIVE property
+    // fed from DiagGroupPanel.isRunning (bound to appState.runStatus), so the
+    // spinner appears and rotates the moment the group starts running.
+    property bool testRunning: false
     // Hide skipped tests — they provide no actionable information.
     // Pending items (status == -1) are always visible.
     visible: itemData.isPending || (itemData.status !== 3)
@@ -39,13 +47,13 @@ Item {
     // ── Pending item ──────────────────────────────────────────────────
     RowLayout {
         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-        visible: itemData.isPending; spacing: 8
+        visible: root.itemData.isPending; spacing: 8
         AppIcon {
             id: pendingSpinner
-            name: itemData.isRunning ? "spinner" : "badge-skip"; size: 16
-            color: itemData.isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.textMuted
+            name: root.testRunning ? "spinner" : "badge-skip"; size: 16
+            color: root.testRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.textMuted
             RotationAnimation on rotation {
-                running: itemData.isRunning; from:0; to:360; duration:1000; loops:Animation.Infinite
+                running: root.testRunning; from:0; to:360; duration:1000; loops:Animation.Infinite
                 // 5WHY: Reset rotation when spinner stops so badge-skip icon isn't skewed.
                 onStopped: pendingSpinner.rotation = 0
             }
@@ -62,7 +70,7 @@ Item {
             Layout.fillWidth: true; elide: T.textElideStart
         }
         Label {
-            visible: itemData.isRunning; text: T.tr("diagRunning")
+            visible: root.testRunning; text: T.tr("diagRunning")
             font.family:ThemeEngine.monoFont; font.pixelSize:11; font.italic:true; color:ThemeEngine.colors.primary
         }
     }

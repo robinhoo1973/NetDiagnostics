@@ -164,6 +164,9 @@ Rectangle {
                         id: testItem
                         anchors { left:parent.left; leftMargin:20; right:parent.right }
                         itemData: modelData
+                        // Reactive running flag (bound to appState.runStatus)
+                        // drives the per-row spinner — see DiagResultItem 5WHY.
+                        testRunning: root.isRunning
                         onDetailClicked: function(data) { root.detailClicked(data) }
                     }
                 }
