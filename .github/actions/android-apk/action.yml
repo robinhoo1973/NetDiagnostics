@@ -9,6 +9,18 @@
 # Also works around a known Qt 6.5.3 limitation: the bundled Android Gradle
 # Plugin 7.4.1 only supports compileSdk ≤ 33.  We install android-33 as the
 # sole platform so androiddeployqt cannot pick a newer incompatible one.
+#
+# 5WHY (Android launch crash — missing androidx FileProvider): AndroidManifest
+# declares androidx.core.content.FileProvider (for report sharing via
+# ACTION_SEND), but Qt 6.5.3's gradle template only bundles local libs
+# (implementation fileTree(dir:'libs')) and does NOT pull androidx from
+# maven.  The packaged APK therefore had NO FileProvider class — Android
+# fails to resolve the <provider> while parsing the manifest at launch,
+# killing the process BEFORE Application.onCreate runs (zero startup log).
+# Fix: ship androidx.core's classes.jar in the repo (resources/android/libs/
+# androidx-core.jar), which CMake copies into the package source dir, and
+# explicitly copy it into the androiddeployqt gradle project's libs/ so the
+# fileTree dependency picks it up.
 # ═══════════════════════════════════════════════════════════════════════════
 name: Build Android APK
 description: Builds an installable APK via androiddeployqt, zipalign, and apksigner (persistent release key when ND_KEYSTORE_* env is set, else debug key)
@@ -132,7 +144,42 @@ runs:
         # Qt auto-generates an 'apk' target that runs androiddeployqt with the
         # generated deployment JSON, copies the app .so into the package, and
         # produces a release APK through Gradle.
+        # 5WHY (Android launch crash — missing androidx FileProvider): ensure
+        # androidx.core classes.jar is staged into the PACKAGE SOURCE dir
+        # (build/android/libs) BEFORE androiddeployqt runs, so the generated
+        # gradle project (build/android-build) — whose template uses
+        # `implementation fileTree(dir:'libs')` — packages it into the APK.
+        # Without it, the manifest's androidx.core.content.FileProvider has no
+        # class in the APK and Android kills the process while parsing the
+        # manifest at launch (zero startup log, instant crash).
+        ANDROIDX_SRC="${{ github.workspace }}/resources/android/libs/androidx-core.jar"
+        PKG_LIBS="$BUILD_DIR/android/libs"
+        if [ -f "$ANDROIDX_SRC" ]; then
+          mkdir -p "$PKG_LIBS"
+          cp -f "$ANDROIDX_SRC" "$PKG_LIBS/androidx-core.jar"
+          echo "androidx-core.jar staged into package source $PKG_LIBS"
+        else
+          echo "ERROR: androidx-core.jar not found at $ANDROIDX_SRC"
+          exit 1
+        fi
+
         cmake --build "$BUILD_DIR" --target apk
+
+        # 5WHY (androidx packaging safety net): androiddeployqt copies
+        # QT_ANDROID_PACKAGE_SOURCE_DIR into build/android-build.  Depending
+        # on the Qt version it may or may not carry the libs/ subdirectory
+        # into the gradle project.  Verify the jar actually reached
+        # android-build/libs (the dir the template's fileTree scans); if not,
+        # stage it there and rebuild so the APK always contains FileProvider.
+        GRADLE_LIBS="$BUILD_DIR/android-build/libs"
+        if [ ! -f "$GRADLE_LIBS/androidx-core.jar" ]; then
+          echo "androidx jar not in gradle libs — staging and rebuilding"
+          mkdir -p "$GRADLE_LIBS"
+          cp -f "$ANDROIDX_SRC" "$GRADLE_LIBS/androidx-core.jar"
+          cmake --build "$BUILD_DIR" --target apk
+        else
+          echo "androidx-core.jar already present in gradle libs"
+        fi
 
         # 5WHY:
         # 1. CI requires an installable APK.
