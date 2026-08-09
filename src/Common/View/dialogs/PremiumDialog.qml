@@ -92,9 +92,17 @@ Rectangle {
         // was clipped by clip:true (user saw ~1/9 of the badge missing).
         // Floor now accounts for: hero + bodyCol top/bottom margins (24×2) +
         // banner (44) + bodyCol spacing (12) + OK button (48).
+        // 5WHY (Android premium dialog, 2026-08-09): the locked-state formula
+        // (bodyCol.implicitHeight + hero.height) omitted bodyCol's top/bottom
+        // anchors margins (2 * spacing.xl = 48px).  On Android the card came up
+        // 48px short of its content, so clip:true cut off the One-Time Purchase
+        // badge area and the first feature rows — the unlocked branch's
+        // unlockFloorExtra already accounts for both 24px margins; the locked
+        // branch did not.  Add the 2 * spacing.xl term so the card always
+        // sizes to its real content (Flickable still scrolls on small phones).
         height: appState.isPremium
             ? Math.min(hero.height + root.unlockFloorExtra, Math.max(360, parent.height * 0.9))
-            : Math.min(bodyCol.implicitHeight + hero.height,
+            : Math.min(bodyCol.implicitHeight + hero.height + 2 * Th.ThemeEngine.spacing.xl,
                        Math.max(360, parent.height * 0.9))
         radius: Th.ThemeEngine.radius.xl
         color: Th.ThemeEngine.colors.card
@@ -156,7 +164,16 @@ Rectangle {
 
             ColumnLayout {
                 id: heroCol
-                anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: root.isMobile ? 16 : 20 }
+                // 5WHY (Android premium dialog, 2026-08-09): also anchor the hero
+                // column to the band's bottom so a tall One-Time badge (wrapped
+                // long translation) can never overflow past the band into the
+                // body — the ColumnLayout compresses its spacing instead of
+                // painting content over bodyCol.
+                anchors {
+                    left: parent.left; right: parent.right
+                    top: parent.top; topMargin: root.isMobile ? 16 : 20
+                    bottom: parent.bottom; bottomMargin: root.isMobile ? 14 : 14
+                }
                 spacing: 8
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
