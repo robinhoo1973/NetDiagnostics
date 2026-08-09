@@ -83,8 +83,13 @@ Rectangle {
                         font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.italic: true
                         color: ThemeEngine.colors.cyan; elide: T.textElideStart
                         Accessible.name: T.tr("runningPrefix") + (appState.currentDiagLabel || "")
-                        ToolTip.visible: headerTapArea.containsMouse && isRunning
-                        ToolTip.text: appState.currentDiagLabel || ""
+                        // 5WHY (yellow floating bar): ToolTip.visible/text here
+                        // showed Qt's DEFAULT ToolTip chrome — a yellow
+                        // native-looking bar that clashed with the app theme
+                        // on every platform (iOS/Android/desktop) whenever the
+                        // running group header was hovered.  The running label
+                        // already shows the diag name inline, so the ToolTip
+                        // only duplicated it.  Removed (all platforms).
                     }
                 }
                 Item { Layout.fillWidth:true }
