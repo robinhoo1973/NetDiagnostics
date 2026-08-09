@@ -1,0 +1,144 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Build macOS — step-level macOS build + package (composite action, dual-mode)
+# ═══════════════════════════════════════════════════════════════════════════
+#   mode = release    (default) → build .app + ad-hoc sign → DMG / tar.gz
+#                                 (Release-download artifacts, NetDiagnostics-macOS-release)
+#   mode = testflight            → build .app + macdeployqt → share the .app
+#                                 (NetDiagnostics-macOS-app, consumed by upload-testflight-macos)
+#
+# build.yml (master caller) invokes mode=release for the GitHub Release page.
+# apple.yml invokes mode=testflight as the macOS build leg of its parallel
+# TestFlight pipeline (upload handled by upload-testflight-macos).
+#
+# The caller owns the job (runs-on / timeout), the checkout, and cancellation.
+# Version/build inputs come from the caller's version job (apple.yml passes the
+# +300 TestFlight build number).
+# ═══════════════════════════════════════════════════════════════════════════
+name: Build macOS
+description: Build + package NetDiagnostics for macOS (release DMG/tar.gz or testflight .app) and upload the artifact
+inputs:
+  mode:
+    description: release (DMG/tar.gz download) | testflight (.app for upload)
+    required: false
+    default: release
+  pkg_version:
+    description: Release version (M.m.p)
+    required: true
+  build_number:
+    description: CI / TestFlight build number
+    required: true
+  git_hash:
+    description: Commit SHA
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: brew install cmake ninja qt@6
+
+    - uses: ./.github/actions/macos-icon
+
+    - name: Configure (production)
+      shell: bash
+      run: |
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DPROJECT_VERSION="${{ inputs.pkg_version }}" \
+          -DND_BUILD_NUMBER=${{ inputs.build_number }} \
+          -DND_GIT_HASH=${{ inputs.git_hash }} \
+          -DAPP_EDITION=macos-arm64 \
+          -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+          -B build -S .
+
+    - name: Build (production)
+      shell: bash
+      run: ninja -C build net_diagnostics
+
+    - name: Bundle Qt frameworks (macdeployqt)
+      shell: bash
+      run: |
+        set -euo pipefail
+        # 5WHY: added pipefail — POSIX pipelines only report the last
+        # command's exit code.  Without it, "cmd 2>&1 | tail" masks
+        # failures because tail always exits 0.
+        if [ -d build/net_diagnostics.app ]; then
+          QT_PREFIX="$(brew --prefix qt@6)"
+          MACDEPLOY_LOG=$(mktemp)
+          set +e
+          "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
+            -qmldir="${GITHUB_WORKSPACE}/src" -verbose=1 >"$MACDEPLOY_LOG" 2>&1
+          MACDEPLOY_EXIT=$?
+          set -e
+          tail -40 "$MACDEPLOY_LOG"
+          if [ $MACDEPLOY_EXIT -ne 0 ]; then
+            if grep -qE "(ERROR.*rpath|ERROR: Could not find any external Qt|WARNING: Could not find any)" "$MACDEPLOY_LOG"; then
+              echo "[INFO] macdeployqt exited $MACDEPLOY_EXIT — known non-fatal"
+            else
+              echo "[FAIL] macdeployqt failed"; rm -f "$MACDEPLOY_LOG"; exit 1
+            fi
+          fi
+          rm -f "$MACDEPLOY_LOG"
+          if [ -d build/net_diagnostics.app/Contents/Frameworks ]; then
+            FW_COUNT=$(find build/net_diagnostics.app/Contents/Frameworks -maxdepth 1 -not -name Frameworks | wc -l | tr -d ' ')
+            echo "[OK] Qt frameworks bundled (${FW_COUNT} entries)"; ls -la build/net_diagnostics.app/Contents/Frameworks/
+          fi
+        else
+          echo "[WARN] No .app bundle found; skipping macdeployqt"
+        fi
+
+    # ═══ testflight mode: share the .app for upload-testflight-macos ═══
+    - name: Tar .app (TestFlight)
+      if: inputs.mode == 'testflight'
+      shell: bash
+      run: tar -czf NetDiagnostics-macOS.app.tar.gz -C build net_diagnostics.app
+
+    - name: Upload .app artifact (TestFlight)
+      if: inputs.mode == 'testflight'
+      uses: actions/upload-artifact@v4
+      with:
+        name: NetDiagnostics-macOS-app
+        path: NetDiagnostics-macOS.app.tar.gz
+        if-no-files-found: error
+
+    # ═══ release mode: ad-hoc sign → DMG / tar.gz download format ═══
+    - name: Ad-hoc code sign (DMG artifact)
+      if: inputs.mode != 'testflight'
+      shell: bash
+      run: |
+        set -euo pipefail
+        APP=build/net_diagnostics.app
+        if [ -d "$APP/Contents/Frameworks" ]; then
+          find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
+            codesign --force --sign - "$fw" || { echo "[FAIL] codesign $fw"; exit 1; }
+          done
+        fi
+        BIN="$APP/Contents/MacOS/net_diagnostics"
+        [ -f "$BIN" ] && codesign --force --sign - "$BIN"
+        codesign --force --sign - "$APP"
+        echo "[OK] .app ad-hoc signed"
+
+    - name: Package DMG
+      if: inputs.mode != 'testflight'
+      continue-on-error: true
+      shell: bash
+      run: |
+        rm -rf dmg-staging; mkdir -p dmg-staging
+        cp -R build/net_diagnostics.app dmg-staging/
+        ln -s /Applications dmg-staging/Applications
+        hdiutil create -volname "NetDiagnostics" -srcfolder dmg-staging -ov -format UDZO NetDiagnostics-macOS-arm64.dmg
+        ls -lh NetDiagnostics-macOS-arm64.dmg
+
+    - name: Tar .app (release download)
+      if: inputs.mode != 'testflight'
+      shell: bash
+      run: tar -czf NetDiagnostics-macOS-arm64.tar.gz -C build net_diagnostics.app
+
+    - name: Upload release artifacts
+      if: inputs.mode != 'testflight'
+      uses: actions/upload-artifact@v4
+      with:
+        name: NetDiagnostics-macOS-release
+        path: |
+          NetDiagnostics-macOS-arm64.dmg
+          NetDiagnostics-macOS-arm64.tar.gz
+        if-no-files-found: error

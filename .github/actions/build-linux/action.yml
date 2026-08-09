@@ -1,0 +1,184 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Build Linux — step-level Linux build + package (composite action)
+# ═══════════════════════════════════════════════════════════════════════════
+# Builds + packages NetDiagnostics for Linux:
+#   input arch = x86_64 | arm64
+# Produces AppImage + deb + rpm, uploaded as NetDiagnostics-Linux-<arch>.
+#
+# The caller (build.yml) owns the job (runs-on / timeout / matrix) and does
+# the checkout.  Version/build inputs come from the caller's version job.
+#
+# NOTE: a composite action has no concurrency / permissions — the caller owns
+# cancellation and read permissions.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Build Linux
+description: Build + package NetDiagnostics for Linux (AppImage + deb + rpm) and upload the artifact
+inputs:
+  arch:
+    description: Target architecture (x86_64 | arm64)
+    required: true
+  pkg_version:
+    description: Release version (M.m.p)
+    required: true
+  build_number:
+    description: CI build number
+    required: true
+  git_hash:
+    description: Commit SHA
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: |
+        if [ "${{ inputs.arch }}" = "arm64" ]; then
+          # 5WHY: ubuntu-24.04-arm runner uses ports.ubuntu.com which has
+          # intermittent IPv6/IPv4 connectivity issues.  Retry up to 5x
+          # with exponential backoff (3s → 6s → 12s → 24s → 48s).
+          for i in 1 2 3 4 5; do
+            echo "[attempt $i/5] apt-get update..."
+            if sudo apt-get update -o Acquire::Retries=3; then break; fi
+            if [ "$i" -eq 5 ]; then echo "ERROR: apt-get update failed after 5 retries"; exit 1; fi
+            sleep $((3 * 2 ** (i - 1)))
+          done
+          for i in 1 2 3 4 5; do
+            echo "[attempt $i/5] apt-get install..."
+            if sudo apt-get install -y --no-install-recommends \
+              build-essential cmake ninja-build \
+              qt6-base-dev \
+              qt6-declarative-dev \
+              libqt6quickcontrols2-6 \
+              qt6-tools-dev \
+              qt6-tools-dev-tools \
+              libcurl4-openssl-dev \
+              libgl1-mesa-dev libglu1-mesa-dev \
+              libxkbcommon-dev libxcb-cursor-dev; then break; fi
+            if [ "$i" -eq 5 ]; then echo "ERROR: apt-get install failed after 5 retries"; exit 1; fi
+            sleep $((3 * 2 ** (i - 1)))
+          done
+        else
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            libqt6quickcontrols2-6 \
+            qt6-tools-dev \
+            qt6-tools-dev-tools \
+            libcurl4-openssl-dev \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libxkbcommon-dev libxcb-cursor-dev \
+            libfuse2
+        fi
+
+    # ── Debug build (x86_64 only — CI smoke of the Debug config) ────
+    - name: Configure (debug)
+      if: inputs.arch == 'x86_64'
+      shell: bash
+      run: |
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+          -DPROJECT_VERSION="${{ inputs.pkg_version }}" \
+          -DND_BUILD_NUMBER=${{ inputs.build_number }} \
+          -DND_GIT_HASH=${{ inputs.git_hash }} \
+          -DAPP_EDITION=linux-${{ inputs.arch }} \
+          -B build-debug -S .
+    - name: Build (debug)
+      if: inputs.arch == 'x86_64'
+      shell: bash
+      run: ninja -C build-debug net_diagnostics
+
+    # ── Release build ──────────────────────────────────────────────
+    - name: Configure (production)
+      shell: bash
+      run: |
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DPROJECT_VERSION="${{ inputs.pkg_version }}" \
+          -DND_BUILD_NUMBER=${{ inputs.build_number }} \
+          -DND_GIT_HASH=${{ inputs.git_hash }} \
+          -DAPP_EDITION=linux-${{ inputs.arch }} \
+          -B build -S .
+
+    - name: Build (production)
+      shell: bash
+      run: ninja -C build net_diagnostics
+
+    - name: Build AppImage (production)
+      shell: bash
+      run: |
+        if [ "${{ inputs.arch }}" = "x86_64" ]; then
+          wget -q https://github.com/probonopd/linuxdeployqt/releases/download/continuous/linuxdeployqt-continuous-x86_64.AppImage
+          chmod +x linuxdeployqt-continuous-x86_64.AppImage
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp build/net_diagnostics AppDir/usr/bin/
+          cp resources/netanalysis.desktop AppDir/usr/share/applications/
+          cp resources/icons/netanalysis.png AppDir/usr/share/icons/hicolor/256x256/apps/
+          ./linuxdeployqt-continuous-x86_64.AppImage AppDir/usr/share/applications/netanalysis.desktop -appimage -no-copy-copyright-files -no-translations || true
+          mv *.AppImage NetDiagnostics-Linux-${{ inputs.arch }}.AppImage 2>/dev/null || true
+        else
+          # linuxdeployqt does not provide an arm64 AppImage binary.
+          # Fall back to the native linuxdeployqt from apt (built for arm64).
+          if command -v linuxdeployqt &>/dev/null || sudo apt-get install -y -qq linuxdeployqt 2>/dev/null; then
+            mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+            cp build/net_diagnostics AppDir/usr/bin/
+            cp resources/netanalysis.desktop AppDir/usr/share/applications/
+            cp resources/icons/netanalysis.png AppDir/usr/share/icons/hicolor/256x256/apps/
+            linuxdeployqt AppDir/usr/share/applications/netanalysis.desktop -appimage -no-copy-copyright-files -no-translations || true
+            mv *.AppImage NetDiagnostics-Linux-${{ inputs.arch }}.AppImage 2>/dev/null || true
+          else
+            echo "(AppImage skipped: no arm64 linuxdeployqt available)"
+          fi
+        fi
+
+    - name: Package deb
+      shell: bash
+      run: |
+        DEB_ARCH=amd64
+        [ "${{ inputs.arch }}" = "arm64" ] && DEB_ARCH=arm64
+        mkdir -p pkg-deb/usr/bin pkg-deb/usr/share/applications pkg-deb/usr/share/icons/hicolor/256x256/apps pkg-deb/DEBIAN
+        cp build/net_diagnostics pkg-deb/usr/bin/
+        cp resources/netanalysis.desktop pkg-deb/usr/share/applications/
+        cp resources/icons/netanalysis.png pkg-deb/usr/share/icons/hicolor/256x256/apps/
+        cat > pkg-deb/DEBIAN/control << EOF
+        Package: netdiagnostics
+        Version: ${{ inputs.pkg_version }}
+        Architecture: ${DEB_ARCH}
+        Maintainer: robinhoo1973
+        Depends: libqt6core6t64 | libqt6core6, libqt6gui6, libqt6quick6, libqt6quickcontrols2-6, libqt6widgets6, libqt6network6, libcurl4t64 | libcurl4
+        Description: Cross-platform network diagnostics tool - Qt6/QML
+        EOF
+        dpkg-deb --build pkg-deb NetDiagnostics-Linux-${{ inputs.arch }}.deb
+        ls -lh NetDiagnostics-Linux-${{ inputs.arch }}.deb
+
+    - name: Cache fpm gem
+      id: cache-fpm
+      uses: actions/cache@v4
+      with:
+        path: /var/lib/gems
+        key: fpm-gem-${{ runner.arch }}-v1
+
+    - name: Package rpm
+      shell: bash
+      run: |
+        sudo gem install fpm 2>/dev/null || true
+        # 5WHY: fpm gem was installed every run (~30s).  Caching /var/lib/gems
+        # avoids the network fetch; gem install is a no-op when already present.
+        RPM_ARCH=x86_64
+        [ "${{ inputs.arch }}" = "arm64" ] && RPM_ARCH=aarch64
+        fpm -s dir -t rpm -n netdiagnostics -v "${{ inputs.pkg_version }}" --architecture ${RPM_ARCH} \
+          --depends "qt6-qtbase" --depends "qt6-qtdeclarative" --depends "qt6-qtquickcontrols2" --depends "libcurl" \
+          build/net_diagnostics=/usr/bin/net_diagnostics \
+          resources/netanalysis.desktop=/usr/share/applications/netanalysis.desktop \
+          resources/icons/netanalysis.png=/usr/share/icons/hicolor/256x256/apps/netanalysis.png
+        mv netdiagnostics*.rpm NetDiagnostics-Linux-${{ inputs.arch }}.rpm 2>/dev/null || true
+        ls -lh NetDiagnostics-Linux-${{ inputs.arch }}.rpm 2>/dev/null || echo "(rpm skipped)"
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: NetDiagnostics-Linux-${{ inputs.arch }}
+        path: |
+          *.AppImage
+          *.deb
+          *.rpm
+        if-no-files-found: error

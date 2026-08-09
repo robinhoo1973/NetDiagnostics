@@ -1,0 +1,79 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Detect Version — step-level version detection (composite action)
+# ═══════════════════════════════════════════════════════════════════════════
+# 5WHY: Version detection was copy-pasted across build.yml, macos.yml, ios.yml,
+# and test.yml (4 identical copies).  Centralizing it as a composite action
+# ensures consistent semver tag → CMake version mapping across all pipelines,
+# and a fix here propagates everywhere.
+#
+# Requires the repo to be checked out with tags (fetch-depth: 0 +
+# fetch-tags: true) — the caller's job does the checkout, then calls this
+# action as a single step.  Outputs are mapped to the caller's job outputs:
+#
+#   jobs:
+#     version:
+#       runs-on: ubuntu-latest
+#       outputs:
+#         pkg_version: ${{ steps.v.outputs.pkg_version }}
+#       steps:
+#         - uses: actions/checkout@v4
+#           with: { fetch-depth: 0, fetch-tags: true }
+#         - id: v
+#           uses: ./.github/actions/detect-version
+# ═══════════════════════════════════════════════════════════════════════════
+name: Detect Version
+description: Parse semver from the nearest v* git tag + compute the TestFlight build number (official run number + 300)
+outputs:
+  pkg_version:
+    description: Semver version parsed from latest git tag, pre-release suffix stripped (e.g. 1.2.3 from v1.2.3 or v1.2.3-rc1)
+    value: ${{ steps.v.outputs.pkg_version }}
+  pkg_prerelease:
+    description: Pre-release suffix of the latest tag (e.g. rc1), empty for a final release
+    value: ${{ steps.v.outputs.pkg_prerelease }}
+  build_number:
+    description: TestFlight build number = official run number + 300
+    value: ${{ steps.v.outputs.build_number }}
+
+runs:
+  using: composite
+  steps:
+    - id: v
+      shell: bash
+      run: |
+        # 5WHY: git tag --list finds tags globally across all branches.  A
+        # tag on a feature branch with a higher version would be incorrectly
+        # selected.  git describe --tags --abbrev=0 returns the NEAREST
+        # version tag ancestor of HEAD — the standard "what version is this
+        # commit" answer — so the detected version matches this checkout.
+        #
+        # 5WHY (pre-release tags): --sort=-version:refname mis-orders
+        # pre-releases (git ranks v0.0.4-rc2 > v0.0.4, the opposite of
+        # semver), and a plain `grep -v '-'` silently dropped pre-release
+        # tags, falling back to 0.0.1.  git describe handles v0.0.4-rcN
+        # naturally; we split off the suffix so desktop packaging gets a
+        # clean M.m.p while Android still learns the pre-release marker.
+        LATEST=$(git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null || true)
+        if [ -z "$LATEST" ]; then
+          echo "pkg_version=0.0.1" >> "$GITHUB_OUTPUT"
+          echo "pkg_prerelease=" >> "$GITHUB_OUTPUT"
+        else
+          RAW="${LATEST#v}"
+          # Strip git describe's "<tag>-<n>-g<sha>" (HEAD past the tag): that
+          # is NOT a semver pre-release, just describe's commit-distance suffix.
+          case "$RAW" in
+            *-*-g*) RAW="${RAW%%-*-g*}" ;;
+          esac
+          # Split off a real pre-release suffix: 0.0.4-rc1 -> base=0.0.4, pre=rc1
+          BASE="${RAW%%-*}"
+          PRERELEASE="${RAW#"$BASE"}"
+          PRERELEASE="${PRERELEASE#-}"
+          echo "pkg_version=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "pkg_prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+        fi
+        # 5WHY (TestFlight): App Store Connect build numbers must increase
+        # monotonically per app and are shared between TestFlight and App
+        # Store release builds.  Adding +300 to the official run number
+        # gives the TestFlight pipeline a dedicated range that never
+        # collides with release builds.
+        echo "build_number=$(( GITHUB_RUN_NUMBER + 300 ))" >> "$GITHUB_OUTPUT"
+        echo "Version: $(grep -oP 'pkg_version=\K.*' "$GITHUB_OUTPUT" | head -1)${PRERELEASE:+ (pre-release: ${PRERELEASE})} / build_number=$(( GITHUB_RUN_NUMBER + 300 ))"

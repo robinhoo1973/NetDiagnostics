@@ -1,0 +1,194 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Build iOS — step-level iOS compile + validation (composite action)
+# ═══════════════════════════════════════════════════════════════════════════
+# Cross-compiles the iOS .app via Qt (Ninja) + verifies the Xcode project,
+# iOS diagnostic symbols, and required Info.plist keys, then packages an
+# UNSIGNED .ipa artifact (NetDiagnostics-iOS) for validation/debugging.
+#
+# This action ONLY compiles iOS code — TestFlight uploads live in the
+# upload-testflight-ios action (called by apple.yml).
+#
+# The caller owns the job (runs-on / timeout), the checkout, and cancellation.
+# Version/build inputs come from the caller's version job.  Apple signing
+# secrets are NOT needed here (unsigned build); only IOS_TEAM_ID is passed via
+# the caller's step env for the -DAPPLE_TEAM_ID CMake flag.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Build iOS
+description: Cross-compile the iOS .app (Qt Ninja), verify the Xcode build + symbols + plist keys, and upload an unsigned .ipa
+inputs:
+  pkg_version:
+    description: Release version (M.m.p)
+    required: true
+  build_number:
+    description: CI / TestFlight build number
+    required: true
+  git_hash:
+    description: Commit SHA
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/select-xcode
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        brew install cmake ninja python3
+        python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+        echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+    - uses: ./.github/actions/install-qt-aqt
+      with:
+        qt_version: "6.8.3"
+        target: desktop
+        arch: clang_64
+        install_dir: /Users/runner/qt-desktop
+        cache_key_prefix: qt6-ios-desktop
+
+    - uses: ./.github/actions/install-qt-aqt
+      with:
+        qt_version: "6.8.3"
+        target: ios
+        arch: ios
+        install_dir: /Users/runner/qt-ios
+        cache_key_prefix: qt6-ios
+
+    - name: Configure (Ninja)
+      shell: bash
+      run: |
+        SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+        /Users/runner/qt-ios/6.8.3/ios/bin/qt-cmake \
+          -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DPROJECT_VERSION="${{ inputs.pkg_version }}" \
+          -DND_BUILD_NUMBER=${{ inputs.build_number }} \
+          -DND_GIT_HASH=${{ inputs.git_hash }} \
+          -DAPP_EDITION=ios \
+          -DQT_HOST_PATH="/Users/runner/qt-desktop/6.8.3/macos" \
+          -DCMAKE_OSX_ARCHITECTURES="arm64" \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+          -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+          -DAPPLE_TEAM_ID="${{ env.IOS_TEAM_ID }}" \
+          -B build -S .
+
+    - name: Build (Ninja)
+      shell: bash
+      run: ninja -v -C build net_diagnostics
+
+    - name: Verify Xcode build
+      shell: bash
+      run: |
+        set -euo pipefail
+        # 5WHY: xcodebuild failures were silently masked because
+        # "build 2>&1 | tail -30" exits with tail's code (always 0),
+        # not xcodebuild's.  Fix: redirect to a temp log file so the
+        # full exit code is captured; print the last 30 lines for the
+        # CI log; fail if xcodebuild exited non-zero.
+        SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+        /Users/runner/qt-ios/6.8.3/ios/bin/qt-cmake \
+          -G Xcode \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DPROJECT_VERSION="${{ inputs.pkg_version }}" \
+          -DND_BUILD_NUMBER=${{ inputs.build_number }} \
+          -DND_GIT_HASH=${{ inputs.git_hash }} \
+          -DAPP_EDITION=ios \
+          -DQT_HOST_PATH="/Users/runner/qt-desktop/6.8.3/macos" \
+          -DCMAKE_OSX_ARCHITECTURES="arm64" \
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=16.0 \
+          -DCMAKE_OSX_SYSROOT="$SDKROOT" \
+          -DAPPLE_TEAM_ID="${{ env.IOS_TEAM_ID }}" \
+          -B build-xcode -S .
+        XCODEBUILD_LOG=$(mktemp)
+        set +e
+        xcodebuild -project build-xcode/NetDiagnostic.xcodeproj \
+          -scheme net_diagnostics \
+          -sdk iphoneos \
+          -configuration Release \
+          -destination 'generic/platform=iOS' \
+          CODE_SIGNING_ALLOWED=NO \
+          build >"$XCODEBUILD_LOG" 2>&1
+        XCODEBUILD_EXIT=$?
+        set -e
+        tail -30 "$XCODEBUILD_LOG"
+        if [ $XCODEBUILD_EXIT -ne 0 ]; then
+          echo "[FAIL] Xcode build failed (exit $XCODEBUILD_EXIT)"
+          rm -f "$XCODEBUILD_LOG"
+          exit 1
+        fi
+        rm -f "$XCODEBUILD_LOG"
+        echo "[PASS] Xcode build verified"
+
+    - name: Verify iOS Diagnostic Symbols
+      shell: bash
+      run: |
+        set -euo pipefail
+        # 5WHY: "nm | c++filt | grep -q" pipeline fails with pipefail
+        # because grep -q exits immediately on first match, sending
+        # SIGPIPE to nm (llvm-nm prints "LLVM ERROR: IO failure" and
+        # exits non-zero).  Use process substitution instead:
+        # grep reads from a file descriptor, no pipe = no SIGPIPE.
+        BIN=build/net_diagnostics.app/net_diagnostics
+        MISSING=""
+        for sym in iosDhcpDiag iosDefaultGatewayDiag iosRoutingTableDiag iosDnsResolve iosHttpDiagnostic; do
+          if grep -q "$sym" < <(nm -g "$BIN" 2>/dev/null | c++filt 2>/dev/null); then
+            echo "[OK]   $sym"
+          else
+            echo "[MISS] $sym"; MISSING="$MISSING $sym"
+          fi
+        done
+        if [ -n "$MISSING" ]; then echo "ERROR:$MISSING"; exit 1; fi
+        echo "[PASS] All symbols present"
+
+    - name: Verify Info.plist Keys
+      shell: bash
+      run: |
+        set -euo pipefail
+        # 5WHY: missing plist keys were reported as [MISS] but the step
+        # never exited non-zero.  App Store submission requires these
+        # keys; a missing key would be rejected during review.  Track
+        # failures with an accumulator and exit 1 if any key is absent.
+        PLIST="build/net_diagnostics.app/Info.plist"
+        FAILED=0
+        if [ -f "$PLIST" ]; then
+          for key in NSLocationWhenInUseUsageDescription NSLocalNetworkUsageDescription CFBundleIdentifier CFBundleVersion; do
+            if /usr/libexec/PlistBuddy -c "Print :$key" "$PLIST" 2>/dev/null | grep -q .; then
+              echo "[OK]   $key"
+            else
+              echo "[MISS] $key"; FAILED=1
+            fi
+          done
+        else
+          echo "[MISS] Info.plist not found at $PLIST"
+          exit 1
+        fi
+        if [ "$FAILED" -ne 0 ]; then
+          echo "ERROR: Missing required Info.plist keys (see [MISS] above)"
+          exit 1
+        fi
+        echo "[PASS] All required Info.plist keys present"
+
+    - name: Verify bundle
+      shell: bash
+      run: |
+        if [ -d build/net_diagnostics.app ]; then echo "[OK] .app bundle generated"; ls -la build/net_diagnostics.app/
+        else echo "[X] No .app bundle"; exit 1; fi
+
+    - name: Package IPA (unsigned)
+      shell: bash
+      run: |
+        set -euo pipefail
+        # 5WHY: added pipefail — "find ... | head -1" masks find
+        # errors.  With pipefail, if find crashes, the step fails.
+        APP_PATH="build/net_diagnostics.app"
+        [ -d "$APP_PATH" ] || APP_PATH=$(find build -name "*.app" -type d | head -1)
+        [ -n "$APP_PATH" ] || { echo "[X] No .app found"; exit 1; }
+        mkdir -p Payload
+        cp -R "$APP_PATH" Payload/
+        zip -r NetDiagnostics-iOS.ipa Payload
+        ls -lh NetDiagnostics-iOS.ipa
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: NetDiagnostics-iOS
+        path: NetDiagnostics-iOS.ipa
+        if-no-files-found: error

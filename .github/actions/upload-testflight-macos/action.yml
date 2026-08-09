@@ -1,0 +1,319 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Upload macOS TestFlight — step-level sign + .pkg + upload (composite action)
+# ═══════════════════════════════════════════════════════════════════════════
+# Consumes the .app artifact produced by build-macos (mode=testflight), falls
+# back to building the .app inline when the artifact is absent (standalone
+# usage), then signs inside-out, packages a .pkg, and uploads via xcrun altool.
+#
+# The caller (apple.yml macos-upload) owns the job — including
+# `environment: TestFlight` which holds the Apple certs and App Store Connect
+# API keys — plus the checkout.  Secrets are passed via the caller's step env
+# (NOT with: inputs — inputs are inlined unmasked; env is masked).
+#
+# Dedup: a cache stores the last uploaded SHA so the same commit is never
+# uploaded twice.  Credentials are checked in a step: when the environment is
+# unset the job logs a warning and skips instead of failing.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Upload macOS TestFlight
+description: Sign + package the macOS .app as .pkg and upload it to TestFlight (dedup + credential-gated, inline-build fallback)
+inputs:
+  pkg_version:
+    description: Release version (M.m.p)
+    required: true
+  build_number:
+    description: TestFlight build number (official run number + 300)
+    required: true
+  git_hash:
+    description: Commit SHA
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+
+    # ── Dedup + credential gate ───────────────────────────────────
+    - name: Check if already uploaded
+      id: dedup
+      uses: actions/cache/restore@v4
+      with:
+        path: .testflight-sha
+        key: testflight-macos-${{ runner.os }}-v1
+    - name: Read last uploaded SHA
+      id: last-sha
+      shell: bash
+      run: |
+        if [ -f .testflight-sha/macos ]; then echo "last=$(cat .testflight-sha/macos)" >> "$GITHUB_OUTPUT"
+        else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+        echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+    - name: Report dedup status
+      shell: bash
+      run: |
+        if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+          echo "[SKIP] Same commit already uploaded"; fi
+
+    - name: Check Apple credentials
+      id: check
+      shell: bash
+      env:
+        ASC_API_KEY: ${{ env.APPSTORE_CONNECT_API_KEY }}
+        INSTALLER_CERT: ${{ env.MACOS_INSTALLER_CERT_BASE64 }}
+      run: |
+        if [ -n "$ASC_API_KEY" ] && [ -n "$INSTALLER_CERT" ]; then
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "::warning::Apple credentials are not set — skipping macOS TestFlight upload"
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    # ── Obtain the .app — from build-macos (testflight) artifact, or ──
+    #    build it inline when the artifact is absent.
+    - name: Download .app artifact
+      id: download
+      continue-on-error: true
+      uses: actions/download-artifact@v4
+      with:
+        name: NetDiagnostics-macOS-app
+        path: macos-artifact
+
+    - name: Resolve .app path
+      id: apppath
+      shell: bash
+      run: |
+        if [ -d macos-artifact/net_diagnostics.app ]; then
+          echo "APP=macos-artifact/net_diagnostics.app" >> "$GITHUB_ENV"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "found=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    # Standalone fallback: no artifact from build-macos → build the .app
+    # (icon action must run BEFORE cmake so the .app bundle picks it up).
+    - uses: ./.github/actions/macos-icon
+      if: steps.apppath.outputs.found != 'true'
+
+    - name: Build .app (standalone fallback)
+      if: steps.apppath.outputs.found != 'true'
+      shell: bash
+      env:
+        PKG_VERSION: ${{ inputs.pkg_version }}
+        BUILD_NUMBER: ${{ inputs.build_number }}
+        GIT_HASH: ${{ inputs.git_hash }}
+      run: |
+        set -euo pipefail
+        brew install cmake ninja qt@6
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DPROJECT_VERSION="$PKG_VERSION" \
+          -DND_BUILD_NUMBER=$BUILD_NUMBER \
+          -DND_GIT_HASH=$GIT_HASH \
+          -DAPP_EDITION=macos-arm64 \
+          -DCMAKE_PREFIX_PATH="$(brew --prefix qt@6)" \
+          -B build -S .
+        ninja -C build net_diagnostics
+        QT_PREFIX="$(brew --prefix qt@6)"
+        "${QT_PREFIX}/bin/macdeployqt" build/net_diagnostics.app \
+          -qmldir="${GITHUB_WORKSPACE}/src" -verbose=1 >/dev/null 2>&1 || true
+        echo "APP=build/net_diagnostics.app" >> "$GITHUB_ENV"
+        echo "[OK] .app built inline (standalone fallback)"
+
+    # ── Sign + .pkg + upload (gated on creds + dedup) ──────────────
+    - name: Inject Info.plist keys
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      shell: bash
+      env:
+        APP: ${{ env.APP }}
+        BUILD_NUMBER: ${{ inputs.build_number }}
+      run: |
+        APP="$APP"
+        PLIST="$APP/Contents/Info.plist"
+        /usr/libexec/PlistBuddy -c "Add :LSMinimumSystemVersion string 26.0" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :LSMinimumSystemVersion 26.0" "$PLIST"
+        /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.utilities" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType public.app-category.utilities" "$PLIST"
+        # 5WHY: TestFlight requires a unique, monotonically increasing build
+        # number per app; apple.yml passes the +300 offset build number.
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+
+    - name: Install provisioning profile
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      shell: bash
+      env:
+        APP: ${{ env.APP }}
+        MAC_PROFILE_B64: ${{ env.MACOS_PROVISIONING_PROFILE_BASE64 }}
+      run: |
+        APP="$APP"
+        if [ -n "$MAC_PROFILE_B64" ]; then
+          echo -n "$MAC_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
+          cp "$RUNNER_TEMP/mac-profile.provisionprofile" "$APP/Contents/embedded.provisionprofile"
+          echo "[OK] macOS provisioning profile embedded"
+        else
+          echo "[WARN] MACOS_PROVISIONING_PROFILE_BASE64 not set"
+        fi
+
+    - uses: ./.github/actions/setup-keychain
+      id: mac-keychain
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      with:
+        primary_cert_base64: ${{ env.MACOS_INSTALLER_CERT_BASE64 }}
+        primary_cert_password: ${{ env.MACOS_INSTALLER_CERT_PASSWORD }}
+        secondary_cert_base64: ${{ env.MACOS_APP_CERT_BASE64 }}
+        secondary_cert_password: ${{ env.MACOS_APP_CERT_PASSWORD }}
+        allowed_tools: "/usr/bin/codesign /usr/bin/pkgbuild /usr/bin/productbuild"
+
+    - name: Generate entitlements
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      shell: bash
+      run: |
+        # 5WHY: com.apple.application-identifier and com.apple.developer.team-identifier
+        # are DERIVED entitlements auto-injected by codesign from the signing certificate
+        # and provisioning profile.  The template intentionally omits them.
+        cp resources/apple/macos.entitlements.in macos.entitlements
+        echo "[OK] macos.entitlements generated"
+
+    - name: Sign .app and package as .pkg
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      shell: bash
+      env:
+        APP: ${{ env.APP }}
+        KCHAIN: ${{ steps.mac-keychain.outputs.keychain_path }}
+        CODE_ID: ${{ steps.mac-keychain.outputs.code_identity }}
+        PKG_ID: ${{ steps.mac-keychain.outputs.installer_identity }}
+      run: |
+        # ── Inside-out code signing ─────────────────────────────────
+        # Apple requires signing from deepest nested content outward:
+        # helper .app → framework → dylib → main binary → main .app
+        #
+        # The previous breadth-first order (all frameworks → all .apps)
+        # caused ITMS-90238: signing QtWebEngineProcess.app AFTER its
+        # parent QtWebEngineCore.framework invalidated the framework's
+        # seal.  This depth-first order fixes that.
+        # ─────────────────────────────────────────────────────────────
+        set -euo pipefail
+        APP="$APP"
+        KCHAIN="$KCHAIN"
+        CODE_ID="$CODE_ID"
+        PKG_ID="$PKG_ID"
+        [ -z "$CODE_ID" ] && { echo "ERROR: No signing identity"; exit 1; }
+
+        # ── Phase 1: Sign helper .apps inside frameworks ──────────
+        # QtWebEngineCore.framework contains QtWebEngineProcess.app.
+        # Sign the helper .app BEFORE its parent framework so the
+        # framework seal covers the already-signed nested content.
+        # Use macos-helper.entitlements (no application-identifier)
+        # to avoid ITMS-90885 ("nested executable has app identifier
+        # but no provisioning profile").
+        if [ -d "$APP/Contents/Frameworks" ]; then
+          find "$APP/Contents/Frameworks" -name "*.app" -type d | while read helper; do
+            echo "  [sign] helper .app: ${helper#$APP/Contents/Frameworks/}"
+            HELPER_MACOS="$helper/Contents/MacOS"
+            if [ -d "$HELPER_MACOS" ]; then
+              find "$HELPER_MACOS" -type f -perm +111 | while read exe; do
+                codesign --force --options runtime --timestamp \
+                  --entitlements resources/apple/macos-helper.entitlements \
+                  --sign "$CODE_ID" --keychain "$KCHAIN" "$exe" \
+                  || { echo "[FAIL] codesign helper exe $exe"; exit 1; }
+              done
+            fi
+            codesign --force --options runtime --timestamp \
+              --entitlements resources/apple/macos-helper.entitlements \
+              --sign "$CODE_ID" --keychain "$KCHAIN" "$helper" \
+              || { echo "[FAIL] codesign helper $helper"; exit 1; }
+          done
+
+          # ── Phase 2: Sign frameworks ────────────────────────────
+          # Now that all nested .apps are signed, sign the framework
+          # bundle itself.  The framework seal covers everything inside.
+          find "$APP/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
+            echo "  [sign] framework: ${fw#$APP/Contents/Frameworks/}"
+            codesign --force --options runtime --timestamp \
+              --sign "$CODE_ID" --keychain "$KCHAIN" "$fw" \
+              || { echo "[FAIL] codesign framework $fw"; exit 1; }
+          done
+        fi
+
+        # ── Phase 3: Sign standalone dylibs ───────────────────────
+        # Skip dylibs inside frameworks — the framework signature
+        # already covers them.
+        find "$APP/Contents" -name "*.dylib" -type f | while read dylib; do
+          case "$dylib" in */Contents/Frameworks/*.framework/*) continue ;; esac
+          echo "  [sign] dylib: ${dylib#$APP/Contents/}"
+          codesign --force --options runtime --timestamp \
+            --sign "$CODE_ID" --keychain "$KCHAIN" "$dylib" \
+            || { echo "[FAIL] codesign dylib $dylib"; exit 1; }
+        done
+
+        # ── Phase 4: Sign main binary ─────────────────────────────
+        BIN="$APP/Contents/MacOS/net_diagnostics"
+        if [ -f "$BIN" ]; then
+          echo "  [sign] main binary"
+          codesign --force --options runtime --timestamp \
+            --entitlements macos.entitlements \
+            --sign "$CODE_ID" --keychain "$KCHAIN" "$BIN" \
+            || { echo "[FAIL] codesign main binary $BIN"; exit 1; }
+        fi
+
+        # ── Phase 5: Sign main .app bundle ────────────────────────
+        echo "  [sign] .app bundle"
+        codesign --force --options runtime --timestamp \
+          --entitlements macos.entitlements \
+          --sign "$CODE_ID" --keychain "$KCHAIN" "$APP" \
+          || { echo "[FAIL] codesign .app $APP"; exit 1; }
+
+        # ── Phase 6: Verify signature integrity ───────────────────
+        echo "  [verify] checking signature chain..."
+        codesign --verify --deep --strict --verbose=4 "$APP" \
+          || { echo "[FAIL] Signature verification failed"; exit 1; }
+        echo "  [OK] signature verified"
+
+        # ── Package ──────────────────────────────────────────────
+        productbuild --component "$APP" /Applications \
+          --sign "$PKG_ID" --keychain "$KCHAIN" NetDiagnostics-macOS.pkg
+        ls -lh NetDiagnostics-macOS.pkg
+
+    - name: Write ASC key
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      shell: bash
+      env:
+        ASC_KEY_ID: ${{ env.APPSTORE_CONNECT_KEY_ID }}
+        ASC_API_KEY: ${{ env.APPSTORE_CONNECT_API_KEY }}
+      run: |
+        mkdir -p ~/.appstoreconnect/private_keys
+        K=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+        echo -n "$ASC_API_KEY" > "$K"
+        chmod 600 "$K"
+        # 5WHY: ASC_KEYFILE was never exported to GITHUB_ENV, so the
+        # "Clean up keys" step below tried to rm "$ASC_KEYFILE" which
+        # resolved to an empty string — the key file was never deleted.
+        echo "ASC_KEYFILE=${K}" >> "$GITHUB_ENV"
+
+    - name: Upload macOS to TestFlight
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      shell: bash
+      env:
+        ASC_KEY_ID: ${{ env.APPSTORE_CONNECT_KEY_ID }}
+        ASC_ISSUER_ID: ${{ env.APPSTORE_CONNECT_ISSUER_ID }}
+      run: |
+        xcrun altool --upload-app -f NetDiagnostics-macOS.pkg -t macos \
+          --apiKey "$ASC_KEY_ID" \
+          --apiIssuer "$ASC_ISSUER_ID" --verbose
+        echo "[OK] macOS uploaded to TestFlight"
+
+    - name: Save uploaded SHA
+      if: always() && steps.check.outputs.ok == 'true'
+      shell: bash
+      run: |
+        mkdir -p .testflight-sha
+        if [ "${{ steps.last-sha.outputs.last }}" != "${{ github.sha }}" ]; then
+          echo "${{ github.sha }}" > .testflight-sha/macos
+        else echo "${{ steps.last-sha.outputs.last }}" > .testflight-sha/macos; fi
+    - uses: actions/cache/save@v4
+      if: always() && steps.check.outputs.ok == 'true'
+      with:
+        path: .testflight-sha
+        key: testflight-macos-${{ runner.os }}-v1
+
+    - name: Clean up keys
+      if: always()
+      shell: bash
+      run: rm -f "$ASC_KEYFILE" 2>/dev/null || true

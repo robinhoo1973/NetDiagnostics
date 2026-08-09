@@ -1,27 +1,28 @@
 # ═══════════════════════════════════════════════════════════════════════════
 # Apple TestFlight Pipeline — orchestrator
 # ═══════════════════════════════════════════════════════════════════════════
-# Concurrency flow:
+# Concurrency flow (all step-level work lives in .github/actions/):
 #
 #   apple.yml
 #   │
-#   ├─ version.yml ──► (pkg_version / pkg_prerelease / build_number)
-#   │                   build_number = official run_number + 300 (TestFlight range)
+#   ├─ detect-version ──► (pkg_version / pkg_prerelease / build_number)
+#   │                     build_number = official run_number + 300 (TestFlight range)
 #   │
-#   ├─ ios.yml ─────────────────────────────► testflight.yml (platform=ios)
+#   ├─ build-ios ───────────────────────────► upload-testflight-ios
 #   │   (compile iOS, unsigned .ipa artifact)    (sign + archive + upload iOS)
 #   │
-#   └─ macos.yml (mode=testflight) ─────────► testflight.yml (platform=macos)
+#   └─ build-macos (mode=testflight) ────────► upload-testflight-macos
 #       (build macOS .app artifact)             (sign + .pkg + upload macOS)
 #
 # The two chains run in PARALLEL.  Each upload waits for its platform's
 # build (needs: ios-build / macos-build).  Version + build number come from
-# version.yml; the build number is offset +300 above the official run number
-# so TestFlight never collides with App Store release build numbers.
+# the version job; the build number is offset +300 above the official run
+# number so TestFlight never collides with App Store release build numbers.
 #
 # Triggers: tag push (v*) for automatic TestFlight uploads, or
-# workflow_dispatch.  Requires the "TestFlight" environment with the Apple
-# certs and App Store Connect API keys.
+# workflow_dispatch.  The upload jobs use `environment: TestFlight` which
+# holds the Apple certs and App Store Connect API keys; secrets are passed to
+# the upload actions via step env (NOT with: inputs — env is masked).
 # ═══════════════════════════════════════════════════════════════════════════
 name: Apple TestFlight Pipeline
 
@@ -37,56 +38,101 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  QT_VERSION: 6.8.3
-
 jobs:
   # ── Version + build number (release + TestFlight build number) ──────────
   version:
     name: Detect Version
-    uses: ./.github/workflows/version.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pkg_version: ${{ steps.v.outputs.pkg_version }}
+      pkg_prerelease: ${{ steps.v.outputs.pkg_prerelease }}
+      build_number: ${{ steps.v.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - id: v
+        uses: ./.github/actions/detect-version
 
   # ═══ Chain 1: iOS — compile then upload ═══
   ios-build:
     name: iOS Build (compile)
     needs: [version]
-    uses: ./.github/workflows/ios.yml
-    with:
-      pkg_version: ${{ needs.version.outputs.pkg_version }}
-      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
-      build_number: ${{ needs.version.outputs.build_number }}
-      git_hash: ${{ github.sha }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-ios
+        with:
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
+        env:
+          # Team ID is needed by the CMake -DAPPLE_TEAM_ID flag (unsigned build).
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
 
   ios-upload:
     name: iOS TestFlight Upload
     needs: [version, ios-build]
-    uses: ./.github/workflows/testflight.yml
-    with:
-      platform: ios
-      pkg_version: ${{ needs.version.outputs.pkg_version }}
-      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
-      build_number: ${{ needs.version.outputs.build_number }}
-      git_hash: ${{ github.sha }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: TestFlight
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/upload-testflight-ios
+        with:
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
+        env:
+          # 5WHY: secrets go through step env, not with: inputs — inputs are
+          # inlined into the script text where masking is not guaranteed.
+          # The job's `environment: TestFlight` scope provides these values.
+          APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          APPSTORE_CONNECT_API_KEY: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
 
   # ═══ Chain 2: macOS — build (testflight mode) then upload ═══
   macos-build:
     name: macOS Build (TestFlight)
     needs: [version]
-    uses: ./.github/workflows/macos.yml
-    with:
-      mode: testflight
-      pkg_version: ${{ needs.version.outputs.pkg_version }}
-      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
-      build_number: ${{ needs.version.outputs.build_number }}
-      git_hash: ${{ github.sha }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-macos
+        with:
+          mode: testflight
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
 
   macos-upload:
     name: macOS TestFlight Upload
     needs: [version, macos-build]
-    uses: ./.github/workflows/testflight.yml
-    with:
-      platform: macos
-      pkg_version: ${{ needs.version.outputs.pkg_version }}
-      pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
-      build_number: ${{ needs.version.outputs.build_number }}
-      git_hash: ${{ github.sha }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: TestFlight
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/upload-testflight-macos
+        with:
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
+        env:
+          # 5WHY: secrets go through step env, not with: inputs (see above).
+          APPSTORE_CONNECT_KEY_ID: ${{ secrets.APPSTORE_CONNECT_KEY_ID }}
+          APPSTORE_CONNECT_API_KEY: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          MACOS_INSTALLER_CERT_BASE64: ${{ secrets.MACOS_INSTALLER_CERT_BASE64 }}
+          MACOS_INSTALLER_CERT_PASSWORD: ${{ secrets.MACOS_INSTALLER_CERT_PASSWORD }}
+          MACOS_APP_CERT_BASE64: ${{ secrets.MACOS_APP_CERT_BASE64 }}
+          MACOS_APP_CERT_PASSWORD: ${{ secrets.MACOS_APP_CERT_PASSWORD }}
+          MACOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.MACOS_PROVISIONING_PROFILE_BASE64 }}

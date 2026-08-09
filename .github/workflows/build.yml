@@ -2,19 +2,23 @@
 # Build & Release — MASTER CALLER (Release-download artifacts only)
 # ═══════════════════════════════════════════════════════════════════════════
 # This workflow builds ONLY the install files / executables that users
-# download from the GitHub Release page.  It delegates each platform to a
-# parameterized reusable workflow:
+# download from the GitHub Release page.  Every platform build is delegated
+# to a step-level composite action under .github/actions/:
 #
-#   · linux.yml     (matrix: x86_64, arm64)   → AppImage / deb / rpm
-#   · windows.yml   (matrix: static, dynamic) → standalone exe / NSIS installer
-#   · android.yml   (matrix: arm64+x86_64 × apk+aab) → installable APK / Play AAB
-#   · macos.yml     (release packaging only)  → DMG / tar.gz download format
+#   · build-linux     (matrix: x86_64, arm64)   → AppImage / deb / rpm
+#   · build-windows   (static + dynamic jobs)   → standalone exe / NSIS installer
+#   · build-android   (matrix: arm64+x86_64 × apk+aab) → installable APK / Play AAB
+#   · build-macos     (release packaging only)  → DMG / tar.gz download format
 #
-# Store uploads are deliberately OUT of this pipeline (each is a standalone,
-# parameterized workflow):
-#   · Google Play upload  → android.yml (deploy=google-play)
-#   · iOS code compile    → ios.yml (standalone build + validation)
-#   · iOS/macOS TestFlight upload → testflight.yml (platform: ios | macos | both)
+# Only THREE standalone workflows exist (build.yml, apple.yml,
+# cleanup-runs.yml); everything else lives in .github/actions/ as composite
+# actions.  Version is detected once in the version job via the
+# detect-version action and passed to every build job.
+#
+# Google Play upload (optional): workflow_dispatch input deploy=google-play
+# restricts the Android matrix to the arm64 AAB cell and runs the
+# deploy-google-play job (environment: GooglePlay).  Default deploy=none keeps
+# this workflow Release-downloads-only.
 #
 # Triggers: workflow_dispatch (manual), pull_request (validation), tag push
 # (release).  The release job collects every artifact into a GitHub Release.
@@ -23,6 +27,14 @@ name: Build & Release
 
 on:
   workflow_dispatch:
+    inputs:
+      deploy:
+        description: Upload target for this run (none | google-play)
+        type: choice
+        options:
+          - none
+          - google-play
+        default: none
   pull_request:
     branches: [master]
   push:
@@ -36,45 +48,104 @@ permissions:
   contents: read
 
 jobs:
-  # ── Version — used by the release job only (children detect their own) ──
+  # ── Version — detected once, shared by every build job ──────────────
   version:
     name: Detect Version
-    uses: ./.github/workflows/version.yml
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pkg_version: ${{ steps.v.outputs.pkg_version }}
+      pkg_prerelease: ${{ steps.v.outputs.pkg_prerelease }}
+      build_number: ${{ steps.v.outputs.build_number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - id: v
+        uses: ./.github/actions/detect-version
 
-  # ═══ Linux — linux.yml (arch matrix) ═══
+  # ═══ Linux — build-linux action (arch matrix) ═══
   linux:
     name: Linux ${{ matrix.arch }}
+    needs: [version]
     strategy:
       fail-fast: false
       matrix:
         arch: [x86_64, arm64]
-    uses: ./.github/workflows/linux.yml
-    with:
-      arch: ${{ matrix.arch }}
+    runs-on: ${{ matrix.arch == 'x86_64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-linux
+        with:
+          arch: ${{ matrix.arch }}
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
 
-  # ═══ Windows — windows.yml (variant matrix) ═══
-  windows:
-    name: Windows ${{ matrix.variant }}
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [static, dynamic]
-    uses: ./.github/workflows/windows.yml
-    with:
-      variant: ${{ matrix.variant }}
+  # ═══ Windows — build-windows action (two jobs: static / dynamic) ═══
+  # 5WHY: static (150 min Qt source build) and dynamic (30 min NSIS) need
+  # different timeouts, so they are separate jobs instead of a matrix cell.
+  windows-static:
+    name: Windows x86_64 Static
+    needs: [version]
+    runs-on: windows-2022
+    # 5WHY: 90 min was insufficient — Qt 6.11.1 source build on a 2-core
+    # GitHub runner takes ~105 min for 7400 translation units.  150 min
+    # provides safe headroom for the full pipeline (curl → Qt → app).
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-windows
+        with:
+          variant: static
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
 
-  # ═══ macOS — macos.yml, release download format (DMG / tar.gz) ═══
+  windows-dynamic:
+    name: Windows x86_64 Dynamic
+    needs: [version]
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-windows
+        with:
+          variant: dynamic
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
+
+  # ═══ macOS — build-macos action, release download format (DMG / tar.gz) ═══
   # 5WHY: build.yml only produces Release-download files.  TestFlight uploads
   # (iOS + macOS) run in apple.yml as two parallel standalone tasks.
   macos:
     name: macOS (release download)
-    uses: ./.github/workflows/macos.yml
+    needs: [version]
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-macos
+        with:
+          mode: release
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
 
-  # ═══ Android — android.yml (arch × format matrix, release downloads) ═══
-  # 5WHY: build.yml only produces Release-download files (APK/AAB).  Google
-  # Play uploads run standalone via android.yml (deploy=google-play).
+  # ═══ Android — build-android action (arch × format matrix) ═══
+  # 5WHY: build.yml only produces Release-download files (APK/AAB) by default.
+  # deploy=google-play (workflow_dispatch) restricts the matrix to the arm64
+  # AAB cell and enables the deploy-google-play job below.
+  #
+  # 5WHY (matrix in job if): the `matrix` context is NOT available in a
+  # job-level `if` (matrix expands after if is evaluated).  The cell filter
+  # therefore lives in a step-level `if`; skipped cells are cheap no-ops.
   android:
     name: Android ${{ matrix.arch }} (${{ matrix.format }})
+    needs: [version]
     strategy:
       fail-fast: false
       matrix:
@@ -83,25 +154,47 @@ jobs:
           - { arch: arm64, format: aab }
           - { arch: x86_64, format: apk }
           - { arch: x86_64, format: aab }
-    uses: ./.github/workflows/android.yml
-    with:
-      arch: ${{ matrix.arch }}
-      format: ${{ matrix.format }}
-      deploy: none
-    secrets:
-      # Signing secrets are always forwarded so every build shares ONE key
-      # (upgrades install cleanly); the google-play deploy is a separate
-      # standalone trigger.  Empty on PR/fork → debug-keystore fallback.
-      ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-      ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-      ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
-      GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Skip non-Play cell
+        if: ${{ inputs.deploy == 'google-play' && !(matrix.arch == 'arm64' && matrix.format == 'aab') }}
+        run: echo "deploy=google-play — skipping non-arm64/aab cell"
+      - uses: ./.github/actions/build-android
+        if: ${{ inputs.deploy != 'google-play' || (matrix.arch == 'arm64' && matrix.format == 'aab') }}
+        with:
+          arch: ${{ matrix.arch }}
+          format: ${{ matrix.format }}
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
+          build_number: ${{ needs.version.outputs.build_number }}
+          git_hash: ${{ github.sha }}
+
+  # ═══ Google Play deploy — optional, deploy=google-play only ═══
+  # 5WHY: mirror the TestFlight environment pattern — environment-scoped
+  # secrets keep the Play service account out of the default repo secret
+  # namespace and give the deploy a visible approval gate if the user adds
+  # one to the "GooglePlay" environment.
+  deploy-google-play:
+    name: Deploy Android to Google Play
+    needs: [version, android]
+    if: inputs.deploy == 'google-play'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: GooglePlay
+    steps:
+      - uses: ./.github/actions/deploy-google-play
+        with:
+          track: internal
+          release_status: completed
+          pkg_version: ${{ needs.version.outputs.pkg_version }}
+          pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
 
   # ═══ Release — collect all artifacts → GitHub Release ═══
   release:
     name: Create Release
-    needs: [version, linux, windows, macos, android]
+    needs: [version, linux, windows-static, windows-dynamic, macos, android]
     # 5WHY: on pull_request the release job would create/overwrite real GitHub
     # Releases (e.g. v0.0.1 when no tags exist).  Gating on event_name ensures
     # releases only fire on manual workflow_dispatch / tag push, never on PR
@@ -156,11 +249,11 @@ jobs:
                 os="android"; arch="arm64" ;;
               # macOS: only the release-packaging artifact is collected
               # (DMG/tar.gz); the internal .app tar is consumed by the
-              # package-release/testflight jobs inside macos.yml.
+              # upload-testflight-macos action inside apple.yml.
               *macos-release*)
                 os="macos"; arch="arm64" ;;
               *macos*|*ios*)
-                echo "Skipping Apple internal artifact (handled inside macos.yml): $dir"; continue ;;
+                echo "Skipping Apple internal artifact (handled inside apple.yml): $dir"; continue ;;
               *)
                 echo "Skipping unknown: $dir"; continue ;;
             esac

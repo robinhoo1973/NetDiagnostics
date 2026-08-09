@@ -6,7 +6,10 @@ dist/
 !dist/apple-submission-reply.txt
 !dist/in-app-purchase-html2txt.txt
 *.log
-
+# 5WHY: `build-*/` above (for local CMake dirs like build-test/) would also
+# match the composite actions named build-*.  Re-include them — they are
+# tracked source, not build output.
+!.github/actions/build-*/
 # IDE / tools
 .claude/
 .codewhale/

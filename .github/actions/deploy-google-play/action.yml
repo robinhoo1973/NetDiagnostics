@@ -1,0 +1,131 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Deploy Google Play — step-level Play upload (composite action)
+# ═══════════════════════════════════════════════════════════════════════════
+# Downloads the arm64 AAB artifact produced by build-android (format=aab),
+# cross-checks the Play versionCode, and uploads it to the requested track
+# with r0adkll/upload-google-play.
+#
+# The caller (build.yml, deploy=google-play) owns the job — including the
+# `environment: GooglePlay` (holds GOOGLE_PLAY_SERVICE_ACCOUNT_JSON) and the
+# checkout/cancellation.  Credentials are checked in a step because the
+# `secrets` context is NOT available in job-level `if`: PR/fork runs (no
+# secrets) skip the upload with a warning instead of failing the pipeline.
+#
+# Dedup: a cache keyed on track + runner stores the last uploaded SHA so the
+# same commit is not uploaded twice to the same track.
+# ═══════════════════════════════════════════════════════════════════════════
+name: Deploy Google Play
+description: Download the arm64 AAB and upload it to the requested Google Play track (dedup + credential-gated)
+inputs:
+  track:
+    description: Google Play track (internal | alpha | beta | production)
+    required: false
+    default: internal
+  release_status:
+    description: Google Play release status (completed | inProgress | draft)
+    required: false
+    default: completed
+  pkg_version:
+    description: Release version (M.m.p)
+    required: true
+  pkg_prerelease:
+    description: Pre-release suffix (e.g. rc1), empty for final
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Check Play credentials
+      id: check
+      shell: bash
+      env:
+        PLAY_SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+      run: |
+        if [ -n "$PLAY_SA_JSON" ]; then
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "::warning::GOOGLE_PLAY_SERVICE_ACCOUNT_JSON is not set — skipping Google Play upload"
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - uses: actions/checkout@v4
+
+    - name: Download AAB
+      uses: actions/download-artifact@v4
+      with:
+        name: NetDiagnostics-Android-arm64-aab
+
+    - name: Check if already uploaded
+      id: dedup
+      uses: actions/cache/restore@v4
+      with:
+        path: .googleplay-sha
+        key: google-play-${{ inputs.track }}-${{ runner.os }}-v1
+    - name: Read last uploaded SHA
+      id: last-sha
+      shell: bash
+      run: |
+        if [ -f .googleplay-sha/version ]; then echo "last=$(cat .googleplay-sha/version)" >> "$GITHUB_OUTPUT"
+        else echo "last=none" >> "$GITHUB_OUTPUT"; fi
+        echo "current=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+    - name: Report dedup status
+      shell: bash
+      run: |
+        if [ "${{ steps.last-sha.outputs.last }}" = "${{ github.sha }}" ]; then
+          echo "[SKIP] Same commit already uploaded"; fi
+
+    - name: Resolve track + status
+      id: track
+      shell: bash
+      run: |
+        TRACK="${{ inputs.track }}"
+        STATUS="${{ inputs.release_status }}"
+        echo "track=${TRACK}" >> "$GITHUB_OUTPUT"
+        echo "status=${STATUS}" >> "$GITHUB_OUTPUT"
+        echo "Play track: ${TRACK} (status: ${STATUS})"
+
+    - name: Verify Play version code
+      shell: bash
+      run: |
+        # 5WHY: mirror netdiag-target.cmake's versionCode scheme
+        # (M*1e6 + m*1e3 + p)*10 + (1 pre-release / 2 final).  Google Play
+        # rejects duplicate or decreasing versionCodes per track.  The AAB
+        # already carries this versionCode (baked in by the manifest
+        # generation); r0adkll/upload-google-play reads it from the file
+        # itself, so this step only cross-checks the expected value in the
+        # CI log and fails fast if version detection produced garbage.
+        V="${{ inputs.pkg_version }}"
+        [ -n "$V" ] || { echo "ERROR: empty pkg_version — is there a v* tag?"; exit 1; }
+        IFS=. read -r M m p <<< "$V"
+        PRE="${{ inputs.pkg_prerelease }}"
+        EXTRA=2
+        [ -n "$PRE" ] && EXTRA=1
+        VC=$(( (M*1000000 + m*1000 + p)*10 + EXTRA ))
+        echo "Expected Play versionCode: ${VC} (${M}.${m}.${p}${PRE:+-$PRE})"
+
+    - name: Upload to Google Play
+      if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
+      uses: r0adkll/upload-google-play@v1
+      with:
+        # 5WHY: r0adkll/upload-google-play is the de-facto standard action
+        # for the Play Developer API (uploads .apk/.aab to any track).
+        # serviceAccountJsonPlainText avoids writing the secret to disk;
+        # releaseFiles accepts the AAB glob; version codes are read from
+        # the AAB itself by the action.
+        serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        packageName: com.netdiagnostic.app
+        releaseFiles: NetDiagnostics-Android-arm64.aab
+        track: ${{ steps.track.outputs.track }}
+        status: ${{ steps.track.outputs.status }}
+        changesNotSentForReview: false
+
+    - name: Save uploaded SHA
+      if: always() && steps.check.outputs.ok == 'true'
+      shell: bash
+      run: |
+        mkdir -p .googleplay-sha
+        echo "${{ github.sha }}" > .googleplay-sha/version
+    - uses: actions/cache/save@v4
+      if: always() && steps.check.outputs.ok == 'true'
+      with:
+        path: .googleplay-sha
+        key: google-play-${{ inputs.track }}-${{ runner.os }}-v1

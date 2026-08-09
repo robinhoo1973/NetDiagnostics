@@ -1,0 +1,152 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# Build Android — step-level Android cross-compile + package (composite action)
+# ═══════════════════════════════════════════════════════════════════════════
+# Cross-compiles NetDiagnostics for Android with selectable arch + format:
+#   input arch   = arm64 | x86_64      (Android ABI, mapped to Qt aqt arch)
+#   input format = apk  | aab          (installable APK / Play App Bundle)
+#
+# The caller (build.yml) owns the job (runs-on / timeout / matrix), the
+# checkout, and cancellation.  Version/build inputs come from the caller's
+# version job.  Signing secrets (ANDROID_KEYSTORE_*) are read directly from
+# the secrets context — empty on PR/fork → the android-apk/aab actions fall
+# back to the debug keystore (validation artifacts, not installs).
+# ═══════════════════════════════════════════════════════════════════════════
+name: Build Android
+description: Cross-compile NetDiagnostics for Android (APK or AAB) with the given ABI and upload the artifact
+inputs:
+  arch:
+    description: Android ABI (arm64 | x86_64)
+    required: true
+  format:
+    description: Package format (apk | aab)
+    required: true
+  pkg_version:
+    description: Release version (M.m.p)
+    required: true
+  pkg_prerelease:
+    description: Pre-release suffix (e.g. rc1), empty for final
+    required: true
+  build_number:
+    description: CI build number
+    required: true
+  git_hash:
+    description: Commit SHA
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install host dependencies
+      shell: bash
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          build-essential cmake ninja-build
+        # 5WHY: pip install without --break-system-packages fails on
+        # Ubuntu 24.04+ (PEP 668 externally-managed-environment).
+        # Use a venv for isolation, same pattern as the other workflows.
+        python3 -m venv /tmp/venv && source /tmp/venv/bin/activate && pip install aqtinstall
+        echo "/tmp/venv/bin" >> "$GITHUB_PATH"
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Cache Qt6 desktop (host tools)
+      id: cache-qt-desktop
+      uses: actions/cache@v4
+      with:
+        path: /opt/qt-desktop
+        key: qt6-android-desktop-6.5.3-v1
+
+    - name: Install Qt6 desktop via aqt
+      if: steps.cache-qt-desktop.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        aqt install-qt linux desktop 6.5.3 gcc_64 -O /opt/qt-desktop
+
+    - name: Cache Qt6 Android ${{ inputs.arch }}
+      id: cache-qt-android
+      uses: actions/cache@v4
+      with:
+        path: /opt/qt-android-${{ inputs.arch }}
+        key: qt6-android-${{ inputs.arch }}-6.5.3-v1
+
+    - name: Install Qt6 for Android via aqt
+      if: steps.cache-qt-android.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        QT_ANDROID_ARCH=${{ inputs.arch == 'x86_64' && 'android_x86_64' || 'android_arm64_v8a' }}
+        aqt install-qt linux android 6.5.3 "$QT_ANDROID_ARCH" -O /opt/qt-android-${{ inputs.arch }}
+
+    - name: Configure
+      shell: bash
+      env:
+        QT_ANDROID_ARCH: ${{ inputs.arch == 'x86_64' && 'android_x86_64' || 'android_arm64_v8a' }}
+        ANDROID_ABI: ${{ inputs.arch == 'x86_64' && 'x86_64' || 'arm64-v8a' }}
+        APP_EDITION: android-${{ inputs.arch }}
+      run: |
+        echo "[Android ${{ inputs.arch }}] Configuring..."
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
+          -DPROJECT_VERSION="${{ inputs.pkg_version }}" \
+          -DND_PRERELEASE="${{ inputs.pkg_prerelease }}" \
+          -DND_BUILD_NUMBER=${{ inputs.build_number }} \
+          -DND_GIT_HASH=${{ inputs.git_hash }} \
+          -DAPP_EDITION=$APP_EDITION \
+          -DCMAKE_PREFIX_PATH="/opt/qt-android-${{ inputs.arch }}/6.5.3/$QT_ANDROID_ARCH" \
+          -DQT_HOST_PATH="/opt/qt-desktop/6.5.3/gcc_64" \
+          -DCMAKE_FIND_ROOT_PATH="/opt/qt-android-${{ inputs.arch }}/6.5.3/$QT_ANDROID_ARCH" \
+          -DANDROID_SDK_ROOT=$ANDROID_SDK_ROOT \
+          -DANDROID_NDK_ROOT=$ANDROID_NDK_ROOT \
+          -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
+          -DANDROID_ABI=$ANDROID_ABI \
+          -DANDROID_PLATFORM=android-26 \
+          -B build -S .
+
+    - name: Build
+      shell: bash
+      run: |
+        ninja -C build net_diagnostics
+
+    - name: Build APK
+      if: inputs.format == 'apk'
+      uses: ./.github/actions/android-apk
+      with:
+        qt_version: "6.5.3"
+        output_name: NetDiagnostics-Android-${{ inputs.arch }}.apk
+        build_dir: build
+      env:
+        # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
+        # masks env values derived from secrets; composite-action `with:`
+        # inputs are inlined into the script text where masking is not
+        # guaranteed.  Every release build shares ONE signing key so
+        # upgrades install cleanly; empty on PR/fork -> debug fallback.
+        ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+        ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+
+    - name: Build AAB
+      if: inputs.format == 'aab'
+      uses: ./.github/actions/android-aab
+      with:
+        qt_version: "6.5.3"
+        output_name: NetDiagnostics-Android-${{ inputs.arch }}.aab
+        build_dir: build
+      env:
+        # 5WHY: pass secrets via env, NOT with: inputs (see APK above).
+        # Every Play upload shares ONE upload key so Play App Signing
+        # upgrades install cleanly.
+        ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+        ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: NetDiagnostics-Android-${{ inputs.arch }}${{ inputs.format == 'aab' && '-aab' || '' }}
+        path: |
+          NetDiagnostics-Android-${{ inputs.arch }}.${{ inputs.format }}
+        if-no-files-found: error
