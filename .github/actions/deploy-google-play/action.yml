@@ -38,7 +38,10 @@ runs:
       id: check
       shell: bash
       env:
-        PLAY_SA_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        # 5WHY: the `secrets` context is NOT available inside a composite
+        # action; the caller (build.yml deploy job, environment GooglePlay)
+        # passes GOOGLE_PLAY_SERVICE_ACCOUNT_JSON via step env.
+        PLAY_SA_JSON: ${{ env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
       run: |
         if [ -n "$PLAY_SA_JSON" ]; then
           echo "ok=true" >> "$GITHUB_OUTPUT"
@@ -111,7 +114,7 @@ runs:
         # serviceAccountJsonPlainText avoids writing the secret to disk;
         # releaseFiles accepts the AAB glob; version codes are read from
         # the AAB itself by the action.
-        serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        serviceAccountJsonPlainText: ${{ env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         packageName: com.netdiagnostic.app
         releaseFiles: NetDiagnostics-Android-arm64.aab
         track: ${{ steps.track.outputs.track }}

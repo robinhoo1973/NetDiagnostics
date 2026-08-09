@@ -170,6 +170,15 @@ jobs:
           pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
           build_number: ${{ needs.version.outputs.build_number }}
           git_hash: ${{ github.sha }}
+        env:
+          # 5WHY: the `secrets` context is unavailable inside composite
+          # actions — the caller MUST pass secrets via step env.  Every
+          # release build shares ONE signing key so upgrades install
+          # cleanly; empty on PR/fork → debug-keystore fallback.
+          ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
 
   # ═══ Google Play deploy — optional, deploy=google-play only ═══
   # 5WHY: mirror the TestFlight environment pattern — environment-scoped
@@ -190,6 +199,11 @@ jobs:
           release_status: completed
           pkg_version: ${{ needs.version.outputs.pkg_version }}
           pkg_prerelease: ${{ needs.version.outputs.pkg_prerelease }}
+        env:
+          # 5WHY: the `secrets` context is unavailable inside composite
+          # actions — the caller must pass the Play service account via step
+          # env.  The job's `environment: GooglePlay` provides this secret.
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
 
   # ═══ Release — collect all artifacts → GitHub Release ═══
   release:

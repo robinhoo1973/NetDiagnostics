@@ -117,15 +117,14 @@ runs:
         output_name: NetDiagnostics-Android-${{ inputs.arch }}.apk
         build_dir: build
       env:
-        # 5WHY: pass secrets via env, NOT with: inputs.  GitHub reliably
-        # masks env values derived from secrets; composite-action `with:`
-        # inputs are inlined into the script text where masking is not
-        # guaranteed.  Every release build shares ONE signing key so
-        # upgrades install cleanly; empty on PR/fork -> debug fallback.
-        ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-        ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-        ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        # 5WHY: the `secrets` context is NOT available inside a composite
+        # action (action.yml) — GitHub rejects ${{ secrets.* }} at load time.
+        # Secrets must flow caller (workflow step env) → this action's env
+        # context → nested action env.  build.yml passes them below.
+        ND_KEYSTORE_B64: ${{ env.ND_KEYSTORE_B64 }}
+        ND_KEYSTORE_PASS: ${{ env.ND_KEYSTORE_PASS }}
+        ND_KEY_ALIAS: ${{ env.ND_KEY_ALIAS }}
+        ND_KEY_PASS: ${{ env.ND_KEY_PASS }}
 
     - name: Build AAB
       if: inputs.format == 'aab'
@@ -135,13 +134,12 @@ runs:
         output_name: NetDiagnostics-Android-${{ inputs.arch }}.aab
         build_dir: build
       env:
-        # 5WHY: pass secrets via env, NOT with: inputs (see APK above).
-        # Every Play upload shares ONE upload key so Play App Signing
-        # upgrades install cleanly.
-        ND_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-        ND_KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
-        ND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-        ND_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+        # 5WHY: same as the APK step — `secrets` context is unavailable in
+        # composite actions; values come from the caller's step env.
+        ND_KEYSTORE_B64: ${{ env.ND_KEYSTORE_B64 }}
+        ND_KEYSTORE_PASS: ${{ env.ND_KEYSTORE_PASS }}
+        ND_KEY_ALIAS: ${{ env.ND_KEY_ALIAS }}
+        ND_KEY_PASS: ${{ env.ND_KEY_PASS }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
