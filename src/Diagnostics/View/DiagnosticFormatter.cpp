@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // DiagnosticFormatter.cpp — Shared output formatting (extracted from SystemDiagnostics)
 // =============================================================================
 // UX alignment principles:
@@ -26,7 +26,7 @@ static const QString kTblGap = QStringLiteral("  ");
 //
 // BMP codepoints (≤ 0xFFFF) that occupy 2 display columns are listed
 // in the CJK/fullwidth range checks below.
-static int displayWidth(const QString& s) {
+static int displayWidthImpl(const QString& s) {
     int w = 0;
     for (int i = 0; i < s.length(); ++i) {
         ushort uc = s[i].unicode();
@@ -58,15 +58,19 @@ static int displayWidth(const QString& s) {
     return w;
 }
 
+int DiagnosticFormatter::displayWidth(const QString& s) {
+    return displayWidthImpl(s);
+}
+
 // ── Trim a value to fit within display-width budget ──
 // Returns the original string if it fits; otherwise truncates and appends "…"
 static QString trimToWidth(const QString& val, int maxDisplayWidth) {
-    if (displayWidth(val) <= maxDisplayWidth)
+    if (DiagnosticFormatter::displayWidth(val) <= maxDisplayWidth)
         return val;
     // Walk until we exceed budget, then add ellipsis
     int dw = 0;
     for (int i = 0; i < val.length(); ++i) {
-        int cdw = displayWidth(val.mid(i, 1));
+        int cdw = DiagnosticFormatter::displayWidth(val.mid(i, 1));
         if (dw + cdw + 1 > maxDisplayWidth) // +1 for "…"
             return val.left(i) + QStringLiteral("…"); // …
         dw += cdw;
@@ -76,8 +80,8 @@ static QString trimToWidth(const QString& val, int maxDisplayWidth) {
 
 // ── Pad a string to target display width ──
 // leftPad=false → left-justify (append spaces); leftPad=true → right-justify (prepend spaces)
-static QString padToWidth(const QString& val, int targetDisplayWidth, bool rightAlign) {
-    int dw = displayWidth(val);
+QString DiagnosticFormatter::padToWidth(const QString& val, int targetDisplayWidth, bool rightAlign) {
+    int dw = DiagnosticFormatter::displayWidth(val);
     int padNeeded = qMax(0, targetDisplayWidth - dw);
     if (rightAlign)
         return QString(padNeeded, ' ') + val;
@@ -91,14 +95,14 @@ QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
     QStringList out;
     QVector<int> w(cols.size());
     for (int i = 0; i < cols.size(); ++i) {
-        w[i] = qMax(cols[i].minWidth, displayWidth(QString::fromLatin1(cols[i].header)));
+        w[i] = qMax(cols[i].minWidth, DiagnosticFormatter::displayWidth(QString::fromLatin1(cols[i].header)));
         for (const auto& row : rows)
-            if (i < row.size()) w[i] = qMax(w[i], displayWidth(row[i]));
+            if (i < row.size()) w[i] = qMax(w[i], DiagnosticFormatter::displayWidth(row[i]));
     }
     // Header row: pad to display width, matching column alignment
     QStringList hdrParts;
     for (int i = 0; i < cols.size(); ++i)
-        hdrParts.append(padToWidth(QString::fromLatin1(cols[i].header), w[i], cols[i].rightAlign));
+        hdrParts.append(DiagnosticFormatter::padToWidth(QString::fromLatin1(cols[i].header), w[i], cols[i].rightAlign));
     out.append(hdrParts.join(kTblGap));
     // Separator (dashes matching display width)
     QStringList sepParts;
@@ -110,7 +114,7 @@ QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
         QStringList parts;
         for (int i = 0; i < cols.size(); ++i) {
             QString val = (i < row.size()) ? trimToWidth(row[i], w[i]) : QString();
-            parts.append(padToWidth(val, w[i], cols[i].rightAlign));
+            parts.append(DiagnosticFormatter::padToWidth(val, w[i], cols[i].rightAlign));
         }
         out.append(parts.join(kTblGap));
     }
@@ -152,44 +156,3 @@ QStringList DiagnosticFormatter::formatDnsFooter(qint64 elapsedMs, const QString
             QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d HH:mm:ss yyyy"))),
     };
 }
-
-// ── Windows ping.exe ──────────────────────────────────────────────
-QString DiagnosticFormatter::formatPingReply(const QString& ip, int ms,
-                                               int bytes, int ttl) {
-    return QStringLiteral("Reply from %1: bytes=%2 time=%3ms TTL=%4")
-        .arg(ip).arg(bytes).arg(ms).arg(ttl);
-}
-
-QString DiagnosticFormatter::formatPingTimeout() {
-    return QStringLiteral("Request timed out.");
-}
-
-QStringList DiagnosticFormatter::formatPingStats(const QString& target,
-                                                   int sent, int received,
-                                                   double lossPct, int minMs,
-                                                   int maxMs, double avgMs) {
-    QStringList lines;
-    lines.append(QString());
-    lines.append(QStringLiteral("Ping statistics for %1:").arg(target));
-    lines.append(QStringLiteral("    Packets: Sent = %1, Received = %2, Lost = %3 (%4% loss),")
-        .arg(sent).arg(received).arg(sent - received).arg(lossPct, 0, 'f', 1));
-    if (received > 0) {
-        lines.append(QStringLiteral("Approximate round trip times in milli-seconds:"));
-        lines.append(QStringLiteral("    Minimum = %1ms, Maximum = %2ms, Average = %3ms")
-            .arg(minMs).arg(maxMs).arg(avgMs, 0, 'f', 1));
-    }
-    return lines;
-}
-
-// ── Windows tracert.exe ───────────────────────────────────────────
-QString DiagnosticFormatter::formatTracerouteHop(int ttl, int rtt1, int rtt2, int rtt3,
-                                                   const QString& name, const QString& ip) {
-    auto rttStr = [](int ms) -> QString {
-        if (ms < 1) return QStringLiteral("  <1 ms");
-        return QStringLiteral("  %1 ms").arg(ms, 3);
-    };
-    QString display = ip.isEmpty() ? name : QStringLiteral("%1 [%2]").arg(name, ip);
-    return QStringLiteral(" %1  %2  %3  %4  %5")
-        .arg(ttl, 2).arg(rttStr(rtt1)).arg(rttStr(rtt2)).arg(rttStr(rtt3)).arg(display);
-}
-

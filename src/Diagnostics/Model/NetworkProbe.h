@@ -63,10 +63,4 @@ public:
 
     /// Get SSL certificate info for host:port.
     static SslCertInfo sslCertInfo(const QString& host, int port = 443, int timeoutMs = 10000);
-
-    /// HTTP GET with full timing breakdown.
-    static HttpTimingResult httpTiming(const QUrl& url, int timeoutMs = 30000);
-
-    /// Well-known port → service name map (e.g. 80→"http", 443→"https").
-    static const QMap<int, QString>& wellKnownPorts();
 };

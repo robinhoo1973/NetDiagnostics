@@ -138,7 +138,7 @@ inline QString extractHostname(const QString& target) {
 
 // Derive the TCP port to probe from a target that may be a URL or host[:port].
 // Returns an explicit port if present, else the scheme's default
-// (443 https / 80 http / 21 ftp / 990 ftps), else 443 鈥?which is far more
+// (443 https / 80 http / 21 ftp / 990 ftps), else 443 —which is far more
 // universally reachable than 80 for MTU/MSS probing of modern hosts.
 static int extractProbePort(const QString& target) {
     QString t = target.trimmed();
@@ -179,9 +179,9 @@ static int extractProbePort(const QString& target) {
     return 443;
 }
 
-// 鈹€鈹€ DNS Resolution 鈥?full dig-like output 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── DNS Resolution —full dig-like output ─────────────────────────────
 #if !defined(_WIN32)
-// 鈹€鈹€ DNS wire query + full section dump helper 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── DNS wire query + full section dump helper ──────────────────────────────
 static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title,
                            const QString& host, QStringList& out, bool& gotCname, QString& cnameTarget) {
     int count = ns_msg_count(handle, section);
@@ -239,10 +239,10 @@ static void dnsDumpSection(ns_msg& handle, ns_sect section, const QString& title
             char mname[256], rname[256];
             const unsigned char* p = rd;
             int len1 = ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), p, mname, sizeof(mname));
-            if (len1 < 0) continue; // malformed SOA mname 鈥?skip
+            if (len1 < 0) continue; // malformed SOA mname —skip
             p += len1;
             int len2 = ns_name_uncompress(ns_msg_base(handle), ns_msg_end(handle), p, rname, sizeof(rname));
-            if (len2 < 0) continue; // malformed SOA rname 鈥?skip
+            if (len2 < 0) continue; // malformed SOA rname —skip
             p += len2;
             // Verify we have enough RDATA for the 5 fixed 32-bit fields (20 bytes)
             if (p + 20 > ns_msg_end(handle)) continue;
@@ -285,7 +285,7 @@ static QString rcodeStr(int rcode) {
 }
 #endif
 
-// DNS resolution helper 鈥?wraps DnsResolver with 3s timeout
+// DNS resolution helper —wraps DnsResolver with 3s timeout
 static quint32 resolveIPv4(const QString& host) {
     return DnsResolver::resolveIPv4(host, 3000);
 }
@@ -293,7 +293,7 @@ static quint32 resolveIPv4(const QString& host) {
 static DiagnosticResult noTargetResult(DiagId id, DiagGroup group);
 
 
-// Single TCP connect 鈥?returns RTT in ms, or -1 on failure
+// Single TCP connect —returns RTT in ms, or -1 on failure
 static int tcpRttMs(const QString& host, int port) {
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
@@ -309,7 +309,7 @@ static DiagnosticResult noTargetResult(DiagId id, DiagGroup group) {
 }
 
 #if defined(_WIN32)
-// 鈹€鈹€ Windows ICMP Echo (IcmpSendEcho 鈥?no admin required) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── Windows ICMP Echo (IcmpSendEcho —no admin required) ──────────────────
 static int icmpEchoRttMsWindows(quint32 resolvedIp, int seq, int timeoutMs) {
     HANDLE hIcmp = IcmpCreateFile();
     if (hIcmp == INVALID_HANDLE_VALUE) return -1;
@@ -329,13 +329,13 @@ static int icmpEchoRttMsWindows(quint32 resolvedIp, int seq, int timeoutMs) {
             rtt = (int)pReply->RoundTripTime;
     }
     IcmpCloseHandle(hIcmp);
-    (void)seq; // silently unused 鈥?IcmpSendEcho has no sequence param
+    (void)seq; // silently unused —IcmpSendEcho has no sequence param
     return rtt;
 }
 #endif
 
 #if !defined(_WIN32) && !defined(__linux__)
-// 鈹€鈹€ ICMP Echo helpers (Apple/BSD) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── ICMP Echo helpers (Apple/BSD) ──────────────────────────────────────────
 // SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root and WITHOUT
 // any special entitlement (Apple's SimplePing pattern), so real ICMP ping works
 // in the sandbox. Shared by ping() and the traceroute hop prober below.
@@ -353,7 +353,7 @@ static uint16_t icmpEchoChecksum(const void* data, int len) {
 
 // Locate the ICMP header inside a datagram-ICMP-socket reply. On Darwin (iOS/
 // macOS) the kernel delivers SOCK_DGRAM ICMP replies WITH the leading IPv4 header
-// 鈥?exactly what Apple's SimplePing skips via -icmpHeaderOffsetInIPv4Packet:
+// —exactly what Apple's SimplePing skips via -icmpHeaderOffsetInIPv4Packet:
 // (offset = (versionAndHeaderLength & 0x0F) * 4). The IPv4 version nibble (0x4X)
 // never collides with the ICMP types we read (0 EchoReply / 3 Unreach / 11 TTL),
 // so this also works unchanged on stacks that deliver no IP header (returns 0).
@@ -416,7 +416,7 @@ static int icmpEchoRttMs(quint32 ipHostOrder, int seq, int timeoutMs) {
         if (type == 0 && rseq == static_cast<uint16_t>(seq)) { // Echo Reply for our seq
             int ms = (int)tm.elapsed(); closeSocket(sock); return ms;
         }
-        if (type == 3) { closeSocket(sock); return -1; } // Destination Unreachable 鈫?loss
+        if (type == 3) { closeSocket(sock); return -1; } // Destination Unreachable →loss
     }
     closeSocket(sock); return -1;
 }
@@ -425,4 +425,4 @@ static int icmpEchoRttMs(quint32 ipHostOrder, int seq, int timeoutMs) {
 // TCP Traceroute hop probe (3 platform variants)
 #include "Diagnostics/Model/G4/G4TraceHop.inl"
 
-// 鈹€鈹€ Ping 鈥?ICMP Echo on iOS/macOS (permission-safe), TCP connect elsewhere 鈹€鈹€鈹€
+// ── Ping —ICMP Echo on iOS/macOS (permission-safe), TCP connect elsewhere ───

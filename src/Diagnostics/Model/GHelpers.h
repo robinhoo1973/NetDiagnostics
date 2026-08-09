@@ -1,4 +1,4 @@
-﻿// GHelpers.h — shared helpers for G1/G2/G3 per-function .cpp files.
+// GHelpers.h — shared helpers for G1/G2/G3 per-function .cpp files.
 #pragma once
 #include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/View/DiagnosticFormatter.h"
@@ -115,15 +115,6 @@ struct SpeedResult { double mbps; int bytes; int durationMs; bool ok; QString er
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs);
 SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs);
 
-// Raw HTTP GET — TCP connect + GET request → raw HTTP response (headers + body).
-// Plain TCP without TLS (use httpsGet for HTTPS).  Currently unused but retained
-// as a building block for future non-TLS HTTP diagnostics.
-// When connectHost is non-empty, connects to that address (e.g. IP) but still
-// sends `host` in the HTTP Host header — bypasses DNS for the TCP connection.
-QByteArray httpGet(const QString& host, int port, const QString& path,
-                   int timeoutMs = 3000, int maxBytes = 4096,
-                   const QString& connectHost = QString());
-
 // HTTPS GET — uses QNetworkAccessManager for TLS.  Returns response body.
 // Synchronous (local QEventLoop).  Used by G3GeoIPLoc for GeoIP providers.
 QByteArray httpsGet(const QString& url, int timeoutMs = 5000);
@@ -143,12 +134,7 @@ struct DohDnsFullResult {
     int             minTtl = -1;   // -1 = no TTL data sentinel; 0 = real TTL=0 (pollution signal)
 };
 
-// DoH (DNS-over-HTTPS) query — queries 4 resolvers, returns majority consensus.
-// Returns IPs agreed upon by majority (≥3 of 4), or all unique IPs if split.
-QStringList dohQuery(const QString& domain,
-                     const QString& type = QStringLiteral("A"), int timeoutMs = 4000);
-
-// DoH query with full record parsing — returns A records, CNAME chain, TTL.
+// DoH (DNS-over-HTTPS) full-record query — returns A records, CNAME chain, TTL.
 // Same 4-resolver majority logic as dohQuery(), but preserves record metadata.
 // 5WHY: DoH timeout was 4000ms, but typical response is 50-500ms.
 // 2000ms provides 4× headroom for congested networks while halving

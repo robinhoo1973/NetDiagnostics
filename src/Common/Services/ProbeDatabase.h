@@ -50,7 +50,6 @@ public:
 
     // ── Lifecycle ────────────────────────────────────────────────────
     void clear();
-    bool hasWaitingTasks() const;
 
 private:
     QHash<QString, Task> m_table;

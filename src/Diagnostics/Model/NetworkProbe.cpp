@@ -106,21 +106,3 @@ SslCertInfo NetworkProbe::sslCertInfo(const QString& host, int port, int timeout
     socket.disconnectFromHost();
     return info;
 }
-
-// =============================================================================
-// Well-known Port Names
-// =============================================================================
-const QMap<int, QString>& NetworkProbe::wellKnownPorts() {
-    static const QMap<int, QString> map = {
-        {21, "ftp"},       {22, "ssh"},        {23, "telnet"},
-        {25, "smtp"},      {53, "dns"},         {80, "http"},
-        {110, "pop3"},     {135, "epmap"},      {139, "netbios"},
-        {143, "imap"},     {443, "https"},      {445, "smb"},
-        {993, "imaps"},    {995, "pop3s"},      {1433, "mssql"},
-        {1521, "oracle"},  {1723, "pptp"},      {3306, "mysql"},
-        {3389, "rdp"},     {5432, "postgresql"},{5900, "vnc"},
-        {6379, "redis"},   {8080, "http-proxy"},{8443, "https-alt"},
-        {27017, "mongodb"}
-    };
-    return map;
-}

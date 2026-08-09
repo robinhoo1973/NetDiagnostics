@@ -1,8 +1,8 @@
-// 鈹€鈹€ TCP Traceroute Hop Probe 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+// ── TCP Traceroute Hop Probe ──────────────────────────────────────────────
 // Returns:  0 = reached target,  1 = intermediate hop,  -1 = timeout,  -2 = error
 //
 // Linux: uses IP_RECVERR + MSG_ERRQUEUE to capture ICMP Time Exceeded from
-// intermediate routers 鈥?same technique as tracepath / traceroute -T, no root.
+// intermediate routers —same technique as tracepath / traceroute -T, no root.
 // Windows: uses IcmpSendEcho API (no admin required).
 #if defined(_WIN32)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
@@ -45,20 +45,20 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 #else
 #if defined(__linux__)
 static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp) {
-    // 鈹€鈹€ ICMP Echo traceroute (requires CAP_NET_RAW, like traceroute -I) 鈹€鈹€
+    // ── ICMP Echo traceroute (requires CAP_NET_RAW, like traceroute -I) ──
     // Uses raw ICMP socket to send Echo Request with TTL=N. Receives:
-    //  - ICMP Echo Reply 鈫?reached target
-    //  - ICMP Time Exceeded 鈫?intermediate router (extract IP)
-    //  - Timeout 鈫?no response
+    //  - ICMP Echo Reply →reached target
+    //  - ICMP Time Exceeded →intermediate router (extract IP)
+    //  - Timeout →no response
     //
     // Fallback: if raw socket fails (no CAP_NET_RAW), use TCP connect with TTL.
-    // TCP TTL is not honored by some kernels 鈥?in that case all hops show as
+    // TCP TTL is not honored by some kernels —in that case all hops show as
     // reached target. This is a kernel limitation, not a code bug.
     int icmpSock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
     if (icmpSock < 0) s_rawIcmpAvailable = false;
     if (icmpSock >= 0 && icmpSock >= FD_SETSIZE) { closeSocket(icmpSock); icmpSock = -1; s_rawIcmpAvailable = false; }
     if (icmpSock >= 0) {
-        // 鈹€鈹€ Raw ICMP method (traceroute -I) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+        // ── Raw ICMP method (traceroute -I) ─────────────────────────────
         quint32 targetIp = resolveIPv4(host);
         if (!targetIp) { closeSocket(icmpSock); rttMs = 0; hopIp.clear(); return -2; }
 
@@ -135,13 +135,13 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
             if (!idMatch) continue;  // not our probe — ignore, keep waiting
 
             if (icmpType == 0) {
-                // Echo Reply 鈥?reached target
+                // Echo Reply —reached target
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
                 closeSocket(icmpSock);
                 return 0;
             } else if (icmpType == 11 && icmpCode == 0) {
-                // Time Exceeded 鈥?intermediate router
+                // Time Exceeded —intermediate router
                 // The ICMP payload contains the original IP header + 8 bytes,
                 // from which we extract the router's IP from the `from` address.
                 hopIp = ip4ToStr(from.sin_addr);
@@ -149,7 +149,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
                 closeSocket(icmpSock);
                 return 1;
             } else if (icmpType == 3) {
-                // Destination Unreachable 鈥?terminal, no further hops
+                // Destination Unreachable —terminal, no further hops
                 // Code 3 = Port Unreachable (reached target)
                 hopIp = ip4ToStr(from.sin_addr);
                 rttMs = (int)tm.elapsed();
@@ -163,7 +163,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         return -1; // Timeout
     }
 
-    // 鈹€鈹€ Fallback: TCP connect with TTL (no raw socket) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+    // ── Fallback: TCP connect with TTL (no raw socket) ─────────────────
     // 5WHY: createNonBlockingSocket() encapsulates socket() + FD_SETSIZE
     // guard + setSocketNonBlocking check, replacing the 10-line duplicated
     // pattern.  The ICMP raw-socket path above had this guard; the TCP
@@ -206,7 +206,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
 #else
 // macOS/iOS/BSD: ICMP Echo TTL probing via a datagram ICMP socket (no root).
 // SOCK_DGRAM + IPPROTO_ICMP is permitted on iOS/macOS WITHOUT root privileges
-// and WITHOUT any special entitlement 鈥?it is the same mechanism Apple's
+// and WITHOUT any special entitlement —it is the same mechanism Apple's
 // SimplePing sample code uses. We send ICMP Echo Requests with an increasing
 // IP_TTL on THIS socket and read the resulting ICMP Time Exceeded (type 11),
 // Echo Reply (type 0) or Destination Unreachable (type 3) on the SAME socket.
@@ -223,7 +223,7 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
     quint32 targetIp = resolveIPv4(host);
     if(!targetIp){rttMs=0;hopIp.clear();return -2;}
 
-    // Datagram ICMP socket 鈥?allowed on iOS/macOS without root (SimplePing pattern)
+    // Datagram ICMP socket —allowed on iOS/macOS without root (SimplePing pattern)
     int icmpSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
     // 5WHY: On Linux (above), FD_SETSIZE failure sets icmpSock=-1 and
     // falls through to the TCP fallback.  On macOS the old code returned -1
@@ -300,10 +300,10 @@ static int tcpTraceHop(const QString& host, int ttl, int& rttMs, QString& hopIp)
         // Did the TARGET itself send this reply, or a router along the way?
         struct in_addr tgt; tgt.s_addr = htonl(targetIp);
         const bool fromTarget = (srcIp == ip4ToStr(tgt));
-        if(type==0){ // Echo Reply 鈥?only the destination answers Echo 鈫?reached
+        if(type==0){ // Echo Reply —only the destination answers Echo →reached
             hopIp=srcIp; rttMs=(int)tm.elapsed(); closeSocket(icmpSock); return 0;
         }
-        if(type==11){ // Time Exceeded 鈥?an intermediate router on the path
+        if(type==11){ // Time Exceeded —an intermediate router on the path
             hopIp=srcIp; rttMs=(int)tm.elapsed(); closeSocket(icmpSock); return 1;
         }
         if(type==3){ // Destination Unreachable. Only the TARGET saying "unreachable"

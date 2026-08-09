@@ -1,4 +1,9 @@
-﻿#include "Diagnostics/Model/G4/G4Common.h"
+// 5WHY: DiagnosticFormatter.h must be included BEFORE G4Common.h. G4Common.h
+// pulls in headers (G4TraceHop.inl) that expand DiagnosticFormatter.h inside
+// namespace G4RemoteHost, so a later include is skipped by #pragma once and
+// the class would only exist as G4RemoteHost::DiagnosticFormatter.
+#include "Diagnostics/View/DiagnosticFormatter.h"
+#include "Diagnostics/Model/G4/G4Common.h"
 DiagnosticResult pathPing(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4PathPing; r.group = DiagGroup::G4;
@@ -107,7 +112,7 @@ DiagnosticResult pathPing(const QString& target) {
     };
     QVector<int> colW = {3, 5, 16, 16, 7};  // min widths
     for (int c = 0; c < 5; ++c)
-        colW[c] = qMax(colW[c], headers[c].length());
+        colW[c] = qMax(colW[c], ::DiagnosticFormatter::displayWidth(headers[c]));
 
     // Build data rows and track max column widths
     struct TableRow { QStringList cells; int hopIdx; };
@@ -132,14 +137,16 @@ DiagnosticResult pathPing(const QString& target) {
         }
         rows.append({cells, i});
         for (int c = 0; c < 5; ++c)
-            colW[c] = qMax(colW[c], cells[c].length());
+            colW[c] = qMax(colW[c], ::DiagnosticFormatter::displayWidth(cells[c]));
     }
 
-    // Helper: format a cell with alignment
+    // Helper: format a cell with alignment.
+    // 5WHY: column padding was computed from QString::length() (UTF-16 code
+    // units) — CJK/fullwidth glyphs occupy 2 display columns, so tables with
+    // Chinese content misaligned. Reuse the shared CJK-aware helper.
     auto fmtCell = [&](const QString& val, int c) -> QString {
-        int pad = colW[c] - val.length();
         bool right = (c == 0 || c == 1);  // Hop + RTT right-aligned
-        return right ? QString(pad, ' ') + val : val + QString(pad, ' ');
+        return ::DiagnosticFormatter::padToWidth(val, colW[c], right);
     };
 
     // Emit sub-header (Source to Here / This Node/Link)

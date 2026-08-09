@@ -66,7 +66,13 @@ ProbeDatabase::Task ProbeDatabase::read(const QString& key) const {
 
 void ProbeDatabase::waitForCompletion(const QStringList& keys) {
     QMutexLocker lock(&m_mutex);
-    QDeadlineTimer deadline(60'000);  // 60s timeout guard
+    // 5WHY: the guard was 60s, but ProbeExecutor's worst case is ~99s
+    // (3 batches × 64 threads × up to 8s/round).  A 60s deadline silently
+    // returned incomplete data and the feedback layer could report
+    // "network unreachable" for servers that were simply still in flight.
+    // 120s covers the executor's full worst case while still bounding a
+    // wedged executor (the caller skips empty results gracefully).
+    QDeadlineTimer deadline(120'000);  // 120s timeout guard
     while (!deadline.hasExpired()) {
         bool allDone = true;
         for (const auto& key : keys) {
@@ -84,12 +90,4 @@ void ProbeDatabase::waitForCompletion(const QStringList& keys) {
 void ProbeDatabase::clear() {
     QMutexLocker lock(&m_mutex);
     m_table.clear();
-}
-
-bool ProbeDatabase::hasWaitingTasks() const {
-    QMutexLocker lock(&m_mutex);
-    for (const auto& t : m_table) {
-        if (t.status == ProbeDatabase::Task::Waiting) return true;
-    }
-    return false;
 }

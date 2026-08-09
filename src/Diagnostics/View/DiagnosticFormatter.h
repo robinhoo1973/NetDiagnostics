@@ -21,6 +21,12 @@ public:
     static QStringList formatTable(const QVector<ColSpec>& cols,
                                     const QList<QStringList>& rows);
 
+    // ── Display-width helpers (CJK-aware) ─────────────────────
+    // Character count != display width for CJK/fullwidth/emoji glyphs.
+    // Shared with G4PathPing's manual table so both stay aligned.
+    static int displayWidth(const QString& s);
+    static QString padToWidth(const QString& val, int targetDisplayWidth, bool rightAlign);
+
     // ── dig-style DNS ────────────────────────────────────────
     static QStringList formatDnsHeader(const QString& host, const QString& rcode,
                                         uint16_t id, int anCount);
@@ -28,15 +34,5 @@ public:
     static QString formatDnsRecord(const QString& owner, int ttl,
                                     const QString& type, const QString& value);
     static QStringList formatDnsFooter(qint64 elapsedMs, const QString& server);
-
-    // ── Windows ping.exe ─────────────────────────────────────
-    static QString formatPingReply(const QString& ip, int ms, int bytes = 32, int ttl = 128);
-    static QString formatPingTimeout();
-    static QStringList formatPingStats(const QString& target, int sent, int received,
-                                        double lossPct, int minMs, int maxMs, double avgMs);
-
-    // ── Windows tracert.exe ──────────────────────────────────
-    static QString formatTracerouteHop(int ttl, int rtt1, int rtt2, int rtt3,
-                                        const QString& name, const QString& ip);
 
 };

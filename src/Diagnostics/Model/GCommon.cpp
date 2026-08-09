@@ -21,67 +21,6 @@ static QString hostHeader(const QString& host, int port) {
     return (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
 }
 
-// ── Raw HTTP GET — returns raw HTTP response (headers + body) ───────
-// Plain TCP HTTP GET without TLS.  Currently unused (all callers use
-// httpsGet for TLS support) but retained as a building block for future
-// non-TLS HTTP diagnostics.  Follows the same TCP connect + send +
-// recv pattern as httpTtfb/httpDownload.
-QByteArray httpGet(const QString& host, int port, const QString& path,
-                   int timeoutMs, int maxBytes, const QString& connectHost) {
-    QByteArray body;
-    QString connTarget = connectHost.isEmpty() ? host : connectHost;
-    int sock = tcpConnect(connTarget, port, qMin(timeoutMs, 3000));
-    if (sock < 0) return body;
-
-    // Always use the original host (not IP) in the Host header for virtual-host routing
-    QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
-        .arg(path, hostHeader(host, port)).toUtf8();
-
-    // Send request (EAGAIN-safe)
-    int sent = 0; int sendAttempts = 0;
-    while (sent < req.size() && sendAttempts < 100) {
-        int n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
-        if (n > 0) { sent += n; sendAttempts = 0; }
-        else if (n < 0) {
-#if defined(_WIN32)
-            if (WSAGetLastError() != WSAEWOULDBLOCK) break;
-#else
-            if (errno != EAGAIN && errno != EWOULDBLOCK) break;
-#endif
-            fd_set wfds; struct timeval wtv = {0, 100000};
-            FD_ZERO(&wfds); FD_SET(sock, &wfds);
-            if (select(sock + 1, nullptr, &wfds, nullptr, &wtv) <= 0) break;
-            sendAttempts++;
-        } else break;
-    }
-    if (sent < req.size()) { closeSocket(sock); return body; }
-
-    // Read response
-    fd_set fdset; struct timeval tv;
-    QElapsedTimer guard; guard.start();
-    char buf[4096];
-    while (body.size() < maxBytes && guard.elapsed() < timeoutMs) {
-        FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        int remaining = timeoutMs - (int)guard.elapsed();
-        if (remaining <= 0) break;
-        tv = {remaining / 1000, (remaining % 1000) * 1000};
-        if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
-        int n = (int)recv(sock, buf, sizeof(buf), 0);
-        if (n > 0) body.append(buf, n);
-        else if (n == 0) break;
-        else {
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
-#endif
-            break;
-        }
-    }
-    closeSocket(sock);
-    return body;
-}
-
 // HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
@@ -131,7 +70,7 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     while (body.size() < targetBytes + 65536) {
         // 5WHY: wall-clock guard was placed after recv() but before data
         // processing. If the guard fired after a successful recv(), the
-        // just-read chunk in buf was silently discarded 鈥?undercounting
+        // just-read chunk in buf was silently discarded —undercounting
         // bytes or dropping the HTTP status line entirely. Move the guard
         // BEFORE select() so previously-processed data is safe and only
         // NEW reads are prevented.
@@ -451,49 +390,6 @@ static QStringList dohQuerySingle(const QString& endpoint, const QString& domain
         }
     }
     return ips;
-}
-
-// ── DoH DNS query — 4-resolver majority consensus ──────────────────────
-// 5WHY: Querying a single DoH resolver risks trusting a compromised or
-// censored server.  Querying 4 resolvers (2 domestic CN + 2 international)
-// and taking the majority vote ensures the result is trustworthy even if
-// 1-2 resolvers are polluted.
-QStringList dohQuery(const QString& domain, const QString& type, int timeoutMs) {
-    static const struct {
-        const char* url;
-    } kResolvers[] = {
-        {"https://dns.alidns.com/resolve"},       // AliDNS (CN)
-        {"https://doh.pub/dns-query"},             // DNSPod / Tencent (CN)
-        {"https://dns.google/resolve"},            // Google (US)
-        {"https://cloudflare-dns.com/dns-query"},  // Cloudflare (US)
-    };
-
-    // Collect all IPs from all resolvers, counting frequency
-    QMap<QString, int> freq;
-    int responders = 0;
-    for (const auto& r : kResolvers) {
-        QStringList ips = dohQuerySingle(
-            QString::fromUtf8(r.url), domain, type, timeoutMs);
-        if (!ips.isEmpty()) responders++;
-        for (const auto& ip : ips)
-            freq[ip]++;
-    }
-
-    // Majority consensus: return IPs seen by ≥3 resolvers (≥75%)
-    // If no majority (all IPs have ≤2 votes), return all unique IPs
-    int threshold = qMin(3, responders);
-    if (threshold < 2) threshold = 1;  // only 1-2 responders → any IP counts
-    QStringList result;
-    for (auto it = freq.begin(); it != freq.end(); ++it) {
-        if (it.value() >= threshold)
-            result.append(it.key());
-    }
-    if (result.isEmpty()) {
-        // No majority — return all unique IPs
-        for (auto it = freq.begin(); it != freq.end(); ++it)
-            result.append(it.key());
-    }
-    return result;
 }
 
 // ── DoH full-record query (single resolver) ─────────────────────────

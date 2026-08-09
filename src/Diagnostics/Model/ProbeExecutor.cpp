@@ -77,6 +77,14 @@ void ProbeExecutor::run() {
                 QVector<double> results;
                 results.reserve(task->rounds);
                 for (int r = 0; r < task->rounds; r++) {
+                    // 5WHY: an in-flight socket call cannot be aborted
+                    // safely mid-flight, but on stop we must not start any
+                    // further rounds.  Without this check, a stop during a
+                    // 64-thread batch could keep the executor running up to
+                    // ~99s of probes after shutdown began — exceeding
+                    // requestStop()'s 15s wait and leaking the thread (with
+                    // a live m_db reference).  One round is ~8s worst case.
+                    if (m_stopRequested.load(std::memory_order_acquire)) break;
                     double ttfb = SystemDiagnostics::httpTtfb(host, port, "/", 3000, 8);
                     if (ttfb >= 0) results.append(ttfb);
                 }
