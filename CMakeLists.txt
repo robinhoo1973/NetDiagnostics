@@ -42,7 +42,6 @@ set(SOURCES
     src/Common/Utils/Logger.cpp
     src/Common/Utils/Translator.cpp
     src/Common/Services/DnsResolver.cpp
-    src/Common/Services/ServerDbUpdater.cpp
     src/Diagnostics/View/DiagnosticFormatter.cpp
     src/Common/Services/DiagnosticTask.cpp
     src/Diagnostics/Controller/TaskFactory.cpp
@@ -55,8 +54,6 @@ set(SOURCES
     src/app/TargetModel.cpp
     src/app/ResultsModel.cpp
     src/app/AppState.cpp
-    src/Dashboard/Controller/DashboardController.cpp
-    src/Diagnostics/Controller/DiagnosticsController.cpp
     src/Configuration/Controller/ConfigurationController.cpp
     src/Report/Controller/ReportController.cpp
     src/Settings/Controller/SettingsController.cpp

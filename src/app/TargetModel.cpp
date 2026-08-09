@@ -568,12 +568,8 @@ void TargetModel::parseUrlIntoFields(const QString& urlString) {
         // shared helper (also used by syncFieldsFromTarget) to extract
         // port and userinfo, update structured fields, and strip suffixes
         // from m_host.  Both code paths stay in sync by construction.
-        // 5WHY: Clear credentials before extraction so a bare input with
-        // no embedded userinfo doesn't leak stale m_username/m_password
-        // from a previous full-URL parse (syncFieldsFromTarget already
-        // does this at lines 477-478; parseUrlIntoFields must match).
-        m_username.clear();
-        m_password.clear();
+        // (Credentials cleared above, before extraction, so a bare input
+        // with no embedded userinfo can't leak stale userinfo either.)
         extractEmbeddedPortAndUserinfo();
         if (!m_host.isEmpty()) {
             assembleTargetUrl(); // setTarget() emits targetChanged

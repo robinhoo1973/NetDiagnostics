@@ -35,7 +35,10 @@ void GeoProbe::ensureServerDbLoaded() {
     QMutexLocker lock(&sServerDbMutex);
     if (sServerDbLoaded) return;
 
-    // Step 1: try runtime-updated DB (from ServerDbUpdater downloads)
+    // Step 1: optional runtime-override DB (e.g. a file dropped into
+    // AppDataLocation by a future updater). The old ServerDbUpdater class
+    // was removed as dead code — this read path is kept so any existing
+    // override file from a previous version is still honoured.
     QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
                  + QStringLiteral("/G3ServerDb.inc");
     if (QFile::exists(path)) {

@@ -138,6 +138,11 @@ void SettingsController::shareReport(const QString& format) {
         : m_appState->exportHtml(tmp, m_appState->isDarkMode());
     if (reportPath.isEmpty()) { emit m_appState->reportShared(false); return; }
     m_appState->emailReportDesktop(reportPath);
+    // 5WHY: the desktop share wrote a temp report file that was never
+    // cleaned up — only the mobile path had a 120s timer, so TempLocation
+    // grew unbounded across repeated share actions. Mirror the mobile
+    // cleanup (120s is ample for mailto/xdg-email to attach the file).
+    QTimer::singleShot(120000, [reportPath]() { QFile::remove(reportPath); });
     emit m_appState->reportShared(true);
 #endif
 }

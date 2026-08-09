@@ -59,7 +59,14 @@ static QString startupLogDir() {
 #endif
 }
 
-static void startup_log(const char* file, int line, const char* fmt, ...) {
+// 5WHY: startup_log must be `inline` (external linkage), NOT `static`.
+// CrashHandler.h forward-declares it as an external function and calls
+// ::startup_log in its crash path; a `static` definition only satisfies
+// the TU that includes StartupLog.h, so a ND_DEBUG build would fail at
+// link time with "undefined reference to startup_log" from CrashHandler.
+// inline gives every TU a merged external definition that the declaration
+// can bind to.
+inline void startup_log(const char* file, int line, const char* fmt, ...) {
     QString dir = startupLogDir();
     // 5WHY (Android no-log bug): the NetDiagnostics/ subdirectory is never
     // created by the platform, and on a FRESH install (or after clear-data)
