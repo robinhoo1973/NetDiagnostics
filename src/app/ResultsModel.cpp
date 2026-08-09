@@ -3,6 +3,7 @@
 // =============================================================================
 #include "app/ResultsModel.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Platform/DeviceCapability.h"
 #include "Configuration/Model/DiagnosticConfig.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
 
@@ -102,6 +103,10 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
     auto g = static_cast<DiagGroup>(groupInt);
 
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
+        // 5WHY: platform/device-impossible tests are hidden entirely (never
+        // scheduled, never counted as Skipped) — the Config page must not
+        // offer a switch for a test that cannot run on this OS/hardware.
+        if (!DeviceCapability::diagRunnable(id)) continue;
         // 5WHY: contains() followed by const operator[] performs two tree
         // searches and copies DiagnosticResult for every row during progress
         // refresh. Keep one iterator for G5 filtering and result formatting.
@@ -154,6 +159,9 @@ QVariantList ResultsModel::allDiagIdsForGroup(int groupInt) const {
     if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
+        // 5WHY: hide OS/device-impossible tests from the Config list (they
+        // are not scheduled and must not be configurable).
+        if (!DeviceCapability::diagRunnable(id)) continue;
         // G5: filter by scheme so Config shows only relevant protocol tests
         if (g == DiagGroup::G5 && m_hasUrlScheme) {
             if (!g5DiagMatchesScheme(id, m_schemeFilter)) continue;

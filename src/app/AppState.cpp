@@ -10,6 +10,7 @@
 #endif
 #endif
 #include "Common/Model/DiagNames.h"
+#include "Common/Platform/DeviceCapability.h"
 #include "Common/Services/DnsResolver.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
 #include "Diagnostics/Controller/TaskFactory.h"
@@ -482,12 +483,19 @@ void AppState::runDiagnostics() {
     m_pendingGroups.clear();
     TRACE(" runDiagnostics: enabledTests=%d hasTarget=%d\n",
             (int)m_configCtrl->config().enabledDiags().size(), hasTarget);
+    // 5WHY: hardware can change between runs (USB Ethernet, WiFi toggled).
+    // Re-probe on every run so the schedule matches the current device and
+    // the trace below reflects the same probe results.
+    DeviceCapability::invalidateCache();
     // Per-group enabled counts (verify checkbox state)
     for (int g = 0; g < 5; ++g) {
         int enabledInGroup = 0;
         int totalInGroup = 0;
         auto group = static_cast<DiagGroup>(g);
         for (auto id : DiagnosticConfig::diagIdsForGroup(group)) {
+            // 5WHY: count only tests that can actually run on this OS/device
+            // so the trace reflects what will be scheduled, not the full 45.
+            if (!DeviceCapability::diagRunnable(id)) continue;
             totalInGroup++;
             if (m_configCtrl->config().enabledDiags().contains(id)) enabledInGroup++;
         }
@@ -500,22 +508,20 @@ void AppState::runDiagnostics() {
         gt.group = static_cast<DiagGroup>(g);
         for (auto id : DiagnosticConfig::diagIdsForGroup(gt.group)) {
             if (!m_configCtrl->config().enabledDiags().contains(id)) continue;
+            // 5WHY: platform/device-impossible tests are IGNORED entirely —
+            // not scheduled, not counted, no Skipped result.  They are also
+            // hidden from the Config page (ResultsModel::allDiagIdsForGroup).
+            if (!DeviceCapability::diagRunnable(id)) continue;
             if (gt.group == DiagGroup::G4 && !hasTarget) continue;
             if (gt.group == DiagGroup::G5 && !hasTarget) continue;
-            // G5: filter by scheme — only schedule tests matching the target's protocol
-            // Tests that don't match are recorded as Skipped so they appear in
-            // results/stats instead of silently disappearing from the UI
+            // G5: filter by scheme — only schedule tests matching the target's
+            // protocol.  Tests that don't match are IGNORED entirely (hidden in
+            // Config, never scheduled, never counted) instead of being recorded
+            // as Skipped.
             if (gt.group == DiagGroup::G5 && hasTarget) {
                 QString scheme = m_targetModel->scheme().isEmpty()
                     ? QStringLiteral("https") : m_targetModel->scheme().toLower();
-                if (!g5DiagMatchesScheme(id, scheme)) {
-                    auto skippedResult = DiagnosticResult::skipped(id,
-                        QStringLiteral("Skipped: target scheme does not match"));
-                    m_resultsModel->addResult(id, skippedResult);
-                    m_totalPerGroup[gt.group]++;
-                    m_totalDiags++;
-                    continue;
-                }
+                if (!g5DiagMatchesScheme(id, scheme)) continue;
             }
             gt.diagIds.append(id);
             m_totalPerGroup[gt.group]++;

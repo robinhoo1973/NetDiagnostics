@@ -54,6 +54,7 @@ set(SOURCES
     src/app/TargetModel.cpp
     src/app/ResultsModel.cpp
     src/app/AppState.cpp
+    src/Common/Platform/DeviceCapability.cpp
     src/Configuration/Controller/ConfigurationController.cpp
     src/Report/Controller/ReportController.cpp
     src/Settings/Controller/SettingsController.cpp

@@ -8,6 +8,7 @@
 #include "app/AppState.h"
 #include "Configuration/Model/DiagnosticConfig.h"
 #include "Common/Model/DiagId.h"
+#include "Common/Platform/DeviceCapability.h"
 #include "Common/Utils/TargetRedaction.h"
 #include <QVariantMap>
 
@@ -174,6 +175,9 @@ void TestHarness::runTestCase(const TestCase& tc) {
 
     // Collect results
     for (DiagId id : DiagnosticConfig::allDiagIds()) {
+        // 5WHY: platform/device-impossible tests are never scheduled, so they
+        // have no result — skip them instead of logging an empty entry.
+        if (!DeviceCapability::diagRunnable(id)) continue;
         QVariantMap r = m_appState->getDetailResult(static_cast<int>(id));
         if (!r.isEmpty()) {
             DiagnosticResult dr;

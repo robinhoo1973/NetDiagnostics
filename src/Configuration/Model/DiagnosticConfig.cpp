@@ -2,6 +2,7 @@
 // DiagnosticConfig.cpp — extracted from AppState.cpp (~100 lines)
 // =============================================================================
 #include "Configuration/Model/DiagnosticConfig.h"
+#include "Common/Platform/DeviceCapability.h"
 
 DiagnosticConfig::DiagnosticConfig(QObject* parent) : QObject(parent) {
     enableDefaultGroups();
@@ -17,7 +18,8 @@ void DiagnosticConfig::enableDefaultGroups() {
     // m_activeGroups (target-driven). loadSettings() later replaces this
     // default with the user's persisted preferences.
     for (auto id : allDiagIds())
-        m_enabledDiags.insert(id);
+        if (DeviceCapability::diagRunnable(id))   // 5WHY: only runnable tests
+            m_enabledDiags.insert(id);            // are ever configurable
 }
 
 // ── Group queries — delegate to canonical DiagId.h (single source of truth)
@@ -57,12 +59,17 @@ bool DiagnosticConfig::setDiagEnabled(int diagIdInt, bool enabled) {
 }
 
 // ── Group enable/disable ──────────────────────────────────────────────
+// 5WHY: group operations iterate ONLY runnable tests.  Hidden (platform/
+// device-impossible) tests must not affect select-all / deselect-all state,
+// otherwise a group whose visible tests are all deselected would still report
+// isGroupAnyEnabled()==true because the hidden ones stay enabled.
 bool DiagnosticConfig::setGroupEnabled(int groupInt, bool enabled) {
     if (!isValidGroup(groupInt)) return false;
     auto g = static_cast<DiagGroup>(groupInt);
     if (enabled ? isGroupAllEnabled(groupInt) : !isGroupAnyEnabled(groupInt))
         return false;
     for (auto id : diagIdsForGroup(g)) {
+        if (!DeviceCapability::diagRunnable(id)) continue;
         if (enabled) m_enabledDiags.insert(id);
         else m_enabledDiags.remove(id);
     }
@@ -73,6 +80,7 @@ bool DiagnosticConfig::isGroupAllEnabled(int groupInt) const {
     if (!isValidGroup(groupInt)) return false;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : diagIdsForGroup(g)) {
+        if (!DeviceCapability::diagRunnable(id)) continue;
         if (!m_enabledDiags.contains(id)) return false;
     }
     return true;
@@ -82,6 +90,7 @@ bool DiagnosticConfig::isGroupAnyEnabled(int groupInt) const {
     if (!isValidGroup(groupInt)) return false;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : diagIdsForGroup(g)) {
+        if (!DeviceCapability::diagRunnable(id)) continue;
         if (m_enabledDiags.contains(id)) return true;
     }
     return false;

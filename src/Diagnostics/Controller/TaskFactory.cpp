@@ -2,6 +2,7 @@
 // TaskFactory.cpp — Create DiagnosticTask objects for each DiagId
 // =============================================================================
 #include "Diagnostics/Controller/TaskFactory.h"
+#include "Common/Model/DiagCapability.h"
 #include "Diagnostics/Model/G1/G1SystemAdapters.h"
 #include "Diagnostics/Model/G2/G2Connectivity.h"
 #include "Diagnostics/Model/G3/G3Diagnostics.h"
@@ -39,47 +40,13 @@ static int timeoutFor(DiagId id) {
 }
 
 #if defined(PLATFORM_MOBILE)
-// Diagnostics that cannot return useful data inside the mobile sandbox. They
-// stay visible in the UI but are reported as Skipped; the detail page shows this
-// reason. Tests that HAVE a working native/mobile implementation are absent here.
+// 5WHY (defensive guard): unsupported tests are normally NEVER scheduled —
+// AppState::runDiagnostics() and the Config page filter through
+// DeviceCapability::diagRunnable() (see DiagCapability.h for the manifest).
+// If an out-of-band caller (future code, harness) still creates a task for
+// one, report it as Skipped with the reason instead of empty output.
 static QString platformSkipReason(DiagId id) {
-#if defined(PLATFORM_IOS)
-    switch (id) {
-        case DiagId::G1NicAdvanced:
-            return QStringLiteral("NIC driver properties (link speed, duplex, MAC address) are not exposed to sandboxed iOS apps.");
-        case DiagId::G1WiredDiagnostics:
-            return QStringLiteral("iOS devices have no wired Ethernet interface, and per-NIC statistics under /sys are inaccessible.");
-        case DiagId::G1ActiveConnections:
-            return QStringLiteral("Enumerating open sockets requires /proc/net/tcp, which the iOS sandbox blocks.");
-        case DiagId::G2TcpSettings:
-            return QStringLiteral("TCP kernel parameters live under /proc/sys/net, which is not readable on iOS.");
-        case DiagId::G2ArpTable:
-            return QStringLiteral("The ARP / neighbour table has no public API on iOS.");
-        case DiagId::G2ProxySettings:
-            return QStringLiteral("iOS uses a system-managed proxy (Wi-Fi PAC / VPN profile); environment-variable proxies do not apply and the active proxy is not readable by third-party apps.");
-        case DiagId::G3NetskopeStatus:
-            return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
-        case DiagId::G3DnsCache:
-            return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");
-        // 5WHY: Removed G1IpConfiguration/G3DnsServers/G3DnsIntegrity from
-        // iOS skip list (commit 1b7e5d9 added them incorrectly).  Pre-MVC
-        // (commit bd73d78) these ran via native SystemDiagnostics functions which
-        // return empty PASS on iOS — harmless, not crashes.  platformSkipReason()
-        // did not exist pre-MVC.  Only skip tests that would crash/error on iOS.
-        // 5WHY: G1CellularInfo routed to SystemDiagnostics::cellularInfo() — no longer skipped.
-        default:
-            return QString();
-    }
-#else // PLATFORM_ANDROID
-    // 5WHY: every G1-G3 test now has a real Android implementation
-    // (NetworkDiagnostics.cpp) — Android reports nothing as Skipped.
-    // Genuinely-impossible items (e.g. system DNS cache contents) are
-    // reported honestly with their best-available data instead.
-    switch (id) {
-        default:
-            return QString();
-    }
-#endif
+    return DiagCapability::unsupportedReason(id);
 }
 #endif
 
