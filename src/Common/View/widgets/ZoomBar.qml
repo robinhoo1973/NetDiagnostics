@@ -20,11 +20,6 @@ Item {
     property real minimumZoom: 0.25
     property real maximumZoom: 5.0
 
-    // Signals for hosts that need to react (e.g. re-render at new resolution)
-    signal zoomInTriggered()
-    signal zoomOutTriggered()
-    signal zoomResetTriggered()
-
     readonly property string zoomPercent: Math.round(root.zoomLevel * 100) + "%"
 
     // Detect mobile for larger touch targets
@@ -36,19 +31,20 @@ Item {
     readonly property int btnSize: isMobile ? 44 : 36
 
     // ── Public functions ───────────────────────────────────────────────
+    // 5WHY: zoomInTriggered/zoomOutTriggered/zoomResetTriggered signals were
+    // dead — no host connected them. Hosts (Dashboard preview) bind zoomLevel
+    // and react to onZoomLevelChanged, so the signals were never emitted to
+    // anyone. Removed; the zoomLevel property is the sole contract.
     function zoomIn() {
         var next = zoomLevel * stepFactor
         zoomLevel = Math.min(maximumZoom, next)
-        zoomInTriggered()
     }
     function zoomOut() {
         var next = zoomLevel / stepFactor
         zoomLevel = Math.max(minimumZoom, next)
-        zoomOutTriggered()
     }
     function zoomReset() {
         zoomLevel = 1.0
-        zoomResetTriggered()
     }
 
     // ── Keyboard shortcuts (desktop only) ──────────────────────────────
@@ -98,7 +94,21 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
+                    // 5WHY: buttons had no accessible name/role and no
+                    // keyboard focus (WCAG 2.1 SC 2.1.1 / 4.1.2) — the
+                    // Shortcut only worked when some other control had
+                    // focus. Tab-focusable + Enter/Space + screen-reader
+                    // activation via onPressAction.
+                    activeFocusOnTab: true
                     onClicked: root.zoomOut()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root.zoomOut(); event.accepted = true
+                        }
+                    }
+                    Accessible.name: "Zoom out"
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.zoomOut()
                 }
             }
 
@@ -131,7 +141,16 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
+                    activeFocusOnTab: true
                     onClicked: root.zoomIn()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root.zoomIn(); event.accepted = true
+                        }
+                    }
+                    Accessible.name: "Zoom in"
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.zoomIn()
                 }
             }
 
@@ -155,7 +174,16 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
+                    activeFocusOnTab: true
                     onClicked: root.zoomReset()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root.zoomReset(); event.accepted = true
+                        }
+                    }
+                    Accessible.name: "Reset zoom"
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.zoomReset()
                 }
             }
         }

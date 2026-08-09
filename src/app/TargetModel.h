@@ -57,6 +57,9 @@ public:
     // ── Scheme helpers ──────────────────────────────────────────────────
     QStringList supportedSchemes() const;
     int defaultPort() const;
+    // Authentication policy for a scheme (single source in G5WebsiteUrl.h).
+    Q_INVOKABLE bool schemeSupportsUsername(const QString& scheme) const;
+    Q_INVOKABLE bool schemeSupportsPassword(const QString& scheme) const;
 
     // ── Derived state ───────────────────────────────────────────────────
     bool isEmpty() const { return m_target.isEmpty(); }

@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // G5WebsiteUrl.h — Website/URL diagnostic tests (13 tests)
 // =============================================================================
 #pragma once
@@ -6,6 +6,7 @@
 #include <QString>
 #include <QUrl>
 #include <QMap>
+#include <QSet>
 #include "Common/Model/DiagnosticResult.h"
 
 namespace G5WebsiteUrl {
@@ -37,6 +38,36 @@ inline int defaultPortForScheme(const QString& scheme) {
 }
 inline QStringList knownSchemes() {
     return defaultPorts().keys();
+}
+
+// ── Scheme authentication policy (single source of truth) ──────────────
+// 5WHY: SchemeSelector.qml hand-maintained its own username/password scheme
+// lists that could drift from the C++ catalogue — a new protocol added to
+// defaultPorts() without updating QML would appear in the menu while its
+// credential fields silently used stale visibility rules.  These sets are
+// the single source; QML queries them via AppState.  DB/dir/msg protocols
+// carry the same desktop-only guard as defaultPorts().
+inline bool schemeSupportsUsername(const QString& scheme) {
+    static const QSet<QString> s = {
+        "ftp","ftps","ssh","sftp","scp","telnet","rdp",
+        "smtp","smtps","imap","imaps","pop3","pop3s",
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+        "mysql","postgresql","redis","mongodb","mssql",
+        "ldap","ldaps","mqtt","mqtts",
+#endif
+    };
+    return s.contains(scheme.toLower());
+}
+inline bool schemeSupportsPassword(const QString& scheme) {
+    static const QSet<QString> s = {
+        "ftp","ftps","telnet","rdp",
+        "smtp","smtps","imap","imaps","pop3","pop3s",
+#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
+        "mysql","postgresql","redis","mongodb","mssql",
+        "ldap","ldaps","mqtt","mqtts",
+#endif
+    };
+    return s.contains(scheme.toLower());
 }
 
 DiagnosticResult urlParsing(const QString& target);

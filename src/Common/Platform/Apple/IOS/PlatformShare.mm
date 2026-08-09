@@ -1,5 +1,6 @@
-﻿// =============================================================================
-// PlatformShare_ios.mm — iOS share sheet (UIActivityViewController), MRC
+// =============================================================================
+// PlatformShare_ios.mm — iOS share sheet (UIActivityViewController), ARC
+// (CMake builds .mm with -fobjc-arc — see netdiag-target.cmake)
 // =============================================================================
 #if defined(PLATFORM_IOS)
 

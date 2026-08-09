@@ -56,7 +56,6 @@ class AppState : public QObject {
     Q_PROPERTY(QString targetPath READ targetPath WRITE setTargetPath NOTIFY targetChanged)
     Q_PROPERTY(QStringList supportedSchemes READ supportedSchemes CONSTANT)
     Q_PROPERTY(int defaultPortForScheme READ defaultPortForScheme NOTIFY targetChanged)
-    Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
     Q_PROPERTY(int themeMode READ themeMode WRITE setThemeMode NOTIFY themeChanged)
@@ -170,7 +169,6 @@ public:
     ReportData buildReportData() const;  // snapshot for ReportEngine
 
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }
-    int resultsVersion() const { return m_resultsModel->resultsVersion(); }
     int languageIndex() const;
     Q_INVOKABLE void setLanguage(int index);
 
@@ -229,6 +227,9 @@ public:
     Q_INVOKABLE bool isTargetHttpUrl() const { return m_targetModel->isHttpUrl(); }
     Q_INVOKABLE bool isTargetUrl() const { return m_targetModel->isUrl(); }
     Q_INVOKABLE QString targetValidationError() const { return m_targetModel->validationError(); }
+    // Scheme authentication policy — delegated to TargetModel (C++ single source).
+    Q_INVOKABLE bool schemeSupportsUsername(const QString& scheme) const { return m_targetModel->schemeSupportsUsername(scheme); }
+    Q_INVOKABLE bool schemeSupportsPassword(const QString& scheme) const { return m_targetModel->schemeSupportsPassword(scheme); }
     Q_INVOKABLE bool canRun() const {
         // 5WHY: canRun() only checked isGroupAnyEnabled() — it ignored
         // m_activeGroups (deactivated groups) and the G4/G5 target

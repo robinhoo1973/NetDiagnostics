@@ -14,24 +14,13 @@ ComboBox {
 
     property ListModel schemeModel: ListModel {}
     property bool _synchronizing: false
-    // 5WHY: The toolbar used to own a second, hand-maintained list of
-    // authentication-capable schemes. Keeping that policy beside the shared
-    // catalogue prevents a newly added protocol from appearing in the menu
-    // while its credential fields silently use stale visibility rules.
-    readonly property var _usernameSchemes: [
-        "ftp", "ftps", "ssh", "sftp", "scp", "telnet", "rdp",
-        "mysql", "postgresql", "redis", "mongodb", "mssql",
-        "smtp", "smtps", "imap", "imaps", "pop3", "pop3s",
-        "ldap", "ldaps", "mqtt", "mqtts"
-    ]
-    readonly property var _passwordSchemes: [
-        "ftp", "ftps", "telnet", "rdp",
-        "mysql", "postgresql", "redis", "mongodb", "mssql",
-        "smtp", "smtps", "imap", "imaps", "pop3", "pop3s",
-        "ldap", "ldaps", "mqtt", "mqtts"
-    ]
-    readonly property bool supportsUsername: _usernameSchemes.indexOf(currentText) >= 0
-    readonly property bool supportsPassword: _passwordSchemes.indexOf(currentText) >= 0
+    // 5WHY: the toolbar used to own a second, hand-maintained list of
+    // authentication-capable schemes.  The policy now lives in C++
+    // (G5WebsiteUrl::schemeSupportsUsername/Password, exposed via AppState)
+    // beside defaultPorts(), so a newly added protocol automatically gets
+    // consistent menu + credential-field behaviour on every platform.
+    readonly property bool supportsUsername: appState.schemeSupportsUsername(currentText)
+    readonly property bool supportsPassword: appState.schemeSupportsPassword(currentText)
 
     textRole: "scheme"
     model: schemeModel

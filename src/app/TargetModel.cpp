@@ -139,6 +139,13 @@ TargetModel::TargetModel(QObject* parent) : QObject(parent) {
 }
 
 QStringList TargetModel::supportedSchemes() const { return ::supportedSchemes(); }
+
+bool TargetModel::schemeSupportsUsername(const QString& scheme) const {
+    return G5WebsiteUrl::schemeSupportsUsername(scheme);
+}
+bool TargetModel::schemeSupportsPassword(const QString& scheme) const {
+    return G5WebsiteUrl::schemeSupportsPassword(scheme);
+}
 int TargetModel::defaultPort() const { return G5WebsiteUrl::defaultPortForScheme(m_scheme); }
 
 bool TargetModel::isHttpUrl() const {
