@@ -25,6 +25,7 @@ Item {
     property string previewImagePath: ""
     property bool previewVisible: false
     property string toast: ""
+    property int _previewGen: 0   // debounce: only the latest render request executes
 
     // Share flow
     property string pendingShareFormat: ""
@@ -36,13 +37,20 @@ Item {
         // render HTML→image.  On 20+ completed tests this blocks the UI
         // thread for 500ms-2s — a visible freeze.  Show the overlay
         // immediately with a blank image, then defer the heavy work.
+        // 5WHY (debounce): Qt.callLater alone only defers — repeated triggers
+        // (theme toggle, per-test progress, save-path events) queue MULTIPLE
+        // synchronous renders.  A generation counter lets the newest request
+        // cancel all stale queued renders.
         previewVisible = true
         previewImagePath = ""
+        _previewGen++
+        var gen = _previewGen
         Qt.callLater(function() {
+            if (gen !== page._previewGen || !page.previewVisible) return
             var darkBg = ThemeEngine.isDark
             var html = appState.buildReportHtml(true, darkBg)
             var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
-            previewImagePath = imgPath || ""
+            page.previewImagePath = imgPath || ""
         })
     }
     // 5WHY (share flow): every share entry point must first check the Premium
@@ -104,16 +112,20 @@ Item {
     // is rebuilt on every theme switch and downstream color bindings re-evaluate.
     // 5WHY: Both _statusColors and statusIcon() replaced by centralized
     // ThemeEngine.statusColors[] and statusIconNames[] arrays.
-    function fmtDur(ms) {
-        if (ms < 1000) return ms + "ms"
-        if (ms < 60000) return (ms/1000).toFixed(1) + "s"
-        var min = Math.floor(ms / 60000)
-        var sec = Math.round((ms % 60000) / 1000)
-        return min + "m " + sec + "s"
-    }
     function fmtTimestamp() {
         var now = new Date();
         return ("0"+now.getHours()).slice(-2) + ":" + ("0"+now.getMinutes()).slice(-2) + ":" + ("0"+now.getSeconds()).slice(-2);
+    }
+    // 5WHY: the per-group results Repeater and the layer-timing Repeater
+    // each built the same filtered group list inline — one could drift from
+    // the other.  Single source for "visible, non-empty groups".
+    function activeGroupIndices() {
+        var groups = []
+        for (var g = 0; g < appState.groupLabels.length; g++) {
+            var s = appState.groupStats(g)
+            if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) groups.push(g)
+        }
+        return groups
     }
 
     // AppBar
@@ -197,14 +209,7 @@ Item {
             Item { Layout.preferredHeight: 12 }
 
             Repeater {
-                model: {
-                    var groups = []
-                    for (var g = 0; g < appState.groupLabels.length; g++) {
-                        var s = appState.groupStats(g)
-                        if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) groups.push(g)
-                    }
-                    return groups
-                }
+                model: page.activeGroupIndices()
                 delegate: DashboardGroupRow { groupIndex: modelData; Layout.fillWidth: true }
             }
             Item { Layout.preferredHeight: 32 }
@@ -218,7 +223,7 @@ Item {
                     Item { Layout.preferredHeight: 16 }
                     ColumnLayout {
                     Layout.fillWidth: true; spacing: 10
-                    SummaryStat { appIcon: "config"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: T.tr("totalDiagsLabel") }
+                    SummaryStat { appIcon: "list-checks"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: T.tr("totalDiagsLabel") }
                     SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: calcTotalTime(); lbl: T.tr("totalTimeLabel") }
                     SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: T.tr("completedLabel") }
                     }
@@ -227,14 +232,7 @@ Item {
                     Label { text: T.tr("layerTimings"); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
                     Repeater {
-                        model: {
-                            var groups = []
-                             for (var g = 0; g < appState.groupLabels.length; g++) {
-                                var s = appState.groupStats(g)
-                                if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) groups.push(g)
-                            }
-                            return groups
-                        }
+                        model: page.activeGroupIndices()
                         delegate: RowLayout {
                             visible: hasData
                             // 5WHY: replaced generic dot bullet with a per-layer
@@ -302,7 +300,7 @@ Item {
         for (var i = 0; i < results.length; i++) {
             totalMs += (results[i]["durationMs"] || results[i].durationMs || 0)
         }
-        return totalMs > 0 ? fmtDur(totalMs) : "—"
+        return totalMs > 0 ? ThemeEngine.formatDuration(totalMs) : "—"
     }
     function calcLayerTiming(idx) { return getDurFromResults(idx) }
     function calcTotalTime() {
@@ -313,7 +311,7 @@ Item {
                 total += (results[i].durationMs || 0)
             }
         }
-        return total > 0 ? fmtDur(total) : "—"
+        return total > 0 ? ThemeEngine.formatDuration(total) : "—"
     }
 
     // ── Preview overlay (zoomable + share buttons) ──────────────────────
@@ -460,7 +458,6 @@ Item {
             }
             Item { Layout.preferredHeight: 10 }
             Repeater {
-                id: dashResultsRepeater
                 model: appState.resultsForGroup(groupIndex)
                 delegate: RowLayout {
                     Layout.fillWidth: true
@@ -470,7 +467,7 @@ Item {
                     // 5WHY: modelData.displayName is always English (C++).
                     // Route through T.diagName() for i18n.
                     AppLabel { Layout.fillWidth: true; text: T.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:T.textElideStart; verticalAlignment: Text.AlignVCenter }
-                    Label { text: page.fmtDur(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
+                    Label { text: ThemeEngine.formatDuration(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
                 }
             }
         }

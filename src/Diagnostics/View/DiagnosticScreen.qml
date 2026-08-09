@@ -9,7 +9,6 @@ import "../theme"
 Item {
     id: page
     objectName: "diagnostic"
-    FontLoader { id: dejavuMono; source: "qrc:/fonts/DejaVuSansMono.ttf" }
     readonly property bool wide: width >= 600
     readonly property alias overlayVisible: detailOverlay.visible
     readonly property bool isMobile: ThemeEngine.isMobile
@@ -539,7 +538,7 @@ Item {
                             Label { text: modelData["value"]||""; font.family:ThemeEngine.monoFont; font.pixelSize:12; color:ThemeEngine.colors.textPrimary; wrapMode:Text.WordWrap }
                         }
                     }
-                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: dejavuMono.name; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
+                    Label { id: dtOutput; objectName: "dtOutput"; text: ""; font.family: "DejaVu Sans Mono"; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; wrapMode:Text.NoWrap; visible:text!=="" }
                 }
             }
         }

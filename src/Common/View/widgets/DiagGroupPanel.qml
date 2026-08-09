@@ -147,7 +147,7 @@ Rectangle {
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:ThemeEngine.colors.borderCard }
             Repeater {
-                model: root._modelVersion >= 0 ? root.itemsModel : []
+                model: root.itemsModel
                 delegate: Item {
                     Layout.fillWidth: true
                     // 5WHY: Must mirror testItem's own visible-based collapse

@@ -315,12 +315,15 @@ Rectangle {
                         anchors.centerIn: parent; spacing: 8
                         AppIcon {
                             name: appState.purchaseInProgress ? "spinner" : "zap"
-                            size: 16; color: "#FFFFFF"
+                            size: 16; color: Th.ThemeEngine.colors.textOnAccent
                         }
                         Label {
                             text: appState.purchaseInProgress ? T.tr("purchaseInProgress") : T.tr("subscribeBtn")
                             font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
-                            color: "#FFFFFF"; elide: T.textElideStart
+                            // 5WHY: solid primary fill + white text fails WCAG
+                            // (1.89:1 dark / 2.77:1 light). textOnAccent is the
+                            // dark-on-light token designed for accent fills.
+                            color: Th.ThemeEngine.colors.textOnAccent; elide: T.textElideStart
                         }
                     }
                     MouseArea {
@@ -371,7 +374,7 @@ Rectangle {
                     text: appState.isPremium ? T.tr("premiumOk") : T.tr("subscribeNotNow")
                     font.family: Th.ThemeEngine.fontUi; font.pixelSize: 13
                     font.weight: appState.isPremium ? Font.Bold : Font.Medium
-                    color: appState.isPremium ? "#FFFFFF"
+                    color: appState.isPremium ? Th.ThemeEngine.colors.textOnAccent
                            : (notNowHover.containsMouse ? Th.ThemeEngine.colors.textPrimary
                                                         : Th.ThemeEngine.colors.textSecondary)
                     Behavior on color { ColorAnimation { duration: 150 } }

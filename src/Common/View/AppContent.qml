@@ -234,7 +234,7 @@ Item {
                 // M3 spec: 8dp minimum gap between touch targets. 4dp for same-group icons.
                 // 5WHY: compact spacing was 0 — adjacent 48dp touch targets with zero
                 // separation cause mis-taps on narrow mobile screens.
-                Row { spacing: compact ? 4 : 4
+                Row { spacing: 4
                     Repeater {
                         model: [
                             { screen: "dashboard",  icon: "dashboard" },

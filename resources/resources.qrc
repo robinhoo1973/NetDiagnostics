@@ -4,9 +4,6 @@
         <file alias="qml/main.qml">../src/Common/View/main.qml</file>
         <file alias="qml/AppContent.qml">../src/Common/View/AppContent.qml</file>
 
-        <!-- Utils -->
-        <file alias="qml/utils/AppFonts.qml">../src/Common/View/utils/AppFonts.qml</file>
-
         <!-- Theme -->
         <file alias="qml/theme/ThemeEngine.qml">../src/Common/View/theme/ThemeEngine.qml</file>
         <file alias="qml/theme/TranslationsProxy.qml">../src/Common/View/theme/TranslationsProxy.qml</file>
@@ -19,7 +16,6 @@
         <file alias="qml/screens/DashboardScreen.qml">../src/Dashboard/View/DashboardScreen.qml</file>
         <file alias="qml/screens/DiagnosticScreen.qml">../src/Diagnostics/View/DiagnosticScreen.qml</file>
         <file alias="qml/screens/ConfigScreen.qml">../src/Configuration/View/ConfigScreen.qml</file>
-        <file alias="qml/screens/ReportScreen.qml">../src/Report/View/ReportScreen.qml</file>
         <file alias="qml/screens/SettingsScreen.qml">../src/Settings/View/SettingsScreen.qml</file>
         <!-- HtmlPreviewWebView → resources_webview.qrc (conditional) -->
         <file alias="qml/dialogs/qmldir">../src/Common/View/dialogs/qmldir</file>
@@ -27,11 +23,7 @@
 
         <!-- Shared widgets -->
         <file alias="qml/widgets/qmldir">../src/Common/View/widgets/qmldir</file>
-        <file alias="qml/widgets/TargetInputPanel.qml">../src/Common/View/widgets/TargetInputPanel.qml</file>
         <file alias="qml/widgets/SchemeSelector.qml">../src/Common/View/widgets/SchemeSelector.qml</file>
-        <file alias="qml/widgets/OutlineButton.qml">../src/Common/View/widgets/OutlineButton.qml</file>
-        <file alias="qml/widgets/CardTopAccent.qml">../src/Common/View/widgets/CardTopAccent.qml</file>
-        <file alias="qml/widgets/DialogBtn.qml">../src/Common/View/widgets/DialogBtn.qml</file>
         <file alias="qml/widgets/PremiumCard.qml">../src/Common/View/widgets/PremiumCard.qml</file>
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagResultItem.qml">../src/Common/View/widgets/DiagResultItem.qml</file>
@@ -39,15 +31,10 @@
         <file alias="qml/widgets/AppIcon.qml">../src/Common/View/widgets/AppIcon.qml</file>
         <file alias="qml/widgets/AppLabel.qml">../src/Common/View/widgets/AppLabel.qml</file>
         <file alias="qml/widgets/IconColors.js">../src/Common/View/widgets/IconColors.js</file>
-        <file alias="qml/widgets/ShadowIcon.qml">../src/Common/View/widgets/ShadowIcon.qml</file>
-        <file alias="qml/widgets/ShadowSeparator.qml">../src/Common/View/widgets/ShadowSeparator.qml</file>
-        <file alias="qml/widgets/ShadowText.qml">../src/Common/View/widgets/ShadowText.qml</file>
         <file alias="qml/widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
         <file alias="qml/widgets/StatusBadge.qml">../src/Common/View/widgets/StatusBadge.qml</file>
         <file alias="qml/widgets/SummaryCards.qml">../src/Common/View/widgets/SummaryCards.qml</file>
         <file alias="qml/widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>
-        <file alias="qml/widgets/LiveProgressPanel.qml">../src/Common/View/widgets/LiveProgressPanel.qml</file>
-        <file alias="qml/widgets/TargetAnalysisPanel.qml">../src/Common/View/widgets/TargetAnalysisPanel.qml</file>
         <file alias="qml/widgets/ZoomBar.qml">../src/Common/View/widgets/ZoomBar.qml</file>
         <!-- HtmlPreviewWebView → resources_webview.qrc (conditional) -->
         <!-- NativePdfPageView   → resources_nativepdf.qrc (conditional) -->

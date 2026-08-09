@@ -4,20 +4,11 @@
 # directory scanning and ensures all widget types resolve at QML load time.
 AppBar 1.0 AppBar.qml
 AppIcon 1.0 AppIcon.qml
-ShadowIcon 1.0 ShadowIcon.qml
-ShadowSeparator 1.0 ShadowSeparator.qml
-ShadowText 1.0 ShadowText.qml
 DiagnosticToolbar 1.0 DiagnosticToolbar.qml
 DiagGroupPanel 1.0 DiagGroupPanel.qml
 DiagResultItem 1.0 DiagResultItem.qml
-LiveProgressPanel 1.0 LiveProgressPanel.qml
 SummaryCards 1.0 SummaryCards.qml
-TargetAnalysisPanel 1.0 TargetAnalysisPanel.qml
 ShareButtons 1.0 ShareButtons.qml
 StatusBadge 1.0 StatusBadge.qml
-TargetInputPanel 1.0 TargetInputPanel.qml
 SchemeSelector 1.0 SchemeSelector.qml
-OutlineButton 1.0 OutlineButton.qml
-CardTopAccent 1.0 CardTopAccent.qml
-DialogBtn 1.0 DialogBtn.qml
 PremiumCard 1.0 PremiumCard.qml

@@ -142,12 +142,13 @@ Rectangle {
                 AppIcon {
                     name: appState.isPremium ? "check" : "zap"
                     size: 16
-                    color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : "#FFFFFF"
+                    color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.textOnAccent
                 }
                 Label {
                     text: appState.isPremium ? T.tr("premiumUnlockedBtn") : T.tr("subscribeBtn")
                     font.family: Th.ThemeEngine.fontUi; font.pixelSize: 14; font.weight: Font.Bold
-                    color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : "#FFFFFF"
+                    // 5WHY: primary fill + white failed WCAG (1.89:1 dark).
+                    color: appState.isPremium ? Th.ThemeEngine.colors.passGreen : Th.ThemeEngine.colors.textOnAccent
                     elide: T.textElideStart
                 }
             }

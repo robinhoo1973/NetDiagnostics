@@ -138,8 +138,18 @@ QtObject {
     readonly property string fontUi: Qt.application.font.family
     // spacing: Material-3 style 4/8/12/16/24 rhythm for element gaps/margins.
     readonly property var spacing: ({ xs: 4, sm: 8, md: 12, lg: 16, xl: 24 })
-    readonly property string fontMono: "JetBrains Mono"
-    readonly property string monoFont: fontMono
+    readonly property string monoFont: "JetBrains Mono"
+
+    // Shared duration formatting (ms → "123ms" / "12.3s" / "1m 30s").
+    // 5WHY: DiagResultItem and DashboardScreen each had their own copy that
+    // drifted ("1m30s" vs "1m 30s") — the same screen could mix both formats.
+    function formatDuration(ms) {
+        if (ms < 1000) return ms + "ms"
+        if (ms < 60000) return (ms/1000).toFixed(1) + "s"
+        var min = Math.floor(ms / 60000)
+        var sec = Math.round((ms % 60000) / 1000)
+        return min + "m " + sec + "s"
+    }
 
     function pad2(n) { return (n < 10 ? " " : "") + n }
 }

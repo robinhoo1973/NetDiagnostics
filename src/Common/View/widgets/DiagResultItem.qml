@@ -93,7 +93,7 @@ Item {
         Rectangle {
             visible: (itemData.durationMs||0)>0; implicitWidth:durText.implicitWidth+12; implicitHeight:20; radius:4
             color: ThemeEngine.colors.borderCard
-            Label { id:durText; anchors.centerIn:parent; text:_fmtDur(itemData.durationMs||0); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary }
+            Label { id:durText; anchors.centerIn:parent; text:ThemeEngine.formatDuration(itemData.durationMs||0); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary }
         }
     }
 
@@ -114,11 +114,4 @@ Item {
     }
     Accessible.name: T.diagName(itemData.diagId) || itemData.displayName || (T.tr("testIdPrefix") + itemData.diagId)
     Accessible.role: Accessible.Button
-
-    function _fmtDur(ms) {
-        if (ms<1000) return ms+"ms"
-        if (ms<60000) return (ms/1000).toFixed(1)+"s"
-        var m=Math.floor(ms/60000); var s=Math.floor((ms%60000)/1000)
-        return m+"m"+s+"s"
-    }
 }

@@ -6,6 +6,5 @@
 DashboardScreen 1.0 DashboardScreen.qml
 DiagnosticScreen 1.0 DiagnosticScreen.qml
 ConfigScreen 1.0 ConfigScreen.qml
-ReportScreen 1.0 ReportScreen.qml
 SettingsScreen 1.0 SettingsScreen.qml
 

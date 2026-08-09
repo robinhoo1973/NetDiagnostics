@@ -120,10 +120,11 @@ Rectangle {
                            : appState.canRun() ? ThemeEngine.colors.secondary
                            : Qt.alpha(ThemeEngine.colors.secondary, 0.3)
                     // 5WHY: Replaced ▶/■ Unicode with play/stop SVG icons
-                    // for consistent iconography across the app.
+                    // for consistent iconography across the app. White icon on
+                    // secondary/failRed failed WCAG; textOnAccent reads on both.
                     AppIcon { anchors.centerIn: parent
                         name: appState.runStatus === 1 ? "stop" : "play"
-                        size: 16; color: "white" }
+                        size: 16; color: ThemeEngine.colors.textOnAccent }
                     function runOrCancel() {
                         if (appState.runStatus === 1) {
                             if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
