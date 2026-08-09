@@ -18,7 +18,6 @@
         <file>icons/000000/check.svg</file>
         <file>icons/000000/chevron-down.svg</file>
         <file>icons/000000/chevron-right.svg</file>
-        <file>icons/000000/chip.svg</file>
         <file>icons/000000/circle.svg</file>
         <file>icons/000000/close.svg</file>
         <file>icons/000000/cloud-shield.svg</file>
@@ -112,7 +111,6 @@
         <file>icons/06b6d4/check.svg</file>
         <file>icons/06b6d4/chevron-down.svg</file>
         <file>icons/06b6d4/chevron-right.svg</file>
-        <file>icons/06b6d4/chip.svg</file>
         <file>icons/06b6d4/circle.svg</file>
         <file>icons/06b6d4/close.svg</file>
         <file>icons/06b6d4/cloud-shield.svg</file>
@@ -206,7 +204,6 @@
         <file>icons/0c4a6e/check.svg</file>
         <file>icons/0c4a6e/chevron-down.svg</file>
         <file>icons/0c4a6e/chevron-right.svg</file>
-        <file>icons/0c4a6e/chip.svg</file>
         <file>icons/0c4a6e/circle.svg</file>
         <file>icons/0c4a6e/close.svg</file>
         <file>icons/0c4a6e/cloud-shield.svg</file>
@@ -300,7 +297,6 @@
         <file>icons/0ea5e9/check.svg</file>
         <file>icons/0ea5e9/chevron-down.svg</file>
         <file>icons/0ea5e9/chevron-right.svg</file>
-        <file>icons/0ea5e9/chip.svg</file>
         <file>icons/0ea5e9/circle.svg</file>
         <file>icons/0ea5e9/close.svg</file>
         <file>icons/0ea5e9/cloud-shield.svg</file>
@@ -394,7 +390,6 @@
         <file>icons/0f172a/check.svg</file>
         <file>icons/0f172a/chevron-down.svg</file>
         <file>icons/0f172a/chevron-right.svg</file>
-        <file>icons/0f172a/chip.svg</file>
         <file>icons/0f172a/circle.svg</file>
         <file>icons/0f172a/close.svg</file>
         <file>icons/0f172a/cloud-shield.svg</file>
@@ -488,7 +483,6 @@
         <file>icons/10b981/check.svg</file>
         <file>icons/10b981/chevron-down.svg</file>
         <file>icons/10b981/chevron-right.svg</file>
-        <file>icons/10b981/chip.svg</file>
         <file>icons/10b981/circle.svg</file>
         <file>icons/10b981/close.svg</file>
         <file>icons/10b981/cloud-shield.svg</file>
@@ -582,7 +576,6 @@
         <file>icons/1e293b/check.svg</file>
         <file>icons/1e293b/chevron-down.svg</file>
         <file>icons/1e293b/chevron-right.svg</file>
-        <file>icons/1e293b/chip.svg</file>
         <file>icons/1e293b/circle.svg</file>
         <file>icons/1e293b/close.svg</file>
         <file>icons/1e293b/cloud-shield.svg</file>
@@ -676,7 +669,6 @@
         <file>icons/2563eb/check.svg</file>
         <file>icons/2563eb/chevron-down.svg</file>
         <file>icons/2563eb/chevron-right.svg</file>
-        <file>icons/2563eb/chip.svg</file>
         <file>icons/2563eb/circle.svg</file>
         <file>icons/2563eb/close.svg</file>
         <file>icons/2563eb/cloud-shield.svg</file>
@@ -770,7 +762,6 @@
         <file>icons/334155/check.svg</file>
         <file>icons/334155/chevron-down.svg</file>
         <file>icons/334155/chevron-right.svg</file>
-        <file>icons/334155/chip.svg</file>
         <file>icons/334155/circle.svg</file>
         <file>icons/334155/close.svg</file>
         <file>icons/334155/cloud-shield.svg</file>
@@ -864,7 +855,6 @@
         <file>icons/475569/check.svg</file>
         <file>icons/475569/chevron-down.svg</file>
         <file>icons/475569/chevron-right.svg</file>
-        <file>icons/475569/chip.svg</file>
         <file>icons/475569/circle.svg</file>
         <file>icons/475569/close.svg</file>
         <file>icons/475569/cloud-shield.svg</file>
@@ -958,7 +948,6 @@
         <file>icons/4ade80/check.svg</file>
         <file>icons/4ade80/chevron-down.svg</file>
         <file>icons/4ade80/chevron-right.svg</file>
-        <file>icons/4ade80/chip.svg</file>
         <file>icons/4ade80/circle.svg</file>
         <file>icons/4ade80/close.svg</file>
         <file>icons/4ade80/cloud-shield.svg</file>
@@ -1052,7 +1041,6 @@
         <file>icons/60c8f8/check.svg</file>
         <file>icons/60c8f8/chevron-down.svg</file>
         <file>icons/60c8f8/chevron-right.svg</file>
-        <file>icons/60c8f8/chip.svg</file>
         <file>icons/60c8f8/circle.svg</file>
         <file>icons/60c8f8/close.svg</file>
         <file>icons/60c8f8/cloud-shield.svg</file>
@@ -1146,7 +1134,6 @@
         <file>icons/6366f1/check.svg</file>
         <file>icons/6366f1/chevron-down.svg</file>
         <file>icons/6366f1/chevron-right.svg</file>
-        <file>icons/6366f1/chip.svg</file>
         <file>icons/6366f1/circle.svg</file>
         <file>icons/6366f1/close.svg</file>
         <file>icons/6366f1/cloud-shield.svg</file>
@@ -1240,7 +1227,6 @@
         <file>icons/64748b/check.svg</file>
         <file>icons/64748b/chevron-down.svg</file>
         <file>icons/64748b/chevron-right.svg</file>
-        <file>icons/64748b/chip.svg</file>
         <file>icons/64748b/circle.svg</file>
         <file>icons/64748b/close.svg</file>
         <file>icons/64748b/cloud-shield.svg</file>
@@ -1334,7 +1320,6 @@
         <file>icons/68e5f4/check.svg</file>
         <file>icons/68e5f4/chevron-down.svg</file>
         <file>icons/68e5f4/chevron-right.svg</file>
-        <file>icons/68e5f4/chip.svg</file>
         <file>icons/68e5f4/circle.svg</file>
         <file>icons/68e5f4/close.svg</file>
         <file>icons/68e5f4/cloud-shield.svg</file>
@@ -1428,7 +1413,6 @@
         <file>icons/6b7280/check.svg</file>
         <file>icons/6b7280/chevron-down.svg</file>
         <file>icons/6b7280/chevron-right.svg</file>
-        <file>icons/6b7280/chip.svg</file>
         <file>icons/6b7280/circle.svg</file>
         <file>icons/6b7280/close.svg</file>
         <file>icons/6b7280/cloud-shield.svg</file>
@@ -1522,7 +1506,6 @@
         <file>icons/818cf8/check.svg</file>
         <file>icons/818cf8/chevron-down.svg</file>
         <file>icons/818cf8/chevron-right.svg</file>
-        <file>icons/818cf8/chip.svg</file>
         <file>icons/818cf8/circle.svg</file>
         <file>icons/818cf8/close.svg</file>
         <file>icons/818cf8/cloud-shield.svg</file>
@@ -1616,7 +1599,6 @@
         <file>icons/94a3b8/check.svg</file>
         <file>icons/94a3b8/chevron-down.svg</file>
         <file>icons/94a3b8/chevron-right.svg</file>
-        <file>icons/94a3b8/chip.svg</file>
         <file>icons/94a3b8/circle.svg</file>
         <file>icons/94a3b8/close.svg</file>
         <file>icons/94a3b8/cloud-shield.svg</file>
@@ -1710,7 +1692,6 @@
         <file>icons/9ca3af/check.svg</file>
         <file>icons/9ca3af/chevron-down.svg</file>
         <file>icons/9ca3af/chevron-right.svg</file>
-        <file>icons/9ca3af/chip.svg</file>
         <file>icons/9ca3af/circle.svg</file>
         <file>icons/9ca3af/close.svg</file>
         <file>icons/9ca3af/cloud-shield.svg</file>
@@ -1804,7 +1785,6 @@
         <file>icons/a5b4fc/check.svg</file>
         <file>icons/a5b4fc/chevron-down.svg</file>
         <file>icons/a5b4fc/chevron-right.svg</file>
-        <file>icons/a5b4fc/chip.svg</file>
         <file>icons/a5b4fc/circle.svg</file>
         <file>icons/a5b4fc/close.svg</file>
         <file>icons/a5b4fc/cloud-shield.svg</file>
@@ -1898,7 +1878,6 @@
         <file>icons/be185d/check.svg</file>
         <file>icons/be185d/chevron-down.svg</file>
         <file>icons/be185d/chevron-right.svg</file>
-        <file>icons/be185d/chip.svg</file>
         <file>icons/be185d/circle.svg</file>
         <file>icons/be185d/close.svg</file>
         <file>icons/be185d/cloud-shield.svg</file>
@@ -1992,7 +1971,6 @@
         <file>icons/dc2626/check.svg</file>
         <file>icons/dc2626/chevron-down.svg</file>
         <file>icons/dc2626/chevron-right.svg</file>
-        <file>icons/dc2626/chip.svg</file>
         <file>icons/dc2626/circle.svg</file>
         <file>icons/dc2626/close.svg</file>
         <file>icons/dc2626/cloud-shield.svg</file>
@@ -2086,7 +2064,6 @@
         <file>icons/e0f2fe/check.svg</file>
         <file>icons/e0f2fe/chevron-down.svg</file>
         <file>icons/e0f2fe/chevron-right.svg</file>
-        <file>icons/e0f2fe/chip.svg</file>
         <file>icons/e0f2fe/circle.svg</file>
         <file>icons/e0f2fe/close.svg</file>
         <file>icons/e0f2fe/cloud-shield.svg</file>
@@ -2180,7 +2157,6 @@
         <file>icons/e2e8f0/check.svg</file>
         <file>icons/e2e8f0/chevron-down.svg</file>
         <file>icons/e2e8f0/chevron-right.svg</file>
-        <file>icons/e2e8f0/chip.svg</file>
         <file>icons/e2e8f0/circle.svg</file>
         <file>icons/e2e8f0/close.svg</file>
         <file>icons/e2e8f0/cloud-shield.svg</file>
@@ -2274,7 +2250,6 @@
         <file>icons/ea580c/check.svg</file>
         <file>icons/ea580c/chevron-down.svg</file>
         <file>icons/ea580c/chevron-right.svg</file>
-        <file>icons/ea580c/chip.svg</file>
         <file>icons/ea580c/circle.svg</file>
         <file>icons/ea580c/close.svg</file>
         <file>icons/ea580c/cloud-shield.svg</file>
@@ -2368,7 +2343,6 @@
         <file>icons/f1f5f9/check.svg</file>
         <file>icons/f1f5f9/chevron-down.svg</file>
         <file>icons/f1f5f9/chevron-right.svg</file>
-        <file>icons/f1f5f9/chip.svg</file>
         <file>icons/f1f5f9/circle.svg</file>
         <file>icons/f1f5f9/close.svg</file>
         <file>icons/f1f5f9/cloud-shield.svg</file>
@@ -2462,7 +2436,6 @@
         <file>icons/f43f5e/check.svg</file>
         <file>icons/f43f5e/chevron-down.svg</file>
         <file>icons/f43f5e/chevron-right.svg</file>
-        <file>icons/f43f5e/chip.svg</file>
         <file>icons/f43f5e/circle.svg</file>
         <file>icons/f43f5e/close.svg</file>
         <file>icons/f43f5e/cloud-shield.svg</file>
@@ -2556,7 +2529,6 @@
         <file>icons/f472b6/check.svg</file>
         <file>icons/f472b6/chevron-down.svg</file>
         <file>icons/f472b6/chevron-right.svg</file>
-        <file>icons/f472b6/chip.svg</file>
         <file>icons/f472b6/circle.svg</file>
         <file>icons/f472b6/close.svg</file>
         <file>icons/f472b6/cloud-shield.svg</file>
@@ -2650,7 +2622,6 @@
         <file>icons/f59e0b/check.svg</file>
         <file>icons/f59e0b/chevron-down.svg</file>
         <file>icons/f59e0b/chevron-right.svg</file>
-        <file>icons/f59e0b/chip.svg</file>
         <file>icons/f59e0b/circle.svg</file>
         <file>icons/f59e0b/close.svg</file>
         <file>icons/f59e0b/cloud-shield.svg</file>
@@ -2744,7 +2715,6 @@
         <file>icons/f87171/check.svg</file>
         <file>icons/f87171/chevron-down.svg</file>
         <file>icons/f87171/chevron-right.svg</file>
-        <file>icons/f87171/chip.svg</file>
         <file>icons/f87171/circle.svg</file>
         <file>icons/f87171/close.svg</file>
         <file>icons/f87171/cloud-shield.svg</file>
@@ -2838,7 +2808,6 @@
         <file>icons/f8fafc/check.svg</file>
         <file>icons/f8fafc/chevron-down.svg</file>
         <file>icons/f8fafc/chevron-right.svg</file>
-        <file>icons/f8fafc/chip.svg</file>
         <file>icons/f8fafc/circle.svg</file>
         <file>icons/f8fafc/close.svg</file>
         <file>icons/f8fafc/cloud-shield.svg</file>
@@ -2932,7 +2901,6 @@
         <file>icons/fb7185/check.svg</file>
         <file>icons/fb7185/chevron-down.svg</file>
         <file>icons/fb7185/chevron-right.svg</file>
-        <file>icons/fb7185/chip.svg</file>
         <file>icons/fb7185/circle.svg</file>
         <file>icons/fb7185/close.svg</file>
         <file>icons/fb7185/cloud-shield.svg</file>
@@ -3026,7 +2994,6 @@
         <file>icons/ffffff/check.svg</file>
         <file>icons/ffffff/chevron-down.svg</file>
         <file>icons/ffffff/chevron-right.svg</file>
-        <file>icons/ffffff/chip.svg</file>
         <file>icons/ffffff/circle.svg</file>
         <file>icons/ffffff/close.svg</file>
         <file>icons/ffffff/cloud-shield.svg</file>

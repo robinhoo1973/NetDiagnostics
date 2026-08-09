@@ -82,7 +82,9 @@ inline QString diagIconName(DiagId id) {
     switch (id) {
         // G1 — System & Adapters
         case DiagId::G1NetworkAdapters:    return QStringLiteral("network-card");
-        case DiagId::G1NicAdvanced:        return QStringLiteral("chip");
+        // 5WHY (icon vetting 2026-08-10): chip.svg was superseded by the
+        // existing project cpu.svg (identical Lucide design) — reuse it.
+        case DiagId::G1NicAdvanced:        return QStringLiteral("cpu");
         case DiagId::G1WifiDiagnostics:    return QStringLiteral("wifi");
         case DiagId::G1WiredDiagnostics:   return QStringLiteral("ethernet");
         case DiagId::G1DhcpStatus:         return QStringLiteral("dhcp");
