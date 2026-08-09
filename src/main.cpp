@@ -138,6 +138,8 @@ int main(int argc, char *argv[])
     // app at startup, before the first STARTUP_LOG could be written.  Moved the
     // check to AFTER app construction so JNI is always available.
     bool hadCrash = CrashHandler::checkForPreviousCrash();
+    STARTUP_LOG("checkForPreviousCrash returned hadCrash=%d, crashPath=%s",
+                (int)hadCrash, qPrintable(CrashHandler::crashReportPath()));
 
     // 5WHY: These early markers bracket the pre-QML init steps (AppState
     // construction, iOS WiFi auth, QML engine construction).  On iOS the log
@@ -167,6 +169,7 @@ int main(int argc, char *argv[])
     STARTUP_LOG("iOS WiFi authorization request returned");
 #endif
 
+    STARTUP_LOG("AppState setup complete — constructing QQmlApplicationEngine");
     QQmlApplicationEngine engine;
     STARTUP_LOG("QQmlApplicationEngine constructed OK");
 
@@ -184,6 +187,7 @@ int main(int argc, char *argv[])
 #endif
     MAIN_LOG(" NetDiagnostics starting, Qt %s\n", qVersion());
 
+    STARTUP_LOG("Setting context properties: appState, controllers, models...");
     // Theme now handled by ThemeEngine.qml singleton — no C++ injection needed
     engine.rootContext()->setContextProperty("appState", &appState);
     // MVC Controllers + Models — injected for gradual QML migration
@@ -194,6 +198,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("settingsCtrl", QVariant::fromValue(static_cast<QObject*>(appState.settingsController())));
     engine.rootContext()->setContextProperty("targetModel", QVariant::fromValue(static_cast<QObject*>(appState.targetModel())));
     engine.rootContext()->setContextProperty("resultsModel", QVariant::fromValue(static_cast<QObject*>(appState.resultsModel())));
+    STARTUP_LOG("Core context properties set. Loading TranslationsProxy...");
     // ── Reactive translation proxy ────────────────────────────────────
     // 5WHY: exposing the raw C++ Translator as "T" made QML bindings call
     // T.tr()/T.diagName()/... as plain C++ methods — the binding engine

@@ -20,24 +20,46 @@
 
 #if defined(PLATFORM_ANDROID)
 #include <QString>
+#include <QDir>
+#include <QFile>
 #include <QCoreApplication>
 #include <QJniObject>
 
 // Mirror one already-formatted log line to Download/NetDiagnostics/
 // NetDiagnostics_startup.log (public, user-visible, Android 11+).
+// 5WHY (pre-Qt download gap): the first 3-8 STARTUP_LOG lines run BEFORE
+// QGuiApplication constructs (main entry → CrashHandler check → AppState ctor).
+// androidMirrorLineToDownloads() used to return immediately for those, so the
+// Download mirror only covered post-Qt lines — exactly the WRONG half of the
+// startup sequence for diagnosing a launch crash.  Fix: add a native-file-IO
+// fallback that writes directly to /sdcard/Download/NetDiagnostics/ BEFORE
+// JNI is available (works on Android ≤10; on 11+ scoped storage may reject it
+// but the attempt is harmless — logcat + app-scoped file still hold the data).
+static inline void androidWriteLineToDownloadNative(const QString& line) {
+    // Best-effort direct write — silently skip if Download is unwritable.
+    static const char* kPath = "/sdcard/Download/NetDiagnostics/"
+                               "NetDiagnostics_startup.log";
+    // 5WHY: mkdir the parent dir on every write, same pattern as StartupLog.h.
+    // On a fresh install the NetDiagnostics/ dir doesn't exist yet.
+    QDir().mkpath(QStringLiteral("/sdcard/Download/NetDiagnostics"));
+    QFile f(QString::fromLatin1(kPath));
+    if (f.open(QIODevice::Append | QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write(line.toUtf8());
+        f.close();
+    }
+}
+
 static inline void androidMirrorLineToDownloads(const QString& line) {
-    // 5WHY (b21294): QJniObject / QNativeInterface::QAndroidApplication need
-    // the Qt Android platform plugin, loaded only when QGuiApplication is
-    // constructed — calling them earlier crashed at startup (see
-    // AndroidLogPaths.h).  The first 1-3 native lines (pre-QGuiApplication)
-    // therefore skip the Download mirror; they still land in the app-scoped
-    // dir + logcat.  Java's EarlyLog already covers the pre-native window.
+    // 5WHY: Always try the native fallback FIRST — it covers the pre-Qt window
+    // (before QGuiApplication exists) and works on Android ≤10 without JNI.
+    androidWriteLineToDownloadNative(line);
+
+    // 5WHY (b21294): QJniObject needs the Qt Android platform plugin, loaded
+    // only when QGuiApplication is constructed.  The JNI path (MediaStore) is
+    // the canonical one for Android 11+ scoped storage; skip it pre-Qt.
     if (QCoreApplication::instance() == nullptr)
         return;
     // EarlyLog ships in every NetDiagnostics APK (resources/android/src).
-    // If the class/method is ever missing, QJniObject logs a warning and
-    // no-ops — it never aborts, so a future refactor can't turn logging
-    // into a crash.
     QJniObject jline = QJniObject::fromString(line);
     QJniObject::callStaticMethod<void>(
         "com/netdiagnostic/app/EarlyLog",

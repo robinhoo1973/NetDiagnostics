@@ -55,7 +55,7 @@
 // compiler's name lookup, so the linker resolves the correct global symbol.
 // Without this, iOS builds fail with: "Undefined symbols: CrashHandler::startup_log"
 // because the block-scope extern inside the namespace shadows the global one.
-#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
+#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
 void startup_log(const char* file, int line, const char* fmt, ...);
 #endif
 
@@ -257,6 +257,14 @@ inline void writeMessageCrashReport(const char* kind, const QString& text) {
     ts.flush();
     f.close();
     g_messageCrashWritten = true;
+#if defined(__ANDROID__) || defined(PLATFORM_ANDROID)
+    {
+        QDir().mkpath(QStringLiteral("/sdcard/Download/NetDiagnostics"));
+        QString downloadPath = QStringLiteral("/sdcard/Download/NetDiagnostics/")
+                               + QString::fromLatin1(kCrashFileName);
+        QFile::copy(path, downloadPath);
+    }
+#endif
 }
 
 // ── Qt message handler — captures qFatal into the crash report ─────────
@@ -408,7 +416,7 @@ inline bool checkForPreviousCrash() {
     f.close();
 
     // Write to startup log (if enabled)
-#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS)
+#if defined(ND_DEBUG) || defined(ND_TESTING) || defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
     extern void startup_log(const char*, int, const char*, ...);
     // 5WHY: Use global-scope call. The extern declaration inside the
     // CrashHandler namespace introduces CrashHandler::startup_log, but

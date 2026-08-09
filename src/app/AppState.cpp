@@ -39,6 +39,10 @@
 #include "Common/Platform/PlatformShare.h"
 #if defined(PLATFORM_ANDROID)
 #include "Common/Platform/Android/PlatformAndroidJni.h"
+#include <android/log.h>
+#define APPSTATE_ANDROID_LOG(fmt, ...) __android_log_print(ANDROID_LOG_INFO, "NetDiagnostics", "[AppState] " fmt, ##__VA_ARGS__)
+#else
+#define APPSTATE_ANDROID_LOG(fmt, ...) ((void)0)
 #endif
 #if defined(PLATFORM_IOS)
 #include "Common/Platform/PlatformStore.h"
@@ -62,15 +66,29 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_activeGroups = {0, 1, 2};
 
     // ── Create MVC Controllers & Models ──────────────────────────────────
+    // 5WHY (Android launch crash): AppState ctor creates 7 controllers + 2 models
+    // sequentially.  If ANY of these constructors crashes (e.g. missing native
+    // library, JNI init failure, QSettings corruption), the app flash-quits
+    // with zero diagnostic trail.  Log each step to logcat so the LAST line
+    // visible before the crash pinpoints the failing constructor.
+    APPSTATE_ANDROID_LOG("AppState ctor: creating TargetModel...");
     m_targetModel  = new TargetModel(this);
+    APPSTATE_ANDROID_LOG("TargetModel OK — creating ResultsModel...");
     m_resultsModel = new ResultsModel(this);
+    APPSTATE_ANDROID_LOG("ResultsModel OK — creating DashboardController...");
     m_dashCtrl   = new DashboardController(this, this);
+    APPSTATE_ANDROID_LOG("DashboardController OK — creating DiagnosticsController...");
     m_diagCtrl   = new DiagnosticsController(this, this);
+    APPSTATE_ANDROID_LOG("DiagnosticsController OK — creating ConfigurationController...");
     m_configCtrl = new ConfigurationController(this, this);
+    APPSTATE_ANDROID_LOG("ConfigurationController OK — creating ReportController...");
     m_reportCtrl = new ReportController(this, this);
+    APPSTATE_ANDROID_LOG("ReportController OK — creating SettingsController...");
     m_settingsCtrl = new SettingsController(this, this);
+    APPSTATE_ANDROID_LOG("SettingsController OK — creating Translator...");
     m_translator = new Translator(this);
     m_translator->initialize(this);
+    APPSTATE_ANDROID_LOG("Translator OK — AppState ctor complete");
 
     // 5WHY: G4/G5 auto-management was inline in setTarget() — now reacts
     // to TargetModel::targetChanged signal, separating concerns.
