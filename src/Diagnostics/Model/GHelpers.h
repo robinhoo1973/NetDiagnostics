@@ -72,9 +72,17 @@ static const char* tcpStateName(int st) {
 struct ParsedUrl { QString host; int port = 80; QString path; };
 inline ParsedUrl parseHttpUrl(const QString& urlStr) {
     ParsedUrl p;
-    QString u = urlStr;
-    if (!u.startsWith(QStringLiteral("http://"))) return p;
-    u = u.mid(7);
+    QString u = urlStr.trimmed();
+    // 5WHY: this only recognized "http://" and returned an empty host for
+    // any other scheme (including https://) — a silent parse failure. All
+    // current callers pass http:// speed-test URLs, but a future caller
+    // passing https:// would get "Invalid URL" with no hint. Recognize both
+    // and set the scheme's default port; an explicit :port still wins.
+    int defaultPort = 80;
+    if (u.startsWith(QLatin1String("https://"))) { defaultPort = 443; u = u.mid(8); }
+    else if (u.startsWith(QLatin1String("http://"))) { u = u.mid(7); }
+    else return p;
+    p.port = defaultPort;
     auto slash = u.indexOf('/');
     QString hp = (slash > 0) ? u.left(slash) : u;
     p.path = (slash > 0) ? u.mid(slash) : QStringLiteral("/");

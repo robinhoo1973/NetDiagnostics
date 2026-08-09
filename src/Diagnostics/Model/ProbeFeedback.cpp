@@ -132,28 +132,38 @@ QVector<CountryResult> ProbeFeedback::aggregateByCountry(
 QVector<RegionResult> ProbeFeedback::aggregateByRegion(
     const QVector<ServerResult>& servers) const
 {
-    QMap<QString, QVector<double>> byRegion;
+    // 5WHY: the original code re-scanned ALL servers once per region
+    // (O(R×S)) to build countryCount and servers, after already having
+    // grouped by tag in the first pass.  A single pass now collects the
+    // ttfb values, the server list, and the country set per region in one
+    // place.  "Top-level tag only" behaviour is kept: regionTags[0] is the
+    // primary region; aggregating by every sub-region would fragment the
+    // ranking into near-duplicate rows.
+    struct RegionAccum {
+        QVector<double> ttfb;
+        QVector<ServerResult> servers;
+        QSet<QString> countries;
+    };
+    QMap<QString, RegionAccum> byRegion;
     for (const auto& srv : servers) {
-        if (!srv.ok || srv.ttfbMs <= 0) continue;
-        for (const auto& tag : srv.regionTags) {
-            byRegion[tag].append(srv.ttfbMs);
-            break; // top-level tag only
-        }
+        if (!srv.ok || srv.ttfbMs <= 0 || srv.regionTags.isEmpty()) continue;
+        const QString topTag = srv.regionTags.first();
+        auto& acc = byRegion[topTag];
+        acc.ttfb.append(srv.ttfbMs);
+        acc.servers.append(srv);
+        acc.countries.insert(srv.country);
     }
 
     QVector<RegionResult> out;
+    out.reserve(byRegion.size());
     for (auto it = byRegion.begin(); it != byRegion.end(); ++it) {
-        if (it.value().size() < 2) continue;
+        if (it.value().ttfb.size() < 2) continue;
         RegionResult rr;
         rr.tag = it.key();
-        rr.hlMs = SystemDiagnostics::hodgesLehmann(it.value());
-        rr.serverCount = it.value().size();
-        QSet<QString> ccs;
-        for (const auto& srv : servers)
-            if (srv.regionTags.contains(rr.tag)) ccs.insert(srv.country);
-        rr.countryCount = ccs.size();
-        for (const auto& srv : servers)
-            if (srv.regionTags.contains(rr.tag)) rr.servers.append(srv);
+        rr.hlMs = SystemDiagnostics::hodgesLehmann(it.value().ttfb);
+        rr.serverCount = it.value().ttfb.size();
+        rr.countryCount = it.value().countries.size();
+        rr.servers = it.value().servers;
         out.append(rr);
     }
     std::sort(out.begin(), out.end(),
