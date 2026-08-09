@@ -2159,6 +2159,23 @@
       "Resumo",
       "ملخص"
     ],
+    "summaryError": [
+      "错误",
+      "錯誤",
+      "エラー",
+      "오류",
+      "त्रुटि",
+      "Lỗi",
+      "Hata",
+      "Error",
+      "Erreur",
+      "Fehler",
+      "Ошибка",
+      "Errore",
+      "Error",
+      "Erro",
+      "خطأ"
+    ],
     "summaryFail": [
       "失败",
       "失敗",

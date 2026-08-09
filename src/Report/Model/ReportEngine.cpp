@@ -24,10 +24,7 @@
 #include <QUrlQuery>
 #include <QDesktopServices>
 #include <QProcess>
-
-#if !defined(PLATFORM_IOS) && !defined(PLATFORM_ANDROID)
-#include <QFileDialog>
-#endif
+#include <QHash>
 
 namespace {
 
@@ -126,6 +123,18 @@ QImage renderStatusIcon(DiagStatus s, int size, bool darkBackground) {
 // QPainter→PNG→base64 works universally: QTextDocument preview, PDF export,
 // and browser WebView all support PNG data URIs natively.
 QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
+    // 5WHY: every card and every result row re-rendered the icon via
+    // QPainter + PNG + base64 — 50+ encodes per full report, all on the
+    // UI thread. Cache by (status, size, dark) key: icons are immutable
+    // once rendered, so a memoized string is safe and thread-local to
+    // this anonymous-namespace function.
+    static QHash<quint64, QString> cache;
+    const quint64 key = (quint64(statusIndex(s)) << 17)
+                      | (quint64(size) << 1)
+                      | quint64(darkBackground);
+    auto it = cache.constFind(key);
+    if (it != cache.constEnd()) return it.value();
+
     QImage img = renderStatusIcon(s, size, darkBackground);
     QByteArray pngData;
     QBuffer buf(&pngData);
@@ -133,11 +142,13 @@ QString reportStatusIconImg(DiagStatus s, int size, bool darkBackground) {
     // 5WHY: img.save() return was unchecked — a null QImage (size ≤ 0)
     // would silently produce an empty data URI, showing a broken image.
     if (!img.save(&buf, "PNG")) return {};
-    return QStringLiteral("<img src='data:image/png;base64,")
+    const QString uri = QStringLiteral("<img src='data:image/png;base64,")
          + QString::fromLatin1(pngData.toBase64())
          + QStringLiteral("' width='%1' height='%1' "
            "style='vertical-align:middle;display:inline-block' alt=''/>")
          .arg(size);
+    cache.insert(key, uri);
+    return uri;
 }
 
 QString reportStatusText(DiagStatus s) {
@@ -171,13 +182,14 @@ struct ReportColors {
     QString pass    = QStringLiteral(APPC_PASS_GREEN_DARK);
     QString warn    = QStringLiteral(APPC_WARN_YELLOW_DARK);
     QString fail    = QStringLiteral(APPC_FAIL_RED_DARK);
+    QString error   = QStringLiteral(APPC_ERROR_RED_DARK);
     QString skip    = QStringLiteral(APPC_SKIP_GRAY_DARK);
     QString info    = QStringLiteral(APPC_INFO_BLUE_DARK);
     QString cyan    = QStringLiteral(APPC_CYAN_DARK);
     // Theme-aware colors
     QString textPrimary, textSecondary, textMuted;
     QString bgHeader, bgSection, bgRowAlt, bgRow;
-    QString bgCardPass, bgCardInfo, bgCardWarn, bgCardFail, bgCardSkip;
+    QString bgCardPass, bgCardInfo, bgCardWarn, bgCardFail, bgCardSkip, bgCardError;
     QString borderColor, codeBlockBg, codeBlockFg, detailBg, footerColor;
 
     explicit ReportColors(bool dark) {
@@ -194,6 +206,7 @@ struct ReportColors {
             bgCardWarn   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_WARN);
             bgCardFail   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_FAIL);
             bgCardSkip   = QStringLiteral(APPC_REPORT_DARK_BG_CARD_SKIP);
+            bgCardError  = QStringLiteral("#2b1111");
             borderColor  = QStringLiteral(APPC_REPORT_DARK_BORDER);
             codeBlockBg  = QStringLiteral(APPC_REPORT_DARK_CODE_BG);
             codeBlockFg  = QStringLiteral(APPC_REPORT_DARK_CODE_FG);
@@ -212,6 +225,7 @@ struct ReportColors {
             bgCardWarn   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_WARN);
             bgCardFail   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_FAIL);
             bgCardSkip   = QStringLiteral(APPC_REPORT_LIGHT_BG_CARD_SKIP);
+            bgCardError  = QStringLiteral("#FEF2F2");
             borderColor  = QStringLiteral(APPC_REPORT_LIGHT_BORDER);
             codeBlockBg  = QStringLiteral(APPC_REPORT_LIGHT_CODE_BG);
             codeBlockFg  = QStringLiteral(APPC_REPORT_LIGHT_CODE_FG);
@@ -230,16 +244,18 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     // Aliases for concise reference in the large HTML string below
     const QString& colorPass = c.pass, &colorWarn = c.warn, &colorFail = c.fail;
     const QString& colorSkip = c.skip, &colorInfo = c.info, &colorCyan = c.cyan;
+    const QString& colorError = c.error;
     const QString& textPrimary = c.textPrimary, &textSecondary = c.textSecondary;
     const QString& textMuted = c.textMuted, &bgHeader = c.bgHeader;
     const QString& bgSection = c.bgSection, &bgRowAlt = c.bgRowAlt, &bgRow = c.bgRow;
     const QString& bgCardPass = c.bgCardPass, &bgCardInfo = c.bgCardInfo;
     const QString& bgCardWarn = c.bgCardWarn, &bgCardFail = c.bgCardFail;
-    const QString& bgCardSkip = c.bgCardSkip, &borderColor = c.borderColor;
+    const QString& bgCardSkip = c.bgCardSkip, &bgCardError = c.bgCardError;
+    const QString& borderColor = c.borderColor;
     const QString& codeBlockBg = c.codeBlockBg, &codeBlockFg = c.codeBlockFg;
     const QString& detailBg = c.detailBg, &footerColor = c.footerColor;
 
-    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
+    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tError=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
         auto it = data.groupStats.find(g);
         if (it == data.groupStats.end()) continue;
@@ -248,6 +264,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         tFail += it->value(QStringLiteral("fail")).toInt();
         tSkip += it->value(QStringLiteral("skip")).toInt();
         tInfo += it->value(QStringLiteral("info")).toInt();
+        tError += it->value(QStringLiteral("error")).toInt();
         tTotal += it->value(QStringLiteral("total")).toInt();
     }
 
@@ -307,7 +324,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
         // attribute characters within the img tag (e.g. %20 in encoded
         // attributes). Safer to concatenate than escape for .arg().
         QString td = QStringLiteral(
-            "<td width=\"20%\" align=\"center\" bgcolor=\"%1\""
+            "<td width=\"16%\" align=\"center\" bgcolor=\"%1\""
             " style=\"padding:12px 6px\">")
             .arg(bg);
         td += iconImg;
@@ -322,6 +339,10 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
     h += card(bgCardWarn, colorWarn, tWarn, QStringLiteral("Warning"), reportStatusIconImg(DiagStatus::Warning, 24, darkBackground));
     h += card(bgCardFail, colorFail, tFail, QStringLiteral("Fail"), reportStatusIconImg(DiagStatus::Fail, 24, darkBackground));
     h += card(bgCardSkip, colorSkip, tSkip, QStringLiteral("Skipped"), reportStatusIconImg(DiagStatus::Skipped, 24, darkBackground));
+    // 5WHY: DiagStatus::Error (infrastructure failure) was missing from
+    // the summary cards — the card total no longer matched "N tests total"
+    // when errors occurred. Added the 6th card so error is visible.
+    h += card(bgCardError, colorError, tError, QStringLiteral("Error"), reportStatusIconImg(DiagStatus::Error, 24, darkBackground));
     h += QStringLiteral("</tr></table>");
     h += QStringLiteral("<p align=\"center\" style=\"margin:10px 0 18px 0\"><span style=\"font-size:12px;color:%1\">%2 tests total</span></p>")
         .arg(textMuted).arg(tTotal);
@@ -379,12 +400,10 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
                 // base64 percent-encoded characters.
                 const QString iconImg = reportStatusIconImg(r.status, 18, darkBackground);
                 h += QStringLiteral(
-                    "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid %6\">"
+                    "<tr bgcolor=\"%1\" style=\"border-bottom:1px solid %4\">"
                     "<td style=\"padding:10px 9px\"><span style=\"font-size:13px;color:%2\"><b>%3</b></span></td>"
                     "<td style=\"padding:10px 9px\">")
-                    .arg(rowBg, textPrimary, name)
-                    .arg(reportStatusColor(r.status, darkBackground), reportStatusText(r.status))
-                    .arg(borderColor);
+                    .arg(rowBg, textPrimary, name, borderColor);
                 h += iconImg;
                 h += QStringLiteral(
                     "&nbsp;<span style=\"font-size:12px;color:%1\"><b>%2</b></span></td>"
@@ -511,7 +530,7 @@ QString ReportEngine::buildHtml(const ReportData& data, bool fullDetail, bool da
 }
 
 QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackground) {
-    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tTotal=0;
+    int tPass=0,tWarn=0,tFail=0,tSkip=0,tInfo=0,tError=0,tTotal=0;
     for (int g = 0; g < 5; ++g) {
         auto it = data.groupStats.find(g);
         if (it == data.groupStats.end()) continue;
@@ -520,6 +539,7 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
         tFail += it->value(QStringLiteral("fail")).toInt();
         tSkip += it->value(QStringLiteral("skip")).toInt();
         tInfo += it->value(QStringLiteral("info")).toInt();
+        tError += it->value(QStringLiteral("error")).toInt();
         tTotal += it->value(QStringLiteral("total")).toInt();
     }
 
@@ -693,6 +713,9 @@ QString ReportEngine::buildRichDocument(const ReportData& data, bool darkBackgro
     h += card(QStringLiteral("warn"), reportStatusIconImg(DiagStatus::Warning, 32, darkBackground), tWarn, QStringLiteral("Warning"));
     h += card(QStringLiteral("fail"), reportStatusIconImg(DiagStatus::Fail, 32, darkBackground), tFail, QStringLiteral("Fail"));
     h += card(QStringLiteral("skip"), reportStatusIconImg(DiagStatus::Skipped, 32, darkBackground), tSkip, QStringLiteral("Skipped"));
+    // 5WHY: Error status card was missing (CSS .card.error existed but no
+    // card was ever emitted) — total card counts disagreed with "N tests".
+    h += card(QStringLiteral("error"), reportStatusIconImg(DiagStatus::Error, 32, darkBackground), tError, QStringLiteral("Error"));
     h += QStringLiteral("</div>\n");
 
     // Summary table
@@ -777,7 +800,13 @@ QImage ReportEngine::renderHtmlToImage(const QString& html, int width) {
     // QTextDocument::size() gives the natural layout size at the given width
     doc.setTextWidth(width);
     QSizeF docSize = doc.size();
-    int h = qMax(100, (int)qCeil(docSize.height()));
+    // 5WHY: a full 45-test detail report can be tens of thousands of px
+    // tall; a single QImage at 960px width would peak ~190MB on mobile and
+    // OOM the app. Cap the render height — content beyond the cap is
+    // clipped in the in-app preview image (the real PDF/HTML export is
+    // unaffected, it uses QPdfWriter pagination).
+    constexpr int kMaxPreviewHeight = 8192;
+    int h = qMax(100, qMin((int)qCeil(docSize.height()), kMaxPreviewHeight));
 
     QImage img(width, h, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);

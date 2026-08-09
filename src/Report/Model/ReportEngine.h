@@ -27,9 +27,6 @@ struct ReportData {
     QMap<DiagId, DiagnosticResult> results;          // all completed results
     QMap<int, QVariantMap> groupStats;               // group index → {pass,warn,fail,skip,info,total}
 
-    // Language index (0=EN, 5=ZH_CN, etc.) — set by AppState::buildReportData().
-    int languageIndex = 0;
-
     // Pre-translated display names keyed by DiagId.  Populated by AppState at
     // snapshot time so that ReportEngine never depends on the active locale.
     // Used for multi-language report output.
@@ -64,10 +61,4 @@ public:
 
     // ── Desktop email handoff ─────────────────────────────────────
     static void emailReportDesktop(const QString& path);
-
-private:
-    static QString buildHeaderBand(const ReportData& data);
-    static QString buildSummaryCards(int pass, int warn, int fail, int skip, int info, int total);
-    static QString buildGroupTable(int g, const ReportData& data);
-    static QString buildDetailSection(const ReportData& data);
 };
