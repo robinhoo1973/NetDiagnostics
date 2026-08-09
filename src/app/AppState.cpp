@@ -83,14 +83,20 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     connect(m_targetModel, &TargetModel::targetChanged, this, [this]() {
         bool has = !m_targetModel->isEmpty();
         bool isUrl = m_targetModel->isUrl();
-        // 5WHY: G4/G5 runtime availability is transient target state, not a
-        // user preference. It is tracked purely via m_activeGroups below — it
-        // must NOT be written into DiagnosticConfig::m_enabledDiags (the old
-        // setAutomaticGroupEnabled path): that set is the user's persisted
-        // per-test preference, and mutating it here silently overrode explicit
-        // Config-page choices and polluted QSettings on every keystroke.
-        // G4/G5 tests are enabled by default (enableDefaultGroups) and only
-        // gated by m_activeGroups at run time.
+        // 5WHY (regression 2026-08-09): P0-1 removed the runtime auto-enable
+        // of G4/G5 from this lambda to stop QSettings pollution, assuming the
+        // new enableDefaultGroups() (all groups on) covered everyone. But
+        // upgraded installs whose PERSISTED enabledDiags only contains G1-G3
+        // (saved by old builds) are overwritten by loadSettings() and never
+        // regain G4/G5 — "type a target → G4/G5 don't run".  Fix: restore a
+        // MEMORY-ONLY auto-enable via ensureGroupTestsAvailable() — it runs
+        // when a group has ZERO enabled tests (stale/upgraded config), never
+        // persists, and leaves partially-configured groups (user intent)
+        // untouched. Active-group gating stays on m_activeGroups.
+        if (has) {
+            ensureGroupTestsAvailable(DiagGroup::G4);
+            if (isUrl) ensureGroupTestsAvailable(DiagGroup::G5);
+        }
         bool had3 = m_activeGroups.contains(3);
         bool had4 = m_activeGroups.contains(4);
         if (has) { m_activeGroups.insert(3); if (isUrl) m_activeGroups.insert(4); }
@@ -147,6 +153,11 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // ND_CAPTURE_TARGET pre-fills the target URL for screenshot automation.
     // This bypasses the QML TextField binding-loop issue that prevents
     // xdotool/xvkbd from injecting keystrokes into the host field.
+    // 5WHY: this MUST run AFTER m_configCtrl->loadSettings() below — a target
+    // set before loadSettings() would make ensureGroupTestsAvailable() see the
+    // default all-enabled config (no top-up needed), then loadSettings() would
+    // overwrite it with the persisted G1-G3-only list, leaving G4/G5 disabled
+    // for the whole session.
     const QString captureTarget = qEnvironmentVariable("ND_CAPTURE_TARGET");
     if (!captureTarget.isEmpty()) {
         m_targetModel->setTarget(captureTarget);
@@ -155,6 +166,14 @@ AppState::AppState(QObject* parent) : QObject(parent) {
 
     m_configCtrl->loadSettings();
     loadSettings();
+
+    // (re-apply after loadSettings: a stale persisted config that lacks G4/G5
+    // must still top them up when a target is already present)
+    if (!captureTarget.isEmpty() && !m_targetModel->isEmpty()) {
+        bool isUrl = m_targetModel->isUrl();
+        ensureGroupTestsAvailable(DiagGroup::G4);
+        if (isUrl) ensureGroupTestsAvailable(DiagGroup::G5);
+    }
 
     // ND_AUTORUN triggers a diagnostic run after startup — used by the
     // screenshot CI to enter the running/complete states without relying
@@ -306,6 +325,25 @@ void AppState::setGroupActive(int groupInt, bool active) {
 
 bool AppState::isGroupActive(int groupInt) const {
     return m_activeGroups.contains(groupInt);
+}
+
+// ── G4/G5 runtime availability (memory-only) ─────────────────────────────
+void AppState::ensureGroupTestsAvailable(DiagGroup g) {
+    const auto& ids = DiagnosticConfig::diagIdsForGroup(g);
+    int enabled = 0;
+    for (auto id : ids) {
+        if (m_configCtrl->config().isDiagEnabled(static_cast<int>(id))) ++enabled;
+    }
+    Logger::instance().event(QStringLiteral("ensureGroupTestsAvailable G%1: enabled=%2/%3")
+        .arg(static_cast<int>(g) + 1).arg(enabled).arg(ids.size()));
+    // Only top-up when the WHOLE group is disabled. A group with any enabled
+    // test means the user configured it (partial intent) — leave it alone.
+    // setAutomaticGroupEnabled is memory-only (no saveSettings), so this
+    // never writes the transient target state into QSettings.
+    if (enabled == 0 && !ids.isEmpty()) {
+        m_configCtrl->setAutomaticGroupEnabled(static_cast<int>(g), true);
+        Logger::instance().event(QStringLiteral("  -> topped up G%1 (memory only)").arg(static_cast<int>(g) + 1));
+    }
 }
 
 // ── Cellular detection ─────────────────────────────────────────────────────
@@ -519,8 +557,17 @@ void AppState::runDiagnostics() {
     emit resultsReset();
     bumpVersion();
 
+    // 5WHY: the schedule summary below (groups + per-group counts) is a
+    // high-value triage log — it shows immediately whether G4/G5 were
+    // scheduled for a target, versus being excluded by activation/scheme/
+    // enabled-state gating. TRACE is compiled out, so use the persistent
+    // Logger::event() stream.
     Logger::instance().event(QStringLiteral("Starting diagnostic run: %1 tests in %2 groups")
                               .arg(m_totalDiags).arg(m_pendingGroups.size()));
+    for (int gi = 0; gi < m_pendingGroups.size(); ++gi)
+        Logger::instance().event(QStringLiteral("  scheduled G%1: %2 tests")
+            .arg(static_cast<int>(m_pendingGroups[gi].group) + 1)
+            .arg(m_pendingGroups[gi].diagIds.size()));
 
     startNextGroup();
 }

@@ -278,6 +278,10 @@ private:
     void reset();                       // internal: clears state before each run
     void startNextGroup();
     void runDiagInGroup(int groupIdx, int diagIdx);
+    // Memory-only enable for a group's tests when NONE are enabled — used at
+    // target time so upgraded installs (persisted G1-G3-only config) still get
+    // G4/G5. Does nothing if the user partially configured the group.
+    void ensureGroupTestsAvailable(DiagGroup g);
     Q_INVOKABLE QString diagDisplayName(int diagIdInt) const;
     void bumpVersion();
 

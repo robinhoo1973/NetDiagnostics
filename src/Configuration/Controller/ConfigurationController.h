@@ -24,6 +24,10 @@ public:
     Q_INVOKABLE bool isDiagEnabled(int diagIdInt) const;
     Q_INVOKABLE bool setDiagEnabled(int diagIdInt, bool enabled);
     Q_INVOKABLE bool setGroupEnabled(int groupInt, bool enabled);
+    // Memory-only group enable — used for G4/G5 runtime availability when a
+    // target is present. NEVER persists (unlike setGroupEnabled), so a
+    // transient target state can't pollute QSettings.
+    bool setAutomaticGroupEnabled(int groupInt, bool enabled);
     Q_INVOKABLE bool isGroupAllEnabled(int groupInt) const;
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
 
