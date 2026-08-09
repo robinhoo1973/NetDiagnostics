@@ -100,7 +100,15 @@ AppState::AppState(QObject* parent) : QObject(parent) {
         }
         bool had3 = m_activeGroups.contains(3);
         bool had4 = m_activeGroups.contains(4);
-        if (has) { m_activeGroups.insert(3); if (isUrl) m_activeGroups.insert(4); }
+        // 5WHY: a Config green-dot deactivation is a USER preference — it must
+        // survive target edits. Without this check the lambda re-inserted a
+        // group the user explicitly deactivated, and the next setGroupActive
+        // persisted the reversal (m_userDeactivatedGroups is written in
+        // setGroupActive but was never READ here — review F-1).
+        if (has) {
+            if (!m_userDeactivatedGroups.contains(3)) m_activeGroups.insert(3);
+            if (isUrl && !m_userDeactivatedGroups.contains(4)) m_activeGroups.insert(4);
+        }
         else { m_activeGroups.remove(3); m_activeGroups.remove(4); }
         if (had3 != m_activeGroups.contains(3) || had4 != m_activeGroups.contains(4))
             emit groupActiveChanged();
@@ -116,6 +124,11 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     // Forward ReportController signals
     connect(m_reportCtrl, &ReportController::savePathPicked,
             this, &AppState::savePathPicked);
+
+    // Forward the executing-group signal so QML can bind appState.currentRunningGroup
+    // (QML binds to appState, not the resultsModel context property).
+    connect(m_resultsModel, &ResultsModel::currentRunningGroupChanged,
+            this, &AppState::currentRunningGroupChanged);
 
     // Forward SettingsController signals
     connect(m_settingsCtrl, &SettingsController::premiumChanged,

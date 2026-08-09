@@ -41,6 +41,11 @@ class AppState : public QObject {
     Q_PROPERTY(QString currentDiagLabel READ currentDiagLabel NOTIFY currentDiagChanged)
     Q_PROPERTY(QString currentGroup READ currentGroup NOTIFY groupChanged)
     Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY runStatusChanged)
+    // DiagGroup enum value (0-4) of the currently executing group, or -1.
+    // 5WHY: DiagGroupPanel binds isRunning to this to spin ONLY the current
+    // group — the property lives on ResultsModel; this is the AppState
+    // forwarding that QML binds to (QML uses appState, not resultsModel).
+    Q_PROPERTY(int currentRunningGroup READ currentRunningGroup NOTIFY currentRunningGroupChanged)
     // 5WHY: QML cannot track changes made through targetValidationError()
     // Q_INVOKABLE calls. Expose the same source through a notified property
     // so field borders and inline validation update with targetChanged.
@@ -153,6 +158,7 @@ public:
     Q_INVOKABLE bool isGroupAnyEnabled(int groupInt) const;
     Q_INVOKABLE void setGroupActive(int groupInt, bool active);
     Q_INVOKABLE bool isGroupActive(int groupInt) const;
+    int currentRunningGroup() const { return m_resultsModel->currentRunningGroup(); }
 
     // QSettings persistence for language, active groups, and enabled diags
     Q_INVOKABLE void saveSettings();
@@ -269,6 +275,7 @@ signals:
     void purchaseFailed();
     void restoreCompleted(bool restoredAny, bool isError);
     void groupActiveChanged();
+    void currentRunningGroupChanged();
     void crashReportChanged();
 
 private slots:

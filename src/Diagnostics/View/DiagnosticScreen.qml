@@ -353,7 +353,11 @@ Item {
         MouseArea {
             anchors.fill: parent
             onClicked: {
-                appState.cellularWarnVisible = false; appState.cancel()
+                appState.cellularWarnVisible = false
+                // 5WHY (mobile): defer cancel() so it never runs synchronously
+                // inside a signal handler (object-destruction crash pattern).
+                if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
+                else appState.cancel()
             }
         }
         Rectangle {
@@ -412,7 +416,11 @@ Item {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                appState.cellularWarnVisible = false; appState.cancel()
+                                appState.cellularWarnVisible = false
+                                // 5WHY (mobile): defer cancel() so it never runs
+                                // synchronously inside a signal handler.
+                                if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
+                                else appState.cancel()
                             }
                         }
                     }

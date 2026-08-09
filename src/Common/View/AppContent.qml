@@ -47,7 +47,15 @@ Item {
         // paused at the G2->G3 boundary with no way to resume.  The dialog's
         // own Cancel button calls appState.cancel(); match that behaviour so
         // the run doesn't hang in Running state after navigation.
-        if (appState.cellularWarnVisible) { appState.cellularWarnVisible = false; appState.cancel() }
+        // 5WHY (mobile): match DiagnosticToolbar's convention — defer
+        // appState.cancel() with Qt.callLater so it never runs synchronously
+        // inside a signal handler / binding evaluation (object-destruction
+        // crash pattern on iOS static builds).
+        if (appState.cellularWarnVisible) {
+            appState.cellularWarnVisible = false
+            if (ThemeEngine.isMobile) Qt.callLater(function() { appState.cancel() })
+            else appState.cancel()
+        }
     }
 
     // ── Single source of truth for tab definitions ───────────────────
