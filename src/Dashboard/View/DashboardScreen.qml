@@ -78,7 +78,10 @@ Item {
         function onProgressChanged() {
             if (page.previewVisible && appState.runStatus !== 1) page.openPreview()
         }
-        function onSavePathPicked(format, path) { appState.exportPdf(path) }
+        // 5WHY: onSavePathPicked was removed — it ignored `format` and always
+        // exported PDF, and requestSavePath() has no QML caller since the
+        // ReportScreen page was retired (sharing goes through doShare() →
+        // appState.shareReport()). It could never fire.
         function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
         function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
         function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
