@@ -27,7 +27,9 @@ void ResultsModel::setTotalDiags(int total) {
 }
 
 void ResultsModel::setCurrentGroup(int groupIdx) {
+    if (m_currentRunningGroup == groupIdx) return;
     m_currentRunningGroup = groupIdx;
+    emit currentRunningGroupChanged();
 }
 
 void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
@@ -47,7 +49,10 @@ void ResultsModel::clear() {
     m_totalCompleted = 0;
     m_totalDiags = 0;
     m_resultsVersion = 0;
-    m_currentRunningGroup = -1;
+    if (m_currentRunningGroup != -1) {
+        m_currentRunningGroup = -1;
+        emit currentRunningGroupChanged();
+    }
     m_enabledDiags.clear();
     m_cachedStatsVersion = -1;
     m_cachedGroupStats.clear();
@@ -88,6 +93,10 @@ QVariantList ResultsModel::resultsForGroup(int groupInt) const {
     if (!DiagnosticConfig::isValidGroup(groupInt)) return list;
     auto g = static_cast<DiagGroup>(groupInt);
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
+        // 5WHY: keep the same hidden-test invariant everywhere — a stale
+        // result for a now platform/device-impossible test (e.g. hardware
+        // changed since the last run) must not resurface on the Dashboard.
+        if (!DeviceCapability::diagRunnable(id)) continue;
         const auto resultIt = m_results.constFind(id);
         if (resultIt == m_results.constEnd()) continue;
         const auto& result = resultIt.value();
@@ -133,6 +142,7 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
             m["isDone"] = false;
             m["isPending"] = true;
             m["isRunning"] = false;  // disabled — never shows spinner
+            m["isDisabled"] = true;  // for per-item spinner gating (reactive group flag)
             list.append(m);
         } else {
             QVariantMap m;
@@ -148,6 +158,7 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
             m["isPending"] = true;
             // isRunning: this enabled pending test's group matches the currently executing group
             m["isRunning"] = (static_cast<int>(g) == m_currentRunningGroup);
+            m["isDisabled"] = false;
             list.append(m);
         }
     }

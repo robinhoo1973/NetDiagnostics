@@ -26,6 +26,10 @@ class ResultsModel : public QObject {
     Q_PROPERTY(int totalDiags READ totalDiags NOTIFY progressChanged)
     Q_PROPERTY(QVariantList allGroupStats READ allGroupStats NOTIFY progressChanged)
     Q_PROPERTY(int resultsVersion READ resultsVersion NOTIFY progressChanged)
+    // DiagGroup enum value (0-4) of the currently executing group, or -1.
+    // 5WHY: spinner semantics need a REACTIVE "which group is running" — the
+    // old per-item JS snapshot couldn't be tracked by the QML binding engine.
+    Q_PROPERTY(int currentRunningGroup READ currentRunningGroup NOTIFY currentRunningGroupChanged)
 
 public:
     explicit ResultsModel(QObject* parent = nullptr);
@@ -44,6 +48,7 @@ public:
     int totalCompleted() const { return m_totalCompleted; }
     int totalDiags() const { return m_totalDiags; }
     int resultsVersion() const { return m_resultsVersion; }
+    int currentRunningGroup() const { return m_currentRunningGroup; }
 
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
@@ -71,6 +76,7 @@ public:
 
 signals:
     void progressChanged();
+    void currentRunningGroupChanged();
 
 private:
     static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties);

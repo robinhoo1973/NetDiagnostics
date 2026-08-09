@@ -29,7 +29,7 @@ Rectangle {
                  warn:s.warn||0, fail:s.fail||0, skip:s.skip||0, info:s.info||0 } }
     property int enabledCount: _gstat.total
     property int completedCount: _gstat.completed
-    property bool isRunning: appState.runStatus===1 && completedCount<enabledCount
+    property bool isRunning: appState.runStatus===1 && appState.currentRunningGroup===groupIndex
     property int groupPass: _gstat.pass
     property int groupWarn: _gstat.warn
     property int groupFail: _gstat.fail
@@ -166,7 +166,9 @@ Rectangle {
                         itemData: modelData
                         // Reactive running flag (bound to appState.runStatus)
                         // drives the per-row spinner — see DiagResultItem 5WHY.
-                        testRunning: root.isRunning
+                        // modelData.isDisabled gates DISABLED tests (they were
+                        // never scheduled, so their rows must not spin).
+                        testRunning: root.isRunning && !modelData.isDisabled
                         onDetailClicked: function(data) { root.detailClicked(data) }
                     }
                 }
