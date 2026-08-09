@@ -92,7 +92,16 @@ Rectangle {
                         // default focus→IME path is missed on Android, notably when
                         // the full-screen swipe DragHandler overlay competes for the
                         // touch.  Explicitly request the input method on focus.
-                        onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
+                        // 5WHY (Android IME round 2, 2026-08-09): show() called
+                        // synchronously inside onActiveFocusChanged can be dropped
+                        // while the platform IME connection is still settling.
+                        // Defer to the next event-loop turn with Qt.callLater and
+                        // force press-to-focus so a tap always lands focus first.
+                        activeFocusOnPress: true
+                        onActiveFocusChanged: {
+                            if (activeFocus)
+                                Qt.callLater(function() { Qt.inputMethod.show() })
+                        }
                         // 5WHY: Placeholder is translated — align to script start
                         // edge in RTL so Arabic placeholders render correctly.
                         horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
@@ -255,7 +264,13 @@ Rectangle {
                     text: appState.targetPort > 0 ? ""+appState.targetPort : ""
                     enabled: appState.runStatus !== 1; verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     // 5WHY (Android IME): same explicit IME request as hostField.
-                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
+                    // Round 2 (2026-08-09): defer show() so the platform IME
+                    // connection settles; force press-to-focus.
+                    activeFocusOnPress: true
+                    onActiveFocusChanged: {
+                        if (activeFocus)
+                            Qt.callLater(function() { Qt.inputMethod.show() })
+                    }
                     horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: { var v = parseInt(text); appState.targetPort = isNaN(v) ? -1 : v }
                 }
@@ -275,7 +290,13 @@ Rectangle {
                     text: appState.targetUsername; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     // 5WHY (Android IME): same explicit IME request as hostField.
-                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
+                    // Round 2 (2026-08-09): defer show() so the platform IME
+                    // connection settles; force press-to-focus.
+                    activeFocusOnPress: true
+                    onActiveFocusChanged: {
+                        if (activeFocus)
+                            Qt.callLater(function() { Qt.inputMethod.show() })
+                    }
                     horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: appState.targetUsername = text
                 }
@@ -295,7 +316,13 @@ Rectangle {
                     text: appState.targetPassword; echoMode: TextInput.Password; enabled: appState.runStatus !== 1
                     verticalAlignment: TextInput.AlignVCenter; background: Item {}
                     // 5WHY (Android IME): same explicit IME request as hostField.
-                    onActiveFocusChanged: { if (activeFocus) Qt.inputMethod.show() }
+                    // Round 2 (2026-08-09): defer show() so the platform IME
+                    // connection settles; force press-to-focus.
+                    activeFocusOnPress: true
+                    onActiveFocusChanged: {
+                        if (activeFocus)
+                            Qt.callLater(function() { Qt.inputMethod.show() })
+                    }
                     horizontalAlignment: T.isRtl ? TextInput.AlignRight : TextInput.AlignLeft
                     onTextChanged: appState.targetPassword = text
                 }
