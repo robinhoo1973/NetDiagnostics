@@ -24,6 +24,33 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+    <!-- 5WHY (diagnostics completeness): the following permissions unlock the
+         detailed Android diagnostics:
+         - ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION: WifiInfo.getSSID()/
+           getBSSID() return "<unknown ssid>/02:00:00:00:00:00" without a
+           location grant on Android 8.1+.  Requested at runtime by
+           NetDiagApplication.requestDiagnosticPermissions().
+         - READ_PHONE_STATE (API 26-30) / READ_BASIC_PHONE_STATE (API 31+,
+           normal permission, auto-granted): TelephonyManager
+           getNetworkOperatorName()/getNetworkOperator()/getDataNetworkType()
+           return empty/UNKNOWN without them on Android 10+.
+         - QUERY_ALL_PACKAGES: G3NetskopeStatus detects security-proxy agents
+           (Netskope/Zscaler) by installed-package name. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.READ_BASIC_PHONE_STATE"/>
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+
+    <!-- 5WHY (Android cleartext): targetSdk 28+ blocks plain http:// by
+         default ("CLEARTEXT communication not permitted").  G5 HTTP
+         diagnostics (G5CurlVerbose/HttpHeaders/HttpTiming/...) probe
+         http:// targets through HttpURLConnection, which honours the
+         cleartext policy — without this flag every plain-HTTP diagnostic
+         fails on Android 9+.  Raw-socket tests and Qt QNAM are unaffected,
+         but HttpURLConnection needs the explicit opt-in. -->
+
     <!-- 5WHY (Android 9/10 Download mirror): only the C++ raw-path fallback
          (AndroidDownloadLog.h) writes /sdcard/Download/ on API 26-28, and it
          needs this runtime grant.  maxSdkVersion=28: on API 29+ the
@@ -36,6 +63,7 @@
         android:name="com.netdiagnostic.app.NetDiagApplication"
         android:label="NetDiagnostics"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:icon="@drawable/ic_launcher">
         <activity
             android:name="@ND_QT_BINDINGS_PACKAGE@.QtActivity"

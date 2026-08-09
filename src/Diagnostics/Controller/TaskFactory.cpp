@@ -71,29 +71,11 @@ static QString platformSkipReason(DiagId id) {
             return QString();
     }
 #else // PLATFORM_ANDROID
+    // 5WHY: every G1-G3 test now has a real Android implementation
+    // (NetworkDiagnostics.cpp) — Android reports nothing as Skipped.
+    // Genuinely-impossible items (e.g. system DNS cache contents) are
+    // reported honestly with their best-available data instead.
     switch (id) {
-        case DiagId::G1NicAdvanced:
-            return QStringLiteral("NIC driver properties are read from /sys/class/net, which is not accessible on Android.");
-        case DiagId::G1WiredDiagnostics:
-            return QStringLiteral("Android devices have no wired Ethernet interface, and /sys/class/net is inaccessible.");
-        case DiagId::G1ActiveConnections:
-            return QStringLiteral("Reading open sockets requires /proc/net/tcp, which is restricted on Android 10+.");
-        case DiagId::G2TcpSettings:
-            return QStringLiteral("TCP kernel parameters live under /proc/sys/net, which is not readable on Android.");
-        case DiagId::G2RoutingTable:
-            return QStringLiteral("The routing table is read from /proc/net/route, which is restricted on Android.");
-        case DiagId::G2ArpTable:
-            return QStringLiteral("The ARP table is read from /proc/net/arp, which is restricted on Android.");
-        case DiagId::G2ProxySettings:
-            return QStringLiteral("Android uses a system-managed proxy; environment-variable proxies do not apply.");
-        case DiagId::G3NetskopeStatus:
-            return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which Android restricts.");
-        case DiagId::G3DnsServers:
-            return QStringLiteral("Android resolves DNS via ConnectivityManager; /etc/resolv.conf is not populated or readable by apps.");
-        case DiagId::G3DnsCache:
-            return QStringLiteral("Android does not expose the system DNS resolver cache to apps.");
-        case DiagId::G3DnsIntegrity:
-            return QStringLiteral("DNS integrity check requires reading system DNS resolver state, which is unavailable on Android.");
         default:
             return QString();
     }
@@ -186,42 +168,48 @@ static const TaskEntry kTaskTable[] = {
     // sysfs on Linux, IOKit on macOS) that respond within 2-3 s. The 15 s
     // cap catches hung enumeration without blocking the pipeline for the
     // full default 60 s — a stuck NIC shouldn't stall the entire diagnostic.
+#if defined(PLATFORM_ANDROID)
+    // Android: every G1 test has a real JNI implementation
+    // (Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.cpp).
+    { DiagId::G1NetworkAdapters,   makeT1(androidNetworkAdaptersDiag, 15000) },
+    { DiagId::G1NicAdvanced,       makeT1(androidNicAdvancedDiag) },
+    { DiagId::G1WifiDiagnostics,   makeT1(androidWifiDiag) },
+    { DiagId::G1WiredDiagnostics,  makeT1(androidWiredDiagnosticsDiag) },
+    { DiagId::G1DhcpStatus,        makeT1(androidDhcpDiag) },
+    { DiagId::G1IpConfiguration,   makeT1(androidIpConfigurationDiag) },
+    { DiagId::G1ActiveConnections, makeT1(androidActiveConnectionsDiag) },
+    { DiagId::G1CellularInfo,      makeT1(androidCellularDiag) },
+#else
     { DiagId::G1NetworkAdapters,  makeT1(SystemDiagnostics::networkAdapters, 15000) },
     { DiagId::G1NicAdvanced,      makeT1(SystemDiagnostics::nicAdvanced) },
-#if defined(PLATFORM_ANDROID)
-    { DiagId::G1WifiDiagnostics,  makeT1(androidWifiDiag) },
-#else
     { DiagId::G1WifiDiagnostics,  makeT1(SystemDiagnostics::wifiDiagnostics) },
-#endif
     { DiagId::G1WiredDiagnostics, makeT1(SystemDiagnostics::wiredDiagnostics) },
 #if defined(PLATFORM_IOS)
     { DiagId::G1DhcpStatus,       makeT1(iosDhcpDiag) },
 #else
-#if defined(PLATFORM_ANDROID)
-    { DiagId::G1DhcpStatus,       makeT1(androidDhcpDiag) },
-#else
     { DiagId::G1DhcpStatus,       makeT1(SystemDiagnostics::dhcpStatus) },
-#endif
 #endif
     { DiagId::G1IpConfiguration,   makeT1(SystemDiagnostics::ipConfiguration) },
     { DiagId::G1ActiveConnections, makeT1(SystemDiagnostics::activeConnections) },
-#if defined(PLATFORM_ANDROID)
-    { DiagId::G1CellularInfo,      makeT1(androidCellularDiag) },
-#else
     { DiagId::G1CellularInfo,      makeT1(SystemDiagnostics::cellularInfo) },
 #endif
 
     // ── G2: Connectivity & Security (6) ──────────────────────────────────
+#if defined(PLATFORM_ANDROID)
+    // Android: routing/proxy/ARP/TCP-state all have real implementations.
+    { DiagId::G2NetworkProfile,  makeT1(androidNetworkProfileDiag) },
+    { DiagId::G2TcpSettings,     makeT1(androidTcpSettingsDiag) },
+    { DiagId::G2DefaultGateway,  makeT1(androidGatewayDiag) },
+    { DiagId::G2RoutingTable,    makeT1(androidRoutingTableDiag) },
+    { DiagId::G2ArpTable,        makeT1(androidArpTableDiag) },
+    { DiagId::G2ProxySettings,   makeT1(androidProxyDiag) },
+#else
     { DiagId::G2NetworkProfile,  makeT1(SystemDiagnostics::networkProfile) },
     { DiagId::G2TcpSettings,     makeT1(SystemDiagnostics::tcpSettings) },
 #if defined(PLATFORM_IOS)
     { DiagId::G2DefaultGateway,  makeT1(iosDefaultGatewayDiag) },
 #else
-#if defined(PLATFORM_ANDROID)
-    { DiagId::G2DefaultGateway,  makeT1(androidGatewayDiag) },
-#else
     { DiagId::G2DefaultGateway,  makeT1(SystemDiagnostics::defaultGateway) },
-#endif
 #endif
 #if defined(PLATFORM_IOS)
     { DiagId::G2RoutingTable,    makeT1(iosRoutingTableDiag) },
@@ -230,8 +218,17 @@ static const TaskEntry kTaskTable[] = {
 #endif
     { DiagId::G2ArpTable,        makeT1(SystemDiagnostics::arpTable) },
     { DiagId::G2ProxySettings,   makeT1(SystemDiagnostics::proxySettings) },
+#endif
 
     // ── G3: Internet & DNS (6) ───────────────────────────────────────────
+#if defined(PLATFORM_ANDROID)
+    // Android: DNS servers (ConnectivityManager), cache (warm/cold probe),
+    // integrity (portable scoring engine) and netskope (PackageManager).
+    { DiagId::G3NetskopeStatus,        makeT1(androidNetskopeStatusDiag) },
+    { DiagId::G3DnsServers,            makeT1(androidDnsServersDiag) },
+    { DiagId::G3DnsCache,              makeT1(androidDnsCacheDiag) },
+    { DiagId::G3DnsIntegrity,          makeT1(SystemDiagnostics::dnsIntegrity) },
+#else
     { DiagId::G3NetskopeStatus,        makeT1(SystemDiagnostics::netskopeStatus) },
     // 5WHY: iOS G3DnsServers was routed to g3DnsServersFactory() → iosDnsResolve(),
     // which resolves a HOSTNAME.  G3 tests have no target (makeT1 pattern), so it
@@ -241,6 +238,7 @@ static const TaskEntry kTaskTable[] = {
     { DiagId::G3DnsServers,            makeT1(SystemDiagnostics::dnsServers) },
     { DiagId::G3DnsCache,              makeT1(SystemDiagnostics::dnsCache) },
     { DiagId::G3DnsIntegrity,          makeT1(SystemDiagnostics::dnsIntegrity) },
+#endif
     { DiagId::G3GeoIPLoc,              makeT1(SystemDiagnostics::geoIPLoc) },
     { DiagId::G3InternetConnectivity,  makeT1(SystemDiagnostics::internetConnectivity) },
 

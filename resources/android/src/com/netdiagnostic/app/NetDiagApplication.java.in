@@ -42,6 +42,18 @@ public class NetDiagApplication extends QtApplication {
     private static final int REQ_WRITE_STORAGE = 0x2B1;
     private boolean mStorageGrantRequested = false;
 
+    // 5WHY (diagnostics completeness): the C++ diagnostics need runtime
+    // permissions that are NOT auto-granted:
+    //   - ACCESS_FINE_LOCATION (dangerous, API 23+): WifiInfo SSID/BSSID are
+    //     masked without it on Android 8.1+.  Request once at first resume.
+    //   - READ_PHONE_STATE (dangerous, API 23+): carrier/MCC/MNC/dataNetwork
+    //     on Android 10+.  Only requested on API 26-30 — on API 31+ the
+    //     equivalent READ_BASIC_PHONE_STATE is a normal permission that the
+    //     system grants automatically, so requesting READ_PHONE_STATE there
+    //     would be unnecessary (and Play-policy sensitive).
+    private static final int REQ_DIAG_PERMISSIONS = 0x2B2;
+    private boolean mDiagPermRequested = false;
+
     @Override
     public void onCreate() {
         // MUST log BEFORE super.onCreate(): super loads the Qt native
@@ -60,6 +72,7 @@ public class NetDiagApplication extends QtApplication {
         }
         EarlyLog.write(this, "Java Application.onCreate — Qt native libs loaded OK");
         requestStorageForDownloadMirror();
+        requestDiagnosticPermissions();
     }
 
     private void requestStorageForDownloadMirror() {
@@ -76,6 +89,37 @@ public class NetDiagApplication extends QtApplication {
                     activity.requestPermissions(
                             new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
                             REQ_WRITE_STORAGE);
+                }
+            }
+            @Override public void onActivityCreated(Activity a, android.os.Bundle b) {}
+            @Override public void onActivityStarted(Activity a) {}
+            @Override public void onActivityPaused(Activity a) {}
+            @Override public void onActivityStopped(Activity a) {}
+            @Override public void onActivitySaveInstanceState(Activity a, android.os.Bundle b) {}
+            @Override public void onActivityDestroyed(Activity a) {}
+        });
+    }
+
+    private void requestDiagnosticPermissions() {
+        if (mDiagPermRequested)
+            return;
+        mDiagPermRequested = true;
+        registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
+            @Override
+            public void onActivityResumed(Activity activity) {
+                java.util.ArrayList<String> needed = new java.util.ArrayList<>();
+                if (activity.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED)
+                    needed.add(Manifest.permission.ACCESS_FINE_LOCATION);
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S
+                        && activity.checkSelfPermission(Manifest.permission.READ_PHONE_STATE)
+                           != PackageManager.PERMISSION_GRANTED)
+                    needed.add(Manifest.permission.READ_PHONE_STATE);
+                if (!needed.isEmpty()) {
+                    // Non-blocking: a denial only degrades the WiFi/cellular
+                    // detail fields — the rest of the diagnostics still work.
+                    activity.requestPermissions(
+                            needed.toArray(new String[0]), REQ_DIAG_PERMISSIONS);
                 }
             }
             @Override public void onActivityCreated(Activity a, android.os.Bundle b) {}
