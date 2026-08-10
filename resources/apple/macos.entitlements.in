@@ -5,19 +5,21 @@
 	<!--
 	  macOS App Store entitlements.
 
-	  IMPORTANT: com.apple.application-identifier and
-	  com.apple.developer.team-identifier are DERIVED entitlements
-	  auto-injected by codesign from the signing certificate and
-	  provisioning profile.  DO NOT explicitly set them — doing so
-	  causes ITMS-90288 ("key value not allowed") because the
-	  explicit value may conflict with the provisioning profile.
+	  IMPORTANT — macOS vs iOS difference:
+	  - iOS: com.apple.application-identifier is auto-derived by
+	    codesign from the provisioning profile at signing time.
+	  - macOS: codesign does NOT auto-derive it when --entitlements
+	    is used; it MUST be explicitly present in this file with the
+	    value <TeamID>.<BundleID> or App Store Connect emits warning
+	    90886 ("signature missing application identifier").
 
-	  codesign derives these at signing time by reading the
-	  provisioning profile from ~/Library/MobileDevice/Provisioning
-	  Profiles/<UUID>.provisionprofile.  The CI action MUST install
-	  the profile to that system location before signing, otherwise
-	  codesign cannot derive the application identifier and App Store
-	  Connect will emit warning 90886.
+	  The CI action (upload-testflight-macos) extracts the Team ID
+	  from the provisioning profile and injects:
+	    com.apple.application-identifier = <TeamID>.com.netdiagnostic.app
+	  into the generated entitlements before codesign runs.
+
+	  Do NOT hardcode a Team ID here — it varies per Apple Developer
+	  account and is extracted at signing time from the profile.
 	-->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>

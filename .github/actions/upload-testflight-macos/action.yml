@@ -180,11 +180,30 @@ runs:
     - name: Generate entitlements
       if: steps.check.outputs.ok == 'true' && steps.last-sha.outputs.last != github.sha
       shell: bash
+      env:
+        MAC_PROFILE_B64: ${{ env.MACOS_PROVISIONING_PROFILE_BASE64 }}
       run: |
-        # 5WHY: com.apple.application-identifier and com.apple.developer.team-identifier
-        # are DERIVED entitlements auto-injected by codesign from the signing certificate
-        # and provisioning profile.  The template intentionally omits them.
         cp resources/apple/macos.entitlements.in macos.entitlements
+        # 5WHY: On iOS codesign auto-derives com.apple.application-identifier
+        # from the provisioning profile even when --entitlements is used.
+        # On macOS codesign does NOT — the entitlement must be explicitly
+        # present in the entitlements file with the value <TeamID>.<BundleID>.
+        # Extract the Team ID from the provisioning profile and inject it.
+        # Without this, App Store Connect emits warning 90886 ("missing an
+        # application identifier but has one in the provisioning profile").
+        if [ -n "$MAC_PROFILE_B64" ]; then
+          echo -n "$MAC_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/mac-profile.plist"
+          TEAM_ID=$(/usr/libexec/PlistBuddy -c "Print TeamIdentifier:0" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/mac-profile.plist")" 2>/dev/null || echo "")
+          if [ -n "$TEAM_ID" ]; then
+            /usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string ${TEAM_ID}.com.netdiagnostic.app" macos.entitlements
+            echo "[OK] application-identifier injected (Team: ${TEAM_ID})"
+          else
+            echo "[WARN] Could not extract Team ID from provisioning profile"
+          fi
+          rm -f "$RUNNER_TEMP/mac-profile.plist"
+        else
+          echo "[WARN] MACOS_PROVISIONING_PROFILE_BASE64 not set — application-identifier not injected"
+        fi
         echo "[OK] macos.entitlements generated"
 
     - name: Sign .app and package as .pkg
