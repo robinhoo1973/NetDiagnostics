@@ -52,50 +52,38 @@ Item {
         return val + (km.unitKey ? " " + T.tr(km.unitKey) : "") + km.trailing
     }
 
-    // ── Elapsed-time coin indicator (top-left, Running + grace period) ──
-    // Denominations: 50 / 20 / 10 / 5 / 1 — coin-change to minimize dots.
-    // Each dot is a colored circle with the value printed inside.
-    // Shows after elapsed >= 2s.  Persists for 2s grace period after test
-    // completes so the user can read the final elapsed time.
+    // ── Elapsed-time indicator — top-left: color-coded dot + seconds text ──
+    // 5WHY: coin-change (multiple denomination dots) was visually noisy on a
+    // 108×108 tile.  Replaced with a single dot colored by elapsed time plus
+    // the actual seconds — industry standard for running-time indicators.
+    // Dot persists after completion so the user can always read the elapsed time.
     property int _elapsed: 0
-    property bool _showCoins: false
+    property bool _showTimer: false
     Timer {
         id: elapsedTimer
         interval: 1000; repeat: true
         running: _isRunning
         onTriggered: {
             root._elapsed++
-            if (root._elapsed >= 2 && !root._showCoins)
-                root._showCoins = true
+            if (!root._showTimer) root._showTimer = true
         }
         onRunningChanged: {
-            if (!running && root._elapsed >= 2) {
-                // Keep coins visible for 2s grace period after completion
-                graceTimer.start()
-            } else if (!running && root._elapsed < 2) {
+            if (running) {
+                // Test (re)started — reset
                 root._elapsed = 0
-                root._showCoins = false
+                root._showTimer = false
+            } else if (root._elapsed > 0) {
+                // Test completed — keep indicator visible
+                root._showTimer = true
             }
         }
     }
-    Timer {
-        id: graceTimer
-        interval: 2000; repeat: false
-        onTriggered: {
-            root._elapsed = 0
-            root._showCoins = false
-        }
-    }
-    // Coin-change: greedy on [50,20,10,5,1] — always optimal for canonical coin systems
-    readonly property var _coins: {
-        var secs = Math.max(1, _elapsed)  // <1s → 1s
-        var result = []
-        var denoms = [50, 20, 10, 5, 1]
-        for (var i = 0; i < denoms.length; i++) {
-            var d = denoms[i]
-            while (secs >= d) { result.push(d); secs -= d }
-        }
-        return result
+    // Color thresholds: <5s green → 5-9s yellow → 10-20s orange → >20s red
+    readonly property string _timerColor: {
+        if (_elapsed > 20) return "#DC2626"       // red
+        if (_elapsed >= 10) return "#EA580C"      // orange
+        if (_elapsed >= 5)  return "#F59E0B"      // yellow
+        return "#10B981"                           // green
     }
 
     // ── Premium card ─────────────────────────────────────────────────────
@@ -157,40 +145,24 @@ Item {
             Behavior on border.color { ColorAnimation { duration: 150 } }
         }
 
-        // ── Elapsed-time coin dots — top-left corner ────────────────────
-        // Coin-change display: fewest dots, value printed inside each.
-        // Denominations: 50(rose) 20(amber) 10(purple) 5(cyan) 1(slate)
+        // ── Elapsed-time indicator — top-left corner ────────────────────
+        // Color-coded dot (thresholds see _timerColor above) + seconds label.
         Row {
             z: 5
             anchors { top: parent.top; left: parent.left; topMargin: 4; leftMargin: 4 }
-            spacing: 2
-            visible: _showCoins
-            Repeater {
-                model: _coins
-                Rectangle {
-                    required property int modelData
-                    readonly property int _denom: modelData
-                    readonly property color _dotColor: {
-                        switch (_denom) {
-                            case 50: return "#FB7185"  // rose
-                            case 20: return "#F59E0B"  // amber
-                            case 10: return "#818CF8"  // purple
-                            case 5:  return "#60C8F8"  // cyan
-                            default: return "#64748B"  // slate
-                        }
-                    }
-                    readonly property int _dotSize: _denom >= 10 ? 16 : 14
-                    width: _dotSize; height: _dotSize; radius: _dotSize / 2
-                    color: _dotColor
-                    Label {
-                        anchors.centerIn: parent
-                        text: String(_denom)
-                        font.family: ThemeEngine.monoFont
-                        font.pixelSize: _denom >= 10 ? 8 : 9
-                        font.weight: Font.Bold
-                        color: "#FFFFFF"
-                    }
-                }
+            spacing: 4
+            visible: _showTimer
+            Rectangle {
+                width: 8; height: 8; radius: 4
+                anchors.verticalCenter: parent.verticalCenter
+                color: _timerColor
+            }
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                text: String(_elapsed) + "s"
+                font.family: ThemeEngine.monoFont
+                font.pixelSize: 10; font.weight: Font.DemiBold
+                color: _timerColor
             }
         }
 
@@ -247,24 +219,29 @@ Item {
                 anchors.centerIn: parent
                 name: appState.diagIconName(itemData.diagId) || "circle"
                 size: Math.max(22, Math.round(parent.width * 0.75))
+                // 5WHY: textMuted(#64748B) @ 0.55 on dark card → nearly invisible.
+                // textSecondary(#94A3B8) @ 0.80 matches group-header icon contrast
+                // while preserving pending-state visual hierarchy.
                 color: _isRunning ? ThemeEngine.colors.primary
                        : _isDone  ? _statusColor
-                       : ThemeEngine.colors.textMuted
-                opacity: _isDisabled ? 0.3 : _isPending ? 0.55 : 1.0
+                       : ThemeEngine.colors.textSecondary
+                opacity: _isDisabled ? 0.3 : _isPending ? 0.80 : 1.0
                 Behavior on color { ColorAnimation { duration: 200 } }
                 Behavior on opacity { NumberAnimation { duration: 200 } }
             }
         }
 
         // ── Test name — bottom edge ───────────────────────────────────────
+        // 5WHY: metricLine removed — tiles are icon+name-only per L3 design
+        // spec.  The top-left elapsed indicator already carries the timing
+        // information, so the bottom metric text was redundant.
         AppLabel {
             id: nameLabel
             z: 3
             anchors {
                 left: parent.left; right: parent.right
                 leftMargin: 4; rightMargin: 4
-                bottom: metricLine.visible ? metricLine.top : parent.bottom
-                bottomMargin: metricLine.visible ? 0 : 6
+                bottom: parent.bottom; bottomMargin: 6
             }
             horizontalAlignment: Text.AlignHCenter
             text: T.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
@@ -273,22 +250,6 @@ Item {
                    : _status === 2 ? ThemeEngine.colors.failRed
                    : ThemeEngine.colors.textSecondary
             elide: Text.ElideRight; maximumLineCount: 1
-        }
-
-        // ── Metric line — bottom ──────────────────────────────────────────
-        Label {
-            id: metricLine
-            z: 4
-            anchors {
-                left: parent.left; right: parent.right
-                bottom: parent.bottom; bottomMargin: 5
-            }
-            horizontalAlignment: Text.AlignHCenter
-            text: _isRunning ? "" : _isPending ? "" : _keyMetric
-            font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Medium
-            color: _statusColor
-            elide: Text.ElideRight
-            visible: text !== "" && !root.compact
         }
 
         // ── Done settle animation ─────────────────────────────────────────
