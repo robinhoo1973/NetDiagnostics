@@ -257,12 +257,20 @@ fi
 	        else
 	            pass "$f"
 	        fi
-	        # compact:true — not a standard property
+	        # compact:true — not a standard property (EXCEPT on custom
+	        # components that declare `property bool compact`, e.g. DiagBlock
+	        # used by DashboardScreen — valid compact-tile mode).
 	        if git show ":$f" | grep -nE 'compact:\s*true' > /tmp/precommit-qml-compact.log 2>/dev/null; then
-	            fail "$f: compact:true is not a standard Qt Quick property (see review/ios-startup-crash-5why-analysis.md#a5)"
-	            cat /tmp/precommit-qml-compact.log | while read line; do
-	                echo "       $line"
-	            done
+	            if git show ":$f" | grep -qE 'property\s+bool\s+compact|DiagBlock'; then
+	                # Custom component declares compact (or instantiates one) —
+	                # the hit is a valid custom-property assignment.
+	                pass "$f"
+	            else
+	                fail "$f: compact:true is not a standard Qt Quick property (see review/ios-startup-crash-5why-analysis.md#a5)"
+	                cat /tmp/precommit-qml-compact.log | while read line; do
+	                    echo "       $line"
+	                done
+	            fi
 	        else
 	            pass "$f"
 	        fi

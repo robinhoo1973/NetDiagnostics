@@ -11,6 +11,10 @@ Item {
     id: root
     property int diagId: -1
     property bool running: false
+    // 5WHY (review B5): lets JiggleAnimation rotate/scale the icon WELL
+    // itself (real iOS-style icon jiggle) instead of a detached faint ring.
+    // DiagBlock passes its icon-well Item; other animations ignore it.
+    property var targetItem: null
 
     Loader {
         anchors.fill: parent
@@ -20,8 +24,10 @@ Item {
                 ? appState.diagAnimationUrl(root.diagId)
                 : ""
         onLoaded: {
-            if (item)
+            if (item) {
                 item.running = Qt.binding(function() { return root.running })
+                item.targetItem = Qt.binding(function() { return root.targetItem })
+            }
         }
         // 5WHY: onLoaded one-frame race — item.running is set AFTER
         // Component.onCompleted of the animation fires. If the animation

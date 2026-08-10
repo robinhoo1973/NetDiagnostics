@@ -11,6 +11,9 @@ import "../../theme/AnimationTokens.js" as Tokens
 Item {
     id: root
     property bool running: false
+    // Unused by Bounce (draws own content) — declared so DiagAnimator's
+    // targetItem binding applies uniformly to every animation type.
+    property var targetItem: null
     property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
 
     // ── Left endpoint ────────────────────────────────────────────────────

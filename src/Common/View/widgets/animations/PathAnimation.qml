@@ -11,6 +11,8 @@ import "../../theme/AnimationTokens.js" as Tokens
 Item {
     id: root
     property bool running: false
+    // Unused by Path (draws own content) — see BounceAnimation 5WHY.
+    property var targetItem: null
     property int nodes: 5  // number of hop nodes to animate
     property color accentColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
     property int nodeDelay: Tokens.tokens.pathNodeDelay

@@ -11,6 +11,8 @@ import "../../theme/AnimationTokens.js" as Tokens
 Item {
     id: root
     property bool running: false
+    // Unused by Pulse (draws own glow) — see BounceAnimation 5WHY.
+    property var targetItem: null
     property color glowColor: T.ThemeEngine ? T.ThemeEngine.colors.primary : "#60C8F8"
     property int pulsePeriod: Tokens.tokens.pulsePeriod
 

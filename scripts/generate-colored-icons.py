@@ -62,8 +62,8 @@ SEMANTIC_ACCENT: dict[str, str] = {
     "security-headers":      "#10B981",
     "http-headers":          "#0EA5E9",
     "http-timing":           "#F59E0B",  # amber-500 (timing/performance)
-    "http-redirect":         "#0EA5E9",
-    "http-compression":      "#6366F1",
+    "redirect":              "#0EA5E9",
+    "compression":           "#6366F1",
     "curl-verbose":          "#0EA5E9",
     "url-parse":             "#0EA5E9",
     "banner":                "#6366F1",
@@ -195,14 +195,12 @@ def main() -> None:
                 colored = body.replace("#FFFFFF", hx).replace("#ffffff", hx)
                 # #AAAAAA → darken(primary, 30%) (gradient dark-end)
                 colored = colored.replace("#AAAAAA", dark).replace("#aaaaaa", dark)
-                # #000000 → semantic accent (fixed per icon); lowercase too
+                # #000000 → semantic accent (fixed per icon)
                 accent = SEMANTIC_ACCENT.get(svg.stem, "")
                 if accent:
                     colored = colored.replace("#000000", accent)
-                    colored = colored.replace("#000000", accent)  # lowercase hex variant
                 # #777777 → soft fill (fixed, theme-independent)
                 colored = colored.replace("#777777", "#64748B")
-                colored = colored.replace("#777777", "#64748B")  # lowercase hex variant
                 out_file = sub / svg.name
                 out_file.write_text(colored, encoding="utf-8", newline="\n")
         for svg in icons:

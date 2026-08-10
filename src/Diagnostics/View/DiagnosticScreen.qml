@@ -81,23 +81,32 @@ Item {
     // Keep detail-overlay population behind one function so every caller
     // updates the title, status, summary, and detail text consistently.
     // L5 Living Diagnostics: push full-screen DetailPage instead of overlay.
+    // 5WHY (review B9): Qt.createComponent on EVERY tap re-compiles the page
+    // and races on rapid taps — multiple pending statusChanged callbacks can
+    // each createObject+push an overlapping page.  Cache the Component after
+    // first load; subsequent opens create objects synchronously.
+    property var _detailComp: null
     function showDetailOverlay(detail) {
         if (!detail || detail.diagId === undefined) return
         var d = appState.getDetailResult(detail.diagId)
         if (!d || Object.keys(d).length === 0) return
-        // Push DetailPage onto the StackView (replaces old overlay-based detail)
+        // Cached component — reuse without recompiling.
+        if (page._detailComp !== null) {
+            pushDetailPage(page._detailComp, d)
+            return
+        }
         // Component.Asynchronous avoids UI-thread blocking on first compilation
         // (5WHY: synchronous Qt.createComponent freezes UI for 50-200ms on embedded HW).
         var comp = Qt.createComponent("qrc:/qml/screens/DetailPage.qml",
                                        Component.Asynchronous)
         if (comp.status === Component.Ready) {
-            var p = comp.createObject(page, { detail: d })
-            page.StackView.view.push(p)
+            page._detailComp = comp
+            pushDetailPage(comp, d)
         } else if (comp.status === Component.Loading) {
             comp.statusChanged.connect(function pushWhenReady() {
                 if (comp.status === Component.Ready) {
-                    var p2 = comp.createObject(page, { detail: d })
-                    page.StackView.view.push(p2)
+                    page._detailComp = comp
+                    pushDetailPage(comp, d)
                 } else if (comp.status === Component.Error) {
                     console.warn("DetailPage.qml async load failed:", comp.errorString())
                     _showDetailOverlayLegacy(d)
@@ -108,6 +117,14 @@ Item {
             // Fall back to old overlay
             _showDetailOverlayLegacy(d)
         }
+    }
+
+    // Shared push helper — createObject from a (possibly cached) component
+    // and slide it onto the StackView.
+    function pushDetailPage(comp, d) {
+        if (!comp || !d) return
+        var p = comp.createObject(page, { detail: d })
+        page.StackView.view.push(p)
     }
 
     // Legacy overlay — kept for fallback and backward compat

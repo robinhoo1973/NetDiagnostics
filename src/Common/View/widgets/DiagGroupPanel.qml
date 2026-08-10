@@ -147,35 +147,33 @@ Rectangle {
             }
         }
 
-        // ── Expanded body — Living Diagnostics L3: Flow grid ──────────
-        // Replaces the old 32px-list-row layout with responsive square blocks.
-        // Columns: phone 1 / tablet 2 / desktop 3 (D6).
+        // ── Expanded body — Living Diagnostics L3: tile wall ────────────
+        // Replaces the 32px-list-row layout with a responsive grid of square
+        // tiles.  Best practice (iOS home screen / App Store grids): FIXED
+        // compact tile size with auto-fit column count — NOT columns-first
+        // (which stretched tiles to ~620px on wide desktops).
         ColumnLayout {
             Layout.fillWidth: true; Layout.topMargin: 6
             visible: expanded
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:ThemeEngine.colors.borderCard }
 
-            // ── Responsive block sizing ──────────────────────────────────
+            // ── Fixed-size tile wall ──────────────────────────────────────
             Flow {
                 id: blockFlow
                 Layout.fillWidth: true
                 Layout.topMargin: 8
-                spacing: 8
+                spacing: 10
 
-                // 5WHY: blockSize referenced columns as a dependency, causing
-                // double re-evaluation per width change (once for direct width
-                // dependency, once via columns).  Inline the column logic so
-                // blockSize only depends on width directly.
-                property real blockSize: {
-                    var w = blockFlow.width
-                    if (w <= 0) return 130
-                    var cols = w < 300 ? 1 : w < 500 ? 2 : 3
-                    var gap = spacing * (cols - 1)
-                    return Math.floor((w - gap) / cols)
-                }
-                property int columns: blockSize > 0
-                    ? (blockFlow.width < 300 ? 1 : blockFlow.width < 500 ? 2 : 3)
+                // 5WHY (UI redesign 2026-08-10): blockSize was derived
+                // BACKWARD from a fixed 1/2/3 column count — a 1920px content
+                // area became 3 columns of ~620px tiles (way too large).
+                // Fixed tile + auto-fit columns keeps tiles small and the
+                // wall dense on every screen (phone 3, tablet 5-6, desktop
+                // 12-15 columns).
+                property real blockSize: 108
+                property int columns: blockFlow.width > 0
+                    ? Math.max(1, Math.floor((blockFlow.width + spacing) / (blockSize + spacing)))
                     : 1
 
                 Repeater {

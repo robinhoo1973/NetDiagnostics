@@ -20,7 +20,14 @@ Item {
     // ── Public API ───────────────────────────────────────────────────────
     property var itemData: ({})
     property bool testRunning: false
-    property real blockSize: 130  // set by parent grid
+    // 5WHY (UI redesign 2026-08-10): fixed compact tile (was derived
+    // backwards from column count → 620px on wide desktops).  108px keeps a
+    // dense tile wall; icon scales with the tile (44%).
+    property real blockSize: 108
+    // 5WHY (review B7 / doc D11): compact mode for summary views (Dashboard)
+    // — smaller icon well, tighter margins, metric label hidden.  The full
+    // size stays on the Diagnostic screen; Dashboard reuses the same block.
+    property bool compact: false
 
     signal clicked(var data)
 
@@ -42,6 +49,9 @@ Item {
     // properties (_isPending, _isDisabled, _isDone) are at root level.
     // Move here for consistency and to reduce scope-chain fragility.
     readonly property bool _isRunning: root.testRunning && !root._isDisabled
+    // 5WHY (review B2): Done-settle pop state.  Lives at root so the card
+    // scale binding AND the in-card settle timers share one source.
+    property bool _settle: false
     // ── Key metric extraction ────────────────────────────────────────────
     // Each diagnostic provides a different "headline" number from r.data.
     // Fallback: durationMs.
@@ -83,7 +93,13 @@ Item {
         }
 
         // ── Scale behavior: settle pop on Done + hover lift ──────────────
-        scale: mouseArea.containsMouse && !_isPending && !_isDisabled ? 1.03 : 1.0
+        // 5WHY (review B2, 2026-08-10): the settleTimer previously assigned
+        // card.scale = 0.9 directly — a JS assignment REMOVES the QML
+        // binding on card.scale, permanently killing the hover-lift
+        // expression.  Drive the pop through a _settle flag that participates
+        // IN the binding instead; Behavior animates the 0.9→1.0 return.
+        scale: root._settle ? 0.9
+               : (mouseArea.containsMouse && !_isPending && !_isDisabled ? 1.03 : 1.0)
         Behavior on scale {
             NumberAnimation {
                 duration: _isDone && card.scale === 1.0 ? 300 : 150
@@ -105,92 +121,111 @@ Item {
             Behavior on border.color { ColorAnimation { duration: 150 } }
         }
 
-        // ── Content ──────────────────────────────────────────────────────
-        ColumnLayout {
+        // ── Content — icon-centered tile (UI redesign 2026-08-10) ────────
+        // Best practice (iOS home-screen tiles): the semantic icon sits at
+        // the EXACT geometric center of the tile; the status badge floats at
+        // the tile's top-RIGHT corner; name + metric pin to the bottom edge.
+        // This keeps the icon the unambiguous hero of each tile.
+
+        // ── Status badge — top-right corner of the TILE (not the icon) ───
+        AppIcon {
+            anchors { top: parent.top; right: parent.right; topMargin: 5; rightMargin: 5 }
+            name: _statusIcon
+            size: 14
+            color: _statusColor
+            visible: _isDone
+        }
+
+        // ── Semantic icon — dead-center of the tile ──────────────────────
+        AppIcon {
+            id: blockIcon
+            anchors.centerIn: parent
+            name: appState.diagIconName(itemData.diagId) || "circle"
+            // 42% of tile ≈ 45px on a 108px tile — centered hero
+            size: Math.max(24, Math.round(root.blockSize * 0.42))
+            color: _isRunning ? ThemeEngine.colors.primary
+                   : _isDone  ? _statusColor
+                   : ThemeEngine.colors.textMuted
+            opacity: _isDisabled ? 0.3 : _isPending ? 0.4 : 1.0
+        }
+
+        // ── L4 Animation engine — centered on the icon ───────────────────
+        // 5WHY (review B3, 2026-08-10): `itemData.diagId || -1` coerced
+        // diagId=0 (G1NetworkAdapters, first enum value) to -1, so the app's
+        // first test got the default Jiggle instead of its Pulse animation.
+        // Strict undefined check (same fix as DetailPage).
+        DiagAnimator {
+            id: blockAnim
+            anchors.centerIn: parent
+            // Animations draw their own glyphs (bounce dot, hop nodes, …)
+            // in a square slightly larger than the icon.
+            width: Math.max(30, Math.round(root.blockSize * 0.56))
+            height: width
+            diagId: itemData.diagId !== undefined ? itemData.diagId : -1
+            running: _isRunning
+            // 5WHY (review B5): rotate the ICON itself for the iOS-style
+            // busy state (JiggleAnimation) — not a separate ring.
+            targetItem: blockIcon
+        }
+
+        // ── Test name — pinned to bottom, quiet single line ─────────────
+        AppLabel {
+            id: nameLabel
             anchors {
-                fill: parent
-                margins: 10
+                left: parent.left; right: parent.right
+                bottom: metricLine.visible ? metricLine.top : parent.bottom
+                bottomMargin: metricLine.visible ? 0 : 4
             }
-            spacing: 6
+            horizontalAlignment: Text.AlignHCenter
+            text: T.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
+            font.family: ThemeEngine.monoFont
+            font.pixelSize: 10
+            font.weight: Font.Normal
+            // Muted footer: name never competes with the centered icon
+            color: _isDisabled || _isPending ? ThemeEngine.colors.textMuted
+                   : _status === 2 ? ThemeEngine.colors.failRed
+                   : ThemeEngine.colors.textSecondary
+            elide: Text.ElideRight
+            maximumLineCount: 1
+        }
 
-            // ── Icon well ────────────────────────────────────────────────
-            Item {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 56
-                Layout.preferredHeight: 56
-                Layout.topMargin: 4
-
-                // Semantic icon (large, colored)
-                AppIcon {
-                    id: blockIcon
-                    anchors.centerIn: parent
-                    name: appState.diagIconName(itemData.diagId) || "circle"
-                    size: 48
-                    color: _isRunning ? ThemeEngine.colors.primary
-                           : _isDone  ? _statusColor
-                           : ThemeEngine.colors.textMuted
-                    opacity: _isDisabled ? 0.3 : _isPending ? 0.4 : 1.0
-                }
-
-                // ── Status badge overlay (bottom-right of icon) ──────────
-                AppIcon {
-                    anchors { right: parent.right; bottom: parent.bottom; rightMargin: -2; bottomMargin: -2 }
-                    name: _statusIcon
-                    size: 18
-                    color: _statusColor
-                    visible: _isDone
-                }
-
-                // ── L4 Animation engine (replaces old spinner) ──────────
-                DiagAnimator {
-                    anchors.fill: parent
-                    diagId: itemData.diagId || -1
-                    running: _isRunning
-                }
+        // ── Metric sub-line — bottom edge, thin (running = "···") ───────
+        Label {
+            id: metricLine
+            anchors {
+                left: parent.left; right: parent.right
+                bottom: parent.bottom; bottomMargin: 4
             }
-
-            // ── Test name ─────────────────────────────────────────────────
-            AppLabel {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.fillWidth: true
-                text: T.diagName(itemData.diagId) || itemData.displayName || ("#" + itemData.diagId)
-                font.family: ThemeEngine.monoFont
-                font.pixelSize: 11
-                font.weight: Font.Medium
-                color: _isDisabled ? ThemeEngine.colors.textMuted
-                       : _isPending  ? ThemeEngine.colors.textMuted
-                       : _status === 2 ? ThemeEngine.colors.failRed
-                       : ThemeEngine.colors.textPrimary
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                maximumLineCount: 1
-            }
-
-            // ── Key metric ────────────────────────────────────────────────
-            Label {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.fillWidth: true
-                text: _isRunning ? "..." : _isPending ? "" : _keyMetric
-                font.family: ThemeEngine.monoFont
-                font.pixelSize: 14
-                font.weight: Font.Bold
-                color: _isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.textPrimary
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-                visible: text !== ""
-            }
+            horizontalAlignment: Text.AlignHCenter
+            text: _isRunning ? "···" : _isPending ? "" : _keyMetric
+            font.family: ThemeEngine.monoFont
+            font.pixelSize: 11
+            font.weight: Font.Medium
+            color: _isRunning ? ThemeEngine.colors.primary : ThemeEngine.colors.textMuted
+            elide: Text.ElideRight
+            visible: text !== "" && !root.compact
         }
 
         // ── Done settle animation trigger ─────────────────────────────────
-        // When _isDone transitions to true, briefly set scale to 0.9 so
-        // the Behavior on scale animates it back to 1.0 with OutBack pop.
+        // When _isDone transitions to true, briefly raise root._settle so the
+        // scale binding dips to 0.9; the Behavior animates back to the
+        // hover/normal scale with OutBack pop (binding stays intact).
         property bool _settlePlayed: false
 
         Timer {
             id: settleTimer
             interval: 16  // next frame — let the layout render first
             repeat: false
-            onTriggered: { card.scale = 0.9 }
+            onTriggered: {
+                root._settle = true
+                releaseTimer.start()
+            }
+        }
+        Timer {
+            id: releaseTimer
+            interval: 300  // match the OutBack settle duration
+            repeat: false
+            onTriggered: root._settle = false
         }
     }
 

@@ -30,6 +30,36 @@ Item {
     // Share flow
     property string pendingShareFormat: ""
 
+    // 5WHY (review B7): Dashboard blocks open the same L5 DetailPage as the
+    // Diagnostic screen.  Component cached after first load (mirrors the B9
+    // fix in DiagnosticScreen) so repeated taps never recompile the page.
+    property var _dashDetailComp: null
+    function dashboardOpenDetail(diagId) {
+        if (diagId === undefined) return
+        var d = appState.getDetailResult(diagId)
+        if (!d || Object.keys(d).length === 0) return
+        var pushPage = function(comp) {
+            var p = comp.createObject(page, { detail: d })
+            page.StackView.view.push(p)
+        }
+        if (page._dashDetailComp !== null) { pushPage(page._dashDetailComp); return }
+        var comp = Qt.createComponent("qrc:/qml/screens/DetailPage.qml",
+                                       Component.Asynchronous)
+        if (comp.status === Component.Ready) {
+            page._dashDetailComp = comp
+            pushPage(comp)
+        } else if (comp.status === Component.Loading) {
+            comp.statusChanged.connect(function pushWhenReady() {
+                if (comp.status === Component.Ready) {
+                    page._dashDetailComp = comp
+                    pushPage(comp)
+                }
+            })
+        } else if (comp.status === Component.Error) {
+            console.warn("DetailPage.qml (Dashboard) failed to load:", comp.errorString())
+        }
+    }
+
     function openPreview() {
         if (!canReport) return
         // 5WHY: buildReportHtml() + renderPreviewImage() are synchronous
@@ -473,17 +503,26 @@ Item {
                 }
             }
             Item { Layout.preferredHeight: 10 }
-            Repeater {
-                model: appState.resultsForGroup(groupIndex)
-                delegate: RowLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 28
-                    spacing: 8
-                    AppIcon { name: ThemeEngine.statusIconNames[modelData.status] || "badge-skip"; size: 14; color: ThemeEngine.statusColors[modelData.status] || ThemeEngine.colors.skipGray }
-                    // 5WHY: modelData.displayName is always English (C++).
-                    // Route through T.diagName() for i18n.
-                    AppLabel { Layout.fillWidth: true; text: T.diagName(modelData.diagId) || modelData.displayName||""; font.family:ThemeEngine.monoFont; font.pixelSize:11; color:ThemeEngine.colors.textSecondary; elide:T.textElideStart; verticalAlignment: Text.AlignVCenter }
-                    Label { text: ThemeEngine.formatDuration(modelData.durationMs); font.family:ThemeEngine.monoFont; font.pixelSize:11; color:Qt.alpha(ThemeEngine.colors.textSecondary,0.6); verticalAlignment: Text.AlignVCenter }
+            // 5WHY (review B7 / doc D11): reuse the Living Diagnostics square
+            // block grid so Dashboard per-group results share the Diagnostic
+            // screen's visual language (was a dense 28px text list).  Compact
+            // mode: smaller icons, no metric.  Tap opens the same L5 DetailPage.
+            Flow {
+                id: dashFlow
+                Layout.fillWidth: true
+                spacing: 8
+                // Fixed compact size — Dashboard is a summary; the Diagnostic
+                // screen owns the responsive full-size grid (D6).
+                property real blockSize: 104
+                Repeater {
+                    model: appState.resultsForGroup(groupIndex)
+                    delegate: DiagBlock {
+                        blockSize: dashFlow.blockSize
+                        compact: true
+                        itemData: modelData
+                        testRunning: false
+                        onClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
+                    }
                 }
             }
         }
