@@ -15,6 +15,12 @@ DiagnosticResult curlVerbose(const QString& target) {
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
     r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    // Waterfall timing for the Request-template chart.
+    // 5WHY: same pattern as G5HttpHeaders — only totalMs was stored.
+    r.data[QStringLiteral("dnsMs")] = cr.dnsMs;
+    r.data[QStringLiteral("connectMs")] = cr.connectMs;
+    r.data[QStringLiteral("sslMs")] = cr.appConnectMs;
+    r.data[QStringLiteral("firstByteMs")] = cr.firstByteMs;
     r.data[QStringLiteral("totalMs")] = cr.totalMs;
     r.data[QStringLiteral("responseSize")] = cr.lines.join('\n').toUtf8().size();
     r.data[QStringLiteral("effectiveUrl")] = u.toString();

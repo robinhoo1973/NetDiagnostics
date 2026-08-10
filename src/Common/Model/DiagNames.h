@@ -212,8 +212,12 @@ enum class DiagTemplateType {
 inline DiagTemplateType diagTemplateType(DiagId id) {
     switch (id) {
         // ── Ping/latency (G4 remote probes) ────────────────────────────
+        // 5WHY: G4DnsResolution was Ping, but it produces a single DNS
+        // query result (queryTimeMs + answerCount) — no individualRtts[].
+        // The Ping chart requires individualRtts.length > 0; DnsResolution
+        // never had a chart.  System template (properties table) better fits
+        // its output shape.
         case DiagId::G4Ping:
-        case DiagId::G4DnsResolution:
             return DiagTemplateType::Ping;
 
         // ── Path (hop-by-hop trace) ────────────────────────────────────
@@ -233,12 +237,14 @@ inline DiagTemplateType diagTemplateType(DiagId id) {
             return DiagTemplateType::Handshake;
 
         // ── Request/HTTP timing ─────────────────────────────────────────
+        // 5WHY: G5UrlParsing was Request, but it parses URL components
+        // (scheme/host/port) — no HTTP timing.  System template avoids
+        // the broken waterfall chart.
         case DiagId::G5HttpTiming:
         case DiagId::G5HttpHeaders:
         case DiagId::G5HttpRedirect:
         case DiagId::G5HttpCompression:
         case DiagId::G5CurlVerbose:
-        case DiagId::G5UrlParsing:
             return DiagTemplateType::Request;
 
         // ── Query/DB service ────────────────────────────────────────────

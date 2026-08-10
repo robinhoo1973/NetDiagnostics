@@ -30,6 +30,12 @@ DiagnosticResult httpCompression(const QString& target) {
     r.data[QStringLiteral("compressed")] = compressed;
     r.data[QStringLiteral("contentEncoding")] = enc;
     r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    // Waterfall timing for the Request-template chart.
+    // 5WHY: same pattern as G5HttpHeaders — only totalMs was stored.
+    r.data[QStringLiteral("dnsMs")] = cr.dnsMs;
+    r.data[QStringLiteral("connectMs")] = cr.connectMs;
+    r.data[QStringLiteral("sslMs")] = cr.appConnectMs;
+    r.data[QStringLiteral("firstByteMs")] = cr.firstByteMs;
     r.data[QStringLiteral("totalMs")] = cr.totalMs;
     return r;
 }

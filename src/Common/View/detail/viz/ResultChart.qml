@@ -68,7 +68,15 @@ Item {
         if (tt === 0 && root.data.individualRtts !== undefined
             && root.data.individualRtts.length > 0)       return "qrc:/qml/detail/viz/BarChart.qml"
         if (tt === 1 && root.data.hops !== undefined)     return "qrc:/qml/detail/viz/BarChart.qml"
-        if (tt === 2 && root.data.daysLeft !== undefined) return "qrc:/qml/detail/viz/Gauge.qml"
+        // 5WHY: Handshake originally checked only daysLeft (TLS cert expiry).
+        // DnsIntegrity emits overallScorePercent, SecurityHeaders emits score,
+        // InternetConnectivity emits downloadMbpsBest — none of which write
+        // daysLeft, so the Gauge never opened.  Accept any Gauge-compatible key.
+        if (tt === 2 && (root.data.daysLeft !== undefined
+                      || root.data.overallScorePercent !== undefined
+                      || root.data.score !== undefined
+                      || root.data.downloadMbpsBest !== undefined))
+                                                         return "qrc:/qml/detail/viz/Gauge.qml"
         if (tt === 3 && root.data.dnsMs !== undefined)    return "qrc:/qml/detail/viz/BarChart.qml"
         // Query (tt=4): connect latency gauge
         if (tt === 4 && root.data.latencyMs !== undefined) return "qrc:/qml/detail/viz/Gauge.qml"
@@ -126,6 +134,32 @@ Item {
                     : ThemeEngine.colors.passGreen
             return { value: dl, max: 365, unitKey: "unitDays", color: col,
                      emptyLabel: dl < 0 ? T.tr("gaugeExpired") : "" }
+        }
+        // 5WHY: Handshake template now supports non-TLS data shapes:
+        // DnsIntegrity(overallScorePercent 0-100), SecurityHeaders(score/totalRequired),
+        // InternetConnectivity(downloadMbpsBest).
+        if (root.data.templateType === 2 && root.data.overallScorePercent !== undefined) {
+            var sp = Number(root.data.overallScorePercent)
+            var sc = sp >= 80 ? ThemeEngine.colors.passGreen
+                   : sp >= 50 ? ThemeEngine.colors.warnYellow
+                   : ThemeEngine.colors.failRed
+            return { value: sp, max: 100, unitKey: "unitPercent", color: sc }
+        }
+        if (root.data.templateType === 2 && root.data.score !== undefined) {
+            var sv = Number(root.data.score)
+            var mx = Number(root.data.totalRequired) || 7
+            var sCol = sv >= Math.ceil(mx * 0.7) ? ThemeEngine.colors.passGreen
+                     : sv >= Math.ceil(mx * 0.4) ? ThemeEngine.colors.warnYellow
+                     : ThemeEngine.colors.failRed
+            return { value: sv, max: mx, unitKey: "unitHeaders", color: sCol }
+        }
+        if (root.data.templateType === 2 && root.data.downloadMbpsBest !== undefined) {
+            var bw = Number(root.data.downloadMbpsBest)
+            // 5WHY: bandwidth has no "pass/fail" — show info blue.  Scale
+            // with headroom (min 10 Mbps so even low speeds fill visibly).
+            var bwMax = Math.max(10, Math.ceil(bw * 1.3 / 5) * 5)
+            return { value: bw, max: bwMax, unitKey: "unitMbps",
+                     color: ThemeEngine.colors.infoBlue }
         }
         if (root.data.templateType === 4 && root.data.latencyMs !== undefined) {
             var lat = Number(root.data.latencyMs)

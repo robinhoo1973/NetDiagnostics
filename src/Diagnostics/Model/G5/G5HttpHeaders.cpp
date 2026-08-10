@@ -36,6 +36,14 @@ DiagnosticResult httpHeaders(const QString& target) {
     r.details = r.rawOutput;
     r.properties.append({QStringLiteral("Response Headers"), QString::number(headerCount)});
     r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    // Waterfall timing for the Request-template chart (5-phase bar).
+    // 5WHY: only totalMs was stored — the waterfall guard
+    // (root.data.dnsMs !== undefined) in ResultChart never triggered,
+    // so the chart was invisible despite curl having all the data.
+    r.data[QStringLiteral("dnsMs")] = cr.dnsMs;
+    r.data[QStringLiteral("connectMs")] = cr.connectMs;
+    r.data[QStringLiteral("sslMs")] = cr.appConnectMs;
+    r.data[QStringLiteral("firstByteMs")] = cr.firstByteMs;
     r.data[QStringLiteral("totalMs")] = cr.totalMs;
     r.data[QStringLiteral("headerCount")] = headerCount;
     r.data[QStringLiteral("effectiveUrl")] = u.toString();
