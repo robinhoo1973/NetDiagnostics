@@ -11,6 +11,13 @@
 	  provisioning profile.  DO NOT explicitly set them — doing so
 	  causes ITMS-90288 ("key value not allowed") because the
 	  explicit value may conflict with the provisioning profile.
+
+	  codesign derives these at signing time by reading the
+	  provisioning profile from ~/Library/MobileDevice/Provisioning
+	  Profiles/<UUID>.provisionprofile.  The CI action MUST install
+	  the profile to that system location before signing, otherwise
+	  codesign cannot derive the application identifier and App Store
+	  Connect will emit warning 90886.
 	-->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>

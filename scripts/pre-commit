@@ -140,8 +140,10 @@ echo "── 7. Apple entitlements (derived attributes check) ──"
 ENT_FILES=$(echo "$STAGED" | grep -E '\.entitlements$|\.entitlements\.in$' || true)
 if [ -n "$ENT_FILES" ]; then
     for f in $ENT_FILES; do
-        if git show ":$f" | grep -qE 'application-identifier|developer\.team-identifier'; then
-            fail "$f: contains derived entitlements (application-identifier / team-identifier)"
+        # 5WHY: the naive grep matched these strings even in XML comments,
+        # blocking legitimate documentation.  Only flag actual <key> elements.
+        if git show ":$f" | grep -qE '<key>com\.apple\.(application-identifier|developer\.team-identifier)</key>'; then
+            fail "$f: contains derived entitlement <key> (application-identifier / team-identifier)"
         else
             pass "$f"
         fi

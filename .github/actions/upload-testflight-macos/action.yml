@@ -145,8 +145,24 @@ runs:
         APP="$APP"
         if [ -n "$MAC_PROFILE_B64" ]; then
           echo -n "$MAC_PROFILE_B64" | base64 -d > "$RUNNER_TEMP/mac-profile.provisionprofile"
+          # 5WHY: codesign looks for provisioning profiles in
+          # ~/Library/MobileDevice/Provisioning Profiles/, NOT inside
+          # the .app bundle.  Without the system-location copy,
+          # codesign cannot auto-derive com.apple.application-identifier
+          # → App Store Connect warning 90886 ("missing an application
+          # identifier but has an application identifier in the
+          # provisioning profile").
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< "$(security cms -D -i "$RUNNER_TEMP/mac-profile.provisionprofile")" 2>/dev/null || echo "")
+          if [ -n "$PROFILE_UUID" ]; then
+            mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+            cp "$RUNNER_TEMP/mac-profile.provisionprofile" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.provisionprofile"
+            echo "[OK] macOS provisioning profile installed (UUID: ${PROFILE_UUID})"
+          else
+            echo "[WARN] Could not extract provisioning profile UUID"
+          fi
+          # Also embed in the .app bundle (required for TestFlight distribution)
           cp "$RUNNER_TEMP/mac-profile.provisionprofile" "$APP/Contents/embedded.provisionprofile"
-          echo "[OK] macOS provisioning profile embedded"
+          echo "[OK] macOS provisioning profile embedded in .app"
         else
           echo "[WARN] MACOS_PROVISIONING_PROFILE_BASE64 not set"
         fi
