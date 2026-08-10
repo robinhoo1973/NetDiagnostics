@@ -41,13 +41,15 @@ Item {
     // (e.g. packet loss climbing from 0% to 2.3% during a test).
     property real _animWidth: 0
 
-    on_ratioChanged: {
+    // Central animation trigger — re-animates on ratio change or track resize
+    function _retarget() {
         if (barTrack.width > 0) {
             anim.from = _animWidth
             anim.to = _ratio * barTrack.width
             anim.start()
         }
     }
+    on_ratioChanged: _retarget()
 
     // Defer initial animation until layout completes and barTrack has width
     Component.onCompleted: {
@@ -56,6 +58,16 @@ Item {
                 _animWidth = _ratio * barTrack.width
             }
         })
+    }
+
+    // Re-animate on container resize so bar width stays proportional
+    Connections {
+        target: barTrack
+        function onWidthChanged() {
+            if (barTrack.width > 0 && !anim.running) {
+                _retarget()
+            }
+        }
     }
 
     NumberAnimation {

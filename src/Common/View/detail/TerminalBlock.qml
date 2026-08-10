@@ -23,6 +23,11 @@ Item {
     // ── Public API ────────────────────────────────────────────────────────
     property string text: ""
     property bool typewriter: true
+    // 5WHY: Allow embedders to override the terminal background color.
+    // DetailPage sets this to a dark slate for light-theme coherence;
+    // other consumers inherit the default theme-aware dark bg.
+    property color terminalColor: ThemeEngine.isDark
+        ? ThemeEngine.colors.surface : "#1E293B"
 
     implicitWidth: 300
     // 5WHY: implicitHeight must track the dynamic content height so parent
@@ -86,12 +91,11 @@ Item {
     // ── Visual ────────────────────────────────────────────────────────────
     Rectangle {
         anchors.fill: parent
-        // 5WHY: Using ThemeEngine.colors.surface for the terminal background
-        // — in dark theme this is #0F172A (slate-900), which provides the
-        // traditional "black terminal" aesthetic while staying within the
-        // design system.  card bg (#1E293B) would be too light for terminal
-        // contrast; a hardcoded #000000 would break light-theme coherence.
-        color: ThemeEngine.colors.surface
+        // 5WHY: Terminal output must always render on a dark background for
+        // readability of passGreen monospace text.  Use the public terminalColor
+        // property so embedders can override (e.g., DetailPage sets it for
+        // light-theme coherence).
+        color: root.terminalColor
         radius: ThemeEngine.radius.md  // 8
         border {
             width: 1

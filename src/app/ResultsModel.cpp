@@ -273,6 +273,8 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     m["status"] = static_cast<int>(r.status);
     m["summary"] = r.summary;
     m["details"] = r.details;
+    m["rawOutput"] = r.rawOutput;
+    m["errorOutput"] = r.errorOutput;
     m["durationMs"] = r.durationMs;
 
     QVariantList props;
