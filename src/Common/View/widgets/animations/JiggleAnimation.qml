@@ -34,8 +34,14 @@ Item {
     }
 
     onRunningChanged: {
-        if (!running && root.targetItem)
-            root.targetItem.rotation = 0
+        if (!running) {
+            if (root.targetItem)
+                root.targetItem.rotation = 0
+            // 5WHY: ring.opacity is driven by SequentialAnimation on opacity
+            // which destroys the declarative binding.  Mid-cycle stop leaves
+            // a ghost ring.  Explicit reset on stop.
+            ring.opacity = 0.0
+        }
     }
 
     // ── Subtle accent ring (secondary affordance) ────────────────────────

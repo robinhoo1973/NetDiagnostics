@@ -91,10 +91,14 @@ Item {
         var d = appState.getDetailResult(detail.diagId)
         if (!d || Object.keys(d).length === 0) return
         // Cached component — reuse without recompiling.
-        if (page._detailComp !== null) {
+        if (page._detailComp !== null && page._detailComp !== "loading") {
             pushDetailPage(page._detailComp, d)
             return
         }
+        // Guard against concurrent loads: if a load is already in progress,
+        // skip this tap — the inflight load will push the page shortly.
+        if (page._detailComp === "loading") return
+        page._detailComp = "loading"
         // Component.Asynchronous avoids UI-thread blocking on first compilation
         // (5WHY: synchronous Qt.createComponent freezes UI for 50-200ms on embedded HW).
         var comp = Qt.createComponent("qrc:/qml/screens/DetailPage.qml",
@@ -109,11 +113,13 @@ Item {
                     pushDetailPage(comp, d)
                 } else if (comp.status === Component.Error) {
                     console.warn("DetailPage.qml async load failed:", comp.errorString())
+                    page._detailComp = null  // reset sentinel so next tap can retry
                     _showDetailOverlayLegacy(d)
                 }
             })
         } else if (comp.status === Component.Error) {
             console.warn("DetailPage.qml failed to load:", comp.errorString())
+            page._detailComp = null  // reset sentinel so next tap can retry
             // Fall back to old overlay
             _showDetailOverlayLegacy(d)
         }

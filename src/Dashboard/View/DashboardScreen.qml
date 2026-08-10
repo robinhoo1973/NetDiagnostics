@@ -42,7 +42,10 @@ Item {
             var p = comp.createObject(page, { detail: d })
             page.StackView.view.push(p)
         }
-        if (page._dashDetailComp !== null) { pushPage(page._dashDetailComp); return }
+        if (page._dashDetailComp !== null && page._dashDetailComp !== "loading") { pushPage(page._dashDetailComp); return }
+        // Guard against concurrent loads: skip if a load is already inflight.
+        if (page._dashDetailComp === "loading") return
+        page._dashDetailComp = "loading"
         var comp = Qt.createComponent("qrc:/qml/screens/DetailPage.qml",
                                        Component.Asynchronous)
         if (comp.status === Component.Ready) {
@@ -53,10 +56,14 @@ Item {
                 if (comp.status === Component.Ready) {
                     page._dashDetailComp = comp
                     pushPage(comp)
+                } else if (comp.status === Component.Error) {
+                    console.warn("DetailPage.qml (Dashboard) async load failed:", comp.errorString())
+                    page._dashDetailComp = null  // reset sentinel so next tap can retry
                 }
             })
         } else if (comp.status === Component.Error) {
             console.warn("DetailPage.qml (Dashboard) failed to load:", comp.errorString())
+            page._dashDetailComp = null  // reset sentinel so next tap can retry
         }
     }
 
