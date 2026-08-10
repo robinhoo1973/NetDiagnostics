@@ -1,5 +1,6 @@
 import QtQuick
 import "../theme"
+import "../theme/AnimationTokens.js" as Tokens
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -22,7 +23,10 @@ Item {
     // ── Derived state ────────────────────────────────────────────────────
     readonly property bool _isPending: itemData.isPending === true
     readonly property bool _isDisabled: itemData.isDisabled === true
-    readonly property bool _isDone: !itemData.isPending && (itemData.status || 0) >= 0
+    // Use C++ model's isDone field (single source of truth) instead of re-deriving
+    // from status. Avoids (itemData.status || 0) falsy-zero pitfall where
+    // undefined status incorrectly resolves to 0 (done).
+    readonly property bool _isDone: itemData.isDone === true
     readonly property int _status: itemData.status !== undefined ? itemData.status : -1
     readonly property string _statusIcon: _isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
     readonly property color _statusColor: _isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skipGray) : "transparent"
@@ -45,16 +49,39 @@ Item {
         return ""
     }
 
-    // ── Elapsed-time coin indicator (top-left, Running only) ────────────
+    // ── Elapsed-time coin indicator (top-left, Running + grace period) ──
     // Denominations: 50 / 20 / 10 / 5 / 1 — coin-change to minimize dots.
     // Each dot is a colored circle with the value printed inside.
-    // <1s rounds up to 1s.
+    // Shows after elapsed >= 2s.  Persists for 2s grace period after test
+    // completes so the user can read the final elapsed time.
     property int _elapsed: 0
+    property bool _showCoins: false
     Timer {
+        id: elapsedTimer
         interval: 1000; repeat: true
         running: _isRunning
-        onTriggered: root._elapsed++
-        onRunningChanged: { if (!running) root._elapsed = 0 }
+        onTriggered: {
+            root._elapsed++
+            if (root._elapsed >= 2 && !root._showCoins)
+                root._showCoins = true
+        }
+        onRunningChanged: {
+            if (!running && root._elapsed >= 2) {
+                // Keep coins visible for 2s grace period after completion
+                graceTimer.start()
+            } else if (!running && root._elapsed < 2) {
+                root._elapsed = 0
+                root._showCoins = false
+            }
+        }
+    }
+    Timer {
+        id: graceTimer
+        interval: 2000; repeat: false
+        onTriggered: {
+            root._elapsed = 0
+            root._showCoins = false
+        }
     }
     // Coin-change: greedy on [50,20,10,5,1] — always optimal for canonical coin systems
     readonly property var _coins: {
@@ -107,9 +134,11 @@ Item {
                : (mouseArea.containsMouse && !_isPending && !_isDisabled ? 1.03 : 1.0)
         Behavior on scale {
             NumberAnimation {
-                duration: _isDone && card.scale >= 0.95 ? 300 : 150
-                easing.type: _isDone ? Easing.OutBack : Easing.OutQuad
-                easing.overshoot: _isDone ? 0.3 : 0
+                // settleDown: scale goes 1.0→0.9 (OutBack), settleUp: 0.9→1.0 (OutQuad)
+                // Use root._settle instead of card.scale to avoid circular dependency
+                duration: root._settle ? Tokens.tokens.settleDuration : Tokens.tokens.transitionDuration
+                easing.type: root._settle ? Easing.OutBack : Easing.OutQuad
+                easing.overshoot: root._settle ? 0.3 : 0
             }
         }
 
@@ -131,7 +160,7 @@ Item {
         Row {
             anchors { top: parent.top; left: parent.left; topMargin: 4; leftMargin: 4 }
             spacing: 2
-            visible: _isRunning && _elapsed > 0
+            visible: _showCoins
             Repeater {
                 model: _coins
                 Rectangle {
@@ -188,7 +217,18 @@ Item {
                 Behavior on color { ColorAnimation { duration: 200 } }
             }
 
-            // Diagnostic icon — dead center of icon well
+            // L4 Animation overlay — rendered BELOW the diagnostic icon so
+            // animations (Pulse glow, Bounce dots, Lock stamp, etc.) never
+            // obscure the test-type icon itself.
+            DiagAnimator {
+                id: blockAnim
+                anchors.fill: parent
+                diagId: itemData.diagId !== undefined ? itemData.diagId : -1
+                running: _isRunning
+                targetItem: blockIcon
+            }
+
+            // Diagnostic icon — dead center of icon well, TOPMOST layer
             AppIcon {
                 id: blockIcon
                 anchors.centerIn: parent
@@ -197,18 +237,9 @@ Item {
                 color: _isRunning ? ThemeEngine.colors.primary
                        : _isDone  ? _statusColor
                        : ThemeEngine.colors.textMuted
-                opacity: _isDisabled ? 0.3 : _isPending ? 0.35 : 1.0
+                opacity: _isDisabled ? 0.3 : _isPending ? 0.55 : 1.0
                 Behavior on color { ColorAnimation { duration: 200 } }
                 Behavior on opacity { NumberAnimation { duration: 200 } }
-            }
-
-            // L4 Animation overlay
-            DiagAnimator {
-                id: blockAnim
-                anchors.fill: parent
-                diagId: itemData.diagId !== undefined ? itemData.diagId : -1
-                running: _isRunning
-                targetItem: blockIcon
             }
         }
 
@@ -252,7 +283,8 @@ Item {
             onTriggered: { root._settle = true; releaseTimer.start() }
         }
         Timer {
-            id: releaseTimer; interval: 300; repeat: false
+            id: releaseTimer
+            interval: Tokens.tokens.settleDuration; repeat: false
             onTriggered: root._settle = false
         }
     }

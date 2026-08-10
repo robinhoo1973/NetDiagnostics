@@ -24,6 +24,7 @@ Item {
         Repeater {
             model: 3
             Rectangle {
+                id: typeBar
                 width: 32; height: 3; radius: 1.5
                 color: root.accentColor
                 opacity: 0
@@ -32,12 +33,12 @@ Item {
                     running: root.running
                     loops: Animation.Infinite
                     PauseAnimation { duration: index * 120 }
-                    // 5WHY: parent.children[0] is the Repeater, so the Nth delegate
-                    // Rectangle is at parent.children[N+1].  Use index+1 to target
-                    // the correct child — targeting index alone hits one off.
-                    PropertyAction { target: parent.children[index + 1]; property: "opacity"; value: 0.7 }
+                    // Each delegate targets its own opacity via `parent`
+                    // (enclosing Rectangle), avoiding fragile
+                    // parent.children[index+1] scope-chain indexing.
+                    PropertyAction { target: typeBar; property: "opacity"; value: 0.7 }
                     PauseAnimation { duration: 200 }
-                    PropertyAction { target: parent.children[index + 1]; property: "opacity"; value: 0.15 }
+                    PropertyAction { target: typeBar; property: "opacity"; value: 0.15 }
                     PauseAnimation { duration: 120 }
                 }
             }
