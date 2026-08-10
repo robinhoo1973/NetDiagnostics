@@ -79,6 +79,10 @@ static G5ProbeResult g5Probe(const QUrl& u, const QByteArray& sendData = {},
 // Builds the base Query result after a probe.  On connect failure the result
 // is FINAL (Fail + "Connection failed") — the caller returns it immediately.
 // On success the caller fills summary/status + protocol-specific data keys.
+// 5WHY (review): the pre-refactor per-protocol fail paths each set EVERY data
+// key (banner:"", version:"", ...) — g5ProbeResult must keep the shared
+// banner key present on failure too, so consumers never read an undefined
+// key on a failed result.
 static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
                                       const G5ProbeResult& p) {
     DiagnosticResult r = g5Result(id, p.connected ? QString()
@@ -88,6 +92,7 @@ static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
     r.data["host"] = u.host();
     r.data["port"] = p.port;
     r.data["connected"] = p.connected;
+    r.data["banner"] = QString();
     r.data["latencyMs"] = p.durationMs;
     return r;
 }
