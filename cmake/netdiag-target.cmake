@@ -60,6 +60,15 @@ function(configure_netdiag_target TARGET)
     if(NOT IOS AND NOT ANDROID)
         target_link_libraries(${TARGET} PRIVATE Qt6::Widgets)
     endif()
+    # ── QtSvg: image format plugin for QML Image SVG rendering ─────────
+    # 5WHY: on static Qt (iOS/Android/Windows-MSYS2), QML's Image element
+    # cannot load SVG files without the qsvg image format plugin.
+    # Q_IMPORT_PLUGIN(QSvgPlugin) in main.cpp requires Qt6::Svg linked.
+    # find_package is done in dependencies.cmake; link unconditionally when
+    # the target exists (omitted when the platform has no SVG dev package).
+    if(Qt6Svg_FOUND OR TARGET Qt6::Svg)
+        target_link_libraries(${TARGET} PRIVATE Qt6::Svg)
+    endif()
     # ── QtWebView (in-app HTML report preview) ────────────────────────
     if(TARGET Qt6::WebView)
         target_link_libraries(${TARGET} PRIVATE Qt6::WebView)

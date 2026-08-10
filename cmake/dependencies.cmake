@@ -9,12 +9,23 @@ if(IOS OR ANDROID)
         Core Concurrent Quick QuickControls2 Network
     )
     find_package(Qt6 COMPONENTS WebView QUIET)
+    # 5WHY: iOS/Android use STATIC Qt — QML Image needs the qsvg image
+    # format plugin explicitly imported (QSvgPlugin in main.cpp).
+    if(IOS)
+        find_package(Qt6Svg REQUIRED)
+    else()
+        find_package(Qt6Svg QUIET)
+    endif()
 else()
     find_package(Qt6 6.3 REQUIRED COMPONENTS
         Core Concurrent Quick QuickControls2 Widgets Network
     )
     # QtWebView: in-app HTML report preview (optional — graceful fallback if missing)
     find_package(Qt6 COMPONENTS WebView QUIET)
+    # QtSvg: SVG image format plugin for QML Image (static & dynamic).
+    # Use standalone find_package(Qt6Svg) — Debian's Qt packaging does not
+    # expose Svg as a component of the Qt6 metapackage.
+    find_package(Qt6Svg QUIET)
     if(Qt6WebView_FOUND)
         message(STATUS "QtWebView found — in-app HTML report preview enabled")
     else()

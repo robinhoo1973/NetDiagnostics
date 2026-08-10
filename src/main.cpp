@@ -19,11 +19,17 @@
 #include <csignal>
 #if defined(_WIN32)
 #include <windows.h>
-// 5WHY: Static Qt on Windows needs explicit platform plugin import.
-// Without this, Qt reports "no Qt platform plugin could be initialized".
-// ND_STATIC_QT is defined in CMakeLists.txt for static MSYS2 builds.
-#if defined(ND_STATIC_QT) && defined(_WIN32)
+#endif
+// 5WHY: Static Qt builds (iOS, Android, Windows MSYS2) must explicitly import
+// image format plugins — the dynamic plugin loader doesn't exist on static
+// builds.  Without QSvgPlugin, QML Image elements silently fail to render
+// any SVG source (AppIcon pre-generated SVGs, TerminalBlock icons, etc.).
+// This is the root cause of SVG icons not displaying on mobile devices.
+// iOS is ALWAYS static Qt; Android often is; Windows uses ND_STATIC_QT flag.
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || defined(ND_STATIC_QT)
 #include <QtPlugin>
+Q_IMPORT_PLUGIN(QSvgPlugin)
+#if defined(_WIN32)
 Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #endif
 #endif
