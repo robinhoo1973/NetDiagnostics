@@ -55,7 +55,7 @@ function(configure_netdiag_target TARGET)
     # ── Qt libraries ─────────────────────────────────────────────────
     target_link_libraries(${TARGET} PRIVATE
         Qt6::Core Qt6::Concurrent Qt6::Quick Qt6::QuickControls2
-        Qt6::Network Qt6::Svg
+        Qt6::Network
     )
     if(NOT IOS AND NOT ANDROID)
         target_link_libraries(${TARGET} PRIVATE Qt6::Widgets)

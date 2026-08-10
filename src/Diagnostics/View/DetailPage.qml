@@ -78,165 +78,109 @@ Page {
 
     background: Rectangle { color: Th.ThemeEngine.colors.surface }
 
-    // ── Header bar — unified title-bar container (professional UI review) ──
-    // 5WHY: the test identity (icon, name, status) and actions (duration, copy,
-    // rerun) were in a single undifferentiated RowLayout — the title bar lacked
-    // visual structure.  Now uses a two-zone layout:
-    //   LEFT zone:  back | icon | name + status badge (vertically stacked on narrow)
-    //   RIGHT zone: duration | copy | rerun
-    // 5WHY (Issue #4): the spec requires a unified 标题栏-style container that
-    // houses the detection name, status, and action buttons together with clear
-    // visual boundaries — the ToolBar's bottom separator acts as the container edge.
+    // ── Header — single-row title bar ──────────────────────────────────
+    // 5WHY (header-body overlap): the old two-row header (icon+name+status
+    // stacked) was ~70px tall. Page.contentItem auto-offsets below the
+    // header, but the ToolBar default implicitHeight adapter sometimes
+    // mis-sizes on iOS/Android static builds.  Keep it flat and compact:
+    //   <| test name (left)  ···  duration | COPY | RESTART
+    // All result identity (icon, status, summary) lives in the body Hero.
     header: ToolBar {
         id: topBar
-        // 5WHY: ToolBar default padding varies by platform (macOS/iOS/Windows) —
-        // explicit insets keep the title bar height consistent across OSes.
-        topPadding: 6; bottomPadding: 6; leftPadding: 8; rightPadding: 12
+        // Explicit compact height — single row, no platform variance
+        topPadding: 0; bottomPadding: 0; leftPadding: 4; rightPadding: 8
+        implicitHeight: 42
         background: Rectangle { color: Th.ThemeEngine.colors.card }
-        // Bottom separator — defines the title-bar container boundary
-        Rectangle {
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-            height: 1; color: Th.ThemeEngine.colors.borderCard
-        }
 
         RowLayout {
-            anchors.fill: parent
-            spacing: 8
+            anchors { fill: parent; leftMargin: 2; rightMargin: 4 }
+            spacing: 4
 
-            // ── Back button ────────────────────────────────────────────
+            // Back
             ToolButton {
                 id: backBtn
+                implicitWidth: 34; implicitHeight: 34
                 contentItem: W.AppIcon {
-                    name: "chevron-right"; size: 18
+                    name: "chevron-right"; size: 16
                     color: Th.ThemeEngine.colors.textSecondary
                     mirror: T.isRtl
                 }
-                implicitWidth: 36; implicitHeight: 36
                 onClicked: { page.StackView.view.pop() }
                 Accessible.name: T.tr("accBack")
             }
 
-            // ═══════════════ LEFT ZONE: test identity ═══════════════════
-            // Icon + name + status badge — visually grouped
-            RowLayout {
+            // Test name — left-aligned, fills space
+            Label {
                 Layout.fillWidth: true
-                spacing: 10
-
-                // Diagnostic icon — color matches status
-                W.AppIcon {
-                    name: page.diagId >= 0 ? appState.diagIconName(page.diagId) : "circle"
-                    size: 22; color: page._statusColor
-                }
-
-                // Name + status badge — stacked on narrow, inline on wide
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    // Test name — primary identifier
-                    Label {
-                        Layout.fillWidth: true
-                        text: T.diagName(page.diagId) || page.detail.displayName || ""
-                        font.family: Th.ThemeEngine.monoFont
-                        font.pixelSize: page.width < 360 ? 13 : 15
-                        font.weight: Font.DemiBold
-                        color: Th.ThemeEngine.colors.textPrimary
-                        elide: Text.ElideRight; maximumLineCount: 1
-                    }
-
-                    // Status badge inline below name (always visible for scanability)
-                    Rectangle {
-                        radius: 4
-                        implicitWidth: statusText.implicitWidth + 10
-                        implicitHeight: 20
-                        color: Qt.alpha(page._statusColor, 0.12)
-                        Label {
-                            id: statusText; anchors.centerIn: parent
-                            text: page._statusText
-                            font.family: Th.ThemeEngine.monoFont
-                            font.pixelSize: 10; font.weight: Font.Bold
-                            color: page._statusColor
-                        }
-                    }
-                }
+                text: T.diagName(page.diagId) || page.detail.displayName || ""
+                font.family: Th.ThemeEngine.monoFont
+                font.pixelSize: 14; font.weight: Font.DemiBold
+                color: Th.ThemeEngine.colors.textPrimary
+                elide: Text.ElideRight; maximumLineCount: 1
             }
 
-            // ═══════════════ RIGHT ZONE: actions ════════════════════════
-            // Duration + copy + rerun — grouped with subtle visual separation
+            // Duration
+            Label {
+                text: KM.formatDuration(page.detail.durationMs || 0)
+                visible: (page.detail.durationMs || 0) > 0
+                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                color: Th.ThemeEngine.colors.textSecondary
+            }
+
+            // | separator
             Rectangle {
-                implicitWidth: actionsRow.implicitWidth + 16
-                implicitHeight: 36; radius: 8
-                color: Qt.alpha(Th.ThemeEngine.colors.input, 0.4)
-                visible: (page.detail.durationMs || 0) > 0 || page.diagId >= 0
+                implicitWidth: 1; implicitHeight: 16
+                color: Th.ThemeEngine.colors.borderCard
+            }
 
-                RowLayout {
-                    id: actionsRow
-                    anchors.centerIn: parent
-                    spacing: 2
-
-                    // Duration chip
-                    Label {
-                        text: KM.formatDuration(page.detail.durationMs || 0)
-                        visible: (page.detail.durationMs || 0) > 0
-                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
-                        color: Th.ThemeEngine.colors.textSecondary
-                        Layout.leftMargin: 6; Layout.rightMargin: 4
-                        Accessible.name: T.tr("detailDuration") + ": " + text
-                        Accessible.role: Accessible.StaticText
-                    }
-
-                    // Separator (only when duration is visible and actions follow)
-                    Rectangle {
-                        implicitWidth: 1; implicitHeight: 18
-                        color: Th.ThemeEngine.colors.borderCard
-                        visible: (page.detail.durationMs || 0) > 0
-                    }
-
-                    // Copy result
-                    ToolButton {
-                        id: copyBtn
-                        implicitWidth: 30; implicitHeight: 30
-                        contentItem: W.AppIcon {
-                            name: "clipboard"; size: 15
-                            color: Th.ThemeEngine.colors.textSecondary
-                        }
-                        onClicked: {
-                            appState.copyDetailToClipboard(page.diagId)
-                            page._copied = T.tr("detailCopied")
-                            copyTimer.restart()
-                        }
-                        Accessible.name: T.tr("detailCopy")
-                        Accessible.role: Accessible.Button
-                    }
-
-                    // Re-run single diagnostic
-                    ToolButton {
-                        id: rerunBtn
-                        implicitWidth: 30; implicitHeight: 30
-                        contentItem: W.AppIcon {
-                            name: "diagnostics"; size: 15
-                            color: Th.ThemeEngine.colors.textSecondary
-                        }
-                        onClicked: appState.rerunDiag(page.diagId)
-                        Accessible.name: T.tr("detailRerun")
-                        Accessible.role: Accessible.Button
-                    }
+            // Copy
+            ToolButton {
+                id: copyBtn2
+                implicitWidth: 32; implicitHeight: 32
+                contentItem: W.AppIcon {
+                    name: "clipboard"; size: 14
+                    color: Th.ThemeEngine.colors.textSecondary
                 }
+                onClicked: {
+                    appState.copyDetailToClipboard(page.diagId)
+                    page._copied = T.tr("detailCopied")
+                    copyTimer.restart()
+                }
+                Accessible.name: T.tr("detailCopy")
+            }
+
+            // Restart
+            ToolButton {
+                id: rerunBtn2
+                implicitWidth: 32; implicitHeight: 32
+                contentItem: W.AppIcon {
+                    name: "diagnostics"; size: 14
+                    color: Th.ThemeEngine.colors.textSecondary
+                }
+                onClicked: appState.rerunDiag(page.diagId)
+                Accessible.name: T.tr("detailRerun")
             }
         }
     }
 
     // ── Scrollable body ──────────────────────────────────────────────────
+    // 5WHY (scrolling): ColumnLayout inside Flickable works correctly when
+    // contentHeight tracks implicitHeight reactively.  The old code set
+    // contentHeight in the declaration (one-shot snapshot of 0) → no scroll.
+    // Now uses a binding that updates as children load.
     Flickable {
-        anchors.fill: parent
-        contentHeight: bodyColumn.implicitHeight + 32
+        id: bodyFlick
+        anchors { fill: parent; topMargin: 0 }
+        contentWidth: width
+        contentHeight: bodyColumn.implicitHeight + 20
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar {}
 
         ColumnLayout {
             id: bodyColumn
-            anchors { left: parent.left; right: parent.right; top: parent.top }
-            anchors.margins: 16; spacing: 12
+            width: bodyFlick.width - 32
+            x: 16; spacing: 10
 
             // ── Hero: result headline card (P2) ───────────────────────
             // 5WHY: the old hero was a 120px decorative icon slab duplicating
