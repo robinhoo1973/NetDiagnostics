@@ -21,7 +21,7 @@ inputs:
     description: Release version (M.m.p)
     required: true
   build_number:
-    description: TestFlight build number (official run number + 300)
+    description: TestFlight build number (official GitHub run number)
     required: true
   git_hash:
     description: Commit SHA
@@ -132,7 +132,7 @@ runs:
         /usr/libexec/PlistBuddy -c "Add :LSApplicationCategoryType string public.app-category.utilities" "$PLIST" 2>/dev/null || \
           /usr/libexec/PlistBuddy -c "Set :LSApplicationCategoryType public.app-category.utilities" "$PLIST"
         # 5WHY: TestFlight requires a unique, monotonically increasing build
-        # number per app; apple.yml passes the +300 offset build number.
+        # number per app; apple.yml passes the GitHub run number directly.
         /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
 
     - name: Install provisioning profile

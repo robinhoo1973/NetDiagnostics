@@ -12,7 +12,7 @@
 #
 # The caller owns the job (runs-on / timeout), the checkout, and cancellation.
 # Version/build inputs come from the caller's version job (apple.yml passes the
-# +300 TestFlight build number).
+# TestFlight build number).
 # ═══════════════════════════════════════════════════════════════════════════
 name: Build macOS
 description: Build + package NetDiagnostics for macOS (release DMG/tar.gz or testflight .app) and upload the artifact

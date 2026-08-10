@@ -22,7 +22,7 @@
 #           uses: ./.github/actions/detect-version
 # ═══════════════════════════════════════════════════════════════════════════
 name: Detect Version
-description: Parse semver from the nearest v* git tag + compute the TestFlight build number (official run number + 300)
+description: Parse semver from the nearest v* git tag + compute the build number (official GitHub run number)
 outputs:
   pkg_version:
     description: Semver version parsed from latest git tag, pre-release suffix stripped (e.g. 1.2.3 from v1.2.3 or v1.2.3-rc1)
@@ -31,7 +31,7 @@ outputs:
     description: Pre-release suffix of the latest tag (e.g. rc1), empty for a final release
     value: ${{ steps.v.outputs.pkg_prerelease }}
   build_number:
-    description: TestFlight build number = official run number + 300
+    description: Build number = official GitHub run number
     value: ${{ steps.v.outputs.build_number }}
 
 runs:
@@ -71,9 +71,8 @@ runs:
           echo "pkg_prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
         fi
         # 5WHY (TestFlight): App Store Connect build numbers must increase
-        # monotonically per app and are shared between TestFlight and App
-        # Store release builds.  Adding +300 to the official run number
-        # gives the TestFlight pipeline a dedicated range that never
-        # collides with release builds.
-        echo "build_number=$(( GITHUB_RUN_NUMBER + 300 ))" >> "$GITHUB_OUTPUT"
-        echo "Version: $(grep -oP 'pkg_version=\K.*' "$GITHUB_OUTPUT" | head -1)${PRERELEASE:+ (pre-release: ${PRERELEASE})} / build_number=$(( GITHUB_RUN_NUMBER + 300 ))"
+        # monotonically per app.  The GitHub run number is already unique
+        # per workflow run, so it is used directly as the build number
+        # without any offset.
+        echo "build_number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+        echo "Version: $(grep -oP 'pkg_version=\K.*' "$GITHUB_OUTPUT" | head -1)${PRERELEASE:+ (pre-release: ${PRERELEASE})} / build_number=${GITHUB_RUN_NUMBER}"

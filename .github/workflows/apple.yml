@@ -6,7 +6,7 @@
 #   apple.yml
 #   │
 #   ├─ detect-version ──► (pkg_version / pkg_prerelease / build_number)
-#   │                     build_number = official run_number + 300 (TestFlight range)
+#   │                     build_number = official GitHub run number
 #   │
 #   ├─ build-ios ───────────────────────────► upload-testflight-ios
 #   │   (compile iOS, unsigned .ipa artifact)    (sign + archive + upload iOS)
@@ -16,8 +16,8 @@
 #
 # The two chains run in PARALLEL.  Each upload waits for its platform's
 # build (needs: ios-build / macos-build).  Version + build number come from
-# the version job; the build number is offset +300 above the official run
-# number so TestFlight never collides with App Store release build numbers.
+# the version job; the build number is the official GitHub run number
+# (unique per run, used directly as the TestFlight build number).
 #
 # Triggers: tag push (v*) for automatic TestFlight uploads, or
 # workflow_dispatch.  The upload jobs use `environment: TestFlight` which
