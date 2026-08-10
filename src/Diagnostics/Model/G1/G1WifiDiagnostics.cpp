@@ -14,6 +14,14 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     out.append(QStringLiteral("Wireless LAN information:"));
     out.append(QString());
 
+    // Shared structured-data rows: {name, ssid, bssid, channel, signal, bitrate}.
+    // 5WHY: wifiRows was declared only inside the non-Windows (#else) branch,
+    // but the shared r.data block at the bottom uses it unconditionally — the
+    // Windows build failed with "wifiRows was not declared in this scope".
+    // Declare it once here so both the WLAN API path (Windows) and the
+    // getifaddrs path fill the same rows.
+    QList<QStringList> wifiRows;
+
 #if defined(_WIN32)
     HANDLE hClient = nullptr;
     DWORD negotiatedVer = 0;
@@ -30,6 +38,10 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                 }
                 out.append(QStringLiteral("   State. . . . . . . . . . . . : %1").arg(wi.isState == wlan_interface_state_connected ? "connected" : "disconnected"));
 
+                // Row data for the shared structured r.data block below.
+                QString winSsid = QStringLiteral("-"), winBssid = QStringLiteral("-");
+                QString winChannel = QStringLiteral("-"), winSignal = QStringLiteral("-");
+
                 // ── Query extended WiFi details for connected interfaces ──
                 if (wi.isState == wlan_interface_state_connected) {
                     DWORD dataSize = 0;
@@ -40,10 +52,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                         QString ssid = QString::fromUtf8((const char*)pConn->wlanAssociationAttributes.dot11Ssid.ucSSID,
                                                          pConn->wlanAssociationAttributes.dot11Ssid.uSSIDLength);
                         out.append(QStringLiteral("   SSID. . . . . . . . . . . . . : %1").arg(ssid));
+                        winSsid = ssid;
                         // BSSID (MAC)
                         auto& bssid = pConn->wlanAssociationAttributes.dot11Bssid;
                         out.append(QStringLiteral("   BSSID . . . . . . . . . . . . : %1").arg(
                             macToStr((const unsigned char*)bssid)));
+                        winBssid = macToStr((const unsigned char*)bssid);
                         // Channel — query via WlanQueryInterface opcode
                         ULONG channel = 0;
                         DWORD chSize = sizeof(channel);
@@ -51,6 +65,7 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                                               nullptr, &chSize, (PVOID*)&channel, nullptr) == ERROR_SUCCESS
                             && channel > 0) {
                             out.append(QStringLiteral("   Channel. . . . . . . . . . . : %1").arg(channel));
+                            winChannel = QString::number(channel);
                         } else {
                             out.append(QStringLiteral("   Channel. . . . . . . . . . . : N/A"));
                         }
@@ -77,8 +92,11 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                         int signalPct = (rssi >= -50) ? 100 : (rssi <= -100) ? 0 : 2 * (rssi + 100);
                         out.append(QStringLiteral("   Signal . . . . . . . . . . . : %1%  (%2 dBm)")
                                        .arg(signalPct).arg(rssi));
+                        winSignal = QStringLiteral("%1% (%2 dBm)").arg(signalPct).arg(rssi);
                     }
                 }
+                wifiRows.append({ QString::fromWCharArray(wi.strInterfaceDescription),
+                                  winSsid, winBssid, winChannel, winSignal, QStringLiteral("-") });
                 out.append(QString());
             }
             WlanFreeMemory(ifList);
@@ -96,7 +114,6 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
         {"Signal",     7, true},   // numeric (dBm / %)
         {"Bitrate",    0, true},   // numeric (Mbps)
     };
-    QList<QStringList> wifiRows;
     QSet<QString> seenWifi;
     // 5WHY: was #if PLATFORM_IOS only — macOS CoreWLAN also needs it
     QString wifiSsidCaptured;
