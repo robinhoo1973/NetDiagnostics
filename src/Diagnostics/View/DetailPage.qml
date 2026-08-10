@@ -8,6 +8,8 @@ import QtQuick.Layouts
 import "../theme" as Th
 import "../widgets" as W
 import "../detail" as D
+import "../detail/KeyMetric.js" as KM
+import "../detail/viz" as Viz
 
 // ── DetailPage.qml — Living Diagnostics L5 full-screen detail page ─────
 // Replaces the old overlay-based detail view.  Pushed onto AppContent's
@@ -27,26 +29,15 @@ Page {
     // value) as falsy — JS coerces 0 to -1, showing wrong icon/title.
     property int diagId: detail.diagId !== undefined ? detail.diagId : -1
     property int status: detail.status !== undefined ? detail.status : -1
-    property var data: detail.data || {}
+    // 5WHY: named resultData — `data` is Item's RESERVED default property
+    // (the list of child objects).  Shadowing it compiles and runs but is
+    // fragile: qmllint resolves `data` to QQmlListProperty<QObject> and any
+    // future child-collection code could collide.  A distinct name removes
+    // the ambiguity entirely.
+    property var resultData: detail.data || {}
 
-    // Single source: avoids 3x Object.keys() calls in _template/_keyMetric*
-    readonly property bool _hasData: data && Object.keys(data).length > 0
-
-    // Template classification from C++ DiagTemplateType (0=Ping,1=Path,...5=System).
-    // 5WHY: old duck-typing inferred template from data key existence (e.g.
-    // daysLeft→handshake, dnsMs→request).  A DHCP diagnostic with a daysLeft
-    // field would misclassify as SSL.  Now the diagnostic declares its template
-    // type via diagTemplateType(DiagId) — single source of truth, zero ambiguity.
-    readonly property string _template: {
-        if (!_hasData) return "system"
-        var tt = data.templateType
-        if (tt === 0) return "ping"
-        if (tt === 1) return "path"
-        if (tt === 2) return "handshake"
-        if (tt === 3) return "request"
-        if (tt === 4) return "query"
-        return "system"
-    }
+    // Template classification comes from C++ (DiagTemplateType injected into
+    // resultData.templateType by ResultsModel) — no QML duck-typing needed.
 
     readonly property color _statusColor: status >= 0
         ? (Th.ThemeEngine.statusColors[status] || Th.ThemeEngine.colors.skipGray)
@@ -57,6 +48,33 @@ Page {
     // root next to the other state for readability and single ownership.
     property bool propsExpanded: true
     property bool chartsExpanded: false
+
+    // Copy-feedback toast state
+    property string _copied: ""
+    Timer { id: copyTimer; interval: 1600; onTriggered: page._copied = "" }
+
+    // 5WHY: status→translation-key was a POSITIONAL array — coupling the
+    // DiagStatus enum ORDER to array index.  An explicit map makes the
+    // coupling visible and unknown statuses degrade to "" instead of
+    // mislabelling the next enum value.
+    readonly property string _statusText: {
+        var keys = { 0: "summaryPass", 1: "summaryWarning", 2: "summaryFail",
+                     3: "summarySkipped", 4: "errorStatus", 5: "summaryInfo" }
+        return keys[page.status] ? T.tr(keys[page.status]) : ""
+    }
+    // Hero meta line: tested host · duration (previously only in terminal text).
+    readonly property string _metaLine: {
+        var parts = []
+        var host = page.resultData.target || page.resultData.host || ""
+        if (host) parts.push(String(host))
+        var dur = page.detail.durationMs || 0
+        if (dur > 0) parts.push(KM.formatDuration(dur))
+        return parts.join(" · ")
+    }
+    // 5WHY (P2): charts default-collapsed hid the visualizations.  Compact
+    // series (≤8 bars) start expanded; long traceroutes stay collapsed.
+    // Set once on open — data is static for the page lifetime.
+    Component.onCompleted: { page.chartsExpanded = chartView.seriesCount <= 8 }
 
     background: Rectangle { color: Th.ThemeEngine.colors.surface }
 
@@ -112,17 +130,48 @@ Page {
                 color: Qt.alpha(page._statusColor, 0.12)
                 Label {
                     id: statusText; anchors.centerIn: parent
-                    text: {
-                        // 5WHY: status text was derived from icon name via
-                        // .replace("badge-","") — fragile coupling to icon
-                        // asset naming.  Use a dedicated status label lookup.
-                        var labels = ["Pass","Warning","Fail","Skip","Error","Info"]
-                        return (page.status >= 0 && page.status < labels.length)
-                            ? labels[page.status] : ""
-                    }
+                    text: page._statusText
                     font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold
                     color: page._statusColor
                 }
+            }
+
+            // Duration chip — 5WHY: the legacy overlay showed durationMs but
+            // the L5 page dropped it.  Restored here (mono, secondary).
+            // Hidden on narrow phones (the hero meta line already shows it).
+            Label {
+                text: KM.formatDuration(page.detail.durationMs || 0)
+                visible: (page.detail.durationMs || 0) > 0 && page.width >= 440
+                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                color: Th.ThemeEngine.colors.textSecondary
+                Accessible.name: T.tr("detailDuration") + ": " + text
+                Accessible.role: Accessible.StaticText
+            }
+
+            // Copy result — Qt 6.3-safe via C++ Q_INVOKABLE (Qt.copyTextToClipboard needs 6.5+)
+            ToolButton {
+                id: copyBtn
+                implicitWidth: 30; implicitHeight: 30
+                contentItem: W.AppIcon { name: "clipboard"; size: 15; color: Th.ThemeEngine.colors.textSecondary }
+                onClicked: {
+                    appState.copyDetailToClipboard(page.diagId)
+                    page._copied = T.tr("detailCopied")
+                    copyTimer.restart()
+                }
+                Accessible.name: T.tr("detailCopy")
+                Accessible.role: Accessible.Button
+            }
+
+            // Re-run single diagnostic — 5WHY: users could only re-run the
+            // whole battery; AppState::rerunDiag() re-runs just this test and
+            // preserves every other result.
+            ToolButton {
+                id: rerunBtn
+                implicitWidth: 30; implicitHeight: 30
+                contentItem: W.AppIcon { name: "diagnostics"; size: 15; color: Th.ThemeEngine.colors.textSecondary }
+                onClicked: appState.rerunDiag(page.diagId)
+                Accessible.name: T.tr("detailRerun")
+                Accessible.role: Accessible.Button
             }
         }
     }
@@ -139,70 +188,131 @@ Page {
             anchors { left: parent.left; right: parent.right; top: parent.top }
             anchors.margins: 16; spacing: 12
 
-            // ── Hero area ───────────────────────────────────────────────
+            // ── Hero: result headline card (P2) ───────────────────────
+            // 5WHY: the old hero was a 120px decorative icon slab duplicating
+            // the header icon and carrying zero information.  Now it is the
+            // page's result headline: status, summary, target/duration.
+            // 5WHY (format fix): a FIXED 96px height CLIPPED multi-line
+            // summaries (e.g. DNS listing 6 addresses).  Height is now
+            // content-driven (heroRow.implicitHeight + 32 margins, min 96).
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 120
+                Layout.preferredHeight: Math.max(96, heroRow.implicitHeight + 32)
                 radius: Th.ThemeEngine.radius.lg
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
 
-                W.AppIcon {
-                    anchors.centerIn: parent
-                    name: page.diagId >= 0 ? appState.diagIconName(page.diagId) : "circle"
-                    size: 72; color: page._statusColor
+                RowLayout {
+                    id: heroRow
+                    anchors { fill: parent; margins: 16 }
+                    spacing: 14
+
+                    // Status icon in a tinted disc
+                    Rectangle {
+                        implicitWidth: 56; implicitHeight: 56; radius: 28
+                        color: Qt.alpha(page._statusColor, 0.12)
+                        W.AppIcon {
+                            anchors.centerIn: parent
+                            name: Th.ThemeEngine.statusIconNames[page.status] || "badge-skip"
+                            size: 30; color: page._statusColor
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 4
+                        // Status text — localized, color-coded
+                        Label {
+                            text: page._statusText
+                            font.family: Th.ThemeEngine.monoFont
+                            font.pixelSize: 15; font.weight: Font.Bold
+                            color: page._statusColor
+                        }
+                        // Summary
+                        Label {
+                            Layout.fillWidth: true
+                            text: page.detail.summary || ""
+                            font.family: Th.ThemeEngine.monoFont
+                            font.pixelSize: 12
+                            color: Th.ThemeEngine.colors.textPrimary
+                            wrapMode: Text.WordWrap
+                            visible: text !== ""
+                        }
+                        // Target · duration meta
+                        Label {
+                            Layout.fillWidth: true
+                            visible: page._metaLine !== ""
+                            text: page._metaLine
+                            font.family: Th.ThemeEngine.monoFont
+                            font.pixelSize: 11
+                            color: Th.ThemeEngine.colors.textSecondary
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+                    }
                 }
 
-                // Completion badge overlay
-                W.AppIcon {
-                    anchors { right: parent.right; bottom: parent.bottom; margins: 12 }
-                    name: Th.ThemeEngine.statusIconNames[page.status] || "badge-skip"
-                    size: 28; color: page._statusColor
-                }
-
-                Accessible.name: T.diagName(page.diagId) || page.detail.displayName || "Diagnostic result"
+                Accessible.name: page._statusText + (page.detail.summary ? ": " + page.detail.summary : "")
                 Accessible.role: Accessible.Graphic
             }
 
             // ── Key metric card (MetricCard.qml with count-up animation) ──
+            // 5WHY (format fix): the summary now lives ONLY in the hero — the
+            // old standalone summary label AND the fallback card both
+            // re-rendered page.detail.summary, showing the exact same text
+            // twice on screen.  When no structured metric exists the hero's
+            // status + summary IS the headline; no placeholder is needed.
             Loader {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 72
-                active: _keyMetricValue !== "--" && _keyMetricValue !== ""
+                // 5WHY: _keyMetric is now a structured object from the shared
+                // KeyMetric module — no string parsing (parseFloat on "1:23"
+                // corrupted durations) and no unit mangling ("% loss"→"loss").
+                active: _keyMetric.ok
                 source: "qrc:/qml/detail/MetricCard.qml"
                 onLoaded: {
                     if (item) {
-                        item.label = Qt.binding(function() { return _keyMetricLabel })
-                        item.value = Qt.binding(function() { return parseFloat(_keyMetricValue) || 0 })
-                        item.unit = Qt.binding(function() { return _keyMetricUnit })
-                        item.accentColor = Qt.binding(function() { return page._statusColor })
+                        // Translated strings → binding (re-eval on lang change)
+                        item.label = Qt.binding(function() { return T.tr(_keyMetric.labelKey) })
+                        item.unit = Qt.binding(function() { return T.tr(_keyMetric.unitKey) })
+                        // Static numbers → direct assignment (data is immutable)
+                        item.value = _keyMetric.value
+                        item.precision = _keyMetric.precision
+                        item.format = _keyMetric.format
+                        item.trailing = _keyMetric.trailing
+                        item.accentColor = page._statusColor
                     }
                 }
             }
-            // Fallback: simple inline card when no structured metric available
-            Rectangle {
-                Layout.fillWidth: true; Layout.preferredHeight: 56
-                visible: _keyMetricValue === "--" || _keyMetricValue === ""
-                radius: Th.ThemeEngine.radius.md
-                color: Th.ThemeEngine.colors.card
-                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
-                Label {
-                    anchors.centerIn: parent
-                    text: page.detail.summary || "No metrics available"
-                    font.family: Th.ThemeEngine.monoFont; font.pixelSize: 13
-                    color: Th.ThemeEngine.colors.textSecondary
-                }
-                Accessible.name: "Status: " + (page.detail.summary || "No metrics")
-                Accessible.role: Accessible.StaticText
-            }
 
-            // ── Summary ──────────────────────────────────────────────────
-            Label {
+            // ── Error output ───────────────────────────────────────────
+            // 5WHY: errorOutput was serialized by C++ (getDetailResult) but
+            // never rendered — failed tests with only an errorOutput lost
+            // their error detail on the detail page.
+            Rectangle {
                 Layout.fillWidth: true
-                text: page.detail.summary || ""
-                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 12
-                color: Th.ThemeEngine.colors.textSecondary
-                wrapMode: Text.WordWrap; visible: text !== ""
+                visible: (page.detail.errorOutput || "") !== ""
+                radius: Th.ThemeEngine.radius.md
+                color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
+                border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.5) }
+                ColumnLayout {
+                    anchors { fill: parent; margins: 12 }
+                    spacing: 6
+                    Label {
+                        text: T.tr("detailError")
+                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
+                        color: Th.ThemeEngine.colors.failRed
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        text: page.detail.errorOutput
+                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                        color: Th.ThemeEngine.colors.textPrimary
+                        wrapMode: Text.WrapAnywhere
+                    }
+                }
+                Accessible.name: T.tr("detailError")
+                Accessible.role: Accessible.StaticText
             }
 
             // ── Properties section (collapsible) ─────────────────────────
@@ -211,27 +321,41 @@ Page {
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+                // 5WHY: several diagnostics (Ping/Traceroute/TcpConnect) emit
+                // no properties — the empty section header was dead UI.
+                visible: (page.detail.properties || []).length > 0
 
                 ColumnLayout {
                     id: propsCol
                     anchors { fill: parent; margins: 12 }
                     spacing: 4
 
-                    // Section header (tap to toggle)
-                    RowLayout {
-                        Label {
-                            text: "Properties"; font.family: Th.ThemeEngine.monoFont
-                            font.pixelSize: 12; font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary
-                        }
-                        Item { Layout.fillWidth: true }
-                        Label {
-                            text: page.propsExpanded ? "▲" : "▼"
-                            font.pixelSize: 10; color: Th.ThemeEngine.colors.textSecondary
+                    // Section header (tap to toggle).  5WHY: anchors.fill on a
+                    // layout-managed child is undefined behavior (qmllint) —
+                    // the tappable MouseArea lives on a wrapper Item instead.
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: propsHeaderRow.implicitHeight
+                        RowLayout {
+                            id: propsHeaderRow
+                            anchors.fill: parent
+                            Label {
+                                text: T.tr("detailProperties"); font.family: Th.ThemeEngine.monoFont
+                                font.pixelSize: 12; font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary
+                            }
+                            Item { Layout.fillWidth: true }
+                            Label {
+                                text: page.propsExpanded ? "▲" : "▼"
+                                font.pixelSize: 10; color: Th.ThemeEngine.colors.textSecondary
+                            }
                         }
                         MouseArea {
                             anchors.fill: parent
                             onClicked: page.propsExpanded = !page.propsExpanded
                             cursorShape: Qt.PointingHandCursor
+                            Accessible.name: T.tr("detailProperties")
+                                + (page.propsExpanded ? T.tr("accExpanded") : T.tr("accCollapsed"))
+                            Accessible.role: Accessible.Button
                         }
                     }
 
@@ -246,8 +370,12 @@ Page {
                                 RowLayout {
                                     spacing: 6
                                     // Severity indicator dot (color-coded)
+                                    // 5WHY: explicit width/height on a layout-managed
+                                    // item is undefined behavior (qmllint) — declare
+                                    // preferred sizes and let the RowLayout allocate.
                                     Rectangle {
-                                        width: 6; height: 6; radius: 3
+                                        Layout.preferredWidth: 6; Layout.preferredHeight: 6
+                                        radius: 3
                                         color: modelData.severity === 2 ? Th.ThemeEngine.colors.failRed
                                                : modelData.severity === 1 ? Th.ThemeEngine.colors.warnYellow
                                                : Th.ThemeEngine.colors.textMuted
@@ -255,7 +383,7 @@ Page {
                                         visible: modelData.severity !== undefined
                                     }
                                     Label {
-                                        text: modelData.label + ":"; font.family: Th.ThemeEngine.monoFont
+                                        text: T.trProp(modelData.label) + ":"; font.family: Th.ThemeEngine.monoFont
                                         font.pixelSize: 11; color: Th.ThemeEngine.colors.textMuted
                                         Layout.preferredWidth: Math.min(implicitWidth, 140)
                                         elide: Text.ElideRight
@@ -264,6 +392,8 @@ Page {
                                         text: modelData.value || ""; font.family: Th.ThemeEngine.monoFont
                                         font.pixelSize: 11; color: Th.ThemeEngine.colors.textPrimary
                                         Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                                        Accessible.name: modelData.label + ": " + (modelData.value || "")
+                                        Accessible.role: Accessible.StaticText
                                     }
                                 }
                                 // Nested children (indented)
@@ -273,14 +403,15 @@ Page {
                                         spacing: 6
                                         Layout.leftMargin: 16  // indent children
                                         Rectangle {
-                                            width: 4; height: 4; radius: 2
+                                            Layout.preferredWidth: 4; Layout.preferredHeight: 4
+                                            radius: 2
                                             color: modelData.severity === 2 ? Th.ThemeEngine.colors.failRed
                                                    : modelData.severity === 1 ? Th.ThemeEngine.colors.warnYellow
                                                    : Th.ThemeEngine.colors.borderCard
                                             Layout.alignment: Qt.AlignVCenter
                                         }
                                         Label {
-                                            text: modelData.label + ":"; font.family: Th.ThemeEngine.monoFont
+                                            text: T.trProp(modelData.label) + ":"; font.family: Th.ThemeEngine.monoFont
                                             font.pixelSize: 10; color: Th.ThemeEngine.colors.textMuted
                                             Layout.preferredWidth: Math.min(implicitWidth, 120)
                                             elide: Text.ElideRight
@@ -289,6 +420,8 @@ Page {
                                             text: modelData.value || ""; font.family: Th.ThemeEngine.monoFont
                                             font.pixelSize: 10; color: Th.ThemeEngine.colors.textSecondary
                                             Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                                            Accessible.name: modelData.label + ": " + (modelData.value || "")
+                                            Accessible.role: Accessible.StaticText
                                         }
                                     }
                                 }
@@ -304,52 +437,49 @@ Page {
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
-                // 5WHY (review B4): gate on _chartSource (a real chart exists
-                // for this template) — not just _hasChartData, which is true
-                // even when no visualization is wired for the template.
-                visible: _hasChartData && _chartSource !== ""
+                // 5WHY: gate on the shared ResultChart's hasChart — a real
+                // visualization exists for this template's data.
+                visible: chartView.hasChart
 
                 ColumnLayout {
                     id: chartsCol
                     anchors { fill: parent; margins: 12 }
                     spacing: 8
 
-                    RowLayout {
-                        Label {
-                            text: "Detailed Data"; font.family: Th.ThemeEngine.monoFont
-                            font.pixelSize: 12; font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary
-                        }
-                        Item { Layout.fillWidth: true }
-                        Label {
-                            text: page.chartsExpanded ? "▲" : "▼"; font.pixelSize: 10
-                            color: Th.ThemeEngine.colors.textSecondary
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: chartsHeaderRow.implicitHeight
+                        RowLayout {
+                            id: chartsHeaderRow
+                            anchors.fill: parent
+                            Label {
+                                text: T.tr("detailData"); font.family: Th.ThemeEngine.monoFont
+                                font.pixelSize: 12; font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary
+                            }
+                            Item { Layout.fillWidth: true }
+                            Label {
+                                text: page.chartsExpanded ? "▲" : "▼"; font.pixelSize: 10
+                                color: Th.ThemeEngine.colors.textSecondary
+                            }
                         }
                         MouseArea {
                             anchors.fill: parent
                             onClicked: page.chartsExpanded = !page.chartsExpanded
                             cursorShape: Qt.PointingHandCursor
+                            Accessible.name: T.tr("detailData")
+                                + (page.chartsExpanded ? T.tr("accExpanded") : T.tr("accCollapsed"))
+                            Accessible.role: Accessible.Button
                         }
                     }
 
-                    // Chart area — content varies by template (review B4:
-                    // BarChart series / Gauge metric wired from structured data.
-                    // MetricCard/BarChart/Gauge were orphaned — now connected).
-                    Loader {
-                        id: chartLoader
+                    // Chart area — all chart wiring (source selection, series,
+                    // gauge spec, height, language re-bind) lives in the
+                    // shared ResultChart component.
+                    Viz.ResultChart {
+                        id: chartView
                         Layout.fillWidth: true
-                        // 5WHY: previously hardcoded 140px for all chart types.
-                        // Gauge needs ~56px (wasted space), BarChart with many
-                        // bars needs more.  Size per template type.
-                        Layout.preferredHeight: {
-                            var tt = data.templateType
-                            if (tt === 2) return 80   // Gauge: compact
-                            return Math.max(100, Math.min(300,
-                                _chartSeries.length * 28 + 40))  // BarChart: per-bar
-                        }
-                        active: page.chartsExpanded && page._chartSource !== ""
-                        source: page._chartSource
-                        visible: active
-                        onLoaded: { if (item) page._bindChart(item) }
+                        data: page.resultData
+                        expanded: page.chartsExpanded
                     }
                 }
             }
@@ -368,15 +498,28 @@ Page {
                     anchors { fill: parent; margins: 12 }
                     spacing: 6
                     Label {
-                        text: "Terminal Output"; font.family: Th.ThemeEngine.monoFont
+                        text: T.tr("detailTerminal"); font.family: Th.ThemeEngine.monoFont
                         font.pixelSize: 11; font.weight: Font.Bold
-                        color: Th.ThemeEngine.colors.passGreen
+                        // 5WHY: passGreen title read like a status verdict — a
+                        // section header should be neutral text.
+                        color: Th.ThemeEngine.colors.textPrimary
+                        Accessible.name: T.tr("detailTerminal")
+                        Accessible.role: Accessible.StaticText
                     }
                     // L5: TerminalBlock with typewriter animation
                     Loader {
                         id: termLoader
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 200
+                        // 5WHY (format fix): a FIXED 200px terminal block left
+                        // most of the space empty for short outputs and capped
+                        // long ones.  Height follows line count (18px/line,
+                        // clamp 120-360px) and collapses to 0 when empty.
+                        Layout.preferredHeight: {
+                            var txt = page.detail.details || page.detail.rawOutput || ""
+                            if (txt === "") return 0
+                            var lines = txt.split("\n").length
+                            return Math.min(360, Math.max(120, lines * 18 + 24))
+                        }
                         active: (page.detail.details || page.detail.rawOutput || "") !== ""
                         source: "qrc:/qml/detail/TerminalBlock.qml"
                         onLoaded: {
@@ -398,151 +541,24 @@ Page {
         }  // bodyColumn
     }  // Flickable
 
-    // ── Language change handler ──────────────────────────────────────────
-    Connections {
-        target: T
-        function onLangChanged() {
-            // Force re-evaluation of translated bindings
-            // All text is bound via T.diagName() etc — QML re-evaluates
-            // bindings when their dependencies change.
+    // ── Copy feedback toast ─────────────────────────────────────────────
+    Rectangle {
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
+        implicitWidth: copyToastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
+        color: Th.ThemeEngine.colors.card; visible: page._copied !== ""
+        border { width: 1; color: Th.ThemeEngine.colors.borderFocused }
+        Label {
+            id: copyToastLabel; anchors.centerIn: parent
+            text: page._copied; font.family: Th.ThemeEngine.monoFont; font.pixelSize: 12
+            color: Th.ThemeEngine.colors.textPrimary
         }
     }
 
-    // ── Key metric helpers ───────────────────────────────────────────────
-    readonly property string _keyMetricValue: {
-        // When no structured data, use raw duration if available
-        if (!_hasData) {
-            var d = detail.durationMs || 0
-            if (d <= 0) return "--"
-            // Show whole seconds for durations ≥1s, raw ms for sub-second
-            if (d < 1000) return String(d)
-            if (d < 60000) return (d / 1000).toFixed(1)
-            var min = Math.floor(d / 60000)
-            var sec = Math.round((d % 60000) / 1000)
-            return String(min) + ":" + (sec < 10 ? "0" : "") + String(sec)
-        }
-        if (data.rttAvgMs !== undefined)  return Number(data.rttAvgMs).toFixed(0)
-        if (data.hopCount !== undefined)  return String(data.hopCount)
-        if (data.totalMs !== undefined)   return Number(data.totalMs).toFixed(0)
-        if (data.daysLeft !== undefined)  return String(data.daysLeft)
-        if (data.lossPercent !== undefined) return Number(data.lossPercent).toFixed(1)
-        // Fallback: try common Query-type fields
-        if (data.connectedCount !== undefined) return String(data.connectedCount)
-        if (data.responseTimeMs !== undefined) return Number(data.responseTimeMs).toFixed(0)
-        if (data.rowCount !== undefined) return String(data.rowCount)
-        return "--"
-    }
-    readonly property string _keyMetricLabel: {
-        if (!_hasData) {
-            var d = detail.durationMs || 0
-            if (d <= 0) return ""
-            if (d < 1000) return "ms"
-            if (d < 60000) return "sec"
-            return "min:sec"
-        }
-        if (data.rttAvgMs !== undefined)  return "ms avg"
-        if (data.hopCount !== undefined)  return "hops"
-        if (data.totalMs !== undefined)   return "ms total"
-        if (data.daysLeft !== undefined)  return "days"
-        if (data.lossPercent !== undefined) return "% loss"
-        if (data.connectedCount !== undefined) return "connected"
-        if (data.responseTimeMs !== undefined) return "ms"
-        if (data.rowCount !== undefined) return "rows"
-        return ""
-    }
-    // Extracts the unit portion from _keyMetricLabel for MetricCard display
-    // e.g. "ms avg"→"ms", "hops"→"hops", "% loss"→"%"
-    readonly property string _keyMetricUnit: {
-        var label = _keyMetricLabel
-        if (!label) return ""
-        var parts = label.split(" ")
-        return parts[parts.length - 1]  // last word = unit
-    }
-    readonly property bool _hasChartData: {
-        if (!data) return false
-        return data.individualRtts !== undefined
-            || data.hops !== undefined
-            || data.dnsMs !== undefined
-            || data.downloadResults !== undefined
-            || data.latencyMs !== undefined
-            || data.daysLeft !== undefined
-    }
+    // ── Key metric (single source: shared KeyMetric.js module) ──────────
+    // 5WHY: _keyMetricValue/_keyMetricLabel/_keyMetricUnit were three string
+    // properties that mangled units ("% loss"→"loss") and corrupted
+    // durations (parseFloat("1:23")→1).  Now a structured {value,unitKey,
+    // labelKey,precision,format} object — same module DiagBlock consumes.
+    readonly property var _keyMetric: KM.keyMetric(resultData, page.detail.durationMs || 0)
 
-    // ── L5 chart wiring (review B4) ────────────────────────────────────
-    // Visualizations were described in the living-doc but never connected:
-    // MetricCard/BarChart/Gauge sat qrc-registered and orphaned, and the
-    // chart Loader had an empty source.  Now each template maps to a real
-    // viz component and its data is bound on load.
-    readonly property string _chartSource: {
-        if (!_hasChartData) return ""
-        var tt = data.templateType
-        if (tt === 0 && data.individualRtts !== undefined) return "qrc:/qml/detail/viz/BarChart.qml"
-        if (tt === 1 && data.hops !== undefined)           return "qrc:/qml/detail/viz/BarChart.qml"
-        if (tt === 2 && data.daysLeft !== undefined)       return "qrc:/qml/detail/viz/Gauge.qml"
-        if (tt === 3 && data.dnsMs !== undefined)          return "qrc:/qml/detail/viz/BarChart.qml"
-        // Query (tt=4): connect latency gauge — relative to 5s timeout
-        if (tt === 4 && data.latencyMs !== undefined)      return "qrc:/qml/detail/viz/Gauge.qml"
-        return ""
-    }
-    // BarChart { values: [{label,value,color}] } — RTT per packet / hop
-    // delays / HTTP-timing waterfall.
-    readonly property var _chartSeries: {
-        var out = []
-        var tt = data.templateType
-        var P = Th.ThemeEngine.colors.primary
-        if (tt === 0 && data.individualRtts) {
-            for (var i = 0; i < data.individualRtts.length; i++)
-                out.push({ label: "p" + (i + 1), value: Number(data.individualRtts[i]), color: P })
-        } else if (tt === 1 && data.hops) {
-            for (var j = 0; j < data.hops.length; j++) {
-                var h = data.hops[j]
-                out.push({ label: String(h.ttl !== undefined ? h.ttl : j + 1),
-                           value: Number(h.rttMs !== undefined ? h.rttMs : 0), color: P })
-            }
-        } else if (tt === 3) {
-            var phases = [
-                { label: "DNS",   value: data.dnsMs,       color: "#0EA5E9" },
-                { label: "TCP",   value: data.connectMs,   color: "#6366F1" },
-                { label: "TLS",   value: data.sslMs,       color: "#10B981" },
-                { label: "TTFB",  value: data.firstByteMs, color: "#F59E0B" },
-                { label: "Total", value: data.totalMs,     color: "#F43F5E" }
-            ]
-            for (var k = 0; k < phases.length; k++)
-                if (phases[k].value !== undefined) out.push(phases[k])
-        } else if (tt === 4 && data.latencyMs !== undefined) {
-            // Query: single connect-latency bar
-            out.push({ label: "Connect", value: Number(data.latencyMs),
-                       color: data.connected ? Th.ThemeEngine.colors.passGreen
-                                             : Th.ThemeEngine.colors.failRed })
-        }
-        return out
-    }
-    // Gauge { value, maxValue, unit, gaugeColor } — cert validity + query latency.
-    readonly property var _gaugeSpec: {
-        if (data.templateType === 2 && data.daysLeft !== undefined)
-            return { value: Number(data.daysLeft), max: 365, unit: "d",
-                     color: Th.ThemeEngine.colors.passGreen }
-        if (data.templateType === 4 && data.latencyMs !== undefined)
-            return { value: Number(data.latencyMs), max: 5000, unit: "ms",
-                     color: data.connected ? Th.ThemeEngine.colors.passGreen
-                                           : Th.ThemeEngine.colors.failRed }
-        return null
-    }
-    function _bindChart(item) {
-        if (!item) return
-        // 5WHY: dispatch by templateType enum (0=Ping,1=Path,2=Handshake,3=Request)
-        // instead of string-matching _chartSource URL — decouples chart config
-        // from QRC path naming.
-        var tt = data.templateType
-        if (tt === 0 || tt === 1 || tt === 3) {
-            // Ping / Path / Request → BarChart
-            if (_chartSeries.length) item.values = _chartSeries
-        } else if (tt === 2 && _gaugeSpec) {
-            // Handshake → Gauge (cert validity, security score)
-            item.value = _gaugeSpec.value
-            item.maxValue = _gaugeSpec.max
-            item.unit = _gaugeSpec.unit
-            item.gaugeColor = _gaugeSpec.color
-        }
-    }
 }

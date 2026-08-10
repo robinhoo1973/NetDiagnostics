@@ -1,6 +1,7 @@
 import QtQuick
 import "../theme"
 import "../theme/AnimationTokens.js" as Tokens
+import "../detail/KeyMetric.js" as KeyMetric
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -38,15 +39,17 @@ Item {
     implicitHeight: visible ? blockSize : 0
 
     // ── Key metric (headline number, no duration text) ────────────────────
+    // 5WHY: was a SECOND independent implementation of DetailPage's metric
+    // logic (different key set, different formatting) — the two drifted.
+    // Both now consume the shared KeyMetric.js module (single source).
     readonly property string _keyMetric: {
         if (!_isDone) return ""
-        var d = itemData.data; if (!d) return ""
-        if (d.rttAvgMs !== undefined)  return Number(d.rttAvgMs).toFixed(0) + "ms"
-        if (d.hopCount !== undefined)  return String(d.hopCount) + " hops"
-        if (d.totalMs !== undefined)   return Number(d.totalMs).toFixed(0) + "ms"
-        if (d.daysLeft !== undefined)  return String(d.daysLeft) + "d"
-        if (d.connectedCount !== undefined) return d.connectedCount + "/" + (d.totalPorts || "?")
-        return ""
+        var km = KeyMetric.keyMetric(itemData.data, itemData.durationMs || 0)
+        if (!km.ok) return ""
+        // 5WHY: dedup — precision + min:sec formatting is the shared
+        // KeyMetric.formatNumber() (MetricCard uses the same helper).
+        var val = KeyMetric.formatNumber(km.value, km.precision, km.format)
+        return val + (km.unitKey ? " " + T.tr(km.unitKey) : "") + km.trailing
     }
 
     // ── Elapsed-time coin indicator (top-left, Running + grace period) ──
@@ -158,6 +161,7 @@ Item {
         // Coin-change display: fewest dots, value printed inside each.
         // Denominations: 50(rose) 20(amber) 10(purple) 5(cyan) 1(slate)
         Row {
+            z: 5
             anchors { top: parent.top; left: parent.left; topMargin: 4; leftMargin: 4 }
             spacing: 2
             visible: _showCoins
@@ -192,6 +196,7 @@ Item {
 
         // ── Status badge — top-right corner ───────────────────────────────
         AppIcon {
+            z: 5
             anchors { top: parent.top; right: parent.right; topMargin: 5; rightMargin: 5 }
             name: _statusIcon; size: 14; color: _statusColor
             visible: _isDone
@@ -199,13 +204,19 @@ Item {
 
         // ── Icon area — centered with slight upward offset ────────────────
         // 5WHY: geometric center (anchors.centerIn) looks off-center when
-        // bottom text pushes visual weight downward.  Offset -6px compensates.
+        // bottom text pushes visual weight downward.  The offset is now
+        // PROPORTIONAL to blockSize (5%) instead of a magic -6px that did
+        // not scale for small tiles.  Explicit z-index keeps the title and
+        // metric readable above the animated icon — Jiggle can scale the
+        // icon past its bounds during the running state, so title/metric
+        // must stack above the icon well.
         Item {
             id: iconWell
+            z: 1
             anchors {
                 horizontalCenter: parent.horizontalCenter
                 verticalCenter: parent.verticalCenter
-                verticalCenterOffset: -6
+                verticalCenterOffset: -Math.round(root.blockSize * 0.05)
             }
             width: Math.max(32, Math.round(root.blockSize * 0.48))
             height: width
@@ -229,8 +240,10 @@ Item {
             }
 
             // Diagnostic icon — dead center of icon well, TOPMOST layer
+            // within the well (z:2); the well itself is z:1 under the title.
             AppIcon {
                 id: blockIcon
+                z: 2
                 anchors.centerIn: parent
                 name: appState.diagIconName(itemData.diagId) || "circle"
                 size: Math.max(22, Math.round(parent.width * 0.75))
@@ -246,6 +259,7 @@ Item {
         // ── Test name — bottom edge ───────────────────────────────────────
         AppLabel {
             id: nameLabel
+            z: 3
             anchors {
                 left: parent.left; right: parent.right
                 leftMargin: 4; rightMargin: 4
@@ -264,6 +278,7 @@ Item {
         // ── Metric line — bottom ──────────────────────────────────────────
         Label {
             id: metricLine
+            z: 4
             anchors {
                 left: parent.left; right: parent.right
                 bottom: parent.bottom; bottomMargin: 5

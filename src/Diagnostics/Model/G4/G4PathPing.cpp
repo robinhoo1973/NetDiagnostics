@@ -213,9 +213,15 @@ DiagnosticResult pathPing(const QString& target) {
     else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial: %1 Hops").arg(hopCount); }
     else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("Target Unreachable"); }
     QVariantList rHops;
-    for (const auto& h : hops) {
+    for (int i = 0; i < hops.size(); ++i) {
+        const auto& h = hops[i];
         QVariantMap hm;
         hm["ttl"] = h.ttl; hm["ip"] = h.ip; hm["name"] = h.name; hm["reached"] = h.reached;
+        // 5WHY: the Path template bar chart reads hops[].rttMs — without it
+        // every bar rendered 0 (invisible).  Merge per-hop avg RTT from
+        // hopStats (which parallels hops, index shifted by the localhost row).
+        if (i > 0 && i - 1 < hopStats.size())
+            hm["rttMs"] = hopStats[i - 1].avgMs;
         rHops.append(hm);
     }
     QVariantList rHopStats;

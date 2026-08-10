@@ -9,6 +9,7 @@ ZoomBar 1.0 ZoomBar.qml
 DiagnosticToolbar 1.0 DiagnosticToolbar.qml
 DiagGroupPanel 1.0 DiagGroupPanel.qml
 DiagBlock 1.0 DiagBlock.qml
+DiagTileGrid 1.0 DiagTileGrid.qml
 DiagAnimator 1.0 DiagAnimator.qml
 SummaryCards 1.0 SummaryCards.qml
 ShareButtons 1.0 ShareButtons.qml

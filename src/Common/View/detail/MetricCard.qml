@@ -13,6 +13,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "../theme"
+import "KeyMetric.js" as KM
 
 Item {
     id: root
@@ -21,10 +22,29 @@ Item {
     property string label: ""
     property real value: 0
     property string unit: "ms"
+    // 5WHY: value precision was hardcoded via Math.round() — packet loss of
+    // 0.5% rendered as 0 and avg latencies lost decimals.  Callers now pass
+    // the metric's native precision (0/1) from KeyMetric.js.
+    property int precision: 0
+    // 5WHY: durations >= 60s are m:ss ("1:23").  The old DetailPage fed the
+    // formatted string through parseFloat() which silently truncated it to
+    // "1".  MetricCard now animates total SECONDS and formats m:ss itself —
+    // no string parsing anywhere.
+    property string format: "num"   // "num" | "minsec"
+    // 5WHY: ratio metrics (e.g. "2/3 ports") need a literal suffix after the
+    // unit — "/3".  Kept as raw text (not translated); only the unit is.
+    property string trailing: ""
     property color accentColor: ThemeEngine.colors.primary
 
     implicitWidth: 160
     implicitHeight: 72
+
+    // ── Display text — derived from the ANIMATED value ────────────────────
+    // 5WHY: dedup — min:sec + precision formatting now lives in the shared
+    // KeyMetric.js module (same logic DiagBlock uses for its static tile text).
+    readonly property string _displayText: KM.formatNumber(root._animValue, root.precision, root.format)
+    // Accessibility reads the FINAL value (not the animating one).
+    readonly property string _accessText: KM.formatNumber(root.value, root.precision, root.format)
 
     // 5WHY: QML NumberAnimation cannot target a property that is also being
     // assigned by a binding (binding conflicts with animation driver).
@@ -91,7 +111,7 @@ Item {
 
                 // Large animated number
                 Label {
-                    text: Math.round(root._animValue)
+                    text: root._displayText
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: 22
                     font.weight: Font.Bold
@@ -102,9 +122,9 @@ Item {
                     horizontalAlignment: T.textAlignEnd
                 }
 
-                // Unit suffix (smaller, secondary color)
+                // Unit suffix (smaller, secondary color) + ratio trailing
                 Label {
-                    text: root.unit
+                    text: root.unit + root.trailing
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: 14
                     font.weight: Font.Medium
@@ -124,6 +144,7 @@ Item {
     }
 
     // ── Accessibility ─────────────────────────────────────────────────────
-    Accessible.name: root.label + ": " + Math.round(root.value) + " " + root.unit
+    Accessible.name: root.label + ": " + root._accessText
+        + (root.unit ? " " + root.unit : "") + root.trailing
     Accessible.role: Accessible.StaticText
 }

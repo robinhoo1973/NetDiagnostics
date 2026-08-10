@@ -88,7 +88,9 @@ Item {
             Label {
                 visible: root.values.length === 0
                 anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
-                text: "No data"
+                // 5WHY: was hardcoded English — the 15-language app must
+                // localize even the empty state.
+                text: T.tr("noChartData")
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: 11
                 color: ThemeEngine.colors.textMuted

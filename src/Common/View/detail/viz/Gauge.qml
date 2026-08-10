@@ -24,6 +24,10 @@ Item {
     property real maxValue: 100
     property string unit: "%"
     property color gaugeColor: ThemeEngine.colors.passGreen
+    // 5WHY (R2): metrics that are semantically invalid at negative values
+    // (e.g. daysLeft for an expired certificate) show this localized label
+    // instead of a confusing negative number + 0% fill.
+    property string emptyLabel: ""
 
     implicitWidth: 240
     implicitHeight: 56
@@ -89,7 +93,7 @@ Item {
             spacing: 4
 
             Label {
-                text: root.value.toFixed(1)
+                text: root.value < 0 && root.emptyLabel !== "" ? root.emptyLabel : root.value.toFixed(1)
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: 18
                 font.weight: Font.Bold
@@ -98,6 +102,7 @@ Item {
             }
 
             Label {
+                visible: !(root.value < 0 && root.emptyLabel !== "")
                 text: "/ " + root.maxValue + " " + root.unit
                 font.family: ThemeEngine.monoFont
                 font.pixelSize: 12
@@ -163,7 +168,8 @@ Item {
     }
 
     // ── Accessibility ─────────────────────────────────────────────────────
-    Accessible.name: root.value.toFixed(1) + " of " + root.maxValue + " " + root.unit
+    Accessible.name: (root.value < 0 && root.emptyLabel !== "" ? root.emptyLabel : root.value.toFixed(1))
+        + " " + root.maxValue + " " + root.unit
         + " (" + Math.round(root._ratio * 100) + "%)"
     Accessible.role: Accessible.Indicator
 }

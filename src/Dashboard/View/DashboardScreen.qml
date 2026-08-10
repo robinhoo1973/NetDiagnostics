@@ -510,27 +510,17 @@ Item {
                 }
             }
             Item { Layout.preferredHeight: 10 }
-            // 5WHY (review B7 / doc D11): reuse the Living Diagnostics square
-            // block grid so Dashboard per-group results share the Diagnostic
-            // screen's visual language (was a dense 28px text list).  Compact
-            // mode: smaller icons, no metric.  Tap opens the same L5 DetailPage.
-            Flow {
-                id: dashFlow
+            // 5WHY (review B7 / doc D11): reuse the shared DiagTileGrid so
+            // Dashboard per-group results share the Diagnostic screen's tile
+            // wall AND dynamic-gap algorithm (was a dense 28px text list, then
+            // a fixed-spacing Flow that wasted the right edge).  Compact mode:
+            // smaller icons, no metric.  Tap opens the same L5 DetailPage.
+            DiagTileGrid {
                 Layout.fillWidth: true
-                spacing: 8
-                // Fixed compact size — Dashboard is a summary; the Diagnostic
-                // screen owns the responsive full-size grid (D6).
-                property real blockSize: 104
-                Repeater {
-                    model: appState.resultsForGroup(groupIndex)
-                    delegate: DiagBlock {
-                        blockSize: dashFlow.blockSize
-                        compact: true
-                        itemData: modelData
-                        testRunning: false
-                        onClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
-                    }
-                }
+                model: appState.resultsForGroup(groupIndex)
+                blockSize: 104
+                compact: true
+                onTileClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
             }
         }
     }

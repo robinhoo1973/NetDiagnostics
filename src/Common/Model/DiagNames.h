@@ -214,12 +214,15 @@ inline DiagTemplateType diagTemplateType(DiagId id) {
         // ── Ping/latency (G4 remote probes) ────────────────────────────
         case DiagId::G4Ping:
         case DiagId::G4DnsResolution:
-        case DiagId::G4PathPing:
             return DiagTemplateType::Ping;
 
-        // ── Path (traceroute + routing) ─────────────────────────────────
+        // ── Path (hop-by-hop trace) ────────────────────────────────────
+        // 5WHY: G4PathPing was classified Ping, but it emits hop data
+        // (hops[] with per-hop rttMs), not per-packet individualRtts — the
+        // Ping template's chart looked for a key PathPing never writes, so
+        // PathPing never got a chart.  Hop data ⇒ Path template.
         case DiagId::G4Traceroute:
-        case DiagId::G2RoutingTable:
+        case DiagId::G4PathPing:
             return DiagTemplateType::Path;
 
         // ── Handshake/security ──────────────────────────────────────────
@@ -254,6 +257,11 @@ inline DiagTemplateType diagTemplateType(DiagId id) {
             return DiagTemplateType::Query;
 
         // ── System properties (G1-G2, default) ──────────────────────────
+        // 5WHY: G2RoutingTable was classified Path, but it dumps routes[]
+        // (dest/gateway/metric) — no hop RTTs.  Forcing the Path chart
+        // schema (hops[]) on it produced nothing; it's a property table.
+        case DiagId::G2RoutingTable:
+            return DiagTemplateType::System;
         default:
             return DiagTemplateType::System;
     }

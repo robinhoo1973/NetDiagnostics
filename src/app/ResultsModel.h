@@ -42,6 +42,8 @@ public:
     void setSchemeFilter(const QString& scheme, bool hasUrl);
     // Called by AppState when a result completes
     void addResult(DiagId id, const DiagnosticResult& result);
+    // Single-diag re-run: undo addResult()'s bookkeeping for one id (if present)
+    void removeResult(DiagId id);
     void setCurrentGroup(int groupIdx);  // called when group starts executing
     void clear();  // reset to empty state
 
@@ -57,6 +59,8 @@ public:
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;
     QVariantList allGroupStats() const;
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const;
+    // Clipboard copy (Qt 6.3-safe; Qt.copyTextToClipboard needs Qt 6.5+)
+    Q_INVOKABLE void copyDetailToClipboard(int diagIdInt) const;
 
     // ── Raw result access (for AppState / non-QML consumers) ──────────────
     bool hasResult(DiagId id) const { return m_results.contains(id); }

@@ -68,6 +68,7 @@ QtObject {
 
     // ── Translation tables (loaded from translations.json) ──────────────
     property var _props: ({})       // properties: key -> [15 langs]
+    property var _propLabels: ({})  // propLabels:   EN label -> [15 langs]
     property var _groups: []        // groupNames:  [5 x [15 langs]]
     property var _groupPrefix: []   // groupPrefix: [15 langs]
     property var _diagNames: ({})   // diagName:    "id" -> [15 langs]
@@ -85,6 +86,7 @@ QtObject {
         if (!TJson) return
         var j = JSON.parse(TJson)
         root._props      = j.properties  || {}
+        root._propLabels = j.propLabels  || {}
         root._groups     = j.groupNames  || []
         root._groupPrefix = j.groupPrefix || []
         root._diagNames  = j.diagName    || {}
@@ -109,6 +111,19 @@ QtObject {
         let _ = root.lang // register binding dependency (captured by engine)
         if (!root._loaded) root._load()
         return root._pick(root._props[key]) || key
+    }
+
+    // Translate a diagnostic PROPERTY label (English, from C++) via the
+    // propLabels table; falls back to the original English label when the
+    // label isn't in the table (R4).
+    function trProp(label) {
+        let _ = root.lang // register binding dependency
+        if (!root._loaded) root._load()
+        if (!label) return label
+        var arr = root._propLabels[label]
+        if (!arr) return label
+        var v = root._pick(arr)
+        return v !== "" ? v : label
     }
 
     function diagName(id) {

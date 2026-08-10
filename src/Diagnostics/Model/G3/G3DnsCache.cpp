@@ -1,5 +1,8 @@
 #include "Diagnostics/Model/GHelpers.h"
 #include <QProcess>
+#if defined(__linux__)
+#include <unistd.h>  // isatty / STDIN_FILENO (Linux branch only)
+#endif
 
 namespace SystemDiagnostics {
 DiagnosticResult dnsCache(DiagId id) {
@@ -55,16 +58,34 @@ DiagnosticResult dnsCache(DiagId id) {
     // branch, which is the correct behaviour (no systemd-resolved there).
 #if defined(__linux__)
     QByteArray data;
-    // 5WHY: `resolvectl statistics` needs the systemd-resolved
-    // dump-statistics permission — on an interactive desktop a non-root user
-    // gets a polkit password prompt and the diagnostic blocks on it
-    // mid-run. ND_SKIP_RESOLVECTL=1 skips the privileged query (used by
-    // headless test/CI runs and local validation); the resolver-config
-    // branch below shows instead.
-    if (qEnvironmentVariableIsSet("ND_SKIP_RESOLVECTL")) {
+    // 5WHY (root cause — headless polkit hang): `resolvectl statistics` needs
+    // the systemd-resolved D-Bus method org.freedesktop.resolve1.dump-statistics,
+    // whose polkit policy requires ADMIN authentication for non-root users.
+    // Spawned from an interactive terminal, polkit-agent-helper-1 prompts for
+    // a password ON THE PROCESS'S STDIN; in headless/CI runs nobody answers,
+    // so pam_authenticate fails and the terminal shows the spurious
+    // "Password: polkit-agent-helper-1: pam_authenticate failed" prompt while
+    // the diagnostic blocks.  The privileged query is therefore only attempted
+    // when we KNOW a human can authenticate:
+    //   1) ND_TESTING (headless test build)      → never (compile-time)
+    //   2) ND_SKIP_RESOLVECTL=1 (opt-out, local) → never
+    //   3) ND_AUTO_TEST=1 (CI)                   → never
+    //   4) stdin is not a TTY (CI/pipe/daemon)   → never (polkit has no agent
+    //      without a controlling terminal, the call would just fail anyway)
+    // In all skip cases we fall through to the resolver-config branch below.
+    bool skipPrivileged = qEnvironmentVariableIsSet("ND_SKIP_RESOLVECTL")
+                       || qEnvironmentVariableIsSet("ND_AUTO_TEST")
+                       || ::isatty(STDIN_FILENO) == 0;
+#if defined(ND_TESTING)
+    skipPrivileged = true;  // test harness must never spawn privileged commands
+#endif
+    if (skipPrivileged) {
         data = QByteArray();
     } else {
         QProcess proc;
+        // Belt & suspenders: even if this branch runs, a polkit prompt must
+        // never block reading our stdin — redirect it to the null device.
+        proc.setStandardInputFile(QProcess::nullDevice());
         proc.start(QStringLiteral("resolvectl"), QStringList() << QStringLiteral("statistics"));
         if (!proc.waitForFinished(5000)) {
             proc.start(QStringLiteral("systemd-resolve"), QStringList() << QStringLiteral("--statistics"));

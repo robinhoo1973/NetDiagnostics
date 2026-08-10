@@ -6,6 +6,8 @@
 #include "Common/Platform/DeviceCapability.h"
 #include "Configuration/Model/DiagnosticConfig.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
+#include <QClipboard>
+#include <QGuiApplication>
 
 ResultsModel::ResultsModel(QObject* parent) : QObject(parent) {}
 
@@ -42,6 +44,25 @@ void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
     emit progressChanged();
 }
 
+// ── Single-diag re-run support ─────────────────────────────────────────────
+// 5WHY: re-running ONE diagnostic must REPLACE that result without corrupting
+// the aggregate counters.  removeResult() undoes addResult()'s bookkeeping
+// (guarded by existence) so a subsequent addResult() lands on the correct
+// totals — the re-run replaces rather than accumulates.
+void ResultsModel::removeResult(DiagId id) {
+    auto it = m_results.find(id);
+    if (it == m_results.end()) return;
+    m_results.erase(it);
+    DiagGroup g = DiagnosticConfig::diagGroup(id);
+    auto git = m_completedPerGroup.find(g);
+    if (git != m_completedPerGroup.end() && git.value() > 0)
+        git.value()--;
+    if (m_totalCompleted > 0) m_totalCompleted--;
+    m_resultsVersion++;
+    m_cachedStatsVersion = -1;
+    emit progressChanged();
+}
+
 void ResultsModel::clear() {
     m_results.clear();
     m_completedPerGroup.clear();
@@ -61,6 +82,22 @@ void ResultsModel::clear() {
 
 // ── Static helpers (delegated to DiagNames.h / G5Common.h) ─────────────
 
+// ── ResultProperty → QVariantMap (recursive; preserves severity + children) ─
+// 5WHY: the serializer previously emitted only label/value — DetailPage's
+// severity dots and nested child rows (e.g. G1DhcpStatus leases) were dead
+// code because severity/children never crossed the C++→QML boundary.
+static QVariantMap propToMap(const ResultProperty& p) {
+    QVariantMap pm;
+    pm["label"] = p.label;
+    pm["value"] = p.value;
+    pm["severity"] = static_cast<int>(p.severity);  // Info=0 Warning=1 Error=2
+    QVariantList kids;
+    for (const auto& c : p.children)
+        kids.append(propToMap(c));
+    if (!kids.isEmpty()) pm["children"] = kids;
+    return pm;
+}
+
 QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool includeProperties) {
     QVariantMap m;
     m["id"] = static_cast<int>(r.id);
@@ -73,12 +110,8 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
     m["durationMs"] = r.durationMs;
     if (includeProperties) {
         QVariantList props;
-        for (const auto& p : r.properties) {
-            QVariantMap pm;
-            pm["label"] = p.label;
-            pm["value"] = p.value;
-            props.append(pm);
-        }
+        for (const auto& p : r.properties)
+            props.append(propToMap(p));
         m["properties"] = props;
     }
     m["isDone"] = true;
@@ -92,6 +125,29 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
         m["data"] = enriched;
     }
     return m;
+}
+
+// ── Clipboard copy for the L5 detail-page "copy" action ─────────────────
+// 5WHY: pure-QML clipboard access (Qt.copyTextToClipboard) requires Qt 6.5+,
+// but this project's minimum is Qt 6.3 — the copy action must be a C++
+// Q_INVOKABLE so it works on every supported platform (iOS/Android/desktop).
+void ResultsModel::copyDetailToClipboard(int diagIdInt) const {
+    if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return;
+    auto id = static_cast<DiagId>(diagIdInt);
+    const auto resultIt = m_results.constFind(id);
+    if (resultIt == m_results.constEnd()) return;
+
+    const auto& r = resultIt.value();
+    QString text = r.displayName.isEmpty() ? ::diagDisplayName(r.id) : r.displayName;
+    if (!r.summary.isEmpty()) text += QStringLiteral("\n") + r.summary;
+    if (!r.details.isEmpty()) text += QStringLiteral("\n\n") + r.details;
+    if (!r.rawOutput.isEmpty() && r.rawOutput != r.details)
+        text += QStringLiteral("\n\n") + r.rawOutput;
+    if (!r.errorOutput.isEmpty())
+        text += QStringLiteral("\n\n[error] ") + r.errorOutput;
+
+    if (QGuiApplication::clipboard())
+        QGuiApplication::clipboard()->setText(text);
 }
 
 // ── QML-invokable result accessors ──────────────────────────────────────
@@ -278,12 +334,8 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     m["durationMs"] = r.durationMs;
 
     QVariantList props;
-    for (const auto& p : r.properties) {
-        QVariantMap pm;
-        pm["label"] = p.label;
-        pm["value"] = p.value;
-        props.append(pm);
-    }
+    for (const auto& p : r.properties)
+        props.append(propToMap(p));
     m["properties"] = props;
     // L5 Living Diagnostics: pass structured data + template classification
     if (!r.data.isEmpty()) {

@@ -158,40 +158,20 @@ Rectangle {
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:ThemeEngine.colors.borderCard }
 
-            // ── Tile wall with dynamic gap distribution ────────────────────
-            // Fixed-size tiles + auto-fit columns.  Spacing is calculated
-            // to evenly distribute any leftover width — no large wasted gaps
-            // on the right edge (5WHY: fixed spacing=10 left empty space when
-            // another tile didn't quite fit; dynamic spacing fills it evenly).
-            Flow {
-                id: blockFlow
+            // ── Tile wall — shared DiagTileGrid (dynamic-gap algorithm) ────
+            // 5WHY: the algorithm + DiagBlock delegate now live in ONE
+            // component (DiagTileGrid) so the Diagnostic screen and Dashboard
+            // can never drift apart again.
+            DiagTileGrid {
                 Layout.fillWidth: true
                 Layout.topMargin: 8
-
-                property real blockSize: 108
-                // Dynamic spacing: leftover width distributed evenly BETWEEN tiles
-                // (not at edges).  Minimum 8px, maximum 24px.
-                property real _cols: Math.max(1, Math.floor((width + 8) / (blockSize + 8)))
-                property real _gap: {
-                    if (_cols <= 1) return 8
-                    var leftover = width - _cols * blockSize
-                    return Math.max(8, Math.min(24, Math.floor(leftover / (_cols - 1))))
-                }
-                spacing: _gap
-
-                Repeater {
-                    model: root.itemsModel
-                    delegate: DiagBlock {
-                        blockSize: blockFlow.blockSize
-                        itemData: modelData
-                        // 5WHY (review): root.isRunning is GROUP-level — when
-                        // one test completes but group is still running other
-                        // tests, completed tiles keep jiggling and never show
-                        // Done state.  modelData.isRunning is per-item from C++.
-                        testRunning: modelData.isRunning === true && !modelData.isDisabled
-                        onClicked: function(data) { root.detailClicked(data) }
-                    }
-                }
+                model: root.itemsModel
+                blockSize: 108
+                // per-item running (modelData.isRunning): when one test
+                // completes but the group keeps running, the finished tile
+                // stops jiggling and shows its Done state immediately.
+                usePerItemRunning: true
+                onTileClicked: function(data) { root.detailClicked(data) }
             }
         }
     }

@@ -172,6 +172,9 @@ public:
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const { return m_resultsModel->groupStats(groupInt); }
     QVariantList allGroupStats() const { return m_resultsModel->allGroupStats(); }
     Q_INVOKABLE QVariantMap getDetailResult(int diagIdInt) const { return m_resultsModel->getDetailResult(diagIdInt); }
+    Q_INVOKABLE void copyDetailToClipboard(int diagIdInt) const { m_resultsModel->copyDetailToClipboard(diagIdInt); }
+    // Re-run a single diagnostic (L5 detail page) — preserves all other results.
+    Q_INVOKABLE void rerunDiag(int diagIdInt);
     ReportData buildReportData() const;  // snapshot for ReportEngine
 
     int stateVersion() const { return m_stateGeneration.load(std::memory_order_acquire); }

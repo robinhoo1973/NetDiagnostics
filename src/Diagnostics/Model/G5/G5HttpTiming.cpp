@@ -17,11 +17,16 @@ DiagnosticResult httpTiming(const QString& target) {
         cr.totalMs < 3000 ? DiagStatus::Warning : DiagStatus::Fail);
     r.rawOutput = cr.lines.join('\n'); r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
-    // Expose per-phase curl timing as structured properties
+    // 5WHY: curl's Connect/SSL/TTFB/Total timers are CUMULATIVE from request
+    // start (CURLINFO_CONNECT_TIME etc.), not per-phase durations.  Listing
+    // them verbatim made "TCP Connect: 78ms" mean "78ms since start (incl.
+    // DNS)".  Emit per-phase deltas to match the detail-page waterfall; the
+    // raw cumulative values stay in r.data (the chart computes deltas there).
+    auto phaseMs = [](double cum, double prev) { return qMax(0.0, cum - prev); };
     r.properties.append({QStringLiteral("DNS Lookup"),    QStringLiteral("%1 ms").arg(cr.dnsMs, 0, 'f', 1)});
-    r.properties.append({QStringLiteral("TCP Connect"),   QStringLiteral("%1 ms").arg(cr.connectMs, 0, 'f', 1)});
-    r.properties.append({QStringLiteral("SSL Handshake"), QStringLiteral("%1 ms").arg(cr.appConnectMs, 0, 'f', 1)});
-    r.properties.append({QStringLiteral("Time to First Byte"), QStringLiteral("%1 ms").arg(cr.firstByteMs, 0, 'f', 1)});
+    r.properties.append({QStringLiteral("TCP Connect"),   QStringLiteral("%1 ms").arg(phaseMs(cr.connectMs, cr.dnsMs), 0, 'f', 1)});
+    r.properties.append({QStringLiteral("SSL Handshake"), QStringLiteral("%1 ms").arg(phaseMs(cr.appConnectMs, cr.connectMs), 0, 'f', 1)});
+    r.properties.append({QStringLiteral("Time to First Byte"), QStringLiteral("%1 ms").arg(phaseMs(cr.firstByteMs, cr.appConnectMs), 0, 'f', 1)});
     r.properties.append({QStringLiteral("Total Time"),    QStringLiteral("%1 ms").arg(cr.totalMs, 0, 'f', 1)});
     r.properties.append({QStringLiteral("HTTP Status"),   QString::number(cr.statusCode)});
     if (!cr.redirectLocation.isEmpty())
