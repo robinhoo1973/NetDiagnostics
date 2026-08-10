@@ -51,6 +51,47 @@ static DiagnosticResult result(DiagId id, const QString& summary,
     return r;
 }
 
+// ── Shared TCP probe scaffolding (Query-template protocol tests) ────────
+// 5WHY: FTP/SSH/Email/Telnet/Redis each hand-rolled the same raw QTcpSocket
+// lifecycle (connect→waitForConnected→waitForReadyRead→readAll→disconnect)
+// even though NetworkProbe::tcpProbe exists (it was extracted for exactly
+// this) — half the G5 tests used it, half duplicated it → drift + dead code.
+// g5Probe() owns the socket lifecycle AND the result scaffold
+// (host/port/connected/latencyMs data) so each protocol file only keeps its
+// protocol-specific parsing (banner syntax, handshake verification).
+struct G5ProbeResult {
+    bool connected = false;
+    QByteArray banner;       // bytes read after optional sendData command
+    qint64 durationMs = 0;
+    int port = 0;
+};
+static G5ProbeResult g5Probe(const QUrl& u, const QByteArray& sendData = {},
+                             int connectTimeoutMs = 5000, int readTimeoutMs = 3000) {
+    G5ProbeResult p;
+    p.port = portForUrl(u);
+    auto probe = NetworkProbe::tcpProbe(u.host(), p.port, connectTimeoutMs,
+                                        readTimeoutMs, sendData);
+    p.connected = probe.connected;
+    p.banner = probe.data;
+    p.durationMs = probe.elapsedMs;
+    return p;
+}
+// Builds the base Query result after a probe.  On connect failure the result
+// is FINAL (Fail + "Connection failed") — the caller returns it immediately.
+// On success the caller fills summary/status + protocol-specific data keys.
+static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
+                                      const G5ProbeResult& p) {
+    DiagnosticResult r = g5Result(id, p.connected ? QString()
+                                                  : QStringLiteral("Connection failed"),
+                                  p.connected ? DiagStatus::Pass : DiagStatus::Fail);
+    r.durationMs = p.durationMs;
+    r.data["host"] = u.host();
+    r.data["port"] = p.port;
+    r.data["connected"] = p.connected;
+    r.data["latencyMs"] = p.durationMs;
+    return r;
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // libcurl-based HTTP engine — full curl functionality
 // ═════════════════════════════════════════════════════════════════════════════

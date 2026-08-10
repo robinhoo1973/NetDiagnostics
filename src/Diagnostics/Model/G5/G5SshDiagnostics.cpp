@@ -1,42 +1,19 @@
 #include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult sshDiagnostics(const QString& target) {
-    if (target.isEmpty()) return g5Result(DiagId::G5SshDiagnostics, "No target", DiagStatus::Skipped);
+    if (target.isEmpty()) return skipped(DiagId::G5SshDiagnostics, "No target");
     QUrl u = validate(target);
     if (u.scheme() != "ssh" && u.scheme() != "sftp")
-        return g5Result(DiagId::G5SshDiagnostics, "Not SSH", DiagStatus::Skipped);
-    int port = portForUrl(u);
-    QElapsedTimer t; t.start();
-    QTcpSocket sock;
-    sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000)) {
-        auto r = g5Result(DiagId::G5SshDiagnostics, "Connection failed", DiagStatus::Fail);
-        r.durationMs = t.elapsed();
-        r.data["host"] = u.host();
-        r.data["port"] = port;
-        r.data["connected"] = false;
-        r.data["sshVersion"] = QString();
-        r.data["banner"] = QString();
-        r.data["latencyMs"] = t.elapsed();
-        return r;
-    }
-    sock.waitForReadyRead(3000);
-    QByteArray banner = sock.readAll();
-    sock.disconnectFromHost();
-    QString bstr = QString::fromUtf8(banner).trimmed().left(200);
-    QString version;
-    if (bstr.startsWith("SSH-")) version = bstr.section(' ', 0, 0);
-    auto r = g5Result(DiagId::G5SshDiagnostics,
-        version.isEmpty() ? "No SSH banner" : version,
-        version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
-    r.durationMs = t.elapsed();
-    r.data["host"] = u.host();
-    r.data["port"] = port;
-    r.data["connected"] = true;
+        return skipped(DiagId::G5SshDiagnostics, "Not SSH");
+    auto p = g5Probe(u);
+    auto r = g5ProbeResult(DiagId::G5SshDiagnostics, u, p);
+    if (!p.connected) return r;
+    QString bstr = QString::fromUtf8(p.banner).trimmed().left(200);
+    QString version = bstr.startsWith("SSH-") ? bstr.section(' ', 0, 0) : QString();
     r.data["sshVersion"] = version;
     r.data["banner"] = bstr;
-    r.data["latencyMs"] = t.elapsed();
+    r.summary = version.isEmpty() ? QStringLiteral("No SSH banner") : version;
+    r.status = version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
     return r;
 }
-
 } // namespace G5WebsiteUrl

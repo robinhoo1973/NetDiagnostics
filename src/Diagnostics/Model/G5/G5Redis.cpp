@@ -1,45 +1,22 @@
 #include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult redisDiagnostics(const QString& target) {
-    if (target.isEmpty())
-        return skipped(DiagId::G5Redis, "No target");
+    if (target.isEmpty()) return skipped(DiagId::G5Redis, "No target");
     QUrl u = validate(target);
-    if (u.scheme() != "redis")
-        return skipped(DiagId::G5Redis, "Not Redis");
-    int port = portForUrl(u);
-    QElapsedTimer t; t.start();
-    QTcpSocket sock;
-    sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000)) {
-        auto r = result(DiagId::G5Redis, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
-        r.data["host"] = u.host();
-        r.data["port"] = port;
-        r.data["connected"] = false;
-        r.data["pong"] = false;
-        r.data["response"] = QString();
-        r.data["latencyMs"] = t.elapsed();
-        return r;
-    }
-    sock.write("PING\r\n");
-    sock.waitForBytesWritten(2000);
-    sock.waitForReadyRead(2000);
-    QByteArray resp = sock.readAll();
-    sock.write("QUIT\r\n");
-    sock.disconnectFromHost();
-    bool pong = resp.trimmed().contains("PONG");
-    auto r = result(DiagId::G5Redis,
-        pong ? "Redis: PONG" : (resp.isEmpty() ? "No response" : QString::fromUtf8(resp).trimmed().left(200)),
-        pong ? DiagStatus::Pass : DiagStatus::Warning,
-        resp.isEmpty() ? QString() : QString::fromUtf8(resp), t.elapsed());
-    r.data["host"] = u.host();
-    r.data["port"] = port;
-    r.data["connected"] = true;
+    if (u.scheme() != "redis") return skipped(DiagId::G5Redis, "Not Redis");
+    // PING round-trip via the shared probe (sendData = command, read = reply).
+    auto p = g5Probe(u, "PING\r\n", 5000, 2000);
+    auto r = g5ProbeResult(DiagId::G5Redis, u, p);
+    if (!p.connected) return r;
+    QString resp = QString::fromUtf8(p.banner).trimmed();
+    bool pong = resp.contains("PONG");
     r.data["pong"] = pong;
-    r.data["response"] = resp.isEmpty() ? QString() : QString::fromUtf8(resp);
-    r.data["latencyMs"] = t.elapsed();
+    r.data["response"] = resp;
+    r.data["banner"] = resp.left(200);
+    r.summary = pong ? QStringLiteral("Redis: PONG")
+               : resp.isEmpty() ? QStringLiteral("No response") : resp.left(200);
+    r.status = pong ? DiagStatus::Pass : DiagStatus::Warning;
+    if (!resp.isEmpty()) r.rawOutput = r.details = resp;
     return r;
 }
-
-// ── MongoDB (port 27017) — isMaster handshake ─────────────────────────
 } // namespace G5WebsiteUrl

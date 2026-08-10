@@ -330,33 +330,15 @@ Page {
                     anchors { fill: parent; margins: 12 }
                     spacing: 4
 
-                    // Section header (tap to toggle).  5WHY: anchors.fill on a
-                    // layout-managed child is undefined behavior (qmllint) —
-                    // the tappable MouseArea lives on a wrapper Item instead.
-                    Item {
+                    // Section header — shared CollapsibleSectionHeader.
+                    // 5WHY: the tap-to-toggle header (label + ▲/▼ + MouseArea
+                    // + Accessible) was duplicated for Properties and Detailed
+                    // Data — one shared component keeps them in sync.
+                    W.CollapsibleSectionHeader {
                         Layout.fillWidth: true
-                        implicitHeight: propsHeaderRow.implicitHeight
-                        RowLayout {
-                            id: propsHeaderRow
-                            anchors.fill: parent
-                            Label {
-                                text: T.tr("detailProperties"); font.family: Th.ThemeEngine.monoFont
-                                font.pixelSize: 12; font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary
-                            }
-                            Item { Layout.fillWidth: true }
-                            Label {
-                                text: page.propsExpanded ? "▲" : "▼"
-                                font.pixelSize: 10; color: Th.ThemeEngine.colors.textSecondary
-                            }
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: page.propsExpanded = !page.propsExpanded
-                            cursorShape: Qt.PointingHandCursor
-                            Accessible.name: T.tr("detailProperties")
-                                + (page.propsExpanded ? T.tr("accExpanded") : T.tr("accCollapsed"))
-                            Accessible.role: Accessible.Button
-                        }
+                        title: T.tr("detailProperties")
+                        expanded: page.propsExpanded
+                        onToggleRequested: page.propsExpanded = !page.propsExpanded
                     }
 
                     // Property rows — with severity dots + nested children
@@ -446,30 +428,11 @@ Page {
                     anchors { fill: parent; margins: 12 }
                     spacing: 8
 
-                    Item {
+                    W.CollapsibleSectionHeader {
                         Layout.fillWidth: true
-                        implicitHeight: chartsHeaderRow.implicitHeight
-                        RowLayout {
-                            id: chartsHeaderRow
-                            anchors.fill: parent
-                            Label {
-                                text: T.tr("detailData"); font.family: Th.ThemeEngine.monoFont
-                                font.pixelSize: 12; font.weight: Font.Bold; color: Th.ThemeEngine.colors.textPrimary
-                            }
-                            Item { Layout.fillWidth: true }
-                            Label {
-                                text: page.chartsExpanded ? "▲" : "▼"; font.pixelSize: 10
-                                color: Th.ThemeEngine.colors.textSecondary
-                            }
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: page.chartsExpanded = !page.chartsExpanded
-                            cursorShape: Qt.PointingHandCursor
-                            Accessible.name: T.tr("detailData")
-                                + (page.chartsExpanded ? T.tr("accExpanded") : T.tr("accCollapsed"))
-                            Accessible.role: Accessible.Button
-                        }
+                        title: T.tr("detailData")
+                        expanded: page.chartsExpanded
+                        onToggleRequested: page.chartsExpanded = !page.chartsExpanded
                     }
 
                     // Chart area — all chart wiring (source selection, series,

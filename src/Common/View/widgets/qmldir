@@ -5,6 +5,7 @@
 AppBar 1.0 AppBar.qml
 AppIcon 1.0 AppIcon.qml
 AppLabel 1.0 AppLabel.qml
+CollapsibleSectionHeader 1.0 CollapsibleSectionHeader.qml
 ZoomBar 1.0 ZoomBar.qml
 DiagnosticToolbar 1.0 DiagnosticToolbar.qml
 DiagGroupPanel 1.0 DiagGroupPanel.qml

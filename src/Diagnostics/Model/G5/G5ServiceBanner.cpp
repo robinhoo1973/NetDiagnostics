@@ -1,44 +1,23 @@
 #include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult serviceBanner(const QString& target) {
-    if (target.isEmpty()) return g5Result(DiagId::G5ServiceBanner, "No target", DiagStatus::Skipped);
+    if (target.isEmpty()) return skipped(DiagId::G5ServiceBanner, "No target");
     QUrl u = validate(target);
     if (!u.isValid() || u.host().isEmpty())
         return g5Result(DiagId::G5ServiceBanner, "Invalid target", DiagStatus::Fail);
-    int port = portForUrl(u);
-
-    // 5WHY: This file used raw POSIX/Winsock sockets (socket, getaddrinfo,
-    // select, recv) with platform #ifdefs — duplicating NetUtil.h helpers
-    // and DnsResolver.  Replaced with NetworkProbe::tcpProbe() which
-    // handles connect+read via QTcpSocket with consistent timeouts and
-    // cross-platform behavior.  The sendData is empty (we just want the
-    // server's greeting banner, not to send a protocol handshake).
-    auto probe = NetworkProbe::tcpProbe(u.host(), port, 5000, 2000);
-
-    if (!probe.connected) {
-        auto r = g5Result(DiagId::G5ServiceBanner, "Connection failed", DiagStatus::Fail);
-        r.durationMs = probe.elapsedMs;  // tcpProbe records elapsed even on failure
-        r.data["host"] = u.host();
-        r.data["port"] = port;
-        r.data["connected"] = false;
-        r.data["banner"] = QString();
-        r.data["bannerLength"] = 0;
-        r.data["latencyMs"] = probe.elapsedMs;
-        return r;
-    }
-
-    auto r = g5Result(DiagId::G5ServiceBanner,
-        probe.data.isEmpty() ? "No banner received" : "Banner received",
-        probe.data.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
-    r.rawOutput = QString::fromUtf8(probe.data).left(500);
-    r.durationMs = probe.elapsedMs;
-    r.data["host"] = u.host();
-    r.data["port"] = port;
-    r.data["connected"] = probe.connected;
-    r.data["banner"] = QString::fromUtf8(probe.data).left(500);
-    r.data["bannerLength"] = probe.data.size();
-    r.data["latencyMs"] = probe.elapsedMs;
+    // 5WHY: connect+read lifecycle + result scaffold are shared g5Probe()/
+    // g5ProbeResult().  sendData is empty — we want the server's greeting
+    // banner, not a protocol handshake.
+    auto p = g5Probe(u, {}, 5000, 2000);
+    auto r = g5ProbeResult(DiagId::G5ServiceBanner, u, p);
+    if (!p.connected) return r;
+    QString banner = QString::fromUtf8(p.banner).left(500);
+    r.summary = p.banner.isEmpty() ? QStringLiteral("No banner received")
+                                   : QStringLiteral("Banner received");
+    r.status = p.banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    r.rawOutput = banner;
+    r.data["banner"] = banner;
+    r.data["bannerLength"] = p.banner.size();
     return r;
 }
-
 } // namespace G5WebsiteUrl

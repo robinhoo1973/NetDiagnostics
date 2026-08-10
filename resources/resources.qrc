@@ -33,6 +33,7 @@
         <file alias="qml/widgets/qmldir">../src/Common/View/widgets/qmldir</file>
         <file alias="qml/widgets/SchemeSelector.qml">../src/Common/View/widgets/SchemeSelector.qml</file>
         <file alias="qml/widgets/PremiumCard.qml">../src/Common/View/widgets/PremiumCard.qml</file>
+        <file alias="qml/widgets/CollapsibleSectionHeader.qml">../src/Common/View/widgets/CollapsibleSectionHeader.qml</file>
         <file alias="qml/widgets/DiagGroupPanel.qml">../src/Common/View/widgets/DiagGroupPanel.qml</file>
         <file alias="qml/widgets/DiagBlock.qml">../src/Common/View/widgets/DiagBlock.qml</file>
         <file alias="qml/widgets/DiagTileGrid.qml">../src/Common/View/widgets/DiagTileGrid.qml</file>
