@@ -78,28 +78,34 @@ Page {
 
     background: Rectangle { color: Th.ThemeEngine.colors.surface }
 
-    // ── Header bar ───────────────────────────────────────────────────────
+    // ── Header bar — unified title-bar container (professional UI review) ──
+    // 5WHY: the test identity (icon, name, status) and actions (duration, copy,
+    // rerun) were in a single undifferentiated RowLayout — the title bar lacked
+    // visual structure.  Now uses a two-zone layout:
+    //   LEFT zone:  back | icon | name + status badge (vertically stacked on narrow)
+    //   RIGHT zone: duration | copy | rerun
+    // 5WHY (Issue #4): the spec requires a unified 标题栏-style container that
+    // houses the detection name, status, and action buttons together with clear
+    // visual boundaries — the ToolBar's bottom separator acts as the container edge.
     header: ToolBar {
         id: topBar
+        // 5WHY: ToolBar default padding varies by platform (macOS/iOS/Windows) —
+        // explicit insets keep the title bar height consistent across OSes.
+        topPadding: 6; bottomPadding: 6; leftPadding: 8; rightPadding: 12
         background: Rectangle { color: Th.ThemeEngine.colors.card }
-        // Bottom separator
+        // Bottom separator — defines the title-bar container boundary
         Rectangle {
             anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
             height: 1; color: Th.ThemeEngine.colors.borderCard
         }
 
         RowLayout {
-            anchors { fill: parent; leftMargin: 8; rightMargin: 12 }
-            spacing: 4
+            anchors.fill: parent
+            spacing: 8
 
-            // Back button
+            // ── Back button ────────────────────────────────────────────
             ToolButton {
                 id: backBtn
-                // 5WHY (review B18): native icon.source + icon.color performs
-                // RUNTIME colorization — unreliable on iOS static Qt (see
-                // AppIcon 5WHY), leaving a white chevron invisible on light
-                // theme.  Use the project's pre-generated AppIcon; mirror
-                // flips it along the reading direction in RTL.
                 contentItem: W.AppIcon {
                     name: "chevron-right"; size: 18
                     color: Th.ThemeEngine.colors.textSecondary
@@ -110,68 +116,112 @@ Page {
                 Accessible.name: T.tr("accBack")
             }
 
-            W.AppIcon {
-                name: page.diagId >= 0 ? appState.diagIconName(page.diagId) : "circle"
-                size: 22; color: page._statusColor
+            // ═══════════════ LEFT ZONE: test identity ═══════════════════
+            // Icon + name + status badge — visually grouped
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+
+                // Diagnostic icon — color matches status
+                W.AppIcon {
+                    name: page.diagId >= 0 ? appState.diagIconName(page.diagId) : "circle"
+                    size: 22; color: page._statusColor
+                }
+
+                // Name + status badge — stacked on narrow, inline on wide
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    // Test name — primary identifier
+                    Label {
+                        Layout.fillWidth: true
+                        text: T.diagName(page.diagId) || page.detail.displayName || ""
+                        font.family: Th.ThemeEngine.monoFont
+                        font.pixelSize: page.width < 360 ? 13 : 15
+                        font.weight: Font.DemiBold
+                        color: Th.ThemeEngine.colors.textPrimary
+                        elide: Text.ElideRight; maximumLineCount: 1
+                    }
+
+                    // Status badge inline below name (always visible for scanability)
+                    Rectangle {
+                        radius: 4
+                        implicitWidth: statusText.implicitWidth + 10
+                        implicitHeight: 20
+                        color: Qt.alpha(page._statusColor, 0.12)
+                        Label {
+                            id: statusText; anchors.centerIn: parent
+                            text: page._statusText
+                            font.family: Th.ThemeEngine.monoFont
+                            font.pixelSize: 10; font.weight: Font.Bold
+                            color: page._statusColor
+                        }
+                    }
+                }
             }
 
-            Label {
-                text: T.diagName(page.diagId) || page.detail.displayName || ""
-                font.family: Th.ThemeEngine.monoFont
-                font.pixelSize: 16; font.weight: Font.DemiBold
-                color: Th.ThemeEngine.colors.textPrimary
-                Layout.fillWidth: true; elide: Text.ElideRight
-            }
-
-            // Status badge
+            // ═══════════════ RIGHT ZONE: actions ════════════════════════
+            // Duration + copy + rerun — grouped with subtle visual separation
             Rectangle {
-                radius: 4; implicitWidth: statusText.implicitWidth + 12
-                implicitHeight: 22
-                color: Qt.alpha(page._statusColor, 0.12)
-                Label {
-                    id: statusText; anchors.centerIn: parent
-                    text: page._statusText
-                    font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold
-                    color: page._statusColor
+                implicitWidth: actionsRow.implicitWidth + 16
+                implicitHeight: 36; radius: 8
+                color: Qt.alpha(Th.ThemeEngine.colors.input, 0.4)
+                visible: (page.detail.durationMs || 0) > 0 || page.diagId >= 0
+
+                RowLayout {
+                    id: actionsRow
+                    anchors.centerIn: parent
+                    spacing: 2
+
+                    // Duration chip
+                    Label {
+                        text: KM.formatDuration(page.detail.durationMs || 0)
+                        visible: (page.detail.durationMs || 0) > 0
+                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                        color: Th.ThemeEngine.colors.textSecondary
+                        Layout.leftMargin: 6; Layout.rightMargin: 4
+                        Accessible.name: T.tr("detailDuration") + ": " + text
+                        Accessible.role: Accessible.StaticText
+                    }
+
+                    // Separator (only when duration is visible and actions follow)
+                    Rectangle {
+                        implicitWidth: 1; implicitHeight: 18
+                        color: Th.ThemeEngine.colors.borderCard
+                        visible: (page.detail.durationMs || 0) > 0
+                    }
+
+                    // Copy result
+                    ToolButton {
+                        id: copyBtn
+                        implicitWidth: 30; implicitHeight: 30
+                        contentItem: W.AppIcon {
+                            name: "clipboard"; size: 15
+                            color: Th.ThemeEngine.colors.textSecondary
+                        }
+                        onClicked: {
+                            appState.copyDetailToClipboard(page.diagId)
+                            page._copied = T.tr("detailCopied")
+                            copyTimer.restart()
+                        }
+                        Accessible.name: T.tr("detailCopy")
+                        Accessible.role: Accessible.Button
+                    }
+
+                    // Re-run single diagnostic
+                    ToolButton {
+                        id: rerunBtn
+                        implicitWidth: 30; implicitHeight: 30
+                        contentItem: W.AppIcon {
+                            name: "diagnostics"; size: 15
+                            color: Th.ThemeEngine.colors.textSecondary
+                        }
+                        onClicked: appState.rerunDiag(page.diagId)
+                        Accessible.name: T.tr("detailRerun")
+                        Accessible.role: Accessible.Button
+                    }
                 }
-            }
-
-            // Duration chip — 5WHY: the legacy overlay showed durationMs but
-            // the L5 page dropped it.  Restored here (mono, secondary).
-            // Hidden on narrow phones (the hero meta line already shows it).
-            Label {
-                text: KM.formatDuration(page.detail.durationMs || 0)
-                visible: (page.detail.durationMs || 0) > 0 && page.width >= 440
-                font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
-                color: Th.ThemeEngine.colors.textSecondary
-                Accessible.name: T.tr("detailDuration") + ": " + text
-                Accessible.role: Accessible.StaticText
-            }
-
-            // Copy result — Qt 6.3-safe via C++ Q_INVOKABLE (Qt.copyTextToClipboard needs 6.5+)
-            ToolButton {
-                id: copyBtn
-                implicitWidth: 30; implicitHeight: 30
-                contentItem: W.AppIcon { name: "clipboard"; size: 15; color: Th.ThemeEngine.colors.textSecondary }
-                onClicked: {
-                    appState.copyDetailToClipboard(page.diagId)
-                    page._copied = T.tr("detailCopied")
-                    copyTimer.restart()
-                }
-                Accessible.name: T.tr("detailCopy")
-                Accessible.role: Accessible.Button
-            }
-
-            // Re-run single diagnostic — 5WHY: users could only re-run the
-            // whole battery; AppState::rerunDiag() re-runs just this test and
-            // preserves every other result.
-            ToolButton {
-                id: rerunBtn
-                implicitWidth: 30; implicitHeight: 30
-                contentItem: W.AppIcon { name: "diagnostics"; size: 15; color: Th.ThemeEngine.colors.textSecondary }
-                onClicked: appState.rerunDiag(page.diagId)
-                Accessible.name: T.tr("detailRerun")
-                Accessible.role: Accessible.Button
             }
         }
     }
@@ -262,9 +312,13 @@ Page {
             // re-rendered page.detail.summary, showing the exact same text
             // twice on screen.  When no structured metric exists the hero's
             // status + summary IS the headline; no placeholder is needed.
+            // 5WHY (layout): fixed 72px preferredHeight left an empty gap
+            // when no metric exists — bind height to _keyMetric.ok so the
+            // Loader collapses completely when inactive.
             Loader {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 72
+                Layout.preferredHeight: _keyMetric.ok ? 72 : 0
+                visible: _keyMetric.ok
                 // 5WHY: _keyMetric is now a structured object from the shared
                 // KeyMetric module — no string parsing (parseFloat on "1:23"
                 // corrupted durations) and no unit mangling ("% loss"→"loss").
@@ -448,8 +502,16 @@ Page {
             }
 
             // ── Terminal output ──────────────────────────────────────────
+            // 5WHY: the terminal section was always visible, showing an empty
+            // dark rectangle with just the "Terminal Output" header when the
+            // test produced no terminal output (e.g. G1 system property tests
+            // that emit only properties[]).  Gate the entire section on output
+            // presence so the empty shell never renders.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: termBlock.implicitHeight + 16
+                Layout.fillWidth: true
+                implicitHeight: (page.detail.details || page.detail.rawOutput || "") !== ""
+                                ? termBlock.implicitHeight + 16 : 0
+                visible: (page.detail.details || page.detail.rawOutput || "") !== ""
                 radius: Th.ThemeEngine.radius.md
                 // 5WHY: Match TerminalBlock's default terminalColor so the
                 // wrapper background is seamless with the terminal content.

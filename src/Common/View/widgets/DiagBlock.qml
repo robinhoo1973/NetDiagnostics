@@ -52,11 +52,13 @@ Item {
         return val + (km.unitKey ? " " + T.tr(km.unitKey) : "") + km.trailing
     }
 
-    // ── Elapsed-time indicator — top-left: color-coded dot + seconds text ──
-    // 5WHY: coin-change (multiple denomination dots) was visually noisy on a
-    // 108×108 tile.  Replaced with a single dot colored by elapsed time plus
-    // the actual seconds — industry standard for running-time indicators.
-    // Dot persists after completion so the user can always read the elapsed time.
+    // ── Elapsed-time indicator — top-left: color-coded circle with seconds ──
+    // 5WHY: the spec requires seconds displayed INSIDE the dot (统一用圆点加实际秒数
+    // 来表示，描述显示在圆点内).  The previous Row (8px dot + separate Label) put
+    // text outside the dot.  Replaced with a single 22px circle containing
+    // centered seconds text — color thresholds match the spec:
+    //   <5s green → 5-9s yellow → 10-20s orange → >20s red
+    // Minimum display is 1s (<1s counts as 1).  Circle persists after completion.
     property int _elapsed: 0
     property bool _showTimer: false
     Timer {
@@ -78,6 +80,8 @@ Item {
             }
         }
     }
+    // <1s counts as 1 — always display at least "1"
+    readonly property int _displayElapsed: Math.max(1, root._elapsed)
     // Color thresholds: <5s green → 5-9s yellow → 10-20s orange → >20s red
     readonly property string _timerColor: {
         if (_elapsed > 20) return "#DC2626"       // red
@@ -146,22 +150,23 @@ Item {
         }
 
         // ── Elapsed-time indicator — top-left corner ────────────────────
-        // Color-coded dot (thresholds see _timerColor above) + seconds label.
-        Row {
+        // 5WHY: spec requires seconds displayed INSIDE the circle (圆点内).
+        // Single 22px circle with centered text — color reflects elapsed-time
+        // threshold; text shows actual seconds (min 1).  Persists after
+        // completion so the user always sees the final elapsed time.
+        Rectangle {
             z: 5
             anchors { top: parent.top; left: parent.left; topMargin: 4; leftMargin: 4 }
-            spacing: 4
+            width: _displayElapsed >= 10 ? 24 : 22; height: 22; radius: 11
             visible: _showTimer
-            Rectangle {
-                width: 8; height: 8; radius: 4
-                anchors.verticalCenter: parent.verticalCenter
-                color: _timerColor
-            }
+            color: Qt.alpha(_timerColor, 0.15)
+            border { width: 1.5; color: _timerColor }
             Label {
-                anchors.verticalCenter: parent.verticalCenter
-                text: String(_elapsed) + "s"
+                anchors.centerIn: parent
+                text: String(_displayElapsed)
                 font.family: ThemeEngine.monoFont
-                font.pixelSize: 10; font.weight: Font.DemiBold
+                font.pixelSize: _displayElapsed >= 10 ? 9 : 10
+                font.weight: Font.DemiBold
                 color: _timerColor
             }
         }
@@ -217,7 +222,13 @@ Item {
                 id: blockIcon
                 z: 2
                 anchors.centerIn: parent
-                name: appState.diagIconName(itemData.diagId) || "circle"
+                // 5WHY: itemData.diagId may be undefined during initial
+                // QML binding evaluation (Repeater model population race).
+                // Guard with explicit undefined/null check; fall back to
+                // "circle" — always available in every palette color.
+                name: (itemData.diagId !== undefined && itemData.diagId !== null)
+                      ? (appState.diagIconName(itemData.diagId) || "circle")
+                      : "circle"
                 size: Math.max(22, Math.round(parent.width * 0.75))
                 // 5WHY: textMuted(#64748B) @ 0.55 on dark card → nearly invisible.
                 // textSecondary(#94A3B8) @ 0.80 matches group-header icon contrast

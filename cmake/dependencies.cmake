@@ -6,12 +6,12 @@
 # ── Qt6 ─────────────────────────────────────────────────────────────────
 if(IOS OR ANDROID)
     find_package(Qt6 6.3 REQUIRED COMPONENTS
-        Core Concurrent Quick QuickControls2 Network
+        Core Concurrent Quick QuickControls2 Network Svg
     )
     find_package(Qt6 COMPONENTS WebView QUIET)
 else()
     find_package(Qt6 6.3 REQUIRED COMPONENTS
-        Core Concurrent Quick QuickControls2 Widgets Network
+        Core Concurrent Quick QuickControls2 Widgets Network Svg
     )
     # QtWebView: in-app HTML report preview (optional — graceful fallback if missing)
     find_package(Qt6 COMPONENTS WebView QUIET)
