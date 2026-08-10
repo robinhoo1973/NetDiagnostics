@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult redisDiagnostics(const QString& target) {
     if (target.isEmpty())
@@ -10,9 +10,17 @@ DiagnosticResult redisDiagnostics(const QString& target) {
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return result(DiagId::G5Redis, "Connection failed", DiagStatus::Fail,
+    if (!sock.waitForConnected(5000)) {
+        auto r = result(DiagId::G5Redis, "Connection failed", DiagStatus::Fail,
                       {}, t.elapsed());
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = false;
+        r.data["pong"] = false;
+        r.data["response"] = QString();
+        r.data["latencyMs"] = t.elapsed();
+        return r;
+    }
     sock.write("PING\r\n");
     sock.waitForBytesWritten(2000);
     sock.waitForReadyRead(2000);
@@ -20,10 +28,17 @@ DiagnosticResult redisDiagnostics(const QString& target) {
     sock.write("QUIT\r\n");
     sock.disconnectFromHost();
     bool pong = resp.trimmed().contains("PONG");
-    return result(DiagId::G5Redis,
+    auto r = result(DiagId::G5Redis,
         pong ? "Redis: PONG" : (resp.isEmpty() ? "No response" : QString::fromUtf8(resp).trimmed().left(200)),
         pong ? DiagStatus::Pass : DiagStatus::Warning,
         resp.isEmpty() ? QString() : QString::fromUtf8(resp), t.elapsed());
+    r.data["host"] = u.host();
+    r.data["port"] = port;
+    r.data["connected"] = true;
+    r.data["pong"] = pong;
+    r.data["response"] = resp.isEmpty() ? QString() : QString::fromUtf8(resp);
+    r.data["latencyMs"] = t.elapsed();
+    return r;
 }
 
 // ── MongoDB (port 27017) — isMaster handshake ─────────────────────────

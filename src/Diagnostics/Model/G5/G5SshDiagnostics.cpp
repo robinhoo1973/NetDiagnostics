@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult sshDiagnostics(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SshDiagnostics, "No target", DiagStatus::Skipped);
@@ -12,6 +12,12 @@ DiagnosticResult sshDiagnostics(const QString& target) {
     if (!sock.waitForConnected(5000)) {
         auto r = g5Result(DiagId::G5SshDiagnostics, "Connection failed", DiagStatus::Fail);
         r.durationMs = t.elapsed();
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = false;
+        r.data["sshVersion"] = QString();
+        r.data["banner"] = QString();
+        r.data["latencyMs"] = t.elapsed();
         return r;
     }
     sock.waitForReadyRead(3000);
@@ -24,6 +30,12 @@ DiagnosticResult sshDiagnostics(const QString& target) {
         version.isEmpty() ? "No SSH banner" : version,
         version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
     r.durationMs = t.elapsed();
+    r.data["host"] = u.host();
+    r.data["port"] = port;
+    r.data["connected"] = true;
+    r.data["sshVersion"] = version;
+    r.data["banner"] = bstr;
+    r.data["latencyMs"] = t.elapsed();
     return r;
 }
 

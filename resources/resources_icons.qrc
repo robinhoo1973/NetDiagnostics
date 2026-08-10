@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RCC>
     <qresource prefix="/">
+        <file>icons/000000/archive.svg</file>
         <file>icons/000000/arp-table.svg</file>
         <file>icons/000000/badge-check.svg</file>
         <file>icons/000000/badge-circle.svg</file>
@@ -19,8 +20,10 @@
         <file>icons/000000/chevron-down.svg</file>
         <file>icons/000000/chevron-right.svg</file>
         <file>icons/000000/circle.svg</file>
+        <file>icons/000000/clipboard.svg</file>
         <file>icons/000000/close.svg</file>
         <file>icons/000000/cloud-shield.svg</file>
+        <file>icons/000000/compass.svg</file>
         <file>icons/000000/compression.svg</file>
         <file>icons/000000/config.svg</file>
         <file>icons/000000/connections.svg</file>
@@ -35,6 +38,7 @@
         <file>icons/000000/dns-resolve.svg</file>
         <file>icons/000000/dns-server.svg</file>
         <file>icons/000000/dns-shield.svg</file>
+        <file>icons/000000/door-open.svg</file>
         <file>icons/000000/error.svg</file>
         <file>icons/000000/ethernet.svg</file>
         <file>icons/000000/file-html.svg</file>
@@ -52,8 +56,10 @@
         <file>icons/000000/internet-globe.svg</file>
         <file>icons/000000/ip-config.svg</file>
         <file>icons/000000/ipv6.svg</file>
+        <file>icons/000000/keyboard.svg</file>
         <file>icons/000000/layers.svg</file>
         <file>icons/000000/ldap.svg</file>
+        <file>icons/000000/leaf.svg</file>
         <file>icons/000000/list-checks.svg</file>
         <file>icons/000000/mail.svg</file>
         <file>icons/000000/mongodb.svg</file>
@@ -64,9 +70,11 @@
         <file>icons/000000/mysql.svg</file>
         <file>icons/000000/network-card.svg</file>
         <file>icons/000000/network-profile.svg</file>
+        <file>icons/000000/package.svg</file>
         <file>icons/000000/path-ping.svg</file>
         <file>icons/000000/ping.svg</file>
         <file>icons/000000/play.svg</file>
+        <file>icons/000000/plug.svg</file>
         <file>icons/000000/postgres.svg</file>
         <file>icons/000000/protocol-stack.svg</file>
         <file>icons/000000/proxy.svg</file>
@@ -74,7 +82,9 @@
         <file>icons/000000/redis.svg</file>
         <file>icons/000000/remote-host.svg</file>
         <file>icons/000000/report.svg</file>
+        <file>icons/000000/road.svg</file>
         <file>icons/000000/route-table.svg</file>
+        <file>icons/000000/ruler.svg</file>
         <file>icons/000000/security-headers.svg</file>
         <file>icons/000000/shield-network.svg</file>
         <file>icons/000000/shield.svg</file>
@@ -82,6 +92,7 @@
         <file>icons/000000/ssh.svg</file>
         <file>icons/000000/stop.svg</file>
         <file>icons/000000/sun.svg</file>
+        <file>icons/000000/tag.svg</file>
         <file>icons/000000/tcp-connect.svg</file>
         <file>icons/000000/tcp-settings.svg</file>
         <file>icons/000000/telnet.svg</file>
@@ -90,10 +101,12 @@
         <file>icons/000000/traceroute.svg</file>
         <file>icons/000000/translate.svg</file>
         <file>icons/000000/url-parse.svg</file>
+        <file>icons/000000/user.svg</file>
         <file>icons/000000/video.svg</file>
         <file>icons/000000/warning.svg</file>
         <file>icons/000000/wifi.svg</file>
         <file>icons/000000/zap.svg</file>
+        <file>icons/06b6d4/archive.svg</file>
         <file>icons/06b6d4/arp-table.svg</file>
         <file>icons/06b6d4/badge-check.svg</file>
         <file>icons/06b6d4/badge-circle.svg</file>
@@ -112,8 +125,10 @@
         <file>icons/06b6d4/chevron-down.svg</file>
         <file>icons/06b6d4/chevron-right.svg</file>
         <file>icons/06b6d4/circle.svg</file>
+        <file>icons/06b6d4/clipboard.svg</file>
         <file>icons/06b6d4/close.svg</file>
         <file>icons/06b6d4/cloud-shield.svg</file>
+        <file>icons/06b6d4/compass.svg</file>
         <file>icons/06b6d4/compression.svg</file>
         <file>icons/06b6d4/config.svg</file>
         <file>icons/06b6d4/connections.svg</file>
@@ -128,6 +143,7 @@
         <file>icons/06b6d4/dns-resolve.svg</file>
         <file>icons/06b6d4/dns-server.svg</file>
         <file>icons/06b6d4/dns-shield.svg</file>
+        <file>icons/06b6d4/door-open.svg</file>
         <file>icons/06b6d4/error.svg</file>
         <file>icons/06b6d4/ethernet.svg</file>
         <file>icons/06b6d4/file-html.svg</file>
@@ -145,8 +161,10 @@
         <file>icons/06b6d4/internet-globe.svg</file>
         <file>icons/06b6d4/ip-config.svg</file>
         <file>icons/06b6d4/ipv6.svg</file>
+        <file>icons/06b6d4/keyboard.svg</file>
         <file>icons/06b6d4/layers.svg</file>
         <file>icons/06b6d4/ldap.svg</file>
+        <file>icons/06b6d4/leaf.svg</file>
         <file>icons/06b6d4/list-checks.svg</file>
         <file>icons/06b6d4/mail.svg</file>
         <file>icons/06b6d4/mongodb.svg</file>
@@ -157,9 +175,11 @@
         <file>icons/06b6d4/mysql.svg</file>
         <file>icons/06b6d4/network-card.svg</file>
         <file>icons/06b6d4/network-profile.svg</file>
+        <file>icons/06b6d4/package.svg</file>
         <file>icons/06b6d4/path-ping.svg</file>
         <file>icons/06b6d4/ping.svg</file>
         <file>icons/06b6d4/play.svg</file>
+        <file>icons/06b6d4/plug.svg</file>
         <file>icons/06b6d4/postgres.svg</file>
         <file>icons/06b6d4/protocol-stack.svg</file>
         <file>icons/06b6d4/proxy.svg</file>
@@ -167,7 +187,9 @@
         <file>icons/06b6d4/redis.svg</file>
         <file>icons/06b6d4/remote-host.svg</file>
         <file>icons/06b6d4/report.svg</file>
+        <file>icons/06b6d4/road.svg</file>
         <file>icons/06b6d4/route-table.svg</file>
+        <file>icons/06b6d4/ruler.svg</file>
         <file>icons/06b6d4/security-headers.svg</file>
         <file>icons/06b6d4/shield-network.svg</file>
         <file>icons/06b6d4/shield.svg</file>
@@ -175,6 +197,7 @@
         <file>icons/06b6d4/ssh.svg</file>
         <file>icons/06b6d4/stop.svg</file>
         <file>icons/06b6d4/sun.svg</file>
+        <file>icons/06b6d4/tag.svg</file>
         <file>icons/06b6d4/tcp-connect.svg</file>
         <file>icons/06b6d4/tcp-settings.svg</file>
         <file>icons/06b6d4/telnet.svg</file>
@@ -183,10 +206,12 @@
         <file>icons/06b6d4/traceroute.svg</file>
         <file>icons/06b6d4/translate.svg</file>
         <file>icons/06b6d4/url-parse.svg</file>
+        <file>icons/06b6d4/user.svg</file>
         <file>icons/06b6d4/video.svg</file>
         <file>icons/06b6d4/warning.svg</file>
         <file>icons/06b6d4/wifi.svg</file>
         <file>icons/06b6d4/zap.svg</file>
+        <file>icons/0c4a6e/archive.svg</file>
         <file>icons/0c4a6e/arp-table.svg</file>
         <file>icons/0c4a6e/badge-check.svg</file>
         <file>icons/0c4a6e/badge-circle.svg</file>
@@ -205,8 +230,10 @@
         <file>icons/0c4a6e/chevron-down.svg</file>
         <file>icons/0c4a6e/chevron-right.svg</file>
         <file>icons/0c4a6e/circle.svg</file>
+        <file>icons/0c4a6e/clipboard.svg</file>
         <file>icons/0c4a6e/close.svg</file>
         <file>icons/0c4a6e/cloud-shield.svg</file>
+        <file>icons/0c4a6e/compass.svg</file>
         <file>icons/0c4a6e/compression.svg</file>
         <file>icons/0c4a6e/config.svg</file>
         <file>icons/0c4a6e/connections.svg</file>
@@ -221,6 +248,7 @@
         <file>icons/0c4a6e/dns-resolve.svg</file>
         <file>icons/0c4a6e/dns-server.svg</file>
         <file>icons/0c4a6e/dns-shield.svg</file>
+        <file>icons/0c4a6e/door-open.svg</file>
         <file>icons/0c4a6e/error.svg</file>
         <file>icons/0c4a6e/ethernet.svg</file>
         <file>icons/0c4a6e/file-html.svg</file>
@@ -238,8 +266,10 @@
         <file>icons/0c4a6e/internet-globe.svg</file>
         <file>icons/0c4a6e/ip-config.svg</file>
         <file>icons/0c4a6e/ipv6.svg</file>
+        <file>icons/0c4a6e/keyboard.svg</file>
         <file>icons/0c4a6e/layers.svg</file>
         <file>icons/0c4a6e/ldap.svg</file>
+        <file>icons/0c4a6e/leaf.svg</file>
         <file>icons/0c4a6e/list-checks.svg</file>
         <file>icons/0c4a6e/mail.svg</file>
         <file>icons/0c4a6e/mongodb.svg</file>
@@ -250,9 +280,11 @@
         <file>icons/0c4a6e/mysql.svg</file>
         <file>icons/0c4a6e/network-card.svg</file>
         <file>icons/0c4a6e/network-profile.svg</file>
+        <file>icons/0c4a6e/package.svg</file>
         <file>icons/0c4a6e/path-ping.svg</file>
         <file>icons/0c4a6e/ping.svg</file>
         <file>icons/0c4a6e/play.svg</file>
+        <file>icons/0c4a6e/plug.svg</file>
         <file>icons/0c4a6e/postgres.svg</file>
         <file>icons/0c4a6e/protocol-stack.svg</file>
         <file>icons/0c4a6e/proxy.svg</file>
@@ -260,7 +292,9 @@
         <file>icons/0c4a6e/redis.svg</file>
         <file>icons/0c4a6e/remote-host.svg</file>
         <file>icons/0c4a6e/report.svg</file>
+        <file>icons/0c4a6e/road.svg</file>
         <file>icons/0c4a6e/route-table.svg</file>
+        <file>icons/0c4a6e/ruler.svg</file>
         <file>icons/0c4a6e/security-headers.svg</file>
         <file>icons/0c4a6e/shield-network.svg</file>
         <file>icons/0c4a6e/shield.svg</file>
@@ -268,6 +302,7 @@
         <file>icons/0c4a6e/ssh.svg</file>
         <file>icons/0c4a6e/stop.svg</file>
         <file>icons/0c4a6e/sun.svg</file>
+        <file>icons/0c4a6e/tag.svg</file>
         <file>icons/0c4a6e/tcp-connect.svg</file>
         <file>icons/0c4a6e/tcp-settings.svg</file>
         <file>icons/0c4a6e/telnet.svg</file>
@@ -276,10 +311,12 @@
         <file>icons/0c4a6e/traceroute.svg</file>
         <file>icons/0c4a6e/translate.svg</file>
         <file>icons/0c4a6e/url-parse.svg</file>
+        <file>icons/0c4a6e/user.svg</file>
         <file>icons/0c4a6e/video.svg</file>
         <file>icons/0c4a6e/warning.svg</file>
         <file>icons/0c4a6e/wifi.svg</file>
         <file>icons/0c4a6e/zap.svg</file>
+        <file>icons/0ea5e9/archive.svg</file>
         <file>icons/0ea5e9/arp-table.svg</file>
         <file>icons/0ea5e9/badge-check.svg</file>
         <file>icons/0ea5e9/badge-circle.svg</file>
@@ -298,8 +335,10 @@
         <file>icons/0ea5e9/chevron-down.svg</file>
         <file>icons/0ea5e9/chevron-right.svg</file>
         <file>icons/0ea5e9/circle.svg</file>
+        <file>icons/0ea5e9/clipboard.svg</file>
         <file>icons/0ea5e9/close.svg</file>
         <file>icons/0ea5e9/cloud-shield.svg</file>
+        <file>icons/0ea5e9/compass.svg</file>
         <file>icons/0ea5e9/compression.svg</file>
         <file>icons/0ea5e9/config.svg</file>
         <file>icons/0ea5e9/connections.svg</file>
@@ -314,6 +353,7 @@
         <file>icons/0ea5e9/dns-resolve.svg</file>
         <file>icons/0ea5e9/dns-server.svg</file>
         <file>icons/0ea5e9/dns-shield.svg</file>
+        <file>icons/0ea5e9/door-open.svg</file>
         <file>icons/0ea5e9/error.svg</file>
         <file>icons/0ea5e9/ethernet.svg</file>
         <file>icons/0ea5e9/file-html.svg</file>
@@ -331,8 +371,10 @@
         <file>icons/0ea5e9/internet-globe.svg</file>
         <file>icons/0ea5e9/ip-config.svg</file>
         <file>icons/0ea5e9/ipv6.svg</file>
+        <file>icons/0ea5e9/keyboard.svg</file>
         <file>icons/0ea5e9/layers.svg</file>
         <file>icons/0ea5e9/ldap.svg</file>
+        <file>icons/0ea5e9/leaf.svg</file>
         <file>icons/0ea5e9/list-checks.svg</file>
         <file>icons/0ea5e9/mail.svg</file>
         <file>icons/0ea5e9/mongodb.svg</file>
@@ -343,9 +385,11 @@
         <file>icons/0ea5e9/mysql.svg</file>
         <file>icons/0ea5e9/network-card.svg</file>
         <file>icons/0ea5e9/network-profile.svg</file>
+        <file>icons/0ea5e9/package.svg</file>
         <file>icons/0ea5e9/path-ping.svg</file>
         <file>icons/0ea5e9/ping.svg</file>
         <file>icons/0ea5e9/play.svg</file>
+        <file>icons/0ea5e9/plug.svg</file>
         <file>icons/0ea5e9/postgres.svg</file>
         <file>icons/0ea5e9/protocol-stack.svg</file>
         <file>icons/0ea5e9/proxy.svg</file>
@@ -353,7 +397,9 @@
         <file>icons/0ea5e9/redis.svg</file>
         <file>icons/0ea5e9/remote-host.svg</file>
         <file>icons/0ea5e9/report.svg</file>
+        <file>icons/0ea5e9/road.svg</file>
         <file>icons/0ea5e9/route-table.svg</file>
+        <file>icons/0ea5e9/ruler.svg</file>
         <file>icons/0ea5e9/security-headers.svg</file>
         <file>icons/0ea5e9/shield-network.svg</file>
         <file>icons/0ea5e9/shield.svg</file>
@@ -361,6 +407,7 @@
         <file>icons/0ea5e9/ssh.svg</file>
         <file>icons/0ea5e9/stop.svg</file>
         <file>icons/0ea5e9/sun.svg</file>
+        <file>icons/0ea5e9/tag.svg</file>
         <file>icons/0ea5e9/tcp-connect.svg</file>
         <file>icons/0ea5e9/tcp-settings.svg</file>
         <file>icons/0ea5e9/telnet.svg</file>
@@ -369,10 +416,12 @@
         <file>icons/0ea5e9/traceroute.svg</file>
         <file>icons/0ea5e9/translate.svg</file>
         <file>icons/0ea5e9/url-parse.svg</file>
+        <file>icons/0ea5e9/user.svg</file>
         <file>icons/0ea5e9/video.svg</file>
         <file>icons/0ea5e9/warning.svg</file>
         <file>icons/0ea5e9/wifi.svg</file>
         <file>icons/0ea5e9/zap.svg</file>
+        <file>icons/0f172a/archive.svg</file>
         <file>icons/0f172a/arp-table.svg</file>
         <file>icons/0f172a/badge-check.svg</file>
         <file>icons/0f172a/badge-circle.svg</file>
@@ -391,8 +440,10 @@
         <file>icons/0f172a/chevron-down.svg</file>
         <file>icons/0f172a/chevron-right.svg</file>
         <file>icons/0f172a/circle.svg</file>
+        <file>icons/0f172a/clipboard.svg</file>
         <file>icons/0f172a/close.svg</file>
         <file>icons/0f172a/cloud-shield.svg</file>
+        <file>icons/0f172a/compass.svg</file>
         <file>icons/0f172a/compression.svg</file>
         <file>icons/0f172a/config.svg</file>
         <file>icons/0f172a/connections.svg</file>
@@ -407,6 +458,7 @@
         <file>icons/0f172a/dns-resolve.svg</file>
         <file>icons/0f172a/dns-server.svg</file>
         <file>icons/0f172a/dns-shield.svg</file>
+        <file>icons/0f172a/door-open.svg</file>
         <file>icons/0f172a/error.svg</file>
         <file>icons/0f172a/ethernet.svg</file>
         <file>icons/0f172a/file-html.svg</file>
@@ -424,8 +476,10 @@
         <file>icons/0f172a/internet-globe.svg</file>
         <file>icons/0f172a/ip-config.svg</file>
         <file>icons/0f172a/ipv6.svg</file>
+        <file>icons/0f172a/keyboard.svg</file>
         <file>icons/0f172a/layers.svg</file>
         <file>icons/0f172a/ldap.svg</file>
+        <file>icons/0f172a/leaf.svg</file>
         <file>icons/0f172a/list-checks.svg</file>
         <file>icons/0f172a/mail.svg</file>
         <file>icons/0f172a/mongodb.svg</file>
@@ -436,9 +490,11 @@
         <file>icons/0f172a/mysql.svg</file>
         <file>icons/0f172a/network-card.svg</file>
         <file>icons/0f172a/network-profile.svg</file>
+        <file>icons/0f172a/package.svg</file>
         <file>icons/0f172a/path-ping.svg</file>
         <file>icons/0f172a/ping.svg</file>
         <file>icons/0f172a/play.svg</file>
+        <file>icons/0f172a/plug.svg</file>
         <file>icons/0f172a/postgres.svg</file>
         <file>icons/0f172a/protocol-stack.svg</file>
         <file>icons/0f172a/proxy.svg</file>
@@ -446,7 +502,9 @@
         <file>icons/0f172a/redis.svg</file>
         <file>icons/0f172a/remote-host.svg</file>
         <file>icons/0f172a/report.svg</file>
+        <file>icons/0f172a/road.svg</file>
         <file>icons/0f172a/route-table.svg</file>
+        <file>icons/0f172a/ruler.svg</file>
         <file>icons/0f172a/security-headers.svg</file>
         <file>icons/0f172a/shield-network.svg</file>
         <file>icons/0f172a/shield.svg</file>
@@ -454,6 +512,7 @@
         <file>icons/0f172a/ssh.svg</file>
         <file>icons/0f172a/stop.svg</file>
         <file>icons/0f172a/sun.svg</file>
+        <file>icons/0f172a/tag.svg</file>
         <file>icons/0f172a/tcp-connect.svg</file>
         <file>icons/0f172a/tcp-settings.svg</file>
         <file>icons/0f172a/telnet.svg</file>
@@ -462,10 +521,12 @@
         <file>icons/0f172a/traceroute.svg</file>
         <file>icons/0f172a/translate.svg</file>
         <file>icons/0f172a/url-parse.svg</file>
+        <file>icons/0f172a/user.svg</file>
         <file>icons/0f172a/video.svg</file>
         <file>icons/0f172a/warning.svg</file>
         <file>icons/0f172a/wifi.svg</file>
         <file>icons/0f172a/zap.svg</file>
+        <file>icons/10b981/archive.svg</file>
         <file>icons/10b981/arp-table.svg</file>
         <file>icons/10b981/badge-check.svg</file>
         <file>icons/10b981/badge-circle.svg</file>
@@ -484,8 +545,10 @@
         <file>icons/10b981/chevron-down.svg</file>
         <file>icons/10b981/chevron-right.svg</file>
         <file>icons/10b981/circle.svg</file>
+        <file>icons/10b981/clipboard.svg</file>
         <file>icons/10b981/close.svg</file>
         <file>icons/10b981/cloud-shield.svg</file>
+        <file>icons/10b981/compass.svg</file>
         <file>icons/10b981/compression.svg</file>
         <file>icons/10b981/config.svg</file>
         <file>icons/10b981/connections.svg</file>
@@ -500,6 +563,7 @@
         <file>icons/10b981/dns-resolve.svg</file>
         <file>icons/10b981/dns-server.svg</file>
         <file>icons/10b981/dns-shield.svg</file>
+        <file>icons/10b981/door-open.svg</file>
         <file>icons/10b981/error.svg</file>
         <file>icons/10b981/ethernet.svg</file>
         <file>icons/10b981/file-html.svg</file>
@@ -517,8 +581,10 @@
         <file>icons/10b981/internet-globe.svg</file>
         <file>icons/10b981/ip-config.svg</file>
         <file>icons/10b981/ipv6.svg</file>
+        <file>icons/10b981/keyboard.svg</file>
         <file>icons/10b981/layers.svg</file>
         <file>icons/10b981/ldap.svg</file>
+        <file>icons/10b981/leaf.svg</file>
         <file>icons/10b981/list-checks.svg</file>
         <file>icons/10b981/mail.svg</file>
         <file>icons/10b981/mongodb.svg</file>
@@ -529,9 +595,11 @@
         <file>icons/10b981/mysql.svg</file>
         <file>icons/10b981/network-card.svg</file>
         <file>icons/10b981/network-profile.svg</file>
+        <file>icons/10b981/package.svg</file>
         <file>icons/10b981/path-ping.svg</file>
         <file>icons/10b981/ping.svg</file>
         <file>icons/10b981/play.svg</file>
+        <file>icons/10b981/plug.svg</file>
         <file>icons/10b981/postgres.svg</file>
         <file>icons/10b981/protocol-stack.svg</file>
         <file>icons/10b981/proxy.svg</file>
@@ -539,7 +607,9 @@
         <file>icons/10b981/redis.svg</file>
         <file>icons/10b981/remote-host.svg</file>
         <file>icons/10b981/report.svg</file>
+        <file>icons/10b981/road.svg</file>
         <file>icons/10b981/route-table.svg</file>
+        <file>icons/10b981/ruler.svg</file>
         <file>icons/10b981/security-headers.svg</file>
         <file>icons/10b981/shield-network.svg</file>
         <file>icons/10b981/shield.svg</file>
@@ -547,6 +617,7 @@
         <file>icons/10b981/ssh.svg</file>
         <file>icons/10b981/stop.svg</file>
         <file>icons/10b981/sun.svg</file>
+        <file>icons/10b981/tag.svg</file>
         <file>icons/10b981/tcp-connect.svg</file>
         <file>icons/10b981/tcp-settings.svg</file>
         <file>icons/10b981/telnet.svg</file>
@@ -555,10 +626,12 @@
         <file>icons/10b981/traceroute.svg</file>
         <file>icons/10b981/translate.svg</file>
         <file>icons/10b981/url-parse.svg</file>
+        <file>icons/10b981/user.svg</file>
         <file>icons/10b981/video.svg</file>
         <file>icons/10b981/warning.svg</file>
         <file>icons/10b981/wifi.svg</file>
         <file>icons/10b981/zap.svg</file>
+        <file>icons/1e293b/archive.svg</file>
         <file>icons/1e293b/arp-table.svg</file>
         <file>icons/1e293b/badge-check.svg</file>
         <file>icons/1e293b/badge-circle.svg</file>
@@ -577,8 +650,10 @@
         <file>icons/1e293b/chevron-down.svg</file>
         <file>icons/1e293b/chevron-right.svg</file>
         <file>icons/1e293b/circle.svg</file>
+        <file>icons/1e293b/clipboard.svg</file>
         <file>icons/1e293b/close.svg</file>
         <file>icons/1e293b/cloud-shield.svg</file>
+        <file>icons/1e293b/compass.svg</file>
         <file>icons/1e293b/compression.svg</file>
         <file>icons/1e293b/config.svg</file>
         <file>icons/1e293b/connections.svg</file>
@@ -593,6 +668,7 @@
         <file>icons/1e293b/dns-resolve.svg</file>
         <file>icons/1e293b/dns-server.svg</file>
         <file>icons/1e293b/dns-shield.svg</file>
+        <file>icons/1e293b/door-open.svg</file>
         <file>icons/1e293b/error.svg</file>
         <file>icons/1e293b/ethernet.svg</file>
         <file>icons/1e293b/file-html.svg</file>
@@ -610,8 +686,10 @@
         <file>icons/1e293b/internet-globe.svg</file>
         <file>icons/1e293b/ip-config.svg</file>
         <file>icons/1e293b/ipv6.svg</file>
+        <file>icons/1e293b/keyboard.svg</file>
         <file>icons/1e293b/layers.svg</file>
         <file>icons/1e293b/ldap.svg</file>
+        <file>icons/1e293b/leaf.svg</file>
         <file>icons/1e293b/list-checks.svg</file>
         <file>icons/1e293b/mail.svg</file>
         <file>icons/1e293b/mongodb.svg</file>
@@ -622,9 +700,11 @@
         <file>icons/1e293b/mysql.svg</file>
         <file>icons/1e293b/network-card.svg</file>
         <file>icons/1e293b/network-profile.svg</file>
+        <file>icons/1e293b/package.svg</file>
         <file>icons/1e293b/path-ping.svg</file>
         <file>icons/1e293b/ping.svg</file>
         <file>icons/1e293b/play.svg</file>
+        <file>icons/1e293b/plug.svg</file>
         <file>icons/1e293b/postgres.svg</file>
         <file>icons/1e293b/protocol-stack.svg</file>
         <file>icons/1e293b/proxy.svg</file>
@@ -632,7 +712,9 @@
         <file>icons/1e293b/redis.svg</file>
         <file>icons/1e293b/remote-host.svg</file>
         <file>icons/1e293b/report.svg</file>
+        <file>icons/1e293b/road.svg</file>
         <file>icons/1e293b/route-table.svg</file>
+        <file>icons/1e293b/ruler.svg</file>
         <file>icons/1e293b/security-headers.svg</file>
         <file>icons/1e293b/shield-network.svg</file>
         <file>icons/1e293b/shield.svg</file>
@@ -640,6 +722,7 @@
         <file>icons/1e293b/ssh.svg</file>
         <file>icons/1e293b/stop.svg</file>
         <file>icons/1e293b/sun.svg</file>
+        <file>icons/1e293b/tag.svg</file>
         <file>icons/1e293b/tcp-connect.svg</file>
         <file>icons/1e293b/tcp-settings.svg</file>
         <file>icons/1e293b/telnet.svg</file>
@@ -648,10 +731,12 @@
         <file>icons/1e293b/traceroute.svg</file>
         <file>icons/1e293b/translate.svg</file>
         <file>icons/1e293b/url-parse.svg</file>
+        <file>icons/1e293b/user.svg</file>
         <file>icons/1e293b/video.svg</file>
         <file>icons/1e293b/warning.svg</file>
         <file>icons/1e293b/wifi.svg</file>
         <file>icons/1e293b/zap.svg</file>
+        <file>icons/2563eb/archive.svg</file>
         <file>icons/2563eb/arp-table.svg</file>
         <file>icons/2563eb/badge-check.svg</file>
         <file>icons/2563eb/badge-circle.svg</file>
@@ -670,8 +755,10 @@
         <file>icons/2563eb/chevron-down.svg</file>
         <file>icons/2563eb/chevron-right.svg</file>
         <file>icons/2563eb/circle.svg</file>
+        <file>icons/2563eb/clipboard.svg</file>
         <file>icons/2563eb/close.svg</file>
         <file>icons/2563eb/cloud-shield.svg</file>
+        <file>icons/2563eb/compass.svg</file>
         <file>icons/2563eb/compression.svg</file>
         <file>icons/2563eb/config.svg</file>
         <file>icons/2563eb/connections.svg</file>
@@ -686,6 +773,7 @@
         <file>icons/2563eb/dns-resolve.svg</file>
         <file>icons/2563eb/dns-server.svg</file>
         <file>icons/2563eb/dns-shield.svg</file>
+        <file>icons/2563eb/door-open.svg</file>
         <file>icons/2563eb/error.svg</file>
         <file>icons/2563eb/ethernet.svg</file>
         <file>icons/2563eb/file-html.svg</file>
@@ -703,8 +791,10 @@
         <file>icons/2563eb/internet-globe.svg</file>
         <file>icons/2563eb/ip-config.svg</file>
         <file>icons/2563eb/ipv6.svg</file>
+        <file>icons/2563eb/keyboard.svg</file>
         <file>icons/2563eb/layers.svg</file>
         <file>icons/2563eb/ldap.svg</file>
+        <file>icons/2563eb/leaf.svg</file>
         <file>icons/2563eb/list-checks.svg</file>
         <file>icons/2563eb/mail.svg</file>
         <file>icons/2563eb/mongodb.svg</file>
@@ -715,9 +805,11 @@
         <file>icons/2563eb/mysql.svg</file>
         <file>icons/2563eb/network-card.svg</file>
         <file>icons/2563eb/network-profile.svg</file>
+        <file>icons/2563eb/package.svg</file>
         <file>icons/2563eb/path-ping.svg</file>
         <file>icons/2563eb/ping.svg</file>
         <file>icons/2563eb/play.svg</file>
+        <file>icons/2563eb/plug.svg</file>
         <file>icons/2563eb/postgres.svg</file>
         <file>icons/2563eb/protocol-stack.svg</file>
         <file>icons/2563eb/proxy.svg</file>
@@ -725,7 +817,9 @@
         <file>icons/2563eb/redis.svg</file>
         <file>icons/2563eb/remote-host.svg</file>
         <file>icons/2563eb/report.svg</file>
+        <file>icons/2563eb/road.svg</file>
         <file>icons/2563eb/route-table.svg</file>
+        <file>icons/2563eb/ruler.svg</file>
         <file>icons/2563eb/security-headers.svg</file>
         <file>icons/2563eb/shield-network.svg</file>
         <file>icons/2563eb/shield.svg</file>
@@ -733,6 +827,7 @@
         <file>icons/2563eb/ssh.svg</file>
         <file>icons/2563eb/stop.svg</file>
         <file>icons/2563eb/sun.svg</file>
+        <file>icons/2563eb/tag.svg</file>
         <file>icons/2563eb/tcp-connect.svg</file>
         <file>icons/2563eb/tcp-settings.svg</file>
         <file>icons/2563eb/telnet.svg</file>
@@ -741,10 +836,12 @@
         <file>icons/2563eb/traceroute.svg</file>
         <file>icons/2563eb/translate.svg</file>
         <file>icons/2563eb/url-parse.svg</file>
+        <file>icons/2563eb/user.svg</file>
         <file>icons/2563eb/video.svg</file>
         <file>icons/2563eb/warning.svg</file>
         <file>icons/2563eb/wifi.svg</file>
         <file>icons/2563eb/zap.svg</file>
+        <file>icons/334155/archive.svg</file>
         <file>icons/334155/arp-table.svg</file>
         <file>icons/334155/badge-check.svg</file>
         <file>icons/334155/badge-circle.svg</file>
@@ -763,8 +860,10 @@
         <file>icons/334155/chevron-down.svg</file>
         <file>icons/334155/chevron-right.svg</file>
         <file>icons/334155/circle.svg</file>
+        <file>icons/334155/clipboard.svg</file>
         <file>icons/334155/close.svg</file>
         <file>icons/334155/cloud-shield.svg</file>
+        <file>icons/334155/compass.svg</file>
         <file>icons/334155/compression.svg</file>
         <file>icons/334155/config.svg</file>
         <file>icons/334155/connections.svg</file>
@@ -779,6 +878,7 @@
         <file>icons/334155/dns-resolve.svg</file>
         <file>icons/334155/dns-server.svg</file>
         <file>icons/334155/dns-shield.svg</file>
+        <file>icons/334155/door-open.svg</file>
         <file>icons/334155/error.svg</file>
         <file>icons/334155/ethernet.svg</file>
         <file>icons/334155/file-html.svg</file>
@@ -796,8 +896,10 @@
         <file>icons/334155/internet-globe.svg</file>
         <file>icons/334155/ip-config.svg</file>
         <file>icons/334155/ipv6.svg</file>
+        <file>icons/334155/keyboard.svg</file>
         <file>icons/334155/layers.svg</file>
         <file>icons/334155/ldap.svg</file>
+        <file>icons/334155/leaf.svg</file>
         <file>icons/334155/list-checks.svg</file>
         <file>icons/334155/mail.svg</file>
         <file>icons/334155/mongodb.svg</file>
@@ -808,9 +910,11 @@
         <file>icons/334155/mysql.svg</file>
         <file>icons/334155/network-card.svg</file>
         <file>icons/334155/network-profile.svg</file>
+        <file>icons/334155/package.svg</file>
         <file>icons/334155/path-ping.svg</file>
         <file>icons/334155/ping.svg</file>
         <file>icons/334155/play.svg</file>
+        <file>icons/334155/plug.svg</file>
         <file>icons/334155/postgres.svg</file>
         <file>icons/334155/protocol-stack.svg</file>
         <file>icons/334155/proxy.svg</file>
@@ -818,7 +922,9 @@
         <file>icons/334155/redis.svg</file>
         <file>icons/334155/remote-host.svg</file>
         <file>icons/334155/report.svg</file>
+        <file>icons/334155/road.svg</file>
         <file>icons/334155/route-table.svg</file>
+        <file>icons/334155/ruler.svg</file>
         <file>icons/334155/security-headers.svg</file>
         <file>icons/334155/shield-network.svg</file>
         <file>icons/334155/shield.svg</file>
@@ -826,6 +932,7 @@
         <file>icons/334155/ssh.svg</file>
         <file>icons/334155/stop.svg</file>
         <file>icons/334155/sun.svg</file>
+        <file>icons/334155/tag.svg</file>
         <file>icons/334155/tcp-connect.svg</file>
         <file>icons/334155/tcp-settings.svg</file>
         <file>icons/334155/telnet.svg</file>
@@ -834,10 +941,12 @@
         <file>icons/334155/traceroute.svg</file>
         <file>icons/334155/translate.svg</file>
         <file>icons/334155/url-parse.svg</file>
+        <file>icons/334155/user.svg</file>
         <file>icons/334155/video.svg</file>
         <file>icons/334155/warning.svg</file>
         <file>icons/334155/wifi.svg</file>
         <file>icons/334155/zap.svg</file>
+        <file>icons/475569/archive.svg</file>
         <file>icons/475569/arp-table.svg</file>
         <file>icons/475569/badge-check.svg</file>
         <file>icons/475569/badge-circle.svg</file>
@@ -856,8 +965,10 @@
         <file>icons/475569/chevron-down.svg</file>
         <file>icons/475569/chevron-right.svg</file>
         <file>icons/475569/circle.svg</file>
+        <file>icons/475569/clipboard.svg</file>
         <file>icons/475569/close.svg</file>
         <file>icons/475569/cloud-shield.svg</file>
+        <file>icons/475569/compass.svg</file>
         <file>icons/475569/compression.svg</file>
         <file>icons/475569/config.svg</file>
         <file>icons/475569/connections.svg</file>
@@ -872,6 +983,7 @@
         <file>icons/475569/dns-resolve.svg</file>
         <file>icons/475569/dns-server.svg</file>
         <file>icons/475569/dns-shield.svg</file>
+        <file>icons/475569/door-open.svg</file>
         <file>icons/475569/error.svg</file>
         <file>icons/475569/ethernet.svg</file>
         <file>icons/475569/file-html.svg</file>
@@ -889,8 +1001,10 @@
         <file>icons/475569/internet-globe.svg</file>
         <file>icons/475569/ip-config.svg</file>
         <file>icons/475569/ipv6.svg</file>
+        <file>icons/475569/keyboard.svg</file>
         <file>icons/475569/layers.svg</file>
         <file>icons/475569/ldap.svg</file>
+        <file>icons/475569/leaf.svg</file>
         <file>icons/475569/list-checks.svg</file>
         <file>icons/475569/mail.svg</file>
         <file>icons/475569/mongodb.svg</file>
@@ -901,9 +1015,11 @@
         <file>icons/475569/mysql.svg</file>
         <file>icons/475569/network-card.svg</file>
         <file>icons/475569/network-profile.svg</file>
+        <file>icons/475569/package.svg</file>
         <file>icons/475569/path-ping.svg</file>
         <file>icons/475569/ping.svg</file>
         <file>icons/475569/play.svg</file>
+        <file>icons/475569/plug.svg</file>
         <file>icons/475569/postgres.svg</file>
         <file>icons/475569/protocol-stack.svg</file>
         <file>icons/475569/proxy.svg</file>
@@ -911,7 +1027,9 @@
         <file>icons/475569/redis.svg</file>
         <file>icons/475569/remote-host.svg</file>
         <file>icons/475569/report.svg</file>
+        <file>icons/475569/road.svg</file>
         <file>icons/475569/route-table.svg</file>
+        <file>icons/475569/ruler.svg</file>
         <file>icons/475569/security-headers.svg</file>
         <file>icons/475569/shield-network.svg</file>
         <file>icons/475569/shield.svg</file>
@@ -919,6 +1037,7 @@
         <file>icons/475569/ssh.svg</file>
         <file>icons/475569/stop.svg</file>
         <file>icons/475569/sun.svg</file>
+        <file>icons/475569/tag.svg</file>
         <file>icons/475569/tcp-connect.svg</file>
         <file>icons/475569/tcp-settings.svg</file>
         <file>icons/475569/telnet.svg</file>
@@ -927,10 +1046,12 @@
         <file>icons/475569/traceroute.svg</file>
         <file>icons/475569/translate.svg</file>
         <file>icons/475569/url-parse.svg</file>
+        <file>icons/475569/user.svg</file>
         <file>icons/475569/video.svg</file>
         <file>icons/475569/warning.svg</file>
         <file>icons/475569/wifi.svg</file>
         <file>icons/475569/zap.svg</file>
+        <file>icons/4ade80/archive.svg</file>
         <file>icons/4ade80/arp-table.svg</file>
         <file>icons/4ade80/badge-check.svg</file>
         <file>icons/4ade80/badge-circle.svg</file>
@@ -949,8 +1070,10 @@
         <file>icons/4ade80/chevron-down.svg</file>
         <file>icons/4ade80/chevron-right.svg</file>
         <file>icons/4ade80/circle.svg</file>
+        <file>icons/4ade80/clipboard.svg</file>
         <file>icons/4ade80/close.svg</file>
         <file>icons/4ade80/cloud-shield.svg</file>
+        <file>icons/4ade80/compass.svg</file>
         <file>icons/4ade80/compression.svg</file>
         <file>icons/4ade80/config.svg</file>
         <file>icons/4ade80/connections.svg</file>
@@ -965,6 +1088,7 @@
         <file>icons/4ade80/dns-resolve.svg</file>
         <file>icons/4ade80/dns-server.svg</file>
         <file>icons/4ade80/dns-shield.svg</file>
+        <file>icons/4ade80/door-open.svg</file>
         <file>icons/4ade80/error.svg</file>
         <file>icons/4ade80/ethernet.svg</file>
         <file>icons/4ade80/file-html.svg</file>
@@ -982,8 +1106,10 @@
         <file>icons/4ade80/internet-globe.svg</file>
         <file>icons/4ade80/ip-config.svg</file>
         <file>icons/4ade80/ipv6.svg</file>
+        <file>icons/4ade80/keyboard.svg</file>
         <file>icons/4ade80/layers.svg</file>
         <file>icons/4ade80/ldap.svg</file>
+        <file>icons/4ade80/leaf.svg</file>
         <file>icons/4ade80/list-checks.svg</file>
         <file>icons/4ade80/mail.svg</file>
         <file>icons/4ade80/mongodb.svg</file>
@@ -994,9 +1120,11 @@
         <file>icons/4ade80/mysql.svg</file>
         <file>icons/4ade80/network-card.svg</file>
         <file>icons/4ade80/network-profile.svg</file>
+        <file>icons/4ade80/package.svg</file>
         <file>icons/4ade80/path-ping.svg</file>
         <file>icons/4ade80/ping.svg</file>
         <file>icons/4ade80/play.svg</file>
+        <file>icons/4ade80/plug.svg</file>
         <file>icons/4ade80/postgres.svg</file>
         <file>icons/4ade80/protocol-stack.svg</file>
         <file>icons/4ade80/proxy.svg</file>
@@ -1004,7 +1132,9 @@
         <file>icons/4ade80/redis.svg</file>
         <file>icons/4ade80/remote-host.svg</file>
         <file>icons/4ade80/report.svg</file>
+        <file>icons/4ade80/road.svg</file>
         <file>icons/4ade80/route-table.svg</file>
+        <file>icons/4ade80/ruler.svg</file>
         <file>icons/4ade80/security-headers.svg</file>
         <file>icons/4ade80/shield-network.svg</file>
         <file>icons/4ade80/shield.svg</file>
@@ -1012,6 +1142,7 @@
         <file>icons/4ade80/ssh.svg</file>
         <file>icons/4ade80/stop.svg</file>
         <file>icons/4ade80/sun.svg</file>
+        <file>icons/4ade80/tag.svg</file>
         <file>icons/4ade80/tcp-connect.svg</file>
         <file>icons/4ade80/tcp-settings.svg</file>
         <file>icons/4ade80/telnet.svg</file>
@@ -1020,10 +1151,12 @@
         <file>icons/4ade80/traceroute.svg</file>
         <file>icons/4ade80/translate.svg</file>
         <file>icons/4ade80/url-parse.svg</file>
+        <file>icons/4ade80/user.svg</file>
         <file>icons/4ade80/video.svg</file>
         <file>icons/4ade80/warning.svg</file>
         <file>icons/4ade80/wifi.svg</file>
         <file>icons/4ade80/zap.svg</file>
+        <file>icons/60c8f8/archive.svg</file>
         <file>icons/60c8f8/arp-table.svg</file>
         <file>icons/60c8f8/badge-check.svg</file>
         <file>icons/60c8f8/badge-circle.svg</file>
@@ -1042,8 +1175,10 @@
         <file>icons/60c8f8/chevron-down.svg</file>
         <file>icons/60c8f8/chevron-right.svg</file>
         <file>icons/60c8f8/circle.svg</file>
+        <file>icons/60c8f8/clipboard.svg</file>
         <file>icons/60c8f8/close.svg</file>
         <file>icons/60c8f8/cloud-shield.svg</file>
+        <file>icons/60c8f8/compass.svg</file>
         <file>icons/60c8f8/compression.svg</file>
         <file>icons/60c8f8/config.svg</file>
         <file>icons/60c8f8/connections.svg</file>
@@ -1058,6 +1193,7 @@
         <file>icons/60c8f8/dns-resolve.svg</file>
         <file>icons/60c8f8/dns-server.svg</file>
         <file>icons/60c8f8/dns-shield.svg</file>
+        <file>icons/60c8f8/door-open.svg</file>
         <file>icons/60c8f8/error.svg</file>
         <file>icons/60c8f8/ethernet.svg</file>
         <file>icons/60c8f8/file-html.svg</file>
@@ -1075,8 +1211,10 @@
         <file>icons/60c8f8/internet-globe.svg</file>
         <file>icons/60c8f8/ip-config.svg</file>
         <file>icons/60c8f8/ipv6.svg</file>
+        <file>icons/60c8f8/keyboard.svg</file>
         <file>icons/60c8f8/layers.svg</file>
         <file>icons/60c8f8/ldap.svg</file>
+        <file>icons/60c8f8/leaf.svg</file>
         <file>icons/60c8f8/list-checks.svg</file>
         <file>icons/60c8f8/mail.svg</file>
         <file>icons/60c8f8/mongodb.svg</file>
@@ -1087,9 +1225,11 @@
         <file>icons/60c8f8/mysql.svg</file>
         <file>icons/60c8f8/network-card.svg</file>
         <file>icons/60c8f8/network-profile.svg</file>
+        <file>icons/60c8f8/package.svg</file>
         <file>icons/60c8f8/path-ping.svg</file>
         <file>icons/60c8f8/ping.svg</file>
         <file>icons/60c8f8/play.svg</file>
+        <file>icons/60c8f8/plug.svg</file>
         <file>icons/60c8f8/postgres.svg</file>
         <file>icons/60c8f8/protocol-stack.svg</file>
         <file>icons/60c8f8/proxy.svg</file>
@@ -1097,7 +1237,9 @@
         <file>icons/60c8f8/redis.svg</file>
         <file>icons/60c8f8/remote-host.svg</file>
         <file>icons/60c8f8/report.svg</file>
+        <file>icons/60c8f8/road.svg</file>
         <file>icons/60c8f8/route-table.svg</file>
+        <file>icons/60c8f8/ruler.svg</file>
         <file>icons/60c8f8/security-headers.svg</file>
         <file>icons/60c8f8/shield-network.svg</file>
         <file>icons/60c8f8/shield.svg</file>
@@ -1105,6 +1247,7 @@
         <file>icons/60c8f8/ssh.svg</file>
         <file>icons/60c8f8/stop.svg</file>
         <file>icons/60c8f8/sun.svg</file>
+        <file>icons/60c8f8/tag.svg</file>
         <file>icons/60c8f8/tcp-connect.svg</file>
         <file>icons/60c8f8/tcp-settings.svg</file>
         <file>icons/60c8f8/telnet.svg</file>
@@ -1113,10 +1256,12 @@
         <file>icons/60c8f8/traceroute.svg</file>
         <file>icons/60c8f8/translate.svg</file>
         <file>icons/60c8f8/url-parse.svg</file>
+        <file>icons/60c8f8/user.svg</file>
         <file>icons/60c8f8/video.svg</file>
         <file>icons/60c8f8/warning.svg</file>
         <file>icons/60c8f8/wifi.svg</file>
         <file>icons/60c8f8/zap.svg</file>
+        <file>icons/6366f1/archive.svg</file>
         <file>icons/6366f1/arp-table.svg</file>
         <file>icons/6366f1/badge-check.svg</file>
         <file>icons/6366f1/badge-circle.svg</file>
@@ -1135,8 +1280,10 @@
         <file>icons/6366f1/chevron-down.svg</file>
         <file>icons/6366f1/chevron-right.svg</file>
         <file>icons/6366f1/circle.svg</file>
+        <file>icons/6366f1/clipboard.svg</file>
         <file>icons/6366f1/close.svg</file>
         <file>icons/6366f1/cloud-shield.svg</file>
+        <file>icons/6366f1/compass.svg</file>
         <file>icons/6366f1/compression.svg</file>
         <file>icons/6366f1/config.svg</file>
         <file>icons/6366f1/connections.svg</file>
@@ -1151,6 +1298,7 @@
         <file>icons/6366f1/dns-resolve.svg</file>
         <file>icons/6366f1/dns-server.svg</file>
         <file>icons/6366f1/dns-shield.svg</file>
+        <file>icons/6366f1/door-open.svg</file>
         <file>icons/6366f1/error.svg</file>
         <file>icons/6366f1/ethernet.svg</file>
         <file>icons/6366f1/file-html.svg</file>
@@ -1168,8 +1316,10 @@
         <file>icons/6366f1/internet-globe.svg</file>
         <file>icons/6366f1/ip-config.svg</file>
         <file>icons/6366f1/ipv6.svg</file>
+        <file>icons/6366f1/keyboard.svg</file>
         <file>icons/6366f1/layers.svg</file>
         <file>icons/6366f1/ldap.svg</file>
+        <file>icons/6366f1/leaf.svg</file>
         <file>icons/6366f1/list-checks.svg</file>
         <file>icons/6366f1/mail.svg</file>
         <file>icons/6366f1/mongodb.svg</file>
@@ -1180,9 +1330,11 @@
         <file>icons/6366f1/mysql.svg</file>
         <file>icons/6366f1/network-card.svg</file>
         <file>icons/6366f1/network-profile.svg</file>
+        <file>icons/6366f1/package.svg</file>
         <file>icons/6366f1/path-ping.svg</file>
         <file>icons/6366f1/ping.svg</file>
         <file>icons/6366f1/play.svg</file>
+        <file>icons/6366f1/plug.svg</file>
         <file>icons/6366f1/postgres.svg</file>
         <file>icons/6366f1/protocol-stack.svg</file>
         <file>icons/6366f1/proxy.svg</file>
@@ -1190,7 +1342,9 @@
         <file>icons/6366f1/redis.svg</file>
         <file>icons/6366f1/remote-host.svg</file>
         <file>icons/6366f1/report.svg</file>
+        <file>icons/6366f1/road.svg</file>
         <file>icons/6366f1/route-table.svg</file>
+        <file>icons/6366f1/ruler.svg</file>
         <file>icons/6366f1/security-headers.svg</file>
         <file>icons/6366f1/shield-network.svg</file>
         <file>icons/6366f1/shield.svg</file>
@@ -1198,6 +1352,7 @@
         <file>icons/6366f1/ssh.svg</file>
         <file>icons/6366f1/stop.svg</file>
         <file>icons/6366f1/sun.svg</file>
+        <file>icons/6366f1/tag.svg</file>
         <file>icons/6366f1/tcp-connect.svg</file>
         <file>icons/6366f1/tcp-settings.svg</file>
         <file>icons/6366f1/telnet.svg</file>
@@ -1206,10 +1361,12 @@
         <file>icons/6366f1/traceroute.svg</file>
         <file>icons/6366f1/translate.svg</file>
         <file>icons/6366f1/url-parse.svg</file>
+        <file>icons/6366f1/user.svg</file>
         <file>icons/6366f1/video.svg</file>
         <file>icons/6366f1/warning.svg</file>
         <file>icons/6366f1/wifi.svg</file>
         <file>icons/6366f1/zap.svg</file>
+        <file>icons/64748b/archive.svg</file>
         <file>icons/64748b/arp-table.svg</file>
         <file>icons/64748b/badge-check.svg</file>
         <file>icons/64748b/badge-circle.svg</file>
@@ -1228,8 +1385,10 @@
         <file>icons/64748b/chevron-down.svg</file>
         <file>icons/64748b/chevron-right.svg</file>
         <file>icons/64748b/circle.svg</file>
+        <file>icons/64748b/clipboard.svg</file>
         <file>icons/64748b/close.svg</file>
         <file>icons/64748b/cloud-shield.svg</file>
+        <file>icons/64748b/compass.svg</file>
         <file>icons/64748b/compression.svg</file>
         <file>icons/64748b/config.svg</file>
         <file>icons/64748b/connections.svg</file>
@@ -1244,6 +1403,7 @@
         <file>icons/64748b/dns-resolve.svg</file>
         <file>icons/64748b/dns-server.svg</file>
         <file>icons/64748b/dns-shield.svg</file>
+        <file>icons/64748b/door-open.svg</file>
         <file>icons/64748b/error.svg</file>
         <file>icons/64748b/ethernet.svg</file>
         <file>icons/64748b/file-html.svg</file>
@@ -1261,8 +1421,10 @@
         <file>icons/64748b/internet-globe.svg</file>
         <file>icons/64748b/ip-config.svg</file>
         <file>icons/64748b/ipv6.svg</file>
+        <file>icons/64748b/keyboard.svg</file>
         <file>icons/64748b/layers.svg</file>
         <file>icons/64748b/ldap.svg</file>
+        <file>icons/64748b/leaf.svg</file>
         <file>icons/64748b/list-checks.svg</file>
         <file>icons/64748b/mail.svg</file>
         <file>icons/64748b/mongodb.svg</file>
@@ -1273,9 +1435,11 @@
         <file>icons/64748b/mysql.svg</file>
         <file>icons/64748b/network-card.svg</file>
         <file>icons/64748b/network-profile.svg</file>
+        <file>icons/64748b/package.svg</file>
         <file>icons/64748b/path-ping.svg</file>
         <file>icons/64748b/ping.svg</file>
         <file>icons/64748b/play.svg</file>
+        <file>icons/64748b/plug.svg</file>
         <file>icons/64748b/postgres.svg</file>
         <file>icons/64748b/protocol-stack.svg</file>
         <file>icons/64748b/proxy.svg</file>
@@ -1283,7 +1447,9 @@
         <file>icons/64748b/redis.svg</file>
         <file>icons/64748b/remote-host.svg</file>
         <file>icons/64748b/report.svg</file>
+        <file>icons/64748b/road.svg</file>
         <file>icons/64748b/route-table.svg</file>
+        <file>icons/64748b/ruler.svg</file>
         <file>icons/64748b/security-headers.svg</file>
         <file>icons/64748b/shield-network.svg</file>
         <file>icons/64748b/shield.svg</file>
@@ -1291,6 +1457,7 @@
         <file>icons/64748b/ssh.svg</file>
         <file>icons/64748b/stop.svg</file>
         <file>icons/64748b/sun.svg</file>
+        <file>icons/64748b/tag.svg</file>
         <file>icons/64748b/tcp-connect.svg</file>
         <file>icons/64748b/tcp-settings.svg</file>
         <file>icons/64748b/telnet.svg</file>
@@ -1299,10 +1466,12 @@
         <file>icons/64748b/traceroute.svg</file>
         <file>icons/64748b/translate.svg</file>
         <file>icons/64748b/url-parse.svg</file>
+        <file>icons/64748b/user.svg</file>
         <file>icons/64748b/video.svg</file>
         <file>icons/64748b/warning.svg</file>
         <file>icons/64748b/wifi.svg</file>
         <file>icons/64748b/zap.svg</file>
+        <file>icons/68e5f4/archive.svg</file>
         <file>icons/68e5f4/arp-table.svg</file>
         <file>icons/68e5f4/badge-check.svg</file>
         <file>icons/68e5f4/badge-circle.svg</file>
@@ -1321,8 +1490,10 @@
         <file>icons/68e5f4/chevron-down.svg</file>
         <file>icons/68e5f4/chevron-right.svg</file>
         <file>icons/68e5f4/circle.svg</file>
+        <file>icons/68e5f4/clipboard.svg</file>
         <file>icons/68e5f4/close.svg</file>
         <file>icons/68e5f4/cloud-shield.svg</file>
+        <file>icons/68e5f4/compass.svg</file>
         <file>icons/68e5f4/compression.svg</file>
         <file>icons/68e5f4/config.svg</file>
         <file>icons/68e5f4/connections.svg</file>
@@ -1337,6 +1508,7 @@
         <file>icons/68e5f4/dns-resolve.svg</file>
         <file>icons/68e5f4/dns-server.svg</file>
         <file>icons/68e5f4/dns-shield.svg</file>
+        <file>icons/68e5f4/door-open.svg</file>
         <file>icons/68e5f4/error.svg</file>
         <file>icons/68e5f4/ethernet.svg</file>
         <file>icons/68e5f4/file-html.svg</file>
@@ -1354,8 +1526,10 @@
         <file>icons/68e5f4/internet-globe.svg</file>
         <file>icons/68e5f4/ip-config.svg</file>
         <file>icons/68e5f4/ipv6.svg</file>
+        <file>icons/68e5f4/keyboard.svg</file>
         <file>icons/68e5f4/layers.svg</file>
         <file>icons/68e5f4/ldap.svg</file>
+        <file>icons/68e5f4/leaf.svg</file>
         <file>icons/68e5f4/list-checks.svg</file>
         <file>icons/68e5f4/mail.svg</file>
         <file>icons/68e5f4/mongodb.svg</file>
@@ -1366,9 +1540,11 @@
         <file>icons/68e5f4/mysql.svg</file>
         <file>icons/68e5f4/network-card.svg</file>
         <file>icons/68e5f4/network-profile.svg</file>
+        <file>icons/68e5f4/package.svg</file>
         <file>icons/68e5f4/path-ping.svg</file>
         <file>icons/68e5f4/ping.svg</file>
         <file>icons/68e5f4/play.svg</file>
+        <file>icons/68e5f4/plug.svg</file>
         <file>icons/68e5f4/postgres.svg</file>
         <file>icons/68e5f4/protocol-stack.svg</file>
         <file>icons/68e5f4/proxy.svg</file>
@@ -1376,7 +1552,9 @@
         <file>icons/68e5f4/redis.svg</file>
         <file>icons/68e5f4/remote-host.svg</file>
         <file>icons/68e5f4/report.svg</file>
+        <file>icons/68e5f4/road.svg</file>
         <file>icons/68e5f4/route-table.svg</file>
+        <file>icons/68e5f4/ruler.svg</file>
         <file>icons/68e5f4/security-headers.svg</file>
         <file>icons/68e5f4/shield-network.svg</file>
         <file>icons/68e5f4/shield.svg</file>
@@ -1384,6 +1562,7 @@
         <file>icons/68e5f4/ssh.svg</file>
         <file>icons/68e5f4/stop.svg</file>
         <file>icons/68e5f4/sun.svg</file>
+        <file>icons/68e5f4/tag.svg</file>
         <file>icons/68e5f4/tcp-connect.svg</file>
         <file>icons/68e5f4/tcp-settings.svg</file>
         <file>icons/68e5f4/telnet.svg</file>
@@ -1392,10 +1571,12 @@
         <file>icons/68e5f4/traceroute.svg</file>
         <file>icons/68e5f4/translate.svg</file>
         <file>icons/68e5f4/url-parse.svg</file>
+        <file>icons/68e5f4/user.svg</file>
         <file>icons/68e5f4/video.svg</file>
         <file>icons/68e5f4/warning.svg</file>
         <file>icons/68e5f4/wifi.svg</file>
         <file>icons/68e5f4/zap.svg</file>
+        <file>icons/6b7280/archive.svg</file>
         <file>icons/6b7280/arp-table.svg</file>
         <file>icons/6b7280/badge-check.svg</file>
         <file>icons/6b7280/badge-circle.svg</file>
@@ -1414,8 +1595,10 @@
         <file>icons/6b7280/chevron-down.svg</file>
         <file>icons/6b7280/chevron-right.svg</file>
         <file>icons/6b7280/circle.svg</file>
+        <file>icons/6b7280/clipboard.svg</file>
         <file>icons/6b7280/close.svg</file>
         <file>icons/6b7280/cloud-shield.svg</file>
+        <file>icons/6b7280/compass.svg</file>
         <file>icons/6b7280/compression.svg</file>
         <file>icons/6b7280/config.svg</file>
         <file>icons/6b7280/connections.svg</file>
@@ -1430,6 +1613,7 @@
         <file>icons/6b7280/dns-resolve.svg</file>
         <file>icons/6b7280/dns-server.svg</file>
         <file>icons/6b7280/dns-shield.svg</file>
+        <file>icons/6b7280/door-open.svg</file>
         <file>icons/6b7280/error.svg</file>
         <file>icons/6b7280/ethernet.svg</file>
         <file>icons/6b7280/file-html.svg</file>
@@ -1447,8 +1631,10 @@
         <file>icons/6b7280/internet-globe.svg</file>
         <file>icons/6b7280/ip-config.svg</file>
         <file>icons/6b7280/ipv6.svg</file>
+        <file>icons/6b7280/keyboard.svg</file>
         <file>icons/6b7280/layers.svg</file>
         <file>icons/6b7280/ldap.svg</file>
+        <file>icons/6b7280/leaf.svg</file>
         <file>icons/6b7280/list-checks.svg</file>
         <file>icons/6b7280/mail.svg</file>
         <file>icons/6b7280/mongodb.svg</file>
@@ -1459,9 +1645,11 @@
         <file>icons/6b7280/mysql.svg</file>
         <file>icons/6b7280/network-card.svg</file>
         <file>icons/6b7280/network-profile.svg</file>
+        <file>icons/6b7280/package.svg</file>
         <file>icons/6b7280/path-ping.svg</file>
         <file>icons/6b7280/ping.svg</file>
         <file>icons/6b7280/play.svg</file>
+        <file>icons/6b7280/plug.svg</file>
         <file>icons/6b7280/postgres.svg</file>
         <file>icons/6b7280/protocol-stack.svg</file>
         <file>icons/6b7280/proxy.svg</file>
@@ -1469,7 +1657,9 @@
         <file>icons/6b7280/redis.svg</file>
         <file>icons/6b7280/remote-host.svg</file>
         <file>icons/6b7280/report.svg</file>
+        <file>icons/6b7280/road.svg</file>
         <file>icons/6b7280/route-table.svg</file>
+        <file>icons/6b7280/ruler.svg</file>
         <file>icons/6b7280/security-headers.svg</file>
         <file>icons/6b7280/shield-network.svg</file>
         <file>icons/6b7280/shield.svg</file>
@@ -1477,6 +1667,7 @@
         <file>icons/6b7280/ssh.svg</file>
         <file>icons/6b7280/stop.svg</file>
         <file>icons/6b7280/sun.svg</file>
+        <file>icons/6b7280/tag.svg</file>
         <file>icons/6b7280/tcp-connect.svg</file>
         <file>icons/6b7280/tcp-settings.svg</file>
         <file>icons/6b7280/telnet.svg</file>
@@ -1485,10 +1676,12 @@
         <file>icons/6b7280/traceroute.svg</file>
         <file>icons/6b7280/translate.svg</file>
         <file>icons/6b7280/url-parse.svg</file>
+        <file>icons/6b7280/user.svg</file>
         <file>icons/6b7280/video.svg</file>
         <file>icons/6b7280/warning.svg</file>
         <file>icons/6b7280/wifi.svg</file>
         <file>icons/6b7280/zap.svg</file>
+        <file>icons/818cf8/archive.svg</file>
         <file>icons/818cf8/arp-table.svg</file>
         <file>icons/818cf8/badge-check.svg</file>
         <file>icons/818cf8/badge-circle.svg</file>
@@ -1507,8 +1700,10 @@
         <file>icons/818cf8/chevron-down.svg</file>
         <file>icons/818cf8/chevron-right.svg</file>
         <file>icons/818cf8/circle.svg</file>
+        <file>icons/818cf8/clipboard.svg</file>
         <file>icons/818cf8/close.svg</file>
         <file>icons/818cf8/cloud-shield.svg</file>
+        <file>icons/818cf8/compass.svg</file>
         <file>icons/818cf8/compression.svg</file>
         <file>icons/818cf8/config.svg</file>
         <file>icons/818cf8/connections.svg</file>
@@ -1523,6 +1718,7 @@
         <file>icons/818cf8/dns-resolve.svg</file>
         <file>icons/818cf8/dns-server.svg</file>
         <file>icons/818cf8/dns-shield.svg</file>
+        <file>icons/818cf8/door-open.svg</file>
         <file>icons/818cf8/error.svg</file>
         <file>icons/818cf8/ethernet.svg</file>
         <file>icons/818cf8/file-html.svg</file>
@@ -1540,8 +1736,10 @@
         <file>icons/818cf8/internet-globe.svg</file>
         <file>icons/818cf8/ip-config.svg</file>
         <file>icons/818cf8/ipv6.svg</file>
+        <file>icons/818cf8/keyboard.svg</file>
         <file>icons/818cf8/layers.svg</file>
         <file>icons/818cf8/ldap.svg</file>
+        <file>icons/818cf8/leaf.svg</file>
         <file>icons/818cf8/list-checks.svg</file>
         <file>icons/818cf8/mail.svg</file>
         <file>icons/818cf8/mongodb.svg</file>
@@ -1552,9 +1750,11 @@
         <file>icons/818cf8/mysql.svg</file>
         <file>icons/818cf8/network-card.svg</file>
         <file>icons/818cf8/network-profile.svg</file>
+        <file>icons/818cf8/package.svg</file>
         <file>icons/818cf8/path-ping.svg</file>
         <file>icons/818cf8/ping.svg</file>
         <file>icons/818cf8/play.svg</file>
+        <file>icons/818cf8/plug.svg</file>
         <file>icons/818cf8/postgres.svg</file>
         <file>icons/818cf8/protocol-stack.svg</file>
         <file>icons/818cf8/proxy.svg</file>
@@ -1562,7 +1762,9 @@
         <file>icons/818cf8/redis.svg</file>
         <file>icons/818cf8/remote-host.svg</file>
         <file>icons/818cf8/report.svg</file>
+        <file>icons/818cf8/road.svg</file>
         <file>icons/818cf8/route-table.svg</file>
+        <file>icons/818cf8/ruler.svg</file>
         <file>icons/818cf8/security-headers.svg</file>
         <file>icons/818cf8/shield-network.svg</file>
         <file>icons/818cf8/shield.svg</file>
@@ -1570,6 +1772,7 @@
         <file>icons/818cf8/ssh.svg</file>
         <file>icons/818cf8/stop.svg</file>
         <file>icons/818cf8/sun.svg</file>
+        <file>icons/818cf8/tag.svg</file>
         <file>icons/818cf8/tcp-connect.svg</file>
         <file>icons/818cf8/tcp-settings.svg</file>
         <file>icons/818cf8/telnet.svg</file>
@@ -1578,10 +1781,12 @@
         <file>icons/818cf8/traceroute.svg</file>
         <file>icons/818cf8/translate.svg</file>
         <file>icons/818cf8/url-parse.svg</file>
+        <file>icons/818cf8/user.svg</file>
         <file>icons/818cf8/video.svg</file>
         <file>icons/818cf8/warning.svg</file>
         <file>icons/818cf8/wifi.svg</file>
         <file>icons/818cf8/zap.svg</file>
+        <file>icons/94a3b8/archive.svg</file>
         <file>icons/94a3b8/arp-table.svg</file>
         <file>icons/94a3b8/badge-check.svg</file>
         <file>icons/94a3b8/badge-circle.svg</file>
@@ -1600,8 +1805,10 @@
         <file>icons/94a3b8/chevron-down.svg</file>
         <file>icons/94a3b8/chevron-right.svg</file>
         <file>icons/94a3b8/circle.svg</file>
+        <file>icons/94a3b8/clipboard.svg</file>
         <file>icons/94a3b8/close.svg</file>
         <file>icons/94a3b8/cloud-shield.svg</file>
+        <file>icons/94a3b8/compass.svg</file>
         <file>icons/94a3b8/compression.svg</file>
         <file>icons/94a3b8/config.svg</file>
         <file>icons/94a3b8/connections.svg</file>
@@ -1616,6 +1823,7 @@
         <file>icons/94a3b8/dns-resolve.svg</file>
         <file>icons/94a3b8/dns-server.svg</file>
         <file>icons/94a3b8/dns-shield.svg</file>
+        <file>icons/94a3b8/door-open.svg</file>
         <file>icons/94a3b8/error.svg</file>
         <file>icons/94a3b8/ethernet.svg</file>
         <file>icons/94a3b8/file-html.svg</file>
@@ -1633,8 +1841,10 @@
         <file>icons/94a3b8/internet-globe.svg</file>
         <file>icons/94a3b8/ip-config.svg</file>
         <file>icons/94a3b8/ipv6.svg</file>
+        <file>icons/94a3b8/keyboard.svg</file>
         <file>icons/94a3b8/layers.svg</file>
         <file>icons/94a3b8/ldap.svg</file>
+        <file>icons/94a3b8/leaf.svg</file>
         <file>icons/94a3b8/list-checks.svg</file>
         <file>icons/94a3b8/mail.svg</file>
         <file>icons/94a3b8/mongodb.svg</file>
@@ -1645,9 +1855,11 @@
         <file>icons/94a3b8/mysql.svg</file>
         <file>icons/94a3b8/network-card.svg</file>
         <file>icons/94a3b8/network-profile.svg</file>
+        <file>icons/94a3b8/package.svg</file>
         <file>icons/94a3b8/path-ping.svg</file>
         <file>icons/94a3b8/ping.svg</file>
         <file>icons/94a3b8/play.svg</file>
+        <file>icons/94a3b8/plug.svg</file>
         <file>icons/94a3b8/postgres.svg</file>
         <file>icons/94a3b8/protocol-stack.svg</file>
         <file>icons/94a3b8/proxy.svg</file>
@@ -1655,7 +1867,9 @@
         <file>icons/94a3b8/redis.svg</file>
         <file>icons/94a3b8/remote-host.svg</file>
         <file>icons/94a3b8/report.svg</file>
+        <file>icons/94a3b8/road.svg</file>
         <file>icons/94a3b8/route-table.svg</file>
+        <file>icons/94a3b8/ruler.svg</file>
         <file>icons/94a3b8/security-headers.svg</file>
         <file>icons/94a3b8/shield-network.svg</file>
         <file>icons/94a3b8/shield.svg</file>
@@ -1663,6 +1877,7 @@
         <file>icons/94a3b8/ssh.svg</file>
         <file>icons/94a3b8/stop.svg</file>
         <file>icons/94a3b8/sun.svg</file>
+        <file>icons/94a3b8/tag.svg</file>
         <file>icons/94a3b8/tcp-connect.svg</file>
         <file>icons/94a3b8/tcp-settings.svg</file>
         <file>icons/94a3b8/telnet.svg</file>
@@ -1671,10 +1886,12 @@
         <file>icons/94a3b8/traceroute.svg</file>
         <file>icons/94a3b8/translate.svg</file>
         <file>icons/94a3b8/url-parse.svg</file>
+        <file>icons/94a3b8/user.svg</file>
         <file>icons/94a3b8/video.svg</file>
         <file>icons/94a3b8/warning.svg</file>
         <file>icons/94a3b8/wifi.svg</file>
         <file>icons/94a3b8/zap.svg</file>
+        <file>icons/9ca3af/archive.svg</file>
         <file>icons/9ca3af/arp-table.svg</file>
         <file>icons/9ca3af/badge-check.svg</file>
         <file>icons/9ca3af/badge-circle.svg</file>
@@ -1693,8 +1910,10 @@
         <file>icons/9ca3af/chevron-down.svg</file>
         <file>icons/9ca3af/chevron-right.svg</file>
         <file>icons/9ca3af/circle.svg</file>
+        <file>icons/9ca3af/clipboard.svg</file>
         <file>icons/9ca3af/close.svg</file>
         <file>icons/9ca3af/cloud-shield.svg</file>
+        <file>icons/9ca3af/compass.svg</file>
         <file>icons/9ca3af/compression.svg</file>
         <file>icons/9ca3af/config.svg</file>
         <file>icons/9ca3af/connections.svg</file>
@@ -1709,6 +1928,7 @@
         <file>icons/9ca3af/dns-resolve.svg</file>
         <file>icons/9ca3af/dns-server.svg</file>
         <file>icons/9ca3af/dns-shield.svg</file>
+        <file>icons/9ca3af/door-open.svg</file>
         <file>icons/9ca3af/error.svg</file>
         <file>icons/9ca3af/ethernet.svg</file>
         <file>icons/9ca3af/file-html.svg</file>
@@ -1726,8 +1946,10 @@
         <file>icons/9ca3af/internet-globe.svg</file>
         <file>icons/9ca3af/ip-config.svg</file>
         <file>icons/9ca3af/ipv6.svg</file>
+        <file>icons/9ca3af/keyboard.svg</file>
         <file>icons/9ca3af/layers.svg</file>
         <file>icons/9ca3af/ldap.svg</file>
+        <file>icons/9ca3af/leaf.svg</file>
         <file>icons/9ca3af/list-checks.svg</file>
         <file>icons/9ca3af/mail.svg</file>
         <file>icons/9ca3af/mongodb.svg</file>
@@ -1738,9 +1960,11 @@
         <file>icons/9ca3af/mysql.svg</file>
         <file>icons/9ca3af/network-card.svg</file>
         <file>icons/9ca3af/network-profile.svg</file>
+        <file>icons/9ca3af/package.svg</file>
         <file>icons/9ca3af/path-ping.svg</file>
         <file>icons/9ca3af/ping.svg</file>
         <file>icons/9ca3af/play.svg</file>
+        <file>icons/9ca3af/plug.svg</file>
         <file>icons/9ca3af/postgres.svg</file>
         <file>icons/9ca3af/protocol-stack.svg</file>
         <file>icons/9ca3af/proxy.svg</file>
@@ -1748,7 +1972,9 @@
         <file>icons/9ca3af/redis.svg</file>
         <file>icons/9ca3af/remote-host.svg</file>
         <file>icons/9ca3af/report.svg</file>
+        <file>icons/9ca3af/road.svg</file>
         <file>icons/9ca3af/route-table.svg</file>
+        <file>icons/9ca3af/ruler.svg</file>
         <file>icons/9ca3af/security-headers.svg</file>
         <file>icons/9ca3af/shield-network.svg</file>
         <file>icons/9ca3af/shield.svg</file>
@@ -1756,6 +1982,7 @@
         <file>icons/9ca3af/ssh.svg</file>
         <file>icons/9ca3af/stop.svg</file>
         <file>icons/9ca3af/sun.svg</file>
+        <file>icons/9ca3af/tag.svg</file>
         <file>icons/9ca3af/tcp-connect.svg</file>
         <file>icons/9ca3af/tcp-settings.svg</file>
         <file>icons/9ca3af/telnet.svg</file>
@@ -1764,10 +1991,12 @@
         <file>icons/9ca3af/traceroute.svg</file>
         <file>icons/9ca3af/translate.svg</file>
         <file>icons/9ca3af/url-parse.svg</file>
+        <file>icons/9ca3af/user.svg</file>
         <file>icons/9ca3af/video.svg</file>
         <file>icons/9ca3af/warning.svg</file>
         <file>icons/9ca3af/wifi.svg</file>
         <file>icons/9ca3af/zap.svg</file>
+        <file>icons/a5b4fc/archive.svg</file>
         <file>icons/a5b4fc/arp-table.svg</file>
         <file>icons/a5b4fc/badge-check.svg</file>
         <file>icons/a5b4fc/badge-circle.svg</file>
@@ -1786,8 +2015,10 @@
         <file>icons/a5b4fc/chevron-down.svg</file>
         <file>icons/a5b4fc/chevron-right.svg</file>
         <file>icons/a5b4fc/circle.svg</file>
+        <file>icons/a5b4fc/clipboard.svg</file>
         <file>icons/a5b4fc/close.svg</file>
         <file>icons/a5b4fc/cloud-shield.svg</file>
+        <file>icons/a5b4fc/compass.svg</file>
         <file>icons/a5b4fc/compression.svg</file>
         <file>icons/a5b4fc/config.svg</file>
         <file>icons/a5b4fc/connections.svg</file>
@@ -1802,6 +2033,7 @@
         <file>icons/a5b4fc/dns-resolve.svg</file>
         <file>icons/a5b4fc/dns-server.svg</file>
         <file>icons/a5b4fc/dns-shield.svg</file>
+        <file>icons/a5b4fc/door-open.svg</file>
         <file>icons/a5b4fc/error.svg</file>
         <file>icons/a5b4fc/ethernet.svg</file>
         <file>icons/a5b4fc/file-html.svg</file>
@@ -1819,8 +2051,10 @@
         <file>icons/a5b4fc/internet-globe.svg</file>
         <file>icons/a5b4fc/ip-config.svg</file>
         <file>icons/a5b4fc/ipv6.svg</file>
+        <file>icons/a5b4fc/keyboard.svg</file>
         <file>icons/a5b4fc/layers.svg</file>
         <file>icons/a5b4fc/ldap.svg</file>
+        <file>icons/a5b4fc/leaf.svg</file>
         <file>icons/a5b4fc/list-checks.svg</file>
         <file>icons/a5b4fc/mail.svg</file>
         <file>icons/a5b4fc/mongodb.svg</file>
@@ -1831,9 +2065,11 @@
         <file>icons/a5b4fc/mysql.svg</file>
         <file>icons/a5b4fc/network-card.svg</file>
         <file>icons/a5b4fc/network-profile.svg</file>
+        <file>icons/a5b4fc/package.svg</file>
         <file>icons/a5b4fc/path-ping.svg</file>
         <file>icons/a5b4fc/ping.svg</file>
         <file>icons/a5b4fc/play.svg</file>
+        <file>icons/a5b4fc/plug.svg</file>
         <file>icons/a5b4fc/postgres.svg</file>
         <file>icons/a5b4fc/protocol-stack.svg</file>
         <file>icons/a5b4fc/proxy.svg</file>
@@ -1841,7 +2077,9 @@
         <file>icons/a5b4fc/redis.svg</file>
         <file>icons/a5b4fc/remote-host.svg</file>
         <file>icons/a5b4fc/report.svg</file>
+        <file>icons/a5b4fc/road.svg</file>
         <file>icons/a5b4fc/route-table.svg</file>
+        <file>icons/a5b4fc/ruler.svg</file>
         <file>icons/a5b4fc/security-headers.svg</file>
         <file>icons/a5b4fc/shield-network.svg</file>
         <file>icons/a5b4fc/shield.svg</file>
@@ -1849,6 +2087,7 @@
         <file>icons/a5b4fc/ssh.svg</file>
         <file>icons/a5b4fc/stop.svg</file>
         <file>icons/a5b4fc/sun.svg</file>
+        <file>icons/a5b4fc/tag.svg</file>
         <file>icons/a5b4fc/tcp-connect.svg</file>
         <file>icons/a5b4fc/tcp-settings.svg</file>
         <file>icons/a5b4fc/telnet.svg</file>
@@ -1857,10 +2096,12 @@
         <file>icons/a5b4fc/traceroute.svg</file>
         <file>icons/a5b4fc/translate.svg</file>
         <file>icons/a5b4fc/url-parse.svg</file>
+        <file>icons/a5b4fc/user.svg</file>
         <file>icons/a5b4fc/video.svg</file>
         <file>icons/a5b4fc/warning.svg</file>
         <file>icons/a5b4fc/wifi.svg</file>
         <file>icons/a5b4fc/zap.svg</file>
+        <file>icons/be185d/archive.svg</file>
         <file>icons/be185d/arp-table.svg</file>
         <file>icons/be185d/badge-check.svg</file>
         <file>icons/be185d/badge-circle.svg</file>
@@ -1879,8 +2120,10 @@
         <file>icons/be185d/chevron-down.svg</file>
         <file>icons/be185d/chevron-right.svg</file>
         <file>icons/be185d/circle.svg</file>
+        <file>icons/be185d/clipboard.svg</file>
         <file>icons/be185d/close.svg</file>
         <file>icons/be185d/cloud-shield.svg</file>
+        <file>icons/be185d/compass.svg</file>
         <file>icons/be185d/compression.svg</file>
         <file>icons/be185d/config.svg</file>
         <file>icons/be185d/connections.svg</file>
@@ -1895,6 +2138,7 @@
         <file>icons/be185d/dns-resolve.svg</file>
         <file>icons/be185d/dns-server.svg</file>
         <file>icons/be185d/dns-shield.svg</file>
+        <file>icons/be185d/door-open.svg</file>
         <file>icons/be185d/error.svg</file>
         <file>icons/be185d/ethernet.svg</file>
         <file>icons/be185d/file-html.svg</file>
@@ -1912,8 +2156,10 @@
         <file>icons/be185d/internet-globe.svg</file>
         <file>icons/be185d/ip-config.svg</file>
         <file>icons/be185d/ipv6.svg</file>
+        <file>icons/be185d/keyboard.svg</file>
         <file>icons/be185d/layers.svg</file>
         <file>icons/be185d/ldap.svg</file>
+        <file>icons/be185d/leaf.svg</file>
         <file>icons/be185d/list-checks.svg</file>
         <file>icons/be185d/mail.svg</file>
         <file>icons/be185d/mongodb.svg</file>
@@ -1924,9 +2170,11 @@
         <file>icons/be185d/mysql.svg</file>
         <file>icons/be185d/network-card.svg</file>
         <file>icons/be185d/network-profile.svg</file>
+        <file>icons/be185d/package.svg</file>
         <file>icons/be185d/path-ping.svg</file>
         <file>icons/be185d/ping.svg</file>
         <file>icons/be185d/play.svg</file>
+        <file>icons/be185d/plug.svg</file>
         <file>icons/be185d/postgres.svg</file>
         <file>icons/be185d/protocol-stack.svg</file>
         <file>icons/be185d/proxy.svg</file>
@@ -1934,7 +2182,9 @@
         <file>icons/be185d/redis.svg</file>
         <file>icons/be185d/remote-host.svg</file>
         <file>icons/be185d/report.svg</file>
+        <file>icons/be185d/road.svg</file>
         <file>icons/be185d/route-table.svg</file>
+        <file>icons/be185d/ruler.svg</file>
         <file>icons/be185d/security-headers.svg</file>
         <file>icons/be185d/shield-network.svg</file>
         <file>icons/be185d/shield.svg</file>
@@ -1942,6 +2192,7 @@
         <file>icons/be185d/ssh.svg</file>
         <file>icons/be185d/stop.svg</file>
         <file>icons/be185d/sun.svg</file>
+        <file>icons/be185d/tag.svg</file>
         <file>icons/be185d/tcp-connect.svg</file>
         <file>icons/be185d/tcp-settings.svg</file>
         <file>icons/be185d/telnet.svg</file>
@@ -1950,10 +2201,12 @@
         <file>icons/be185d/traceroute.svg</file>
         <file>icons/be185d/translate.svg</file>
         <file>icons/be185d/url-parse.svg</file>
+        <file>icons/be185d/user.svg</file>
         <file>icons/be185d/video.svg</file>
         <file>icons/be185d/warning.svg</file>
         <file>icons/be185d/wifi.svg</file>
         <file>icons/be185d/zap.svg</file>
+        <file>icons/dc2626/archive.svg</file>
         <file>icons/dc2626/arp-table.svg</file>
         <file>icons/dc2626/badge-check.svg</file>
         <file>icons/dc2626/badge-circle.svg</file>
@@ -1972,8 +2225,10 @@
         <file>icons/dc2626/chevron-down.svg</file>
         <file>icons/dc2626/chevron-right.svg</file>
         <file>icons/dc2626/circle.svg</file>
+        <file>icons/dc2626/clipboard.svg</file>
         <file>icons/dc2626/close.svg</file>
         <file>icons/dc2626/cloud-shield.svg</file>
+        <file>icons/dc2626/compass.svg</file>
         <file>icons/dc2626/compression.svg</file>
         <file>icons/dc2626/config.svg</file>
         <file>icons/dc2626/connections.svg</file>
@@ -1988,6 +2243,7 @@
         <file>icons/dc2626/dns-resolve.svg</file>
         <file>icons/dc2626/dns-server.svg</file>
         <file>icons/dc2626/dns-shield.svg</file>
+        <file>icons/dc2626/door-open.svg</file>
         <file>icons/dc2626/error.svg</file>
         <file>icons/dc2626/ethernet.svg</file>
         <file>icons/dc2626/file-html.svg</file>
@@ -2005,8 +2261,10 @@
         <file>icons/dc2626/internet-globe.svg</file>
         <file>icons/dc2626/ip-config.svg</file>
         <file>icons/dc2626/ipv6.svg</file>
+        <file>icons/dc2626/keyboard.svg</file>
         <file>icons/dc2626/layers.svg</file>
         <file>icons/dc2626/ldap.svg</file>
+        <file>icons/dc2626/leaf.svg</file>
         <file>icons/dc2626/list-checks.svg</file>
         <file>icons/dc2626/mail.svg</file>
         <file>icons/dc2626/mongodb.svg</file>
@@ -2017,9 +2275,11 @@
         <file>icons/dc2626/mysql.svg</file>
         <file>icons/dc2626/network-card.svg</file>
         <file>icons/dc2626/network-profile.svg</file>
+        <file>icons/dc2626/package.svg</file>
         <file>icons/dc2626/path-ping.svg</file>
         <file>icons/dc2626/ping.svg</file>
         <file>icons/dc2626/play.svg</file>
+        <file>icons/dc2626/plug.svg</file>
         <file>icons/dc2626/postgres.svg</file>
         <file>icons/dc2626/protocol-stack.svg</file>
         <file>icons/dc2626/proxy.svg</file>
@@ -2027,7 +2287,9 @@
         <file>icons/dc2626/redis.svg</file>
         <file>icons/dc2626/remote-host.svg</file>
         <file>icons/dc2626/report.svg</file>
+        <file>icons/dc2626/road.svg</file>
         <file>icons/dc2626/route-table.svg</file>
+        <file>icons/dc2626/ruler.svg</file>
         <file>icons/dc2626/security-headers.svg</file>
         <file>icons/dc2626/shield-network.svg</file>
         <file>icons/dc2626/shield.svg</file>
@@ -2035,6 +2297,7 @@
         <file>icons/dc2626/ssh.svg</file>
         <file>icons/dc2626/stop.svg</file>
         <file>icons/dc2626/sun.svg</file>
+        <file>icons/dc2626/tag.svg</file>
         <file>icons/dc2626/tcp-connect.svg</file>
         <file>icons/dc2626/tcp-settings.svg</file>
         <file>icons/dc2626/telnet.svg</file>
@@ -2043,10 +2306,12 @@
         <file>icons/dc2626/traceroute.svg</file>
         <file>icons/dc2626/translate.svg</file>
         <file>icons/dc2626/url-parse.svg</file>
+        <file>icons/dc2626/user.svg</file>
         <file>icons/dc2626/video.svg</file>
         <file>icons/dc2626/warning.svg</file>
         <file>icons/dc2626/wifi.svg</file>
         <file>icons/dc2626/zap.svg</file>
+        <file>icons/e0f2fe/archive.svg</file>
         <file>icons/e0f2fe/arp-table.svg</file>
         <file>icons/e0f2fe/badge-check.svg</file>
         <file>icons/e0f2fe/badge-circle.svg</file>
@@ -2065,8 +2330,10 @@
         <file>icons/e0f2fe/chevron-down.svg</file>
         <file>icons/e0f2fe/chevron-right.svg</file>
         <file>icons/e0f2fe/circle.svg</file>
+        <file>icons/e0f2fe/clipboard.svg</file>
         <file>icons/e0f2fe/close.svg</file>
         <file>icons/e0f2fe/cloud-shield.svg</file>
+        <file>icons/e0f2fe/compass.svg</file>
         <file>icons/e0f2fe/compression.svg</file>
         <file>icons/e0f2fe/config.svg</file>
         <file>icons/e0f2fe/connections.svg</file>
@@ -2081,6 +2348,7 @@
         <file>icons/e0f2fe/dns-resolve.svg</file>
         <file>icons/e0f2fe/dns-server.svg</file>
         <file>icons/e0f2fe/dns-shield.svg</file>
+        <file>icons/e0f2fe/door-open.svg</file>
         <file>icons/e0f2fe/error.svg</file>
         <file>icons/e0f2fe/ethernet.svg</file>
         <file>icons/e0f2fe/file-html.svg</file>
@@ -2098,8 +2366,10 @@
         <file>icons/e0f2fe/internet-globe.svg</file>
         <file>icons/e0f2fe/ip-config.svg</file>
         <file>icons/e0f2fe/ipv6.svg</file>
+        <file>icons/e0f2fe/keyboard.svg</file>
         <file>icons/e0f2fe/layers.svg</file>
         <file>icons/e0f2fe/ldap.svg</file>
+        <file>icons/e0f2fe/leaf.svg</file>
         <file>icons/e0f2fe/list-checks.svg</file>
         <file>icons/e0f2fe/mail.svg</file>
         <file>icons/e0f2fe/mongodb.svg</file>
@@ -2110,9 +2380,11 @@
         <file>icons/e0f2fe/mysql.svg</file>
         <file>icons/e0f2fe/network-card.svg</file>
         <file>icons/e0f2fe/network-profile.svg</file>
+        <file>icons/e0f2fe/package.svg</file>
         <file>icons/e0f2fe/path-ping.svg</file>
         <file>icons/e0f2fe/ping.svg</file>
         <file>icons/e0f2fe/play.svg</file>
+        <file>icons/e0f2fe/plug.svg</file>
         <file>icons/e0f2fe/postgres.svg</file>
         <file>icons/e0f2fe/protocol-stack.svg</file>
         <file>icons/e0f2fe/proxy.svg</file>
@@ -2120,7 +2392,9 @@
         <file>icons/e0f2fe/redis.svg</file>
         <file>icons/e0f2fe/remote-host.svg</file>
         <file>icons/e0f2fe/report.svg</file>
+        <file>icons/e0f2fe/road.svg</file>
         <file>icons/e0f2fe/route-table.svg</file>
+        <file>icons/e0f2fe/ruler.svg</file>
         <file>icons/e0f2fe/security-headers.svg</file>
         <file>icons/e0f2fe/shield-network.svg</file>
         <file>icons/e0f2fe/shield.svg</file>
@@ -2128,6 +2402,7 @@
         <file>icons/e0f2fe/ssh.svg</file>
         <file>icons/e0f2fe/stop.svg</file>
         <file>icons/e0f2fe/sun.svg</file>
+        <file>icons/e0f2fe/tag.svg</file>
         <file>icons/e0f2fe/tcp-connect.svg</file>
         <file>icons/e0f2fe/tcp-settings.svg</file>
         <file>icons/e0f2fe/telnet.svg</file>
@@ -2136,10 +2411,12 @@
         <file>icons/e0f2fe/traceroute.svg</file>
         <file>icons/e0f2fe/translate.svg</file>
         <file>icons/e0f2fe/url-parse.svg</file>
+        <file>icons/e0f2fe/user.svg</file>
         <file>icons/e0f2fe/video.svg</file>
         <file>icons/e0f2fe/warning.svg</file>
         <file>icons/e0f2fe/wifi.svg</file>
         <file>icons/e0f2fe/zap.svg</file>
+        <file>icons/e2e8f0/archive.svg</file>
         <file>icons/e2e8f0/arp-table.svg</file>
         <file>icons/e2e8f0/badge-check.svg</file>
         <file>icons/e2e8f0/badge-circle.svg</file>
@@ -2158,8 +2435,10 @@
         <file>icons/e2e8f0/chevron-down.svg</file>
         <file>icons/e2e8f0/chevron-right.svg</file>
         <file>icons/e2e8f0/circle.svg</file>
+        <file>icons/e2e8f0/clipboard.svg</file>
         <file>icons/e2e8f0/close.svg</file>
         <file>icons/e2e8f0/cloud-shield.svg</file>
+        <file>icons/e2e8f0/compass.svg</file>
         <file>icons/e2e8f0/compression.svg</file>
         <file>icons/e2e8f0/config.svg</file>
         <file>icons/e2e8f0/connections.svg</file>
@@ -2174,6 +2453,7 @@
         <file>icons/e2e8f0/dns-resolve.svg</file>
         <file>icons/e2e8f0/dns-server.svg</file>
         <file>icons/e2e8f0/dns-shield.svg</file>
+        <file>icons/e2e8f0/door-open.svg</file>
         <file>icons/e2e8f0/error.svg</file>
         <file>icons/e2e8f0/ethernet.svg</file>
         <file>icons/e2e8f0/file-html.svg</file>
@@ -2191,8 +2471,10 @@
         <file>icons/e2e8f0/internet-globe.svg</file>
         <file>icons/e2e8f0/ip-config.svg</file>
         <file>icons/e2e8f0/ipv6.svg</file>
+        <file>icons/e2e8f0/keyboard.svg</file>
         <file>icons/e2e8f0/layers.svg</file>
         <file>icons/e2e8f0/ldap.svg</file>
+        <file>icons/e2e8f0/leaf.svg</file>
         <file>icons/e2e8f0/list-checks.svg</file>
         <file>icons/e2e8f0/mail.svg</file>
         <file>icons/e2e8f0/mongodb.svg</file>
@@ -2203,9 +2485,11 @@
         <file>icons/e2e8f0/mysql.svg</file>
         <file>icons/e2e8f0/network-card.svg</file>
         <file>icons/e2e8f0/network-profile.svg</file>
+        <file>icons/e2e8f0/package.svg</file>
         <file>icons/e2e8f0/path-ping.svg</file>
         <file>icons/e2e8f0/ping.svg</file>
         <file>icons/e2e8f0/play.svg</file>
+        <file>icons/e2e8f0/plug.svg</file>
         <file>icons/e2e8f0/postgres.svg</file>
         <file>icons/e2e8f0/protocol-stack.svg</file>
         <file>icons/e2e8f0/proxy.svg</file>
@@ -2213,7 +2497,9 @@
         <file>icons/e2e8f0/redis.svg</file>
         <file>icons/e2e8f0/remote-host.svg</file>
         <file>icons/e2e8f0/report.svg</file>
+        <file>icons/e2e8f0/road.svg</file>
         <file>icons/e2e8f0/route-table.svg</file>
+        <file>icons/e2e8f0/ruler.svg</file>
         <file>icons/e2e8f0/security-headers.svg</file>
         <file>icons/e2e8f0/shield-network.svg</file>
         <file>icons/e2e8f0/shield.svg</file>
@@ -2221,6 +2507,7 @@
         <file>icons/e2e8f0/ssh.svg</file>
         <file>icons/e2e8f0/stop.svg</file>
         <file>icons/e2e8f0/sun.svg</file>
+        <file>icons/e2e8f0/tag.svg</file>
         <file>icons/e2e8f0/tcp-connect.svg</file>
         <file>icons/e2e8f0/tcp-settings.svg</file>
         <file>icons/e2e8f0/telnet.svg</file>
@@ -2229,10 +2516,12 @@
         <file>icons/e2e8f0/traceroute.svg</file>
         <file>icons/e2e8f0/translate.svg</file>
         <file>icons/e2e8f0/url-parse.svg</file>
+        <file>icons/e2e8f0/user.svg</file>
         <file>icons/e2e8f0/video.svg</file>
         <file>icons/e2e8f0/warning.svg</file>
         <file>icons/e2e8f0/wifi.svg</file>
         <file>icons/e2e8f0/zap.svg</file>
+        <file>icons/ea580c/archive.svg</file>
         <file>icons/ea580c/arp-table.svg</file>
         <file>icons/ea580c/badge-check.svg</file>
         <file>icons/ea580c/badge-circle.svg</file>
@@ -2251,8 +2540,10 @@
         <file>icons/ea580c/chevron-down.svg</file>
         <file>icons/ea580c/chevron-right.svg</file>
         <file>icons/ea580c/circle.svg</file>
+        <file>icons/ea580c/clipboard.svg</file>
         <file>icons/ea580c/close.svg</file>
         <file>icons/ea580c/cloud-shield.svg</file>
+        <file>icons/ea580c/compass.svg</file>
         <file>icons/ea580c/compression.svg</file>
         <file>icons/ea580c/config.svg</file>
         <file>icons/ea580c/connections.svg</file>
@@ -2267,6 +2558,7 @@
         <file>icons/ea580c/dns-resolve.svg</file>
         <file>icons/ea580c/dns-server.svg</file>
         <file>icons/ea580c/dns-shield.svg</file>
+        <file>icons/ea580c/door-open.svg</file>
         <file>icons/ea580c/error.svg</file>
         <file>icons/ea580c/ethernet.svg</file>
         <file>icons/ea580c/file-html.svg</file>
@@ -2284,8 +2576,10 @@
         <file>icons/ea580c/internet-globe.svg</file>
         <file>icons/ea580c/ip-config.svg</file>
         <file>icons/ea580c/ipv6.svg</file>
+        <file>icons/ea580c/keyboard.svg</file>
         <file>icons/ea580c/layers.svg</file>
         <file>icons/ea580c/ldap.svg</file>
+        <file>icons/ea580c/leaf.svg</file>
         <file>icons/ea580c/list-checks.svg</file>
         <file>icons/ea580c/mail.svg</file>
         <file>icons/ea580c/mongodb.svg</file>
@@ -2296,9 +2590,11 @@
         <file>icons/ea580c/mysql.svg</file>
         <file>icons/ea580c/network-card.svg</file>
         <file>icons/ea580c/network-profile.svg</file>
+        <file>icons/ea580c/package.svg</file>
         <file>icons/ea580c/path-ping.svg</file>
         <file>icons/ea580c/ping.svg</file>
         <file>icons/ea580c/play.svg</file>
+        <file>icons/ea580c/plug.svg</file>
         <file>icons/ea580c/postgres.svg</file>
         <file>icons/ea580c/protocol-stack.svg</file>
         <file>icons/ea580c/proxy.svg</file>
@@ -2306,7 +2602,9 @@
         <file>icons/ea580c/redis.svg</file>
         <file>icons/ea580c/remote-host.svg</file>
         <file>icons/ea580c/report.svg</file>
+        <file>icons/ea580c/road.svg</file>
         <file>icons/ea580c/route-table.svg</file>
+        <file>icons/ea580c/ruler.svg</file>
         <file>icons/ea580c/security-headers.svg</file>
         <file>icons/ea580c/shield-network.svg</file>
         <file>icons/ea580c/shield.svg</file>
@@ -2314,6 +2612,7 @@
         <file>icons/ea580c/ssh.svg</file>
         <file>icons/ea580c/stop.svg</file>
         <file>icons/ea580c/sun.svg</file>
+        <file>icons/ea580c/tag.svg</file>
         <file>icons/ea580c/tcp-connect.svg</file>
         <file>icons/ea580c/tcp-settings.svg</file>
         <file>icons/ea580c/telnet.svg</file>
@@ -2322,10 +2621,12 @@
         <file>icons/ea580c/traceroute.svg</file>
         <file>icons/ea580c/translate.svg</file>
         <file>icons/ea580c/url-parse.svg</file>
+        <file>icons/ea580c/user.svg</file>
         <file>icons/ea580c/video.svg</file>
         <file>icons/ea580c/warning.svg</file>
         <file>icons/ea580c/wifi.svg</file>
         <file>icons/ea580c/zap.svg</file>
+        <file>icons/f1f5f9/archive.svg</file>
         <file>icons/f1f5f9/arp-table.svg</file>
         <file>icons/f1f5f9/badge-check.svg</file>
         <file>icons/f1f5f9/badge-circle.svg</file>
@@ -2344,8 +2645,10 @@
         <file>icons/f1f5f9/chevron-down.svg</file>
         <file>icons/f1f5f9/chevron-right.svg</file>
         <file>icons/f1f5f9/circle.svg</file>
+        <file>icons/f1f5f9/clipboard.svg</file>
         <file>icons/f1f5f9/close.svg</file>
         <file>icons/f1f5f9/cloud-shield.svg</file>
+        <file>icons/f1f5f9/compass.svg</file>
         <file>icons/f1f5f9/compression.svg</file>
         <file>icons/f1f5f9/config.svg</file>
         <file>icons/f1f5f9/connections.svg</file>
@@ -2360,6 +2663,7 @@
         <file>icons/f1f5f9/dns-resolve.svg</file>
         <file>icons/f1f5f9/dns-server.svg</file>
         <file>icons/f1f5f9/dns-shield.svg</file>
+        <file>icons/f1f5f9/door-open.svg</file>
         <file>icons/f1f5f9/error.svg</file>
         <file>icons/f1f5f9/ethernet.svg</file>
         <file>icons/f1f5f9/file-html.svg</file>
@@ -2377,8 +2681,10 @@
         <file>icons/f1f5f9/internet-globe.svg</file>
         <file>icons/f1f5f9/ip-config.svg</file>
         <file>icons/f1f5f9/ipv6.svg</file>
+        <file>icons/f1f5f9/keyboard.svg</file>
         <file>icons/f1f5f9/layers.svg</file>
         <file>icons/f1f5f9/ldap.svg</file>
+        <file>icons/f1f5f9/leaf.svg</file>
         <file>icons/f1f5f9/list-checks.svg</file>
         <file>icons/f1f5f9/mail.svg</file>
         <file>icons/f1f5f9/mongodb.svg</file>
@@ -2389,9 +2695,11 @@
         <file>icons/f1f5f9/mysql.svg</file>
         <file>icons/f1f5f9/network-card.svg</file>
         <file>icons/f1f5f9/network-profile.svg</file>
+        <file>icons/f1f5f9/package.svg</file>
         <file>icons/f1f5f9/path-ping.svg</file>
         <file>icons/f1f5f9/ping.svg</file>
         <file>icons/f1f5f9/play.svg</file>
+        <file>icons/f1f5f9/plug.svg</file>
         <file>icons/f1f5f9/postgres.svg</file>
         <file>icons/f1f5f9/protocol-stack.svg</file>
         <file>icons/f1f5f9/proxy.svg</file>
@@ -2399,7 +2707,9 @@
         <file>icons/f1f5f9/redis.svg</file>
         <file>icons/f1f5f9/remote-host.svg</file>
         <file>icons/f1f5f9/report.svg</file>
+        <file>icons/f1f5f9/road.svg</file>
         <file>icons/f1f5f9/route-table.svg</file>
+        <file>icons/f1f5f9/ruler.svg</file>
         <file>icons/f1f5f9/security-headers.svg</file>
         <file>icons/f1f5f9/shield-network.svg</file>
         <file>icons/f1f5f9/shield.svg</file>
@@ -2407,6 +2717,7 @@
         <file>icons/f1f5f9/ssh.svg</file>
         <file>icons/f1f5f9/stop.svg</file>
         <file>icons/f1f5f9/sun.svg</file>
+        <file>icons/f1f5f9/tag.svg</file>
         <file>icons/f1f5f9/tcp-connect.svg</file>
         <file>icons/f1f5f9/tcp-settings.svg</file>
         <file>icons/f1f5f9/telnet.svg</file>
@@ -2415,10 +2726,12 @@
         <file>icons/f1f5f9/traceroute.svg</file>
         <file>icons/f1f5f9/translate.svg</file>
         <file>icons/f1f5f9/url-parse.svg</file>
+        <file>icons/f1f5f9/user.svg</file>
         <file>icons/f1f5f9/video.svg</file>
         <file>icons/f1f5f9/warning.svg</file>
         <file>icons/f1f5f9/wifi.svg</file>
         <file>icons/f1f5f9/zap.svg</file>
+        <file>icons/f43f5e/archive.svg</file>
         <file>icons/f43f5e/arp-table.svg</file>
         <file>icons/f43f5e/badge-check.svg</file>
         <file>icons/f43f5e/badge-circle.svg</file>
@@ -2437,8 +2750,10 @@
         <file>icons/f43f5e/chevron-down.svg</file>
         <file>icons/f43f5e/chevron-right.svg</file>
         <file>icons/f43f5e/circle.svg</file>
+        <file>icons/f43f5e/clipboard.svg</file>
         <file>icons/f43f5e/close.svg</file>
         <file>icons/f43f5e/cloud-shield.svg</file>
+        <file>icons/f43f5e/compass.svg</file>
         <file>icons/f43f5e/compression.svg</file>
         <file>icons/f43f5e/config.svg</file>
         <file>icons/f43f5e/connections.svg</file>
@@ -2453,6 +2768,7 @@
         <file>icons/f43f5e/dns-resolve.svg</file>
         <file>icons/f43f5e/dns-server.svg</file>
         <file>icons/f43f5e/dns-shield.svg</file>
+        <file>icons/f43f5e/door-open.svg</file>
         <file>icons/f43f5e/error.svg</file>
         <file>icons/f43f5e/ethernet.svg</file>
         <file>icons/f43f5e/file-html.svg</file>
@@ -2470,8 +2786,10 @@
         <file>icons/f43f5e/internet-globe.svg</file>
         <file>icons/f43f5e/ip-config.svg</file>
         <file>icons/f43f5e/ipv6.svg</file>
+        <file>icons/f43f5e/keyboard.svg</file>
         <file>icons/f43f5e/layers.svg</file>
         <file>icons/f43f5e/ldap.svg</file>
+        <file>icons/f43f5e/leaf.svg</file>
         <file>icons/f43f5e/list-checks.svg</file>
         <file>icons/f43f5e/mail.svg</file>
         <file>icons/f43f5e/mongodb.svg</file>
@@ -2482,9 +2800,11 @@
         <file>icons/f43f5e/mysql.svg</file>
         <file>icons/f43f5e/network-card.svg</file>
         <file>icons/f43f5e/network-profile.svg</file>
+        <file>icons/f43f5e/package.svg</file>
         <file>icons/f43f5e/path-ping.svg</file>
         <file>icons/f43f5e/ping.svg</file>
         <file>icons/f43f5e/play.svg</file>
+        <file>icons/f43f5e/plug.svg</file>
         <file>icons/f43f5e/postgres.svg</file>
         <file>icons/f43f5e/protocol-stack.svg</file>
         <file>icons/f43f5e/proxy.svg</file>
@@ -2492,7 +2812,9 @@
         <file>icons/f43f5e/redis.svg</file>
         <file>icons/f43f5e/remote-host.svg</file>
         <file>icons/f43f5e/report.svg</file>
+        <file>icons/f43f5e/road.svg</file>
         <file>icons/f43f5e/route-table.svg</file>
+        <file>icons/f43f5e/ruler.svg</file>
         <file>icons/f43f5e/security-headers.svg</file>
         <file>icons/f43f5e/shield-network.svg</file>
         <file>icons/f43f5e/shield.svg</file>
@@ -2500,6 +2822,7 @@
         <file>icons/f43f5e/ssh.svg</file>
         <file>icons/f43f5e/stop.svg</file>
         <file>icons/f43f5e/sun.svg</file>
+        <file>icons/f43f5e/tag.svg</file>
         <file>icons/f43f5e/tcp-connect.svg</file>
         <file>icons/f43f5e/tcp-settings.svg</file>
         <file>icons/f43f5e/telnet.svg</file>
@@ -2508,10 +2831,12 @@
         <file>icons/f43f5e/traceroute.svg</file>
         <file>icons/f43f5e/translate.svg</file>
         <file>icons/f43f5e/url-parse.svg</file>
+        <file>icons/f43f5e/user.svg</file>
         <file>icons/f43f5e/video.svg</file>
         <file>icons/f43f5e/warning.svg</file>
         <file>icons/f43f5e/wifi.svg</file>
         <file>icons/f43f5e/zap.svg</file>
+        <file>icons/f472b6/archive.svg</file>
         <file>icons/f472b6/arp-table.svg</file>
         <file>icons/f472b6/badge-check.svg</file>
         <file>icons/f472b6/badge-circle.svg</file>
@@ -2530,8 +2855,10 @@
         <file>icons/f472b6/chevron-down.svg</file>
         <file>icons/f472b6/chevron-right.svg</file>
         <file>icons/f472b6/circle.svg</file>
+        <file>icons/f472b6/clipboard.svg</file>
         <file>icons/f472b6/close.svg</file>
         <file>icons/f472b6/cloud-shield.svg</file>
+        <file>icons/f472b6/compass.svg</file>
         <file>icons/f472b6/compression.svg</file>
         <file>icons/f472b6/config.svg</file>
         <file>icons/f472b6/connections.svg</file>
@@ -2546,6 +2873,7 @@
         <file>icons/f472b6/dns-resolve.svg</file>
         <file>icons/f472b6/dns-server.svg</file>
         <file>icons/f472b6/dns-shield.svg</file>
+        <file>icons/f472b6/door-open.svg</file>
         <file>icons/f472b6/error.svg</file>
         <file>icons/f472b6/ethernet.svg</file>
         <file>icons/f472b6/file-html.svg</file>
@@ -2563,8 +2891,10 @@
         <file>icons/f472b6/internet-globe.svg</file>
         <file>icons/f472b6/ip-config.svg</file>
         <file>icons/f472b6/ipv6.svg</file>
+        <file>icons/f472b6/keyboard.svg</file>
         <file>icons/f472b6/layers.svg</file>
         <file>icons/f472b6/ldap.svg</file>
+        <file>icons/f472b6/leaf.svg</file>
         <file>icons/f472b6/list-checks.svg</file>
         <file>icons/f472b6/mail.svg</file>
         <file>icons/f472b6/mongodb.svg</file>
@@ -2575,9 +2905,11 @@
         <file>icons/f472b6/mysql.svg</file>
         <file>icons/f472b6/network-card.svg</file>
         <file>icons/f472b6/network-profile.svg</file>
+        <file>icons/f472b6/package.svg</file>
         <file>icons/f472b6/path-ping.svg</file>
         <file>icons/f472b6/ping.svg</file>
         <file>icons/f472b6/play.svg</file>
+        <file>icons/f472b6/plug.svg</file>
         <file>icons/f472b6/postgres.svg</file>
         <file>icons/f472b6/protocol-stack.svg</file>
         <file>icons/f472b6/proxy.svg</file>
@@ -2585,7 +2917,9 @@
         <file>icons/f472b6/redis.svg</file>
         <file>icons/f472b6/remote-host.svg</file>
         <file>icons/f472b6/report.svg</file>
+        <file>icons/f472b6/road.svg</file>
         <file>icons/f472b6/route-table.svg</file>
+        <file>icons/f472b6/ruler.svg</file>
         <file>icons/f472b6/security-headers.svg</file>
         <file>icons/f472b6/shield-network.svg</file>
         <file>icons/f472b6/shield.svg</file>
@@ -2593,6 +2927,7 @@
         <file>icons/f472b6/ssh.svg</file>
         <file>icons/f472b6/stop.svg</file>
         <file>icons/f472b6/sun.svg</file>
+        <file>icons/f472b6/tag.svg</file>
         <file>icons/f472b6/tcp-connect.svg</file>
         <file>icons/f472b6/tcp-settings.svg</file>
         <file>icons/f472b6/telnet.svg</file>
@@ -2601,10 +2936,12 @@
         <file>icons/f472b6/traceroute.svg</file>
         <file>icons/f472b6/translate.svg</file>
         <file>icons/f472b6/url-parse.svg</file>
+        <file>icons/f472b6/user.svg</file>
         <file>icons/f472b6/video.svg</file>
         <file>icons/f472b6/warning.svg</file>
         <file>icons/f472b6/wifi.svg</file>
         <file>icons/f472b6/zap.svg</file>
+        <file>icons/f59e0b/archive.svg</file>
         <file>icons/f59e0b/arp-table.svg</file>
         <file>icons/f59e0b/badge-check.svg</file>
         <file>icons/f59e0b/badge-circle.svg</file>
@@ -2623,8 +2960,10 @@
         <file>icons/f59e0b/chevron-down.svg</file>
         <file>icons/f59e0b/chevron-right.svg</file>
         <file>icons/f59e0b/circle.svg</file>
+        <file>icons/f59e0b/clipboard.svg</file>
         <file>icons/f59e0b/close.svg</file>
         <file>icons/f59e0b/cloud-shield.svg</file>
+        <file>icons/f59e0b/compass.svg</file>
         <file>icons/f59e0b/compression.svg</file>
         <file>icons/f59e0b/config.svg</file>
         <file>icons/f59e0b/connections.svg</file>
@@ -2639,6 +2978,7 @@
         <file>icons/f59e0b/dns-resolve.svg</file>
         <file>icons/f59e0b/dns-server.svg</file>
         <file>icons/f59e0b/dns-shield.svg</file>
+        <file>icons/f59e0b/door-open.svg</file>
         <file>icons/f59e0b/error.svg</file>
         <file>icons/f59e0b/ethernet.svg</file>
         <file>icons/f59e0b/file-html.svg</file>
@@ -2656,8 +2996,10 @@
         <file>icons/f59e0b/internet-globe.svg</file>
         <file>icons/f59e0b/ip-config.svg</file>
         <file>icons/f59e0b/ipv6.svg</file>
+        <file>icons/f59e0b/keyboard.svg</file>
         <file>icons/f59e0b/layers.svg</file>
         <file>icons/f59e0b/ldap.svg</file>
+        <file>icons/f59e0b/leaf.svg</file>
         <file>icons/f59e0b/list-checks.svg</file>
         <file>icons/f59e0b/mail.svg</file>
         <file>icons/f59e0b/mongodb.svg</file>
@@ -2668,9 +3010,11 @@
         <file>icons/f59e0b/mysql.svg</file>
         <file>icons/f59e0b/network-card.svg</file>
         <file>icons/f59e0b/network-profile.svg</file>
+        <file>icons/f59e0b/package.svg</file>
         <file>icons/f59e0b/path-ping.svg</file>
         <file>icons/f59e0b/ping.svg</file>
         <file>icons/f59e0b/play.svg</file>
+        <file>icons/f59e0b/plug.svg</file>
         <file>icons/f59e0b/postgres.svg</file>
         <file>icons/f59e0b/protocol-stack.svg</file>
         <file>icons/f59e0b/proxy.svg</file>
@@ -2678,7 +3022,9 @@
         <file>icons/f59e0b/redis.svg</file>
         <file>icons/f59e0b/remote-host.svg</file>
         <file>icons/f59e0b/report.svg</file>
+        <file>icons/f59e0b/road.svg</file>
         <file>icons/f59e0b/route-table.svg</file>
+        <file>icons/f59e0b/ruler.svg</file>
         <file>icons/f59e0b/security-headers.svg</file>
         <file>icons/f59e0b/shield-network.svg</file>
         <file>icons/f59e0b/shield.svg</file>
@@ -2686,6 +3032,7 @@
         <file>icons/f59e0b/ssh.svg</file>
         <file>icons/f59e0b/stop.svg</file>
         <file>icons/f59e0b/sun.svg</file>
+        <file>icons/f59e0b/tag.svg</file>
         <file>icons/f59e0b/tcp-connect.svg</file>
         <file>icons/f59e0b/tcp-settings.svg</file>
         <file>icons/f59e0b/telnet.svg</file>
@@ -2694,10 +3041,12 @@
         <file>icons/f59e0b/traceroute.svg</file>
         <file>icons/f59e0b/translate.svg</file>
         <file>icons/f59e0b/url-parse.svg</file>
+        <file>icons/f59e0b/user.svg</file>
         <file>icons/f59e0b/video.svg</file>
         <file>icons/f59e0b/warning.svg</file>
         <file>icons/f59e0b/wifi.svg</file>
         <file>icons/f59e0b/zap.svg</file>
+        <file>icons/f87171/archive.svg</file>
         <file>icons/f87171/arp-table.svg</file>
         <file>icons/f87171/badge-check.svg</file>
         <file>icons/f87171/badge-circle.svg</file>
@@ -2716,8 +3065,10 @@
         <file>icons/f87171/chevron-down.svg</file>
         <file>icons/f87171/chevron-right.svg</file>
         <file>icons/f87171/circle.svg</file>
+        <file>icons/f87171/clipboard.svg</file>
         <file>icons/f87171/close.svg</file>
         <file>icons/f87171/cloud-shield.svg</file>
+        <file>icons/f87171/compass.svg</file>
         <file>icons/f87171/compression.svg</file>
         <file>icons/f87171/config.svg</file>
         <file>icons/f87171/connections.svg</file>
@@ -2732,6 +3083,7 @@
         <file>icons/f87171/dns-resolve.svg</file>
         <file>icons/f87171/dns-server.svg</file>
         <file>icons/f87171/dns-shield.svg</file>
+        <file>icons/f87171/door-open.svg</file>
         <file>icons/f87171/error.svg</file>
         <file>icons/f87171/ethernet.svg</file>
         <file>icons/f87171/file-html.svg</file>
@@ -2749,8 +3101,10 @@
         <file>icons/f87171/internet-globe.svg</file>
         <file>icons/f87171/ip-config.svg</file>
         <file>icons/f87171/ipv6.svg</file>
+        <file>icons/f87171/keyboard.svg</file>
         <file>icons/f87171/layers.svg</file>
         <file>icons/f87171/ldap.svg</file>
+        <file>icons/f87171/leaf.svg</file>
         <file>icons/f87171/list-checks.svg</file>
         <file>icons/f87171/mail.svg</file>
         <file>icons/f87171/mongodb.svg</file>
@@ -2761,9 +3115,11 @@
         <file>icons/f87171/mysql.svg</file>
         <file>icons/f87171/network-card.svg</file>
         <file>icons/f87171/network-profile.svg</file>
+        <file>icons/f87171/package.svg</file>
         <file>icons/f87171/path-ping.svg</file>
         <file>icons/f87171/ping.svg</file>
         <file>icons/f87171/play.svg</file>
+        <file>icons/f87171/plug.svg</file>
         <file>icons/f87171/postgres.svg</file>
         <file>icons/f87171/protocol-stack.svg</file>
         <file>icons/f87171/proxy.svg</file>
@@ -2771,7 +3127,9 @@
         <file>icons/f87171/redis.svg</file>
         <file>icons/f87171/remote-host.svg</file>
         <file>icons/f87171/report.svg</file>
+        <file>icons/f87171/road.svg</file>
         <file>icons/f87171/route-table.svg</file>
+        <file>icons/f87171/ruler.svg</file>
         <file>icons/f87171/security-headers.svg</file>
         <file>icons/f87171/shield-network.svg</file>
         <file>icons/f87171/shield.svg</file>
@@ -2779,6 +3137,7 @@
         <file>icons/f87171/ssh.svg</file>
         <file>icons/f87171/stop.svg</file>
         <file>icons/f87171/sun.svg</file>
+        <file>icons/f87171/tag.svg</file>
         <file>icons/f87171/tcp-connect.svg</file>
         <file>icons/f87171/tcp-settings.svg</file>
         <file>icons/f87171/telnet.svg</file>
@@ -2787,10 +3146,12 @@
         <file>icons/f87171/traceroute.svg</file>
         <file>icons/f87171/translate.svg</file>
         <file>icons/f87171/url-parse.svg</file>
+        <file>icons/f87171/user.svg</file>
         <file>icons/f87171/video.svg</file>
         <file>icons/f87171/warning.svg</file>
         <file>icons/f87171/wifi.svg</file>
         <file>icons/f87171/zap.svg</file>
+        <file>icons/f8fafc/archive.svg</file>
         <file>icons/f8fafc/arp-table.svg</file>
         <file>icons/f8fafc/badge-check.svg</file>
         <file>icons/f8fafc/badge-circle.svg</file>
@@ -2809,8 +3170,10 @@
         <file>icons/f8fafc/chevron-down.svg</file>
         <file>icons/f8fafc/chevron-right.svg</file>
         <file>icons/f8fafc/circle.svg</file>
+        <file>icons/f8fafc/clipboard.svg</file>
         <file>icons/f8fafc/close.svg</file>
         <file>icons/f8fafc/cloud-shield.svg</file>
+        <file>icons/f8fafc/compass.svg</file>
         <file>icons/f8fafc/compression.svg</file>
         <file>icons/f8fafc/config.svg</file>
         <file>icons/f8fafc/connections.svg</file>
@@ -2825,6 +3188,7 @@
         <file>icons/f8fafc/dns-resolve.svg</file>
         <file>icons/f8fafc/dns-server.svg</file>
         <file>icons/f8fafc/dns-shield.svg</file>
+        <file>icons/f8fafc/door-open.svg</file>
         <file>icons/f8fafc/error.svg</file>
         <file>icons/f8fafc/ethernet.svg</file>
         <file>icons/f8fafc/file-html.svg</file>
@@ -2842,8 +3206,10 @@
         <file>icons/f8fafc/internet-globe.svg</file>
         <file>icons/f8fafc/ip-config.svg</file>
         <file>icons/f8fafc/ipv6.svg</file>
+        <file>icons/f8fafc/keyboard.svg</file>
         <file>icons/f8fafc/layers.svg</file>
         <file>icons/f8fafc/ldap.svg</file>
+        <file>icons/f8fafc/leaf.svg</file>
         <file>icons/f8fafc/list-checks.svg</file>
         <file>icons/f8fafc/mail.svg</file>
         <file>icons/f8fafc/mongodb.svg</file>
@@ -2854,9 +3220,11 @@
         <file>icons/f8fafc/mysql.svg</file>
         <file>icons/f8fafc/network-card.svg</file>
         <file>icons/f8fafc/network-profile.svg</file>
+        <file>icons/f8fafc/package.svg</file>
         <file>icons/f8fafc/path-ping.svg</file>
         <file>icons/f8fafc/ping.svg</file>
         <file>icons/f8fafc/play.svg</file>
+        <file>icons/f8fafc/plug.svg</file>
         <file>icons/f8fafc/postgres.svg</file>
         <file>icons/f8fafc/protocol-stack.svg</file>
         <file>icons/f8fafc/proxy.svg</file>
@@ -2864,7 +3232,9 @@
         <file>icons/f8fafc/redis.svg</file>
         <file>icons/f8fafc/remote-host.svg</file>
         <file>icons/f8fafc/report.svg</file>
+        <file>icons/f8fafc/road.svg</file>
         <file>icons/f8fafc/route-table.svg</file>
+        <file>icons/f8fafc/ruler.svg</file>
         <file>icons/f8fafc/security-headers.svg</file>
         <file>icons/f8fafc/shield-network.svg</file>
         <file>icons/f8fafc/shield.svg</file>
@@ -2872,6 +3242,7 @@
         <file>icons/f8fafc/ssh.svg</file>
         <file>icons/f8fafc/stop.svg</file>
         <file>icons/f8fafc/sun.svg</file>
+        <file>icons/f8fafc/tag.svg</file>
         <file>icons/f8fafc/tcp-connect.svg</file>
         <file>icons/f8fafc/tcp-settings.svg</file>
         <file>icons/f8fafc/telnet.svg</file>
@@ -2880,10 +3251,12 @@
         <file>icons/f8fafc/traceroute.svg</file>
         <file>icons/f8fafc/translate.svg</file>
         <file>icons/f8fafc/url-parse.svg</file>
+        <file>icons/f8fafc/user.svg</file>
         <file>icons/f8fafc/video.svg</file>
         <file>icons/f8fafc/warning.svg</file>
         <file>icons/f8fafc/wifi.svg</file>
         <file>icons/f8fafc/zap.svg</file>
+        <file>icons/fb7185/archive.svg</file>
         <file>icons/fb7185/arp-table.svg</file>
         <file>icons/fb7185/badge-check.svg</file>
         <file>icons/fb7185/badge-circle.svg</file>
@@ -2902,8 +3275,10 @@
         <file>icons/fb7185/chevron-down.svg</file>
         <file>icons/fb7185/chevron-right.svg</file>
         <file>icons/fb7185/circle.svg</file>
+        <file>icons/fb7185/clipboard.svg</file>
         <file>icons/fb7185/close.svg</file>
         <file>icons/fb7185/cloud-shield.svg</file>
+        <file>icons/fb7185/compass.svg</file>
         <file>icons/fb7185/compression.svg</file>
         <file>icons/fb7185/config.svg</file>
         <file>icons/fb7185/connections.svg</file>
@@ -2918,6 +3293,7 @@
         <file>icons/fb7185/dns-resolve.svg</file>
         <file>icons/fb7185/dns-server.svg</file>
         <file>icons/fb7185/dns-shield.svg</file>
+        <file>icons/fb7185/door-open.svg</file>
         <file>icons/fb7185/error.svg</file>
         <file>icons/fb7185/ethernet.svg</file>
         <file>icons/fb7185/file-html.svg</file>
@@ -2935,8 +3311,10 @@
         <file>icons/fb7185/internet-globe.svg</file>
         <file>icons/fb7185/ip-config.svg</file>
         <file>icons/fb7185/ipv6.svg</file>
+        <file>icons/fb7185/keyboard.svg</file>
         <file>icons/fb7185/layers.svg</file>
         <file>icons/fb7185/ldap.svg</file>
+        <file>icons/fb7185/leaf.svg</file>
         <file>icons/fb7185/list-checks.svg</file>
         <file>icons/fb7185/mail.svg</file>
         <file>icons/fb7185/mongodb.svg</file>
@@ -2947,9 +3325,11 @@
         <file>icons/fb7185/mysql.svg</file>
         <file>icons/fb7185/network-card.svg</file>
         <file>icons/fb7185/network-profile.svg</file>
+        <file>icons/fb7185/package.svg</file>
         <file>icons/fb7185/path-ping.svg</file>
         <file>icons/fb7185/ping.svg</file>
         <file>icons/fb7185/play.svg</file>
+        <file>icons/fb7185/plug.svg</file>
         <file>icons/fb7185/postgres.svg</file>
         <file>icons/fb7185/protocol-stack.svg</file>
         <file>icons/fb7185/proxy.svg</file>
@@ -2957,7 +3337,9 @@
         <file>icons/fb7185/redis.svg</file>
         <file>icons/fb7185/remote-host.svg</file>
         <file>icons/fb7185/report.svg</file>
+        <file>icons/fb7185/road.svg</file>
         <file>icons/fb7185/route-table.svg</file>
+        <file>icons/fb7185/ruler.svg</file>
         <file>icons/fb7185/security-headers.svg</file>
         <file>icons/fb7185/shield-network.svg</file>
         <file>icons/fb7185/shield.svg</file>
@@ -2965,6 +3347,7 @@
         <file>icons/fb7185/ssh.svg</file>
         <file>icons/fb7185/stop.svg</file>
         <file>icons/fb7185/sun.svg</file>
+        <file>icons/fb7185/tag.svg</file>
         <file>icons/fb7185/tcp-connect.svg</file>
         <file>icons/fb7185/tcp-settings.svg</file>
         <file>icons/fb7185/telnet.svg</file>
@@ -2973,10 +3356,12 @@
         <file>icons/fb7185/traceroute.svg</file>
         <file>icons/fb7185/translate.svg</file>
         <file>icons/fb7185/url-parse.svg</file>
+        <file>icons/fb7185/user.svg</file>
         <file>icons/fb7185/video.svg</file>
         <file>icons/fb7185/warning.svg</file>
         <file>icons/fb7185/wifi.svg</file>
         <file>icons/fb7185/zap.svg</file>
+        <file>icons/ffffff/archive.svg</file>
         <file>icons/ffffff/arp-table.svg</file>
         <file>icons/ffffff/badge-check.svg</file>
         <file>icons/ffffff/badge-circle.svg</file>
@@ -2995,8 +3380,10 @@
         <file>icons/ffffff/chevron-down.svg</file>
         <file>icons/ffffff/chevron-right.svg</file>
         <file>icons/ffffff/circle.svg</file>
+        <file>icons/ffffff/clipboard.svg</file>
         <file>icons/ffffff/close.svg</file>
         <file>icons/ffffff/cloud-shield.svg</file>
+        <file>icons/ffffff/compass.svg</file>
         <file>icons/ffffff/compression.svg</file>
         <file>icons/ffffff/config.svg</file>
         <file>icons/ffffff/connections.svg</file>
@@ -3011,6 +3398,7 @@
         <file>icons/ffffff/dns-resolve.svg</file>
         <file>icons/ffffff/dns-server.svg</file>
         <file>icons/ffffff/dns-shield.svg</file>
+        <file>icons/ffffff/door-open.svg</file>
         <file>icons/ffffff/error.svg</file>
         <file>icons/ffffff/ethernet.svg</file>
         <file>icons/ffffff/file-html.svg</file>
@@ -3028,8 +3416,10 @@
         <file>icons/ffffff/internet-globe.svg</file>
         <file>icons/ffffff/ip-config.svg</file>
         <file>icons/ffffff/ipv6.svg</file>
+        <file>icons/ffffff/keyboard.svg</file>
         <file>icons/ffffff/layers.svg</file>
         <file>icons/ffffff/ldap.svg</file>
+        <file>icons/ffffff/leaf.svg</file>
         <file>icons/ffffff/list-checks.svg</file>
         <file>icons/ffffff/mail.svg</file>
         <file>icons/ffffff/mongodb.svg</file>
@@ -3040,9 +3430,11 @@
         <file>icons/ffffff/mysql.svg</file>
         <file>icons/ffffff/network-card.svg</file>
         <file>icons/ffffff/network-profile.svg</file>
+        <file>icons/ffffff/package.svg</file>
         <file>icons/ffffff/path-ping.svg</file>
         <file>icons/ffffff/ping.svg</file>
         <file>icons/ffffff/play.svg</file>
+        <file>icons/ffffff/plug.svg</file>
         <file>icons/ffffff/postgres.svg</file>
         <file>icons/ffffff/protocol-stack.svg</file>
         <file>icons/ffffff/proxy.svg</file>
@@ -3050,7 +3442,9 @@
         <file>icons/ffffff/redis.svg</file>
         <file>icons/ffffff/remote-host.svg</file>
         <file>icons/ffffff/report.svg</file>
+        <file>icons/ffffff/road.svg</file>
         <file>icons/ffffff/route-table.svg</file>
+        <file>icons/ffffff/ruler.svg</file>
         <file>icons/ffffff/security-headers.svg</file>
         <file>icons/ffffff/shield-network.svg</file>
         <file>icons/ffffff/shield.svg</file>
@@ -3058,6 +3452,7 @@
         <file>icons/ffffff/ssh.svg</file>
         <file>icons/ffffff/stop.svg</file>
         <file>icons/ffffff/sun.svg</file>
+        <file>icons/ffffff/tag.svg</file>
         <file>icons/ffffff/tcp-connect.svg</file>
         <file>icons/ffffff/tcp-settings.svg</file>
         <file>icons/ffffff/telnet.svg</file>
@@ -3066,6 +3461,7 @@
         <file>icons/ffffff/traceroute.svg</file>
         <file>icons/ffffff/translate.svg</file>
         <file>icons/ffffff/url-parse.svg</file>
+        <file>icons/ffffff/user.svg</file>
         <file>icons/ffffff/video.svg</file>
         <file>icons/ffffff/warning.svg</file>
         <file>icons/ffffff/wifi.svg</file>

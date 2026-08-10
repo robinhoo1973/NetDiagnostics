@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // NativePdfDocument.h — QML-friendly wrapper around PlatformPdfRenderer
 // =============================================================================
 // Exposes PDF page rendering to QML via QObject properties + invokable methods.

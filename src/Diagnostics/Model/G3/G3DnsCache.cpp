@@ -189,6 +189,17 @@ DiagnosticResult dnsCache(DiagId id) {
     else
         r.summary = QStringLiteral("No Local DNS Cache Detected");
     r.durationMs = (int)t.elapsed();
+
+    // ── Structured data ──────────────────────────────────────────
+    r.data["cacheActive"] = hasCache;
+    r.data["cacheEntries"] = cacheEntries;
+#if(defined(_WIN32))
+    r.data["cacheType"] = QStringLiteral("ipconfig");
+#else
+    r.data["cacheType"] = hasCache ? QStringLiteral("systemd-resolved")
+                                    : QStringLiteral("resolver-config");
+#endif
+
     return r;
 }
 

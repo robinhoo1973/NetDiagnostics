@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult postgresDiagnostics(const QString& target) {
     if (target.isEmpty())
@@ -10,9 +10,18 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return result(DiagId::G5Postgres, "Connection failed", DiagStatus::Fail,
+    if (!sock.waitForConnected(5000)) {
+        auto r = result(DiagId::G5Postgres, "Connection failed", DiagStatus::Fail,
                       {}, t.elapsed());
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = false;
+        r.data["responseType"] = QString();
+        r.data["responseInfo"] = QString();
+        r.data["authOk"] = false;
+        r.data["latencyMs"] = t.elapsed();
+        return r;
+    }
     // Send a minimal StartupMessage (protocol 3.0, user "diagnostic", no DB)
     // Format: [4-byte length][4-byte protocol 3.0]
     // + [string "user\0diagnostic\0\0"] (terminator byte)
@@ -44,9 +53,18 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
     sock.waitForReadyRead(3000);
     QByteArray resp = sock.readAll();
     sock.disconnectFromHost();
-    if (resp.isEmpty())
-        return result(DiagId::G5Postgres, "No response", DiagStatus::Warning,
+    if (resp.isEmpty()) {
+        auto r = result(DiagId::G5Postgres, "No response", DiagStatus::Warning,
                       {}, t.elapsed());
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = true;
+        r.data["responseType"] = QString();
+        r.data["responseInfo"] = QString();
+        r.data["authOk"] = false;
+        r.data["latencyMs"] = t.elapsed();
+        return r;
+    }
     // First byte: 'E'=Error, 'R'=Authentication, 'N'=Notice
     char type = resp.size() > 0 ? resp.at(0) : 0;
     QString info;
@@ -56,10 +74,18 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
         case 'N': info = "Notice"; break;
         default:  info = QString("Response type '%1'").arg(type); break;
     }
-    return result(DiagId::G5Postgres,
+    auto r = result(DiagId::G5Postgres,
         QString("PostgreSQL: %1").arg(info),
         (type == 'R') ? DiagStatus::Pass : DiagStatus::Warning,
         QString::fromUtf8(resp.toHex(' ')), t.elapsed());
+    r.data["host"] = u.host();
+    r.data["port"] = port;
+    r.data["connected"] = true;
+    r.data["responseType"] = QString(QChar(type));
+    r.data["responseInfo"] = info;
+    r.data["authOk"] = (type == 'R');
+    r.data["latencyMs"] = t.elapsed();
+    return r;
 }
 
 // ── Redis (port 6379) — PING/PONG ─────────────────────────────────────

@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult httpTiming(const QString& target) {
@@ -26,6 +26,14 @@ DiagnosticResult httpTiming(const QString& target) {
     r.properties.append({QStringLiteral("HTTP Status"),   QString::number(cr.statusCode)});
     if (!cr.redirectLocation.isEmpty())
         r.properties.append({QStringLiteral("Redirect"),  cr.redirectLocation});
+    r.data[QStringLiteral("dnsMs")] = cr.dnsMs;
+    r.data[QStringLiteral("connectMs")] = cr.connectMs;
+    r.data[QStringLiteral("sslMs")] = cr.appConnectMs;
+    r.data[QStringLiteral("firstByteMs")] = cr.firstByteMs;
+    r.data[QStringLiteral("totalMs")] = cr.totalMs;
+    r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    r.data[QStringLiteral("redirectLocation")] = cr.redirectLocation;
+    r.data[QStringLiteral("effectiveUrl")] = u.toString();
     return r;
 }
 #endif // NO_CURL

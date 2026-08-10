@@ -45,6 +45,32 @@ DiagnosticResult proxySettings(DiagId id) {
     r.status = DiagStatus::Info;
     r.summary = QStringLiteral("Proxy Settings Collected");
     r.durationMs = 0;
+    // Build structured r.data
+    {
+        bool hasProxy = false;
+        for (const auto& row : proxyRows) {
+            const QString key = row.value(0);
+            const QString val = row.value(1);
+            if (key.contains(QStringLiteral("Auto Config"), Qt::CaseInsensitive))
+                r.data[QStringLiteral("autoConfigUrl")] = val;
+            else if (key.compare(QStringLiteral("HTTP_PROXY"), Qt::CaseInsensitive) == 0
+                     || key.compare(QStringLiteral("http_proxy"), Qt::CaseInsensitive) == 0
+                     || key.compare(QStringLiteral("HTTP Proxy"), Qt::CaseInsensitive) == 0)
+                r.data[QStringLiteral("httpProxy")] = val;
+            else if (key.compare(QStringLiteral("HTTPS_PROXY"), Qt::CaseInsensitive) == 0
+                     || key.compare(QStringLiteral("https_proxy"), Qt::CaseInsensitive) == 0)
+                r.data[QStringLiteral("httpsProxy")] = val;
+            else if (key.compare(QStringLiteral("FTP_PROXY"), Qt::CaseInsensitive) == 0)
+                r.data[QStringLiteral("ftpProxy")] = val;
+            else if (key.compare(QStringLiteral("NO_PROXY"), Qt::CaseInsensitive) == 0
+                     || key.compare(QStringLiteral("no_proxy"), Qt::CaseInsensitive) == 0)
+                r.data[QStringLiteral("noProxy")] = val;
+            else if (key.compare(QStringLiteral("Bypass"), Qt::CaseInsensitive) == 0)
+                r.data[QStringLiteral("noProxy")] = val;
+            hasProxy = true;
+        }
+        r.data[QStringLiteral("hasProxy")] = hasProxy;
+    }
     return r;
 }
 

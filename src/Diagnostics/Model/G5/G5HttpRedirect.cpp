@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult httpRedirect(const QString& target) {
@@ -22,6 +22,13 @@ DiagnosticResult httpRedirect(const QString& target) {
     redirectLines.append(QStringLiteral("  Response Time:    %1 ms").arg(cr.totalMs, 0, 'f', 1));
     r.rawOutput = redirectLines.join('\n');
     r.details = r.rawOutput;
+    bool isRedirect = cr.statusCode >= 300 && cr.statusCode < 400;
+    r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    r.data[QStringLiteral("isRedirect")] = isRedirect;
+    r.data[QStringLiteral("redirectLocation")] = cr.redirectLocation;
+    r.data[QStringLiteral("redirectCount")] = isRedirect ? 1 : 0;
+    r.data[QStringLiteral("finalUrl")] = isRedirect ? cr.redirectLocation : u.toString();
+    r.data[QStringLiteral("totalMs")] = cr.totalMs;
     return r;
 }
 #endif // NO_CURL

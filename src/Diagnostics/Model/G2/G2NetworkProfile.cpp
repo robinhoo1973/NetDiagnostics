@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult networkProfile(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
@@ -101,6 +101,61 @@ DiagnosticResult networkProfile(DiagId id) {
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("Network Profile Collected");
     r.durationMs = 0;
+    // Build structured r.data from output
+    {
+        QString hostname, fwProfiles, connProfiles, wifiSsid, wifiBssid;
+        QVariant ipFwd;
+        bool inFw = false, inConn = false;
+        QStringList fwLines, connLines;
+        for (const auto& line : out) {
+            if (line.contains(QStringLiteral("Hostname:")))
+                hostname = line.section(':', 1).trimmed();
+            else if (line.contains(QStringLiteral("IP Forwarding:"))) {
+                const QString val = line.section(':', 1).trimmed();
+                if (val == QStringLiteral("Enabled"))
+                    ipFwd = true;
+                else if (val == QStringLiteral("Disabled"))
+                    ipFwd = false;
+                // else leave as null QVariant
+            }
+            else if (line.contains(QStringLiteral("Active WiFi:")) && !line.contains(QStringLiteral("not connected"))) {
+                const QString rest = line.section(':', 1).trimmed();
+                const int paren = rest.indexOf(QStringLiteral("(BSSID:"));
+                if (paren >= 0) {
+                    wifiSsid = rest.left(paren).trimmed();
+                    wifiBssid = rest.mid(paren + 7).trimmed().remove(')');
+                }
+            }
+            else if (line.contains(QStringLiteral("Firewall Profile Status:")))
+                inFw = true;
+            else if (inFw && line.startsWith(QStringLiteral("    ")))
+                fwLines.append(line.trimmed());
+            else if (!line.startsWith(QStringLiteral("    ")))
+                inFw = false;
+            if (line.contains(QStringLiteral("Connection Profile:")))
+                inConn = true;
+            else if (inConn && line.startsWith(QStringLiteral("    ")))
+                connLines.append(line.trimmed());
+            else if (!line.startsWith(QStringLiteral("    ")))
+                inConn = false;
+        }
+        if (!hostname.isEmpty())
+            r.data[QStringLiteral("hostname")] = hostname;
+        if (ipFwd.isValid())
+            r.data[QStringLiteral("ipForwarding")] = ipFwd;
+        if (!fwLines.isEmpty())
+            r.data[QStringLiteral("firewallProfiles")] = fwLines;
+        else
+            r.data[QStringLiteral("firewallProfiles")] = QVariantList();
+        if (!connLines.isEmpty())
+            r.data[QStringLiteral("connectionProfiles")] = connLines;
+        else
+            r.data[QStringLiteral("connectionProfiles")] = QVariantList();
+        if (!wifiSsid.isEmpty()) {
+            r.data[QStringLiteral("activeWifiSsid")] = wifiSsid;
+            r.data[QStringLiteral("activeWifiBssid")] = wifiBssid;
+        }
+    }
     return r;
 }
 

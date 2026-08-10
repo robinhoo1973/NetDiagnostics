@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult httpCompression(const QString& target) {
@@ -27,6 +27,10 @@ DiagnosticResult httpCompression(const QString& target) {
     r.rawOutput = compLines.join('\n');
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
+    r.data[QStringLiteral("compressed")] = compressed;
+    r.data[QStringLiteral("contentEncoding")] = enc;
+    r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    r.data[QStringLiteral("totalMs")] = cr.totalMs;
     return r;
 }
 #endif // NO_CURL

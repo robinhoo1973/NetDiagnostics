@@ -147,36 +147,44 @@ Rectangle {
             }
         }
 
-        // ── Expanded body — Flutter ExpansionTile children ────────────
+        // ── Expanded body — Living Diagnostics L3: Flow grid ──────────
+        // Replaces the old 32px-list-row layout with responsive square blocks.
+        // Columns: phone 1 / tablet 2 / desktop 3 (D6).
         ColumnLayout {
             Layout.fillWidth: true; Layout.topMargin: 6
             visible: expanded
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:ThemeEngine.colors.borderCard }
-            Repeater {
-                model: root.itemsModel
-                delegate: Item {
-                    Layout.fillWidth: true
-                    // 5WHY: Must mirror testItem's own visible-based collapse
-                    // (DiagResultItem.implicitHeight: visible ? 32 : 0) — otherwise
-                    // a hidden (skipped) row still reserves 2px and renders a
-                    // stray tree-connector tick even though nothing is visible.
-                    implicitHeight: testItem.visible ? testItem.implicitHeight + 2 : 0
-                    // TreeView connector: vertical line + horizontal stub
-                    Rectangle {
-                        anchors { top:parent.top; bottom:parent.bottom; left:parent.left; leftMargin:6 }
-                        width:2; color:ThemeEngine.colors.borderCard
-                    }
-                    DiagResultItem {
-                        id: testItem
-                        anchors { left:parent.left; leftMargin:20; right:parent.right }
+
+            // ── Responsive block sizing ──────────────────────────────────
+            Flow {
+                id: blockFlow
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                spacing: 8
+
+                // 5WHY: blockSize referenced columns as a dependency, causing
+                // double re-evaluation per width change (once for direct width
+                // dependency, once via columns).  Inline the column logic so
+                // blockSize only depends on width directly.
+                property real blockSize: {
+                    var w = blockFlow.width
+                    if (w <= 0) return 130
+                    var cols = w < 300 ? 1 : w < 500 ? 2 : 3
+                    var gap = spacing * (cols - 1)
+                    return Math.floor((w - gap) / cols)
+                }
+                property int columns: blockSize > 0
+                    ? (blockFlow.width < 300 ? 1 : blockFlow.width < 500 ? 2 : 3)
+                    : 1
+
+                Repeater {
+                    model: root.itemsModel
+                    delegate: DiagBlock {
+                        blockSize: blockFlow.blockSize
                         itemData: modelData
-                        // Reactive running flag (bound to appState.runStatus)
-                        // drives the per-row spinner — see DiagResultItem 5WHY.
-                        // modelData.isDisabled gates DISABLED tests (they were
-                        // never scheduled, so their rows must not spin).
                         testRunning: root.isRunning && !modelData.isDisabled
-                        onDetailClicked: function(data) { root.detailClicked(data) }
+                        onClicked: function(data) { root.detailClicked(data) }
                     }
                 }
             }

@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult nicAdvanced(DiagId id) {
@@ -113,6 +113,23 @@ DiagnosticResult nicAdvanced(DiagId id) {
         ? QStringLiteral("%1 NIC%2 analyzed (speed/duplex/MTU)").arg(nicRows.size()).arg(nicRows.size() > 1 ? "s" : "")
         : QStringLiteral("No NIC properties available");
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList nics;
+        for (const auto& row : nicRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("name")] = row.value(0).trimmed();
+            entry[QStringLiteral("speed")] = row.value(1);
+            entry[QStringLiteral("duplex")] = row.value(2);
+            entry[QStringLiteral("mtu")] = row.value(3);
+            entry[QStringLiteral("carrier")] = row.value(4);
+            entry[QStringLiteral("state")] = row.value(5);
+            entry[QStringLiteral("mac")] = row.value(6);
+            nics.append(entry);
+        }
+        r.data[QStringLiteral("nics")] = nics;
+        r.data[QStringLiteral("nicCount")] = nics.size();
+    }
     return r;
 }
 

@@ -80,9 +80,38 @@ Item {
 
     // Keep detail-overlay population behind one function so every caller
     // updates the title, status, summary, and detail text consistently.
+    // L5 Living Diagnostics: push full-screen DetailPage instead of overlay.
     function showDetailOverlay(detail) {
-        // 5WHY: detail.displayName is C++ (English-only).
-        // Route through T.diagName() for i18n.
+        if (!detail || detail.diagId === undefined) return
+        var d = appState.getDetailResult(detail.diagId)
+        if (!d || Object.keys(d).length === 0) return
+        // Push DetailPage onto the StackView (replaces old overlay-based detail)
+        // Component.Asynchronous avoids UI-thread blocking on first compilation
+        // (5WHY: synchronous Qt.createComponent freezes UI for 50-200ms on embedded HW).
+        var comp = Qt.createComponent("qrc:/qml/screens/DetailPage.qml",
+                                       Component.Asynchronous)
+        if (comp.status === Component.Ready) {
+            var p = comp.createObject(page, { detail: d })
+            page.StackView.view.push(p)
+        } else if (comp.status === Component.Loading) {
+            comp.statusChanged.connect(function pushWhenReady() {
+                if (comp.status === Component.Ready) {
+                    var p2 = comp.createObject(page, { detail: d })
+                    page.StackView.view.push(p2)
+                } else if (comp.status === Component.Error) {
+                    console.warn("DetailPage.qml async load failed:", comp.errorString())
+                    _showDetailOverlayLegacy(d)
+                }
+            })
+        } else if (comp.status === Component.Error) {
+            console.warn("DetailPage.qml failed to load:", comp.errorString())
+            // Fall back to old overlay
+            _showDetailOverlayLegacy(d)
+        }
+    }
+
+    // Legacy overlay — kept for fallback and backward compat
+    function _showDetailOverlayLegacy(detail) {
         dtTitle.text = T.diagName(detail.diagId) || detail.displayName || ""
         var statusNames = [T.tr("summaryPass"), T.tr("summaryWarning"), T.tr("summaryFail"), T.tr("summarySkipped"), T.tr("errorStatus"), T.tr("summaryInfo")]
         var s = detail.status !== undefined ? detail.status : 0
@@ -307,23 +336,9 @@ Item {
                             // showDetailOverlay(). Refactored to call the shared function
                             // so bugfixes to overlay display apply uniformly.
                             onDetailClicked: function(data) {
-                                var tid = data.diagId
-                                var d = appState.getDetailResult(tid)
-                                showDetailOverlay({
-                                    // 5WHY: Route through T.diagName() for i18n on
-                                    // both the detail result displayName and the
-                                    // test-item fallback displayName.
-                                    diagId: tid,
-                                    displayName: (d && d.displayName) ? d.displayName : (data.displayName || T.tr("testIdPrefix") + tid),
-                                    status: (d && d.status !== undefined) ? d.status : 0,
-                                    // 5WHY: falsy-zero bug — a test that took 0ms has
-                                    // d.durationMs===0 which is falsy, falling to the
-                                    // wrong default. Use strict undefined check instead.
-                                    durationMs: (d && d.durationMs !== undefined) ? d.durationMs : (data.durationMs || 0),
-                                    summary: (d && d.summary) ? d.summary : (data.summary || ""),
-                                    details: (d && d.details) ? d.details : ""
-                                })
-                                page.currentDetail = d || {}
+                                // L5: pass diagId only — showDetailOverlay does
+                                // the single C++ fetch (avoids double getDetailResult).
+                                showDetailOverlay({diagId: data.diagId})
                             }
                         }
                     }

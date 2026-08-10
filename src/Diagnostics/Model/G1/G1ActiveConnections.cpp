@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult activeConnections(DiagId id) {
@@ -183,6 +183,28 @@ DiagnosticResult activeConnections(DiagId id) {
 #endif  // close converted #elif
 #endif  // close converted #elif
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList connections;
+        int tcpCount = 0, udpCount = 0;
+        for (const auto& c : rawConns) {
+            QVariantMap entry;
+            entry[QStringLiteral("protocol")] = c.proto;
+            entry[QStringLiteral("localIp")] = c.localIp;
+            entry[QStringLiteral("localPort")] = c.localPort;
+            entry[QStringLiteral("remoteIp")] = c.remoteIp;
+            entry[QStringLiteral("remotePort")] = c.remotePort;
+            entry[QStringLiteral("state")] = c.state;
+            connections.append(entry);
+            if (c.proto.startsWith(QStringLiteral("UDP")))
+                udpCount++;
+            else
+                tcpCount++;
+        }
+        r.data[QStringLiteral("connections")] = connections;
+        r.data[QStringLiteral("tcpCount")] = tcpCount;
+        r.data[QStringLiteral("udpCount")] = udpCount;
+    }
     return r;
 }
 

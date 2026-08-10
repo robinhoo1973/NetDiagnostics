@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 DiagnosticResult sslCertificate(const QString& target) {
     if (target.isEmpty()) return g5Result(DiagId::G5SslCertificate, "No target", DiagStatus::Skipped);
@@ -52,6 +52,14 @@ DiagnosticResult sslCertificate(const QString& target) {
     r.properties.append(ResultProperty("Subject", cert.subject));
     r.properties.append(ResultProperty("Issuer", cert.issuer));
     r.durationMs = t.elapsed();
+    r.data[QStringLiteral("subject")] = cert.subject;
+    r.data[QStringLiteral("issuer")] = cert.issuer;
+    r.data[QStringLiteral("validFrom")] = cert.validFrom.toString(Qt::ISODate);
+    r.data[QStringLiteral("validTo")] = cert.validTo.toString(Qt::ISODate);
+    r.data[QStringLiteral("daysLeft")] = cert.daysLeft;
+    r.data[QStringLiteral("sanList")] = QStringList(cert.subjectAltNames.begin(), cert.subjectAltNames.end());
+    r.data[QStringLiteral("thumbprint")] = cert.thumbprint;
+    r.data[QStringLiteral("expired")] = cert.daysLeft < 0;
     return r;
 }
 

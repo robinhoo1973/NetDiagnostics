@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G4/G4Common.h"
+#include "Diagnostics/Model/G4/G4Common.h"
 DiagnosticResult traceroute(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4Traceroute; r.group = DiagGroup::G4;
@@ -44,6 +44,7 @@ DiagnosticResult traceroute(const QString& target) {
             .arg(ttl, 2).arg(rtt).arg(rtt).arg(rtt).arg(name).arg(ip);
     };
 
+    QVariantList hops;
     for (int ttl = 1; ttl <= 30 && !reached; ++ttl) {
         int rttMs = 0; QString hopIp;
         int res = tcpTraceHop(host, ttl, rttMs, hopIp);
@@ -56,6 +57,8 @@ DiagnosticResult traceroute(const QString& target) {
             lines.append(fmtHop(ttl, rttStr, host, targetIpStr));
             TRACE(" traceroute TTL=%d: REACHED %s [%s] %dms\n",
                 ttl, host.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs);
+            { QVariantMap h; h["ttl"] = ttl; h["rttMs"] = rttMs; h["ip"] = targetIpStr;
+              h["name"] = host; h["reached"] = true; h["filtered"] = false; hops.append(h); }
         } else if (res == 1 || res == 2) {
             // res 1 = intermediate router (ICMP Time Exceeded).
             // res 2 = a non-target router replied Destination Unreachable and is
@@ -74,6 +77,8 @@ DiagnosticResult traceroute(const QString& target) {
             TRACE(" traceroute TTL=%d: hop %s [%s] %dms%s\n",
                 ttl, hopName.toUtf8().constData(), hopIp.toUtf8().constData(), rttMs,
                 res == 2 ? " (filtered)" : "");
+            { QVariantMap h; h["ttl"] = ttl; h["rttMs"] = rttMs; h["ip"] = hopIp;
+              h["name"] = hopName; h["reached"] = false; h["filtered"] = (res == 2); hops.append(h); }
             if (res == 2) {
                 // The path is administratively blocked at this router. Probing
                 // deeper TTLs would only repeat this router or time out, so stop
@@ -91,6 +96,8 @@ DiagnosticResult traceroute(const QString& target) {
             lines.append(QStringLiteral(" %1  %2  %3  %4     Request timed out.")
                 .arg(ttl, 2).arg(star).arg(star).arg(star));
             TRACE(" traceroute TTL=%d: timeout (total=%d)\n", ttl, timeoutHops);
+            { QVariantMap h; h["ttl"] = ttl; h["rttMs"] = 0; h["ip"] = QString();
+              h["name"] = QString(); h["reached"] = false; h["filtered"] = false; hops.append(h); }
             if (timeoutHops > 15) {
                 lines.append(QStringLiteral(" ... (firewall may be blocking probes after hop %1)").arg(ttl));
                 break;
@@ -147,6 +154,15 @@ DiagnosticResult traceroute(const QString& target) {
     else if (tcpReachable) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("ICMP filtered 鈥?%1 reachable via TCP").arg(host); }
     else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial Path (%1 Hops)").arg(hopCount); }
     else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("No Hops Discovered"); }
+    r.data["target"] = host;
+    r.data["targetIp"] = targetIpStr;
+    r.data["hopCount"] = hopCount;
+    r.data["timeoutHops"] = timeoutHops;
+    r.data["reachedTarget"] = reached;
+    r.data["pathBlocked"] = blocked;
+    r.data["tcpReachable"] = tcpReachable;
+    r.data["rawIcmpAvailable"] = bool(s_rawIcmpAvailable);
+    r.data["hops"] = hops;
     return r;
 }
 

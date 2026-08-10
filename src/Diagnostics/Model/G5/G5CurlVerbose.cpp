@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult curlVerbose(const QString& target) {
@@ -14,6 +14,10 @@ DiagnosticResult curlVerbose(const QString& target) {
     r.rawOutput = cr.lines.join('\n');
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
+    r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    r.data[QStringLiteral("totalMs")] = cr.totalMs;
+    r.data[QStringLiteral("responseSize")] = cr.lines.join('\n').toUtf8().size();
+    r.data[QStringLiteral("effectiveUrl")] = u.toString();
     return r;
 }
 #endif // NO_CURL

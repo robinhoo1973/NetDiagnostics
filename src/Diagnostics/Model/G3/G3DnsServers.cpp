@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 
 namespace SystemDiagnostics {
 DiagnosticResult dnsServers(DiagId id) {
@@ -77,6 +77,27 @@ DiagnosticResult dnsServers(DiagId id) {
     r.summary = dnsList.isEmpty() ? QStringLiteral("No DNS servers found")
                  : QStringLiteral("DNS: %1").arg(dnsList.join(QStringLiteral(", ")));
     r.durationMs = 0;
+
+    // ── Structured data ──────────────────────────────────────────
+    QVariantList dnsServersList;
+    QStringList searchDomains;
+    for (const auto& row : dnsRows) {
+        if (row.size() >= 2) {
+            if (row[0] == QStringLiteral("search domains")) {
+                searchDomains.append(row[1]);
+            } else {
+                QVariantMap srv;
+                srv["source"] = row[0];
+                srv["ip"] = row[1];
+                dnsServersList.append(srv);
+            }
+        }
+    }
+    r.data["dnsServers"] = dnsServersList;
+    r.data["serverCount"] = dnsList.size();
+    if (!searchDomains.isEmpty())
+        r.data["searchDomains"] = searchDomains;
+
     return r;
 }
 

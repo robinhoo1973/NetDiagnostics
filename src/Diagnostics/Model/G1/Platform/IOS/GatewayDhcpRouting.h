@@ -1,4 +1,4 @@
-﻿// IosNetworkInfo.h — iOS network info (gateway, DHCP)
+// IosNetworkInfo.h — iOS network info (gateway, DHCP)
 #pragma once
 #if defined(PLATFORM_IOS)
 #include <QString>

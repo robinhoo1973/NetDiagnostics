@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult arpTable(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
@@ -124,6 +124,42 @@ DiagnosticResult arpTable(DiagId id) {
 #endif  // close converted #elif
 #endif  // close converted #elif
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList entries;
+#if defined(_WIN32)
+        // Windows: extract from formatted output lines
+        bool inData = false;
+        for (const auto& line : out) {
+            if (line.contains(QStringLiteral("Internet Address"))) {
+                inData = true;
+                continue;
+            }
+            if (!inData) continue;
+            if (line.trimmed().isEmpty()) continue;
+            const QStringList cols = line.trimmed().split(QRegularExpression("\\s{2,}"));
+            if (cols.size() >= 3) {
+                QVariantMap entry;
+                entry[QStringLiteral("ip")] = cols[0].trimmed();
+                entry[QStringLiteral("mac")] = cols[1].trimmed();
+                entry[QStringLiteral("type")] = cols[2].trimmed();
+                entries.append(entry);
+            }
+        }
+#else
+#if !defined(PLATFORM_IOS)
+        for (const auto& row : arpRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("ip")] = row.value(0);
+            entry[QStringLiteral("mac")] = row.value(1);
+            entry[QStringLiteral("type")] = row.value(2);
+            entries.append(entry);
+        }
+#endif  // close inner #if !defined(PLATFORM_IOS)
+#endif  // close outer #else
+        r.data[QStringLiteral("entries")] = entries;
+        r.data[QStringLiteral("entryCount")] = entries.size();
+    }
     return r;
 }
 

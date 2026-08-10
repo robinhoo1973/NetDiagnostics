@@ -1,0 +1,6 @@
+# 5WHY: On iOS static builds, QRC directory enumeration (QDir::entryList
+# on qrc:/) can return empty results for directories without a qmldir.
+# Explicitly declaring every QML type here eliminates the dependency on
+# directory scanning and ensures all visualization types resolve at QML load time.
+Gauge 1.0 Gauge.qml
+BarChart 1.0 BarChart.qml

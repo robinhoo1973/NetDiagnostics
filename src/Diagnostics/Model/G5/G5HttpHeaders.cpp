@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult httpHeaders(const QString& target) {
@@ -35,6 +35,10 @@ DiagnosticResult httpHeaders(const QString& target) {
     r.rawOutput = headerLines.join('\n');
     r.details = r.rawOutput;
     r.properties.append({QStringLiteral("Response Headers"), QString::number(headerCount)});
+    r.data[QStringLiteral("statusCode")] = cr.statusCode;
+    r.data[QStringLiteral("totalMs")] = cr.totalMs;
+    r.data[QStringLiteral("headerCount")] = headerCount;
+    r.data[QStringLiteral("effectiveUrl")] = u.toString();
     return r;
 }
 #endif // NO_CURL

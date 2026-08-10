@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult wiredDiagnostics(DiagId id) {
@@ -19,6 +19,8 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     r.status = DiagStatus::Skipped;
     r.summary = QStringLiteral("Not applicable on iOS (no wired NIC)");
     r.durationMs = t.elapsed();
+    r.data[QStringLiteral("ethernetAdapters")] = QVariantList();
+    r.data[QStringLiteral("adapterCount")] = 0;
     return r;
 #endif
 
@@ -66,7 +68,25 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
     QStringList table = DiagnosticFormatter::formatTable(kWiredCols, wiredRows);
     r.details = table.join('\n');
     r.rawOutput = out.join('\n') + '\n' + r.details;
-    r.durationMs = t.elapsed(); return r;
+    r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList ethernetAdapters;
+        for (const auto& row : wiredRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("name")] = row.value(0).trimmed();
+            entry[QStringLiteral("speed")] = row.value(1);
+            entry[QStringLiteral("duplex")] = row.value(2);
+            entry[QStringLiteral("mtu")] = row.value(3);
+            entry[QStringLiteral("link")] = row.value(4);
+            entry[QStringLiteral("state")] = row.value(5);
+            entry[QStringLiteral("mac")] = row.value(6);
+            ethernetAdapters.append(entry);
+        }
+        r.data[QStringLiteral("ethernetAdapters")] = ethernetAdapters;
+        r.data[QStringLiteral("adapterCount")] = ethernetAdapters.size();
+    }
+    return r;
 #else
 
     out.append(QString());
@@ -124,6 +144,23 @@ DiagnosticResult wiredDiagnostics(DiagId id) {
         ? QStringLiteral("No wired Ethernet adapters found")
         : QStringLiteral("%1 Ethernet adapter%2").arg(wiredDataRows.size()).arg(wiredDataRows.size() > 1 ? "s" : "");
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList ethernetAdapters;
+        for (const auto& row : wiredDataRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("name")] = row.value(0);
+            entry[QStringLiteral("speed")] = row.value(1);
+            entry[QStringLiteral("duplex")] = row.value(2);
+            entry[QStringLiteral("mtu")] = row.value(3);
+            entry[QStringLiteral("link")] = row.value(4);
+            entry[QStringLiteral("state")] = row.value(5);
+            entry[QStringLiteral("mac")] = row.value(6);
+            ethernetAdapters.append(entry);
+        }
+        r.data[QStringLiteral("ethernetAdapters")] = ethernetAdapters;
+        r.data[QStringLiteral("adapterCount")] = ethernetAdapters.size();
+    }
     return r;
 #endif
 }

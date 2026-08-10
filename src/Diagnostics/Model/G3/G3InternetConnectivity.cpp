@@ -157,12 +157,16 @@ DiagnosticResult internetConnectivity(DiagId id) {
     bool anyDlOk = false, anyUlOk = false;
     double bestDlMbps = 0, bestUlMbps = 0;
     QStringList dlOut, ulOut;  // deferred output for retry
+    bool retryUsed = false;
+    QVariantList downloadResults;
+    QVariantList uploadResults;
 
     // 5WHY: Network jitter or transient server issues can cause all
     // speed-test tiers to fail on the first pass.  A single retry
     // gives the server/network a second chance before reporting failure.
     for (int pass = 0; pass < 2; ++pass) {
         if (pass == 1) {
+            retryUsed = true;
             out.append(QStringLiteral("  (Retry after all tiers failed)"));
             out.append(QString());
         }
@@ -170,6 +174,7 @@ DiagnosticResult internetConnectivity(DiagId id) {
         anyDlOk = false; anyUlOk = false;
         bestDlMbps = 0; bestUlMbps = 0;
         dlOut.clear(); ulOut.clear();
+        downloadResults.clear(); uploadResults.clear();
 
         // Download table
         dlOut.append(QStringLiteral("  Download:"));
@@ -200,6 +205,15 @@ DiagnosticResult internetConnectivity(DiagId id) {
                         err,
                     });
                 }
+                QVariantMap dlEntry;
+                dlEntry["size"] = tier.bytes;
+                dlEntry["label"] = QString::fromLatin1(tier.label);
+                dlEntry["mbps"] = dl.mbps;
+                dlEntry["durationMs"] = dl.durationMs;
+                dlEntry["bytes"] = dl.bytes;
+                dlEntry["ok"] = dl.ok;
+                dlEntry["error"] = dl.error;
+                downloadResults.append(dlEntry);
             }
             dlOut.append(DiagnosticFormatter::formatTable(kSpeedCols, dlRows));
         }
@@ -233,6 +247,15 @@ DiagnosticResult internetConnectivity(DiagId id) {
                         err,
                     });
                 }
+                QVariantMap ulEntry;
+                ulEntry["size"] = tier.bytes;
+                ulEntry["label"] = QString::fromLatin1(tier.label);
+                ulEntry["mbps"] = ul.mbps;
+                ulEntry["durationMs"] = ul.durationMs;
+                ulEntry["bytes"] = ul.bytes;
+                ulEntry["ok"] = ul.ok;
+                ulEntry["error"] = ul.error;
+                uploadResults.append(ulEntry);
             }
             ulOut.append(DiagnosticFormatter::formatTable(kSpeedCols, ulRows));
         }
@@ -269,6 +292,35 @@ DiagnosticResult internetConnectivity(DiagId id) {
 
     r.rawOutput = out.join('\n'); r.details = r.rawOutput;
     r.durationMs = t.elapsed();
+
+    // ── Structured data ──────────────────────────────────────────
+    r.data["physicalCountry"] = result.physicalCountry;
+    r.data["serverCount"] = result.servers.size();
+    r.data["countryCount"] = result.countries.size();
+    r.data["downloadMbpsBest"] = bestDlMbps;
+    r.data["uploadMbpsBest"] = bestUlMbps;
+    r.data["tcpPingMs"] = pingMs;
+    r.data["dnsResolved"] = !bestIp.isEmpty();
+    r.data["downloadOk"] = anyDlOk;
+    r.data["uploadOk"] = anyUlOk;
+    r.data["retryUsed"] = retryUsed;
+
+    QVariantList topServers;
+    for (const auto& sr : result.servers) {
+        QVariantMap sm;
+        sm["host"] = sr.host;
+        sm["port"] = sr.port;
+        sm["country"] = sr.country;
+        sm["ttfbMs"] = sr.ttfbMs;
+        sm["ciHalf"] = sr.ciHalf;
+        sm["rounds"] = sr.rounds;
+        sm["ok"] = sr.ok;
+        topServers.append(sm);
+    }
+    r.data["topServers"] = topServers;
+    r.data["downloadResults"] = downloadResults;
+    r.data["uploadResults"] = uploadResults;
+
     return r;
 }
 

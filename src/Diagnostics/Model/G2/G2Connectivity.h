@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include "Diagnostics/Model/GBase.h"
 namespace SystemDiagnostics {
 DiagnosticResult routingTable(DiagId id);

@@ -21,6 +21,7 @@ DiagnosticResult ping(const QString& target) {
 
     QElapsedTimer t; t.start();
     int sent=0, rcvd=0; double sumMs=0, minMs=1e9, maxMs=0;
+    QVariantList individualRtts;  // L5: per-packet RTTs for chart visualization
     // 5WHY: worst case (ICMP 2s + 5 TCP ports × up to 6s each = 32s per
     // iteration × 4) dwarfed the 30s task watchdog — the worker kept running
     // up to ~2 minutes after the timeout was reported, pinning a pool thread
@@ -70,6 +71,7 @@ DiagnosticResult ping(const QString& target) {
             ++rcvd; sumMs += ms;
             if (ms<minMs) minMs=ms;
             if (ms>maxMs) maxMs=ms;
+            individualRtts.append(ms);  // L5: per-packet RTT
             // 5WHY: TTL was hardcoded to 128 (Windows default) regardless of
             // actual platform or whether we used ICMP or TCP fallback.
             // Linux/macOS default TTL is 64, and TCP fallback has no TTL.
@@ -84,6 +86,14 @@ DiagnosticResult ping(const QString& target) {
     r.durationMs = t.elapsed();
     double loss = sent>0 ? (sent-rcvd)*100.0/sent : 100.0;
     double avg = rcvd>0 ? sumMs/rcvd : 0;
+    // L5: jitter = stddev of individual RTTs (for latency stability gauge)
+    double jitter = 0.0;
+    if (rcvd > 1 && !individualRtts.isEmpty()) {
+        double varSum = 0.0;
+        for (const QVariant& v : individualRtts)
+            varSum += (v.toDouble() - avg) * (v.toDouble() - avg);
+        jitter = std::sqrt(varSum / rcvd);
+    }
 
     // 5WHY: When TCP fallback is used, the user sees "ping" semantics but
     // the measurement is TCP handshake RTT.  This is misleading without a
@@ -114,6 +124,21 @@ DiagnosticResult ping(const QString& target) {
     else if (loss>0) { r.status=DiagStatus::Warning; r.summary=tcpFallback ? QStringLiteral("%1%% loss, avg %2ms (TCP)").arg(loss,0,'f',1).arg(avg,0,'f',1) : QStringLiteral("%1%% loss, avg %2ms").arg(loss,0,'f',1).arg(avg,0,'f',1); }
     else if (tcpFallback) { r.status=DiagStatus::Pass; r.summary=QStringLiteral("0%% loss, avg %1ms (TCP)").arg(avg,0,'f',1); }
     else { r.status=DiagStatus::Pass; r.summary=QStringLiteral("0%% loss, avg %1ms").arg(avg,0,'f',1); }
+
+    // L5 Living Diagnostics: structured data for visualizations
+    r.data["target"] = host;
+    r.data["resolvedIp"] = ipStr;
+    r.data["packetsSent"] = sent;
+    r.data["packetsReceived"] = rcvd;
+    r.data["packetsLost"] = sent - rcvd;
+    r.data["lossPercent"] = loss;
+    r.data["rttMinMs"] = rcvd > 0 ? minMs : 0.0;
+    r.data["rttMaxMs"] = rcvd > 0 ? maxMs : 0.0;
+    r.data["rttAvgMs"] = avg;
+    r.data["rttJitterMs"] = jitter;
+    r.data["tcpFallback"] = tcpFallback;
+    r.data["individualRtts"] = individualRtts;
+
     return r;
 }
 

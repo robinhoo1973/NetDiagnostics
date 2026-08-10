@@ -818,6 +818,20 @@ QString AppState::groupIconName(int groupInt) const {
     return ::groupIconName(static_cast<DiagGroup>(groupInt));
 }
 
+QString AppState::diagAnimationUrl(int diagIdInt) const {
+    // Map DiagAnimType → QRC URL.  Single source — no QML-side switch needed.
+    if (!DiagnosticConfig::isValidDiagId(diagIdInt))
+        return QStringLiteral("qrc:/qml/widgets/animations/JiggleAnimation.qml");
+    switch (::diagAnimationType(static_cast<DiagId>(diagIdInt))) {
+        case DiagAnimType::Bounce: return QStringLiteral("qrc:/qml/widgets/animations/BounceAnimation.qml");
+        case DiagAnimType::Path:   return QStringLiteral("qrc:/qml/widgets/animations/PathAnimation.qml");
+        case DiagAnimType::Pulse:  return QStringLiteral("qrc:/qml/widgets/animations/PulseAnimation.qml");
+        case DiagAnimType::Type:   return QStringLiteral("qrc:/qml/widgets/animations/TypeAnimation.qml");
+        case DiagAnimType::Lock:   return QStringLiteral("qrc:/qml/widgets/animations/LockAnimation.qml");
+        default:                   return QStringLiteral("qrc:/qml/widgets/animations/JiggleAnimation.qml");
+    }
+}
+
 ReportData AppState::buildReportData() const {
     ReportData d;
     d.target = TargetRedaction::forDisplay(m_targetModel->target()).toHtmlEscaped();

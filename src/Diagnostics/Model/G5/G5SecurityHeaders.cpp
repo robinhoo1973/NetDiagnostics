@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G5/G5Common.h"
+#include "Diagnostics/Model/G5/G5Common.h"
 namespace G5WebsiteUrl {
 #if !defined(NO_CURL)
 DiagnosticResult securityHeaders(const QString& target) {
@@ -44,6 +44,11 @@ DiagnosticResult securityHeaders(const QString& target) {
     r.rawOutput = secLines.join('\n');
     r.details = r.rawOutput;
     r.durationMs = cr.totalMs;
+    r.data[QStringLiteral("presentHeaders")] = found;
+    r.data[QStringLiteral("missingHeaders")] = missing;
+    r.data[QStringLiteral("score")] = 7 - missing.size();
+    r.data[QStringLiteral("totalRequired")] = 7;
+    r.data[QStringLiteral("statusCode")] = cr.statusCode;
     return r;
 }
 #endif // NO_CURL

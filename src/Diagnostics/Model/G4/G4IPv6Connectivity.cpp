@@ -34,6 +34,12 @@ DiagnosticResult ipv6Connectivity(const QString& target) {
         r.durationMs = t.elapsed();
         r.status = DiagStatus::Warning;
         r.summary = QStringLiteral("No IPv6 DNS resolution");
+        r.data["host"] = host;
+        r.data["dnsResolved"] = false;
+        r.data["connectedCount"] = 0;
+        r.data["failedCount"] = 0;
+        r.data["totalPorts"] = 0;
+        r.data["isReachable"] = false;
         return r;
     }
     out.append(QStringLiteral("DNS AAAA: %1 → %2").arg(host, ipv6));
@@ -43,6 +49,7 @@ DiagnosticResult ipv6Connectivity(const QString& target) {
         {80, "HTTP"}, {443, "HTTPS"}, {22, "SSH"},
     };
     int connected = 0, failed = 0;
+    QVariantList portsTested;
     for (const auto& tp : kTestPorts) {
         int sock = tcpConnect6(host, tp.port, 3000);
         if (sock >= 0) {
@@ -53,6 +60,8 @@ DiagnosticResult ipv6Connectivity(const QString& target) {
             out.append(QStringLiteral("TCP/%1 (%2): FAILED").arg(tp.port).arg(tp.name));
             failed++;
         }
+        { QVariantMap pi; pi["port"] = tp.port; pi["service"] = QString::fromLatin1(tp.name);
+          pi["connected"] = (sock >= 0); portsTested.append(pi); }
     }
 
     out.append(QString());
@@ -69,6 +78,14 @@ DiagnosticResult ipv6Connectivity(const QString& target) {
         r.status = DiagStatus::Fail;
         r.summary = QStringLiteral("IPv6 unreachable (0/%1 ports)").arg(connected + failed);
     }
+    r.data["host"] = host;
+    r.data["ipv6Address"] = ipv6;
+    r.data["dnsResolved"] = !ipv6.isEmpty();
+    r.data["portsTested"] = portsTested;
+    r.data["connectedCount"] = connected;
+    r.data["failedCount"] = failed;
+    r.data["totalPorts"] = connected + failed;
+    r.data["isReachable"] = (connected > 0);
     return r;
 }
 

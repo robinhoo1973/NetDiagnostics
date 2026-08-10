@@ -1,4 +1,4 @@
-﻿// GBase.h — shared platform includes for G1/G2/G3 diagnostics.
+// GBase.h — shared platform includes for G1/G2/G3 diagnostics.
 #pragma once
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"

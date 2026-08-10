@@ -172,6 +172,20 @@ DiagnosticResult mtuDiscovery(const QString& target) {
     } else if (discoveredMtu >= 1500) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("MTU %1 (Standard)").arg(discoveredMtu); }
     else if (discoveredMtu >= 1280) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("MTU %1 (Below 1500)").arg(discoveredMtu); }
     else { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Low MTU: %1").arg(discoveredMtu); }
+    int effectiveMss = discoveredMtu > 40 ? discoveredMtu - 40 : 0;
+    bool tcpProbeSuccessful = (mss > 0);
+    QString mtuQuality;
+    if (discoveredMtu >= 1500) mtuQuality = QStringLiteral(">=1500");
+    else if (discoveredMtu >= 1280) mtuQuality = QStringLiteral("1280-1499");
+    else mtuQuality = QStringLiteral("<1280");
+    r.data["target"] = target;
+    r.data["displayAddr"] = displayAddr;
+    r.data["discoveredMtu"] = discoveredMtu;
+    r.data["mss"] = mss;
+    r.data["effectiveMss"] = effectiveMss;
+    r.data["probePort"] = probePort;
+    r.data["tcpProbeSuccessful"] = tcpProbeSuccessful;
+    r.data["mtuQuality"] = mtuQuality;
     return r;
 }
 

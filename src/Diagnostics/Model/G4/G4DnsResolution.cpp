@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/G4/G4Common.h"
+#include "Diagnostics/Model/G4/G4Common.h"
 DiagnosticResult dnsResolution(const QString& target) {
     DiagnosticResult r;
     r.id = DiagId::G4DnsResolution; r.group = DiagGroup::G4;
@@ -8,6 +8,9 @@ DiagnosticResult dnsResolution(const QString& target) {
     QElapsedTimer t; t.start();
     QStringList out;
     QStringList ipsAll;
+    int rcode = -1, anCount = 0, nsCount = 0, arCount = 0;
+    bool gotCname = false; QString cnameTarget;
+    QString resolverServer;
 
     out.append(QString());
     out.append(QStringLiteral("; <<>> NetDiagnostics DNS <<>> %1").arg(host));
@@ -70,11 +73,15 @@ DiagnosticResult dnsResolution(const QString& target) {
         if (len >= 0) {
             ns_msg handle;
             if (ns_initparse(buf, len, &handle) >= 0) {
-                int rcode = ns_msg_getflag(handle, ns_f_rcode);
+                // 5WHY: these were re-declared with 'int' (shadowing the
+                // function-scope variables at line 11). r.data assignments
+                // read the outer variables — always -1/0/0/0.
+                // Fix: assign to function-scope variables, don't redeclare.
+                rcode = ns_msg_getflag(handle, ns_f_rcode);
                 int qdCount = ns_msg_count(handle, ns_s_qd);
-                int anCount = ns_msg_count(handle, ns_s_an);
-                int nsCount = ns_msg_count(handle, ns_s_ns);
-                int arCount = ns_msg_count(handle, ns_s_ar);
+                anCount = ns_msg_count(handle, ns_s_an);
+                nsCount = ns_msg_count(handle, ns_s_ns);
+                arCount = ns_msg_count(handle, ns_s_ar);
                 bool qr = ns_msg_getflag(handle, ns_f_qr);
                 bool rd = ns_msg_getflag(handle, ns_f_rd);
                 bool ra = ns_msg_getflag(handle, ns_f_ra);
@@ -97,7 +104,7 @@ DiagnosticResult dnsResolution(const QString& target) {
                 out.append(QString());
 
                 // ANSWER SECTION
-                bool gotCname = false; QString cnameTarget;
+                gotCname = false; cnameTarget.clear();
                 dnsDumpSection(handle, ns_s_an, QStringLiteral(";; ANSWER SECTION:"), host, out, gotCname, cnameTarget);
 
                 // Collect A/AAAA IPs from answer
@@ -169,13 +176,15 @@ DiagnosticResult dnsResolution(const QString& target) {
     // ── Footer ──────────────────────────────────────────────────────────
     out.append(QStringLiteral(";; Query time: %1 msec").arg(t.elapsed()));
 #if defined(_WIN32) || defined(__ANDROID__)
+    resolverServer = QStringLiteral("system resolver");
     out.append(QStringLiteral(";; SERVER: system resolver"));
 #else
     // Show actual resolver address from _res (glibc-specific)
     QStringList nsList;
     for (int i = 0; i < MAXNS && _res.nsaddr_list[i].sin_addr.s_addr != 0; i++)
         nsList.append(ip4ToStr(_res.nsaddr_list[i].sin_addr));
-    out.append(QStringLiteral(";; SERVER: %1").arg(nsList.isEmpty() ? QStringLiteral("system") : nsList.join(QStringLiteral(", "))));
+    resolverServer = nsList.isEmpty() ? QStringLiteral("system") : nsList.join(QStringLiteral(", "));
+    out.append(QStringLiteral(";; SERVER: %1").arg(resolverServer));
 #endif
     out.append(QStringLiteral(";; WHEN: %1").arg(QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d hh:mm:ss yyyy"))));
     out.append(QString());
@@ -194,6 +203,20 @@ DiagnosticResult dnsResolution(const QString& target) {
     r.properties.append(prop("Target", target));
     r.properties.append(prop("Host", host));
     r.properties.append(prop("Addresses", ipsAll.isEmpty() ? QStringLiteral("(none)") : ipsAll.join(QStringLiteral(", "))));
+    QStringList cnameChain;
+    if (gotCname && !cnameTarget.isEmpty())
+        cnameChain.append(cnameTarget);
+    r.data["target"] = target;
+    r.data["host"] = host;
+    r.data["queryTimeMs"] = static_cast<qint64>(t.elapsed());
+    r.data["resolverServer"] = resolverServer;
+    r.data["rcode"] = rcode;
+    r.data["answerCount"] = anCount;
+    r.data["authorityCount"] = nsCount;
+    r.data["additionalCount"] = arCount;
+    r.data["hasCname"] = gotCname;
+    r.data["cnameChain"] = cnameChain;
+    r.data["addressCount"] = ipsAll.size();
     return r;
 }
 } // namespace G4RemoteHost

@@ -1,4 +1,4 @@
-﻿// IosDnsTask.h — iOS CFHost DNS resolution
+// IosDnsTask.h — iOS CFHost DNS resolution
 #pragma once
 #include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"

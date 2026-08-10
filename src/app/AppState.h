@@ -295,6 +295,8 @@ private:
     // DiagNames.h). diagIdInt is the int enum value, groupInt 0-4 (G1-G5).
     Q_INVOKABLE QString diagIconName(int diagIdInt) const;
     Q_INVOKABLE QString groupIconName(int groupInt) const;
+    // L4 Living Diagnostics: returns QRC URL for per-test animation component
+    Q_INVOKABLE QString diagAnimationUrl(int diagIdInt) const;
     void bumpVersion();
 
     // Target URL parsing → extracted to TargetModel

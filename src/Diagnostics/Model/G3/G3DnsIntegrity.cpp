@@ -447,6 +447,52 @@ DiagnosticResult dnsIntegrity(DiagId id) {
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
     r.durationMs = t.elapsed();
+
+    // ── Structured data ──────────────────────────────────────────
+    r.data["phase1HijackDetected"] = hijackDetected;
+    r.data["phase1Clean"] = hijackClean;
+    r.data["phase1HijackWarn"] = hijackWarn;
+    r.data["phase1Timeout"] = hijackTimeout;
+
+    QString phase2Verdict;
+    if (hijackDetected && pollutionDetected)
+        phase2Verdict = QStringLiteral("hijack+ pollution");
+    else if (hijackDetected)
+        phase2Verdict = QStringLiteral("hijack");
+    else if (pollutionDetected)
+        phase2Verdict = QStringLiteral("pollution");
+    else if (pollutionSuspicious > 0)
+        phase2Verdict = QStringLiteral("suspicious");
+    else if (phase2AllFailed)
+        phase2Verdict = QStringLiteral("inconclusive");
+    else
+        phase2Verdict = QStringLiteral("clean");
+    r.data["phase2Verdict"] = phase2Verdict;
+
+    r.data["phase2Clean"] = pollutionClean;
+    r.data["phase2Warn"] = pollutionWarn;
+    r.data["phase2Suspicious"] = pollutionSuspicious;
+    r.data["phase2Errors"] = pollutionErrors;
+
+    int totalDomains = pollutionWarn + pollutionClean + pollutionSuspicious + pollutionErrors;
+    int overallScorePercent = totalDomains > 0 ? (pollutionClean * 100 / totalDomains) : 0;
+    r.data["overallScorePercent"] = overallScorePercent;
+
+    QVariantList domainResults;
+    for (int i = 0; i < kDomCount; ++i) {
+        const DomainResult& dr = domResults[i];
+        if (dr.tag == DomainResult::Scored) {
+            QVariantMap dm;
+            dm["domain"] = dr.domain;
+            dm["scorePercent"] = dr.scorePercent;
+            dm["verdict"] = static_cast<int>(dr.verdict);
+            dm["dohIps"] = dr.dohIps;
+            dm["localUdpIp"] = dr.localUdpIp;
+            domainResults.append(dm);
+        }
+    }
+    r.data["domainResults"] = domainResults;
+
     return r;
 }
 

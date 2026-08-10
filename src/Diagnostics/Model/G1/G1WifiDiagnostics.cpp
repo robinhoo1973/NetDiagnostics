@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 #if defined(__APPLE__) && !defined(PLATFORM_IOS)
 #include "Common/Platform/Apple/macOS/WifiHelper.h"
@@ -120,11 +120,12 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     if (getifaddrs(&ifa) == 0) {
         for (auto* p = ifa; p; p = p->ifa_next) {
             QString ifName = QString::fromLatin1(p->ifa_name);
-#if defined(PLATFORM_IOS)
+#if(defined(PLATFORM_IOS))
             // iOS: detect WiFi by interface name prefix (en0/en1 are WiFi)
             if (!ifName.startsWith("en"))
                 continue;
-#elif defined(__APPLE__)
+#else
+#if(defined(__APPLE__))
             // 5WHY: macOS checked /sys/class/net/<iface>/wireless which doesn't
             // exist on macOS → ALL interfaces rejected → "(no wireless)".
             // macOS also uses en0/en1 for WiFi (like iOS). Detect by prefix.
@@ -133,18 +134,20 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
 #else
             if (!QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName)))
                 continue;
-#endif
+#endif  // __APPLE__
+#endif  // PLATFORM_IOS
             if (seenWifi.contains(ifName)) continue;
             seenWifi.insert(ifName);
 
             QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
             QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
 
-#if defined(PLATFORM_IOS)
+#if(defined(PLATFORM_IOS))
             // iOS: use cached WiFi data (queried once before the loop)
             ssid = cachedIosSsid.isEmpty() ? QStringLiteral("-") : cachedIosSsid;
             bssid = cachedIosBssid.isEmpty() ? QStringLiteral("-") : cachedIosBssid;
-#elif defined(__APPLE__)
+#else
+#if(defined(__APPLE__))
             // 5WHY: macOS CoreWLAN — SSID/BSSID via dedicated .mm helper.
             // Extracted from inline objc_msgSend to avoid ObjC type issues
             // with Xcode 26.5 SDK (Class/SEL not exposed in .cpp mode).
@@ -157,7 +160,8 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
                 QString b = macosWifiBssid();
                 if (!b.isEmpty()) bssid = b;
             }
-#endif
+#endif  // __APPLE__
+#endif  // PLATFORM_IOS
 
 #if defined(__linux__) && !defined(PLATFORM_ANDROID)
             // Linux WiFi ioctl (requires <linux/wireless.h> — not available on Android Bionic)
@@ -269,6 +273,28 @@ DiagnosticResult wifiDiagnostics(DiagId id) {
     r.status = out.size() > 3 ? DiagStatus::Pass : DiagStatus::Info;
     r.summary = QStringLiteral("WiFi Diagnostics Complete");
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList wifiInterfaces;
+        bool hasConnection = false;
+        for (const auto& row : wifiRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("name")] = row.value(0);
+            const QString ssidVal = row.value(1);
+            entry[QStringLiteral("ssid")] = ssidVal;
+            entry[QStringLiteral("bssid")] = row.value(2);
+            entry[QStringLiteral("channel")] = row.value(3);
+            entry[QStringLiteral("signal")] = row.value(4);
+            entry[QStringLiteral("bitrate")] = row.value(5);
+            if (!ssidVal.isEmpty() && ssidVal != QStringLiteral("-"))
+                hasConnection = true;
+            wifiInterfaces.append(entry);
+        }
+        r.data[QStringLiteral("wifiInterfaces")] = wifiInterfaces;
+        r.data[QStringLiteral("wifiStatus")] = wifiInterfaces.isEmpty()
+            ? QStringLiteral("no_wireless")
+            : (hasConnection ? QStringLiteral("connected") : QStringLiteral("disconnected"));
+    }
     return r;
 }
 

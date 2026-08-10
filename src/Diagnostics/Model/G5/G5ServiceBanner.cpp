@@ -18,6 +18,12 @@ DiagnosticResult serviceBanner(const QString& target) {
     if (!probe.connected) {
         auto r = g5Result(DiagId::G5ServiceBanner, "Connection failed", DiagStatus::Fail);
         r.durationMs = probe.elapsedMs;  // tcpProbe records elapsed even on failure
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = false;
+        r.data["banner"] = QString();
+        r.data["bannerLength"] = 0;
+        r.data["latencyMs"] = probe.elapsedMs;
         return r;
     }
 
@@ -26,6 +32,12 @@ DiagnosticResult serviceBanner(const QString& target) {
         probe.data.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass);
     r.rawOutput = QString::fromUtf8(probe.data).left(500);
     r.durationMs = probe.elapsedMs;
+    r.data["host"] = u.host();
+    r.data["port"] = port;
+    r.data["connected"] = probe.connected;
+    r.data["banner"] = QString::fromUtf8(probe.data).left(500);
+    r.data["bannerLength"] = probe.data.size();
+    r.data["latencyMs"] = probe.elapsedMs;
     return r;
 }
 

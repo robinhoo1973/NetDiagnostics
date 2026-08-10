@@ -361,6 +361,43 @@ DiagnosticResult geoIPLoc(DiagId id) {
 
     r.rawOutput = out.join('\n'); r.details = r.rawOutput;
     r.durationMs = t.elapsed();
+
+    // ── Structured data ──────────────────────────────────────────
+    r.data["geoIPCountry"] = countryA;
+    r.data["physicalCountry"] = countryB;
+    r.data["countryMatch"] = (countryA == countryB);
+
+    bool vpnDetected = false;
+    QString vpnConfidence;
+    if (countryA == countryB) {
+        vpnDetected = false;
+        vpnConfidence = QStringLiteral("none");
+    } else if (pValue < 0.05 && std::abs(delta) >= 0.33) {
+        vpnDetected = true;
+        vpnConfidence = QStringLiteral("detected");
+    } else if (pValue < 0.05 && std::abs(delta) < 0.33) {
+        vpnDetected = true;
+        vpnConfidence = QStringLiteral("likely");
+    } else if (std::abs(delta) >= 0.33) {
+        vpnDetected = false;
+        vpnConfidence = QStringLiteral("possible");
+    } else {
+        vpnDetected = false;
+        vpnConfidence = QStringLiteral("inconclusive");
+    }
+    r.data["vpnDetected"] = vpnDetected;
+    r.data["vpnConfidence"] = vpnConfidence;
+
+    QVariantList topCountries;
+    for (const auto& cr : result.countries) {
+        QVariantMap cm;
+        cm["code"] = cr.code;
+        cm["hlMs"] = cr.hlMs;
+        cm["serverCount"] = cr.serverCount;
+        topCountries.append(cm);
+    }
+    r.data["topCountries"] = topCountries;
+
     return r;
 }
 

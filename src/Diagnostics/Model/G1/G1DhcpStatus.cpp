@@ -63,7 +63,8 @@ DiagnosticResult dhcpStatus(DiagId id) {
             out << DiagnosticFormatter::formatTable(kDhcpCols, dhcpRows);
         out.append(QString());
     }
-#elif defined(PLATFORM_IOS)
+#else
+#if(defined(PLATFORM_IOS))
     QList<QStringList> iosRows;
     iosRows.append({"(system-managed)", "Yes", "(not exposed)", "(not exposed)"});
     out.append(DiagnosticFormatter::formatTable(kDhcpCols, iosRows));
@@ -72,7 +73,8 @@ DiagnosticResult dhcpStatus(DiagId id) {
     out.append(QStringLiteral("  lease details are not accessible to third-party apps."));
     ResultProperty iosProp("iOS DHCP", "system-managed");
     props.append(iosProp);
-#elif defined(__APPLE__)  // macOS (not iOS)
+#else
+#if(defined(__APPLE__))  // macOS (not iOS)
     // 5WHY: macOS fell through to the Linux #else branch which tries
     // /run/systemd, /var/lib/dhcp, /proc/net/route — none exist on macOS.
     // Add an explicit macOS stub that reports DHCP info is system-managed.
@@ -191,7 +193,9 @@ DiagnosticResult dhcpStatus(DiagId id) {
     // reach 5-6 before this check. Bumped to 8 to be safe.
     if (!anyDhcp && out.size() <= 8)
         out.append(QStringLiteral("   No DHCP lease information found (static IP or managed externally)"));
-#endif
+#endif  // __APPLE__
+#endif  // PLATFORM_IOS
+#endif  // _WIN32
 
     r.rawOutput = out.join('\n');
     r.details = r.rawOutput;
@@ -204,6 +208,31 @@ DiagnosticResult dhcpStatus(DiagId id) {
     r.summary = dhcpSummary.isEmpty() ? QStringLiteral("No DHCP leases found (static IP?)")
                  : QStringLiteral("DHCP: %1").arg(dhcpSummary.join(QStringLiteral(", ")));
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList leases;
+        for (const auto& row : dhcpRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("interface")] = row.value(0);
+            const QString dhcpStr = row.value(1);
+            entry[QStringLiteral("dhcpEnabled")] = (dhcpStr == QStringLiteral("Yes") || dhcpStr == QStringLiteral("Likely"));
+            {
+                const QString ip = row.value(2);
+                if (!ip.isEmpty() && ip != QStringLiteral("-"))
+                    entry[QStringLiteral("ipAddress")] = ip;
+            }
+            {
+                const QString srv = row.value(3);
+                if (!srv.isEmpty() && srv != QStringLiteral("-"))
+                    entry[QStringLiteral("server")] = srv;
+            }
+            leases.append(entry);
+        }
+        r.data[QStringLiteral("leases")] = leases;
+        r.data[QStringLiteral("leaseSource")] = dhcpSummary.isEmpty()
+            ? QStringLiteral("none")
+            : QStringLiteral("dhcp");
+    }
     return r;
 }
 

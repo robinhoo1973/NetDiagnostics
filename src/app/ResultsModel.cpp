@@ -84,6 +84,13 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
     m["isDone"] = true;
     m["isPending"] = false;
     m["isRunning"] = false;
+    // L5 Living Diagnostics: pass structured data + template classification
+    if (!r.data.isEmpty()) {
+        // Auto-inject templateType from DiagId — eliminates duck-typing in QML
+        QVariantMap enriched = r.data;
+        enriched["templateType"] = static_cast<int>(::diagTemplateType(r.id));
+        m["data"] = enriched;
+    }
     return m;
 }
 
@@ -276,5 +283,11 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
         props.append(pm);
     }
     m["properties"] = props;
+    // L5 Living Diagnostics: pass structured data + template classification
+    if (!r.data.isEmpty()) {
+        QVariantMap enriched = r.data;
+        enriched["templateType"] = static_cast<int>(::diagTemplateType(r.id));
+        m["data"] = enriched;
+    }
     return m;
 }

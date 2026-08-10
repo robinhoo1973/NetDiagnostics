@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 
 namespace SystemDiagnostics {
 DiagnosticResult netskopeStatus(DiagId id) {
@@ -10,6 +10,8 @@ DiagnosticResult netskopeStatus(DiagId id) {
     out.append(QString());
 
     bool found = false;
+    QString proxyProcessName;
+    int proxyPid = 0;
 #if defined(_WIN32)
     // Check for nsproxy.exe process
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -22,6 +24,8 @@ DiagnosticResult netskopeStatus(DiagId id) {
                     name.contains("zscaler", Qt::CaseInsensitive) || name.contains("netskope", Qt::CaseInsensitive)) {
                     out.append(QStringLiteral("  Found: %1 (PID %2)").arg(name).arg(pe.th32ProcessID));
                     found = true;
+                    proxyProcessName = name;
+                    proxyPid = static_cast<int>(pe.th32ProcessID);
                 }
             } while (Process32NextW(hSnap, &pe));
         }
@@ -40,6 +44,8 @@ DiagnosticResult netskopeStatus(DiagId id) {
                 comm.contains("netskope", Qt::CaseInsensitive) || comm.contains("zsproxy", Qt::CaseInsensitive)) {
                 out.append(QStringLiteral("  Found: %1 (PID %2)").arg(comm, fi.fileName()));
                 found = true;
+                proxyProcessName = comm;
+                proxyPid = fi.fileName().toInt();
             }
         }
     }
@@ -51,6 +57,15 @@ DiagnosticResult netskopeStatus(DiagId id) {
     r.status = found ? DiagStatus::Pass : DiagStatus::Info;
     r.summary = found ? QStringLiteral("Security proxy detected") : QStringLiteral("No security proxy detected");
     r.durationMs = 0;
+
+    // ── Structured data ──────────────────────────────────────────
+    r.data["found"] = found;
+    if (found) {
+        r.data["proxyProcessName"] = proxyProcessName;
+        r.data["proxyPid"] = proxyPid;
+        r.data["proxyType"] = proxyProcessName;
+    }
+
     return r;
 }
 

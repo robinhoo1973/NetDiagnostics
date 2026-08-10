@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult ipConfiguration(DiagId id) {
@@ -308,6 +308,19 @@ DiagnosticResult ipConfiguration(DiagId id) {
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("IP Configuration Collected");
     r.durationMs = t.elapsed();
+    // Build structured r.data from output
+    {
+        QString hostname;
+        for (const auto& line : out) {
+            if (line.contains(QStringLiteral("Host Name"))) {
+                hostname = line.section(':', -1).trimmed();
+                break;
+            }
+        }
+        if (!hostname.isEmpty())
+            r.data[QStringLiteral("hostname")] = hostname;
+        r.data[QStringLiteral("adapters")] = QVariantList();
+    }
     return r;
 }
 

@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult cellularInfo(DiagId id) {
@@ -70,6 +70,12 @@ DiagnosticResult cellularInfo(DiagId id) {
 #endif
     out.append(QString());
     r.rawOutput = out.join('\n'); r.details = r.rawOutput;
+    // Build structured r.data
+    {
+        const bool hasService = (r.status != DiagStatus::Skipped && r.status != DiagStatus::Info);
+        r.data[QStringLiteral("hasService")] = hasService;
+        r.data[QStringLiteral("sims")] = QVariantList();
+    }
     return r;
 }
 

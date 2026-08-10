@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult tcpSettings(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
@@ -152,6 +152,36 @@ DiagnosticResult tcpSettings(DiagId id) {
 #endif  // close converted #elif
 #endif  // close converted #elif
     r.durationMs = t.elapsed();
+    // Build structured r.data from output
+    {
+        auto extractVal = [&](const QString& keyword) -> QString {
+            for (const auto& line : out) {
+                if (line.contains(keyword, Qt::CaseInsensitive)) {
+                    const QString val = line.section(':', -1).trimmed();
+                    if (!val.isEmpty() && val != QStringLiteral("-"))
+                        return val;
+                }
+            }
+            return QString();
+        };
+        auto setIfFound = [&](const char* key, const QString& label) {
+            const QString v = extractVal(label);
+            if (!v.isEmpty()) r.data[QLatin1String(key)] = v;
+        };
+        setIfFound("congestionAlgorithm", "Congestion");
+        setIfFound("windowScaling", "Window Scaling");
+        setIfFound("timestamps", "Timestamp");
+        setIfFound("selectiveAck", "Selective ACK");
+        setIfFound("tcpFastOpen", "Fast Open");
+        setIfFound("delayedAck", "Delayed ACK");
+        setIfFound("keepaliveIdle", "KeepAliveTime");
+        setIfFound("keepaliveIdle", "Keepalive Idle");
+        setIfFound("keepaliveInterval", "KeepAliveInterval");
+        setIfFound("keepaliveInterval", "Keepalive Interval");
+        setIfFound("defaultTTL", "DefaultTTL");
+        setIfFound("pmtuDiscovery", "EnablePMTUDiscovery");
+        setIfFound("maxDataRetransmissions", "TcpMaxDataRetransmissions");
+    }
     return r;
 }
 

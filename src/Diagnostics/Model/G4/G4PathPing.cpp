@@ -212,6 +212,27 @@ DiagnosticResult pathPing(const QString& target) {
     if (reached) { r.status = DiagStatus::Pass; r.summary = QStringLiteral("%1 Hops, Target Reached").arg(hopCount); }
     else if (hopCount > 0) { r.status = DiagStatus::Warning; r.summary = QStringLiteral("Partial: %1 Hops").arg(hopCount); }
     else { r.status = DiagStatus::Fail; r.summary = QStringLiteral("Target Unreachable"); }
+    QVariantList rHops;
+    for (const auto& h : hops) {
+        QVariantMap hm;
+        hm["ttl"] = h.ttl; hm["ip"] = h.ip; hm["name"] = h.name; hm["reached"] = h.reached;
+        rHops.append(hm);
+    }
+    QVariantList rHopStats;
+    for (const auto& hs : hopStats) {
+        QVariantMap hsm;
+        hsm["sent"] = hs.sent; hsm["received"] = hs.rcvd;
+        hsm["lossPercent"] = hs.loss; hsm["avgMs"] = hs.avgMs;
+        rHopStats.append(hsm);
+    }
+    r.data["target"] = host;
+    r.data["targetIp"] = targetIpStr;
+    r.data["hopCount"] = hopCount;
+    r.data["reachedTarget"] = reached;
+    r.data["rawIcmpAvailable"] = bool(s_rawIcmpAvailable);
+    r.data["hops"] = rHops;
+    r.data["hopStats"] = rHopStats;
+    r.data["totalDurationMs"] = static_cast<qint64>(totalTimer.elapsed());
     return r;
 }
 

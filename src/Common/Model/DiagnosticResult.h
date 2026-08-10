@@ -6,6 +6,7 @@
 #include <QString>
 #include <QDateTime>
 #include <QVector>
+#include <QVariantMap>
 #include "DiagId.h"
 #include "ResultProperty.h"
 
@@ -21,6 +22,12 @@ struct DiagnosticResult {
     QVector<ResultProperty> properties;
     QString     rawOutput;
     QString     errorOutput;
+
+    // ── Structured data for L5 visualizations (Living Diagnostics) ─────────────
+    // Populated by each diagnostic with test-specific structured fields
+    // (e.g. Ping → rtts[], loss, min/avg/max; Traceroute → hops[])
+    // Kept parallel to rawOutput/details — ReportEngine reads only text fields.
+    QVariantMap data;
 
     // ── Convenience ──────────────────────────────────────────────────────────
     bool isPass()    const { return status == DiagStatus::Pass; }

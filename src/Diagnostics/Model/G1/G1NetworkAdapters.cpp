@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GBase.h"
+#include "Diagnostics/Model/GBase.h"
 #include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult networkAdapters(DiagId id) {
@@ -235,6 +235,45 @@ DiagnosticResult networkAdapters(DiagId id) {
         ? QStringLiteral("%1 network adapter%2 enumerated").arg(netRows.size()).arg(netRows.size() > 1 ? "s" : "")
         : QStringLiteral("No network adapters found");
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList adapters;
+        for (const auto& row : netRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("name")] = row.value(0);
+            entry[QStringLiteral("status")] = row.value(2);
+#if defined(_WIN32)
+            // Windows: [name, type, "UP", "-", "-"]
+            entry[QStringLiteral("type")] = row.value(1);
+#else
+#if defined(PLATFORM_IOS)
+            // iOS: [name, type, status, ipv4, ssid]
+            entry[QStringLiteral("type")] = row.value(1);
+            {
+                const QString ipStr = row.value(3);
+                if (!ipStr.isEmpty() && ipStr != QStringLiteral("-"))
+                    entry[QStringLiteral("ipv4")] = QVariant::fromValue(ipStr.split(',', Qt::SkipEmptyParts));
+            }
+#else
+            // Linux: [name, mtu, status, mac, ipv4]
+            entry[QStringLiteral("mtu")] = row.value(1);
+            {
+                const QString mac = row.value(3);
+                if (!mac.isEmpty() && mac != QStringLiteral("-"))
+                    entry[QStringLiteral("mac")] = mac;
+            }
+            {
+                const QString ipStr = row.value(4);
+                if (!ipStr.isEmpty() && ipStr != QStringLiteral("-"))
+                    entry[QStringLiteral("ipv4")] = QVariant::fromValue(ipStr.split(',', Qt::SkipEmptyParts));
+            }
+#endif
+#endif
+            adapters.append(entry);
+        }
+        r.data[QStringLiteral("adapters")] = adapters;
+        r.data[QStringLiteral("adapterCount")] = adapters.size();
+    }
     return r;
 }
 

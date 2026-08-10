@@ -136,3 +136,125 @@ inline QString diagIconName(DiagId id) {
     }
     return QStringLiteral("circle");
 }
+
+// ── Animation type classification (Living Diagnostics L4) ─────────────────
+// Maps each DiagId to an animation category used by DiagAnimator.qml.
+// Values match the Loader switch cases in DiagAnimator.qml.
+enum class DiagAnimType {
+    Jiggle = 0,   // rotation ±2.5° + scale pulse (~26 tests, default)
+    Bounce = 1,   // dot bouncing between endpoints (6 tests)
+    Path   = 2,   // nodes appear sequentially (6 tests)
+    Pulse  = 3,   // opacity glow pulse (9 tests)
+    Type   = 4,   // sequential row reveal (6 tests)
+    Lock   = 5    // stamp drop-and-settle (4 tests)
+};
+
+inline DiagAnimType diagAnimationType(DiagId id) {
+    switch (id) {
+        // ── Bounce (6) ──────────────────────────────────────────────────
+        case DiagId::G4Ping:               return DiagAnimType::Bounce;
+        case DiagId::G1DhcpStatus:         return DiagAnimType::Bounce;
+        case DiagId::G3GeoIPLoc:           return DiagAnimType::Bounce;
+        case DiagId::G5Mqtt:               return DiagAnimType::Bounce;
+        case DiagId::G4DnsResolution:      return DiagAnimType::Bounce;
+        case DiagId::G4PathPing:           return DiagAnimType::Bounce;
+
+        // ── Path (6) ────────────────────────────────────────────────────
+        case DiagId::G4Traceroute:         return DiagAnimType::Path;
+        case DiagId::G2RoutingTable:       return DiagAnimType::Path;
+        case DiagId::G2ProxySettings:      return DiagAnimType::Path;
+        case DiagId::G5TcpConnect:         return DiagAnimType::Path;
+        case DiagId::G5HttpRedirect:       return DiagAnimType::Path;
+        case DiagId::G1ActiveConnections:  return DiagAnimType::Path;
+
+        // ── Pulse (9+) ──────────────────────────────────────────────────
+        case DiagId::G1NetworkAdapters:    return DiagAnimType::Pulse;
+        case DiagId::G1NicAdvanced:        return DiagAnimType::Pulse;
+        case DiagId::G3DnsServers:         return DiagAnimType::Pulse;
+        case DiagId::G5Mysql:              return DiagAnimType::Pulse;
+        case DiagId::G5Postgres:           return DiagAnimType::Pulse;
+        case DiagId::G5Redis:              return DiagAnimType::Pulse;
+        case DiagId::G5Mongodb:            return DiagAnimType::Pulse;
+        case DiagId::G5FtpDiagnostics:     return DiagAnimType::Pulse;
+        case DiagId::G5Telnet:             return DiagAnimType::Pulse;
+
+        // ── Type (6+) ───────────────────────────────────────────────────
+        case DiagId::G2ArpTable:           return DiagAnimType::Type;
+        case DiagId::G5UrlParsing:         return DiagAnimType::Type;
+        case DiagId::G5HttpHeaders:        return DiagAnimType::Type;
+        case DiagId::G5CurlVerbose:        return DiagAnimType::Type;
+        case DiagId::G5SshDiagnostics:     return DiagAnimType::Type;
+        case DiagId::G5Ldap:               return DiagAnimType::Type;
+
+        // ── Lock (4) ────────────────────────────────────────────────────
+        case DiagId::G5SslCertificate:     return DiagAnimType::Lock;
+        case DiagId::G3DnsIntegrity:       return DiagAnimType::Lock;
+        case DiagId::G5SecurityHeaders:    return DiagAnimType::Lock;
+        case DiagId::G3InternetConnectivity: return DiagAnimType::Lock;
+
+        // ── Jiggle (default, ~26 remaining) ─────────────────────────────
+        default:                           return DiagAnimType::Jiggle;
+    }
+}
+
+// ── Detail page template classification (Living Diagnostics L5) ──────────
+// Eliminates the duck-typing in DetailPage._template — the diagnostic
+// declares which template to use, not inferred from data key existence.
+enum class DiagTemplateType {
+    Ping       = 0,  // RTT/latency: bar chart + loss gauge
+    Path       = 1,  // hop-by-hop: path graph + hop table
+    Handshake  = 2,  // TLS/auth: certificate chain + timing diagram
+    Request    = 3,  // HTTP waterfall: phase timing bars
+    Query      = 4,  // DB/protocol service: connect info + banner
+    System     = 5   // G1/G2 system properties: adapter/route tables
+};
+
+inline DiagTemplateType diagTemplateType(DiagId id) {
+    switch (id) {
+        // ── Ping/latency (G4 remote probes) ────────────────────────────
+        case DiagId::G4Ping:
+        case DiagId::G4DnsResolution:
+        case DiagId::G4PathPing:
+            return DiagTemplateType::Ping;
+
+        // ── Path (traceroute + routing) ─────────────────────────────────
+        case DiagId::G4Traceroute:
+        case DiagId::G2RoutingTable:
+            return DiagTemplateType::Path;
+
+        // ── Handshake/security ──────────────────────────────────────────
+        case DiagId::G5SslCertificate:
+        case DiagId::G3DnsIntegrity:
+        case DiagId::G5SecurityHeaders:
+        case DiagId::G3InternetConnectivity:
+            return DiagTemplateType::Handshake;
+
+        // ── Request/HTTP timing ─────────────────────────────────────────
+        case DiagId::G5HttpTiming:
+        case DiagId::G5HttpHeaders:
+        case DiagId::G5HttpRedirect:
+        case DiagId::G5HttpCompression:
+        case DiagId::G5CurlVerbose:
+        case DiagId::G5UrlParsing:
+            return DiagTemplateType::Request;
+
+        // ── Query/DB service ────────────────────────────────────────────
+        case DiagId::G5TcpConnect:
+        case DiagId::G5ServiceBanner:
+        case DiagId::G5FtpDiagnostics:
+        case DiagId::G5SshDiagnostics:
+        case DiagId::G5EmailDiagnostics:
+        case DiagId::G5Telnet:
+        case DiagId::G5Mysql:
+        case DiagId::G5Postgres:
+        case DiagId::G5Redis:
+        case DiagId::G5Mongodb:
+        case DiagId::G5Ldap:
+        case DiagId::G5Mqtt:
+            return DiagTemplateType::Query;
+
+        // ── System properties (G1-G2, default) ──────────────────────────
+        default:
+            return DiagTemplateType::System;
+    }
+}

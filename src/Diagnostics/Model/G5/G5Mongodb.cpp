@@ -10,9 +10,17 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     QElapsedTimer t; t.start();
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
-    if (!sock.waitForConnected(5000))
-        return result(DiagId::G5Mongodb, "Connection failed", DiagStatus::Fail,
+    if (!sock.waitForConnected(5000)) {
+        auto r = result(DiagId::G5Mongodb, "Connection failed", DiagStatus::Fail,
                       {}, t.elapsed());
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = false;
+        r.data["version"] = QString();
+        r.data["responded"] = false;
+        r.data["latencyMs"] = t.elapsed();
+        return r;
+    }
     // MongoDB wire protocol: send isMaster command
     // Simple OP_QUERY: { isMaster: 1 } on admin.$cmd
     QByteArray msg;
@@ -73,9 +81,17 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
         }
     }
     sock.disconnectFromHost();
-    if (resp.size() < 16) // MongoDB header is 16 bytes + doc
-        return result(DiagId::G5Mongodb, "No response", DiagStatus::Warning,
+    if (resp.size() < 16) { // MongoDB header is 16 bytes + doc
+        auto r = result(DiagId::G5Mongodb, "No response", DiagStatus::Warning,
                       {}, t.elapsed());
+        r.data["host"] = u.host();
+        r.data["port"] = port;
+        r.data["connected"] = true;
+        r.data["version"] = QString();
+        r.data["responded"] = false;
+        r.data["latencyMs"] = t.elapsed();
+        return r;
+    }
     // Look for version string in response (BSON document — binary, not text).
     // 5WHY: QString::fromUtf8(resp) + searching for "version" then quote
     // delimiters never matched because BSON stores strings as <len>\0x02\0
@@ -94,10 +110,17 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
                 version = QString::fromUtf8(resp.mid(lenPos + 4, (int)slen - 1));
         }
     }
-    return result(DiagId::G5Mongodb,
+    auto r = result(DiagId::G5Mongodb,
         version.isEmpty() ? "MongoDB (responded)" : QString("MongoDB %1").arg(version).left(200),
         DiagStatus::Pass,
         resp.left(500), t.elapsed());
+    r.data["host"] = u.host();
+    r.data["port"] = port;
+    r.data["connected"] = true;
+    r.data["version"] = version;
+    r.data["responded"] = true;
+    r.data["latencyMs"] = t.elapsed();
+    return r;
 }
 
 // ── LDAP (port 389) / LDAPS (port 636) — bind request ─────────────────

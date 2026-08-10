@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult defaultGateway(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
@@ -113,6 +113,34 @@ DiagnosticResult defaultGateway(DiagId id) {
 #endif
 #endif  // close converted #elif
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    if (defaultGw != QStringLiteral("Not found"))
+        r.data[QStringLiteral("gateway")] = defaultGw;
+    {
+        QString source;
+        for (const auto& line : out) {
+            if (line.contains(QStringLiteral("GetBestRoute")))
+                source = QStringLiteral("GetBestRoute");
+            else if (line.contains(QStringLiteral("Default Gateway")) && source.isEmpty())
+                source = QStringLiteral("/proc/net/route");
+        }
+        if (source.isEmpty()) {
+#if(defined(_WIN32))
+            source = QStringLiteral("GetIpForwardTable2");
+#else
+#if(defined(__APPLE__) && !defined(PLATFORM_IOS))
+            source = QStringLiteral("PF_ROUTE socket");
+#else
+#if(defined(PLATFORM_IOS))
+            source = QStringLiteral("unavailable");
+#else
+            source = QStringLiteral("/proc/net/route");
+#endif  // PLATFORM_IOS
+#endif  // __APPLE__ && !PLATFORM_IOS
+#endif  // _WIN32
+        }
+        r.data[QStringLiteral("source")] = source;
+    }
     return r;
 }
 

@@ -1,0 +1,6 @@
+# 5WHY: On iOS static builds, QRC directory enumeration (QDir::entryList
+# on qrc:/) can return empty results for directories without a qmldir.
+# Explicitly declaring every QML type here eliminates the dependency on
+# directory scanning and ensures all detail types resolve at QML load time.
+MetricCard 1.0 MetricCard.qml
+TerminalBlock 1.0 TerminalBlock.qml

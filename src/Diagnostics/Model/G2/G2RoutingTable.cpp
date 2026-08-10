@@ -1,4 +1,4 @@
-﻿#include "Diagnostics/Model/GHelpers.h"
+#include "Diagnostics/Model/GHelpers.h"
 namespace SystemDiagnostics {
 DiagnosticResult routingTable(DiagId id) {
     DiagnosticResult r; r.id = id; r.group = DiagGroup::G2;
@@ -162,6 +162,21 @@ DiagnosticResult routingTable(DiagId id) {
     r.status = DiagStatus::Pass;
     r.summary = QStringLiteral("%1 IPv4 route%2").arg(routeRows.size()).arg(routeRows.size() != 1 ? "s" : "");
     r.durationMs = t.elapsed();
+    // Build structured r.data
+    {
+        QVariantList routes;
+        for (const auto& row : routeRows) {
+            QVariantMap entry;
+            entry[QStringLiteral("destination")] = row.value(0);
+            entry[QStringLiteral("netmask")] = row.value(1);
+            entry[QStringLiteral("gateway")] = row.value(2);
+            entry[QStringLiteral("interface")] = row.value(3);
+            entry[QStringLiteral("metric")] = row.value(4).toInt();
+            routes.append(entry);
+        }
+        r.data[QStringLiteral("routes")] = routes;
+        r.data[QStringLiteral("routeCount")] = routes.size();
+    }
     return r;
 }
 
