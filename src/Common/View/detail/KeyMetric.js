@@ -139,6 +139,15 @@ function keyMetric(data, durationMs) {
                  labelKey: "metricLatency", precision: 0, format: "num", trailing: "" }
 
     // ── Fallback: execution duration (with or without structured data) ──
+    // 5WHY: the duration fallback was unconditional — System-template
+    // diagnostics (Network Adapters, WiFi Info, IP Config, etc.) whose
+    // metadata declares keyMetricField:null were showing a "342ms"
+    // MetricCard, creating phantom spacing between Hero and Properties.
+    // Gate: only show duration metric when the diagnostic type actually
+    // declares a keyMetricField (meaning it expects a structured metric
+    // that may sometimes be absent, e.g. a failed Ping).
+    if (d.keyMetricField === "" || d.keyMetricField === undefined)
+        return empty
     var dur = Number(durationMs) || 0
     if (dur <= 0) return empty
     if (dur < 1000)
