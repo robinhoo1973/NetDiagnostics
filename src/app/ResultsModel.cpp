@@ -3,6 +3,7 @@
 // =============================================================================
 #include "app/ResultsModel.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Model/DiagnosticMeta.h"
 #include "Common/Platform/DeviceCapability.h"
 #include "Configuration/Model/DiagnosticConfig.h"
 #include "Diagnostics/Model/G5/G5WebsiteUrl.h"
@@ -98,11 +99,21 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
     m["isDone"] = true;
     m["isPending"] = false;
     m["isRunning"] = false;
-    // L5 Living Diagnostics: pass structured data + template classification
+    // L5 Living Diagnostics: inject metadata profile from DiagnosticMeta registry
     if (!r.data.isEmpty()) {
-        // Auto-inject templateType from DiagId — eliminates duck-typing in QML
         QVariantMap enriched = r.data;
-        enriched["templateType"] = static_cast<int>(::diagTemplateType(r.id));
+        auto& meta = ::diagnosticMeta(r.id);
+        enriched["templateType"]     = static_cast<int>(meta.tmplType);
+        enriched["showErrorOutput"]  = meta.detail.showErrorOutput;
+        enriched["showProperties"]   = meta.detail.showProperties;
+        enriched["showCharts"]       = meta.detail.showCharts;
+        enriched["showTerminal"]     = meta.detail.showTerminal;
+        enriched["keyMetricField"]   = meta.detail.keyMetricField
+                                        ? QString::fromLatin1(meta.detail.keyMetricField) : QString();
+        enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
+                                        ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
+        enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
+        enriched["platformFlags"]    = static_cast<int>(meta.platforms);
         m["data"] = enriched;
     }
     return m;
@@ -321,7 +332,18 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     // L5 Living Diagnostics: pass structured data + template classification
     if (!r.data.isEmpty()) {
         QVariantMap enriched = r.data;
-        enriched["templateType"] = static_cast<int>(::diagTemplateType(r.id));
+        auto& meta = ::diagnosticMeta(r.id);
+        enriched["templateType"]     = static_cast<int>(meta.tmplType);
+        enriched["showErrorOutput"]  = meta.detail.showErrorOutput;
+        enriched["showProperties"]   = meta.detail.showProperties;
+        enriched["showCharts"]       = meta.detail.showCharts;
+        enriched["showTerminal"]     = meta.detail.showTerminal;
+        enriched["keyMetricField"]   = meta.detail.keyMetricField
+                                        ? QString::fromLatin1(meta.detail.keyMetricField) : QString();
+        enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
+                                        ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
+        enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
+        enriched["platformFlags"]    = static_cast<int>(meta.platforms);
         m["data"] = enriched;
     }
     return m;

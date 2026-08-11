@@ -39,6 +39,7 @@ include(netdiag-target)    # configure_netdiag_target() + platform bundles
 set(SOURCES
     src/main.cpp
     src/Common/Model/DiagnosticResult.cpp
+    src/Common/Model/DiagnosticMeta.cpp
     src/Common/Utils/Logger.cpp
     src/Common/Utils/Translator.cpp
     src/Common/Services/DnsResolver.cpp
