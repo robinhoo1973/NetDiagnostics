@@ -92,6 +92,14 @@ function keyMetric(data, durationMs) {
     if (d.overallScorePercent !== undefined)  // DNS integrity cleanliness score
         return { ok: true, value: Number(d.overallScorePercent), unitKey: "unitPercent",
                  labelKey: "metricScore", precision: 0, format: "num", trailing: "" }
+    // 5WHY: G5SecurityHeaders declares keyMetricField="score" and emits
+    // data["score"] (7 - missingHeaders), but no handler existed — the
+    // metric fell through to the duration fallback, showing "Duration: 1.2s"
+    // instead of the security score.  The Gauge chart (tt=2) already read
+    // `score`; the MetricCard now agrees with it.
+    if (d.score !== undefined)         // G5SecurityHeaders: security score (/totalRequired)
+        return { ok: true, value: Number(d.score), unitKey: "",
+                 labelKey: "metricScore", precision: 0, format: "num", trailing: "" }
     if (d.tcpPingMs !== undefined)     // Speed test latency
         return { ok: true, value: Number(d.tcpPingMs),     unitKey: "unitMs",
                  labelKey: "metricLatency", precision: 0, format: "num", trailing: "" }
