@@ -168,8 +168,8 @@ Rectangle {
             DiagTileGrid {
                 Layout.fillWidth: true
                 Layout.topMargin: 8
+                compact: root.compact
                 model: root.itemsModel
-                // Tile size computed dynamically by DiagTileGrid
                 usePerItemRunning: true
                 onTileClicked: function(data) { root.detailClicked(data) }
             }
