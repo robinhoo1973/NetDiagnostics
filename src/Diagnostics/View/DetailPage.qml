@@ -60,10 +60,15 @@ Page {
     // DiagStatus enum ORDER to array index.  An explicit map makes the
     // coupling visible and unknown statuses degrade to "" instead of
     // mislabelling the next enum value.
+    // 5WHY (allocation): the keys object was rebuilt inside the binding on
+    // every re-evaluation — hoisted to a static readonly table.
+    readonly property var _statusKeys: ({
+        0: "summaryPass", 1: "summaryWarning", 2: "summaryFail",
+        3: "summarySkipped", 4: "errorStatus", 5: "summaryInfo"
+    })
     readonly property string _statusText: {
-        var keys = { 0: "summaryPass", 1: "summaryWarning", 2: "summaryFail",
-                     3: "summarySkipped", 4: "errorStatus", 5: "summaryInfo" }
-        return keys[page.status] ? T.tr(keys[page.status]) : ""
+        var key = page._statusKeys[page.status]
+        return key ? T.tr(key) : ""
     }
     // Hero meta line: tested host · duration (previously only in terminal text).
     readonly property string _metaLine: {

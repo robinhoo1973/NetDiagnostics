@@ -37,8 +37,6 @@ void ResultsModel::setCurrentGroup(int groupIdx) {
 
 void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
     m_results[id] = result;
-    DiagGroup g = DiagnosticConfig::diagGroup(id);
-    m_completedPerGroup[g]++;
     m_totalCompleted++;
     m_resultsVersion++;
     m_cachedStatsVersion = -1;
@@ -47,7 +45,6 @@ void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
 
 void ResultsModel::clear() {
     m_results.clear();
-    m_completedPerGroup.clear();
     m_totalPerGroup.clear();
     m_totalCompleted = 0;
     m_totalDiags = 0;

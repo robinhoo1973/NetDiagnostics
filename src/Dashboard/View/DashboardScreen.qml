@@ -9,8 +9,12 @@ import "../dialogs"
 Item {
     id: page
     objectName: "dashboard"
-    property int _runStatus: appState.runStatus
-    property int _totalCompleted: appState.totalCompleted
+    // 5WHY: non-writable shorthand mirrors of tracked appState properties.
+    // Marked readonly — they are only ever read by QML bindings and are never
+    // assigned locally (matching DiagnosticScreen's direct-read style avoids
+    // accidental shadow-assignment bugs).
+    readonly property int _runStatus: appState.runStatus
+    readonly property int _totalCompleted: appState.totalCompleted
     property bool hasData: _totalCompleted > 0
     // 5WHY: canReport was missing — openPreview() guarded on it but it
     // was never declared, resolving to undefined → !undefined === true
@@ -150,8 +154,13 @@ Item {
     // property var array whose binding expression directly references
     // ThemeEngine.colors.xxx — QML CAN track these dependencies, so the array
     // is rebuilt on every theme switch and downstream color bindings re-evaluate.
-    // 5WHY: Both _statusColors and statusIcon() replaced by centralized
-    // ThemeEngine.statusColors[] and statusIconNames[] arrays.
+    // 5WHY (frozen timestamp): fmtTimestamp() reads new Date() with NO
+    // QML-trackable dependency — a binding on it evaluates once at page
+    // creation and is frozen forever.  Replaced by _completedAt, set
+    // imperatively exactly when the run reaches Completed (via the
+    // Connections block below), so the displayed time is the real
+    // completion time and updates correctly.
+    property string _completedAt: ""
     function fmtTimestamp() {
         var now = new Date();
         return ("0"+now.getHours()).slice(-2) + ":" + ("0"+now.getMinutes()).slice(-2) + ":" + ("0"+now.getSeconds()).slice(-2);
@@ -246,7 +255,7 @@ Item {
                         }
                         RowLayout { spacing: 4
                             AppIcon { name: "timer"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
-                            Label { text: fmtTimestamp(); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
+                            Label { text: page._completedAt; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
                 }

@@ -521,20 +521,14 @@ void AppState::runDiagnostics() {
     // Re-probe on every run so the schedule matches the current device and
     // the trace below reflects the same probe results.
     DeviceCapability::invalidateCache();
-    // Per-group enabled counts (verify checkbox state)
-    for (int g = 0; g < 5; ++g) {
-        int enabledInGroup = 0;
-        int totalInGroup = 0;
-        auto group = static_cast<DiagGroup>(g);
-        for (auto id : DiagnosticConfig::diagIdsForGroup(group)) {
-            // 5WHY: count only tests that can actually run on this OS/device
-            // so the trace reflects what will be scheduled, not the full 45.
-            if (!DeviceCapability::diagRunnable(id)) continue;
-            totalInGroup++;
-            if (m_configCtrl->config().enabledDiags().contains(id)) enabledInGroup++;
-        }
-        TRACE("   G%d: %d/%d enabled\n", g+1, enabledInGroup, totalInGroup);
-    }
+    // 5WHY: removed the TRACE-only per-group enabled-counts loop — it
+    // duplicated the scheduling pass below (45 diagRunnable + contains
+    // lookups) purely to feed a debug trace line that is compiled out in
+    // release.  The scheduling loop below is the single source of truth.
+    // Hoisted the G5 scheme filter (allocation-free once) — it was computed
+    // inside the per-diag inner loop for every G5 test.
+    const QString g5Scheme = m_targetModel->scheme().isEmpty()
+        ? QStringLiteral("https") : m_targetModel->scheme().toLower();
     for (int g = 0; g < 5; ++g) {
         // Skip inactive groups (user toggled them off via G1-G5 buttons)
         if (!m_activeGroups.contains(g)) continue;
@@ -553,9 +547,7 @@ void AppState::runDiagnostics() {
             // Config, never scheduled, never counted) instead of being recorded
             // as Skipped.
             if (gt.group == DiagGroup::G5 && hasTarget) {
-                QString scheme = m_targetModel->scheme().isEmpty()
-                    ? QStringLiteral("https") : m_targetModel->scheme().toLower();
-                if (!g5DiagMatchesScheme(id, scheme)) continue;
+                if (!g5DiagMatchesScheme(id, g5Scheme)) continue;
             }
             gt.diagIds.append(id);
             m_totalPerGroup[gt.group]++;

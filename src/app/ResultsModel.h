@@ -84,7 +84,6 @@ private:
     static QVariantMap resultToVariantMap(const DiagnosticResult& r, bool includeProperties);
 
     QMap<DiagId, DiagnosticResult> m_results;
-    QMap<DiagGroup, int> m_completedPerGroup;
     QMap<DiagGroup, int> m_totalPerGroup;
     int m_totalCompleted = 0;
     int m_totalDiags = 0;

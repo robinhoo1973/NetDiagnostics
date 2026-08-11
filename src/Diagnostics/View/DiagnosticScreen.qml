@@ -173,12 +173,6 @@ Item {
         detailOverlay.visible = true
     }
 
-    // Close any existing detail before showing another one so stale data
-    // cannot remain visible during rapid user navigation.
-    function dismissDetailOverlay() {
-        detailOverlay.visible = false
-    }
-
     function takeSnapshot() {
         _snapTargetError = appState.targetValidationErrorText
         _snapVersion++

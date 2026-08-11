@@ -149,10 +149,14 @@ bool TargetModel::schemeSupportsPassword(const QString& scheme) const {
 int TargetModel::defaultPort() const { return G5WebsiteUrl::defaultPortForScheme(m_scheme); }
 
 bool TargetModel::isHttpUrl() const {
-    // m_target is pre-trimmed in setTarget() — no copy needed
-    if (!m_target.contains("://")) return false;
-    const QString sch = m_target.section("://", 0, 0).toLower();
-    return (sch == "http" || sch == "https");  // !isEmpty() redundant: empty target returns above
+    // 5WHY (allocation): section() + toLower() allocated a lowercase QString
+    // on EVERY binding evaluation (per keystroke via targetChanged).  Use a
+    // no-allocation QStringView prefix compare instead.
+    const int pos = m_target.indexOf("://");
+    if (pos <= 0) return false;
+    const QStringView prefix = QStringView(m_target).left(pos);
+    return prefix.compare(u"http", Qt::CaseInsensitive) == 0
+        || prefix.compare(u"https", Qt::CaseInsensitive) == 0;
 }
 
 // ── Structured field setters ────────────────────────────────────────────

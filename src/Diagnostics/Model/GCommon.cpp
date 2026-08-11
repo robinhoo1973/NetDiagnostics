@@ -540,9 +540,11 @@ DohDnsFullResult dohQueryFull(const QString& domain, const QString& type, int ti
             globalMinTtl = fr.minTtl;
     }
 
-    // Majority consensus for A records
-    int threshold = qMin(3, responders);
-    if (threshold < 2) threshold = 1;
+    // Majority consensus for A records.
+    // 5WHY: qMin(3, responders) then forcing <2→1 was dead code — qMin(3,1)
+    // is already 1.  Policy: 1 of 1 accepts, 2 of 2 accepts, ≥2 of 3-4
+    // requires majority, but a single responder (1/3) still accepts.
+    int threshold = qMin(3, qMax(1, responders));
 
     QStringList consensusIps;
     for (auto it = freq.begin(); it != freq.end(); ++it) {

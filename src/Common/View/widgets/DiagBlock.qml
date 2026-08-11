@@ -1,7 +1,6 @@
 import QtQuick
 import "../theme"
 import "../theme/AnimationTokens.js" as Tokens
-import "../detail/KeyMetric.js" as KeyMetric
 import QtQuick.Controls
 import QtQuick.Layouts
 
@@ -37,20 +36,6 @@ Item {
     visible: _isPending || (itemData.status !== 3)
     implicitWidth: visible ? blockSize : 0
     implicitHeight: visible ? blockSize : 0
-
-    // ── Key metric (headline number, no duration text) ────────────────────
-    // 5WHY: was a SECOND independent implementation of DetailPage's metric
-    // logic (different key set, different formatting) — the two drifted.
-    // Both now consume the shared KeyMetric.js module (single source).
-    readonly property string _keyMetric: {
-        if (!_isDone) return ""
-        var km = KeyMetric.keyMetric(itemData.data, itemData.durationMs || 0)
-        if (!km.ok) return ""
-        // 5WHY: dedup — precision + min:sec formatting is the shared
-        // KeyMetric.formatNumber() (MetricCard uses the same helper).
-        var val = KeyMetric.formatNumber(km.value, km.precision, km.format)
-        return val + (km.unitKey ? " " + T.tr(km.unitKey) : "") + km.trailing
-    }
 
     // ── Elapsed-time indicator — top-left: color-coded circle with seconds ──
     // 5WHY: the spec requires seconds displayed INSIDE the dot (统一用圆点加实际秒数
