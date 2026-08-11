@@ -214,10 +214,16 @@ Page {
             // page's result headline: status, summary, target/duration.
             // 5WHY (format fix): a FIXED 96px height CLIPPED multi-line
             // summaries (e.g. DNS listing 6 addresses).  Height is now
-            // content-driven (heroRow.implicitHeight + 32 margins, min 96).
+            // content-driven (heroRow.implicitHeight + 24 margins, min 96).
+            // 5WHY (padding drift, 2026-08-11): the formula used +32 but the
+            // RowLayout's margins:12 provides only 24px of padding (12 top +
+            // 12 bottom).  The 8px discrepancy added dead space at the bottom
+            // of the hero card, which accumulated with Terminal's lg topMargin
+            // to create an abnormally large visual gap when all middle sections
+            // (Metric/Error/Properties/Charts) were hidden.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(96, heroRow.implicitHeight + 32)
+                Layout.preferredHeight: Math.max(96, heroRow.implicitHeight + 24)
                 radius: Th.ThemeEngine.radius.lg
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
@@ -501,13 +507,21 @@ Page {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: _hasTerminalOutput ? Th.ThemeEngine.spacing.lg : 0
-                implicitHeight: _hasTerminalOutput ? termBlock.implicitHeight + 16 : 0
+                // 5WHY (implicitHeight, 2026-08-11): the old termBlock.implicitHeight+16
+                // formula under-reported the actual content height by ~40px when the
+                // Loader's preferredHeight (72-360px) exceeded TerminalBlock's own
+                // implicitHeight (60px min).  The parent ColumnLayout could allocate
+                // too little space, clipping the terminal content.  Fixed by deriving
+                // the Rectangle's implicitHeight from the actual internal ColumnLayout
+                // (header label + spacing + Loader preferredHeight + margins).
+                implicitHeight: _hasTerminalOutput ? termCol.implicitHeight + 24 : 0
                 visible: _hasTerminalOutput
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
 
                 ColumnLayout {
+                    id: termCol
                     anchors { fill: parent; margins: 12 }
                     spacing: 6
                     Label {
@@ -520,9 +534,14 @@ Page {
                     Loader {
                         id: termLoader
                         Layout.fillWidth: true
-                        // Height follows line count (18px/line, clamp 120-360px)
+                        // Height follows line count (18px/line, clamp 72-360px).
+                        // 5WHY (min height, 2026-08-11): the old 120px minimum created
+                        // ~60px of dead dark space for diagnostics with 0-3 terminal
+                        // lines — the TerminalBlock's own implicitHeight minimum is 60px.
+                        // Lowered to 72px so short output shows compactly; the Flickable
+                        // inside TerminalBlock scrolls when content overflows.
                         Layout.preferredHeight: _hasTerminalOutput
-                            ? Math.min(360, Math.max(120, _terminalLines * 18 + 24)) : 0
+                            ? Math.min(360, Math.max(72, _terminalLines * 18 + 24)) : 0
                         active: _hasTerminalOutput
                         source: "qrc:/qml/detail/TerminalBlock.qml"
                         onLoaded: {

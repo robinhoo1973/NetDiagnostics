@@ -41,7 +41,12 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G1WiredDiagnostics, "Wired Information", "ethernet",      Desktop, DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G1DhcpStatus,       "DHCP Status",       "dhcp",          All,     DiagAnimType::Bounce, DiagTemplateType::System,    D(true,true,false,true,"leaseCount","leases",0,DetailProfile::NoChart,false) },
     { DiagId::G1IpConfiguration,  "IP Configuration",  "ip-config",     All,     DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
-    { DiagId::G1ActiveConnections,"Active Connections","connections",   Desktop, DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,true,false,"tcpCount","connections",0,DetailProfile::BarChart,false) },
+    // 5WHY (chart wiring, 2026-08-11): showCharts=true with BarChart type but
+    // templateType=System has no chart wiring in ResultChart (only Ping/Path/
+    // Handshake/Request/Query get BarChart/Gauge).  The "Detailed Data" section
+    // was always hidden because _source returned "" for System template.  Set
+    // showCharts=false until a System chart variant is wired.
+    { DiagId::G1ActiveConnections,"Active Connections","connections",   Desktop, DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,false,false,"tcpCount","connections",0,DetailProfile::BarChart,false) },
     { DiagId::G1CellularInfo,     "Cellular Information","cellular",    Mobile,  DiagAnimType::Pulse,  DiagTemplateType::System,    SYS() },
 
     // ── G2: Connectivity & Security ────────────────────────────────────
@@ -72,7 +77,10 @@ static const DiagnosticMeta kDiagMeta[] = {
     // not Ping (which requires individualRtts[]).  DiagNames.h already had this fix.
     { DiagId::G4PathPing,         "PathPing",          "path-ping",     All,     DiagAnimType::Bounce, DiagTemplateType::Path,      D(true,true,true,true,"hopCount","hops",0,DetailProfile::BarChart,false) },
     { DiagId::G4MtuDiscovery,     "MTU Discovery",     "mtu",           All,     DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
-    { DiagId::G4IPv6Connectivity, "IPv6 Connectivity", "ipv6",          All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,true,false,"connectedCount","ports",0,DetailProfile::BarChart,false) },
+    // 5WHY (chart wiring, 2026-08-11): showCharts=true with BarChart type but
+    // templateType=System has no chart wiring in ResultChart.  Same root cause
+    // as G1ActiveConnections — "Detailed Data" section was always hidden.
+    { DiagId::G4IPv6Connectivity, "IPv6 Connectivity", "ipv6",          All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,false,"connectedCount","ports",0,DetailProfile::BarChart,false) },
 
     // ── G5: Protocol ───────────────────────────────────────────────────
     // 5WHY: G5UrlParsing emits URL components (scheme/host/port/path/query) —

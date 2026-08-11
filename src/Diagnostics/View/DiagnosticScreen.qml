@@ -213,23 +213,29 @@ Item {
         // across both rows of status content.  On the AppBar they competed for
         // horizontal space with the title.  Here they sit next to "Diagnostic
         // Complete" — the natural place for export actions.
-        Rectangle {
-            id: resultsHeader
+        // 5WHY (width consistency, 2026-08-11): resultsHeader filled the full
+        // page width (no side margins) while the resultsFlick below constrained
+        // its content to parent.width-32 (16px side margins).  This 32px
+        // difference made the header visually wider than all content below it
+        // — DiagGroupPanel cards appeared narrower than the status bar above.
+        // Wrapping resultsHeader in an Item with 16px side margins unifies the
+        // effective content width across the entire Diagnostic screen and
+        // matches Dashboard's dashBody (also parent.width-32).
+        Item {
             Layout.fillWidth: true
-            readonly property bool _showBadges: appState.totalCompleted > 0
-            // 5WHY: Use fixed 36px minimum instead of binding Layout.minimumHeight
-            // to implicitHeight — prevents a latent binding cycle if future children
-            // use Layout.fillHeight (which would make their height depend on the
-            // parent's allocated height → implicitHeight becomes allocation-dependent).
             implicitHeight: Math.max(statusCol.implicitHeight,
                                      (statusBarShareBtns.visible ? statusBarShareBtns.implicitHeight : 0))
                             + (isMobile ? 12 : 8)
             Layout.minimumHeight: 36
-            color: ThemeEngine.colors.navBar
-            border { width: 1; color: ThemeEngine.colors.borderCard }
             visible: appState.totalCompleted > 0 || appState.runStatus === 1
-            RowLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 10; topMargin: 4; bottomMargin: 4 }
+            Rectangle {
+                id: resultsHeader
+                anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                readonly property bool _showBadges: appState.totalCompleted > 0
+                color: ThemeEngine.colors.navBar
+                border { width: 1; color: ThemeEngine.colors.borderCard }
+                RowLayout {
+                    anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 4; bottomMargin: 4 }
                 spacing: 6
                 ColumnLayout {
                     id: statusCol
@@ -295,6 +301,7 @@ Item {
                 }
             }
         }
+    }
 
 
         // ═══════════════ RESULTS ═══════════════════════════════════════
