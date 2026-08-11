@@ -44,25 +44,6 @@ void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
     emit progressChanged();
 }
 
-// ── Single-diag re-run support ─────────────────────────────────────────────
-// 5WHY: re-running ONE diagnostic must REPLACE that result without corrupting
-// the aggregate counters.  removeResult() undoes addResult()'s bookkeeping
-// (guarded by existence) so a subsequent addResult() lands on the correct
-// totals — the re-run replaces rather than accumulates.
-void ResultsModel::removeResult(DiagId id) {
-    auto it = m_results.find(id);
-    if (it == m_results.end()) return;
-    m_results.erase(it);
-    DiagGroup g = DiagnosticConfig::diagGroup(id);
-    auto git = m_completedPerGroup.find(g);
-    if (git != m_completedPerGroup.end() && git.value() > 0)
-        git.value()--;
-    if (m_totalCompleted > 0) m_totalCompleted--;
-    m_resultsVersion++;
-    m_cachedStatsVersion = -1;
-    emit progressChanged();
-}
-
 void ResultsModel::clear() {
     m_results.clear();
     m_completedPerGroup.clear();

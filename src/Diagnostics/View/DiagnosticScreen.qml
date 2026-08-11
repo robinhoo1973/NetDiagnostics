@@ -172,7 +172,7 @@ Item {
     // property calls groupStats(-1) once, saving 4 C++ calls per update.
     property var __agg: {
         var _ = appState.totalCompleted; var s = appState.groupStats(-1)
-        return { pass: s.pass||0, info: s.info||0, warn: s.warn||0, fail: s.fail||0, skip: s.skip||0 }
+        return { pass: s.pass||0, info: s.info||0, warn: s.warn||0, fail: s.fail||0, skip: s.skip||0, error: s.error||0 }
     }
 
     property var currentDetail: ({})
@@ -275,6 +275,7 @@ Item {
                         StatusBadge { statusCode: 1; count: __agg.warn }
                         StatusBadge { statusCode: 2; count: __agg.fail }
                         StatusBadge { statusCode: 3; count: __agg.skip }
+                        StatusBadge { statusCode: 4; count: __agg.error }
                     }
                 }
                 // 5WHY: Share buttons moved from AppBar to results header.

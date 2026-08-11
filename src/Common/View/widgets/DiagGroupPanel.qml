@@ -26,7 +26,7 @@ Rectangle {
     // ── Computed state — single C++ call, shared JS object (was 7 calls) ──
     property var _gstat: { var _v=_modelVersion; var s=appState.groupStats(groupIndex)
         return { total:s.total||0, completed:s.completed||0, pass:s.pass||0,
-                 warn:s.warn||0, fail:s.fail||0, skip:s.skip||0, info:s.info||0 } }
+                 warn:s.warn||0, fail:s.fail||0, skip:s.skip||0, info:s.info||0, error:s.error||0 } }
     property int enabledCount: _gstat.total
     property int completedCount: _gstat.completed
     property bool isRunning: appState.runStatus===1 && appState.currentRunningGroup===groupIndex
@@ -35,6 +35,7 @@ Rectangle {
     property int groupFail: _gstat.fail
     property int groupSkip: _gstat.skip
     property int groupInfo: _gstat.info
+    property int groupError: _gstat.error
 
     onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
     onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
@@ -108,6 +109,7 @@ Rectangle {
                     StatusBadge { statusCode: 1; count: groupWarn }
                     StatusBadge { statusCode: 2; count: groupFail }
                     StatusBadge { statusCode: 3; count: groupSkip }
+                    StatusBadge { statusCode: 4; count: groupError }
                 }
                 // 5WHY: Replaced ▼/▶ Unicode arrows with chevron SVG icons
                 // for consistent iconography across the app.
@@ -132,6 +134,7 @@ Rectangle {
                 StatusBadge { statusCode: 1; count: groupWarn }
                 StatusBadge { statusCode: 2; count: groupFail }
                 StatusBadge { statusCode: 3; count: groupSkip }
+                StatusBadge { statusCode: 4; count: groupError }
             }
         }
 

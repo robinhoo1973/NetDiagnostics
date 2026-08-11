@@ -42,8 +42,6 @@ public:
     void setSchemeFilter(const QString& scheme, bool hasUrl);
     // Called by AppState when a result completes
     void addResult(DiagId id, const DiagnosticResult& result);
-    // Single-diag re-run: undo addResult()'s bookkeeping for one id (if present)
-    void removeResult(DiagId id);
     void setCurrentGroup(int groupIdx);  // called when group starts executing
     void clear();  // reset to empty state
 

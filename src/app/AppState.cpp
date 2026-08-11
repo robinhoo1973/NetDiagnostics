@@ -612,61 +612,6 @@ void AppState::runDiagnostics() {
     startNextGroup();
 }
 
-// ── Single-diagnostic re-run (L5 detail page) ─────────────────────────────
-// 5WHY: the detail page had no "re-run this test" — users had to re-run the
-// whole battery.  The run engine is group-scheduled, so a single re-run
-// builds a ONE-group pending list (the requested diag), runs it through the
-// SAME generation-guarded completion path, and lets startNextGroup() finish
-// normally.  Other results are preserved: the stale result for the re-run
-// diag is removed (counters decremented) so the fresh result replaces it.
-void AppState::rerunDiag(int diagIdInt) {
-    if (m_runStatus == RunStatus::Running) return;  // one run at a time
-    if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return;
-    auto id = static_cast<DiagId>(diagIdInt);
-    if (!DeviceCapability::diagRunnable(id)) return;
-
-    DiagGroup g = DiagnosticConfig::diagGroup(id);
-    // Target gating mirrors runDiagnostics(): G4/G5 need a target; G5 must
-    // match the target's protocol scheme.
-    if ((g == DiagGroup::G4 || g == DiagGroup::G5) && isTargetEmpty()) return;
-    if (g == DiagGroup::G5 && m_targetModel->hasUrlScheme()) {
-        QString scheme = m_targetModel->scheme().isEmpty()
-            ? QStringLiteral("https") : m_targetModel->scheme().toLower();
-        if (!g5DiagMatchesScheme(id, scheme)) return;
-    }
-
-    // Preserve all other results; drop only the one being re-run so the
-    // onDiagFinished() hasResult() guard lets the fresh result through.
-    m_resultsModel->removeResult(id);
-
-    m_runGeneration.fetch_add(1, std::memory_order_release);  // invalidate stale callbacks
-    _bypassCellularCheck = true;  // explicit user action — no cellular re-warn
-    m_runStatus = RunStatus::Running;
-    m_totalDiags = 0;
-    m_totalPerGroup.clear();
-    m_currentGroupIdx = 0;
-    m_activeGroupDone.store(0);
-    m_pendingGroups.clear();
-    GroupTask gt;
-    gt.group = g;
-    gt.diagIds.append(id);
-    m_pendingGroups.append(gt);
-    m_totalDiags += 1;
-    m_totalPerGroup[g] = 1;
-    m_resultsModel->setTotalPerGroup(m_totalPerGroup);
-    // totalDiags = existing completed results + the one being re-run, so the
-    // header progress ("n / total") stays coherent while the single test runs.
-    m_resultsModel->setTotalDiags(m_resultsModel->totalCompleted() + 1);
-    m_resultsModel->setCurrentGroup(static_cast<int>(g));
-    m_currentDiagName = ::diagDisplayName(id);
-    emit runStatusChanged();
-    emit progressChanged();
-    bumpVersion();
-    Logger::instance().event(QStringLiteral("Re-running diagnostic %1")
-        .arg(::diagDisplayName(id)));
-    startNextGroup();
-}
-
 void AppState::startNextGroup() {
     if (m_runStatus != RunStatus::Running) return;
     if (m_currentGroupIdx >= m_pendingGroups.size()) {

@@ -38,6 +38,7 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
         r.data["responseType"] = QString();
         r.data["responseInfo"] = QString();
         r.data["authOk"] = false;
+        autoErrorOutput(r);
         return r;
     }
     // First byte: 'R'=Authentication, 'E'=Error, 'N'=Notice
@@ -55,6 +56,7 @@ DiagnosticResult postgresDiagnostics(const QString& target) {
     r.data["responseType"] = QString(QChar(type));
     r.data["responseInfo"] = info;
     r.data["authOk"] = (type == 'R');
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

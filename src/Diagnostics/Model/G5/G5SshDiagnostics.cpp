@@ -14,6 +14,8 @@ DiagnosticResult sshDiagnostics(const QString& target) {
     r.data["banner"] = bstr;
     r.summary = version.isEmpty() ? QStringLiteral("No SSH banner") : version;
     r.status = version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    if (!p.banner.isEmpty())
+        r.rawOutput = r.details = QString::fromUtf8(p.banner);
     autoErrorOutput(r);
     return r;
 }

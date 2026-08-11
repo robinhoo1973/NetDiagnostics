@@ -100,7 +100,7 @@ Page {
     // stacked) was ~70px tall. Page.contentItem auto-offsets below the
     // header, but the ToolBar default implicitHeight adapter sometimes
     // mis-sizes on iOS/Android static builds.  Keep it flat and compact:
-    //   <| test name (left)  ···  duration | COPY | RESTART
+    //   <| test name (left)  ···  duration | COPY
     // All result identity (icon, status, summary) lives in the body Hero.
     header: ToolBar {
         id: topBar
@@ -166,17 +166,6 @@ Page {
                 Accessible.name: T.tr("detailCopy")
             }
 
-            // Restart
-            ToolButton {
-                id: rerunBtn2
-                implicitWidth: 32; implicitHeight: 32
-                contentItem: W.AppIcon {
-                    name: "diagnostics"; size: 14
-                    color: Th.ThemeEngine.colors.textSecondary
-                }
-                onClicked: appState.rerunDiag(page.diagId)
-                Accessible.name: T.tr("detailRerun")
-            }
         }
     }
 
@@ -189,7 +178,10 @@ Page {
         id: bodyFlick
         anchors { fill: parent; topMargin: 0 }
         contentWidth: width
-        contentHeight: bodyColumn.implicitHeight + 20
+        // 5WHY: +20 was arbitrary bottom padding — bodyColumn already handles
+        // bottom spacing via its own children's implicit heights.  Use the
+        // natural implicitHeight without extra padding.
+        contentHeight: bodyColumn.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar {}
@@ -232,7 +224,10 @@ Page {
 
                 RowLayout {
                     id: heroRow
-                    anchors { fill: parent; margins: 16 }
+                    // 5WHY: margins:16 was inconsistent with other sections (margins:12)
+                    // — 8px narrower content area inside the same bodyColumn width.
+                    // Unified to 12px for visual consistency.
+                    anchors { fill: parent; margins: 12 }
                     spacing: 14
 
                     // Status icon in a tinted disc
