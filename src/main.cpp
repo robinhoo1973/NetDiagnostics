@@ -20,13 +20,18 @@
 #if defined(_WIN32)
 #include <windows.h>
 #endif
-// 5WHY: Static Qt builds (iOS, Android, Windows MSYS2) must explicitly import
+// 5WHY: Static Qt builds (iOS, Windows MSYS2) must explicitly import
 // image format plugins — the dynamic plugin loader doesn't exist on static
 // builds.  Without QSvgPlugin, QML Image elements silently fail to render
 // any SVG source (AppIcon pre-generated SVGs, TerminalBlock icons, etc.).
-// This is the root cause of SVG icons not displaying on mobile devices.
-// iOS is ALWAYS static Qt; Android often is; Windows uses ND_STATIC_QT flag.
-#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID) || defined(ND_STATIC_QT)
+// iOS is ALWAYS static Qt; Windows uses ND_STATIC_QT flag.
+//
+// 5WHY (2026-08-11): PLATFORM_ANDROID was REMOVED from this guard.
+// CI uses aqtinstall (shared .so Qt), not static Qt — Q_IMPORT_PLUGIN
+// produces an undefined symbol qt_static_plugin_QSvgPlugin() at link time.
+// Shared-Qt Android loads the qsvg plugin dynamically; no static import
+// is needed.  For Android static-Qt builds, define ND_STATIC_QT explicitly.
+#if defined(PLATFORM_IOS) || defined(ND_STATIC_QT)
 #include <QtPlugin>
 Q_IMPORT_PLUGIN(QSvgPlugin)
 #if defined(_WIN32)
