@@ -45,13 +45,19 @@ Item {
 
     // ── Tile size ──────────────────────────────────────────────────────────
     // tile = block / (n + (n+1)×k), clamped to [min, max]
-    // 5WHY: single-column branch used raw width (ignored edge gaps) —
-    // tile + 2×gap exceeded container.  General formula handles n≥1 correctly.
+    // 5WHY (width=0 during reloadModel): when the Repeater rebuilds
+    // delegates, Grid briefly has zero width → tile=0 clamped to _minTile.
+    // On the next frame width restores but _tileSize already evaluated
+    // with stale _columns=1 → wrong layout.  Guard: keep last valid size.
+    property int _lastTileSize: Math.max(_minTile, Math.min(_maxTile, 108))
     readonly property int _tileSize: {
         var n = _columns
+        if (width <= 0 || n <= 0) return _lastTileSize
         var denom = n + (n + 1) * _k
         var tile = Math.floor(width / denom)
-        return Math.min(_maxTile, Math.max(_minTile, tile))
+        var result = Math.min(_maxTile, Math.max(_minTile, tile))
+        root._lastTileSize = result
+        return result
     }
 
     // ── Gap width ──────────────────────────────────────────────────────────

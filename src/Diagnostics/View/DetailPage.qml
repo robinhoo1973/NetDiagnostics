@@ -359,7 +359,7 @@ Page {
             // 5WHY (spacing collapse): bind topMargin to visibility so
             // phantom 16px gap does not appear when Properties are absent.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: propsCol.implicitHeight + 16
+                Layout.fillWidth: true; implicitHeight: propsCol.implicitHeight + 24
                 Layout.topMargin: _hasProperties ? Th.ThemeEngine.spacing.lg : 0
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
@@ -458,7 +458,7 @@ Page {
 
             // ── Detailed Data section (charts, default collapsed) ────────
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: chartsCol.implicitHeight + 16
+                Layout.fillWidth: true; implicitHeight: chartsCol.implicitHeight + 24
                 // 5WHY (spacing collapse): bind topMargin to visibility so
                 // the Charts section boundary collapses when no chart data.
                 Layout.topMargin: chartView.hasChart

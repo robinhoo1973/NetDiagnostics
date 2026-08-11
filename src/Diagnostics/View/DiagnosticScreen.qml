@@ -86,8 +86,30 @@ Item {
     // each createObject+push an overlapping page.  Cache the Component after
     // first load; subsequent opens create objects synchronously.
     property var _detailComp: null
+    // 5WHY (scroll loss): Flickable.contentY resets to 0 when delegates
+    // rebuild (reloadModel) during StackView push/pop transitions. Save
+    // before pushing DetailPage; restore after pop completes.
+    property real _savedContentY: 0
+    // Restore scroll after DetailPage pop (StackView transitions back to us)
+    property int _restoreCount: 0
+    Timer {
+        id: scrollRestoreTimer
+        interval: 50; repeat: true
+        triggeredOnStart: false
+        onTriggered: {
+            if (page._restoreCount <= 0) { stop(); return }
+            if (resultsFlick.contentY <= 0 && page._savedContentY > 0) {
+                resultsFlick.contentY = page._savedContentY
+                page._restoreCount = 0
+                stop()
+            }
+            page._restoreCount--
+        }
+    }
+
     function showDetailOverlay(detail) {
         if (!detail || detail.diagId === undefined) return
+        page._savedContentY = resultsFlick.contentY
         var d = appState.getDetailResult(detail.diagId)
         if (!d || Object.keys(d).length === 0) return
         // Cached component — reuse without recompiling.
@@ -130,6 +152,12 @@ Item {
     function pushDetailPage(comp, d) {
         if (!comp || !d) return
         var p = comp.createObject(page, { detail: d })
+        // 5WHY: save scroll before push — when DetailPage pops, reloadModel
+        // may fire (if progressChanged arrived during push) and reset contentY.
+        // Schedule restore attempts for ~500ms after pop (10 ticks × 50ms).
+        page._savedContentY = resultsFlick.contentY
+        page._restoreCount = 10
+        scrollRestoreTimer.start()
         page.StackView.view.push(p)
     }
 
