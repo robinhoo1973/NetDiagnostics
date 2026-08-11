@@ -20,6 +20,7 @@ Item {
     id: root
 
     // ── Public API ────────────────────────────────────────────────────────
+    // model items: {diagId,status,isRunning,isDisabled,label,...} — passed to DiagBlock
     property var model: []
     property bool compact: false
     property bool usePerItemRunning: false

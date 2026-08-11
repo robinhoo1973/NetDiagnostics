@@ -64,6 +64,7 @@ struct G5ProbeResult {
     QByteArray banner;       // bytes read after optional sendData command
     qint64 durationMs = 0;
     int port = 0;
+    QString error;           // socket error string on connection failure
 };
 static G5ProbeResult g5Probe(const QUrl& u, const QByteArray& sendData = {},
                              int connectTimeoutMs = 5000, int readTimeoutMs = 3000) {
@@ -74,6 +75,7 @@ static G5ProbeResult g5Probe(const QUrl& u, const QByteArray& sendData = {},
     p.connected = probe.connected;
     p.banner = probe.data;
     p.durationMs = probe.elapsedMs;
+    p.error = probe.error;
     return p;
 }
 // Builds the base Query result after a probe.  On connect failure the result
@@ -109,9 +111,17 @@ static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
     // 5WHY: errorOutput was never set on connection failure — the DetailPage
     // error block was invisible for all 9 protocol tests.  Populate it so the
     // red error block renders on the detail page for failed connections.
+    // 5WHY (error detail): the original fix used only host + port — no socket
+    // error string.  Users saw "Connection to 192.168.1.1:80 failed" with no
+    // indication of WHY (timeout vs refused vs unreachable).  Root cause:
+    // NetworkProbe::TcpProbeResult lacked an error field.  Now includes the
+    // captured socket error string so the error block shows the actual reason.
     if (!p.connected) {
-        r.errorOutput = QStringLiteral("Connection to %1:%2 failed")
-                            .arg(u.host()).arg(p.port);
+        r.errorOutput = p.error.isEmpty()
+            ? QStringLiteral("Connection to %1:%2 failed")
+                  .arg(u.host()).arg(p.port)
+            : QStringLiteral("Connection to %1:%2 failed: %3")
+                  .arg(u.host()).arg(p.port).arg(p.error);
         r.details = r.errorOutput;
         r.rawOutput = r.details;
     }

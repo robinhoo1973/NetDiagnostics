@@ -51,10 +51,17 @@ public:
     /// lifecycle (QElapsedTimer + QTcpSocket + connectToHost + waitForReadyRead
     /// + readAll + disconnectFromHost).  Extract once so timeout handling and
     /// error reporting are centrally maintained.
+    /// 5WHY (error capture): TcpProbeResult lacked an error field — connection
+    /// failures were silent (only connected=false, no reason).  Unlike
+    /// TcpConnectResult which captures the socket error string, tcpProbe()
+    /// discarded sock.errorString().  The missing error string cascaded through
+    /// g5Probe() → g5ProbeResult() → generic "Connection failed" errorOutput
+    /// visible to end users for all 8 refactored G5 protocol tests.
     struct TcpProbeResult {
         bool connected = false;
         QByteArray data;
         qint64 elapsedMs = 0;
+        QString error;      // socket error string on connection failure
     };
     static TcpProbeResult tcpProbe(const QString& host, int port,
                                     int connectTimeoutMs = 5000,

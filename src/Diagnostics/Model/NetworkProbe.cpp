@@ -49,6 +49,7 @@ NetworkProbe::TcpProbeResult NetworkProbe::tcpProbe(const QString& host, int por
     QTcpSocket sock;
     sock.connectToHost(host, port);
     if (!sock.waitForConnected(connectTimeoutMs)) {
+        r.error = sock.errorString();  // capture reason before socket goes out of scope
         r.elapsedMs = t.elapsed();
         return r;
     }
