@@ -116,14 +116,16 @@ static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
     // indication of WHY (timeout vs refused vs unreachable).  Root cause:
     // NetworkProbe::TcpProbeResult lacked an error field.  Now includes the
     // captured socket error string so the error block shows the actual reason.
+    // 5WHY (double-rendering): setting details=errorOutput on failure caused
+    // the same error message to appear in BOTH the red error block AND the
+    // dark terminal-output section on the detail page.  On connection failure
+    // there is NO protocol data to show — terminal should be empty.
     if (!p.connected) {
         r.errorOutput = p.error.isEmpty()
             ? QStringLiteral("Connection to %1:%2 failed")
                   .arg(u.host()).arg(p.port)
             : QStringLiteral("Connection to %1:%2 failed: %3")
                   .arg(u.host()).arg(p.port).arg(p.error);
-        r.details = r.errorOutput;
-        r.rawOutput = r.details;
     }
     return r;
 }

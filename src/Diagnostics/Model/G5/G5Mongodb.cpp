@@ -13,8 +13,9 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     if (!sock.waitForConnected(5000)) {
         QString err = QStringLiteral("MongoDB connection to %1:%2 failed: %3")
                           .arg(u.host()).arg(port).arg(sock.errorString());
+        // 5WHY: errorOutput only — terminal stays empty (no protocol data)
         auto r = result(DiagId::G5Mongodb, "Connection failed", DiagStatus::Fail,
-                      err, t.elapsed());
+                      {}, t.elapsed());
         r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;
