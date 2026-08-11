@@ -77,16 +77,20 @@ Page {
     Component.onCompleted: { page.chartsExpanded = chartView.seriesCount <= 8 }
 
     // Consolidate repeated compound expressions — computed once, read many times
-    readonly property bool _hasTerminalOutput: (page.detail.details || page.detail.rawOutput || "") !== ""
+    readonly property bool _hasTerminalOutput: _terminalText !== ""
     readonly property bool _hasErrorOutput: (page.detail.errorOutput || "") !== ""
     readonly property bool _hasProperties: (page.detail.properties || []).length > 0
+    // 5WHY (efficiency): _terminalText caches the compound expression once for
+    // both _hasTerminalOutput (boolean check) and _terminalLines (char loop).
+    // The old _terminalLines independently re-evaluated the same || chain.
+    readonly property string _terminalText: page.detail.details || page.detail.rawOutput || ""
     readonly property int _terminalLines: {
-        if (!_hasTerminalOutput) return 0
-        var txt = page.detail.details || page.detail.rawOutput || ""
+        var txt = _terminalText
+        if (txt === "") return 0
         var count = 0
         for (var i = 0; i < txt.length; i++)
             if (txt[i] === '\n') count++
-        return count + 1  // lines = newlines + 1
+        return count + 1
     }
 
     background: Rectangle { color: Th.ThemeEngine.colors.surface }
@@ -531,8 +535,8 @@ Page {
                                 item.text = Qt.binding(function() {
                                     return page.detail.details || page.detail.rawOutput || ""
                                 })
-                                // Cap typewriter animation to concise output
-                                item.typewriter = _terminalLines < 100
+                                // 5WHY: typewriter 80ms/line — cap at ≤2000 chars AND ≤100 lines
+                                item.typewriter = _terminalText.length < 2000 && _terminalLines < 100
                             }
                         }
                     }

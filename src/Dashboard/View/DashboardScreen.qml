@@ -17,7 +17,6 @@ Item {
     // → the function always returned early.  Declare it matching
     // ReportScreen's hasResults && !isRunning pattern.
     readonly property bool canReport: hasData && _runStatus !== 1
-    readonly property var allStats: appState.allGroupStats || []
     readonly property bool isMobile: ThemeEngine.isMobile
     readonly property alias overlayVisible: previewOverlay.visible
 
@@ -113,6 +112,7 @@ Item {
     Connections {
         target: appState
         function onProgressChanged() {
+            page._groupsVersion++
             if (page.previewVisible && appState.runStatus !== 1) page.openPreview()
         }
         // 5WHY: onSavePathPicked was removed — it ignored `format` and always
@@ -157,13 +157,18 @@ Item {
         return ("0"+now.getHours()).slice(-2) + ":" + ("0"+now.getMinutes()).slice(-2) + ":" + ("0"+now.getSeconds()).slice(-2);
     }
     // 5WHY: the per-group results Repeater and the layer-timing Repeater
-    // each built the same filtered group list inline — one could drift from
-    // the other.  Single source for "visible, non-empty groups".
-    function activeGroupIndices() {
+    // 5WHY (efficiency): was a JS function called by TWO Repeater model
+    // bindings — each rebuilt a fresh array independently.  Cached property
+    // evaluates once; both Repeaters share the same list.  _groupsVersion
+    // bumps on progressChanged so the list rebuilds after each test completes.
+    property int _groupsVersion: 0
+    readonly property var _activeGroups: {
+        var v = _groupsVersion  // read to establish dependency
         var groups = []
         for (var g = 0; g < appState.groupLabels.length; g++) {
             var s = appState.groupStats(g)
-            if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) groups.push(g)
+            if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0))
+                groups.push(g)
         }
         return groups
     }
@@ -256,7 +261,7 @@ Item {
             Item { Layout.preferredHeight: 12 }
 
             Repeater {
-                model: page.activeGroupIndices()
+                model: page._activeGroups
                 delegate: DashboardGroupRow { groupIndex: modelData; Layout.fillWidth: true }
             }
             Item { Layout.preferredHeight: 32 }
@@ -282,7 +287,7 @@ Item {
                     Label { text: T.tr("layerTimings"); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary; visible: _totalCompleted > 0 }
                     Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
                     Repeater {
-                        model: page.activeGroupIndices()
+                        model: page._activeGroups
                         delegate: RowLayout {
                             visible: hasData
                             // 5WHY: replaced generic dot bullet with a per-layer

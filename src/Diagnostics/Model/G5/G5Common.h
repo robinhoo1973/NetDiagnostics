@@ -34,6 +34,15 @@ static DiagnosticResult g5Result(DiagId id, const QString& summary,
     DiagnosticResult r;
     r.id = id; r.group = DiagGroup::G5; r.status = status;
     r.summary = summary; r.timestamp = QDateTime::currentDateTime();
+    // 5WHY (altitude fix): g5Result() never set errorOutput — 17+ G5 tests
+    // with protocol-level failures (MySQL handshake, Redis PONG, MQTT CONNACK,
+    // curl errors, SSL cert, URL parse) had invisible red error blocks on
+    // DetailPage.  Auto-populate from summary so every Fail/Warning result
+    // shows a visible error block.  Callers with richer error detail (socket
+    // error string) can overwrite this default.
+    if (status == DiagStatus::Fail || status == DiagStatus::Warning
+        || status == DiagStatus::Error)
+        r.errorOutput = summary;
     return r;
 }
 
@@ -48,6 +57,12 @@ static DiagnosticResult result(DiagId id, const QString& summary,
     DiagnosticResult r = g5Result(id, summary, status);
     if (!details.isEmpty()) { r.rawOutput = details; r.details = details; }
     if (durationMs > 0) r.durationMs = durationMs;
+    // 5WHY: prefer details over summary for errorOutput — g5Result already
+    // set errorOutput=summary on Fail.  If the caller passed richer detail
+    // text, use that instead of the one-line summary.
+    if (!details.isEmpty() && (status == DiagStatus::Fail
+        || status == DiagStatus::Warning || status == DiagStatus::Error))
+        r.errorOutput = details;
     return r;
 }
 

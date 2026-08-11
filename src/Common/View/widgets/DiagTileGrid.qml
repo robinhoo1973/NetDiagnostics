@@ -56,10 +56,11 @@ Item {
     readonly property int _gapWidth: Math.max(4, Math.round(_tileSize * _k))
 
     // ── Layout metrics ─────────────────────────────────────────────────────
-    readonly property int _rowCount: model && model.length
-        ? Math.ceil(model.length / _columns) : 0
-    implicitHeight: _rowCount > 0
-        ? _rowCount * _tileSize + (_rowCount - 1) * _gapWidth : 0
+    // 5WHY (fragile calc): the old manual height formula decoupled from the
+    // Grid's actual layout — if DiagBlock ever renders taller than _tileSize,
+    // implicitHeight would under-report and the parent ColumnLayout would clip
+    // the bottom.  Bind to the Grid's own layout output instead.
+    implicitHeight: grid.implicitHeight
 
     // ── Tile wall ─────────────────────────────────────────────────────────
     // Edge gaps via left/right anchors.margins = _gapWidth
