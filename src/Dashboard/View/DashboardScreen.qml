@@ -171,15 +171,29 @@ Item {
     // evaluates once; both Repeaters share the same list.  _groupsVersion
     // bumps on progressChanged so the list rebuilds after each test completes.
     property int _groupsVersion: 0
+    // 5WHY (tile width drift): _activeGroups rebuilt a NEW array on every
+    // _groupsVersion bump (progressChanged, ~2×/test) → both Repeaters
+    // destroyed & recreated DashboardGroupRow (and its DiagTileGrid) each
+    // tick, resetting the tile-size guard → wrong tile width during the run.
+    // Fix: cache the array; only assign a new reference when the
+    // group-membership key actually changes.
+    property string _activeKey: ""
+    property var _activeCache: []
     readonly property var _activeGroups: {
         var v = _groupsVersion  // read to establish dependency
+        var key = ""
         var groups = []
         for (var g = 0; g < appState.groupLabels.length; g++) {
             var s = appState.groupStats(g)
-            if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0))
-                groups.push(g)
+            if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) {
+                groups.push(g); key += g + ","
+            }
         }
-        return groups
+        if (key !== page._activeKey) {
+            page._activeKey = key
+            page._activeCache = groups
+        }
+        return page._activeCache
     }
 
     // AppBar

@@ -49,7 +49,12 @@ Item {
     // delegates, Grid briefly has zero width → tile=0 clamped to _minTile.
     // On the next frame width restores but _tileSize already evaluated
     // with stale _columns=1 → wrong layout.  Guard: keep last valid size.
-    property int _lastTileSize: Math.max(_minTile, Math.min(_maxTile, 108))
+    // 5WHY (tile width drift during run): the guard was ALSO reset by
+    // wholesale DiagGroupPanel recreation (visibleGroups/_activeGroups
+    // rebuilt per progress tick) — that is fixed at the caller (stable
+    // array reference).  Initial guard value = midpoint of [min,max]
+    // (closer to real layouts than the old hardcoded 108).
+    property int _lastTileSize: Math.floor((_minTile + _maxTile) / 2)
     readonly property int _tileSize: {
         var n = _columns
         if (width <= 0 || n <= 0) return _lastTileSize

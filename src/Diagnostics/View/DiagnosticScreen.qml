@@ -198,14 +198,31 @@ Item {
     }
 
     property var currentDetail: ({})
+    // 5WHY (tile width drift): visibleGroups was a JS-block binding re-ticked
+    // via _snapVersion on EVERY stateVersion change (~2×/test).  Each re-eval
+    // returned a NEW array reference → the Repeater destroyed & recreated
+    // every DiagGroupPanel 2×/test.  Each recreation resets the fresh
+    // DiagTileGrid's _lastTileSize guard to its default (108) and re-triggers
+    // the known width=0 reload transient → tiles render at the wrong width
+    // DURING the run, then snap to the correct size once the run ends
+    // (stateVersion goes quiet → no more re-creation).
+    // Fix: cache the built array; only assign a NEW reference when the
+    // group-membership key actually changes, otherwise return the same array.
+    property string _visibleKey: ""
+    property var _visibleCache: []
     property var visibleGroups: {
         var _ = _snapVersion
+        var key = ""
         var g = []
         for (var i = 0; i < appState.groupLabels.length; i++) {
             var s = appState.groupStats(i)
-            if (appState.isGroupActive(i) && (s.enabled || 0) > 0) g.push(i)
+            if (appState.isGroupActive(i) && (s.enabled || 0) > 0) { g.push(i); key += i + "," }
         }
-        return g
+        if (key !== page._visibleKey) {
+            page._visibleKey = key
+            page._visibleCache = g
+        }
+        return page._visibleCache
     }
 
     // ── Single-column layout ──────────────────────────────────────────
