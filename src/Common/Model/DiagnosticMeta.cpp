@@ -22,14 +22,9 @@ static DetailProfile D(bool err, bool props, bool charts, bool term,
     d.terminalTypewriter = tt;
     return d;
 }
-static DetailProfile NO_CHART(const char* f, const char* u) {
-    return D(true, true, false, false, f, u, 0, DetailProfile::NoChart, false);
-}
+// 5WHY: PING/PATH/HAND/REQ/NO_CHART defined but never called — dead code.
+// Only SYS (14 uses) and QRY (11 uses) are active in the 46-test table.
 static DetailProfile SYS()  { return D(true, true, false, false, nullptr, nullptr, 0, DetailProfile::NoChart, false); }
-static DetailProfile PING(){ DetailProfile d = D(true,true,true,true,"rttAvgMs","ms",0,DetailProfile::BarChart,false); d.showTerminal=true; return d; }
-static DetailProfile PATH(){ DetailProfile d = D(true,true,true,true,"hopCount","hops",0,DetailProfile::BarChart,false); return d; }
-static DetailProfile HAND(){ DetailProfile d = D(true,true,true,true,"daysLeft","days",0,DetailProfile::Gauge,false); return d; }
-static DetailProfile REQ() { DetailProfile d = D(true,false,true,true,"totalMs","ms",0,DetailProfile::BarChart,false); return d; }
 static DetailProfile QRY() { DetailProfile d = D(true,true,true,true,"latencyMs","ms",0,DetailProfile::Gauge,false); return d; }
 
 // ── 46-test metadata table ──────────────────────────────────────────────
@@ -114,7 +109,7 @@ static_assert(sizeof(kDiagMeta) / sizeof(kDiagMeta[0]) == 46,
 
 const DiagnosticMeta& diagnosticMeta(DiagId id) {
     auto idx = static_cast<int>(id);
-    if (idx >= 0 && idx < 46)
+    if (idx >= 0 && idx < static_cast<int>(sizeof(kDiagMeta) / sizeof(kDiagMeta[0])))
         return kDiagMeta[idx];
     static const DiagnosticMeta s_default{};
     return s_default;

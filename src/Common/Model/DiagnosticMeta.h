@@ -66,8 +66,3 @@ struct DiagnosticMeta {
 // ── Registry accessor ────────────────────────────────────────────────────
 // Returns the metadata for a given DiagId.  id must be a valid enum value.
 const DiagnosticMeta& diagnosticMeta(DiagId id);
-
-// ── Convenience predicates ───────────────────────────────────────────────
-inline bool diagAvailableOn(DiagId id, uint8_t platformMask) {
-    return (diagnosticMeta(id).platforms & platformMask) != 0;
-}
