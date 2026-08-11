@@ -77,7 +77,6 @@ set(SOURCES
     src/Diagnostics/Model/G2/G2TcpSettings.cpp
     src/Diagnostics/Model/G2/G2DefaultGateway.cpp
     src/Diagnostics/Model/G2/G2ProxySettings.cpp
-    src/Diagnostics/Model/G3/G3NetskopeStatus.cpp
     src/Diagnostics/Model/G3/G3DnsServers.cpp
     src/Diagnostics/Model/G3/G3DnsCache.cpp
     src/Diagnostics/Model/G3/G3DnsIntegrity.cpp

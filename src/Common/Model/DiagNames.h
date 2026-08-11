@@ -25,7 +25,7 @@ inline QString diagDisplayName(DiagId id) {
         case DiagId::G2RoutingTable:     return QStringLiteral("Routing Table");
         case DiagId::G2ArpTable:         return QStringLiteral("ARP Table");
         case DiagId::G2ProxySettings:    return QStringLiteral("Proxy Settings");
-        case DiagId::G3NetskopeStatus:   return QStringLiteral("Netskope Status");
+        case DiagId::_G3Reserved17_Deprecated: return QStringLiteral("(removed)");
         case DiagId::G3DnsServers:       return QStringLiteral("DNS Servers");
         case DiagId::G3DnsCache:         return QStringLiteral("DNS Cache");
         case DiagId::G3DnsIntegrity:     return QStringLiteral("DNS Integrity");
@@ -99,7 +99,7 @@ inline QString diagIconName(DiagId id) {
         case DiagId::G2ArpTable:           return QStringLiteral("arp-table");
         case DiagId::G2ProxySettings:      return QStringLiteral("proxy");
         // G3 — Internet & DNS
-        case DiagId::G3NetskopeStatus:     return QStringLiteral("cloud-shield");
+        case DiagId::_G3Reserved17_Deprecated: return QStringLiteral("circle");
         case DiagId::G3DnsServers:         return QStringLiteral("dns-server");
         case DiagId::G3DnsCache:           return QStringLiteral("dns-cache");
         case DiagId::G3DnsIntegrity:       return QStringLiteral("dns-shield");

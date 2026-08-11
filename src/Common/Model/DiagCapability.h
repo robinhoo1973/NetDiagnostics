@@ -60,7 +60,7 @@ inline unsigned diagPlatformSupport(DiagId id) {
         case DiagId::G2TcpSettings:
         case DiagId::G2ArpTable:
         case DiagId::G2ProxySettings:
-        case DiagId::G3NetskopeStatus:
+        case DiagId::_G3Reserved17_Deprecated:
         case DiagId::G3DnsCache:
             return PF_Desktop | PF_Android;
 
@@ -161,7 +161,7 @@ inline QString unsupportedReason(DiagId id) {
             return QStringLiteral("The ARP / neighbour table has no public API on iOS.");
         case DiagId::G2ProxySettings:
             return QStringLiteral("iOS uses a system-managed proxy (Wi-Fi PAC / VPN profile); environment-variable proxies do not apply and the active proxy is not readable by third-party apps.");
-        case DiagId::G3NetskopeStatus:
+        case DiagId::_G3Reserved17_Deprecated:
             return QStringLiteral("Detecting a security-proxy agent requires enumerating running processes, which the iOS sandbox forbids.");
         case DiagId::G3DnsCache:
             return QStringLiteral("iOS does not expose the system DNS resolver cache to apps.");

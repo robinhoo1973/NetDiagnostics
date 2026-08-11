@@ -180,13 +180,11 @@ static const TaskEntry kTaskTable[] = {
     // ── G3: Internet & DNS (6) ───────────────────────────────────────────
 #if defined(PLATFORM_ANDROID)
     // Android: DNS servers (ConnectivityManager), cache (warm/cold probe),
-    // integrity (portable scoring engine) and netskope (PackageManager).
-    { DiagId::G3NetskopeStatus,        makeT1(androidNetskopeStatusDiag) },
+    // integrity (portable scoring engine).
     { DiagId::G3DnsServers,            makeT1(androidDnsServersDiag) },
     { DiagId::G3DnsCache,              makeT1(androidDnsCacheDiag) },
     { DiagId::G3DnsIntegrity,          makeT1(SystemDiagnostics::dnsIntegrity) },
 #else
-    { DiagId::G3NetskopeStatus,        makeT1(SystemDiagnostics::netskopeStatus) },
     // 5WHY: iOS G3DnsServers was routed to g3DnsServersFactory() → iosDnsResolve(),
     // which resolves a HOSTNAME.  G3 tests have no target (makeT1 pattern), so it
     // resolved an empty host → always SERVFAIL "DNS Resolution Failed for"

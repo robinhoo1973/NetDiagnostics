@@ -34,6 +34,5 @@ DiagnosticResult androidArpTableDiag(DiagId id);            // G2ArpTable
 DiagnosticResult androidProxyDiag(DiagId id);               // G2ProxySettings
 
 // ── G3: Internet & DNS ─────────────────────────────────────────────────
-DiagnosticResult androidNetskopeStatusDiag(DiagId id);      // G3NetskopeStatus
 DiagnosticResult androidDnsServersDiag(DiagId id);          // G3DnsServers
 DiagnosticResult androidDnsCacheDiag(DiagId id);            // G3DnsCache

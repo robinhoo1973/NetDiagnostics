@@ -53,7 +53,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2ProxySettings,    "Proxy Settings",    "proxy",         All,     DiagAnimType::Path,   DiagTemplateType::System,    SYS() },
 
     // ── G3: Internet & DNS ─────────────────────────────────────────────
-    { DiagId::G3NetskopeStatus,   "Netskope Status",   "cloud-shield",  Desktop, DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
+    { DiagId::_G3Reserved17_Deprecated, "(removed)",    "circle",        0,      DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G3DnsServers,       "DNS Servers",       "dns-server",    All,     DiagAnimType::Pulse,  DiagTemplateType::System,    D(true,true,false,true,"serverCount","servers",0,DetailProfile::NoChart,false) },
     { DiagId::G3DnsCache,         "DNS Cache",         "dns-cache",     All,     DiagAnimType::Jiggle, DiagTemplateType::System,    D(true,true,false,true,"cacheEntries","entries",0,DetailProfile::NoChart,false) },
     { DiagId::G3DnsIntegrity,     "DNS Integrity",     "dns-shield",    All,     DiagAnimType::Lock,   DiagTemplateType::Handshake, D(true,true,true,true,"overallScorePercent","%",0,DetailProfile::Gauge,false) },

@@ -2,7 +2,6 @@
 #include "Diagnostics/Model/GBase.h"
 namespace SystemDiagnostics {
 
-DiagnosticResult netskopeStatus(DiagId id);
 DiagnosticResult dnsServers(DiagId id);
 DiagnosticResult dnsCache(DiagId id);
 DiagnosticResult dnsIntegrity(DiagId id);

@@ -555,7 +555,7 @@ static AndroidProxy androidProxy() {
     return p;
 }
 
-// Installed packages (G3NetskopeStatus).  Requires QUERY_ALL_PACKAGES on
+// Installed packages helper.  Requires QUERY_ALL_PACKAGES on
 // API 30+ to see packages other than the app's own; without it the list is
 // partial and the diagnostic says so.
 static QStringList androidInstalledPackages() {
@@ -1843,50 +1843,6 @@ DiagnosticResult androidActiveConnectionsDiag(DiagId id) {
 // ═══════════════════════════════════════════════════════════════════════
 // G3: Internet & DNS (Android-native implementations)
 // ═══════════════════════════════════════════════════════════════════════
-
-// ── G3 Netskope Status ─────────────────────────────────────────────────
-// Android forbids enumerating /proc processes.  Known security-agent apps
-// are instead detected through PackageManager (needs QUERY_ALL_PACKAGES).
-DiagnosticResult androidNetskopeStatusDiag(DiagId id) {
-    DiagnosticResult r; r.id = id; r.group = DiagGroup::G3;
-    r.timestamp = QDateTime::currentDateTime();
-    QStringList out;
-    out.append(QString());
-    out.append(QStringLiteral("Security Proxy Status:"));
-    out.append(QString());
-
-    static const char* kAgents[] = {
-        "com.netskope", "com.zscaler", "com.citrix.netscaler",
-        "com.symantec", "com.trellix", "com.paloaltonetworks",
-        "com.fortinet", "com.checkpoint",
-    };
-    QStringList pkgs = androidInstalledPackages();
-    bool found = false;
-    QStringList foundList;
-    for (const auto& p : pkgs) {
-        for (const char* agent : kAgents) {
-            if (p.startsWith(QString::fromLatin1(agent), Qt::CaseInsensitive)) {
-                found = true;
-                if (!foundList.contains(p)) foundList << p;
-            }
-        }
-    }
-    if (found) {
-        for (const auto& p : foundList)
-            out.append(QStringLiteral("  Found security agent: %1").arg(p));
-        r.status = DiagStatus::Pass;
-        r.summary = QStringLiteral("Security agent detected (%1)").arg(foundList.join(QStringLiteral(", ")));
-    } else {
-        out.append(QStringLiteral("  No known security-proxy agent package detected."));
-        out.append(QStringLiteral("  (Detected via PackageManager; apps hidden by package"));
-        out.append(QStringLiteral("   visibility rules are not enumerable without QUERY_ALL_PACKAGES.)"));
-        r.status = DiagStatus::Info;
-        r.summary = QStringLiteral("No security agent detected");
-    }
-    r.rawOutput = out.join('\n');
-    r.details = r.rawOutput;
-    return r;
-}
 
 // ── G3 DNS Servers ─────────────────────────────────────────────────────
 // 5WHY: /etc/resolv.conf is empty on Android; ConnectivityManager

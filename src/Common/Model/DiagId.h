@@ -62,8 +62,8 @@ enum class DiagId {
     G2ArpTable,
     G2ProxySettings,
 
-    // G3 — Internet & DNS (6)
-    G3NetskopeStatus,
+    // G3 — Internet & DNS (5; slot 17 was Netskope, removed 2026-08)
+    _G3Reserved17_Deprecated,
     G3DnsServers,
     G3DnsCache,
     G3DnsIntegrity,
@@ -122,7 +122,7 @@ inline DiagGroup diagGroup(DiagId id) {
         case DiagId::G2ArpTable:
         case DiagId::G2ProxySettings:
             return DiagGroup::G2;
-        case DiagId::G3NetskopeStatus:
+        case DiagId::_G3Reserved17_Deprecated:
         case DiagId::G3DnsServers:
         case DiagId::G3DnsCache:
         case DiagId::G3DnsIntegrity:
@@ -169,7 +169,7 @@ inline const QVector<DiagId>& allDiagIds() {
         DiagId::G1ActiveConnections, DiagId::G1CellularInfo,
         DiagId::G2NetworkProfile, DiagId::G2TcpSettings, DiagId::G2DefaultGateway,
         DiagId::G2RoutingTable, DiagId::G2ArpTable, DiagId::G2ProxySettings,
-        DiagId::G3NetskopeStatus, DiagId::G3DnsServers, DiagId::G3DnsCache,
+        DiagId::G3DnsServers, DiagId::G3DnsCache,
         DiagId::G3DnsIntegrity,
         DiagId::G3InternetConnectivity, DiagId::G3GeoIPLoc,
         DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
