@@ -273,7 +273,7 @@ Item {
                 // 5WHY: margins:16 was inconsistent with info card (12px),
                 // DashboardGroupRow (12px), and DiagGroupPanel (12px).
                 // Unified to 12px for visual consistency.
-                ColumnLayout { id: sumCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 } }
+                ColumnLayout { id: sumCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 }
                     Label { text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     ColumnLayout {
