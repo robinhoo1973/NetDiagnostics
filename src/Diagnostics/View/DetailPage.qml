@@ -325,133 +325,103 @@ Page {
             // 5WHY: errorOutput was serialized by C++ (getDetailResult) but
             // never rendered — failed tests with only an errorOutput lost
             // their error detail on the detail page.
-            // 5WHY (spacing collapse): bind topMargin + implicitHeight to
-            // visibility so the error section fully collapses.  Non-conditional
-            // implicitHeight on an invisible child can leak into the parent
-            // ColumnLayout height calculation (Qt layout engine edge case).
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.topMargin: _hasErrorOutput ? Th.ThemeEngine.spacing.sm : 0
-                implicitHeight: _hasErrorOutput ? errCol.implicitHeight + 24 : 0
-                visible: _hasErrorOutput
-                radius: Th.ThemeEngine.radius.md
-                color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
-                border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.5) }
-                ColumnLayout {
-                    id: errCol; anchors { fill: parent; margins: 12 }
-                    spacing: 6
-                    Label {
-                        text: T.tr("detailError")
-                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
-                        color: Th.ThemeEngine.colors.failRed
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: page.detail.errorOutput
-                        font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
-                        color: Th.ThemeEngine.colors.textPrimary
-                        wrapMode: Text.WrapAnywhere
-                    }
+            W.ConditionalCard {
+                active: _hasErrorOutput
+                topMargin: Th.ThemeEngine.spacing.sm
+                contentSpacing: 6
+                cardColor: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
+                borderColor: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.5)
+
+                Label {
+                    text: T.tr("detailError")
+                    font.family: Th.ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.Bold
+                    color: Th.ThemeEngine.colors.failRed
                 }
+                Label {
+                    Layout.fillWidth: true
+                    text: page.detail.errorOutput
+                    font.family: Th.ThemeEngine.monoFont; font.pixelSize: 11
+                    color: Th.ThemeEngine.colors.textPrimary
+                    wrapMode: Text.WrapAnywhere
+                }
+
                 Accessible.name: T.tr("detailError")
                 Accessible.role: Accessible.StaticText
             }
 
             // ── Properties section (collapsible) ─────────────────────────
-            // 5WHY (spacing collapse): bind topMargin + implicitHeight to
-            // visibility.  Same Qt layout edge case as Error/Charts/Terminal
-            // — non-conditional implicitHeight leaks phantom spacing.
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: _hasProperties ? propsCol.implicitHeight + 24 : 0
-                Layout.topMargin: _hasProperties ? Th.ThemeEngine.spacing.lg : 0
-                radius: Th.ThemeEngine.radius.md
-                color: Th.ThemeEngine.colors.card
-                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
-                // 5WHY: several diagnostics emit no properties — the empty
-                // section header was dead UI.  _hasProperties pre-computes this.
-                visible: _hasProperties
+            // 5WHY: several diagnostics emit no properties — the empty
+            // section header was dead UI.  _hasProperties pre-computes this.
+            W.ConditionalCard {
+                active: _hasProperties
+                topMargin: Th.ThemeEngine.spacing.lg
 
+                // Section header — shared CollapsibleSectionHeader.
+                W.CollapsibleSectionHeader {
+                    Layout.fillWidth: true
+                    title: T.tr("detailProperties")
+                    expanded: page.propsExpanded
+                    onToggleRequested: page.propsExpanded = !page.propsExpanded
+                }
+
+                // Property rows — with severity dots + nested children
                 ColumnLayout {
-                    id: propsCol
-                    anchors { fill: parent; margins: 12 }
-                    spacing: 4
-
-                    // Section header — shared CollapsibleSectionHeader.
-                    // 5WHY: the tap-to-toggle header (label + ▲/▼ + MouseArea
-                    // + Accessible) was duplicated for Properties and Detailed
-                    // Data — one shared component keeps them in sync.
-                    W.CollapsibleSectionHeader {
-                        Layout.fillWidth: true
-                        title: T.tr("detailProperties")
-                        expanded: page.propsExpanded
-                        onToggleRequested: page.propsExpanded = !page.propsExpanded
-                    }
-
-                    // Property rows — with severity dots + nested children
-                    ColumnLayout {
-                        visible: page.propsExpanded; spacing: 2
-                        Repeater {
-                            model: page.detail.properties || []
-                            delegate: ColumnLayout {
-                                spacing: 1
-                                // Main property row
-                                RowLayout {
+                    visible: page.propsExpanded; spacing: 2
+                    Repeater {
+                        model: page.detail.properties || []
+                        delegate: ColumnLayout {
+                            spacing: 1
+                            RowLayout {
+                                spacing: 6
+                                Rectangle {
+                                    Layout.preferredWidth: 6; Layout.preferredHeight: 6
+                                    radius: 3
+                                    color: modelData.severity === 2 ? Th.ThemeEngine.colors.failRed
+                                           : modelData.severity === 1 ? Th.ThemeEngine.colors.warnYellow
+                                           : Th.ThemeEngine.colors.textMuted
+                                    Layout.alignment: Qt.AlignVCenter
+                                    visible: modelData.severity !== undefined
+                                }
+                                Label {
+                                    text: T.trProp(modelData.label) + ":"; font.family: Th.ThemeEngine.monoFont
+                                    font.pixelSize: 11; color: Th.ThemeEngine.colors.textMuted
+                                    Layout.preferredWidth: Math.min(implicitWidth, 140)
+                                    elide: Text.ElideRight
+                                }
+                                Label {
+                                    text: modelData.value || ""; font.family: Th.ThemeEngine.monoFont
+                                    font.pixelSize: 11; color: Th.ThemeEngine.colors.textPrimary
+                                    Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                                    Accessible.name: modelData.label + ": " + (modelData.value || "")
+                                    Accessible.role: Accessible.StaticText
+                                }
+                            }
+                            // Nested children (indented)
+                            Repeater {
+                                model: modelData.children || []
+                                delegate: RowLayout {
                                     spacing: 6
-                                    // Severity indicator dot (color-coded)
-                                    // 5WHY: explicit width/height on a layout-managed
-                                    // item is undefined behavior (qmllint) — declare
-                                    // preferred sizes and let the RowLayout allocate.
+                                    Layout.leftMargin: 16
                                     Rectangle {
-                                        Layout.preferredWidth: 6; Layout.preferredHeight: 6
-                                        radius: 3
+                                        Layout.preferredWidth: 4; Layout.preferredHeight: 4
+                                        radius: 2
                                         color: modelData.severity === 2 ? Th.ThemeEngine.colors.failRed
                                                : modelData.severity === 1 ? Th.ThemeEngine.colors.warnYellow
-                                               : Th.ThemeEngine.colors.textMuted
+                                               : Th.ThemeEngine.colors.borderCard
                                         Layout.alignment: Qt.AlignVCenter
-                                        visible: modelData.severity !== undefined
                                     }
                                     Label {
                                         text: T.trProp(modelData.label) + ":"; font.family: Th.ThemeEngine.monoFont
-                                        font.pixelSize: 11; color: Th.ThemeEngine.colors.textMuted
-                                        Layout.preferredWidth: Math.min(implicitWidth, 140)
+                                        font.pixelSize: 10; color: Th.ThemeEngine.colors.textMuted
+                                        Layout.preferredWidth: Math.min(implicitWidth, 120)
                                         elide: Text.ElideRight
                                     }
                                     Label {
                                         text: modelData.value || ""; font.family: Th.ThemeEngine.monoFont
-                                        font.pixelSize: 11; color: Th.ThemeEngine.colors.textPrimary
+                                        font.pixelSize: 10; color: Th.ThemeEngine.colors.textSecondary
                                         Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
                                         Accessible.name: modelData.label + ": " + (modelData.value || "")
                                         Accessible.role: Accessible.StaticText
-                                    }
-                                }
-                                // Nested children (indented)
-                                Repeater {
-                                    model: modelData.children || []
-                                    delegate: RowLayout {
-                                        spacing: 6
-                                        Layout.leftMargin: 16  // indent children
-                                        Rectangle {
-                                            Layout.preferredWidth: 4; Layout.preferredHeight: 4
-                                            radius: 2
-                                            color: modelData.severity === 2 ? Th.ThemeEngine.colors.failRed
-                                                   : modelData.severity === 1 ? Th.ThemeEngine.colors.warnYellow
-                                                   : Th.ThemeEngine.colors.borderCard
-                                            Layout.alignment: Qt.AlignVCenter
-                                        }
-                                        Label {
-                                            text: T.trProp(modelData.label) + ":"; font.family: Th.ThemeEngine.monoFont
-                                            font.pixelSize: 10; color: Th.ThemeEngine.colors.textMuted
-                                            Layout.preferredWidth: Math.min(implicitWidth, 120)
-                                            elide: Text.ElideRight
-                                        }
-                                        Label {
-                                            text: modelData.value || ""; font.family: Th.ThemeEngine.monoFont
-                                            font.pixelSize: 10; color: Th.ThemeEngine.colors.textSecondary
-                                            Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                                            Accessible.name: modelData.label + ": " + (modelData.value || "")
-                                            Accessible.role: Accessible.StaticText
-                                        }
                                     }
                                 }
                             }
@@ -461,107 +431,61 @@ Page {
             }
 
             // ── Detailed Data section (charts, default collapsed) ────────
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: chartView.hasChart ? chartsCol.implicitHeight + 24 : 0
-                // 5WHY (spacing collapse): bind topMargin + implicitHeight to
-                // visibility — same Qt layout edge case as Error/Properties.
-                Layout.topMargin: chartView.hasChart
-                                  ? Th.ThemeEngine.spacing.lg : 0
-                radius: Th.ThemeEngine.radius.md
-                color: Th.ThemeEngine.colors.card
-                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
-                // 5WHY: gate on the shared ResultChart's hasChart — a real
-                // visualization exists for this template's data.
-                visible: chartView.hasChart
+            // 5WHY: gate on ResultChart.hasChart — a real visualization
+            // exists for this template's data.
+            W.ConditionalCard {
+                active: chartView.hasChart
+                topMargin: Th.ThemeEngine.spacing.lg
+                contentSpacing: 8
 
-                ColumnLayout {
-                    id: chartsCol
-                    anchors { fill: parent; margins: 12 }
-                    spacing: 8
+                W.CollapsibleSectionHeader {
+                    Layout.fillWidth: true
+                    title: T.tr("detailData")
+                    expanded: page.chartsExpanded
+                    onToggleRequested: page.chartsExpanded = !page.chartsExpanded
+                }
 
-                    W.CollapsibleSectionHeader {
-                        Layout.fillWidth: true
-                        title: T.tr("detailData")
-                        expanded: page.chartsExpanded
-                        onToggleRequested: page.chartsExpanded = !page.chartsExpanded
-                    }
-
-                    // Chart area — all chart wiring (source selection, series,
-                    // gauge spec, height, language re-bind) lives in the
-                    // shared ResultChart component.
-                    Viz.ResultChart {
-                        id: chartView
-                        Layout.fillWidth: true
-                        data: page.resultData
-                        expanded: page.chartsExpanded
-                    }
+                Viz.ResultChart {
+                    id: chartView
+                    Layout.fillWidth: true
+                    data: page.resultData
+                    expanded: page.chartsExpanded
                 }
             }
 
             // ── Terminal output ──────────────────────────────────────────
             // 5WHY: the terminal section was always visible, showing an empty
-            // dark rectangle with just the "Terminal Output" header when the
-            // test produced no terminal output (e.g. G1 system property tests
-            // that emit only properties[]).  Gate the entire section on output
-            // presence so the empty shell never renders.
-            // 5WHY (spacing collapse): bind topMargin to visibility so the
-            // 16px boundary collapses when there is no terminal output.
+            // dark rectangle when the test produced no terminal output.
+            // Gate the entire section on output presence.
             // 5WHY (efficiency): _hasTerminalOutput + _terminalLines consolidate
             // the 7 duplicated compound expressions into one computed property.
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.topMargin: _hasTerminalOutput ? Th.ThemeEngine.spacing.lg : 0
-                // 5WHY (implicitHeight, 2026-08-11): the old termBlock.implicitHeight+16
-                // formula under-reported the actual content height by ~40px when the
-                // Loader's preferredHeight (72-360px) exceeded TerminalBlock's own
-                // implicitHeight (60px min).  The parent ColumnLayout could allocate
-                // too little space, clipping the terminal content.  Fixed by deriving
-                // the Rectangle's implicitHeight from the actual internal ColumnLayout
-                // (header label + spacing + Loader preferredHeight + margins).
-                implicitHeight: _hasTerminalOutput ? termCol.implicitHeight + 24 : 0
-                visible: _hasTerminalOutput
-                radius: Th.ThemeEngine.radius.md
-                color: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"
-                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+            W.ConditionalCard {
+                active: _hasTerminalOutput
+                topMargin: Th.ThemeEngine.spacing.lg
+                contentSpacing: 6
+                cardColor: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"
 
-                ColumnLayout {
-                    id: termCol
-                    anchors { fill: parent; margins: 12 }
-                    spacing: 6
-                    Label {
-                        text: T.tr("detailTerminal"); font.family: Th.ThemeEngine.monoFont
-                        font.pixelSize: 11; font.weight: Font.Bold
-                        color: Th.ThemeEngine.colors.textPrimary
-                        Accessible.name: T.tr("detailTerminal")
-                        Accessible.role: Accessible.StaticText
-                    }
-                    Loader {
-                        id: termLoader
-                        Layout.fillWidth: true
-                        // Height follows line count (18px/line, clamp 72-360px).
-                        // 5WHY (min height, 2026-08-11): the old 120px minimum created
-                        // ~60px of dead dark space for diagnostics with 0-3 terminal
-                        // lines — the TerminalBlock's own implicitHeight minimum is 60px.
-                        // Lowered to 72px so short output shows compactly; the Flickable
-                        // inside TerminalBlock scrolls when content overflows.
-                        Layout.preferredHeight: _hasTerminalOutput
-                            ? Math.min(360, Math.max(72, _terminalLines * 18 + 24)) : 0
-                        active: _hasTerminalOutput
-                        source: "qrc:/qml/detail/TerminalBlock.qml"
-                        onLoaded: {
-                            if (item) {
-                                item.text = Qt.binding(function() {
-                                    return page.detail.details || page.detail.rawOutput || ""
-                                })
-                                // 5WHY: typewriter animation controlled by metadata
-                                // (only G1WifiDiagnostics has terminalTypewriter:true).
-                                // Size heuristic (<2000 chars, <100 lines) is a
-                                // safety net — typewriter on huge output is laggy.
-                                item.typewriter = (resultData.terminalTypewriter === true)
-                                    && _terminalText.length < 2000
-                                    && _terminalLines < 100
-                            }
+                Label {
+                    text: T.tr("detailTerminal"); font.family: Th.ThemeEngine.monoFont
+                    font.pixelSize: 11; font.weight: Font.Bold
+                    color: Th.ThemeEngine.colors.textPrimary
+                    Accessible.name: T.tr("detailTerminal")
+                    Accessible.role: Accessible.StaticText
+                }
+                Loader {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: _hasTerminalOutput
+                        ? Math.min(360, Math.max(72, _terminalLines * 18 + 24)) : 0
+                    active: _hasTerminalOutput
+                    source: "qrc:/qml/detail/TerminalBlock.qml"
+                    onLoaded: {
+                        if (item) {
+                            item.text = Qt.binding(function() {
+                                return page.detail.details || page.detail.rawOutput || ""
+                            })
+                            item.typewriter = (resultData.terminalTypewriter === true)
+                                && _terminalText.length < 2000
+                                && _terminalLines < 100
                         }
                     }
                 }

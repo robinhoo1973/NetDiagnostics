@@ -140,7 +140,8 @@ Rectangle {
 
         // ── Progress bar ──────────────────────────────────────────────
         Rectangle {
-            Layout.fillWidth: true; implicitHeight: 4; Layout.topMargin: 6
+            Layout.fillWidth: true; implicitHeight: 4
+            Layout.topMargin: (isRunning || completedCount > 0) ? 6 : 0
             visible: isRunning || completedCount > 0
             radius: 2; color: ThemeEngine.colors.borderCard
             Rectangle {

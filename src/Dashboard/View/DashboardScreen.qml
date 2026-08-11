@@ -316,9 +316,14 @@ Item {
             // 5WHY: was visible as soon as hasData (totalCompleted>0) — user could
             // click Review Report while diagnostics were still running, producing a
             // partial report.  Now requires runStatus !== 1 (not running).
+            // 5WHY (spacing collapse): implicitHeight + topMargin must be conditional
+            // on visibility — same Qt layout edge case as DetailPage sections.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: repCol.implicitHeight + 24; radius: 12
-                Layout.topMargin: 16; visible: hasData && appState.runStatus !== 1
+                Layout.fillWidth: true
+                implicitHeight: (hasData && appState.runStatus !== 1)
+                                ? repCol.implicitHeight + 24 : 0
+                Layout.topMargin: (hasData && appState.runStatus !== 1) ? 16 : 0
+                visible: hasData && appState.runStatus !== 1
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
                 // 5WHY: margins:16 was inconsistent with info card (12px),
                 // DashboardGroupRow (12px), and DiagGroupPanel (12px).
