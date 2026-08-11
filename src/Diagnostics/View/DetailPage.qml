@@ -476,6 +476,7 @@ Page {
                     // collapses the card when _terminalLines === 0, so no
                     // ternary guard needed here.
                     Layout.preferredHeight: Math.min(360, Math.max(72, _terminalLines * 18 + 24))
+                    active: _terminalLines > 0
                     source: "qrc:/qml/detail/TerminalBlock.qml"
                     onLoaded: {
                         if (item) {

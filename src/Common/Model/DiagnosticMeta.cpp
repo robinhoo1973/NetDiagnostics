@@ -50,17 +50,17 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2DefaultGateway,   "Default Gateway",   "gateway",       All,     DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     // 5WHY: G2RoutingTable emits routes[] (dest/gateway/metric) — no hop RTTs.
     // Path template requires hops[].rttMs; System template (properties+terminal) fits.
-    { DiagId::G2RoutingTable,     "Routing Table",     "route-table",   Desktop, DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,false,true,"routeCount","routes",0,DetailProfile::NoChart,false) },
+    { DiagId::G2RoutingTable,     "Routing Table",     "route-table",   All,     DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,false,true,"routeCount","routes",0,DetailProfile::NoChart,false) },
     { DiagId::G2ArpTable,         "ARP Table",         "arp-table",     Desktop, DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,true,"entryCount","entries",0,DetailProfile::NoChart,false) },
-    { DiagId::G2ProxySettings,    "Proxy Settings",    "proxy",         All,     DiagAnimType::Path,   DiagTemplateType::System,    SYS() },
+    { DiagId::G2ProxySettings,    "Proxy Settings",    "proxy",         Desktop | Android, DiagAnimType::Path,   DiagTemplateType::System,    SYS() },
 
     // ── G3: Internet & DNS ─────────────────────────────────────────────
-    { DiagId::_G3Reserved17_Deprecated, "(removed)",    "circle",        0,      DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
+    { DiagId::_G3Reserved17_Deprecated, "(removed)",    "circle",        Desktop | Android, DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G3DnsServers,       "DNS Servers",       "dns-server",    All,     DiagAnimType::Pulse,  DiagTemplateType::System,    D(true,true,false,true,"serverCount","servers",0,DetailProfile::NoChart,false) },
-    { DiagId::G3DnsCache,         "DNS Cache",         "dns-cache",     All,     DiagAnimType::Jiggle, DiagTemplateType::System,    D(true,true,false,true,"cacheEntries","entries",0,DetailProfile::NoChart,false) },
+    { DiagId::G3DnsCache,         "DNS Cache",         "dns-cache",     Desktop | Android, DiagAnimType::Jiggle, DiagTemplateType::System,    D(true,true,false,true,"cacheEntries","entries",0,DetailProfile::NoChart,false) },
     { DiagId::G3DnsIntegrity,     "DNS Integrity",     "dns-shield",    All,     DiagAnimType::Lock,   DiagTemplateType::Handshake, D(true,true,true,true,"overallScorePercent","%",0,DetailProfile::Gauge,false) },
-    { DiagId::G3GeoIPLoc,         "GeoIP Location",    "geo-location",  All,     DiagAnimType::Bounce, DiagTemplateType::System,    SYS() },
-    { DiagId::G3InternetConnectivity,"Internet Connectivity","internet-check",All,DiagAnimType::Lock, DiagTemplateType::Handshake, D(true,true,true,true,"downloadMbpsBest","Mbps",1,DetailProfile::BarChart,false) },
+    { DiagId::G3GeoIPLoc,         "IP Geolocation",    "geo-location",  All,     DiagAnimType::Bounce, DiagTemplateType::System,    SYS() },
+    { DiagId::G3InternetConnectivity,"Internet Connectivity & Speed","internet-check",All,DiagAnimType::Lock, DiagTemplateType::Handshake, D(true,true,true,true,"downloadMbpsBest","Mbps",1,DetailProfile::BarChart,false) },
 
     // ── G4: Remote Host ────────────────────────────────────────────────
     // 5WHY: G4DnsResolution produces queryTimeMs + answerCount — no individualRtts[].
@@ -84,7 +84,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G5UrlParsing,       "URL Parsing",       "url-parse",     All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,true,nullptr,nullptr,0,DetailProfile::NoChart,false) },
     { DiagId::G5TcpConnect,       "TCP Connect",       "tcp-connect",   All,     DiagAnimType::Path,   DiagTemplateType::Query,     QRY() },
     { DiagId::G5ServiceBanner,    "Service Banner",    "banner",        All,     DiagAnimType::Type,   DiagTemplateType::Query,     D(true,true,false,true,"latencyMs","ms",0,DetailProfile::Gauge,false) },
-    { DiagId::G5CurlVerbose,      "cURL Verbose",      "curl-verbose",  Desktop, DiagAnimType::Type,   DiagTemplateType::Request,   D(true,false,true,true,"totalMs","ms",0,DetailProfile::BarChart,false) },
+    { DiagId::G5CurlVerbose,      "HTTP Request",      "curl-verbose",  All,     DiagAnimType::Type,   DiagTemplateType::Request,   D(true,false,true,true,"totalMs","ms",0,DetailProfile::BarChart,false) },
     { DiagId::G5HttpHeaders,      "HTTP Headers",      "http-headers",  All,     DiagAnimType::Type,   DiagTemplateType::Request,   D(true,true,false,true,"headerCount","headers",0,DetailProfile::NoChart,false) },
     { DiagId::G5SecurityHeaders,  "Security Headers",  "security-headers",All,  DiagAnimType::Lock,   DiagTemplateType::Handshake, D(true,true,true,true,"score","score",0,DetailProfile::Gauge,false) },
     { DiagId::G5SslCertificate,   "SSL Certificate",   "certificate",   All,     DiagAnimType::Lock,   DiagTemplateType::Handshake, D(true,true,true,true,"daysLeft","days",0,DetailProfile::Gauge,false) },
