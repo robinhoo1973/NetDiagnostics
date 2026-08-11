@@ -70,14 +70,14 @@ Page {
         var key = page._statusKeys[page.status]
         return key ? T.tr(key) : ""
     }
-    // Hero meta line: tested host · duration (previously only in terminal text).
+    // Hero meta line: tested host only.
+    // 5WHY: duration was duplicated here AND in the header ToolBar — the
+    // hero's "host · 1.2s" repeated what the header already shows beside the
+    // test name.  Removed the duration part; the header is the single place
+    // for elapsed time, the hero keeps the identity line.
     readonly property string _metaLine: {
         var host = page.resultData.target || page.resultData.host || ""
-        var dur = page.detail.durationMs || 0
-        if (host && dur > 0) return host + " · " + KM.formatDuration(dur)
-        if (host) return String(host)
-        if (dur > 0) return KM.formatDuration(dur)
-        return ""
+        return host ? String(host) : ""
     }
     // 5WHY (P2): charts default-collapsed hid the visualizations.  Compact
     // series (≤8 bars) start expanded; long traceroutes stay collapsed.

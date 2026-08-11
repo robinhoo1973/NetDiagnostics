@@ -21,6 +21,61 @@ static QString hostHeader(const QString& host, int port) {
     return (port != 80) ? QStringLiteral("%1:%2").arg(host).arg(port) : host;
 }
 
+// ── Shared EAGAIN-safe socket helpers ────────────────────────────────
+// 5WHY: httpDownload/httpUpload/httpTtfb each hand-rolled the same
+// non-blocking send loop (3 different timeout schemes: hardcoded 30s /
+// caller timeoutMs / 100-attempt×100ms) and the same select+recv loop
+// with duplicated Win32-vs-POSIX errno branches.  They had already
+// drifted (e.g. httpDownload's 30s send guard vs httpUpload's timeoutMs).
+// Extracted once so every EAGAIN/timeout fix applies everywhere.
+
+// Send the whole buffer, retrying on EAGAIN/EWOULDBLOCK until the
+// wall-clock guard expires.  Returns true iff all bytes were sent.
+static bool sendAll(int sock, const QByteArray& data, int timeoutMs) {
+    int sent = 0;
+    QElapsedTimer guard; guard.start();
+    while (sent < data.size()) {
+        if (guard.elapsed() > timeoutMs) return false;
+        auto n = ::send(sock, data.constData() + sent, data.size() - sent, 0);
+        if (n > 0) { sent += n; continue; }
+        if (n == 0) return false;  // connection closed
+#if defined(_WIN32)
+        if (WSAGetLastError() != WSAEWOULDBLOCK) return false;  // fatal error
+#else
+        if (errno != EAGAIN && errno != EWOULDBLOCK) return false;
+#endif
+        fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf);
+        struct timeval wfTv = {0, 100000};  // 100ms select wait
+        if (select(sock + 1, nullptr, &wf, nullptr, &wfTv) <= 0) return false;
+    }
+    return true;
+}
+
+// Wait until the socket is readable or the budget expires.
+// Returns true iff readable.
+static bool waitReadable(int sock, int budgetMs) {
+    fd_set fdset; struct timeval tv;
+    int selectMs = qMax(budgetMs, 50);
+    FD_ZERO(&fdset); FD_SET(sock, &fdset);
+    tv = {selectMs / 1000, (selectMs % 1000) * 1000};
+    return select(sock + 1, &fdset, nullptr, nullptr, &tv) > 0;
+}
+
+// Read one chunk.  Returns bytes read (>0), 0 on EOF/real error,
+// -1 on EAGAIN/EWOULDBLOCK (caller should retry after waitReadable).
+static ssize_t recvChunk(int sock, char* buf, int bufSize) {
+    ssize_t n = recv(sock, buf, bufSize, 0);
+    if (n < 0) {
+#if defined(_WIN32)
+        if (WSAGetLastError() == WSAEWOULDBLOCK) return -1;
+#else
+        if (errno == EAGAIN || errno == EWOULDBLOCK) return -1;
+#endif
+        return 0;
+    }
+    return n;
+}
+
 // HTTP download with throughput measurement
 // SpeedResult defined in GHelpers.h
 SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) {
@@ -33,31 +88,16 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
     QElapsedTimer t; t.start();
     int sock = tcpConnect(host, port, 3000);
     if (sock < 0) { r.error = QStringLiteral("TCP Connect Failed"); return r; }
-    fd_set fdset; struct timeval tv; // reused by send/recv loops below
 
-    // Send HTTP GET (loop handles partial sends, EAGAIN-safe)
+    // Send HTTP GET (shared EAGAIN-safe helper, 30s hard guard preserved)
     // 5WHY: Host header omitted port — same bug that was fixed in httpGet()
     // (see above). Speed-test servers on port 8080 behind reverse proxies
     // may route incorrectly without the explicit port per RFC 7230 §5.4.
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
         .arg(path, hostHeader(host, port)).toUtf8();
-    int reqSent = 0;
-    QElapsedTimer sendGuard; sendGuard.start();
-    while (reqSent < req.size()) {
-        if (sendGuard.elapsed() > 30000) break; // 30s hard guard (matching httpGet)
-        auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
-        if (n < 0) {
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
-#endif
-            break;
-        }
-        if (n == 0) break;
-        reqSent += n;
+    if (!sendAll(sock, req, 30000)) {
+        r.error = QStringLiteral("HTTP Request Send Incomplete"); closeSocket(sock); return r;
     }
-    if (reqSent < req.size()) { r.error = QStringLiteral("HTTP Request Send Incomplete"); closeSocket(sock); return r; }
 
     // Read with timing — measure throughput (wall-clock guarded)
     qint64 startNs = t.nsecsElapsed();
@@ -80,24 +120,10 @@ SpeedResult httpDownload(const QString& urlStr, int targetBytes, int timeoutMs) 
         // qMIN (not qMAX): respect caller's timeout, with 60s safety net.
         int remaining = qMin(timeoutMs, 60000) - (int)recvGuard.elapsed();
         if (remaining <= 0) break;
-        int selectMs = qMax(remaining, 50); // matching httpGet pattern
-        FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {selectMs / 1000, (selectMs % 1000) * 1000};
-        if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
-        ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        // 5WHY: treat EAGAIN as retry, not end-of-stream
-        if (n > 0) {
-            /* process below */
-        } else if (n == 0) {
-            break; // orderly shutdown
-        } else {
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
-#endif
-            break; // real error
-        }
+        if (!waitReadable(sock, remaining)) break;
+        ssize_t n = recvChunk(sock, buf, sizeof(buf));
+        if (n < 0) continue;  // EAGAIN — retry
+        if (n == 0) break;    // EOF or real error
         if (!headersDone) {
             headerBuf.append(buf, (int)n);
             auto hdrEnd = headerBuf.indexOf("\r\n\r\n");
@@ -185,48 +211,23 @@ SpeedResult httpUpload(const QString& urlStr, int targetBytes, int timeoutMs) {
     // Move startNs before the send loop so Mbps = bytes * 8 / (send + recv).
     qint64 startNs = t.nsecsElapsed();
 
-    // Send request + body
-    int reqSent = 0;
-    QElapsedTimer sendGuard; sendGuard.start();
-    while (reqSent < req.size()) {
-        if (sendGuard.elapsed() > timeoutMs) break;
-        auto n = ::send(sock, req.constData() + reqSent, req.size() - reqSent, 0);
-        if (n < 0) {
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) { fd_set wf; FD_ZERO(&wf); FD_SET(sock, &wf); struct timeval wfTv = {1,0}; select(sock+1, nullptr, &wf, nullptr, &wfTv); continue; }
-#endif
-            break;
-        }
-        if (n == 0) break;
-        reqSent += n;
+    // Send request + body (shared EAGAIN-safe helper)
+    if (!sendAll(sock, req, timeoutMs)) {
+        r.error = QStringLiteral("Upload Send Incomplete"); closeSocket(sock); return r;
     }
-    if (reqSent < req.size()) { r.error = QStringLiteral("Upload Send Incomplete"); closeSocket(sock); return r; }
 
-    // Read HTTP response
-    fd_set fdset; struct timeval tv;
+    // Read HTTP response (shared select+recv helpers)
     QByteArray respBuf;
     char buf[4096];
     QElapsedTimer recvGuard; recvGuard.start();
     while (respBuf.size() < 4096) {
         int remaining = qMin(timeoutMs, 30000) - (int)recvGuard.elapsed();
         if (remaining <= 0) break;
-        int selectMs = qMax(remaining, 50);
-        FD_ZERO(&fdset); FD_SET(sock, &fdset);
-        tv = {selectMs / 1000, (selectMs % 1000) * 1000};
-        if (select(sock + 1, &fdset, nullptr, nullptr, &tv) <= 0) break;
-        ssize_t n = recv(sock, buf, sizeof(buf), 0);
-        if (n > 0) { respBuf.append(buf, (int)n); }
-        else if (n == 0) break;
-        else {
-#if defined(_WIN32)
-            if (WSAGetLastError() == WSAEWOULDBLOCK) continue;
-#else
-            if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
-#endif
-            break;
-        }
+        if (!waitReadable(sock, remaining)) break;
+        ssize_t n = recvChunk(sock, buf, sizeof(buf));
+        if (n < 0) continue;   // EAGAIN — retry
+        if (n == 0) break;     // EOF or real error
+        respBuf.append(buf, (int)n);
     }
     closeSocket(sock);
 
@@ -282,31 +283,12 @@ double httpTtfb(const QString& host, int port, const QString& path,
     if (sock < 0) return -1.0;
     QByteArray req = QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2\r\nUser-Agent: NetDiagnostics/1.0\r\nConnection: close\r\n\r\n")
         .arg(path, hostHeader(host, port)).toUtf8();
-    // EAGAIN-safe send loop — socket is non-blocking (set by tcpConnect)
-    // 5WHY: retried on ALL n<0 including ECONNRESET/EPIPE, causing 10s stalls.
-    // Now only retries on EAGAIN/EWOULDBLOCK (transient buffer-full), matching
-    // httpDownload's guard (lines 39-41).
-    int sent = 0; int sendAttempts = 0;
-    while (sent < req.size() && sendAttempts < 100) {
-        int n = ::send(sock, req.constData() + sent, req.size() - sent, 0);
-        if (n > 0) { sent += n; sendAttempts = 0; }
-        else if (n < 0) {
-#if defined(_WIN32)
-            int e = WSAGetLastError();
-            if (e != WSAEWOULDBLOCK) break; // fatal error
-#else
-            if (errno != EAGAIN && errno != EWOULDBLOCK) break;
-#endif
-            fd_set wfds; struct timeval wtv = {0, 100000};
-            FD_ZERO(&wfds); FD_SET(sock, &wfds);
-            if (select(sock + 1, nullptr, &wfds, nullptr, &wtv) <= 0) break;
-            sendAttempts++;
-        }
-        else break; // n == 0: connection closed
-    }
-    // 5WHY: incomplete send fell through to read-select, wasting readTimeoutSec.
-    // Server never received full request → cannot respond → early return.
-    if (sent < req.size()) { closeSocket(sock); return -1.0; }
+    // EAGAIN-safe send (shared helper; 10s wall-clock guard preserves the
+    // old 100-attempt x 100ms budget).  Socket is non-blocking (tcpConnect).
+    // 5WHY: incomplete send used to fall through to read-select, wasting
+    // readTimeoutSec — server never received the full request, so it cannot
+    // respond.  sendAll returns false on incomplete send → early return.
+    if (!sendAll(sock, req, 10000)) { closeSocket(sock); return -1.0; }
 
     fd_set fds; struct timeval tv = {readTimeoutSec, 0};
     FD_ZERO(&fds); FD_SET(sock, &fds);
