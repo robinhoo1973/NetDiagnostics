@@ -99,9 +99,10 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
     m["isDone"] = true;
     m["isPending"] = false;
     m["isRunning"] = false;
-    // L5 Living Diagnostics: inject metadata profile from DiagnosticMeta registry
-    if (!r.data.isEmpty()) {
-        QVariantMap enriched = r.data;
+    // L5 Living Diagnostics: always inject metadata profile (matching
+    // getDetailResult — see 5WHY there for the empty-data rationale).
+    {
+        QVariantMap enriched = r.data.isEmpty() ? QVariantMap() : r.data;
         auto& meta = ::diagnosticMeta(r.id);
         enriched["templateType"]     = static_cast<int>(meta.tmplType);
         enriched["showErrorOutput"]  = meta.detail.showErrorOutput;
@@ -330,9 +331,16 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     for (const auto& p : r.properties)
         props.append(propToMap(p));
     m["properties"] = props;
-    // L5 Living Diagnostics: pass structured data + template classification
-    if (!r.data.isEmpty()) {
-        QVariantMap enriched = r.data;
+    // L5 Living Diagnostics: always inject template classification +
+    // display profile so the QML detail page has complete metadata even
+    // when the probe emitted no structured r.data (e.g. System-template
+    // diagnostics like G1NetworkAdapters that only populate r.properties).
+    // 5WHY: m["data"] was conditional on !r.data.isEmpty() — diagnostics
+    // with empty r.data got detail.data === undefined in QML, losing
+    // templateType, showErrorOutput, showProperties, showCharts,
+    // showTerminal, and terminalTypewriter.
+    {
+        QVariantMap enriched = r.data.isEmpty() ? QVariantMap() : r.data;
         auto& meta = ::diagnosticMeta(r.id);
         enriched["templateType"]     = static_cast<int>(meta.tmplType);
         enriched["showErrorOutput"]  = meta.detail.showErrorOutput;

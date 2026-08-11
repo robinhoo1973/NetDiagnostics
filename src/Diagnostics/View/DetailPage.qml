@@ -325,12 +325,14 @@ Page {
             // 5WHY: errorOutput was serialized by C++ (getDetailResult) but
             // never rendered — failed tests with only an errorOutput lost
             // their error detail on the detail page.
-            // 5WHY (spacing collapse): bind topMargin to visibility so the
-            // error section's margin collapses when there is no error.
+            // 5WHY (spacing collapse): bind topMargin + implicitHeight to
+            // visibility so the error section fully collapses.  Non-conditional
+            // implicitHeight on an invisible child can leak into the parent
+            // ColumnLayout height calculation (Qt layout engine edge case).
             Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: _hasErrorOutput ? Th.ThemeEngine.spacing.sm : 0
-                implicitHeight: errCol.implicitHeight + 24
+                implicitHeight: _hasErrorOutput ? errCol.implicitHeight + 24 : 0
                 visible: _hasErrorOutput
                 radius: Th.ThemeEngine.radius.md
                 color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
@@ -356,10 +358,12 @@ Page {
             }
 
             // ── Properties section (collapsible) ─────────────────────────
-            // 5WHY (spacing collapse): bind topMargin to visibility so
-            // phantom 16px gap does not appear when Properties are absent.
+            // 5WHY (spacing collapse): bind topMargin + implicitHeight to
+            // visibility.  Same Qt layout edge case as Error/Charts/Terminal
+            // — non-conditional implicitHeight leaks phantom spacing.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: propsCol.implicitHeight + 24
+                Layout.fillWidth: true
+                implicitHeight: _hasProperties ? propsCol.implicitHeight + 24 : 0
                 Layout.topMargin: _hasProperties ? Th.ThemeEngine.spacing.lg : 0
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
@@ -458,9 +462,10 @@ Page {
 
             // ── Detailed Data section (charts, default collapsed) ────────
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: chartsCol.implicitHeight + 24
-                // 5WHY (spacing collapse): bind topMargin to visibility so
-                // the Charts section boundary collapses when no chart data.
+                Layout.fillWidth: true
+                implicitHeight: chartView.hasChart ? chartsCol.implicitHeight + 24 : 0
+                // 5WHY (spacing collapse): bind topMargin + implicitHeight to
+                // visibility — same Qt layout edge case as Error/Properties.
                 Layout.topMargin: chartView.hasChart
                                   ? Th.ThemeEngine.spacing.lg : 0
                 radius: Th.ThemeEngine.radius.md
