@@ -83,6 +83,11 @@ static G5ProbeResult g5Probe(const QUrl& u, const QByteArray& sendData = {},
 // key (banner:"", version:"", ...) — g5ProbeResult must keep the shared
 // banner key present on failure too, so consumers never read an undefined
 // key on a failed result.
+// 5WHY (terminal output regression): g5ProbeResult() set r.data["banner"]=QString()
+// but never set r.details or r.rawOutput → DetailPage "Terminal Output"
+// section was permanently empty for ALL 8 refactored G5 protocol tests.
+// Now populates details/rawOutput from the probe banner on success so the
+// terminal output section renders the raw server response.
 static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
                                       const G5ProbeResult& p) {
     DiagnosticResult r = g5Result(id, p.connected ? QString()
@@ -92,8 +97,15 @@ static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
     r.data["host"] = u.host();
     r.data["port"] = p.port;
     r.data["connected"] = p.connected;
-    r.data["banner"] = QString();
+    r.data["banner"] = p.connected ? QString::fromUtf8(p.banner) : QString();
     r.data["latencyMs"] = p.durationMs;
+    // Populate terminal output (details/rawOutput) from the raw probe banner.
+    // Individual protocol tests can overwrite this with richer formatted
+    // output (e.g. hex dumps for MQTT/MySQL handshake parsing).
+    if (p.connected && !p.banner.isEmpty()) {
+        r.details = QString::fromUtf8(p.banner);
+        r.rawOutput = r.details;
+    }
     return r;
 }
 

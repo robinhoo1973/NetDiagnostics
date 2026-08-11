@@ -276,10 +276,12 @@ Page {
             // 5WHY (layout): fixed 72px preferredHeight left an empty gap
             // when no metric exists — bind height to _keyMetric.ok so the
             // Loader collapses completely when inactive.
+            // 5WHY (spacing collapse): Layout.topMargin was unconditional —
+            // phantom 8px gap when MetricCard was hidden.  Bind to visibility.
             Loader {
                 Layout.fillWidth: true
                 Layout.preferredHeight: _keyMetric.ok ? 72 : 0
-                Layout.topMargin: Th.ThemeEngine.spacing.sm  // 8px — subordinate to Hero
+                Layout.topMargin: _keyMetric.ok ? Th.ThemeEngine.spacing.sm : 0
                 visible: _keyMetric.ok
                 // 5WHY: _keyMetric is now a structured object from the shared
                 // KeyMetric module — no string parsing (parseFloat on "1:23"
@@ -305,9 +307,12 @@ Page {
             // 5WHY: errorOutput was serialized by C++ (getDetailResult) but
             // never rendered — failed tests with only an errorOutput lost
             // their error detail on the detail page.
+            // 5WHY (spacing collapse): bind topMargin to visibility so the
+            // error section's margin collapses when there is no error.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.topMargin: Th.ThemeEngine.spacing.sm  // 8px — subordinate to Hero group
+                Layout.topMargin: (page.detail.errorOutput || "") !== ""
+                                  ? Th.ThemeEngine.spacing.sm : 0
                 visible: (page.detail.errorOutput || "") !== ""
                 radius: Th.ThemeEngine.radius.md
                 color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
@@ -333,9 +338,12 @@ Page {
             }
 
             // ── Properties section (collapsible) ─────────────────────────
+            // 5WHY (spacing collapse): bind topMargin to visibility so
+            // phantom 16px gap does not appear when Properties are absent.
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: propsCol.implicitHeight + 16
-                Layout.topMargin: Th.ThemeEngine.spacing.lg  // 16px — section boundary
+                Layout.topMargin: (page.detail.properties || []).length > 0
+                                  ? Th.ThemeEngine.spacing.lg : 0
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
@@ -438,6 +446,10 @@ Page {
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+                // 5WHY (spacing collapse): bind topMargin to visibility so
+                // the Charts section boundary collapses when no chart data.
+                Layout.topMargin: chartView.hasChart
+                                  ? Th.ThemeEngine.spacing.lg : 0
                 // 5WHY: gate on the shared ResultChart's hasChart — a real
                 // visualization exists for this template's data.
                 visible: chartView.hasChart
@@ -472,9 +484,12 @@ Page {
             // test produced no terminal output (e.g. G1 system property tests
             // that emit only properties[]).  Gate the entire section on output
             // presence so the empty shell never renders.
+            // 5WHY (spacing collapse): bind topMargin to visibility so the
+            // 16px boundary collapses when there is no terminal output.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.topMargin: Th.ThemeEngine.spacing.lg  // 16px — section boundary
+                Layout.topMargin: (page.detail.details || page.detail.rawOutput || "") !== ""
+                                  ? Th.ThemeEngine.spacing.lg : 0
                 implicitHeight: (page.detail.details || page.detail.rawOutput || "") !== ""
                                 ? termBlock.implicitHeight + 16 : 0
                 visible: (page.detail.details || page.detail.rawOutput || "") !== ""

@@ -337,9 +337,12 @@ Item {
             }
 
             // Results list
+            // 5WHY: margins:4 → 8px total side padding vs Dashboard's 32px.
+            // Unified to 16px side margins (32px total) so DiagTileGrid
+            // renders with the same effective width on both screens.
             Flickable {
                 id: resultsFlick
-                anchors { fill: parent; margins: 4 }
+                anchors { fill: parent; leftMargin: 16; rightMargin: 16; topMargin: 4; bottomMargin: 4 }
                 visible: appState.totalCompleted > 0 || appState.runStatus === 1
                 clip: true
                 // 5WHY: results pane had no scrollbar — on desktop with many

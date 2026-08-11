@@ -193,8 +193,12 @@ Item {
         ScrollBar.vertical: ScrollBar { }
         contentHeight: dashBody.implicitHeight + 24
 
+        // 5WHY: content width was parent.width-48 (24px side margins) while
+        // DiagnosticScreen uses 16px side margins → 16px difference in
+        // effective tile-grid width → DiagTileGrid rendered inconsistently
+        // across the two screens.  Unified to 16px side margins (32px total).
         ColumnLayout {
-            id: dashBody; width: parent.width - 48; x: 24; spacing: 0
+            id: dashBody; width: parent.width - 32; x: 16; spacing: 0
             Item { Layout.preferredHeight: 24 }
 
             // ── Run Info Header Card — conditionally shows completion or running status ──
