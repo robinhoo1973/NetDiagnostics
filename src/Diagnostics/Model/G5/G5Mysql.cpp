@@ -19,6 +19,7 @@ DiagnosticResult mysqlDiagnostics(const QString& target) {
         r.status = DiagStatus::Warning;
         r.data["version"] = QString();
         r.data["protocolVersion"] = 0;
+        autoErrorOutput(r);
         return r;
     }
     // MySQL handshake: [4-byte length][1-byte seq][1-byte protocol][null-term version][4-byte threadid]...
@@ -32,6 +33,7 @@ DiagnosticResult mysqlDiagnostics(const QString& target) {
     r.rawOutput = r.details = QString::fromUtf8(data.toHex(' '));
     r.data["version"] = version;
     r.data["protocolVersion"] = static_cast<int>(static_cast<unsigned char>(data.at(4)));
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

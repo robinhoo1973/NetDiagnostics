@@ -12,6 +12,7 @@ DiagnosticResult telnetDiagnostics(const QString& target) {
     r.summary = banner.isEmpty() ? QStringLiteral("Connected (no banner)") : banner;
     r.status = banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
     if (!p.banner.isEmpty()) r.rawOutput = r.details = QString::fromUtf8(p.banner);
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

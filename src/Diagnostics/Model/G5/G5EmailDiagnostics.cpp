@@ -16,6 +16,7 @@ DiagnosticResult emailDiagnostics(const QString& target) {
     r.data["banner"] = banner;
     r.summary = banner.isEmpty() ? QStringLiteral("No banner") : banner;
     r.status = banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

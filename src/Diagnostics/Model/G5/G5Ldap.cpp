@@ -53,8 +53,9 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
     if (resp.isEmpty()) {
         QString err = QStringLiteral("LDAP: no response from %1:%2 within timeout")
                           .arg(u.host()).arg(port);
+        // 5WHY: terminal stays empty (no protocol data); error block only
         auto r = result(DiagId::G5Ldap, "No response", DiagStatus::Warning,
-                      err, t.elapsed());
+                      {}, t.elapsed());
         r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;

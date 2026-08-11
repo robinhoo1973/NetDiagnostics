@@ -19,6 +19,7 @@ DiagnosticResult serviceBanner(const QString& target) {
     r.details = banner;  // truncate terminal output to 500 chars for display (g5ProbeResult sets full banner)
     r.data["banner"] = banner;
     r.data["bannerLength"] = p.banner.size();
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

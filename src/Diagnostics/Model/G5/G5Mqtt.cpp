@@ -37,6 +37,7 @@ DiagnosticResult mqttDiagnostics(const QString& target) {
         r.data["resultCode"] = -1;
         r.data["returnDescription"] = QString();
         r.data["accepted"] = false;
+        autoErrorOutput(r);
         return r;
     }
     // CONNACK: 0x20 [remaining length] [session present] [return code]
@@ -56,6 +57,7 @@ DiagnosticResult mqttDiagnostics(const QString& target) {
     r.data["resultCode"] = static_cast<int>(retCode);
     r.data["returnDescription"] = desc;
     r.data["accepted"] = (isConnack && retCode == 0);
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

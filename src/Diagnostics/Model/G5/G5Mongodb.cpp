@@ -88,8 +88,9 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     if (resp.size() < 16) { // MongoDB header is 16 bytes + doc
         QString err = QStringLiteral("MongoDB: no response from %1:%2 within timeout")
                           .arg(u.host()).arg(port);
+        // 5WHY: terminal stays empty (no protocol data); error block only
         auto r = result(DiagId::G5Mongodb, "No response", DiagStatus::Warning,
-                      err, t.elapsed());
+                      {}, t.elapsed());
         r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;

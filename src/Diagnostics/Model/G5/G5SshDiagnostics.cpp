@@ -14,6 +14,7 @@ DiagnosticResult sshDiagnostics(const QString& target) {
     r.data["banner"] = bstr;
     r.summary = version.isEmpty() ? QStringLiteral("No SSH banner") : version;
     r.status = version.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl

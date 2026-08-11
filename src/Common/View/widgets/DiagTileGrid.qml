@@ -45,9 +45,11 @@ Item {
 
     // ── Tile size ──────────────────────────────────────────────────────────
     // tile = block / (n + (n+1)×k), clamped to [min, max]
+    // 5WHY: single-column branch used raw width (ignored edge gaps) —
+    // tile + 2×gap exceeded container.  General formula handles n≥1 correctly.
     readonly property int _tileSize: {
-        if (_columns <= 1) return Math.min(_maxTile, Math.max(_minTile, width))
-        var denom = _columns + (_columns + 1) * _k
+        var n = _columns
+        var denom = n + (n + 1) * _k
         var tile = Math.floor(width / denom)
         return Math.min(_maxTile, Math.max(_minTile, tile))
     }

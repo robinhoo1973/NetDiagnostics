@@ -57,12 +57,12 @@ static DiagnosticResult result(DiagId id, const QString& summary,
     DiagnosticResult r = g5Result(id, summary, status);
     if (!details.isEmpty()) { r.rawOutput = details; r.details = details; }
     if (durationMs > 0) r.durationMs = durationMs;
-    // 5WHY: prefer details over summary for errorOutput — g5Result already
-    // set errorOutput=summary on Fail.  If the caller passed richer detail
-    // text, use that instead of the one-line summary.
-    if (!details.isEmpty() && (status == DiagStatus::Fail
-        || status == DiagStatus::Warning || status == DiagStatus::Error))
-        r.errorOutput = details;
+    // 5WHY (double-rendering): g5Result already sets errorOutput=summary on
+    // Fail/Warning/Error.  DO NOT set errorOutput=details here — that causes
+    // the same text to render in BOTH the terminal section AND the error block.
+    // And when details is raw protocol data (hex dump), it overwrites the
+    // human-readable summary.  Callers that need a richer error message than
+    // the summary should set errorOutput explicitly.
     return r;
 }
 
@@ -143,6 +143,20 @@ static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
                   .arg(u.host()).arg(p.port).arg(p.error);
     }
     return r;
+}
+
+// 5WHY (errorOutput gap): g5ProbeResult() calls g5Result() with Pass status
+// on a successful connection, so errorOutput stays empty.  When callers later
+// change status to Warning (no handshake, no banner, no PONG), errorOutput
+// remains empty → the DetailPage error block is invisible.  autoErrorOutput()
+// is a post-hoc check: if status is Fail/Warning/Error and errorOutput is
+// still empty, populate it from the (already-finalized) summary so every
+// non-Pass result shows a visible error block.
+static void autoErrorOutput(DiagnosticResult& r) {
+    if (!r.errorOutput.isEmpty()) return;
+    if (r.status == DiagStatus::Fail || r.status == DiagStatus::Warning
+        || r.status == DiagStatus::Error)
+        r.errorOutput = r.summary;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

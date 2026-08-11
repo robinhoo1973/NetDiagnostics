@@ -17,6 +17,7 @@ DiagnosticResult redisDiagnostics(const QString& target) {
                : resp.isEmpty() ? QStringLiteral("No response") : resp.left(200);
     r.status = pong ? DiagStatus::Pass : DiagStatus::Warning;
     if (!resp.isEmpty()) r.rawOutput = r.details = resp;
+    autoErrorOutput(r);
     return r;
 }
 } // namespace G5WebsiteUrl
