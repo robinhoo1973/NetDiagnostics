@@ -93,7 +93,9 @@ private:
     QString m_schemeFilter;
     bool m_hasUrlScheme = false;
 
-    // Cached group stats
+    // Cached group stats (5-element list for allGroupStats + per-group map
+    // so groupStats(g) in QML loops reuses the same computation per version).
     mutable QVariantList m_cachedGroupStats;
+    mutable QMap<int, QVariantMap> m_cachedPerGroup;
     mutable int m_cachedStatsVersion = -1;
 };

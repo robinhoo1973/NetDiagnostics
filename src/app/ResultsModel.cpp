@@ -276,6 +276,19 @@ QVariantMap ResultsModel::groupStats(int groupInt) const {
         return stats;
     }
     auto g = static_cast<DiagGroup>(groupInt);
+    // 5WHY (M5): QML loops (visibleGroups, Dashboard rows, DiagGroupPanel
+    // _gstat) call groupStats(g) once per group per progress tick.  Each call
+    // re-iterated diagIdsForGroup + constFind.  Cache per-group results,
+    // invalidated together with the allGroupStats cache on resultsVersion
+    // change (addResult / clear set m_cachedStatsVersion = -1).
+    if (m_cachedStatsVersion == m_resultsVersion) {
+        auto it = m_cachedPerGroup.constFind(groupInt);
+        if (it != m_cachedPerGroup.constEnd())
+            return it.value();
+    } else {
+        m_cachedStatsVersion = m_resultsVersion;
+        m_cachedPerGroup.clear();
+    }
     int total = m_totalPerGroup.value(g, 0);
     int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, completed = 0;
     for (auto id : DiagnosticConfig::diagIdsForGroup(g)) {
@@ -296,6 +309,7 @@ QVariantMap ResultsModel::groupStats(int groupInt) const {
     stats["fail"] = fail; stats["skip"] = skip; stats["info"] = info; stats["error"] = error;
     stats["completed"] = completed; stats["total"] = total;
     stats["enabled"] = total;
+    m_cachedPerGroup[groupInt] = stats;
     return stats;
 }
 
