@@ -530,8 +530,13 @@ Page {
                                 item.text = Qt.binding(function() {
                                     return page.detail.details || page.detail.rawOutput || ""
                                 })
-                                // 5WHY: typewriter 80ms/line — cap at ≤2000 chars AND ≤100 lines
-                                item.typewriter = _terminalText.length < 2000 && _terminalLines < 100
+                                // 5WHY: typewriter animation controlled by metadata
+                                // (only G1WifiDiagnostics has terminalTypewriter:true).
+                                // Size heuristic (<2000 chars, <100 lines) is a
+                                // safety net — typewriter on huge output is laggy.
+                                item.typewriter = (resultData.terminalTypewriter === true)
+                                    && _terminalText.length < 2000
+                                    && _terminalLines < 100
                             }
                         }
                     }

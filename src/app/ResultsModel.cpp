@@ -113,6 +113,7 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
         enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
                                         ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
         enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
+        enriched["terminalTypewriter"] = meta.detail.terminalTypewriter;
         enriched["platformFlags"]    = static_cast<int>(meta.platforms);
         m["data"] = enriched;
     }
@@ -343,6 +344,7 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
         enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
                                         ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
         enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
+        enriched["terminalTypewriter"] = meta.detail.terminalTypewriter;
         enriched["platformFlags"]    = static_cast<int>(meta.platforms);
         m["data"] = enriched;
     }

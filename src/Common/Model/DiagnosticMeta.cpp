@@ -48,7 +48,9 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G2NetworkProfile,   "Network Profile",   "network-profile",All,   DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G2TcpSettings,      "TCP Settings",      "tcp-settings",  Desktop, DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G2DefaultGateway,   "Default Gateway",   "gateway",       All,     DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
-    { DiagId::G2RoutingTable,     "Routing Table",     "route-table",   Desktop, DiagAnimType::Path,   DiagTemplateType::Path,      D(true,true,true,true,"routeCount","routes",0,DetailProfile::BarChart,false) },
+    // 5WHY: G2RoutingTable emits routes[] (dest/gateway/metric) — no hop RTTs.
+    // Path template requires hops[].rttMs; System template (properties+terminal) fits.
+    { DiagId::G2RoutingTable,     "Routing Table",     "route-table",   Desktop, DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,false,true,"routeCount","routes",0,DetailProfile::NoChart,false) },
     { DiagId::G2ArpTable,         "ARP Table",         "arp-table",     Desktop, DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,true,"entryCount","entries",0,DetailProfile::NoChart,false) },
     { DiagId::G2ProxySettings,    "Proxy Settings",    "proxy",         All,     DiagAnimType::Path,   DiagTemplateType::System,    SYS() },
 
@@ -61,15 +63,22 @@ static const DiagnosticMeta kDiagMeta[] = {
     { DiagId::G3InternetConnectivity,"Internet Connectivity","internet-check",All,DiagAnimType::Lock, DiagTemplateType::Handshake, D(true,true,true,true,"downloadMbpsBest","Mbps",1,DetailProfile::BarChart,false) },
 
     // ── G4: Remote Host ────────────────────────────────────────────────
-    { DiagId::G4DnsResolution,    "DNS Resolution",    "dns-resolve",   All,     DiagAnimType::Bounce, DiagTemplateType::Ping,      D(true,true,true,true,"queryTimeMs","ms",0,DetailProfile::BarChart,false) },
+    // 5WHY: G4DnsResolution produces queryTimeMs + answerCount — no individualRtts[].
+    // Ping template requires individualRtts; System template (properties+terminal) fits.
+    { DiagId::G4DnsResolution,    "DNS Resolution",    "dns-resolve",   All,     DiagAnimType::Bounce, DiagTemplateType::System,    D(true,true,false,true,"queryTimeMs","ms",0,DetailProfile::NoChart,false) },
     { DiagId::G4Ping,             "Ping",              "ping",          All,     DiagAnimType::Bounce, DiagTemplateType::Ping,      D(true,true,true,true,"rttAvgMs","ms",0,DetailProfile::BarChart,false) },
     { DiagId::G4Traceroute,       "Traceroute",        "traceroute",    All,     DiagAnimType::Path,   DiagTemplateType::Path,      D(true,true,true,true,"hopCount","hops",0,DetailProfile::BarChart,false) },
-    { DiagId::G4PathPing,         "PathPing",          "path-ping",     All,     DiagAnimType::Bounce, DiagTemplateType::Ping,      D(true,true,true,true,"hopCount","hops",0,DetailProfile::BarChart,false) },
+    // 5WHY: G4PathPing emits hops[] with per-hop rttMs — matches Path template,
+    // not Ping (which requires individualRtts[]).  DiagNames.h already had this fix.
+    { DiagId::G4PathPing,         "PathPing",          "path-ping",     All,     DiagAnimType::Bounce, DiagTemplateType::Path,      D(true,true,true,true,"hopCount","hops",0,DetailProfile::BarChart,false) },
     { DiagId::G4MtuDiscovery,     "MTU Discovery",     "mtu",           All,     DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G4IPv6Connectivity, "IPv6 Connectivity", "ipv6",          All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,true,false,"connectedCount","ports",0,DetailProfile::BarChart,false) },
 
     // ── G5: Protocol ───────────────────────────────────────────────────
-    { DiagId::G5UrlParsing,       "URL Parsing",       "url-parse",     All,     DiagAnimType::Type,   DiagTemplateType::Request,   REQ() },
+    // 5WHY: G5UrlParsing emits URL components (scheme/host/port/path/query) —
+    // no HTTP timing data.  Request template requires dnsMs/connectMs; System
+    // template (properties table) avoids the broken waterfall chart.
+    { DiagId::G5UrlParsing,       "URL Parsing",       "url-parse",     All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,true,nullptr,nullptr,0,DetailProfile::NoChart,false) },
     { DiagId::G5TcpConnect,       "TCP Connect",       "tcp-connect",   All,     DiagAnimType::Path,   DiagTemplateType::Query,     QRY() },
     { DiagId::G5ServiceBanner,    "Service Banner",    "banner",        All,     DiagAnimType::Type,   DiagTemplateType::Query,     D(true,true,false,true,"latencyMs","ms",0,DetailProfile::Gauge,false) },
     { DiagId::G5CurlVerbose,      "cURL Verbose",      "curl-verbose",  Desktop, DiagAnimType::Type,   DiagTemplateType::Request,   D(true,false,true,true,"totalMs","ms",0,DetailProfile::BarChart,false) },

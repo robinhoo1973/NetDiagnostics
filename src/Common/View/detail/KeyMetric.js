@@ -105,6 +105,35 @@ function keyMetric(data, durationMs) {
             m.trailing = "/" + Number(d.totalPorts)
         return m
     }
+    // 5WHY: 8 count-based metrics declared in DiagnosticMeta keyMetricField
+    // were missing from this priority list — tests fell through to the
+    // duration-based fallback instead of showing their intended count metric.
+    // Order is alphabetized; each test only emits its own field so priority
+    // among these does not matter.
+    if (d.cacheEntries !== undefined)    // G3DnsCache: cached DNS entry count
+        return { ok: true, value: Number(d.cacheEntries),   unitKey: "",
+                 labelKey: "metricEntries", precision: 0, format: "num", trailing: "" }
+    if (d.entryCount !== undefined)      // G2ArpTable: ARP table entry count
+        return { ok: true, value: Number(d.entryCount),     unitKey: "",
+                 labelKey: "metricEntries", precision: 0, format: "num", trailing: "" }
+    if (d.headerCount !== undefined)     // G5HttpHeaders: response header count
+        return { ok: true, value: Number(d.headerCount),    unitKey: "unitHeaders",
+                 labelKey: "metricHeaders", precision: 0, format: "num", trailing: "" }
+    if (d.leaseCount !== undefined)      // G1DhcpStatus: DHCP lease count
+        return { ok: true, value: Number(d.leaseCount),     unitKey: "",
+                 labelKey: "metricLeases", precision: 0, format: "num", trailing: "" }
+    if (d.redirectCount !== undefined)   // G5HttpRedirect: redirect count
+        return { ok: true, value: Number(d.redirectCount),  unitKey: "unitHops",
+                 labelKey: "metricHops", precision: 0, format: "num", trailing: "" }
+    if (d.routeCount !== undefined)      // G2RoutingTable: route table entry count
+        return { ok: true, value: Number(d.routeCount),     unitKey: "",
+                 labelKey: "metricRoutes", precision: 0, format: "num", trailing: "" }
+    if (d.serverCount !== undefined)     // G3DnsServers: DNS server count
+        return { ok: true, value: Number(d.serverCount),    unitKey: "",
+                 labelKey: "metricServers", precision: 0, format: "num", trailing: "" }
+    if (d.tcpCount !== undefined)        // G1ActiveConnections: TCP connection count
+        return { ok: true, value: Number(d.tcpCount),       unitKey: "",
+                 labelKey: "metricConnections", precision: 0, format: "num", trailing: "" }
     if (d.responseTimeMs !== undefined)  // misc query tests
         return { ok: true, value: Number(d.responseTimeMs), unitKey: "unitMs",
                  labelKey: "metricLatency", precision: 0, format: "num", trailing: "" }
