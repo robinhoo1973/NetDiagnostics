@@ -11,8 +11,11 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
     if (!sock.waitForConnected(5000)) {
+        QString err = QStringLiteral("MongoDB connection to %1:%2 failed: %3")
+                          .arg(u.host()).arg(port).arg(sock.errorString());
         auto r = result(DiagId::G5Mongodb, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
+                      err, t.elapsed());
+        r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;
         r.data["connected"] = false;
@@ -82,8 +85,11 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     }
     sock.disconnectFromHost();
     if (resp.size() < 16) { // MongoDB header is 16 bytes + doc
+        QString err = QStringLiteral("MongoDB: no response from %1:%2 within timeout")
+                          .arg(u.host()).arg(port);
         auto r = result(DiagId::G5Mongodb, "No response", DiagStatus::Warning,
-                      {}, t.elapsed());
+                      err, t.elapsed());
+        r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;
         r.data["connected"] = true;

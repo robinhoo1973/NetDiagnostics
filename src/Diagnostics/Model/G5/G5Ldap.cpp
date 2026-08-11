@@ -12,8 +12,11 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
     QTcpSocket sock;
     sock.connectToHost(u.host(), port);
     if (!sock.waitForConnected(5000)) {
+        QString err = QStringLiteral("LDAP connection to %1:%2 failed: %3")
+                          .arg(u.host()).arg(port).arg(sock.errorString());
         auto r = result(DiagId::G5Ldap, "Connection failed", DiagStatus::Fail,
-                      {}, t.elapsed());
+                      err, t.elapsed());
+        r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;
         r.data["connected"] = false;
@@ -47,8 +50,11 @@ DiagnosticResult ldapDiagnostics(const QString& target) {
     QByteArray resp = sock.readAll();
     sock.disconnectFromHost();
     if (resp.isEmpty()) {
+        QString err = QStringLiteral("LDAP: no response from %1:%2 within timeout")
+                          .arg(u.host()).arg(port);
         auto r = result(DiagId::G5Ldap, "No response", DiagStatus::Warning,
-                      {}, t.elapsed());
+                      err, t.elapsed());
+        r.errorOutput = err;
         r.data["host"] = u.host();
         r.data["port"] = port;
         r.data["connected"] = true;

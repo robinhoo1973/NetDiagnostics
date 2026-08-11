@@ -442,14 +442,13 @@ Page {
             // ── Detailed Data section (charts, default collapsed) ────────
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: chartsCol.implicitHeight + 16
-                Layout.topMargin: Th.ThemeEngine.spacing.lg  // 16px — section boundary
-                radius: Th.ThemeEngine.radius.md
-                color: Th.ThemeEngine.colors.card
-                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
                 // 5WHY (spacing collapse): bind topMargin to visibility so
                 // the Charts section boundary collapses when no chart data.
                 Layout.topMargin: chartView.hasChart
                                   ? Th.ThemeEngine.spacing.lg : 0
+                radius: Th.ThemeEngine.radius.md
+                color: Th.ThemeEngine.colors.card
+                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
                 // 5WHY: gate on the shared ResultChart's hasChart — a real
                 // visualization exists for this template's data.
                 visible: chartView.hasChart

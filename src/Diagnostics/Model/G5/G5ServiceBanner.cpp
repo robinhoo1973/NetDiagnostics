@@ -16,6 +16,7 @@ DiagnosticResult serviceBanner(const QString& target) {
                                    : QStringLiteral("Banner received");
     r.status = p.banner.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass;
     r.rawOutput = banner;
+    r.details = banner;  // keep details in sync with cleaned banner output
     r.data["banner"] = banner;
     r.data["bannerLength"] = p.banner.size();
     return r;

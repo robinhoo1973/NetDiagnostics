@@ -208,11 +208,14 @@ Item {
             // with a spinner while runStatus===1, and only displays the
             // completion card after the run finishes.
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: infoCol.implicitHeight + 32; radius: 12
+                Layout.fillWidth: true; implicitHeight: infoCol.implicitHeight + 24; radius: 12
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
+                // 5WHY: margins:16 was inconsistent with DashboardGroupRow (12px)
+                // and DiagGroupPanel (12px) — 8px narrower content area on the
+                // same width column.  Unified to 12px for visual consistency.
                 RowLayout {
                     id: infoCol
-                    anchors { fill: parent; margins: 16 }
+                    anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 }
                     AppIcon {
                         name: appState.runStatus === 1 ? "spinner" : "check"
                         size: 28
@@ -260,9 +263,12 @@ Item {
 
             // ── Overall Summary (Flutter: _buildOverallSection) ──────────
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: sumCol.implicitHeight + 32; radius: 12
+                Layout.fillWidth: true; implicitHeight: sumCol.implicitHeight + 24; radius: 12
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
-                ColumnLayout { id: sumCol; anchors { fill: parent; margins: 16 }
+                // 5WHY: margins:16 was inconsistent with info card (12px),
+                // DashboardGroupRow (12px), and DiagGroupPanel (12px).
+                // Unified to 12px for visual consistency.
+                ColumnLayout { id: sumCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 } }
                     Label { text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                     Item { Layout.preferredHeight: 16 }
                     ColumnLayout {
@@ -306,11 +312,14 @@ Item {
             // click Review Report while diagnostics were still running, producing a
             // partial report.  Now requires runStatus !== 1 (not running).
             Rectangle {
-                Layout.fillWidth: true; implicitHeight: repCol.implicitHeight + 32; radius: 12
+                Layout.fillWidth: true; implicitHeight: repCol.implicitHeight + 24; radius: 12
                 Layout.topMargin: 16; visible: hasData && appState.runStatus !== 1
                 color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
+                // 5WHY: margins:16 was inconsistent with info card (12px),
+                // DashboardGroupRow (12px), and DiagGroupPanel (12px).
+                // Unified to 12px for visual consistency.
                 ColumnLayout {
-                    id: repCol; anchors { fill: parent; margins: 16 } spacing: 12
+                    id: repCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 } spacing: 12
                     Label { text: T.tr("report"); font.family: ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
                     AppLabel { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
                     // Review Report button

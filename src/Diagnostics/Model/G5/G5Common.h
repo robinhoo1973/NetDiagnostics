@@ -106,6 +106,15 @@ static DiagnosticResult g5ProbeResult(DiagId id, const QUrl& u,
         r.details = QString::fromUtf8(p.banner);
         r.rawOutput = r.details;
     }
+    // 5WHY: errorOutput was never set on connection failure — the DetailPage
+    // error block was invisible for all 9 protocol tests.  Populate it so the
+    // red error block renders on the detail page for failed connections.
+    if (!p.connected) {
+        r.errorOutput = QStringLiteral("Connection to %1:%2 failed")
+                            .arg(u.host()).arg(p.port);
+        r.details = r.errorOutput;
+        r.rawOutput = r.details;
+    }
     return r;
 }
 
