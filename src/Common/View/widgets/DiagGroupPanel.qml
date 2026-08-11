@@ -166,10 +166,7 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.topMargin: 8
                 model: root.itemsModel
-                blockSize: 108
-                // per-item running (modelData.isRunning): when one test
-                // completes but the group keeps running, the finished tile
-                // stops jiggling and shows its Done state immediately.
+                // Tile size computed dynamically by DiagTileGrid
                 usePerItemRunning: true
                 onTileClicked: function(data) { root.detailClicked(data) }
             }
