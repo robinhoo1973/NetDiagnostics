@@ -217,16 +217,20 @@ Page {
             // page's result headline: status, summary, target/duration.
             // 5WHY (format fix): a FIXED 96px height CLIPPED multi-line
             // summaries (e.g. DNS listing 6 addresses).  Height is now
-            // content-driven (heroRow.implicitHeight + 24 margins, min 96).
+            // content-driven (heroRow.implicitHeight + 24 margins, min 80).
             // 5WHY (padding drift, 2026-08-11): the formula used +32 but the
             // RowLayout's margins:12 provides only 24px of padding (12 top +
             // 12 bottom).  The 8px discrepancy added dead space at the bottom
             // of the hero card, which accumulated with Terminal's lg topMargin
             // to create an abnormally large visual gap when all middle sections
             // (Metric/Error/Properties/Charts) were hidden.
+            // 5WHY (min-height dead space, 2026-08-11): the old floor of 96px
+            // left a 16px empty strip for compact heroes (56px status disc +
+            // 24px margins = 80px natural height).  Floor lowered to 80 = the
+            // disc + margins, so no empty bottom strip remains.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(96, heroRow.implicitHeight + 24)
+                Layout.preferredHeight: Math.max(80, heroRow.implicitHeight + 24)
                 radius: Th.ThemeEngine.radius.lg
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
