@@ -489,7 +489,7 @@ Item {
         Layout.bottomMargin: 8
         color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
         ColumnLayout {
-            id: grpCol; anchors { fill: parent; margins: 14 } spacing: 4
+            id: grpCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 10 } spacing: 4
             RowLayout {
                 Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.colors.secondary }
                 Item { width: 10 }
