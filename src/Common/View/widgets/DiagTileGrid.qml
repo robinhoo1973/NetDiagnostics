@@ -1,30 +1,18 @@
 // =============================================================================
-// DiagTileGrid.qml — shared responsive diagnostic-tile wall
+// DiagTileGrid.qml — shared responsive diagnostic-tile wall (v3)
 //
-// Single source of truth for the tile grid used by the Diagnostic screen
-// (via DiagGroupPanel) and the Dashboard per-group cards.
+// Industry-standard gap-ratio grid algorithm:
+//   block_width = n × tile_width + (n+1) × gap_width
+//   gap_width = k × tile_width        (k = 0.08 full, 0.06 compact)
+//   → tile_width = block_width / (n + (n+1) × k)
 //
-// 5WHY (v2, 2026-08-11): the original algorithm used Flow + FIXED blockSize
-// (108px) + dynamic gap (8-24px).  On a 1000px-wide container, 7 tiles at
-// 108px + 6 gaps at max 24px = 900px used, 100px wasted — the gap cap
-// prevented filling the available space.  Switched to Grid + computed
-// columns + responsive tile size that fills the container width exactly.
+// Edge gaps (n+1, not n-1) follow Apple HIG and M3: tiles are centered
+// in the row with equal breathing space on both ends.  This is the iOS
+// Home Screen / App Store / Files grid pattern.
 //
-//   columns = Math.floor((width + minGap) / (minTile + minGap))
-//   tileSize = (width - (columns - 1) * spacing) / columns
+// Tile size clamped to [minTile, 160] for usability across all screen sizes.
 //
-// This is the iOS Home Screen / App Store grid pattern: tiles scale to fill
-// the row exactly.  Clamped to [80, 160] so tiles never become unusably
-// small or cartoonishly large.
-//
-// Usage:
-//   DiagTileGrid {
-//       Layout.fillWidth: true
-//       model: someModel
-//       compact: false
-//       usePerItemRunning: true
-//       onTileClicked: function(data) { ... }
-//   }
+// Usage: DiagTileGrid { Layout.fillWidth: true; model: ...; compact: false }
 // =============================================================================
 import QtQuick
 
@@ -34,41 +22,55 @@ Item {
     // ── Public API ────────────────────────────────────────────────────────
     property var model: []
     property bool compact: false
-    // true → DiagBlock gets testRunning from modelData.isRunning (live group);
-    // false → static tiles (Dashboard snapshot view).
     property bool usePerItemRunning: false
     signal tileClicked(var data)
 
-    // ── Responsive sizing ──────────────────────────────────────────────────
-    // Minimum tile size (compact 80px, full 100px) & gap
+    // ── Design parameters ──────────────────────────────────────────────────
+    // gap-to-tile ratio k (M3: ~8%, Apple HIG: ~10%, compact: slightly tighter)
+    readonly property real _k: compact ? 0.06 : 0.08
     readonly property int _minTile: compact ? 80 : 100
-    readonly property int _gap: 8
+    readonly property int _maxTile: 160
 
-    // Columns: how many tiles fit per row at minimum size
-    readonly property int _columns: Math.max(1,
-        Math.floor((width + _gap) / (_minTile + _gap)))
-
-    // Tile size: fill the row exactly (spacing eaten by columnSpacing)
-    readonly property int _tileSize: {
-        if (_columns <= 1) return Math.min(140, Math.max(_minTile, width))
-        var avail = width - (_columns - 1) * _gap
-        var size = Math.floor(avail / _columns)
-        return Math.min(160, Math.max(_minTile, size))
+    // ── Column count n ─────────────────────────────────────────────────────
+    // Find maximum n where tile_width >= minTile.
+    // From: block / (n + (n+1)×k) >= minTile
+    //   →  n <= (block/minTile - k) / (1 + k)
+    readonly property int _columns: {
+        var w = width
+        if (w <= 0) return 1
+        var n = Math.floor((w / _minTile - _k) / (1.0 + _k))
+        return Math.max(1, n)
     }
 
-    // Height follows the grid
+    // ── Tile size ──────────────────────────────────────────────────────────
+    // tile = block / (n + (n+1)×k), clamped to [min, max]
+    readonly property int _tileSize: {
+        if (_columns <= 1) return Math.min(_maxTile, Math.max(_minTile, width))
+        var denom = _columns + (_columns + 1) * _k
+        var tile = Math.floor(width / denom)
+        return Math.min(_maxTile, Math.max(_minTile, tile))
+    }
+
+    // ── Gap width ──────────────────────────────────────────────────────────
+    readonly property int _gapWidth: Math.max(4, Math.round(_tileSize * _k))
+
+    // ── Layout metrics ─────────────────────────────────────────────────────
     readonly property int _rowCount: model && model.length
         ? Math.ceil(model.length / _columns) : 0
     implicitHeight: _rowCount > 0
-        ? _rowCount * _tileSize + (_rowCount - 1) * _gap : 0
+        ? _rowCount * _tileSize + (_rowCount - 1) * _gapWidth : 0
 
     // ── Tile wall ─────────────────────────────────────────────────────────
+    // Edge gaps via left/right anchors.margins = _gapWidth
     Grid {
         id: grid
-        anchors { left: parent.left; right: parent.right; top: parent.top }
+        anchors {
+            left: parent.left; right: parent.right; top: parent.top
+            leftMargin: root._gapWidth; rightMargin: root._gapWidth
+        }
         columns: root._columns
-        columnSpacing: root._gap
-        rowSpacing: root._gap
+        columnSpacing: root._gapWidth
+        rowSpacing: root._gapWidth
 
         Repeater {
             model: root.model
