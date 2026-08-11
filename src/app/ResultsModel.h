@@ -93,6 +93,16 @@ private:
     QString m_schemeFilter;
     bool m_hasUrlScheme = false;
 
+    // ── Per-row serialization caches (H2) ─────────────────────────────────
+    // Results are immutable once stored — only addResult()/clear() change
+    // them — so the expensive resultToVariantMap()/propToMap() serialization
+    // can be cached per DiagId and invalidated only when that row changes.
+    // This turns the per-progress-tick full-group re-serialization from
+    // O(group size) into O(changed rows).
+    mutable QMap<DiagId, QVariantMap> m_cachedRowMap;    // with properties  (allDiagsForGroup)
+    mutable QMap<DiagId, QVariantMap> m_cachedTileMap;   // without properties (resultsForGroup)
+    mutable QMap<DiagId, QVariantMap> m_cachedDetailMap; // getDetailResult output
+
     // Cached group stats (5-element list for allGroupStats + per-group map
     // so groupStats(g) in QML loops reuses the same computation per version).
     mutable QVariantList m_cachedGroupStats;

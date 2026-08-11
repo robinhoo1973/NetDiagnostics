@@ -37,6 +37,10 @@ void ResultsModel::setCurrentGroup(int groupIdx) {
 
 void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
     m_results[id] = result;
+    // H2: results are immutable — invalidate only this row's serialization caches.
+    m_cachedRowMap.remove(id);
+    m_cachedTileMap.remove(id);
+    m_cachedDetailMap.remove(id);
     m_totalCompleted++;
     m_resultsVersion++;
     m_cachedStatsVersion = -1;
@@ -45,6 +49,9 @@ void ResultsModel::addResult(DiagId id, const DiagnosticResult& result) {
 
 void ResultsModel::clear() {
     m_results.clear();
+    m_cachedRowMap.clear();
+    m_cachedTileMap.clear();
+    m_cachedDetailMap.clear();
     m_totalPerGroup.clear();
     m_totalCompleted = 0;
     m_totalDiags = 0;
@@ -162,7 +169,15 @@ QVariantList ResultsModel::resultsForGroup(int groupInt) const {
         if (resultIt == m_results.constEnd()) continue;
         const auto& result = resultIt.value();
         if (result.status == DiagStatus::Skipped) continue;
-        list.append(resultToVariantMap(result, false));
+        // H2: reuse cached no-properties serialization when unchanged.
+        auto cit = m_cachedTileMap.constFind(id);
+        if (cit != m_cachedTileMap.constEnd()) {
+            list.append(cit.value());
+        } else {
+            QVariantMap vm = resultToVariantMap(result, false);
+            m_cachedTileMap[id] = vm;
+            list.append(vm);
+        }
     }
     return list;
 }
@@ -188,7 +203,15 @@ QVariantList ResultsModel::allDiagsForGroup(int groupInt) const {
         if (resultIt != m_results.constEnd()) {
             const auto& result = resultIt.value();
             if (result.status == DiagStatus::Skipped) continue;
-            list.append(resultToVariantMap(result, true));
+            // H2: reuse cached with-properties serialization when unchanged.
+            auto cit = m_cachedRowMap.constFind(id);
+            if (cit != m_cachedRowMap.constEnd()) {
+                list.append(cit.value());
+            } else {
+                QVariantMap vm = resultToVariantMap(result, true);
+                m_cachedRowMap[id] = vm;
+                list.append(vm);
+            }
         } else if (!m_enabledDiags.isEmpty() && !m_enabledDiags.contains(static_cast<int>(id))) {
             // Disabled in config — show as pending with skip icon, not spinning
             QVariantMap m;
@@ -327,6 +350,10 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     QVariantMap m;
     if (!DiagnosticConfig::isValidDiagId(diagIdInt)) return m;
     auto id = static_cast<DiagId>(diagIdInt);
+    // H2: reuse cached detail serialization when unchanged.
+    auto dit = m_cachedDetailMap.constFind(id);
+    if (dit != m_cachedDetailMap.constEnd())
+        return dit.value();
     const auto resultIt = m_results.constFind(id);
     if (resultIt == m_results.constEnd()) return m;
 
@@ -351,5 +378,6 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     m["properties"] = props;
     // L5 Living Diagnostics: inject metadata profile via shared helper.
     m["data"] = injectDetailMeta(r.id, r.data);
+    m_cachedDetailMap[id] = m;
     return m;
 }
