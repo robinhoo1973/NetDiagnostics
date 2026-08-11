@@ -33,10 +33,28 @@ Item {
     // which preserves layout geometry.
     visible: name !== ""
 
+    // 5WHY (v2, 2026-08-11): the v1 guard only returned "#FFFFFF" when
+    // IconColors was undefined — it prevented the crash but _hex never
+    // re-evaluated after the .pragma library became available (QML does
+    // NOT track JS-import availability).  For pending tiles, color is
+    // static (textSecondary) so hex was stuck at "#FFFFFF" forever.
+    // Fix: _hexVersion counter forces a one-time re-evaluation inside
+    // Component.onCompleted, when all imports are guaranteed loaded.
+    // After that, color.r/g/b dependency keeps _hex live for state changes.
+    property int _hexVersion: 0
+
     // Nearest pre-generated palette color (RGB distance).  Callers pass
     // palette colors so this is normally an exact match; Qt.lighter()/
     // arbitrary colors snap to the closest generated variant.
     readonly property string _hex: {
+        var _ = _hexVersion  // explicit dependency — forces re-eval on bump
+        // 5WHY: .pragma library JS files may not be loaded yet during initial
+        // QML binding evaluation — IconColors can be undefined, causing a
+        // silent TypeError that leaves _hex as undefined.  Subsequent
+        // root._hex.substr(1) then also throws, and the Image source stays
+        // empty forever (no re-evaluation trigger).  Guard against this.
+        if (!IconColors || !IconColors.hexes || IconColors.hexes.length === 0)
+            return "#FFFFFF"
         var best = "#FFFFFF"
         var bd = 1e9
         for (var i = 0; i < IconColors.hexes.length; i++) {
@@ -71,5 +89,14 @@ Item {
             origin.x: parent.width / 2
             xScale: root.mirror ? -1 : 1
         }
+    }
+
+    // 5WHY (v2): force _hex re-evaluation after all .pragma library imports
+    // are guaranteed loaded.  If the v1 guard triggered during initial binding,
+    // _hex was stuck at "#FFFFFF" for static-color callers (e.g. pending
+    // DiagBlock tiles).  Bumping _hexVersion here triggers one re-eval,
+    // after which the normal color.r/g/b dependency keeps it live.
+    Component.onCompleted: {
+        _hexVersion = 1
     }
 }
