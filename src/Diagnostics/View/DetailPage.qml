@@ -24,7 +24,10 @@ Page {
     id: page
 
     // ── Public properties ────────────────────────────────────────────────
-    property var detail: ({})  // from appState.getDetailResult(diagId)
+    // 5WHY: readonly enforces the immutability contract — MetricCard and
+    // TerminalBlock Loaders use direct assignment (no binding overhead)
+    // under the assumption detail never changes for the page lifetime.
+    readonly property var detail: ({})
     // 5WHY: detail.diagId || -1 treats 0 (G1NetworkAdapters, first enum
     // value) as falsy — JS coerces 0 to -1, showing wrong icon/title.
     property int diagId: detail.diagId !== undefined ? detail.diagId : -1
@@ -64,12 +67,12 @@ Page {
     }
     // Hero meta line: tested host · duration (previously only in terminal text).
     readonly property string _metaLine: {
-        var parts = []
         var host = page.resultData.target || page.resultData.host || ""
-        if (host) parts.push(String(host))
         var dur = page.detail.durationMs || 0
-        if (dur > 0) parts.push(KM.formatDuration(dur))
-        return parts.join(" · ")
+        if (host && dur > 0) return host + " · " + KM.formatDuration(dur)
+        if (host) return String(host)
+        if (dur > 0) return KM.formatDuration(dur)
+        return ""
     }
     // 5WHY (P2): charts default-collapsed hid the visualizations.  Compact
     // series (≤8 bars) start expanded; long traceroutes stay collapsed.
@@ -83,14 +86,10 @@ Page {
     // _terminalLines gates visibility (use _terminalLines > 0 instead of a
     // separate boolean — avoids two properties needing to stay in sync).
     readonly property string _terminalText: page.detail.details || page.detail.rawOutput || ""
-    readonly property int _terminalLines: {
-        var txt = _terminalText
-        if (txt === "") return 0
-        var count = 0
-        for (var i = 0; i < txt.length; i++)
-            if (txt[i] === '\n') count++
-        return count + 1
-    }
+    // 5WHY: native String.split() runs at C++ speed; the char-by-char
+    // JS loop was measurably slower on large outputs (traceroute 30+ lines).
+    readonly property int _terminalLines: _terminalText === ""
+        ? 0 : _terminalText.split('\n').length
 
     background: Rectangle { color: Th.ThemeEngine.colors.surface }
 
@@ -456,8 +455,8 @@ Page {
             // 5WHY: the terminal section was always visible, showing an empty
             // dark rectangle when the test produced no terminal output.
             // Gate the entire section on output presence.
-            // 5WHY (efficiency): _terminalLines > 0 + _terminalLines consolidate
-            // the 7 duplicated compound expressions into one computed property.
+            // _terminalLines gates both the ConditionalCard (layout collapse)
+            // and the inner Loader height (single property, single source).
             W.ConditionalCard {
                 active: _terminalLines > 0
                 topMargin: Th.ThemeEngine.spacing.lg
@@ -473,9 +472,10 @@ Page {
                 }
                 Loader {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: _terminalLines > 0
-                        ? Math.min(360, Math.max(72, _terminalLines * 18 + 24)) : 0
-                    active: _terminalLines > 0
+                    // Height bounded [72, 360]; parent ConditionalCard already
+                    // collapses the card when _terminalLines === 0, so no
+                    // ternary guard needed here.
+                    Layout.preferredHeight: Math.min(360, Math.max(72, _terminalLines * 18 + 24))
                     source: "qrc:/qml/detail/TerminalBlock.qml"
                     onLoaded: {
                         if (item) {
