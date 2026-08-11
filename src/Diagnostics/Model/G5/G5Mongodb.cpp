@@ -23,6 +23,9 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
         r.data["version"] = QString();
         r.data["responded"] = false;
         r.data["latencyMs"] = t.elapsed();
+        r.properties.append({QStringLiteral("Host"), u.host()});
+        r.properties.append({QStringLiteral("Port"), QString::number(port)});
+        r.properties.append({QStringLiteral("Connected"), QStringLiteral("No")});
         return r;
     }
     // MongoDB wire protocol: send isMaster command
@@ -128,6 +131,13 @@ DiagnosticResult mongodbDiagnostics(const QString& target) {
     r.data["version"] = version;
     r.data["responded"] = true;
     r.data["latencyMs"] = t.elapsed();
+    // 5WHY: MongoDB hand-rolls QTcpSocket (not g5ProbeResult) — add the
+    // scaffold properties so the detail page Properties section renders.
+    r.properties.append({QStringLiteral("Host"), u.host()});
+    r.properties.append({QStringLiteral("Port"), QString::number(port)});
+    r.properties.append({QStringLiteral("Version"), version});
+    r.properties.append({QStringLiteral("Connected"), QStringLiteral("Yes")});
+    r.properties.append({QStringLiteral("Latency"), QStringLiteral("%1ms").arg(t.elapsed())});
     return r;
 }
 

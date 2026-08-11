@@ -74,7 +74,8 @@ DiagnosticResult cellularInfo(DiagId id) {
     {
         const bool hasService = (r.status != DiagStatus::Skipped && r.status != DiagStatus::Info);
         r.data[QStringLiteral("hasService")] = hasService;
-        r.data[QStringLiteral("sims")] = QVariantList();
+        // 5WHY: sims was always QVariantList() (empty stub).
+        // Cellular SIM details are in the terminal text — no structured list needed.
     }
     return r;
 }

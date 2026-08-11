@@ -319,7 +319,8 @@ DiagnosticResult ipConfiguration(DiagId id) {
         }
         if (!hostname.isEmpty())
             r.data[QStringLiteral("hostname")] = hostname;
-        r.data[QStringLiteral("adapters")] = QVariantList();
+        // 5WHY: adapters was always QVariantList() (empty stub).
+        // Per-interface IP config is in the terminal text — no structured list needed.
     }
     return r;
 }
