@@ -80,6 +80,29 @@ static QVariantMap propToMap(const ResultProperty& p) {
     return pm;
 }
 
+// ── Shared metadata injector ──────────────────────────────────────────
+// Injects DiagnosticMeta profile fields into a QVariantMap for QML consumption.
+// Called by both resultToVariantMap (list view) and getDetailResult (detail page).
+// 5WHY: the 17-line block was copy-pasted verbatim in two functions — a missing
+// field on one side silently diverges the data contract between tile and detail views.
+static QVariantMap injectDetailMeta(DiagId id, const QVariantMap& existingData) {
+    QVariantMap enriched = existingData.isEmpty() ? QVariantMap() : existingData;
+    auto& meta = ::diagnosticMeta(id);
+    enriched["templateType"]     = static_cast<int>(meta.tmplType);
+    enriched["showErrorOutput"]  = meta.detail.showErrorOutput;
+    enriched["showProperties"]   = meta.detail.showProperties;
+    enriched["showCharts"]       = meta.detail.showCharts;
+    enriched["showTerminal"]     = meta.detail.showTerminal;
+    enriched["keyMetricField"]   = meta.detail.keyMetricField
+                                    ? QString::fromLatin1(meta.detail.keyMetricField) : QString();
+    enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
+                                    ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
+    enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
+    enriched["terminalTypewriter"] = meta.detail.terminalTypewriter;
+    enriched["platformFlags"]    = static_cast<int>(meta.platforms);
+    return enriched;
+}
+
 QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool includeProperties) {
     QVariantMap m;
     m["id"] = static_cast<int>(r.id);
@@ -99,25 +122,9 @@ QVariantMap ResultsModel::resultToVariantMap(const DiagnosticResult& r, bool inc
     m["isDone"] = true;
     m["isPending"] = false;
     m["isRunning"] = false;
-    // L5 Living Diagnostics: always inject metadata profile (matching
-    // getDetailResult — see 5WHY there for the empty-data rationale).
-    {
-        QVariantMap enriched = r.data.isEmpty() ? QVariantMap() : r.data;
-        auto& meta = ::diagnosticMeta(r.id);
-        enriched["templateType"]     = static_cast<int>(meta.tmplType);
-        enriched["showErrorOutput"]  = meta.detail.showErrorOutput;
-        enriched["showProperties"]   = meta.detail.showProperties;
-        enriched["showCharts"]       = meta.detail.showCharts;
-        enriched["showTerminal"]     = meta.detail.showTerminal;
-        enriched["keyMetricField"]   = meta.detail.keyMetricField
-                                        ? QString::fromLatin1(meta.detail.keyMetricField) : QString();
-        enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
-                                        ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
-        enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
-        enriched["terminalTypewriter"] = meta.detail.terminalTypewriter;
-        enriched["platformFlags"]    = static_cast<int>(meta.platforms);
-        m["data"] = enriched;
-    }
+    // L5 Living Diagnostics: inject metadata profile (shared helper, same as
+    // getDetailResult below — single source of truth for the data contract).
+    m["data"] = injectDetailMeta(r.id, r.data);
     return m;
 }
 
@@ -331,30 +338,7 @@ QVariantMap ResultsModel::getDetailResult(int diagIdInt) const {
     for (const auto& p : r.properties)
         props.append(propToMap(p));
     m["properties"] = props;
-    // L5 Living Diagnostics: always inject template classification +
-    // display profile so the QML detail page has complete metadata even
-    // when the probe emitted no structured r.data (e.g. System-template
-    // diagnostics like G1NetworkAdapters that only populate r.properties).
-    // 5WHY: m["data"] was conditional on !r.data.isEmpty() — diagnostics
-    // with empty r.data got detail.data === undefined in QML, losing
-    // templateType, showErrorOutput, showProperties, showCharts,
-    // showTerminal, and terminalTypewriter.
-    {
-        QVariantMap enriched = r.data.isEmpty() ? QVariantMap() : r.data;
-        auto& meta = ::diagnosticMeta(r.id);
-        enriched["templateType"]     = static_cast<int>(meta.tmplType);
-        enriched["showErrorOutput"]  = meta.detail.showErrorOutput;
-        enriched["showProperties"]   = meta.detail.showProperties;
-        enriched["showCharts"]       = meta.detail.showCharts;
-        enriched["showTerminal"]     = meta.detail.showTerminal;
-        enriched["keyMetricField"]   = meta.detail.keyMetricField
-                                        ? QString::fromLatin1(meta.detail.keyMetricField) : QString();
-        enriched["keyMetricUnit"]    = meta.detail.keyMetricUnit
-                                        ? QString::fromLatin1(meta.detail.keyMetricUnit) : QString();
-        enriched["chartType"]        = static_cast<int>(meta.detail.chartType);
-        enriched["terminalTypewriter"] = meta.detail.terminalTypewriter;
-        enriched["platformFlags"]    = static_cast<int>(meta.platforms);
-        m["data"] = enriched;
-    }
+    // L5 Living Diagnostics: inject metadata profile via shared helper.
+    m["data"] = injectDetailMeta(r.id, r.data);
     return m;
 }

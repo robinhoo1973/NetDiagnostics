@@ -157,7 +157,8 @@ Rectangle {
         // compact tile size with auto-fit column count — NOT columns-first
         // (which stretched tiles to ~620px on wide desktops).
         ColumnLayout {
-            Layout.fillWidth: true; Layout.topMargin: 6
+            Layout.fillWidth: true
+            Layout.topMargin: expanded ? 6 : 0
             visible: expanded
             spacing: 0
             Rectangle { Layout.fillWidth:true; implicitHeight:1; color:ThemeEngine.colors.borderCard }

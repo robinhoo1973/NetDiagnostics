@@ -76,13 +76,12 @@ Page {
     // Set once on open — data is static for the page lifetime.
     Component.onCompleted: { page.chartsExpanded = chartView.seriesCount <= 8 }
 
-    // Consolidate repeated compound expressions — computed once, read many times
-    readonly property bool _hasTerminalOutput: _terminalText !== ""
+    // Pre-computed data-presence gates — evaluated once (page.detail is immutable).
     readonly property bool _hasErrorOutput: (page.detail.errorOutput || "") !== ""
     readonly property bool _hasProperties: (page.detail.properties || []).length > 0
-    // 5WHY (efficiency): _terminalText caches the compound expression once for
-    // both _hasTerminalOutput (boolean check) and _terminalLines (char loop).
-    // The old _terminalLines independently re-evaluated the same || chain.
+    // 5WHY (efficiency): _terminalText caches the compound expression once;
+    // _terminalLines gates visibility (use _terminalLines > 0 instead of a
+    // separate boolean — avoids two properties needing to stay in sync).
     readonly property string _terminalText: page.detail.details || page.detail.rawOutput || ""
     readonly property int _terminalLines: {
         var txt = _terminalText
@@ -457,10 +456,10 @@ Page {
             // 5WHY: the terminal section was always visible, showing an empty
             // dark rectangle when the test produced no terminal output.
             // Gate the entire section on output presence.
-            // 5WHY (efficiency): _hasTerminalOutput + _terminalLines consolidate
+            // 5WHY (efficiency): _terminalLines > 0 + _terminalLines consolidate
             // the 7 duplicated compound expressions into one computed property.
             W.ConditionalCard {
-                active: _hasTerminalOutput
+                active: _terminalLines > 0
                 topMargin: Th.ThemeEngine.spacing.lg
                 contentSpacing: 6
                 cardColor: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"
@@ -474,15 +473,15 @@ Page {
                 }
                 Loader {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: _hasTerminalOutput
+                    Layout.preferredHeight: _terminalLines > 0
                         ? Math.min(360, Math.max(72, _terminalLines * 18 + 24)) : 0
-                    active: _hasTerminalOutput
+                    active: _terminalLines > 0
                     source: "qrc:/qml/detail/TerminalBlock.qml"
                     onLoaded: {
                         if (item) {
-                            item.text = Qt.binding(function() {
-                                return page.detail.details || page.detail.rawOutput || ""
-                            })
+                            // Direct assignment — page.detail is immutable for
+                            // the page lifetime, no need for binding overhead.
+                            item.text = _terminalText
                             item.typewriter = (resultData.terminalTypewriter === true)
                                 && _terminalText.length < 2000
                                 && _terminalLines < 100

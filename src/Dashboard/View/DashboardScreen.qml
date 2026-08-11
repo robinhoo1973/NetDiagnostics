@@ -313,39 +313,26 @@ Item {
                 }
             }
             // ── Review Report section (visible only when run complete + results exist) ──
-            // 5WHY: was visible as soon as hasData (totalCompleted>0) — user could
-            // click Review Report while diagnostics were still running, producing a
-            // partial report.  Now requires runStatus !== 1 (not running).
-            // 5WHY (spacing collapse): implicitHeight + topMargin must be conditional
-            // on visibility — same Qt layout edge case as DetailPage sections.
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: (hasData && appState.runStatus !== 1)
-                                ? repCol.implicitHeight + 24 : 0
-                Layout.topMargin: (hasData && appState.runStatus !== 1) ? 16 : 0
-                visible: hasData && appState.runStatus !== 1
-                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
-                // 5WHY: margins:16 was inconsistent with info card (12px),
-                // DashboardGroupRow (12px), and DiagGroupPanel (12px).
-                // Unified to 12px for visual consistency.
-                ColumnLayout {
-                    id: repCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 } spacing: 12
-                    Label { text: T.tr("report"); font.family: ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-                    AppLabel { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                    // Review Report button
-                    Rectangle {
-                        id: reviewBtn
-                        Layout.fillWidth: true; implicitHeight: 48; radius: 10
-                        color: Qt.alpha(ThemeEngine.colors.cyan, 0.10)
-                        border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.35) }
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                            AppIcon { name: "report"; size: 18; color: ThemeEngine.colors.cyan }
-                            Item { width: 12 }
-                            AppLabel { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
-                        }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
+            ConditionalCard {
+                active: canReport
+                topMargin: 16
+                contentSpacing: 12
+                cardRadius: 12
+
+                Label { text: T.tr("report"); font.family: ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
+                AppLabel { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
+                // Review Report button
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 48; radius: 10
+                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.10)
+                    border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.35) }
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                        AppIcon { name: "report"; size: 18; color: ThemeEngine.colors.cyan }
+                        Item { width: 12 }
+                        AppLabel { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
                     }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
                 }
             }
             Item { Layout.preferredHeight: 24 }
