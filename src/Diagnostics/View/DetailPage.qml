@@ -76,6 +76,19 @@ Page {
     // Set once on open — data is static for the page lifetime.
     Component.onCompleted: { page.chartsExpanded = chartView.seriesCount <= 8 }
 
+    // Consolidate repeated compound expressions — computed once, read many times
+    readonly property bool _hasTerminalOutput: (page.detail.details || page.detail.rawOutput || "") !== ""
+    readonly property bool _hasErrorOutput: (page.detail.errorOutput || "") !== ""
+    readonly property bool _hasProperties: (page.detail.properties || []).length > 0
+    readonly property int _terminalLines: {
+        if (!_hasTerminalOutput) return 0
+        var txt = page.detail.details || page.detail.rawOutput || ""
+        var count = 0
+        for (var i = 0; i < txt.length; i++)
+            if (txt[i] === '\n') count++
+        return count + 1  // lines = newlines + 1
+    }
+
     background: Rectangle { color: Th.ThemeEngine.colors.surface }
 
     // ── Header — single-row title bar ──────────────────────────────────
@@ -311,14 +324,14 @@ Page {
             // error section's margin collapses when there is no error.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.topMargin: (page.detail.errorOutput || "") !== ""
-                                  ? Th.ThemeEngine.spacing.sm : 0
-                visible: (page.detail.errorOutput || "") !== ""
+                Layout.topMargin: _hasErrorOutput ? Th.ThemeEngine.spacing.sm : 0
+                implicitHeight: errCol.implicitHeight + 24
+                visible: _hasErrorOutput
                 radius: Th.ThemeEngine.radius.md
                 color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
                 border { width: 1; color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.5) }
                 ColumnLayout {
-                    anchors { fill: parent; margins: 12 }
+                    id: errCol; anchors { fill: parent; margins: 12 }
                     spacing: 6
                     Label {
                         text: T.tr("detailError")
@@ -342,14 +355,13 @@ Page {
             // phantom 16px gap does not appear when Properties are absent.
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: propsCol.implicitHeight + 16
-                Layout.topMargin: (page.detail.properties || []).length > 0
-                                  ? Th.ThemeEngine.spacing.lg : 0
+                Layout.topMargin: _hasProperties ? Th.ThemeEngine.spacing.lg : 0
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
-                // 5WHY: several diagnostics (Ping/Traceroute/TcpConnect) emit
-                // no properties — the empty section header was dead UI.
-                visible: (page.detail.properties || []).length > 0
+                // 5WHY: several diagnostics emit no properties — the empty
+                // section header was dead UI.  _hasProperties pre-computes this.
+                visible: _hasProperties
 
                 ColumnLayout {
                     id: propsCol
@@ -485,17 +497,14 @@ Page {
             // presence so the empty shell never renders.
             // 5WHY (spacing collapse): bind topMargin to visibility so the
             // 16px boundary collapses when there is no terminal output.
+            // 5WHY (efficiency): _hasTerminalOutput + _terminalLines consolidate
+            // the 7 duplicated compound expressions into one computed property.
             Rectangle {
                 Layout.fillWidth: true
-                Layout.topMargin: (page.detail.details || page.detail.rawOutput || "") !== ""
-                                  ? Th.ThemeEngine.spacing.lg : 0
-                implicitHeight: (page.detail.details || page.detail.rawOutput || "") !== ""
-                                ? termBlock.implicitHeight + 16 : 0
-                visible: (page.detail.details || page.detail.rawOutput || "") !== ""
+                Layout.topMargin: _hasTerminalOutput ? Th.ThemeEngine.spacing.lg : 0
+                implicitHeight: _hasTerminalOutput ? termBlock.implicitHeight + 16 : 0
+                visible: _hasTerminalOutput
                 radius: Th.ThemeEngine.radius.md
-                // 5WHY: Match TerminalBlock's default terminalColor so the
-                // wrapper background is seamless with the terminal content.
-                // Dark in dark theme, dark slate in light theme.
                 color: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
 
@@ -505,39 +514,25 @@ Page {
                     Label {
                         text: T.tr("detailTerminal"); font.family: Th.ThemeEngine.monoFont
                         font.pixelSize: 11; font.weight: Font.Bold
-                        // 5WHY: passGreen title read like a status verdict — a
-                        // section header should be neutral text.
                         color: Th.ThemeEngine.colors.textPrimary
                         Accessible.name: T.tr("detailTerminal")
                         Accessible.role: Accessible.StaticText
                     }
-                    // L5: TerminalBlock with typewriter animation
                     Loader {
                         id: termLoader
                         Layout.fillWidth: true
-                        // 5WHY (format fix): a FIXED 200px terminal block left
-                        // most of the space empty for short outputs and capped
-                        // long ones.  Height follows line count (18px/line,
-                        // clamp 120-360px) and collapses to 0 when empty.
-                        Layout.preferredHeight: {
-                            var txt = page.detail.details || page.detail.rawOutput || ""
-                            if (txt === "") return 0
-                            var lines = txt.split("\n").length
-                            return Math.min(360, Math.max(120, lines * 18 + 24))
-                        }
-                        active: (page.detail.details || page.detail.rawOutput || "") !== ""
+                        // Height follows line count (18px/line, clamp 120-360px)
+                        Layout.preferredHeight: _hasTerminalOutput
+                            ? Math.min(360, Math.max(120, _terminalLines * 18 + 24)) : 0
+                        active: _hasTerminalOutput
                         source: "qrc:/qml/detail/TerminalBlock.qml"
                         onLoaded: {
                             if (item) {
                                 item.text = Qt.binding(function() {
                                     return page.detail.details || page.detail.rawOutput || ""
                                 })
-                                // 5WHY (review B17): typewriter types at 40ms/char
-                                // — multi-KB terminal output (long traceroutes,
-                                // verbose HTTP) would take minutes to animate.
-                                // Cap the animation to concise output; large
-                                // payloads render instantly.
-                                item.typewriter = (page.detail.details || page.detail.rawOutput || "").length < 2000
+                                // Cap typewriter animation to concise output
+                                item.typewriter = _terminalLines < 100
                             }
                         }
                     }
