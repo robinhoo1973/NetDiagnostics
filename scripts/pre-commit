@@ -263,7 +263,7 @@ fi
 	        # components that declare `property bool compact`, e.g. DiagBlock
 	        # used by DashboardScreen — valid compact-tile mode).
 	        if git show ":$f" | grep -nE 'compact:\s*true' > /tmp/precommit-qml-compact.log 2>/dev/null; then
-	            if git show ":$f" | grep -qE 'property\s+bool\s+compact|DiagBlock'; then
+	            if git show ":$f" | grep -qE 'property\s+bool\s+compact|DiagBlock|DiagTileGrid'; then
 	                # Custom component declares compact (or instantiates one) —
 	                # the hit is a valid custom-property assignment.
 	                pass "$f"

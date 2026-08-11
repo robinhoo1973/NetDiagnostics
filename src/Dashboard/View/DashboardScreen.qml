@@ -509,16 +509,26 @@ Item {
                     color: _stat.fail > 0 ? ThemeEngine.colors.warnYellow : ThemeEngine.colors.passGreen
                 }
             }
-            Item { Layout.preferredHeight: 10 }
+            // 5WHY: separator line + topMargin matches DiagGroupPanel's tile
+            // wall layout (Diagnostic screen).  Old spacer (10px) was visually
+            // equivalent but structurally different — unifying the separator
+            // pattern ensures both screens render tile grids identically.
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard }
             // 5WHY (review B7 / doc D11): reuse the shared DiagTileGrid so
             // Dashboard per-group results share the Diagnostic screen's tile
             // wall AND dynamic-gap algorithm (was a dense 28px text list, then
             // a fixed-spacing Flow that wasted the right edge).  Compact mode:
             // smaller icons, no metric.  Tap opens the same L5 DetailPage.
+            // 5WHY: blockSize was 104 while DiagGroupPanel (Diagnostic
+            // screen) uses 108 — the two shared-component call sites drifted.
+            // compact:true already differentiates the visual density; the
+            // underlying tile dims must match so layout calculations are
+            // identical across screens.
             DiagTileGrid {
                 Layout.fillWidth: true
+                Layout.topMargin: 8
                 model: appState.resultsForGroup(groupIndex)
-                blockSize: 104
+                blockSize: 108
                 compact: true
                 onTileClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
             }

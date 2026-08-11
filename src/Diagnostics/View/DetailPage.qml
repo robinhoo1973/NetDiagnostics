@@ -180,7 +180,24 @@ Page {
         ColumnLayout {
             id: bodyColumn
             width: bodyFlick.width - 32
-            x: 16; spacing: 10
+            x: 16
+            // 5WHY (spacing hierarchy): a uniform spacing:10 treats every
+            // section as equal-weight — no visual distinction between a
+            // subordinate MetricCard and a major section boundary.  Switched
+            // to spacing:0 with explicit per-item Layout.topMargin so the
+            // layout reads as three visual groups:
+            //   [16px header-body gap] Hero — MetricCard(8px) — Error(8px)
+            //   [16px boundary]       Properties
+            //   [16px boundary]       Charts
+            //   [16px boundary]       Terminal
+            // Theme-adaptive: values reference ThemeEngine.spacing tokens
+            // (sm=8, lg=16) rather than hardcoded numbers.
+            spacing: 0
+
+            // Header-body breathing room — 16dp below the 42px ToolBar header.
+            // MD3 recommends ≥16dp content padding below app bars; Apple HIG
+            // recommends ≥8pt.  16dp satisfies both and matches ThemeEngine.spacing.lg.
+            Item { Layout.preferredHeight: Th.ThemeEngine.spacing.lg }
 
             // ── Hero: result headline card (P2) ───────────────────────
             // 5WHY: the old hero was a 120px decorative icon slab duplicating
@@ -262,6 +279,7 @@ Page {
             Loader {
                 Layout.fillWidth: true
                 Layout.preferredHeight: _keyMetric.ok ? 72 : 0
+                Layout.topMargin: Th.ThemeEngine.spacing.sm  // 8px — subordinate to Hero
                 visible: _keyMetric.ok
                 // 5WHY: _keyMetric is now a structured object from the shared
                 // KeyMetric module — no string parsing (parseFloat on "1:23"
@@ -289,6 +307,7 @@ Page {
             // their error detail on the detail page.
             Rectangle {
                 Layout.fillWidth: true
+                Layout.topMargin: Th.ThemeEngine.spacing.sm  // 8px — subordinate to Hero group
                 visible: (page.detail.errorOutput || "") !== ""
                 radius: Th.ThemeEngine.radius.md
                 color: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
@@ -316,6 +335,7 @@ Page {
             // ── Properties section (collapsible) ─────────────────────────
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: propsCol.implicitHeight + 16
+                Layout.topMargin: Th.ThemeEngine.spacing.lg  // 16px — section boundary
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
@@ -414,6 +434,7 @@ Page {
             // ── Detailed Data section (charts, default collapsed) ────────
             Rectangle {
                 Layout.fillWidth: true; implicitHeight: chartsCol.implicitHeight + 16
+                Layout.topMargin: Th.ThemeEngine.spacing.lg  // 16px — section boundary
                 radius: Th.ThemeEngine.radius.md
                 color: Th.ThemeEngine.colors.card
                 border { width: 1; color: Th.ThemeEngine.colors.borderCard }
@@ -453,6 +474,7 @@ Page {
             // presence so the empty shell never renders.
             Rectangle {
                 Layout.fillWidth: true
+                Layout.topMargin: Th.ThemeEngine.spacing.lg  // 16px — section boundary
                 implicitHeight: (page.detail.details || page.detail.rawOutput || "") !== ""
                                 ? termBlock.implicitHeight + 16 : 0
                 visible: (page.detail.details || page.detail.rawOutput || "") !== ""
