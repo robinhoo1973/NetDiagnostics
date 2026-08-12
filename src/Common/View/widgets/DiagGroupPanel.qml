@@ -7,8 +7,21 @@ import QtQuick.Layouts
 Rectangle {
     id: root
     property int groupIndex: 0
-    property bool expanded: false
+    // 5WHY (tile wall hidden during run — user's run-orchestration design):
+    // `expanded` was a plain bool mutated by onIsRunningChanged /
+    // onCompletedCountChanged SIGNAL HANDLERS.  Those fire only on a value
+    // CHANGE after creation.  Under deferred Repeater instantiation the
+    // running group's panel can be created with isRunning ALREADY true — the
+    // handler never fires, so its tile wall stays collapsed for the whole run
+    // ("clear all → show current group" orchestration never worked).
+    // Now a DETERMINISTIC derived binding — always in sync, no timing:
+    //   expanded = userToggled ? userExpanded : (isRunning || completedCount>0)
+    //   - run start (reset): completedCount=0 && isRunning=false → ALL collapse
+    //   - current running group: isRunning=true → wall shows immediately
+    //   - finished groups: completedCount>0 → stay open (show results)
     property bool _userToggled: false
+    property bool _userExpanded: false
+    readonly property bool expanded: _userToggled ? _userExpanded : (isRunning || completedCount > 0)
     // Phone portrait: badges move to a second line below the title bar
     // so the 5 status icons + counts don't get clipped in the title row.
     property bool compact: ThemeEngine.isMobile
@@ -37,9 +50,6 @@ Rectangle {
     property int groupInfo: _gstat.info
     property int groupError: _gstat.error
 
-    onIsRunningChanged: if(!_userToggled)expanded=isRunning||completedCount>0
-    onCompletedCountChanged: if(!_userToggled&&completedCount>0)expanded=true
-
     // Refresh the item model whenever a diagnostic completes. Driven by
     // appState.progressChanged (which also bumps resultsVersion). The previous
     // version targeted a non-existent `page._TotalCompleted` signal, so the
@@ -58,17 +68,7 @@ Rectangle {
         itemsModel = appState.allDiagsForGroup(groupIndex)
         _modelVersion++
     }
-    Component.onCompleted: {
-        reloadModel()
-        // 5WHY (tile wall hidden during run): onIsRunningChanged only fires on
-        // a value CHANGE after creation.  If the panel is instantiated while
-        // its group is ALREADY the running group (deferred Repeater binding
-        // evaluation after setCurrentGroup — QML may defer visibleGroups
-        // re-evaluation until after startNextGroup), the initial isRunning
-        // value is already true and the handler never re-runs, leaving the
-        // tile wall collapsed for the whole run.  Force the initial expand.
-        if (!_userToggled && (isRunning || completedCount > 0)) expanded = true
-    }
+    Component.onCompleted: reloadModel()
 
     ColumnLayout {
         id: cardColumn
@@ -196,12 +196,12 @@ Rectangle {
         height: 40
         cursorShape: Qt.PointingHandCursor
         hoverEnabled: true
-        onClicked: { _userToggled=true; expanded=!expanded }
+        onClicked: { _userToggled=true; _userExpanded=!expanded }
     }
     activeFocusOnTab: true
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-            _userToggled = true; expanded = !expanded; event.accepted = true
+            _userToggled = true; _userExpanded = !expanded; event.accepted = true
         }
     }
     Accessible.name: T.groupName(groupIndex) + (expanded ? T.tr("accExpanded") : T.tr("accCollapsed"))
