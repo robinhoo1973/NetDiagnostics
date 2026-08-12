@@ -578,6 +578,74 @@ PYEOF
 	    echo "  (no staged .mm/.m files)"
 	fi
 
+	# ── 23. Startup-crash guard: inline QML binding-block `};` same-line property ──
+	# 5WHY (CRASH-2026-08-12 / crash/NetDiagnostics_startup(2).log): a JS
+	# binding block written inline as
+	#     val: { var _ = ...; return calcTotalTime() }; lbl: ...
+	# is REJECTED by iOS Qt qmlcachegen ("Unexpected token ';'") when the
+	# closing `}` is immediately followed by `;` + another property on the SAME
+	# line.  DashboardScreen.qml then failed to parse → main.qml root
+	# objects=0 → startup crash (闪退).  The SAFE form (block binding with the
+	# next property on a NEW line) is what ConfigScreen.qml uses.  Historical
+	# startup-crash family guarded by pre-commit: CRASH-2026-08-05 (raw data
+	# as QML, check 14), non-existent props / SIOF / ObjC braces
+	# (checks 12-16, 22), and this one.  Comments/strings are stripped first so
+	# documentation that merely mentions the pattern does not false-positive.
+	echo ""
+	echo "── 23. Startup-crash: inline QML binding-block close + same-line ';' ──"
+	if [ -n "$QML_FILES" ]; then
+	    # Resolve a working Python (python3 may be a Microsoft Store stub that
+	    # exists on PATH but fails to run — verify by executing it).
+	    PY=""
+	    for cand in python3 python py; do
+	        if command -v "$cand" >/dev/null 2>&1 && "$cand" -c 'pass' >/dev/null 2>&1; then
+	            PY="$cand"; break
+	        fi
+	    done
+	    if [ -n "$PY" ]; then
+	        if "$PY" - "$QML_FILES" <<'PYEOF'
+import re, sys
+PAT = re.compile(r':\s*\{[^{}]*\breturn\b[^{}]*\}\s*;')
+ok = True
+def strip_comments(src):
+    s = re.sub(r'//[^\n]*', '', src)
+    s = re.sub(r'/\*.*?\*/', '', s, flags=re.S)
+    s = re.sub(r'"(?:[^"\\]|\\.)*"', '""', s)
+    s = re.sub(r"'(?:[^'\\]|\\.)*'", "''", s)
+    return s
+for path in sys.argv[1].splitlines():
+    if not path.endswith(".qml"):
+        continue
+    try:
+        src = strip_comments(open(path, encoding="utf-8", errors="replace").read())
+    except FileNotFoundError:
+        continue  # staged deletion
+    for i, line in enumerate(src.split("\n"), 1):
+        if PAT.search(line):
+            ok = False
+            print(f"       {path}:{i}: inline binding block '{{...return...}};' — closing '}}' followed by ';' on the SAME line breaks iOS qmlcachegen (CRASH-2026-08-12). Move the next property to a NEW line, or compute into a tracked property.")
+            print(f"         -> {line.strip()}")
+sys.exit(0 if ok else 1)
+PYEOF
+	        then
+	            pass "no inline binding-block close + same-line ';' pattern in staged QML"
+	        else
+	            fail "staged QML contains the iOS startup-crash pattern — see review/common-bug-patterns.md (CRASH-2026-08-12)"
+	        fi
+	    else
+	        warn "no working python found — using grep fallback (comments not stripped)"
+	        for f in $QML_FILES; do
+	            if git show ":$f" | grep -nE ':\s*\{[^{}]*\breturn\b[^{}]*\}\s*;' > /tmp/precommit-crash23.log 2>/dev/null; then
+	                fail "$f: inline binding-block close followed by ';' on same line — iOS startup-crash pattern (CRASH-2026-08-12)"
+	                cat /tmp/precommit-crash23.log | while read -r line; do echo "       $line"; done
+	            fi
+	        done
+	        [ $EXIT -eq 0 ] && pass "no inline binding-block close + same-line ';' pattern in staged QML"
+	    fi
+	else
+	    echo "  (no staged QML files)"
+	fi
+
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

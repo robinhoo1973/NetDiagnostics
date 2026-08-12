@@ -124,6 +124,7 @@ Item {
         target: appState
         function onProgressChanged() {
             page._groupsVersion++
+            page.refreshSummary()
             if (page.previewVisible && appState.runStatus !== 1) page.openPreview()
         }
         // 5WHY: onSavePathPicked was removed — it ignored `format` and always
@@ -316,7 +317,7 @@ Item {
                     ColumnLayout {
                     Layout.fillWidth: true; spacing: 10
                     SummaryStat { appIcon: "list-checks"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: T.tr("totalDiagsLabel") }
-                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: { var _ = page._groupsVersion; return calcTotalTime() }; lbl: T.tr("totalTimeLabel") }
+                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: page._totalTimeText; lbl: T.tr("totalTimeLabel") }
                     SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: T.tr("completedLabel") }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard; visible: _totalCompleted > 0 }
@@ -344,9 +345,11 @@ Item {
                             }
                             Item { width: 8 }
                             AppLabel { Layout.fillWidth: true; text: T.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
-                            // 5WHY (frozen during run): calcLayerTiming() is a
-                            // method call — forced re-eval via _groupsVersion.
-                            Label { text: { var _ = page._groupsVersion; return calcLayerTiming(modelData) }; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
+                            // 5WHY (CRASH-2026-08-12): was an inline binding
+                            // block `text: { ...; return calcLayerTiming(...) };`
+                            // that broke iOS qmlcachegen — now a tracked page
+                            // property refreshed by refreshSummary().
+                            Label { text: page._layerTimingTexts[modelData] || "—"; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
                 }
@@ -404,6 +407,28 @@ Item {
         }
         return total > 0 ? ThemeEngine.formatDuration(total) : "—"
     }
+
+    // 5WHY (CRASH-2026-08-12 startup 闪退): total-time / layer-timing were
+    // forced to re-evaluate via INLINE binding blocks written as
+    //   val: { var _ = page._groupsVersion; return calcTotalTime() }; lbl: ...
+    // On the iOS build Qt's qmlcachegen REJECTS a binding block that is
+    // immediately followed by `;` + another property on the SAME line
+    // ("Unexpected token ';'").  DashboardScreen.qml then failed to parse,
+    // main.qml's object creation failed, rootObjects=0 → the app exited at
+    // startup.  (The safe form — block binding with the next property on a
+    // NEW line — is what ConfigScreen.qml uses.)  Rewritten here as tracked
+    // properties refreshed imperatively on progressChanged: no inline binding
+    // blocks at all, and QML re-evaluates bindings that READ these properties.
+    property string _totalTimeText: ""
+    property var _layerTimingTexts: ({})
+    function refreshSummary() {
+        _totalTimeText = calcTotalTime()
+        var m = {}
+        for (var g = 0; g < appState.groupLabels.length; g++)
+            m[g] = calcLayerTiming(g)
+        _layerTimingTexts = m
+    }
+    Component.onCompleted: refreshSummary()
 
     // ── Preview overlay (zoomable + share buttons) ──────────────────────
     Rectangle {
@@ -547,6 +572,11 @@ Item {
         property int _modelVersion: 0
         property var _stat: ({ pass:0, warn:0, fail:0, skip:0, info:0, total:0, enabled:0 })
         property var _tileModel: []
+        // 5WHY (CRASH-2026-08-12): the duration label used an inline binding
+        // block `text: { var _ = _modelVersion; return getDurFromResults(...) };`
+        // that broke iOS qmlcachegen (see page-level comment).  Computed
+        // imperatively in reload() into a tracked property instead.
+        property string _durText: ""
         Connections {
             target: appState
             function onProgressChanged() { reload() }
@@ -554,6 +584,7 @@ Item {
         function reload() {
             _stat = calcGroupStat(groupIndex)
             _tileModel = appState.resultsForGroup(groupIndex)
+            _durText = getDurFromResults(groupIndex)
             _modelVersion++
         }
         Component.onCompleted: reload()
@@ -572,10 +603,11 @@ Item {
                 DashboardBadge { accent: ThemeEngine.colors.skipGray;  v: _stat.skip }
                 DashboardBadge { accent: ThemeEngine.colors.infoBlue; v: _stat.info||0 }
                 Item { width: 8 }
-                // 5WHY (frozen during run): getDurFromResults() is a method
-                // call the binding engine cannot track — re-eval is forced by
-                // the row's _modelVersion bump (reload on progressChanged).
-                Label { text: { var _ = _modelVersion; return getDurFromResults(groupIndex) }; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
+                // 5WHY (CRASH-2026-08-12): was `text: { var _ = _modelVersion;
+                // return getDurFromResults(groupIndex) };` — inline binding
+                // block broke iOS qmlcachegen.  Now a tracked property set by
+                // reload() on progressChanged.
+                Label { text: _durText; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
             }
             Rectangle { Layout.fillWidth: true; implicitHeight: 4; radius: 2; color: ThemeEngine.colors.borderCard
                 Rectangle {

@@ -316,6 +316,61 @@ head -1 file.qml  # 必须以 // 或 pragma 或 import 或根类型开头
 
 ---
 
+### E.1 内联 JS 块绑定 `};` 同行后续属性（iOS qmlcachegen 启动闪退）
+
+#### 问题描述
+
+用内联 JS 块绑定强制方法调用重求值时，若块闭合 `}` 后**同一行**紧跟
+`;` + 下一个属性，iOS 静态 Qt 构建的 qmlcachegen 会拒绝该写法并报
+`Unexpected token ';'`：
+
+```qml
+// ❌ 崩溃 — 块闭合 `}` 与 `; lbl:` 同一行
+SummaryStat { val: { var _ = page._groupsVersion; return calcTotalTime() }; lbl: T.tr("totalTimeLabel") }
+
+// ✅ 安全 — 下一属性另起一行（ConfigScreen.qml 的既有模式）
+Label {
+    text: { let _ = configPollVersion; return T.groupName(currentGroup) }
+    font.family: ...
+}
+```
+
+#### 5WHY 根因链
+
+```
+强制方法调用重求值 → 写内联块绑定 `prop: { ... return ... }`
+→ 为省行在同一行继续写下一属性（`}; 下一属性`）
+→ iOS qmlcachegen 对块后同行 `;` 报 "Unexpected token ';'"
+→ 该 QML 解析失败 → main.qml rootObjects=0 → return -1 → 启动闪退
+```
+
+#### 具体案例
+
+| Commit | 问题 | 表现 |
+|--------|------|------|
+| `4c2e02b2` | DashboardScreen.qml 3 处 `val/text: { var _ = ...; return ... }; 下一属性` 同行块绑定 | iOS 启动闪退 `Unexpected token ';'`（build 313, crash/NetDiagnostics_startup(2).log） |
+
+#### 检测方法
+
+pre-commit check 23 自动执行（剥离注释/字符串后匹配）：
+```bash
+grep -nE ':\s*\{[^{}]*\breturn\b[^{}]*\}\s*;'   # 剥离注释后的暂存 QML
+```
+
+#### 修复模式
+
+- **首选**：把值计算进可追踪属性（`property string _x: ""` + 在 `progressChanged`
+  的 `reload()`/`refreshSummary()` 里赋值），绑定 `text: _x` —— 无内联块，最稳妥
+- **次选**：块绑定后换行，下一属性另起一行（ConfigScreen 模式）
+- **不要**：在 `prop: { ... };` 同一行继续写属性
+
+#### 提交前检查
+
+- [ ] 暂存 QML 中是否有 `prop: { ... return ... };` 同行后续属性？（pre-commit check 23）
+- [ ] 强制方法调用重求值时，是否用可追踪属性/版本号而非内联块绑定？
+
+---
+
 ## F. 翻译/国际化缺陷
 
 ### 问题描述
