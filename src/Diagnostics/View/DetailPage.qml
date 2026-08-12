@@ -336,7 +336,7 @@ Page {
             // never rendered — failed tests with only an errorOutput lost
             // their error detail on the detail page.
             W.ConditionalCard {
-                active: _hasErrorOutput
+                active: _hasErrorOutput && page.resultData.showErrorOutput !== false
                 bottomMargin: Th.ThemeEngine.spacing.sm
                 contentSpacing: 6
                 cardColor: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
@@ -363,7 +363,7 @@ Page {
             // 5WHY: several diagnostics emit no properties — the empty
             // section header was dead UI.  _hasProperties pre-computes this.
             W.ConditionalCard {
-                active: _hasProperties
+                active: _hasProperties && page.resultData.showProperties !== false
                 bottomMargin: Th.ThemeEngine.spacing.lg
 
                 // Section header — shared CollapsibleSectionHeader.
@@ -444,7 +444,7 @@ Page {
             // 5WHY: gate on ResultChart.hasChart — a real visualization
             // exists for this template's data.
             W.ConditionalCard {
-                active: chartView.hasChart
+                active: chartView.hasChart && page.resultData.showCharts !== false
                 bottomMargin: Th.ThemeEngine.spacing.lg
                 contentSpacing: 8
 
@@ -470,7 +470,7 @@ Page {
             // _terminalLines gates both the ConditionalCard (layout collapse)
             // and the inner Loader height (single property, single source).
             W.ConditionalCard {
-                active: _terminalLines > 0
+                active: _terminalLines > 0 && page.resultData.showTerminal !== false
                 bottomMargin: Th.ThemeEngine.spacing.lg
                 contentSpacing: 6
                 cardColor: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"

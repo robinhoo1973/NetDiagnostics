@@ -24,7 +24,12 @@ static DetailProfile D(bool err, bool props, bool charts, bool term,
 }
 // 5WHY: PING/PATH/HAND/REQ/NO_CHART defined but never called — dead code.
 // Only SYS (14 uses) and QRY (11 uses) are active in the 46-test table.
-static DetailProfile SYS()  { return D(true, true, false, false, nullptr, nullptr, 0, DetailProfile::NoChart, false); }
+// 5WHY (CRASH-2026-08-12 detail spacing): System tests emit a text dump in
+// r.details (adapter/IP/route lists) — DetailPage's Terminal ConditionalCard
+// renders it.  showTerminal was false here, so the data-presence gate showed
+// an "undeclared" terminal card (intent vs data drift → spacing anomaly).
+// Aligned to true: the terminal IS the designated renderer for System output.
+static DetailProfile SYS()  { return D(true, true, false, true, nullptr, nullptr, 0, DetailProfile::NoChart, false); }
 static DetailProfile QRY() { DetailProfile d = D(true,true,true,true,"latencyMs","ms",0,DetailProfile::Gauge,false); return d; }
 
 // ── 46-test metadata table ──────────────────────────────────────────────
@@ -32,7 +37,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     // ── G1: System & Adapters ──────────────────────────────────────────
     { DiagId::G1NetworkAdapters,  "Network Adapters",  "network-card",  All,     DiagAnimType::Pulse,  DiagTemplateType::System,    SYS() },
     { DiagId::G1NicAdvanced,      "NIC Advanced",      "cpu",           Desktop, DiagAnimType::Pulse,  DiagTemplateType::System,    SYS() },
-    { DiagId::G1WifiDiagnostics,  "WiFi Information",  "wifi",          All,     DiagAnimType::Pulse,  DiagTemplateType::System,    D(true,true,false,false,nullptr,nullptr,0,DetailProfile::NoChart,true) },
+    { DiagId::G1WifiDiagnostics,  "WiFi Information",  "wifi",          All,     DiagAnimType::Pulse,  DiagTemplateType::System,    D(true,true,false,true,nullptr,nullptr,0,DetailProfile::NoChart,true) },
     { DiagId::G1WiredDiagnostics, "Wired Information", "ethernet",      Desktop, DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
     { DiagId::G1DhcpStatus,       "DHCP Status",       "dhcp",          All,     DiagAnimType::Bounce, DiagTemplateType::System,    D(true,true,false,true,"leaseCount","leases",0,DetailProfile::NoChart,false) },
     { DiagId::G1IpConfiguration,  "IP Configuration",  "ip-config",     All,     DiagAnimType::Jiggle, DiagTemplateType::System,    SYS() },
@@ -41,7 +46,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     // Handshake/Request/Query get BarChart/Gauge).  The "Detailed Data" section
     // was always hidden because _source returned "" for System template.  Set
     // showCharts=false until a System chart variant is wired.
-    { DiagId::G1ActiveConnections,"Active Connections","connections",   Desktop, DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,false,false,"tcpCount","connections",0,DetailProfile::BarChart,false) },
+    { DiagId::G1ActiveConnections,"Active Connections","connections",   Desktop, DiagAnimType::Path,   DiagTemplateType::System,    D(true,true,false,true,"tcpCount","connections",0,DetailProfile::BarChart,false) },
     { DiagId::G1CellularInfo,     "Cellular Information","cellular",    Mobile,  DiagAnimType::Pulse,  DiagTemplateType::System,    SYS() },
 
     // ── G2: Connectivity & Security ────────────────────────────────────
@@ -75,7 +80,7 @@ static const DiagnosticMeta kDiagMeta[] = {
     // 5WHY (chart wiring, 2026-08-11): showCharts=true with BarChart type but
     // templateType=System has no chart wiring in ResultChart.  Same root cause
     // as G1ActiveConnections — "Detailed Data" section was always hidden.
-    { DiagId::G4IPv6Connectivity, "IPv6 Connectivity", "ipv6",          All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,false,"connectedCount","ports",0,DetailProfile::BarChart,false) },
+    { DiagId::G4IPv6Connectivity, "IPv6 Connectivity", "ipv6",          All,     DiagAnimType::Type,   DiagTemplateType::System,    D(true,true,false,true,"connectedCount","ports",0,DetailProfile::BarChart,false) },
 
     // ── G5: Protocol ───────────────────────────────────────────────────
     // 5WHY: G5UrlParsing emits URL components (scheme/host/port/path/query) —
