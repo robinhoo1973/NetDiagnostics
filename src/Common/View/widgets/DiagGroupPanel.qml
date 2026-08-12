@@ -183,6 +183,12 @@ Rectangle {
                 compact: root.compact
                 model: root.itemsModel
                 usePerItemRunning: true
+                // 5WHY: pass the panel's REACTIVE isRunning (bound to
+                // appState.runStatus + currentRunningGroup) into the grid so
+                // every pending tile lights up the instant this group starts —
+                // not after the first test completes (the old frozen
+                // modelData.isRunning snapshot never refreshed at group start).
+                groupRunning: root.isRunning
                 onTileClicked: function(data) { root.detailClicked(data) }
             }
         }

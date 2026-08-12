@@ -30,7 +30,10 @@ Item {
     readonly property int _status: itemData.status !== undefined ? itemData.status : -1
     readonly property string _statusIcon: _isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
     readonly property color _statusColor: _isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skipGray) : "transparent"
-    readonly property bool _isRunning: root.testRunning && !root._isDisabled
+    // 5WHY: !_isDone is a defensive gate — a completed tile must never show
+    // the running state even if a caller feeds testRunning without gating on
+    // pending (DiagTileGrid gates on isPending; this guards the other 90%).
+    readonly property bool _isRunning: root.testRunning && !root._isDisabled && !root._isDone
     property bool _settle: false
 
     visible: _isPending || (itemData.status !== 3)

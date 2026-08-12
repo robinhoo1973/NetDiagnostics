@@ -20,10 +20,18 @@ Item {
     id: root
 
     // ── Public API ────────────────────────────────────────────────────────
-    // model items: {diagId,status,isRunning,isDisabled,label,...} — passed to DiagBlock
+    // model items: {diagId,status,isPending,isRunning,isDisabled,label,...} — passed to DiagBlock
     property var model: []
     property bool compact: false
+    // Opt-in: render the per-tile running state (glow, primary icon, DiagAnimator,
+    // elapsed timer).  Set true by screens that want live per-tile feedback.
     property bool usePerItemRunning: false
+    // REACTIVE: is the tile's group currently executing?  Fed by the parent
+    // panel from appState.runStatus + currentRunningGroup (both QML-tracked
+    // Q_PROPERTYs).  This is the single source of truth for the running state —
+    // it updates IMMEDIATELY at group start, unlike the frozen per-item
+    // `modelData.isRunning` snapshot that only refreshed on progressChanged.
+    property bool groupRunning: false
     signal tileClicked(var data)
 
     // ── Design parameters ──────────────────────────────────────────────────
@@ -88,8 +96,21 @@ Item {
                 blockSize: root._tileSize
                 compact: root.compact
                 itemData: modelData
+                // 5WHY (running state never showed): testRunning used to read
+                // `modelData.isRunning` — a per-item field baked into the model
+                // array by allDiagsForGroup().  QML cannot track changes to a
+                // plain JS-object property, so the binding froze at delegate
+                // creation; it only refreshed on delegate recreation
+                // (reloadModel, driven by progressChanged = test COMPLETION).
+                // At group START (currentRunningGroupChanged) nothing refreshed,
+                // so no tile ever showed the running state until the first test
+                // of the group finished.  Now bound to the REACTIVE
+                // root.groupRunning (fed from the panel's appState-tracked
+                // isRunning) + the static per-item isPending/isDisabled — the
+                // indicator appears the instant the group starts, on every tile
+                // of that group (all its tests run concurrently).
                 testRunning: root.usePerItemRunning
-                             ? (modelData.isRunning === true && !modelData.isDisabled)
+                             ? (root.groupRunning && modelData.isPending === true && !modelData.isDisabled)
                              : false
                 onClicked: function(data) { root.tileClicked(data) }
             }

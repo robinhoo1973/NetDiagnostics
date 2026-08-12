@@ -584,7 +584,18 @@ Item {
         }
         function reload() {
             _stat = calcGroupStat(groupIndex)
-            _tileModel = appState.resultsForGroup(groupIndex)
+            // 5WHY (running state never showed on Dashboard): _tileModel came
+            // from resultsForGroup(), which SKIPS pending tests entirely
+            // (if (resultIt == m_results.constEnd()) continue;).  The
+            // currently-executing test was never in the model, so there was no
+            // tile to show the running state on.  During a run use
+            // allDiagsForGroup() (includes pending tiles — same as the
+            // Diagnostic screen) so the current group's tiles can light up;
+            // after the run fall back to resultsForGroup() to keep the summary
+            // view unchanged (completed tiles only).
+            _tileModel = appState.runStatus === 1
+                         ? appState.allDiagsForGroup(groupIndex)
+                         : appState.resultsForGroup(groupIndex)
             _durText = getDurFromResults(groupIndex)
             _modelVersion++
         }
@@ -629,6 +640,14 @@ Item {
                 Layout.topMargin: 8
                 model: _tileModel
                 compact: true
+                // 5WHY: usePerItemRunning was missing (defaulted false) so
+                // testRunning was hardcoded false and the running/current-test
+                // indicator could never render on the Dashboard.  groupRunning
+                // is a REACTIVE binding to appState.runStatus +
+                // currentRunningGroup (both QML-tracked), so pending tiles of
+                // the executing group light up immediately at group start.
+                usePerItemRunning: true
+                groupRunning: appState.runStatus === 1 && appState.currentRunningGroup === groupIndex
                 onTileClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
             }
         }
