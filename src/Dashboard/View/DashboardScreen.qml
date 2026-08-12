@@ -336,9 +336,11 @@ Item {
                 }
             }
             // ── Review Report section (visible only when run complete + results exist) ──
+            // 5WHY (gap ownership): gap to the next element is owned by this
+            // card via bottomMargin (was topMargin-to-previous).
             ConditionalCard {
                 active: canReport
-                topMargin: 16
+                bottomMargin: 16
                 contentSpacing: 12
                 cardRadius: 12
 

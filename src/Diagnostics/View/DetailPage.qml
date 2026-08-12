@@ -196,51 +196,52 @@ Page {
             // 5WHY (spacing hierarchy): a uniform spacing:10 treats every
             // section as equal-weight — no visual distinction between a
             // subordinate MetricCard and a major section boundary.  Switched
-            // to spacing:0 with explicit per-item Layout.topMargin so the
-            // layout reads as three visual groups:
-            //   [16px header-body gap] Hero — MetricCard(8px) — Error(8px)
-            //   [16px boundary]       Properties
-            //   [16px boundary]       Charts
-            //   [16px boundary]       Terminal
+            // to spacing:0 with each section OWNING its trailing gap via
+            // bottomMargin so the layout reads as three visual groups:
+            //   Hero(top:16, bottom:8) — MetricCard(8) — Error(8)
+            //   Properties(16)
+            //   Charts(16)
+            //   Terminal(16)
             // Theme-adaptive: values reference ThemeEngine.spacing tokens
-            // (sm=8, lg=16) rather than hardcoded numbers.
+            // (sm=8, lg=16) rather than hardcoded numbers.  Adding a new
+            // section touches ONLY that section — no parent re-spacing.
             spacing: 0
 
-            // Header-body breathing room — 16dp below the 42px ToolBar header.
-            // MD3 recommends ≥16dp content padding below app bars; Apple HIG
-            // recommends ≥8pt.  16dp satisfies both and matches ThemeEngine.spacing.lg.
-            Item { Layout.preferredHeight: Th.ThemeEngine.spacing.lg }
-
-            // ── Hero: result headline card (P2) ───────────────────────
+            // ── Hero: result headline card (P2) — now a ConditionalCard ──
             // 5WHY: the old hero was a 120px decorative icon slab duplicating
             // the header icon and carrying zero information.  Now it is the
             // page's result headline: status, summary, target/duration.
             // 5WHY (format fix): a FIXED 96px height CLIPPED multi-line
             // summaries (e.g. DNS listing 6 addresses).  Height is now
-            // content-driven (heroRow.implicitHeight + 24 margins, min 80).
+            // content-driven (bodyLayout.implicitHeight + 24 margins, min 80).
             // 5WHY (padding drift, 2026-08-11): the formula used +32 but the
             // RowLayout's margins:12 provides only 24px of padding (12 top +
             // 12 bottom).  The 8px discrepancy added dead space at the bottom
-            // of the hero card, which accumulated with Terminal's lg topMargin
+            // of the hero card, which accumulated with Terminal's bottomMargin
             // to create an abnormally large visual gap when all middle sections
             // (Metric/Error/Properties/Charts) were hidden.
             // 5WHY (min-height dead space, 2026-08-11): the old floor of 96px
             // left a 16px empty strip for compact heroes (56px status disc +
             // 24px margins = 80px natural height).  Floor lowered to 80 = the
             // disc + margins, so no empty bottom strip remains.
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(80, heroRow.implicitHeight + 24)
-                radius: Th.ThemeEngine.radius.lg
-                color: Th.ThemeEngine.colors.card
-                border { width: 1; color: Th.ThemeEngine.colors.borderCard }
+            // 5WHY (gap ownership, 2026-08-12): the hero is the first card and
+            // owns its header breathing room (topMargin:lg — replaces the old
+            // standalone 16px spacer Item) plus its trailing gap to the
+            // MetricCard (bottomMargin:sm).  Every card now carries its own
+            // spacing; no element computes against the previous one.
+            W.ConditionalCard {
+                active: true
+                topMargin: Th.ThemeEngine.spacing.lg
+                bottomMargin: Th.ThemeEngine.spacing.sm
+                minHeight: 80
+                cardRadius: Th.ThemeEngine.radius.lg
 
                 RowLayout {
                     id: heroRow
                     // 5WHY: margins:16 was inconsistent with other sections (margins:12)
                     // — 8px narrower content area inside the same bodyColumn width.
-                    // Unified to 12px for visual consistency.
-                    anchors { fill: parent; margins: 12 }
+                    // Unified to 12px (ConditionalCard bodyLayout margins) for consistency.
+                    Layout.fillWidth: true
                     spacing: 14
 
                     // Status icon in a tinted disc
@@ -302,11 +303,13 @@ Page {
             // when no metric exists — bind height to _keyMetric.ok so the
             // Loader collapses completely when inactive.
             // 5WHY (spacing collapse): Layout.topMargin was unconditional —
-            // phantom 8px gap when MetricCard was hidden.  Bind to visibility.
+            // phantom 8px gap when MetricCard was hidden.  Gap now uses
+            // bottomMargin (owned by this section, gap to the next card) and
+            // is bound to visibility so hidden → content AND gap collapse.
             Loader {
                 Layout.fillWidth: true
                 Layout.preferredHeight: _keyMetric.ok ? 72 : 0
-                Layout.topMargin: _keyMetric.ok ? Th.ThemeEngine.spacing.sm : 0
+                Layout.bottomMargin: _keyMetric.ok ? Th.ThemeEngine.spacing.sm : 0
                 visible: _keyMetric.ok
                 // 5WHY: _keyMetric is now a structured object from the shared
                 // KeyMetric module — no string parsing (parseFloat on "1:23"
@@ -334,7 +337,7 @@ Page {
             // their error detail on the detail page.
             W.ConditionalCard {
                 active: _hasErrorOutput
-                topMargin: Th.ThemeEngine.spacing.sm
+                bottomMargin: Th.ThemeEngine.spacing.sm
                 contentSpacing: 6
                 cardColor: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.06)
                 borderColor: Qt.alpha(Th.ThemeEngine.colors.failRed, 0.5)
@@ -361,7 +364,7 @@ Page {
             // section header was dead UI.  _hasProperties pre-computes this.
             W.ConditionalCard {
                 active: _hasProperties
-                topMargin: Th.ThemeEngine.spacing.lg
+                bottomMargin: Th.ThemeEngine.spacing.lg
 
                 // Section header — shared CollapsibleSectionHeader.
                 W.CollapsibleSectionHeader {
@@ -442,7 +445,7 @@ Page {
             // exists for this template's data.
             W.ConditionalCard {
                 active: chartView.hasChart
-                topMargin: Th.ThemeEngine.spacing.lg
+                bottomMargin: Th.ThemeEngine.spacing.lg
                 contentSpacing: 8
 
                 W.CollapsibleSectionHeader {
@@ -468,7 +471,7 @@ Page {
             // and the inner Loader height (single property, single source).
             W.ConditionalCard {
                 active: _terminalLines > 0
-                topMargin: Th.ThemeEngine.spacing.lg
+                bottomMargin: Th.ThemeEngine.spacing.lg
                 contentSpacing: 6
                 cardColor: Th.ThemeEngine.isDark ? Th.ThemeEngine.colors.surface : "#1E293B"
 
