@@ -15,7 +15,14 @@ Item {
     // accidental shadow-assignment bugs).
     readonly property int _runStatus: appState.runStatus
     readonly property int _totalCompleted: appState.totalCompleted
-    property bool hasData: _totalCompleted > 0
+    // 5WHY (tile grids hidden during run): hasData was _totalCompleted > 0 —
+    // before the first test completed the whole content Flickable stayed
+    // invisible and the misleading "No data — run from Diagnostics" empty
+    // state was shown while a run was actively in progress.  Include the
+    // running state (matching DiagnosticScreen's totalCompleted>0 ||
+    // runStatus===1) so group rows + tile grids are visible from the moment
+    // a run starts.
+    property bool hasData: _totalCompleted > 0 || appState.runStatus === 1
     // 5WHY: canReport was missing — openPreview() guarded on it but it
     // was never declared, resolving to undefined → !undefined === true
     // → the function always returned early.  Declare it matching
@@ -302,7 +309,7 @@ Item {
                     ColumnLayout {
                     Layout.fillWidth: true; spacing: 10
                     SummaryStat { appIcon: "list-checks"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: T.tr("totalDiagsLabel") }
-                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: calcTotalTime(); lbl: T.tr("totalTimeLabel") }
+                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: { var _ = page._groupsVersion; return calcTotalTime() }; lbl: T.tr("totalTimeLabel") }
                     SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: T.tr("completedLabel") }
                     }
                     Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard; visible: _totalCompleted > 0 }
@@ -330,7 +337,9 @@ Item {
                             }
                             Item { width: 8 }
                             AppLabel { Layout.fillWidth: true; text: T.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
-                            Label { text: calcLayerTiming(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
+                            // 5WHY (frozen during run): calcLayerTiming() is a
+                            // method call — forced re-eval via _groupsVersion.
+                            Label { text: { var _ = page._groupsVersion; return calcLayerTiming(modelData) }; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
                         }
                     }
                 }
@@ -518,8 +527,29 @@ Item {
     // The share buttons in the preview overlay use the shared ShareButtons widget.
     component DashboardGroupRow: Rectangle {
         property int groupIndex: 0
-        // Compute the group stats once per row instead of 5x (one per badge).
-        property var _stat: calcGroupStat(groupIndex)
+        // 5WHY (tile grids frozen during run): _stat and the tile model were
+        // ONE-SHOT bindings calling appState.resultsForGroup()/groupStats() —
+        // Q_INVOKABLE calls QML's binding engine cannot track — so they only
+        // evaluated at delegate creation.  Commit 4a06e304 made the
+        // _activeGroups Repeater model a STABLE cached array, so delegates
+        // were no longer recreated on progressChanged (previously that
+        // recreation accidentally re-ran the frozen bindings).  Result:
+        // during a run the rows showed 0/0 badges and EMPTY tile grids until
+        // the page was rebuilt.  Mirror DiagGroupPanel.reloadModel(): refresh
+        // a versioned _stat + _tileModel on progressChanged.
+        property int _modelVersion: 0
+        property var _stat: ({ pass:0, warn:0, fail:0, skip:0, info:0, total:0, enabled:0 })
+        property var _tileModel: []
+        Connections {
+            target: appState
+            function onProgressChanged() { reload() }
+        }
+        function reload() {
+            _stat = calcGroupStat(groupIndex)
+            _tileModel = appState.resultsForGroup(groupIndex)
+            _modelVersion++
+        }
+        Component.onCompleted: reload()
         Layout.fillWidth: true; implicitHeight: grpCol.implicitHeight + 28; radius: 10
         Layout.bottomMargin: 8
         color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
@@ -535,7 +565,10 @@ Item {
                 DashboardBadge { accent: ThemeEngine.colors.skipGray;  v: _stat.skip }
                 DashboardBadge { accent: ThemeEngine.colors.infoBlue; v: _stat.info||0 }
                 Item { width: 8 }
-                Label { text: getDurFromResults(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
+                // 5WHY (frozen during run): getDurFromResults() is a method
+                // call the binding engine cannot track — re-eval is forced by
+                // the row's _modelVersion bump (reload on progressChanged).
+                Label { text: { var _ = _modelVersion; return getDurFromResults(groupIndex) }; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
             }
             Rectangle { Layout.fillWidth: true; implicitHeight: 4; radius: 2; color: ThemeEngine.colors.borderCard
                 Rectangle {
@@ -554,7 +587,7 @@ Item {
             DiagTileGrid {
                 Layout.fillWidth: true
                 Layout.topMargin: 8
-                model: appState.resultsForGroup(groupIndex)
+                model: _tileModel
                 compact: true
                 onTileClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
             }

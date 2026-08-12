@@ -58,7 +58,17 @@ Rectangle {
         itemsModel = appState.allDiagsForGroup(groupIndex)
         _modelVersion++
     }
-    Component.onCompleted: reloadModel()
+    Component.onCompleted: {
+        reloadModel()
+        // 5WHY (tile wall hidden during run): onIsRunningChanged only fires on
+        // a value CHANGE after creation.  If the panel is instantiated while
+        // its group is ALREADY the running group (deferred Repeater binding
+        // evaluation after setCurrentGroup — QML may defer visibleGroups
+        // re-evaluation until after startNextGroup), the initial isRunning
+        // value is already true and the handler never re-runs, leaving the
+        // tile wall collapsed for the whole run.  Force the initial expand.
+        if (!_userToggled && (isRunning || completedCount > 0)) expanded = true
+    }
 
     ColumnLayout {
         id: cardColumn
