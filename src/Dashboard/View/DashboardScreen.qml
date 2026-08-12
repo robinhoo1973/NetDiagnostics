@@ -192,10 +192,11 @@ Item {
         // _groupsVersion (progressChanged).  Include appState.runStatus —
         // a QML-tracked property that reliably flips 0→1 at run start — so
         // the group list (title bars + tile grids) populates at run start
-        // even if the progress tick hasn't arrived yet.  _activeKey caching
-        // still returns the same array while membership is unchanged (no
-        // Repeater churn / tile-width drift).
-        var v = _groupsVersion + appState.runStatus  // establish dependencies
+        // even if the progress tick hasn't arrived yet.  totalDiags adds a
+        // second independent trigger (set at run start, tracked via
+        // progressChanged).  _activeKey caching still returns the same array
+        // while membership is unchanged (no Repeater churn / tile-width drift).
+        var v = _groupsVersion + appState.runStatus + appState.totalDiags  // establish dependencies
         var key = ""
         var groups = []
         for (var g = 0; g < appState.groupLabels.length; g++) {

@@ -220,9 +220,13 @@ Item {
         // grids — until the run ends and the list finally repopulates.
         // appState.runStatus is a QML-tracked property that reliably changes
         // 0→1 at run start, so this binding re-evaluates exactly then.
+        // totalDiags is an ADDITIONAL independent trigger (tracked via
+        // progressChanged, set to the scheduled count at run start) so the
+        // group list repopulates even if the _snapVersion/syncState chain is
+        // ever missed or deferred — belt-and-suspenders for the run start.
         // The _visibleKey cache still returns the SAME array reference while
         // membership is unchanged, so no Repeater churn / tile-width drift.
-        var _ = _snapVersion + appState.runStatus
+        var _ = _snapVersion + appState.runStatus + appState.totalDiags
         var key = ""
         var g = []
         for (var i = 0; i < appState.groupLabels.length; i++) {
