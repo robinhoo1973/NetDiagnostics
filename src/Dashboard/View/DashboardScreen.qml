@@ -187,7 +187,14 @@ Item {
     property string _activeKey: ""
     property var _activeCache: []
     readonly property var _activeGroups: {
-        var v = _groupsVersion  // read to establish dependency
+        // 5WHY (group rows absent during run): re-eval was driven only by
+        // _groupsVersion (progressChanged).  Include appState.runStatus —
+        // a QML-tracked property that reliably flips 0→1 at run start — so
+        // the group list (title bars + tile grids) populates at run start
+        // even if the progress tick hasn't arrived yet.  _activeKey caching
+        // still returns the same array while membership is unchanged (no
+        // Repeater churn / tile-width drift).
+        var v = _groupsVersion + appState.runStatus  // establish dependencies
         var key = ""
         var groups = []
         for (var g = 0; g < appState.groupLabels.length; g++) {

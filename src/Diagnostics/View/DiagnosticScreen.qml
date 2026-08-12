@@ -211,7 +211,18 @@ Item {
     property string _visibleKey: ""
     property var _visibleCache: []
     property var visibleGroups: {
-        var _ = _snapVersion
+        // 5WHY (group title bars absent during run): this binding re-ticked
+        // ONLY on _snapVersion, which is bumped through the fragile chain
+        // stateVersionChanged → syncState → takeSnapshot (guarded by
+        // _cachedGen/_runActive).  If that run-start trigger is ever missed
+        // or deferred past the run transition, the group list stays EMPTY
+        // for the whole run — no DiagGroupPanel, no title bars, no tile
+        // grids — until the run ends and the list finally repopulates.
+        // appState.runStatus is a QML-tracked property that reliably changes
+        // 0→1 at run start, so this binding re-evaluates exactly then.
+        // The _visibleKey cache still returns the SAME array reference while
+        // membership is unchanged, so no Repeater churn / tile-width drift.
+        var _ = _snapVersion + appState.runStatus
         var key = ""
         var g = []
         for (var i = 0; i < appState.groupLabels.length; i++) {
