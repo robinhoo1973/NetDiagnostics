@@ -36,33 +36,28 @@ Item {
     // Find maximum n where tile_width >= minTile.
     // From: block / (n + (n+1)×k) >= minTile
     //   →  n <= (block/minTile - k) / (1 + k)
-    readonly property int _columns: {
-        var w = width
-        if (w <= 0) return 1
-        var n = Math.floor((w / _minTile - _k) / (1.0 + _k))
-        return Math.max(1, n)
-    }
+    // 5WHY (tile width drift during run): both _columns and _tileSize were
+    // readonly bindings; _tileSize returned a MIDPOINT fallback (_lastTileSize)
+    // whenever width was <=0 (a transient during Repeater rebuild / panel
+    // recreation at run start).  If the grid was sized in that width=0 window
+    // and the recompute lagged, tiles rendered at the WRONG width (midpoint
+    // 130) for the whole run, then snapped to the computed size (e.g. 101)
+    // after the run — running vs finished states disagreed.  Now both are
+    // recomputed EXPLICITLY from width on every width change, so the tile
+    // size always reflects the current grid width in BOTH states.
+    property int _columns: 1
 
     // ── Tile size ──────────────────────────────────────────────────────────
     // tile = block / (n + (n+1)×k), clamped to [min, max]
-    // 5WHY (width=0 during reloadModel): when the Repeater rebuilds
-    // delegates, Grid briefly has zero width → tile=0 clamped to _minTile.
-    // On the next frame width restores but _tileSize already evaluated
-    // with stale _columns=1 → wrong layout.  Guard: keep last valid size.
-    // 5WHY (tile width drift during run): the guard was ALSO reset by
-    // wholesale DiagGroupPanel recreation (visibleGroups/_activeGroups
-    // rebuilt per progress tick) — that is fixed at the caller (stable
-    // array reference).  Initial guard value = midpoint of [min,max]
-    // (closer to real layouts than the old hardcoded 108).
-    property int _lastTileSize: Math.floor((_minTile + _maxTile) / 2)
-    readonly property int _tileSize: {
-        var n = _columns
-        if (width <= 0 || n <= 0) return _lastTileSize
-        var denom = n + (n + 1) * _k
-        var tile = Math.floor(width / denom)
-        var result = Math.min(_maxTile, Math.max(_minTile, tile))
-        root._lastTileSize = result
-        return result
+    property int _tileSize: _minTile
+    onWidthChanged: _recomputeSize()
+    Component.onCompleted: _recomputeSize()
+    function _recomputeSize() {
+        var w = width
+        if (w <= 0) return   // width unknown yet — keep _minTile floor
+        _columns = Math.max(1, Math.floor((w / _minTile - _k) / (1.0 + _k)))
+        var denom = _columns + (_columns + 1) * _k
+        _tileSize = Math.min(_maxTile, Math.max(_minTile, Math.floor(w / denom)))
     }
 
     // ── Gap width ──────────────────────────────────────────────────────────
