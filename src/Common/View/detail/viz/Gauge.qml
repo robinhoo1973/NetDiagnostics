@@ -30,7 +30,12 @@ Item {
     property string emptyLabel: ""
 
     implicitWidth: 240
-    implicitHeight: 56
+    // 5WHY: implicitHeight must report the TRUE content height (value row 24
+    // + spacing 6 + bar 8 + spacing 6 + pct label ~14 = ~58px) with a small
+    // breathing room.  ResultChart now sizes its container to this value, so
+    // an under-reported 56px would clip the gauge; the old fixed 80px chart
+    // area instead left ~22px of dead space on G3+ detail pages.
+    implicitHeight: 64
 
     // 5WHY: _ratio is clamped to [0, 1] to prevent negative bar widths
     // (when value < 0) and overflows (when value > maxValue).  Without

@@ -27,18 +27,32 @@ Item {
     // ── Public API ────────────────────────────────────────────────────────
     property var data: ({})       // enriched resultData (templateType injected)
     property bool expanded: false
-    property int gaugeHeight: 80
+    property int gaugeHeight: 64
     // Has a real visualization wired for this template+data?
     readonly property bool hasChart: _source !== ""
     // Number of series bars (callers use it to pick default expansion).
     readonly property int seriesCount: _series.length
+    // Cap for BarChart so long series (50+ RTT samples) scroll internally
+    // instead of stretching the card unboundedly.
+    readonly property real _maxChartHeight: 300
 
-    // Height: 0 when collapsed; per-template otherwise (Gauge compact).
+    // Height: 0 when collapsed; otherwise the loaded chart's NATURAL content
+    // height (single source of truth — no duplicated height math to drift).
     implicitHeight: !root.expanded ? 0 : _preferredHeight
     readonly property real _preferredHeight: {
+        // 5WHY: reading chartLoader.item.implicitHeight makes the loaded
+        // component the single source of truth for chart height.  The old
+        // formula (Gauge: 80, BarChart: N*28+40) duplicated the chart internals
+        // and drifted from real content (Gauge ≈58px, BarChart ≈N*22+10),
+        // leaving 22-30px of dead space inside the Charts card on every
+        // chart-bearing detail page (all G3+ Handshake/Query tests).
+        if (chartLoader.item && chartLoader.item.implicitHeight > 0) {
+            return Math.max(40, Math.min(root._maxChartHeight, chartLoader.item.implicitHeight))
+        }
+        // Pre-load fallback — replaced on the next frame once the chart loads.
         var tt = root.data.templateType
         if (tt === 2 || tt === 4) return root.gaugeHeight   // Gauge: compact
-        return Math.max(100, Math.min(300, _series.length * 28 + 40))
+        return Math.max(40, Math.min(root._maxChartHeight, _series.length * 28 + 40))
     }
 
     // ── Loader (BarChart | Gauge) ────────────────────────────────────────
