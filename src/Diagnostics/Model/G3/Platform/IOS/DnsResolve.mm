@@ -10,10 +10,11 @@
 // 8-18（5WHY）：DiagnosticTask 已重构为 DiagnosticBase（DiagnosticTask.h 已删），
 // 此 include 为陈旧的平台分支残留，仅 iOS CI 能编译到；显式改为结果结构头。
 #include "Common/Model/DiagnosticResult.h"
-#include "Diagnostics/Model/G4/G4RemoteHost.h"
 #include "Diagnostics/Model/G3/Platform/IOS/DnsResolve.h" // 5WHY: own header for declaration checking
 #include "Diagnostics/View/DiagnosticFormatter.h"
 #include <QElapsedTimer>
+#include <QHashFunctions> // 5WHY: qHash(QString) lives here in Qt6 (no transitive guarantee)
+#include <cstdint>        // 5WHY: uint16_t in formatDnsHeader call
 #include <atomic>
 #include <memory>
 #import <Foundation/Foundation.h>
@@ -21,6 +22,42 @@
 #import <sys/socket.h>
 #import <netinet/in.h>
 #import <arpa/inet.h>
+
+// 8-18（5WHY）：G4RemoteHost 类已随 G4 重构删除（现为 G4/Adapters.cpp 文件内 static），
+// 此平台分支仍引用旧类导致 iOS CI fatal。移植同源解析逻辑为本地 static。
+static QString extractHostname(const QString& target) {
+    QString t = target.trimmed();
+    if (t.contains(QLatin1String("://"))) {
+        QString after = t.section(QLatin1String("://"), 1);
+        const int slash = after.indexOf(QLatin1Char('/'));
+        if (slash >= 0) after = after.left(slash);
+        if (after.startsWith(QLatin1Char('['))) {
+            const int close = after.indexOf(QLatin1Char(']'));
+            if (close > 0) after = after.mid(1, close - 1);
+        } else {
+            const int at = after.lastIndexOf(QLatin1Char('@'));
+            if (at >= 0) after = after.mid(at + 1);   // strip userinfo
+            const int colon = after.lastIndexOf(QLatin1Char(':'));
+            if (colon > 0) after = after.left(colon); // strip port
+        }
+        return after;
+    }
+    const int atIdx = t.lastIndexOf(QLatin1Char('@'));
+    if (atIdx >= 0) t = t.mid(atIdx + 1);
+    if (t.startsWith(QLatin1Char('['))) {
+        const int close = t.indexOf(QLatin1Char(']'));
+        if (close > 0) {
+            if (close + 1 < t.size() && t[close + 1] == QLatin1Char(':'))
+                t = t.left(close + 1);
+            t = t.mid(1, close - 1);
+        }
+    } else {
+        const int colon = t.indexOf(QLatin1Char(':'));
+        if (colon > 0 && t.indexOf(QLatin1Char(':'), colon + 1) == -1)
+            t = t.left(colon);
+    }
+    return t;
+}
 
 static QString resolveCFHost(NSString* hostname, int timeoutMs) {
     CFHostRef host = CFHostCreateWithName(kCFAllocatorDefault, (__bridge CFStringRef)hostname);
@@ -81,7 +118,7 @@ DiagnosticResult __attribute__((used)) iosDnsResolve(DiagId id, const QString& t
     r.timestamp = QDateTime::currentDateTime();
     QElapsedTimer t; t.start();
 
-    QString host = G4RemoteHost::extractHostname(target).trimmed();
+    QString host = extractHostname(target).trimmed();
     if (host.isEmpty()) {
         // 5WHY: defensive guard — iosDnsResolve() resolves a HOSTNAME; callers with
         // no target (G3 tests) used to hit this with an empty host, producing a
