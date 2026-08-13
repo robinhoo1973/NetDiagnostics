@@ -29,13 +29,15 @@
 // reads) and exposes tr()/diagName()/diagDesc()/groupName()/groupPrefix()/
 // trMsg().  Each function reads `root.lang` first, so — during binding
 // evaluation — the QML binding engine captures (root, lang) as a dependency
-// of the calling binding.  When appState.languageIndex changes, root.lang
+// of the calling binding.  When AppState.languageIndex changes, root.lang
 // changes and every binding that called a proxy function re-evaluates with
 // the new language.  Verified with standalone harnesses against the real
 // translations.json (EN → 简体中文 → 日本語 all update correctly).
 // =============================================================================
+pragma Singleton
 import QtQuick
 import QtQml
+import NetDiagnostics.App 1.0
 
 QtObject {
     id: root
@@ -49,7 +51,7 @@ QtObject {
     // Reactive language index — bound to AppState (NOTIFY languageChanged).
     // Every translation function reads root.lang so calling bindings
     // re-evaluate when this changes.
-    property int lang: appState ? appState.languageIndex : root.kLangEnglish
+    property int lang: AppState ? AppState.languageIndex : root.kLangEnglish
 
     // ── Right-to-left (RTL) support ────────────────────────────────────
     // Languages whose script reads right-to-left.  Only Arabic (14) today;
@@ -185,10 +187,10 @@ QtObject {
         return en
     }
 
-    // Language setter — language flows through appState.setLanguage();
+    // Language setter — language flows through AppState.setLanguage();
     // kept for API parity.
     function setLanguage(index) {
-        if (appState) appState.setLanguage(index)
+        if (AppState) AppState.setLanguage(index)
     }
 
     Component.onCompleted: root._load()

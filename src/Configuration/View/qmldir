@@ -1,0 +1,2 @@
+module Configuration.View
+ConfigScreen 1.0 ConfigScreen.qml

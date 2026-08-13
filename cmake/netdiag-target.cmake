@@ -9,6 +9,9 @@ function(configure_netdiag_target TARGET)
     target_compile_definitions(${TARGET} PRIVATE
         APP_EDITION="${APP_EDITION}"
         PROJECT_VERSION="${PROJECT_VERSION}"
+        # 5WHY：release 构建需 fail-safe（NEW-16 契约），ND_RELEASE 此前从未被
+        # 定义 → release 也走了 qFatal fail-fast 分支。非 Debug 配置统一定义。
+        $<$<NOT:$<CONFIG:Debug>>:ND_RELEASE>
     )
     # 5WHY: Static Qt builds need Q_IMPORT_PLUGIN for the platform plugin
     # (e.g. QWindowsIntegrationPlugin on Windows).  ND_STATIC_QT tells

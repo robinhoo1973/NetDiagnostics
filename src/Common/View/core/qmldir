@@ -1,0 +1,4 @@
+module core
+PageSection 1.0 PageSection.qml
+PageDisplay 1.0 PageDisplay.qml
+AppContent 1.0 AppContent.qml

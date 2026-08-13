@@ -78,7 +78,13 @@ else()
     else()
         # 5WHY: no minimum version meant curl 7.29.0 (RHEL 7, known CVEs)
         # was silently accepted.  curl 7.69.0+ (Mar 2020) adds TLS 1.3 support.
-        find_package(CURL 7.69 REQUIRED)
+        find_package(CURL 7.69 QUIET)
+        if(NOT CURL_FOUND)
+            # Refactor foundation: G5 HTTP adapters are placeholders until the
+            # group is migrated — libcurl returns with the G5 milestone.
+            message(WARNING "libcurl not found — building without curl (G5 HTTP adapters pending)")
+            add_compile_definitions(NO_CURL)
+        endif()
     endif()
 endif()
 

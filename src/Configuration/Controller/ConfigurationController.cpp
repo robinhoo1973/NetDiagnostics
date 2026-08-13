@@ -3,7 +3,7 @@
 // =============================================================================
 #include "Configuration/Controller/ConfigurationController.h"
 #include "app/AppState.h"
-#include "Common/Model/DiagCapability.h"
+#include "Common/Platform/DeviceCapability.h"
 #include <QSettings>
 
 static constexpr const char* kSettingsGroup = "AppSettings";
@@ -56,7 +56,7 @@ void ConfigurationController::loadSettings() {
             // 5WHY: drop ids for tests that cannot run on this OS build
             // (e.g. a config exported on desktop enabling an iOS-only
             // diagnostic would otherwise linger in the enabled set).
-            if (ok && diagSupportedOnPlatform(static_cast<DiagId>(id)))
+            if (ok && DeviceCapability::diagSupportedOnDevice(static_cast<DiagId>(id)))
                 m_config.setDiagEnabled(id, true);
         }
     }

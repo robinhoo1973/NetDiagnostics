@@ -1,0 +1,4 @@
+module Dashboard.View
+DashboardScreen 1.0 DashboardScreen.qml
+DashboardSummaryComp 1.0 DashboardSummaryComp.qml
+DashboardRowHeader 1.0 DashboardRowHeader.qml

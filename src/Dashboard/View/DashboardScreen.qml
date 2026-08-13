@@ -1,680 +1,88 @@
+// =============================================================================
+// DashboardScreen.qml — PageDisplay 子类装配（page-dashboard.md §3）
+// =============================================================================
+import NetDiagnostics.App 1.0
 import QtQuick
-import "../theme"
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../widgets"
-import "../dialogs"
+import core
+import sections as S
+import theme
 
-// ── DashboardScreen with built-in Report Preview ──
-Item {
+PageDisplay {
     id: page
     objectName: "dashboard"
-    // 5WHY: non-writable shorthand mirrors of tracked appState properties.
-    // Marked readonly — they are only ever read by QML bindings and are never
-    // assigned locally (matching DiagnosticScreen's direct-read style avoids
-    // accidental shadow-assignment bugs).
-    readonly property int _runStatus: appState.runStatus
-    readonly property int _totalCompleted: appState.totalCompleted
-    // 5WHY (tile grids hidden during run): hasData was _totalCompleted > 0 —
-    // before the first test completed the whole content Flickable stayed
-    // invisible and the misleading "No data — run from Diagnostics" empty
-    // state was shown while a run was actively in progress.  Include the
-    // running state (matching DiagnosticScreen's totalCompleted>0 ||
-    // runStatus===1) so group rows + tile grids are visible from the moment
-    // a run starts.
-    property bool hasData: _totalCompleted > 0 || appState.runStatus === 1
-    // 5WHY: canReport was missing — openPreview() guarded on it but it
-    // was never declared, resolving to undefined → !undefined === true
-    // → the function always returned early.  Declare it matching
-    // ReportScreen's hasResults && !isRunning pattern.
-    readonly property bool canReport: hasData && _runStatus !== 1
-    readonly property bool isMobile: ThemeEngine.isMobile
-    readonly property alias overlayVisible: previewOverlay.visible
 
-    // ── Preview overlay state ──────────────────────────────────────────
-    property string previewImagePath: ""
-    property bool previewVisible: false
-    property string toast: ""
-    property int _previewGen: 0   // debounce: only the latest render request executes
+    // Dashboard 特定组件（经属性注入 —— UI-5：Common 不依赖页面模块）
+    Component { id: dashboardSummaryComp; DashboardSummaryComp { } }
+    Component { id: dashboardRowHeaderComp; DashboardRowHeader { } }
 
-    // Share flow
-    property string pendingShareFormat: ""
+    readonly property bool hasData: AppState.hasData
 
-    // 5WHY (review B7): Dashboard blocks open the same L5 DetailPage as the
-    // Diagnostic screen.  Component cached after first load (mirrors the B9
-    // fix in DiagnosticScreen) so repeated taps never recompile the page.
-    property var _dashDetailComp: null
+    // _activeGroups 缓存（UI-2：绑定不调 visibleGroups()）
+    property var _activeGroups: []
+    function _refreshGroups() {
+        _activeGroups = AppState.visibleGroups()
+    }
+    Connections {
+        target: AppState
+        function onStateVersionChanged() { page._refreshGroups() }
+        function onRunStatusChanged() { page._refreshGroups() }
+    }
+    Component.onCompleted: _refreshGroups()
+
+    // ── Toast（NEW-7：页面自持）──
+    property string toastText: ""
+    function showToast(msg) {
+        toastText = msg
+        toastTimer.restart()
+    }
+    Timer {
+        id: toastTimer
+        interval: ThemeEngine.toastDurationMs
+        onTriggered: page.toastText = ""
+    }
+
     function dashboardOpenDetail(diagId) {
-        if (diagId === undefined) return
-        var d = appState.getDetailResult(diagId)
-        if (!d || Object.keys(d).length === 0) return
-        var pushPage = function(comp) {
-            var p = comp.createObject(page, { detail: d })
-            page.StackView.view.push(p)
-        }
-        if (page._dashDetailComp !== null && page._dashDetailComp !== "loading") { pushPage(page._dashDetailComp); return }
-        // Guard against concurrent loads: skip if a load is already inflight.
-        if (page._dashDetailComp === "loading") return
-        page._dashDetailComp = "loading"
-        var comp = Qt.createComponent("qrc:/qml/screens/DetailPage.qml",
-                                       Component.Asynchronous)
-        if (comp.status === Component.Ready) {
-            page._dashDetailComp = comp
-            pushPage(comp)
-        } else if (comp.status === Component.Loading) {
-            comp.statusChanged.connect(function pushWhenReady() {
-                if (comp.status === Component.Ready) {
-                    page._dashDetailComp = comp
-                    pushPage(comp)
-                } else if (comp.status === Component.Error) {
-                    console.warn("DetailPage.qml (Dashboard) async load failed:", comp.errorString())
-                    page._dashDetailComp = null  // reset sentinel so next tap can retry
-                }
-            })
-        } else if (comp.status === Component.Error) {
-            console.warn("DetailPage.qml (Dashboard) failed to load:", comp.errorString())
-            page._dashDetailComp = null  // reset sentinel so next tap can retry
-        }
+        // UI-10：经 sectionAction 路由，AppContent 推入 DetailPage
+        page.emitSectionAction("dashboard", "openDetail", { diagId: diagId })
     }
 
-    function openPreview() {
-        if (!canReport) return
-        // 5WHY: buildReportHtml() + renderPreviewImage() are synchronous
-        // Q_INVOKABLE calls that iterate over all diagnostic results and
-        // render HTML→image.  On 20+ completed tests this blocks the UI
-        // thread for 500ms-2s — a visible freeze.  Show the overlay
-        // immediately with a blank image, then defer the heavy work.
-        // 5WHY (debounce): Qt.callLater alone only defers — repeated triggers
-        // (theme toggle, per-test progress, save-path events) queue MULTIPLE
-        // synchronous renders.  A generation counter lets the newest request
-        // cancel all stale queued renders.
-        previewVisible = true
-        previewImagePath = ""
-        _previewGen++
-        var gen = _previewGen
-        Qt.callLater(function() {
-            if (gen !== page._previewGen || !page.previewVisible) return
-            var darkBg = ThemeEngine.isDark
-            var html = appState.buildReportHtml(true, darkBg)
-            var imgPath = appState.renderPreviewImage(html, page.isMobile ? 480 : 960)
-            page.previewImagePath = imgPath || ""
-        })
-    }
-    // 5WHY (share flow): every share entry point must first check the Premium
-    // Pro Unlocked state.  Locked → show the Premium Subscription card
-    // (PremiumDialog — the exact same IAP component the Settings page uses).
-    // Unlocked → skip ALL intermediate pages and jump straight to the OS share
-    // sheet.  The old ShareSubscriptionDialog "confirm share" stage was
-    // removed: it made unlocked users tap through an extra page.
-    function doShare(fmt) {
-        pendingShareFormat = fmt
-        if (appState.isPremiumPlatform && !appState.isPremium)
-            premiumDialog.openDialog()
-        else
-            appState.shareReport(fmt)
-    }
+    headerContent: [
+        S.PageHeaderSection { iconName: "dashboard"; title: T.tr("dashboard") }
+    ]
 
-    Timer { id: toastTimer; interval: ThemeEngine.toastDurationMs; onTriggered: page.toast = "" }
-
-    Connections {
-        target: ThemeEngine
-        function onModeChanged() { if (page.previewVisible) page.openPreview() }
-    }
-    Connections {
-        target: appState
-        function onProgressChanged() {
-            page._groupsVersion++
-            page.refreshSummary()
-            if (page.previewVisible && appState.runStatus !== 1) page.openPreview()
-        }
-        // 5WHY: onSavePathPicked was removed — it ignored `format` and always
-        // exported PDF, and requestSavePath() has no QML caller since the
-        // ReportScreen page was retired (sharing goes through doShare() →
-        // appState.shareReport()). It could never fire.
-        function onPremiumRequired() { page.toast = T.tr("premiumRequiredMsg"); toastTimer.restart() }
-        function onPurchaseDeferred() { page.toast = T.tr("purchaseDeferred"); toastTimer.restart() }
-        function onPurchaseFailed() { page.toast = T.tr("purchaseFailed"); toastTimer.restart() }
-        function onReportShared(ok) { page.toast = ok ? T.tr("reportShareOk") : T.tr("reportShareFail"); toastTimer.restart() }
-        function onPremiumChanged() {
-            // Purchase/restore succeeded → close the IAP dialog, then continue
-            // straight to the OS share sheet (no intermediate confirm page).
-            if (appState.isPremium) {
-                if (premiumDialog.open) premiumDialog.closeDialog()
-                if (page.pendingShareFormat !== "") {
-                    appState.shareReport(page.pendingShareFormat)
-                    page.pendingShareFormat = ""
-                }
+    bodyContent: [
+        S.PageEmptyStateSection { },
+        S.PageStatusHeaderSection {
+            headerExtra: dashboardSummaryComp
+            onShareRequested: {
+                AppState.copyReportToClipboard()
+                page.showToast(T.tr("detailCopied"))
             }
-        }
-    }
-
-    // 5WHY: Status mapping was incomplete — only handled Pass(0) through
-    // Skipped(3), defaulting all other statuses to "badge-info"/accentBlue.
-    // DiagStatus::Error(4) and DiagStatus::Info(5) are distinct states that
-    // need separate visual treatment (Error→errorRed, Info→infoBlue).  Now
-    // matches DiagResultItem status mappings exactly.
-    //
-    // 5WHY (theme reactivity): statusColor() was a JavaScript function called
-    // from QML bindings.  The QML binding engine cannot trace into JS function
-    // bodies to discover that ThemeEngine.colors.xxx is read — so color
-    // bindings using statusColor(s) only re-evaluate when `s` changes, never
-    // when the user switches themes.  Fixed by replacing the function with a
-    // property var array whose binding expression directly references
-    // ThemeEngine.colors.xxx — QML CAN track these dependencies, so the array
-    // is rebuilt on every theme switch and downstream color bindings re-evaluate.
-    // 5WHY (frozen timestamp): fmtTimestamp() reads new Date() with NO
-    // QML-trackable dependency — a binding on it evaluates once at page
-    // creation and is frozen forever.  Replaced by _completedAt, set
-    // imperatively exactly when the run reaches Completed (via the
-    // Connections block below), so the displayed time is the real
-    // completion time and updates correctly.
-    property string _completedAt: ""
-    function fmtTimestamp() {
-        var now = new Date();
-        return ("0"+now.getHours()).slice(-2) + ":" + ("0"+now.getMinutes()).slice(-2) + ":" + ("0"+now.getSeconds()).slice(-2);
-    }
-    // 5WHY: the per-group results Repeater and the layer-timing Repeater
-    // 5WHY (efficiency): was a JS function called by TWO Repeater model
-    // bindings — each rebuilt a fresh array independently.  Cached property
-    // evaluates once; both Repeaters share the same list.  _groupsVersion
-    // bumps on progressChanged so the list rebuilds after each test completes.
-    property int _groupsVersion: 0
-    // 5WHY (tile width drift): _activeGroups rebuilt a NEW array on every
-    // _groupsVersion bump (progressChanged, ~2×/test) → both Repeaters
-    // destroyed & recreated DashboardGroupRow (and its DiagTileGrid) each
-    // tick, resetting the tile-size guard → wrong tile width during the run.
-    // Fix: cache the array; only assign a new reference when the
-    // group-membership key actually changes.
-    property string _activeKey: ""
-    property var _activeCache: []
-    readonly property var _activeGroups: {
-        // 5WHY (group rows absent during run): re-eval was driven only by
-        // _groupsVersion (progressChanged).  Include appState.runStatus —
-        // a QML-tracked property that reliably flips 0→1 at run start — so
-        // the group list (title bars + tile grids) populates at run start
-        // even if the progress tick hasn't arrived yet.  totalDiags adds a
-        // second independent trigger (set at run start, tracked via
-        // progressChanged).  _activeKey caching still returns the same array
-        // while membership is unchanged (no Repeater churn / tile-width drift).
-        var v = _groupsVersion + appState.runStatus + appState.totalDiags  // establish dependencies
-        var key = ""
-        var groups = []
-        for (var g = 0; g < appState.groupLabels.length; g++) {
-            var s = appState.groupStats(g)
-            if (appState.isGroupActive(g) && ((s.enabled || 0) > 0 || (s.total || 0) > 0)) {
-                groups.push(g); key += g + ","
-            }
-        }
-        if (key !== page._activeKey) {
-            page._activeKey = key
-            page._activeCache = groups
-        }
-        return page._activeCache
-    }
-
-    // AppBar
-    AppBar {
-        id: appBar
-        anchors { left: parent.left; right: parent.right; top: parent.top }
-        iconName: "dashboard"
-        title: T.tr("dashboard")
-        Item { Layout.fillWidth: true }
-    }
-
-    // Empty state
-    Column {
-        anchors.centerIn: parent; spacing: 16; visible: !hasData
-        AppIcon { anchors.horizontalCenter: parent.horizontalCenter; name: "dashboard"; size: 80; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.15) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: T.tr("noData"); font.family: ThemeEngine.monoFont; font.pixelSize: 18; font.weight: Font.Medium; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.6) }
-        Label { anchors.horizontalCenter: parent.horizontalCenter; text: T.tr("runFromDiag"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: Qt.alpha(ThemeEngine.colors.textSecondary, 0.4); horizontalAlignment: Text.AlignHCenter; lineHeight: 1.5 }
-    }
-
-    Flickable {
-        anchors { left: parent.left; right: parent.right; top: appBar.bottom; bottom: parent.bottom }
-        clip: true; visible: hasData
-        // 5WHY: no scrollbar — inconsistent with Settings/Report/Config and
-        // gave no drag-position feedback on long dashboards. Added for parity.
-        ScrollBar.vertical: ScrollBar { }
-        contentHeight: dashBody.implicitHeight + 24
-
-        // 5WHY: content width was parent.width-48 (24px side margins) while
-        // DiagnosticScreen uses 16px side margins → 16px difference in
-        // effective tile-grid width → DiagTileGrid rendered inconsistently
-        // across the two screens.  Unified to 16px side margins (32px total).
-        ColumnLayout {
-            id: dashBody; width: parent.width - 32; x: 16; spacing: 0
-            Item { Layout.preferredHeight: 24 }
-
-            // ── Run Info Header Card — conditionally shows completion or running status ──
-            // 5WHY: Previously showed "Diagnostic Run Complete" unconditionally
-            // as soon as any test completed (hasData===true), even while
-            // diagnostics were still running.  Now shows "Running Diagnostics..."
-            // with a spinner while runStatus===1, and only displays the
-            // completion card after the run finishes.
-            Rectangle {
-                Layout.fillWidth: true; implicitHeight: infoCol.implicitHeight + 24; radius: 12
-                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
-                // 5WHY: margins:16 was inconsistent with DashboardGroupRow (12px)
-                // and DiagGroupPanel (12px) — 8px narrower content area on the
-                // same width column.  Unified to 12px for visual consistency.
-                RowLayout {
-                    id: infoCol
-                    anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 }
-                    AppIcon {
-                        name: appState.runStatus === 1 ? "spinner" : "check"
-                        size: 28
-                        color: appState.runStatus === 1 ? ThemeEngine.colors.cyan : ThemeEngine.colors.passGreen
-                        RotationAnimation on rotation {
-                            running: appState.runStatus === 1
-                            from: 0; to: 360; duration: 1000; loops: Animation.Infinite
-                            onStopped: { /* reset handled by target-property binding on name */ }
-                        }
-                    }
-                    Item { width: 14 }
-                    ColumnLayout { spacing: 4
-                        Label {
-                            text: appState.runStatus === 1 ? T.tr("runningDots") :
-                                  appState.runStatus === 2 ? T.tr("diagRunComplete") :
-                                  appState.runStatus === 3 ? T.tr("cancelled") : T.tr("diagRunComplete")
-                            font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.DemiBold
-                            color: appState.runStatus === 3 ? ThemeEngine.colors.textSecondary : ThemeEngine.colors.textPrimary
-                        }
-                        RowLayout { spacing: 4
-                            AppIcon { name: "monitor"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
-                            Label { text: T.tr("targetLabel") + (appState.target || T.tr("naLabel")); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
-                        }
-                        RowLayout { spacing: 4
-                            AppIcon { name: "timer"; size: 12; color: Qt.alpha(ThemeEngine.colors.textPrimary, 0.7) }
-                            Label { text: page._completedAt; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
-                        }
-                    }
-                }
-            }
-            Item { Layout.preferredHeight: 24 }
-
-            SummaryCards { Layout.fillWidth: true }
-            Item { Layout.preferredHeight: 32 }
-
-            // ── Per-Group Results header ────────────────────────────────
-            Label { text: T.tr("perGroup"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-            Item { Layout.preferredHeight: 12 }
-
-            Repeater {
-                model: page._activeGroups
-                delegate: DashboardGroupRow { groupIndex: modelData; Layout.fillWidth: true }
-            }
-            Item { Layout.preferredHeight: 32 }
-
-            // ── Overall Summary (Flutter: _buildOverallSection) ──────────
-            Rectangle {
-                Layout.fillWidth: true; implicitHeight: sumCol.implicitHeight + 24; radius: 12
-                color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
-                // 5WHY: margins:16 was inconsistent with info card (12px),
-                // DashboardGroupRow (12px), and DiagGroupPanel (12px).
-                // Unified to 12px for visual consistency.
-                ColumnLayout { id: sumCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 12 }
-                    Label { text: T.tr("summary"); font.family: ThemeEngine.monoFont; font.pixelSize: 15; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-                    Item { Layout.preferredHeight: 16 }
-                    ColumnLayout {
-                    Layout.fillWidth: true; spacing: 10
-                    SummaryStat { appIcon: "list-checks"; clr: ThemeEngine.colors.cyan; val: appState.totalDiags; lbl: T.tr("totalDiagsLabel") }
-                    SummaryStat { appIcon: "timer"; clr: ThemeEngine.colors.secondary; val: page._totalTimeText; lbl: T.tr("totalTimeLabel") }
-                    SummaryStat { appIcon: "check"; clr: ThemeEngine.colors.passGreen; val: _totalCompleted; lbl: T.tr("completedLabel") }
-                    }
-                    Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard; visible: _totalCompleted > 0 }
-                    Item { Layout.preferredHeight: 12; visible: _totalCompleted > 0 }
-                    Label { text: T.tr("layerTimings"); font.family: ThemeEngine.monoFont; font.pixelSize: 12; font.weight: Font.DemiBold; color: ThemeEngine.colors.textSecondary; visible: _totalCompleted > 0 }
-                    Item { Layout.preferredHeight: 8; visible: _totalCompleted > 0 }
-                    Repeater {
-                        model: page._activeGroups
-                        delegate: RowLayout {
-                            visible: hasData
-                            // 5WHY: replaced generic dot bullet with a per-layer
-                            // semantic icon (G1..G5 map to the diagnostic groups'
-                            // actual subject matter) so each row is identifiable
-                            // at a glance instead of all rows looking identical.
-                            // Dedicated icons (not reused from elsewhere in the
-                            // app) so this list has its own distinct visual set:
-                            // cpu=system hardware/adapters, shield=security,
-                            // dns-lookup=DNS/internet name resolution (globe +
-                            // magnifier, distinct from plain "cloud" which reads
-                            // as generic cloud-storage rather than DNS lookup),
-                            // terminal=remote host access, layers=protocol stack.
-                            AppIcon {
-                                name: ({0:"cpu",1:"shield",2:"dns-lookup",3:"terminal",4:"layers"}[modelData] || "circle")
-                                size: 14; color: ThemeEngine.colors.secondary
-                            }
-                            Item { width: 8 }
-                            AppLabel { Layout.fillWidth: true; text: T.groupName(modelData); font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
-                            // 5WHY (CRASH-2026-08-12): was an inline binding
-                            // block `text: { ...; return calcLayerTiming(...) };`
-                            // that broke iOS qmlcachegen — now a tracked page
-                            // property refreshed by refreshSummary().
-                            Label { text: page._layerTimingTexts[modelData] || "—"; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary }
-                        }
-                    }
-                }
-            }
-            // ── Review Report section (visible only when run complete + results exist) ──
-            // 5WHY (gap ownership): gap to the next element is owned by this
-            // card via bottomMargin (was topMargin-to-previous).
-            ConditionalCard {
-                active: canReport
-                bottomMargin: 16
-                contentSpacing: 12
-                cardRadius: 12
-
-                Label { text: T.tr("report"); font.family: ThemeEngine.fontUi; font.pixelSize: 16; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-                AppLabel { text: T.tr("reportExportHint"); font.family: ThemeEngine.monoFont; font.pixelSize: 13; color: ThemeEngine.colors.textSecondary; wrapMode: Text.WordWrap; Layout.fillWidth: true }
-                // Review Report button
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 48; radius: 10
-                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.10)
-                    border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.35) }
-                    RowLayout {
-                        anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
-                        AppIcon { name: "report"; size: 18; color: ThemeEngine.colors.cyan }
-                        Item { width: 12 }
-                        AppLabel { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); color: ThemeEngine.colors.textPrimary; font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.Medium }
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.openPreview() }
-                }
-            }
-            Item { Layout.preferredHeight: 24 }
-        }
-    }
-
-    // ── Helper functions ────────────────────────────────────────────────
-    function calcGroupStat(idx) {
-        var s = appState.groupStats(idx);
-        return s || {pass:0,warn:0,fail:0,skip:0,info:0,total:0,enabled:0}
-    }
-    function getDurFromResults(groupIdx) {
-        var results = appState.resultsForGroup(groupIdx)
-        var totalMs = 0
-        for (var i = 0; i < results.length; i++) {
-            totalMs += (results[i]["durationMs"] || results[i].durationMs || 0)
-        }
-        return totalMs > 0 ? ThemeEngine.formatDuration(totalMs) : "—"
-    }
-    function calcLayerTiming(idx) { return getDurFromResults(idx) }
-    function calcTotalTime() {
-        var total = 0
-        for (var g = 0; g < appState.groupLabels.length; g++) {
-            var results = appState.resultsForGroup(g)
-            for (var i = 0; i < results.length; i++) {
-                total += (results[i].durationMs || 0)
-            }
-        }
-        return total > 0 ? ThemeEngine.formatDuration(total) : "—"
-    }
-
-    // 5WHY (CRASH-2026-08-12 startup 闪退): total-time / layer-timing were
-    // forced to re-evaluate via INLINE binding blocks written as
-    //   val: { var _ = page._groupsVersion; return calcTotalTime() }; lbl: ...
-    // On the iOS build Qt's qmlcachegen REJECTS a binding block that is
-    // immediately followed by `;` + another property on the SAME line
-    // ("Unexpected token ';'").  DashboardScreen.qml then failed to parse,
-    // main.qml's object creation failed, rootObjects=0 → the app exited at
-    // startup.  (The safe form — block binding with the next property on a
-    // NEW line — is what ConfigScreen.qml uses.)  Rewritten here as tracked
-    // properties refreshed imperatively on progressChanged: no inline binding
-    // blocks at all, and QML re-evaluates bindings that READ these properties.
-    property string _totalTimeText: ""
-    property var _layerTimingTexts: ({})
-    function refreshSummary() {
-        _totalTimeText = calcTotalTime()
-        var m = {}
-        for (var g = 0; g < appState.groupLabels.length; g++)
-            m[g] = calcLayerTiming(g)
-        _layerTimingTexts = m
-    }
-    Component.onCompleted: refreshSummary()
-
-    // ── Preview overlay (zoomable + share buttons) ──────────────────────
-    Rectangle {
-        id: previewOverlay
-        parent: page.parent ? page.parent : page
-        anchors.fill: parent
-        color: Qt.alpha(ThemeEngine.colors.surface, 0.85)
-        visible: page.previewVisible; z: 1000
-        MouseArea { anchors.fill: parent; onClicked: page.previewVisible = false }
-        Rectangle {
-            anchors { fill: parent; margins: isMobile ? 0 : 8 }
-            MouseArea { anchors.fill: parent; onClicked: {} }  // absorb clicks inside card
-            radius: isMobile ? 0 : 12; color: ThemeEngine.colors.card; clip: true
-            border { width: isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
-            ColumnLayout {
-                anchors { fill: parent; margins: 12 } spacing: 10
-                // ── Header ────────────────────────────────────────────
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 48; radius: 8
-                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.08)
-                    RowLayout {
-                        anchors { fill: parent; margins: 8 }
-                        AppIcon { name: "report"; size: 20; color: ThemeEngine.colors.cyan }
-                        Item { width: 8 }
-                        AppLabel { Layout.fillWidth: true; text: T.tr("reportReviewBtn"); font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: ThemeEngine.colors.textPrimary }
-                        Rectangle {
-                            id: closeBtn
-                            // 5WHY: close button was 36dp — below MD3 48dp minimum
-                            // touch target. Now matches ReportScreen pattern: 48dp
-                            // mobile, 34dp desktop.  Hover feedback added to match
-                            // ReportScreen close button visual style.
-                            readonly property int _btnSz: isMobile ? 48 : 34
-                            implicitWidth: _btnSz; implicitHeight: _btnSz; radius: _btnSz / 2
-                            color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.failRed, 0.35)
-                                                            : Qt.alpha(ThemeEngine.colors.failRed, 0.15)
-                            AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.failRed }
-                            MouseArea {
-                                id: closeMouse
-                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                hoverEnabled: true
-                                onClicked: page.previewVisible = false
-                            }
-                        }
-                    }
-                }
-                // ── Zoomable image area ────────────────────────────────
-                Rectangle {
-                    Layout.fillWidth: true; Layout.fillHeight: true; radius: 8; clip: true
-                    color: ThemeEngine.colors.surface
-                    border { width: 1; color: ThemeEngine.colors.borderCard }
-                    Flickable {
-                        id: previewFlick
-                        anchors { fill: parent; margins: 14 }
-                        clip: true
-                        contentWidth: previewImg.width * previewScale
-                        contentHeight: previewImg.height * previewScale
-                        property real previewScale: 1.0
-                        property real startScale: 1.0
-                        property bool pinching: false
-                        interactive: !pinching
-                        PinchHandler {
-                            target: null
-                            onActiveChanged: {
-                                previewFlick.pinching = active
-                                if (active) { previewFlick.startScale = previewFlick.previewScale; previewFlick.returnToBounds() }
-                            }
-                            onScaleChanged: { previewFlick.previewScale = Math.max(0.25, Math.min(previewFlick.startScale * scale, 5.0)) }
-                        }
-                        Image {
-                            id: previewImg
-                            width: previewFlick.width
-                            source: page.previewImagePath; fillMode: Image.PreserveAspectFit; cache: false; smooth: true; mipmap: true
-                            transform: Scale { origin.x: previewImg.width/2; origin.y: previewImg.height/2; xScale: previewFlick.previewScale; yScale: previewFlick.previewScale }
-                        }
-                    }
-                    ZoomBar {
-                        id: zoomBar
-                        anchors { bottom: parent.bottom; right: parent.right; margins: 8 }
-                        zoomLevel: previewFlick.previewScale
-                        onZoomLevelChanged: { previewFlick.previewScale = zoomBar.zoomLevel }
-                    }
-                }
-                // ── Share buttons (PDF + HTML) ───────────────────────────
-                // 5WHY: no pdfAccent/htmlAccent overrides — used defaults
-                // (failRed + accentBlue). Now uses theme-appropriate accents.
-                ShareButtons {
-                    Layout.fillWidth: true
-                    mode: "labeled"
-                    pdfAccent: ThemeEngine.colors.cyan
-                    htmlAccent: ThemeEngine.colors.primary
-                    onShareRequested: function(fmt) { page.doShare(fmt) }
-                }
-}
-        }
-    }
-
-    // ── Toast banner ────────────────────────────────────────────────────
-    Rectangle {
-        // 5WHY (z-order, 2026-08-09): the preview overlay is reparented to
-        // page.parent (StackView layer) with z:1000, so anything left inside
-        // the page — including this toast — renders BENEATH it.  Promote the
-        // toast to the same layer with z:2000 so share-result feedback stays
-        // visible while the preview is open.
-        parent: page.parent ? page.parent : page
-        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
-        implicitWidth: toastLabel.implicitWidth + 24; implicitHeight: 36; radius: 18
-        color: ThemeEngine.colors.card; visible: page.toast !== ""; z: 2000
-        border { width: 1; color: ThemeEngine.colors.borderFocused }
-        Label { id: toastLabel; anchors.centerIn: parent; text: page.toast; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textPrimary }
-    }
-
-    // ── Premium IAP dialog — auto-restore probe + guided purchase ───────
-    // 5WHY (z-order, 2026-08-09): the preview overlay is reparented to
-    // page.parent with z:1000, so this dialog — a child of the page with its
-    // internal z:1200 — was COMPLETELY HIDDEN behind the overlay when sharing
-    // from the preview (cross-parent z-index is not comparable in QML).
-    // Promote the dialog to the same layer: its root z:1200 then stacks above
-    // previewOverlay(1000), detailOverlay(1000) and cellularDialog(1150).
-    PremiumDialog {
-        id: premiumDialog
-        parent: page.parent ? page.parent : page
-        anchors.fill: parent
-        isMobile: page.isMobile
-    }
-
-    // ── Inline components ───────────────────────────────────────────────
-    // 5WHY: PreviewShareBtn component removed — dead code (never instantiated).
-    // The share buttons in the preview overlay use the shared ShareButtons widget.
-    component DashboardGroupRow: Rectangle {
-        property int groupIndex: 0
-        // 5WHY (tile grids frozen during run): _stat and the tile model were
-        // ONE-SHOT bindings calling appState.resultsForGroup()/groupStats() —
-        // Q_INVOKABLE calls QML's binding engine cannot track — so they only
-        // evaluated at delegate creation.  Commit 4a06e304 made the
-        // _activeGroups Repeater model a STABLE cached array, so delegates
-        // were no longer recreated on progressChanged (previously that
-        // recreation accidentally re-ran the frozen bindings).  Result:
-        // during a run the rows showed 0/0 badges and EMPTY tile grids until
-        // the page was rebuilt.  Mirror DiagGroupPanel.reloadModel(): refresh
-        // a versioned _stat + _tileModel on progressChanged.
-        property int _modelVersion: 0
-        property var _stat: ({ pass:0, warn:0, fail:0, skip:0, info:0, total:0, enabled:0 })
-        property var _tileModel: []
-        // 5WHY (CRASH-2026-08-12): the duration label used an inline binding
-        // block `text: { var _ = _modelVersion; return getDurFromResults(...) };`
-        // that broke iOS qmlcachegen (see page-level comment).  Computed
-        // imperatively in reload() into a tracked property instead.
-        property string _durText: ""
-        Connections {
-            target: appState
-            function onProgressChanged() { reload() }
-        }
-        function reload() {
-            _stat = calcGroupStat(groupIndex)
-            // 5WHY (running state never showed on Dashboard): _tileModel came
-            // from resultsForGroup(), which SKIPS pending tests entirely
-            // (if (resultIt == m_results.constEnd()) continue;).  The
-            // currently-executing test was never in the model, so there was no
-            // tile to show the running state on.  During a run use
-            // allDiagsForGroup() (includes pending tiles — same as the
-            // Diagnostic screen) so the current group's tiles can light up;
-            // after the run fall back to resultsForGroup() to keep the summary
-            // view unchanged (completed tiles only).
-            _tileModel = appState.runStatus === 1
-                         ? appState.allDiagsForGroup(groupIndex)
-                         : appState.resultsForGroup(groupIndex)
-            _durText = getDurFromResults(groupIndex)
-            _modelVersion++
-        }
-        Component.onCompleted: reload()
-        Layout.fillWidth: true; implicitHeight: grpCol.implicitHeight + 28; radius: 10
-        Layout.bottomMargin: 8
-        color: ThemeEngine.colors.card; border { width: 1; color: ThemeEngine.colors.borderCard }
-        ColumnLayout {
-            id: grpCol; anchors { fill: parent; leftMargin: 12; rightMargin: 12; topMargin: 12; bottomMargin: 10 } spacing: 4
-            RowLayout {
-                Rectangle { Layout.preferredWidth: 3; implicitHeight: 20; radius: 2; color: ThemeEngine.colors.secondary }
-                Item { width: 10 }
-                AppLabel { Layout.fillWidth: true; text: T.groupName(groupIndex); font.family: ThemeEngine.monoFont; font.pixelSize: 13; font.weight: Font.DemiBold; color: ThemeEngine.colors.textPrimary }
-                DashboardBadge { accent: ThemeEngine.colors.passGreen;  v: _stat.pass }
-                DashboardBadge { accent: ThemeEngine.colors.warnYellow; v: _stat.warn }
-                DashboardBadge { accent: ThemeEngine.colors.failRed;   v: _stat.fail }
-                DashboardBadge { accent: ThemeEngine.colors.skipGray;  v: _stat.skip }
-                DashboardBadge { accent: ThemeEngine.colors.infoBlue; v: _stat.info||0 }
-                Item { width: 8 }
-                // 5WHY (CRASH-2026-08-12): was `text: { var _ = _modelVersion;
-                // return getDurFromResults(groupIndex) };` — inline binding
-                // block broke iOS qmlcachegen.  Now a tracked property set by
-                // reload() on progressChanged.
-                Label { text: _durText; font.family: ThemeEngine.monoFont; font.pixelSize: 11; color: ThemeEngine.colors.textSecondary }
-            }
-            Rectangle { Layout.fillWidth: true; implicitHeight: 4; radius: 2; color: ThemeEngine.colors.borderCard
-                Rectangle {
-                    height:4; radius:2
-                    width: parent.width * (_stat.total > 0 ? (_stat.pass + _stat.warn + _stat.fail) / _stat.total : 0)
-                    color: _stat.fail > 0 ? ThemeEngine.colors.warnYellow : ThemeEngine.colors.passGreen
-                }
-            }
-            // 5WHY: separator line + topMargin matches DiagGroupPanel's tile
-            // wall layout (Diagnostic screen).  Old spacer (10px) was visually
-            // equivalent but structurally different — unifying the separator
-            // pattern ensures both screens render tile grids identically.
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: ThemeEngine.colors.borderCard }
-            // 5WHY (review B7 / doc D11): reuse the shared DiagTileGrid.
-            // Tile size is now computed dynamically to fill the container.
-            DiagTileGrid {
+        },
+        Repeater {
+            model: page._activeGroups
+            delegate: S.PageGroupPanelSection {
                 Layout.fillWidth: true
-                Layout.topMargin: 8
-                model: _tileModel
-                compact: true
-                // 5WHY: usePerItemRunning was missing (defaulted false) so
-                // testRunning was hardcoded false and the running/current-test
-                // indicator could never render on the Dashboard.  groupRunning
-                // is a REACTIVE binding to appState.runStatus +
-                // currentRunningGroup (both QML-tracked), so pending tiles of
-                // the executing group light up immediately at group start.
-                usePerItemRunning: true
-                groupRunning: appState.runStatus === 1 && appState.currentRunningGroup === groupIndex
-                onTileClicked: function(data) { page.dashboardOpenDetail(data.diagId) }
+                active: page.hasData            // NEW-10：无数据时整组行隐藏
+                groupIndex: modelData
+                showOnlyCompleted: true
+                compactTiles: true
+                rowHeaderDelegate: dashboardRowHeaderComp
+                onDetailRequested: function(d) { page.dashboardOpenDetail(d.diagId) }
             }
         }
-    }
+    ]
 
-    component DashboardBadge: Rectangle {
-        property color accent: ThemeEngine.colors.passGreen; property int v: 0
-        visible: v > 0; implicitWidth: 22; implicitHeight: 16; radius: 4; color: Qt.alpha(accent, 0.15)
-        Label { anchors.centerIn: parent; text: v; font.family: ThemeEngine.monoFont; font.pixelSize: 11; font.weight: Font.Bold; color: accent }
-    }
+    floatingContent: [
+        S.PageToastSection { toastText: page.toastText }
+    ]
 
-    component SummaryStat: RowLayout {
-        property string appIcon: ""; property color clr: ThemeEngine.colors.cyan; property var val: 0; property string lbl: ""
-        Layout.fillWidth: true
-        spacing: 10
-        AppIcon { name: appIcon; size: 16; color: clr; Layout.alignment: Qt.AlignVCenter }
-        Label {
-            Layout.fillWidth: true
-            text: lbl; font.family: ThemeEngine.monoFont; font.pixelSize: 12; color: ThemeEngine.colors.textSecondary
-            // 5WHY: elide/hAlign were hard-coded for LTR; under RTL the label
-            // mirrors to the right and text must hug the start edge + elide
-            // at the start (left for RTL).
-            elide: T.textElideStart; horizontalAlignment: T.textAlignStart; verticalAlignment: Text.AlignVCenter
-        }
-        Label {
-            text: val; font.family: ThemeEngine.monoFont; font.pixelSize: 16; font.weight: Font.Bold; color: clr
-            horizontalAlignment: T.textAlignEnd; verticalAlignment: Text.AlignVCenter
+    onSectionAction: function(scope, action, payload) {
+        if (action === "share" || action === "previewShare") {
+            AppState.copyReportToClipboard()
+            page.showToast(T.tr("detailCopied"))
         }
     }
 }

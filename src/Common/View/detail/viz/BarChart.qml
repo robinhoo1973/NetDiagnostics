@@ -20,7 +20,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../../theme"
+import theme
 
 Item {
     id: root

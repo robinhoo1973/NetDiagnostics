@@ -1,36 +1,21 @@
 // =============================================================================
-// DeviceCapability.h — Runtime (device/hardware) capability probing
+// DeviceCapability.h — Runtime device-probe authority (NEW-4)
 //
-// Complements the OS-level manifest (DiagCapability.h).  While the OS
-// manifest is compile-time, device presence is runtime: a desktop without a
-// WiFi adapter, a WiFi-only tablet (no cellular modem), or a Mac without an
-// Ethernet port cannot produce real results for the corresponding tests.
-//
-//   G1WifiDiagnostics   → requires a WiFi interface
-//   G1CellularInfo      → requires a cellular modem
-//   G1WiredDiagnostics  → requires a wired Ethernet interface
-//   everything else     → device-independent (returns true)
-//
-// Results are cached and refreshed via invalidateCache() at the start of
-// each diagnostic run.  The combined OS+device check is diagRunnable().
+// Single owner of hardware-presence probing (WiFi/ethernet/cellular).  Results
+// are cached; invalidateCache() refreshes before a run (existing semantics).
+// PlatformAdapter does NOT carry devicePredicate (NEW-4) — this is the only
+// device-probe path.
 // =============================================================================
 #pragma once
 
 #include "Common/Model/DiagId.h"
-#include "Common/Model/DiagCapability.h"
 
-namespace DeviceCapability {
+class DeviceCapability {
+public:
+    // Does the CURRENT device have the hardware a test requires?
+    static bool diagSupportedOnDevice(DiagId id);
 
-// Re-probe hardware on the next query (call at run start).
-void invalidateCache();
-
-// True when the CURRENT device has the hardware the diagnostic needs.
-bool diagSupportedOnDevice(DiagId id);
-
-// Combined OS + device check — the single predicate used everywhere a test
-// list is built (Config page), scheduled (run) or counted (stats).
-inline bool diagRunnable(DiagId id) {
-    return diagSupportedOnPlatform(id) && diagSupportedOnDevice(id);
-}
-
-} // namespace DeviceCapability
+    // Refresh cached hardware probes (call before a diagnostic run).
+    // NEW-4/R1-2: clears THE single probe cache — probes re-run lazily.
+    static void invalidateCache();
+};

@@ -4,3 +4,4 @@
 # directory scanning and ensures all detail types resolve at QML load time.
 MetricCard 1.0 MetricCard.qml
 TerminalBlock 1.0 TerminalBlock.qml
+KeyMetric 1.0 KeyMetric.js

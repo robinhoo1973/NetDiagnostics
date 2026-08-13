@@ -12,7 +12,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import "../theme"
+import theme
+import widgets
 import "KeyMetric.js" as KM
 
 Item {

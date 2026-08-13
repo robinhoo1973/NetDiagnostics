@@ -1,18 +1,19 @@
 // =============================================================================
-// DiagId.h — Diagnostic test identifiers and enums
+// DiagId.h — Diagnostic test identifiers, groups, statuses (contract layer)
 //
-// Central registry of all diagnostic tests, groups, statuses, and metadata.
+// Refactored per review/refactor/diag/diag-execution-architecture-guide.md.
+// Single source of truth for the 46-test identity space (45 schedulable +
+// 1 deprecated slot, per NEW-24).
 // =============================================================================
 #pragma once
 
 #include <QString>
 #include <QVector>
+#include <array>
 #include <QMap>
 
 // ── Test Group ──────────────────────────────────────────────────────────────
-enum class DiagGroup {
-    G1, G2, G3, G4, G5
-};
+enum class DiagGroup { G1, G2, G3, G4, G5 };
 
 inline QString diagGroupLabel(DiagGroup g) {
     switch (g) {
@@ -26,23 +27,22 @@ inline QString diagGroupLabel(DiagGroup g) {
 }
 
 // ── Test Status ─────────────────────────────────────────────────────────────
-enum class DiagStatus {
-    Pass, Warning, Fail, Skipped, Error, Info
-};
+enum class DiagStatus { Pass, Warning, Fail, Skipped, Error, Info, Cancelled };
 
 inline QString diagStatusIcon(DiagStatus s) {
     switch (s) {
-        case DiagStatus::Pass:    return QStringLiteral("badge-check");
-        case DiagStatus::Warning: return QStringLiteral("badge-warning");
-        case DiagStatus::Fail:    return QStringLiteral("badge-close");
-        case DiagStatus::Skipped: return QStringLiteral("badge-skip");
-        case DiagStatus::Error:   return QStringLiteral("badge-error");
-        case DiagStatus::Info:    return QStringLiteral("badge-info");
+        case DiagStatus::Pass:     return QStringLiteral("badge-check");
+        case DiagStatus::Warning:  return QStringLiteral("badge-warning");
+        case DiagStatus::Fail:     return QStringLiteral("badge-close");
+        case DiagStatus::Skipped:  return QStringLiteral("badge-skip");
+        case DiagStatus::Error:    return QStringLiteral("badge-error");
+        case DiagStatus::Info:     return QStringLiteral("badge-info");
+        case DiagStatus::Cancelled: return QStringLiteral("badge-skip"); // NEW-17: deadline 中止项
     }
     return {};
 }
 
-// ── Test ID (45 values) ─────────────────────────────────────────────────────
+// ── Test ID (46 values; 45 schedulable + 1 deprecated slot) ────────────────
 enum class DiagId {
     // G1 — System & Adapters (8)
     G1NetworkAdapters,
@@ -62,7 +62,7 @@ enum class DiagId {
     G2ArpTable,
     G2ProxySettings,
 
-    // G3 — Internet & DNS (5; slot 17 was Netskope, removed 2026-08)
+    // G3 — Internet & DNS (5 + 1 deprecated slot)
     _G3Reserved17_Deprecated,
     G3DnsServers,
     G3DnsCache,
@@ -92,8 +92,6 @@ enum class DiagId {
     G5FtpDiagnostics,
     G5SshDiagnostics,
     G5EmailDiagnostics,
-
-    // G5 — per-scheme protocol diagnostics (7 new)
     G5Telnet,
     G5Mysql,
     G5Postgres,
@@ -103,96 +101,40 @@ enum class DiagId {
     G5Mqtt,
 };
 
-// ── DiagId metadata ─────────────────────────────────────────────────────────
 inline DiagGroup diagGroup(DiagId id) {
-    switch (id) {
-        case DiagId::G1NetworkAdapters:
-        case DiagId::G1NicAdvanced:
-        case DiagId::G1WifiDiagnostics:
-        case DiagId::G1WiredDiagnostics:
-        case DiagId::G1DhcpStatus:
-        case DiagId::G1IpConfiguration:
-        case DiagId::G1ActiveConnections:
-        case DiagId::G1CellularInfo:
-            return DiagGroup::G1;
-        case DiagId::G2NetworkProfile:
-        case DiagId::G2TcpSettings:
-        case DiagId::G2DefaultGateway:
-        case DiagId::G2RoutingTable:
-        case DiagId::G2ArpTable:
-        case DiagId::G2ProxySettings:
-            return DiagGroup::G2;
-        case DiagId::_G3Reserved17_Deprecated:
-        case DiagId::G3DnsServers:
-        case DiagId::G3DnsCache:
-        case DiagId::G3DnsIntegrity:
-        case DiagId::G3GeoIPLoc:
-        case DiagId::G3InternetConnectivity:
-            return DiagGroup::G3;
-        case DiagId::G4DnsResolution:
-        case DiagId::G4Ping:
-        case DiagId::G4Traceroute:
-        case DiagId::G4PathPing:
-        case DiagId::G4MtuDiscovery:
-        case DiagId::G4IPv6Connectivity:
-            return DiagGroup::G4;
-        case DiagId::G5UrlParsing:
-        case DiagId::G5TcpConnect:
-        case DiagId::G5ServiceBanner:
-        case DiagId::G5CurlVerbose:
-        case DiagId::G5HttpHeaders:
-        case DiagId::G5SecurityHeaders:
-        case DiagId::G5SslCertificate:
-        case DiagId::G5HttpRedirect:
-        case DiagId::G5HttpCompression:
-        case DiagId::G5HttpTiming:
-        case DiagId::G5FtpDiagnostics:
-        case DiagId::G5SshDiagnostics:
-        case DiagId::G5EmailDiagnostics:
-        case DiagId::G5Telnet:
-        case DiagId::G5Mysql:
-        case DiagId::G5Postgres:
-        case DiagId::G5Redis:
-        case DiagId::G5Mongodb:
-        case DiagId::G5Ldap:
-        case DiagId::G5Mqtt:
-            return DiagGroup::G5;
-    }
-    return {}; // triggers compiler warning for new DiagId values
+    const int v = static_cast<int>(id);
+    if (v >= static_cast<int>(DiagId::G1NetworkAdapters) && v <= static_cast<int>(DiagId::G1CellularInfo)) return DiagGroup::G1;
+    if (v >= static_cast<int>(DiagId::G2NetworkProfile)   && v <= static_cast<int>(DiagId::G2ProxySettings)) return DiagGroup::G2;
+    if (v >= static_cast<int>(DiagId::_G3Reserved17_Deprecated) && v <= static_cast<int>(DiagId::G3InternetConnectivity)) return DiagGroup::G3;
+    if (v >= static_cast<int>(DiagId::G4DnsResolution)    && v <= static_cast<int>(DiagId::G4IPv6Connectivity)) return DiagGroup::G4;
+    return DiagGroup::G5;
 }
 
-// ── Utility: all test IDs ───────────────────────────────────────────────────
+// Every DiagId value in declaration order (46 entries).
+// 静态缓存 const& 返回（原 DiagnosticConfig 契约：O(1)，调用方持有引用安全）。
 inline const QVector<DiagId>& allDiagIds() {
-    static const QVector<DiagId> ids = {
-        DiagId::G1NetworkAdapters, DiagId::G1NicAdvanced, DiagId::G1WifiDiagnostics,
-        DiagId::G1WiredDiagnostics, DiagId::G1DhcpStatus, DiagId::G1IpConfiguration,
-        DiagId::G1ActiveConnections, DiagId::G1CellularInfo,
-        DiagId::G2NetworkProfile, DiagId::G2TcpSettings, DiagId::G2DefaultGateway,
-        DiagId::G2RoutingTable, DiagId::G2ArpTable, DiagId::G2ProxySettings,
-        DiagId::G3DnsServers, DiagId::G3DnsCache,
-        DiagId::G3DnsIntegrity,
-        DiagId::G3InternetConnectivity, DiagId::G3GeoIPLoc,
-        DiagId::G4DnsResolution, DiagId::G4Ping, DiagId::G4Traceroute,
-        DiagId::G4PathPing, DiagId::G4MtuDiscovery, DiagId::G4IPv6Connectivity,
-        DiagId::G5UrlParsing, DiagId::G5TcpConnect, DiagId::G5ServiceBanner,
-        DiagId::G5CurlVerbose, DiagId::G5HttpHeaders, DiagId::G5SecurityHeaders,
-        DiagId::G5SslCertificate, DiagId::G5HttpRedirect, DiagId::G5HttpCompression,
-        DiagId::G5HttpTiming, DiagId::G5FtpDiagnostics, DiagId::G5SshDiagnostics,
-        DiagId::G5EmailDiagnostics,
-        DiagId::G5Telnet, DiagId::G5Mysql, DiagId::G5Postgres,
-        DiagId::G5Redis, DiagId::G5Mongodb, DiagId::G5Ldap, DiagId::G5Mqtt,
-    };
+    static const QVector<DiagId> ids = [] {
+        QVector<DiagId> v;
+        for (int i = static_cast<int>(DiagId::G1NetworkAdapters);
+             i <= static_cast<int>(DiagId::G5Mqtt); ++i)
+            v.append(static_cast<DiagId>(i));
+        return v;
+    }();
     return ids;
 }
 
+inline bool isSchedulable(DiagId id) { return id != DiagId::_G3Reserved17_Deprecated; }
+
 inline const QVector<DiagId>& diagIdsForGroup(DiagGroup g) {
-    static const QMap<DiagGroup, QVector<DiagId>> cache = []() {
-        QMap<DiagGroup, QVector<DiagId>> m;
-        for (auto id : allDiagIds())
-            m[diagGroup(id)].append(id);
-        return m;
+    static const std::array<QVector<DiagId>, 5> cache = [] {
+        std::array<QVector<DiagId>, 5> a;
+        for (DiagId id : allDiagIds()) {
+            const int gi = static_cast<int>(diagGroup(id));
+            if (gi >= 0 && gi < 5)
+                a[gi].append(id);
+        }
+        return a;
     }();
-    static const QVector<DiagId> empty;
-    auto it = cache.find(g);
-    return (it != cache.end()) ? it.value() : empty;
+    const int gi = static_cast<int>(g);
+    return (gi >= 0 && gi < 5) ? cache[gi] : cache[0];
 }

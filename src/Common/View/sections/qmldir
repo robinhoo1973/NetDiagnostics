@@ -1,0 +1,23 @@
+# NetDiagnostics UI sections module (qmldir)
+module sections
+PageActionBarSection 1.0 PageActionBarSection.qml
+PageCardSection 1.0 PageCardSection.qml
+PageChartsSection 1.0 PageChartsSection.qml
+PageDetailHeaderSection 1.0 PageDetailHeaderSection.qml
+PageEmptyStateSection 1.0 PageEmptyStateSection.qml
+PageErrorSection 1.0 PageErrorSection.qml
+PageGroupPanelSection 1.0 PageGroupPanelSection.qml
+PageHeaderSection 1.0 PageHeaderSection.qml
+PageHeroSection 1.0 PageHeroSection.qml
+PageListSection 1.0 PageListSection.qml
+PageMetricSection 1.0 PageMetricSection.qml
+PageOverlaySection 1.0 PageOverlaySection.qml
+PagePropertiesSection 1.0 PagePropertiesSection.qml
+PageSettingsSection 1.0 PageSettingsSection.qml
+PageStatusHeaderSection 1.0 PageStatusHeaderSection.qml
+PageTabBarSection 1.0 PageTabBarSection.qml
+PageTerminalSection 1.0 PageTerminalSection.qml
+PageTile 1.0 PageTile.qml
+PageTileGridSection 1.0 PageTileGridSection.qml
+PageToastSection 1.0 PageToastSection.qml
+PageToolbarSection 1.0 PageToolbarSection.qml

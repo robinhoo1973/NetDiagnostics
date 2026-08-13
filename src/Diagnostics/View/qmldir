@@ -1,0 +1,4 @@
+module Diagnostics.View
+DiagnosticScreen 1.0 DiagnosticScreen.qml
+PageDetailSheet 1.0 PageDetailSheet.qml
+DetailPage 1.0 DetailPage.qml

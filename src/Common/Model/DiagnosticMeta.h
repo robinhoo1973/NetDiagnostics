@@ -1,68 +1,48 @@
 // =============================================================================
-// DiagnosticMeta.h — Per-test metadata registry (single source of truth)
+// DiagnosticMeta.h — Per-test metadata registry (contract layer, single source)
 //
-// Replaces scattered per-test information across DeviceCapability, DiagNames,
-// and DetailPage duck-typing.  Every diagnostic declares its platform
-// availability + detail-page display profile in ONE place.
-//
-// Usage:
-//   auto& m = diagnosticMeta(id);
-//   if (m.platforms & Platform::Android) { ... }
-//   r.data["showTerminal"] = m.detail.showTerminal;
+// Per diag-execution-architecture-guide.md §5/§8: DiagnosticMeta is the single
+// store for tmplType + DetailProfile (+ durationProfile).  OutputContract is a
+// read view derived from DetailProfile (A3).  platforms are the NEW-1 code-
+// verified values (DiagCapability manifest + TaskFactory #if); at startup the
+// AdapterRegistry derivation is authoritative and may overwrite this field.
 // =============================================================================
 #pragma once
 
 #include "Common/Model/DiagId.h"
 #include "Common/Model/DiagNames.h"
+#include "Common/Platform/PlatformFlags.h"
 #include <cstdint>
-
-// ── Platform bitmask ─────────────────────────────────────────────────────
-namespace Platform {
-    enum Flag : uint8_t {
-        iOS     = 1 << 0,
-        Android = 1 << 1,
-        Windows = 1 << 2,
-        macOS   = 1 << 3,
-        Linux   = 1 << 4,
-        Desktop = Windows | macOS | Linux,
-        Mobile  = iOS | Android,
-        All     = 0xFF,
-    };
-}
 
 // ── Detail page display profile ──────────────────────────────────────────
 struct DetailProfile {
-    // Which body sections are visible on the detail page.
-    bool showErrorOutput : 1;   // red error block (connection/protocol failures)
-    bool showProperties  : 1;   // key-value property rows
-    bool showCharts      : 1;   // BarChart / Gauge visualization
-    bool showTerminal    : 1;   // terminal output (raw protocol data)
+    bool showErrorOutput  = true;   // PageErrorSection
+    bool showProperties   = true;   // PagePropertiesSection
+    bool showCharts       = false;  // PageChartsSection
+    bool showTerminal     = true;   // PageTerminalSection
 
-    // Key metric: which r.data field provides the headline number on the
-    // MetricCard.  nullptr → no MetricCard (System template).
-    const char* keyMetricField = nullptr;   // e.g. "rttAvgMs", "hopCount", "totalMs"
-    const char* keyMetricUnit  = nullptr;   // e.g. "ms", "hops", "days"
-    int         keyMetricPrecision = 0;     // decimal places for display
+    const char* keyMetricField = nullptr;   // data 键 → MetricCard；nullptr=无
+    const char* keyMetricUnit  = nullptr;
+    int         keyMetricPrecision = 0;
 
-    // Chart configuration (when showCharts is true).
     enum ChartType { NoChart, BarChart, Gauge };
-    ChartType   chartType = NoChart;
+    ChartType chartType = NoChart;
+    const char* chartField = nullptr;   // 图表数据键：individualRtts / hops / waterfall（R1-1：Gauge 同 key 字段）
 
-    // Terminal: whether to show typing animation (concise output only).
-    bool terminalTypewriter : 1;
+    bool terminalTypewriter = false;
 };
 
 // ── Per-test metadata ────────────────────────────────────────────────────
 struct DiagnosticMeta {
     DiagId       id;
-    const char*  displayName;    // English display name
-    const char*  iconName;       // SVG icon (without .svg)
-    uint8_t      platforms;      // Platform::Flag bitmask
-    DiagAnimType animType;       // L4 animation category
-    DiagTemplateType tmplType;   // L5 detail page template
-    DetailProfile detail;        // Detail page display configuration
+    const char*  displayName;
+    const char*  iconName;
+    unsigned     platforms;       // PlatformFlag::Flag（NEW-1 代码实证值）
+    DiagAnimType animType;
+    DiagTemplateType tmplType;
+    DetailProfile detail;
+    qint64       durationProfileMs = 60000; // P2 DIAG-14: 时长预算（沿用 Task 超时）
 };
 
-// ── Registry accessor ────────────────────────────────────────────────────
-// Returns the metadata for a given DiagId.  id must be a valid enum value.
+// ── Registry accessors ───────────────────────────────────────────────────
 const DiagnosticMeta& diagnosticMeta(DiagId id);

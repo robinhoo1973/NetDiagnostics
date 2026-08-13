@@ -1,1 +1,3 @@
-singleton ThemeEngine ThemeEngine.qml
+singleton ThemeEngine 1.0 ThemeEngine.qml
+singleton T 1.0 TranslationsProxy.qml
+Palette 1.0 Palette.js

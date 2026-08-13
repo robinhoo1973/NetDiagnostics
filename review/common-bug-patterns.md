@@ -15,6 +15,8 @@
 6. [F. 翻译/国际化缺陷](#f-翻译国际化缺陷)
 7. [G. 构建管道文件缺失](#g-构建管道文件缺失)
 8. [H. 代码质量退化](#h-代码质量退化)
+9. [I. C++ 引用与异步生命周期](#i-c-引用与异步生命周期)
+10. [J. QML 契约与令牌漂移](#j-qml-契约与令牌漂移)
 
 ---
 
@@ -577,3 +579,52 @@ if (arr.size() > kMaxLanguages) {
 - [ ] **H** 是否有死代码（赋值未读取、未使用的变量）？
 - [ ] **H** 数组/列表解析是否有边界检查和截断处理？
 - [ ] **H** 注释是否与代码行为一致？
+- [ ] **I** `const&` 返回值是否指向静态缓存/成员（禁止返回局部临时）？
+- [ ] **I** 异步回调是否有状态守卫（cancel 后迟到信号不得覆写终态）？
+- [ ] **J** 新 QML 是否使用 qrc 目录导入（Qt6 不可用，必须 qmldir 模块）？
+- [ ] **J** QML 契约字段是否完整注入（如 `data.templateType` 供 viz 选图）？
+- [ ] **J** 新增颜色/字号是否走 Palette/fontSize 令牌（禁止硬编码 hex/px）？
+- [ ] **J** 翻译文案是否走 `T.tr/T.trMsg`（C++ 英文串显示侧包 trMsg）？
+
+---
+
+## I. C++ 引用与异步生命周期（2026-08-13 审查新增）
+
+### 问题描述
+
+1. **悬垂 const& 返回**：静态成员函数返回 `const QVector&` 指向函数内临时
+   对象 → 调用方迭代即 SIGSEGV（gdb 定位在 `QList::begin`）。
+2. **取消竞态**：`cancel()` 清空 pending 后，in-flight suite 的
+   `suiteFinished` 仍到达，回调无条件推进 → 终态 Cancelled 被覆写为
+   Completed，并写入越界键（-1）。
+
+### 5WHY 根因链
+
+```
+① 按值构造临时 → const& 绑定临时 → 调用点悬垂 → 迭代崩溃
+② cancel 只清队列不清守卫 → 迟到信号重入推进逻辑 → 终态污染
+```
+
+### 修复模式
+
+- 静态缓存（magic static + lambda 初始化）返回 `const&`，调用方持有引用安全。
+- 异步完成回调首行做状态守卫：`if (m_runStatus != Running) { cleanup; return; }`。
+
+## J. QML 契约与令牌漂移（2026-08-13 审查新增）
+
+### 问题描述
+
+1. **qrc 目录导入**：Qt6 对 `import "../dir"`（qrc 目录）报
+   "no such directory" → 全部改 qmldir 模块 + `addImportPath("qrc:/qt/qml")`。
+2. **契约字段漂移**：C++ 契约层重建后不再注入 `data.templateType`，
+   QML viz 组件依赖该字段 → 图表永远不显示（静默降级，无报错）。
+3. **令牌漂移**：硬编码 hex/px 与 Palette/fontSize 双源 → 主题切换不生效。
+4. **翻译绕行**：C++ 英文串直入 QML 显示，绕过 T.trMsg 表。
+
+### 修复模式
+
+- 所有跨目录引用一律模块导入；qmldir 显式列全部类型与 JS。
+- 派生数据在桥接层按 meta 注入（`resultFor` 注入 templateType），
+  不改探针结果本体。
+- 新色一律入 Palette.js（如 `warnOrange`/`scrim`）；字号入 fontSize。
+- C++ 面向用户的字符串显示侧统一 `T.trMsg()`（exact/template 表覆盖）。

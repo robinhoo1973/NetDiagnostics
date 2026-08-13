@@ -19,7 +19,7 @@
 //   ResultChart { Layout.fillWidth: true; data: page.resultData; expanded: page.chartsExpanded }
 // =============================================================================
 import QtQuick
-import "../../theme"
+import theme
 
 Item {
     id: root
