@@ -4,8 +4,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import theme
 
-Rectangle {
-    id: root
+    Rectangle {
+        id: root
 
     property string iconName: ""
     property string title: ""
@@ -17,6 +17,25 @@ Rectangle {
     border { width: 0; color: "transparent" }
 
     default property alias content: titleRow.data
+
+    // 7-7：标题栏拖拽窗口（无边框桌面）；propagate 让子项交互不受影响
+    property bool _moveStarted: false
+    MouseArea {
+        id: dragArea
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton
+        propagateComposedEvents: true
+        cursorShape: Qt.ArrowCursor
+        onPressed: root._moveStarted = false
+        onPositionChanged: function(mouse) {
+            if (!pressed || root._moveStarted) return
+            var win = root.Window.window
+            if (win && typeof win.startSystemMove === "function") {
+                root._moveStarted = true
+                win.startSystemMove()
+            }
+        }
+    }
 
     RowLayout {
         id: titleRow

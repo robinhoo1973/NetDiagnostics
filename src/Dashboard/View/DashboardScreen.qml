@@ -8,6 +8,7 @@ import QtQuick.Layouts
 import core
 import sections as S
 import theme
+import widgets
 
 PageDisplay {
     id: page
@@ -24,12 +25,46 @@ PageDisplay {
     function _refreshGroups() {
         _activeGroups = AppState.visibleGroups()
     }
+    // 总耗时（Run Info 卡；命令式刷新 UI-2）
+    property string _timeText: "—"
+    // 归档布局迁移：完成时间 + 总览卡数据（命令式刷新）
+    property string _completedAt: ""
+    property int _totDiags: 0
+    property int _totCompleted: 0
+    property var _layers: []
+    function _refreshTime() {
+        var s = AppState.groupStats(-1)
+        // 8-15：总耗时改用墙钟（runDurationMs），与诊断运行时间一致
+        _timeText = ThemeEngine.formatDuration(AppState.runDurationMs())
+        _totDiags = s.total || 0
+        _totCompleted = s.completed || 0
+        var layers = []
+        for (var i = 0; i < 5; ++i) {
+            var gs = AppState.groupStats(i)
+            layers.push({ index: i, ms: gs.durationMs || 0 })
+        }
+        _layers = layers
+    }
     Connections {
         target: AppState
         function onStateVersionChanged() { page._refreshGroups() }
-        function onRunStatusChanged() { page._refreshGroups() }
+        function onProgressChanged() { page._refreshTime(); page._refreshGroups() }
+        function onRunElapsedChanged() { page._refreshTime() }
+        function onCurrentRunningGroupChanged() { page._refreshGroups() }
+        function onRunStatusChanged() {
+            page._refreshTime(); page._refreshGroups()
+            if (AppState.runStatus === 2) {
+                var now = new Date()
+                page._completedAt = ("0" + now.getHours()).slice(-2) + ":"
+                    + ("0" + now.getMinutes()).slice(-2) + ":"
+                    + ("0" + now.getSeconds()).slice(-2)
+            }
+        }
     }
-    Component.onCompleted: _refreshGroups()
+    Component.onCompleted: {
+        _refreshGroups()
+        _refreshTime()
+    }
 
     // ── Toast（NEW-7：页面自持）──
     property string toastText: ""
@@ -48,19 +83,133 @@ PageDisplay {
         page.emitSectionAction("dashboard", "openDetail", { diagId: diagId })
     }
 
+    // ── 报告预览浮层（ReportEngine 图片回退 + 分享按钮）──
+    property bool previewVisible: false
+    property string previewImagePath: ""
+    property int _previewGen: 0
+    overlayVisible: previewVisible
+
+    function openPreview() {
+        if (!page.hasData) return
+        previewVisible = true
+        previewImagePath = ""
+        _previewGen++
+        var gen = _previewGen
+        // 5WHY：buildReportHtml + renderPreviewImage 同步重渲染会卡 UI——
+        // callLater 分帧 + generation 防抖（只最新请求生效）。
+        Qt.callLater(function() {
+            if (gen !== page._previewGen || !page.previewVisible) return
+            var imgPath = AppState.renderPreviewImage(ThemeEngine.isMobile ? 480 : 960)
+            page.previewImagePath = imgPath || ""
+        })
+    }
+
     headerContent: [
-        S.PageHeaderSection { iconName: "dashboard"; title: T.tr("dashboard") }
+        S.PageHeaderSection {
+            iconName: "dashboard"
+            title: T.tr("dashboard")
+            // 8-15：移除右上角 file-html 报告预览入口——与主窗口关闭钮同位
+            // 易误触，且预览入口已由底部"Review Report"卡片承担。
+        }
     ]
 
     bodyContent: [
-        S.PageEmptyStateSection { },
-        S.PageStatusHeaderSection {
-            headerExtra: dashboardSummaryComp
-            onShareRequested: {
-                AppState.copyReportToClipboard()
-                page.showToast(T.tr("detailCopied"))
+        S.PageEmptyStateSection {
+            hintText: T.tr("runFromDiag")     // M2：新用户引导
+        },
+
+        // ── Run Info 卡（归档恢复：状态 + 目标 + 总耗时）──
+        S.PageCardSection {
+            active: page.hasData
+            showHeader: false
+            bottomMargin: ThemeEngine.spacing.sm
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: ThemeEngine.spacing.md
+                Item {
+                    Layout.preferredWidth: 28
+                    Layout.preferredHeight: 28
+                    BusyIndicator {
+                        visible: AppState.runStatus === 1
+                        anchors.fill: parent
+                        running: AppState.runStatus === 1
+                    }
+                    AppIcon {
+                        visible: AppState.runStatus !== 1
+                        anchors.fill: parent
+                        name: AppState.runStatus === 3 ? "badge-close"
+                            : AppState.runStatus === 4 ? "badge-error" : "check"
+                        size: 28
+                        color: AppState.runStatus === 3 ? ThemeEngine.colors.warnYellow
+                             : AppState.runStatus === 4 ? ThemeEngine.colors.failRed
+                             : ThemeEngine.colors.passGreen
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    Label {
+                        text: AppState.runStatus === 1 ? T.tr("runningDots")
+                            : AppState.runStatus === 2 ? T.tr("diagRunComplete")
+                            : AppState.runStatus === 3 ? T.tr("cancelled")
+                            : AppState.runStatus === 4 ? T.tr("errorStatus")
+                            : T.tr("diagRunComplete")
+                        font.family: ThemeEngine.fontUi
+                        font.pixelSize: ThemeEngine.fontSize.title
+                        font.weight: Font.DemiBold
+                        color: AppState.runStatus === 3 ? ThemeEngine.colors.textSecondary
+                             : ThemeEngine.colors.textPrimary
+                        elide: Text.ElideRight
+                    }
+                    RowLayout {
+                        spacing: 4
+                        AppIcon { name: "compass"; size: 12; color: ThemeEngine.colors.textMuted }
+                        Label {
+                            text: T.tr("targetLabel") + (AppState.targetHost + AppState.targetPath || T.tr("naLabel"))
+                            font.family: ThemeEngine.monoFont
+                            font.pixelSize: ThemeEngine.fontSize.caption
+                            color: ThemeEngine.colors.textSecondary
+                            elide: Text.ElideRight
+                        }
+                    }
+                    RowLayout {
+                        spacing: 4
+                        AppIcon { name: "activity"; size: 12; color: ThemeEngine.colors.textMuted }
+                        Label {
+                            // 归档：完成时刻（运行中显示总耗时）
+                            text: AppState.runStatus === 2 && page._completedAt !== ""
+                                  ? page._completedAt : T.tr("totalTimeLabel") + ": " + page._timeText
+                            font.family: ThemeEngine.monoFont
+                            font.pixelSize: ThemeEngine.fontSize.caption
+                            color: ThemeEngine.colors.textSecondary
+                        }
+                    }
+                }
             }
         },
+
+        // ── 摘要统计卡（归档 SummaryCards：Summary + Total + 6 类结果行）──
+        S.PageCardSection {
+            active: page.hasData
+            showHeader: false
+            bottomMargin: ThemeEngine.spacing.sm
+            DashboardSummaryComp { Layout.fillWidth: true }
+        },
+
+        // ── 分组结果标签（归档恢复）──
+        Label {
+            Layout.fillWidth: true
+            Layout.leftMargin: ThemeEngine.spacing.md
+            Layout.topMargin: ThemeEngine.spacing.md
+            visible: page.hasData
+            text: T.tr("perGroup")
+            font.family: ThemeEngine.fontUi
+            font.pixelSize: ThemeEngine.fontSize.subhead
+            font.weight: Font.DemiBold
+            color: ThemeEngine.colors.textPrimary
+            elide: Text.ElideRight
+        },
+
         Repeater {
             model: page._activeGroups
             delegate: S.PageGroupPanelSection {
@@ -72,17 +221,262 @@ PageDisplay {
                 rowHeaderDelegate: dashboardRowHeaderComp
                 onDetailRequested: function(d) { page.dashboardOpenDetail(d.diagId) }
             }
+        },
+
+        // ── 总览卡（归档：3 项统计 + 分层计时）──
+        S.PageCardSection {
+            active: page.hasData
+            cardTitle: T.tr("summary")
+            bottomMargin: ThemeEngine.spacing.sm
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                SummaryStat {
+                    Layout.fillWidth: true
+                    statIcon: "badge-check"; clr: ThemeEngine.colors.cyan
+                    statVal: String(page._totDiags); lbl: T.tr("totalDiagsLabel")
+                }
+                SummaryStat {
+                    Layout.fillWidth: true
+                    statIcon: "activity"; clr: ThemeEngine.colors.secondary
+                    statVal: page._timeText; lbl: T.tr("totalTimeLabel")
+                }
+                SummaryStat {
+                    Layout.fillWidth: true
+                    statIcon: "check"; clr: ThemeEngine.colors.passGreen
+                    statVal: String(page._totCompleted); lbl: T.tr("completedLabel")
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 1
+                    color: ThemeEngine.colors.borderCard
+                    visible: page._totCompleted > 0
+                }
+                Item { Layout.preferredHeight: 4; visible: page._totCompleted > 0 }
+                Label {
+                    visible: page._totCompleted > 0
+                    text: T.tr("layerTimings")
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.caption
+                    font.weight: Font.DemiBold
+                    color: ThemeEngine.colors.textSecondary
+                }
+                Repeater {
+                    model: page._layers
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        visible: page._totCompleted > 0
+                        spacing: ThemeEngine.spacing.sm
+                        AppIcon {
+                            name: ThemeEngine.groupIconName(modelData.index)
+                            size: 14
+                            color: ThemeEngine.colors.secondary
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: T.groupName(modelData.index)
+                            font.family: ThemeEngine.monoFont
+                            font.pixelSize: ThemeEngine.fontSize.caption
+                            color: ThemeEngine.colors.textPrimary
+                            elide: Text.ElideRight
+                        }
+                        Label {
+                            text: ThemeEngine.formatDuration(modelData.ms || 0)
+                            font.family: ThemeEngine.monoFont
+                            font.pixelSize: ThemeEngine.fontSize.caption
+                            color: ThemeEngine.colors.textSecondary
+                        }
+                    }
+                }
+            }
+        },
+
+        // ── 报告预览卡（归档：标题 + 提示 + 主色按钮）──
+        S.PageCardSection {
+            active: page.hasData && AppState.runStatus !== 1
+            cardTitle: T.tr("report")
+            bottomMargin: ThemeEngine.spacing.lg
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: ThemeEngine.spacing.md
+                Label {
+                    Layout.fillWidth: true
+                    text: T.tr("reportExportHint")
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.body
+                    color: ThemeEngine.colors.textSecondary
+                    wrapMode: Text.WordWrap
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    radius: 10
+                    color: Qt.alpha(ThemeEngine.colors.cyan, 0.10)
+                    border { width: 1; color: Qt.alpha(ThemeEngine.colors.cyan, 0.35) }
+                    RowLayout {
+                        anchors { fill: parent; leftMargin: 16; rightMargin: 16 }
+                        AppIcon { name: "file-html"; size: 18; color: ThemeEngine.colors.cyan }
+                        Item { width: 12 }
+                        Label {
+                            Layout.fillWidth: true
+                            text: T.tr("reportReviewBtn")
+                            color: ThemeEngine.colors.textPrimary
+                            font.family: ThemeEngine.fontUi
+                            font.pixelSize: ThemeEngine.fontSize.body
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: page.openPreview()
+                    }
+                }
+            }
         }
     ]
 
     floatingContent: [
-        S.PageToastSection { toastText: page.toastText }
+        S.PageToastSection { toastText: page.toastText },
+        // 报告预览浮层（归档恢复：全窗 + 头部条 + 缩放 + 双格式分享）
+        S.PageOverlaySection {
+            visible: page.previewVisible
+            Rectangle {
+                anchors { fill: parent; margins: ThemeEngine.isMobile ? 0 : 8 }
+                radius: ThemeEngine.isMobile ? 0 : 12
+                color: ThemeEngine.colors.card
+                clip: true
+                border { width: ThemeEngine.isMobile ? 0 : 2; color: ThemeEngine.colors.borderFocused }
+                ColumnLayout {
+                    anchors { fill: parent; margins: 12 }
+                    spacing: 10
+                    // 头部条
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 48
+                        radius: 8
+                        color: Qt.alpha(ThemeEngine.colors.cyan, 0.08)
+                        RowLayout {
+                            anchors { fill: parent; margins: 8 }
+                            AppIcon { name: "file-html"; size: 20; color: ThemeEngine.colors.cyan }
+                            Item { width: 8 }
+                            Label {
+                                Layout.fillWidth: true
+                                text: T.tr("reportReviewBtn")
+                                font.family: ThemeEngine.fontUi
+                                font.pixelSize: ThemeEngine.fontSize.subhead
+                                font.weight: Font.Bold
+                                color: ThemeEngine.colors.textPrimary
+                                elide: Text.ElideRight
+                            }
+                            Rectangle {
+                                id: closeBtn
+                                readonly property int _sz: ThemeEngine.isMobile ? 48 : 34
+                                implicitWidth: _sz; implicitHeight: _sz; radius: _sz / 2
+                                color: closeMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.failRed, 0.35)
+                                                                : Qt.alpha(ThemeEngine.colors.failRed, 0.15)
+                                AppIcon { anchors.centerIn: parent; name: "close"; size: 14; color: ThemeEngine.colors.failRed }
+                                MouseArea {
+                                    id: closeMouse
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    hoverEnabled: true
+                                    onClicked: page.previewVisible = false
+                                }
+                                Accessible.role: Accessible.Button
+                                Accessible.name: T.tr("dialogCancel")
+                            }
+                        }
+                    }
+                    // 可缩放图片区
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: 8
+                        clip: true
+                        color: ThemeEngine.colors.surface
+                        border { width: 1; color: ThemeEngine.colors.borderCard }
+                        Flickable {
+                            id: previewFlick
+                            anchors { fill: parent; margins: 14 }
+                            clip: true
+                            contentWidth: previewImg.width * previewFlick.previewScale
+                            contentHeight: previewImg.height * previewFlick.previewScale
+                            property real previewScale: 1.0
+                            Image {
+                                id: previewImg
+                                x: Math.max(0, (previewFlick.width - width * previewFlick.previewScale) / 2)
+                                y: Math.max(0, (previewFlick.height - height * previewFlick.previewScale) / 2)
+                                width: sourceSize.width * previewFlick.previewScale
+                                height: sourceSize.height * previewFlick.previewScale
+                                source: page.previewImagePath !== "" ? "file://" + page.previewImagePath : ""
+                                fillMode: Image.PreserveFit
+                                cache: false
+                                smooth: true
+                            }
+                        }
+                        ZoomBar {
+                            anchors { bottom: parent.bottom; right: parent.right; margins: 8 }
+                            zoomLevel: previewFlick.previewScale
+                            onZoomLevelChanged: previewFlick.previewScale = zoomLevel
+                        }
+                    }
+                    // 分享按钮（labeled）
+                    ShareButtons {
+                        Layout.fillWidth: true
+                        mode: "labeled"
+                        pdfAccent: ThemeEngine.colors.cyan
+                        htmlAccent: ThemeEngine.colors.primary
+                        onShareRequested: function(format) {
+                            if (format === "locked") { page.showToast(T.tr("premiumRequiredMsg")); return }
+                            AppState.shareReportFile(format)
+                            page.showToast(T.tr("reportCopied"))
+                        }
+                        onPremiumRequired: page.showToast(T.tr("premiumRequiredMsg"))
+                    }
+                }
+            }
+        }
     ]
 
     onSectionAction: function(scope, action, payload) {
         if (action === "share" || action === "previewShare") {
-            AppState.copyReportToClipboard()
-            page.showToast(T.tr("detailCopied"))
+            AppState.shareReportFile("text")
+            page.showToast(T.tr("reportCopied"))
+        }
+        if (action === "preview") page.openPreview()
+    }
+
+    // ── 归档 SummaryStat（图标 + 标签 + 大数值）──
+    component SummaryStat: RowLayout {
+        property string statIcon: ""
+        property color clr: ThemeEngine.colors.cyan
+        property string statVal: ""
+        property string lbl: ""
+        spacing: 10
+        AppIcon {
+            name: statIcon
+            size: 16
+            color: clr
+            Layout.alignment: Qt.AlignVCenter
+        }
+        Label {
+            Layout.fillWidth: true
+            text: lbl
+            font.family: ThemeEngine.monoFont
+            font.pixelSize: ThemeEngine.fontSize.caption
+            color: ThemeEngine.colors.textSecondary
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+        Label {
+            text: statVal
+            font.family: ThemeEngine.monoFont
+            font.pixelSize: ThemeEngine.fontSize.subhead
+            font.weight: Font.Bold
+            color: clr
+            verticalAlignment: Text.AlignVCenter
         }
     }
 }

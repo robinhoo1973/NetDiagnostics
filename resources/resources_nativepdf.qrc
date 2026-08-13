@@ -1,5 +1,5 @@
 <RCC>
-    <qresource prefix="/">
-        <file alias="qml/widgets/NativePdfPageView.qml">../src/Common/View/widgets/NativePdfPageView.qml</file>
+    <qresource prefix="/qt/qml/widgets">
+        <file alias="NativePdfPageView.qml">../src/Common/View/widgets/NativePdfPageView.qml</file>
     </qresource>
 </RCC>

@@ -56,7 +56,8 @@ PageDisplay {
         S.PageToastSection { toastText: page.toastText }
     ]
 
-    onSectionAction: function(scope, action, payload) {
-        if (action === "back") page.emitSectionAction("detail", "back", {})
-    }
+    // 5WHY（C1 栈溢出）：这里曾对 "back" 再次 emitSectionAction —— emitSectionAction
+    // 同步重入 onSectionAction → 无限递归崩溃。返回已由 PageDetailHeaderSection
+    // 的 backRequested 直接 emitSectionAction，AppContent handlePageAction 监听
+    // "back" 并 pop——页面自身不需要任何转发。
 }

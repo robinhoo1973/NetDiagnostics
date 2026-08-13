@@ -13,8 +13,17 @@
 // =============================================================================
 
 #include "Common/Services/PlatformAdapter.h"
+#include "Common/Services/DnsResolver.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+
+#if defined(PLATFORM_IOS)
+// iOS NSURLSession HTTP 族（.mm 实现，全局作用域声明）
+DiagnosticResult iosHttpDiagnostic(DiagId id, const QString& target);
+#endif
+#if defined(PLATFORM_ANDROID)
+#include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
+#endif
 
 #include <QUrl>
 #include <QTcpSocket>
@@ -163,6 +172,7 @@ static DiagnosticResult probeResultScaffold(DiagId id, const QUrl& u,
     r.data[QStringLiteral("port")] = portForUrl(u);
     r.data[QStringLiteral("connected")] = p.connected;
     r.data[QStringLiteral("latencyMs")] = p.latencyMs;
+    r.data[QStringLiteral("banner")] = QString();   // 失败结果键齐备（消费方绝不读到 undefined）
     if (p.connected && !p.banner.isEmpty()) {
         r.details = QString::fromUtf8(p.banner);
         r.rawOutput = r.details;
@@ -224,16 +234,17 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
     QElapsedTimer total; total.start();
     QElapsedTimer phase; phase.start();
 
-    // Phase: DNS (only for hostnames)
+    // Phase: DNS (only for hostnames) — DnsResolver 3s 超时单例（H4：裸 QHostInfo
+    // 在坏网络下可阻塞数十秒，远超 watchdog 预算）
     if (u.host().contains(QLatin1Char('.')) && !u.host().startsWith(QLatin1String("192."))
         && !u.host().startsWith(QLatin1String("10."))
         && !u.host().startsWith(QLatin1String("198.18."))
         && !u.host().startsWith(QLatin1String("172."))
         && !u.host().startsWith(QLatin1String("127."))) {
-        QHostInfo info = QHostInfo::fromName(u.host());
+        const QString ip = DnsResolver::instance().resolve(u.host(), 3000);
         r.dnsMs = phase.restart();
-        if (info.error() != QHostInfo::NoError) {
-            r.error = QStringLiteral("DNS resolution failed");
+        if (ip.isEmpty()) {
+            r.error = QStringLiteral("DNS resolution failed (3s timeout)");
             r.totalMs = total.elapsed();
             return r;
         }
@@ -247,16 +258,21 @@ static HttpResult httpOnce(const QUrl& u, const QByteArray& method,
     if (https) {
         QSslSocket sock;
         sock.setPeerVerifyMode(QSslSocket::VerifyNone);
-        sock.connectToHostEncrypted(u.host(), (quint16)port);
+        // M6：TCP 连接与 TLS 握手分段计时——先 connectToHost，再 startClientEncryption
+        sock.connectToHost(u.host(), (quint16)port);
+        if (!sock.waitForConnected(timeoutMs)) {
+            r.error = sock.errorString();
+            r.totalMs = total.elapsed();
+            return r;
+        }
+        r.connectMs = phase.restart();
+        sock.startClientEncryption();
         if (!sock.waitForEncrypted(timeoutMs)) {
             r.error = sock.errorString();
             r.totalMs = total.elapsed();
             return r;
         }
-        r.connectMs = phase.elapsed();
-        phase.restart();   // TLS handshake time = waitForEncrypted total - connect
-        // (connect+tls measured together; approximate split: connect then TLS)
-        r.tlsMs = 0;       // included in connectMs above (honest approximation)
+        r.tlsMs = phase.elapsed();
 
         QByteArray req;
         req += method + " " + (u.path(QUrl::FullyEncoded).isEmpty() ? QByteArray("/") : u.path(QUrl::FullyEncoded).toUtf8());
@@ -431,7 +447,7 @@ static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunCo
     out.append(QStringLiteral("* Timing breakdown:"));
     out.append(QStringLiteral("  DNS:        %1 ms").arg(hr.dnsMs));
     out.append(QStringLiteral("  Connect:    %1 ms").arg(hr.connectMs));
-    out.append(QStringLiteral("  TLS:        %1 ms (included in connect)").arg(hr.tlsMs));
+    out.append(QStringLiteral("  TLS:        %1 ms").arg(hr.tlsMs));
     out.append(QStringLiteral("  First byte: %1 ms").arg(hr.firstByteMs));
     out.append(QStringLiteral("  Total:      %1 ms").arg(hr.totalMs));
     if (!hr.body.isEmpty()) {
@@ -450,10 +466,12 @@ static DiagnosticResult probeCurlVerbose(DiagId id, const QString& target, RunCo
     r.data[QStringLiteral("totalMs")] = hr.totalMs;
     r.data[QStringLiteral("dnsMs")] = hr.dnsMs;
     r.data[QStringLiteral("connectMs")] = hr.connectMs;
+    r.data[QStringLiteral("sslMs")] = hr.tlsMs;   // diag-g5 §2.4：契约键名 sslMs
     r.data[QStringLiteral("firstByteMs")] = hr.firstByteMs;
-    QVariantList waterfall;
+    QVariantList waterfall;   // 5 段（diag-g5 §2.4：DNS/Connect/SSL/FirstByte/Total）
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("DNS")}, {QStringLiteral("ms"), (double)hr.dnsMs}});
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Connect")}, {QStringLiteral("ms"), (double)hr.connectMs}});
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("SSL")}, {QStringLiteral("ms"), (double)hr.tlsMs}});
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("FirstByte")}, {QStringLiteral("ms"), (double)hr.firstByteMs}});
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
     r.data[QStringLiteral("waterfall")] = waterfall;
@@ -588,14 +606,18 @@ static DiagnosticResult probeSslCertificate(DiagId id, const QString& target, Ru
                 expired ? QStringLiteral("Certificate EXPIRED %1 days ago").arg(-dl)
                 : soonExpiring ? QStringLiteral("Expires in %1 days").arg(dl)
                 : QStringLiteral("Valid for %1 days").arg(dl), {}, out.join(QLatin1Char('\n')));
-            r.data[QStringLiteral("cn")] = cn;
-            r.data[QStringLiteral("issuer")] = issuer;
-            r.data[QStringLiteral("sans")] = sans;
-            r.data[QStringLiteral("notBefore")] = notBefore;
-            r.data[QStringLiteral("notAfter")] = notAfter;
+            // diag-g5 §2.7 契约键：daysLeft/issuer/validFrom/validTo/subject
             r.data[QStringLiteral("daysLeft")] = dl;
+            r.data[QStringLiteral("issuer")] = issuer;
+            r.data[QStringLiteral("subject")] = cn;
+            r.data[QStringLiteral("validFrom")] = notBefore;
+            r.data[QStringLiteral("validTo")] = notAfter;
+            r.data[QStringLiteral("sans")] = sans;
             r.data[QStringLiteral("chainLength")] = chain.size();
             r.data[QStringLiteral("handshakeMs")] = t.elapsed();
+            // 归档 NetworkProbe::sslCertInfo 的 SHA-256 指纹
+            r.data[QStringLiteral("thumbprint")] = QString::fromLatin1(
+                cert.digest(QCryptographicHash::Sha256).toHex());
             return r;
         }
     }
@@ -617,7 +639,8 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
     QVariantList hops;
     for (int hop = 0; hop <= 5; ++hop) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 12000);
+        // L2：每跳 8s（6×8=48s < 60s watchdog 预算）
+        const HttpResult hr = httpOnce(u, QByteArrayLiteral("GET"), QByteArray(), 8000);
         last = hr;
         if (!hr.ok) break;
         QVariantMap hm;
@@ -647,7 +670,7 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
             QStringLiteral("%1 redirect(s), final HTTP %2").arg(redirectCount).arg(last.statusCode),
             {}, out.join(QLatin1Char('\n')));
         r.data[QStringLiteral("redirectCount")] = redirectCount;
-        r.data[QStringLiteral("hops")] = hops;
+        r.data[QStringLiteral("redirects")] = hops;   // diag-g5 §2.8 契约键
         r.data[QStringLiteral("finalStatus")] = last.statusCode;
         return r;
     }
@@ -656,7 +679,7 @@ static DiagnosticResult probeHttpRedirect(DiagId id, const QString& target, RunC
                           : QStringLiteral("No redirect — HTTP %1").arg(last.statusCode),
         {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("redirectCount")] = redirectCount;
-    r.data[QStringLiteral("hops")] = hops;
+    r.data[QStringLiteral("redirects")] = hops;   // diag-g5 §2.8 契约键
     r.data[QStringLiteral("finalStatus")] = last.statusCode;
     r.data[QStringLiteral("finalUrl")] = u.toString();
     return r;
@@ -674,11 +697,20 @@ static DiagnosticResult probeHttpCompression(DiagId id, const QString& target, R
     if (!hr.ok) return makeResult(id, DiagStatus::Fail,
         hr.error.isEmpty() ? QStringLiteral("HTTP request failed") : hr.error, {}, {});
     const QByteArray encoding = headerValue(hr, "content-encoding");
+    // M7：按规格补 originalSize/compressedSize/ratio——identity 对照请求测实体比
+    const HttpResult hrIdentity = httpOnce(u, QByteArrayLiteral("GET"),
+        QByteArrayLiteral("Accept-Encoding: identity\r\n"), 15000);
+    const int originalSize = hrIdentity.ok ? hrIdentity.body.size() : 0;
+    const int compressedSize = hr.body.size();
+    const double ratio = (originalSize > 0)
+        ? 100.0 * (1.0 - double(compressedSize) / double(originalSize)) : 0.0;
     QStringList out;
     out.append(QStringLiteral("Compression negotiation (Accept-Encoding: gzip, deflate, br):"));
     out.append(QStringLiteral("  HTTP %1").arg(hr.statusCode));
     out.append(QStringLiteral("  Content-Encoding: %1").arg(encoding.isEmpty() ? QStringLiteral("(none)") : QString::fromLatin1(encoding)));
     out.append(QStringLiteral("  Body bytes received: %1").arg(hr.body.size()));
+    out.append(QStringLiteral("  Identity body bytes: %1").arg(originalSize));
+    out.append(QStringLiteral("  Size ratio: %1%").arg(ratio, 0, 'f', 1));
     const bool supported = !encoding.isEmpty() && encoding != QByteArrayLiteral("identity");
     DiagnosticResult r = makeResult(id, supported ? DiagStatus::Pass : DiagStatus::Info,
         supported ? QStringLiteral("%1 enabled").arg(QString::fromLatin1(encoding))
@@ -688,6 +720,9 @@ static DiagnosticResult probeHttpCompression(DiagId id, const QString& target, R
     r.data[QStringLiteral("supported")] = supported;
     r.data[QStringLiteral("bodyBytes")] = hr.body.size();
     r.data[QStringLiteral("totalMs")] = hr.totalMs;
+    r.data[QStringLiteral("originalSize")] = originalSize;
+    r.data[QStringLiteral("compressedSize")] = compressedSize;
+    r.data[QStringLiteral("ratio")] = ratio;
     return r;
 }
 
@@ -705,7 +740,7 @@ static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunCon
     out.append(QStringLiteral("HTTP timing breakdown (%1):").arg(u.toString()));
     out.append(QStringLiteral("  DNS lookup:   %1 ms").arg(hr.dnsMs));
     out.append(QStringLiteral("  TCP connect:  %1 ms").arg(hr.connectMs));
-    out.append(QStringLiteral("  TLS handshake:%1 ms (included in connect)").arg(hr.tlsMs));
+    out.append(QStringLiteral("  TLS handshake:%1 ms").arg(hr.tlsMs));
     out.append(QStringLiteral("  First byte:   %1 ms").arg(hr.firstByteMs));
     out.append(QStringLiteral("  Total:        %1 ms").arg(hr.totalMs));
     DiagnosticResult r = makeResult(id, DiagStatus::Pass,
@@ -713,13 +748,14 @@ static DiagnosticResult probeHttpTiming(DiagId id, const QString& target, RunCon
         {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("dnsMs")] = hr.dnsMs;
     r.data[QStringLiteral("connectMs")] = hr.connectMs;
-    r.data[QStringLiteral("tlsMs")] = hr.tlsMs;
+    r.data[QStringLiteral("sslMs")] = hr.tlsMs;   // diag-g5 §2.10：契约键名 sslMs
     r.data[QStringLiteral("firstByteMs")] = hr.firstByteMs;
     r.data[QStringLiteral("totalMs")] = hr.totalMs;
     r.data[QStringLiteral("statusCode")] = hr.statusCode;
-    QVariantList waterfall;
+    QVariantList waterfall;   // 5 段（diag-g5 §2.10）
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("DNS")}, {QStringLiteral("ms"), (double)hr.dnsMs}});
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Connect")}, {QStringLiteral("ms"), (double)hr.connectMs}});
+    waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("SSL")}, {QStringLiteral("ms"), (double)hr.tlsMs}});
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("FirstByte")}, {QStringLiteral("ms"), (double)hr.firstByteMs}});
     waterfall.append(QVariantMap{{QStringLiteral("phase"), QStringLiteral("Total")}, {QStringLiteral("ms"), (double)hr.totalMs}});
     r.data[QStringLiteral("waterfall")] = waterfall;
@@ -857,6 +893,9 @@ static DiagnosticResult probePostgres(DiagId id, const QString& target, RunConte
     packet.append(startup);
     const ProbeOutcome p = tcpProbe(u, packet, 5000, 3000);
     DiagnosticResult r = probeResultScaffold(id, u, p);
+    // 失败结果键齐备（归档契约：消费者绝不读到 undefined key）
+    r.data[QStringLiteral("responseType")] = QString();
+    r.data[QStringLiteral("authOk")] = false;
     if (!p.connected) return r;
     const QByteArray& resp = p.banner;
     if (resp.isEmpty()) {
@@ -942,6 +981,9 @@ static DiagnosticResult probeMongodb(DiagId id, const QString& target, RunContex
     msg.append(bson);
     const ProbeOutcome p = tcpProbe(u, msg, 5000, 3000);
     DiagnosticResult r = probeResultScaffold(id, u, p);
+    // 失败结果键齐备（归档契约）
+    r.data[QStringLiteral("responded")] = false;
+    r.data[QStringLiteral("version")] = QString();
     if (!p.connected) return r;
     const QByteArray& resp = p.banner;
     const bool responded = resp.size() >= 16;
@@ -985,6 +1027,10 @@ static DiagnosticResult probeLdap(DiagId id, const QString& target, RunContext&)
     ldapMsg.append('\x80'); ldapMsg.append('\x00');
     const ProbeOutcome p = tcpProbe(u, ldapMsg, 5000, 3000);
     DiagnosticResult r = probeResultScaffold(id, u, p);
+    // 失败结果键齐备（归档契约）
+    r.data[QStringLiteral("hasBindResp")] = false;
+    r.data[QStringLiteral("bindOk")] = false;
+    r.data[QStringLiteral("resultCode")] = -1;
     if (!p.connected) return r;
     const QByteArray& resp = p.banner;
     if (resp.isEmpty()) {
@@ -1031,7 +1077,10 @@ static DiagnosticResult probeMqtt(DiagId id, const QString& target, RunContext&)
         return skippedProbe(id, QStringLiteral("Not MQTT(S)"));
     // MQTT 3.1.1 CONNECT: clean session, keep-alive 60s, zero-length client id
     QByteArray connect;
-    connect.append('\x10'); connect.append('\x10');
+    connect.append('\x10');
+    // M1（5WHY）：remaining length = 12（Variable Header 10 + Payload 2），
+    // 原 0x10=16 会让 broker 多等 4 字节 → CONNACK 永不返回。
+    connect.append('\x0c');
     connect.append('\x00'); connect.append('\x04');
     connect.append("MQTT");
     connect.append('\x04');
@@ -1040,6 +1089,10 @@ static DiagnosticResult probeMqtt(DiagId id, const QString& target, RunContext&)
     connect.append('\x00'); connect.append('\x00');
     const ProbeOutcome p = tcpProbe(u, connect, 5000, 3000);
     DiagnosticResult r = probeResultScaffold(id, u, p);
+    // 失败结果键齐备（归档契约）
+    r.data[QStringLiteral("isConnack")] = false;
+    r.data[QStringLiteral("resultCode")] = -1;
+    r.data[QStringLiteral("accepted")] = false;
     if (!p.connected) return r;
     const QByteArray& resp = p.banner;
     if (resp.size() < 2) {
@@ -1073,34 +1126,76 @@ static DiagnosticResult probeMqtt(DiagId id, const QString& target, RunContext&)
 
 } // namespace g5
 
-// ── Registration (NEW-1: all twenty = All) ────────────────────────────────
+// ── Registration（NEW-1/NEW-2/DIAG-4：scheme 过滤唯一入口 = select()）────
+// diag-g5 §2.21 映射表落库：不匹配的检测不在调度/统计/Config 出现（隐藏，
+// 不计 skipped）。DB/目录/消息 6 项仅 Desktop 注册（移动端隐藏，有效 Desktop）。
 void registerG5Adapters() {
     using namespace PlatformFlag;
-    const auto all = [](std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> fn) {
+    using F = std::function<DiagnosticResult(DiagId, const QString&, RunContext&)>;
+    const auto tri = [](F fn, SchemeFilter s) {
         return QVector<PlatformAdapter>{
-            {PF_Desktop, "Desktop", {}, fn},
-            {PF_IOS,     "iOS",     {}, fn},
-            {PF_Android, "Android", {}, fn},
+            {PF_Desktop, "Desktop", s, fn},
+            {PF_IOS,     "iOS",     s, fn},
+            {PF_Android, "Android", s, fn},
         };
     };
-    AdapterRegistry::registerAdapters(DiagId::G5UrlParsing,       all(g5::probeUrlParsing));
-    AdapterRegistry::registerAdapters(DiagId::G5TcpConnect,       all(g5::probeTcpConnect));
-    AdapterRegistry::registerAdapters(DiagId::G5ServiceBanner,    all(g5::probeServiceBanner));
-    AdapterRegistry::registerAdapters(DiagId::G5CurlVerbose,      all(g5::probeCurlVerbose));
-    AdapterRegistry::registerAdapters(DiagId::G5HttpHeaders,      all(g5::probeHttpHeaders));
-    AdapterRegistry::registerAdapters(DiagId::G5SecurityHeaders,  all(g5::probeSecurityHeaders));
-    AdapterRegistry::registerAdapters(DiagId::G5SslCertificate,   all(g5::probeSslCertificate));
-    AdapterRegistry::registerAdapters(DiagId::G5HttpRedirect,     all(g5::probeHttpRedirect));
-    AdapterRegistry::registerAdapters(DiagId::G5HttpCompression,  all(g5::probeHttpCompression));
-    AdapterRegistry::registerAdapters(DiagId::G5HttpTiming,       all(g5::probeHttpTiming));
-    AdapterRegistry::registerAdapters(DiagId::G5FtpDiagnostics,   all(g5::probeFtp));
-    AdapterRegistry::registerAdapters(DiagId::G5SshDiagnostics,   all(g5::probeSsh));
-    AdapterRegistry::registerAdapters(DiagId::G5EmailDiagnostics, all(g5::probeEmail));
-    AdapterRegistry::registerAdapters(DiagId::G5Telnet,           all(g5::probeTelnet));
-    AdapterRegistry::registerAdapters(DiagId::G5Mysql,            all(g5::probeMysql));
-    AdapterRegistry::registerAdapters(DiagId::G5Postgres,         all(g5::probePostgres));
-    AdapterRegistry::registerAdapters(DiagId::G5Redis,            all(g5::probeRedis));
-    AdapterRegistry::registerAdapters(DiagId::G5Mongodb,          all(g5::probeMongodb));
-    AdapterRegistry::registerAdapters(DiagId::G5Ldap,             all(g5::probeLdap));
-    AdapterRegistry::registerAdapters(DiagId::G5Mqtt,             all(g5::probeMqtt));
+    const auto desktopOnly = [](F fn, SchemeFilter s) {
+        return QVector<PlatformAdapter>{
+            {PF_Desktop, "Desktop", s, fn},   // H2：DB/目录/消息 6 项有效平台 = Desktop
+        };
+    };
+    const SchemeFilter wildcard;                       // include 空 = 任意 scheme
+    const SchemeFilter httpSchemes{{QStringLiteral("http"), QStringLiteral("https")}, false};
+    const SchemeFilter nonHttp{{QStringLiteral("http"), QStringLiteral("https")}, true};  // ServiceBanner 排除语义
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    // 移动端 HTTP 族平台工厂（iOS NSURLSession / Android HttpURLConnection JNI）
+    const auto platformHttp = [](DiagId i, const QString& t, RunContext&) -> DiagnosticResult {
+#if defined(PLATFORM_IOS)
+        return iosHttpDiagnostic(i, t);
+#else
+        return androidHttpDiag(i, t);
+#endif
+    };
+    const auto triHttp = [&platformHttp](F, SchemeFilter s) {
+        return QVector<PlatformAdapter>{
+            {PF_Desktop, "Desktop", s, platformHttp},
+            {PF_IOS,     "iOS",     s, platformHttp},
+            {PF_Android, "Android", s, platformHttp},
+        };
+    };
+#else
+    const auto triHttp = tri;
+#endif
+    AdapterRegistry::registerAdapters(DiagId::G5UrlParsing,       tri(g5::probeUrlParsing, wildcard));
+    AdapterRegistry::registerAdapters(DiagId::G5TcpConnect,       tri(g5::probeTcpConnect, wildcard));
+    AdapterRegistry::registerAdapters(DiagId::G5ServiceBanner,    tri(g5::probeServiceBanner, nonHttp));
+    AdapterRegistry::registerAdapters(DiagId::G5CurlVerbose,      triHttp(g5::probeCurlVerbose, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5HttpHeaders,      triHttp(g5::probeHttpHeaders, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5SecurityHeaders,  triHttp(g5::probeSecurityHeaders, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5SslCertificate,   tri(g5::probeSslCertificate, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5HttpRedirect,     triHttp(g5::probeHttpRedirect, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5HttpCompression,  triHttp(g5::probeHttpCompression, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5HttpTiming,       triHttp(g5::probeHttpTiming, httpSchemes));
+    AdapterRegistry::registerAdapters(DiagId::G5FtpDiagnostics,   tri(g5::probeFtp,
+        SchemeFilter{{QStringLiteral("ftp"), QStringLiteral("ftps")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5SshDiagnostics,   tri(g5::probeSsh,
+        SchemeFilter{{QStringLiteral("ssh"), QStringLiteral("sftp")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5EmailDiagnostics, tri(g5::probeEmail,
+        SchemeFilter{{QStringLiteral("smtp"), QStringLiteral("smtps"),
+                      QStringLiteral("imap"), QStringLiteral("imaps"),
+                      QStringLiteral("pop3"), QStringLiteral("pop3s")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Telnet,           tri(g5::probeTelnet,
+        SchemeFilter{{QStringLiteral("telnet")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Mysql,            desktopOnly(g5::probeMysql,
+        SchemeFilter{{QStringLiteral("mysql")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Postgres,         desktopOnly(g5::probePostgres,
+        SchemeFilter{{QStringLiteral("postgresql")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Redis,            desktopOnly(g5::probeRedis,
+        SchemeFilter{{QStringLiteral("redis")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Mongodb,          desktopOnly(g5::probeMongodb,
+        SchemeFilter{{QStringLiteral("mongodb")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Ldap,             desktopOnly(g5::probeLdap,
+        SchemeFilter{{QStringLiteral("ldap")}, false}));
+    AdapterRegistry::registerAdapters(DiagId::G5Mqtt,             desktopOnly(g5::probeMqtt,
+        SchemeFilter{{QStringLiteral("mqtt")}, false}));
 }

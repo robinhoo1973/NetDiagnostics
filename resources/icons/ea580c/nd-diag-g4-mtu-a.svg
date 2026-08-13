@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <!-- Probe threshold ticks + marker above tallest stack -->
+  <path d="M10.8 5 v1.6 M15.8 5 v1.6" stroke="#EA580C" stroke-width="1.2" />
+  <path d="M14.9 7.4 l0.9 1.2 l0.9 -1.2" stroke="#EA580C" stroke-width="1.2" />
+</svg>

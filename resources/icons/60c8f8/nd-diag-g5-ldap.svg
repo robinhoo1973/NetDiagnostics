@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="ngnddiagg5ldap" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#60C8F8" />
+      <stop offset="100%" stop-color="#0AA1E7" />
+    </linearGradient>
+  </defs>
+
+  <!-- Solid root node forking to three children -->
+  <circle cx="12" cy="4.8" r="2.2" fill="#0EA5E9" />
+  <path d="M12 7 V9.2 M12 9.2 L6.6 12.6 M12 9.2 V12.6 M12 9.2 L17.4 12.6"
+        stroke="#0AA1E7" stroke-width="1.2" />
+</svg>

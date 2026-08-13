@@ -31,9 +31,11 @@ PageSection {
     property int _skip: 0
     property int _info: 0
     property int _error: 0
+    property int _durationMs: 0
     property bool _userToggled: false
     property bool _userExpanded: true
-    readonly property var _statsObj: ({ pass: _pass, warn: _warn, fail: _fail, skip: _skip, info: _info, error: _error })
+    readonly property var _statsObj: ({ pass: _pass, warn: _warn, fail: _fail, skip: _skip, info: _info, error: _error,
+                                         total: _total, completed: _completed, durationMs: _durationMs })
 
     readonly property bool isRunning: AppState.runStatus === 1 && AppState.currentRunningGroup === groupIndex
     readonly property bool expanded: _userToggled ? _userExpanded : (isRunning || _completed > 0)
@@ -53,6 +55,7 @@ PageSection {
         _skip = s.skip || 0
         _info = s.info || 0
         _error = s.error || 0
+        _durationMs = s.durationMs || 0   // H2：行时长注入 DashboardRowHeader
     }
     Connections {
         target: AppState
@@ -62,6 +65,9 @@ PageSection {
             _refreshStats()
         }
         function onRunStatusChanged() { reloadModel(); _refreshStats() }   // B1：运行边界全量刷新
+        // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
+        // 瓦片与组标题同步出现，而非等首条结果/组结束。
+        function onCurrentRunningGroupChanged() { reloadModel(); _refreshStats() }
     }
     Component.onCompleted: reloadModel()
 
@@ -83,12 +89,14 @@ PageSection {
                     radius: 2
                 }
                 AppIcon {
-                    name: ["network-card", "ethernet", "cloud-shield", "compass", "config"][groupIndex] || "circle"
-                    size: 20
+                    name: ThemeEngine.groupIconName(groupIndex)
+                    size: 24
                     color: ThemeEngine.colors.cyan
                 }
                 Label {
-                    text: T.groupName(groupIndex) || qsTr("Group")
+                    // M8：组前缀 "G1:"（归档语义，折叠态也能定位第几组）
+                    text: (T.groupPrefix(groupIndex) ? T.groupPrefix(groupIndex) + ": " : "")
+                          + (T.groupName(groupIndex) || qsTr("Group"))
                     font.family: ThemeEngine.fontUi
                     font.pixelSize: ThemeEngine.fontSize.subhead
                     font.weight: Font.DemiBold
@@ -117,14 +125,16 @@ PageSection {
                     elide: Text.ElideRight
                 }
                 Label {
+                    // 双套徽标修复：Dashboard 注入行头（DashboardRowHeader）时隐藏内建计数+徽标
+                    visible: root.rowHeaderDelegate === null
                     text: root._completed + "/" + root._total
                     font.family: ThemeEngine.monoFont
                     font.pixelSize: ThemeEngine.fontSize.body
                     color: ThemeEngine.colors.textSecondary
                 }
-                StatusBadge { statusCode: 0; count: _pass }
-                StatusBadge { statusCode: 1; count: _warn }
-                StatusBadge { statusCode: 2; count: _fail }
+                StatusBadge { visible: root.rowHeaderDelegate === null; statusCode: 0; count: _pass }
+                StatusBadge { visible: root.rowHeaderDelegate === null; statusCode: 1; count: _warn }
+                StatusBadge { visible: root.rowHeaderDelegate === null; statusCode: 2; count: _fail }
                 AppIcon {
                     name: "chevron-down"; size: 14
                     color: ThemeEngine.colors.textMuted
@@ -136,6 +146,10 @@ PageSection {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 onClicked: { root._userToggled = true; root._userExpanded = !root._userExpanded }
+                // NEW-22：折叠头可聚焦/读屏可达
+                Accessible.role: Accessible.Button
+                Accessible.name: (T.groupPrefix(groupIndex) ? T.groupPrefix(groupIndex) + ": " : "")
+                                 + (T.groupName(groupIndex) || qsTr("Group"))
             }
         }
 

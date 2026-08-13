@@ -9,7 +9,7 @@ import core
 PageSection {
     id: root
     backgroundStyle: PageSection.Bar
-    fixedHeight: headerRow.implicitHeight   // 5WHY UI-1：Bar 显式定高
+    fixedHeight: 56   // 8-16：Material 顶栏最佳实践 56px（原 implicit 约 36 过矮）
 
     property string title: ""
     property string iconName: "circle"
@@ -20,6 +20,7 @@ PageSection {
     RowLayout {
         id: headerRow
         Layout.fillWidth: true
+        Layout.fillHeight: true
         Layout.leftMargin: ThemeEngine.spacing.sm
         Layout.rightMargin: ThemeEngine.spacing.sm
         spacing: ThemeEngine.spacing.sm

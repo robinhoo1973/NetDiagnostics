@@ -1,0 +1,158 @@
+// =============================================================================
+// DiagnosticFormatter.cpp — Shared output formatting (extracted from SystemDiagnostics)
+// =============================================================================
+// UX alignment principles:
+//   • Numeric data → RIGHT-aligned (easy visual magnitude comparison)
+//   • Text data   → LEFT-aligned  (natural reading flow)
+//   • Headers     → match the alignment of their column's data
+//   • Content longer than column width → truncated with "…" suffix
+//   • CJK / emoji characters counted as 2 display columns
+// =============================================================================
+#include "Diagnostics/View/DiagnosticFormatter.h"
+#include <QDateTime>
+
+static const QString kTblGap = QStringLiteral("  ");
+
+// ── Display-width helper: CJK / fullwidth / emoji = 2, ASCII = 1 ──
+// 5WHY: This function iterates QChar (UTF-16 code units), NOT full
+// Unicode code points.  Supplementary-plane characters (code points
+// > 0xFFFF, including emoji like U+1F600 😀) are encoded as surrogate
+// pairs: a high surrogate (0xD800-0xDBFF) followed by a low surrogate
+// (0xDC00-0xDFFF).  Comparing a single ushort against values > 0xFFFF
+// is tautological — the lower bound is always false, the upper bound
+// always true.  Instead, detect high surrogates explicitly and count
+// the entire pair as width 2 (consuming the low surrogate via index
+// advancement).
+//
+// BMP codepoints (≤ 0xFFFF) that occupy 2 display columns are listed
+// in the CJK/fullwidth range checks below.
+static int displayWidthImpl(const QString& s) {
+    int w = 0;
+    for (int i = 0; i < s.length(); ++i) {
+        ushort uc = s[i].unicode();
+        // High surrogate: supplementary-plane character (emoji, rare
+        // CJK, etc.) encoded as a UTF-16 surrogate pair.  Count as
+        // width 2 and skip the following low surrogate.
+        if (QChar::isHighSurrogate(uc)) {
+            w += 2;
+            if (i + 1 < s.length() && QChar::isLowSurrogate(s[i + 1].unicode()))
+                ++i; // consume the low surrogate
+            continue;
+        }
+        // BMP ranges that occupy 2 display columns:
+        // Hangul Jamo, CJK Radicals–Yi, Hangul Syllables, CJK Compat,
+        // Fullwidth Forms, BMP emoji/pictographs
+        if ((uc >= 0x1100 && uc <= 0x115F)
+            || (uc >= 0x2329 && uc <= 0x232A)
+            || (uc >= 0x2E80 && uc <= 0xA4CF)
+            || (uc >= 0xAC00 && uc <= 0xD7A3)
+            || (uc >= 0xF900 && uc <= 0xFAFF)
+            || (uc >= 0xFE10 && uc <= 0xFE19)
+            || (uc >= 0xFE30 && uc <= 0xFE6F)
+            || (uc >= 0xFF00 && uc <= 0xFF60)
+            || (uc >= 0xFFE0 && uc <= 0xFFE6))
+            w += 2;
+        else
+            w += 1;
+    }
+    return w;
+}
+
+int DiagnosticFormatter::displayWidth(const QString& s) {
+    return displayWidthImpl(s);
+}
+
+// ── Trim a value to fit within display-width budget ──
+// Returns the original string if it fits; otherwise truncates and appends "…"
+static QString trimToWidth(const QString& val, int maxDisplayWidth) {
+    if (DiagnosticFormatter::displayWidth(val) <= maxDisplayWidth)
+        return val;
+    // Walk until we exceed budget, then add ellipsis
+    int dw = 0;
+    for (int i = 0; i < val.length(); ++i) {
+        int cdw = DiagnosticFormatter::displayWidth(val.mid(i, 1));
+        if (dw + cdw + 1 > maxDisplayWidth) // +1 for "…"
+            return val.left(i) + QStringLiteral("…"); // …
+        dw += cdw;
+    }
+    return val;
+}
+
+// ── Pad a string to target display width ──
+// leftPad=false → left-justify (append spaces); leftPad=true → right-justify (prepend spaces)
+QString DiagnosticFormatter::padToWidth(const QString& val, int targetDisplayWidth, bool rightAlign) {
+    int dw = DiagnosticFormatter::displayWidth(val);
+    int padNeeded = qMax(0, targetDisplayWidth - dw);
+    if (rightAlign)
+        return QString(padNeeded, ' ') + val;
+    else
+        return val + QString(padNeeded, ' ');
+}
+
+// ── Aligned-column table ───────────────────────────────────────────
+QStringList DiagnosticFormatter::formatTable(const QVector<ColSpec>& cols,
+                                               const QList<QStringList>& rows) {
+    QStringList out;
+    QVector<int> w(cols.size());
+    for (int i = 0; i < cols.size(); ++i) {
+        w[i] = qMax(cols[i].minWidth, DiagnosticFormatter::displayWidth(QString::fromLatin1(cols[i].header)));
+        for (const auto& row : rows)
+            if (i < row.size()) w[i] = qMax(w[i], DiagnosticFormatter::displayWidth(row[i]));
+    }
+    // Header row: pad to display width, matching column alignment
+    QStringList hdrParts;
+    for (int i = 0; i < cols.size(); ++i)
+        hdrParts.append(DiagnosticFormatter::padToWidth(QString::fromLatin1(cols[i].header), w[i], cols[i].rightAlign));
+    out.append(hdrParts.join(kTblGap));
+    // Separator (dashes matching display width)
+    QStringList sepParts;
+    for (int i = 0; i < cols.size(); ++i)
+        sepParts.append(QString(w[i], '-'));
+    out.append(sepParts.join(kTblGap));
+    // Data rows — trim to fit, pad to display width
+    for (const auto& row : rows) {
+        QStringList parts;
+        for (int i = 0; i < cols.size(); ++i) {
+            QString val = (i < row.size()) ? trimToWidth(row[i], w[i]) : QString();
+            parts.append(DiagnosticFormatter::padToWidth(val, w[i], cols[i].rightAlign));
+        }
+        out.append(parts.join(kTblGap));
+    }
+    return out;
+}
+
+// ── dig-style DNS ─────────────────────────────────────────────────
+QStringList DiagnosticFormatter::formatDnsHeader(const QString& host,
+                                                   const QString& rcode,
+                                                   uint16_t id, int anCount) {
+    return {
+        QString(),
+        QStringLiteral("; <<>> NetDiagnostics DNS <<>> %1").arg(host),
+        QStringLiteral(";; global options: +cmd"),
+        QStringLiteral(";; Got answer:"),
+        QStringLiteral(";; ->>HEADER<<- opcode: QUERY, status: %1, id: %2")
+            .arg(rcode).arg(id),
+        QStringLiteral(";; flags: qr rd ra; QUERY: 1, ANSWER: %1, AUTHORITY: 0, ADDITIONAL: 0")
+            .arg(anCount),
+        QString(),
+    };
+}
+
+QString DiagnosticFormatter::formatDnsQuestion(const QString& host, const QString& type) {
+    return QStringLiteral(";%1.\t\t\tIN\t%2").arg(host, type);
+}
+
+QString DiagnosticFormatter::formatDnsRecord(const QString& owner, int ttl,
+                                               const QString& type, const QString& value) {
+    return QStringLiteral("%1.\t%2\tIN\t%3\t%4")
+        .arg(owner, -30).arg(ttl, 6).arg(type).arg(value);
+}
+
+QStringList DiagnosticFormatter::formatDnsFooter(qint64 elapsedMs, const QString& server) {
+    return {
+        QStringLiteral(";; Query time: %1 msec").arg(elapsedMs),
+        QStringLiteral(";; SERVER: %1").arg(server),
+        QStringLiteral(";; WHEN: %1").arg(
+            QDateTime::currentDateTime().toString(QStringLiteral("ddd MMM d HH:mm:ss yyyy"))),
+    };
+}

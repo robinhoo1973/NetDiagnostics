@@ -28,6 +28,10 @@
 # Run:      python scripts/generate-colored-icons.py
 #           Re-run whenever Palette.js or resources/icons/ffffff/*.svg change.
 #           (Enforced by scripts/pre-commit check.)
+#
+# v3 (2026-08-13, M1 45 专属图标): nd-diag-* 主形同现有 4-sentinel 管线烘焙；
+#   DIAG_ACCENT 逐项辅色对（dark/light）将 masters-45/nd-diag-*-a.svg 的
+#   #666666 sentinel 烘焙为 2 色/图标并合并进 qrc（见 bake_diag_accents）。
 # =============================================================================
 import colorsys
 import re
@@ -40,6 +44,57 @@ ICONS = ROOT / "resources/icons/ffffff"
 OUT = ROOT / "resources/icons"
 QRC = ROOT / "resources/resources_icons.qrc"
 JS = ROOT / "src/Common/View/widgets/IconColors.js"
+MASTERS_ACCENT = ROOT / "resources/icons/masters-45"
+
+# ── 45 专属图标：逐项辅色对（dark, light）——值=01 §8 各节"辅"列；
+#   灰值（#2/#6/#13/#30/#42）保留（W9）。同时作为 #000000 sentinel 的语义强调色。──
+DIAG_ACCENT: dict[str, tuple[str, str]] = {
+    "nd-diag-g1-network-adapters": ("#68E5F4", "#06B6D4"),
+    "nd-diag-g1-nic-advanced":      ("#94A3B8", "#475569"),
+    "nd-diag-g1-wifi-info":         ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g1-wired":             ("#68E5F4", "#06B6D4"),
+    "nd-diag-g1-dhcp":              ("#4ADE80", "#10B981"),
+    "nd-diag-g1-ip-config":         ("#94A3B8", "#475569"),
+    "nd-diag-g1-active-connections":("#68E5F4", "#06B6D4"),
+    "nd-diag-g1-cellular":          ("#818CF8", "#6366F1"),
+    "nd-diag-g2-network-profile":   ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g2-tcp-settings":      ("#68E5F4", "#06B6D4"),
+    "nd-diag-g2-gateway":           ("#F59E0B", "#EA580C"),
+    "nd-diag-g2-routing-table":     ("#A5B4FC", "#2563EB"),
+    "nd-diag-g2-arp-table":         ("#94A3B8", "#475569"),
+    "nd-diag-g2-proxy":             ("#818CF8", "#6366F1"),
+    "nd-diag-g3-dns-servers":       ("#4ADE80", "#10B981"),
+    "nd-diag-g3-dns-cache":         ("#F59E0B", "#EA580C"),
+    "nd-diag-g3-dns-integrity":     ("#68E5F4", "#06B6D4"),
+    "nd-diag-g3-geoip":             ("#4ADE80", "#10B981"),
+    "nd-diag-g3-internet":          ("#68E5F4", "#06B6D4"),
+    "nd-diag-g4-dns-resolution":    ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g4-ping":              ("#4ADE80", "#10B981"),
+    "nd-diag-g4-traceroute":        ("#A5B4FC", "#2563EB"),
+    "nd-diag-g4-pathping":          ("#F59E0B", "#EA580C"),
+    "nd-diag-g4-mtu":               ("#F59E0B", "#EA580C"),
+    "nd-diag-g4-ipv6":              ("#818CF8", "#6366F1"),
+    "nd-diag-g5-url-parsing":       ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-tcp-connect":       ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-service-banner":    ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g5-curl-verbose":      ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-http-headers":      ("#94A3B8", "#475569"),
+    "nd-diag-g5-security-headers":  ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g5-ssl-certificate":   ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-http-redirect":     ("#818CF8", "#6366F1"),
+    "nd-diag-g5-http-compression":  ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-http-timing":       ("#818CF8", "#6366F1"),
+    "nd-diag-g5-ftp":               ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-ssh":               ("#4ADE80", "#10B981"),
+    "nd-diag-g5-email":             ("#818CF8", "#6366F1"),
+    "nd-diag-g5-telnet":            ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g5-mysql":             ("#4ADE80", "#10B981"),
+    "nd-diag-g5-postgres":          ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g5-redis":             ("#94A3B8", "#475569"),
+    "nd-diag-g5-mongodb":           ("#F59E0B", "#EA580C"),
+    "nd-diag-g5-ldap":              ("#60C8F8", "#0EA5E9"),
+    "nd-diag-g5-mqtt":              ("#818CF8", "#6366F1"),
+}
 
 # ── Semantic accent colors (fixed per icon, independent of theme) ──────────
 # These are the "emphasis" color — the second hue in dual-color icons.
@@ -111,6 +166,14 @@ SEMANTIC_ACCENT: dict[str, str] = {
     "badge-info":            "",
     "badge-circle":          "",
     "spinner":               "",
+    "devices":               "#06B6D4",
+    "activity":              "#10B981",
+}
+
+# 45 专属图标以 light 辅色作为 #000000 sentinel 的语义强调色（合并查表）。
+ACCENT: dict[str, str] = {
+    **SEMANTIC_ACCENT,
+    **{stem: pair[1] for stem, pair in DIAG_ACCENT.items()},
 }
 
 
@@ -148,6 +211,28 @@ def palette_hexes() -> list[str]:
     return sorted(hexes)
 
 
+def bake_diag_accents(qrc_entries: list[str]) -> None:
+    """辅形 #666666 → 逐项辅色（dark/light 各 1 文件/图标）；条目并入 qrc。
+
+    W2（终审）：masters-45/ 不在主扫描目录内，必须在此显式烘焙并合并 qrc 条目。
+    """
+    if not MASTERS_ACCENT.is_dir():
+        return
+    for svg in sorted(MASTERS_ACCENT.glob("*-a.svg")):
+        stem = svg.stem[:-2]   # 去尾缀 "-a"
+        pair = DIAG_ACCENT.get(stem)
+        if not pair:
+            print(f"WARNING: no DIAG_ACCENT for {stem} — skipping aux bake")
+            continue
+        body = svg.read_text(encoding="utf-8")
+        for hx in pair:
+            sub = OUT / hx[1:].lower()
+            sub.mkdir(parents=True, exist_ok=True)
+            out = sub / svg.name
+            out.write_text(body.replace("#666666", hx), encoding="utf-8", newline="\n")
+            qrc_entries.append(f"icons/{sub.name}/{svg.name}")
+
+
 def main() -> None:
     hexes = palette_hexes()
     # Master SVGs use 4 sentinel color slots.  At minimum #FFFFFF must be
@@ -173,7 +258,7 @@ def main() -> None:
         cached_bodies[svg] = body
         # 5WHY: if a master SVG uses #000000 but has no SEMANTIC_ACCENT entry,
         # #000000 stays as literal black in ALL generated variants — silent.
-        if "#000000" in body.upper() and not SEMANTIC_ACCENT.get(svg.stem, ""):
+        if "#000000" in body.upper() and not ACCENT.get(svg.stem, ""):
             unmapped_accent.add(svg.stem)
     if unmapped_accent:
         print(f"WARNING: {len(unmapped_accent)} icon(s) use #000000 sentinel "
@@ -196,7 +281,7 @@ def main() -> None:
                 # #AAAAAA → darken(primary, 30%) (gradient dark-end)
                 colored = colored.replace("#AAAAAA", dark).replace("#aaaaaa", dark)
                 # #000000 → semantic accent (fixed per icon)
-                accent = SEMANTIC_ACCENT.get(svg.stem, "")
+                accent = ACCENT.get(svg.stem, "")
                 if accent:
                     colored = colored.replace("#000000", accent)
                 # #777777 → soft fill (fixed, theme-independent)
@@ -205,6 +290,9 @@ def main() -> None:
                 out_file.write_text(colored, encoding="utf-8", newline="\n")
         for svg in icons:
             qrc_entries.append(f"icons/{sub.name}/{svg.name}")
+
+    # ── 辅形（masters-45/nd-diag-*-a.svg，#666666 → 逐项辅色对 dark/light）──
+    bake_diag_accents(qrc_entries)
 
     qrc = ['<?xml version="1.0" encoding="utf-8"?>', "<RCC>", '    <qresource prefix="/">']
     qrc += [f"        <file>{e}</file>" for e in qrc_entries]
@@ -221,7 +309,7 @@ def main() -> None:
     js += ["];", ""]
     JS.write_text("\n".join(js), encoding="utf-8", newline="\n")
 
-    accented = sum(1 for s in icons if SEMANTIC_ACCENT.get(s.stem, ""))
+    accented = sum(1 for s in icons if ACCENT.get(s.stem, ""))
     print(f"generated {len(hexes)} colors x {len(icons)} icons = "
           f"{len(qrc_entries)} files ({accented} dual-color)")
 

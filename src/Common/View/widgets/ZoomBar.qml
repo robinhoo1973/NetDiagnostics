@@ -1,0 +1,191 @@
+// ── ZoomBar.qml — Unified floating zoom control for report preview ─
+// 5WHY: Each preview tier (QtPdf, NativePdf, WebView) had different zoom
+// controls or none at all — no pinch on mobile PDF, no buttons on desktop
+// PDF, inconsistent zoom ranges.  This shared component provides:
+//   • Geometric √2 zoom steps (Qt-recommended best practice)
+//   • Zoom in/out/reset buttons with percentage display
+//   • Keyboard shortcuts Ctrl+= / Ctrl+- / Ctrl+0 (desktop only)
+//   • Consistent 0.25–5.0 range across all preview tiers
+//   • Semi-transparent floating overlay at bottom-right
+import QtQuick
+import QtQuick.Controls
+import "../theme"
+
+Item {
+    id: root
+
+    // ── Public API ─────────────────────────────────────────────────────
+    property real zoomLevel: 1.0
+    readonly property real stepFactor: 1.414  // Math.sqrt(2) — geometric
+    property real minimumZoom: 0.25
+    property real maximumZoom: 5.0
+
+    readonly property string zoomPercent: Math.round(root.zoomLevel * 100) + "%"
+
+    // Detect mobile for larger touch targets
+    readonly property bool isMobile: ThemeEngine.isMobile
+    // 5WHY: 28px is below the WCAG 2.1 SC 2.5.5 AA minimum (24 CSS px ≈
+    // 48 physical px on 2x displays, but on 1x desktop displays 28px is
+    // below the 44pt Apple HIG minimum).  36px provides a comfortable
+    // click target on 1x displays while remaining compact.
+    readonly property int btnSize: isMobile ? 44 : 36
+
+    // ── Public functions ───────────────────────────────────────────────
+    // 5WHY: zoomInTriggered/zoomOutTriggered/zoomResetTriggered signals were
+    // dead — no host connected them. Hosts (Dashboard preview) bind zoomLevel
+    // and react to onZoomLevelChanged, so the signals were never emitted to
+    // anyone. Removed; the zoomLevel property is the sole contract.
+    function zoomIn() {
+        var next = zoomLevel * stepFactor
+        zoomLevel = Math.min(maximumZoom, next)
+    }
+    function zoomOut() {
+        var next = zoomLevel / stepFactor
+        zoomLevel = Math.max(minimumZoom, next)
+    }
+    function zoomReset() {
+        zoomLevel = 1.0
+    }
+
+    // ── Keyboard shortcuts (desktop only) ──────────────────────────────
+    Shortcut {
+        sequence: StandardKey.ZoomIn
+        onActivated: root.zoomIn()
+    }
+    Shortcut {
+        sequence: StandardKey.ZoomOut
+        onActivated: root.zoomOut()
+    }
+    Shortcut {
+        sequence: "Ctrl+0"
+        onActivated: root.zoomReset()
+    }
+
+    // ── Layout ─────────────────────────────────────────────────────────
+    implicitWidth: zoomRow.implicitWidth + 12
+    implicitHeight: btnSize + 8
+
+    Rectangle {
+        anchors.fill: parent
+        radius: 8
+        color: Qt.alpha(ThemeEngine.colors.card, 0.92)
+        border { width: 1; color: ThemeEngine.colors.borderCard }
+
+        Row {
+            id: zoomRow
+            anchors.centerIn: parent
+            spacing: 4
+
+            // ── Zoom out [−] ──────────────────────────────────────────
+            Rectangle {
+                width: btnSize; height: btnSize; radius: 5
+                color: zoomOutMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.20)
+                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
+                Label {
+                    anchors.centerIn: parent
+                    text: "−"  // minus sign
+                    font.family: ThemeEngine.monoFont
+                    font.pixelSize: root.isMobile ? 16 : 13
+                    font.weight: Font.Bold
+                    color: ThemeEngine.colors.textPrimary
+                }
+                MouseArea {
+                    id: zoomOutMa
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
+                    // 5WHY: buttons had no accessible name/role and no
+                    // keyboard focus (WCAG 2.1 SC 2.1.1 / 4.1.2) — the
+                    // Shortcut only worked when some other control had
+                    // focus. Tab-focusable + Enter/Space + screen-reader
+                    // activation via onPressAction.
+                    activeFocusOnTab: true
+                    onClicked: root.zoomOut()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root.zoomOut(); event.accepted = true
+                        }
+                    }
+                    Accessible.name: "Zoom out"
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.zoomOut()
+                }
+            }
+
+            // ── Zoom percentage ───────────────────────────────────────
+            Label {
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.zoomPercent
+                font.family: ThemeEngine.monoFont
+                font.pixelSize: root.isMobile ? 13 : 11
+                color: ThemeEngine.colors.textSecondary
+                horizontalAlignment: Text.AlignHCenter
+                width: root.isMobile ? 48 : 40
+            }
+
+            // ── Zoom in [+] ───────────────────────────────────────────
+            Rectangle {
+                width: btnSize; height: btnSize; radius: 5
+                color: zoomInMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.20)
+                                              : Qt.alpha(ThemeEngine.colors.cyan, 0.08)
+                Label {
+                    anchors.centerIn: parent
+                    text: "+"
+                    font.family: ThemeEngine.monoFont
+                    font.pixelSize: root.isMobile ? 16 : 13
+                    font.weight: Font.Bold
+                    color: ThemeEngine.colors.textPrimary
+                }
+                MouseArea {
+                    id: zoomInMa
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
+                    activeFocusOnTab: true
+                    onClicked: root.zoomIn()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root.zoomIn(); event.accepted = true
+                        }
+                    }
+                    Accessible.name: "Zoom in"
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.zoomIn()
+                }
+            }
+
+            // ── Reset [1:1] ───────────────────────────────────────────
+            Rectangle {
+                width: btnSize; height: btnSize; radius: 5
+                color: zoomResetMa.containsMouse ? Qt.alpha(ThemeEngine.colors.cyan, 0.20)
+                                                 : "transparent"
+                Label {
+                    anchors.centerIn: parent
+                    text: "1:1"
+                    font.family: ThemeEngine.monoFont
+                    // 5WHY: 9px was below readable minimum; 11px keeps the
+                    // compact control readable (M3 label-medium is 12sp).
+                    font.pixelSize: root.isMobile ? 12 : 11
+                    font.weight: Font.Bold
+                    color: ThemeEngine.colors.textSecondary
+                }
+                MouseArea {
+                    id: zoomResetMa
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    hoverEnabled: true
+                    activeFocusOnTab: true
+                    onClicked: root.zoomReset()
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Space) {
+                            root.zoomReset(); event.accepted = true
+                        }
+                    }
+                    Accessible.name: "Reset zoom"
+                    Accessible.role: Accessible.Button
+                    Accessible.onPressAction: root.zoomReset()
+                }
+            }
+        }
+    }
+}

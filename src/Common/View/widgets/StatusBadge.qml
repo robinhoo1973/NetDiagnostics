@@ -13,6 +13,8 @@ RowLayout {
         ? ThemeEngine.statusIconNames[statusCode]
         : "badge-info"
     property int count: 0
+    // UX 评审 2：零计数隐藏——初始/运行早期不显示 " 0" 徽标
+    visible: count > 0
     spacing: 2
 
     AppIcon { name: iconName; size: 14; color: accent }

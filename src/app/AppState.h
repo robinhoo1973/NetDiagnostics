@@ -16,12 +16,15 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QElapsedTimer>
+#include <QTimer>
 
 #include "Common/Model/DiagId.h"
 #include "Common/Model/DiagnosticResult.h"
 
 class DiagnosticSuite;
 class ConfigurationController;
+class PremiumStore;
 
 class AppState : public QObject {
     Q_OBJECT
@@ -39,12 +42,18 @@ public:
     QString targetHost() const { return m_targetHost; }
     QString targetPath() const { return m_targetPath; }
     QString targetValidationErrorText() const { return m_targetError; }
+    // 目标凭据（target 设置弹窗：FTP/SSH/DB 等协议认证）
+    QString targetUser() const { return m_targetUser; }
+    QString targetPassword() const { return m_targetPassword; }
+    QString targetPort() const { return m_targetPort; }
+    bool    targetHasCredentials() const { return !m_targetUser.isEmpty() || !m_targetPort.isEmpty(); }
 
     // ── P1：Config/语言/主题 ──
     int     stateVersion() const { return m_stateVersion; }
     int     languageIndex() const { return m_languageIndex; }
     int     themeMode() const { return m_themeMode; }
     bool    isPremiumPlatform() const { return m_isPremiumPlatform; }
+    bool    cellularWarnVisible() const { return m_cellularWarnVisible; }
     bool    hasData() const { return !m_results.isEmpty(); }
     QStringList langItems() const;
 
@@ -56,15 +65,21 @@ public:
     Q_PROPERTY(QString targetHost READ targetHost NOTIFY targetChanged)
     Q_PROPERTY(QString targetPath READ targetPath NOTIFY targetChanged)
     Q_PROPERTY(QString targetValidationErrorText READ targetValidationErrorText NOTIFY targetChanged)
+    Q_PROPERTY(QString targetUser READ targetUser NOTIFY targetChanged)
+    Q_PROPERTY(QString targetPassword READ targetPassword NOTIFY targetChanged)
+    Q_PROPERTY(QString targetPort READ targetPort NOTIFY targetChanged)
+    Q_PROPERTY(bool targetHasCredentials READ targetHasCredentials NOTIFY targetChanged)
     Q_PROPERTY(int stateVersion READ stateVersion NOTIFY stateVersionChanged)
     Q_PROPERTY(int languageIndex READ languageIndex NOTIFY languageChanged)
     Q_PROPERTY(QStringList langItems READ langItems NOTIFY languageChanged)
     Q_PROPERTY(int themeMode READ themeMode NOTIFY themeModeChanged)
     Q_PROPERTY(bool isPremiumPlatform READ isPremiumPlatform CONSTANT)
+    Q_PROPERTY(bool cellularWarnVisible READ cellularWarnVisible NOTIFY cellularWarnVisibleChanged)
     Q_PROPERTY(bool hasData READ hasData NOTIFY progressChanged)
 
     Q_INVOKABLE void runDiagnostics();
     Q_INVOKABLE void cancel();
+    Q_INVOKABLE void continueAfterCellularWarn();   // 移动数据警告确认（H1）
     Q_INVOKABLE QVariantList allDiagsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantList resultsForGroup(int groupInt) const;
     Q_INVOKABLE QVariantMap groupStats(int groupInt) const;   // -1 = 聚合
@@ -72,6 +87,9 @@ public:
     Q_INVOKABLE QVariantMap resultFor(int diagIdInt) const;
     Q_INVOKABLE QVariantMap contractFor(int diagIdInt) const;   // A3 视图（DetailPage 区块开关）
     Q_INVOKABLE void setTarget(const QString& host, const QString& scheme);
+    Q_INVOKABLE void setTargetCredentials(const QString& user, const QString& password, const QString& port);
+    Q_INVOKABLE QString targetScheme() const { return m_targetScheme; }
+    Q_INVOKABLE qint64 runDurationMs() const;
     Q_INVOKABLE QStringList supportedSchemes() const;
 
     // ── P1：Config 页桥接 ──
@@ -91,15 +109,37 @@ public:
     Q_INVOKABLE void copyDetailToClipboard(int diagIdInt);
     Q_INVOKABLE void copyReportToClipboard();
     Q_INVOKABLE QString buildReportText() const;
+    Q_INVOKABLE QString buildReportHtml() const;   // HTML 报告（ReportEngine 最小恢复）
+
+    // ── 报告/分享/动画（ReportEngine + Premium 后端恢复）──
+    Q_INVOKABLE QString diagAnimationUrl(int diagIdInt) const;
+    Q_INVOKABLE QString previewReportHtml() const;         // 预览 HTML（RichText 子集）
+    Q_INVOKABLE QString renderPreviewImage(int widthPx) const;  // 预览 PNG 路径
+    Q_INVOKABLE QString exportHtmlReport() const;
+    Q_INVOKABLE QString exportPdfReport() const;
+    Q_INVOKABLE QString shareReportFile(const QString& format);  // text/html/pdf（非 const：text 写剪贴板）
+    Q_INVOKABLE QString appVersion() const { return QStringLiteral(PROJECT_VERSION); }
+    Q_INVOKABLE QString appEdition() const { return QStringLiteral(APP_EDITION); }
+    Q_INVOKABLE QString buildNumber() const { return QStringLiteral(ND_BUILD_NUMBER); }
+    Q_INVOKABLE QString gitHash() const {
+#if defined(ND_GIT_HASH)
+        return QStringLiteral(ND_GIT_HASH);
+#else
+        return QStringLiteral("dev");
+#endif
+    }
+    PremiumStore* premiumStore() const { return m_premiumStore; }
 
 signals:
     void progressChanged();
     void runStatusChanged();
     void currentRunningGroupChanged();
+    void runElapsedChanged();
     void targetChanged();
     void stateVersionChanged();
     void languageChanged();
     void themeModeChanged();
+    void cellularWarnVisibleChanged();
 
 private:
     void runNextGroup();
@@ -109,11 +149,18 @@ private:
     void loadPreferences();
     void savePreferences();
     void bumpState();
+    // 结果持久化（ProbeDatabase 磁盘缓存能力恢复：重启后保留上次结果）
+    void persistResults();
+    void loadCachedResults();
 
     QString m_targetHost;
     QString m_targetPath;
     QString m_targetError;
     QString m_targetScheme = QStringLiteral("https");
+    // 目标凭据（持久化；凭据仅注入运行 target，不进 UI 展示）
+    QString m_targetUser;
+    QString m_targetPassword;
+    QString m_targetPort;
 
     int  m_runStatus = Idle;
     int  m_currentGroup = -1;
@@ -122,6 +169,7 @@ private:
 
     // ── P1：Config/语言/主题 ──
     ConfigurationController* m_config = nullptr;
+    PremiumStore* m_premiumStore = nullptr;   // Premium 后端（Settings 购买/恢复）
     QSet<int> m_activeGroups;      // 默认全激活，持久化
     int  m_stateVersion = 0;
     int  m_languageIndex = 7;      // 与 translations.json 一致：7 = English
@@ -133,4 +181,14 @@ private:
 
     DiagnosticSuite* m_suite = nullptr;
     QVector<int> m_pendingGroups;
+
+    // H3：跨 run 结果污染防护——每次 run 递增，迟到信号按 generation 丢弃
+    qint64 m_runGeneration = 0;
+    // 8-15：运行墙钟计时（诊断运行时间）——仪表盘总览实时刷新
+    QElapsedTimer m_runTimer;
+    qint64 m_runElapsedMs = 0;
+    QTimer* m_elapsedTicker = nullptr;
+    // H1：移动数据警告（G3 起大流量探测前暂停，移动/Apple 平台）
+    bool m_cellularWarnVisible = false;
+    bool m_cellularWarnAcked = false;
 };

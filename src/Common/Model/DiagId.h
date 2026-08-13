@@ -129,6 +129,9 @@ inline const QVector<DiagId>& diagIdsForGroup(DiagGroup g) {
     static const std::array<QVector<DiagId>, 5> cache = [] {
         std::array<QVector<DiagId>, 5> a;
         for (DiagId id : allDiagIds()) {
+            // L6：接口内过滤不可调度槽（_G3Reserved17_Deprecated），
+            // 消除调用方依赖外部过滤的隐患
+            if (!isSchedulable(id)) continue;
             const int gi = static_cast<int>(diagGroup(id));
             if (gi >= 0 && gi < 5)
                 a[gi].append(id);

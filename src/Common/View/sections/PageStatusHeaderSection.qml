@@ -17,11 +17,12 @@ PageSection {
 
     // UI-2：聚合统计命令式刷新（progressChanged/runStatusChanged 处理器赋值），
     // 绑定中不调用 groupStats(-1)。
-    property var _agg: ({ pass: 0, warn: 0, fail: 0, skip: 0, info: 0, error: 0 })
+    property var _agg: ({ pass: 0, warn: 0, fail: 0, skip: 0, info: 0, error: 0, total: 0 })
     function _refreshAgg() {
         var s = AppState.groupStats(-1)
         _agg = { pass: s.pass || 0, warn: s.warn || 0, fail: s.fail || 0,
-                 skip: s.skip || 0, info: s.info || 0, error: s.error || 0 }
+                 skip: s.skip || 0, info: s.info || 0, error: s.error || 0,
+                 total: s.total || 0 }
     }
     Connections {
         target: AppState
@@ -55,9 +56,20 @@ PageSection {
             }
         }
         Label {
-            text: AppState.runStatus === 1 ? (AppState.currentDiagLabel || T.tr("running"))
-                                           : AppState.totalCompleted + " " + T.tr("completed")
-            color: ThemeEngine.colors.textSecondary
+            // M1：完成/取消/错误三态词 + X/Y 进度计数（归档语义）
+            text: {
+                if (AppState.runStatus === 1)
+                    return (AppState.currentDiagLabel || T.tr("running"))
+                           + (_agg.total > 0 ? " · " + AppState.totalCompleted + "/" + _agg.total : "")
+                if (AppState.runStatus === 3) return T.tr("cancelled")
+                if (AppState.runStatus === 4) return T.tr("errorStatus")
+                return (_agg.total > 0
+                    ? AppState.totalCompleted + "/" + _agg.total
+                    : AppState.totalCompleted) + " " + T.tr("completed")
+            }
+            color: AppState.runStatus === 4 ? ThemeEngine.colors.failRed
+                 : AppState.runStatus === 3 ? ThemeEngine.colors.warnYellow
+                 : ThemeEngine.colors.textSecondary
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.body
             elide: Text.ElideRight
@@ -69,18 +81,8 @@ PageSection {
         StatusBadge { statusCode: 3; count: _agg.skip }
         StatusBadge { statusCode: 5; count: _agg.info }
         StatusBadge { statusCode: 4; count: _agg.error }
-        AppIcon {
-            name: "clipboard"
-            size: 18
-            color: ThemeEngine.colors.textSecondary
-            MouseArea {
-                anchors.fill: parent
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.shareRequested("text")
-            }
-            Accessible.role: Accessible.Button
-            Accessible.name: T.tr("shareBtn")
-        }
+        // 8-2：分享按钮从状态头移除（文件图标不该出现在标题栏右侧；
+        // 分享入口归位到 Dashboard 报告预览卡）
     }
 
     // 注入的摘要层（Dashboard headerExtra）

@@ -51,4 +51,8 @@ QtObject {
         return min + "m " + sec + "s"
     }
     function pad2(n) { return (n < 10 ? " " : "") + n }
+    // 组图标单一映射（G1-G5；UI 评审：消除各组件重复硬编码数组）
+    function groupIconName(idx) {
+        return ["network-card", "shield-network", "internet-globe", "remote-host", "protocol-stack"][idx] || "circle"
+    }
 }

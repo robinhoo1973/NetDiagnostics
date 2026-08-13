@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="ngnddiagg3dnsservers" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#151D29" />
+    </linearGradient>
+  </defs>
+
+  <!-- Root dot forking to two mid nodes (resolver tree) -->
+  <circle cx="12" cy="5" r="1.8" fill="#10B981" />
+  <path d="M12 6.8 V9.4 M12 9.4 L7.4 13.4 M12 9.4 L16.6 13.4"
+        stroke="#151D29" stroke-width="1.2" />
+  <circle cx="7.4" cy="13.4" r="1.2" fill="#64748B" />
+  <circle cx="16.6" cy="13.4" r="1.2" fill="#64748B" />
+</svg>

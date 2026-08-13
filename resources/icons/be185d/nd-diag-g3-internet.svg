@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="ngnddiagg3internet" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#BE185D" />
+      <stop offset="100%" stop-color="#851141" />
+    </linearGradient>
+  </defs>
+
+  <!-- Globe with meridian and equator -->
+  <circle cx="12" cy="12" r="6.2" stroke="url(#ngnddiagg3internet)" stroke-width="1.6" />
+  <path d="M12 5.8 a2.7 6.2 0 0 0 0 12.4" stroke="#851141" stroke-width="1.2" />
+  <path d="M5.8 12 H18.2" stroke="#851141" stroke-width="1.2" />
+</svg>

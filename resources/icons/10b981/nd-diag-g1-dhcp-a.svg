@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <!-- Offer/ack double chevron down to terminal -->
+  <path d="M9.3 12.4 l2.7 2.2 l2.7 -2.2 M9.3 14.8 l2.7 2.2 l2.7 -2.2"
+        stroke="#10B981" stroke-width="1.2" />
+</svg>

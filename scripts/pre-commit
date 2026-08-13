@@ -371,7 +371,7 @@ fi
 	HEADER_FILES=$(echo "$STAGED" | grep -E '\.h$|\.hpp$' || true)
 	if [ -n "$HEADER_FILES" ]; then
 	    for f in $HEADER_FILES; do
-	        if git show ":$f" | grep -nE 'static const (QMap|QHash|QVector|QList|QStringList|std::map|std::vector|std::unordered_map)' > /tmp/precommit-siof.log 2>/dev/null; then
+                if git show ":$f" | grep -nE '^static const (QMap|QHash|QVector|QList|QStringList|std::map|std::vector|std::unordered_map)' > /tmp/precommit-siof.log 2>/dev/null; then
 	            fail "$f: static const non-trivial object in header — SIOF risk, use Meyers Singleton (see review/ios-startup-crash-5why-analysis.md#d2)"
 	            cat /tmp/precommit-siof.log | while read line; do
 	                echo "       $line"
@@ -391,7 +391,7 @@ fi
 	# the master set).  Generated variants (resources/icons/<hex>/) are
 	# derived from masters and inherit their format — only masters need
 	# checking.
-	SVG_FILES=$(echo "$STAGED" | grep -E 'icons/ffffff/.*\.svg$' || true)
+	SVG_FILES=$(echo "$STAGED" | grep -E '(icons/(ffffff|masters-45))/.*\.svg$' || true)
 	if [ -n "$SVG_FILES" ]; then
 	    for f in $SVG_FILES; do
 	        content=$(git show ":$f" 2>/dev/null)
@@ -434,7 +434,7 @@ fi
 	# to stale colors.
 	echo ""
 	echo "── 19. Pre-generated icon staleness (icons vs Palette.js) ──"
-	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/ffffff/[^/]+\.svg)$' || true)
+    GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg)$' || true)
 	if [ -n "$GEN_INPUTS" ]; then
 	    GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/[0-9a-f]{6}/|resources_icons\.qrc)' || true)
 	    if [ -z "$GEN_OUTPUTS" ]; then

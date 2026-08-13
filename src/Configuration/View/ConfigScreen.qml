@@ -22,14 +22,6 @@ PageDisplay {
         S.PageTabBarSection {
             currentGroup: page.currentGroup
             onTabChanged: function(i) { page.currentGroup = i }
-            onGroupActiveToggled: function(i) {
-                AppState.setGroupActive(i, !AppState.isGroupActive(i))
-            }
-        },
-        S.PageActionBarSection {
-            currentGroup: page.currentGroup
-            onSelectAllRequested: AppState.setGroupEnabled(page.currentGroup, true)
-            onDeselectAllRequested: AppState.setGroupEnabled(page.currentGroup, false)
         }
     ]
 
@@ -43,14 +35,15 @@ PageDisplay {
         }
     ]
 
-    // ── 行委托：AppIcon + 标题/副标题 + Switch + 分隔线（原 Config ListView 行）──
+    // ── 行委托（UI 评审重设计）：状态图标 + 标题/副标题 + 紧凑开关 + 分隔线 ──
+    //   对齐：行高 60，左右元素 Layout.alignment 垂直居中；整行可点击切换。
     Component {
         id: rowDelegate
         Rectangle {
             id: row
             width: ListView.view.width
-            height: 56
-            color: "transparent"
+            height: 60
+            color: rowMouse.containsMouse ? Qt.alpha(ThemeEngine.colors.primary, 0.04) : "transparent"
 
             property int _pv: page.configPollVersion
             readonly property bool enabled: {
@@ -58,55 +51,75 @@ PageDisplay {
                 return AppState.isDiagEnabled(modelData)
             }
 
-            RowLayout {
-                anchors {
-                    fill: parent
-                    leftMargin: ThemeEngine.spacing.md
-                    rightMargin: ThemeEngine.spacing.md
-                }
-                spacing: ThemeEngine.spacing.sm
-
-                AppIcon {
-                    name: row.enabled ? "badge-check" : "circle"
-                    size: 18
-                    color: row.enabled ? ThemeEngine.colors.primary
-                                       : ThemeEngine.colors.textMuted
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-                    Label {
-                        text: {
-                            let _ = row._pv
-                            return T.diagName(modelData) || (T.tr("testIdPrefix") + " " + modelData)
-                        }
-                        font.family: ThemeEngine.fontUi
-                        font.pixelSize: ThemeEngine.fontSize.body
-                        color: ThemeEngine.colors.textPrimary
-                        elide: Text.ElideRight
-                    }
-                    Label {
-                        visible: text !== ""
-                        text: {
-                            let _ = row._pv
-                            return T.diagDesc(modelData) || ""
-                        }
-                        font.family: ThemeEngine.fontUi
-                        font.pixelSize: ThemeEngine.fontSize.caption
-                        color: ThemeEngine.colors.textSecondary
-                        elide: Text.ElideRight
-                    }
-                }
-                Switch {
-                    checked: row.enabled
-                    onToggled: AppState.setDiagEnabled(modelData, checked)
-                }
+            // 整行点击切换（Switch 在其上层，不冲突）
+            MouseArea {
+                id: rowMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: AppState.setDiagEnabled(modelData, !row.enabled)
             }
 
-            Rectangle {   // 分隔线
-                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            // 锚点定位（不经布局引擎）：图标左对齐、开关右对齐，垂直中线一致
+            AppIcon {
+                id: rowIcon
+                anchors { left: parent.left; leftMargin: ThemeEngine.spacing.lg; verticalCenter: parent.verticalCenter }
+                width: 20
+                height: 20
+                name: row.enabled ? "badge-check" : "circle"
+                size: 18
+                color: row.enabled ? ThemeEngine.colors.primary
+                                   : ThemeEngine.colors.textMuted
+            }
+            ColumnLayout {
+                anchors {
+                    left: rowIcon.right; leftMargin: ThemeEngine.spacing.md
+                    right: rowSwitch.left; rightMargin: ThemeEngine.spacing.md
+                    verticalCenter: parent.verticalCenter
+                }
+                spacing: 2
+                Label {
+                    text: {
+                        let _ = row._pv
+                        return T.diagName(modelData) || (T.tr("testIdPrefix") + " " + modelData)
+                    }
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.body
+                    color: row.enabled ? ThemeEngine.colors.textPrimary
+                                       : ThemeEngine.colors.textSecondary
+                    elide: Text.ElideRight
+                }
+                Label {
+                    visible: text !== ""
+                    text: {
+                        let _ = row._pv
+                        return T.diagDesc(modelData) || ""
+                    }
+                    font.family: ThemeEngine.fontUi
+                    font.pixelSize: ThemeEngine.fontSize.caption
+                    color: ThemeEngine.colors.textSecondary
+                    elide: Text.ElideRight
+                }
+            }
+            ToggleSwitch {
+                id: rowSwitch
+                anchors { right: parent.right; rightMargin: ThemeEngine.spacing.lg; verticalCenter: parent.verticalCenter }
+                width: 36
+                height: 20
+                checked: row.enabled
+                onToggled: AppState.setDiagEnabled(modelData, checked)
+                // NEW-22：开关读屏名 = 检测名 + 后缀
+                Accessible.name: (T.diagName(modelData) || ("#" + modelData)) + " " + T.tr("accDiagnosticSuffix")
+            }
+
+            Rectangle {   // 分隔线（左右各 16px 缩进，与行边距一致）
+                anchors {
+                    left: parent.left; right: parent.right; bottom: parent.bottom
+                    leftMargin: ThemeEngine.spacing.lg
+                    rightMargin: ThemeEngine.spacing.lg
+                }
                 height: 1
-                color: ThemeEngine.colors.borderCard
+                color: Qt.alpha(ThemeEngine.colors.borderCard, 0.7)
             }
         }
     }

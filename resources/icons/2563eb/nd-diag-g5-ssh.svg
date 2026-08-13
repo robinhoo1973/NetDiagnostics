@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="ngnddiagg5ssh" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1042AE" />
+    </linearGradient>
+  </defs>
+
+  <!-- Terminal window with three dots -->
+  <rect x="4.6" y="6.8" width="14.8" height="10.4" rx="2" stroke="url(#ngnddiagg5ssh)" stroke-width="1.6" />
+  <circle cx="7.4" cy="9.9" r="0.8" fill="#64748B" />
+  <circle cx="9.4" cy="9.9" r="0.8" fill="#64748B" />
+  <circle cx="11.4" cy="9.9" r="0.8" fill="#64748B" />
+</svg>

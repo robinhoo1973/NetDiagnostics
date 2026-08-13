@@ -11,7 +11,7 @@
 // DnsCache = Desktop | Android.
 // =============================================================================
 #if defined(_WIN32)
-#ifndef _WIN32_WINNT
+#if !defined(_WIN32_WINNT)
 #define _WIN32_WINNT 0x0601   // GetAdaptersAddresses requires Vista+
 #endif
 #endif
@@ -20,6 +20,12 @@
 #include "Common/Services/DnsWire.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+#include "Diagnostics/Model/GeoProbe.h"
+#include "Diagnostics/Model/ProbeConfig.h"
+
+#if defined(PLATFORM_ANDROID)
+#include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
+#endif
 
 #include <QProcess>
 #include <QFile>
@@ -239,7 +245,8 @@ static DiagnosticResult probeDnsServers(DiagId id, const QString&, RunContext& c
             }
         }
     }
-#elif defined(PLATFORM_IOS) && defined(__APPLE__)
+#else
+#if defined(PLATFORM_IOS) && defined(__APPLE__)
     struct __res_state res;
     std::memset(&res, 0, sizeof(res));
     if (res_ninit(&res) == 0) {
@@ -263,6 +270,7 @@ static DiagnosticResult probeDnsServers(DiagId id, const QString&, RunContext& c
     }
     if (QFile::exists(QStringLiteral("/run/systemd/resolve/resolv.conf")))
         appendServer(QStringLiteral("systemd-resolved"), QStringLiteral("(stub resolver active)"));
+#endif
 #endif
 
     DiagnosticResult r = makeResult(id, dnsList.isEmpty() ? DiagStatus::Warning : DiagStatus::Pass,
@@ -798,6 +806,8 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
 
     // ── Country / city / ISP via ip-api (JSON) ──
     QString cc, city, isp, asName, publicIp;
+    double lat = 0.0, lon = 0.0;
+    bool hasCoords = false;
     const QByteArray body = httpsGetSync(QStringLiteral("https://ip-api.com/json/?fields=status,country,countryCode,city,isp,as,query,lat,lon"), 5000);
     const QJsonDocument doc = QJsonDocument::fromJson(body);
     if (doc.isObject() && doc.object().value(QStringLiteral("status")).toString() == QLatin1String("success")) {
@@ -807,6 +817,11 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
         isp      = o.value(QStringLiteral("isp")).toString();
         asName   = o.value(QStringLiteral("as")).toString();
         publicIp = o.value(QStringLiteral("query")).toString();
+        if (o.contains(QStringLiteral("lat")) && o.contains(QStringLiteral("lon"))) {
+            lat = o.value(QStringLiteral("lat")).toDouble();
+            lon = o.value(QStringLiteral("lon")).toDouble();
+            hasCoords = true;
+        }
     }
     if (cc.isEmpty()) cc = detectCountry(5000);
     props.append({QStringLiteral("Country Code"), cc.isEmpty() ? QStringLiteral("Unknown") : cc});
@@ -814,36 +829,72 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
     if (!city.isEmpty())    { props.append({QStringLiteral("City"), city});     out.append(QStringLiteral("  City: %1").arg(city)); }
     if (!isp.isEmpty())     { props.append({QStringLiteral("ISP"), isp});       out.append(QStringLiteral("  ISP: %1").arg(isp)); }
     if (!asName.isEmpty())  { props.append({QStringLiteral("AS"), asName});     out.append(QStringLiteral("  AS: %1").arg(asName)); }
+    if (hasCoords)          { props.append({QStringLiteral("Coordinates"),
+        QStringLiteral("%1, %2").arg(lat, 0, 'f', 4).arg(lon, 0, 'f', 4)});
+        out.append(QStringLiteral("  Coordinates: %1, %2").arg(lat, 0, 'f', 4).arg(lon, 0, 'f', 4)); }
     if (!publicIp.isEmpty()){ props.append({QStringLiteral("Public IP"), publicIp}); out.append(QStringLiteral("  Public IP: %1").arg(publicIp)); }
 
-    // ── VPN heuristic: TCP RTT, in-country servers vs foreign servers ──
-    // Real measurement; honest wording. Unreachable entries are excluded.
-    static const struct { const char* cc; const char* host; int port; } kServers[] = {
-        {"CN", "beijing.unicomtest.com", 8080},
-        {"CN", "speedtest1.online.sh.cn", 8080},
-        {"CN", "mobile.shunicomtest.com.prod.hosts.ooklaserver.net", 8080},
-        {"JP", "gisho.work.prod.hosts.ooklaserver.net", 8080},
-        {"JP", "speed.coe.ad.jp.prod.hosts.ooklaserver.net", 8080},
-        {"KR", "seoul.speedtest.gslnetworks.com", 8080},
-        {"SG", "m1speedtest1.m1net.com.sg", 8080},
-        {"IN", "speedtest.actcorp.in", 8080},
-        {"AU", "spd01-adl.au.superloop.com.prod.hosts.ooklaserver.net", 8080},
-        {"US", "speedtest.choopa.net", 8080},
-        {"US", "speedtest.sea01.softlayer.com", 8080},
-        {"DE", "speedtest.fra1.de.leaseweb.net", 8080},
-    };
-    static const int kServerCount = (int)(sizeof(kServers) / sizeof(kServers[0]));
+    // ── VPN heuristic（GeoProbe 管线：ProbeDatabase/Scheduler/Executor/Feedback）──
+    // 138 台真实测速服务器库按国家选择 + 外国基线；管线失败回退固定表直连。
     QHash<QString, QVector<int>> rttByCc;
     QStringList serverLines;
-    for (int i = 0; i < kServerCount; ++i) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        const int ms = tcpConnectMs(QLatin1String(kServers[i].host), kServers[i].port, 3000);
-        const QString ccTag = QLatin1String(kServers[i].cc);
-        if (ms < 0) {
-            serverLines.append(QStringLiteral("  [%1] %2 — unreachable").arg(ccTag, QLatin1String(kServers[i].host)));
-        } else {
-            rttByCc[ccTag].append(ms);
-            serverLines.append(QStringLiteral("  [%1] %2 — %3ms").arg(ccTag, QLatin1String(kServers[i].host)).arg(ms));
+    bool pipelineUsed = false;
+    if (!(cc == QLatin1String("XX") || cc.isEmpty())) {
+        ProbeConfig cfg;
+        cfg.scope = ProbeConfig::ByCountry;
+        cfg.scopeValue = cc;
+        cfg.rounds = 2;
+        cfg.topN = 6;
+        cfg.aggregation = ProbeConfig::Aggregation::ByCountry;
+        GeoProbe::instance().probe(cfg);
+        const ProbeResult pr = GeoProbe::instance().getFeedback(cfg);
+        for (const auto& s : pr.servers) {
+            if (!s.ok || s.ttfbMs < 0) continue;
+            const int ms = (int)s.ttfbMs;
+            rttByCc[s.country].append(ms);
+            serverLines.append(QStringLiteral("  [%1] %2:%3 — %4 ms")
+                .arg(s.country, s.host).arg(s.port).arg(ms));
+        }
+        if (!rttByCc.isEmpty()) pipelineUsed = true;
+        // 外国基线（3 台固定，ByServers 管线）
+        ProbeConfig fcfg;
+        fcfg.scope = ProbeConfig::ByServers;
+        fcfg.serverHosts = {QStringLiteral("speedtest.choopa.net:8080"),
+                            QStringLiteral("speedtest.sea01.softlayer.com:8080"),
+                            QStringLiteral("speedtest.fra1.de.leaseweb.net:8080")};
+        fcfg.rounds = 2;
+        fcfg.topN = 3;
+        GeoProbe::instance().probe(fcfg);
+        const ProbeResult fpr = GeoProbe::instance().getFeedback(fcfg);
+        for (const auto& s : fpr.servers) {
+            if (!s.ok || s.ttfbMs < 0) continue;
+            const int ms = (int)s.ttfbMs;
+            rttByCc[s.country].append(ms);
+            serverLines.append(QStringLiteral("  [%1] %2:%3 — %4 ms")
+                .arg(s.country, s.host).arg(s.port).arg(ms));
+        }
+    }
+    if (!pipelineUsed) {
+        // 回退：固定服务器表直连扫描（诚实降级）
+        static const struct { const char* cc; const char* host; int port; } kServers[] = {
+            {"CN", "beijing.unicomtest.com", 8080},
+            {"CN", "speedtest1.online.sh.cn", 8080},
+            {"JP", "gisho.work.prod.hosts.ooklaserver.net", 8080},
+            {"KR", "seoul.speedtest.gslnetworks.com", 8080},
+            {"US", "speedtest.choopa.net", 8080},
+            {"DE", "speedtest.fra1.de.leaseweb.net", 8080},
+        };
+        static const int kServerCount = (int)(sizeof(kServers) / sizeof(kServers[0]));
+        for (int i = 0; i < kServerCount; ++i) {
+            if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+            const int ms = tcpConnectMs(QLatin1String(kServers[i].host), kServers[i].port, 3000);
+            const QString ccTag = QLatin1String(kServers[i].cc);
+            if (ms < 0) {
+                serverLines.append(QStringLiteral("  [%1] %2 — unreachable").arg(ccTag, QLatin1String(kServers[i].host)));
+            } else {
+                rttByCc[ccTag].append(ms);
+                serverLines.append(QStringLiteral("  [%1] %2 — %3ms").arg(ccTag, QLatin1String(kServers[i].host)).arg(ms));
+            }
         }
     }
 
@@ -894,8 +945,23 @@ static DiagnosticResult probeGeoIPLoc(DiagId id, const QString&, RunContext& ctx
     r.data[QStringLiteral("isp")] = isp;
     r.data[QStringLiteral("as")] = asName;
     r.data[QStringLiteral("publicIp")] = publicIp;
+    if (hasCoords) {
+        r.data[QStringLiteral("lat")] = lat;
+        r.data[QStringLiteral("lon")] = lon;
+    }
     r.data[QStringLiteral("vpnSuspected")] = vpnSuspected;
     r.data[QStringLiteral("vpnVerdict")] = vpnVerdict;
+    // M5：vpnConfidence 按触发信号强度给出百分比（-1 = 未检查）
+    int vpnConfidence = -1;
+    if (!(cc == QLatin1String("XX") || cc.isEmpty())) {
+        if (vpnInconclusive) vpnConfidence = 50;
+        else if (vpnSuspected)
+            vpnConfidence = inCountryMedian > 0
+                ? qMin(90, 60 + (inCountryMedian - bestForeign)) : 90;
+        else
+            vpnConfidence = qMax(10, 40 - (bestForeign - inCountryMedian));
+    }
+    r.data[QStringLiteral("vpnConfidence")] = vpnConfidence;
     return r;
 }
 
@@ -1005,6 +1071,9 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
         DiagnosticResult r = makeResult(id, DiagStatus::Fail,
             QStringLiteral("No Internet Connectivity"), {}, out.join(QLatin1Char('\n')));
         r.data[QStringLiteral("connected")] = false;
+        r.data[QStringLiteral("latencyMs")] = -1;
+        r.data[QStringLiteral("downloadMbps")] = 0.0;
+        r.data[QStringLiteral("uploadMbps")] = 0.0;
         r.data[QStringLiteral("downloadMbpsBest")] = 0.0;
         r.data[QStringLiteral("uploadMbpsBest")] = 0.0;
         return r;
@@ -1051,6 +1120,10 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
     r.data[QStringLiteral("reachableEndpoints")] = reachable;
     r.data[QStringLiteral("bestTtfbMs")] = bestTtfb < INT_MAX ? bestTtfb : -1;
     r.data[QStringLiteral("edgeRttMs")] = tcpMs;
+    // M4：diag-g3 §2.5 契约键——latencyMs（TTFB）/ downloadMbps / uploadMbps
+    r.data[QStringLiteral("latencyMs")] = bestTtfb < INT_MAX ? bestTtfb : (tcpMs >= 0 ? tcpMs : -1);
+    r.data[QStringLiteral("downloadMbps")] = bestDl;
+    r.data[QStringLiteral("uploadMbps")] = bestUl;
     r.data[QStringLiteral("downloadMbpsBest")] = bestDl;
     r.data[QStringLiteral("uploadMbpsBest")] = bestUl;
     return r;
@@ -1061,14 +1134,23 @@ static DiagnosticResult probeInternetConnectivity(DiagId id, const QString&, Run
 // ── Registration (NEW-1 platform masks) ───────────────────────────────────
 void registerG3Adapters() {
     using namespace PlatformFlag;
+#if defined(PLATFORM_ANDROID)
+    // Android：DNS 服务器/缓存经 JNI（NetworkDiagnostics.cpp）
+    AdapterRegistry::registerAdapters(DiagId::G3DnsServers, {
+        {PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidDnsServersDiag(i); }},
+    });
+    AdapterRegistry::registerAdapters(DiagId::G3DnsCache, {
+        {PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidDnsCacheDiag(i); }},
+    });
+#endif
     AdapterRegistry::registerAdapters(DiagId::G3DnsServers, {
         {PF_Desktop, "Desktop", {}, g3::probeDnsServers},
+#if !defined(PLATFORM_ANDROID)
         {PF_IOS,     "iOS",     {}, g3::probeDnsServers},
-        {PF_Android, "Android", {}, g3::probeDnsServers},
+#endif
     });
     AdapterRegistry::registerAdapters(DiagId::G3DnsCache, {
         {PF_Desktop, "Desktop", {}, g3::probeDnsCache},
-        {PF_Android, "Android", {}, g3::probeDnsCache},
     });
     AdapterRegistry::registerAdapters(DiagId::G3DnsIntegrity, {
         {PF_Desktop, "Desktop", {}, g3::probeDnsIntegrity},

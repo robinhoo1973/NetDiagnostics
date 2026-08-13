@@ -14,10 +14,10 @@
 // 1) WINAPI_FAMILY=DESKTOP_APP——mingw 的 winapifamily.h 默认 WINAPI_FAMILY_APP，
 //    会使 netioapi.h 的 WINAPI_PARTITION_DESKTOP 块（GetIpForwardTable2 等）被整体排除；
 // 2) _WIN32_WINNT=Vista+——IP Helper 声明的最低版本要求。
-#ifndef WINAPI_FAMILY
+#if !defined(WINAPI_FAMILY)
 #define WINAPI_FAMILY WINAPI_FAMILY_DESKTOP_APP
 #endif
-#ifndef _WIN32_WINNT
+#if !defined(_WIN32_WINNT)
 #define _WIN32_WINNT 0x0601
 #endif
 #endif
@@ -25,6 +25,13 @@
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+
+#if defined(PLATFORM_ANDROID)
+#include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
+#endif
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
+#endif
 
 #include <QNetworkInterface>
 #include <QProcess>
@@ -121,7 +128,8 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
         }
         HeapFree(GetProcessHeap(), 0, ft);
     }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     int mib[] = { CTL_NET, PF_ROUTE, 0, 0, NET_RT_DUMP, 0 };
     size_t needed = 0;
     if (sysctl(mib, 6, nullptr, &needed, nullptr, 0) == 0 && needed > 0) {
@@ -172,6 +180,7 @@ static DiagnosticResult probeRoutingTable(DiagId id, const QString&, RunContext&
         }
     }
 #endif
+#endif
 
     if (routeCount == 0)
         return makeResult(id, DiagStatus::Warning, QStringLiteral("No route entries found"), props, out.join('\n'));
@@ -201,7 +210,8 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
         }
         HeapFree(GetProcessHeap(), 0, table);
     }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     int mib[] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_FLAGS, RTF_LLINFO };
     size_t needed = 0;
     if (sysctl(mib, 6, nullptr, &needed, nullptr, 0) == 0 && needed > 0) {
@@ -252,6 +262,7 @@ static DiagnosticResult probeArpTable(DiagId id, const QString&, RunContext& ctx
         }
     }
 #endif
+#endif
 
     if (entryCount == 0)
         return makeResult(id, DiagStatus::Warning, QStringLiteral("No ARP entries found"), props, out.join('\n'));
@@ -285,7 +296,42 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
         }
         HeapFree(GetProcessHeap(), 0, ft);
     }
-#else // Linux / macOS / Android
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
+    // M3：macOS 无 /proc/net/route——PF_ROUTE sysctl NET_RT_DUMP 查默认路由
+    // （0.0.0.0/0 + RTF_GATEWAY），与归档 G2DefaultGateway 的 RTM_GET 实现同源。
+    int mib[] = { CTL_NET, PF_ROUTE, 0, AF_INET, NET_RT_DUMP, 0 };
+    size_t needed = 0;
+    if (sysctl(mib, 6, nullptr, &needed, nullptr, 0) == 0 && needed > 0) {
+        QByteArray buf((int)needed + 4096, '\0');
+        if (sysctl(mib, 6, buf.data(), &needed, nullptr, 0) == 0) {
+            char* ptr = buf.data(); const char* end = ptr + needed;
+            while (ptr + (int)sizeof(struct rt_msghdr) <= end) {
+                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                auto* rtm = (struct rt_msghdr*)ptr;
+                if (rtm->rtm_version != RTM_VERSION || rtm->rtm_msglen < sizeof(struct rt_msghdr)) break;
+                const bool isGateway = (rtm->rtm_flags & RTF_GATEWAY) != 0;
+                QString destIp, gwIp;
+                auto* sa = (struct sockaddr*)(rtm + 1);
+                for (int i = 0; i < RTAX_MAX; ++i) {
+                    if (!(rtm->rtm_addrs & (1 << i))) continue;
+                    if (sa->sa_len <= 0) break;
+                    if (i == RTAX_DST && sa->sa_family == AF_INET)
+                        destIp = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                    else if (i == RTAX_GATEWAY && sa->sa_family == AF_INET)
+                        gwIp = ip4ToStr(((struct sockaddr_in*)sa)->sin_addr);
+                    sa = (struct sockaddr*)((char*)sa + sa->sa_len);
+                }
+                if (isGateway && destIp == QLatin1String("0.0.0.0") && !gwIp.isEmpty()) {
+                    props.append({gwIp, QStringLiteral("interface index=%1").arg(rtm->rtm_index)});
+                    found.append(QStringLiteral("%1 via ifindex %2").arg(gwIp).arg(rtm->rtm_index));
+                }
+                ptr += rtm->rtm_msglen;
+            }
+        }
+    }
+#else
+    // Linux / Android
     QFile routeFile(QStringLiteral("/proc/net/route"));
     if (routeFile.open(QIODevice::ReadOnly)) {
         QTextStream ts(&routeFile);
@@ -306,6 +352,7 @@ static DiagnosticResult probeDefaultGateway(DiagId id, const QString&, RunContex
             }
         }
     }
+#endif
 #endif
 
     if (found.isEmpty())
@@ -490,31 +537,58 @@ void registerG2Adapters() {
     using g2::probeNetworkProfile; using g2::probeTcpSettings;
     using g2::probeDefaultGateway; using g2::probeProxySettings;
 
+#if defined(PLATFORM_ANDROID)
+    // Android：6 项均有 JNI 深探测（NetworkDiagnostics.cpp）
+    AdapterRegistry::registerAdapters(DiagId::G2NetworkProfile, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidNetworkProfileDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G2TcpSettings, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidTcpSettingsDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G2DefaultGateway, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidGatewayDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G2RoutingTable, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidRoutingTableDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G2ArpTable, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidArpTableDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G2ProxySettings, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidProxyDiag(i); } },
+    });
+    return;
+#else
+#if defined(PLATFORM_IOS)
+    // iOS：网关/路由经系统 API（GatewayDhcpRouting）
+    AdapterRegistry::registerAdapters(DiagId::G2DefaultGateway, {
+        { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosDefaultGatewayDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G2RoutingTable, {
+        { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosRoutingTableDiag(i); } },
+    });
+#endif
+#endif
+
     AdapterRegistry::registerAdapters(DiagId::G2NetworkProfile, {
         { PF_Desktop, "Desktop", {}, probeNetworkProfile },
+#if !defined(PLATFORM_ANDROID)
         { PF_IOS,     "iOS",     {}, probeNetworkProfile },
-        { PF_Android, "Android", {}, probeNetworkProfile },
+#endif
     });
     AdapterRegistry::registerAdapters(DiagId::G2TcpSettings, {
         { PF_Desktop, "Desktop", {}, probeTcpSettings },
-        { PF_Android, "Android", {}, probeTcpSettings },
     });
     AdapterRegistry::registerAdapters(DiagId::G2DefaultGateway, {
         { PF_Desktop, "Desktop", {}, probeDefaultGateway },
-        { PF_IOS,     "iOS",     {}, probeDefaultGateway },
-        { PF_Android, "Android", {}, probeDefaultGateway },
     });
     AdapterRegistry::registerAdapters(DiagId::G2RoutingTable, {
         { PF_Desktop, "Desktop", {}, probeRoutingTable },
-        { PF_IOS,     "iOS",     {}, probeRoutingTable },
-        { PF_Android, "Android", {}, probeRoutingTable },
     });
     AdapterRegistry::registerAdapters(DiagId::G2ArpTable, {
         { PF_Desktop, "Desktop", {}, probeArpTable },
-        { PF_Android, "Android", {}, probeArpTable },
     });
     AdapterRegistry::registerAdapters(DiagId::G2ProxySettings, {
         { PF_Desktop, "Desktop", {}, probeProxySettings },
-        { PF_Android, "Android", {}, probeProxySettings },
     });
 }

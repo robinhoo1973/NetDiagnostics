@@ -10,7 +10,10 @@
 #include "Diagnostics/Model/DiagnosticSuite.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
-#include "App/AppState.h"
+#include "app/AppState.h"
+#include "Common/Utils/CrashHandler.h"
+#include "Common/Utils/StartupLog.h"
+#include "Settings/Model/PremiumStore.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -20,8 +23,15 @@
 #include <QCollator>
 #include <QNetworkProxyFactory>
 #include <QFile>
+#include <QDir>
+#include <QLockFile>
 
+#include <csignal>
 #include <cstdio>
+
+#if defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace {
 
@@ -42,6 +52,26 @@ void enforceStartupInvariant(bool ok) {
 // ── Headless self-test: run ALL five suites and print per-test results
 //    (proves the 45-entry registry + capability/scheme/device gating
 //    end-to-end without a UI).
+// G5 scheme 过滤落库后（diag-g5 §2.21），每个协议检测必须用自身 scheme 调度，
+// 否则 select() 返回 nullptr → 检测被隐藏、CI 覆盖丢失。
+const char* selftestSchemeFor(DiagId id) {
+    switch (id) {
+        case DiagId::G5FtpDiagnostics:   return "ftp";
+        case DiagId::G5SshDiagnostics:   return "ssh";
+        case DiagId::G5EmailDiagnostics: return "smtp";
+        case DiagId::G5Telnet:           return "telnet";
+        case DiagId::G5Mysql:            return "mysql";
+        case DiagId::G5Postgres:         return "postgresql";
+        case DiagId::G5Redis:            return "redis";
+        case DiagId::G5Mongodb:          return "mongodb";
+        case DiagId::G5Ldap:             return "ldap";
+        case DiagId::G5Mqtt:             return "mqtt";
+        // ServiceBanner = 排除 http/https（diag-g5 §2.21）——用 ftp 触发
+        case DiagId::G5ServiceBanner:    return "ftp";
+        default:                         return "https";
+    }
+}
+
 int runSelftest() {
     // GUI 子系统下 stdout 全缓冲：崩溃时日志会丢。selftest 改为行缓冲，
     // 保证每条结果实时落盘（也便于定位崩溃点）。
@@ -52,35 +82,52 @@ int runSelftest() {
     int contractViolations = 0;
     const DiagGroup groups[] = { DiagGroup::G1, DiagGroup::G2, DiagGroup::G3, DiagGroup::G4, DiagGroup::G5 };
     for (DiagGroup g : groups) {
-        DiagnosticSuite suite(g);
-        QVector<DiagId> ids;
-        for (DiagId id : allDiagIds())
-            if (diagGroup(id) == g && isSchedulable(id))
-                ids.append(id);
-        suite.setDiagIds(ids);
+        // G1-G4 无 scheme 过滤（通配）→ 单批 https；G5 按检测 scheme 分批。
+        QHash<QString, QVector<DiagId>> batches;
+        if (g == DiagGroup::G5) {
+            for (DiagId id : allDiagIds())
+                if (diagGroup(id) == g && isSchedulable(id))
+                    batches[QLatin1String(selftestSchemeFor(id))].append(id);
+        } else {
+            QVector<DiagId> ids;
+            for (DiagId id : allDiagIds())
+                if (diagGroup(id) == g && isSchedulable(id))
+                    ids.append(id);
+            batches.insert(QStringLiteral("https"), ids);
+        }
 
-        QEventLoop loop;
-        bool done = false;
-        QObject::connect(&suite, &DiagnosticSuite::suiteFinished,
-                         [&loop, &done]() { done = true; loop.quit(); });
-        QObject::connect(&suite, &DiagnosticSuite::resultReady,
-                         [&total, &contractViolations](const DiagnosticResult& r) {
-            std::printf("[%s] %-30s -> %s\n",
-                        qPrintable(diagGroupLabel(r.group)),
-                        qPrintable(r.displayName),
-                        qPrintable(r.summary.isEmpty() ? "ok" : r.summary));
-            ++total;
-            if (r.status != DiagStatus::Pass) return;
-            const DetailProfile& d = diagnosticMeta(r.id).detail;
-            if (d.keyMetricField && !r.data.contains(QLatin1String(d.keyMetricField))) {
-                ++contractViolations;
-                std::printf("CONTRACT: [%s] Pass without key metric '%s'\n",
-                            qPrintable(r.displayName), d.keyMetricField);
-            }
-        });
+        for (auto it = batches.constBegin(); it != batches.constEnd(); ++it) {
+            DiagnosticSuite suite(g);
+            suite.setDiagIds(it.value());
 
-        suite.run(QStringLiteral("example.com"), QStringLiteral("https"));
-        if (!done) loop.exec();   // wait for completion (async probes)
+            QEventLoop loop;
+            bool done = false;
+            QObject::connect(&suite, &DiagnosticSuite::suiteFinished,
+                             [&loop, &done]() { done = true; loop.quit(); });
+            QObject::connect(&suite, &DiagnosticSuite::resultReady,
+                             [&total, &contractViolations](const DiagnosticResult& r) {
+                std::printf("[%s] %-30s -> %s\n",
+                            qPrintable(diagGroupLabel(r.group)),
+                            qPrintable(r.displayName),
+                            qPrintable(r.summary.isEmpty() ? "ok" : r.summary));
+                ++total;
+                if (r.status != DiagStatus::Pass) return;
+                const DetailProfile& d = diagnosticMeta(r.id).detail;
+                if (d.keyMetricField && !r.data.contains(QLatin1String(d.keyMetricField))) {
+                    ++contractViolations;
+                    std::printf("CONTRACT: [%s] Pass without key metric '%s'\n",
+                                qPrintable(r.displayName), d.keyMetricField);
+                }
+            });
+
+            // G5 批次的 target 必须带 scheme 前缀（探针按 target 内 scheme
+            // 判定协议），G1-G4 无 scheme 过滤，裸 host 即可。
+            const QString target = (g == DiagGroup::G5)
+                ? it.key() + QLatin1String("://example.com")
+                : QStringLiteral("example.com");
+            suite.run(target, it.key());
+            if (!done) loop.exec();   // wait for completion (async probes)
+        }
     }
 
     std::printf("selftest: %d results, verify=%s, contract=%s\n", total,
@@ -92,6 +139,19 @@ int runSelftest() {
 } // namespace
 
 int main(int argc, char* argv[]) {
+    // 5WHY（SIGPIPE 杀进程）：G4/G5 大量裸 socket 对已关闭连接写会触发
+    // SIGPIPE 直接终止进程——诊断工具必须忽略。
+#if !defined(_WIN32)
+    signal(SIGPIPE, SIG_IGN);
+#endif
+
+    // Crash handler 必须在 QGuiApplication 之前安装，捕获 ctor 阶段崩溃。
+    CrashHandler::install();
+#if defined(ND_DEBUG) || defined(ND_TESTING)
+    STARTUP_LOG("main() entered — native entry, pre-QGuiApplication");
+    CrashHandler::checkForPreviousCrash();
+#endif
+
     QGuiApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("NetDiagnostic"));
     // QSettings 持久化需 organizationName；缺省时 Windows 写入未知组织键
@@ -123,22 +183,65 @@ int main(int argc, char* argv[]) {
     QCommandLineOption selftestOption(QStringLiteral("selftest"),
         QStringLiteral("Run the G1-G5 headless self-test and exit"));
     parser.addOption(selftestOption);
+#if defined(ND_TESTING)
+    QCommandLineOption testOption(QStringLiteral("test"),
+        QStringLiteral("Headless CI alias of --selftest"));
+    parser.addOption(testOption);
+#endif
     parser.process(app);
 
     // ── Contract/execution layer bootstrap (DIAG-2/A1, NEW-16) ────────────
     registerAllAdapters();
     enforceStartupInvariant(AdapterRegistry::verifyAllDiagIds());
 
-    if (parser.isSet(selftestOption))
+    if (parser.isSet(selftestOption)
+#if defined(ND_TESTING)
+        || parser.isSet(testOption)
+#endif
+        )
         return runSelftest();
+
+    // ── 单实例锁：Windows 命名互斥量；Linux/macOS QLockFile ─────────────
+#if defined(_WIN32)
+    HANDLE hMutex = CreateMutexW(nullptr, FALSE, L"Global\\NetDiagnostic_SingleInstance");
+    if (hMutex && GetLastError() == ERROR_ALREADY_EXISTS) {
+        if (hMutex) CloseHandle(hMutex);
+        return 0;
+    }
+#else
+    QLockFile singleInstanceLock(
+        QDir::temp().filePath(QStringLiteral("NetDiagnostics.lock")));
+    singleInstanceLock.setStaleLockTime(30000);   // 30s 陈旧判定，防崩溃遗留死锁
+    if (!singleInstanceLock.tryLock(100)) return 0;
+#endif
 
     // ── UI 层（P0：AppState 桥接 + DiagnosticScreen）───────────────
     AppState appState;
     qmlRegisterSingletonInstance("NetDiagnostics.App", 1, 0, "AppState", &appState);
+    // PremiumStore（Premium 后端恢复）：由 AppState 持有生命周期
+    qmlRegisterSingletonInstance("NetDiagnostics.App", 1, 0, "PremiumStore",
+                                 appState.premiumStore());
 
     QQmlApplicationEngine engine;
     // qrc 目录导入在 Qt6 不可用：统一走 /qt/qml 导入路径下的 qmldir 模块
     engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+
+    // 条件预览组件标志（hasWebView/hasQtPdf/hasNativePdf——归档语义恢复）
+#if defined(HAS_QTWEBVIEW)
+    engine.rootContext()->setContextProperty("hasWebView", true);
+#else
+    engine.rootContext()->setContextProperty("hasWebView", false);
+#endif
+#if defined(HAS_QTPDF)
+    engine.rootContext()->setContextProperty("hasQtPdf", true);
+#else
+    engine.rootContext()->setContextProperty("hasQtPdf", false);
+#endif
+#if defined(PLATFORM_IOS) || defined(Q_OS_MACOS)
+    engine.rootContext()->setContextProperty("hasNativePdf", true);
+#else
+    engine.rootContext()->setContextProperty("hasNativePdf", false);
+#endif
 
     // 翻译数据：同步 XHR 在 qrc:/ 上被 Qt 6.8 阻断（"Invalid state"），
     // 由 C++ 读取 :/translations.json 以 TJson context property 暴露给 T 代理。

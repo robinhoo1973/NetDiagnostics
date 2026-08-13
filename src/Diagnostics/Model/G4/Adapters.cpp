@@ -12,18 +12,27 @@
 // Platforms per NEW-1: all six = All.
 // =============================================================================
 #if defined(_WIN32)
-#ifndef WINAPI_FAMILY
+#if !defined(WINAPI_FAMILY)
 #define WINAPI_FAMILY WINAPI_FAMILY_DESKTOP_APP
 #endif
-#ifndef _WIN32_WINNT
+#if !defined(_WIN32_WINNT)
 #define _WIN32_WINNT 0x0601
 #endif
 #endif
 
 #include "Common/Services/PlatformAdapter.h"
+#include "Common/Services/DnsResolver.h"
 #include "Common/Services/DnsWire.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+#include "Diagnostics/View/DiagnosticFormatter.h"
+
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G3/Platform/IOS/DnsResolve.h"
+#endif
+#if defined(PLATFORM_ANDROID)
+#include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
+#endif
 
 #include <QHostInfo>
 #include <QElapsedTimer>
@@ -48,7 +57,7 @@
 #include <icmpapi.h>
 // MinGW 的 ws2tcpip.h 不定义 TCP_MAXSEG（Windows 上为非文档化选项，取值 0x4，
 // 与 Cygwin/ReactOS 头一致）。getsockopt 失败时调用方回退默认 MTU 1500。
-#ifndef TCP_MAXSEG
+#if !defined(TCP_MAXSEG)
 #define TCP_MAXSEG 0x4
 #endif
 #endif
@@ -75,6 +84,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -167,14 +177,9 @@ static int extractProbePort(const QString& target) {
 
 // ── Resolution helpers ─────────────────────────────────────────────────────
 static quint32 resolveIPv4(const QString& host, int timeoutMs = 3000) {
-    QElapsedTimer t; t.start();
-    QHostInfo info = QHostInfo::fromName(host);
-    if (info.error() != QHostInfo::NoError) return 0;
-    for (const QHostAddress& a : info.addresses()) {
-        if (a.protocol() == QAbstractSocket::IPv4Protocol)
-            return a.toIPv4Address();   // host byte order
-    }
-    return 0;
+    // H4：阻塞式 QHostInfo::fromName 在坏网络下可挂数十秒——统一走
+    // DnsResolver 单例（3s 超时 + 线程安全缓存）。
+    return DnsResolver::resolveIPv4(host, timeoutMs);
 }
 
 #if defined(_WIN32)
@@ -182,11 +187,13 @@ static QString ip4ToStr(quint32 ipHostOrder) {
     in_addr a; a.S_un.S_addr = htonl(ipHostOrder);
     return QString::fromLatin1(inet_ntoa(a));
 }
-#elif defined(__APPLE__) || defined(__linux__)
+#else
+#if defined(__APPLE__) || defined(__linux__)
 static QString ip4ToStr(quint32 ipHostOrder) {
     in_addr a; a.s_addr = htonl(ipHostOrder);
     return QString::fromLatin1(inet_ntoa(a));
 }
+#endif
 #endif
 
 static int tcpRttMs(const QString& host, int port, int timeoutMs = 3000) {
@@ -543,32 +550,34 @@ static QString systemDnsServer() {
 // ═════════════════════════════════════════════════════════════════════════
 static DiagnosticResult probeDnsResolution(DiagId id, const QString& target, RunContext& ctx) {
     const QString host = extractHostname(target.isEmpty() ? QStringLiteral("example.com") : target);
-    QStringList out;
-    out.append(QStringLiteral("; <<>> NetDiagnostics DNS <<>> %1").arg(host));
-    out.append(QStringLiteral(";; QUESTION SECTION:"));
-    out.append(QStringLiteral(";%1. IN A").arg(host));
-
-    const dnsWire::Answer ans = dnsWire::udpQuery(host, 1, systemDnsServer(), 3000);
+    const QString server = systemDnsServer();
+    const dnsWire::Answer ans = dnsWire::udpQuery(host, 1, server, 3000);
     const int ms = ans.elapsedMs;
     const int rcode = ans.rcode;
     if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
     int anCount = 0;
     QStringList ips;
+    QStringList out;
+    // DiagnosticFormatter（CJK 感知 dig 风格输出）——恢复共享格式化器
+    out.append(DiagnosticFormatter::formatDnsHeader(host,
+        rcode == 0 ? QStringLiteral("NOERROR") : rcode == 3 ? QStringLiteral("NXDOMAIN")
+        : rcode == 2 ? QStringLiteral("SERVFAIL") : rcode == 1 ? QStringLiteral("FORMERR")
+        : QStringLiteral("UNKNOWN"), 0, ans.records.size()));
+    out.append(QStringLiteral(";; QUESTION SECTION:"));
+    out.append(DiagnosticFormatter::formatDnsQuestion(host, QStringLiteral("A")));
+    out.append(QString());
+    out.append(QStringLiteral(";; ANSWER SECTION:"));
     for (const auto& rec : ans.records) {
         if (rec.type == 1 || rec.type == 28) {
-            out.append(QStringLiteral("%1.  %2  IN  %3  %4")
-                .arg(host, -24).arg(rec.ttl, 6)
-                .arg(rec.type == 1 ? QStringLiteral("A") : QStringLiteral("AAAA"), rec.value));
+            out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl,
+                rec.type == 1 ? QStringLiteral("A") : QStringLiteral("AAAA"), rec.value));
             ips.append(rec.value);
             ++anCount;
         } else if (rec.type == 5) {
-            out.append(QStringLiteral("%1.  %2  IN  CNAME  %3").arg(host, -24).arg(rec.ttl, 6).arg(rec.value));
+            out.append(DiagnosticFormatter::formatDnsRecord(host, rec.ttl, QStringLiteral("CNAME"), rec.value));
         }
     }
-    out.append(QString());
-    const char* rcodeName = rcode == 0 ? "NOERROR" : rcode == 3 ? "NXDOMAIN"
-                          : rcode == 2 ? "SERVFAIL" : rcode == 1 ? "FORMERR" : "UNKNOWN";
-    out.append(QStringLiteral(";; Query time: %1 ms; RCODE: %2").arg(ms).arg(QLatin1String(rcodeName)));
+    out.append(DiagnosticFormatter::formatDnsFooter(ms, server));
 
     DiagStatus status = anCount > 0 ? DiagStatus::Pass : DiagStatus::Fail;
     QString summary = anCount > 0
@@ -629,12 +638,16 @@ static DiagnosticResult probePing(DiagId id, const QString& target, RunContext& 
 #if defined(_WIN32)
         if (resolvedIp)
             ms = icmpEchoRttMsWindows(resolvedIp, i + 1, 2000);
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
         if (resolvedIp)
             ms = icmpEchoRttMsApple(resolvedIp, i + 1, 2000);
-#elif defined(__linux__) && !defined(__ANDROID__)
+#else
+#if defined(__linux__) && !defined(__ANDROID__)
         if (resolvedIp)
             ms = icmpEchoRttMsLinux(resolvedIp, i + 1, 2000);
+#endif
+#endif
 #endif
         if (ms < 0) {
             const int ports[] = {443, 80, 22, 8080, 8443};
@@ -741,13 +754,17 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
         QString hopIp;
 #if defined(_WIN32)
         const int res = traceHopWindows(targetIp, ttl, rttMs, hopIp);
-#elif defined(__linux__) && !defined(__ANDROID__)
+#else
+#if defined(__linux__) && !defined(__ANDROID__)
         const int res = traceHopLinux(targetIp, ttl, rttMs, hopIp);
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
         const int res = traceHopMac(targetIp, ttl, rttMs, hopIp);
 #else
         // Android：无 raw ICMP → TCP-TTL（内核可能不遵从 TTL——诚实局限）。
         const int res = tcpTtlHop(targetIp, ttl, 443, rttMs, hopIp);
+#endif
+#endif
 #endif
         ++hopCount;
         if (res == 0) {
@@ -852,20 +869,21 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
     DiagnosticResult tr = probeTraceroute(id, target, ctx);
     if (tr.isCancelled()) return tr;
 
-    struct HopEntry { int ttl; QString ip; QString name; bool reached; };
+    struct HopEntry { int ttl; QString ip; QString name; bool reached; int rttMs = 0; };
     QVector<HopEntry> entries;
-    static const QRegularExpression hopRe(QStringLiteral(R"(^\s*(\d+)\s+.*\[([\d.]+)\])"),
-                                          QRegularExpression::MultilineOption);
-    auto matches = hopRe.globalMatch(tr.rawOutput);
+    // C5：直接用 traceroute 结果的 data["hops"]（含每跳 rttMs），
+    // 不再正则解析 rawOutput——契约键 hops[].rttMs 从此有值。
+    const QVariantList trHops = tr.data.value(QStringLiteral("hops")).toList();
     int hopCount = 0;
     bool reached = false;
-    while (matches.hasNext()) {
-        const auto m = matches.next();
-        const int ttlNum = m.captured(1).toInt();
-        const QString hopIp = m.captured(2);
+    for (const QVariant& hv : trHops) {
+        const QVariantMap hm = hv.toMap();
+        const int ttlNum = hm.value(QStringLiteral("ttl")).toInt();
+        const QString hopIp = hm.value(QStringLiteral("ip")).toString();
         const bool isTarget = (hopIp == targetIpStr);
         if (isTarget) reached = true;
-        entries.append({ttlNum, hopIp, QString(), isTarget});
+        entries.append({ttlNum, hopIp, hm.value(QStringLiteral("name")).toString(),
+                        isTarget, hm.value(QStringLiteral("rttMs")).toInt()});
         hopCount = ttlNum;
     }
 
@@ -917,6 +935,9 @@ static DiagnosticResult probePathPing(DiagId id, const QString& target, RunConte
         h[QStringLiteral("received")] = isFinal ? hs.rcvd : 0;
         h[QStringLiteral("lossPercent")] = isFinal ? hs.loss : 100.0;
         h[QStringLiteral("avgMs")] = isFinal ? hs.avgMs : 0;
+        // C5：契约键 hops[].rttMs（kPathContract BarChart）——最终跳用 ping 均值，
+        // 中间跳用 traceroute 探测 RTT
+        h[QStringLiteral("rttMs")] = isFinal ? hs.avgMs : entries.value(i + 1).rttMs;
         h[QStringLiteral("reached")] = entries.value(i + 1).reached;
         hopData.append(h);
     }
@@ -992,7 +1013,7 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
 #else
     if (resolvedIp) {
         // Best effort: probe TCP connect then read MSS via getsockopt (POSIX).
-        const int sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+        int sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (sock >= 0) {
             sockaddr_in addr; std::memset(&addr, 0, sizeof(addr));
             addr.sin_family = AF_INET;
@@ -1043,7 +1064,8 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
                 if (v > discoveredMtu && v < 10000) discoveredMtu = v;
             }
         }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
         struct ifaddrs* ifa = nullptr;
         if (getifaddrs(&ifa) == 0) {
             for (struct ifaddrs* p = ifa; p; p = p->ifa_next) {
@@ -1059,6 +1081,7 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
             freeifaddrs(ifa);
         }
 #endif
+#endif
         if (discoveredMtu == 0) discoveredMtu = 1500;
         out.append(QStringLiteral("PMTU TCP probe failed — using interface MTU %1.").arg(discoveredMtu));
     }
@@ -1069,6 +1092,15 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
         .arg(targetResolved ? QString() : QStringLiteral(" (local interface only — target unresolved)"));
     DiagnosticResult r = makeResult(id, status, summary, {}, out.join(QLatin1Char('\n')));
     r.data[QStringLiteral("mtu")] = discoveredMtu;
+    r.data[QStringLiteral("mss")] = discoveredMtu > 40 ? discoveredMtu - 40 : 0;
+    r.data[QStringLiteral("effectiveMss")] = discoveredMtu > 40 ? discoveredMtu - 40 : 0;
+    r.data[QStringLiteral("probePort")] = probePort;
+    r.data[QStringLiteral("tcpProbeSuccessful")] = resolvedIp != 0 && targetResolved;
+    // M10：mtuQuality 分级提示（巨帧风险 / IPv6 下限）
+    QString quality = QStringLiteral("standard");
+    if (discoveredMtu > 1500) quality = QStringLiteral("jumbo");
+    else if (discoveredMtu < 1280) quality = QStringLiteral("below-ipv6-min");
+    r.data[QStringLiteral("mtuQuality")] = quality;
     r.data[QStringLiteral("targetResolved")] = targetResolved;
     return r;
 }
@@ -1082,14 +1114,10 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
     out.append(QStringLiteral("IPv6 Connectivity Test"));
     out.append(QStringLiteral("Target: %1").arg(host));
 
-    // Phase 1: AAAA resolution.
-    QHostInfo info = QHostInfo::fromName(host);
+    // Phase 1: AAAA resolution — DnsResolver 3s 超时（H4）
     QStringList v6Addrs;
-    if (info.error() == QHostInfo::NoError) {
-        for (const QHostAddress& a : info.addresses())
-            if (a.protocol() == QAbstractSocket::IPv6Protocol)
-                v6Addrs.append(a.toString());
-    }
+    const QString v6 = DnsResolver::instance().resolve6(host, 3000);
+    if (!v6.isEmpty()) v6Addrs.append(v6);
     if (v6Addrs.isEmpty()) {
         out.append(QStringLiteral("DNS AAAA resolution FAILED — no IPv6 address for %1").arg(host));
         DiagnosticResult r = makeResult(id, DiagStatus::Warning,
@@ -1154,10 +1182,21 @@ static DiagnosticResult probeIPv6Connectivity(DiagId id, const QString& target, 
 // ── Registration (NEW-1: all six = All) ───────────────────────────────────
 void registerG4Adapters() {
     using namespace PlatformFlag;
+    // G4DnsResolution：iOS 走 iosDnsResolve（res_9 系统解析器），Android 走
+    // androidDnsDiag（JNI InetAddress），桌面走 dnsWire 原始 DNS。
+#if defined(PLATFORM_IOS)
+    AdapterRegistry::registerAdapters(DiagId::G4DnsResolution, {
+        {PF_IOS, "iOS", {}, [](DiagId i, const QString& t, RunContext&) { return iosDnsResolve(i, t, 3000); }},
+    });
+#else
+#if defined(PLATFORM_ANDROID)
+    AdapterRegistry::registerAdapters(DiagId::G4DnsResolution, {
+        {PF_Android, "Android", {}, [](DiagId i, const QString& t, RunContext&) { return androidDnsDiag(i, t); }},
+    });
+#endif
+#endif
     AdapterRegistry::registerAdapters(DiagId::G4DnsResolution, {
         {PF_Desktop, "Desktop", {}, g4::probeDnsResolution},
-        {PF_IOS,     "iOS",     {}, g4::probeDnsResolution},
-        {PF_Android, "Android", {}, g4::probeDnsResolution},
     });
     AdapterRegistry::registerAdapters(DiagId::G4Ping, {
         {PF_Desktop, "Desktop", {}, g4::probePing},

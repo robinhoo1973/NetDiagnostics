@@ -14,6 +14,7 @@ PageSection {
     property string cardIcon: ""
     property string cardTitle: ""
     property bool collapsible: true
+    property bool showHeader: true     // 归档恢复：无头卡（Run Info 等）
     property bool _userToggled: false
     property bool _userExpanded: true
     readonly property bool expanded: _userToggled ? _userExpanded : true
@@ -25,6 +26,7 @@ PageSection {
         Item {
             Layout.fillWidth: true
             Layout.preferredHeight: 36
+            visible: root.showHeader
             RowLayout {
                 anchors.fill: parent
                 spacing: ThemeEngine.spacing.sm

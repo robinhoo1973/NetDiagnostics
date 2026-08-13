@@ -1,10 +1,10 @@
 // =============================================================================
-// PremiumDialog.qml — 一次性买断 Premium 弹窗（精简版，重建）
+// PremiumDialog.qml — 一次性买断 Premium 弹窗（PremiumStore 后端恢复）
 //
-// 自包含：不依赖 Store 后端（原 PlatformStore 已随重构移除）。在无 IAP
-// 后端的平台按钮诚实降级为 iapNotAvailable 提示。
+// 购买/恢复经 PremiumStore（StoreKit on iOS/macOS；其它平台诚实降级）。
 // 仅 Premium 平台（移动/Apple）在 SettingsScreen 通过 Loader 实例化。
 // =============================================================================
+import NetDiagnostics.App 1.0
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -26,10 +26,27 @@ Rectangle {
     function openDialog() {
         root.open = true
         root.statusText = ""
+        // 5WHY（iOS b21294）：非阻塞探针恢复——不置 purchaseInProgress，
+        // Buy/Restore 按钮在探测期间保持可点。
+        if (!PremiumStore.isPremium) PremiumStore.probeRestore()
     }
     function closeDialog() {
         root.open = false
         root.dismissed()
+    }
+
+    // ── PremiumStore 信号（购买/恢复反馈闭环）──
+    Connections {
+        target: PremiumStore
+        function onPremiumChanged() {
+            if (PremiumStore.isPremium) { root.statusText = ""; root.closeDialog() }
+        }
+        function onPurchaseFailed() { root.statusText = T.tr("purchaseFailed") }
+        function onPurchaseDeferred() { root.statusText = T.tr("purchaseDeferredMsg") }
+        function onRestoreCompleted(restoredAny, isError) {
+            if (restoredAny) root.statusText = T.tr("purchasesRestored")
+            else if (isError) root.statusText = T.tr("purchaseFailed")
+        }
     }
 
     // 背景点击关闭
@@ -130,14 +147,14 @@ Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 48
                 text: T.tr("subscribeBtn")
-                onClicked: root.statusText = T.tr("iapNotAvailable")
+                onClicked: PremiumStore.requestSubscription()
             }
             Button {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 40
                 text: T.tr("restoreBtn")
                 flat: true
-                onClicked: root.statusText = T.tr("iapNotAvailable")
+                onClicked: PremiumStore.restorePurchases()
             }
         }
     }

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="actGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6B7280" />
+      <stop offset="100%" stop-color="#4B505A" />
+    </linearGradient>
+  </defs>
+  <!-- Main pulse — primary gradient -->
+  <polyline points="2 12 6 12 8 6 11 18 13 9 16 12 22 12" fill="none" stroke="url(#actGrad)" stroke-width="2.5" />
+  <!-- Secondary pulse — accent -->
+  <polyline points="2 17 5 17 6.5 14.5 8 17 10 17" fill="none" stroke="#10B981" stroke-width="2" opacity="0.7" />
+</svg>

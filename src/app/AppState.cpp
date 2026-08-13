@@ -1,20 +1,36 @@
 // =============================================================================
 // AppState.cpp — Suite observer implementation
 // =============================================================================
-#include "App/AppState.h"
+#include "app/AppState.h"
 
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
 #include "Common/Model/OutputContract.h"
 #include "Common/Platform/DeviceCapability.h"
 #include "Common/Platform/PlatformFlags.h"
+#include "Common/Services/PlatformAdapter.h"
 #include "Configuration/Controller/ConfigurationController.h"
 #include "Diagnostics/Model/DiagnosticSuite.h"
+#include "Report/Model/ReportEngine.h"
+#include "Settings/Model/PremiumStore.h"
 
 #include <QClipboard>
+#include <QDesktopServices>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QSettings>
+#include <QStandardPaths>
+#include <QUrl>
 #include <QVector>
+
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+#include "Common/Platform/PlatformShare.h"   // 移动端系统分享单
+#endif
 
 namespace {
 // 组索引 → DiagGroup（visibleGroups 用）
@@ -27,6 +43,13 @@ DiagGroup groupForIndex(int idx) {
         default: return DiagGroup::G5;
     }
 }
+
+// NEW-3/DIAG-4：可运行性单一入口 = AdapterRegistry::select()（平台+scheme）
+// + DeviceCapability（硬件探测）——UI 可见性与调度共用，杜绝双源。
+bool runnableFor(DiagId id, const QString& schemeLower) {
+    return AdapterRegistry::select(id, schemeLower) != nullptr
+        && DeviceCapability::diagSupportedOnDevice(id);
+}
 } // namespace
 
 AppState::AppState(QObject* parent) : QObject(parent) {
@@ -34,45 +57,147 @@ AppState::AppState(QObject* parent) : QObject(parent) {
     m_isPremiumPlatform = true;   // Premium 仅在移动/Apple 平台提供（spec：Windows/Linux 隐藏）
 #endif
     loadPreferences();
+    // 8-1：启动不恢复上次结果——诊断页与仪表板启动时保持一致的空态
+    // （重构前行为）。persistResults 保留：完成/取消时落盘供后续需要时恢复。
+    // loadCachedResults();
     m_config = new ConfigurationController(this, this);
     m_config->loadSettings();
+    m_premiumStore = new PremiumStore(this);   // Premium 后端恢复（StoreKit/持久化）
+    // 8-15：运行墙钟 1s 节拍——仪表盘"运行时间"实时刷新
+    m_elapsedTicker = new QTimer(this);
+    m_elapsedTicker->setInterval(1000);
+    connect(m_elapsedTicker, &QTimer::timeout, this, [this] {
+        if (m_runStatus == Running) emit runElapsedChanged();
+    });
+}
+
+qint64 AppState::runDurationMs() const {
+    if (m_runStatus == Running)
+        return m_runElapsedMs + (m_runTimer.isValid() ? m_runTimer.elapsed() : 0);
+    return m_runElapsedMs;
+}
+
+// ── 结果持久化（重启后保留上次结果；JSON 快照）──
+static QString resultsCachePath() {
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
+        .filePath(QStringLiteral("last_results.json"));
+}
+
+void AppState::persistResults() {
+    if (m_results.isEmpty()) return;
+    QJsonArray arr;
+    for (const DiagnosticResult& r : m_results) {
+        QJsonObject o;
+        o[QStringLiteral("id")] = static_cast<int>(r.id);
+        o[QStringLiteral("status")] = static_cast<int>(r.status);
+        o[QStringLiteral("summary")] = r.summary;
+        o[QStringLiteral("details")] = r.details;
+        o[QStringLiteral("rawOutput")] = r.rawOutput;
+        o[QStringLiteral("errorOutput")] = r.errorOutput;
+        o[QStringLiteral("durationMs")] = r.durationMs;
+        o[QStringLiteral("timestamp")] = r.timestamp.toString(Qt::ISODate);
+        arr.append(o);
+    }
+    QDir().mkpath(QFileInfo(resultsCachePath()).absolutePath());
+    QFile f(resultsCachePath());
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(arr).toJson(QJsonDocument::Compact));
+}
+
+void AppState::loadCachedResults() {
+    QFile f(resultsCachePath());
+    if (!f.open(QIODevice::ReadOnly)) return;
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isArray()) return;
+    for (const QJsonValue& v : doc.array()) {
+        const QJsonObject o = v.toObject();
+        DiagnosticResult r;
+        r.id = static_cast<DiagId>(o.value(QStringLiteral("id")).toInt());
+        r.displayName = diagDisplayName(r.id);
+        r.group = diagGroup(r.id);
+        r.status = static_cast<DiagStatus>(o.value(QStringLiteral("status")).toInt());
+        r.summary = o.value(QStringLiteral("summary")).toString();
+        r.details = o.value(QStringLiteral("details")).toString();
+        r.rawOutput = o.value(QStringLiteral("rawOutput")).toString();
+        r.errorOutput = o.value(QStringLiteral("errorOutput")).toString();
+        r.durationMs = o.value(QStringLiteral("durationMs")).toDouble();
+        r.timestamp = QDateTime::fromString(o.value(QStringLiteral("timestamp")).toString(), Qt::ISODate);
+        m_results.insert(r.id, r);
+    }
 }
 
 QStringList AppState::supportedSchemes() const {
+    // diag-g5 §2.21 映射表的全部合法 target scheme（下拉框与映射表单一来源）。
     return {QStringLiteral("https"), QStringLiteral("http"), QStringLiteral("ftp"),
-            QStringLiteral("ssh"), QStringLiteral("smtp"), QStringLiteral("mysql"),
-            QStringLiteral("postgresql"), QStringLiteral("redis"), QStringLiteral("mqtt")};
+            QStringLiteral("ftps"), QStringLiteral("ssh"), QStringLiteral("sftp"),
+            QStringLiteral("smtp"), QStringLiteral("smtps"), QStringLiteral("imap"),
+            QStringLiteral("imaps"), QStringLiteral("pop3"), QStringLiteral("pop3s"),
+            QStringLiteral("telnet"), QStringLiteral("mysql"), QStringLiteral("postgresql"),
+            QStringLiteral("redis"), QStringLiteral("mongodb"), QStringLiteral("ldap"),
+            QStringLiteral("mqtt")};
 }
 
 void AppState::setTarget(const QString& host, const QString& scheme) {
-    // 输入解析：host 中可能带 path；scheme 来自下拉框。
+    // 输入解析：host 中可能带 path / 完整 URL；scheme 来自下拉框。
     QString h = host.trimmed();
+    QString effScheme = scheme;
+    // 允许粘贴完整 URL：其中的 scheme 覆盖下拉框选择
+    const int proto = h.indexOf(QLatin1String("://"));
+    if (proto > 0) {
+        effScheme = h.left(proto).toLower();
+        h = h.mid(proto + 3);
+    }
     QString path;
     const int slash = h.indexOf(QLatin1Char('/'));
     if (slash > 0) { path = h.mid(slash); h = h.left(slash); }
-    if (m_targetHost != h || m_targetPath != path || m_targetScheme != scheme) {
+    if (m_targetHost != h || m_targetPath != path || m_targetScheme != effScheme) {
         m_targetHost = h;
         m_targetPath = path;
-        m_targetScheme = scheme.isEmpty() ? QStringLiteral("https") : scheme;
-        m_targetError = h.isEmpty() ? QStringLiteral("Target host is required") : QString();
+        m_targetScheme = effScheme.isEmpty() ? QStringLiteral("https") : effScheme;
+        m_targetError = QString();   // 8-4：无目标不再报错（空目标仅跑 G1-G3）
+        bumpState();   // 列表/统计按 scheme 过滤，目标变更驱动 UI 重估
+        emit targetChanged();
+    }
+}
+
+void AppState::setTargetCredentials(const QString& user, const QString& password, const QString& port) {
+    const QString u = user.trimmed();
+    const QString p = password.trimmed();
+    // 端口仅接受 1-65535；非法输入忽略（不清空已有值）
+    QString pt;
+    if (!port.trimmed().isEmpty()) {
+        bool ok = false;
+        const int n = port.trimmed().toInt(&ok);
+        if (ok && n >= 1 && n <= 65535) pt = QString::number(n);
+    }
+    if (m_targetUser != u || m_targetPassword != p || m_targetPort != pt) {
+        m_targetUser = u;
+        m_targetPassword = p;
+        m_targetPort = pt;
+        savePreferences();
+        bumpState();
         emit targetChanged();
     }
 }
 
 void AppState::runDiagnostics() {
     if (m_runStatus == Running) return;
-    if (m_targetHost.isEmpty()) {
-        m_targetError = QStringLiteral("Target host is required");
-        emit targetChanged();
-        return;
-    }
+    // 8-4：无目标时仅运行 G1-G3（系统/适配器、连接与安全、互联网与 DNS），
+    // G4/G5 依赖目标主机。
+    const bool noTarget = m_targetHost.isEmpty();
     m_results.clear();
     m_groupDone.clear();
     m_errorMessage.clear();
     m_currentDiagLabel.clear();   // 上一轮残留的“当前测试”标签清零
+    m_cellularWarnAcked = false;  // H1：每轮 run 重新询问
+    if (m_cellularWarnVisible) {
+        m_cellularWarnVisible = false;
+        emit cellularWarnVisibleChanged();
+    }
     // P1：仅运行激活的组（Config 页 groupActive 控制）
     m_pendingGroups.clear();
-    for (int i = 0; i < 5; ++i)
+    const int maxG = noTarget ? 2 : 4;
+    for (int i = 0; i <= maxG; ++i)
         if (isGroupActive(i))
             m_pendingGroups.append(i);
     if (m_pendingGroups.isEmpty()) {
@@ -83,6 +208,9 @@ void AppState::runDiagnostics() {
         return;
     }
     m_runStatus = Running;
+    m_runTimer.start();      // 8-15：墙钟计时开始
+    m_runElapsedMs = 0;
+    if (m_elapsedTicker) m_elapsedTicker->start();
     emit runStatusChanged();
     emit progressChanged();
     runNextGroup();
@@ -92,32 +220,62 @@ void AppState::runNextGroup() {
     if (m_pendingGroups.isEmpty()) {
         m_runStatus = Completed;
         m_currentGroup = -1;
+        m_runElapsedMs = m_runTimer.isValid() ? m_runTimer.elapsed() : m_runElapsedMs;
+        if (m_elapsedTicker) m_elapsedTicker->stop();
+        persistResults();   // 运行完成：落盘结果快照（重启恢复）
         emit currentRunningGroupChanged();
         emit runStatusChanged();
         emit progressChanged();
         return;
     }
     const int gi = m_pendingGroups.takeFirst();
+    // H1（page-diagnostic §3）：移动/Apple 平台在 G3 起大流量探测前暂停并弹确认
+    if (gi >= 2 && m_isPremiumPlatform && !m_cellularWarnAcked) {
+        m_cellularWarnVisible = true;
+        emit cellularWarnVisibleChanged();
+        return;   // 等待 continueAfterCellularWarn()
+    }
     const DiagGroup g = groupForIndex(gi);
     m_currentGroup = gi;
     emit currentRunningGroupChanged();
 
+    // H3：每次建 suite 递增 generation，迟到信号按 generation 丢弃
+    const qint64 gen = ++m_runGeneration;
     m_suite = new DiagnosticSuite(g, this);
     QVector<DiagId> ids;
     for (DiagId id : allDiagIds())
         if (diagGroup(id) == g && isSchedulable(id)
-            && (m_config == nullptr || m_config->isDiagEnabled(static_cast<int>(id))))
+            && (m_config == nullptr || m_config->isDiagEnabled(static_cast<int>(id)))
+            && runnableFor(id, m_targetScheme.toLower()))   // NEW-3/DIAG-4
             ids.append(id);
     m_suite->setDiagIds(ids);
-    connect(m_suite, &DiagnosticSuite::resultReady, this, [this](const DiagnosticResult& r) {
+    connect(m_suite, &DiagnosticSuite::resultReady, this, [this, gen](const DiagnosticResult& r) {
+        if (gen != m_runGeneration) return;   // H3：跨 run 迟到结果丢弃
         m_results.insert(r.id, r);
         m_currentDiagLabel = r.displayName;
         updateItemModel(r.id, r);
         emit progressChanged();
     });
-    connect(m_suite, &DiagnosticSuite::suiteFinished, this, &AppState::onSuiteFinished);
+    connect(m_suite, &DiagnosticSuite::suiteFinished, this, [this, gen]() {
+        auto* s = qobject_cast<DiagnosticSuite*>(sender());
+        if (!s) return;
+        if (gen != m_runGeneration || s != m_suite) {
+            s->deleteLater();   // H3：旧 suite 迟到 finished → 清理旧实例
+            return;
+        }
+        onSuiteFinished();
+    });
     m_groupDone.insert(gi, false);
-    const QString target = m_targetHost + m_targetPath;
+    // C4：scheme 拼回 target——协议探针（ftp/ssh/mysql/redis/mqtt…）依赖 scheme
+    // 判定协议并选端口，丢 scheme 会让全部 G5 协议族被判 "Not X" 跳过。
+    // 目标凭据注入：user:pass@ 前綴 + 显式端口（host 已带端口时不重复追加）。
+    QString host = m_targetHost;
+    if (!m_targetPort.isEmpty() && !host.contains(QLatin1Char(':')))
+        host += QLatin1Char(':') + m_targetPort;
+    QString auth;
+    if (!m_targetUser.isEmpty())
+        auth = m_targetUser + QLatin1Char(':') + m_targetPassword + QLatin1Char('@');
+    const QString target = m_targetScheme + QLatin1String("://") + auth + host + m_targetPath;
     m_suite->run(target, m_targetScheme.toLower());
 }
 
@@ -143,11 +301,26 @@ void AppState::cancel() {
     if (m_runStatus != Running) return;
     if (m_suite) m_suite->cancel();
     m_pendingGroups.clear();
+    persistResults();   // 取消也保存已完成部分
+    if (m_cellularWarnVisible) {
+        m_cellularWarnVisible = false;
+        emit cellularWarnVisibleChanged();
+    }
     m_runStatus = Cancelled;
     m_currentGroup = -1;
+    m_runElapsedMs = m_runTimer.isValid() ? m_runTimer.elapsed() : m_runElapsedMs;
+    if (m_elapsedTicker) m_elapsedTicker->stop();
     emit currentRunningGroupChanged();
     emit runStatusChanged();
     emit progressChanged();
+}
+
+void AppState::continueAfterCellularWarn() {
+    if (!m_cellularWarnVisible) return;
+    m_cellularWarnVisible = false;
+    m_cellularWarnAcked = true;
+    emit cellularWarnVisibleChanged();
+    if (m_runStatus == Running) runNextGroup();
 }
 
 QVariantMap AppState::itemFor(DiagId id) const {
@@ -179,7 +352,8 @@ QVariantList AppState::allDiagsForGroup(int groupInt) const {
     QVariantList out;
     const DiagGroup g = groupForIndex(groupInt);
     for (DiagId id : allDiagIds())
-        if (diagGroup(id) == g && isSchedulable(id))
+        if (diagGroup(id) == g && isSchedulable(id)
+            && runnableFor(id, m_targetScheme.toLower()))
             out.append(itemFor(id));
     return out;
 }
@@ -193,6 +367,8 @@ QVariantMap AppState::groupStats(int groupInt) const {
     for (DiagId id : allDiagIds()) {
         if (!isSchedulable(id)) continue;
         if (!aggregate && diagGroup(id) != g) continue;
+        // NEW-3：统计与调度同源——不可运行（平台/scheme/设备）不计入总数
+        if (!runnableFor(id, m_targetScheme.toLower())) continue;
         ++total;
         const auto it = m_results.constFind(id);
         if (it == m_results.constEnd()) continue;
@@ -224,10 +400,20 @@ QVariantMap AppState::groupStats(int groupInt) const {
 }
 
 QVariantList AppState::visibleGroups() const {
+    // H8：archive 语义 = isGroupActive(i) && enabled>0——组内全停用时隐藏面板。
+    // 8-15（渐进呈现）：运行中只显示已开始的组（已完成或当前组）；未调度的
+    // 组（如无目标时的 G4/G5）不显示；完成/取消后显示全部已调度组。
     QVariantList out;
-    for (int i = 0; i < 5; ++i)
-        if (isGroupActive(i))
-            out.append(i);
+    if (m_runStatus == Idle) return out;
+    for (int i = 0; i < 5; ++i) {
+        if (!isGroupActive(i) || !isGroupAnyEnabled(i)) continue;
+        const bool scheduled = m_pendingGroups.contains(i) || m_groupDone.contains(i);
+        if (!scheduled) continue;
+        const bool revealed = m_runStatus != Running
+            ? true
+            : (m_groupDone.contains(i) || i <= m_currentGroup);
+        if (revealed) out.append(i);
+    }
     return out;
 }
 
@@ -265,6 +451,12 @@ QVariantMap AppState::resultFor(int diagIdInt) const {
     QVariantMap data = it->data;
     data[QStringLiteral("templateType")] = static_cast<int>(diagnosticMeta(it->id).tmplType);
     m[QStringLiteral("data")] = data;
+    // 8-16：契约开关注入——详情区块（错误/属性/终端）按 meta DetailProfile
+    // 自门控，避免模板不支持的区块出现空卡/错误内容。
+    const DetailProfile& dp = diagnosticMeta(it->id).detail;
+    m[QStringLiteral("showErrorOutput")] = dp.showErrorOutput;
+    m[QStringLiteral("showProperties")] = dp.showProperties;
+    m[QStringLiteral("showTerminal")] = dp.showTerminal;
     return m;
 }
 
@@ -310,7 +502,7 @@ QVariantList AppState::allDiagIdsForGroup(int groupInt) const {
     const DiagGroup g = groupForIndex(groupInt);
     for (DiagId id : allDiagIds())
         if (diagGroup(id) == g && isSchedulable(id)
-            && DeviceCapability::diagSupportedOnDevice(id))
+            && runnableFor(id, m_targetScheme.toLower()))   // NEW-3：Config 可见性同源
             out.append(static_cast<int>(id));
     return out;
 }
@@ -396,6 +588,9 @@ void AppState::loadPreferences() {
     }
     m_languageIndex = s.value(QStringLiteral("languageIndex"), 7).toInt();
     m_themeMode = s.value(QStringLiteral("themeMode"), 2).toInt();
+    m_targetUser = s.value(QStringLiteral("targetUser")).toString();
+    m_targetPassword = s.value(QStringLiteral("targetPassword")).toString();
+    m_targetPort = s.value(QStringLiteral("targetPort")).toString();
     s.endGroup();
 }
 
@@ -409,6 +604,9 @@ void AppState::savePreferences() {
     s.setValue(QStringLiteral("activeGroups"), active);
     s.setValue(QStringLiteral("languageIndex"), m_languageIndex);
     s.setValue(QStringLiteral("themeMode"), m_themeMode);
+    s.setValue(QStringLiteral("targetUser"), m_targetUser);
+    s.setValue(QStringLiteral("targetPassword"), m_targetPassword);
+    s.setValue(QStringLiteral("targetPort"), m_targetPort);
     s.endGroup();
 }
 
@@ -462,6 +660,58 @@ void AppState::copyReportToClipboard() {
     QGuiApplication::clipboard()->setText(buildReportText());
 }
 
+// ── HTML 报告（ReportEngine 最小恢复：快照式、纯文本输出；PDF/预览 UI 延后）──
+// 归档 ReportEngine 的 HTML 导出能力以轻量形态保留：每次调用基于当前 m_results
+// 快照生成完整 HTML，不做增量缓存。
+QString AppState::buildReportHtml() const {
+    static const QHash<DiagStatus, QString> kStatusColor = {
+        {DiagStatus::Pass,      QStringLiteral("#22c55e")},
+        {DiagStatus::Warning,   QStringLiteral("#f59e0b")},
+        {DiagStatus::Fail,      QStringLiteral("#ef4444")},
+        {DiagStatus::Skipped,   QStringLiteral("#94a3b8")},
+        {DiagStatus::Info,      QStringLiteral("#3b82f6")},
+        {DiagStatus::Error,     QStringLiteral("#ef4444")},
+        {DiagStatus::Cancelled, QStringLiteral("#94a3b8")},
+    };
+    auto esc = [](const QString& s) {
+        return s.toHtmlEscaped();
+    };
+    QStringList h;
+    h.append(QStringLiteral("<!DOCTYPE html><html><head><meta charset=\"utf-8\">"));
+    h.append(QStringLiteral("<title>NetDiagnostics Report</title><style>"));
+    h.append(QStringLiteral("body{font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;padding:24px}"));
+    h.append(QStringLiteral("h1{font-size:22px}h2{font-size:16px;margin-top:24px;border-bottom:1px solid #334155;padding-bottom:6px}"));
+    h.append(QStringLiteral("table{width:100%%;border-collapse:collapse;font-size:13px}"));
+    h.append(QStringLiteral("td,th{padding:6px 10px;border-bottom:1px solid #1e293b;text-align:left}"));
+    h.append(QStringLiteral("th{color:#94a3b8;font-weight:600}.st{font-weight:700}.meta{color:#94a3b8;font-size:12px}"));
+    h.append(QStringLiteral("</style></head><body>"));
+    h.append(QStringLiteral("<h1>NetDiagnostics Report</h1>"));
+    h.append(QStringLiteral("<div class=\"meta\">Target: %1 &middot; Generated: %2</div>")
+        .arg(esc(m_targetHost + m_targetPath),
+             esc(QDateTime::currentDateTime().toString(Qt::ISODate))));
+    for (int gi = 0; gi < 5; ++gi) {
+        const DiagGroup g = groupForIndex(gi);
+        QStringList rows;
+        for (DiagId id : allDiagIds()) {
+            if (diagGroup(id) != g || !isSchedulable(id)) continue;
+            const auto it = m_results.constFind(id);
+            if (it == m_results.constEnd()) continue;
+            rows.append(QStringLiteral("<tr><td class=\"st\" style=\"color:%1\">%2</td>"
+                                       "<td>%3</td><td>%4</td><td>%5 ms</td></tr>")
+                .arg(kStatusColor.value(it->status, QStringLiteral("#94a3b8")),
+                     statusToken(it->status), esc(it->displayName),
+                     esc(it->summary), QString::number(it->durationMs)));
+        }
+        if (rows.isEmpty()) continue;
+        h.append(QStringLiteral("<h2>%1</h2>").arg(esc(diagGroupLabel(g))));
+        h.append(QStringLiteral("<table><tr><th>Status</th><th>Test</th><th>Result</th><th>Time</th></tr>"));
+        h.append(rows.join(QString()));
+        h.append(QStringLiteral("</table>"));
+    }
+    h.append(QStringLiteral("</body></html>"));
+    return h.join(QLatin1Char('\n'));
+}
+
 void AppState::copyDetailToClipboard(int diagIdInt) {
     const auto it = m_results.constFind(static_cast<DiagId>(diagIdInt));
     if (it == m_results.constEnd()) return;
@@ -475,4 +725,108 @@ void AppState::copyDetailToClipboard(int diagIdInt) {
             lines.append(QStringLiteral("  %1: %2").arg(c.label, c.value));
     }
     QGuiApplication::clipboard()->setText(lines.join(QLatin1Char('\n')));
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 报告 / 分享 / 动画（ReportEngine + Premium 后端恢复）
+// ═══════════════════════════════════════════════════════════════════════
+
+QString AppState::diagAnimationUrl(int diagIdInt) const {
+    // DiagAnimType → QRC URL 单一来源（无 QML 侧 switch）
+    const DiagId id = static_cast<DiagId>(diagIdInt);
+    switch (diagnosticMeta(id).animType) {
+        case DiagAnimType::Bounce: return QStringLiteral("qrc:/qt/qml/widgets/animations/BounceAnimation.qml");
+        case DiagAnimType::Path:   return QStringLiteral("qrc:/qt/qml/widgets/animations/PathAnimation.qml");
+        case DiagAnimType::Pulse:  return QStringLiteral("qrc:/qt/qml/widgets/animations/PulseAnimation.qml");
+        case DiagAnimType::Type:   return QStringLiteral("qrc:/qt/qml/widgets/animations/TypeAnimation.qml");
+        case DiagAnimType::Lock:   return QStringLiteral("qrc:/qt/qml/widgets/animations/LockAnimation.qml");
+        default:                   return QStringLiteral("qrc:/qt/qml/widgets/animations/JiggleAnimation.qml");
+    }
+}
+
+// 快照构建（ReportEngine 零耦合当前可变状态）
+QString AppState::previewReportHtml() const {
+    ReportData d;
+    d.target = m_targetHost + m_targetPath;
+    d.timestamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"));
+    d.appVersion = QStringLiteral(PROJECT_VERSION);
+    d.buildNumber = QStringLiteral(ND_BUILD_NUMBER);
+    d.gitHash = QStringLiteral("dev");
+    for (int gi = 0; gi < 5; ++gi) {
+        const DiagGroup g = groupForIndex(gi);
+        d.groupLabels.append(diagGroupLabel(g));
+        QList<DiagId> ids;
+        QVariantMap st;
+        int pass = 0, warn = 0, fail = 0, skip = 0, info = 0, error = 0, cancelled = 0, total = 0;
+        for (DiagId id : allDiagIds()) {
+            if (diagGroup(id) != g || !isSchedulable(id)) continue;
+            ids.append(id);
+            d.displayNames[id] = diagDisplayName(id);
+            const auto it = m_results.constFind(id);
+            if (it == m_results.constEnd()) continue;
+            d.results[id] = *it;
+        }
+        for (const auto& r : m_results) {
+            if (diagGroup(r.id) != g) continue;
+            ++total;
+            switch (r.status) {
+                case DiagStatus::Pass: ++pass; break;
+                case DiagStatus::Warning: ++warn; break;
+                case DiagStatus::Fail: ++fail; break;
+                case DiagStatus::Skipped: ++skip; break;
+                case DiagStatus::Info: ++info; break;
+                case DiagStatus::Error: ++error; break;
+                case DiagStatus::Cancelled: ++cancelled; break;
+            }
+        }
+        st[QStringLiteral("pass")] = pass; st[QStringLiteral("warn")] = warn;
+        st[QStringLiteral("fail")] = fail; st[QStringLiteral("skip")] = skip;
+        st[QStringLiteral("info")] = info; st[QStringLiteral("error")] = error;
+        st[QStringLiteral("cancelled")] = cancelled; st[QStringLiteral("total")] = total;
+        d.groupStats[gi] = st;
+        d.diagIdsInGroup[g] = ids;
+    }
+    return ReportEngine::buildHtml(d, true, true);
+}
+
+QString AppState::renderPreviewImage(int widthPx) const {
+    const QString html = previewReportHtml();
+    const QImage img = ReportEngine::renderHtmlToImage(html, widthPx > 0 ? widthPx : 960);
+    if (img.isNull()) return {};
+    const QString path = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+        .filePath(QStringLiteral("netdiag_preview.png"));
+    if (img.save(path)) return path;
+    return {};
+}
+
+QString AppState::exportHtmlReport() const {
+    const QString html = previewReportHtml();
+    const QString path = ReportEngine::defaultReportPath(QStringLiteral("html"));
+    return ReportEngine::exportHtml(path, html);
+}
+
+QString AppState::exportPdfReport() const {
+    const QString html = previewReportHtml();
+    const QString path = ReportEngine::defaultReportPath(QStringLiteral("pdf"));
+    return ReportEngine::exportPdf(path, html);
+}
+
+QString AppState::shareReportFile(const QString& format) {
+    if (format == QLatin1String("text")) {
+        copyReportToClipboard();
+        return {};
+    }
+    QString path;
+    if (format == QLatin1String("pdf")) path = exportPdfReport();
+    else path = exportHtmlReport();
+    if (path.isEmpty()) return {};
+#if defined(PLATFORM_IOS) || defined(PLATFORM_ANDROID)
+    platformShareFile(path,
+        format == QLatin1String("pdf") ? QStringLiteral("application/pdf") : QStringLiteral("text/html"),
+        QStringLiteral("NetDiagnostics Report"));
+#else
+    // 桌面：交给系统默认应用（浏览器/PDF 阅读器）+ 邮件 handoff 语义
+    QDesktopServices::openUrl(QUrl::fromLocalFile(path));
+#endif
+    return path;
 }

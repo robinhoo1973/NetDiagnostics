@@ -9,10 +9,10 @@
 #if defined(_WIN32)
 // 必须先于任何 Qt/Windows 头（Qt 头会先拉 windows.h）：
 // WINAPI_FAMILY=DESKTOP_APP 使 IP Helper 桌面分区可见；_WIN32_WINNT 最低版本。
-#ifndef WINAPI_FAMILY
+#if !defined(WINAPI_FAMILY)
 #define WINAPI_FAMILY WINAPI_FAMILY_DESKTOP_APP
 #endif
-#ifndef _WIN32_WINNT
+#if !defined(_WIN32_WINNT)
 #define _WIN32_WINNT 0x0601
 #endif
 #endif
@@ -20,6 +20,10 @@
 #include "Common/Services/PlatformAdapter.h"
 #include "Common/Model/DiagnosticMeta.h"
 #include "Common/Model/DiagNames.h"
+
+#if defined(PLATFORM_ANDROID)
+#include "Diagnostics/Model/G5/Platform/Android/NetworkDiagnostics.h"
+#endif
 
 #include <QNetworkInterface>
 #include <QNetworkAddressEntry>
@@ -31,6 +35,9 @@
 #include <QDir>
 #include <QDateTime>
 #include <QRegularExpression>
+#include <QSet>
+
+#include <cstring>
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -41,13 +48,40 @@
 #include <netioapi.h>
 #include <iphlpapi.h>   // GetAdaptersInfo / GetExtendedTcpTable
 #include <tcpmib.h>     // MIB_TCP_STATE_ESTAB / MIB_TCPTABLE_OWNER_PID
+#include <wlanapi.h>    // WlanOpenHandle/WlanQueryInterface（WiFi 深探测）
 #endif
+
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
+#include <ifaddrs.h>
+#include "Common/Platform/Apple/macOS/WifiHelper.h"   // CoreWLAN SSID/BSSID
+#endif
+#if defined(__linux__)
+#include <ifaddrs.h>
+#if !defined(PLATFORM_ANDROID)
+#include <sys/socket.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <net/if_arp.h>
+#include <unistd.h>
+#include <linux/wireless.h>   // iwreq / SIOCGIWESSID / SIOCGIWAP / SIOCGIWFREQ（Bionic 无此头）
+#endif
+#endif
+
+#include "Diagnostics/View/DiagnosticFormatter.h"
 
 using namespace PlatformFlag;
 
 namespace g1 {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+static QString mac6ToStr(const unsigned char* mac) {
+    return QStringLiteral("%1:%2:%3:%4:%5:%6")
+        .arg(mac[0], 2, 16, QLatin1Char('0')).arg(mac[1], 2, 16, QLatin1Char('0'))
+        .arg(mac[2], 2, 16, QLatin1Char('0')).arg(mac[3], 2, 16, QLatin1Char('0'))
+        .arg(mac[4], 2, 16, QLatin1Char('0')).arg(mac[5], 2, 16, QLatin1Char('0'))
+        .toUpper();
+}
+
 static DiagnosticResult makeResult(DiagId id, DiagStatus status,
                                    const QString& summary,
                                    const QVector<ResultProperty>& props,
@@ -146,7 +180,8 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
         }
         HeapFree(GetProcessHeap(), 0, table);
     }
-#elif defined(__linux__) || defined(__ANDROID__)
+#else
+#if defined(__linux__) || defined(__ANDROID__)
     // sysfs：驱动上报的真实协商速率/双工（文件不存在 = 驱动不暴露）。
     for (const auto& i : runningInterfaces()) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
@@ -171,7 +206,8 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
         p.children.append({QStringLiteral("MAC"), i.hardwareAddress()});
         props.append(p);
     }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // macOS：ifconfig media 行（如 "media: autoselect (1000baseT <full-duplex>)"）。
     static const QRegularExpression kMedia(QStringLiteral("(\\d+)\\s*(G|M)?base"));
     for (const auto& i : runningInterfaces()) {
@@ -211,6 +247,8 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
         props.append(p);
     }
 #endif
+#endif
+#endif
 
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Info, QStringLiteral("No NIC driver details available"), {}, {});
@@ -234,19 +272,151 @@ static DiagnosticResult probeNicAdvanced(DiagId id, const QString&, RunContext& 
 // ── G1WifiDiagnostics ─────────────────────────────────────────────────────
 static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
-    const auto ifaces = runningInterfaces();
-    for (const auto& i : ifaces) {
-        if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
-        if (i.name().contains(QLatin1String("wl"), Qt::CaseInsensitive)
-            || i.name().contains(QLatin1String("wlan"), Qt::CaseInsensitive)
-            || i.name().contains(QLatin1String("wi-fi"), Qt::CaseInsensitive)) {
-            props.append({i.name(), i.hardwareAddress()});
+    QStringList ssids;
+#if defined(_WIN32)
+    // Windows：WLAN API 深探测（SSID/BSSID/信道/RSSI/认证算法）
+    HANDLE hClient = nullptr;
+    DWORD negotiatedVer = 0;
+    if (WlanOpenHandle(2, nullptr, &negotiatedVer, &hClient) == ERROR_SUCCESS) {
+        PWLAN_INTERFACE_INFO_LIST ifList = nullptr;
+        if (WlanEnumInterfaces(hClient, nullptr, &ifList) == ERROR_SUCCESS) {
+            for (DWORD i = 0; i < ifList->dwNumberOfItems; i++) {
+                if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
+                auto& wi = ifList->InterfaceInfo[i];
+                ResultProperty p(QString::fromWCharArray(wi.strInterfaceDescription),
+                    wi.isState == wlan_interface_state_connected ? QStringLiteral("connected") : QStringLiteral("disconnected"));
+                QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
+                QString channel = QStringLiteral("-"), signal = QStringLiteral("-");
+                if (wi.isState == wlan_interface_state_connected) {
+                    DWORD dataSize = 0;
+                    PWLAN_CONNECTION_ATTRIBUTES pConn = nullptr;
+                    if (WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_current_connection,
+                                          nullptr, &dataSize, (PVOID*)&pConn, nullptr) == ERROR_SUCCESS && pConn) {
+                        ssid = QString::fromUtf8((const char*)pConn->wlanAssociationAttributes.dot11Ssid.ucSSID,
+                                                 pConn->wlanAssociationAttributes.dot11Ssid.uSSIDLength);
+                        bssid = mac6ToStr((const unsigned char*)pConn->wlanAssociationAttributes.dot11Bssid);
+                        ULONG ch = 0; DWORD chSize = sizeof(ch);
+                        if (WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_channel_number,
+                                              nullptr, &chSize, (PVOID*)&ch, nullptr) == ERROR_SUCCESS && ch > 0)
+                            channel = QString::number(ch);
+                        QString auth = QStringLiteral("Unknown");
+                        switch (pConn->wlanSecurityAttributes.dot11AuthAlgorithm) {
+                            case DOT11_AUTH_ALGO_80211_OPEN:      auth = QStringLiteral("Open"); break;
+                            case DOT11_AUTH_ALGO_80211_SHARED_KEY: auth = QStringLiteral("Shared"); break;
+                            case DOT11_AUTH_ALGO_WPA:             auth = QStringLiteral("WPA"); break;
+                            case DOT11_AUTH_ALGO_WPA_PSK:         auth = QStringLiteral("WPA-PSK"); break;
+                            case DOT11_AUTH_ALGO_WPA3:            auth = QStringLiteral("WPA3"); break;
+                            case DOT11_AUTH_ALGO_RSNA:            auth = QStringLiteral("WPA2"); break;
+                            case DOT11_AUTH_ALGO_RSNA_PSK:        auth = QStringLiteral("WPA2-PSK"); break;
+                            default: break;
+                        }
+                        p.children.append({QStringLiteral("security"), auth});
+                        WlanFreeMemory(pConn); pConn = nullptr;
+                    }
+                    LONG rssi = 0; dataSize = sizeof(rssi);
+                    if (WlanQueryInterface(hClient, &wi.InterfaceGuid, wlan_intf_opcode_rssi,
+                                          nullptr, &dataSize, (PVOID*)&rssi, nullptr) == ERROR_SUCCESS) {
+                        const int pct = (rssi >= -50) ? 100 : (rssi <= -100) ? 0 : 2 * (rssi + 100);
+                        signal = QStringLiteral("%1% (%2 dBm)").arg(pct).arg(rssi);
+                    }
+                }
+                p.children.append({QStringLiteral("SSID"), ssid});
+                p.children.append({QStringLiteral("BSSID"), bssid});
+                p.children.append({QStringLiteral("channel"), channel});
+                p.children.append({QStringLiteral("signal"), signal});
+                props.append(p);
+                if (ssid != QLatin1String("-")) ssids.append(ssid);
+            }
+            WlanFreeMemory(ifList);
         }
+        WlanCloseHandle(hClient, nullptr);
     }
+#else
+    // Linux：wireless extensions ioctl（SSID/BSSID/频段）+ sysfs bitrate + /proc 信号；
+    // macOS：CoreWLAN 专用 .mm 助手。
+    struct ifaddrs* ifa = nullptr;
+    if (getifaddrs(&ifa) == 0) {
+        QSet<QString> seen;
+        for (auto* q = ifa; q; q = q->ifa_next) {
+            if (ctx.cancelled.load()) { freeifaddrs(ifa); return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled")); }
+            const QString ifName = QString::fromLatin1(q->ifa_name);
+            if (seen.contains(ifName)) continue;
+#if defined(__APPLE__)
+            if (!ifName.startsWith(QLatin1String("en"))) continue;   // macOS WiFi = en*
+#else
+            if (!QFile::exists(QStringLiteral("/sys/class/net/%1/wireless").arg(ifName))) continue;
+#endif
+            seen.insert(ifName);
+            QString ssid = QStringLiteral("-"), bssid = QStringLiteral("-");
+            QString channel = QStringLiteral("-"), signal = QStringLiteral("-"), bitrate = QStringLiteral("-");
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
+            const QString s = macosWifiSsid();
+            if (!s.isEmpty()) ssid = s;
+            const QString b = macosWifiBssid();
+            if (!b.isEmpty()) bssid = b;
+#else
+#if defined(__linux__) && !defined(PLATFORM_ANDROID)
+            int sock = ::socket(AF_INET, SOCK_DGRAM, 0);
+            if (sock >= 0) {
+                struct iwreq wrq;
+                std::memset(&wrq, 0, sizeof(wrq));
+                strncpy(wrq.ifr_name, ifName.toUtf8().constData(), IFNAMSIZ - 1);
+                char essid[IW_ESSID_MAX_SIZE + 1] = {};
+                wrq.u.essid.pointer = essid;
+                wrq.u.essid.length = IW_ESSID_MAX_SIZE + 1;
+                wrq.u.essid.flags = 0;
+                if (::ioctl(sock, SIOCGIWESSID, &wrq) == 0 && wrq.u.essid.length > 0)
+                    ssid = QString::fromUtf8(essid, wrq.u.essid.length);
+                if (::ioctl(sock, SIOCGIWAP, &wrq) == 0 && wrq.u.ap_addr.sa_family == ARPHRD_ETHER)
+                    bssid = mac6ToStr((const unsigned char*)wrq.u.ap_addr.sa_data);
+                if (::ioctl(sock, SIOCGIWFREQ, &wrq) == 0) {
+                    const double freq = wrq.u.freq.m / 1e9;
+                    channel = QStringLiteral("%1 (%.3f GHz)").arg((int)((freq - 2.412) / 0.005 + 1)).arg(freq, 0, 'f', 3);
+                }
+                ::close(sock);
+            }
+            QFile wfile(QStringLiteral("/proc/net/wireless"));
+            if (wfile.open(QIODevice::ReadOnly)) {
+                QTextStream ts(&wfile);
+                ts.readLine(); ts.readLine();
+                while (!ts.atEnd()) {
+                    const QString line = ts.readLine().trimmed();
+                    if (line.startsWith(ifName + QLatin1Char(':'))) {
+                        const QStringList cols = line.split(QRegularExpression(QStringLiteral("\\s+")));
+                        if (cols.size() >= 5) {
+                            QString sig = cols[4];
+                            sig.remove(QLatin1Char('.'));
+                            signal = sig + QStringLiteral(" dBm");
+                        }
+                        break;
+                    }
+                }
+            }
+            QFile rateFile(QStringLiteral("/sys/class/net/%1/wireless/bitrate").arg(ifName));
+            if (rateFile.open(QIODevice::ReadOnly))
+                bitrate = QString::fromLatin1(rateFile.readAll().trimmed());
+#endif
+#endif
+            ResultProperty p(ifName, ssid == QLatin1String("-") ? QLatin1String("-") : ssid);
+            p.children.append({QStringLiteral("SSID"), ssid});
+            p.children.append({QStringLiteral("BSSID"), bssid});
+            p.children.append({QStringLiteral("channel"), channel});
+            p.children.append({QStringLiteral("signal"), signal});
+            if (bitrate != QLatin1String("-")) p.children.append({QStringLiteral("bitrate"), bitrate});
+            props.append(p);
+            if (ssid != QLatin1String("-")) ssids.append(ssid);
+        }
+        freeifaddrs(ifa);
+    }
+#endif
     if (props.isEmpty())
         return makeResult(id, DiagStatus::Skipped, QStringLiteral("No WiFi interface present"), {}, {});
-    // SSID/信号强度/频段/安全为平台深探针（后续按组补充）；QNetworkInterface 只给存在性。
-    return makeResult(id, DiagStatus::Pass, QStringLiteral("WiFi interface present"), props, {});
+    DiagnosticResult r = makeResult(id, DiagStatus::Pass,
+        ssids.isEmpty() ? QStringLiteral("WiFi interface present")
+                        : QStringLiteral("WiFi: %1").arg(ssids.join(QStringLiteral(", "))),
+        props, {});
+    r.data[QStringLiteral("ssids")] = ssids;
+    return r;
 }
 
 // ── G1WiredDiagnostics ────────────────────────────────────────────────────
@@ -261,6 +431,23 @@ static DiagnosticResult probeWired(DiagId id, const QString&, RunContext& ctx) {
             ResultProperty p(i.name(), QString::number(i.maximumTransmissionUnit()));
             for (const auto& e : i.addressEntries())
                 p.children.append({QStringLiteral("address"), e.ip().toString()});
+#if defined(__linux__)
+            // H5/Linux：sysfs 上报真实协商速率/双工/状态
+            QFile sf(QStringLiteral("/sys/class/net/%1/speed").arg(i.name()));
+            if (sf.open(QIODevice::ReadOnly)) {
+                const QString mbps = QString::fromLatin1(sf.readAll().trimmed());
+                if (mbps.toInt() > 0) p.children.append({QStringLiteral("link speed"), mbps + QStringLiteral(" Mbps")});
+            }
+            QFile df(QStringLiteral("/sys/class/net/%1/duplex").arg(i.name()));
+            if (df.open(QIODevice::ReadOnly)) {
+                const QString d = QString::fromLatin1(df.readAll().trimmed());
+                if (!d.isEmpty() && d != QLatin1String("unknown"))
+                    p.children.append({QStringLiteral("duplex"), d});
+            }
+            QFile of(QStringLiteral("/sys/class/net/%1/operstate").arg(i.name()));
+            if (of.open(QIODevice::ReadOnly))
+                p.children.append({QStringLiteral("state"), QString::fromLatin1(of.readAll().trimmed())});
+#endif
             props.append(p);
         }
     }
@@ -312,12 +499,14 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
             }
         }
     }
-#elif defined(PLATFORM_IOS) && defined(__APPLE__)
+#else
+#if defined(PLATFORM_IOS) && defined(__APPLE__)
     ResultProperty p(QStringLiteral("iOS DHCP"), QStringLiteral("system-managed"));
     p.children.append({QStringLiteral("DHCP"), QStringLiteral("Yes")});
     p.children.append({QStringLiteral("lease"), QStringLiteral("not exposed to third-party apps")});
     props.append(p);
-#elif defined(__APPLE__)
+#else
+#if defined(__APPLE__)
     // macOS：ipconfig getpacket <iface>（系统 DHCP 客户端真实报文数据）。
     for (const auto& i : runningInterfaces()) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
@@ -399,6 +588,8 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
     if (nm.exists())
         for (const auto& fi : nm.entryInfoList({QStringLiteral("*.lease")}, QDir::Files)) addLeaseFile(fi.absoluteFilePath());
 #endif
+#endif
+#endif
 
     if (leaseCount > 0) {
         DiagnosticResult r = makeResult(id, DiagStatus::Pass,
@@ -417,6 +608,40 @@ static DiagnosticResult probeDhcp(DiagId id, const QString&, RunContext& ctx) {
 // ── G1IpConfiguration ─────────────────────────────────────────────────────
 static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx) {
     QVector<ResultProperty> props;
+    // L7/Linux：默认网关（/proc/net/route）与 DNS（resolv.conf）补入属性
+#if defined(__linux__) || defined(__ANDROID__)
+    QStringList gateways;
+    QFile rf(QStringLiteral("/proc/net/route"));
+    if (rf.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&rf);
+        ts.readLine();
+        while (!ts.atEnd()) {
+            const QString line = ts.readLine().trimmed();
+            const QStringList cols = line.split(QLatin1Char('\t'));
+            if (cols.size() >= 8) {
+                bool ok = false;
+                const uint32_t dest = cols[1].toUInt(&ok, 16);
+                const uint32_t gw   = cols[2].toUInt(&ok, 16);
+                if (dest == 0 && gw != 0) {
+                    QHostAddress a(QStringLiteral("%1.%2.%3.%4")
+                        .arg(int(gw & 0xFF)).arg(int((gw >> 8) & 0xFF))
+                        .arg(int((gw >> 16) & 0xFF)).arg(int((gw >> 24) & 0xFF)));
+                    gateways.append(a.toString());
+                }
+            }
+        }
+    }
+    QStringList dnsServers;
+    QFile df(QStringLiteral("/etc/resolv.conf"));
+    if (df.open(QIODevice::ReadOnly)) {
+        QTextStream ts(&df);
+        while (!ts.atEnd()) {
+            const QString line = ts.readLine().trimmed();
+            if (line.startsWith(QLatin1String("nameserver")))
+                dnsServers.append(line.section(QRegularExpression(QStringLiteral("\\s+")), 1));
+        }
+    }
+#endif
     const auto ifaces = runningInterfaces();
     for (const auto& i : ifaces) {
         if (ctx.cancelled.load()) return DiagnosticResult::cancelled(id, QStringLiteral("Cancelled"));
@@ -424,6 +649,12 @@ static DiagnosticResult probeIpConfig(DiagId id, const QString&, RunContext& ctx
             ResultProperty p(i.name(), e.ip().toString());
             if (!e.netmask().isNull())
                 p.children.append({QStringLiteral("netmask"), e.netmask().toString()});
+#if defined(__linux__) || defined(__ANDROID__)
+            if (!gateways.isEmpty())
+                p.children.append({QStringLiteral("gateway"), gateways.join(QStringLiteral(", "))});
+            if (!dnsServers.isEmpty())
+                p.children.append({QStringLiteral("dns"), dnsServers.join(QStringLiteral(", "))});
+#endif
             props.append(p);
         }
     }
@@ -457,7 +688,8 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             }
         }
     }
-#elif defined(_WIN32)
+#else
+#if defined(_WIN32)
     // GetExtendedTcpTable 真实枚举（含 PID）；仅统计 ESTABLISHED。
     DWORD bufLen = 0;
     GetExtendedTcpTable(nullptr, &bufLen, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
@@ -483,7 +715,8 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
             }
         }
     }
-#elif defined(__APPLE__) && !defined(PLATFORM_IOS)
+#else
+#if defined(__APPLE__) && !defined(PLATFORM_IOS)
     // macOS：netstat -an -p tcp 解析（无 /proc；pcblist64 解析复杂度高且不稳定）。
     QProcess proc;
     proc.start(QStringLiteral("netstat"), QStringList() << QStringLiteral("-an") << QStringLiteral("-p") << QStringLiteral("tcp"));
@@ -506,6 +739,8 @@ static DiagnosticResult probeActiveConnections(DiagId id, const QString&, RunCon
 #else
     // iOS：沙箱不暴露连接表（netstat 不存在）——诚实说明。
     props.append({QStringLiteral("iOS"), QStringLiteral("connection table not exposed to third-party apps")});
+#endif
+#endif
 #endif
     DiagnosticResult r = makeResult(id, count > 0 ? DiagStatus::Pass : DiagStatus::Info,
         QStringLiteral("%1 established TCP connection(s)").arg(count), props, {});
@@ -533,6 +768,56 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
 
 } // namespace g1
 
+// ── 平台深探针（iOS GatewayDhcpRouting / Android JNI）───────────────────
+#if defined(PLATFORM_IOS)
+#include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
+namespace {
+DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
+    const QVariantMap info = iosWifiInfo();
+    if (info.isEmpty())
+        return DiagnosticResult::skipped(id, QStringLiteral("No WiFi interface present"));
+    QVector<ResultProperty> props;
+    auto add = [&props](const char* label, const QString& v) {
+        if (!v.isEmpty()) props.append({QLatin1String(label), v});
+    };
+    add("SSID", info.value(QStringLiteral("ssid")).toString());
+    add("BSSID", info.value(QStringLiteral("bssid")).toString());
+    add("signal dBm", info.value(QStringLiteral("rssi")).toString());
+    add("channel", info.value(QStringLiteral("channel")).toString());
+    add("security", info.value(QStringLiteral("security")).toString());
+    DiagnosticResult r;
+    r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
+    r.status = DiagStatus::Pass;
+    r.summary = QStringLiteral("WiFi: %1").arg(info.value(QStringLiteral("ssid")).toString());
+    r.properties = props;
+    r.timestamp = QDateTime::currentDateTime();
+    return r;
+}
+
+DiagnosticResult iosCellularProbe(DiagId id) {
+    const QVariantMap info = iosCellularInfo();
+    if (info.isEmpty())
+        return DiagnosticResult::skipped(id, QStringLiteral("No cellular modem present"));
+    QVector<ResultProperty> props;
+    auto add = [&props](const char* label, const QString& v) {
+        if (!v.isEmpty()) props.append({QLatin1String(label), v});
+    };
+    add("carrier", info.value(QStringLiteral("carrierName")).toString());
+    add("radio access", info.value(QStringLiteral("radioAccess")).toString());
+    add("MCC", info.value(QStringLiteral("mcc")).toString());
+    add("MNC", info.value(QStringLiteral("mnc")).toString());
+    add("signal", info.value(QStringLiteral("signalStrength")).toString());
+    DiagnosticResult r;
+    r.id = id; r.displayName = diagDisplayName(id); r.group = diagGroup(id);
+    r.status = DiagStatus::Pass;
+    r.summary = QStringLiteral("Carrier: %1").arg(info.value(QStringLiteral("carrierName")).toString());
+    r.properties = props;
+    r.timestamp = QDateTime::currentDateTime();
+    return r;
+}
+} // namespace
+#endif
+
 // ── Registration ───────────────────────────────────────────────────────────
 // Called by registerAllAdapters() from main() (DIAG-2/A1: explicit init).
 void registerG1Adapters() {
@@ -540,41 +825,76 @@ void registerG1Adapters() {
     using g1::probeWifi; using g1::probeWired; using g1::probeDhcp;
     using g1::probeIpConfig; using g1::probeActiveConnections; using g1::probeCellular;
 
+#if defined(PLATFORM_ANDROID)
+    // Android：全部 8 项均有 JNI 深探测实现（NetworkDiagnostics.cpp）
+    AdapterRegistry::registerAdapters(DiagId::G1NetworkAdapters, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidNetworkAdaptersDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1NicAdvanced, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidNicAdvancedDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1WifiDiagnostics, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidWifiDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1WiredDiagnostics, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidWiredDiagnosticsDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1DhcpStatus, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidDhcpDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1IpConfiguration, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidIpConfigurationDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1ActiveConnections, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidActiveConnectionsDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1CellularInfo, {
+        { PF_Android, "Android", {}, [](DiagId i, const QString&, RunContext&) { return androidCellularDiag(i); } },
+    });
+    return;
+#else
+#if defined(PLATFORM_IOS)
+    // iOS：DHCP/网关经系统 API；WiFi/蜂窝经 CNCopyCurrentNetworkInfo/CTTelephony
+    AdapterRegistry::registerAdapters(DiagId::G1DhcpStatus, {
+        { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosDhcpDiag(i); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1WifiDiagnostics, {
+        { PF_IOS, "iOS", {}, [](DiagId i, const QString& t, RunContext& ctx) { return iosWifiProbe(i, t, ctx); } },
+    });
+    AdapterRegistry::registerAdapters(DiagId::G1CellularInfo, {
+        { PF_IOS, "iOS", {}, [](DiagId i, const QString&, RunContext&) { return iosCellularProbe(i); } },
+    });
+#endif
+#endif
+
     AdapterRegistry::registerAdapters(DiagId::G1NetworkAdapters, {
         { PF_Desktop, "Desktop", {}, probeNetworkAdapters },
+#if !defined(PLATFORM_ANDROID)
         { PF_IOS,     "iOS",     {}, probeNetworkAdapters },
-        { PF_Android, "Android", {}, probeNetworkAdapters },
+#endif
     });
     AdapterRegistry::registerAdapters(DiagId::G1NicAdvanced, {
         { PF_Desktop, "Desktop", {}, probeNicAdvanced },
-        { PF_Android, "Android", {}, probeNicAdvanced },
     });
     AdapterRegistry::registerAdapters(DiagId::G1WifiDiagnostics, {
         { PF_Desktop, "Desktop", {}, probeWifi },
-        { PF_IOS,     "iOS",     {}, probeWifi },
-        { PF_Android, "Android", {}, probeWifi },
     });
     AdapterRegistry::registerAdapters(DiagId::G1WiredDiagnostics, {
         { PF_Desktop, "Desktop", {}, probeWired },
-        { PF_Android, "Android", {}, probeWired },
     });
     AdapterRegistry::registerAdapters(DiagId::G1DhcpStatus, {
         { PF_Desktop, "Desktop", {}, probeDhcp },
-        { PF_IOS,     "iOS",     {}, probeDhcp },
-        { PF_Android, "Android", {}, probeDhcp },
     });
     AdapterRegistry::registerAdapters(DiagId::G1IpConfiguration, {
         { PF_Desktop, "Desktop", {}, probeIpConfig },
+#if !defined(PLATFORM_ANDROID)
         { PF_IOS,     "iOS",     {}, probeIpConfig },
-        { PF_Android, "Android", {}, probeIpConfig },
+#endif
     });
     AdapterRegistry::registerAdapters(DiagId::G1ActiveConnections, {
         { PF_Desktop, "Desktop", {}, probeActiveConnections },
-        { PF_Android, "Android", {}, probeActiveConnections },
     });
     AdapterRegistry::registerAdapters(DiagId::G1CellularInfo, {
         { PF_Desktop, "Desktop", {}, probeCellular },
-        { PF_IOS,     "iOS",     {}, probeCellular },
-        { PF_Android, "Android", {}, probeCellular },
     });
 }

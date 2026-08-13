@@ -5,6 +5,10 @@
 // toastText (or expose showToast()), keep page-local Timer/Connections for
 // multi-toast sequencing (e.g. language + restore in Settings).  Base
 // PageDisplay no longer carries a built-in toast.
+//
+// 7-8（2026-08-13）：toast 改为 Popup 承载——Popup 渲染于窗口 overlay 层，
+// 高于 main.qml 的窗口控制按钮；原普通 Item + z:2000 仅在页面兄弟层级内
+// 生效，被窗口按钮（Window 直接子级、声明在后）盖住。
 // =============================================================================
 import QtQuick
 import QtQuick.Controls
@@ -18,30 +22,34 @@ PageSection {
     property int durationMs: ThemeEngine.toastDurationMs
 
     backgroundStyle: PageSection.Plain
-    z: 2000
-    anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: 24 }
-    // 长文案宽度帽：防止 toast 超出窗口（reportShareOk 等长键）
-    implicitWidth: Math.min(label.implicitWidth + 24, 440)
-    implicitHeight: 36
+    anchors.fill: parent   // 占据整页，供 Popup 定位（浮层容器模式）
 
-    Rectangle {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        radius: ThemeEngine.radius.full   // 胶囊 toast
+    Popup {
+        id: toastPopup
+        x: Math.round((root.width - width) / 2)
+        y: root.height - height - 24
+        width: Math.min(toastLabel.implicitWidth + 48, 440)
+        height: 36
         visible: root.toastText !== ""
-        color: ThemeEngine.colors.card
-        border { width: 1; color: ThemeEngine.colors.borderFocused }
-    }
-
-    Label {
-        id: label
-        Layout.alignment: Qt.AlignCenter
-        text: root.toastText
-        font.family: ThemeEngine.monoFont
-        font.pixelSize: 12
-        color: ThemeEngine.colors.textPrimary
-        visible: root.toastText !== ""
-        maximumLineCount: 1
-        elide: Text.ElideMiddle
+        modal: false
+        focus: false
+        closePolicy: Popup.NoAutoClose
+        padding: 0
+        background: Rectangle {
+            radius: ThemeEngine.radius.full   // 胶囊 toast
+            color: ThemeEngine.colors.card
+            border { width: 1; color: ThemeEngine.colors.borderFocused }
+        }
+        contentItem: Label {
+            id: toastLabel
+            text: root.toastText
+            font.family: ThemeEngine.monoFont
+            font.pixelSize: 12
+            color: ThemeEngine.colors.textPrimary
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+            maximumLineCount: 1
+            elide: Text.ElideMiddle
+        }
     }
 }

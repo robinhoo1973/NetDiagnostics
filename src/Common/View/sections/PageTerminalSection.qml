@@ -11,8 +11,8 @@ PageSection {
     backgroundStyle: PageSection.Card
     bottomMargin: ThemeEngine.spacing.lg
     contentSpacing: 6
-    // NEW-18：terminalSurface 为已知硬编码例外（现状迁移保留）
-    cardColor: ThemeEngine.isDark ? ThemeEngine.colors.surface : "#1E293B"
+    // 主题自适应（7-5）：暗色=surface，亮色=input——不再硬编码深藏青
+    cardColor: ThemeEngine.isDark ? ThemeEngine.colors.surface : ThemeEngine.colors.input
 
     property var detailData: ({})
     readonly property string _terminalText: detailData.details || detailData.rawOutput || ""
@@ -33,7 +33,6 @@ PageSection {
             sourceComponent: TerminalBlock {
                 text: root._terminalText
                 typewriter: true
-                terminalColor: ThemeEngine.isDark ? "#D4E3F5" : "#0F172A"
             }
         }
     }

@@ -12,6 +12,7 @@
 #include <QObject>
 #include <QTimer>
 #include <QThreadPool>
+#include <QElapsedTimer>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -33,8 +34,8 @@ public:
     ~DiagnosticBase() override;
 
     // ── Identity / metadata ──────────────────────────────────────────────
-    DiagId    diagId()    const { return m_id; }
-    QString   displayName() const { return diagnosticMeta(m_id).displayName; }
+    DiagId    diagId() const { return m_id; }
+    QString   displayName() const { return ::diagDisplayName(m_id); }  // M1arch: DiagNames 单一来源
     QString   iconName()  const { return diagnosticMeta(m_id).iconName; }
     DiagGroup group()     const { return diagGroup(m_id); }
     DiagAnimType animType() const { return diagnosticMeta(m_id).animType; }
@@ -48,6 +49,8 @@ public:
     // ── Execution ────────────────────────────────────────────────────────
     void start();          // run() on the Suite QThreadPool + arm watchdog
     void cancel();         // set cancellation flag, stop watchdog
+    bool isCancelled() const { return m_state->cancelled.load(std::memory_order_acquire); }
+    void setTimeoutMs(int ms) { m_timeoutMs = ms > 0 ? ms : 60000; }
 
 signals:
     void finished(const DiagnosticResult& result);
@@ -58,14 +61,26 @@ private:
     void onWatchdogTimeout();
     unsigned registeredPlatforms() const;
 
+    // ── 5WHY（UAF，C2）：worker lambda 只能捕获 State 控制块（内含 cancelled/
+    // finishedEmitted/id/target/impl），绝不捕获裸 this。对象销毁统一推迟到
+    // onFutureFinished（future 已结束）之后的 deleteLater；watchdog 超时与
+    // Suite deadline 只置 cancelled + emit，不 deleteLater。
+    struct State {
+        DiagId id;
+        QString target;
+        std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> impl;
+        std::atomic<bool> cancelled{false};
+        std::atomic<bool> finishedEmitted{false};
+    };
+    std::shared_ptr<State> m_state;
+
     DiagId     m_id;
-    QString    m_target;
     QThreadPool* m_pool;
-    std::function<DiagnosticResult(DiagId, const QString&, RunContext&)> m_impl;
     int        m_timeoutMs;
-    std::atomic<bool> m_cancelled{false};
-    std::atomic<bool> m_finishedEmitted{false};
     bool       m_started = false;
+    // 8-16：探针级墙钟——集中补 durationMs（诊断函数大多不自填时长，
+    // 导致 Dashboard 分层计时全 0 与详情页时长缺失）
+    QElapsedTimer m_elapsed;
     QFutureWatcher<DiagnosticResult>* m_watcher = nullptr;
     QTimer*    m_watchdog = nullptr;
 };

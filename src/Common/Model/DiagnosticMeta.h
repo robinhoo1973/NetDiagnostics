@@ -46,3 +46,8 @@ struct DiagnosticMeta {
 
 // ── Registry accessors ───────────────────────────────────────────────────
 const DiagnosticMeta& diagnosticMeta(DiagId id);
+
+// §6.1（5WHY DIAG-1）：meta.platforms 位掩码由 AdapterRegistry 启动时自动推导
+// 并覆写（单一权威），不再手工维护两套平台表。编译期表仅作基线。
+void setMetaPlatformOverride(DiagId id, unsigned flags);
+unsigned effectiveMetaPlatforms(DiagId id);

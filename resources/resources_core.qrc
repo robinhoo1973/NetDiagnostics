@@ -1,6 +1,10 @@
 <RCC>
     <qresource prefix="/qt/qml">
         <file alias="main.qml">../src/Common/View/main.qml</file>
+        <!-- fonts（H5：等宽字体注册） -->
+        <file alias="fonts/JetBrainsMono-Regular.ttf">../resources/fonts/JetBrainsMono-Regular.ttf</file>
+        <file alias="fonts/JetBrainsMono-Bold.ttf">../resources/fonts/JetBrainsMono-Bold.ttf</file>
+        <file alias="fonts/DejaVuSansMono.ttf">../resources/fonts/DejaVuSansMono.ttf</file>
         <file alias="core/qmldir">../src/Common/View/core/qmldir</file>
         <file alias="core/PageSection.qml">../src/Common/View/PageSection.qml</file>
         <file alias="core/PageDisplay.qml">../src/Common/View/PageDisplay.qml</file>
@@ -20,7 +24,21 @@
         <file alias="widgets/DiagBlock.qml">../src/Common/View/widgets/DiagBlock.qml</file>
         <file alias="widgets/DiagTileGrid.qml">../src/Common/View/widgets/DiagTileGrid.qml</file>
         <file alias="widgets/DiagnosticToolbar.qml">../src/Common/View/widgets/DiagnosticToolbar.qml</file>
+        <file alias="widgets/ToggleSwitch.qml">../src/Common/View/widgets/ToggleSwitch.qml</file>
+        <file alias="widgets/SchemeSelector.qml">../src/Common/View/widgets/SchemeSelector.qml</file>
         <file alias="widgets/CollapsibleSectionHeader.qml">../src/Common/View/widgets/CollapsibleSectionHeader.qml</file>
+        <file alias="widgets/DiagAnimator.qml">../src/Common/View/widgets/DiagAnimator.qml</file>
+        <file alias="widgets/ShareButtons.qml">../src/Common/View/widgets/ShareButtons.qml</file>
+        <file alias="widgets/PremiumCard.qml">../src/Common/View/widgets/PremiumCard.qml</file>
+        <file alias="widgets/ZoomBar.qml">../src/Common/View/widgets/ZoomBar.qml</file>
+        <!-- animations（五动画：Pulse/Jiggle/Bounce/Type/Path/Lock） -->
+        <file alias="widgets/animations/PulseAnimation.qml">../src/Common/View/widgets/animations/PulseAnimation.qml</file>
+        <file alias="widgets/animations/JiggleAnimation.qml">../src/Common/View/widgets/animations/JiggleAnimation.qml</file>
+        <file alias="widgets/animations/BounceAnimation.qml">../src/Common/View/widgets/animations/BounceAnimation.qml</file>
+        <file alias="widgets/animations/TypeAnimation.qml">../src/Common/View/widgets/animations/TypeAnimation.qml</file>
+        <file alias="widgets/animations/PathAnimation.qml">../src/Common/View/widgets/animations/PathAnimation.qml</file>
+        <file alias="widgets/animations/LockAnimation.qml">../src/Common/View/widgets/animations/LockAnimation.qml</file>
+        <file alias="theme/AnimationTokens.js">../src/Common/View/theme/AnimationTokens.js</file>
         <!-- detail 组件（page-detail.md 复用件） -->
         <file alias="detail/qmldir">../src/Common/View/detail/qmldir</file>
         <file alias="detail/KeyMetric.js">../src/Common/View/detail/KeyMetric.js</file>
@@ -34,7 +52,6 @@
         <file alias="dialogs/PremiumDialog.qml">../src/Common/View/dialogs/PremiumDialog.qml</file>
         <!-- sections (P0) -->
         <file alias="sections/qmldir">../src/Common/View/sections/qmldir</file>
-        <file alias="sections/PageActionBarSection.qml">../src/Common/View/sections/PageActionBarSection.qml</file>
         <file alias="sections/PageCardSection.qml">../src/Common/View/sections/PageCardSection.qml</file>
         <file alias="sections/PageChartsSection.qml">../src/Common/View/sections/PageChartsSection.qml</file>
         <file alias="sections/PageDetailHeaderSection.qml">../src/Common/View/sections/PageDetailHeaderSection.qml</file>

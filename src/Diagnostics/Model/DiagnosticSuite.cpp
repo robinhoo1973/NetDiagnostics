@@ -110,7 +110,9 @@ void DiagnosticSuite::onDeadline() {
         ++m_stats.cancelled;   // R1-5
         emit resultReady(DiagnosticResult::cancelled(
             p->diagId(), QStringLiteral("Suite deadline exceeded (%1s)").arg(m_deadlineSec)));
-        p->deleteLater();
+        // 5WHY（UAF，C3）：禁止 deleteLater——探针 worker 可能仍在池线程运行。
+        // 探针在 onFutureFinished（future 结束后）自行 deleteLater；若 worker
+        // 永不返回，Suite 析构时 QThreadPool 析构会等待其完成。
     }
     finishRun();
 }

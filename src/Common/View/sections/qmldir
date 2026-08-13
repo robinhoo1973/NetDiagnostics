@@ -1,6 +1,5 @@
 # NetDiagnostics UI sections module (qmldir)
 module sections
-PageActionBarSection 1.0 PageActionBarSection.qml
 PageCardSection 1.0 PageCardSection.qml
 PageChartsSection 1.0 PageChartsSection.qml
 PageDetailHeaderSection 1.0 PageDetailHeaderSection.qml

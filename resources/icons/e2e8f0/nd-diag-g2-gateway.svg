@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="ngnddiagg2gateway" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E2E8F0" />
+      <stop offset="100%" stop-color="#869FC0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Exit archway: posts + lintel -->
+  <path d="M6.2 5 V19 M17.8 5 V19" stroke="url(#ngnddiagg2gateway)" stroke-width="1.6" />
+  <path d="M4.6 5 H19.4" stroke="url(#ngnddiagg2gateway)" stroke-width="1.6" />
+</svg>

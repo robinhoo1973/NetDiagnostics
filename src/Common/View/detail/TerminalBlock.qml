@@ -23,11 +23,10 @@ Item {
     // ── Public API ────────────────────────────────────────────────────────
     property string text: ""
     property bool typewriter: true
-    // 5WHY: Allow embedders to override the terminal background color.
-    // DetailPage sets this to a dark slate for light-theme coherence;
-    // other consumers inherit the default theme-aware dark bg.
+    // 主题自适应终端底色：暗色=surface，亮色=input（7-5 修复：原亮色下硬编码
+    // 深藏青导致文字几乎不可读）
     property color terminalColor: ThemeEngine.isDark
-        ? ThemeEngine.colors.surface : "#1E293B"
+        ? ThemeEngine.colors.surface : ThemeEngine.colors.input
 
     implicitWidth: 300
     // 5WHY: implicitHeight must track the dynamic content height so parent
@@ -195,11 +194,10 @@ Item {
                             text: modelData
                             font.family: ThemeEngine.monoFont
                             font.pixelSize: 11
-                            // 5WHY: passGreen (#4ADE80 in dark, #10B981 in
-                            // light) provides the classic green-terminal
-                            // aesthetic while maintaining ~5:1 contrast on
-                            // surface bg — WCAG AA compliant.
-                            color: ThemeEngine.colors.passGreen
+                            // 5WHY: 绿色终端美学；暗色 passGreen(#4ADE80)，
+                            // 亮色用深翡翠 #047857（在浅底上 ~4.5:1，WCAG AA）
+                            color: ThemeEngine.isDark
+                                ? ThemeEngine.colors.passGreen : "#047857"
                             elide: Text.ElideNone
                             maximumLineCount: 1
                         }

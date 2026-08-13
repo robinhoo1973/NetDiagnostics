@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <!-- Corner-turn marker -->
+  <path d="M12.6 16 A2.2 2.2 0 0 1 14.8 13.8" stroke="#666666" stroke-width="1.2" />
+  <circle cx="14.8" cy="16" r="1" fill="#666666" />
+</svg>

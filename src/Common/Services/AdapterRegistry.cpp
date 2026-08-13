@@ -11,10 +11,12 @@
 // ── Current platform (compile-time, DIAG-12) ───────────────────────────────
 #if defined(PLATFORM_IOS)
 static constexpr unsigned kCurrentPlatformFlag = PlatformFlag::PF_IOS;
-#elif defined(PLATFORM_ANDROID)
+#else
+#if defined(PLATFORM_ANDROID)
 static constexpr unsigned kCurrentPlatformFlag = PlatformFlag::PF_Android;
 #else
 static constexpr unsigned kCurrentPlatformFlag = PlatformFlag::PF_Desktop;
+#endif
 #endif
 
 // ── Meyer's singleton storage (DIAG-2: initialization-order safe) ─────────
@@ -80,6 +82,7 @@ static bool unsupportedOnCurrentPlatform(DiagId id) {
 
 bool AdapterRegistry::verifyAllDiagIds() {
     bool ok = true;
+    int overridden = 0;
     for (DiagId id : allDiagIds()) {
         if (!isSchedulable(id)) continue;                 // deprecated slot
         if (!anyRunnable(id)) {
@@ -90,15 +93,18 @@ bool AdapterRegistry::verifyAllDiagIds() {
             ok = false;
             continue;
         }
-        // R2-3 (DIAG-1 single-source enforcement): meta.platforms must equal the
-        // union of registered adapter platforms — catches drift between the two.
+        // §6.1（5WHY DIAG-1 单一事实来源）：registry 是 platforms 的权威——
+        // 启动时把注册联合值覆写进 meta 视图（不再仅告警），消除两套表漂移。
         const unsigned declared = registeredPlatforms(id);
         if (declared != diagnosticMeta(id).platforms) {
-            Logger::instance().warn(
-                QStringLiteral("verifyAllDiagIds: DiagId %1 meta.platforms (%2) != registry (%3)")
-                    .arg(static_cast<int>(id)).arg(diagnosticMeta(id).platforms).arg(declared));
-            ok = false;
+            setMetaPlatformOverride(id, declared);
+            ++overridden;
         }
     }
+    // 启动日志仅汇总一行（避免每 id 一行噪音；平台编译裁剪导致的覆写属预期）
+    if (overridden > 0)
+        Logger::instance().event(
+            QStringLiteral("verifyAllDiagIds: registry overrode meta.platforms for %1 diag(s)")
+                .arg(overridden));
     return ok;
 }

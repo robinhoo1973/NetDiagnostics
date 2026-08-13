@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
+  <defs>
+    <linearGradient id="ngnddiagg1wifiinfo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#AC6F07" />
+    </linearGradient>
+  </defs>
+
+  <!-- Bottom dot + three concentric signal arcs (WiFi) -->
+  <path d="M6.64 11 A8.5 8.5 0 0 0 17.36 11" stroke="url(#ngnddiagg1wifiinfo)" stroke-width="1.6" />
+  <path d="M7.86 13.4 A5.9 5.9 0 0 0 16.14 13.4" stroke="#AC6F07" stroke-width="1.2" />
+  <path d="M9.54 15.4 A3.3 3.3 0 0 0 14.46 15.4" stroke="#F59E0B" stroke-width="1.2" />
+  <circle cx="12" cy="17.6" r="1.6" fill="#0EA5E9" />
+</svg>
