@@ -1042,9 +1042,14 @@ static DiagnosticResult probeMtuDiscovery(DiagId id, const QString& target, RunC
                 }
             }
             if (sock >= 0) {
+                // 5WHY（Apple 构建失败）：Darwin 不定义 TCP_MAXSEG（无 getsockopt
+                // MSS 读取），iOS/macOS CI 编译报错。仅在宏存在时读取；
+                // 否则回落探测尺寸路径。
+#if defined(TCP_MAXSEG)
                 int mss = 0; socklen_t mssLen = sizeof(mss);
                 if (getsockopt(sock, IPPROTO_TCP, TCP_MAXSEG, &mss, &mssLen) == 0 && mss > 0)
                     discoveredMtu = mss + 40;
+#endif
                 ::close(sock);
                 if (discoveredMtu > 0)
                     out.append(QStringLiteral("Reply from %1: PMTU=%2 (%3ms)")

@@ -51,9 +51,11 @@
 #include <wlanapi.h>    // WlanOpenHandle/WlanQueryInterface（WiFi 深探测）
 #endif
 
-#if defined(__APPLE__) && !defined(PLATFORM_IOS)
+#if defined(__APPLE__)
 #include <ifaddrs.h>
+#if !defined(PLATFORM_IOS)
 #include "Common/Platform/Apple/macOS/WifiHelper.h"   // CoreWLAN SSID/BSSID
+#endif
 #endif
 #if defined(__linux__)
 #include <ifaddrs.h>
@@ -773,7 +775,7 @@ static DiagnosticResult probeCellular(DiagId id, const QString&, RunContext& ctx
 #include "Diagnostics/Model/G1/Platform/IOS/GatewayDhcpRouting.h"
 namespace {
 DiagnosticResult iosWifiProbe(DiagId id, const QString&, RunContext&) {
-    const QVariantMap info = iosWifiInfo();
+    const QVariantMap info = iosWiFiInfo();
     if (info.isEmpty())
         return DiagnosticResult::skipped(id, QStringLiteral("No WiFi interface present"));
     QVector<ResultProperty> props;
