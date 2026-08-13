@@ -10,7 +10,8 @@
 
 #if defined(PLATFORM_IOS)
 
-#include "Common/Services/DiagnosticTask.h"
+// 8-18（5WHY）：同 DnsResolve.mm——DiagnosticTask.h 已删除，显式引用结果结构头。
+#include "Common/Model/DiagnosticResult.h"
 #include "Common/Model/DiagId.h"
 #include "Common/Utils/TargetRedaction.h"
 #include <QUrl>

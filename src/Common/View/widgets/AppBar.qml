@@ -18,10 +18,13 @@ import theme
 
     default property alias content: titleRow.data
 
-    // 7-7：标题栏拖拽窗口（无边框桌面）；propagate 让子项交互不受影响
+    // 7-7：标题栏拖拽窗口（无边框桌面）；propagate 让子项交互不受影响。
+    // 8-17：phone/pad（iOS/Android）屏蔽——移动端无系统级窗口移动概念，
+    // 且拖拽 MouseArea 会干扰触屏滚动/点按。
     property bool _moveStarted: false
     MouseArea {
         id: dragArea
+        enabled: !ThemeEngine.isMobile
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
         propagateComposedEvents: true

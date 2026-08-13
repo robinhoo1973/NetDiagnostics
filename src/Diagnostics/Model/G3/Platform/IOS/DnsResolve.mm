@@ -7,7 +7,9 @@
 
 #if defined(PLATFORM_IOS)
 
-#include "Common/Services/DiagnosticTask.h"
+// 8-18（5WHY）：DiagnosticTask 已重构为 DiagnosticBase（DiagnosticTask.h 已删），
+// 此 include 为陈旧的平台分支残留，仅 iOS CI 能编译到；显式改为结果结构头。
+#include "Common/Model/DiagnosticResult.h"
 #include "Diagnostics/Model/G4/G4RemoteHost.h"
 #include "Diagnostics/Model/G3/Platform/IOS/DnsResolve.h" // 5WHY: own header for declaration checking
 #include "Diagnostics/View/DiagnosticFormatter.h"

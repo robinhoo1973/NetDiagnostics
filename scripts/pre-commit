@@ -645,7 +645,28 @@ PYEOF
 	else
 	    echo "  (no staged QML files)"
 	fi
-
+	# ── 24. Deleted-header stale includes（平台分支仅 CI 能编译到）──
+	# 5WHY (apple.yml iOS Build fail, 2026-08-13): G3/G5 的 PLATFORM_IOS .mm
+	# 分支引用了已删除的 DiagnosticTask.h——本地 Linux 构建不编译这些分支，
+	# 只有 iOS CI 能暴露；此处拦截已删头文件的残留 include。
+	echo ""
+	echo "── 24. Deleted-header stale includes ──"
+	DELETED_HEADERS="Common/Services/DiagnosticTask.h"
+	STALE_INCLUDE_FOUND=0
+	for f in $STAGED; do
+		case "$f" in *.cpp|*.mm|*.h|*.hpp)
+			for h in $DELETED_HEADERS; do
+				if git show ":$f" 2>/dev/null | grep -qF "#include \"$h\""; then
+					fail "$f: stale include \"$h\" (header deleted — use DiagnosticResult/DiagnosticBase)"
+					STALE_INCLUDE_FOUND=1
+				fi
+			done
+			;;
+		esac
+	done
+	if [ "$STALE_INCLUDE_FOUND" -eq 0 ]; then
+		pass "no stale includes of deleted headers"
+	fi
 	# ── Summary ────────────────────────────────────────────────────────────────
 	echo ""
 	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
