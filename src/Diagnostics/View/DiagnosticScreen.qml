@@ -68,6 +68,9 @@ PageDisplay {
                 Layout.fillWidth: true
                 groupIndex: modelData
                 onDetailRequested: function(d) {
+                    // 8-18：双保险——未完成的检测不允许激活详情页（瓦片层已禁用
+                    // MouseArea，此处再按 isPending 拦截一次）。
+                    if (d && d.isPending === true) return
                     page._detail = AppState.resultFor(d.diagId)
                     page._detailVisible = page._detail !== null && Object.keys(page._detail).length > 0
                     if (!page._detailVisible)

@@ -373,7 +373,12 @@ static DiagnosticResult probeWifi(DiagId id, const QString&, RunContext& ctx) {
                     bssid = mac6ToStr((const unsigned char*)wrq.u.ap_addr.sa_data);
                 if (::ioctl(sock, SIOCGIWFREQ, &wrq) == 0) {
                     const double freq = wrq.u.freq.m / 1e9;
-                    channel = QStringLiteral("%1 (%.3f GHz)").arg((int)((freq - 2.412) / 0.005 + 1)).arg(freq, 0, 'f', 3);
+                    // 8-18：chained .arg() 中混入 %1 与 %.3f——QString::arg 的
+                    // 占位符解析会把 %.3f 误当 %3 消费导致 "Argument missing"。
+                    // 拆成两次独立格式化消除歧义。
+                    channel = QStringLiteral("%1 (%2 GHz)")
+                        .arg(static_cast<int>((freq - 2.412) / 0.005 + 1))
+                        .arg(QString::number(freq, 'f', 3));
                 }
                 ::close(sock);
             }

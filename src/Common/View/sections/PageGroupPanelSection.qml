@@ -64,7 +64,15 @@ PageSection {
             if (groupIndex === AppState.currentRunningGroup) reloadModel()
             _refreshStats()
         }
-        function onRunStatusChanged() { reloadModel(); _refreshStats() }   // B1：运行边界全量刷新
+        function onRunStatusChanged() {
+            // 8-18：新 run 开始（Idle→Running）重置折叠偏好——上一轮的折叠/展开
+            // 状态不得延续到本轮（用户要求按下 Run 即重置显示界面）。
+            if (AppState.runStatus === 1) {
+                _userToggled = false
+                _userExpanded = true
+            }
+            reloadModel(); _refreshStats()   // B1：运行边界全量刷新
+        }
         // 8-16：组开始（currentRunningGroup 切换）即加载瓦片墙——
         // 瓦片与组标题同步出现，而非等首条结果/组结束。
         function onCurrentRunningGroupChanged() { reloadModel(); _refreshStats() }

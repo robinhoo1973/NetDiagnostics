@@ -185,16 +185,21 @@ void AppState::runDiagnostics() {
     // 8-4：无目标时仅运行 G1-G3（系统/适配器、连接与安全、互联网与 DNS），
     // G4/G5 依赖目标主机。
     const bool noTarget = m_targetHost.isEmpty();
+    // 8-18（检测组显示时机 5WHY）：清屏语义 = 清结果 + 清组状态 + 清当前组。
+    // m_currentGroup 必须在 runStatusChanged 之前归 -1——QML 的 _refreshGroups()
+    // 在同一轮信号派发里同步执行，残留旧值会让 visibleGroups() 把上一轮全部
+    // 组在新 run 起点闪现出来（违反“先清屏，再逐组出现”）。
     m_results.clear();
     m_groupDone.clear();
     m_errorMessage.clear();
     m_currentDiagLabel.clear();   // 上一轮残留的“当前测试”标签清零
-    m_cellularWarnAcked = false;  // H1：每轮 run 重新询问
+    m_currentGroup = -1;
     if (m_cellularWarnVisible) {
         m_cellularWarnVisible = false;
         emit cellularWarnVisibleChanged();
     }
-    // P1：仅运行激活的组（Config 页 groupActive 控制）
+    // P1：可用检测组 = target 决定上限（无目标 G1-G3；有目标 G1-G5），
+    // Config 页 groupActive 在此基础上再过滤。
     m_pendingGroups.clear();
     const int maxG = noTarget ? 2 : 4;
     for (int i = 0; i <= maxG; ++i)
@@ -206,6 +211,14 @@ void AppState::runDiagnostics() {
         emit runStatusChanged();
         emit progressChanged();
         return;
+    }
+    // 8-18（5WHY 死机根因 1/3）：蜂窝数据警告前移到整轮开始前。原实现在 G3 前
+    // （runNextGroup 内）中途弹窗并 return 等待，配合遮罩不可见缺陷造成
+    // “界面卡死、无法切页、组不推进”。前移后：清屏 → 弹窗 → 确认/取消。
+    if (m_isPremiumPlatform && !noTarget && !m_cellularWarnAcked) {
+        m_cellularWarnVisible = true;
+        emit cellularWarnVisibleChanged();
+        return;   // 等待 continueAfterCellularWarn() → 重新 runDiagnostics()
     }
     m_runStatus = Running;
     m_runTimer.start();      // 8-15：墙钟计时开始
@@ -222,6 +235,7 @@ void AppState::runNextGroup() {
         m_currentGroup = -1;
         m_runElapsedMs = m_runTimer.isValid() ? m_runTimer.elapsed() : m_runElapsedMs;
         if (m_elapsedTicker) m_elapsedTicker->stop();
+        m_cellularWarnAcked = false;   // 8-18：下一轮 run 重新询问
         persistResults();   // 运行完成：落盘结果快照（重启恢复）
         emit currentRunningGroupChanged();
         emit runStatusChanged();
@@ -229,14 +243,13 @@ void AppState::runNextGroup() {
         return;
     }
     const int gi = m_pendingGroups.takeFirst();
-    // H1（page-diagnostic §3）：移动/Apple 平台在 G3 起大流量探测前暂停并弹确认
-    if (gi >= 2 && m_isPremiumPlatform && !m_cellularWarnAcked) {
-        m_cellularWarnVisible = true;
-        emit cellularWarnVisibleChanged();
-        return;   // 等待 continueAfterCellularWarn()
-    }
     const DiagGroup g = groupForIndex(gi);
     m_currentGroup = gi;
+    // 8-18（5WHY 死机根因 2/3）：先登记组再广播。旧顺序在 emit 之后才
+    // m_groupDone.insert——currentRunningGroupChanged 派发时该组既不在 pending
+    // 也不在 groupDone，visibleGroups() 的 scheduled 判空将其排除，运行组要等
+    // 下一组开始才补显（"正在运行的检测组没有显示"、界面看似卡死）。
+    m_groupDone.insert(gi, false);
     emit currentRunningGroupChanged();
 
     // H3：每次建 suite 递增 generation，迟到信号按 generation 丢弃
@@ -251,9 +264,15 @@ void AppState::runNextGroup() {
     m_suite->setDiagIds(ids);
     connect(m_suite, &DiagnosticSuite::resultReady, this, [this, gen](const DiagnosticResult& r) {
         if (gen != m_runGeneration) return;   // H3：跨 run 迟到结果丢弃
-        m_results.insert(r.id, r);
-        m_currentDiagLabel = r.displayName;
-        updateItemModel(r.id, r);
+        // 8-18（详情页无名 5WHY）：摄入边界归一化——部分平台适配器（iOS .mm
+        // 族：DHCP/网关/路由/DNS/HTTP）不填 displayName/group，详情页 header 与
+        // HeroCard 因此空白。此处统一补齐，单一来源覆盖全部生产者。
+        DiagnosticResult nr = r;
+        if (nr.displayName.isEmpty()) nr.displayName = diagDisplayName(nr.id);
+        nr.group = diagGroup(nr.id);
+        m_results.insert(nr.id, nr);
+        m_currentDiagLabel = nr.displayName;
+        updateItemModel(nr.id, nr);
         emit progressChanged();
     });
     connect(m_suite, &DiagnosticSuite::suiteFinished, this, [this, gen]() {
@@ -298,10 +317,19 @@ void AppState::onSuiteFinished() {
 }
 
 void AppState::cancel() {
-    if (m_runStatus != Running) return;
+    // 8-18：run 开始前的蜂窝警告取消——run 尚未开始（Idle），仅收起对话框。
+    if (m_runStatus != Running) {
+        if (m_cellularWarnVisible) {
+            m_cellularWarnVisible = false;
+            m_cellularWarnAcked = false;   // 下次 Run 重新询问
+            emit cellularWarnVisibleChanged();
+        }
+        return;
+    }
     if (m_suite) m_suite->cancel();
     m_pendingGroups.clear();
     persistResults();   // 取消也保存已完成部分
+    m_cellularWarnAcked = false;   // 8-18：下一轮 run 重新询问
     if (m_cellularWarnVisible) {
         m_cellularWarnVisible = false;
         emit cellularWarnVisibleChanged();
@@ -320,7 +348,10 @@ void AppState::continueAfterCellularWarn() {
     m_cellularWarnVisible = false;
     m_cellularWarnAcked = true;
     emit cellularWarnVisibleChanged();
+    // 8-18：警告前移到整轮开始前——Idle 状态确认即从 runDiagnostics 整轮启动；
+    // Running 分支为兼容保留（新流程不会进入）。
     if (m_runStatus == Running) runNextGroup();
+    else runDiagnostics();
 }
 
 QVariantMap AppState::itemFor(DiagId id) const {

@@ -539,9 +539,12 @@ for path in sys.argv[1].splitlines():
             continue
         if in_if0:
             continue
-        s = re.sub(r"//.*", "", line)                       # line comment
-        s = re.sub(r'@"(?:[^"\\]|\\.)*"', '""', s)          # ObjC string
+        # 5WHY (2026-08-18): strip strings/char literals BEFORE line comments.
+        # `//` inside a URL string ("http://...") truncated the rest of the line
+        # and ate the trailing `{`, producing a false imbalance (DnsResolve.mm).
+        s = re.sub(r'@"(?:[^"\\]|\\.)*"', '""', line)         # ObjC string
         s = re.sub(r'"(?:[^"\\]|\\.)*"', '""', s)           # C string
+        s = re.sub(r"'(?:[^'\\]|\\.)*'", "''", s)           # C char literal
         if in_block_comment:
             if "*/" in s:
                 s = s.split("*/", 1)[1]
@@ -555,6 +558,7 @@ for path in sys.argv[1].splitlines():
             else:
                 s = before
                 in_block_comment = True
+        s = re.sub(r"//.*", "", s)                          # line comment (after strings)
         for ch in s:
             if ch == "{":
                 depth += 1
@@ -651,7 +655,7 @@ PYEOF
 	# 只有 iOS CI 能暴露；此处拦截已删头文件的残留 include。
 	echo ""
 	echo "── 24. Deleted-header stale includes ──"
-	DELETED_HEADERS="Common/Services/DiagnosticTask.h"
+	DELETED_HEADERS="Common/Services/DiagnosticTask.h Diagnostics/Model/G4/G4RemoteHost.h"
 	STALE_INCLUDE_FOUND=0
 	for f in $STAGED; do
 		case "$f" in *.cpp|*.mm|*.h|*.hpp)

@@ -14,6 +14,9 @@ PageSection {
 
     Rectangle {
         id: mask
+        // 8-18 注记：mask 经 PageSection 默认属性落入 body(ColumnLayout)，
+        // 由 Layout.fillWidth/Height 铺满——勿改 anchors（布局管理项用 anchors
+        // 属 UB）。浮层内容经 default property 重定向进 mask.data。
         Layout.fillWidth: true
         Layout.fillHeight: true
         color: ThemeEngine.colors.scrim   // 半透明遮罩
