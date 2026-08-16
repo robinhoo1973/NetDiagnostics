@@ -32,6 +32,7 @@
 # v3 (2026-08-13, M1 45 专属图标): nd-diag-* 主形同现有 4-sentinel 管线烘焙；
 #   DIAG_ACCENT 逐项辅色对（dark/light）将 masters-45/nd-diag-*-a.svg 的
 #   #666666 sentinel 烘焙为 2 色/图标并合并进 qrc（见 bake_diag_accents）。
+#   #101010 sentinel → SECOND_ACCENT 固定第二强调色（多色复刻图标用，如网关红色箭头）。
 # =============================================================================
 import colorsys
 import re
@@ -53,17 +54,17 @@ DIAG_ACCENT: dict[str, tuple[str, str]] = {
     "nd-diag-g1-nic-advanced":      ("#94A3B8", "#475569"),
     "nd-diag-g1-wifi-info":         ("#60C8F8", "#0EA5E9"),
     "nd-diag-g1-wired":             ("#68E5F4", "#06B6D4"),
-    "nd-diag-g1-dhcp":              ("#4ADE80", "#10B981"),
+    "nd-diag-g1-dhcp":              ("#F59E0B", "#EA580C"),
     "nd-diag-g1-ip-config":         ("#94A3B8", "#475569"),
     "nd-diag-g1-active-connections":("#68E5F4", "#06B6D4"),
     "nd-diag-g1-cellular":          ("#818CF8", "#6366F1"),
     "nd-diag-g2-network-profile":   ("#60C8F8", "#0EA5E9"),
     "nd-diag-g2-tcp-settings":      ("#68E5F4", "#06B6D4"),
-    "nd-diag-g2-gateway":           ("#F59E0B", "#EA580C"),
+    "nd-diag-g2-gateway":           ("#38BDF8", "#0EA5E9"),
     "nd-diag-g2-routing-table":     ("#A5B4FC", "#2563EB"),
     "nd-diag-g2-arp-table":         ("#94A3B8", "#475569"),
     "nd-diag-g2-proxy":             ("#818CF8", "#6366F1"),
-    "nd-diag-g3-dns-servers":       ("#4ADE80", "#10B981"),
+    "nd-diag-g3-dns-servers":       ("#38BDF8", "#0EA5E9"),
     "nd-diag-g3-dns-cache":         ("#F59E0B", "#EA580C"),
     "nd-diag-g3-dns-integrity":     ("#68E5F4", "#06B6D4"),
     "nd-diag-g3-geoip":             ("#4ADE80", "#10B981"),
@@ -84,16 +85,43 @@ DIAG_ACCENT: dict[str, tuple[str, str]] = {
     "nd-diag-g5-http-redirect":     ("#818CF8", "#6366F1"),
     "nd-diag-g5-http-compression":  ("#68E5F4", "#06B6D4"),
     "nd-diag-g5-http-timing":       ("#818CF8", "#6366F1"),
-    "nd-diag-g5-ftp":               ("#68E5F4", "#06B6D4"),
+    "nd-diag-g5-ftp":               ("#F59E0B", "#EA580C"),
     "nd-diag-g5-ssh":               ("#4ADE80", "#10B981"),
     "nd-diag-g5-email":             ("#818CF8", "#6366F1"),
     "nd-diag-g5-telnet":            ("#60C8F8", "#0EA5E9"),
-    "nd-diag-g5-mysql":             ("#4ADE80", "#10B981"),
+    "nd-diag-g5-mysql":             ("#FBBF24", "#D97706"),
     "nd-diag-g5-postgres":          ("#60C8F8", "#0EA5E9"),
-    "nd-diag-g5-redis":             ("#94A3B8", "#475569"),
-    "nd-diag-g5-mongodb":           ("#F59E0B", "#EA580C"),
+    "nd-diag-g5-redis":             ("#F87171", "#DC2626"),
+    "nd-diag-g5-mongodb":           ("#4ADE80", "#10B981"),
     "nd-diag-g5-ldap":              ("#60C8F8", "#0EA5E9"),
     "nd-diag-g5-mqtt":              ("#818CF8", "#6366F1"),
+}
+
+# ── 第二强调色（固定色，逐图标；#101010 sentinel）────────────────────────
+# 用于 VTracer 多色复刻图标中除主强调色外的第二种色彩（如网关的红色箭头）。
+SECOND_ACCENT: dict[str, str] = {
+    "nd-diag-g2-gateway": "#E03040",
+}
+
+# ── 多色固定色（逐图标；#B0000n sentinel → 第 n 个固定色）─────────────────
+# 用于一根图标内多种独立固定色彩（如蜂窝信号四根柱各一色）。
+FIXED_COLORS: dict[str, list[str]] = {
+    "nd-diag-g1-cellular": ["#F87171", "#FBBF24", "#4ADE80", "#38BDF8"],
+    "nd-diag-g3-geoip": ["#F43F5E"],
+    "nd-diag-g3-internet": ["#FD3551", "#4C8FFF", "#FFE824"],
+    # 终端三协议（用户 ASCII 规格）：屏幕 #0F172A + 标题栏三圆点红黄绿
+    "nd-diag-g5-ssh": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80"],
+    "nd-diag-g5-ftp": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80"],
+    "nd-diag-g5-telnet": ["#0F172A", "#F87171", "#FBBF24", "#4ADE80"],
+    # IPv6 显示器：电源点+底座 → 浅腚（与 DIAG_ACCENT 浅色端一致）
+    "nd-diag-g4-ipv6": ["#818CF8"],
+    # Proxy 地球线框：蓝色循环箭头 + 黄色闪电（忠实参考图色）
+    "nd-diag-g2-proxy": ["#5CAEFF", "#FFCC5E"],
+    # DB 四联：背景与 yxdb 参考图一致（文件体/折边带/折痕阴影/底部带固定色）
+    "nd-diag-g5-mysql": ["#3AAEFC", "#37AAF9", "#2E9FF1", "#C8D8ED"],
+    "nd-diag-g5-postgres": ["#3AAEFC", "#37AAF9", "#2E9FF1", "#C8D8ED"],
+    "nd-diag-g5-redis": ["#3AAEFC", "#37AAF9", "#2E9FF1", "#C8D8ED"],
+    "nd-diag-g5-mongodb": ["#3AAEFC", "#37AAF9", "#2E9FF1", "#C8D8ED"],
 }
 
 # ── Semantic accent colors (fixed per icon, independent of theme) ──────────
@@ -284,6 +312,13 @@ def main() -> None:
                 accent = ACCENT.get(svg.stem, "")
                 if accent:
                     colored = colored.replace("#000000", accent)
+                # #101010 → second semantic accent (fixed per icon)
+                accent2 = SECOND_ACCENT.get(svg.stem, "")
+                if accent2:
+                    colored = colored.replace("#101010", accent2)
+                # #B0000n → n-th fixed color (per icon, FIXED_COLORS)
+                for i, c in enumerate(FIXED_COLORS.get(svg.stem, []), 1):
+                    colored = colored.replace(f"#B0000{i}", c)
                 # #777777 → soft fill (fixed, theme-independent)
                 colored = colored.replace("#777777", "#64748B")
                 out_file = sub / svg.name

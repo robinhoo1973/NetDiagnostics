@@ -1,8 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <!-- Four distribution nodes along card bottom edge (gray) -->
-  <path d="M8 15.4 h8" stroke="#475569" stroke-width="1.2" />
-  <circle cx="8.6" cy="16.4" r="0.9" fill="#475569" />
-  <circle cx="10.6" cy="16.4" r="0.9" fill="#475569" />
-  <circle cx="12.6" cy="16.4" r="0.9" fill="#475569" />
-  <circle cx="14.6" cy="16.4" r="0.9" fill="#475569" />
+  <!-- Blinking cursor block after the address -->
+  <rect x="18.2" y="9.2" width="1.5" height="2.4" fill="#475569" fill-opacity="1" />
 </svg>

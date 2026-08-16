@@ -1,9 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <!-- Per-hop loss/RTT stat bars + hop nodes -->
-  <path d="M8.8 7.4 V5.2 M12.4 7.4 V4.4 M16 7.4 V5.8" stroke="#F59E0B" stroke-width="1.6" />
-  <circle cx="7.6" cy="10.6" r="1.1" fill="#F59E0B" />
-  <circle cx="11" cy="10.6" r="1.1" fill="#F59E0B" />
-  <circle cx="11" cy="15.6" r="1.1" fill="#F59E0B" />
-  <circle cx="14.8" cy="15.6" r="1.1" fill="#F59E0B" />
-  <circle cx="14.8" cy="9.8" r="1.1" fill="#F59E0B" />
+  <!-- Echo arcs at hops -->
+  <path d="M5.6 14.4 A2.2 2.2 0 0 0 10 14.4" stroke="#F59E0B" stroke-width="1.2" />
+  <path d="M10.4 9.4 A2.2 2.2 0 0 0 14.8 9.4" stroke="#F59E0B" stroke-width="1.2" />
 </svg>

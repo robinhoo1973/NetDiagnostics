@@ -8,7 +8,7 @@
 
   <!-- Start dot -> zigzag hops -> destination box -->
   <circle cx="4.6" cy="8.6" r="2" stroke="url(#ngnddiagg4traceroute)" stroke-width="1.6" />
-  <circle cx="4.6" cy="8.6" r="0.9" fill="#777777" />
+  <circle cx="4.6" cy="8.6" r="0.9" fill="#777777" fill-opacity="1" />
   <path d="M6.6 8.6 H9.4 V14.2 H14.4 V9.6 H17.4" stroke="url(#ngnddiagg4traceroute)" stroke-width="1.6" />
   <rect x="17.4" y="8" width="3.4" height="3.2" stroke="url(#ngnddiagg4traceroute)" stroke-width="1.6" />
 </svg>

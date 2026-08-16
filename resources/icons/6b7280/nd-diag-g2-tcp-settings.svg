@@ -6,11 +6,12 @@
     </linearGradient>
   </defs>
 
-  <!-- Two nodes + staggered three-way handshake arrows -->
-  <circle cx="5.4" cy="12" r="2" stroke="url(#ngnddiagg2tcpsettings)" stroke-width="1.6" />
-  <circle cx="18.6" cy="12" r="2" stroke="url(#ngnddiagg2tcpsettings)" stroke-width="1.6" />
-  <path d="M7.4 8.6 H16.6 M16.6 8.6 l-2.4 -1.5 M16.6 8.6 l-2.4 1.5"
-        stroke="#4B505A" stroke-width="1.2" />
-  <path d="M7.4 15.4 H16.6 M16.6 15.4 l-2.4 -1.5 M16.6 15.4 l-2.4 1.5"
-        stroke="#4B505A" stroke-width="1.2" />
+  <!-- Gear hub mediating TCP exchange -->
+  <circle cx="5" cy="12" r="1.9" stroke="url(#ngnddiagg2tcpsettings)" stroke-width="1.6" />
+  <circle cx="19" cy="12" r="1.9" stroke="url(#ngnddiagg2tcpsettings)" stroke-width="1.6" />
+  <circle cx="12" cy="12" r="3.1" stroke="#06B6D4" stroke-width="1.4" />
+  <path d="M12 8.7 V9.3 M12 14.7 V15.3 M8.7 12 H9.3 M14.7 12 H15.3" stroke="#06B6D4" stroke-width="1.4" />
+  <circle cx="12" cy="12" r="0.9" fill="#64748B" fill-opacity="1" />
+  <path d="M7 9.4 H9.6 M9.6 9.4 l-2 -1.3 M9.6 9.4 l-2 1.3" stroke="#4B505A" stroke-width="1.2" />
+  <path d="M14.4 15.6 H9.6 M9.6 15.6 l2 -1.3 M9.6 15.6 l2 1.3" stroke="#4B505A" stroke-width="1.2" />
 </svg>

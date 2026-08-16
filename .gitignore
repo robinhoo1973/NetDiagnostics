@@ -68,6 +68,8 @@ review/
 !review/ios-ci-known-issues.md
 !review/app_startup_crash_analysis.md
 !review/common-bug-patterns.md
+!review/icon-audit-45-2026-08-14.md
+!review/icon-comparison-2026-08-14.html
 
 # CodeWhale config — only constitution.json is shared
 **/.codewhale/*

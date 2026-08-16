@@ -6,8 +6,12 @@
     </linearGradient>
   </defs>
 
-  <!-- Person silhouette + profile lines (network identity) -->
-  <circle cx="9.2" cy="6.8" r="2.2" stroke="url(#ngnddiagg2networkprofile)" stroke-width="1.6" />
-  <path d="M4.6 14.6 a4.9 4.9 0 0 1 9.2 0" stroke="url(#ngnddiagg2networkprofile)" stroke-width="1.6" />
-  <path d="M6.2 18 h6.4 M6.2 20.2 h6.4" stroke="#0AA1E7" stroke-width="1.2" />
+  <!-- Blank text file with hub-and-spoke network inside -->
+  <path d="M14.6 2.6 H6.4 A1.8 1.8 0 0 0 4.6 4.4 V19.6 A1.8 1.8 0 0 0 6.4 21.4 H17.6 A1.8 1.8 0 0 0 19.4 19.6 V7.4 Z" stroke="url(#ngnddiagg2networkprofile)" stroke-width="1.6" />
+  <path d="M14.6 2.6 V6.4 A1 1 0 0 0 15.6 7.4 H19.4" stroke="#0AA1E7" stroke-width="1.2" />
+  <circle cx="12" cy="13.6" r="1.1" fill="#0EA5E9" fill-opacity="1" />
+  <circle cx="7.6" cy="15.9" r="0.9" stroke="#0AA1E7" stroke-width="1.2" />
+  <circle cx="16.4" cy="15.9" r="0.9" stroke="#0AA1E7" stroke-width="1.2" />
+  <circle cx="12" cy="9.4" r="0.9" stroke="#0AA1E7" stroke-width="1.2" />
+  <path d="M10.9 12.7 L8.5 15 M13.1 12.7 L15.5 15 M12 12.5 V10.3" stroke="#0AA1E7" stroke-width="1.2" />
 </svg>

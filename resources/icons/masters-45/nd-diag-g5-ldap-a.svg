@@ -1,7 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <!-- Three directory child squares + stubs -->
-  <rect x="5.2" y="13.9" width="2.8" height="2.8" stroke="#666666" stroke-width="1.2" />
-  <rect x="10.7" y="13.9" width="2.8" height="2.8" stroke="#666666" stroke-width="1.2" />
-  <rect x="16.2" y="13.9" width="2.8" height="2.8" stroke="#666666" stroke-width="1.2" />
-  <path d="M6.6 12.6 v0.7 M12 12.6 v0.7 M17.4 12.6 v0.7" stroke="#666666" stroke-width="1.2" />
+  <!-- Ring around the avatar head -->
+  <circle cx="11.6" cy="13.4" r="2.5" stroke="#666666" stroke-width="1.1" />
 </svg>

@@ -6,12 +6,12 @@
     </linearGradient>
   </defs>
   <!-- Server rack units — gradient stroke + soft fill -->
-  <rect width="20" height="8" x="2" y="2" rx="2" ry="2" fill="#64748B" stroke="url(#dnsGrad)" stroke-width="2.5" />
-  <rect width="20" height="8" x="2" y="14" rx="2" ry="2" fill="#64748B" stroke="url(#dnsGrad)" stroke-width="2.5" />
+  <rect width="20" height="8" x="2" y="2" rx="2" ry="2" fill="#64748B" fill-opacity="1" stroke="url(#dnsGrad)" stroke-width="2.5" />
+  <rect width="20" height="8" x="2" y="14" rx="2" ry="2" fill="#64748B" fill-opacity="1" stroke="url(#dnsGrad)" stroke-width="2.5" />
   <!-- LED indicators — accent -->
   <line x1="6" x2="6.01" y1="6" y2="6" stroke="#0EA5E9" stroke-width="2.5" />
   <line x1="6" x2="6.01" y1="18" y2="18" stroke="#0EA5E9" stroke-width="2.5" />
   <!-- Secondary LEDs — primary -->
-  <circle cx="10" cy="6" r="1.2" fill="#475569" />
-  <circle cx="10" cy="18" r="1.2" fill="#475569" />
+  <circle cx="10" cy="6" r="1.2" fill="#475569" fill-opacity="1" />
+  <circle cx="10" cy="18" r="1.2" fill="#475569" fill-opacity="1" />
 </svg>

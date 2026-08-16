@@ -6,8 +6,9 @@
     </linearGradient>
   </defs>
 
-  <!-- Source dot fanning out to three routes -->
-  <circle cx="5.2" cy="7.2" r="2" fill="#2563EB" />
-  <path d="M7.1 8.3 L10.4 11.6 M10.4 11.6 L13.4 14.6 M10.4 11.6 L17.2 13.9 M10.4 11.6 L19.2 17.4"
-        stroke="#0A101D" stroke-width="1.2" />
+  <!-- Route path traversing table rows -->
+  <path d="M5.8 4.6 H18.2 M5.8 19.4 H18.2 M5.8 4.6 V19.4 M18.2 4.6 V19.4" stroke="url(#ngnddiagg2routingtable)" stroke-width="1.6" />
+  <path d="M5.8 13.4 H18.2 M5.8 16.6 H18.2" stroke="#0A101D" stroke-width="1.2" />
+  <circle cx="7" cy="7.2" r="1.1" fill="#2563EB" fill-opacity="1" />
+  <path d="M7 8.9 V10.6 H14 V16.2 H17.6 M17.6 16.2 l-2.2 -1.4 M17.6 16.2 l-2.2 1.4" stroke="#2563EB" stroke-width="1.4" />
 </svg>

@@ -2,5 +2,5 @@
   <!-- Location pin planted on the globe -->
   <path d="M12 2 C10.1 2 8.7 3.4 8.7 5.3 C8.7 7.6 12 11 12 11 C12 11 15.3 7.6 15.3 5.3 C15.3 3.4 13.9 2 12 2 Z"
         stroke="#666666" stroke-width="1.2" />
-  <circle cx="12" cy="5.3" r="1" fill="#666666" />
+  <circle cx="12" cy="5.3" r="1" fill="#666666" fill-opacity="1" />
 </svg>

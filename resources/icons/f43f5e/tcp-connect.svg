@@ -6,9 +6,9 @@
     </linearGradient>
   </defs>
   <!-- Client — gradient -->
-  <rect x="3" y="6" width="8" height="12" rx="1.5" fill="#64748B" stroke="url(#tcpGrad)" stroke-width="2.5" />
+  <rect x="3" y="6" width="8" height="12" rx="1.5" fill="#64748B" fill-opacity="1" stroke="url(#tcpGrad)" stroke-width="2.5" />
   <!-- Server — accent -->
-  <rect x="13" y="6" width="8" height="12" rx="1.5" fill="#64748B" stroke="#0EA5E9" stroke-width="2.5" />
+  <rect x="13" y="6" width="8" height="12" rx="1.5" fill="#64748B" fill-opacity="1" stroke="#0EA5E9" stroke-width="2.5" />
   <!-- Client inner detail — primary -->
   <path d="M7 9.5h.01" stroke="#F43F5E" stroke-width="2.5" />
   <!-- Server inner detail — accent -->

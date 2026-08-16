@@ -26,6 +26,19 @@ Item {
     readonly property string _label: (itemData.diagId !== undefined
         ? (T.diagName(itemData.diagId) || itemData.label || "")
         : (itemData.label || ""))
+    // 终端协议图标（TELNET/SSH/FTP）：图标井内渲染闪烁下划线光标。
+    // SVG 无 SMIL 动画支持（QtSvg 不渲染 animate），光标由 QML 层驱动——
+    // 主形 SVG 只画 ">" 提示符，下划线由 terminalCursor 补画并闪烁。
+    readonly property bool _isTerminalIcon: itemData.iconName === "nd-diag-g5-telnet"
+        || itemData.iconName === "nd-diag-g5-ssh"
+        || itemData.iconName === "nd-diag-g5-ftp"
+    // 各协议下划线几何（24 空间）：宽度=提示符宽度 3.2，位于首字母正下方，中心 y=16.4
+    readonly property var _termCursorGeom: ({
+        "nd-diag-g5-telnet": { x: 7.6, w: 3.2 },
+        "nd-diag-g5-ssh":    { x: 7.6, w: 3.2 },
+        "nd-diag-g5-ftp":    { x: 7.6, w: 3.2 }
+    })
+    readonly property int _iconSize: root.compact ? 28 : 36
 
     visible: _isPending || (itemData.status !== 3)
     implicitWidth: visible ? blockSize : 0
@@ -134,6 +147,24 @@ Item {
                            : _isRunning ? ThemeEngine.colors.primary
                            : _isDisabled ? ThemeEngine.colors.textMuted
                            : ThemeEngine.colors.textSecondary
+                }
+                // 终端协议闪烁光标（几何随协议：SVG 内为静态光标块，此下划线常显并闪烁叠加）
+                Rectangle {
+                    id: terminalCursor
+                    visible: root._isTerminalIcon
+                    width: (root._termCursorGeom[itemData.iconName] ? root._termCursorGeom[itemData.iconName].w : 8) * root._iconSize / 24
+                    height: Math.max(1.5, root._iconSize * 1.2 / 24)
+                    x: iconWell.width / 2 + ((root._termCursorGeom[itemData.iconName] ? root._termCursorGeom[itemData.iconName].x : 11.4) - 12) * root._iconSize / 24
+                    y: iconWell.height / 2 + (12.1 - 12) * root._iconSize / 24 - height / 2
+                    color: _isDone ? _statusColor
+                           : _isRunning ? ThemeEngine.colors.primary
+                           : _isDisabled ? ThemeEngine.colors.textMuted
+                           : ThemeEngine.colors.textSecondary
+                    SequentialAnimation on opacity {
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 1.0; to: 0.15; duration: 530; easing.type: Easing.Linear }
+                        NumberAnimation { from: 0.15; to: 1.0; duration: 530; easing.type: Easing.Linear }
+                    }
                 }
                 // 运行动画（animType → 五动画，DiagAnimator 调度）
                 DiagAnimator {

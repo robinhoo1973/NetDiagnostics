@@ -1,12 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke-linecap="round" stroke-linejoin="round" fill-opacity="0">
-  <defs>
-    <linearGradient id="ngnddiagg1cellular" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#BE185D" />
-      <stop offset="100%" stop-color="#851141" />
-    </linearGradient>
-  </defs>
-
-  <!-- Four ascending cellular signal bars -->
-  <path d="M6.4 18 V15 M10.1 18 V13 M13.8 18 V11 M17.5 18 V9"
-        stroke="url(#ngnddiagg1cellular)" stroke-width="1.6" />
+  <!-- #BE185D sentinel（烘焙管线要求；零尺寸不可见） -->
+  <rect width="0" height="0" fill="#BE185D" fill-opacity="1" />
+  <!-- Four ascending cellular signal bars — one bright color each
+       (#F87171..#38BDF8 → FIXED_COLORS: 红/琥珀/绿/天蓝 tailwind-400) -->
+  <path d="M6.4 18 V15"  stroke="#F87171" stroke-width="1.6" />
+  <path d="M10.1 18 V13" stroke="#FBBF24" stroke-width="1.6" />
+  <path d="M13.8 18 V11" stroke="#4ADE80" stroke-width="1.6" />
+  <path d="M17.5 18 V9"  stroke="#38BDF8" stroke-width="1.6" />
 </svg>

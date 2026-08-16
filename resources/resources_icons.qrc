@@ -4391,8 +4391,8 @@
         <file>icons/06b6d4/nd-diag-g1-active-connections-a.svg</file>
         <file>icons/818cf8/nd-diag-g1-cellular-a.svg</file>
         <file>icons/6366f1/nd-diag-g1-cellular-a.svg</file>
-        <file>icons/4ade80/nd-diag-g1-dhcp-a.svg</file>
-        <file>icons/10b981/nd-diag-g1-dhcp-a.svg</file>
+        <file>icons/f59e0b/nd-diag-g1-dhcp-a.svg</file>
+        <file>icons/ea580c/nd-diag-g1-dhcp-a.svg</file>
         <file>icons/94a3b8/nd-diag-g1-ip-config-a.svg</file>
         <file>icons/475569/nd-diag-g1-ip-config-a.svg</file>
         <file>icons/68e5f4/nd-diag-g1-network-adapters-a.svg</file>
@@ -4405,8 +4405,8 @@
         <file>icons/06b6d4/nd-diag-g1-wired-a.svg</file>
         <file>icons/94a3b8/nd-diag-g2-arp-table-a.svg</file>
         <file>icons/475569/nd-diag-g2-arp-table-a.svg</file>
-        <file>icons/f59e0b/nd-diag-g2-gateway-a.svg</file>
-        <file>icons/ea580c/nd-diag-g2-gateway-a.svg</file>
+        <file>icons/38bdf8/nd-diag-g2-gateway-a.svg</file>
+        <file>icons/0ea5e9/nd-diag-g2-gateway-a.svg</file>
         <file>icons/60c8f8/nd-diag-g2-network-profile-a.svg</file>
         <file>icons/0ea5e9/nd-diag-g2-network-profile-a.svg</file>
         <file>icons/818cf8/nd-diag-g2-proxy-a.svg</file>
@@ -4419,8 +4419,8 @@
         <file>icons/ea580c/nd-diag-g3-dns-cache-a.svg</file>
         <file>icons/68e5f4/nd-diag-g3-dns-integrity-a.svg</file>
         <file>icons/06b6d4/nd-diag-g3-dns-integrity-a.svg</file>
-        <file>icons/4ade80/nd-diag-g3-dns-servers-a.svg</file>
-        <file>icons/10b981/nd-diag-g3-dns-servers-a.svg</file>
+        <file>icons/38bdf8/nd-diag-g3-dns-servers-a.svg</file>
+        <file>icons/0ea5e9/nd-diag-g3-dns-servers-a.svg</file>
         <file>icons/4ade80/nd-diag-g3-geoip-a.svg</file>
         <file>icons/10b981/nd-diag-g3-geoip-a.svg</file>
         <file>icons/68e5f4/nd-diag-g3-internet-a.svg</file>
@@ -4441,8 +4441,8 @@
         <file>icons/06b6d4/nd-diag-g5-curl-verbose-a.svg</file>
         <file>icons/818cf8/nd-diag-g5-email-a.svg</file>
         <file>icons/6366f1/nd-diag-g5-email-a.svg</file>
-        <file>icons/68e5f4/nd-diag-g5-ftp-a.svg</file>
-        <file>icons/06b6d4/nd-diag-g5-ftp-a.svg</file>
+        <file>icons/f59e0b/nd-diag-g5-ftp-a.svg</file>
+        <file>icons/ea580c/nd-diag-g5-ftp-a.svg</file>
         <file>icons/68e5f4/nd-diag-g5-http-compression-a.svg</file>
         <file>icons/06b6d4/nd-diag-g5-http-compression-a.svg</file>
         <file>icons/94a3b8/nd-diag-g5-http-headers-a.svg</file>
@@ -4453,16 +4453,16 @@
         <file>icons/6366f1/nd-diag-g5-http-timing-a.svg</file>
         <file>icons/60c8f8/nd-diag-g5-ldap-a.svg</file>
         <file>icons/0ea5e9/nd-diag-g5-ldap-a.svg</file>
-        <file>icons/f59e0b/nd-diag-g5-mongodb-a.svg</file>
-        <file>icons/ea580c/nd-diag-g5-mongodb-a.svg</file>
+        <file>icons/4ade80/nd-diag-g5-mongodb-a.svg</file>
+        <file>icons/10b981/nd-diag-g5-mongodb-a.svg</file>
         <file>icons/818cf8/nd-diag-g5-mqtt-a.svg</file>
         <file>icons/6366f1/nd-diag-g5-mqtt-a.svg</file>
-        <file>icons/4ade80/nd-diag-g5-mysql-a.svg</file>
-        <file>icons/10b981/nd-diag-g5-mysql-a.svg</file>
+        <file>icons/fbbf24/nd-diag-g5-mysql-a.svg</file>
+        <file>icons/d97706/nd-diag-g5-mysql-a.svg</file>
         <file>icons/60c8f8/nd-diag-g5-postgres-a.svg</file>
         <file>icons/0ea5e9/nd-diag-g5-postgres-a.svg</file>
-        <file>icons/94a3b8/nd-diag-g5-redis-a.svg</file>
-        <file>icons/475569/nd-diag-g5-redis-a.svg</file>
+        <file>icons/f87171/nd-diag-g5-redis-a.svg</file>
+        <file>icons/dc2626/nd-diag-g5-redis-a.svg</file>
         <file>icons/60c8f8/nd-diag-g5-security-headers-a.svg</file>
         <file>icons/0ea5e9/nd-diag-g5-security-headers-a.svg</file>
         <file>icons/60c8f8/nd-diag-g5-service-banner-a.svg</file>

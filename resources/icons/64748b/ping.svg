@@ -18,7 +18,7 @@
         stroke="#0EA5E9" stroke-width="2.5" />
 
   <!-- Ping endpoint dots — soft fill (#64748B) as subtle glow -->
-  <circle cx="12" cy="12" r="2" fill="#64748B" />
+  <circle cx="12" cy="12" r="2" fill="#64748B" fill-opacity="1" />
   <circle cx="12" cy="12" r="2" stroke="url(#pingGrad)" stroke-width="2.5" />
 
   <!-- Directional arrow — accent highlight -->

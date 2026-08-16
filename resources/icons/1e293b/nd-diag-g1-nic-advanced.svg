@@ -6,8 +6,8 @@
     </linearGradient>
   </defs>
 
-  <!-- CPU chip with internal cross leads (NIC advanced) -->
-  <rect x="8" y="8" width="8" height="8" rx="1" stroke="url(#ngnddiagg1nicadvanced)" stroke-width="1.6" />
-  <path d="M12 8 V16 M8 12 H16" stroke="#151D29" stroke-width="1.2" />
-  <circle cx="12" cy="12" r="0.9" fill="#475569" />
+  <!-- Lucide cpu（参考芯片图标，原样不改动） -->
+  <rect width="16" height="16" x="4" y="4" rx="2" stroke="url(#ngnddiagg1nicadvanced)" stroke-width="1.6" />
+  <rect width="6" height="6" x="9" y="9" rx="1" stroke="#151D29" stroke-width="1.2" />
+  <path d="M15 2v2 M15 20v2 M2 15h2 M2 9h2 M20 15h2 M20 9h2 M9 2v2 M9 20v2" stroke="url(#ngnddiagg1nicadvanced)" stroke-width="1.2" />
 </svg>
