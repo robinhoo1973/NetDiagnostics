@@ -32,7 +32,7 @@ PageSection {
             Layout.preferredHeight: 56
             iconName: detailData.iconName || ""
             iconSize: 40
-            iconColor: ThemeEngine.colors.primary
+            iconColor: ThemeEngine.colors.iconInk
         }
 
         // 状态圆盘

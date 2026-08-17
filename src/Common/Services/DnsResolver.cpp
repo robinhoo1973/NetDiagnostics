@@ -233,7 +233,13 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     // spawnLookupThread（与 resolve6 仅地址族不同）；失败返回非 joinable 线程。
     auto st = std::make_shared<LookupState>();
     std::thread t = spawnLookupThread(st, hb, AF_INET);
-    if (!t.joinable()) return {};
+    if (!t.joinable()) {
+        // 5WHY (review round 4): 创建失败（EAGAIN）必须写负缓存——否则
+        // 资源耗尽期每次调用重复尝试线程创建，30s TTL 缓解失效
+        QMutexLocker locker(&m_mutex);
+        m_cache[host] = {QString(), QDateTime::currentMSecsSinceEpoch()};
+        return {};
+    }
     // 5WHY: t.detach() was unconditional -- even when the thread completed
     // within the timeout (st->done==true), we detached instead of joining.
     // A joinable thread that finishes normally consumes kernel resources
@@ -326,7 +332,11 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     auto st = std::make_shared<LookupState>();
     QByteArray hb = host.toUtf8();
     std::thread t = spawnLookupThread(st, hb, AF_INET6);
-    if (!t.joinable()) return {};
+    if (!t.joinable()) {
+        QMutexLocker locker(&m_mutex);
+        m_cache[QStringLiteral("v6:") + host] = {QString(), QDateTime::currentMSecsSinceEpoch()};
+        return {};
+    }
     // 5WHY: prefer join() when thread completed within timeout for immediate
     // cleanup; detach() is only needed for timeout case where getaddrinfo may
     // still be blocked for 30-120s.
@@ -417,6 +427,8 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
         });
     } catch (const std::system_error& e) {
         qWarning("DnsResolver: thread creation failed (%s)", e.what());
+        QMutexLocker locker(&m_mutex);
+        m_cache[QStringLiteral("ptr:") + ip] = {QString(), QDateTime::currentMSecsSinceEpoch()};
         return {};
     }
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);

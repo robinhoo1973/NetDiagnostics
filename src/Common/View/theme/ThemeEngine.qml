@@ -50,9 +50,15 @@ QtObject {
     // 平板 700px 出现短 tab 配完整组头——统一单一断点）
     readonly property int compactUiWidth: 600
     // 瓦片图标度量令牌（5WHY review round 4: 图标曾硬编码 32/44、垫 48/60
-    // 且与瓦片尺寸无关——"瓦片内小框"的根源；M3 keyline 比随 blockSize 派生）
-    readonly property real tileIconRatio: 0.55
-    readonly property real tilePadRatio: 1.36
+    // 且与瓦片尺寸无关——"瓦片内小框"的根源；M3 keyline 比随 blockSize 派生。
+    // 5WHY (review 2026-08-17, 用户诉求"图形以瓦片尺寸显示"): 0.55 仍偏小且
+    // 垫(0.75×瓦片)仍是"小一号方框"——图标升到 0.66×瓦片、垫≈0.92×瓦片
+    // （贴满瓦片，方框感消失；80px 紧凑瓦片上垫=卡片全幅）
+    readonly property real tileIconRatio: 0.66
+    readonly property real tilePadRatio: 1.39
+    // 图标最小可读尺寸（5WHY review round 4: 40px 底线曾是组件内魔法数——
+    // 尺寸规则整体归令牌层）
+    readonly property int tileIconMin: 40
     // 窄屏判定（5WHY review round 3 修复：isMobile && width < compactUiWidth
     // 三元曾两处复制——组头条与 tab 前缀漂移风险；单一断点配套单一判定）
     function isCompactUi(width) {
@@ -83,9 +89,10 @@ QtObject {
     }
     // 组色调单一映射（G1-G5；5WHY review 2026-08-17：PageGroupPanelSection 与
     // DashboardScreen 各自复制守卫三元，回退策略改动只落一处 → 组头条与仪表盘
-    // 分层行渲染不同色。groupHues 主题无关，单一来源在 Palette.Dark。）
+    // 分层行渲染不同色。5WHY (2026-08-17, 用户诉求 light 可读): groupHues 不再
+    // 主题无关——Light 块拥有加深变体数组（白面 4.4-9.9:1），dark 保持亮色系）
     function groupHue(idx) {
-        // 经 colors 单一访问路径（groupHues 主题无关：Light 块引用 Dark 同一数组）
+        // 经 colors 单一访问路径（Light 块自有加深 groupHues 数组）
         var hues = colors.groupHues
         return (hues !== undefined && idx >= 0 && idx < hues.length) ? hues[idx] : colors.secondary
     }
@@ -109,14 +116,8 @@ QtObject {
         if (status === 4) return { color: colors.fail,    iconName: "badge-error", labelKey: "errorStatus", dimmed: false }
         return null
     }
-    function runStatusColor(status, fallback) {
-        var info = runStatusInfo(status)
-        return info ? info.color : fallback
-    }
-    function runStatusIcon(status, fallbackName) {
-        var info = runStatusInfo(status)
-        return info ? info.iconName : (fallbackName || "check")
-    }
+    // （runStatusColor/runStatusIcon 包装已删除——review round 4：纯字段
+    // 间接层，调用方直接读缓存的 runStatusInfo 对象 + || fallback）
     // 终端底色（TerminalBlock/PageTerminalSection 共用）：暗=surface，
     // 亮=surfaceContainerHighest（7-5 修复：亮色下硬编码深藏青导致文字几乎
     // 不可读）。必须是属性而非函数：无参函数调用绑定没有依赖追踪，

@@ -146,10 +146,9 @@ PageDisplay {
                     AppIcon {
                         visible: AppState.runStatus !== 1
                         anchors.fill: parent
-                        name: ThemeEngine.runStatusIcon(AppState.runStatus, "check")
+                        name: (page._runInfo ? page._runInfo.iconName : "check")
                         size: 28
-                        color: ThemeEngine.runStatusColor(AppState.runStatus,
-                                                          ThemeEngine.colors.success)
+                        color: (page._runInfo ? page._runInfo.color : ThemeEngine.colors.success)
                     }
                 }
                 ColumnLayout {
@@ -158,8 +157,7 @@ PageDisplay {
                     Label {
                         text: {
                             if (AppState.runStatus === 1) return T.tr("runningDots")
-                            var info = ThemeEngine.runStatusInfo(AppState.runStatus)
-                            return info ? T.tr(info.labelKey) : T.tr("diagRunComplete")
+                            return page._runInfo ? T.tr(page._runInfo.labelKey) : T.tr("diagRunComplete")
                         }
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.title
@@ -382,24 +380,17 @@ PageDisplay {
                             Rectangle {
                                 id: closeBtn
                                 implicitWidth: page._closeBtnSz; implicitHeight: page._closeBtnSz; radius: page._closeBtnSz / 2
-                                color: closeHover.containsMouse ? Qt.alpha(ThemeEngine.colors.fail, 0.35)
-                                                                : Qt.alpha(ThemeEngine.colors.fail, 0.15)
-                                // 5WHY (review round 3): 此处曾是手写按钮脚手架的第 4 份
-                                // 拷贝（无键盘支持）——命中/键盘/a11y 统一走 IconActionButton，
-                                // 圆形底色由外层 Rectangle 提供
+                                // 5WHY (review round 4): hovered 别名取代叠加 NoButton
+                                // MouseArea 的脆弱路由；关闭收敛为 closeOverlay()
+                                color: iconBtn.hovered ? Qt.alpha(ThemeEngine.colors.fail, 0.35)
+                                                       : Qt.alpha(ThemeEngine.colors.fail, 0.15)
                                 IconActionButton {
+                                    id: iconBtn
                                     anchors.fill: parent
                                     iconName: "close"; iconSize: 14
                                     iconColor: ThemeEngine.colors.fail
                                     Accessible.name: T.tr("dialogCancel")
-                                    onActivated: page.previewVisible = false
-                                }
-                                MouseArea {
-                                    id: closeHover
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    hoverEnabled: true
-                                    acceptedButtons: Qt.NoButton   // 仅驱动悬停态
+                                    onActivated: page.closeOverlay()
                                 }
                             }
                         }

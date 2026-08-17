@@ -18,7 +18,8 @@ Rectangle {
     // 派生（单一访问点内置进组件）；调用方不再各自维护 _padTint 两步咒语，
     // 漏传也不会静默回退主色。显式赋值仍可覆盖。
     property color tint: ThemeEngine.iconPadTint(root.iconName)
-    property color iconColor: ThemeEngine.colors.primary
+    // iconInk：light 主题深蓝油墨（≈9.5:1 白面），dark 与 primary 同值
+    property color iconColor: ThemeEngine.colors.iconInk
     property int iconSize: 44
     // 5WHY (review round 4): 缺 mirror 转发（镜像调用方只能重写光晕垫）且
     // 空名不隐藏（空垫）。隐式尺寸兜底——调用方漏设宽高时不再塌成 0。
@@ -28,8 +29,13 @@ Rectangle {
     visible: iconName !== ""
 
     radius: width * 0.28
-    color: Qt.alpha(root.tint, ThemeEngine.colors.iconPadAlpha)
-    border { width: 1; color: Qt.alpha(root.tint, ThemeEngine.colors.iconPadBorderAlpha) }
+    // 5WHY (review 2026-08-17, 用户诉求 light 可读): tint 表烘焙的是暗色系
+    // 主导色——light 白面上 0.12 透明度合成后 ≈1.0:1，光晕垫不可见。
+    // light 运行时加深 1.5×（Qt.darker 乘 2/3 亮度），dark 不变。
+    readonly property color _effTint: ThemeEngine.isDark ? root.tint
+                                                         : Qt.darker(root.tint, 1.5)
+    color: Qt.alpha(root._effTint, ThemeEngine.colors.iconPadAlpha)
+    border { width: 1; color: Qt.alpha(root._effTint, ThemeEngine.colors.iconPadBorderAlpha) }
 
     AppIcon {
         anchors.centerIn: parent

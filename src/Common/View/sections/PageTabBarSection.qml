@@ -70,7 +70,9 @@ PageSection {
                         id: selBadge
                         Layout.preferredWidth: 28
                         Layout.preferredHeight: 28
-                        Layout.alignment: Qt.AlignVCenter
+                        // 窄屏文本隐藏时徽标水平居中（纯图标 tab）
+                        Layout.alignment: ThemeEngine.isCompactUi(root.width)
+                                          ? Qt.AlignHCenter : Qt.AlignVCenter
                         radius: 14
                         color: tabBtn._selMode === 2 ? ThemeEngine.colors.primary
                              : tabBtn._selMode === 1 ? Qt.alpha(ThemeEngine.colors.primary, 0.16)
@@ -83,7 +85,7 @@ PageSection {
                             name: ThemeEngine.groupIconName(index)
                             size: 16
                             color: tabBtn._selMode === 2 ? ThemeEngine.colors.onPrimary
-                                 : tabBtn._selMode === 1 ? ThemeEngine.colors.primary
+                                 : tabBtn._selMode === 1 ? ThemeEngine.colors.iconInk
                                  : ThemeEngine.colors.textMuted
                         }
                         MouseArea {
@@ -106,15 +108,16 @@ PageSection {
                                : T.tr("deselectAll"))
                     }
                     // 组名文本（全不选时灰色弱化，选中选项卡加粗）。
-                    // 5WHY (review 2026-08-17): 等宽五等分在手机竖屏下每 tab
-                    // 仅 ~59px，完整组名 elide 成 "…" 或越界覆盖相邻 tab——
-                    // 移动端只显示短前缀 "G1".."G5"（与 0.0.3/1acc2d62 重构前
-                    // 一致），完整名称仍由 Accessible.name 供读屏。
+                    // 5WHY (review 2026-08-17, 用户诉求"单纯图标"): 等宽五等分
+                    // 在手机竖屏下每 tab 仅 ~59px——完整组名 elide 成 "…"，
+                    // 短前缀 "G1".."G5" 仍是文字，均不满足"纯图标"要求。
+                    // 窄屏直接隐藏文本、徽标水平居中；完整名称仍由
+                    // Accessible.name 供读屏。
                     Label {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignVCenter
-                        text: ThemeEngine.isCompactUi(root.width)
-                              ? T.groupPrefix(index) : tabBtn._groupName
+                        visible: !ThemeEngine.isCompactUi(root.width)
+                        text: tabBtn._groupName
                         font.family: ThemeEngine.fontUi
                         font.pixelSize: ThemeEngine.fontSize.caption
                         font.weight: tabBtn.activeTab ? Font.DemiBold : Font.Normal

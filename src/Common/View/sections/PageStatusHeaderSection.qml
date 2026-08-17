@@ -56,8 +56,11 @@ PageSection {
                 anchors.fill: parent
                 // 5WHY (review round 3): 取消/错误态曾硬编码绿色 check——
                 // 与同行的 runStatusInfo 标签/文字色脱节（橙字配绿勾）
-                name: (page._statusInfo ? page._statusInfo.iconName : "badge-check"); size: 16
-                color: (page._statusInfo ? page._statusInfo.color : ThemeEngine.colors.success)
+                // 5WHY (review round 4): 曾误写 root._statusInfo——本组件
+                // 根 id 是 root（page 未定义 → 绑定求值 ReferenceError，
+                // 状态图标/标签永远损坏）
+                name: (root._statusInfo ? root._statusInfo.iconName : "badge-check"); size: 16
+                color: (root._statusInfo ? root._statusInfo.color : ThemeEngine.colors.success)
             }
         }
         Label {
@@ -66,13 +69,13 @@ PageSection {
                 if (AppState.runStatus === 1)
                     return (AppState.currentDiagLabel || T.tr("running"))
                            + (_agg.total > 0 ? " · " + AppState.totalCompleted + "/" + _agg.total : "")
-                if (page._statusInfo) return T.tr(page._statusInfo.labelKey)
+                if (root._statusInfo) return T.tr(root._statusInfo.labelKey)
                 return (_agg.total > 0
                     ? AppState.totalCompleted + "/" + _agg.total
                     : AppState.totalCompleted) + " " + T.tr("completed")
             }
-            color: ThemeEngine.runStatusColor(AppState.runStatus,
-                                              ThemeEngine.colors.onSurfaceVariant)
+            color: (root._statusInfo ? root._statusInfo.color
+                                       : ThemeEngine.colors.onSurfaceVariant)
             font.family: ThemeEngine.fontUi
             font.pixelSize: ThemeEngine.fontSize.body
             elide: Text.ElideRight

@@ -790,7 +790,7 @@ static DiagnosticResult probeTraceroute(DiagId id, const QString& target, RunCon
                 // 违反本文件 H4 规则）；中间版本每跳新建局部事件循环（第 3 份
                 // 有界等待机制且无负缓存）。统一走 DnsResolver 单例：
                 // 受守卫线程/轮询 + 2s 截止 + 正负缓存。
-                const QString name = DnsResolver::instance().resolvePtr(hopIp, 2000);
+                const QString name = DnsResolver::instance().resolvePtr(hopIp, 500);   // 展示用：0.5s 截止
                 if (!name.isEmpty())
                     hopName = name;
             }

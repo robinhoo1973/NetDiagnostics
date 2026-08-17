@@ -58,7 +58,9 @@ var Dark = {
     // Light 块以引用共享同一数组/数值）。
     iconPadAlpha:         0.12,
     iconPadBorderAlpha:   0.22,
-    groupHues:            ["#818CF8", "#38BDF8", "#68E5F4", "#60C8F8", "#A78BFA"]
+    groupHues:            ["#818CF8", "#38BDF8", "#68E5F4", "#60C8F8", "#A78BFA"],
+    iconInk:              "#60C8F8",   // 瓦片图标油墨色（dark=primary 同值）
+    onFail:               "#FFFFFF",   // fail 红上的内容色（关闭钮悬停图标，两主题同值）
 };
 
 var Light = {
@@ -97,10 +99,18 @@ var Light = {
     terminalText:         "#047857",   // 终端输出文本（深翡翠，浅底 ~4.5:1 WCAG AA）
     onSuccessContainer:   "#047857",   // 深翡翠对 success 淡底 ≈4.7:1（AA）
 
-    // 45 图标全彩常显：引用 Dark 块单一来源（主题无关令牌，勿在本块改值）
+    // 45 图标全彩常显令牌。5WHY (review 2026-08-17, 用户诉求 light 可读):
+    // 亮色系图标在白色卡面上 1.7-2.8:1 几乎不可读——
+    //   · groupHues：light 使用加深变体（此前"主题无关、单一来源在 Dark"
+    //     的决策正是 light 下组图标消失的根因——light 块拥有自己的数组）
+    //   · iconInk：light 瓦片图标油墨用深蓝 #0C4A6E（复用现有
+    //     Dark.primaryContainer hex，白面 ≈9.5:1；dark 与 primary 同值）
+    //   · iconPad 透明度主题无关（引用 Dark 单一来源）
     iconPadAlpha:         Dark.iconPadAlpha,
     iconPadBorderAlpha:   Dark.iconPadBorderAlpha,
-    groupHues:            Dark.groupHues
+    groupHues:            ["#4338CA", "#0284C7", "#0891B2", "#0369A1", "#7C3AED"],
+    iconInk:              "#0C4A6E",
+    onFail:               "#FFFFFF"   // fail 红上的内容色（与 dark 同值）
 };
 
 Object.freeze(Dark);

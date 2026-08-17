@@ -92,17 +92,15 @@ PageSection {
     // 两份，加徽标/改格式必须双处同步——现为单一内联组件）
     component BuiltinStats: RowLayout {
         property var stats: ({})
-        property bool _visible: true
         Label {
-            visible: parent._visible
             text: (parent.stats.completed || 0) + "/" + (parent.stats.total || 0)
             font.family: ThemeEngine.monoFont
             font.pixelSize: ThemeEngine.fontSize.body
             color: ThemeEngine.colors.onSurfaceVariant
         }
-        StatusBadge { visible: parent._visible; statusCode: 0; count: parent.stats.pass || 0 }
-        StatusBadge { visible: parent._visible; statusCode: 1; count: parent.stats.warn || 0 }
-        StatusBadge { visible: parent._visible; statusCode: 2; count: parent.stats.fail || 0 }
+        StatusBadge { statusCode: 0; count: parent.stats.pass || 0 }
+        StatusBadge { statusCode: 1; count: parent.stats.warn || 0 }
+        StatusBadge { statusCode: 2; count: parent.stats.fail || 0 }
     }
 
     // 注入行头（宽/窄两行共用的 Loader+Binding 脚手架；5WHY review round 4:
@@ -126,7 +124,6 @@ PageSection {
             property: "fillProgress"
             value: rowHeaderInjectedLoader.fillProgress
             when: rowHeaderInjectedLoader.item !== null
-                  && rowHeaderInjectedLoader.fillProgress
                   && "fillProgress" in rowHeaderInjectedLoader.item
         }
     }
@@ -186,7 +183,7 @@ PageSection {
                         elide: Text.ElideRight
                     }
                     BuiltinStats {
-                        _visible: root.rowHeaderDelegate === null && !root._headerCompact
+                        visible: root.rowHeaderDelegate === null && !root._headerCompact
                         stats: root._statsObj
                     }
                     AppIcon {
@@ -210,7 +207,7 @@ PageSection {
                         _stats: root._statsObj
                     }
                     BuiltinStats {
-                        _visible: root.rowHeaderDelegate === null
+                        visible: root.rowHeaderDelegate === null
                         stats: root._statsObj
                     }
                 }

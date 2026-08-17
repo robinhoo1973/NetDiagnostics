@@ -25,16 +25,17 @@ Item {
     function _recomputeSize() {
         var w = width
         if (w <= 0) return
-        // 5WHY (review round 4): 列数按 w 计算但网格两侧各留 1×gap——边界
-        // 宽度下多算一列导致末列越出网格。以可用宽（w-2×gap）迭代 2 次收敛。
+        // 5WHY (review round 4): 精确方程 n×tile+(n+1)×gap=w（denom 已含
+        // 两侧 gap——勿再减 2×gap，否则每屏系统性欠填）。gap 四舍五入可能
+        // 使总量略超 w：按实际总量下调列数直至不越界（cols 单调递减收敛）。
         var cols = Math.max(1, Math.floor((w / _minTile - _k) / (1.0 + _k)))
         var tile = _minTile
-        for (var i = 0; i < 2; ++i) {
-            var gap = Math.max(4, Math.round(tile * _k))
-            var avail = w - 2 * gap
-            cols = Math.max(1, Math.floor((avail / _minTile - _k) / (1.0 + _k)))
+        for (var i = 0; i < 3; ++i) {
             var denom = cols + (cols + 1) * _k
-            tile = Math.min(_maxTile, Math.max(_minTile, Math.floor(avail / denom)))
+            tile = Math.min(_maxTile, Math.max(_minTile, Math.floor(w / denom)))
+            var gap = Math.max(4, Math.round(tile * _k))
+            if (cols * tile + (cols + 1) * gap <= w) break
+            cols = Math.max(1, cols - 1)
         }
         _columns = cols
         _tileSize = tile
@@ -57,7 +58,6 @@ Item {
             model: root.model
             delegate: DiagBlock {
                 blockSize: root._tileSize
-                compact: root.compact
                 itemData: modelData
                 testRunning: root.usePerItemRunning
                              ? (root.groupRunning && modelData.isPending === true && !modelData.isDisabled)

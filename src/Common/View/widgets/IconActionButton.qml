@@ -17,6 +17,9 @@ Item {
     property color iconColor: ThemeEngine.colors.onSurfaceVariant
     property bool iconMirror: false
     signal activated()
+    // 悬停态透出（5WHY review round 4: 调用方为悬停着色堆叠 NoButton
+    // MouseArea 的脆弱路由——别名一行解决）
+    readonly property alias hovered: hoverArea.containsMouse
 
     implicitWidth: 44
     implicitHeight: 44
@@ -38,8 +41,10 @@ Item {
         mirror: root.iconMirror
     }
     MouseArea {
+        id: hoverArea
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
+        hoverEnabled: true
         onClicked: root.activated()
     }
 }

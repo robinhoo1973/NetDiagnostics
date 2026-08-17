@@ -10,6 +10,11 @@
 import QtQuick
 import QtQuick.Controls
 import "../theme"
+// 5WHY (review 2026-08-17): main.cpp 注册了 NativePdfDocument 但本文件从未
+// 导入模块——typeof 守卫对未导入的类型恒为 'undefined'，注册毫无效果。
+// 本文件仅在 Apple 条件 QRC（resources_nativepdf.qrc，CMakeLists IOS OR
+// APPLE）发布，而模块同样仅 Apple 注册——非 Apple 平台不会加载此文件。
+import NetDiagnostics 1.0
 
 Item {
     id: root

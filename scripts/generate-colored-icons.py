@@ -495,8 +495,12 @@ def generate(out_base: Path | None = None) -> None:
                                      f"reference leaked into output — fix the accent table")
                 out_file = sub / svg.name
                 out_file.write_text(colored, encoding="utf-8", newline="\n")
-        for svg in icons:
-            qrc_entries.append(f"icons/{sub.name}/{svg.name}")
+        # 5WHY (review 2026-08-17): #FFFFFF 是母版目录（含未替换哨兵）——
+        # 旧代码把原始母版并入 qrc 随包发布（AppIcon 已排除该目录，纯死重
+        # 且未来重新纳入会渲染损坏图标）。母版只作生成输入，不发布。
+        if hx != "#FFFFFF":
+            for svg in icons:
+                qrc_entries.append(f"icons/{sub.name}/{svg.name}")
         # 5WHY (review 2026-08-17): 共享 hex（两主题都用）只烘一张固定色表——
         # 显式提醒，防止未来图标在亮色主题静默拿到 dark 固定色。
         if used_fixed and hx in dark_hexes and hx in light_hexes:

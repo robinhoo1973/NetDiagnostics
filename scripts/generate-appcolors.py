@@ -57,6 +57,8 @@ ROLES = [
     ("INFO", "info"),
     ("TERMINAL_TEXT", "terminalText"),
     ("ON_SUCCESS_CONTAINER", "onSuccessContainer"),
+    ("ICON_INK", "iconInk"),
+    ("ON_FAIL", "onFail"),
 ]
 
 # Stem→key lookup built once (5WHY review 2026-08-17: dict(ROLES) was rebuilt
@@ -232,7 +234,8 @@ def build_header() -> str:
         ("EXTENDED TOKENS — brand accent / text levels / status",
          [s for s, _ in ROLES if s in
           ("ACCENT", "TEXT_PLACEHOLDER", "SUCCESS", "WARNING", "WARNING_STRONG",
-           "FAIL", "SKIP", "INFO", "TERMINAL_TEXT", "ON_SUCCESS_CONTAINER")]),
+           "FAIL", "SKIP", "INFO", "TERMINAL_TEXT", "ON_SUCCESS_CONTAINER",
+           "ICON_INK", "ON_FAIL")]),
     ]
     for title, stems in sections:
         out.append("// ═══════════════════════════════════════════════════════════════════════════════")

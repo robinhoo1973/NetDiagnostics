@@ -27,8 +27,10 @@ Rectangle {
         name: root.iconName; size: 14
         // 5WHY (review round 3): 裸 #FFFFFF 违反 M3 单一事实源——用 onError
         // （错误面内容色；暗 #0F172A 对 fail 红 ≈6.4:1，亮 #FFFFFF ✓）
+        // 5WHY (review round 4 复核): onError 暗色 #0F172A——黑图标在 fail
+        // 红上视觉倒置；onFail 两主题一致白（fail 红上的内容色）
         color: ma.containsMouse
-               ? (root.destructive ? ThemeEngine.colors.onError : ThemeEngine.colors.onSurface)
+               ? (root.destructive ? ThemeEngine.colors.onFail : ThemeEngine.colors.onSurface)
                : ThemeEngine.colors.onSurfaceVariant
     }
 

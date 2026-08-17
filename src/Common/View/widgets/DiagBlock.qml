@@ -11,7 +11,6 @@ Item {
     property var itemData: ({})
     property bool testRunning: false
     property real blockSize: 108
-    property bool compact: false
     signal clicked(var data)
 
     readonly property bool _isPending: itemData.isPending === true
@@ -20,7 +19,10 @@ Item {
     readonly property int _status: itemData.status !== undefined ? itemData.status : -1
     // 5WHY (review round 4): 可见性经类型化 _status 判断（不再读未追踪的 var
     // 子属性）；DiagStatus 3=Skipped、6=Cancelled 均隐藏（wasExecuted 同语义）
-    readonly property bool _isSkippedOrCancelled: _status === 3 || _status === 6
+    // 仅隐藏 Skipped（5WHY review round 4 复核: Cancelled 曾一并隐藏——
+    // 但 groupStats 仍计入，出现 "8/45 只见 6 瓦片" 的计数失配；基线行为
+    // 是取消瓦片带徽标可见）
+    readonly property bool _isSkipped: _status === 3
     readonly property string _statusIcon: isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
     readonly property color _statusColor: isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
     readonly property bool _isRunning: root.testRunning && !root._isDisabled && !root.isDone
@@ -32,8 +34,11 @@ Item {
     // ── 瓦片级图标缩放（5WHY review round 4 — 用户诉求"图形以瓦片尺寸显示"）──
     // 图标/光晕垫随 blockSize 派生（M3 keyline 比经 ThemeEngine 令牌），
     // 不再用 compact 二值（原 80-160px 瓦片恒渲染 32/44px 小框）。
-    readonly property int _iconSize: Math.max(40, Math.round(root.blockSize * ThemeEngine.tileIconRatio))
-    readonly property int _padSize: Math.round(root._iconSize * ThemeEngine.tilePadRatio)
+    readonly property int _iconSize: Math.max(ThemeEngine.tileIconMin,
+                                              Math.round(root.blockSize * ThemeEngine.tileIconRatio))
+    // 垫尺寸夹紧到卡片内（5WHY review round 4: 极小块调用方曾可溢出圆角）
+    readonly property int _padSize: Math.min(root.blockSize - 10,
+                                             Math.round(root._iconSize * ThemeEngine.tilePadRatio))
     // _iconName 中间属性：下游绑定只随 iconName 值变化（itemData 是 var 持
     // JS 对象，子属性访问不参与依赖追踪）
     readonly property string _iconName: itemData.iconName || "circle"
@@ -43,19 +48,24 @@ Item {
         || _iconName === "nd-diag-g5-ftp"
     // 光标几何与 SVG 静态下划线一致（M6.4 12.1 H9.8；5WHY review round 4:
     // 旧值 7.6/3.2 与再设计后母版脱节，形成错位双下划线）
-    readonly property var _termCursor: ({ x: 6.4, w: 3.4 })
+    readonly property real _termCursorX: 6.4
+    readonly property real _termCursorW: 3.4
+    readonly property real _termCursorYOff: 0.1   // 12.1 - 12（24 空间中心偏移）
     // 禁用=灰色不变式（5WHY review round 4: Qt.alpha(primary,0.35) 在亮色
-    // 主题近乎不可见；旧版为不透明 textMuted）
+    // 主题近乎不可见；旧版为不透明 textMuted）。
+    // 油墨色经 iconInk 令牌（5WHY review 2026-08-17, 用户诉求 light 可读:
+    // light primary #0EA5E9 在白色瓦片上仅 ~2.8:1——light 用深蓝 #0C4A6E
+    // ≈9.5:1；dark 与 primary 同值）
     readonly property color _iconColor: root._isDisabled
         ? ThemeEngine.colors.textMuted
-        : ThemeEngine.colors.primary
+        : ThemeEngine.colors.iconInk
     // 完成态：光晕垫改状态色（5WHY review round 4: 状态信号曾缩为 3px 细条
     // ——45 瓦片密集墙上失败几乎不可见；垫色随状态发光恢复醒目度）
     readonly property color _padTint: root.isDone
         ? root._statusColor
         : ThemeEngine.iconPadTint(_iconName)
 
-    visible: _isPending || !_isSkippedOrCancelled
+    visible: _isPending || !_isSkipped
     implicitWidth: visible ? blockSize : 0
     implicitHeight: visible ? blockSize : 0
 
@@ -72,6 +82,7 @@ Item {
     }
 
     property int _elapsed: 0
+    property int _ranSeconds: 0   // 完成瞬间锁存（durationMs=0 的工厂结果也保留计时）
     Timer {
         id: elapsedTimer
         interval: 1000; repeat: true
@@ -83,10 +94,10 @@ Item {
     // _elapsed 被清零——完成态计时改读 itemData.durationMs，重建后依然可见；
     // _showTimer/_displayElapsed 两个同步状态随之删除）
     readonly property int _timerSecs: root.isDone
-        ? Math.round((itemData.durationMs || 0) / 1000)
+        ? Math.round(((itemData.durationMs || 0) > 0 ? itemData.durationMs : root._ranSeconds * 1000) / 1000)
         : root._elapsed
     readonly property bool _timerVisible: root.isDone
-        ? (itemData.durationMs || 0) > 0
+        ? ((itemData.durationMs || 0) > 0 || root._ranSeconds > 0)
         : root._elapsed > 0
     readonly property string _timerColor: {
         if (_timerSecs > 20) return ThemeEngine.colors.fail
@@ -98,7 +109,10 @@ Item {
     // settle：完成瞬间弹性缩放（5WHY review round 4: 直接动画 card.scale——
     // _settleScale 中间属性只为动画存在，且占用每瓦片属性预算）
     onIsDoneChanged: {
-        if (isDone) { card.scale = 0.94; settleAnim.restart() }
+        if (isDone) {
+            if (root._elapsed > 0) root._ranSeconds = root._elapsed
+            card.scale = 0.94; settleAnim.restart()
+        }
     }
     SequentialAnimation {
         id: settleAnim
@@ -136,10 +150,10 @@ Item {
             Rectangle {
                 id: terminalCursor
                 visible: root._isTerminalIcon && root._isRunning
-                width: root._termCursor.w * root._iconSize / 24
+                width: root._termCursorW * root._iconSize / 24
                 height: Math.max(1.5, root._iconSize * 1.2 / 24)
-                x: iconWell.width / 2 + (root._termCursor.x - 12) * root._iconSize / 24
-                y: iconWell.height / 2 + (12.1 - 12) * root._iconSize / 24 - height / 2
+                x: iconWell.width / 2 + (root._termCursorX - 12) * root._iconSize / 24
+                y: iconWell.height / 2 + root._termCursorYOff * root._iconSize / 24 - height / 2
                 color: root._iconColor
                 SequentialAnimation on opacity {
                     loops: Animation.Infinite
