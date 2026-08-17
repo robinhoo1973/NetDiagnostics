@@ -65,14 +65,21 @@ PageSection {
                     anchors.leftMargin: 10
                     anchors.rightMargin: 10
                     spacing: ThemeEngine.spacing.sm
+                    // 窄屏纯图标：徽标两侧等宽弹性垫片（fillWidth 平分富余），
+                    // 徽标水平居中（5WHY verify 2026-08-17: RowLayout 非填充
+                    // 项的单元格=自身宽度，Layout.alignment 沿主轴是空操作——
+                    // 徽标曾停在 x=10 处、右侧 24px 空当，纯图标 tab 失衡）
+                    Item {
+                        visible: ThemeEngine.isCompactUi(root.width)
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 0
+                    }
                     // 圆形组徽标 = 全选/全不选开关（颜色三态语义）
                     Rectangle {
                         id: selBadge
                         Layout.preferredWidth: 28
                         Layout.preferredHeight: 28
-                        // 窄屏文本隐藏时徽标水平居中（纯图标 tab）
-                        Layout.alignment: ThemeEngine.isCompactUi(root.width)
-                                          ? Qt.AlignHCenter : Qt.AlignVCenter
+                        Layout.alignment: Qt.AlignVCenter
                         radius: 14
                         color: tabBtn._selMode === 2 ? ThemeEngine.colors.primary
                              : tabBtn._selMode === 1 ? Qt.alpha(ThemeEngine.colors.primary, 0.16)
@@ -125,6 +132,12 @@ PageSection {
                              : tabBtn.activeTab ? ThemeEngine.colors.onSurface
                              : ThemeEngine.colors.onSurfaceVariant
                         elide: Text.ElideRight
+                    }
+                    // 窄屏纯图标：与左侧垫片对称（fillWidth 平分富余 → 居中）
+                    Item {
+                        visible: ThemeEngine.isCompactUi(root.width)
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 0
                     }
                 }
                 background: Rectangle {

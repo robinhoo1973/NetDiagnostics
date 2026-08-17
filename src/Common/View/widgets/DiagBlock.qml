@@ -18,10 +18,9 @@ Item {
     readonly property bool isDone: itemData.isDone === true
     readonly property int _status: itemData.status !== undefined ? itemData.status : -1
     // 5WHY (review round 4): 可见性经类型化 _status 判断（不再读未追踪的 var
-    // 子属性）；DiagStatus 3=Skipped、6=Cancelled 均隐藏（wasExecuted 同语义）
-    // 仅隐藏 Skipped（5WHY review round 4 复核: Cancelled 曾一并隐藏——
-    // 但 groupStats 仍计入，出现 "8/45 只见 6 瓦片" 的计数失配；基线行为
-    // 是取消瓦片带徽标可见）
+    // 子属性）；仅隐藏 DiagStatus 3=Skipped。Cancelled 保持可见——groupStats
+    // 仍计入取消项，一并隐藏会出现 "8/45 只见 6 瓦片" 的计数失配；基线行为
+    // 是取消瓦片带徽标可见。
     readonly property bool _isSkipped: _status === 3
     readonly property string _statusIcon: isDone ? (ThemeEngine.statusIconNames[_status] || "badge-skip") : ""
     readonly property color _statusColor: isDone ? (ThemeEngine.statusColors[_status] || ThemeEngine.colors.skip) : "transparent"
@@ -88,13 +87,24 @@ Item {
         interval: 1000; repeat: true
         running: _isRunning
         onTriggered: root._elapsed++
-        onRunningChanged: if (!running) root._elapsed = 0
+        // 5WHY (verify 2026-08-17, Qt 6.8.2 实测): isDone 翻转时 onIsDoneChanged
+        // 先于 runningChanged 触发（锁存成功），但当 testRunning 先于 isDone
+        // 归 false（组先结束再落结果）时 _elapsed 已清零、锁存落空——停止路径
+        // 同样锁存，两种完成时序都保留计时（委托重建路径见 _timerSecs 注释）。
+        onRunningChanged: {
+            if (!running) {
+                if (root._elapsed > 0) root._ranSeconds = root._elapsed
+                root._elapsed = 0
+            }
+        }
     }
     // 计时数据驱动（5WHY review round 4: 委托在每次进度事件被重建，本地
     // _elapsed 被清零——完成态计时改读 itemData.durationMs，重建后依然可见；
     // _showTimer/_displayElapsed 两个同步状态随之删除）
+    // 完成态：Math.max(1, …) 防亚秒结果显示 "0"（GCommon/DiagnosticBase 最小
+    // 1ms——round(150/1000)=0，圆点可见但显示 0 秒）。
     readonly property int _timerSecs: root.isDone
-        ? Math.round(((itemData.durationMs || 0) > 0 ? itemData.durationMs : root._ranSeconds * 1000) / 1000)
+        ? Math.max(1, Math.round(((itemData.durationMs || 0) > 0 ? itemData.durationMs : root._ranSeconds * 1000) / 1000))
         : root._elapsed
     readonly property bool _timerVisible: root.isDone
         ? ((itemData.durationMs || 0) > 0 || root._ranSeconds > 0)
@@ -146,6 +156,10 @@ Item {
             iconSize: root._iconSize
             iconColor: root._iconColor
             tint: root._padTint
+            // 5WHY (verify 2026-08-17): 完成态 tint 是状态色（light 变体本身
+            // 已加深，如 #DC2626）——再经 IconPad light 加深 1.5× 会变近黑，
+            // 状态光晕退化为灰斑。仅非完成态的 IconTints 值需要 light 加深。
+            darkenInLight: !root.isDone
             // 终端协议闪烁光标（仅运行中显示；几何对齐 SVG 静态下划线）
             Rectangle {
                 id: terminalCursor

@@ -18,9 +18,12 @@ Item {
     property int _hexVersion: 0
     readonly property string _hex: {
         var _v = _hexVersion
+        // 5WHY (verify 2026-08-17): ffffff 母版目录不再打包进 QRC（0 条目）
+        // ——回退值必须指向已发布的最近似目录 f8fafc（84 图标全量烘焙），
+        // 否则 IconColors.js 缺失/为空时全部图标静默空白。
         if (!IconColors || !IconColors.hexes || IconColors.hexes.length === 0)
-            return "#FFFFFF"
-        var best = "#FFFFFF"
+            return "#F8FAFC"
+        var best = "#F8FAFC"
         var bd = 1e9
         for (var i = 0; i < IconColors.hexes.length; i++) {
             var h = IconColors.hexes[i]

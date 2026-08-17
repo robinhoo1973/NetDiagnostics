@@ -500,8 +500,11 @@ fi
 	GEN_INPUTS=$(echo "$STAGED" | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py)$' || true)
 	# 5WHY (review round 4): 生成输出被手改同样必须校验（手改随下次再生成丢失）；
 	# 输入删除不在 ACMR 过滤中——单独查 D 状态。fail-closed 覆盖恢复。
+	# 5WHY (verify 2026-08-17): D 状态同样必须覆盖生成输出——输出删除曾不被
+	# 任何分支触发（qrc 仍引用已删 SVG → rcc 构建失败）。--check 全量镜像重建
+	# 会检测出真实目录缺失该文件，故只需让删除进入触发条件。
 	GEN_OUTPUTS=$(echo "$STAGED" | grep -E 'resources/(icons/[0-9a-f]{6}/[^/]+\.svg|resources_icons\.qrc)|src/Common/View/widgets/Icon(Colors|Tints)\.js' || true)
-	GEN_DELETED=$(git diff --cached --name-only --diff-filter=D | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py)' || true)
+	GEN_DELETED=$(git diff --cached --name-only --diff-filter=D | grep -E '(theme/Palette\.js|resources/icons/(ffffff|masters-45)/[^/]+\.svg|scripts/(generate-colored-icons|palette_common)\.py|resources/(icons/[0-9a-f]{6}/[^/]+\.svg|resources_icons\.qrc)|src/Common/View/widgets/Icon(Colors|Tints)\.js)' || true)
 	if [ -n "$GEN_INPUTS" ] || [ -n "$GEN_OUTPUTS" ] || [ -n "$GEN_DELETED" ]; then
 	    if python3 "$ROOT/scripts/generate-colored-icons.py" --check; then
 	        pass "icons up to date"

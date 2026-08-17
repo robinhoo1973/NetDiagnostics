@@ -26,16 +26,28 @@ Item {
         var w = width
         if (w <= 0) return
         // 5WHY (review round 4): 精确方程 n×tile+(n+1)×gap=w（denom 已含
-        // 两侧 gap——勿再减 2×gap，否则每屏系统性欠填）。gap 四舍五入可能
-        // 使总量略超 w：按实际总量下调列数直至不越界（cols 单调递减收敛）。
+        // 两侧 gap——勿再减 2×gap，否则每屏系统性欠填）。
+        // 5WHY (verify 2026-08-17): gap 四舍五入溢出量至多 (cols+1)×0.5px——
+        // 旧版直接降列：w=325 时 2×144+3×12=324 可放下，却塌成 1 列 160px
+        // 瓦片 + 172px 死区（60-4000px 间 526 个宽度带少显示 1+ 列）。改
+        // 先缩瓦片 1px 吸收溢出（总减量 ≥cols 且 gap 至多反增 cols+1，仍
+        // 净减、必然收敛）；仅当瓦片已贴 _minTile 仍越界才降列重算。
         var cols = Math.max(1, Math.floor((w / _minTile - _k) / (1.0 + _k)))
-        var tile = _minTile
-        for (var i = 0; i < 3; ++i) {
-            var denom = cols + (cols + 1) * _k
-            tile = Math.min(_maxTile, Math.max(_minTile, Math.floor(w / denom)))
+        var denom = cols + (cols + 1) * _k
+        var tile = Math.min(_maxTile, Math.max(_minTile, Math.floor(w / denom)))
+        for (var i = 0; i < 4; ++i) {
             var gap = Math.max(4, Math.round(tile * _k))
             if (cols * tile + (cols + 1) * gap <= w) break
+            if (tile > _minTile) { tile--; continue }
             cols = Math.max(1, cols - 1)
+            denom = cols + (cols + 1) * _k
+            tile = Math.min(_maxTile, Math.max(_minTile, Math.floor(w / denom)))
+        }
+        // 防御（共享组件可被 < ~90px 的嵌入方调用；主窗 minWidth 360 不可达）：
+        // cols=1 且瓦片已贴 _minTile 仍越界时收缩瓦片直至放下。
+        while (tile > 8
+               && cols * tile + (cols + 1) * Math.max(4, Math.round(tile * _k)) > w) {
+            tile--
         }
         _columns = cols
         _tileSize = tile

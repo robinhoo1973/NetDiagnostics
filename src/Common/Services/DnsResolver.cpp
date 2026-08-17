@@ -234,10 +234,14 @@ QString DnsResolver::resolve(const QString& host, int timeoutMs) {
     auto st = std::make_shared<LookupState>();
     std::thread t = spawnLookupThread(st, hb, AF_INET);
     if (!t.joinable()) {
-        // 5WHY (review round 4): 创建失败（EAGAIN）必须写负缓存——否则
-        // 资源耗尽期每次调用重复尝试线程创建，30s TTL 缓解失效
+        // 5WHY (verify 2026-08-17): 原修复把 EAGAIN（本地瞬时资源问题）按
+        // DNS 失败写 30s 负缓存——健康主机被黑名单化整轮、与真实故障不可
+        // 区分。改短窗口节流：回拨时间戳使条目 kSpawnFailTtlMs 后过期
+        // （压力缓解后重查成功），同时避免资源耗尽期的线程创建风暴。
         QMutexLocker locker(&m_mutex);
-        m_cache[host] = {QString(), QDateTime::currentMSecsSinceEpoch()};
+        const qint64 backdated = QDateTime::currentMSecsSinceEpoch()
+            - (DnsResolver::kNegativeTtlMs - DnsResolver::kSpawnFailTtlMs);
+        m_cache[host] = {QString(), backdated};
         return {};
     }
     // 5WHY: t.detach() was unconditional -- even when the thread completed
@@ -333,8 +337,11 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
     QByteArray hb = host.toUtf8();
     std::thread t = spawnLookupThread(st, hb, AF_INET6);
     if (!t.joinable()) {
+        // 同 resolve()：EAGAIN 是本地瞬时问题，短窗口节流而非 30s 负缓存
         QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("v6:") + host] = {QString(), QDateTime::currentMSecsSinceEpoch()};
+        const qint64 backdated = QDateTime::currentMSecsSinceEpoch()
+            - (DnsResolver::kNegativeTtlMs - DnsResolver::kSpawnFailTtlMs);
+        m_cache[QStringLiteral("v6:") + host] = {QString(), backdated};
         return {};
     }
     // 5WHY: prefer join() when thread completed within timeout for immediate
@@ -351,8 +358,11 @@ QString DnsResolver::resolve6(const QString& host, int timeoutMs) {
 
 QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     // 反查 PTR（IP → 主机名；G4 traceroute 展示用）。与 resolve() 同机制：
-    // Apple 走 GCD（内核级超时），其余走受守卫 std::thread + 轮询；
-    // 正/负缓存同一张表——wedged 反查 DNS 不会重复阻塞每跳。
+    // Apple 走 GCD（内核级超时），其余走受守卫 std::thread + 轮询。
+    // 5WHY (verify 2026-08-17): 只写正缓存——空结果分不出超时与 NXDOMAIN，
+    // 展示性 0.5s 截止的负缓存会把慢但可解的 PTR 毒化 30s（run 1 超时 →
+    // run 2 命中负条目，主机名被连续多轮吞掉）。PTR 频率低（每跳一次），
+    // 不写负缓存只放弃节流、不损正确性。
     // 5WHY (simplify 2026-08-17): 原调用方同步无界 QHostInfo::fromName（违反
     // 本文件 H4 规则），且每跳新建局部事件循环（第 3 份有界等待机制）。
     {
@@ -402,7 +412,8 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
     QString nameOut;
     if (waitResult == 0 && ctx->resolved.load(std::memory_order_acquire))
         nameOut = QString::fromLatin1(ctx->name);
-    {
+    // PTR 只写正缓存（见函数头注释）：空结果不落表，慢 PTR 不被毒化
+    if (!nameOut.isEmpty()) {
         QMutexLocker locker(&m_mutex);
         m_cache[QStringLiteral("ptr:") + ip] = {nameOut, QDateTime::currentMSecsSinceEpoch()};
     }
@@ -427,14 +438,13 @@ QString DnsResolver::resolvePtr(const QString& ip, int timeoutMs) {
         });
     } catch (const std::system_error& e) {
         qWarning("DnsResolver: thread creation failed (%s)", e.what());
-        QMutexLocker locker(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {QString(), QDateTime::currentMSecsSinceEpoch()};
+        // PTR 不写负缓存（见函数头注释）——EAGAIN 直接返回，下轮自然重试
         return {};
     }
     const bool done = finishLookup(st, t, std::chrono::steady_clock::now(), timeoutMs);
-    {
+    if (done && !st->ip.isEmpty()) {
         QMutexLocker l(&m_mutex);
-        m_cache[QStringLiteral("ptr:") + ip] = {done ? st->ip : QString(), QDateTime::currentMSecsSinceEpoch()};
+        m_cache[QStringLiteral("ptr:") + ip] = {st->ip, QDateTime::currentMSecsSinceEpoch()};
     }
     return done ? st->ip : QString();
 #endif

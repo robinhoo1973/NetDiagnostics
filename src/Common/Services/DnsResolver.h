@@ -50,6 +50,13 @@ private:
     // Negative TTL: a failed/timeout lookup is remembered for this long so a
     // bad-DNS host doesn't spawn a blocking thread on every call.
     static constexpr qint64 kNegativeTtlMs = 30'000;
+    // 5WHY (verify 2026-08-17): thread-creation failure (EAGAIN) is a LOCAL
+    // transient resource problem, not a DNS failure — caching it for the full
+    // 30s poisons a healthy host for the rest of the run, indistinguishable
+    // from a real outage. Throttle instead: entries are backdated so they
+    // expire after this short window (re-resolve retries once resource
+    // pressure eases, without a spawn storm during exhaustion).
+    static constexpr qint64 kSpawnFailTtlMs = 3'000;
 
     struct DnsEntry {
         QString ip;      // resolved IP; empty = failed lookup

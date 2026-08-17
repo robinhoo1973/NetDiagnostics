@@ -32,8 +32,14 @@ Rectangle {
     // 5WHY (review 2026-08-17, 用户诉求 light 可读): tint 表烘焙的是暗色系
     // 主导色——light 白面上 0.12 透明度合成后 ≈1.0:1，光晕垫不可见。
     // light 运行时加深 1.5×（Qt.darker 乘 2/3 亮度），dark 不变。
-    readonly property color _effTint: ThemeEngine.isDark ? root.tint
-                                                         : Qt.darker(root.tint, 1.5)
+    // 5WHY (verify 2026-08-17): 加深只适用于 IconTints 烘焙值。DiagBlock
+    // 完成态以状态色为 tint——light 变体本身已是加深值（如 #DC2626），再
+    // 乘 2/3 亮度变近黑（#931919），状态光晕退化成灰斑。调用方以
+    // darkenInLight=false 关闭。
+    property bool darkenInLight: true
+    readonly property color _effTint: (!ThemeEngine.isDark && root.darkenInLight)
+        ? Qt.darker(root.tint, 1.5)
+        : root.tint
     color: Qt.alpha(root._effTint, ThemeEngine.colors.iconPadAlpha)
     border { width: 1; color: Qt.alpha(root._effTint, ThemeEngine.colors.iconPadBorderAlpha) }
 
